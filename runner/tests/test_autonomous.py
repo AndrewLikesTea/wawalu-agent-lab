@@ -12,7 +12,7 @@ from scripts.manage_autonomy import launch_path
 class AutonomousTests(unittest.TestCase):
     def config(self):
         return {"retry_cooldown_seconds": 60, "max_attempts": 2,
-                "working_hours": {"start": 8, "end": 22}}
+                "working_hours": {"start": 8, "end": 18}, "min_pr_interval_seconds": 3600}
 
     def test_singleton_rejects_second_manager(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -29,6 +29,31 @@ class AutonomousTests(unittest.TestCase):
             state.record_run(now); state.record_run(now)
             self.assertEqual(state.runs_today(now), 2)
             self.assertEqual(json.loads(state.path.read_text())["daily_runs"]["2026-07-14"], 2)
+
+    def test_persona_pr_limit_uses_rolling_hour_and_ignores_other_engineers(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            now = dt.datetime(2026, 7, 14, 16, 0, tzinfo=dt.UTC)
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            state.record_submission("frontend", now)
+            self.assertFalse(state.persona_available("frontend", 3600, now + dt.timedelta(minutes=59)))
+            self.assertTrue(state.persona_available("frontend", 3600, now + dt.timedelta(hours=1)))
+            self.assertTrue(state.persona_available("backend", 3600, now + dt.timedelta(minutes=1)))
+
+    def test_choose_issue_skips_persona_inside_pr_cooldown(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            now = dt.datetime(2026, 7, 14, 16, 0, tzinfo=dt.UTC)
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            state.record_submission("frontend", now)
+            issues = [
+                {"number": 1, "labels": [{"name": "persona:frontend"}]},
+                {"number": 2, "labels": [{"name": "persona:backend"}]},
+            ]
+            self.assertEqual(autonomous.choose_issue(issues, state, self.config(), now)["number"], 2)
+
+    def test_working_hours_are_pacific_even_for_utc_input(self):
+        config = self.config()
+        self.assertTrue(autonomous.within_hours(config, dt.datetime(2026, 7, 14, 15, 0, tzinfo=dt.UTC)))
+        self.assertFalse(autonomous.within_hours(config, dt.datetime(2026, 7, 15, 1, 0, tzinfo=dt.UTC)))
 
     def test_directive_is_private_persistent_and_consumed(self):
         with tempfile.TemporaryDirectory() as tmp:

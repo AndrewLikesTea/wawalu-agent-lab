@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { describeEvent, personaFromRef } from "../src/agents.js";
+import { describeEvent, personaFromRef, personaIdentity } from "../src/agents.js";
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 
@@ -24,15 +24,32 @@ test("agent observatory publishes named demo prompts and remains policy-protecte
 
 test("agent observatory maps public events to personas without conversation data", () => {
   assert.equal(personaFromRef("refs/heads/agent/frontend/accessibility"), "frontend");
+  assert.deepEqual(personaIdentity("frontend"), { name: "Mina", role: "Frontend engineer" });
   const item = describeEvent({ type: "PullRequestEvent", payload: {
     action: "opened",
     pull_request: { number: 7, title: "Improve navigation", html_url: "https://github.com/example/pull/7",
-      head: { ref: "agent/reviewer/navigation" } },
+      head: { ref: "agent/frontend/navigation" } },
   }});
   assert.deepEqual(item, {
-    persona: "reviewer", title: "Improve navigation",
-    detail: "opened pull request #7", url: "https://github.com/example/pull/7",
+    persona: "Mina · Frontend engineer", title: "Improve navigation",
+    detail: "Mina opened pull request #7", url: "https://github.com/example/pull/7",
   });
+});
+
+test("agent observatory names pull-request authors and reviewers", () => {
+  const opened = describeEvent({ type: "PullRequestEvent", payload: {
+    action: "opened", pull_request: { number: 16, title: "Filter decisions",
+      html_url: "https://github.com/example/pull/16", head: { ref: "agent/staff/filters" } },
+  }});
+  assert.equal(opened.persona, "Priya · Staff engineer");
+  assert.equal(opened.detail, "Priya opened pull request #16");
+
+  const approved = describeEvent({ type: "PullRequestReviewEvent", payload: {
+    pull_request: { number: 16, title: "Filter decisions", html_url: "https://github.com/example/pull/16" },
+    review: { state: "approved", html_url: "https://github.com/example/pull/16#review" },
+  }});
+  assert.equal(approved.persona, "Marcus · Reviewer");
+  assert.equal(approved.detail, "Marcus approved pull request #16");
 });
 
 test("agent observatory maps autonomous lifecycle comments", () => {
@@ -41,6 +58,6 @@ test("agent observatory maps autonomous lifecycle comments", () => {
       html_url: "https://github.com/example/issues/12" },
     comment: { body: "<!-- wawalu-agent-state -->\n**Synthetic team · planning**", html_url: "https://github.com/example/issues/12#comment" },
   }});
-  assert.deepEqual(item, { persona: "backend", title: "Add release export",
-    detail: "planning · issue #12", url: "https://github.com/example/issues/12#comment" });
+  assert.deepEqual(item, { persona: "Rowan · Backend engineer", title: "Add release export",
+    detail: "Rowan: planning on issue #12", url: "https://github.com/example/issues/12#comment" });
 });

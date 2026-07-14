@@ -50,8 +50,8 @@
 - `agent-ready` GitHub issues are the durable queue. A `persona:<role>` label
   assigns the worker; unassigned tasks fall back to the staff persona.
 - When the queue is empty, Sam may generate one bounded issue from `PRODUCT.md`.
-- Default operation is 08:00–22:00 local time, at most six attempted runs per UTC
-  day, two attempts per issue, and a 30-minute retry cooldown. Edit the ignored
+- Default operation is 08:00–18:00 Pacific time, at most one submitted PR per
+  engineer in a rolling hour, two attempts per issue, and a 30-minute retry cooldown. Edit the ignored
   `.secrets/autonomy.json` to change those controls.
 - State, private event history, logs, generated scenarios, and the stop file live
   under ignored `.agent/autonomy/`. Public issue comments expose safe lifecycle
