@@ -13,7 +13,7 @@ import uuid
 from runner.github_app import installation_token, reviewer_token
 from runner.budget import DiffBudget
 from runner.delivery import DELIVERY_REQUEST, consume_merge_request, enable_auto_merge
-from runner.layers import plan, review, review_debate, run_aside, run_worker, WORKERS
+from runner.layers import CAPACITY_EXIT_CODES, plan, review, review_debate, run_aside, run_worker, WORKERS
 from runner.simulation import choose_distraction, choose_peer_reviewer, happens, load_behaviors, personality_context
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -29,6 +29,20 @@ def run(command: list[str], cwd: pathlib.Path = ROOT, **kwargs):
 
 def output(command: list[str], cwd: pathlib.Path = ROOT) -> str:
     return subprocess.check_output(command, cwd=cwd, text=True).strip()
+
+
+def collaborator_capacity_deferred(exit_code: int) -> bool:
+    """Capacity exit codes are stable internal signals from runner.layers, not provider API codes."""
+    return bool(CAPACITY_EXIT_CODES) and exit_code in CAPACITY_EXIT_CODES.values()
+
+
+def record_collaborator_exit(metadata: dict, exit_code: int) -> bool:
+    """Record an optional collaborator result and report whether primary work may continue."""
+    metadata["collaborator_exit_code"] = exit_code
+    deferred = collaborator_capacity_deferred(exit_code)
+    if deferred:
+        metadata["collaborator_capacity_deferred"] = True
+    return deferred
 
 
 def load_personas() -> dict:
@@ -142,8 +156,10 @@ Scenario: {json.dumps(scenario, indent=2)}
             personas[collaborator]["wawalu_token"], runtime["WAWALU_INGEST_ENDPOINT"].rstrip("/"),
             log_label=f"collaborator-{collaborator}")
         if collaborator_exit:
-            metadata["collaborator_exit_code"] = collaborator_exit
+            deferred = record_collaborator_exit(metadata, collaborator_exit)
             (run_dir / "metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")
+            if deferred:
+                continue
             return collaborator_exit
     merge_requested = consume_merge_request(worktree, persona, branch)
     metadata["worker_requested_auto_merge"] = merge_requested
