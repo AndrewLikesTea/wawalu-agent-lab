@@ -2,6 +2,7 @@ import argparse
 import base64
 import datetime as dt
 import json
+import hashlib
 import os
 import pathlib
 import re
@@ -9,13 +10,16 @@ import subprocess
 import sys
 import uuid
 
-from runner.github_app import installation_token
+from runner.github_app import installation_token, reviewer_token
+from runner.budget import DiffBudget
+from runner.delivery import enable_auto_merge
 from runner.layers import plan, review, run_worker, WORKERS
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 AGENT_DIR = ROOT / ".agent"
 SECRETS = ROOT / ".secrets" / "personas.json"
 RUNTIME_ENV = ROOT / ".secrets" / "runtime.env"
+BUDGET = DiffBudget(ROOT)
 
 
 def run(command: list[str], cwd: pathlib.Path = ROOT, **kwargs):
@@ -66,11 +70,14 @@ def command_status() -> int:
         "github_authenticated": subprocess.run(["gh", "auth", "status"], capture_output=True).returncode == 0,
         "ollama_models": output(["ollama", "list"]),
         "personas_configured": SECRETS.exists(),
+        "approved_diffs_today": BUDGET.count(),
+        "approved_diff_limit": BUDGET.limit,
     }, indent=2))
     return 0
 
 
 def command_run(persona: str, scenario_path: str, push: bool, requested_worker: str) -> int:
+    BUDGET.ensure_available()
     personas = load_personas()
     runtime = load_runtime_env()
     if persona not in personas: raise SystemExit(f"unknown persona: {persona}")
@@ -100,7 +107,9 @@ Run relevant tests. Do not push, merge, deploy, or access paths outside it.
     run([sys.executable, "-m", "runner.policy", "--base", "main"], cwd=worktree)
     run(["git", "add", "--intent-to-add", "--all"], cwd=worktree)
     diff = output(["git", "diff", "--no-ext-diff", "main"], cwd=worktree)
-    review_value = review(persona_prompt, scenario, plan_value, diff,
+    reviewed_diff_sha256 = hashlib.sha256(diff.encode()).hexdigest()
+    reviewer_prompt = (ROOT / personas["reviewer"]["prompt_file"]).read_text()
+    review_value = review(reviewer_prompt, scenario, plan_value, diff,
                           "npm run check and agent policy passed",
                           run_dir / "qwen-review.json")
     (run_dir / "review.json").write_text(json.dumps(review_value, indent=2) + "\n")
@@ -109,9 +118,21 @@ Run relevant tests. Do not push, merge, deploy, or access paths outside it.
         (run_dir / "metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")
         print(json.dumps(metadata, indent=2))
         return 3
+    remaining = BUDGET.record_if_changed({
+            "run_id": run_id, "persona": persona, "scenario": scenario_id,
+            "worker": plan_value["worker"],
+            "recorded_at": dt.datetime.now(dt.UTC).isoformat(),
+        }, diff)
+    if remaining is not None:
+        metadata["diff_budget_remaining"] = remaining
+        metadata["reviewed_diff_sha256"] = reviewed_diff_sha256
+        (run_dir / "metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")
     if output(["git", "status", "--porcelain"], cwd=worktree):
         run(["git", "add", "--all"], cwd=worktree)
         run(["git", "commit", "-m", f"Agent: {scenario.get('title', scenario_id)}"], cwd=worktree)
+    committed_diff = output(["git", "diff", "--no-ext-diff", "main"], cwd=worktree)
+    if hashlib.sha256(committed_diff.encode()).hexdigest() != reviewed_diff_sha256:
+        raise RuntimeError("committed diff does not match the reviewer-approved diff")
     run([sys.executable, "-m", "runner.policy", "--base", "main"], cwd=worktree)
     if push:
         github_token = installation_token()
@@ -125,7 +146,14 @@ Run relevant tests. Do not push, merge, deploy, or access paths outside it.
         issue_line = f"\n\nCloses #{scenario['issue']}" if scenario.get("issue") else ""
         run(["gh", "pr", "create", "--repo", "AndrewLikesTea/wawalu-agent-lab",
              "--base", "main", "--head", branch,
-             "--title", title, "--body", f"Synthetic team run: `{run_id}`\n\nProduction deployment still requires owner approval.{issue_line}"], cwd=worktree, env=pr_env)
+             "--title", title, "--body", f"Synthetic team run: `{run_id}`\n\nMerging to protected `main` triggers production deployment automatically.{issue_line}"], cwd=worktree, env=pr_env)
+        review_env = os.environ.copy(); review_env["GH_TOKEN"] = reviewer_token()
+        run(["gh", "pr", "review", branch, "--repo", "AndrewLikesTea/wawalu-agent-lab",
+             "--approve", "--body", f"Approved by the synthetic reviewer persona. Qwen review: {review_value['summary']}"],
+            cwd=worktree, env=review_env)
+        enable_auto_merge("AndrewLikesTea/wawalu-agent-lab", branch, github_token, worktree)
+        metadata["delivery"] = "auto-merge requested; protected main deploys after required checks"
+        (run_dir / "metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")
     print(json.dumps(metadata, indent=2))
     return 0
 

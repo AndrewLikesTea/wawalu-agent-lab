@@ -24,6 +24,14 @@ jobs:
       - run: npm ci
       - run: npm run check
       - run: python3 -m unittest discover -s runner/tests -v
+      - name: Require synthetic reviewer approval of current head
+        if: github.event_name == 'pull_request'
+        run: python3 scripts/check_reviewer_approval.py
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
       - name: Enforce agent change policy
         if: github.event_name == 'pull_request' && startsWith(github.head_ref, 'agent/')
         run: python3 runner/policy.py --base "origin/${{ github.base_ref }}"

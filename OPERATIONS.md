@@ -4,7 +4,8 @@
 
 - GitHub: `AndrewLikesTea/wawalu-agent-lab`
 - Agents push only `agent/<persona>/<task>` branches.
-- `main` requires a PR, CI, code-owner review, and blocks force pushes.
+- `main` requires a PR, exact-head synthetic review, CI, resolved conversations,
+  and blocks force pushes.
 - The agent credential is never a ruleset bypass actor.
 
 ## Model and identity boundary
@@ -21,10 +22,22 @@
 
 - Cloudflare Pages project: `wawalu-agent-lab`
 - Preview branches deploy automatically from pull requests.
-- Production is a manually dispatched workflow referencing an exact `main`
-  commit and the GitHub `production` environment.
-- Andrew is the required production reviewer. Environment secrets are not
-  released until approval.
+- Every protected `main` update runs checks, deploys that exact commit to the
+  production Pages branch, and smoke-tests `labs.wawalu.org`.
+- After the independent Reviewer App approves, the trusted local runner enables
+  GitHub auto-merge. Required CI and branch protection remain the release gate;
+  there is no separate deployment approval after merge.
+- Worker processes cannot merge, bypass checks, access Cloudflare credentials,
+  or invoke the production deployment themselves.
+
+## Daily diff budget
+
+- The local orchestrator allows 50 Qwen-approved, non-empty code diffs per UTC
+  day across all personas.
+- The ignored ledger lives under `.agent/budgets/` with mode `0600`.
+- Failed workers, rejected reviews, and no-change runs do not consume budget.
+- The runner checks availability before invoking a paid worker and records the
+  diff atomically before committing or pushing it.
 
 ## GitHub App
 
@@ -33,6 +46,15 @@ contents, issues, pull requests, and metadata access. Do not grant Actions,
 administration, environments, secrets, or ruleset write access. Install it only
 on this repository. The local orchestrator should mint short-lived installation
 tokens; agents never receive the app private key.
+The repository must have GitHub auto-merge enabled. The implementation App uses
+its pull-request and contents permissions only to create the PR and request
+auto-merge; it is not a ruleset bypass actor.
+
+Register `github-reviewer-app-manifest.json` as a second App with only contents
+read and pull-request review access. The implementation App authors PRs; the
+Reviewer App approves Qwen-reviewed diffs, satisfying the protected-branch
+review gate without using Andrew's identity. CI verifies that the App's approval
+targets the exact current head SHA, so every new push requires a fresh review.
 
 ## Emergency stop
 

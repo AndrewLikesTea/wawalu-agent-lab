@@ -9,11 +9,18 @@ The planning and review layers use `qwen3-coder:30b`; workers run sequentially
 to preserve memory for Docker, tests, and browser previews. Each worker uses the
 persona's Wawalu ingest token, so Wawalu attribution is independent of the
 OpenAI or Anthropic account used to authenticate the CLI.
+The runner permits at most 50 Qwen-approved, non-empty code diffs per UTC day.
+Failed, rejected, and no-change runs do not consume that budget.
+The dedicated reviewer persona evaluates every proposed diff and a separate,
+least-privilege GitHub App submits the required approval after it passes.
 
 The repository is deliberately separate from the Wawalu product repository.
 Agents work only in disposable worktrees, may push only `agent/*` branches, and
-must use pull requests. Production deployment requires Andrew's approval through
-the protected GitHub `production` environment.
+must use pull requests. After Qwen approves the exact diff, the independent
+Reviewer App approves the exact PR head and the runner enables GitHub auto-merge.
+GitHub waits for required CI and resolved conversations, then merges to `main`;
+that protected-main push deploys production automatically and runs a smoke test.
+Worker personas never receive production credentials or direct merge/deploy access.
 
 ## Local checks
 
