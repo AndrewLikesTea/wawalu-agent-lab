@@ -11,6 +11,7 @@ dist/
 .agent/worktrees/
 .agent/codex-homes/
 .agent/runs/
+.agent/budgets/
 *.log
 __pycache__/
 *.pyc

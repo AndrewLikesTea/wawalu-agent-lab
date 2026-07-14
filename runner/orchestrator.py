@@ -10,12 +10,14 @@ import sys
 import uuid
 
 from runner.github_app import installation_token
+from runner.budget import DiffBudget
 from runner.layers import plan, review, run_worker, WORKERS
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 AGENT_DIR = ROOT / ".agent"
 SECRETS = ROOT / ".secrets" / "personas.json"
 RUNTIME_ENV = ROOT / ".secrets" / "runtime.env"
+BUDGET = DiffBudget(ROOT)
 
 
 def run(command: list[str], cwd: pathlib.Path = ROOT, **kwargs):
@@ -66,11 +68,14 @@ def command_status() -> int:
         "github_authenticated": subprocess.run(["gh", "auth", "status"], capture_output=True).returncode == 0,
         "ollama_models": output(["ollama", "list"]),
         "personas_configured": SECRETS.exists(),
+        "approved_diffs_today": BUDGET.count(),
+        "approved_diff_limit": BUDGET.limit,
     }, indent=2))
     return 0
 
 
 def command_run(persona: str, scenario_path: str, push: bool, requested_worker: str) -> int:
+    BUDGET.ensure_available()
     personas = load_personas()
     runtime = load_runtime_env()
     if persona not in personas: raise SystemExit(f"unknown persona: {persona}")
@@ -109,6 +114,13 @@ Run relevant tests. Do not push, merge, deploy, or access paths outside it.
         (run_dir / "metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")
         print(json.dumps(metadata, indent=2))
         return 3
+    if diff:
+        metadata["diff_budget_remaining"] = BUDGET.record({
+            "run_id": run_id, "persona": persona, "scenario": scenario_id,
+            "worker": plan_value["worker"],
+            "recorded_at": dt.datetime.now(dt.UTC).isoformat(),
+        })
+        (run_dir / "metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")
     if output(["git", "status", "--porcelain"], cwd=worktree):
         run(["git", "add", "--all"], cwd=worktree)
         run(["git", "commit", "-m", f"Agent: {scenario.get('title', scenario_id)}"], cwd=worktree)
@@ -125,7 +137,7 @@ Run relevant tests. Do not push, merge, deploy, or access paths outside it.
         issue_line = f"\n\nCloses #{scenario['issue']}" if scenario.get("issue") else ""
         run(["gh", "pr", "create", "--repo", "AndrewLikesTea/wawalu-agent-lab",
              "--base", "main", "--head", branch,
-             "--title", title, "--body", f"Synthetic team run: `{run_id}`\n\nProduction deployment still requires owner approval.{issue_line}"], cwd=worktree, env=pr_env)
+             "--title", title, "--body", f"Synthetic team run: `{run_id}`\n\nMerging to protected `main` triggers production deployment automatically.{issue_line}"], cwd=worktree, env=pr_env)
     print(json.dumps(metadata, indent=2))
     return 0
 

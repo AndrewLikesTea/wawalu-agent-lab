@@ -21,10 +21,19 @@
 
 - Cloudflare Pages project: `wawalu-agent-lab`
 - Preview branches deploy automatically from pull requests.
-- Production is a manually dispatched workflow referencing an exact `main`
-  commit and the GitHub `production` environment.
-- Andrew is the required production reviewer. Environment secrets are not
-  released until approval.
+- Every protected `main` update runs checks, deploys that exact commit to the
+  production Pages branch, and smoke-tests `labs.wawalu.org`.
+- Andrew's merge approval is the production release gate; there is no separate
+  deployment approval after merge.
+
+## Daily diff budget
+
+- The local orchestrator allows 50 Qwen-approved, non-empty code diffs per UTC
+  day across all personas.
+- The ignored ledger lives under `.agent/budgets/` with mode `0600`.
+- Failed workers, rejected reviews, and no-change runs do not consume budget.
+- The runner checks availability before invoking a paid worker and records the
+  diff atomically before committing or pushing it.
 
 ## GitHub App
 
