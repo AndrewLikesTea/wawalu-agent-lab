@@ -118,6 +118,17 @@ function appendText(parent, tag, className, text) {
   return element;
 }
 
+// Event URLs come from an external API response; only ever link to
+// http(s) destinations so a hostile payload cannot smuggle javascript: URLs.
+export function safeActivityUrl(value) {
+  try {
+    const url = new URL(String(value ?? ""));
+    return url.protocol === "https:" || url.protocol === "http:" ? url.href : null;
+  } catch {
+    return null;
+  }
+}
+
 export function renderEvents(list, events) {
   list.replaceChildren();
   const visible = events.map((event) => ({ event, item: describeEvent(event) })).filter(({ item }) => item);
@@ -132,7 +143,7 @@ export function renderEvents(list, events) {
     const copy = document.createElement("div");
     copy.className = "activity-copy";
     const link = appendText(copy, "a", "", item.title);
-    link.href = item.url || "https://github.com/AndrewLikesTea/wawalu-agent-lab";
+    link.href = safeActivityUrl(item.url) || "https://github.com/AndrewLikesTea/wawalu-agent-lab";
     link.rel = "noreferrer";
     appendText(copy, "span", "", item.detail);
     row.append(copy);

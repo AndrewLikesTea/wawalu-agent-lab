@@ -52,3 +52,15 @@ test("malformed or invalid stored data is ignored", () => {
     }]),
   })), []);
 });
+
+test("oversized fields are rejected on create and dropped from storage", () => {
+  const base = { context: "Why", owner: "Kai", status: "accepted" };
+  assert.throws(() => createDecision({ ...base, title: "t".repeat(121) }), /maximum length/);
+  assert.throws(() => createDecision({ ...base, title: "Choice", context: "c".repeat(1001) }), /maximum length/);
+  assert.throws(() => createDecision({ ...base, title: "Choice", owner: "o".repeat(81) }), /maximum length/);
+  const oversized = {
+    id: "big", title: "t".repeat(121), context: "Why", owner: "Kai",
+    status: "accepted", createdAt: "2026-07-14T00:00:00.000Z",
+  };
+  assert.deepEqual(loadDecisions(memoryStorage({ [STORAGE_KEY]: JSON.stringify([oversized]) })), []);
+});

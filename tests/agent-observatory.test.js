@@ -72,3 +72,12 @@ test("agent observatory exposes named review discussions", () => {
     detail: "Mina joined the review discussion on pull request #22",
     url: "https://github.com/example/pull/22#comment" });
 });
+
+test("activity links only accept http(s) URLs", async () => {
+  const { safeActivityUrl } = await import("../src/agents.js");
+  assert.equal(safeActivityUrl("https://github.com/x/y/pull/1"), "https://github.com/x/y/pull/1");
+  assert.equal(safeActivityUrl("javascript:alert(1)"), null);
+  assert.equal(safeActivityUrl("data:text/html,<script>1</script>"), null);
+  assert.equal(safeActivityUrl("not a url"), null);
+  assert.equal(safeActivityUrl(null), null);
+});
