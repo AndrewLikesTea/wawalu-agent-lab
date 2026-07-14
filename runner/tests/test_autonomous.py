@@ -328,7 +328,8 @@ class AutonomousTests(unittest.TestCase):
     @mock.patch.object(autonomous, "review_pull_request")
     @mock.patch.object(autonomous, "github")
     def test_pr_with_current_synthetic_approval_is_skipped(self, github, review):
-        with tempfile.TemporaryDirectory() as tmp:
+        with tempfile.TemporaryDirectory() as tmp, \
+             mock.patch.object(autonomous, "AUTONOMY", pathlib.Path(tmp) / "autonomy"):
             state = autonomous.State(pathlib.Path(tmp) / "state.json")
             github.side_effect = [[dict(self.OWNER_PULL)], [
                 {"state": "APPROVED", "commit_id": "abc123",
@@ -341,7 +342,8 @@ class AutonomousTests(unittest.TestCase):
     @mock.patch.object(autonomous, "github")
     def test_foreign_pr_without_team_approval_is_ignored(self, github, review):
         pull = dict(self.OWNER_PULL, user={"login": "someone-else"})
-        with tempfile.TemporaryDirectory() as tmp:
+        with tempfile.TemporaryDirectory() as tmp, \
+             mock.patch.object(autonomous, "AUTONOMY", pathlib.Path(tmp) / "autonomy"):
             state = autonomous.State(pathlib.Path(tmp) / "state.json")
             github.side_effect = [[pull], []]
             approved = autonomous.review_outstanding_prs("token", {}, state, mock.Mock())
@@ -392,7 +394,8 @@ class AutonomousTests(unittest.TestCase):
     @mock.patch.object(autonomous, "review_pull_request")
     @mock.patch.object(autonomous, "github")
     def test_processed_head_is_not_rereviewed(self, github, review):
-        with tempfile.TemporaryDirectory() as tmp:
+        with tempfile.TemporaryDirectory() as tmp, \
+             mock.patch.object(autonomous, "AUTONOMY", pathlib.Path(tmp) / "autonomy"):
             state = autonomous.State(pathlib.Path(tmp) / "state.json")
             state.value["pr_reviews"]["40"] = {"sha": "abc123", "approved": False}
             github.side_effect = [[dict(self.OWNER_PULL)], []]
@@ -405,7 +408,8 @@ class AutonomousTests(unittest.TestCase):
     @mock.patch.object(autonomous, "github")
     def test_approved_behind_pr_gets_branch_update(self, github, review):
         pull = dict(self.OWNER_PULL, auto_merge={"merge_method": "squash"})
-        with tempfile.TemporaryDirectory() as tmp:
+        with tempfile.TemporaryDirectory() as tmp, \
+             mock.patch.object(autonomous, "AUTONOMY", pathlib.Path(tmp) / "autonomy"):
             state = autonomous.State(pathlib.Path(tmp) / "state.json")
             github.side_effect = [
                 [pull],
@@ -493,6 +497,86 @@ class AutonomousTests(unittest.TestCase):
         self.assertIn("manual rebase", commented.args[3]["body"])
 
     @mock.patch.object(autonomous, "github")
+    def test_conflict_with_exhausted_attempts_blocks_instead_of_requeueing(self, github):
+        with tempfile.TemporaryDirectory() as tmp:
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            state.value["issues"]["8"] = {"status": "submitted", "persona": "staff", "attempts": 2}
+            github.side_effect = [
+                {"mergeable_state": "dirty"},
+                {"state": "open", "number": 8,
+                 "labels": [{"name": "agent-running"}, {"name": "persona:staff"}]},
+                None, None, None, None,
+            ]
+            autonomous.update_pull_branch(dict(self.AGENT_PULL), "token",
+                                          {"issue_label": "agent-ready", "max_attempts": 2},
+                                          state, mock.Mock())
+            self.assertEqual(state.value["issues"]["8"]["status"], "blocked")
+        relabeled = github.call_args_list[4]
+        self.assertIn("agent-blocked", relabeled.args[3]["labels"])
+        self.assertNotIn("agent-ready", relabeled.args[3]["labels"])
+        self.assertIn("human attention", github.call_args_list[5].args[3]["body"])
+
+    @mock.patch.object(autonomous, "github")
+    def test_concurrent_sweep_is_skipped_via_lock(self, github):
+        with tempfile.TemporaryDirectory() as tmp, \
+             mock.patch.object(autonomous, "AUTONOMY", pathlib.Path(tmp) / "autonomy"):
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            journal = mock.Mock()
+            with autonomous.try_lock(autonomous.AUTONOMY / "sweep.lock") as owned:
+                self.assertTrue(owned)
+                approved = autonomous.review_outstanding_prs("token", {}, state, journal)
+        self.assertEqual(approved, [])
+        github.assert_not_called()
+        self.assertEqual(journal.emit.call_args.args[0], "pr_sweep_skipped")
+
+    @mock.patch.object(autonomous, "github")
+    def test_sweep_prunes_state_for_closed_prs(self, github):
+        with tempfile.TemporaryDirectory() as tmp, \
+             mock.patch.object(autonomous, "AUTONOMY", pathlib.Path(tmp) / "autonomy"):
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            state.value["pr_reviews"]["99"] = {"sha": "gone", "approved": True}
+            state.value["pr_updates"]["98"] = {"sha": "gone", "result": "updated"}
+            github.side_effect = [[]]
+            autonomous.review_outstanding_prs("token", {}, state, mock.Mock())
+            self.assertEqual(state.value["pr_reviews"], {})
+            self.assertEqual(state.value["pr_updates"], {})
+            persisted = json.loads(state.path.read_text())
+            self.assertEqual(persisted["pr_reviews"], {})
+
+    @mock.patch.object(autonomous, "consult_next_steps", side_effect=RuntimeError("cli down"))
+    @mock.patch.object(autonomous, "load_runtime_env", return_value={"WAWALU_INGEST_ENDPOINT": "https://example.invalid"})
+    @mock.patch.object(autonomous, "load_personas", return_value={"manager": {"wawalu_token": "manager-token"}})
+    def test_failed_consultations_switch_worker_after_two_attempts(
+            self, personas, runtime, consult):
+        with tempfile.TemporaryDirectory() as tmp, \
+             mock.patch.object(autonomous, "DIRECTIVE", pathlib.Path(tmp) / "directive.json"), \
+             mock.patch.object(autonomous, "AUTONOMY", pathlib.Path(tmp) / "autonomy"), \
+             mock.patch.object(autonomous, "ROOT", pathlib.Path(tmp)):
+            self.consultation_workspace(tmp, {
+                "status": "consumed", "text": "Build social",
+                "created_issues": [{"index": 0, "issue": 20}],
+                "consultations": [{"worker": "codex", "created_issues": []}],
+            })
+            for expected_worker, expected_attempts in (("codex", 1), ("claude", 0)):
+                with self.assertRaisesRegex(RuntimeError, "cli down"):
+                    autonomous.consult_after_directive_mvp(
+                        "token", {"issue_label": "agent-ready"}, mock.Mock())
+                value = autonomous.DirectiveStore().read_any()["consultations"][0]
+                self.assertEqual(value.get("consult_attempts", 0), expected_attempts)
+            self.assertEqual(value["worker"], "claude")
+
+    @mock.patch.object(autonomous, "sweep_outstanding_prs")
+    @mock.patch.object(autonomous, "installation_token", return_value="token")
+    def test_after_hours_sweep_runs_only_when_enabled(self, token, sweep):
+        with tempfile.TemporaryDirectory() as tmp, \
+             mock.patch.object(autonomous, "STOP", pathlib.Path(tmp) / "STOP"):
+            config = {"enabled": True, "working_hours": {"start": 0, "end": 0},
+                      "review_prs_after_hours": True}
+            result = autonomous.tick(config, mock.Mock(), mock.Mock())
+        self.assertEqual(result, "outside-working-hours")
+        sweep.assert_called_once()
+
+    @mock.patch.object(autonomous, "github")
     def test_conflicted_pr_requeue_can_be_disabled(self, github):
         with tempfile.TemporaryDirectory() as tmp:
             state = autonomous.State(pathlib.Path(tmp) / "state.json")
@@ -505,7 +589,8 @@ class AutonomousTests(unittest.TestCase):
     @mock.patch.object(autonomous, "update_pull_branch")
     @mock.patch.object(autonomous, "github")
     def test_approved_pr_without_auto_merge_is_not_updated(self, github, update):
-        with tempfile.TemporaryDirectory() as tmp:
+        with tempfile.TemporaryDirectory() as tmp, \
+             mock.patch.object(autonomous, "AUTONOMY", pathlib.Path(tmp) / "autonomy"):
             state = autonomous.State(pathlib.Path(tmp) / "state.json")
             github.side_effect = [[dict(self.OWNER_PULL)], [
                 {"state": "APPROVED", "commit_id": "abc123",
