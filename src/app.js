@@ -29,13 +29,22 @@ export const SORTS = {
 // oldest-first, and expose the other orderings through the sort control.)
 export const DEFAULT_SORT = "newest";
 
+// Mirror the form's maxlength attributes so entries written straight into
+// storage (bypassing the form) are bounded the same way before rendering.
+export const MAX_TITLE_LENGTH = 120;
+export const MAX_CONTEXT_LENGTH = 1000;
+export const MAX_OWNER_LENGTH = 80;
+
 function isDecision(value) {
   return value !== null
     && typeof value === "object"
     && typeof value.id === "string"
     && typeof value.title === "string" && value.title.trim() !== ""
+    && value.title.length <= MAX_TITLE_LENGTH
     && typeof value.context === "string" && value.context.trim() !== ""
+    && value.context.length <= MAX_CONTEXT_LENGTH
     && typeof value.owner === "string" && value.owner.trim() !== ""
+    && value.owner.length <= MAX_OWNER_LENGTH
     && STATUSES.includes(value.status)
     && typeof value.createdAt === "string"
     && !Number.isNaN(Date.parse(value.createdAt));
@@ -62,6 +71,10 @@ export function createDecision(values, options = {}) {
 
   if (!title || !context || !owner || !STATUSES.includes(status)) {
     throw new TypeError("A decision requires a title, context, owner, and valid status.");
+  }
+  if (title.length > MAX_TITLE_LENGTH || context.length > MAX_CONTEXT_LENGTH
+      || owner.length > MAX_OWNER_LENGTH) {
+    throw new TypeError("A decision field exceeds its maximum length.");
   }
 
   return {
