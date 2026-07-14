@@ -42,7 +42,9 @@ class DiffBudget:
     def record(self, entry: dict[str, Any], now: dt.datetime | None = None) -> int:
         ledger, lock = self._paths(now)
         self.directory.mkdir(parents=True, exist_ok=True, mode=0o700)
+        self.directory.chmod(0o700)
         with lock.open("a+", encoding="utf-8") as handle:
+            lock.chmod(0o600)
             fcntl.flock(handle, fcntl.LOCK_EX)
             entries = self._read(ledger)
             if len(entries) >= self.limit:
@@ -53,3 +55,7 @@ class DiffBudget:
             temporary.chmod(0o600)
             temporary.replace(ledger)
             return self.limit - len(entries)
+
+    def record_if_changed(self, entry: dict[str, Any], diff: str,
+                          now: dt.datetime | None = None) -> int | None:
+        return self.record(entry, now) if diff else None

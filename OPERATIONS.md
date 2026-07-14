@@ -46,7 +46,8 @@ tokens; agents never receive the app private key.
 Register `github-reviewer-app-manifest.json` as a second App with only contents
 read and pull-request review access. The implementation App authors PRs; the
 Reviewer App approves Qwen-reviewed diffs, satisfying the protected-branch
-approval and last-push requirements without using Andrew's identity.
+review gate without using Andrew's identity. CI verifies that the App's approval
+targets the exact current head SHA, so every new push requires a fresh review.
 
 ## Emergency stop
 

@@ -2,6 +2,7 @@ import argparse
 import base64
 import datetime as dt
 import json
+import hashlib
 import os
 import pathlib
 import re
@@ -105,6 +106,7 @@ Run relevant tests. Do not push, merge, deploy, or access paths outside it.
     run([sys.executable, "-m", "runner.policy", "--base", "main"], cwd=worktree)
     run(["git", "add", "--intent-to-add", "--all"], cwd=worktree)
     diff = output(["git", "diff", "--no-ext-diff", "main"], cwd=worktree)
+    reviewed_diff_sha256 = hashlib.sha256(diff.encode()).hexdigest()
     reviewer_prompt = (ROOT / personas["reviewer"]["prompt_file"]).read_text()
     review_value = review(reviewer_prompt, scenario, plan_value, diff,
                           "npm run check and agent policy passed",
@@ -115,16 +117,21 @@ Run relevant tests. Do not push, merge, deploy, or access paths outside it.
         (run_dir / "metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")
         print(json.dumps(metadata, indent=2))
         return 3
-    if diff:
-        metadata["diff_budget_remaining"] = BUDGET.record({
+    remaining = BUDGET.record_if_changed({
             "run_id": run_id, "persona": persona, "scenario": scenario_id,
             "worker": plan_value["worker"],
             "recorded_at": dt.datetime.now(dt.UTC).isoformat(),
-        })
+        }, diff)
+    if remaining is not None:
+        metadata["diff_budget_remaining"] = remaining
+        metadata["reviewed_diff_sha256"] = reviewed_diff_sha256
         (run_dir / "metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")
     if output(["git", "status", "--porcelain"], cwd=worktree):
         run(["git", "add", "--all"], cwd=worktree)
         run(["git", "commit", "-m", f"Agent: {scenario.get('title', scenario_id)}"], cwd=worktree)
+    committed_diff = output(["git", "diff", "--no-ext-diff", "main"], cwd=worktree)
+    if hashlib.sha256(committed_diff.encode()).hexdigest() != reviewed_diff_sha256:
+        raise RuntimeError("committed diff does not match the reviewer-approved diff")
     run([sys.executable, "-m", "runner.policy", "--base", "main"], cwd=worktree)
     if push:
         github_token = installation_token()
