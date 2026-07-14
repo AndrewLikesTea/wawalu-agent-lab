@@ -64,6 +64,10 @@ python3 -m runner.autonomous directive
 python3 -m runner.autonomous directive --clear
 ```
 
+Running `directive` with no text prints the current directive's full evolution:
+its status, the issues of the initial program, and each consultation round's
+worker, high-level idea, and generated issues.
+
 The macOS LaunchAgent restarts after failures and laptop login. A stopped team
 remains stopped across restarts until `resume` removes the emergency-stop file.
 A pending free-text directive takes priority over the ordinary issue queue for

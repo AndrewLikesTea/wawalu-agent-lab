@@ -598,6 +598,27 @@ class AutonomousTests(unittest.TestCase):
             autonomous.review_outstanding_prs("token", {}, state, mock.Mock())
         update.assert_not_called()
 
+    def test_directive_summary_shows_consultation_evolution(self):
+        self.assertIsNone(autonomous.summarize_directive(None))
+        summary = autonomous.summarize_directive({
+            "status": "consumed", "text": "Build social", "created_at": "2026-07-14T16:19:00+00:00",
+            "created_issues": [{"index": 0, "issue": 20}, {"index": 1, "issue": 21}],
+            "consultations": [
+                {"worker": "codex", "created_at": "2026-07-15T01:00:00+00:00",
+                 "idea": "Add notifications", "created_issues": [{"index": 0, "issue": 30}]},
+                {"worker": "claude", "created_at": "2026-07-16T01:00:00+00:00",
+                 "created_issues": []},
+            ],
+            "plan": [{"title": "internal detail that should not leak"}],
+        })
+        self.assertEqual(summary["issues"], [20, 21])
+        self.assertEqual(summary["consultations"][0],
+                         {"round": 1, "worker": "codex", "created_at": "2026-07-15T01:00:00+00:00",
+                          "idea": "Add notifications", "issues": [30]})
+        self.assertEqual(summary["consultations"][1]["round"], 2)
+        self.assertIsNone(summary["consultations"][1]["idea"])
+        self.assertNotIn("plan", summary)
+
     @mock.patch.object(autonomous, "sync_main")
     def test_tick_honors_stop_before_network_or_sync(self, sync):
         with tempfile.TemporaryDirectory() as tmp, \

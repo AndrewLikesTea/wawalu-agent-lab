@@ -208,6 +208,30 @@ class DirectiveStore:
         self.path.unlink(missing_ok=True)
 
 
+def summarize_directive(value: dict[str, Any] | None) -> dict[str, Any] | None:
+    """Owner-facing view of the directive's evolution across consultation rounds."""
+    if not value:
+        return None
+    summary = {
+        "status": value.get("status"),
+        "text": value.get("text"),
+        "created_at": value.get("created_at"),
+        "issues": [int(item["issue"]) for item in value.get("created_issues", [])],
+    }
+    rounds = []
+    for index, consultation in enumerate(value.get("consultations", []), start=1):
+        rounds.append({
+            "round": index,
+            "worker": consultation.get("worker"),
+            "created_at": consultation.get("created_at"),
+            "idea": consultation.get("idea"),
+            "issues": [int(item["issue"]) for item in consultation.get("created_issues", [])],
+        })
+    if rounds:
+        summary["consultations"] = rounds
+    return summary
+
+
 def load_config(path: pathlib.Path = CONFIG) -> dict[str, Any]:
     if not path.exists():
         raise RuntimeError(f"missing {path}; copy config/autonomy.example.json first")
@@ -823,7 +847,7 @@ def main() -> int:
         if args.text:
             value = store.set(" ".join(args.text))
             print(json.dumps({"status": value["status"], "text": value["text"]}, indent=2)); return 0
-        print(json.dumps(store.read(), indent=2)); return 0
+        print(json.dumps(summarize_directive(store.read_migrated()), indent=2)); return 0
     if args.command == "review-prs":
         approved = review_outstanding_prs(installation_token(), load_config(), State(), Journal())
         print(json.dumps({"approved_pulls": approved}, indent=2)); return 0
@@ -832,7 +856,8 @@ def main() -> int:
         print(json.dumps({"enabled": config.get("enabled"), "stopped": STOP.exists(),
                           "attempts_today": state.runs_today(),
                           "min_pr_interval_seconds": config.get("min_pr_interval_seconds"),
-                          "directive": DirectiveStore().read(), "state": state.value}, indent=2)); return 0
+                          "directive": summarize_directive(DirectiveStore().read_migrated()),
+                          "state": state.value}, indent=2)); return 0
     return command_loop(args.once)
 
 
