@@ -39,6 +39,9 @@ button:hover { background:#1f70c1; }
 .decision-list { display:grid; gap:14px; margin:0; padding:0; list-style:none; }
 .decision-card { padding:21px; border:1px solid #d9d7d0; border-radius:12px; background:#fff; }
 .decision-card:focus-visible { outline:3px solid #8abbe9; outline-offset:2px; border-color:#1f70c1; }
+/* Deep-link highlight: when arrived at via /#decision-<id> from a release
+   detail view, mark the target card so it is easy to spot after the jump. */
+.decision-card:target { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2f7; scroll-margin-top:24px; }
 .decision-meta { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:14px; }
 .badge { border-radius:99px; padding:5px 8px; font:750 10px/1 ui-monospace,monospace; letter-spacing:.07em; text-transform:uppercase; }
 .badge-proposed { background:#fff0c7; color:#72520a; }
@@ -51,7 +54,7 @@ button:hover { background:#1f70c1; }
 .owner-label { color:#777771; font:700 10px/1.5 ui-monospace,monospace; letter-spacing:.08em; text-transform:uppercase; }
 .empty-state { padding:58px 20px; color:#696963; text-align:center; }
 .empty-state p { margin:5px 0; }
-.empty-state .empty-title { color:#282824; font-size:18px; font-weight:700; }
+.empty-state .empty-title { margin:5px 0; color:#282824; font-size:18px; font-weight:700; }
 .notice { margin:0 0 16px; border-radius:8px; padding:10px 12px; background:#fff0c7; color:#644a0b; font-size:13px; }
 /* Release list view: an accessible disclosure list. Reuses the badge and date
    tokens from the decision cards so releases and decisions read as one system. */
@@ -79,6 +82,38 @@ button:hover { background:#1f70c1; }
 .release-decision-missing { background:#fbf1f1; border-color:#efd9d9; }
 .release-decision-missing code { font-size:12px; }
 .badge-missing { background:#f6dede; color:#8a2b2b; }
+.release-detail-link { display:inline-flex; align-items:center; gap:7px; margin-top:2px; color:#1f70c1; font:700 13px/1 system-ui,sans-serif; text-decoration:none; }
+.release-detail-link:hover { text-decoration:underline; }
+.release-detail-link:focus-visible { outline:3px solid #8abbe9; outline-offset:2px; border-radius:5px; }
+/* Release detail view: a link-driven page for one release. Reuses the badge,
+   date, and empty-state tokens so a release, its metadata, and its decisions
+   read as one system with the list and the decision cards. */
+.detail-panel { margin-top:24px; min-height:0; }
+.detail-back { display:inline-flex; align-items:center; gap:8px; margin-bottom:24px; color:#62625d; font:700 13px/1 system-ui,sans-serif; text-decoration:none; }
+.detail-back:hover { color:#171713; text-decoration:underline; }
+.detail-back:focus-visible { outline:3px solid #8abbe9; outline-offset:2px; border-radius:6px; }
+.detail-back-arrow { font-size:15px; }
+.release-detail { display:grid; gap:28px; }
+.detail-header { display:grid; gap:16px; }
+.detail-version { margin:0; font-size:clamp(32px,5vw,46px); line-height:1; letter-spacing:-.04em; overflow-wrap:anywhere; }
+.detail-meta { display:flex; flex-wrap:wrap; gap:14px 36px; margin:0; }
+.detail-meta-row { display:flex; flex-direction:column; gap:5px; margin:0; }
+.detail-meta-label { color:#777771; font:700 10px/1.4 ui-monospace,monospace; letter-spacing:.08em; text-transform:uppercase; }
+.detail-meta-value { margin:0; font-size:15px; font-weight:600; overflow-wrap:anywhere; }
+.detail-notes { margin:0; padding-top:20px; border-top:1px solid #ebe9e3; color:#555550; font-size:16px; line-height:1.6; white-space:pre-wrap; overflow-wrap:anywhere; }
+.detail-decisions { display:grid; gap:14px; }
+.detail-decisions-heading { margin:0; font-size:20px; letter-spacing:-.02em; }
+.detail-summary { margin:0; color:#5f5f59; font:600 12px/1.4 ui-monospace,monospace; }
+.detail-decision-list { display:grid; gap:10px; margin:0; padding:0; list-style:none; }
+.detail-decision { display:flex; align-items:center; gap:14px; flex-wrap:wrap; padding:15px 16px; border:1px solid #d9d7d0; border-radius:11px; background:#fff; color:inherit; text-decoration:none; }
+.detail-decision:hover { border-color:#1f70c1; background:#fafcff; }
+.detail-decision:focus-visible { outline:3px solid #8abbe9; outline-offset:2px; border-color:#1f70c1; }
+.detail-decision-title { flex:1; min-width:0; font-size:16px; font-weight:650; letter-spacing:-.01em; overflow-wrap:anywhere; }
+.detail-decision-owner { display:inline-flex; align-items:baseline; gap:7px; color:#777771; font:600 12px/1.4 ui-monospace,monospace; }
+.detail-decision-owner-label { font:700 9px/1.4 ui-monospace,monospace; letter-spacing:.08em; text-transform:uppercase; }
+.detail-decision-arrow { flex:none; color:#1f70c1; font-size:16px; }
+.detail-decision-missing { display:flex; align-items:center; gap:14px; flex-wrap:wrap; padding:15px 16px; border:1px solid #efd9d9; border-radius:11px; background:#fbf1f1; }
+.detail-decision-missing code { font-size:13px; }
 /* Social feed (demo). A distinct gold accent marks the tab as its own space
    while reusing the shared card, panel, focus, and type tokens so it reads as
    one system with Decisions and Releases. */
@@ -105,4 +140,5 @@ button:hover { background:#1f70c1; }
 .post-body { margin:0; color:#333330; line-height:1.55; white-space:pre-wrap; overflow-wrap:anywhere; }
 @media(max-width:800px) { .workspace{grid-template-columns:1fr}.form-panel{position:static}.hero{padding-bottom:52px} }
 @media(max-width:520px) { main{width:calc(100% - 24px);padding-top:18px}.site-header{align-items:flex-start;gap:18px}.site-nav{align-items:flex-end;flex-direction:column}.form-panel,.list-panel{padding:21px}.hero{padding-top:60px}form{grid-template-columns:1fr}.field{grid-column:1/-1}.list-heading{align-items:start;flex-direction:column;gap:10px}.filters{flex-direction:column;gap:14px}.filter{flex:1 1 auto} }
+@media(max-width:520px) { .detail-decision{align-items:flex-start}.detail-decision-title{flex-basis:calc(100% - 76px)}.detail-decision-owner{width:100%;padding-left:0}.detail-decision-arrow{margin-left:auto}.detail-meta{gap:16px 28px} }
 @media(prefers-reduced-motion:reduce) { html{scroll-behavior:auto}.release-chevron{transition:none} }
