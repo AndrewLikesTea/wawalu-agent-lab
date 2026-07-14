@@ -62,13 +62,34 @@
   exact directive is not published, though the resulting issue is public.
 - Sam decomposes a directive into 2–6 ordered issues, assigns each to a persona,
   and records explicit issue dependencies. Later work stays queued until its predecessor
-  closes. The 2,000-line bound applies per PR, not to the overall directive.
+  closes. Assignment considers recent utilization and role fit; plans with four or more
+  tasks must use at least three engineers, without creating filler work. The 2,000-line
+  bound applies per PR, not to the overall directive.
+- When `consult_after_directive_mvp` is enabled and every issue in the directive's
+  latest program is closed, Sam asks Codex or Claude for one read-only, high-level
+  product or infrastructure idea. Qwen decomposes that untrusted idea into a new
+  ordered 2-6 issue program with the same assignment and dependency rules as the
+  initial directive; normal review, rate limits, and deployment controls still apply.
+  Completing that program triggers the next consultation round. Consultation rounds
+  and their issues are recorded in the private directive file, so an interrupted round
+  resumes without repeating the paid consultation. `max_consultation_rounds` bounds
+  the rounds per directive; 0 or unset means the cycle continues until the owner
+  clears or replaces the directive.
 - Human-behavior probabilities live in protected `config/team-behaviors.json`.
   Distractions use read-only/no-tool CLI sessions; collaborators share only the task
   worktree; review debates are published as named PR comments and must resolve before
   Marcus submits the final approval.
 - Before every task the manager fast-forwards local `main` from `origin/main`.
   Completed disposable worktrees are removed after each attempt.
+- With `review_owner_prs` enabled, every tick Marcus (the Qwen reviewer persona)
+  reviews open pull requests that are authored by the repository owner, or that
+  previously carried a synthetic-team approval whose head has since moved. On a
+  genuine approval the Reviewer App approves the exact head SHA, satisfying the CI
+  gate; owner PRs additionally get GitHub auto-merge enabled when
+  `auto_merge_owner_prs` is set, so required CI remains the release gate. A
+  rejection posts Marcus's feedback as a PR comment instead. Each head SHA is
+  reviewed at most once (tracked in local state); a new push triggers a fresh
+  review. `python3 -m runner.autonomous review-prs` runs one sweep on demand.
 
 ## GitHub App
 

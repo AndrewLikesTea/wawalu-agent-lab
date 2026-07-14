@@ -1,0 +1,83 @@
+{
+  "note": "Seed data for the releases view. Recording releases is a separate task; this lets the list render meaningfully in review. See releases-page.js.",
+  "decisions": [
+    {
+      "id": "demo-queue",
+      "title": "Adopt a durable job queue",
+      "context": "Background work was lost on deploys; move to an at-least-once durable queue.",
+      "owner": "Kai",
+      "status": "accepted",
+      "createdAt": "2026-05-02T09:00:00.000Z"
+    },
+    {
+      "id": "demo-cache",
+      "title": "Cache the read path",
+      "context": "Read latency spikes under load; add a short-TTL cache in front of the store.",
+      "owner": "Ari",
+      "status": "accepted",
+      "createdAt": "2026-05-20T09:00:00.000Z"
+    },
+    {
+      "id": "demo-flags",
+      "title": "Introduce feature flags",
+      "context": "Decouple deploy from release so risky changes ship dark first.",
+      "owner": "Priya",
+      "status": "proposed",
+      "createdAt": "2026-06-01T09:00:00.000Z"
+    },
+    {
+      "id": "demo-tokens",
+      "title": "Rotate to short-lived tokens",
+      "context": "Long-lived credentials are hard to revoke; move to short-lived, refreshable tokens.",
+      "owner": "Rowan",
+      "status": "accepted",
+      "createdAt": "2026-06-15T09:00:00.000Z"
+    },
+    {
+      "id": "demo-logging",
+      "title": "Standardize structured logging",
+      "context": "Free-text logs are hard to query; adopt a structured, queryable log format.",
+      "owner": "Ellis",
+      "status": "proposed",
+      "createdAt": "2026-06-28T09:00:00.000Z"
+    },
+    {
+      "id": "demo-csv",
+      "title": "Sunset the legacy CSV export",
+      "context": "The CSV export is unmaintained and superseded by the JSON export.",
+      "owner": "Mina",
+      "status": "superseded",
+      "createdAt": "2026-03-10T09:00:00.000Z"
+    }
+  ],
+  "releases": [
+    {
+      "id": "demo-r-1-4-0",
+      "version": "v1.4.0",
+      "notes": "Security and delivery hardening.",
+      "createdAt": "2026-07-01T16:00:00.000Z",
+      "decisionIds": ["demo-flags", "demo-tokens", "demo-logging"]
+    },
+    {
+      "id": "demo-r-1-3-0",
+      "version": "v1.3.0",
+      "notes": "Throughput and latency work.",
+      "createdAt": "2026-05-25T16:00:00.000Z",
+      "decisionIds": ["demo-queue", "demo-cache"]
+    },
+    {
+      "id": "demo-r-1-2-1",
+      "version": "v1.2.1",
+      "notes": "Cleanup release. One linked decision has since been archived.",
+      "createdAt": "2026-04-05T16:00:00.000Z",
+      "decisionIds": ["demo-csv", "demo-archived-legacy"]
+    },
+    {
+      "id": "demo-r-1-2-0",
+      "version": "v1.2.0",
+      "notes": "Infrastructure-only release with no decision records.",
+      "createdAt": "2026-03-15T16:00:00.000Z",
+      "decisionIds": []
+    }
+  ]
+}

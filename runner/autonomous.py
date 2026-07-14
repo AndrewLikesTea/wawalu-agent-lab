@@ -18,17 +18,22 @@ from contextlib import contextmanager
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from runner.github_app import installation_token
-from runner.layers import propose_directive_plan, propose_task
+from runner.delivery import enable_auto_merge
+from runner.github_app import installation_token, reviewer_token
+from runner.layers import consult_next_steps, propose_directive_plan, propose_task, review_pull_request
+from runner.orchestrator import load_personas, load_runtime_env, safe_slug
 from runner.simulation import choose_collaborator, load_behaviors
-from runner.orchestrator import safe_slug
+from scripts.check_reviewer_approval import REVIEWER_LOGINS, approved_current_head
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 AUTONOMY = ROOT / ".agent" / "autonomy"
 CONFIG = ROOT / ".secrets" / "autonomy.json"
 STOP = AUTONOMY / "STOP"
 REPOSITORY = "AndrewLikesTea/wawalu-agent-lab"
+OWNER = REPOSITORY.split("/")[0]
 PERSONAS = {"backend", "frontend", "infrastructure", "staff"}
+PERSONA_NAMES = {"backend": "Rowan", "frontend": "Mina",
+                 "infrastructure": "Ellis", "staff": "Priya"}
 DIRECTIVE = AUTONOMY / "directive.json"
 PACIFIC = ZoneInfo("America/Los_Angeles")
 
@@ -60,6 +65,7 @@ class State:
         self.value.setdefault("issues", {})
         self.value.setdefault("daily_runs", {})
         self.value.setdefault("persona_submissions", {})
+        self.value.setdefault("pr_reviews", {})
 
     def save(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -89,13 +95,20 @@ class State:
 
 
 class DirectiveStore:
-    def __init__(self, path: pathlib.Path = DIRECTIVE):
-        self.path = path
+    def __init__(self, path: pathlib.Path | None = None):
+        self.path = path or DIRECTIVE
 
     def read(self) -> dict[str, Any] | None:
         try:
             value = json.loads(self.path.read_text(encoding="utf-8"))
             return value if isinstance(value, dict) and value.get("status") == "pending" else None
+        except (OSError, ValueError):
+            return None
+
+    def read_any(self) -> dict[str, Any] | None:
+        try:
+            value = json.loads(self.path.read_text(encoding="utf-8"))
+            return value if isinstance(value, dict) else None
         except (OSError, ValueError):
             return None
 
@@ -118,6 +131,55 @@ class DirectiveStore:
         value.update({"status": "consumed", "issue": issue, "consumed_at": utc_now().isoformat()})
         self.path.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
         self.path.chmod(0o600)
+
+    def _write(self, value: dict[str, Any]) -> None:
+        self.path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        self.path.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
+        self.path.chmod(0o600)
+
+    def read_migrated(self) -> dict[str, Any] | None:
+        """Read the directive, converting the pre-round single-consultation record."""
+        value = self.read_any()
+        if value and "consultation" in value and not value.get("consultations"):
+            legacy = value.pop("consultation")
+            value["consultations"] = [{
+                "worker": legacy.get("worker"), "created_at": legacy.get("created_at"),
+                "plan": [{"title": "migrated single follow-up"}],
+                "created_issues": [{"index": 0, "issue": int(legacy["issue"])}],
+            }]
+            self._write(value)
+        return value
+
+    def begin_consultation(self, worker: str) -> dict[str, Any]:
+        value = self.read_any()
+        if not value:
+            raise RuntimeError("no directive to update")
+        rounds = list(value.get("consultations", []))
+        rounds.append({"worker": worker, "created_at": utc_now().isoformat(),
+                       "created_issues": []})
+        value["consultations"] = rounds
+        self._write(value)
+        return rounds[-1]
+
+    def update_consultation(self, **fields: Any) -> dict[str, Any]:
+        value = self.read_any()
+        rounds = value.get("consultations") if value else None
+        if not rounds:
+            raise RuntimeError("no consultation round to update")
+        rounds[-1].update(fields)
+        self._write(value)
+        return rounds[-1]
+
+    def record_consultation_issue(self, index: int, issue: int) -> dict[str, Any]:
+        value = self.read_any()
+        rounds = value.get("consultations") if value else None
+        if not rounds:
+            raise RuntimeError("no consultation round to update")
+        created = list(rounds[-1].get("created_issues", []))
+        created.append({"index": index, "issue": issue})
+        rounds[-1]["created_issues"] = created
+        self._write(value)
+        return rounds[-1]
 
     def save_plan(self, tasks: list[dict[str, Any]]) -> dict[str, Any]:
         value = self.read()
@@ -190,10 +252,17 @@ def list_ready_issues(token: str, label: str) -> list[dict[str, Any]]:
     return [item for item in value if "pull_request" not in item]
 
 
-def recent_issue_titles(token: str) -> list[str]:
+def recent_issue_context(token: str) -> list[str]:
     query = urllib.parse.urlencode({"state": "all", "sort": "updated", "direction": "desc", "per_page": 30})
-    return [item.get("title", "") for item in github(f"/repos/{REPOSITORY}/issues?{query}", token)
-            if "pull_request" not in item]
+    context = []
+    for item in github(f"/repos/{REPOSITORY}/issues?{query}", token):
+        if "pull_request" in item:
+            continue
+        persona = issue_label(item, "persona:")
+        assignment = (f"{PERSONA_NAMES.get(persona, persona)} ({persona})"
+                      if persona else "unassigned")
+        context.append(f"[{assignment}] {item.get('title', '')}")
+    return context
 
 
 def comment(token: str, number: int, state: str, detail: str) -> None:
@@ -247,7 +316,7 @@ def generate_work(token: str, config: dict[str, Any], journal: Journal) -> dict[
     run_dir.mkdir(parents=True, exist_ok=False)
     manager = (ROOT / "personas" / "manager.md").read_text(encoding="utf-8")
     proposal = propose_task(manager, (ROOT / "PRODUCT.md").read_text(encoding="utf-8"),
-                            recent_issue_titles(token), run_dir / "qwen-task.json")
+                            recent_issue_context(token), run_dir / "qwen-task.json")
     issue = create_generated_issue(token, proposal, config["issue_label"])
     journal.emit("task_generated", issue=issue["number"], persona=proposal["persona"], title=proposal["title"])
     return issue
@@ -262,7 +331,7 @@ def generate_directive_backlog(token: str, config: dict[str, Any], journal: Jour
     if not isinstance(tasks, list):
         tasks = propose_directive_plan(
             (ROOT / "personas" / "manager.md").read_text(encoding="utf-8"),
-            (ROOT / "PRODUCT.md").read_text(encoding="utf-8"), recent_issue_titles(token),
+            (ROOT / "PRODUCT.md").read_text(encoding="utf-8"), recent_issue_context(token),
             directive["text"], run_dir / "qwen-directive-plan.json")
         directive = store.save_plan(tasks)
     created = {int(item["index"]): int(item["issue"]) for item in directive.get("created_issues", [])}
@@ -281,6 +350,146 @@ def generate_directive_backlog(token: str, config: dict[str, Any], journal: Jour
     journal.emit("directive_backlog_created", issues=[item["number"] for item in issues],
                  directive_sha256=hashlib.sha256(directive["text"].encode()).hexdigest())
     return issues
+
+
+def consultation_complete(consultation: dict[str, Any]) -> bool:
+    plan = consultation.get("plan")
+    return isinstance(plan, list) and len(consultation.get("created_issues", [])) >= len(plan)
+
+
+def consult_after_directive_mvp(token: str, config: dict[str, Any], journal: Journal,
+                                worker: str = "auto") -> list[dict[str, Any]] | None:
+    store = DirectiveStore()
+    directive = store.read_migrated()
+    if not directive or directive.get("status") != "consumed" or not directive.get("created_issues"):
+        return None
+    rounds = list(directive.get("consultations", []))
+    current = rounds[-1] if rounds else None
+    if current is None or consultation_complete(current):
+        latest = current.get("created_issues", []) if current else directive["created_issues"]
+        for reference in latest:
+            issue = github(f"/repos/{REPOSITORY}/issues/{int(reference['issue'])}", token)
+            if issue.get("state") != "closed":
+                return None
+        max_rounds = int(config.get("max_consultation_rounds", 0))
+        if max_rounds and len(rounds) >= max_rounds:
+            return None
+        if worker == "auto":
+            digest = hashlib.sha256(f"{directive['text']}:{len(rounds)}".encode()).hexdigest()
+            worker = "codex" if int(digest, 16) % 2 == 0 else "claude"
+        if worker not in {"codex", "claude"}:
+            raise ValueError("consultation worker must be auto, codex, or claude")
+        current = store.begin_consultation(worker)
+        rounds.append(current)
+    round_number = len(rounds)
+    worker = current["worker"]
+    run_dir = AUTONOMY / "manager" / (utc_now().strftime("%Y%m%dT%H%M%SZ") + "-consultation")
+    run_dir.mkdir(parents=True, exist_ok=True)
+    idea = current.get("idea")
+    if not idea:
+        personas, runtime = load_personas(), load_runtime_env()
+        idea = consult_next_steps(
+            worker, directive["text"], (ROOT / "PRODUCT.md").read_text(encoding="utf-8"),
+            ROOT, run_dir, personas["manager"]["wawalu_token"],
+            runtime["WAWALU_INGEST_ENDPOINT"].rstrip("/"))
+        current = store.update_consultation(idea=idea)
+    tasks = current.get("plan")
+    if not isinstance(tasks, list):
+        tasks = propose_directive_plan(
+            (ROOT / "personas" / "manager.md").read_text(encoding="utf-8"),
+            (ROOT / "PRODUCT.md").read_text(encoding="utf-8"), recent_issue_context(token),
+            directive["text"], run_dir / "qwen-followup-plan.json", advisory=idea)
+        current = store.update_consultation(plan=tasks)
+    created = {int(item["index"]): int(item["issue"]) for item in current.get("created_issues", [])}
+    issues = []
+    for index, task in enumerate(tasks):
+        if index in created:
+            issues.append(github(f"/repos/{REPOSITORY}/issues/{created[index]}", token))
+            continue
+        dependency = issues[-1]["number"] if issues else None
+        issue = create_generated_issue(token, task, config["issue_label"], dependency)
+        store.record_consultation_issue(index, issue["number"])
+        issues.append(issue)
+        journal.emit("directive_followup_task_generated", issue=issue["number"], order=index + 1,
+                     round=round_number, persona=task["persona"], title=task["title"])
+    journal.emit("directive_followup_consulted", worker=worker, round=round_number,
+                 issues=[item["number"] for item in issues],
+                 directive_sha256=hashlib.sha256(directive["text"].encode()).hexdigest())
+    return issues
+
+
+def fetch_pull_diff(number: int, token: str) -> str:
+    request = urllib.request.Request(
+        f"https://api.github.com/repos/{REPOSITORY}/pulls/{number}",
+        headers={"Authorization": "Bearer " + token, "Accept": "application/vnd.github.v3.diff",
+                 "X-GitHub-Api-Version": "2022-11-28", "User-Agent": "wawalu-autonomous-team"})
+    with urllib.request.urlopen(request, timeout=30) as response:
+        return response.read().decode("utf-8", "replace")
+
+
+def review_owner_pull(pull: dict[str, Any], token: str, config: dict[str, Any],
+                      journal: Journal) -> dict[str, Any]:
+    number = int(pull["number"])
+    head_sha = pull["head"]["sha"]
+    run_dir = AUTONOMY / "manager" / (utc_now().strftime("%Y%m%dT%H%M%SZ") + f"-review-pr{number}")
+    run_dir.mkdir(parents=True, exist_ok=True)
+    diff = fetch_pull_diff(number, token)
+    reviewer_prompt = (ROOT / "personas" / "reviewer.md").read_text(encoding="utf-8")
+    verdict = review_pull_request(reviewer_prompt, pull, diff, run_dir / "qwen-pr-review.json")
+    if verdict["approved"]:
+        github(f"/repos/{REPOSITORY}/pulls/{number}/reviews", reviewer_token(), "POST",
+               {"commit_id": head_sha, "event": "APPROVE",
+                "body": f"Approved by the synthetic reviewer persona. Qwen review: {verdict['summary']}"})
+        journal.emit("owner_pr_approved", pull=number, sha=head_sha)
+        if (pull.get("user") or {}).get("login") == OWNER and config.get("auto_merge_owner_prs", True):
+            try:
+                enable_auto_merge(REPOSITORY, pull["head"]["ref"], token, ROOT)
+                journal.emit("owner_pr_auto_merge_enabled", pull=number)
+            except Exception as error:
+                journal.emit("owner_pr_auto_merge_failed", pull=number,
+                             error=type(error).__name__, detail=str(error)[:300])
+    else:
+        comment(token, number, "changes requested",
+                f"Marcus reviewed `{head_sha[:10]}` and did not approve:\n\n{verdict['feedback'][:2000]}")
+        journal.emit("owner_pr_rejected", pull=number, sha=head_sha)
+    return verdict
+
+
+def review_outstanding_prs(token: str, config: dict[str, Any], state: State,
+                           journal: Journal) -> list[int]:
+    """Marcus reviews open PRs from the owner, or team-approved PRs whose head moved."""
+    approved = []
+    pulls = github(f"/repos/{REPOSITORY}/pulls?state=open&per_page=50", token)
+    for pull in pulls or []:
+        if pull.get("draft"):
+            continue
+        number = int(pull["number"])
+        head_sha = pull["head"]["sha"]
+        record = state.value["pr_reviews"].get(str(number), {})
+        if record.get("sha") == head_sha:
+            continue
+        reviews = github(f"/repos/{REPOSITORY}/pulls/{number}/reviews?per_page=100", token) or []
+        if approved_current_head(reviews, head_sha):
+            continue
+        author = (pull.get("user") or {}).get("login", "")
+        team_approved_before = any(
+            isinstance(item, dict) and item.get("state") == "APPROVED"
+            and (item.get("user") or {}).get("login") in REVIEWER_LOGINS
+            for item in reviews)
+        if author != OWNER and not team_approved_before:
+            continue
+        try:
+            verdict = review_owner_pull(pull, token, config, journal)
+        except Exception as error:
+            journal.emit("owner_review_error", pull=number,
+                         error=type(error).__name__, detail=str(error)[:300])
+            continue
+        state.value["pr_reviews"][str(number)] = {
+            "sha": head_sha, "approved": verdict["approved"], "at": utc_now().isoformat()}
+        state.save()
+        if verdict["approved"]:
+            approved.append(number)
+    return approved
 
 
 def scenario_from_issue(issue: dict[str, Any], persona: str) -> dict[str, Any]:
@@ -404,6 +613,8 @@ def tick(config: dict[str, Any], state: State, journal: Journal, token: str | No
     token = token or installation_token()
     sync_main()
     ensure_labels(token, config["issue_label"])
+    if config.get("review_owner_prs", True):
+        review_outstanding_prs(token, config, state, journal)
     issues = list_ready_issues(token, config["issue_label"])
     directive = DirectiveStore().read()
     issue = None
@@ -416,6 +627,12 @@ def tick(config: dict[str, Any], state: State, journal: Journal, token: str | No
         issue = choose_issue(issues, state, config, utc_now())
     if issue is None and issues:
         return "queued-personas-rate-limited"
+    if issue is None and config.get("consult_after_directive_mvp", False):
+        generated = consult_after_directive_mvp(token, config, journal)
+        if generated:
+            issue = choose_issue(generated, state, config, utc_now())
+            if issue is None:
+                return "persona-pr-rate-limit"
     if issue is None and config.get("generate_when_idle", False):
         generated = generate_work(token, config, journal)
         issue = choose_issue([generated], state, config, utc_now())
@@ -451,6 +668,7 @@ def main() -> int:
     sub = parser.add_subparsers(dest="command", required=True)
     loop = sub.add_parser("loop"); loop.add_argument("--once", action="store_true")
     sub.add_parser("stop"); sub.add_parser("resume"); sub.add_parser("status")
+    sub.add_parser("review-prs")
     directive = sub.add_parser("directive")
     directive.add_argument("text", nargs="*")
     directive.add_argument("--clear", action="store_true")
@@ -468,6 +686,9 @@ def main() -> int:
             value = store.set(" ".join(args.text))
             print(json.dumps({"status": value["status"], "text": value["text"]}, indent=2)); return 0
         print(json.dumps(store.read(), indent=2)); return 0
+    if args.command == "review-prs":
+        approved = review_outstanding_prs(installation_token(), load_config(), State(), Journal())
+        print(json.dumps({"approved_pulls": approved}, indent=2)); return 0
     if args.command == "status":
         config = load_config(); state = State()
         print(json.dumps({"enabled": config.get("enabled"), "stopped": STOP.exists(),

@@ -1,0 +1,272 @@
+// Release list view component.
+//
+// This module is intentionally split like app.js: a pure, DOM-free core
+// (validation, ordering, association resolution, focus math) that is unit
+// tested without a browser, and a thin rendering layer that turns the resolved
+// data into accessible DOM. Data sourcing (storage, demo seed, future "record a
+// release" form) lives in releases-page.js so this component stays reusable and
+// testable in isolation.
+//
+// Tradeoff: this file deliberately does NOT import from app.js. The statuses are
+// re-declared below rather than shared to avoid coupling the release view to the
+// decision module's load-time side effects. The seam to unify them later is a
+// small shared module; that abstraction is not yet earned by two call sites.
+
+export const RELEASE_STORAGE_KEY = "shiplog.releases.v1";
+
+// Mirrors STATUSES in app.js. Kept local (see the module note above); the order
+// here is the order breakdown counts are reported in.
+export const RELEASE_DECISION_STATUSES = ["proposed", "accepted", "superseded"];
+
+function isRelease(value) {
+  return value !== null
+    && typeof value === "object"
+    && typeof value.id === "string" && value.id.trim() !== ""
+    && typeof value.version === "string" && value.version.trim() !== ""
+    && typeof value.createdAt === "string"
+    && !Number.isNaN(Date.parse(value.createdAt))
+    && Array.isArray(value.decisionIds)
+    && value.decisionIds.every((id) => typeof id === "string");
+}
+
+// Mirrors loadDecisions: tolerant of malformed storage, never throws, and drops
+// entries that do not satisfy the release shape.
+export function loadReleases(storage) {
+  try {
+    const value = JSON.parse(storage.getItem(RELEASE_STORAGE_KEY) ?? "[]");
+    return Array.isArray(value) ? value.filter(isRelease) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveReleases(storage, releases) {
+  storage.setItem(RELEASE_STORAGE_KEY, JSON.stringify(releases));
+}
+
+// Reverse chronological order (newest first). Never mutates the input. Ties fall
+// back to input order via JS sort stability, matching app.js's "newest" sort.
+export function sortReleasesNewestFirst(releases) {
+  return [...releases].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+}
+
+export function indexById(items) {
+  const map = new Map();
+  for (const item of items ?? []) map.set(item.id, item);
+  return map;
+}
+
+// Resolve a release's decisionIds against the known decisions, preserving the
+// association order. Ids with no matching decision are surfaced as `missingIds`
+// rather than silently dropped — dangling references are a real cross-cutting
+// risk (a decision can be absent after an export/import round-trip), so the view
+// reports them instead of misrepresenting the count.
+export function resolveRelease(release, decisions) {
+  const lookup = decisions instanceof Map ? decisions : indexById(decisions);
+  const linked = [];
+  const missingIds = [];
+  for (const id of release.decisionIds) {
+    const decision = lookup.get(id);
+    if (decision) linked.push(decision);
+    else missingIds.push(id);
+  }
+
+  const counts = {
+    total: release.decisionIds.length,
+    linked: linked.length,
+    missing: missingIds.length,
+  };
+  for (const status of RELEASE_DECISION_STATUSES) counts[status] = 0;
+  for (const decision of linked) {
+    if (counts[decision.status] !== undefined) counts[decision.status] += 1;
+  }
+
+  return { ...release, decisions: linked, missingIds, counts };
+}
+
+// Compose ordering + resolution: the single entry point the view renders from.
+export function summarizeReleases(releases, decisions = []) {
+  const byId = indexById(decisions);
+  return sortReleasesNewestFirst(releases).map((release) => resolveRelease(release, byId));
+}
+
+// One-line status summary shown on the collapsed row, e.g.
+// "3 decisions · 2 accepted, 1 proposed" (with a trailing "N missing" segment
+// when there are dangling references).
+export function statusSummaryText(resolved) {
+  const { counts } = resolved;
+  if (counts.total === 0) return "No linked decisions";
+  const head = `${counts.total} ${counts.total === 1 ? "decision" : "decisions"}`;
+  const parts = [];
+  for (const status of RELEASE_DECISION_STATUSES) {
+    if (counts[status] > 0) parts.push(`${counts[status]} ${status}`);
+  }
+  if (counts.missing > 0) parts.push(`${counts.missing} missing`);
+  return parts.length ? `${head} · ${parts.join(", ")}` : head;
+}
+
+// Roving-focus math for the expansion controls. Unlike app.js's nextFocusIndex,
+// Enter is deliberately NOT a navigation key here: the expansion controls are
+// native <button>s, so Enter/Space must reach them to toggle the disclosure.
+// Arrow/Home/End move focus and clamp at the ends (no wrap).
+const NAV_KEYS = new Set(["ArrowDown", "ArrowUp", "Home", "End"]);
+
+export function nextIndex(current, key, length) {
+  if (length === 0) return -1;
+  switch (key) {
+    case "ArrowDown":
+      return current < 0 ? 0 : Math.min(current + 1, length - 1);
+    case "ArrowUp":
+      return current <= 0 ? 0 : current - 1;
+    case "Home":
+      return 0;
+    case "End":
+      return length - 1;
+    default:
+      return current;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Rendering layer. Everything below touches the DOM and is exercised in the
+// browser; the pure core above is what the unit tests cover. Every field is
+// written through textContent / text nodes (never HTML strings), so stored
+// decision text can never execute (PRODUCT.md: no user-generated HTML).
+// ---------------------------------------------------------------------------
+
+function el(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+
+function formatDate(iso) {
+  return new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(new Date(iso));
+}
+
+function renderReleaseBody(release) {
+  const body = el("div", "release-body");
+
+  if (typeof release.notes === "string" && release.notes.trim() !== "") {
+    body.append(el("p", "release-notes", release.notes));
+  }
+
+  if (release.counts.total === 0) {
+    body.append(el("p", "release-empty", "No decisions linked to this release."));
+    return body;
+  }
+
+  const list = el("ol", "release-decisions");
+  for (const decision of release.decisions) {
+    const row = el("li", "release-decision");
+    row.append(el("span", `badge badge-${decision.status}`, decision.status));
+    row.append(el("span", "release-decision-title", decision.title));
+    if (decision.owner) row.append(el("span", "release-decision-owner", decision.owner));
+    list.append(row);
+  }
+  for (const id of release.missingIds) {
+    const row = el("li", "release-decision release-decision-missing");
+    row.append(el("span", "badge badge-missing", "missing"));
+    const label = el("span", "release-decision-title");
+    label.append(document.createTextNode("Linked decision "));
+    label.append(el("code", undefined, id));
+    label.append(document.createTextNode(" is not in this log."));
+    row.append(label);
+    list.append(row);
+  }
+  body.append(list);
+  return body;
+}
+
+function renderReleaseItem(release, isFirst) {
+  const item = el("li", "release-item");
+  const toggleId = `release-toggle-${release.id}`;
+  const panelId = `release-panel-${release.id}`;
+
+  const heading = el("h3", "release-heading");
+  const toggle = el("button", "release-toggle");
+  toggle.type = "button";
+  toggle.id = toggleId;
+  toggle.setAttribute("aria-expanded", "false");
+  toggle.setAttribute("aria-controls", panelId);
+  // Roving tabindex: only the first control is a tab stop; arrow keys move
+  // focus between the release headers (see the keydown handler in mount).
+  toggle.tabIndex = isFirst ? 0 : -1;
+
+  const info = el("span", "release-info");
+  info.append(el("span", "release-version", release.version));
+  const time = el("time", "date", formatDate(release.createdAt));
+  time.dateTime = release.createdAt;
+  info.append(time);
+  info.append(el("span", "release-summary", statusSummaryText(release)));
+
+  const chevron = el("span", "release-chevron");
+  chevron.setAttribute("aria-hidden", "true");
+  toggle.append(info, chevron);
+  heading.append(toggle);
+
+  const panel = el("div", "release-panel");
+  panel.id = panelId;
+  panel.hidden = true;
+  panel.setAttribute("role", "region");
+  panel.setAttribute("aria-labelledby", toggleId);
+  panel.append(renderReleaseBody(release));
+
+  item.append(heading, panel);
+  return item;
+}
+
+export function renderReleaseList(container, resolvedReleases) {
+  container.replaceChildren();
+
+  if (resolvedReleases.length === 0) {
+    const empty = el("div", "empty-state");
+    empty.append(el("p", "empty-title", "No releases yet."));
+    empty.append(el("p", undefined, "Record a release and link the decisions behind it to build a shipping history."));
+    container.append(empty);
+    return;
+  }
+
+  const list = el("ol", "release-list");
+  resolvedReleases.forEach((release, index) => {
+    list.append(renderReleaseItem(release, index === 0));
+  });
+  container.append(list);
+}
+
+function focusToggle(toggles, index) {
+  toggles.forEach((toggle, i) => { toggle.tabIndex = i === index ? 0 : -1; });
+  toggles[index]?.focus();
+}
+
+// Wire the interactive behaviour. Handlers are delegated to the container so
+// they survive a re-render without re-binding. Returns a small API so the page
+// (or a future filter control) can re-render with fresh data.
+export function mountReleaseList(container, data = {}) {
+  const render = ({ releases = [], decisions = [] } = {}) => {
+    renderReleaseList(container, summarizeReleases(releases, decisions));
+  };
+
+  container.addEventListener("keydown", (event) => {
+    const toggle = event.target.closest?.(".release-toggle");
+    if (!toggle || !NAV_KEYS.has(event.key)) return;
+    const toggles = [...container.querySelectorAll(".release-toggle")];
+    event.preventDefault();
+    focusToggle(toggles, nextIndex(toggles.indexOf(toggle), event.key, toggles.length));
+  });
+
+  // Toggle the disclosure. click fires for pointer AND for Enter/Space on the
+  // native <button>, so this is the single source of truth for expansion.
+  container.addEventListener("click", (event) => {
+    const toggle = event.target.closest?.(".release-toggle");
+    if (!toggle) return;
+    const expanded = toggle.getAttribute("aria-expanded") === "true";
+    toggle.setAttribute("aria-expanded", String(!expanded));
+    const panel = container.ownerDocument.getElementById(toggle.getAttribute("aria-controls"));
+    if (panel) panel.hidden = expanded;
+  });
+
+  render(data);
+  return { render };
+}
