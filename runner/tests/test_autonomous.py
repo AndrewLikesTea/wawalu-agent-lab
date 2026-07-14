@@ -76,6 +76,18 @@ class AutonomousTests(unittest.TestCase):
         self.assertEqual(github.call_args.args[2], "PATCH")
         self.assertEqual(github.call_args.args[3]["labels"], ["persona:backend", "agent-running"])
 
+    @mock.patch.object(autonomous.subprocess, "run")
+    def test_cleanup_targets_only_the_run_worktree_and_branch(self, run):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = pathlib.Path(tmp) / "staff-task"
+            path.mkdir()
+            run.side_effect = [mock.Mock(returncode=0), mock.Mock(returncode=0), mock.Mock(returncode=0)]
+            autonomous.cleanup_worktree(path, "agent/staff/task", mock.Mock())
+        self.assertEqual(run.call_args_list[1].args[0],
+                         ["git", "worktree", "remove", "--force", str(path)])
+        self.assertEqual(run.call_args_list[2].args[0],
+                         ["git", "branch", "--delete", "--force", "agent/staff/task"])
+
     def test_launch_agent_path_includes_user_cli_directory(self):
         value = launch_path(pathlib.Path("/Users/demo"))
         self.assertEqual(value.split(":"), [
