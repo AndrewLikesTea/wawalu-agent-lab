@@ -79,6 +79,30 @@ button:hover { background:#1f70c1; }
 .release-decision-missing { background:#fbf1f1; border-color:#efd9d9; }
 .release-decision-missing code { font-size:12px; }
 .badge-missing { background:#f6dede; color:#8a2b2b; }
+/* Social feed (demo). A distinct gold accent marks the tab as its own space
+   while reusing the shared card, panel, focus, and type tokens so it reads as
+   one system with Decisions and Releases. */
+.nav-social { display:inline-flex; align-items:center; gap:7px; }
+.nav-social::before { content:""; width:6px; height:6px; border-radius:99px; background:#e6a541; }
+.hero-social .eyebrow { color:#a9781f; }
+.label-optional { color:#8a8a83; font-weight:600; }
+#post-form-hint { grid-column:1/-1; margin:0 0 2px; }
+.counter-row { display:flex; justify-content:flex-end; gap:6px; margin:2px 0 0; color:#74746e; font:600 12px/1.4 ui-monospace,monospace; }
+#post-counter { font-weight:750; color:#4a4a45; }
+#post-counter.near { color:#8a6d0a; }
+#post-counter.over { color:#a5322f; }
+.feed-hint { margin:0 0 18px; }
+/* Responsive post grid: one column when the panel is narrow, filling to more
+   columns as space allows (mobile → tablet → desktop) without media queries. */
+.post-list { display:grid; grid-template-columns:repeat(auto-fill,minmax(min(100%,260px),1fr)); gap:14px; margin:0; padding:0; list-style:none; }
+.post-card { height:100%; padding:18px; border:1px solid #d9d7d0; border-radius:12px; background:#fff; }
+.post-card:focus-visible { outline:3px solid #8abbe9; outline-offset:2px; border-color:#1f70c1; }
+.post-head { display:flex; align-items:center; gap:12px; margin-bottom:12px; }
+.post-avatar { flex:none; display:grid; place-items:center; width:38px; height:38px; border-radius:99px; background:#e7eefb; color:#1f5fa8; font:750 13px/1 ui-monospace,monospace; }
+.post-byline { display:flex; flex-direction:column; gap:2px; min-width:0; }
+.post-author { font-size:15px; font-weight:700; letter-spacing:-.01em; overflow-wrap:anywhere; }
+.post-date { color:#74746e; font:600 11px/1.4 ui-monospace,monospace; }
+.post-body { margin:0; color:#333330; line-height:1.55; white-space:pre-wrap; overflow-wrap:anywhere; }
 @media(max-width:800px) { .workspace{grid-template-columns:1fr}.form-panel{position:static}.hero{padding-bottom:52px} }
 @media(max-width:520px) { main{width:calc(100% - 24px);padding-top:18px}.site-header{align-items:flex-start;gap:18px}.site-nav{align-items:flex-end;flex-direction:column}.form-panel,.list-panel{padding:21px}.hero{padding-top:60px}form{grid-template-columns:1fr}.field{grid-column:1/-1}.list-heading{align-items:start;flex-direction:column;gap:10px}.filters{flex-direction:column;gap:14px}.filter{flex:1 1 auto} }
 @media(prefers-reduced-motion:reduce) { html{scroll-behavior:auto}.release-chevron{transition:none} }

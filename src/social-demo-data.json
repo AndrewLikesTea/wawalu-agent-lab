@@ -1,0 +1,22 @@
+{
+  "posts": [
+    {
+      "id": "seed-post-1",
+      "author": "Mina",
+      "body": "Shipped the new focus-visible outlines across the log views. Keyboard users get a consistent ring on every card now. ⌨️",
+      "createdAt": "2026-07-12T09:15:00.000Z"
+    },
+    {
+      "id": "seed-post-2",
+      "author": "Kai",
+      "body": "Reminder: this feed is demo-only. No customer data, no production APIs — just a place to celebrate the small wins.",
+      "createdAt": "2026-07-13T14:40:00.000Z"
+    },
+    {
+      "id": "seed-post-3",
+      "author": "Ari",
+      "body": "Release v1.3.0 is out and linked to its decisions in the release log. Nice to have the reasoning travel with the work.",
+      "createdAt": "2026-07-14T08:05:00.000Z"
+    }
+  ]
+}
