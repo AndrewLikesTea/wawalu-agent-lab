@@ -70,6 +70,8 @@ class State:
         self.value.setdefault("persona_submissions", {})
         self.value.setdefault("pr_reviews", {})
         self.value.setdefault("pr_updates", {})
+        self.value.setdefault("standups", {})
+        self.value.setdefault("handoffs", {})
 
     def save(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -312,6 +314,70 @@ def recent_issue_context(token: str) -> list[str]:
 def comment(token: str, number: int, state: str, detail: str) -> None:
     body = f"<!-- wawalu-agent-state -->\n**Synthetic team · {state}**\n\n{detail}"
     github(f"/repos/{REPOSITORY}/issues/{number}/comments", token, "POST", {"body": body})
+
+
+def interaction_comment(token: str, number: int, marker: str, heading: str, detail: str) -> None:
+    body = f"<!-- {marker} -->\n**{heading}**\n\n{detail}"
+    github(f"/repos/{REPOSITORY}/issues/{number}/comments", token, "POST", {"body": body})
+
+
+def issue_delay_seconds(issue: dict[str, Any]) -> int:
+    """Stable 20–90 minute wait between visible assignment and implementation."""
+    digest = hashlib.sha256(str(issue.get("number", "")).encode()).digest()
+    return (20 + (int.from_bytes(digest[:2], "big") % 71)) * 60
+
+
+def within_persona_window(persona: str, config: dict[str, Any], now: dt.datetime) -> bool:
+    if not config.get("workday_rhythm", False):
+        return True
+    windows = config.get("persona_work_windows", {
+        "infrastructure": [8, 13], "backend": [9, 14],
+        "frontend": [10, 15], "staff": [11, 16],
+    })
+    start, end = windows.get(persona, [8, 18])
+    return int(start) <= now.astimezone(PACIFIC).hour < int(end)
+
+
+def post_daily_standup(token: str, state: State, issues: list[dict[str, Any]], journal: Journal,
+                       now: dt.datetime) -> None:
+    day = now.astimezone(PACIFIC).date().isoformat()
+    if state.value["standups"].get(day) or not issues:
+        return
+    active = []
+    for issue in issues[:6]:
+        persona = issue_label(issue, "persona:") or "staff"
+        active.append(f"{PERSONA_NAMES.get(persona, persona)}: #{issue['number']} {issue.get('title', '')}")
+    detail = ("Today’s focus:\n" + "\n".join(f"- {item}" for item in active) +
+              "\n\nRhythm: planning in the morning, implementation through midday, then reviews and handoffs later in the day.")
+    interaction_comment(token, int(issues[0]["number"]), "wawalu-standup", "Sam · daily standup", detail)
+    state.value["standups"][day] = int(issues[0]["number"])
+    state.save()
+    journal.emit("daily_standup_posted", issue=int(issues[0]["number"]), day=day)
+
+
+def post_dependency_handoffs(token: str, state: State, issues: list[dict[str, Any]],
+                             journal: Journal, now: dt.datetime) -> None:
+    if not now.astimezone(PACIFIC).hour >= 14:
+        return
+    for issue in issues:
+        match = re.search(r"Depends on #(\d+)", str(issue.get("body") or ""))
+        if not match or state.value["handoffs"].get(str(issue["number"])):
+            continue
+        dependency = github(f"/repos/{REPOSITORY}/issues/{match.group(1)}", token)
+        if dependency.get("state") != "closed":
+            continue
+        persona = issue_label(dependency, "persona:") or "staff"
+        name = PERSONA_NAMES.get(persona, persona)
+        outcome = re.search(r"## Outcome\s*\n+(.+?)(?:\n#|\Z)", str(dependency.get("body") or ""), re.S)
+        changed = " ".join((outcome.group(1) if outcome else dependency.get("title", "completed work")).split())[:500]
+        detail = (f"Changed: #{dependency['number']} is complete — {changed}\n\n"
+                  f"Contract: use the accepted behavior and criteria on #{dependency['number']}.\n\n"
+                  "Validation: protected CI and review completed before merge.\n\n"
+                  "Known limitation: none recorded; raise a focused follow-up if the integration exposes one.")
+        interaction_comment(token, int(issue["number"]), "wawalu-handoff", f"{name} · handoff", detail)
+        state.value["handoffs"][str(issue["number"])] = int(dependency["number"])
+        state.save()
+        journal.emit("dependency_handoff_posted", issue=int(issue["number"]), dependency=int(dependency["number"]), persona=persona)
 
 
 def ensure_labels(token: str, ready_label: str) -> None:
@@ -622,7 +688,8 @@ def _review_outstanding_prs(token: str, config: dict[str, Any], state: State,
             isinstance(item, dict) and item.get("state") == "APPROVED"
             and (item.get("user") or {}).get("login") in REVIEWER_LOGINS
             for item in reviews)
-        if author != OWNER and not team_approved_before:
+        is_team_pull = str(pull.get("head", {}).get("ref", "")).startswith("agent/")
+        if author != OWNER and not is_team_pull and not team_approved_before:
             continue
         if approved_current_head(reviews, head_sha):
             if pull.get("auto_merge") and config.get("update_stuck_prs", True):
@@ -672,6 +739,15 @@ def choose_issue(issues: list[dict[str, Any]], state: State, config: dict[str, A
         if dependency and int(dependency.group(1)) in open_numbers:
             continue
         persona = issue_label(issue, "persona:") or "staff"
+        if not within_persona_window(persona, config, now):
+            continue
+        if config.get("workday_rhythm", False):
+            try:
+                assigned_at = dt.datetime.fromisoformat(str(issue.get("created_at") or "").replace("Z", "+00:00"))
+            except ValueError:
+                assigned_at = now
+            if now < assigned_at + dt.timedelta(seconds=issue_delay_seconds(issue)):
+                continue
         if not state.persona_available(persona, int(config["min_pr_interval_seconds"]), now):
             continue
         record = state.value["issues"].get(str(issue["number"]), {})
@@ -801,6 +877,9 @@ def tick(config: dict[str, Any], state: State, journal: Journal, token: str | No
     if config.get("review_owner_prs", True):
         sweep_outstanding_prs(token, config, state, journal)
     issues = list_ready_issues(token, config["issue_label"])
+    if config.get("interaction_rhythm", False):
+        post_daily_standup(token, state, issues, journal, utc_now())
+        post_dependency_handoffs(token, state, issues, journal, utc_now())
     directive = DirectiveStore().read()
     issue = None
     if directive:

@@ -43,6 +43,31 @@ export function describeEvent(event) {
       url: payload.comment.html_url || payload.issue?.html_url,
     };
   }
+  if (event?.type === "IssueCommentEvent" && payload.comment?.body?.includes("wawalu-peer-review")) {
+    const speaker = payload.comment.body.match(/\*\*([^*\n]+)\*\*/)?.[1]?.split(" · ")[0]?.trim() || "Wawalu team";
+    const [role, persona] = personaByName(speaker);
+    return {
+      persona: personaBadge(role), title: payload.issue?.title || "Pull request review",
+      detail: `${persona.name} completed a peer review before Marcus’s final gate`,
+      url: payload.comment.html_url || payload.issue?.html_url,
+    };
+  }
+  if (event?.type === "IssueCommentEvent" && payload.comment?.body?.includes("wawalu-handoff")) {
+    const speaker = payload.comment.body.match(/\*\*([^*\n]+)\*\*/)?.[1]?.split(" · ")[0]?.trim() || "Wawalu team";
+    const [role, persona] = personaByName(speaker);
+    return {
+      persona: personaBadge(role), title: payload.issue?.title || "Dependency handoff",
+      detail: `${persona.name} handed off completed work to the next engineer`,
+      url: payload.comment.html_url || payload.issue?.html_url,
+    };
+  }
+  if (event?.type === "IssueCommentEvent" && payload.comment?.body?.includes("wawalu-standup")) {
+    return {
+      persona: personaBadge("manager"), title: "Daily team standup",
+      detail: "Sam published today’s priorities, blockers, and handoffs",
+      url: payload.comment.html_url || payload.issue?.html_url,
+    };
+  }
   if (event?.type === "IssueCommentEvent" && payload.comment?.body?.includes("wawalu-agent-state")) {
     const labels = payload.issue?.labels ?? [];
     const personaLabel = labels.find((label) => String(label?.name ?? label).startsWith("persona:"));

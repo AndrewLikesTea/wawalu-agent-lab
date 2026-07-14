@@ -56,6 +56,19 @@ class AutonomousTests(unittest.TestCase):
         self.assertTrue(autonomous.within_hours(config, dt.datetime(2026, 7, 14, 15, 0, tzinfo=dt.UTC)))
         self.assertFalse(autonomous.within_hours(config, dt.datetime(2026, 7, 15, 1, 0, tzinfo=dt.UTC)))
 
+    def test_workday_rhythm_uses_persona_windows_and_assignment_delay(self):
+        config = {**self.config(), "workday_rhythm": True}
+        now = dt.datetime(2026, 7, 14, 16, 0, tzinfo=dt.UTC)  # 09:00 Pacific
+        frontend = {"number": 3, "created_at": "2026-07-14T12:00:00Z",
+                    "labels": [{"name": "persona:frontend"}]}
+        backend = {"number": 4, "created_at": "2026-07-14T12:00:00Z",
+                   "labels": [{"name": "persona:backend"}]}
+        self.assertFalse(autonomous.within_persona_window("frontend", config, now))
+        self.assertTrue(autonomous.within_persona_window("backend", config, now))
+        self.assertEqual(autonomous.choose_issue([frontend, backend], autonomous.State(pathlib.Path(tempfile.gettempdir()) / "rhythm-state.json"), config, now)["number"], 4)
+        self.assertGreaterEqual(autonomous.issue_delay_seconds(backend), 20 * 60)
+        self.assertLessEqual(autonomous.issue_delay_seconds(backend), 90 * 60)
+
     def test_directive_is_private_persistent_and_consumed(self):
         with tempfile.TemporaryDirectory() as tmp:
             store = autonomous.DirectiveStore(pathlib.Path(tmp) / "directive.json")

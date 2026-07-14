@@ -92,4 +92,8 @@ blind spots, occasional benign off-topic model chats, pairing in one worktree, a
 review disagreements. Tests, policy, Marcus's final review, and branch protection remain
 authoritative; the simulation never deliberately inserts a production defect.
 
+The lightweight team rhythm adds a daily Sam standup, dependency handoffs after the
+afternoon review window, one complementary peer review before Marcus’s final gate, and
+deterministic 20–90 minute assignment delays within persona work windows.
+
 See [OPERATIONS.md](OPERATIONS.md) for GitHub, Cloudflare, and release controls.

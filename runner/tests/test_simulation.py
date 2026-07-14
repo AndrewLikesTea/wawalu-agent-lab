@@ -1,6 +1,6 @@
 import unittest
 
-from runner.simulation import choose_collaborator, choose_distraction, happens, load_behaviors, personality_context
+from runner.simulation import choose_collaborator, choose_distraction, choose_peer_reviewer, happens, load_behaviors, personality_context
 
 
 class SimulationTests(unittest.TestCase):
@@ -18,6 +18,11 @@ class SimulationTests(unittest.TestCase):
         self.assertEqual(one, two)
         self.assertEqual(choose_distraction("frontend", "scenario", behaviors),
                          choose_distraction("frontend", "scenario", behaviors))
+
+    def test_peer_reviewer_is_stable_and_never_the_author(self):
+        reviewer = choose_peer_reviewer("frontend", "issue-23")
+        self.assertEqual(reviewer, choose_peer_reviewer("frontend", "issue-23"))
+        self.assertNotEqual(reviewer, "frontend")
 
     def test_blind_spot_never_instructs_deliberate_breakage(self):
         profile = load_behaviors()["personas"]["backend"]

@@ -73,6 +73,15 @@ test("agent observatory exposes named review discussions", () => {
     url: "https://github.com/example/pull/22#comment" });
 });
 
+test("agent observatory describes peer reviews, handoffs, and daily standups", () => {
+  const peer = describeEvent({ type: "IssueCommentEvent", payload: { issue: { title: "Feed", number: 23 }, comment: { body: "<!-- wawalu-peer-review -->\n**Mina · peer review**", html_url: "https://example.test" } } });
+  const handoff = describeEvent({ type: "IssueCommentEvent", payload: { issue: { title: "Feed", number: 23 }, comment: { body: "<!-- wawalu-handoff -->\n**Rowan · handoff**", html_url: "https://example.test" } } });
+  const standup = describeEvent({ type: "IssueCommentEvent", payload: { issue: { title: "Feed", number: 23 }, comment: { body: "<!-- wawalu-standup -->\n**Sam · daily standup**", html_url: "https://example.test" } } });
+  assert.match(peer.detail, /peer review/);
+  assert.match(handoff.detail, /handed off/);
+  assert.match(standup.detail, /priorities/);
+});
+
 test("activity links only accept http(s) URLs", async () => {
   const { safeActivityUrl } = await import("../src/agents.js");
   assert.equal(safeActivityUrl("https://github.com/x/y/pull/1"), "https://github.com/x/y/pull/1");

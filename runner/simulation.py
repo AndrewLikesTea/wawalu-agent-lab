@@ -46,3 +46,15 @@ def choose_distraction(persona: str, scenario_id: str, behaviors: dict[str, Any]
     if not happens(float(profile["distraction_rate"]), "distraction", persona, scenario_id):
         return None
     return stable_random("aside", persona, scenario_id).choice(behaviors["distractions"])
+
+
+def choose_peer_reviewer(author: str, scenario_id: str) -> str:
+    """Pick a stable complementary reviewer; never assign the author to review itself."""
+    complements = {
+        "backend": ("infrastructure", "frontend"),
+        "frontend": ("staff", "backend"),
+        "infrastructure": ("backend", "staff"),
+        "staff": ("frontend", "infrastructure"),
+    }
+    choices = complements.get(author, ("staff", "backend"))
+    return stable_random("peer-review", author, scenario_id).choice(choices)
