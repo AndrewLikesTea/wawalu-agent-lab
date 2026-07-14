@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Shiplog team feed — a demo-only social space" />
+    <title>Social · Shiplog</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main>
+      <header class="site-header">
+        <a class="brand" href="/"><span class="mark" aria-hidden="true"></span>Shiplog</a>
+        <nav class="site-nav" aria-label="Wawalu Labs">
+          <a href="/">Decisions</a>
+          <a class="nav-social" aria-current="page" href="/social.html">Social</a>
+          <a href="/releases.html">Releases</a>
+          <a href="/agents.html">Agent observatory</a>
+        </nav>
+      </header>
+
+      <section class="hero hero-social" id="top" aria-labelledby="page-title">
+        <p class="eyebrow">Team feed · demo</p>
+        <h1 id="page-title">Share the small<br />wins as they land.</h1>
+        <p>A lightweight team feed for quick updates. This is a demo space — posts live only in this browser and use no customer or production data.</p>
+      </section>
+
+      <section class="workspace" aria-label="Team feed">
+        <div class="form-panel">
+          <div class="section-heading">
+            <p class="eyebrow">New post</p>
+            <h2>Share an update</h2>
+          </div>
+
+          <form id="post-form" aria-describedby="post-form-hint">
+            <p class="hint" id="post-form-hint">Posts are stored only in this browser. Press ⌘/Ctrl + Enter to post.</p>
+
+            <div class="field field-wide">
+              <label for="post-author">Name <span class="label-optional">(optional)</span></label>
+              <input id="post-author" name="author" type="text" maxlength="60" autocomplete="off"
+                placeholder="Guest" aria-describedby="post-author-hint" />
+              <span class="hint" id="post-author-hint">Shown as the byline. Defaults to “Guest”.</span>
+            </div>
+
+            <div class="field field-wide">
+              <label for="post-body">Message</label>
+              <textarea id="post-body" name="body" rows="4" maxlength="280" required
+                aria-describedby="post-counter-label post-counter"></textarea>
+              <p class="counter-row">
+                <span id="post-counter-label">Characters remaining:</span>
+                <span id="post-counter" aria-live="polite" aria-atomic="true">280</span>
+              </p>
+            </div>
+
+            <button type="submit">Post update <span aria-hidden="true">→</span></button>
+          </form>
+        </div>
+
+        <div class="list-panel" aria-labelledby="feed-title">
+          <div class="section-heading list-heading">
+            <div>
+              <p class="eyebrow">Latest first</p>
+              <h2 id="feed-title">Team feed</h2>
+            </div>
+            <span class="count" id="post-count" aria-live="polite">0 posts</span>
+          </div>
+          <p class="hint feed-hint">Use ↑ and ↓ to move between posts, Home and End to jump.</p>
+          <p class="notice" id="social-notice" role="status" hidden></p>
+          <div id="post-feed"></div>
+        </div>
+      </section>
+    </main>
+    <script type="module" src="/social-page.js"></script>
+  </body>
+</html>
