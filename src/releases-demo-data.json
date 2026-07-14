@@ -55,6 +55,7 @@
       "id": "demo-r-1-4-0",
       "version": "v1.4.0",
       "notes": "Security and delivery hardening.",
+      "author": "Priya",
       "createdAt": "2026-07-01T16:00:00.000Z",
       "decisionIds": ["demo-flags", "demo-tokens", "demo-logging"]
     },
@@ -62,6 +63,7 @@
       "id": "demo-r-1-3-0",
       "version": "v1.3.0",
       "notes": "Throughput and latency work.",
+      "author": "Kai",
       "createdAt": "2026-05-25T16:00:00.000Z",
       "decisionIds": ["demo-queue", "demo-cache"]
     },
@@ -69,6 +71,7 @@
       "id": "demo-r-1-2-1",
       "version": "v1.2.1",
       "notes": "Cleanup release. One linked decision has since been archived.",
+      "author": "Mina",
       "createdAt": "2026-04-05T16:00:00.000Z",
       "decisionIds": ["demo-csv", "demo-archived-legacy"]
     },
