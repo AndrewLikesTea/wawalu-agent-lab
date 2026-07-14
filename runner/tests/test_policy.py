@@ -45,6 +45,11 @@ class RunnerPolicyTests(unittest.TestCase):
         self.assertIn('personas["reviewer"]["prompt_file"]', source)
         self.assertIn("reviewer_token()", source)
 
+    def test_collaborator_capacity_exhaustion_does_not_discard_primary_work(self):
+        source = (ROOT / "runner" / "orchestrator.py").read_text()
+        self.assertIn("collaborator_capacity_deferred", source)
+        self.assertIn("if collaborator_exit in CAPACITY_EXIT_CODES.values()", source)
+
     def test_policy_includes_uncommitted_agent_edits(self):
         source = (ROOT / "runner/policy.py").read_text()
         self.assertIn('git("diff", "--name-only")', source)

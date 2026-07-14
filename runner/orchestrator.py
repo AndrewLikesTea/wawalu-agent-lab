@@ -13,7 +13,7 @@ import uuid
 from runner.github_app import installation_token, reviewer_token
 from runner.budget import DiffBudget
 from runner.delivery import DELIVERY_REQUEST, consume_merge_request, enable_auto_merge
-from runner.layers import plan, review, review_debate, run_aside, run_worker, WORKERS
+from runner.layers import CAPACITY_EXIT_CODES, plan, review, review_debate, run_aside, run_worker, WORKERS
 from runner.simulation import choose_distraction, choose_peer_reviewer, happens, load_behaviors, personality_context
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -144,6 +144,10 @@ Scenario: {json.dumps(scenario, indent=2)}
         if collaborator_exit:
             metadata["collaborator_exit_code"] = collaborator_exit
             (run_dir / "metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")
+            if collaborator_exit in CAPACITY_EXIT_CODES.values():
+                metadata["collaborator_capacity_deferred"] = True
+                (run_dir / "metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")
+                continue
             return collaborator_exit
     merge_requested = consume_merge_request(worktree, persona, branch)
     metadata["worker_requested_auto_merge"] = merge_requested
