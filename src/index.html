@@ -3,24 +3,73 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="Shiplog engineering decisions and releases" />
-    <title>Shiplog · Wawalu Labs</title>
+    <meta name="description" content="Shiplog engineering decision log" />
+    <title>Shiplog · Engineering decisions</title>
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
     <main>
-      <header><span class="mark"></span><span>Wawalu Labs</span></header>
-      <section class="hero">
-        <p class="eyebrow">Agent-built production sandbox</p>
-        <h1>Ship decisions with their reasoning intact.</h1>
-        <p>Shiplog is becoming a durable record of engineering decisions, alternatives, and releases.</p>
+      <header class="site-header">
+        <a class="brand" href="#top"><span class="mark" aria-hidden="true"></span>Shiplog</a>
+        <span>Wawalu Labs</span>
+      </header>
+
+      <section class="hero" id="top" aria-labelledby="page-title">
+        <p class="eyebrow">Engineering decision log</p>
+        <h1 id="page-title">Keep the reasoning<br />with the work.</h1>
+        <p>Record the context behind a decision, make ownership clear, and give the team one durable history.</p>
       </section>
-      <section class="status" aria-labelledby="status-title">
-        <div><p class="eyebrow" id="status-title">Build status</p><h2>Foundation ready</h2></div>
-        <p>The synthetic engineering team will evolve this product through protected pull requests and preview deployments.</p>
+
+      <section class="workspace" aria-label="Decision log">
+        <div class="form-panel">
+          <div class="section-heading">
+            <p class="eyebrow">New record</p>
+            <h2>Add a decision</h2>
+          </div>
+
+          <form id="decision-form">
+            <div class="field field-wide">
+              <label for="title">Title</label>
+              <input id="title" name="title" type="text" maxlength="120" required autocomplete="off" />
+            </div>
+
+            <div class="field field-wide">
+              <label for="context">Context</label>
+              <textarea id="context" name="context" rows="5" maxlength="1000" required aria-describedby="context-hint"></textarea>
+              <span class="hint" id="context-hint">Summarize the problem, constraints, and reasoning.</span>
+            </div>
+
+            <div class="field">
+              <label for="owner">Owner</label>
+              <input id="owner" name="owner" type="text" maxlength="80" required autocomplete="name" />
+            </div>
+
+            <div class="field">
+              <label for="status">Status</label>
+              <select id="status" name="status" required>
+                <option value="proposed">Proposed</option>
+                <option value="accepted">Accepted</option>
+                <option value="superseded">Superseded</option>
+              </select>
+            </div>
+
+            <button type="submit">Add decision <span aria-hidden="true">→</span></button>
+          </form>
+        </div>
+
+        <div class="list-panel" aria-labelledby="decisions-title">
+          <div class="section-heading list-heading">
+            <div>
+              <p class="eyebrow">Decision history</p>
+              <h2 id="decisions-title">All decisions</h2>
+            </div>
+            <span class="count" id="decision-count" aria-live="polite">0 records</span>
+          </div>
+          <p class="notice" id="storage-notice" role="status" hidden></p>
+          <div id="decision-list"></div>
+        </div>
       </section>
     </main>
     <script type="module" src="/app.js"></script>
   </body>
 </html>
-
