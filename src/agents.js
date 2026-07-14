@@ -9,6 +9,28 @@ export function personaFromRef(ref = "") {
 
 export function describeEvent(event) {
   const payload = event?.payload ?? {};
+  if (event?.type === "IssueCommentEvent" && payload.comment?.body?.includes("wawalu-agent-state")) {
+    const labels = payload.issue?.labels ?? [];
+    const personaLabel = labels.find((label) => String(label?.name ?? label).startsWith("persona:"));
+    const persona = String(personaLabel?.name ?? personaLabel ?? "manager").replace("persona:", "");
+    const state = payload.comment.body.match(/Synthetic team · ([^*\n]+)/)?.[1]?.trim() || "updated";
+    return {
+      persona,
+      title: payload.issue?.title || `Issue #${payload.issue?.number ?? ""}`,
+      detail: `${state} · issue #${payload.issue?.number ?? ""}`,
+      url: payload.comment.html_url || payload.issue?.html_url,
+    };
+  }
+  if (event?.type === "IssuesEvent" && payload.issue) {
+    const labels = payload.issue.labels ?? [];
+    const personaLabel = labels.find((label) => String(label?.name ?? label).startsWith("persona:"));
+    return {
+      persona: String(personaLabel?.name ?? personaLabel ?? "manager").replace("persona:", ""),
+      title: payload.issue.title || `Issue #${payload.issue.number ?? ""}`,
+      detail: `${payload.action ?? "updated"} task #${payload.issue.number ?? ""}`,
+      url: payload.issue.html_url,
+    };
+  }
   if (event?.type === "PullRequestEvent") {
     const pull = payload.pull_request ?? {};
     return {

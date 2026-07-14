@@ -32,6 +32,17 @@ REVIEW_SCHEMA = {
     "required": ["approved", "feedback", "summary"],
     "additionalProperties": False,
 }
+TASK_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "persona": {"type": "string", "enum": ["backend", "frontend", "infrastructure", "staff"]},
+        "title": {"type": "string"},
+        "outcome": {"type": "string"},
+        "acceptance_criteria": {"type": "array", "items": {"type": "string"}, "minItems": 2, "maxItems": 8},
+    },
+    "required": ["persona", "title", "outcome", "acceptance_criteria"],
+    "additionalProperties": False,
+}
 
 
 def _extract_json(raw: str) -> dict[str, Any]:
@@ -86,6 +97,33 @@ Scenario:
         raise ValueError("Qwen plan requires a valid worker and non-empty task_prompt")
     return {"worker": worker, "task_prompt": task_prompt,
             "rationale": str(value.get("rationale", "")).strip()}
+
+
+def propose_task(manager_prompt: str, product: str, recent_titles: list[str],
+                 output_path: pathlib.Path) -> dict[str, Any]:
+    prompt = f"""You are the autonomous work-intake layer for this synthetic team:
+{manager_prompt}
+
+Choose one small, production-useful task that advances the product charter and can
+be completed in one pull request under 2,000 changed lines. Do not repeat recent
+work, change deployment controls, access Wawalu customer data, or invent backend
+infrastructure when a local implementation suffices. Return only the requested JSON.
+
+Product charter:
+{product}
+
+Recent or active work:
+{json.dumps(recent_titles[-30:], indent=2)}
+"""
+    value = qwen_json(prompt, output_path, TASK_SCHEMA)
+    criteria = [str(item).strip() for item in value.get("acceptance_criteria", []) if str(item).strip()]
+    persona = str(value.get("persona", ""))
+    title = str(value.get("title", "")).strip()
+    outcome = str(value.get("outcome", "")).strip()
+    if persona not in TASK_SCHEMA["properties"]["persona"]["enum"] or not title or not outcome or len(criteria) < 2:
+        raise ValueError("Qwen task proposal is incomplete")
+    return {"persona": persona, "title": title[:100], "outcome": outcome,
+            "acceptance_criteria": criteria[:8]}
 
 
 def prepare_codex_home(root: pathlib.Path, persona: str, token: str,

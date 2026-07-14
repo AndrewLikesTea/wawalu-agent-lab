@@ -14,6 +14,10 @@
     "src/agents.css",
     "src/agent-demo-data.json",
     "tests/agent-observatory.test.js",
+    "runner/autonomous.py",
+    "runner/delivery.py",
+    "config/autonomy.example.json",
+    "scripts/manage_autonomy.py",
     ".secrets/",
     "wrangler.toml"
   ],
