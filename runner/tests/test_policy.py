@@ -4,7 +4,7 @@ import pathlib
 import unittest
 from unittest import mock
 
-from runner import policy as runner_policy
+from runner import orchestrator, policy as runner_policy
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 
@@ -46,9 +46,11 @@ class RunnerPolicyTests(unittest.TestCase):
         self.assertIn("reviewer_token()", source)
 
     def test_collaborator_capacity_exhaustion_does_not_discard_primary_work(self):
-        source = (ROOT / "runner" / "orchestrator.py").read_text()
-        self.assertIn("collaborator_capacity_deferred", source)
-        self.assertIn("if collaborator_exit in CAPACITY_EXIT_CODES.values()", source)
+        self.assertTrue(orchestrator.collaborator_capacity_deferred(75))
+        self.assertTrue(orchestrator.collaborator_capacity_deferred(76))
+        self.assertFalse(orchestrator.collaborator_capacity_deferred(1))
+        with mock.patch.object(orchestrator, "CAPACITY_EXIT_CODES", {}):
+            self.assertFalse(orchestrator.collaborator_capacity_deferred(75))
 
     def test_policy_includes_uncommitted_agent_edits(self):
         source = (ROOT / "runner/policy.py").read_text()

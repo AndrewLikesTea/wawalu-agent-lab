@@ -31,6 +31,10 @@ def output(command: list[str], cwd: pathlib.Path = ROOT) -> str:
     return subprocess.check_output(command, cwd=cwd, text=True).strip()
 
 
+def collaborator_capacity_deferred(exit_code: int) -> bool:
+    return bool(CAPACITY_EXIT_CODES) and exit_code in CAPACITY_EXIT_CODES.values()
+
+
 def load_personas() -> dict:
     if not SECRETS.exists():
         raise SystemExit("copy config/personas.example.json to .secrets/personas.json and populate tokens")
@@ -143,11 +147,11 @@ Scenario: {json.dumps(scenario, indent=2)}
             log_label=f"collaborator-{collaborator}")
         if collaborator_exit:
             metadata["collaborator_exit_code"] = collaborator_exit
-            (run_dir / "metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")
-            if collaborator_exit in CAPACITY_EXIT_CODES.values():
+            if collaborator_capacity_deferred(collaborator_exit):
                 metadata["collaborator_capacity_deferred"] = True
                 (run_dir / "metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")
                 continue
+            (run_dir / "metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")
             return collaborator_exit
     merge_requested = consume_merge_request(worktree, persona, branch)
     metadata["worker_requested_auto_merge"] = merge_requested
