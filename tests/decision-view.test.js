@@ -6,6 +6,7 @@ import {
   nextFocusIndex,
   DEFAULT_SORT,
   SORTS,
+  focusLinkedDecision,
 } from "../src/app.js";
 
 // Fixtures deliberately vary title, owner, status, and date so a single set
@@ -90,4 +91,11 @@ test("nextFocusIndex moves within bounds and clamps at the ends", () => {
   assert.equal(nextFocusIndex(1, "End", 3), 2);
   assert.equal(nextFocusIndex(1, "Tab", 3), 1); // unhandled key is a no-op
   assert.equal(nextFocusIndex(0, "ArrowDown", 0), -1); // empty list
+});
+
+test("focusLinkedDecision ignores malformed and unrelated fragments", () => {
+  const root = { getElementById: () => null };
+  assert.equal(focusLinkedDecision(root, "#elsewhere"), false);
+  assert.equal(focusLinkedDecision(root, "#decision-%E0%A4%A"), false);
+  assert.equal(focusLinkedDecision(root, "#decision-missing"), false);
 });
