@@ -32,7 +32,17 @@ def output(command: list[str], cwd: pathlib.Path = ROOT) -> str:
 
 
 def collaborator_capacity_deferred(exit_code: int) -> bool:
+    """Capacity exit codes are stable internal signals from runner.layers, not provider API codes."""
     return bool(CAPACITY_EXIT_CODES) and exit_code in CAPACITY_EXIT_CODES.values()
+
+
+def record_collaborator_exit(metadata: dict, exit_code: int) -> bool:
+    """Record an optional collaborator result and report whether primary work may continue."""
+    metadata["collaborator_exit_code"] = exit_code
+    deferred = collaborator_capacity_deferred(exit_code)
+    if deferred:
+        metadata["collaborator_capacity_deferred"] = True
+    return deferred
 
 
 def load_personas() -> dict:
@@ -146,12 +156,10 @@ Scenario: {json.dumps(scenario, indent=2)}
             personas[collaborator]["wawalu_token"], runtime["WAWALU_INGEST_ENDPOINT"].rstrip("/"),
             log_label=f"collaborator-{collaborator}")
         if collaborator_exit:
-            metadata["collaborator_exit_code"] = collaborator_exit
-            if collaborator_capacity_deferred(collaborator_exit):
-                metadata["collaborator_capacity_deferred"] = True
-                (run_dir / "metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")
-                continue
+            deferred = record_collaborator_exit(metadata, collaborator_exit)
             (run_dir / "metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")
+            if deferred:
+                continue
             return collaborator_exit
     merge_requested = consume_merge_request(worktree, persona, branch)
     metadata["worker_requested_auto_merge"] = merge_requested

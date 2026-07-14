@@ -46,9 +46,12 @@ class RunnerPolicyTests(unittest.TestCase):
         self.assertIn("reviewer_token()", source)
 
     def test_collaborator_capacity_exhaustion_does_not_discard_primary_work(self):
-        self.assertTrue(orchestrator.collaborator_capacity_deferred(75))
-        self.assertTrue(orchestrator.collaborator_capacity_deferred(76))
-        self.assertFalse(orchestrator.collaborator_capacity_deferred(1))
+        metadata = {}
+        self.assertTrue(orchestrator.record_collaborator_exit(metadata, 75))
+        self.assertEqual(metadata, {"collaborator_exit_code": 75, "collaborator_capacity_deferred": True})
+        ordinary = {}
+        self.assertFalse(orchestrator.record_collaborator_exit(ordinary, 1))
+        self.assertEqual(ordinary, {"collaborator_exit_code": 1})
         with mock.patch.object(orchestrator, "CAPACITY_EXIT_CODES", {}):
             self.assertFalse(orchestrator.collaborator_capacity_deferred(75))
 
