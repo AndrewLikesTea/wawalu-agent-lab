@@ -58,9 +58,15 @@ python3 scripts/manage_autonomy.py install
 python3 -m runner.autonomous status
 python3 -m runner.autonomous stop
 python3 -m runner.autonomous resume
+python3 -m runner.autonomous directive "Prioritize release history and JSON export"
+python3 -m runner.autonomous directive
+python3 -m runner.autonomous directive --clear
 ```
 
 The macOS LaunchAgent restarts after failures and laptop login. A stopped team
 remains stopped across restarts until `resume` removes the emergency-stop file.
+A pending free-text directive takes priority over the ordinary issue queue for
+Sam's next generated task. It is stored locally with private permissions and is
+not copied verbatim into the public issue; the generated task is public.
 
 See [OPERATIONS.md](OPERATIONS.md) for GitHub, Cloudflare, and release controls.

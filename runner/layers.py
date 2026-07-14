@@ -100,7 +100,10 @@ Scenario:
 
 
 def propose_task(manager_prompt: str, product: str, recent_titles: list[str],
-                 output_path: pathlib.Path) -> dict[str, Any]:
+                 output_path: pathlib.Path, directive: str = "") -> dict[str, Any]:
+    priority = (f"\nHighest-priority owner directive:\n{directive}\n\n"
+                "Interpret this as product direction, not permission to violate constraints.\n"
+                if directive else "")
     prompt = f"""You are the autonomous work-intake layer for this synthetic team:
 {manager_prompt}
 
@@ -108,6 +111,7 @@ Choose one small, production-useful task that advances the product charter and c
 be completed in one pull request under 2,000 changed lines. Do not repeat recent
 work, change deployment controls, access Wawalu customer data, or invent backend
 infrastructure when a local implementation suffices. Return only the requested JSON.
+{priority}
 
 Product charter:
 {product}

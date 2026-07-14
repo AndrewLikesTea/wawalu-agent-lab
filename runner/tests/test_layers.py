@@ -8,6 +8,16 @@ from runner import layers
 
 
 class LayerTests(unittest.TestCase):
+    def test_owner_directive_is_prioritized_in_manager_prompt(self):
+        with mock.patch.object(layers, "qwen_json", return_value={
+            "persona": "frontend", "title": "Improve filters", "outcome": "Faster browsing",
+            "acceptance_criteria": ["Filters are keyboard accessible", "Tests pass"],
+        }) as qwen:
+            layers.propose_task("manager", "product", [], pathlib.Path("unused"), "Prioritize search")
+        prompt = qwen.call_args.args[0]
+        self.assertIn("Highest-priority owner directive:\nPrioritize search", prompt)
+        self.assertIn("not permission to violate constraints", prompt)
+
     def test_requested_worker_overrides_qwen_choice(self):
         with mock.patch.object(layers, "qwen_json", return_value={
             "worker": "claude", "task_prompt": "Implement the issue", "rationale": "test"
