@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Live, privacy-safe activity from the Wawalu synthetic engineering team" />
+    <title>Agent observatory · Wawalu Labs</title>
+    <link rel="stylesheet" href="/agents.css" />
+  </head>
+  <body>
+    <main>
+      <header class="site-header">
+        <a class="brand" href="/"><span class="mark" aria-hidden="true"></span>Shiplog</a>
+        <nav class="site-nav" aria-label="Wawalu Labs">
+          <a href="/">Decisions</a>
+          <a aria-current="page" href="/agents.html">Agent observatory</a>
+        </nav>
+      </header>
+
+      <section class="observatory-hero" aria-labelledby="page-title">
+        <div>
+          <p class="eyebrow">Synthetic engineering team</p>
+          <h1 id="page-title">Watch the work<br />move forward.</h1>
+          <p>Live repository activity from planning, implementation, review, and delivery—without exposing private prompts or transcripts.</p>
+        </div>
+        <div class="signal-card" aria-label="Observatory connection">
+          <span class="signal-dot" aria-hidden="true"></span>
+          <div><strong id="connection-label">Connecting</strong><span id="last-updated">Waiting for activity</span></div>
+        </div>
+      </section>
+
+      <section class="observatory-grid" aria-label="Agent activity">
+        <aside class="team-panel">
+          <div class="section-heading">
+            <p class="eyebrow">On the floor</p>
+            <h2>Personas</h2>
+          </div>
+          <ol class="persona-list">
+            <li><span>01</span><div><strong>Manager</strong><small>Scopes and sequences work</small></div></li>
+            <li><span>02</span><div><strong>Staff engineer</strong><small>Shapes architecture and risk</small></div></li>
+            <li><span>03</span><div><strong>Frontend</strong><small>Builds product interfaces</small></div></li>
+            <li><span>04</span><div><strong>Backend</strong><small>Builds services and data paths</small></div></li>
+            <li><span>05</span><div><strong>Infrastructure</strong><small>Maintains delivery systems</small></div></li>
+            <li><span>06</span><div><strong>Reviewer</strong><small>Approves the exact proposed diff</small></div></li>
+          </ol>
+          <p class="privacy-note"><strong>Privacy boundary</strong> This view contains public GitHub metadata only. Conversation content and account identities stay in Wawalu.</p>
+        </aside>
+
+        <section class="activity-panel" aria-labelledby="activity-title">
+          <div class="activity-heading">
+            <div><p class="eyebrow">Repository signal</p><h2 id="activity-title">Recent activity</h2></div>
+            <button class="observatory-refresh" id="refresh-activity" type="button">Refresh</button>
+          </div>
+          <p class="activity-status" id="activity-status" role="status" aria-live="polite">Loading recent activity…</p>
+          <ol class="activity-list" id="activity-list" aria-label="Recent repository events"></ol>
+        </section>
+      </section>
+    </main>
+    <script type="module" src="/agents.js"></script>
+  </body>
+</html>

@@ -5,6 +5,9 @@ body { margin:0; min-height:100vh; background:radial-gradient(circle at 84% 0,#d
 main { width:min(1180px,calc(100% - 40px)); margin:auto; padding:24px 0 80px; }
 .site-header { display:flex; align-items:center; justify-content:space-between; padding-bottom:18px; border-bottom:1px solid #cfcdc5; color:#62625d; font:650 12px/1 ui-monospace,monospace; letter-spacing:.05em; text-transform:uppercase; }
 .brand { display:flex; align-items:center; gap:10px; color:#171713; text-decoration:none; }
+.site-nav { display:flex; align-items:center; gap:6px; }
+.site-nav a { border-radius:7px; padding:8px 10px; color:#62625d; text-decoration:none; }
+.site-nav a:hover,.site-nav a[aria-current="page"] { background:rgba(255,255,255,.72); color:#171713; }
 .mark { width:11px; height:11px; background:#1f70c1; border-radius:3px; box-shadow:8px 8px 0 #e6a541; }
 .hero { max-width:840px; padding:clamp(70px,11vw,130px) 0 72px; }
 .eyebrow { margin:0; color:#65717d; font:700 11px/1.4 ui-monospace,monospace; letter-spacing:.11em; text-transform:uppercase; }
@@ -46,5 +49,5 @@ button:hover { background:#1f70c1; }
 .empty-state .empty-title { color:#282824; font-size:18px; font-weight:700; }
 .notice { margin:0 0 16px; border-radius:8px; padding:10px 12px; background:#fff0c7; color:#644a0b; font-size:13px; }
 @media(max-width:800px) { .workspace{grid-template-columns:1fr}.form-panel{position:static}.hero{padding-bottom:52px} }
-@media(max-width:520px) { main{width:calc(100% - 24px);padding-top:18px}.form-panel,.list-panel{padding:21px}.hero{padding-top:60px}form{grid-template-columns:1fr}.field{grid-column:1/-1}.list-heading{align-items:start;flex-direction:column;gap:10px} }
+@media(max-width:520px) { main{width:calc(100% - 24px);padding-top:18px}.site-header{align-items:flex-start;gap:18px}.site-nav{align-items:flex-end;flex-direction:column}.form-panel,.list-panel{padding:21px}.hero{padding-top:60px}form{grid-template-columns:1fr}.field{grid-column:1/-1}.list-heading{align-items:start;flex-direction:column;gap:10px} }
 @media(prefers-reduced-motion:reduce) { html{scroll-behavior:auto} }

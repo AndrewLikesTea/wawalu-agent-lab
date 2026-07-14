@@ -9,6 +9,10 @@
     ".github/workflows/",
     ".github/CODEOWNERS",
     ".agent-policy.json",
+    "src/agents.html",
+    "src/agents.js",
+    "src/agents.css",
+    "tests/agent-observatory.test.js",
     ".secrets/",
     "wrangler.toml"
   ],
@@ -22,4 +26,3 @@
     "rm -rf"
   ]
 }
-
