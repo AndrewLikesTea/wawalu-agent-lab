@@ -70,4 +70,11 @@ A pending free-text directive takes priority over the ordinary issue queue for
 Sam's next generated task. It is stored locally with private permissions and is
 not copied verbatim into the public issue; the generated task is public.
 
+Broad directives become an ordered 2–6 issue program rather than one oversized PR.
+Tasks are assigned across eligible engineers and dependent tasks wait for the preceding
+issue to close. Stable persona traits create different work styles, realistic first-pass
+blind spots, occasional benign off-topic model chats, pairing in one worktree, and named
+review disagreements. Tests, policy, Marcus's final review, and branch protection remain
+authoritative; the simulation never deliberately inserts a production defect.
+
 See [OPERATIONS.md](OPERATIONS.md) for GitHub, Cloudflare, and release controls.

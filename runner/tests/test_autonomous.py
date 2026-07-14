@@ -87,6 +87,19 @@ class AutonomousTests(unittest.TestCase):
                                                state, self.config(), now)
             self.assertEqual(selected["number"], 3)
 
+    def test_program_task_waits_for_open_dependency(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            now = dt.datetime(2026, 7, 14, tzinfo=dt.UTC)
+            issues = [
+                {"number": 20, "body": "foundation", "labels": [{"name": "persona:backend"}]},
+                {"number": 21, "body": "Depends on #20.", "labels": [{"name": "persona:frontend"}]},
+            ]
+            self.assertEqual(autonomous.choose_issue(issues, state, self.config(), now)["number"], 20)
+            state.value["issues"]["20"] = {"status": "submitted"}
+            self.assertIsNone(autonomous.choose_issue(issues, state, self.config(), now))
+            self.assertEqual(autonomous.choose_issue([issues[1]], state, self.config(), now)["number"], 21)
+
     def test_scenario_and_persona_label_are_bounded(self):
         issue = {"number": 9, "title": "Add release filters", "body": "Outcome body",
                  "labels": [{"name": "persona:frontend"}]}

@@ -60,6 +60,13 @@
   directive. Sam prioritizes it ahead of queued issues for the next generated
   task. A successful issue creation consumes it; failures leave it pending. The
   exact directive is not published, though the resulting issue is public.
+- Sam decomposes a directive into 2–6 ordered issues, assigns each to a persona,
+  and records explicit issue dependencies. Later work stays queued until its predecessor
+  closes. The 2,000-line bound applies per PR, not to the overall directive.
+- Human-behavior probabilities live in protected `config/team-behaviors.json`.
+  Distractions use read-only/no-tool CLI sessions; collaborators share only the task
+  worktree; review debates are published as named PR comments and must resolve before
+  Marcus submits the final approval.
 - Before every task the manager fast-forwards local `main` from `origin/main`.
   Completed disposable worktrees are removed after each attempt.
 

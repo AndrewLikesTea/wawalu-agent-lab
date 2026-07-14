@@ -20,6 +20,10 @@ export function personaIdentity(role = "team") {
   return PERSONAS[role] ?? { name: role.replaceAll("-", " "), role: "Agent" };
 }
 
+function personaByName(name) {
+  return Object.entries(PERSONAS).find(([, persona]) => persona.name === name) ?? ["team", PERSONAS.team];
+}
+
 function personaBadge(role) {
   const persona = personaIdentity(role);
   return `${persona.name} · ${persona.role}`;
@@ -27,6 +31,18 @@ function personaBadge(role) {
 
 export function describeEvent(event) {
   const payload = event?.payload ?? {};
+  if (event?.type === "IssueCommentEvent" && payload.comment?.body?.includes("wawalu-review-debate")) {
+    const speaker = payload.comment.body.match(/\*\*([^*\n]+)\*\*/)?.[1]?.trim() || "Wawalu team";
+    const [role, persona] = personaByName(speaker);
+    return {
+      persona: personaBadge(role),
+      title: payload.issue?.title || `Pull request #${payload.issue?.number ?? ""}`,
+      detail: speaker === "Resolution"
+        ? `The team resolved its review discussion on pull request #${payload.issue?.number ?? ""}`
+        : `${persona.name} joined the review discussion on pull request #${payload.issue?.number ?? ""}`,
+      url: payload.comment.html_url || payload.issue?.html_url,
+    };
+  }
   if (event?.type === "IssueCommentEvent" && payload.comment?.body?.includes("wawalu-agent-state")) {
     const labels = payload.issue?.labels ?? [];
     const personaLabel = labels.find((label) => String(label?.name ?? label).startsWith("persona:"));
