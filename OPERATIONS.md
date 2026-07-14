@@ -56,6 +56,10 @@
 - State, private event history, logs, generated scenarios, and the stop file live
   under ignored `.agent/autonomy/`. Public issue comments expose safe lifecycle
   states to the Agent Observatory without publishing model transcripts.
+- `python3 -m runner.autonomous directive "..."` stores one private, pending owner
+  directive. Sam prioritizes it ahead of queued issues for the next generated
+  task. A successful issue creation consumes it; failures leave it pending. The
+  exact directive is not published, though the resulting issue is public.
 - Before every task the manager fast-forwards local `main` from `origin/main`.
   Completed disposable worktrees are removed after each attempt.
 

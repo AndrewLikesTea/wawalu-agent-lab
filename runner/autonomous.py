@@ -13,6 +13,7 @@ import time
 import urllib.parse
 import urllib.request
 import uuid
+import hashlib
 from contextlib import contextmanager
 from typing import Any
 
@@ -26,6 +27,7 @@ CONFIG = ROOT / ".secrets" / "autonomy.json"
 STOP = AUTONOMY / "STOP"
 REPOSITORY = "AndrewLikesTea/wawalu-agent-lab"
 PERSONAS = {"backend", "frontend", "infrastructure", "staff"}
+DIRECTIVE = AUTONOMY / "directive.json"
 
 
 def utc_now() -> dt.datetime:
@@ -69,6 +71,41 @@ class State:
         day = (now or utc_now()).date().isoformat()
         self.value["daily_runs"][day] = self.runs_today(now) + 1
         self.save()
+
+
+class DirectiveStore:
+    def __init__(self, path: pathlib.Path = DIRECTIVE):
+        self.path = path
+
+    def read(self) -> dict[str, Any] | None:
+        try:
+            value = json.loads(self.path.read_text(encoding="utf-8"))
+            return value if isinstance(value, dict) and value.get("status") == "pending" else None
+        except (OSError, ValueError):
+            return None
+
+    def set(self, text: str) -> dict[str, Any]:
+        text = " ".join(text.split()).strip()
+        if not text:
+            raise ValueError("manager directive cannot be empty")
+        if len(text) > 4000:
+            raise ValueError("manager directive cannot exceed 4,000 characters")
+        self.path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        value = {"status": "pending", "text": text, "created_at": utc_now().isoformat()}
+        self.path.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
+        self.path.chmod(0o600)
+        return value
+
+    def consume(self, issue: int) -> None:
+        value = self.read()
+        if not value:
+            return
+        value.update({"status": "consumed", "issue": issue, "consumed_at": utc_now().isoformat()})
+        self.path.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
+        self.path.chmod(0o600)
+
+    def clear(self) -> None:
+        self.path.unlink(missing_ok=True)
 
 
 def load_config(path: pathlib.Path = CONFIG) -> dict[str, Any]:
@@ -168,14 +205,19 @@ def replace_state_label(token: str, issue: dict[str, Any], ready_label: str,
     github(f"/repos/{REPOSITORY}/issues/{issue['number']}", token, "PATCH", {"labels": labels})
 
 
-def generate_work(token: str, config: dict[str, Any], journal: Journal) -> dict[str, Any]:
+def generate_work(token: str, config: dict[str, Any], journal: Journal,
+                  directive: dict[str, Any] | None = None) -> dict[str, Any]:
     run_dir = AUTONOMY / "manager" / utc_now().strftime("%Y%m%dT%H%M%SZ")
     run_dir.mkdir(parents=True, exist_ok=False)
     manager = (ROOT / "personas" / "manager.md").read_text(encoding="utf-8")
     proposal = propose_task(manager, (ROOT / "PRODUCT.md").read_text(encoding="utf-8"),
-                            recent_issue_titles(token), run_dir / "qwen-task.json")
+                            recent_issue_titles(token), run_dir / "qwen-task.json",
+                            str((directive or {}).get("text", "")))
     issue = create_generated_issue(token, proposal, config["issue_label"])
-    journal.emit("task_generated", issue=issue["number"], persona=proposal["persona"], title=proposal["title"])
+    if directive:
+        DirectiveStore().consume(issue["number"])
+    journal.emit("task_generated", issue=issue["number"], persona=proposal["persona"], title=proposal["title"],
+                 directive_sha256=(hashlib.sha256(directive["text"].encode()).hexdigest() if directive else None))
     return issue
 
 
@@ -287,7 +329,12 @@ def tick(config: dict[str, Any], state: State, journal: Journal, token: str | No
     sync_main()
     ensure_labels(token, config["issue_label"])
     issues = list_ready_issues(token, config["issue_label"])
-    issue = choose_issue(issues, state, config, utc_now())
+    directive = DirectiveStore().read()
+    issue = None
+    if directive:
+        issue = generate_work(token, config, journal, directive)
+    if issue is None:
+        issue = choose_issue(issues, state, config, utc_now())
     if issue is None and config.get("generate_when_idle", False):
         issue = generate_work(token, config, journal)
     if issue is None:
@@ -320,17 +367,28 @@ def main() -> int:
     sub = parser.add_subparsers(dest="command", required=True)
     loop = sub.add_parser("loop"); loop.add_argument("--once", action="store_true")
     sub.add_parser("stop"); sub.add_parser("resume"); sub.add_parser("status")
+    directive = sub.add_parser("directive")
+    directive.add_argument("text", nargs="*")
+    directive.add_argument("--clear", action="store_true")
     args = parser.parse_args()
     AUTONOMY.mkdir(parents=True, exist_ok=True)
     if args.command == "stop":
         STOP.touch(mode=0o600, exist_ok=True); print("autonomous team stopped"); return 0
     if args.command == "resume":
         STOP.unlink(missing_ok=True); print("autonomous team resumed"); return 0
+    if args.command == "directive":
+        store = DirectiveStore()
+        if args.clear:
+            store.clear(); print("manager directive cleared"); return 0
+        if args.text:
+            value = store.set(" ".join(args.text))
+            print(json.dumps({"status": value["status"], "text": value["text"]}, indent=2)); return 0
+        print(json.dumps(store.read(), indent=2)); return 0
     if args.command == "status":
         config = load_config(); state = State()
         print(json.dumps({"enabled": config.get("enabled"), "stopped": STOP.exists(),
                           "runs_today": state.runs_today(), "max_runs_per_day": config.get("max_runs_per_day"),
-                          "state": state.value}, indent=2)); return 0
+                          "directive": DirectiveStore().read(), "state": state.value}, indent=2)); return 0
     return command_loop(args.once)
 
 

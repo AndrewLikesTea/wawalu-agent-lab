@@ -30,6 +30,25 @@ class AutonomousTests(unittest.TestCase):
             self.assertEqual(state.runs_today(now), 2)
             self.assertEqual(json.loads(state.path.read_text())["daily_runs"]["2026-07-14"], 2)
 
+    def test_directive_is_private_persistent_and_consumed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = autonomous.DirectiveStore(pathlib.Path(tmp) / "directive.json")
+            value = store.set("  Prioritize   release history  ")
+            self.assertEqual(value["text"], "Prioritize release history")
+            self.assertEqual(store.path.stat().st_mode & 0o777, 0o600)
+            store.consume(14)
+            self.assertIsNone(store.read())
+            persisted = json.loads(store.path.read_text())
+            self.assertEqual(persisted["issue"], 14)
+
+    def test_directive_rejects_empty_and_oversized_text(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = autonomous.DirectiveStore(pathlib.Path(tmp) / "directive.json")
+            with self.assertRaisesRegex(ValueError, "empty"):
+                store.set("  ")
+            with self.assertRaisesRegex(ValueError, "4,000"):
+                store.set("x" * 4001)
+
     def test_choose_issue_skips_submitted_blocked_and_cooling_down(self):
         with tempfile.TemporaryDirectory() as tmp:
             state = autonomous.State(pathlib.Path(tmp) / "state.json")
