@@ -682,6 +682,10 @@ class AutonomousTests(unittest.TestCase):
         killpg.assert_called_once_with(123, autonomous.signal.SIGTERM)
         journal.emit.assert_called_once_with("run_timeout", issue=9, timeout_seconds=30)
 
+    def test_capacity_exit_codes_map_to_the_exhausted_provider(self):
+        self.assertEqual(autonomous.CAPACITY_WORKERS[75], "codex")
+        self.assertEqual(autonomous.CAPACITY_WORKERS[76], "claude")
+
     def test_launch_agent_path_includes_user_cli_directory(self):
         value = launch_path(pathlib.Path("/Users/demo"))
         self.assertEqual(value.split(":"), [

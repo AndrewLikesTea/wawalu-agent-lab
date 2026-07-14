@@ -6,6 +6,8 @@
   "max_attempts": 2,
   "retry_cooldown_seconds": 1800,
   "worker_timeout_seconds": 10800,
+  "capacity_retry_seconds": 900,
+  "capacity_retry_max_seconds": 18000,
   "workday_rhythm": true,
   "interaction_rhythm": true,
   "issue_label": "agent-ready",
