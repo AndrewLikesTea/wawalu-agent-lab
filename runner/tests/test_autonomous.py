@@ -108,6 +108,65 @@ class AutonomousTests(unittest.TestCase):
         self.assertEqual(scenario["issue"], 9)
         self.assertEqual(scenario["assigned_persona"], "frontend")
 
+    @mock.patch.object(autonomous, "github")
+    def test_recent_issue_context_includes_engineer_assignment(self, github):
+        github.return_value = [
+            {"title": "Build API", "labels": [{"name": "persona:backend"}]},
+            {"title": "A pull request", "pull_request": {}, "labels": []},
+            {"title": "Untriaged", "labels": []},
+        ]
+        self.assertEqual(autonomous.recent_issue_context("token"), [
+            "[Rowan (backend)] Build API", "[unassigned] Untriaged",
+        ])
+
+    @mock.patch.object(autonomous, "github")
+    def test_consultation_waits_until_every_mvp_issue_is_closed(self, github):
+        with tempfile.TemporaryDirectory() as tmp, \
+             mock.patch.object(autonomous, "DIRECTIVE", pathlib.Path(tmp) / "directive.json"), \
+             mock.patch.object(autonomous, "consult_next_steps") as consult:
+            store = autonomous.DirectiveStore()
+            store.path.write_text(json.dumps({
+                "status": "consumed", "text": "Build social",
+                "created_issues": [{"index": 0, "issue": 20}, {"index": 1, "issue": 21}],
+            }))
+            github.side_effect = [{"state": "closed"}, {"state": "open"}]
+            result = autonomous.consult_after_directive_mvp(
+                "token", {"issue_label": "agent-ready"}, mock.Mock())
+        self.assertIsNone(result)
+        consult.assert_not_called()
+
+    @mock.patch.object(autonomous, "create_generated_issue", return_value={"number": 24})
+    @mock.patch.object(autonomous, "propose_task", return_value={
+        "persona": "infrastructure", "title": "Scale the feed", "outcome": "Reliable growth",
+        "acceptance_criteria": ["Load is bounded", "Tests pass"],
+    })
+    @mock.patch.object(autonomous, "consult_next_steps", return_value="Add caching")
+    @mock.patch.object(autonomous, "load_runtime_env", return_value={"WAWALU_INGEST_ENDPOINT": "https://example.invalid"})
+    @mock.patch.object(autonomous, "load_personas", return_value={"manager": {"wawalu_token": "manager-token"}})
+    @mock.patch.object(autonomous, "recent_issue_context", return_value=[])
+    @mock.patch.object(autonomous, "github", return_value={"state": "closed"})
+    def test_completed_mvp_consults_once_and_queues_followup(
+            self, github, recent, personas, runtime, consult, propose, create):
+        with tempfile.TemporaryDirectory() as tmp, \
+             mock.patch.object(autonomous, "DIRECTIVE", pathlib.Path(tmp) / "directive.json"), \
+             mock.patch.object(autonomous, "AUTONOMY", pathlib.Path(tmp) / "autonomy"), \
+             mock.patch.object(autonomous, "ROOT", pathlib.Path(tmp)):
+            pathlib.Path(tmp, "PRODUCT.md").write_text("Product")
+            pathlib.Path(tmp, "personas").mkdir()
+            pathlib.Path(tmp, "personas", "manager.md").write_text("Sam")
+            store = autonomous.DirectiveStore()
+            store.path.write_text(json.dumps({
+                "status": "consumed", "text": "Build social",
+                "created_issues": [{"index": 0, "issue": 20}],
+            }))
+            issue = autonomous.consult_after_directive_mvp(
+                "token", {"issue_label": "agent-ready"}, mock.Mock(), "claude")
+            self.assertEqual(issue["number"], 24)
+            self.assertEqual(autonomous.DirectiveStore().read_any()["consultation"]["worker"], "claude")
+        consult.assert_called_once()
+        self.assertNotIn("Add caching", propose.call_args.args[4])
+        self.assertEqual(propose.call_args.kwargs["advisory"], "Add caching")
+
     @mock.patch.object(autonomous, "sync_main")
     def test_tick_honors_stop_before_network_or_sync(self, sync):
         with tempfile.TemporaryDirectory() as tmp, \

@@ -62,7 +62,13 @@
   exact directive is not published, though the resulting issue is public.
 - Sam decomposes a directive into 2–6 ordered issues, assigns each to a persona,
   and records explicit issue dependencies. Later work stays queued until its predecessor
-  closes. The 2,000-line bound applies per PR, not to the overall directive.
+  closes. Assignment considers recent utilization and role fit; plans with four or more
+  tasks must use at least three engineers, without creating filler work. The 2,000-line
+  bound applies per PR, not to the overall directive.
+- When `consult_after_directive_mvp` is enabled and every initial directive issue is
+  closed, Sam asks Codex or Claude once for read-only product and infrastructure
+  follow-up ideas. Qwen converts one idea into a bounded queued issue; normal review,
+  rate limits, and deployment controls still apply.
 - Human-behavior probabilities live in protected `config/team-behaviors.json`.
   Distractions use read-only/no-tool CLI sessions; collaborators share only the task
   worktree; review debates are published as named PR comments and must resolve before
