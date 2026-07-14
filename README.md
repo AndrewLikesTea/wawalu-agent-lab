@@ -48,8 +48,9 @@ python3 -m runner.orchestrator run frontend scenarios/bootstrap.json --worker cl
 The autonomous manager uses labeled GitHub issues as its durable queue. When the
 queue is empty, Sam uses local Qwen to propose one bounded task from `PRODUCT.md`,
 creates an `agent-ready` issue, assigns a persona, and starts the normal runner.
-Runs are sequential, limited by working hours and a separate daily run cap, and
-retain the existing 50 approved-diff budget.
+Runs are sequential and limited by working hours. Each engineer may submit at
+most one PR in a rolling 60-minute window; failed attempts do not consume that
+slot. The existing 50 approved-diff budget remains in force.
 
 ```sh
 mkdir -p .secrets

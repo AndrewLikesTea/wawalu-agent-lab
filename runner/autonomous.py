@@ -16,6 +16,7 @@ import uuid
 import hashlib
 from contextlib import contextmanager
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from runner.github_app import installation_token
 from runner.layers import propose_task
@@ -28,6 +29,7 @@ STOP = AUTONOMY / "STOP"
 REPOSITORY = "AndrewLikesTea/wawalu-agent-lab"
 PERSONAS = {"backend", "frontend", "infrastructure", "staff"}
 DIRECTIVE = AUTONOMY / "directive.json"
+PACIFIC = ZoneInfo("America/Los_Angeles")
 
 
 def utc_now() -> dt.datetime:
@@ -56,6 +58,7 @@ class State:
             self.value = {}
         self.value.setdefault("issues", {})
         self.value.setdefault("daily_runs", {})
+        self.value.setdefault("persona_submissions", {})
 
     def save(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -70,6 +73,17 @@ class State:
     def record_run(self, now: dt.datetime | None = None) -> None:
         day = (now or utc_now()).date().isoformat()
         self.value["daily_runs"][day] = self.runs_today(now) + 1
+        self.save()
+
+    def persona_available(self, persona: str, interval_seconds: int,
+                          now: dt.datetime | None = None) -> bool:
+        submitted_at = self.value["persona_submissions"].get(persona)
+        if not submitted_at:
+            return True
+        return dt.datetime.fromisoformat(submitted_at) + dt.timedelta(seconds=interval_seconds) <= (now or utc_now())
+
+    def record_submission(self, persona: str, now: dt.datetime | None = None) -> None:
+        self.value["persona_submissions"][persona] = (now or utc_now()).isoformat()
         self.save()
 
 
@@ -234,6 +248,9 @@ def choose_issue(issues: list[dict[str, Any]], state: State, config: dict[str, A
     cooldown = int(config["retry_cooldown_seconds"])
     max_attempts = int(config["max_attempts"])
     for issue in issues:
+        persona = issue_label(issue, "persona:") or "staff"
+        if not state.persona_available(persona, int(config["min_pr_interval_seconds"]), now):
+            continue
         record = state.value["issues"].get(str(issue["number"]), {})
         if record.get("status") in {"submitted", "blocked"}:
             continue
@@ -292,6 +309,7 @@ def execute_issue(issue: dict[str, Any], config: dict[str, Any], state: State,
     scenario_path.unlink(missing_ok=True)
     if result.returncode == 0:
         record.update({"status": "submitted", "finished_at": utc_now().isoformat()})
+        state.record_submission(persona)
         comment(token, number, "submitted", "The worker completed its run and opened a reviewed pull request. If it requested merge, GitHub will deliver it after required checks.")
         replace_state_label(token, issue, config["issue_label"], "agent-running", keep_ready=False)
         journal.emit("run_submitted", issue=number, persona=persona)
@@ -313,7 +331,7 @@ def execute_issue(issue: dict[str, Any], config: dict[str, Any], state: State,
 
 
 def within_hours(config: dict[str, Any], now: dt.datetime | None = None) -> bool:
-    hour = (now or dt.datetime.now().astimezone()).astimezone().hour
+    hour = (now or dt.datetime.now(PACIFIC)).astimezone(PACIFIC).hour
     window = config["working_hours"]
     return int(window["start"]) <= hour < int(window["end"])
 
@@ -323,8 +341,6 @@ def tick(config: dict[str, Any], state: State, journal: Journal, token: str | No
         return "stopped"
     if not within_hours(config):
         return "outside-working-hours"
-    if state.runs_today() >= int(config["max_runs_per_day"]):
-        return "daily-run-limit"
     token = token or installation_token()
     sync_main()
     ensure_labels(token, config["issue_label"])
@@ -332,11 +348,19 @@ def tick(config: dict[str, Any], state: State, journal: Journal, token: str | No
     directive = DirectiveStore().read()
     issue = None
     if directive:
-        issue = generate_work(token, config, journal, directive)
+        generated = generate_work(token, config, journal, directive)
+        issue = choose_issue([generated], state, config, utc_now())
+        if issue is None:
+            return "persona-pr-rate-limit"
     if issue is None:
         issue = choose_issue(issues, state, config, utc_now())
+    if issue is None and issues:
+        return "queued-personas-rate-limited"
     if issue is None and config.get("generate_when_idle", False):
-        issue = generate_work(token, config, journal)
+        generated = generate_work(token, config, journal)
+        issue = choose_issue([generated], state, config, utc_now())
+        if issue is None:
+            return "persona-pr-rate-limit"
     if issue is None:
         return "idle"
     execute_issue(issue, config, state, journal, token)
@@ -387,7 +411,8 @@ def main() -> int:
     if args.command == "status":
         config = load_config(); state = State()
         print(json.dumps({"enabled": config.get("enabled"), "stopped": STOP.exists(),
-                          "runs_today": state.runs_today(), "max_runs_per_day": config.get("max_runs_per_day"),
+                          "attempts_today": state.runs_today(),
+                          "min_pr_interval_seconds": config.get("min_pr_interval_seconds"),
                           "directive": DirectiveStore().read(), "state": state.value}, indent=2)); return 0
     return command_loop(args.once)
 

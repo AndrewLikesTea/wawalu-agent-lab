@@ -29,7 +29,7 @@
 .observatory-refresh:hover { border-color:#1f70c1; background:#e9f1f8; color:#194f82; }
 .activity-status { margin:18px 0; color:#6e6e68; font:600 11px/1.5 ui-monospace,monospace; }
 .activity-list { display:grid; }
-.activity-item { display:grid; grid-template-columns:115px minmax(0,1fr) auto; gap:18px; align-items:start; padding:19px 0; border-top:1px solid #e5e3dc; }
+.activity-item { display:grid; grid-template-columns:165px minmax(0,1fr) auto; gap:18px; align-items:start; padding:19px 0; border-top:1px solid #e5e3dc; }
 .activity-item:first-child { border-top:0; }
 .activity-persona { border-radius:99px; padding:5px 8px; background:#e9f1f8; color:#285f8f; font:750 10px/1 ui-monospace,monospace; text-align:center; text-transform:uppercase; }
 .activity-copy { display:grid; gap:5px; min-width:0; }

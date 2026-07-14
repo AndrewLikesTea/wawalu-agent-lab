@@ -1,10 +1,28 @@
 const EVENTS_URL = "https://api.github.com/repos/AndrewLikesTea/wawalu-agent-lab/events?per_page=30";
 const REFRESH_MS = 90_000;
 const DEMO_DATA_URL = "/agent-demo-data.json";
+const PERSONAS = {
+  manager: { name: "Sam", role: "Manager" },
+  staff: { name: "Priya", role: "Staff engineer" },
+  frontend: { name: "Mina", role: "Frontend engineer" },
+  backend: { name: "Rowan", role: "Backend engineer" },
+  infrastructure: { name: "Ellis", role: "Infrastructure engineer" },
+  reviewer: { name: "Marcus", role: "Reviewer" },
+  team: { name: "Wawalu team", role: "Team" },
+};
 
 export function personaFromRef(ref = "") {
   const match = String(ref).match(/(?:refs\/heads\/)?agent\/([^/]+)/);
   return match?.[1]?.replaceAll("-", " ") ?? "team";
+}
+
+export function personaIdentity(role = "team") {
+  return PERSONAS[role] ?? { name: role.replaceAll("-", " "), role: "Agent" };
+}
+
+function personaBadge(role) {
+  const persona = personaIdentity(role);
+  return `${persona.name} · ${persona.role}`;
 }
 
 export function describeEvent(event) {
@@ -12,49 +30,64 @@ export function describeEvent(event) {
   if (event?.type === "IssueCommentEvent" && payload.comment?.body?.includes("wawalu-agent-state")) {
     const labels = payload.issue?.labels ?? [];
     const personaLabel = labels.find((label) => String(label?.name ?? label).startsWith("persona:"));
-    const persona = String(personaLabel?.name ?? personaLabel ?? "manager").replace("persona:", "");
+    const role = String(personaLabel?.name ?? personaLabel ?? "manager").replace("persona:", "");
+    const persona = personaIdentity(role);
     const state = payload.comment.body.match(/Synthetic team · ([^*\n]+)/)?.[1]?.trim() || "updated";
     return {
-      persona,
+      persona: personaBadge(role),
       title: payload.issue?.title || `Issue #${payload.issue?.number ?? ""}`,
-      detail: `${state} · issue #${payload.issue?.number ?? ""}`,
+      detail: `${persona.name}: ${state} on issue #${payload.issue?.number ?? ""}`,
       url: payload.comment.html_url || payload.issue?.html_url,
     };
   }
   if (event?.type === "IssuesEvent" && payload.issue) {
     const labels = payload.issue.labels ?? [];
     const personaLabel = labels.find((label) => String(label?.name ?? label).startsWith("persona:"));
+    const role = String(personaLabel?.name ?? personaLabel ?? "manager").replace("persona:", "");
+    const persona = personaIdentity(role);
     return {
-      persona: String(personaLabel?.name ?? personaLabel ?? "manager").replace("persona:", ""),
+      persona: personaBadge(role),
       title: payload.issue.title || `Issue #${payload.issue.number ?? ""}`,
-      detail: `${payload.action ?? "updated"} task #${payload.issue.number ?? ""}`,
+      detail: `${persona.name} ${payload.action ?? "updated"} task #${payload.issue.number ?? ""}`,
       url: payload.issue.html_url,
     };
   }
   if (event?.type === "PullRequestEvent") {
     const pull = payload.pull_request ?? {};
+    const role = personaFromRef(pull.head?.ref);
+    const persona = personaIdentity(role);
+    const action = payload.action ?? "updated";
+    const detail = action === "opened"
+      ? `${persona.name} opened pull request #${pull.number ?? ""}`
+      : action === "closed" && pull.merged
+        ? `${persona.name}'s pull request #${pull.number ?? ""} was merged`
+        : `${persona.name} ${action} pull request #${pull.number ?? ""}`;
     return {
-      persona: personaFromRef(pull.head?.ref),
+      persona: personaBadge(role),
       title: pull.title || `Pull request #${pull.number ?? ""}`,
-      detail: `${payload.action ?? "updated"} pull request #${pull.number ?? ""}`,
+      detail,
       url: pull.html_url,
     };
   }
   if (event?.type === "PullRequestReviewEvent") {
     const pull = payload.pull_request ?? {};
+    const state = String(payload.review?.state ?? payload.action ?? "reviewed").toLowerCase();
+    const action = state === "approved" ? "approved" : state === "changes_requested" ? "requested changes on" : "reviewed";
     return {
-      persona: "reviewer",
+      persona: personaBadge("reviewer"),
       title: pull.title || `Pull request #${pull.number ?? ""}`,
-      detail: `${payload.review?.state ?? payload.action ?? "reviewed"} the proposed diff`,
+      detail: `Marcus ${action} pull request #${pull.number ?? ""}`,
       url: payload.review?.html_url || pull.html_url,
     };
   }
   if (event?.type === "PushEvent") {
     const commits = Array.isArray(payload.commits) ? payload.commits : [];
+    const role = personaFromRef(payload.ref);
+    const persona = personaIdentity(role);
     return {
-      persona: personaFromRef(payload.ref),
+      persona: personaBadge(role),
       title: commits[0]?.message || "Pushed repository changes",
-      detail: `${commits.length} ${commits.length === 1 ? "commit" : "commits"} pushed`,
+      detail: `${persona.name} pushed ${commits.length} ${commits.length === 1 ? "commit" : "commits"}`,
       url: `https://github.com/AndrewLikesTea/wawalu-agent-lab/commits/${encodeURIComponent(String(payload.ref ?? "main").replace("refs/heads/", ""))}`,
     };
   }
