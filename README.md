@@ -70,8 +70,15 @@ A pending free-text directive takes priority over the ordinary issue queue for
 Sam's next generated task. It is stored locally with private permissions and is
 not copied verbatim into the public issue; the generated task is public.
 
+After every issue in a directive's initial MVP closes, Sam can make one read-only
+Codex or Claude consultation for product and scalability ideas. Qwen selects one
+bounded follow-up from that advice, which enters the same issue, review, and release
+controls. Enable it with `consult_after_directive_mvp` in the autonomy configuration.
+
 Broad directives become an ordered 2–6 issue program rather than one oversized PR.
-Tasks are assigned across eligible engineers and dependent tasks wait for the preceding
+Sam sees recent assignments as well as task titles, balances role fit with utilization,
+and uses at least three engineers for programs of four or more meaningful tasks. Tasks
+are assigned across eligible engineers and dependent tasks wait for the preceding
 issue to close. Stable persona traits create different work styles, realistic first-pass
 blind spots, occasional benign off-topic model chats, pairing in one worktree, and named
 review disagreements. Tests, policy, Marcus's final review, and branch protection remain

@@ -115,7 +115,10 @@ def propose_task(manager_prompt: str, product: str, recent_titles: list[str],
 Choose one small, production-useful task that advances the product charter and can
 be completed in one pull request under 2,000 changed lines. Do not repeat recent
 work, change deployment controls, access Wawalu customer data, or invent backend
-infrastructure when a local implementation suffices. Return only the requested JSON.
+infrastructure when a local implementation suffices. Recent work includes its assigned
+engineer: among engineers who fit the task, favor someone carrying less recent work so
+the same specialists are not selected repeatedly. Do not invent busywork merely to
+equalize assignments. Return only the requested JSON.
 {priority}
 
 Product charter:
@@ -141,7 +144,12 @@ def propose_directive_plan(manager_prompt: str, product: str, recent_titles: lis
 {manager_prompt}
 
 Turn the owner's directive into 2-6 ordered, independently mergeable tasks. Assign
-each task to the best engineer. A single task must fit one reviewable PR under 2,000
+each task using both engineering fit and recent utilization. For a program of four or
+more tasks, use at least three distinct engineers and prefer all four when each can own
+meaningful work. Priya is suited to architecture, integration, and cross-cutting work;
+Ellis is suited to operations, authentication, integration, and reliability. Do not
+create busywork or make an implausible assignment just to equalize the workload.
+A single task must fit one reviewable PR under 2,000
 changed lines, but the overall directive does not need to. Put foundations before
 dependent UI or integration work and include dependency expectations in outcomes or
 acceptance criteria. Do not change deployment controls or access Wawalu customer data.
@@ -170,6 +178,8 @@ Recent or active work:
                            "acceptance_criteria": criteria[:8]})
     if not 2 <= len(normalized) <= 6:
         raise ValueError("Qwen directive plan requires 2-6 tasks")
+    if len(normalized) >= 4 and len({task["persona"] for task in normalized}) < 3:
+        raise ValueError("Qwen directive plans with 4+ tasks require at least three engineers")
     return normalized
 
 
@@ -272,6 +282,53 @@ def run_aside(worker: str, prompt: str, worktree: pathlib.Path, run_dir: pathlib
     with (run_dir / f"{worker}-aside.jsonl").open("w", encoding="utf-8") as log:
         return subprocess.run(command, cwd=worktree, env=env, text=True, stdin=subprocess.DEVNULL,
                               stdout=log, stderr=subprocess.STDOUT).returncode
+
+
+def consult_next_steps(worker: str, directive: str, product: str, repository: pathlib.Path,
+                       run_dir: pathlib.Path, token: str, ingest_endpoint: str) -> str:
+    """Ask a frontier coding assistant for ideas without granting write tools."""
+    prompt = f"""You are advising Sam, a synthetic engineering manager. The initial MVP for
+the owner directive below is complete. Inspect the repository read-only and recommend 3-5
+specific next investments. Consider both product functionality and infrastructure
+scalability. Explain user or operational value, evidence in the current codebase, likely
+scope, and dependencies. Do not edit files, run destructive commands, or deploy.
+
+Owner directive:
+{directive}
+
+Product charter:
+{product}
+"""
+    env = os.environ.copy()
+    env.update({"WAWALU_SIMULATION": "1", "WAWALU_SIMULATION_PERSONA": "manager"})
+    output_path = run_dir / f"{worker}-next-ideas.txt"
+    if worker == "codex":
+        notify = pathlib.Path.home() / ".local/share/wawalu/bin/wawalu-codex-notify"
+        home, callback = prepare_codex_home(repository, "manager", token, ingest_endpoint, notify)
+        env.update({"CODEX_HOME": str(home), "WAWALU_CODEX_CONFIG": str(callback)})
+        command = ["codex", "exec", "--sandbox", "read-only", "--cd", str(repository),
+                   "--output-last-message", str(output_path), "-c", "approval_policy=never",
+                   "-c", "sandbox_workspace_write.network_access=false", prompt]
+        completed = subprocess.run(command, cwd=repository, env=env, text=True,
+                                   stdin=subprocess.DEVNULL, capture_output=True)
+    elif worker == "claude":
+        settings = prepare_claude_settings(run_dir, token, ingest_endpoint)
+        env.update(json.loads(settings.read_text(encoding="utf-8"))["env"])
+        command = ["claude", "-p", "--output-format", "text", "--no-session-persistence",
+                   "--no-chrome", "--disable-slash-commands", "--setting-sources", "",
+                   "--settings", str(settings), "--permission-mode", "dontAsk",
+                   "--allowedTools", "Read,Glob,Grep", "--name", "wawalu-manager-consultation", prompt]
+        completed = subprocess.run(command, cwd=repository, env=env, text=True,
+                                   stdin=subprocess.DEVNULL, capture_output=True)
+        output_path.write_text(completed.stdout, encoding="utf-8")
+    else:
+        raise ValueError(f"unsupported consultant: {worker}")
+    if completed.returncode:
+        raise RuntimeError(f"{worker} consultation failed with exit code {completed.returncode}")
+    ideas = output_path.read_text(encoding="utf-8").strip()
+    if not ideas:
+        raise RuntimeError(f"{worker} consultation returned no ideas")
+    return ideas
 
 
 DEBATE_SCHEMA = {

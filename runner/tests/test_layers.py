@@ -31,6 +31,30 @@ class LayerTests(unittest.TestCase):
         self.assertIn("2-6 ordered", qwen.call_args.args[0])
         self.assertIn("overall directive does not need to", qwen.call_args.args[0])
 
+    def test_large_directive_rejects_concentrated_assignment(self):
+        tasks = [
+            {"persona": persona, "title": f"Task {index}", "outcome": "Useful outcome",
+             "acceptance_criteria": ["Behavior works", "Tests pass"]}
+            for index, persona in enumerate(["backend", "frontend", "backend", "frontend"], 1)
+        ]
+        with mock.patch.object(layers, "qwen_json", return_value={"tasks": tasks}):
+            with self.assertRaisesRegex(ValueError, "at least three engineers"):
+                layers.propose_directive_plan("Sam", "product", [], "Build social", pathlib.Path("unused"))
+
+    def test_assignment_prompt_balances_utilization_without_busywork(self):
+        tasks = [
+            {"persona": persona, "title": f"Task {index}", "outcome": "Useful outcome",
+             "acceptance_criteria": ["Behavior works", "Tests pass"]}
+            for index, persona in enumerate(["backend", "frontend", "infrastructure", "staff"], 1)
+        ]
+        with mock.patch.object(layers, "qwen_json", return_value={"tasks": tasks}) as qwen:
+            layers.propose_directive_plan("Sam", "product", ["[Rowan (backend)] API"],
+                                          "Build social", pathlib.Path("unused"))
+        prompt = qwen.call_args.args[0]
+        self.assertIn("recent utilization", prompt)
+        self.assertIn("prefer all four", prompt)
+        self.assertIn("Do not\ncreate busywork", prompt)
+
     def test_requested_worker_overrides_qwen_choice(self):
         with mock.patch.object(layers, "qwen_json", return_value={
             "worker": "claude", "task_prompt": "Implement the issue", "rationale": "test"

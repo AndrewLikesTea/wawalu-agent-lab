@@ -6,6 +6,7 @@
   "max_attempts": 2,
   "retry_cooldown_seconds": 1800,
   "issue_label": "agent-ready",
+  "consult_after_directive_mvp": true,
   "generate_when_idle": true,
   "default_worker": "auto"
 }

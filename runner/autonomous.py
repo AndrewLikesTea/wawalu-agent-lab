@@ -19,9 +19,9 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from runner.github_app import installation_token
-from runner.layers import propose_directive_plan, propose_task
+from runner.layers import consult_next_steps, propose_directive_plan, propose_task
+from runner.orchestrator import load_personas, load_runtime_env, safe_slug
 from runner.simulation import choose_collaborator, load_behaviors
-from runner.orchestrator import safe_slug
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 AUTONOMY = ROOT / ".agent" / "autonomy"
@@ -29,6 +29,8 @@ CONFIG = ROOT / ".secrets" / "autonomy.json"
 STOP = AUTONOMY / "STOP"
 REPOSITORY = "AndrewLikesTea/wawalu-agent-lab"
 PERSONAS = {"backend", "frontend", "infrastructure", "staff"}
+PERSONA_NAMES = {"backend": "Rowan", "frontend": "Mina",
+                 "infrastructure": "Ellis", "staff": "Priya"}
 DIRECTIVE = AUTONOMY / "directive.json"
 PACIFIC = ZoneInfo("America/Los_Angeles")
 
@@ -89,13 +91,20 @@ class State:
 
 
 class DirectiveStore:
-    def __init__(self, path: pathlib.Path = DIRECTIVE):
-        self.path = path
+    def __init__(self, path: pathlib.Path | None = None):
+        self.path = path or DIRECTIVE
 
     def read(self) -> dict[str, Any] | None:
         try:
             value = json.loads(self.path.read_text(encoding="utf-8"))
             return value if isinstance(value, dict) and value.get("status") == "pending" else None
+        except (OSError, ValueError):
+            return None
+
+    def read_any(self) -> dict[str, Any] | None:
+        try:
+            value = json.loads(self.path.read_text(encoding="utf-8"))
+            return value if isinstance(value, dict) else None
         except (OSError, ValueError):
             return None
 
@@ -116,6 +125,15 @@ class DirectiveStore:
         if not value:
             return
         value.update({"status": "consumed", "issue": issue, "consumed_at": utc_now().isoformat()})
+        self.path.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
+        self.path.chmod(0o600)
+
+    def record_consultation(self, worker: str, issue: int) -> None:
+        value = self.read_any()
+        if not value:
+            raise RuntimeError("no directive to update")
+        value["consultation"] = {"worker": worker, "issue": issue,
+                                 "created_at": utc_now().isoformat()}
         self.path.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
         self.path.chmod(0o600)
 
@@ -190,10 +208,17 @@ def list_ready_issues(token: str, label: str) -> list[dict[str, Any]]:
     return [item for item in value if "pull_request" not in item]
 
 
-def recent_issue_titles(token: str) -> list[str]:
+def recent_issue_context(token: str) -> list[str]:
     query = urllib.parse.urlencode({"state": "all", "sort": "updated", "direction": "desc", "per_page": 30})
-    return [item.get("title", "") for item in github(f"/repos/{REPOSITORY}/issues?{query}", token)
-            if "pull_request" not in item]
+    context = []
+    for item in github(f"/repos/{REPOSITORY}/issues?{query}", token):
+        if "pull_request" in item:
+            continue
+        persona = issue_label(item, "persona:")
+        assignment = (f"{PERSONA_NAMES.get(persona, persona)} ({persona})"
+                      if persona else "unassigned")
+        context.append(f"[{assignment}] {item.get('title', '')}")
+    return context
 
 
 def comment(token: str, number: int, state: str, detail: str) -> None:
@@ -247,7 +272,7 @@ def generate_work(token: str, config: dict[str, Any], journal: Journal) -> dict[
     run_dir.mkdir(parents=True, exist_ok=False)
     manager = (ROOT / "personas" / "manager.md").read_text(encoding="utf-8")
     proposal = propose_task(manager, (ROOT / "PRODUCT.md").read_text(encoding="utf-8"),
-                            recent_issue_titles(token), run_dir / "qwen-task.json")
+                            recent_issue_context(token), run_dir / "qwen-task.json")
     issue = create_generated_issue(token, proposal, config["issue_label"])
     journal.emit("task_generated", issue=issue["number"], persona=proposal["persona"], title=proposal["title"])
     return issue
@@ -262,7 +287,7 @@ def generate_directive_backlog(token: str, config: dict[str, Any], journal: Jour
     if not isinstance(tasks, list):
         tasks = propose_directive_plan(
             (ROOT / "personas" / "manager.md").read_text(encoding="utf-8"),
-            (ROOT / "PRODUCT.md").read_text(encoding="utf-8"), recent_issue_titles(token),
+            (ROOT / "PRODUCT.md").read_text(encoding="utf-8"), recent_issue_context(token),
             directive["text"], run_dir / "qwen-directive-plan.json")
         directive = store.save_plan(tasks)
     created = {int(item["index"]): int(item["issue"]) for item in directive.get("created_issues", [])}
@@ -281,6 +306,42 @@ def generate_directive_backlog(token: str, config: dict[str, Any], journal: Jour
     journal.emit("directive_backlog_created", issues=[item["number"] for item in issues],
                  directive_sha256=hashlib.sha256(directive["text"].encode()).hexdigest())
     return issues
+
+
+def consult_after_directive_mvp(token: str, config: dict[str, Any], journal: Journal,
+                                worker: str = "auto") -> dict[str, Any] | None:
+    store = DirectiveStore()
+    directive = store.read_any()
+    if not directive or directive.get("status") != "consumed" or directive.get("consultation"):
+        return None
+    created = directive.get("created_issues", [])
+    if not created:
+        return None
+    for reference in created:
+        issue = github(f"/repos/{REPOSITORY}/issues/{int(reference['issue'])}", token)
+        if issue.get("state") != "closed":
+            return None
+    if worker == "auto":
+        worker = "codex" if int(hashlib.sha256(directive["text"].encode()).hexdigest(), 16) % 2 == 0 else "claude"
+    if worker not in {"codex", "claude"}:
+        raise ValueError("consultation worker must be auto, codex, or claude")
+    run_dir = AUTONOMY / "manager" / (utc_now().strftime("%Y%m%dT%H%M%SZ") + "-consultation")
+    run_dir.mkdir(parents=True, exist_ok=False)
+    personas, runtime = load_personas(), load_runtime_env()
+    ideas = consult_next_steps(
+        worker, directive["text"], (ROOT / "PRODUCT.md").read_text(encoding="utf-8"),
+        ROOT, run_dir, personas["manager"]["wawalu_token"],
+        runtime["WAWALU_INGEST_ENDPOINT"].rstrip("/"))
+    proposal = propose_task(
+        (ROOT / "personas" / "manager.md").read_text(encoding="utf-8"),
+        (ROOT / "PRODUCT.md").read_text(encoding="utf-8"), recent_issue_context(token),
+        run_dir / "qwen-followup-task.json",
+        f"Select one bounded, high-value follow-up to the completed MVP from this {worker} consultation:\n{ideas[:12000]}")
+    issue = create_generated_issue(token, proposal, config["issue_label"])
+    store.record_consultation(worker, issue["number"])
+    journal.emit("directive_followup_consulted", worker=worker, issue=issue["number"],
+                 directive_sha256=hashlib.sha256(directive["text"].encode()).hexdigest())
+    return issue
 
 
 def scenario_from_issue(issue: dict[str, Any], persona: str) -> dict[str, Any]:
@@ -416,6 +477,12 @@ def tick(config: dict[str, Any], state: State, journal: Journal, token: str | No
         issue = choose_issue(issues, state, config, utc_now())
     if issue is None and issues:
         return "queued-personas-rate-limited"
+    if issue is None and config.get("consult_after_directive_mvp", False):
+        generated = consult_after_directive_mvp(token, config, journal)
+        if generated:
+            issue = choose_issue([generated], state, config, utc_now())
+            if issue is None:
+                return "persona-pr-rate-limit"
     if issue is None and config.get("generate_when_idle", False):
         generated = generate_work(token, config, journal)
         issue = choose_issue([generated], state, config, utc_now())
