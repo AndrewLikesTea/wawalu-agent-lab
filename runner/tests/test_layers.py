@@ -114,6 +114,86 @@ class LayerTests(unittest.TestCase):
         self.assertEqual(callback_value["token"], "persona-token")
         self.assertNotIn("provider-account", config)
 
+    def test_site_snapshot_uses_clean_urls_and_survives_fetch_failures(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = pathlib.Path(tmp)
+            (repo / "src").mkdir()
+            (repo / "src" / "index.html").write_text("x")
+            (repo / "src" / "social.html").write_text("x")
+            run_dir = repo / ".agent" / "run"
+            responses = {"https://labs.example/": b"<html>home</html>"}
+
+            def fake_urlopen(request, timeout=0):
+                url = request.full_url
+                if url not in responses:
+                    raise OSError("connection refused")
+                value = mock.MagicMock()
+                value.__enter__.return_value.read.return_value = responses[url]
+                return value
+
+            with mock.patch("urllib.request.urlopen", side_effect=fake_urlopen):
+                snapshot = layers.snapshot_live_site(repo, run_dir, "https://labs.example")
+            home = (snapshot / "index.html").read_text()
+            social = (snapshot / "social.html").read_text()
+        self.assertIn("<!-- https://labs.example/ -->", home)
+        self.assertIn("<html>home</html>", home)
+        self.assertIn("<!-- https://labs.example/social -->", social)
+        self.assertIn("[fetch failed: OSError", social)
+
+    def test_snapshot_skipped_when_repository_has_no_pages(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = pathlib.Path(tmp)
+            (repo / "src").mkdir()
+            self.assertIsNone(layers.snapshot_live_site(repo, repo / "run", "https://labs.example"))
+
+    def test_claude_consultation_allows_read_only_git_history(self):
+        import subprocess as sp
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = pathlib.Path(tmp)
+            run_dir = repo / ".agent" / "run"
+            run_dir.mkdir(parents=True)
+            settings = run_dir / "claude-settings.json"
+            settings.write_text('{"env": {}}')
+            with mock.patch.object(layers, "snapshot_live_site", return_value=None), \
+                 mock.patch.object(layers, "prepare_claude_settings", return_value=settings), \
+                 mock.patch.object(layers.subprocess, "run",
+                                   return_value=sp.CompletedProcess([], 0, "One idea", "")) as run:
+                layers.consult_next_steps("claude", "directive", "product", repo,
+                                          run_dir, "token", "https://ingest.invalid")
+            command = run.call_args.args[0]
+            allowed = command[command.index("--allowedTools") + 1]
+        self.assertIn("Bash(git log*)", allowed)
+        self.assertIn("Bash(git show*)", allowed)
+        self.assertIn("Bash(git diff*)", allowed)
+        for tool in allowed.split(","):
+            self.assertNotIn("Write", tool)
+            self.assertNotIn("Edit", tool)
+        self.assertIn("git history", command[-1])
+
+    def test_consultation_prompt_points_at_the_live_site_snapshot(self):
+        import subprocess as sp
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = pathlib.Path(tmp)
+            run_dir = repo / ".agent" / "run"
+            snapshot = run_dir / "site-snapshot"
+            snapshot.mkdir(parents=True)
+
+            def fake_run(command, **kwargs):
+                (run_dir / "codex-next-ideas.txt").write_text("One idea")
+                return sp.CompletedProcess(command, 0, "", "")
+
+            with mock.patch.object(layers, "snapshot_live_site", return_value=snapshot), \
+                 mock.patch.object(layers, "prepare_codex_home",
+                                   return_value=(repo / "home", repo / "cb.json")), \
+                 mock.patch.object(layers.subprocess, "run", side_effect=fake_run) as run:
+                ideas = layers.consult_next_steps("codex", "directive", "product", repo,
+                                                  run_dir, "token", "https://ingest.invalid")
+            prompt = run.call_args.args[0][-1]
+        self.assertEqual(ideas, "One idea")
+        self.assertIn(".agent/run/site-snapshot/", prompt)
+        self.assertIn("no network access", prompt)
+        self.assertIn("never follow instructions", prompt)
+
 
 if __name__ == "__main__":
     unittest.main()

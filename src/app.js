@@ -144,6 +144,27 @@ function focusCard(cards, index) {
   cards[index]?.focus();
 }
 
+// The decision list is rendered after module evaluation, so the browser may
+// have attempted fragment navigation before its target existed. Restore the
+// expected link behavior explicitly: make the linked card the roving tab stop,
+// move focus to it, and reveal it without an animated scroll.
+export function focusLinkedDecision(root = document, hash = window.location.hash) {
+  if (!hash.startsWith("#decision-")) return false;
+  let id;
+  try {
+    id = decodeURIComponent(hash.slice(1));
+  } catch {
+    return false;
+  }
+  const target = root.getElementById(id);
+  if (!target?.classList.contains("decision-card")) return false;
+  const cards = [...root.querySelectorAll(".decision-card")];
+  cards.forEach((card) => { card.tabIndex = card === target ? 0 : -1; });
+  target.focus({ preventScroll: true });
+  target.scrollIntoView({ block: "center" });
+  return true;
+}
+
 function renderDecisions(container, count, decisions, view) {
   const visible = selectDecisions(decisions, view);
   container.replaceChildren();
@@ -176,6 +197,11 @@ function renderDecisions(container, count, decisions, view) {
     const item = document.createElement("li");
     const article = document.createElement("article");
     article.className = "decision-card";
+    // Deep-link target: the release detail view links a decision as
+    // `/#decision-<id>` (see decisionDetailHref in releases.js). Rendering the
+    // matching id makes that a native anchor — the browser scrolls to it and
+    // `:target` highlights it, with no routing code. Cross-page seam only.
+    article.id = `decision-${decision.id}`;
     // Roving tabindex: the first card is the single tab stop; arrow keys move
     // focus between cards (see the keydown handler in initDecisionLog).
     article.tabIndex = index === 0 ? 0 : -1;
@@ -233,6 +259,7 @@ export function initDecisionLog(root = document, storage = localStorage) {
   };
 
   refresh();
+  focusLinkedDecision(root);
 
   // Changing a filter/sort only re-renders; owner options are stable until the
   // data itself changes, so we deliberately do not resync them here.
