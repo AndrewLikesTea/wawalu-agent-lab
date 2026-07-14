@@ -12,6 +12,7 @@ dist/
 .agent/codex-homes/
 .agent/runs/
 .agent/budgets/
+.agent-delivery.json
 *.log
 __pycache__/
 *.pyc

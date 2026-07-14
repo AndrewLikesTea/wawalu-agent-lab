@@ -24,11 +24,14 @@
 - Preview branches deploy automatically from pull requests.
 - Every protected `main` update runs checks, deploys that exact commit to the
   production Pages branch, and smoke-tests `labs.wawalu.org`.
-- After the independent Reviewer App approves, the trusted local runner enables
-  GitHub auto-merge. Required CI and branch protection remain the release gate;
-  there is no separate deployment approval after merge.
-- Worker processes cannot merge, bypass checks, access Cloudflare credentials,
-  or invoke the production deployment themselves.
+- A worker may request auto-merge only for its own current branch through the
+  `.agent-delivery.json` capability. The runner validates and consumes the request
+  before exchanging it for a short-lived GitHub App token.
+- After independent Reviewer App approval, the runner honors that worker request.
+  Required CI and branch protection remain the release gate; there is no separate
+  deployment approval after merge.
+- Worker processes cannot see reusable GitHub or Cloudflare credentials, bypass
+  checks, target another PR, or invoke the production deployment themselves.
 
 ## Daily diff budget
 

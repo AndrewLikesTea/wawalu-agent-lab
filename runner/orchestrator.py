@@ -12,7 +12,7 @@ import uuid
 
 from runner.github_app import installation_token, reviewer_token
 from runner.budget import DiffBudget
-from runner.delivery import enable_auto_merge
+from runner.delivery import DELIVERY_REQUEST, consume_merge_request, enable_auto_merge
 from runner.layers import plan, review, run_worker, WORKERS
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -92,7 +92,11 @@ def command_run(persona: str, scenario_path: str, push: bool, requested_worker: 
     worker_prompt = f'''{plan_value["task_prompt"]}
 
 Read PRODUCT.md, AGENTS.md, and .agent-policy.json. Work only in this worktree.
-Run relevant tests. Do not push, merge, deploy, or access paths outside it.
+Run relevant tests. Do not push directly, deploy, or access paths outside it.
+If you judge your finished work ready to merge, request that capability by writing
+exactly this JSON to {DELIVERY_REQUEST}:
+{{"action":"auto_merge","branch":"{branch}","requested_by":"{persona}"}}
+Do not invoke GitHub yourself and do not request delivery for another branch.
 '''
     (run_dir / "worker-prompt.txt").write_text(worker_prompt)
     exit_code = run_worker(plan_value["worker"], worker_prompt, worktree, run_dir,
@@ -103,6 +107,9 @@ Run relevant tests. Do not push, merge, deploy, or access paths outside it.
                 "worktree": str(worktree), "exit_code": exit_code}
     (run_dir / "metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")
     if exit_code: return exit_code
+    merge_requested = consume_merge_request(worktree, persona, branch)
+    metadata["worker_requested_auto_merge"] = merge_requested
+    (run_dir / "metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")
     run(["npm", "run", "check"], cwd=worktree)
     run([sys.executable, "-m", "runner.policy", "--base", "main"], cwd=worktree)
     run(["git", "add", "--intent-to-add", "--all"], cwd=worktree)
@@ -151,8 +158,11 @@ Run relevant tests. Do not push, merge, deploy, or access paths outside it.
         run(["gh", "pr", "review", branch, "--repo", "AndrewLikesTea/wawalu-agent-lab",
              "--approve", "--body", f"Approved by the synthetic reviewer persona. Qwen review: {review_value['summary']}"],
             cwd=worktree, env=review_env)
-        enable_auto_merge("AndrewLikesTea/wawalu-agent-lab", branch, github_token, worktree)
-        metadata["delivery"] = "auto-merge requested; protected main deploys after required checks"
+        if merge_requested:
+            enable_auto_merge("AndrewLikesTea/wawalu-agent-lab", branch, github_token, worktree)
+            metadata["delivery"] = "worker-requested auto-merge; protected main deploys after required checks"
+        else:
+            metadata["delivery"] = "pull request open; worker did not request auto-merge"
         (run_dir / "metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")
     print(json.dumps(metadata, indent=2))
     return 0

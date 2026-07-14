@@ -22,6 +22,11 @@ class RunnerPolicyTests(unittest.TestCase):
         self.assertIn("wrangler.toml", policy["forbidden_paths"])
         self.assertIn("gh pr merge", policy["forbidden_commands"])
 
+    def test_worker_merge_capability_is_branch_bound(self):
+        source = (ROOT / "runner/orchestrator.py").read_text()
+        self.assertIn("consume_merge_request(worktree, persona, branch)", source)
+        self.assertIn('"requested_by":"{persona}"', source)
+
     def test_personas_use_separate_prompts(self):
         cfg = json.loads((ROOT / "config/personas.example.json").read_text())
         prompts = [v["prompt_file"] for v in cfg["personas"].values()]
