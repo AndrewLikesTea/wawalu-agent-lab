@@ -12,6 +12,7 @@ import uuid
 
 from runner.github_app import installation_token, reviewer_token
 from runner.budget import DiffBudget
+from runner.delivery import enable_auto_merge
 from runner.layers import plan, review, run_worker, WORKERS
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -150,6 +151,9 @@ Run relevant tests. Do not push, merge, deploy, or access paths outside it.
         run(["gh", "pr", "review", branch, "--repo", "AndrewLikesTea/wawalu-agent-lab",
              "--approve", "--body", f"Approved by the synthetic reviewer persona. Qwen review: {review_value['summary']}"],
             cwd=worktree, env=review_env)
+        enable_auto_merge("AndrewLikesTea/wawalu-agent-lab", branch, github_token, worktree)
+        metadata["delivery"] = "auto-merge requested; protected main deploys after required checks"
+        (run_dir / "metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")
     print(json.dumps(metadata, indent=2))
     return 0
 

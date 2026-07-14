@@ -16,8 +16,11 @@ least-privilege GitHub App submits the required approval after it passes.
 
 The repository is deliberately separate from the Wawalu product repository.
 Agents work only in disposable worktrees, may push only `agent/*` branches, and
-must use pull requests. Andrew's protected-branch merge approval is the release
-gate; merging to `main` deploys production automatically.
+must use pull requests. After Qwen approves the exact diff, the independent
+Reviewer App approves the exact PR head and the runner enables GitHub auto-merge.
+GitHub waits for required CI and resolved conversations, then merges to `main`;
+that protected-main push deploys production automatically and runs a smoke test.
+Worker personas never receive production credentials or direct merge/deploy access.
 
 ## Local checks
 
