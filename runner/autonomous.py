@@ -229,6 +229,22 @@ def singleton(path: pathlib.Path = AUTONOMY / "daemon.lock"):
         yield
 
 
+@contextmanager
+def try_lock(path: pathlib.Path):
+    """Yield True while holding an exclusive advisory lock, or False if already held."""
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    with path.open("a+", encoding="utf-8") as handle:
+        try:
+            fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            yield False
+            return
+        try:
+            yield True
+        finally:
+            fcntl.flock(handle, fcntl.LOCK_UN)
+
+
 def github(path: str, token: str, method: str = "GET", data: dict | None = None) -> Any:
     request = urllib.request.Request(
         "https://api.github.com" + path,
@@ -391,10 +407,20 @@ def consult_after_directive_mvp(token: str, config: dict[str, Any], journal: Jou
     idea = current.get("idea")
     if not idea:
         personas, runtime = load_personas(), load_runtime_env()
-        idea = consult_next_steps(
-            worker, directive["text"], (ROOT / "PRODUCT.md").read_text(encoding="utf-8"),
-            ROOT, run_dir, personas["manager"]["wawalu_token"],
-            runtime["WAWALU_INGEST_ENDPOINT"].rstrip("/"))
+        try:
+            idea = consult_next_steps(
+                worker, directive["text"], (ROOT / "PRODUCT.md").read_text(encoding="utf-8"),
+                ROOT, run_dir, personas["manager"]["wawalu_token"],
+                runtime["WAWALU_INGEST_ENDPOINT"].rstrip("/"))
+        except Exception:
+            attempts = int(current.get("consult_attempts", 0)) + 1
+            if attempts >= 2:
+                other = "claude" if worker == "codex" else "codex"
+                store.update_consultation(worker=other, consult_attempts=0)
+                journal.emit("consultation_worker_switched", worker=other, after_failures=attempts)
+            else:
+                store.update_consultation(consult_attempts=attempts)
+            raise
         current = store.update_consultation(idea=idea)
     tasks = current.get("plan")
     if not isinstance(tasks, list):
@@ -477,10 +503,19 @@ def requeue_conflicted_pull(pull: dict[str, Any], token: str, config: dict[str, 
     except urllib.error.HTTPError:
         pass
     record = state.value["issues"].setdefault(str(issue_number), {})
-    record.update({"status": "requeued", "requeued_at": utc_now().isoformat()})
     record.pop("retry_at", None)
-    state.save()
     ready = config["issue_label"]
+    if int(record.get("attempts", 0)) >= int(config.get("max_attempts", 2)):
+        record.update({"status": "blocked", "blocked_at": utc_now().isoformat()})
+        state.save()
+        replace_state_label(token, issue, ready, "agent-blocked", keep_ready=False)
+        comment(token, issue_number, "blocked",
+                f"Pull request #{pull_number} conflicted with `main` and this issue has already "
+                "used its retry budget. It needs human attention.")
+        journal.emit("pr_conflict_blocked", pull=pull_number, issue=issue_number, branch=branch)
+        return True
+    record.update({"status": "requeued", "requeued_at": utc_now().isoformat()})
+    state.save()
     replace_state_label(token, issue, ready, ready, keep_ready=True)
     comment(token, issue_number, "requeued",
             f"Pull request #{pull_number} conflicted with `main` after other work merged, so it "
@@ -532,8 +567,25 @@ def update_pull_branch(pull: dict[str, Any], token: str, config: dict[str, Any],
 def review_outstanding_prs(token: str, config: dict[str, Any], state: State,
                            journal: Journal) -> list[int]:
     """Marcus reviews open PRs from the owner, or team-approved PRs whose head moved."""
+    with try_lock(AUTONOMY / "sweep.lock") as owned:
+        if not owned:
+            journal.emit("pr_sweep_skipped", reason="another sweep is running")
+            return []
+        return _review_outstanding_prs(token, config, state, journal)
+
+
+def _review_outstanding_prs(token: str, config: dict[str, Any], state: State,
+                            journal: Journal) -> list[int]:
     approved = []
     pulls = github(f"/repos/{REPOSITORY}/pulls?state=open&per_page=50", token)
+    open_numbers = {str(int(pull["number"])) for pull in pulls or []}
+    pruned = False
+    for bucket in ("pr_reviews", "pr_updates"):
+        for key in [key for key in state.value[bucket] if key not in open_numbers]:
+            state.value[bucket].pop(key)
+            pruned = True
+    if pruned:
+        state.save()
     for pull in pulls or []:
         if pull.get("draft"):
             continue
@@ -566,6 +618,15 @@ def review_outstanding_prs(token: str, config: dict[str, Any], state: State,
         if verdict["approved"]:
             approved.append(number)
     return approved
+
+
+def sweep_outstanding_prs(token: str, config: dict[str, Any], state: State,
+                          journal: Journal) -> None:
+    """Run the PR sweep without letting its failure abort the rest of the tick."""
+    try:
+        review_outstanding_prs(token, config, state, journal)
+    except Exception as error:
+        journal.emit("pr_sweep_error", error=type(error).__name__, detail=str(error)[:300])
 
 
 def scenario_from_issue(issue: dict[str, Any], persona: str) -> dict[str, Any]:
@@ -685,12 +746,14 @@ def tick(config: dict[str, Any], state: State, journal: Journal, token: str | No
     if STOP.exists() or not config.get("enabled", False):
         return "stopped"
     if not within_hours(config):
+        if config.get("review_owner_prs", True) and config.get("review_prs_after_hours", False):
+            sweep_outstanding_prs(token or installation_token(), config, state, journal)
         return "outside-working-hours"
     token = token or installation_token()
     sync_main()
     ensure_labels(token, config["issue_label"])
     if config.get("review_owner_prs", True):
-        review_outstanding_prs(token, config, state, journal)
+        sweep_outstanding_prs(token, config, state, journal)
     issues = list_ready_issues(token, config["issue_label"])
     directive = DirectiveStore().read()
     issue = None
@@ -723,12 +786,11 @@ def tick(config: dict[str, Any], state: State, journal: Journal, token: str | No
 def command_loop(once: bool = False) -> int:
     config = load_config()
     journal = Journal()
-    state = State()
     with singleton():
         journal.emit("daemon_started", once=once)
         while True:
             try:
-                result = tick(config, state, journal)
+                result = tick(config, State(), journal)
                 journal.emit("tick", result=result)
             except Exception as error:
                 journal.emit("daemon_error", error=type(error).__name__, detail=str(error)[:500])

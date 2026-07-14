@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import time
 import urllib.request
 
 
@@ -34,15 +35,32 @@ def fetch_reviews(repository: str, pull_number: str, token: str) -> list[dict]:
     return value if isinstance(value, list) else []
 
 
+def wait_for_approval(repository: str, pull_number: str, head_sha: str, token: str,
+                      wait_seconds: int = 0, poll_seconds: int = 30,
+                      sleeper=time.sleep) -> bool:
+    """Poll for the exact-head approval; the sweep may still be reviewing this PR."""
+    waited = 0
+    while True:
+        if approved_current_head(fetch_reviews(repository, pull_number, token), head_sha):
+            return True
+        if waited >= wait_seconds:
+            return False
+        step = min(poll_seconds, wait_seconds - waited)
+        sleeper(step)
+        waited += step
+
+
 def main() -> int:
     repository = os.environ["GITHUB_REPOSITORY"]
     pull_number = os.environ["PR_NUMBER"]
     head_sha = os.environ["PR_HEAD_SHA"]
     token = os.environ["GITHUB_TOKEN"]
-    if approved_current_head(fetch_reviews(repository, pull_number, token), head_sha):
+    wait_seconds = int(os.environ.get("APPROVAL_WAIT_SECONDS", "0"))
+    if wait_for_approval(repository, pull_number, head_sha, token, wait_seconds):
         print(f"synthetic reviewer approved {head_sha}")
         return 0
-    print(f"synthetic reviewer has not approved current head {head_sha}")
+    print(f"synthetic reviewer has not approved current head {head_sha} "
+          f"after waiting {wait_seconds}s")
     return 1
 
 

@@ -100,8 +100,21 @@
   its branch deleted, and its issue relabeled `agent-ready` for a fresh
   implementation on current `main` through the normal plan, review, and delivery
   pipeline; the issue's attempt count is preserved, so `max_attempts` still bounds
-  repeated failures. Conflicted owner pull requests only receive one merge-conflict
-  comment per head and are left for a manual rebase.
+  repeated failures. An issue that already used its attempt budget is marked
+  `agent-blocked` for human attention instead of re-entering the queue. Conflicted
+  owner pull requests only receive one merge-conflict comment per head and are left
+  for a manual rebase.
+- The CI approval gate polls for the exact-head synthetic approval for up to
+  `APPROVAL_WAIT_SECONDS` (900 in CI) instead of failing immediately, so a pull
+  request opened moments before the sweep reviews it passes without a manual rerun.
+- Sweeps take an advisory lock (`.agent/autonomy/sweep.lock`) so the daemon and a
+  manual `review-prs` never review the same pull request concurrently, the daemon
+  reloads its state file every tick, sweep records for closed pull requests are
+  pruned, and a sweep failure is journaled without aborting the rest of the tick.
+  Set `review_prs_after_hours` to also run the review sweep outside working hours;
+  paid worker runs remain bounded by the working-hours window either way.
+- If a consultation worker fails twice in a row, the round switches to the other
+  CLI (Codex ↔ Claude) before retrying.
 
 ## GitHub App
 

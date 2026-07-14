@@ -12,7 +12,7 @@ concurrency:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
         with:
@@ -32,6 +32,7 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          APPROVAL_WAIT_SECONDS: "900"
       - name: Enforce agent change policy
         if: github.event_name == 'pull_request' && startsWith(github.head_ref, 'agent/')
         run: python3 runner/policy.py --base "origin/${{ github.base_ref }}"
