@@ -212,12 +212,16 @@ def sync_main() -> None:
     subprocess.run(["git", "merge", "--ff-only", "origin/main"], cwd=ROOT, check=True)
 
 
-def cleanup_worktree(path: pathlib.Path, journal: Journal) -> None:
+def cleanup_worktree(path: pathlib.Path, branch: str, journal: Journal) -> None:
     subprocess.run(["git", "worktree", "prune"], cwd=ROOT, check=True)
     if path.is_dir():
         subprocess.run(["git", "worktree", "remove", "--force", str(path)], cwd=ROOT, check=False)
         if not path.exists():
             journal.emit("worktree_cleaned", path=path.name)
+    deleted = subprocess.run(["git", "branch", "--delete", "--force", branch], cwd=ROOT,
+                             text=True, capture_output=True)
+    if deleted.returncode == 0:
+        journal.emit("local_branch_cleaned", branch=branch)
 
 
 def execute_issue(issue: dict[str, Any], config: dict[str, Any], state: State,
@@ -262,7 +266,7 @@ def execute_issue(issue: dict[str, Any], config: dict[str, Any], state: State,
             replace_state_label(token, issue, config["issue_label"], None, keep_ready=True)
         journal.emit("run_failed", issue=number, persona=persona, exit_code=result.returncode, attempts=attempts)
     state.save()
-    cleanup_worktree(worktree, journal)
+    cleanup_worktree(worktree, f"agent/{persona}/{scenario_slug}", journal)
     return result.returncode
 
 
