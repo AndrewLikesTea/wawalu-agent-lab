@@ -61,3 +61,14 @@ test("agent observatory maps autonomous lifecycle comments", () => {
   assert.deepEqual(item, { persona: "Rowan · Backend engineer", title: "Add release export",
     detail: "Rowan: planning on issue #12", url: "https://github.com/example/issues/12#comment" });
 });
+
+test("agent observatory exposes named review discussions", () => {
+  const item = describeEvent({ type: "IssueCommentEvent", payload: {
+    issue: { number: 22, title: "Add social profiles", html_url: "https://github.com/example/pull/22" },
+    comment: { body: "<!-- wawalu-review-debate -->\n**Mina**\n\nThe empty state needs work.",
+      html_url: "https://github.com/example/pull/22#comment" },
+  }});
+  assert.deepEqual(item, { persona: "Mina · Frontend engineer", title: "Add social profiles",
+    detail: "Mina joined the review discussion on pull request #22",
+    url: "https://github.com/example/pull/22#comment" });
+});

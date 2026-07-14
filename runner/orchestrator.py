@@ -13,7 +13,8 @@ import uuid
 from runner.github_app import installation_token, reviewer_token
 from runner.budget import DiffBudget
 from runner.delivery import DELIVERY_REQUEST, consume_merge_request, enable_auto_merge
-from runner.layers import plan, review, run_worker, WORKERS
+from runner.layers import plan, review, review_debate, run_aside, run_worker, WORKERS
+from runner.simulation import choose_distraction, happens, load_behaviors, personality_context
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 AGENT_DIR = ROOT / ".agent"
@@ -88,8 +89,15 @@ def command_run(persona: str, scenario_path: str, push: bool, requested_worker: 
     run_dir = AGENT_DIR / "runs" / run_id
     run_dir.mkdir(parents=True)
     persona_prompt = (ROOT / personas[persona]["prompt_file"]).read_text()
+    behaviors = load_behaviors()
+    profile = behaviors["personas"][persona]
+    first_pass_tendency = happens(float(profile["error_proneness"]), "first-pass", persona, scenario_id)
+    persona_prompt += "\n\n" + personality_context(profile, first_pass_tendency)
     plan_value = plan(persona_prompt, scenario, run_dir / "qwen-plan.json", requested_worker)
-    worker_prompt = f'''{plan_value["task_prompt"]}
+    worker_prompt = f'''{persona_prompt}
+
+Your assigned implementation task:
+{plan_value["task_prompt"]}
 
 Read PRODUCT.md, AGENTS.md, and .agent-policy.json. Work only in this worktree.
 Run relevant tests. Do not push directly, deploy, or access paths outside it.
@@ -99,14 +107,44 @@ exactly this JSON to {DELIVERY_REQUEST}:
 Do not invoke GitHub yourself and do not request delivery for another branch.
 '''
     (run_dir / "worker-prompt.txt").write_text(worker_prompt)
+    distraction = choose_distraction(persona, scenario_id, behaviors)
+    if distraction:
+        run_aside(plan_value["worker"], distraction, worktree, run_dir, persona,
+                  personas[persona]["wawalu_token"], runtime["WAWALU_INGEST_ENDPOINT"].rstrip("/"))
     exit_code = run_worker(plan_value["worker"], worker_prompt, worktree, run_dir,
                            persona, personas[persona]["wawalu_token"],
                            runtime["WAWALU_INGEST_ENDPOINT"].rstrip("/"))
-    metadata = {"run_id": run_id, "persona": persona, "scenario": scenario_id,
-                "worker": plan_value["worker"], "branch": branch,
+    collaborators = [item for item in scenario.get("collaborators", [])
+                     if item in personas and item not in {persona, "manager", "reviewer"}]
+    metadata = {"run_id": run_id, "persona": persona, "collaborators": collaborators[:1],
+                "distraction": bool(distraction), "first_pass_tendency": first_pass_tendency,
+                "scenario": scenario_id, "worker": plan_value["worker"], "branch": branch,
                 "worktree": str(worktree), "exit_code": exit_code}
     (run_dir / "metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")
-    if exit_code: return exit_code
+    if exit_code:
+        return exit_code
+    for collaborator in collaborators[:1]:
+        collaborator_profile = behaviors["personas"][collaborator]
+        collaborator_prompt = (ROOT / personas[collaborator]["prompt_file"]).read_text()
+        collaborator_prompt += "\n\n" + personality_context(collaborator_profile, False)
+        pairing_prompt = f"""{collaborator_prompt}
+
+You are joining {profile['name']}'s existing pull-request worktree as a second engineer.
+Review the current implementation against this scenario and make concrete improvements
+where your expertise or opinions differ. Preserve sound work, do not merely restyle it,
+and run relevant tests. Do not create or remove the delivery request.
+
+Scenario: {json.dumps(scenario, indent=2)}
+"""
+        collaborator_worker = "claude" if plan_value["worker"] == "codex" else "codex"
+        collaborator_exit = run_worker(
+            collaborator_worker, pairing_prompt, worktree, run_dir, collaborator,
+            personas[collaborator]["wawalu_token"], runtime["WAWALU_INGEST_ENDPOINT"].rstrip("/"),
+            log_label=f"collaborator-{collaborator}")
+        if collaborator_exit:
+            metadata["collaborator_exit_code"] = collaborator_exit
+            (run_dir / "metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")
+            return collaborator_exit
     merge_requested = consume_merge_request(worktree, persona, branch)
     metadata["worker_requested_auto_merge"] = merge_requested
     (run_dir / "metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")
@@ -125,6 +163,15 @@ Do not invoke GitHub yourself and do not request delivery for another branch.
         (run_dir / "metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")
         print(json.dumps(metadata, indent=2))
         return 3
+    debate_value = None
+    debate_cast = [persona, *collaborators[:1]]
+    if len(debate_cast) > 1 or happens(float(profile["debate_rate"]), "debate", persona, scenario_id):
+        prompts = {behaviors["personas"][member]["name"]:
+                   (ROOT / personas[member]["prompt_file"]).read_text() + "\n" + behaviors["personas"][member]["work_style"]
+                   for member in debate_cast}
+        prompts["Marcus"] = reviewer_prompt
+        debate_value = review_debate(prompts, scenario, diff, run_dir / "qwen-review-debate.json")
+        metadata["review_debate"] = debate_value
     remaining = BUDGET.record_if_changed({
             "run_id": run_id, "persona": persona, "scenario": scenario_id,
             "worker": plan_value["worker"],
@@ -151,9 +198,20 @@ Do not invoke GitHub yourself and do not request delivery for another branch.
         title = scenario.get("title", scenario["outcome"].splitlines()[0])[:100]
         pr_env = os.environ.copy(); pr_env["GH_TOKEN"] = github_token
         issue_line = f"\n\nCloses #{scenario['issue']}" if scenario.get("issue") else ""
+        team_line = ("\n\nPaired with: " + ", ".join(behaviors["personas"][member]["name"] for member in collaborators[:1])
+                     if collaborators else "")
         run(["gh", "pr", "create", "--repo", "AndrewLikesTea/wawalu-agent-lab",
              "--base", "main", "--head", branch,
-             "--title", title, "--body", f"Synthetic team run: `{run_id}`\n\nMerging to protected `main` triggers production deployment automatically.{issue_line}"], cwd=worktree, env=pr_env)
+             "--title", title, "--body", f"Synthetic team run: `{run_id}`{team_line}\n\nMerging to protected `main` triggers production deployment automatically.{issue_line}"], cwd=worktree, env=pr_env)
+        if debate_value:
+            for message in debate_value.get("messages", []):
+                body = ("<!-- wawalu-review-debate -->\n"
+                        f"**{message.get('speaker', 'Engineer')}**\n\n{message.get('body', '')}")
+                run(["gh", "pr", "comment", branch, "--repo", "AndrewLikesTea/wawalu-agent-lab", "--body", body],
+                    cwd=worktree, env=pr_env)
+            run(["gh", "pr", "comment", branch, "--repo", "AndrewLikesTea/wawalu-agent-lab", "--body",
+                 f"<!-- wawalu-review-debate -->\n**Resolution**\n\n{debate_value.get('resolution', '')}"],
+                cwd=worktree, env=pr_env)
         review_env = os.environ.copy(); review_env["GH_TOKEN"] = reviewer_token()
         run(["gh", "pr", "review", branch, "--repo", "AndrewLikesTea/wawalu-agent-lab",
              "--approve", "--body", f"Approved by the synthetic reviewer persona. Qwen review: {review_value['summary']}"],

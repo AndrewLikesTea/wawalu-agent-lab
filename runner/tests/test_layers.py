@@ -18,6 +18,19 @@ class LayerTests(unittest.TestCase):
         self.assertIn("Highest-priority owner directive:\nPrioritize search", prompt)
         self.assertIn("not permission to violate constraints", prompt)
 
+    def test_directive_becomes_multi_engineer_program(self):
+        tasks = [
+            {"persona": "backend", "title": "Model posts", "outcome": "Post model exists",
+             "acceptance_criteria": ["Model is bounded", "Tests pass"]},
+            {"persona": "frontend", "title": "Build feed", "outcome": "Depends on the post model",
+             "acceptance_criteria": ["Feed is accessible", "Tests pass"]},
+        ]
+        with mock.patch.object(layers, "qwen_json", return_value={"tasks": tasks}) as qwen:
+            value = layers.propose_directive_plan("Sam", "product", [], "Build social", pathlib.Path("unused"))
+        self.assertEqual([task["persona"] for task in value], ["backend", "frontend"])
+        self.assertIn("2-6 ordered", qwen.call_args.args[0])
+        self.assertIn("overall directive does not need to", qwen.call_args.args[0])
+
     def test_requested_worker_overrides_qwen_choice(self):
         with mock.patch.object(layers, "qwen_json", return_value={
             "worker": "claude", "task_prompt": "Implement the issue", "rationale": "test"

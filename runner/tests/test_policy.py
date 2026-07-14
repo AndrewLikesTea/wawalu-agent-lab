@@ -27,6 +27,13 @@ class RunnerPolicyTests(unittest.TestCase):
         self.assertIn("consume_merge_request(worktree, persona, branch)", source)
         self.assertIn('"requested_by":"{persona}"', source)
 
+    def test_personas_cannot_rewrite_behavior_probabilities(self):
+        policy = json.loads((ROOT / ".agent-policy.json").read_text())
+        self.assertIn("config/team-behaviors.json", policy["forbidden_paths"])
+        self.assertIn("runner/simulation.py", policy["forbidden_paths"])
+        orchestrator = (ROOT / "runner/orchestrator.py").read_text()
+        self.assertIn('worker_prompt = f\'\'\'{persona_prompt}', orchestrator)
+
     def test_personas_use_separate_prompts(self):
         cfg = json.loads((ROOT / "config/personas.example.json").read_text())
         prompts = [v["prompt_file"] for v in cfg["personas"].values()]

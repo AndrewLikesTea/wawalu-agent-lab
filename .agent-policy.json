@@ -17,6 +17,8 @@
     "runner/autonomous.py",
     "runner/delivery.py",
     "config/autonomy.example.json",
+    "config/team-behaviors.json",
+    "runner/simulation.py",
     "scripts/manage_autonomy.py",
     ".secrets/",
     "wrangler.toml"

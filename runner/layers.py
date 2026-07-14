@@ -43,6 +43,11 @@ TASK_SCHEMA = {
     "required": ["persona", "title", "outcome", "acceptance_criteria"],
     "additionalProperties": False,
 }
+DIRECTIVE_PLAN_SCHEMA = {
+    "type": "object",
+    "properties": {"tasks": {"type": "array", "minItems": 2, "maxItems": 6, "items": TASK_SCHEMA}},
+    "required": ["tasks"], "additionalProperties": False,
+}
 
 
 def _extract_json(raw: str) -> dict[str, Any]:
@@ -130,6 +135,44 @@ Recent or active work:
             "acceptance_criteria": criteria[:8]}
 
 
+def propose_directive_plan(manager_prompt: str, product: str, recent_titles: list[str],
+                           directive: str, output_path: pathlib.Path) -> list[dict[str, Any]]:
+    prompt = f"""You are the autonomous program manager for this synthetic team:
+{manager_prompt}
+
+Turn the owner's directive into 2-6 ordered, independently mergeable tasks. Assign
+each task to the best engineer. A single task must fit one reviewable PR under 2,000
+changed lines, but the overall directive does not need to. Put foundations before
+dependent UI or integration work and include dependency expectations in outcomes or
+acceptance criteria. Do not change deployment controls or access Wawalu customer data.
+Return only the requested JSON.
+
+Owner directive:
+{directive}
+
+Product charter:
+{product}
+
+Recent or active work:
+{json.dumps(recent_titles[-30:], indent=2)}
+"""
+    value = qwen_json(prompt, output_path, DIRECTIVE_PLAN_SCHEMA)
+    tasks = value.get("tasks", [])
+    normalized = []
+    for task in tasks:
+        criteria = [str(item).strip() for item in task.get("acceptance_criteria", []) if str(item).strip()]
+        persona = str(task.get("persona", ""))
+        title = str(task.get("title", "")).strip()
+        outcome = str(task.get("outcome", "")).strip()
+        if persona not in TASK_SCHEMA["properties"]["persona"]["enum"] or not title or not outcome or len(criteria) < 2:
+            raise ValueError("Qwen directive task is incomplete")
+        normalized.append({"persona": persona, "title": title[:100], "outcome": outcome,
+                           "acceptance_criteria": criteria[:8]})
+    if not 2 <= len(normalized) <= 6:
+        raise ValueError("Qwen directive plan requires 2-6 tasks")
+    return normalized
+
+
 def prepare_codex_home(root: pathlib.Path, persona: str, token: str,
                         ingest_endpoint: str, notify: pathlib.Path) -> tuple[pathlib.Path, pathlib.Path]:
     home = root / ".agent" / "codex-homes" / persona
@@ -175,7 +218,7 @@ def prepare_claude_settings(run_dir: pathlib.Path, token: str,
 
 
 def run_worker(worker: str, prompt: str, worktree: pathlib.Path, run_dir: pathlib.Path,
-               persona: str, token: str, ingest_endpoint: str) -> int:
+               persona: str, token: str, ingest_endpoint: str, log_label: str = "") -> int:
     env = os.environ.copy()
     env.update({"WAWALU_SIMULATION": "1", "WAWALU_SIMULATION_PERSONA": persona})
     if worker == "codex":
@@ -186,7 +229,7 @@ def run_worker(worker: str, prompt: str, worktree: pathlib.Path, run_dir: pathli
         command = ["codex", "exec", "--sandbox", "workspace-write", "--cd", str(worktree),
                    "--json", "-c", "approval_policy=never",
                    "-c", "sandbox_workspace_write.network_access=false", prompt]
-        log_path = run_dir / "codex.jsonl"
+        log_path = run_dir / f"codex{('-' + log_label) if log_label else ''}.jsonl"
     elif worker == "claude":
         settings = prepare_claude_settings(run_dir, token, ingest_endpoint)
         env.update(json.loads(settings.read_text(encoding="utf-8"))["env"])
@@ -196,13 +239,68 @@ def run_worker(worker: str, prompt: str, worktree: pathlib.Path, run_dir: pathli
                    "--permission-mode", "dontAsk", "--allowedTools",
                    "Read,Edit,Write,Glob,Grep,Bash(npm *),Bash(node *),Bash(python3 -m unittest *),Bash(git status*),Bash(git diff*)",
                    "--name", f"wawalu-{persona}", prompt]
-        log_path = run_dir / "claude.jsonl"
+        log_path = run_dir / f"claude{('-' + log_label) if log_label else ''}.jsonl"
     else:
         raise ValueError(f"unsupported worker: {worker}")
     with log_path.open("w", encoding="utf-8") as log:
         return subprocess.run(command, cwd=worktree, env=env, text=True,
                               stdin=subprocess.DEVNULL, stdout=log,
                               stderr=subprocess.STDOUT).returncode
+
+
+def run_aside(worker: str, prompt: str, worktree: pathlib.Path, run_dir: pathlib.Path,
+              persona: str, token: str, ingest_endpoint: str) -> int:
+    """Run a short non-work chat with no write tools, still attributed to the persona."""
+    env = os.environ.copy()
+    env.update({"WAWALU_SIMULATION": "1", "WAWALU_SIMULATION_PERSONA": persona})
+    safe_prompt = "This is a brief personal aside. Answer conversationally without using tools or changing files.\n\n" + prompt
+    if worker == "codex":
+        notify = pathlib.Path.home() / ".local/share/wawalu/bin/wawalu-codex-notify"
+        home, callback = prepare_codex_home(worktree.parents[2], persona, token, ingest_endpoint, notify)
+        env.update({"CODEX_HOME": str(home), "WAWALU_CODEX_CONFIG": str(callback)})
+        command = ["codex", "exec", "--sandbox", "read-only", "--cd", str(worktree), "--json",
+                   "-c", "approval_policy=never", "-c", "sandbox_workspace_write.network_access=false", safe_prompt]
+    elif worker == "claude":
+        settings = prepare_claude_settings(run_dir, token, ingest_endpoint)
+        env.update(json.loads(settings.read_text(encoding="utf-8"))["env"])
+        command = ["claude", "-p", "--output-format", "stream-json", "--verbose",
+                   "--no-session-persistence", "--no-chrome", "--disable-slash-commands",
+                   "--setting-sources", "", "--settings", str(settings), "--permission-mode", "dontAsk",
+                   "--allowedTools", "", "--name", f"wawalu-{persona}-aside", safe_prompt]
+    else:
+        raise ValueError(f"unsupported worker: {worker}")
+    with (run_dir / f"{worker}-aside.jsonl").open("w", encoding="utf-8") as log:
+        return subprocess.run(command, cwd=worktree, env=env, text=True, stdin=subprocess.DEVNULL,
+                              stdout=log, stderr=subprocess.STDOUT).returncode
+
+
+DEBATE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "messages": {"type": "array", "minItems": 2, "maxItems": 4, "items": {
+            "type": "object", "properties": {"speaker": {"type": "string"}, "body": {"type": "string"}},
+            "required": ["speaker", "body"], "additionalProperties": False}},
+        "resolution": {"type": "string"},
+    },
+    "required": ["messages", "resolution"], "additionalProperties": False,
+}
+
+
+def review_debate(persona_prompts: dict[str, str], scenario: dict[str, Any], diff: str,
+                  output_path: pathlib.Path) -> dict[str, Any]:
+    cast = "\n\n".join(persona_prompts.values())
+    prompt = f"""Create a short, realistic pull-request discussion between these synthetic coworkers:
+{cast}
+
+They may disagree strongly about concrete implementation tradeoffs, scope, testing,
+or architecture. Give each a distinct voice. Do not invent a security defect or failed
+test. They must reach a concrete resolution because the exact diff has separately
+passed tests and final review. Return only the requested JSON.
+
+Scenario: {json.dumps(scenario)}
+Diff summary:\n{diff[:30000]}
+"""
+    return qwen_json(prompt, output_path, DEBATE_SCHEMA)
 
 
 def review(persona_prompt: str, scenario: dict[str, Any], plan_value: dict[str, str],
