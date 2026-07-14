@@ -32,8 +32,13 @@ input:focus-visible,textarea:focus-visible,select:focus-visible,button:focus-vis
 .hint { color:#6a6a65; font-size:12px; line-height:1.45; }
 button { grid-column:1/-1; display:flex; align-items:center; justify-content:space-between; min-height:46px; margin-top:4px; border:0; border-radius:9px; padding:0 16px; background:#171713; color:#fff; font:700 14px/1 system-ui,sans-serif; cursor:pointer; }
 button:hover { background:#1f70c1; }
+.filters { display:flex; flex-wrap:wrap; gap:14px 16px; margin-bottom:22px; }
+.filter { display:flex; flex-direction:column; gap:7px; flex:1 1 150px; min-width:130px; }
+.filter label { color:#62625d; font:700 11px/1.4 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; }
+.filter select { padding:9px 11px; }
 .decision-list { display:grid; gap:14px; margin:0; padding:0; list-style:none; }
 .decision-card { padding:21px; border:1px solid #d9d7d0; border-radius:12px; background:#fff; }
+.decision-card:focus-visible { outline:3px solid #8abbe9; outline-offset:2px; border-color:#1f70c1; }
 .decision-meta { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:14px; }
 .badge { border-radius:99px; padding:5px 8px; font:750 10px/1 ui-monospace,monospace; letter-spacing:.07em; text-transform:uppercase; }
 .badge-proposed { background:#fff0c7; color:#72520a; }
@@ -49,5 +54,5 @@ button:hover { background:#1f70c1; }
 .empty-state .empty-title { color:#282824; font-size:18px; font-weight:700; }
 .notice { margin:0 0 16px; border-radius:8px; padding:10px 12px; background:#fff0c7; color:#644a0b; font-size:13px; }
 @media(max-width:800px) { .workspace{grid-template-columns:1fr}.form-panel{position:static}.hero{padding-bottom:52px} }
-@media(max-width:520px) { main{width:calc(100% - 24px);padding-top:18px}.site-header{align-items:flex-start;gap:18px}.site-nav{align-items:flex-end;flex-direction:column}.form-panel,.list-panel{padding:21px}.hero{padding-top:60px}form{grid-template-columns:1fr}.field{grid-column:1/-1}.list-heading{align-items:start;flex-direction:column;gap:10px} }
+@media(max-width:520px) { main{width:calc(100% - 24px);padding-top:18px}.site-header{align-items:flex-start;gap:18px}.site-nav{align-items:flex-end;flex-direction:column}.form-panel,.list-panel{padding:21px}.hero{padding-top:60px}form{grid-template-columns:1fr}.field{grid-column:1/-1}.list-heading{align-items:start;flex-direction:column;gap:10px}.filters{flex-direction:column;gap:14px}.filter{flex:1 1 auto} }
 @media(prefers-reduced-motion:reduce) { html{scroll-behavior:auto} }

@@ -68,6 +68,31 @@
             </div>
             <span class="count" id="decision-count" aria-live="polite">0 records</span>
           </div>
+          <div class="filters" role="group" aria-label="Filter and sort decisions">
+            <div class="filter">
+              <label for="filter-status">Status</label>
+              <select id="filter-status">
+                <option value="all">All statuses</option>
+                <option value="proposed">Proposed</option>
+                <option value="accepted">Accepted</option>
+                <option value="superseded">Superseded</option>
+              </select>
+            </div>
+            <div class="filter">
+              <label for="filter-owner">Owner</label>
+              <select id="filter-owner">
+                <option value="all">All owners</option>
+              </select>
+            </div>
+            <div class="filter">
+              <label for="sort-by">Sort</label>
+              <select id="sort-by">
+                <option value="newest">Newest first</option>
+                <option value="title">Title (A–Z)</option>
+                <option value="owner">Owner (A–Z)</option>
+              </select>
+            </div>
+          </div>
           <p class="notice" id="storage-notice" role="status" hidden></p>
           <div id="decision-list"></div>
         </div>
