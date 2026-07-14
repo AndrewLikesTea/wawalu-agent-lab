@@ -1,5 +1,6 @@
 import argparse
 import json
+import os
 import pathlib
 import subprocess
 import sys
@@ -14,7 +15,9 @@ def git(*args: str) -> str:
 def validate(base: str) -> list[str]:
     policy = json.loads((ROOT / ".agent-policy.json").read_text())
     errors: list[str] = []
-    branch = git("branch", "--show-current")
+    # Pull-request jobs use a detached merge commit. GitHub provides the
+    # authenticated source branch separately; local runs use the Git branch.
+    branch = os.environ.get("GITHUB_HEAD_REF") or git("branch", "--show-current")
     if branch != "main" and not branch.startswith(policy["branch_prefix"]):
         errors.append(f"branch {branch!r} does not start with {policy['branch_prefix']!r}")
     changed = sorted(set(filter(None, (

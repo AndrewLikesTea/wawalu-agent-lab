@@ -1,11 +1,21 @@
 import json
+import os
 import pathlib
 import unittest
+from unittest import mock
+
+from runner import policy as runner_policy
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 
 
 class RunnerPolicyTests(unittest.TestCase):
+    def test_github_head_ref_identifies_detached_agent_branch(self):
+        git_outputs = ["src/app.js", "", "", "1\t0\tsrc/app.js", "", ""]
+        with mock.patch.dict(os.environ, {"GITHUB_HEAD_REF": "agent/frontend/example"}), \
+             mock.patch.object(runner_policy, "git", side_effect=git_outputs):
+            self.assertEqual(runner_policy.validate("origin/main"), [])
+
     def test_production_controls_are_forbidden_to_agents(self):
         policy = json.loads((ROOT / ".agent-policy.json").read_text())
         self.assertIn(".github/workflows/", policy["forbidden_paths"])
