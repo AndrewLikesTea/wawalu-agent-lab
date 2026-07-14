@@ -18,6 +18,22 @@ export const RELEASE_STORAGE_KEY = "shiplog.releases.v1";
 // here is the order breakdown counts are reported in.
 export const RELEASE_DECISION_STATUSES = ["proposed", "accepted", "superseded"];
 
+// URL builders are the single seam between views. They are pure and unit-tested
+// so the routing shape lives in one place: the list links to a release detail
+// page, and a release's decisions link to the decision's canonical location.
+//
+// A decision has no standalone detail page yet, so it is addressed as a native
+// anchor on the decisions page (`/#decision-<id>`, matched by app.js's card id).
+// The browser handles the scroll and `:target` highlights it — no router needed.
+// The day a real decision page exists, only this one function changes.
+export function releaseDetailHref(id) {
+  return `/release.html?id=${encodeURIComponent(id)}`;
+}
+
+export function decisionDetailHref(id) {
+  return `/#decision-${encodeURIComponent(id)}`;
+}
+
 function isRelease(value) {
   return value !== null
     && typeof value === "object"
@@ -65,10 +81,16 @@ export function resolveRelease(release, decisions) {
   const lookup = decisions instanceof Map ? decisions : indexById(decisions);
   const linked = [];
   const missingIds = [];
+  const associations = [];
   for (const id of release.decisionIds) {
     const decision = lookup.get(id);
-    if (decision) linked.push(decision);
-    else missingIds.push(id);
+    if (decision) {
+      linked.push(decision);
+      associations.push({ id, decision, missing: false });
+    } else {
+      missingIds.push(id);
+      associations.push({ id, decision: null, missing: true });
+    }
   }
 
   const counts = {
@@ -81,13 +103,22 @@ export function resolveRelease(release, decisions) {
     if (counts[decision.status] !== undefined) counts[decision.status] += 1;
   }
 
-  return { ...release, decisions: linked, missingIds, counts };
+  return { ...release, decisions: linked, missingIds, associations, counts };
 }
 
 // Compose ordering + resolution: the single entry point the view renders from.
 export function summarizeReleases(releases, decisions = []) {
   const byId = indexById(decisions);
   return sortReleasesNewestFirst(releases).map((release) => resolveRelease(release, byId));
+}
+
+// Detail-view entry point: find one release by id and resolve its decisions.
+// Returns null when the id is unknown so the view can render a "not found"
+// state instead of guessing — a release reached by a stale link or a bad id is
+// a real cross-cutting case, the same way dangling decision ids are handled.
+export function resolveReleaseDetail(releases, decisions, id) {
+  const release = (releases ?? []).find((candidate) => candidate.id === id);
+  return release ? resolveRelease(release, decisions) : null;
 }
 
 // One-line status summary shown on the collapsed row, e.g.
@@ -179,6 +210,16 @@ function renderReleaseBody(release) {
   return body;
 }
 
+// The disclosure summarises a release inline; this link opens the full detail
+// view. Added to every row (expanded or not) so the list stays a true index.
+function renderDetailLink(release) {
+  const link = el("a", "release-detail-link", "View release details");
+  link.href = releaseDetailHref(release.id);
+  link.append(el("span", "release-detail-arrow", "→"));
+  link.querySelector(".release-detail-arrow").setAttribute("aria-hidden", "true");
+  return link;
+}
+
 function renderReleaseItem(release, isFirst) {
   const item = el("li", "release-item");
   const toggleId = `release-toggle-${release.id}`;
@@ -212,6 +253,7 @@ function renderReleaseItem(release, isFirst) {
   panel.setAttribute("role", "region");
   panel.setAttribute("aria-labelledby", toggleId);
   panel.append(renderReleaseBody(release));
+  panel.append(renderDetailLink(release));
 
   item.append(heading, panel);
   return item;
@@ -269,4 +311,136 @@ export function mountReleaseList(container, data = {}) {
 
   render(data);
   return { render };
+}
+
+// ---------------------------------------------------------------------------
+// Release detail view. A dedicated, deep-linkable page for one release. It is
+// intentionally link-driven rather than interactive: the back link, each
+// decision, and the missing-reference rows are plain anchors/semantics, so
+// keyboard access and focus order come from the platform with no roving
+// tabindex to maintain. Like the list, every field is written through
+// textContent / text nodes — never HTML strings (PRODUCT.md: no user HTML).
+// ---------------------------------------------------------------------------
+
+export const RELEASE_LIST_HREF = "/releases.html";
+
+function renderBackLink() {
+  const back = el("a", "detail-back");
+  back.href = RELEASE_LIST_HREF;
+  back.append(el("span", "detail-back-arrow", "←"));
+  back.querySelector(".detail-back-arrow").setAttribute("aria-hidden", "true");
+  back.append(document.createTextNode(" All releases"));
+  return back;
+}
+
+function renderMetaRow(label, valueNode) {
+  const row = el("div", "detail-meta-row");
+  row.append(el("dt", "detail-meta-label", label));
+  const dd = el("dd", "detail-meta-value");
+  dd.append(valueNode);
+  row.append(dd);
+  return row;
+}
+
+function renderDetailDecision(decision) {
+  const item = el("li");
+  const link = el("a", "detail-decision");
+  link.href = decisionDetailHref(decision.id);
+  link.append(el("span", `badge badge-${decision.status}`, decision.status));
+  link.append(el("span", "detail-decision-title", decision.title));
+  if (decision.owner) {
+    const owner = el("span", "detail-decision-owner");
+    owner.append(el("span", "detail-decision-owner-label", "Owner"));
+    owner.append(document.createTextNode(decision.owner));
+    link.append(owner);
+  }
+  const arrow = el("span", "detail-decision-arrow", "→");
+  arrow.setAttribute("aria-hidden", "true");
+  link.append(arrow);
+  item.append(link);
+  return item;
+}
+
+function renderMissingDecision(id) {
+  const item = el("li", "detail-decision-missing");
+  item.append(el("span", "badge badge-missing", "missing"));
+  const label = el("span", "detail-decision-title");
+  label.append(document.createTextNode("Linked decision "));
+  label.append(el("code", undefined, id));
+  label.append(document.createTextNode(" is not in this log."));
+  item.append(label);
+  return item;
+}
+
+function renderDetailDecisions(resolved) {
+  const section = el("section", "detail-decisions");
+  section.setAttribute("aria-labelledby", "detail-decisions-title");
+  section.append(el("h2", "detail-decisions-heading", "Decisions in this release"));
+  section.querySelector(".detail-decisions-heading").id = "detail-decisions-title";
+  section.append(el("p", "detail-summary", statusSummaryText(resolved)));
+
+  if (resolved.counts.total === 0) {
+    section.append(el("p", "release-empty", "No decisions linked to this release."));
+    return section;
+  }
+
+  const list = el("ol", "detail-decision-list");
+  // Keep the release author's association order, including dangling records.
+  // Grouping missing references at the end would subtly rewrite that history.
+  for (const association of resolved.associations) {
+    list.append(association.missing
+      ? renderMissingDecision(association.id)
+      : renderDetailDecision(association.decision));
+  }
+  section.append(list);
+  return section;
+}
+
+// Render the whole detail view into `container`. `resolved` is the output of
+// resolveReleaseDetail, or null when the id was not found — the back link is
+// rendered either way so a stale link is never a dead end. `options.id` lets the
+// not-found state name the id that failed to resolve.
+export function renderReleaseDetail(container, resolved, options = {}) {
+  container.replaceChildren();
+  container.append(renderBackLink());
+
+  if (!resolved) {
+    const empty = el("div", "empty-state");
+    empty.append(el("h1", "empty-title", "Release not found."));
+    const detail = el("p");
+    if (options.id) {
+      detail.append(document.createTextNode("No release matches "));
+      detail.append(el("code", undefined, options.id));
+      detail.append(document.createTextNode(" in this log."));
+    } else {
+      detail.textContent = "This link is missing a release id.";
+    }
+    empty.append(detail);
+    container.append(empty);
+    return;
+  }
+
+  const article = el("article", "release-detail");
+  const header = el("header", "detail-header");
+  header.append(el("p", "eyebrow", "Release"));
+  header.append(el("h1", "detail-version", resolved.version));
+
+  const meta = el("dl", "detail-meta");
+  const time = el("time", "date");
+  time.dateTime = resolved.createdAt;
+  time.textContent = formatDate(resolved.createdAt);
+  meta.append(renderMetaRow("Released", time));
+  const author = typeof resolved.author === "string" && resolved.author.trim() !== ""
+    ? resolved.author
+    : "Unknown";
+  meta.append(renderMetaRow("Author", document.createTextNode(author)));
+  header.append(meta);
+
+  if (typeof resolved.notes === "string" && resolved.notes.trim() !== "") {
+    header.append(el("p", "detail-notes", resolved.notes));
+  }
+
+  article.append(header);
+  article.append(renderDetailDecisions(resolved));
+  container.append(article);
 }
