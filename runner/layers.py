@@ -12,6 +12,7 @@ from typing import Any
 
 QWEN_MODEL = "qwen3-coder:30b"
 WORKERS = {"codex", "claude"}
+CAPACITY_EXIT_CODES = {"codex": 75, "claude": 76}
 SITE_URL = os.environ.get("WAWALU_LABS_URL", "https://labs.wawalu.org")
 PLAN_SCHEMA = {
     "type": "object",
@@ -269,9 +270,25 @@ def run_worker(worker: str, prompt: str, worktree: pathlib.Path, run_dir: pathli
     else:
         raise ValueError(f"unsupported worker: {worker}")
     with log_path.open("w", encoding="utf-8") as log:
-        return subprocess.run(command, cwd=worktree, env=env, text=True,
-                              stdin=subprocess.DEVNULL, stdout=log,
-                              stderr=subprocess.STDOUT).returncode
+        exit_code = subprocess.run(command, cwd=worktree, env=env, text=True,
+                                   stdin=subprocess.DEVNULL, stdout=log,
+                                   stderr=subprocess.STDOUT).returncode
+    if exit_code and is_capacity_limited(log_path):
+        return CAPACITY_EXIT_CODES[worker]
+    return exit_code
+
+
+def is_capacity_limited(log_path: pathlib.Path) -> bool:
+    """Recognize provider quota/session exhaustion without treating ordinary failures as quota."""
+    try:
+        text = log_path.read_text(encoding="utf-8", errors="replace").lower()
+    except OSError:
+        return False
+    markers = (
+        "rate_limit", "rate limit", "session limit", "usage limit",
+        "rate_limit_exceeded", "too many requests", "quota exceeded",
+    )
+    return any(marker in text for marker in markers)
 
 
 def run_aside(worker: str, prompt: str, worktree: pathlib.Path, run_dir: pathlib.Path,

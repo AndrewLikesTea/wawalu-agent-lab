@@ -8,6 +8,15 @@ from runner import layers
 
 
 class LayerTests(unittest.TestCase):
+    def test_capacity_detection_is_specific_to_provider_limit_markers(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            limited = pathlib.Path(tmp) / "limited.log"
+            limited.write_text('{"error":"rate_limit","message":"session limit"}')
+            ordinary = pathlib.Path(tmp) / "ordinary.log"
+            ordinary.write_text("tests failed: assertion error")
+            self.assertTrue(layers.is_capacity_limited(limited))
+            self.assertFalse(layers.is_capacity_limited(ordinary))
+        self.assertEqual(layers.CAPACITY_EXIT_CODES, {"codex": 75, "claude": 76})
     def test_owner_directive_is_prioritized_in_manager_prompt(self):
         with mock.patch.object(layers, "qwen_json", return_value={
             "persona": "frontend", "title": "Improve filters", "outcome": "Faster browsing",

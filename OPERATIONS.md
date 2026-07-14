@@ -58,6 +58,10 @@
 - A worker is terminated and retried if it exceeds `worker_timeout_seconds` (three
   hours by default), preventing a wedged Codex, Claude, test, or network subprocess
   from blocking the manager for the rest of the week.
+- Provider rate/session limits are treated separately from implementation failures:
+  the issue keeps its attempt budget, switches between Codex and Claude, and backs off
+  from 15 minutes up to five hours if capacity remains unavailable. Other ready work can
+  continue while that issue waits.
 - State, private event history, logs, generated scenarios, and the stop file live
   under ignored `.agent/autonomy/`. Public issue comments expose safe lifecycle
   states to the Agent Observatory without publishing model transcripts.

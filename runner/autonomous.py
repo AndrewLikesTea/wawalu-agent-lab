@@ -23,7 +23,7 @@ from zoneinfo import ZoneInfo
 
 from runner.delivery import enable_auto_merge
 from runner.github_app import installation_token, reviewer_token
-from runner.layers import consult_next_steps, propose_directive_plan, propose_task, review_pull_request
+from runner.layers import CAPACITY_EXIT_CODES, consult_next_steps, propose_directive_plan, propose_task, review_pull_request
 from runner.orchestrator import load_personas, load_runtime_env, safe_slug
 from runner.simulation import choose_collaborator, load_behaviors
 from scripts.check_reviewer_approval import REVIEWER_LOGINS, approved_current_head
@@ -37,6 +37,7 @@ OWNER = REPOSITORY.split("/")[0]
 PERSONAS = {"backend", "frontend", "infrastructure", "staff"}
 PERSONA_NAMES = {"backend": "Rowan", "frontend": "Mina",
                  "infrastructure": "Ellis", "staff": "Priya"}
+CAPACITY_WORKERS = {code: worker for worker, code in CAPACITY_EXIT_CODES.items()}
 DIRECTIVE = AUTONOMY / "directive.json"
 PACIFIC = ZoneInfo("America/Los_Angeles")
 
@@ -809,8 +810,9 @@ def execute_issue(issue: dict[str, Any], config: dict[str, Any], state: State,
     if persona not in PERSONAS:
         persona = "staff"
     record = state.value["issues"].setdefault(str(number), {})
+    prior_attempts = int(record.get("attempts", 0))
     record.update({"status": "running", "persona": persona,
-                   "attempts": int(record.get("attempts", 0)) + 1, "started_at": utc_now().isoformat()})
+                   "attempts": prior_attempts + 1, "started_at": utc_now().isoformat()})
     state.record_run()
     scenario_dir = AUTONOMY / "scenarios"
     scenario_dir.mkdir(parents=True, exist_ok=True)
@@ -828,8 +830,9 @@ def execute_issue(issue: dict[str, Any], config: dict[str, Any], state: State,
     replace_state_label(token, issue, config["issue_label"], "agent-running", keep_ready=True)
     comment(token, number, "planning", f"Sam assigned this issue to **{persona}**. Qwen is preparing the implementation handoff.")
     journal.emit("run_started", issue=number, persona=persona)
+    requested_worker = record.get("worker_override", config["default_worker"])
     command = [sys.executable, "-m", "runner.orchestrator", "run", persona,
-               str(scenario_path.relative_to(ROOT)), "--push", "--worker", config["default_worker"]]
+               str(scenario_path.relative_to(ROOT)), "--push", "--worker", requested_worker]
     exit_code = run_worker_process(
         command, int(config.get("worker_timeout_seconds", 10800)), journal, number)
     scenario_path.unlink(missing_ok=True)
@@ -841,6 +844,21 @@ def execute_issue(issue: dict[str, Any], config: dict[str, Any], state: State,
         comment(token, number, "submitted", "The worker completed its run and opened a reviewed pull request. If it requested merge, GitHub will deliver it after required checks.")
         replace_state_label(token, issue, config["issue_label"], "agent-running", keep_ready=False)
         journal.emit("run_submitted", issue=number, persona=persona)
+    elif exit_code in CAPACITY_WORKERS:
+        exhausted = CAPACITY_WORKERS[exit_code]
+        alternate = "claude" if exhausted == "codex" else "codex"
+        failures = int(record.get("capacity_failures", 0)) + 1
+        delay = min(int(config.get("capacity_retry_seconds", 900)) * (2 ** (failures - 1)),
+                    int(config.get("capacity_retry_max_seconds", 18000)))
+        record.update({"status": "retry", "attempts": prior_attempts,
+                       "capacity_failures": failures, "worker_override": alternate,
+                       "retry_at": (utc_now() + dt.timedelta(seconds=delay)).isoformat()})
+        comment(token, number, "capacity deferred",
+                f"{exhausted.title()} reported temporary account capacity exhaustion. This did not consume "
+                f"an implementation attempt; Sam will retry with {alternate.title()} after the backoff.")
+        replace_state_label(token, issue, config["issue_label"], None, keep_ready=True)
+        journal.emit("run_capacity_deferred", issue=number, persona=persona, exhausted_worker=exhausted,
+                     next_worker=alternate, delay_seconds=delay, failures=failures)
     else:
         attempts = int(record["attempts"])
         if attempts >= int(config["max_attempts"]):
