@@ -395,11 +395,68 @@ class AutonomousTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             state = autonomous.State(pathlib.Path(tmp) / "state.json")
             state.value["pr_reviews"]["40"] = {"sha": "abc123", "approved": False}
-            github.side_effect = [[dict(self.OWNER_PULL)]]
+            github.side_effect = [[dict(self.OWNER_PULL)], []]
             approved = autonomous.review_outstanding_prs("token", {}, state, mock.Mock())
         self.assertEqual(approved, [])
         review.assert_not_called()
+        self.assertEqual(github.call_count, 2)
+
+    @mock.patch.object(autonomous, "review_pull_request")
+    @mock.patch.object(autonomous, "github")
+    def test_approved_behind_pr_gets_branch_update(self, github, review):
+        pull = dict(self.OWNER_PULL, auto_merge={"merge_method": "squash"})
+        with tempfile.TemporaryDirectory() as tmp:
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            github.side_effect = [
+                [pull],
+                [{"state": "APPROVED", "commit_id": "abc123",
+                  "user": {"login": "wawalu-synthetic-reviewer[bot]"}}],
+                {"mergeable_state": "behind"},
+                None,
+            ]
+            approved = autonomous.review_outstanding_prs("token", {}, state, mock.Mock())
+            self.assertEqual(state.value["pr_updates"]["40"]["result"], "updated")
+        self.assertEqual(approved, [])
+        review.assert_not_called()
+        updated = github.call_args_list[3]
+        self.assertEqual(updated.args[0], "/repos/AndrewLikesTea/wawalu-agent-lab/pulls/40/update-branch")
+        self.assertEqual(updated.args[2], "PUT")
+        self.assertEqual(updated.args[3], {"expected_head_sha": "abc123"})
+
+    @mock.patch.object(autonomous, "github")
+    def test_conflicted_pr_gets_one_comment_per_head(self, github):
+        pull = dict(self.OWNER_PULL, auto_merge={"merge_method": "squash"})
+        with tempfile.TemporaryDirectory() as tmp:
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            github.side_effect = [{"mergeable_state": "dirty"}, None]
+            autonomous.update_pull_branch(pull, "token", state, mock.Mock())
+            self.assertEqual(state.value["pr_updates"]["40"]["result"], "conflict")
+            commented = github.call_args_list[1]
+            self.assertEqual(commented.args[0], "/repos/AndrewLikesTea/wawalu-agent-lab/issues/40/comments")
+            self.assertIn("conflicts with `main`", commented.args[3]["body"])
+            autonomous.update_pull_branch(pull, "token", state, mock.Mock())
+        self.assertEqual(github.call_count, 2)
+
+    @mock.patch.object(autonomous, "github")
+    def test_update_branch_skips_when_not_behind(self, github):
+        pull = dict(self.OWNER_PULL, auto_merge={"merge_method": "squash"})
+        with tempfile.TemporaryDirectory() as tmp:
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            github.side_effect = [{"mergeable_state": "blocked"}]
+            autonomous.update_pull_branch(pull, "token", state, mock.Mock())
+            self.assertNotIn("40", state.value["pr_updates"])
         github.assert_called_once()
+
+    @mock.patch.object(autonomous, "update_pull_branch")
+    @mock.patch.object(autonomous, "github")
+    def test_approved_pr_without_auto_merge_is_not_updated(self, github, update):
+        with tempfile.TemporaryDirectory() as tmp:
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            github.side_effect = [[dict(self.OWNER_PULL)], [
+                {"state": "APPROVED", "commit_id": "abc123",
+                 "user": {"login": "wawalu-synthetic-reviewer[bot]"}}]]
+            autonomous.review_outstanding_prs("token", {}, state, mock.Mock())
+        update.assert_not_called()
 
     @mock.patch.object(autonomous, "sync_main")
     def test_tick_honors_stop_before_network_or_sync(self, sync):

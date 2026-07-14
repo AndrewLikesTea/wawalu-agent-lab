@@ -10,6 +10,7 @@
   "max_consultation_rounds": 0,
   "review_owner_prs": true,
   "auto_merge_owner_prs": true,
+  "update_stuck_prs": true,
   "generate_when_idle": true,
   "default_worker": "auto"
 }

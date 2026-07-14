@@ -10,6 +10,7 @@ import pathlib
 import subprocess
 import sys
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 import uuid
@@ -66,6 +67,7 @@ class State:
         self.value.setdefault("daily_runs", {})
         self.value.setdefault("persona_submissions", {})
         self.value.setdefault("pr_reviews", {})
+        self.value.setdefault("pr_updates", {})
 
     def save(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -455,6 +457,43 @@ def review_owner_pull(pull: dict[str, Any], token: str, config: dict[str, Any],
     return verdict
 
 
+def update_pull_branch(pull: dict[str, Any], token: str, state: State,
+                       journal: Journal) -> None:
+    """Unstick an approved, auto-merging pull request whose branch fell behind main."""
+    number = int(pull["number"])
+    head_sha = pull["head"]["sha"]
+    record = state.value["pr_updates"].get(str(number), {})
+    if record.get("sha") == head_sha:
+        return
+    detail = github(f"/repos/{REPOSITORY}/pulls/{number}", token)
+    mergeable_state = str(detail.get("mergeable_state") or "unknown")
+    if mergeable_state == "dirty":
+        state.value["pr_updates"][str(number)] = {
+            "sha": head_sha, "result": "conflict", "at": utc_now().isoformat()}
+        state.save()
+        comment(token, number, "merge conflict",
+                f"This pull request conflicts with `main` at `{head_sha[:10]}` and cannot be "
+                "updated automatically. It needs a manual rebase or a fresh implementation.")
+        journal.emit("pr_update_conflict", pull=number, sha=head_sha)
+        return
+    if mergeable_state != "behind":
+        return
+    try:
+        github(f"/repos/{REPOSITORY}/pulls/{number}/update-branch", token, "PUT",
+               {"expected_head_sha": head_sha})
+    except urllib.error.HTTPError as error:
+        detail_body = error.read().decode("utf-8", "replace")[:300]
+        journal.emit("pr_update_failed", pull=number, sha=head_sha,
+                     code=error.code, detail=detail_body)
+        if error.code != 422:
+            raise
+        return
+    state.value["pr_updates"][str(number)] = {
+        "sha": head_sha, "result": "updated", "at": utc_now().isoformat()}
+    state.save()
+    journal.emit("pr_branch_updated", pull=number, sha=head_sha)
+
+
 def review_outstanding_prs(token: str, config: dict[str, Any], state: State,
                            journal: Journal) -> list[int]:
     """Marcus reviews open PRs from the owner, or team-approved PRs whose head moved."""
@@ -465,18 +504,20 @@ def review_outstanding_prs(token: str, config: dict[str, Any], state: State,
             continue
         number = int(pull["number"])
         head_sha = pull["head"]["sha"]
-        record = state.value["pr_reviews"].get(str(number), {})
-        if record.get("sha") == head_sha:
-            continue
         reviews = github(f"/repos/{REPOSITORY}/pulls/{number}/reviews?per_page=100", token) or []
-        if approved_current_head(reviews, head_sha):
-            continue
         author = (pull.get("user") or {}).get("login", "")
         team_approved_before = any(
             isinstance(item, dict) and item.get("state") == "APPROVED"
             and (item.get("user") or {}).get("login") in REVIEWER_LOGINS
             for item in reviews)
         if author != OWNER and not team_approved_before:
+            continue
+        if approved_current_head(reviews, head_sha):
+            if pull.get("auto_merge") and config.get("update_stuck_prs", True):
+                update_pull_branch(pull, token, state, journal)
+            continue
+        record = state.value["pr_reviews"].get(str(number), {})
+        if record.get("sha") == head_sha:
             continue
         try:
             verdict = review_owner_pull(pull, token, config, journal)
