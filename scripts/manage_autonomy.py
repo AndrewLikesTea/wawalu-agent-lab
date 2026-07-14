@@ -17,6 +17,13 @@ PLIST = pathlib.Path.home() / "Library" / "LaunchAgents" / f"{LABEL}.plist"
 DOMAIN = f"gui/{os.getuid()}"
 
 
+def launch_path(home: pathlib.Path | None = None) -> str:
+    """Return the fixed executable search path required by the local toolchain."""
+    return ":".join((str((home or pathlib.Path.home()) / ".local" / "bin"),
+                     "/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin",
+                     "/usr/sbin", "/sbin"))
+
+
 def run(*command: str, check: bool = True) -> subprocess.CompletedProcess:
     return subprocess.run(command, check=check, text=True)
 
@@ -41,7 +48,7 @@ def install() -> None:
         "ProcessType": "Background",
         "StandardOutPath": str(logs / "stdout.log"),
         "StandardErrorPath": str(logs / "stderr.log"),
-        "EnvironmentVariables": {"PATH": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"},
+        "EnvironmentVariables": {"PATH": launch_path()},
     }
     PLIST.write_bytes(plistlib.dumps(payload))
     run("launchctl", "bootout", DOMAIN, str(PLIST), check=False)
