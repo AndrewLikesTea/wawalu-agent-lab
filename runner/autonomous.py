@@ -336,7 +336,8 @@ def consult_after_directive_mvp(token: str, config: dict[str, Any], journal: Jou
         (ROOT / "personas" / "manager.md").read_text(encoding="utf-8"),
         (ROOT / "PRODUCT.md").read_text(encoding="utf-8"), recent_issue_context(token),
         run_dir / "qwen-followup-task.json",
-        f"Select one bounded, high-value follow-up to the completed MVP from this {worker} consultation:\n{ideas[:12000]}")
+        f"Select one bounded, high-value follow-up to the completed MVP after considering the {worker} consultation.",
+        advisory=ideas)
     issue = create_generated_issue(token, proposal, config["issue_label"])
     store.record_consultation(worker, issue["number"])
     journal.emit("directive_followup_consulted", worker=worker, issue=issue["number"],

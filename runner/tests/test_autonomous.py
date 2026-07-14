@@ -164,7 +164,8 @@ class AutonomousTests(unittest.TestCase):
             self.assertEqual(issue["number"], 24)
             self.assertEqual(autonomous.DirectiveStore().read_any()["consultation"]["worker"], "claude")
         consult.assert_called_once()
-        self.assertIn("Add caching", propose.call_args.args[4])
+        self.assertNotIn("Add caching", propose.call_args.args[4])
+        self.assertEqual(propose.call_args.kwargs["advisory"], "Add caching")
 
     @mock.patch.object(autonomous, "sync_main")
     def test_tick_honors_stop_before_network_or_sync(self, sync):
