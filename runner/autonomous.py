@@ -7,6 +7,7 @@ import fcntl
 import json
 import os
 import pathlib
+import re
 import subprocess
 import sys
 import time
@@ -457,8 +458,39 @@ def review_owner_pull(pull: dict[str, Any], token: str, config: dict[str, Any],
     return verdict
 
 
-def update_pull_branch(pull: dict[str, Any], token: str, state: State,
-                       journal: Journal) -> None:
+def requeue_conflicted_pull(pull: dict[str, Any], token: str, config: dict[str, Any],
+                            state: State, journal: Journal) -> bool:
+    """Close a conflicted agent pull request and return its issue to the queue."""
+    branch = str(pull["head"]["ref"])
+    match = (re.match(r"agent/[^/]+/issue-(\d+)-", branch)
+             or re.search(r"Closes #(\d+)", str(pull.get("body") or "")))
+    if not branch.startswith("agent/") or not match:
+        return False
+    issue_number = int(match.group(1))
+    issue = github(f"/repos/{REPOSITORY}/issues/{issue_number}", token)
+    if issue.get("state") != "open":
+        return False
+    pull_number = int(pull["number"])
+    github(f"/repos/{REPOSITORY}/pulls/{pull_number}", token, "PATCH", {"state": "closed"})
+    try:
+        github(f"/repos/{REPOSITORY}/git/refs/heads/{urllib.parse.quote(branch)}", token, "DELETE")
+    except urllib.error.HTTPError:
+        pass
+    record = state.value["issues"].setdefault(str(issue_number), {})
+    record.update({"status": "requeued", "requeued_at": utc_now().isoformat()})
+    record.pop("retry_at", None)
+    state.save()
+    ready = config["issue_label"]
+    replace_state_label(token, issue, ready, ready, keep_ready=True)
+    comment(token, issue_number, "requeued",
+            f"Pull request #{pull_number} conflicted with `main` after other work merged, so it "
+            "was closed. This issue returns to the queue for a fresh implementation on current `main`.")
+    journal.emit("pr_conflict_requeued", pull=pull_number, issue=issue_number, branch=branch)
+    return True
+
+
+def update_pull_branch(pull: dict[str, Any], token: str, config: dict[str, Any],
+                       state: State, journal: Journal) -> None:
     """Unstick an approved, auto-merging pull request whose branch fell behind main."""
     number = int(pull["number"])
     head_sha = pull["head"]["sha"]
@@ -471,10 +503,13 @@ def update_pull_branch(pull: dict[str, Any], token: str, state: State,
         state.value["pr_updates"][str(number)] = {
             "sha": head_sha, "result": "conflict", "at": utc_now().isoformat()}
         state.save()
+        journal.emit("pr_update_conflict", pull=number, sha=head_sha)
+        if config.get("requeue_conflicted_prs", True) and \
+                requeue_conflicted_pull(pull, token, config, state, journal):
+            return
         comment(token, number, "merge conflict",
                 f"This pull request conflicts with `main` at `{head_sha[:10]}` and cannot be "
                 "updated automatically. It needs a manual rebase or a fresh implementation.")
-        journal.emit("pr_update_conflict", pull=number, sha=head_sha)
         return
     if mergeable_state != "behind":
         return
@@ -514,7 +549,7 @@ def review_outstanding_prs(token: str, config: dict[str, Any], state: State,
             continue
         if approved_current_head(reviews, head_sha):
             if pull.get("auto_merge") and config.get("update_stuck_prs", True):
-                update_pull_branch(pull, token, state, journal)
+                update_pull_branch(pull, token, config, state, journal)
             continue
         record = state.value["pr_reviews"].get(str(number), {})
         if record.get("sha") == head_sha:

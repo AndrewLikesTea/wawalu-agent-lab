@@ -94,9 +94,14 @@
   that are approved at their current head with auto-merge enabled but whose branch
   fell behind protected `main`: it calls the GitHub update-branch API pinned to the
   expected head SHA. If the update dismisses or stales the approval, the next sweep
-  re-reviews the new head. A conflicted pull request cannot be updated automatically;
-  the sweep posts one merge-conflict comment per head and leaves it for a manual
-  rebase or a fresh implementation. Each head SHA is attempted at most once.
+  re-reviews the new head. Each head SHA is attempted at most once.
+- A conflicted pull request cannot be updated mechanically. With
+  `requeue_conflicted_prs` enabled, a conflicted `agent/*` pull request is closed,
+  its branch deleted, and its issue relabeled `agent-ready` for a fresh
+  implementation on current `main` through the normal plan, review, and delivery
+  pipeline; the issue's attempt count is preserved, so `max_attempts` still bounds
+  repeated failures. Conflicted owner pull requests only receive one merge-conflict
+  comment per head and are left for a manual rebase.
 
 ## GitHub App
 

@@ -11,6 +11,7 @@
   "review_owner_prs": true,
   "auto_merge_owner_prs": true,
   "update_stuck_prs": true,
+  "requeue_conflicted_prs": true,
   "generate_when_idle": true,
   "default_worker": "auto"
 }

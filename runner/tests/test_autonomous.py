@@ -429,12 +429,12 @@ class AutonomousTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             state = autonomous.State(pathlib.Path(tmp) / "state.json")
             github.side_effect = [{"mergeable_state": "dirty"}, None]
-            autonomous.update_pull_branch(pull, "token", state, mock.Mock())
+            autonomous.update_pull_branch(pull, "token", {}, state, mock.Mock())
             self.assertEqual(state.value["pr_updates"]["40"]["result"], "conflict")
             commented = github.call_args_list[1]
             self.assertEqual(commented.args[0], "/repos/AndrewLikesTea/wawalu-agent-lab/issues/40/comments")
             self.assertIn("conflicts with `main`", commented.args[3]["body"])
-            autonomous.update_pull_branch(pull, "token", state, mock.Mock())
+            autonomous.update_pull_branch(pull, "token", {}, state, mock.Mock())
         self.assertEqual(github.call_count, 2)
 
     @mock.patch.object(autonomous, "github")
@@ -443,9 +443,64 @@ class AutonomousTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             state = autonomous.State(pathlib.Path(tmp) / "state.json")
             github.side_effect = [{"mergeable_state": "blocked"}]
-            autonomous.update_pull_branch(pull, "token", state, mock.Mock())
+            autonomous.update_pull_branch(pull, "token", {}, state, mock.Mock())
             self.assertNotIn("40", state.value["pr_updates"])
         github.assert_called_once()
+
+    AGENT_PULL = {"number": 41, "title": "Decision detail", "body": "Closes #8",
+                  "draft": False, "user": {"login": "wawalu-agent-implementer[bot]"},
+                  "auto_merge": {"merge_method": "squash"},
+                  "head": {"sha": "def456", "ref": "agent/staff/issue-8-decision-detail"}}
+
+    @mock.patch.object(autonomous, "github")
+    def test_conflicted_agent_pr_is_closed_and_issue_requeued(self, github):
+        with tempfile.TemporaryDirectory() as tmp:
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            state.value["issues"]["8"] = {"status": "submitted", "persona": "staff", "attempts": 1}
+            github.side_effect = [
+                {"mergeable_state": "dirty"},
+                {"state": "open", "number": 8,
+                 "labels": [{"name": "agent-running"}, {"name": "persona:staff"}]},
+                None, None, None, None,
+            ]
+            autonomous.update_pull_branch(dict(self.AGENT_PULL), "token",
+                                          {"issue_label": "agent-ready"}, state, mock.Mock())
+            record = state.value["issues"]["8"]
+            self.assertEqual(record["status"], "requeued")
+            self.assertEqual(record["attempts"], 1)
+        closed = github.call_args_list[2]
+        self.assertEqual(closed.args[0], "/repos/AndrewLikesTea/wawalu-agent-lab/pulls/41")
+        self.assertEqual(closed.args[3], {"state": "closed"})
+        deleted = github.call_args_list[3]
+        self.assertEqual(deleted.args[0],
+                         "/repos/AndrewLikesTea/wawalu-agent-lab/git/refs/heads/agent/staff/issue-8-decision-detail")
+        self.assertEqual(deleted.args[2], "DELETE")
+        relabeled = github.call_args_list[4]
+        self.assertEqual(sorted(relabeled.args[3]["labels"]), ["agent-ready", "persona:staff"])
+        commented = github.call_args_list[5]
+        self.assertEqual(commented.args[0], "/repos/AndrewLikesTea/wawalu-agent-lab/issues/8/comments")
+        self.assertIn("fresh implementation", commented.args[3]["body"])
+
+    @mock.patch.object(autonomous, "github")
+    def test_conflicted_agent_pr_with_closed_issue_only_gets_comment(self, github):
+        with tempfile.TemporaryDirectory() as tmp:
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            github.side_effect = [{"mergeable_state": "dirty"}, {"state": "closed"}, None]
+            autonomous.update_pull_branch(dict(self.AGENT_PULL), "token",
+                                          {"issue_label": "agent-ready"}, state, mock.Mock())
+        commented = github.call_args_list[2]
+        self.assertEqual(commented.args[0], "/repos/AndrewLikesTea/wawalu-agent-lab/issues/41/comments")
+        self.assertIn("manual rebase", commented.args[3]["body"])
+
+    @mock.patch.object(autonomous, "github")
+    def test_conflicted_pr_requeue_can_be_disabled(self, github):
+        with tempfile.TemporaryDirectory() as tmp:
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            github.side_effect = [{"mergeable_state": "dirty"}, None]
+            autonomous.update_pull_branch(dict(self.AGENT_PULL), "token",
+                                          {"requeue_conflicted_prs": False}, state, mock.Mock())
+        self.assertEqual(github.call_count, 2)
+        self.assertIn("/issues/41/comments", github.call_args_list[1].args[0])
 
     @mock.patch.object(autonomous, "update_pull_branch")
     @mock.patch.object(autonomous, "github")
