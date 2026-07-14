@@ -16,11 +16,13 @@ least-privilege GitHub App submits the required approval after it passes.
 
 The repository is deliberately separate from the Wawalu product repository.
 Agents work only in disposable worktrees, may push only `agent/*` branches, and
-must use pull requests. After Qwen approves the exact diff, the independent
-Reviewer App approves the exact PR head and the runner enables GitHub auto-merge.
+must use pull requests. A worker that considers its work ready explicitly requests
+auto-merge for its own branch. After Qwen approves the exact diff, the independent
+Reviewer App approves the exact PR head and the runner honors that capability.
 GitHub waits for required CI and resolved conversations, then merges to `main`;
 that protected-main push deploys production automatically and runs a smoke test.
-Worker personas never receive production credentials or direct merge/deploy access.
+Worker personas control whether their own PR enters auto-merge, but never receive
+the reusable GitHub credential or direct Cloudflare deployment access.
 
 ## Local checks
 
