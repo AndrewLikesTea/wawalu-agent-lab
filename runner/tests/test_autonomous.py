@@ -135,37 +135,328 @@ class AutonomousTests(unittest.TestCase):
         self.assertIsNone(result)
         consult.assert_not_called()
 
-    @mock.patch.object(autonomous, "create_generated_issue", return_value={"number": 24})
-    @mock.patch.object(autonomous, "propose_task", return_value={
-        "persona": "infrastructure", "title": "Scale the feed", "outcome": "Reliable growth",
-        "acceptance_criteria": ["Load is bounded", "Tests pass"],
-    })
-    @mock.patch.object(autonomous, "consult_next_steps", return_value="Add caching")
+    FOLLOWUP_PLAN = [
+        {"persona": "backend", "title": "Model notifications", "outcome": "Notification model exists",
+         "acceptance_criteria": ["Model is bounded", "Tests pass"]},
+        {"persona": "frontend", "title": "Show notifications", "outcome": "Depends on the model",
+         "acceptance_criteria": ["Feed is accessible", "Tests pass"]},
+    ]
+
+    def consultation_workspace(self, tmp, directive):
+        pathlib.Path(tmp, "PRODUCT.md").write_text("Product")
+        pathlib.Path(tmp, "personas").mkdir(exist_ok=True)
+        pathlib.Path(tmp, "personas", "manager.md").write_text("Sam")
+        store = autonomous.DirectiveStore()
+        store.path.write_text(json.dumps(directive))
+        return store
+
+    @mock.patch.object(autonomous, "create_generated_issue",
+                       side_effect=[{"number": 24}, {"number": 25}])
+    @mock.patch.object(autonomous, "propose_directive_plan")
+    @mock.patch.object(autonomous, "consult_next_steps", return_value="Add notifications")
     @mock.patch.object(autonomous, "load_runtime_env", return_value={"WAWALU_INGEST_ENDPOINT": "https://example.invalid"})
     @mock.patch.object(autonomous, "load_personas", return_value={"manager": {"wawalu_token": "manager-token"}})
     @mock.patch.object(autonomous, "recent_issue_context", return_value=[])
     @mock.patch.object(autonomous, "github", return_value={"state": "closed"})
-    def test_completed_mvp_consults_once_and_queues_followup(
+    def test_completed_mvp_consults_and_queues_followup_program(
             self, github, recent, personas, runtime, consult, propose, create):
+        propose.return_value = self.FOLLOWUP_PLAN
         with tempfile.TemporaryDirectory() as tmp, \
              mock.patch.object(autonomous, "DIRECTIVE", pathlib.Path(tmp) / "directive.json"), \
              mock.patch.object(autonomous, "AUTONOMY", pathlib.Path(tmp) / "autonomy"), \
              mock.patch.object(autonomous, "ROOT", pathlib.Path(tmp)):
-            pathlib.Path(tmp, "PRODUCT.md").write_text("Product")
-            pathlib.Path(tmp, "personas").mkdir()
-            pathlib.Path(tmp, "personas", "manager.md").write_text("Sam")
+            self.consultation_workspace(tmp, {
+                "status": "consumed", "text": "Build social",
+                "created_issues": [{"index": 0, "issue": 20}],
+            })
+            issues = autonomous.consult_after_directive_mvp(
+                "token", {"issue_label": "agent-ready"}, mock.Mock(), "claude")
+            self.assertEqual([item["number"] for item in issues], [24, 25])
+            value = autonomous.DirectiveStore().read_any()
+            rounds = value["consultations"]
+            self.assertEqual(rounds[0]["worker"], "claude")
+            self.assertEqual(rounds[0]["idea"], "Add notifications")
+            self.assertEqual(rounds[0]["created_issues"],
+                             [{"index": 0, "issue": 24}, {"index": 1, "issue": 25}])
+        consult.assert_called_once()
+        self.assertEqual(propose.call_args.kwargs["advisory"], "Add notifications")
+        self.assertEqual(propose.call_args.args[3], "Build social")
+        self.assertEqual(create.call_args_list[1].args[3], 24)
+
+    @mock.patch.object(autonomous, "create_generated_issue",
+                       side_effect=[{"number": 30}, {"number": 31}])
+    @mock.patch.object(autonomous, "propose_directive_plan")
+    @mock.patch.object(autonomous, "consult_next_steps", return_value="Harden operations")
+    @mock.patch.object(autonomous, "load_runtime_env", return_value={"WAWALU_INGEST_ENDPOINT": "https://example.invalid"})
+    @mock.patch.object(autonomous, "load_personas", return_value={"manager": {"wawalu_token": "manager-token"}})
+    @mock.patch.object(autonomous, "recent_issue_context", return_value=[])
+    @mock.patch.object(autonomous, "github", return_value={"state": "closed"})
+    def test_consultation_repeats_after_each_completed_round(
+            self, github, recent, personas, runtime, consult, propose, create):
+        propose.return_value = self.FOLLOWUP_PLAN
+        with tempfile.TemporaryDirectory() as tmp, \
+             mock.patch.object(autonomous, "DIRECTIVE", pathlib.Path(tmp) / "directive.json"), \
+             mock.patch.object(autonomous, "AUTONOMY", pathlib.Path(tmp) / "autonomy"), \
+             mock.patch.object(autonomous, "ROOT", pathlib.Path(tmp)):
+            self.consultation_workspace(tmp, {
+                "status": "consumed", "text": "Build social",
+                "created_issues": [{"index": 0, "issue": 20}],
+                "consultations": [{"worker": "codex", "plan": [{"title": "done"}],
+                                   "created_issues": [{"index": 0, "issue": 24}]}],
+            })
+            issues = autonomous.consult_after_directive_mvp(
+                "token", {"issue_label": "agent-ready"}, mock.Mock(), "claude")
+            self.assertEqual([item["number"] for item in issues], [30, 31])
+            self.assertEqual(len(autonomous.DirectiveStore().read_any()["consultations"]), 2)
+        consult.assert_called_once()
+
+    @mock.patch.object(autonomous, "github")
+    def test_consultation_waits_for_open_followup_round(self, github):
+        with tempfile.TemporaryDirectory() as tmp, \
+             mock.patch.object(autonomous, "DIRECTIVE", pathlib.Path(tmp) / "directive.json"), \
+             mock.patch.object(autonomous, "consult_next_steps") as consult:
             store = autonomous.DirectiveStore()
             store.path.write_text(json.dumps({
                 "status": "consumed", "text": "Build social",
                 "created_issues": [{"index": 0, "issue": 20}],
+                "consultations": [{"worker": "codex", "plan": [{"title": "pending"}],
+                                   "created_issues": [{"index": 0, "issue": 24}]}],
             }))
-            issue = autonomous.consult_after_directive_mvp(
-                "token", {"issue_label": "agent-ready"}, mock.Mock(), "claude")
-            self.assertEqual(issue["number"], 24)
-            self.assertEqual(autonomous.DirectiveStore().read_any()["consultation"]["worker"], "claude")
-        consult.assert_called_once()
-        self.assertNotIn("Add caching", propose.call_args.args[4])
-        self.assertEqual(propose.call_args.kwargs["advisory"], "Add caching")
+            github.return_value = {"state": "open"}
+            result = autonomous.consult_after_directive_mvp(
+                "token", {"issue_label": "agent-ready"}, mock.Mock())
+        self.assertIsNone(result)
+        consult.assert_not_called()
+        self.assertEqual(github.call_args.args[0], "/repos/AndrewLikesTea/wawalu-agent-lab/issues/24")
+
+    @mock.patch.object(autonomous, "github", return_value={"state": "closed"})
+    def test_consultation_round_cap_stops_new_rounds(self, github):
+        with tempfile.TemporaryDirectory() as tmp, \
+             mock.patch.object(autonomous, "DIRECTIVE", pathlib.Path(tmp) / "directive.json"), \
+             mock.patch.object(autonomous, "consult_next_steps") as consult:
+            store = autonomous.DirectiveStore()
+            store.path.write_text(json.dumps({
+                "status": "consumed", "text": "Build social",
+                "created_issues": [{"index": 0, "issue": 20}],
+                "consultations": [{"worker": "codex", "plan": [{"title": "done"}],
+                                   "created_issues": [{"index": 0, "issue": 24}]}],
+            }))
+            result = autonomous.consult_after_directive_mvp(
+                "token", {"issue_label": "agent-ready", "max_consultation_rounds": 1}, mock.Mock())
+        self.assertIsNone(result)
+        consult.assert_not_called()
+
+    @mock.patch.object(autonomous, "create_generated_issue",
+                       side_effect=[{"number": 30}, {"number": 31}])
+    @mock.patch.object(autonomous, "propose_directive_plan")
+    @mock.patch.object(autonomous, "recent_issue_context", return_value=[])
+    @mock.patch.object(autonomous, "github", return_value={"state": "closed"})
+    def test_interrupted_round_resumes_without_repeating_the_paid_consult(
+            self, github, recent, propose, create):
+        propose.return_value = self.FOLLOWUP_PLAN
+        with tempfile.TemporaryDirectory() as tmp, \
+             mock.patch.object(autonomous, "DIRECTIVE", pathlib.Path(tmp) / "directive.json"), \
+             mock.patch.object(autonomous, "AUTONOMY", pathlib.Path(tmp) / "autonomy"), \
+             mock.patch.object(autonomous, "ROOT", pathlib.Path(tmp)), \
+             mock.patch.object(autonomous, "consult_next_steps") as consult:
+            self.consultation_workspace(tmp, {
+                "status": "consumed", "text": "Build social",
+                "created_issues": [{"index": 0, "issue": 20}],
+                "consultations": [{"worker": "claude", "idea": "Add notifications",
+                                   "created_issues": []}],
+            })
+            issues = autonomous.consult_after_directive_mvp(
+                "token", {"issue_label": "agent-ready"}, mock.Mock())
+            self.assertEqual([item["number"] for item in issues], [30, 31])
+        consult.assert_not_called()
+        self.assertEqual(propose.call_args.kwargs["advisory"], "Add notifications")
+
+    @mock.patch.object(autonomous, "github")
+    def test_legacy_single_consultation_migrates_to_a_completed_round(self, github):
+        with tempfile.TemporaryDirectory() as tmp, \
+             mock.patch.object(autonomous, "DIRECTIVE", pathlib.Path(tmp) / "directive.json"), \
+             mock.patch.object(autonomous, "consult_next_steps") as consult:
+            store = autonomous.DirectiveStore()
+            store.path.write_text(json.dumps({
+                "status": "consumed", "text": "Build social",
+                "created_issues": [{"index": 0, "issue": 20}],
+                "consultation": {"worker": "claude", "issue": 24},
+            }))
+            github.return_value = {"state": "open"}
+            result = autonomous.consult_after_directive_mvp(
+                "token", {"issue_label": "agent-ready"}, mock.Mock())
+            migrated = autonomous.DirectiveStore().read_any()
+        self.assertIsNone(result)
+        consult.assert_not_called()
+        self.assertNotIn("consultation", migrated)
+        self.assertEqual(migrated["consultations"][0]["created_issues"], [{"index": 0, "issue": 24}])
+
+    OWNER_PULL = {"number": 40, "title": "Consultation rounds", "body": "Runner change",
+                  "draft": False, "user": {"login": "AndrewLikesTea"},
+                  "head": {"sha": "abc123", "ref": "owner/consultation-rounds"}}
+
+    def review_workspace(self, tmp):
+        pathlib.Path(tmp, "personas").mkdir(exist_ok=True)
+        pathlib.Path(tmp, "personas", "reviewer.md").write_text("Marcus")
+        return autonomous.State(pathlib.Path(tmp) / "state.json")
+
+    @mock.patch.object(autonomous, "enable_auto_merge")
+    @mock.patch.object(autonomous, "reviewer_token", return_value="reviewer-token")
+    @mock.patch.object(autonomous, "review_pull_request",
+                       return_value={"approved": True, "feedback": "", "summary": "Sound change"})
+    @mock.patch.object(autonomous, "fetch_pull_diff", return_value="diff")
+    @mock.patch.object(autonomous, "github")
+    def test_owner_pr_is_reviewed_approved_and_auto_merged(
+            self, github, diff, review, token, merge):
+        with tempfile.TemporaryDirectory() as tmp, \
+             mock.patch.object(autonomous, "AUTONOMY", pathlib.Path(tmp) / "autonomy"), \
+             mock.patch.object(autonomous, "ROOT", pathlib.Path(tmp)):
+            state = self.review_workspace(tmp)
+            github.side_effect = [[dict(self.OWNER_PULL)], [], None]
+            approved = autonomous.review_outstanding_prs("token", {}, state, mock.Mock())
+            self.assertEqual(approved, [40])
+            self.assertEqual(state.value["pr_reviews"]["40"]["sha"], "abc123")
+            self.assertTrue(state.value["pr_reviews"]["40"]["approved"])
+        submitted = github.call_args_list[2]
+        self.assertEqual(submitted.args[0], "/repos/AndrewLikesTea/wawalu-agent-lab/pulls/40/reviews")
+        self.assertEqual(submitted.args[1], "reviewer-token")
+        self.assertEqual(submitted.args[3]["commit_id"], "abc123")
+        self.assertEqual(submitted.args[3]["event"], "APPROVE")
+        merge.assert_called_once()
+        self.assertEqual(merge.call_args.args[1], "owner/consultation-rounds")
+
+    @mock.patch.object(autonomous, "review_pull_request")
+    @mock.patch.object(autonomous, "github")
+    def test_pr_with_current_synthetic_approval_is_skipped(self, github, review):
+        with tempfile.TemporaryDirectory() as tmp:
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            github.side_effect = [[dict(self.OWNER_PULL)], [
+                {"state": "APPROVED", "commit_id": "abc123",
+                 "user": {"login": "wawalu-synthetic-reviewer[bot]"}}]]
+            approved = autonomous.review_outstanding_prs("token", {}, state, mock.Mock())
+        self.assertEqual(approved, [])
+        review.assert_not_called()
+
+    @mock.patch.object(autonomous, "review_pull_request")
+    @mock.patch.object(autonomous, "github")
+    def test_foreign_pr_without_team_approval_is_ignored(self, github, review):
+        pull = dict(self.OWNER_PULL, user={"login": "someone-else"})
+        with tempfile.TemporaryDirectory() as tmp:
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            github.side_effect = [[pull], []]
+            approved = autonomous.review_outstanding_prs("token", {}, state, mock.Mock())
+        self.assertEqual(approved, [])
+        review.assert_not_called()
+
+    @mock.patch.object(autonomous, "enable_auto_merge")
+    @mock.patch.object(autonomous, "reviewer_token", return_value="reviewer-token")
+    @mock.patch.object(autonomous, "review_pull_request",
+                       return_value={"approved": True, "feedback": "", "summary": "Still sound"})
+    @mock.patch.object(autonomous, "fetch_pull_diff", return_value="diff")
+    @mock.patch.object(autonomous, "github")
+    def test_stale_team_approval_is_rereviewed_without_auto_merge(
+            self, github, diff, review, token, merge):
+        pull = dict(self.OWNER_PULL, user={"login": "wawalu-agent-implementer[bot]"})
+        with tempfile.TemporaryDirectory() as tmp, \
+             mock.patch.object(autonomous, "AUTONOMY", pathlib.Path(tmp) / "autonomy"), \
+             mock.patch.object(autonomous, "ROOT", pathlib.Path(tmp)):
+            state = self.review_workspace(tmp)
+            github.side_effect = [[pull], [
+                {"state": "APPROVED", "commit_id": "old-sha",
+                 "user": {"login": "wawalu-synthetic-reviewer[bot]"}}], None]
+            approved = autonomous.review_outstanding_prs("token", {}, state, mock.Mock())
+        self.assertEqual(approved, [40])
+        merge.assert_not_called()
+
+    @mock.patch.object(autonomous, "enable_auto_merge")
+    @mock.patch.object(autonomous, "reviewer_token", return_value="reviewer-token")
+    @mock.patch.object(autonomous, "review_pull_request",
+                       return_value={"approved": False, "feedback": "Missing tests", "summary": "No"})
+    @mock.patch.object(autonomous, "fetch_pull_diff", return_value="diff")
+    @mock.patch.object(autonomous, "github")
+    def test_rejected_owner_pr_gets_feedback_not_approval(
+            self, github, diff, review, token, merge):
+        with tempfile.TemporaryDirectory() as tmp, \
+             mock.patch.object(autonomous, "AUTONOMY", pathlib.Path(tmp) / "autonomy"), \
+             mock.patch.object(autonomous, "ROOT", pathlib.Path(tmp)):
+            state = self.review_workspace(tmp)
+            github.side_effect = [[dict(self.OWNER_PULL)], [], None]
+            approved = autonomous.review_outstanding_prs("token", {}, state, mock.Mock())
+            self.assertFalse(state.value["pr_reviews"]["40"]["approved"])
+        self.assertEqual(approved, [])
+        commented = github.call_args_list[2]
+        self.assertEqual(commented.args[0], "/repos/AndrewLikesTea/wawalu-agent-lab/issues/40/comments")
+        self.assertIn("Missing tests", commented.args[3]["body"])
+        merge.assert_not_called()
+
+    @mock.patch.object(autonomous, "review_pull_request")
+    @mock.patch.object(autonomous, "github")
+    def test_processed_head_is_not_rereviewed(self, github, review):
+        with tempfile.TemporaryDirectory() as tmp:
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            state.value["pr_reviews"]["40"] = {"sha": "abc123", "approved": False}
+            github.side_effect = [[dict(self.OWNER_PULL)], []]
+            approved = autonomous.review_outstanding_prs("token", {}, state, mock.Mock())
+        self.assertEqual(approved, [])
+        review.assert_not_called()
+        self.assertEqual(github.call_count, 2)
+
+    @mock.patch.object(autonomous, "review_pull_request")
+    @mock.patch.object(autonomous, "github")
+    def test_approved_behind_pr_gets_branch_update(self, github, review):
+        pull = dict(self.OWNER_PULL, auto_merge={"merge_method": "squash"})
+        with tempfile.TemporaryDirectory() as tmp:
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            github.side_effect = [
+                [pull],
+                [{"state": "APPROVED", "commit_id": "abc123",
+                  "user": {"login": "wawalu-synthetic-reviewer[bot]"}}],
+                {"mergeable_state": "behind"},
+                None,
+            ]
+            approved = autonomous.review_outstanding_prs("token", {}, state, mock.Mock())
+            self.assertEqual(state.value["pr_updates"]["40"]["result"], "updated")
+        self.assertEqual(approved, [])
+        review.assert_not_called()
+        updated = github.call_args_list[3]
+        self.assertEqual(updated.args[0], "/repos/AndrewLikesTea/wawalu-agent-lab/pulls/40/update-branch")
+        self.assertEqual(updated.args[2], "PUT")
+        self.assertEqual(updated.args[3], {"expected_head_sha": "abc123"})
+
+    @mock.patch.object(autonomous, "github")
+    def test_conflicted_pr_gets_one_comment_per_head(self, github):
+        pull = dict(self.OWNER_PULL, auto_merge={"merge_method": "squash"})
+        with tempfile.TemporaryDirectory() as tmp:
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            github.side_effect = [{"mergeable_state": "dirty"}, None]
+            autonomous.update_pull_branch(pull, "token", state, mock.Mock())
+            self.assertEqual(state.value["pr_updates"]["40"]["result"], "conflict")
+            commented = github.call_args_list[1]
+            self.assertEqual(commented.args[0], "/repos/AndrewLikesTea/wawalu-agent-lab/issues/40/comments")
+            self.assertIn("conflicts with `main`", commented.args[3]["body"])
+            autonomous.update_pull_branch(pull, "token", state, mock.Mock())
+        self.assertEqual(github.call_count, 2)
+
+    @mock.patch.object(autonomous, "github")
+    def test_update_branch_skips_when_not_behind(self, github):
+        pull = dict(self.OWNER_PULL, auto_merge={"merge_method": "squash"})
+        with tempfile.TemporaryDirectory() as tmp:
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            github.side_effect = [{"mergeable_state": "blocked"}]
+            autonomous.update_pull_branch(pull, "token", state, mock.Mock())
+            self.assertNotIn("40", state.value["pr_updates"])
+        github.assert_called_once()
+
+    @mock.patch.object(autonomous, "update_pull_branch")
+    @mock.patch.object(autonomous, "github")
+    def test_approved_pr_without_auto_merge_is_not_updated(self, github, update):
+        with tempfile.TemporaryDirectory() as tmp:
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            github.side_effect = [[dict(self.OWNER_PULL)], [
+                {"state": "APPROVED", "commit_id": "abc123",
+                 "user": {"login": "wawalu-synthetic-reviewer[bot]"}}]]
+            autonomous.review_outstanding_prs("token", {}, state, mock.Mock())
+        update.assert_not_called()
 
     @mock.patch.object(autonomous, "sync_main")
     def test_tick_honors_stop_before_network_or_sync(self, sync):

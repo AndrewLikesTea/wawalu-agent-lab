@@ -7,6 +7,10 @@
   "retry_cooldown_seconds": 1800,
   "issue_label": "agent-ready",
   "consult_after_directive_mvp": true,
+  "max_consultation_rounds": 0,
+  "review_owner_prs": true,
+  "auto_merge_owner_prs": true,
+  "update_stuck_prs": true,
   "generate_when_idle": true,
   "default_worker": "auto"
 }
