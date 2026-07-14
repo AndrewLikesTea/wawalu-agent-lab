@@ -12,6 +12,7 @@
     "src/agents.html",
     "src/agents.js",
     "src/agents.css",
+    "src/agent-demo-data.json",
     "tests/agent-observatory.test.js",
     ".secrets/",
     "wrangler.toml"

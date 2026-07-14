@@ -1,5 +1,6 @@
 const EVENTS_URL = "https://api.github.com/repos/AndrewLikesTea/wawalu-agent-lab/events?per_page=30";
 const REFRESH_MS = 90_000;
+const DEMO_DATA_URL = "/agent-demo-data.json";
 
 export function personaFromRef(ref = "") {
   const match = String(ref).match(/(?:refs\/heads\/)?agent\/([^/]+)/);
@@ -96,9 +97,59 @@ export async function loadActivity(root = document, fetcher = fetch) {
   }
 }
 
+function promptBlock(label, value) {
+  const section = document.createElement("section");
+  section.className = "prompt-step";
+  appendText(section, "p", "prompt-label", label);
+  appendText(section, "pre", "prompt-copy", value);
+  return section;
+}
+
+export function renderDemoData(root, data) {
+  const personas = root.querySelector("#persona-list");
+  const trace = root.querySelector("#prompt-trace");
+  personas.replaceChildren();
+  data.personas.forEach((persona, index) => {
+    const row = document.createElement("li");
+    appendText(row, "span", "", String(index + 1).padStart(2, "0"));
+    const copy = document.createElement("div");
+    appendText(copy, "strong", "", `${persona.name} · ${persona.role}`);
+    appendText(copy, "small", "", persona.summary);
+    const details = document.createElement("details");
+    const summary = appendText(details, "summary", "", "View Qwen persona prompt");
+    summary.setAttribute("aria-label", `${persona.name} Qwen persona prompt`);
+    appendText(details, "pre", "persona-prompt", persona.prompt);
+    copy.append(details);
+    row.append(copy);
+    personas.append(row);
+  });
+
+  trace.replaceChildren();
+  const heading = document.createElement("div");
+  heading.className = "trace-heading";
+  appendText(heading, "strong", "", `${data.run.personaName} · ${data.run.personaRole}`);
+  appendText(heading, "span", "", `${data.run.scenarioTitle} · ${data.run.worker}`);
+  trace.append(heading);
+  trace.append(
+    promptBlock("1 · Qwen planning prompt", data.run.qwenPlanningPrompt),
+    promptBlock(`2 · Qwen handoff to ${data.run.worker}`, data.run.qwenHandoff),
+    promptBlock(`3 · Exact ${data.run.worker} worker prompt`, data.run.workerPrompt),
+    promptBlock("4 · Marcus / Qwen review", data.run.qwenReview),
+  );
+}
+
+export async function loadDemoData(root = document, fetcher = fetch) {
+  const response = await fetcher(DEMO_DATA_URL);
+  if (!response.ok) throw new Error(`Demo data returned ${response.status}`);
+  renderDemoData(root, await response.json());
+}
+
 if (typeof document !== "undefined") {
   const refresh = () => loadActivity();
   document.querySelector("#refresh-activity")?.addEventListener("click", refresh);
   refresh();
+  loadDemoData().catch(() => {
+    document.querySelector("#prompt-trace").textContent = "Published demo prompts are temporarily unavailable.";
+  });
   setInterval(refresh, REFRESH_MS);
 }

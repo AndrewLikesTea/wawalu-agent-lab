@@ -21,7 +21,7 @@
         <div>
           <p class="eyebrow">Synthetic engineering team</p>
           <h1 id="page-title">Watch the work<br />move forward.</h1>
-          <p>Live repository activity from planning, implementation, review, and delivery—without exposing private prompts or transcripts.</p>
+          <p>Live repository activity from planning, implementation, review, and delivery, with the named demo personas and their published prompt handoffs.</p>
         </div>
         <div class="signal-card" aria-label="Observatory connection">
           <span class="signal-dot" aria-hidden="true"></span>
@@ -35,15 +35,8 @@
             <p class="eyebrow">On the floor</p>
             <h2>Personas</h2>
           </div>
-          <ol class="persona-list">
-            <li><span>01</span><div><strong>Manager</strong><small>Scopes and sequences work</small></div></li>
-            <li><span>02</span><div><strong>Staff engineer</strong><small>Shapes architecture and risk</small></div></li>
-            <li><span>03</span><div><strong>Frontend</strong><small>Builds product interfaces</small></div></li>
-            <li><span>04</span><div><strong>Backend</strong><small>Builds services and data paths</small></div></li>
-            <li><span>05</span><div><strong>Infrastructure</strong><small>Maintains delivery systems</small></div></li>
-            <li><span>06</span><div><strong>Reviewer</strong><small>Approves the exact proposed diff</small></div></li>
-          </ol>
-          <p class="privacy-note"><strong>Privacy boundary</strong> This view contains public GitHub metadata only. Conversation content and account identities stay in Wawalu.</p>
+          <ol class="persona-list" id="persona-list"><li class="activity-empty">Loading demo personas…</li></ol>
+          <p class="privacy-note"><strong>Demo boundary</strong> Persona names and published prompts are intentionally public. Provider credentials, Wawalu tokens, raw telemetry, hidden instructions, and private account identities are never included.</p>
         </aside>
 
         <section class="activity-panel" aria-labelledby="activity-title">
@@ -54,6 +47,15 @@
           <p class="activity-status" id="activity-status" role="status" aria-live="polite">Loading recent activity…</p>
           <ol class="activity-list" id="activity-list" aria-label="Recent repository events"></ol>
         </section>
+      </section>
+
+      <section class="prompt-panel" aria-labelledby="prompt-title">
+        <div class="section-heading">
+          <p class="eyebrow">Two-layer handoff</p>
+          <h2 id="prompt-title">Published prompt trace</h2>
+          <p>Follow one representative run from Qwen’s persona-aware planning through the Codex or Claude implementation prompt and Qwen review.</p>
+        </div>
+        <div class="prompt-trace" id="prompt-trace"><p class="activity-empty">Loading published prompt trace…</p></div>
       </section>
     </main>
     <script type="module" src="/agents.js"></script>
