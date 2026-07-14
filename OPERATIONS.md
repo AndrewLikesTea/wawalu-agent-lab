@@ -45,6 +45,8 @@
 ## Autonomous manager
 
 - A per-user macOS LaunchAgent (`org.wawalu.agent-lab`) runs one manager loop.
+- The installed service is wrapped in macOS `caffeinate`, keeping an AC-powered,
+  logged-in laptop awake while the manager runs. Launchd restarts unexpected exits.
 - An advisory file lock prevents concurrent managers and workers run sequentially
   so the 30B Qwen model, Codex or Claude, Docker, and tests share laptop memory.
 - `agent-ready` GitHub issues are the durable queue. A `persona:<role>` label
@@ -53,6 +55,9 @@
 - Default operation is 08:00–18:00 Pacific time, at most one submitted PR per
   engineer in a rolling hour, two attempts per issue, and a 30-minute retry cooldown. Edit the ignored
   `.secrets/autonomy.json` to change those controls.
+- A worker is terminated and retried if it exceeds `worker_timeout_seconds` (three
+  hours by default), preventing a wedged Codex, Claude, test, or network subprocess
+  from blocking the manager for the rest of the week.
 - State, private event history, logs, generated scenarios, and the stop file live
   under ignored `.agent/autonomy/`. Public issue comments expose safe lifecycle
   states to the Agent Observatory without publishing model transcripts.

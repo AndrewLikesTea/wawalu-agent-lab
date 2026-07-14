@@ -38,9 +38,13 @@ def install() -> None:
     logs.mkdir(parents=True, exist_ok=True, mode=0o700)
     (logs / "STOP").unlink(missing_ok=True)
     PLIST.parent.mkdir(parents=True, exist_ok=True)
+    caffeinate = shutil.which("caffeinate")
+    program = [sys.executable, "-m", "runner.autonomous", "loop"]
+    if caffeinate:
+        program = [caffeinate, "-dimsu", *program]
     payload = {
         "Label": LABEL,
-        "ProgramArguments": [sys.executable, "-m", "runner.autonomous", "loop"],
+        "ProgramArguments": program,
         "WorkingDirectory": str(ROOT),
         "RunAtLoad": True,
         "KeepAlive": {"SuccessfulExit": False},

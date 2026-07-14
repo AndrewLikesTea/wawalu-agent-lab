@@ -8,6 +8,7 @@ import json
 import os
 import pathlib
 import re
+import signal
 import subprocess
 import sys
 import time
@@ -705,6 +706,26 @@ def cleanup_worktree(path: pathlib.Path, branch: str, journal: Journal) -> None:
         journal.emit("local_branch_cleaned", branch=branch)
 
 
+def run_worker_process(command: list[str], timeout_seconds: int, journal: Journal,
+                       issue: int) -> int:
+    """Run one orchestrator in its own process group so a wedged model cannot stall the week."""
+    process = subprocess.Popen(command, cwd=ROOT, start_new_session=True)
+    try:
+        return process.wait(timeout=timeout_seconds)
+    except subprocess.TimeoutExpired:
+        journal.emit("run_timeout", issue=issue, timeout_seconds=timeout_seconds)
+        try:
+            os.killpg(process.pid, signal.SIGTERM)
+            process.wait(timeout=15)
+        except (ProcessLookupError, subprocess.TimeoutExpired):
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            process.wait()
+        return 124
+
+
 def execute_issue(issue: dict[str, Any], config: dict[str, Any], state: State,
                   journal: Journal, token: str) -> int:
     number = int(issue["number"])
@@ -733,9 +754,10 @@ def execute_issue(issue: dict[str, Any], config: dict[str, Any], state: State,
     journal.emit("run_started", issue=number, persona=persona)
     command = [sys.executable, "-m", "runner.orchestrator", "run", persona,
                str(scenario_path.relative_to(ROOT)), "--push", "--worker", config["default_worker"]]
-    result = subprocess.run(command, cwd=ROOT)
+    exit_code = run_worker_process(
+        command, int(config.get("worker_timeout_seconds", 10800)), journal, number)
     scenario_path.unlink(missing_ok=True)
-    if result.returncode == 0:
+    if exit_code == 0:
         record.update({"status": "submitted", "finished_at": utc_now().isoformat()})
         state.record_submission(persona)
         for collaborator in scenario.get("collaborators", []):
@@ -747,17 +769,17 @@ def execute_issue(issue: dict[str, Any], config: dict[str, Any], state: State,
         attempts = int(record["attempts"])
         if attempts >= int(config["max_attempts"]):
             record["status"] = "blocked"
-            comment(token, number, "blocked", f"The run failed {attempts} times and needs human attention. Exit code: `{result.returncode}`.")
+            comment(token, number, "blocked", f"The run failed {attempts} times and needs human attention. Exit code: `{exit_code}`.")
             replace_state_label(token, issue, config["issue_label"], "agent-blocked", keep_ready=False)
         else:
             record["status"] = "retry"
             record["retry_at"] = (utc_now() + dt.timedelta(seconds=int(config["retry_cooldown_seconds"]))).isoformat()
-            comment(token, number, "retry scheduled", f"The run exited with `{result.returncode}`. It will retry after the configured cooldown.")
+            comment(token, number, "retry scheduled", f"The run exited with `{exit_code}`. It will retry after the configured cooldown.")
             replace_state_label(token, issue, config["issue_label"], None, keep_ready=True)
-        journal.emit("run_failed", issue=number, persona=persona, exit_code=result.returncode, attempts=attempts)
+        journal.emit("run_failed", issue=number, persona=persona, exit_code=exit_code, attempts=attempts)
     state.save()
     cleanup_worktree(worktree, f"agent/{persona}/{scenario_slug}", journal)
-    return result.returncode
+    return exit_code
 
 
 def within_hours(config: dict[str, Any], now: dt.datetime | None = None) -> bool:

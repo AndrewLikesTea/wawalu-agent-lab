@@ -1,6 +1,7 @@
 import datetime as dt
 import json
 import pathlib
+import subprocess
 import tempfile
 import unittest
 from unittest import mock
@@ -655,6 +656,18 @@ class AutonomousTests(unittest.TestCase):
                          ["git", "worktree", "remove", "--force", str(path)])
         self.assertEqual(run.call_args_list[2].args[0],
                          ["git", "branch", "--delete", "--force", "agent/staff/task"])
+
+    @mock.patch.object(autonomous.os, "killpg")
+    @mock.patch.object(autonomous.subprocess, "Popen")
+    def test_worker_timeout_terminates_the_entire_process_group(self, popen, killpg):
+        process = popen.return_value
+        process.pid = 123
+        process.wait.side_effect = [subprocess.TimeoutExpired("worker", 30), 0]
+        journal = mock.Mock()
+        self.assertEqual(autonomous.run_worker_process(["worker"], 30, journal, 9), 124)
+        popen.assert_called_once_with(["worker"], cwd=autonomous.ROOT, start_new_session=True)
+        killpg.assert_called_once_with(123, autonomous.signal.SIGTERM)
+        journal.emit.assert_called_once_with("run_timeout", issue=9, timeout_seconds=30)
 
     def test_launch_agent_path_includes_user_cli_directory(self):
         value = launch_path(pathlib.Path("/Users/demo"))
