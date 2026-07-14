@@ -145,6 +145,16 @@ export class InvalidCursorError extends Error {
 // index. JavaScript's run-to-completion model gives us atomic check-and-insert:
 // there is no `await` between the uniqueness check and the append, so two
 // concurrent creates cannot both observe "absent" and both write.
+// Idempotency keys become storage keys verbatim, so bound their length and
+// alphabet before use; anything else is rejected rather than truncated.
+const IDEMPOTENCY_KEY_PATTERN = /^[A-Za-z0-9_-]{1,128}$/;
+
+function assertIdempotencyKey(key) {
+  if (key !== undefined && key !== null && !IDEMPOTENCY_KEY_PATTERN.test(String(key))) {
+    throw new TypeError("idempotencyKey must be 1-128 characters of A-Za-z0-9_-");
+  }
+}
+
 export function createMemoryStore(initial = []) {
   const log = []; // insertion order == chronological order (monotonic seq)
   const byId = new Map();
@@ -160,6 +170,7 @@ export function createMemoryStore(initial = []) {
     // instead of creating a duplicate or throwing.
     async insert(post, idempotencyKey) {
       if (!isPost(post)) throw new TypeError("insert requires a valid post");
+      assertIdempotencyKey(idempotencyKey);
 
       if (idempotencyKey) {
         const existing = byIdempotencyKey.get(idempotencyKey);
@@ -236,6 +247,7 @@ export function createKvStore(kv) {
   return {
     async insert(post, idempotencyKey) {
       if (!isPost(post)) throw new TypeError("insert requires a valid post");
+      assertIdempotencyKey(idempotencyKey);
 
       if (idempotencyKey) {
         const existingId = await kv.get(`idem:${idempotencyKey}`);

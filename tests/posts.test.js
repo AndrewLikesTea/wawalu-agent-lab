@@ -316,3 +316,13 @@ test("KV store round-trips, dedupes, and lists newest-first", async () => {
   assert.equal(replay2.replayed, true);
   assert.equal(replay2.post.id, "k3");
 });
+
+test("idempotency keys are bounded to a safe storage alphabet", async () => {
+  const store = createMemoryStore();
+  const post = createPost({ content: "safe" }, { identity: IDENTITY, id: "k9", createdAt: "2026-07-14T00:08:00.000Z" });
+  await assert.rejects(store.insert(post, "bad key with spaces"), TypeError);
+  await assert.rejects(store.insert(post, "x".repeat(129)), TypeError);
+  await assert.rejects(store.insert(post, "idem:injection"), TypeError);
+  const inserted = await store.insert(post, "Good_Key-123");
+  assert.equal(inserted.replayed, false);
+});
