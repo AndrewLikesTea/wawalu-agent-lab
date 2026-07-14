@@ -34,3 +34,13 @@ test("agent observatory maps public events to personas without conversation data
     detail: "opened pull request #7", url: "https://github.com/example/pull/7",
   });
 });
+
+test("agent observatory maps autonomous lifecycle comments", () => {
+  const item = describeEvent({ type: "IssueCommentEvent", payload: {
+    issue: { number: 12, title: "Add release export", labels: [{ name: "persona:backend" }],
+      html_url: "https://github.com/example/issues/12" },
+    comment: { body: "<!-- wawalu-agent-state -->\n**Synthetic team · planning**", html_url: "https://github.com/example/issues/12#comment" },
+  }});
+  assert.deepEqual(item, { persona: "backend", title: "Add release export",
+    detail: "planning · issue #12", url: "https://github.com/example/issues/12#comment" });
+});

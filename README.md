@@ -43,4 +43,24 @@ python3 -m runner.orchestrator run backend scenarios/bootstrap.json --worker cod
 python3 -m runner.orchestrator run frontend scenarios/bootstrap.json --worker claude
 ```
 
+## Autonomous team
+
+The autonomous manager uses labeled GitHub issues as its durable queue. When the
+queue is empty, Sam uses local Qwen to propose one bounded task from `PRODUCT.md`,
+creates an `agent-ready` issue, assigns a persona, and starts the normal runner.
+Runs are sequential, limited by working hours and a separate daily run cap, and
+retain the existing 50 approved-diff budget.
+
+```sh
+mkdir -p .secrets
+cp config/autonomy.example.json .secrets/autonomy.json
+python3 scripts/manage_autonomy.py install
+python3 -m runner.autonomous status
+python3 -m runner.autonomous stop
+python3 -m runner.autonomous resume
+```
+
+The macOS LaunchAgent restarts after failures and laptop login. A stopped team
+remains stopped across restarts until `resume` removes the emergency-stop file.
+
 See [OPERATIONS.md](OPERATIONS.md) for GitHub, Cloudflare, and release controls.

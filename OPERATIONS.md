@@ -42,6 +42,23 @@
 - The runner checks availability before invoking a paid worker and records the
   diff atomically before committing or pushing it.
 
+## Autonomous manager
+
+- A per-user macOS LaunchAgent (`org.wawalu.agent-lab`) runs one manager loop.
+- An advisory file lock prevents concurrent managers and workers run sequentially
+  so the 30B Qwen model, Codex or Claude, Docker, and tests share laptop memory.
+- `agent-ready` GitHub issues are the durable queue. A `persona:<role>` label
+  assigns the worker; unassigned tasks fall back to the staff persona.
+- When the queue is empty, Sam may generate one bounded issue from `PRODUCT.md`.
+- Default operation is 08:00–22:00 local time, at most six attempted runs per UTC
+  day, two attempts per issue, and a 30-minute retry cooldown. Edit the ignored
+  `.secrets/autonomy.json` to change those controls.
+- State, private event history, logs, generated scenarios, and the stop file live
+  under ignored `.agent/autonomy/`. Public issue comments expose safe lifecycle
+  states to the Agent Observatory without publishing model transcripts.
+- Before every task the manager fast-forwards local `main` from `origin/main`.
+  Completed disposable worktrees are removed after each attempt.
+
 ## GitHub App
 
 Register the app from `github-app-manifest.json`. Grant only repository
@@ -62,6 +79,7 @@ targets the exact current head SHA, so every new push requires a fresh review.
 ## Emergency stop
 
 1. Stop the local orchestrator process.
+   `python3 -m runner.autonomous stop` persists this stop across LaunchAgent restarts.
 2. Suspend or uninstall the GitHub App from the repository.
 3. Disable Pages preview builds or revoke the Cloudflare API token.
 4. Revoke synthetic Wawalu ingest tokens.
