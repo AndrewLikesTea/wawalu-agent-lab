@@ -2,10 +2,20 @@
 
 ## Repository
 
-- GitHub: `AndrewLikesTea/wawalu-agent-lab` (private)
+- GitHub: `AndrewLikesTea/wawalu-agent-lab`
 - Agents push only `agent/<persona>/<task>` branches.
 - `main` requires a PR, CI, code-owner review, and blocks force pushes.
 - The agent credential is never a ruleset bypass actor.
+
+## Model and identity boundary
+
+- Qwen runs locally and creates the implementation handoff and final review.
+- Codex and Claude Code authenticate with the machine owner's provider account.
+- Every worker receives only the selected persona's Wawalu ingest token.
+- The ingest proxy derives identity from that token and overwrites client-sent
+  identity, so provider account email is not used for Wawalu attribution.
+- Claude runs without session persistence and with a per-run telemetry settings
+  file. Codex uses a separate `CODEX_HOME` per persona.
 
 ## Deployment
 
@@ -30,4 +40,3 @@ tokens; agents never receive the app private key.
 2. Suspend or uninstall the GitHub App from the repository.
 3. Disable Pages preview builds or revoke the Cloudflare API token.
 4. Revoke synthetic Wawalu ingest tokens.
-

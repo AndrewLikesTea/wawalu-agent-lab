@@ -5,18 +5,17 @@ import json
 import os
 import pathlib
 import re
-import shutil
 import subprocess
 import sys
 import uuid
 
 from runner.github_app import installation_token
+from runner.layers import plan, review, run_worker, WORKERS
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 AGENT_DIR = ROOT / ".agent"
 SECRETS = ROOT / ".secrets" / "personas.json"
 RUNTIME_ENV = ROOT / ".secrets" / "runtime.env"
-MODEL = "qwen3-coder:30b"
 
 
 def run(command: list[str], cwd: pathlib.Path = ROOT, **kwargs):
@@ -51,27 +50,6 @@ def safe_slug(value: str) -> str:
     return value[:48]
 
 
-def prepare_home(persona: str, token: str, runtime: dict[str, str]) -> tuple[pathlib.Path, pathlib.Path]:
-    home = AGENT_DIR / "codex-homes" / persona
-    config_dir = home / "wawalu"
-    config_dir.mkdir(parents=True, exist_ok=True)
-    notify = pathlib.Path.home() / ".local/share/wawalu/bin/wawalu-codex-notify"
-    notify_config = config_dir / "codex.json"
-    ingest_endpoint = runtime["WAWALU_INGEST_ENDPOINT"].rstrip("/")
-    notify_config.write_text(json.dumps({
-        "endpoint": ingest_endpoint, "token": token,
-        "capture_policy": "full",
-    }, indent=2) + "\n")
-    notify_config.chmod(0o600)
-    notify_line = f'notify = ["{notify}"]\n\n' if notify.exists() else ""
-    (home / "config.toml").write_text(notify_line + f'''[otel]
-environment = "wawalu-simulation"
-log_user_prompt = false
-exporter = {{ otlp-http = {{ endpoint = "{ingest_endpoint}/v1/logs", protocol = "json", headers = {{ "Authorization" = "Bearer {token}" }} }} }}
-''')
-    return home, notify_config
-
-
 def prepare_worktree(persona: str, scenario_id: str) -> tuple[pathlib.Path, str]:
     branch = f"agent/{persona}/{scenario_id}"
     worktree = AGENT_DIR / "worktrees" / f"{persona}-{scenario_id}"
@@ -81,27 +59,9 @@ def prepare_worktree(persona: str, scenario_id: str) -> tuple[pathlib.Path, str]
     return worktree, branch
 
 
-def build_prompt(persona: str, persona_data: dict, scenario: dict) -> str:
-    persona_prompt = (ROOT / persona_data["prompt_file"]).read_text()
-    return f'''{persona_prompt}
-
-You are working on scenario {scenario['id']!r}.
-
-Outcome:
-{scenario['outcome']}
-
-Acceptance criteria:
-{json.dumps(scenario['acceptance_criteria'], indent=2)}
-
-Read PRODUCT.md, AGENTS.md, and .agent-policy.json. Implement only this task.
-Run all relevant tests. Do not push, merge, deploy, or access anything outside
-this worktree. Finish with a concise summary of changes, checks, and risks.
-'''
-
-
 def command_status() -> int:
     print(json.dumps({
-        "root": str(ROOT), "model": MODEL,
+        "root": str(ROOT), "planner_model": "qwen3-coder:30b",
         "git": output(["git", "status", "--short", "--branch"]),
         "github_authenticated": subprocess.run(["gh", "auth", "status"], capture_output=True).returncode == 0,
         "ollama_models": output(["ollama", "list"]),
@@ -110,38 +70,45 @@ def command_status() -> int:
     return 0
 
 
-def command_run(persona: str, scenario_path: str, push: bool) -> int:
+def command_run(persona: str, scenario_path: str, push: bool, requested_worker: str) -> int:
     personas = load_personas()
     runtime = load_runtime_env()
     if persona not in personas: raise SystemExit(f"unknown persona: {persona}")
     scenario = json.loads((ROOT / scenario_path).read_text())
     scenario_id = safe_slug(scenario["id"])
     worktree, branch = prepare_worktree(persona, scenario_id)
-    home, notify_config = prepare_home(persona, personas[persona]["wawalu_token"], runtime)
     run_id = f"sim_{dt.datetime.now(dt.UTC).strftime('%Y%m%dT%H%M%SZ')}_{uuid.uuid4().hex[:8]}"
     run_dir = AGENT_DIR / "runs" / run_id
     run_dir.mkdir(parents=True)
-    prompt = build_prompt(persona, personas[persona], scenario)
-    (run_dir / "prompt.txt").write_text(prompt)
-    env = os.environ.copy()
-    env.update({
-        "CODEX_HOME": str(home), "WAWALU_CODEX_CONFIG": str(notify_config),
-        "WAWALU_SIMULATION": "1", "WAWALU_SIMULATION_RUN_ID": run_id,
-        "WAWALU_SIMULATION_PERSONA": persona,
-    })
-    command = [
-        "codex", "exec", "--oss", "--local-provider", "ollama", "--model", MODEL,
-        "--sandbox", "workspace-write", "--cd", str(worktree), "--json",
-        "-c", "approval_policy=never", "-c", "sandbox_workspace_write.network_access=false", prompt,
-    ]
-    with (run_dir / "codex.jsonl").open("w") as log:
-        result = subprocess.run(command, cwd=worktree, env=env, text=True, stdout=log, stderr=subprocess.STDOUT)
+    persona_prompt = (ROOT / personas[persona]["prompt_file"]).read_text()
+    plan_value = plan(persona_prompt, scenario, run_dir / "qwen-plan.json", requested_worker)
+    worker_prompt = f'''{plan_value["task_prompt"]}
+
+Read PRODUCT.md, AGENTS.md, and .agent-policy.json. Work only in this worktree.
+Run relevant tests. Do not push, merge, deploy, or access paths outside it.
+'''
+    (run_dir / "worker-prompt.txt").write_text(worker_prompt)
+    exit_code = run_worker(plan_value["worker"], worker_prompt, worktree, run_dir,
+                           persona, personas[persona]["wawalu_token"],
+                           runtime["WAWALU_INGEST_ENDPOINT"].rstrip("/"))
     metadata = {"run_id": run_id, "persona": persona, "scenario": scenario_id,
-                "branch": branch, "worktree": str(worktree), "exit_code": result.returncode}
+                "worker": plan_value["worker"], "branch": branch,
+                "worktree": str(worktree), "exit_code": exit_code}
     (run_dir / "metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")
-    if result.returncode: return result.returncode
+    if exit_code: return exit_code
     run(["npm", "run", "check"], cwd=worktree)
     run([sys.executable, "-m", "runner.policy", "--base", "main"], cwd=worktree)
+    run(["git", "add", "--intent-to-add", "--all"], cwd=worktree)
+    diff = output(["git", "diff", "--no-ext-diff", "main"], cwd=worktree)
+    review_value = review(persona_prompt, scenario, plan_value, diff,
+                          "npm run check and agent policy passed",
+                          run_dir / "qwen-review.json")
+    (run_dir / "review.json").write_text(json.dumps(review_value, indent=2) + "\n")
+    if not review_value["approved"]:
+        metadata["review"] = "rejected"
+        (run_dir / "metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")
+        print(json.dumps(metadata, indent=2))
+        return 3
     if output(["git", "status", "--porcelain"], cwd=worktree):
         run(["git", "add", "--all"], cwd=worktree)
         run(["git", "commit", "-m", f"Agent: {scenario.get('title', scenario_id)}"], cwd=worktree)
@@ -171,8 +138,10 @@ def main() -> int:
     execute.add_argument("persona")
     execute.add_argument("scenario")
     execute.add_argument("--push", action="store_true")
+    execute.add_argument("--worker", choices=["auto", *sorted(WORKERS)], default="auto")
     args = parser.parse_args()
-    return command_status() if args.command == "status" else command_run(args.persona, args.scenario, args.push)
+    return command_status() if args.command == "status" else command_run(
+        args.persona, args.scenario, args.push, args.worker)
 
 
 if __name__ == "__main__":
