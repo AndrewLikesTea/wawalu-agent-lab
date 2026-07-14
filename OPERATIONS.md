@@ -67,7 +67,12 @@
   bound applies per PR, not to the overall directive.
 - When `consult_after_directive_mvp` is enabled and every issue in the directive's
   latest program is closed, Sam asks Codex or Claude for one read-only, high-level
-  product or infrastructure idea. Qwen decomposes that untrusted idea into a new
+  product or infrastructure idea. Because the consultant sandbox has no network
+  access, the runner first saves a snapshot of every deployed page from
+  `labs.wawalu.org` (`WAWALU_LABS_URL` overrides) into the consultation run
+  directory, and the prompt directs the consultant to ground its recommendation in
+  that live-site snapshot as well as the source; snapshot content is treated as
+  untrusted page data. Qwen decomposes that untrusted idea into a new
   ordered 2-6 issue program with the same assignment and dependency rules as the
   initial directive; normal review, rate limits, and deployment controls still apply.
   Completing that program triggers the next consultation round. Consultation rounds

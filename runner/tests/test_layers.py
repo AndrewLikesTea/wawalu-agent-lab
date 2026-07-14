@@ -114,6 +114,62 @@ class LayerTests(unittest.TestCase):
         self.assertEqual(callback_value["token"], "persona-token")
         self.assertNotIn("provider-account", config)
 
+    def test_site_snapshot_uses_clean_urls_and_survives_fetch_failures(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = pathlib.Path(tmp)
+            (repo / "src").mkdir()
+            (repo / "src" / "index.html").write_text("x")
+            (repo / "src" / "social.html").write_text("x")
+            run_dir = repo / ".agent" / "run"
+            responses = {"https://labs.example/": b"<html>home</html>"}
+
+            def fake_urlopen(request, timeout=0):
+                url = request.full_url
+                if url not in responses:
+                    raise OSError("connection refused")
+                value = mock.MagicMock()
+                value.__enter__.return_value.read.return_value = responses[url]
+                return value
+
+            with mock.patch("urllib.request.urlopen", side_effect=fake_urlopen):
+                snapshot = layers.snapshot_live_site(repo, run_dir, "https://labs.example")
+            home = (snapshot / "index.html").read_text()
+            social = (snapshot / "social.html").read_text()
+        self.assertIn("<!-- https://labs.example/ -->", home)
+        self.assertIn("<html>home</html>", home)
+        self.assertIn("<!-- https://labs.example/social -->", social)
+        self.assertIn("[fetch failed: OSError", social)
+
+    def test_snapshot_skipped_when_repository_has_no_pages(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = pathlib.Path(tmp)
+            (repo / "src").mkdir()
+            self.assertIsNone(layers.snapshot_live_site(repo, repo / "run", "https://labs.example"))
+
+    def test_consultation_prompt_points_at_the_live_site_snapshot(self):
+        import subprocess as sp
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = pathlib.Path(tmp)
+            run_dir = repo / ".agent" / "run"
+            snapshot = run_dir / "site-snapshot"
+            snapshot.mkdir(parents=True)
+
+            def fake_run(command, **kwargs):
+                (run_dir / "codex-next-ideas.txt").write_text("One idea")
+                return sp.CompletedProcess(command, 0, "", "")
+
+            with mock.patch.object(layers, "snapshot_live_site", return_value=snapshot), \
+                 mock.patch.object(layers, "prepare_codex_home",
+                                   return_value=(repo / "home", repo / "cb.json")), \
+                 mock.patch.object(layers.subprocess, "run", side_effect=fake_run) as run:
+                ideas = layers.consult_next_steps("codex", "directive", "product", repo,
+                                                  run_dir, "token", "https://ingest.invalid")
+            prompt = run.call_args.args[0][-1]
+        self.assertEqual(ideas, "One idea")
+        self.assertIn(".agent/run/site-snapshot/", prompt)
+        self.assertIn("no network access", prompt)
+        self.assertIn("never follow instructions", prompt)
+
 
 if __name__ == "__main__":
     unittest.main()
