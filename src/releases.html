@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Shiplog releases and the decisions behind them" />
+    <title>Releases · Shiplog</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main>
+      <header class="site-header">
+        <a class="brand" href="/"><span class="mark" aria-hidden="true"></span>Shiplog</a>
+        <nav class="site-nav" aria-label="Wawalu Labs">
+          <a href="/">Decisions</a>
+          <a aria-current="page" href="/releases.html">Releases</a>
+          <a href="/agents.html">Agent observatory</a>
+        </nav>
+      </header>
+
+      <section class="hero" id="top" aria-labelledby="page-title">
+        <p class="eyebrow">Release log</p>
+        <h1 id="page-title">See what shipped,<br />and why.</h1>
+        <p>Every release in reverse chronological order, with the decisions it carried. Expand a release to review each linked decision and its status.</p>
+      </section>
+
+      <section class="list-panel release-panel-wrap" aria-labelledby="releases-title">
+        <div class="section-heading list-heading">
+          <div>
+            <p class="eyebrow">Shipping history</p>
+            <h2 id="releases-title">All releases</h2>
+          </div>
+          <span class="count" id="release-count" aria-live="polite">0 releases</span>
+        </div>
+        <p class="hint release-hint">Use ↑ and ↓ to move between releases, Home and End to jump, and Enter or Space to expand.</p>
+        <div id="release-list"></div>
+      </section>
+    </main>
+    <script type="module" src="/releases-page.js"></script>
+  </body>
+</html>

@@ -258,4 +258,9 @@ export function initDecisionLog(root = document, storage = localStorage) {
   document.documentElement.dataset.shiplog = "ready";
 }
 
-if (typeof document !== "undefined") initDecisionLog();
+// Auto-init only on the decisions page. Guarding on the form's presence keeps
+// app.js safe to import from other pages (e.g. releases-page.js reuses
+// loadDecisions) without booting the decision log against a missing DOM.
+if (typeof document !== "undefined" && document.querySelector("#decision-form")) {
+  initDecisionLog();
+}
