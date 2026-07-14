@@ -13,14 +13,14 @@ def b64url(value: bytes) -> str:
     return base64.urlsafe_b64encode(value).rstrip(b"=").decode()
 
 
-def app_jwt() -> str:
-    app = json.loads((SECRETS / "github-app.json").read_text())
+def app_jwt(stem="github-app") -> str:
+    app = json.loads((SECRETS / f"{stem}.json").read_text())
     now = int(time.time())
     header = b64url(json.dumps({"alg": "RS256", "typ": "JWT"}, separators=(",", ":")).encode())
     payload = b64url(json.dumps({"iat": now - 30, "exp": now + 540, "iss": app["id"]}, separators=(",", ":")).encode())
     message = f"{header}.{payload}"
     signature = subprocess.check_output(
-        ["openssl", "dgst", "-sha256", "-sign", str(SECRETS / "github-app.pem")],
+        ["openssl", "dgst", "-sha256", "-sign", str(SECRETS / f"{stem}.pem")],
         input=message.encode(),
     )
     return f"{message}.{b64url(signature)}"
@@ -37,13 +37,20 @@ def api(path: str, token: str, data=None):
     with urllib.request.urlopen(request, timeout=20) as response: return json.load(response)
 
 
-def installation_token(repository="wawalu-agent-lab") -> str:
-    jwt = app_jwt()
+def installation_token(repository="wawalu-agent-lab", stem="github-app",
+                       permissions=None) -> str:
+    jwt = app_jwt(stem)
     installations = api("/app/installations", jwt)
     installation = next((item for item in installations if item["account"]["login"] == "AndrewLikesTea"), None)
     if not installation:
         raise RuntimeError("GitHub App is not installed for AndrewLikesTea")
-    result = api(f"/app/installations/{installation['id']}/access_tokens", jwt,
-                 {"repositories": [repository]})
+    data = {"repositories": [repository]}
+    if permissions is not None:
+        data["permissions"] = permissions
+    result = api(f"/app/installations/{installation['id']}/access_tokens", jwt, data)
     return result["token"]
 
+
+def reviewer_token(repository="wawalu-agent-lab") -> str:
+    return installation_token(repository, "github-reviewer-app",
+                              {"contents": "read", "pull_requests": "write"})

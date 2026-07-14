@@ -9,7 +9,7 @@ import subprocess
 import sys
 import uuid
 
-from runner.github_app import installation_token
+from runner.github_app import installation_token, reviewer_token
 from runner.budget import DiffBudget
 from runner.layers import plan, review, run_worker, WORKERS
 
@@ -105,7 +105,8 @@ Run relevant tests. Do not push, merge, deploy, or access paths outside it.
     run([sys.executable, "-m", "runner.policy", "--base", "main"], cwd=worktree)
     run(["git", "add", "--intent-to-add", "--all"], cwd=worktree)
     diff = output(["git", "diff", "--no-ext-diff", "main"], cwd=worktree)
-    review_value = review(persona_prompt, scenario, plan_value, diff,
+    reviewer_prompt = (ROOT / personas["reviewer"]["prompt_file"]).read_text()
+    review_value = review(reviewer_prompt, scenario, plan_value, diff,
                           "npm run check and agent policy passed",
                           run_dir / "qwen-review.json")
     (run_dir / "review.json").write_text(json.dumps(review_value, indent=2) + "\n")
@@ -138,6 +139,10 @@ Run relevant tests. Do not push, merge, deploy, or access paths outside it.
         run(["gh", "pr", "create", "--repo", "AndrewLikesTea/wawalu-agent-lab",
              "--base", "main", "--head", branch,
              "--title", title, "--body", f"Synthetic team run: `{run_id}`\n\nMerging to protected `main` triggers production deployment automatically.{issue_line}"], cwd=worktree, env=pr_env)
+        review_env = os.environ.copy(); review_env["GH_TOKEN"] = reviewer_token()
+        run(["gh", "pr", "review", branch, "--repo", "AndrewLikesTea/wawalu-agent-lab",
+             "--approve", "--body", f"Approved by the synthetic reviewer persona. Qwen review: {review_value['summary']}"],
+            cwd=worktree, env=review_env)
     print(json.dumps(metadata, indent=2))
     return 0
 

@@ -11,6 +11,8 @@ persona's Wawalu ingest token, so Wawalu attribution is independent of the
 OpenAI or Anthropic account used to authenticate the CLI.
 The runner permits at most 50 Qwen-approved, non-empty code diffs per UTC day.
 Failed, rejected, and no-change runs do not consume that budget.
+The dedicated reviewer persona evaluates every proposed diff and a separate,
+least-privilege GitHub App submits the required approval after it passes.
 
 The repository is deliberately separate from the Wawalu product repository.
 Agents work only in disposable worktrees, may push only `agent/*` branches, and

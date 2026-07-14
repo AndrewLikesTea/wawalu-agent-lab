@@ -28,6 +28,11 @@ class RunnerPolicyTests(unittest.TestCase):
         self.assertEqual(len(prompts), len(set(prompts)))
         for prompt in prompts: self.assertTrue((ROOT / prompt).exists())
 
+    def test_orchestrator_uses_dedicated_reviewer_identity(self):
+        source = (ROOT / "runner/orchestrator.py").read_text()
+        self.assertIn('personas["reviewer"]["prompt_file"]', source)
+        self.assertIn("reviewer_token()", source)
+
     def test_policy_includes_uncommitted_agent_edits(self):
         source = (ROOT / "runner/policy.py").read_text()
         self.assertIn('git("diff", "--name-only")', source)
