@@ -146,6 +146,30 @@ class LayerTests(unittest.TestCase):
             (repo / "src").mkdir()
             self.assertIsNone(layers.snapshot_live_site(repo, repo / "run", "https://labs.example"))
 
+    def test_claude_consultation_allows_read_only_git_history(self):
+        import subprocess as sp
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = pathlib.Path(tmp)
+            run_dir = repo / ".agent" / "run"
+            run_dir.mkdir(parents=True)
+            settings = run_dir / "claude-settings.json"
+            settings.write_text('{"env": {}}')
+            with mock.patch.object(layers, "snapshot_live_site", return_value=None), \
+                 mock.patch.object(layers, "prepare_claude_settings", return_value=settings), \
+                 mock.patch.object(layers.subprocess, "run",
+                                   return_value=sp.CompletedProcess([], 0, "One idea", "")) as run:
+                layers.consult_next_steps("claude", "directive", "product", repo,
+                                          run_dir, "token", "https://ingest.invalid")
+            command = run.call_args.args[0]
+            allowed = command[command.index("--allowedTools") + 1]
+        self.assertIn("Bash(git log*)", allowed)
+        self.assertIn("Bash(git show*)", allowed)
+        self.assertIn("Bash(git diff*)", allowed)
+        for tool in allowed.split(","):
+            self.assertNotIn("Write", tool)
+            self.assertNotIn("Edit", tool)
+        self.assertIn("git history", command[-1])
+
     def test_consultation_prompt_points_at_the_live_site_snapshot(self):
         import subprocess as sp
         with tempfile.TemporaryDirectory() as tmp:
