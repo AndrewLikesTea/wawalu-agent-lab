@@ -6,6 +6,7 @@ import unittest
 from unittest import mock
 
 from runner import autonomous
+from scripts.manage_autonomy import launch_path
 
 
 class AutonomousTests(unittest.TestCase):
@@ -74,6 +75,13 @@ class AutonomousTests(unittest.TestCase):
         self.assertEqual(github.call_args.args[1], "token")
         self.assertEqual(github.call_args.args[2], "PATCH")
         self.assertEqual(github.call_args.args[3]["labels"], ["persona:backend", "agent-running"])
+
+    def test_launch_agent_path_includes_user_cli_directory(self):
+        value = launch_path(pathlib.Path("/Users/demo"))
+        self.assertEqual(value.split(":"), [
+            "/Users/demo/.local/bin", "/opt/homebrew/bin", "/usr/local/bin",
+            "/usr/bin", "/bin", "/usr/sbin", "/sbin",
+        ])
 
 
 if __name__ == "__main__":
