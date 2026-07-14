@@ -1,0 +1,17 @@
+node_modules/
+dist/
+.secrets/
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+.agent/worktrees/
+.agent/codex-homes/
+.agent/runs/
+*.log
+__pycache__/
+*.pyc
+.DS_Store

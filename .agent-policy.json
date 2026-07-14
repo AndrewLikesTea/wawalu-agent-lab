@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "branch_prefix": "agent/",
+  "max_files_changed": 30,
+  "max_diff_lines": 2000,
+  "max_agent_turns": 20,
+  "allowed_workspace_root": ".agent/worktrees",
+  "forbidden_paths": [
+    ".github/workflows/",
+    ".github/CODEOWNERS",
+    ".agent-policy.json",
+    ".secrets/",
+    "wrangler.toml"
+  ],
+  "forbidden_commands": [
+    "git push --force",
+    "git push origin main",
+    "gh pr merge",
+    "gh secret",
+    "wrangler secret",
+    "wrangler pages deploy",
+    "rm -rf"
+  ]
+}
+

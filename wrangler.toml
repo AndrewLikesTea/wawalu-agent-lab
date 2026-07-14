@@ -1,0 +1,4 @@
+name = "wawalu-agent-lab"
+pages_build_output_dir = "dist"
+compatibility_date = "2026-07-13"
+

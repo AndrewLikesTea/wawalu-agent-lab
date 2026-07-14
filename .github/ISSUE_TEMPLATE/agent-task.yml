@@ -1,0 +1,26 @@
+name: Agent task
+description: A bounded task for the synthetic engineering team
+title: "[agent] "
+labels: [agent-ready]
+body:
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Outcome
+      description: What user-visible outcome is required?
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+    validations:
+      required: true
+  - type: dropdown
+    id: persona
+    attributes:
+      label: Persona
+      options: [backend, frontend, infrastructure, staff, reviewer]
+    validations:
+      required: true
+

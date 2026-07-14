@@ -1,0 +1,18 @@
+{
+  "name": "Wawalu Synthetic Engineering",
+  "url": "https://labs.wawalu.org",
+  "hook_attributes": { "url": "https://labs.wawalu.org/api/github/webhook", "active": false },
+  "redirect_url": "http://127.0.0.1:8789/github-app/callback",
+  "callback_urls": ["http://127.0.0.1:8789/github-app/callback"],
+  "public": false,
+  "default_permissions": {
+    "contents": "write",
+    "issues": "write",
+    "pull_requests": "write",
+    "metadata": "read",
+    "checks": "read",
+    "actions": "read"
+  },
+  "default_events": ["issues", "pull_request", "push"]
+}
+

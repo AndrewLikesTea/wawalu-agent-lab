@@ -1,0 +1,14 @@
+{
+  "id": "bootstrap-decision-list",
+  "issue": 1,
+  "title": "Add the first Shiplog decision list",
+  "outcome": "Users can add and browse engineering decisions in the initial Shiplog interface.",
+  "acceptance_criteria": [
+    "A decision contains a title, context, owner, and status",
+    "Decisions persist across a browser reload without a production backend",
+    "The form and list are keyboard accessible",
+    "User-entered content is rendered as text, never injected as HTML",
+    "Automated tests cover creation and storage behavior",
+    "The production build succeeds"
+  ]
+}
