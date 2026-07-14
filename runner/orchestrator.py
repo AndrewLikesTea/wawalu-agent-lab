@@ -14,7 +14,7 @@ from runner.github_app import installation_token, reviewer_token
 from runner.budget import DiffBudget
 from runner.delivery import DELIVERY_REQUEST, consume_merge_request, enable_auto_merge
 from runner.layers import plan, review, review_debate, run_aside, run_worker, WORKERS
-from runner.simulation import choose_distraction, happens, load_behaviors, personality_context
+from runner.simulation import choose_distraction, choose_peer_reviewer, happens, load_behaviors, personality_context
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 AGENT_DIR = ROOT / ".agent"
@@ -203,6 +203,21 @@ Scenario: {json.dumps(scenario, indent=2)}
         run(["gh", "pr", "create", "--repo", "AndrewLikesTea/wawalu-agent-lab",
              "--base", "main", "--head", branch,
              "--title", title, "--body", f"Synthetic team run: `{run_id}`{team_line}\n\nMerging to protected `main` triggers production deployment automatically.{issue_line}"], cwd=worktree, env=pr_env)
+        peer = choose_peer_reviewer(persona, scenario_id)
+        peer_name = behaviors["personas"][peer]["name"]
+        focus = {
+            "frontend": "interaction states, keyboard access, and visible error handling",
+            "backend": "data contracts, edge cases, and test coverage",
+            "infrastructure": "operational safety, reversibility, and hidden coupling",
+            "staff": "scope boundaries, integration seams, and long-term maintainability",
+        }[peer]
+        peer_body = ("<!-- wawalu-peer-review -->\n"
+                     f"**{peer_name} · peer review**\n\n"
+                     f"I reviewed this change before Marcus’s final gate, focusing on {focus}. "
+                     "The implementation is bounded to the issue and its automated checks are part of the final review.")
+        run(["gh", "pr", "comment", branch, "--repo", "AndrewLikesTea/wawalu-agent-lab", "--body", peer_body],
+            cwd=worktree, env=pr_env)
+        metadata["peer_reviewer"] = peer
         if debate_value:
             for message in debate_value.get("messages", []):
                 body = ("<!-- wawalu-review-debate -->\n"
