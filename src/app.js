@@ -33,6 +33,7 @@ export const DEFAULT_SORT = "newest";
 // storage (bypassing the form) are bounded the same way before rendering.
 export const MAX_TITLE_LENGTH = 120;
 export const MAX_CONTEXT_LENGTH = 1000;
+export const MAX_ALTERNATIVES_LENGTH = 1000;
 export const MAX_OWNER_LENGTH = 80;
 
 function isDecision(value) {
@@ -43,6 +44,8 @@ function isDecision(value) {
     && value.title.length <= MAX_TITLE_LENGTH
     && typeof value.context === "string" && value.context.trim() !== ""
     && value.context.length <= MAX_CONTEXT_LENGTH
+    && (value.alternatives === undefined
+      || (typeof value.alternatives === "string" && value.alternatives.length <= MAX_ALTERNATIVES_LENGTH))
     && typeof value.owner === "string" && value.owner.trim() !== ""
     && value.owner.length <= MAX_OWNER_LENGTH
     && STATUSES.includes(value.status)
@@ -66,6 +69,7 @@ export function saveDecisions(storage, decisions) {
 export function createDecision(values, options = {}) {
   const title = String(values.title ?? "").trim();
   const context = String(values.context ?? "").trim();
+  const alternatives = String(values.alternatives ?? "").trim();
   const owner = String(values.owner ?? "").trim();
   const status = String(values.status ?? "");
 
@@ -73,6 +77,7 @@ export function createDecision(values, options = {}) {
     throw new TypeError("A decision requires a title, context, owner, and valid status.");
   }
   if (title.length > MAX_TITLE_LENGTH || context.length > MAX_CONTEXT_LENGTH
+      || alternatives.length > MAX_ALTERNATIVES_LENGTH
       || owner.length > MAX_OWNER_LENGTH) {
     throw new TypeError("A decision field exceeds its maximum length.");
   }
@@ -81,6 +86,7 @@ export function createDecision(values, options = {}) {
     id: options.id ?? globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`,
     title,
     context,
+    alternatives,
     owner,
     status,
     createdAt: options.createdAt ?? new Date().toISOString(),
@@ -214,6 +220,13 @@ function renderDecisions(container, count, decisions, view) {
 
     appendTextElement(article, "h3", "", decision.title);
     appendTextElement(article, "p", "context", decision.context);
+    if (decision.alternatives) {
+      const alternatives = document.createElement("p");
+      alternatives.className = "alternatives";
+      appendTextElement(alternatives, "span", "owner-label", "Alternatives");
+      alternatives.append(document.createTextNode(decision.alternatives));
+      article.append(alternatives);
+    }
     const owner = document.createElement("p");
     owner.className = "owner";
     appendTextElement(owner, "span", "owner-label", "Owner");

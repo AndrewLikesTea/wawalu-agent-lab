@@ -12,6 +12,7 @@ import {
   indexById,
   RELEASE_STORAGE_KEY,
 } from "../src/releases.js";
+import { loadDecisions, STORAGE_KEY } from "../src/app.js";
 
 function memoryStorage(initial = {}) {
   const values = new Map(Object.entries(initial));
@@ -139,4 +140,32 @@ test("releases page is wired and linked from the decisions page", async () => {
   // No innerHTML anywhere in the interactive layers (no user-generated HTML).
   const component = await read("src/releases.js");
   assert.doesNotMatch(`${component}\n${wiring}`, /innerHTML/);
+});
+
+// The demo seed is hand-authored data that ships to production and renders the
+// list/detail views in review. It is edited by hand (this task renamed release
+// `author` -> `owner` and added `alternatives`), so guard it the same way the
+// social seed is guarded: a bad status, an over-length field, a mistyped
+// decisionId, or a broken shape should fail the build, not ship silently.
+test("releases demo seed is valid and internally consistent", async () => {
+  const raw = await readFile(new URL("../src/releases-demo-data.json", import.meta.url), "utf8");
+  const seed = JSON.parse(raw);
+  assert.ok(Array.isArray(seed.decisions) && seed.decisions.length > 0);
+  assert.ok(Array.isArray(seed.releases) && seed.releases.length > 0);
+
+  // Every seed decision must survive the same validation stored decisions do.
+  // This covers the status enum, field lengths, and the new `alternatives` type.
+  const decisionStore = memoryStorage({ [STORAGE_KEY]: JSON.stringify(seed.decisions) });
+  assert.equal(loadDecisions(decisionStore).length, seed.decisions.length);
+
+  // Same for releases (id / version / createdAt / decisionIds shape).
+  const releaseStore = memoryStorage({ [RELEASE_STORAGE_KEY]: JSON.stringify(seed.releases) });
+  assert.equal(loadReleases(releaseStore).length, seed.releases.length);
+
+  // The seed documents exactly one dangling reference (an archived decision) to
+  // exercise the missing-reference path. Any other unresolved decisionId is a
+  // typo that would render as a silent "missing" row in production.
+  const missing = summarizeReleases(seed.releases, seed.decisions)
+    .flatMap((release) => release.missingIds);
+  assert.deepEqual(missing, ["demo-archived-legacy"]);
 });
