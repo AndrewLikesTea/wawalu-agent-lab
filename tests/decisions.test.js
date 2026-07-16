@@ -12,7 +12,7 @@ function memoryStorage(initial = {}) {
 
 test("creates a normalized decision with deterministic metadata", () => {
   const decision = createDecision(
-    { title: "  Pick a queue  ", context: "  We need retries. ", owner: "  Kai ", status: "accepted" },
+    { title: "  Pick a queue  ", context: "  We need retries. ", alternatives: "  Poll the database. ", owner: "  Kai ", status: "accepted" },
     { id: "decision-1", createdAt: "2026-07-13T12:00:00.000Z" },
   );
 
@@ -20,6 +20,7 @@ test("creates a normalized decision with deterministic metadata", () => {
     id: "decision-1",
     title: "Pick a queue",
     context: "We need retries.",
+    alternatives: "Poll the database.",
     owner: "Kai",
     status: "accepted",
     createdAt: "2026-07-13T12:00:00.000Z",
@@ -58,6 +59,7 @@ test("oversized fields are rejected on create and dropped from storage", () => {
   assert.throws(() => createDecision({ ...base, title: "t".repeat(121) }), /maximum length/);
   assert.throws(() => createDecision({ ...base, title: "Choice", context: "c".repeat(1001) }), /maximum length/);
   assert.throws(() => createDecision({ ...base, title: "Choice", owner: "o".repeat(81) }), /maximum length/);
+  assert.throws(() => createDecision({ ...base, title: "Choice", alternatives: "a".repeat(1001) }), /maximum length/);
   const oversized = {
     id: "big", title: "t".repeat(121), context: "Why", owner: "Kai",
     status: "accepted", createdAt: "2026-07-14T00:00:00.000Z",

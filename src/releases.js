@@ -121,6 +121,16 @@ export function resolveReleaseDetail(releases, decisions, id) {
   return release ? resolveRelease(release, decisions) : null;
 }
 
+// `author` was the original demo-data name. Prefer the product-facing `owner`
+// field while retaining that alias so existing browser data and old exports do
+// not lose attribution.
+export function releaseOwner(release) {
+  for (const value of [release?.owner, release?.author]) {
+    if (typeof value === "string" && value.trim() !== "") return value;
+  }
+  return "Unknown";
+}
+
 // One-line status summary shown on the collapsed row, e.g.
 // "3 decisions · 2 accepted, 1 proposed" (with a trailing "N missing" segment
 // when there are dangling references).
@@ -345,9 +355,18 @@ function renderMetaRow(label, valueNode) {
 function renderDetailDecision(decision) {
   const item = el("li");
   const link = el("a", "detail-decision");
+  const summary = el("span", "detail-decision-summary");
   link.href = decisionDetailHref(decision.id);
   link.append(el("span", `badge badge-${decision.status}`, decision.status));
-  link.append(el("span", "detail-decision-title", decision.title));
+  summary.append(el("span", "detail-decision-title", decision.title));
+  const alternativeText = typeof decision.alternatives === "string" && decision.alternatives.trim() !== ""
+    ? decision.alternatives
+    : "No alternatives recorded.";
+  const alternatives = el("span", "detail-decision-alternatives");
+  alternatives.append(el("span", "detail-decision-alternatives-label", "Alternatives"));
+  alternatives.append(document.createTextNode(alternativeText));
+  summary.append(alternatives);
+  link.append(summary);
   if (decision.owner) {
     const owner = el("span", "detail-decision-owner");
     owner.append(el("span", "detail-decision-owner-label", "Owner"));
@@ -430,10 +449,7 @@ export function renderReleaseDetail(container, resolved, options = {}) {
   time.dateTime = resolved.createdAt;
   time.textContent = formatDate(resolved.createdAt);
   meta.append(renderMetaRow("Released", time));
-  const author = typeof resolved.author === "string" && resolved.author.trim() !== ""
-    ? resolved.author
-    : "Unknown";
-  meta.append(renderMetaRow("Author", document.createTextNode(author)));
+  meta.append(renderMetaRow("Owner", document.createTextNode(releaseOwner(resolved))));
   header.append(meta);
 
   if (typeof resolved.notes === "string" && resolved.notes.trim() !== "") {

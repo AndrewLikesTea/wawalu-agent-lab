@@ -5,17 +5,18 @@ import {
   resolveReleaseDetail,
   releaseDetailHref,
   decisionDetailHref,
+  releaseOwner,
   RELEASE_LIST_HREF,
 } from "../src/releases.js";
 
 const decisions = [
-  { id: "d-queue", title: "Durable queue", context: "c", owner: "Kai",   status: "accepted", createdAt: "2026-05-02T00:00:00.000Z" },
+  { id: "d-queue", title: "Durable queue", context: "c", alternatives: "Database polling", owner: "Kai", status: "accepted", createdAt: "2026-05-02T00:00:00.000Z" },
   { id: "d-cache", title: "Read cache",    context: "c", owner: "Ari",   status: "accepted", createdAt: "2026-05-20T00:00:00.000Z" },
   { id: "d-flags", title: "Feature flags", context: "c", owner: "Priya", status: "proposed", createdAt: "2026-06-01T00:00:00.000Z" },
 ];
 
 const releases = [
-  { id: "r-new", version: "v1.3.0", author: "Priya", notes: "n", createdAt: "2026-07-01T00:00:00.000Z", decisionIds: ["d-flags", "d-queue"] },
+  { id: "r-new", version: "v1.3.0", owner: "Priya", notes: "n", createdAt: "2026-07-01T00:00:00.000Z", decisionIds: ["d-flags", "d-queue"] },
   { id: "r-mid", version: "v1.2.0", createdAt: "2026-05-25T00:00:00.000Z", decisionIds: ["d-cache", "ghost"] },
   { id: "r-old", version: "v1.0.0", createdAt: "2026-03-15T00:00:00.000Z", decisionIds: [] },
 ];
@@ -23,10 +24,17 @@ const releases = [
 test("resolveReleaseDetail finds a release by id and resolves its decisions", () => {
   const resolved = resolveReleaseDetail(releases, decisions, "r-new");
   assert.equal(resolved.version, "v1.3.0");
-  assert.equal(resolved.author, "Priya"); // author passes through untouched
+  assert.equal(releaseOwner(resolved), "Priya");
   assert.deepEqual(resolved.decisions.map((d) => d.id), ["d-flags", "d-queue"]);
+  assert.equal(resolved.decisions[1].alternatives, "Database polling");
   assert.equal(resolved.counts.linked, 2);
   assert.deepEqual(resolved.missingIds, []);
+});
+
+test("release owner supports legacy author records and missing attribution", () => {
+  assert.equal(releaseOwner({ owner: "Mina", author: "Old value" }), "Mina");
+  assert.equal(releaseOwner({ author: "Kai" }), "Kai");
+  assert.equal(releaseOwner({}), "Unknown");
 });
 
 test("resolveReleaseDetail surfaces dangling decision references", () => {
@@ -85,4 +93,10 @@ test("decisions are addressable for deep links from the detail view", async () =
 test("the release list links each row to its detail page", async () => {
   const releasesJs = await readFile(new URL("../src/releases.js", import.meta.url), "utf8");
   assert.match(releasesJs, /releaseDetailHref\(release\.id\)/);
+});
+
+test("detail decisions render alternatives with a backward-compatible fallback", async () => {
+  const releasesJs = await readFile(new URL("../src/releases.js", import.meta.url), "utf8");
+  assert.match(releasesJs, /detail-decision-alternatives/);
+  assert.match(releasesJs, /No alternatives recorded\./);
 });
