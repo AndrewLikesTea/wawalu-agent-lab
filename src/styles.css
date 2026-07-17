@@ -61,6 +61,11 @@ button:hover { background:#1f70c1; }
    tokens from the decision cards so releases and decisions read as one system. */
 .release-panel-wrap { margin-top:24px; }
 .release-hint { margin:0 0 18px; }
+.release-filters { display:flex; align-items:end; gap:14px; margin:0 0 18px; }
+.release-search-filter { flex:3 1 280px; }
+.badge-release-planned { background:#fff0c7; color:#72520a; }
+.badge-release-completed { background:#dcefdc; color:#205d2b; }
+.badge-release-cancelled { background:#f6dede; color:#8a2b2b; }
 .release-list { display:grid; gap:12px; margin:0; padding:0; list-style:none; }
 .release-item { border:1px solid #d9d7d0; border-radius:12px; background:#fff; overflow:hidden; }
 .release-heading { margin:0; font-size:inherit; font-weight:inherit; }
@@ -144,5 +149,6 @@ button:hover { background:#1f70c1; }
 .post-body { margin:0; color:#333330; line-height:1.55; white-space:pre-wrap; overflow-wrap:anywhere; }
 @media(max-width:800px) { .workspace{grid-template-columns:1fr}.form-panel{position:static}.hero{padding-bottom:52px} }
 @media(max-width:520px) { main{width:calc(100% - 24px);padding-top:18px}.site-header{align-items:flex-start;gap:18px}.site-nav{align-items:flex-end;flex-direction:column}.form-panel,.list-panel{padding:21px}.hero{padding-top:60px}form{grid-template-columns:1fr}.field{grid-column:1/-1}.list-heading{align-items:start;flex-direction:column;gap:10px}.filters{flex-direction:column;gap:14px}.filter{flex:1 1 auto} }
+@media(max-width:520px) { .release-filters{align-items:stretch;flex-direction:column}.release-search-filter{flex:1 1 auto} }
 @media(max-width:520px) { .detail-decision{align-items:flex-start}.detail-decision-owner{width:100%;padding-left:0}.detail-decision-arrow{margin-left:auto}.detail-meta{gap:16px 28px}.detail-decision-alternatives{align-items:flex-start;flex-direction:column;gap:3px} }
 @media(prefers-reduced-motion:reduce) { html{scroll-behavior:auto}.release-chevron{transition:none} }
