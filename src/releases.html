@@ -33,6 +33,21 @@
           </div>
           <span class="count" id="release-count" aria-live="polite">0 releases</span>
         </div>
+        <div class="release-filters" role="search" aria-label="Filter releases">
+          <div class="filter release-search-filter">
+            <label for="release-search">Search releases</label>
+            <input id="release-search" type="search" placeholder="Title, description, or decision context" autocomplete="off" />
+          </div>
+          <div class="filter">
+            <label for="release-status">Status</label>
+            <select id="release-status">
+              <option value="all">All statuses</option>
+              <option value="planned">Planned</option>
+              <option value="completed">Completed</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+          </div>
+        </div>
         <p class="hint release-hint">Use ↑ and ↓ to move between releases, Home and End to jump, and Enter or Space to expand.</p>
         <div id="release-list"></div>
       </section>

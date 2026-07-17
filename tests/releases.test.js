@@ -11,6 +11,8 @@ import {
   nextIndex,
   indexById,
   RELEASE_STORAGE_KEY,
+  filterReleases,
+  releaseStatus,
 } from "../src/releases.js";
 import { loadDecisions, STORAGE_KEY } from "../src/app.js";
 
@@ -82,6 +84,36 @@ test("summarizeReleases composes ordering and resolution", () => {
   assert.equal(summarized[2].counts.total, 0);
 });
 
+test("filters releases by lifecycle status while retaining newest-first order", () => {
+  const records = [
+    { ...releases[0], status: "cancelled" },
+    { ...releases[1], status: "planned" },
+    { ...releases[2], status: "planned" },
+  ];
+  assert.deepEqual(versions(filterReleases(records, decisions, { status: "planned" })), ["v1.3.0", "v1.2.0"]);
+  assert.deepEqual(versions(filterReleases(records, decisions, { status: "completed" })), []);
+  assert.equal(releaseStatus(releases[0]), "completed", "legacy release records remain visible as completed");
+});
+
+test("searches release titles, descriptions, and associated decision context", () => {
+  const records = [
+    { ...releases[0], title: "Legacy cleanup", description: "Removed old endpoints", status: "cancelled" },
+    { ...releases[1], title: "Safe delivery", description: "Dark launches", status: "planned" },
+    { ...releases[2], title: "Fast reads", description: "Lower latency", status: "completed" },
+  ];
+  const searchableDecisions = decisions.map((decision) => decision.id === "d-queue"
+    ? { ...decision, context: "Background work needs durable delivery" }
+    : decision);
+  assert.deepEqual(versions(filterReleases(records, decisions, { query: "LEGACY" })), ["v1.0.0"]);
+  assert.deepEqual(versions(filterReleases(records, decisions, { query: "dark launches" })), ["v1.3.0"]);
+  assert.deepEqual(versions(filterReleases(records, searchableDecisions, { query: "background work" })), ["v1.3.0", "v1.2.0"]);
+  assert.deepEqual(versions(filterReleases(records, decisions, { query: "  " })), ["v1.3.0", "v1.2.0", "v1.0.0"]);
+  assert.deepEqual(versions(filterReleases(records, decisions, { query: "latency", status: "planned" })), []);
+  // A decision's title is surfaced on the row, so search must match it too, not
+  // only its context. "Durable queue" (d-queue) rides on both v1.3.0 and v1.2.0.
+  assert.deepEqual(versions(filterReleases(records, decisions, { query: "durable queue" })), ["v1.3.0", "v1.2.0"]);
+});
+
 test("statusSummaryText renders counts, singular/plural, and missing", () => {
   const [newest, , oldest] = summarizeReleases(releases, decisions);
   assert.equal(statusSummaryText(newest), "2 decisions · 1 proposed, 1 accepted");
@@ -136,6 +168,8 @@ test("releases page is wired and linked from the decisions page", async () => {
   assert.match(home, /href="\/releases\.html"/);
   assert.match(page, /<title>Releases · Shiplog<\/title>/);
   assert.match(page, /id="release-list"/);
+  assert.match(page, /id="release-search"/);
+  assert.match(page, /id="release-status"/);
   assert.match(page, /src="\/releases-page\.js"/);
   // No innerHTML anywhere in the interactive layers (no user-generated HTML).
   const component = await read("src/releases.js");

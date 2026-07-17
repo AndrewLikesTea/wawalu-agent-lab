@@ -13,6 +13,7 @@
 // small shared module; that abstraction is not yet earned by two call sites.
 
 export const RELEASE_STORAGE_KEY = "shiplog.releases.v1";
+export const RELEASE_STATUSES = ["planned", "completed", "cancelled"];
 
 // Mirrors STATUSES in app.js. Kept local (see the module note above); the order
 // here is the order breakdown counts are reported in.
@@ -112,6 +113,43 @@ export function summarizeReleases(releases, decisions = []) {
   return sortReleasesNewestFirst(releases).map((release) => resolveRelease(release, byId));
 }
 
+export function releaseStatus(release) {
+  return RELEASE_STATUSES.includes(release?.status) ? release.status : "completed";
+}
+
+export function releaseTitle(release) {
+  return typeof release?.title === "string" && release.title.trim() !== ""
+    ? release.title
+    : release?.version ?? "Untitled release";
+}
+
+export function releaseDescription(release) {
+  return typeof release?.description === "string" && release.description.trim() !== ""
+    ? release.description
+    : typeof release?.notes === "string" ? release.notes : "";
+}
+
+// The complete list is composed and ordered before filtering, so changing
+// filters never changes relative ordering. Search is deliberately a simple
+// normalized substring match: predictable, fast for a local log, and equally
+// usable for release copy and associated decisions. A decision contributes both
+// its title and its context: the row surfaces the title, so a search for text a
+// user can see must match it — matching context alone is a surprising dead end.
+export function filterReleases(releases, decisions = [], filters = {}) {
+  const status = RELEASE_STATUSES.includes(filters.status) ? filters.status : "all";
+  const query = typeof filters.query === "string" ? filters.query.trim().toLocaleLowerCase() : "";
+  return summarizeReleases(releases, decisions).filter((release) => {
+    if (status !== "all" && releaseStatus(release) !== status) return false;
+    if (!query) return true;
+    const searchable = [
+      releaseTitle(release),
+      releaseDescription(release),
+      ...release.decisions.flatMap((decision) => [decision.title, decision.context]),
+    ];
+    return searchable.some((value) => typeof value === "string" && value.toLocaleLowerCase().includes(query));
+  });
+}
+
 // Detail-view entry point: find one release by id and resolve its decisions.
 // Returns null when the id is unknown so the view can render a "not found"
 // state instead of guessing — a release reached by a stale link or a bad id is
@@ -189,8 +227,9 @@ function formatDate(iso) {
 function renderReleaseBody(release) {
   const body = el("div", "release-body");
 
-  if (typeof release.notes === "string" && release.notes.trim() !== "") {
-    body.append(el("p", "release-notes", release.notes));
+  const description = releaseDescription(release);
+  if (description.trim() !== "") {
+    body.append(el("p", "release-notes", description));
   }
 
   if (release.counts.total === 0) {
@@ -246,7 +285,8 @@ function renderReleaseItem(release, isFirst) {
   toggle.tabIndex = isFirst ? 0 : -1;
 
   const info = el("span", "release-info");
-  info.append(el("span", "release-version", release.version));
+  info.append(el("span", "release-version", releaseTitle(release)));
+  info.append(el("span", `badge badge-release-${releaseStatus(release)}`, releaseStatus(release)));
   const time = el("time", "date", formatDate(release.createdAt));
   time.dateTime = release.createdAt;
   info.append(time);
@@ -269,13 +309,15 @@ function renderReleaseItem(release, isFirst) {
   return item;
 }
 
-export function renderReleaseList(container, resolvedReleases) {
+export function renderReleaseList(container, resolvedReleases, options = {}) {
   container.replaceChildren();
 
   if (resolvedReleases.length === 0) {
     const empty = el("div", "empty-state");
-    empty.append(el("p", "empty-title", "No releases yet."));
-    empty.append(el("p", undefined, "Record a release and link the decisions behind it to build a shipping history."));
+    empty.append(el("p", "empty-title", options.filtered ? "No matching releases." : "No releases yet."));
+    empty.append(el("p", undefined, options.filtered
+      ? "Try a different search or status filter."
+      : "Record a release and link the decisions behind it to build a shipping history."));
     container.append(empty);
     return;
   }
@@ -296,8 +338,16 @@ function focusToggle(toggles, index) {
 // they survive a re-render without re-binding. Returns a small API so the page
 // (or a future filter control) can re-render with fresh data.
 export function mountReleaseList(container, data = {}) {
-  const render = ({ releases = [], decisions = [] } = {}) => {
-    renderReleaseList(container, summarizeReleases(releases, decisions));
+  let current = data;
+  // Returns the releases actually shown so callers get the visible count from
+  // the same computation that rendered them, rather than re-deriving it by
+  // querying the rendered DOM (which would couple the page to class names here).
+  const render = (next = current, filters = {}) => {
+    current = next;
+    const shown = filterReleases(current.releases ?? [], current.decisions ?? [], filters);
+    const filtered = (filters.status !== undefined && filters.status !== "all") || Boolean(filters.query?.trim());
+    renderReleaseList(container, shown, { filtered });
+    return shown;
   };
 
   container.addEventListener("keydown", (event) => {
