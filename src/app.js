@@ -266,7 +266,7 @@ function syncOwnerOptions(select, decisions) {
 }
 
 export function initDecisionLog(root = document, storage = localStorage) {
-  const form = root.querySelector("#decision-form");
+  const formRoot = root.querySelector("#decision-form-root");
   const list = root.querySelector("#decision-list");
   const count = root.querySelector("#decision-count");
   const notice = root.querySelector("#storage-notice");
@@ -315,22 +315,62 @@ export function initDecisionLog(root = document, storage = localStorage) {
     handleDecisionListKeydown(event, list);
   });
 
-  form.addEventListener("submit", (event) => {
-    event.preventDefault();
-    if (!form.reportValidity()) return;
-
-    const decision = createDecision(Object.fromEntries(new FormData(form)));
+  formRoot.addEventListener("decision-submit", (event) => {
+    let decision;
+    try {
+      decision = createDecision(event.detail.values);
+    } catch {
+      event.detail.result = { ok: false, message: "Check the required fields and try again." };
+      return;
+    }
     decisions = [decision, ...decisions];
+    let persisted = true;
     try {
       saveDecisions(storage, decisions);
       notice.hidden = true;
     } catch {
+      persisted = false;
       notice.textContent = "This decision is visible for now, but could not be saved in this browser.";
       notice.hidden = false;
     }
     refresh();
-    form.reset();
-    form.elements.title.focus();
+    event.detail.result = { ok: true, persisted };
+  });
+
+  // The semantic HTML form remains fully usable if the React enhancement cannot
+  // load (for example offline). React emits `decision-submit`; this fallback
+  // handles native submits and dynamic rows without creating duplicate records.
+  formRoot.addEventListener("submit", (event) => {
+    if (event.defaultPrevented) return;
+    event.preventDefault();
+    const form = event.target;
+    if (!form.reportValidity()) return;
+    const values = Object.fromEntries(new FormData(form));
+    values.alternatives = new FormData(form).getAll("alternative").map((value) => value.trim()).filter(Boolean).join("\n");
+    const detail = { values, result: null };
+    form.dispatchEvent(new CustomEvent("decision-submit", { bubbles: true, detail }));
+    if (detail.result?.ok) {
+      form.reset();
+      form.elements.title.focus();
+    }
+  });
+  formRoot.addEventListener("click", (event) => {
+    const form = event.target.closest("form");
+    if (!form) return;
+    if (event.target.closest("[data-add-alternative]")) {
+      const editor = form.querySelector(".alternative-editor");
+      const index = editor.children.length + 1;
+      const row = document.createElement("div");
+      row.className = "alternative-row";
+      row.innerHTML = `<label class="visually-hidden" for="alternative-${index}">Alternative ${index}</label><input class="alternative-input" id="alternative-${index}" name="alternative" maxlength="1000" placeholder="Alternative ${index}"><button class="remove-alternative" type="button" data-remove-alternative aria-label="Remove alternative ${index}">Remove</button>`;
+      editor.append(row);
+      row.querySelector("input").focus();
+    } else if (event.target.closest("[data-remove-alternative]")) {
+      const row = event.target.closest(".alternative-row");
+      const nextFocus = row.nextElementSibling?.querySelector("input") ?? row.previousElementSibling?.querySelector("input") ?? form.querySelector("[data-add-alternative]");
+      row.remove();
+      nextFocus.focus();
+    }
   });
 
   document.documentElement.dataset.shiplog = "ready";
@@ -339,6 +379,6 @@ export function initDecisionLog(root = document, storage = localStorage) {
 // Auto-init only on the decisions page. Guarding on the form's presence keeps
 // app.js safe to import from other pages (e.g. releases-page.js reuses
 // loadDecisions) without booting the decision log against a missing DOM.
-if (typeof document !== "undefined" && document.querySelector("#decision-form")) {
+if (typeof document !== "undefined" && document.querySelector("#decision-form-root")) {
   initDecisionLog();
 }
