@@ -10,6 +10,7 @@ import {
   nextFocusIndex,
   filterPosts,
   normalizeApiPosts,
+  normalizeSocialApiPosts,
   MAX_POST_LENGTH,
   MAX_AUTHOR_LENGTH,
   MAX_STORED_POSTS,
@@ -170,6 +171,13 @@ test("normalizes valid API posts and drops malformed records", () => {
   assert.deepEqual(normalizeApiPosts(null), []);
 });
 
+test("normalizes durable social API posts and drops malformed records", () => {
+  assert.deepEqual(normalizeSocialApiPosts({ posts: [
+    { id: "social-1", author: "Priya", content: "Shipped.", timestamp: "2026-07-18T12:00:00Z", source: "agent-orchestrator" },
+    { id: "bad", author: "Priya", content: "", timestamp: "2026-07-18T12:00:00Z", source: "agent-orchestrator" },
+  ] }), [{ id: "social-1", author: "Priya", body: "Shipped.", createdAt: "2026-07-18T12:00:00Z", source: "agent-orchestrator" }]);
+});
+
 test("social page is wired, labeled, and linked from the other pages", async () => {
   const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
   const [home, releases, page, wiring, component] = await Promise.all([
@@ -189,7 +197,7 @@ test("social page is wired, labeled, and linked from the other pages", async () 
   assert.match(page, /id="post-agent-filter"/);
   assert.match(page, /id="post-time-filter"/);
   assert.match(page, /id="feed-announcer"[^>]*aria-live="polite"/);
-  assert.match(wiring, /\/api\/posts\?limit=100/);
+  assert.match(wiring, /\/api\/social-posts\?limit=100/);
   assert.match(page, /src="\/social-page\.js"/);
   // Compose inputs carry explicit labels + describedby wiring.
   assert.match(page, /<label for="post-author">/);

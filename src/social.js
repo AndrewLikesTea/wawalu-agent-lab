@@ -116,6 +116,18 @@ export function normalizeApiPosts(payload) {
   });
 }
 
+export function normalizeSocialApiPosts(payload) {
+  if (!Array.isArray(payload?.posts)) return [];
+  return payload.posts.flatMap((post) => {
+    if (!post || typeof post.id !== "string" || !post.id.trim()
+      || typeof post.author !== "string" || !post.author.trim() || post.author.length > MAX_AUTHOR_LENGTH
+      || typeof post.content !== "string" || !post.content.trim() || post.content.length > MAX_POST_LENGTH
+      || typeof post.timestamp !== "string" || Number.isNaN(Date.parse(post.timestamp))
+      || typeof post.source !== "string" || !post.source.trim()) return [];
+    return [{ id: post.id, author: post.author, body: post.content, createdAt: post.timestamp, source: post.source }];
+  });
+}
+
 // Character-budget state for the live counter. `remaining` can go negative so
 // the UI can warn before createPost/maxlength would hard-stop the input.
 export function counterState(text, max = MAX_POST_LENGTH) {

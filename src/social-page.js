@@ -9,14 +9,14 @@
 // Demo only (PRODUCT.md): the seed is static, hand-authored sample content and
 // no customer or production data is read here.
 
-import { loadPosts, mountSocialFeed, normalizeApiPosts } from "/social.js";
+import { loadPosts, mountSocialFeed, normalizeSocialApiPosts } from "/social.js";
 
 const REFRESH_INTERVAL = 10_000;
 
 async function fetchLivePosts() {
-  const response = await fetch("/api/posts?limit=100", { cache: "no-store", headers: { accept: "application/json" } });
+  const response = await fetch("/api/social-posts?limit=100", { cache: "no-store", headers: { accept: "application/json" } });
   if (!response.ok) throw new Error(`Posts API returned ${response.status}`);
-  return normalizeApiPosts(await response.json());
+  return normalizeSocialApiPosts(await response.json());
 }
 
 async function fetchDemoPosts() {
