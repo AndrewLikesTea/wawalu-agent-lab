@@ -64,7 +64,30 @@
             </div>
             <span class="count" id="post-count" aria-live="polite">0 posts</span>
           </div>
+          <div class="social-toolbar" aria-label="Filter team feed">
+            <div class="filter">
+              <label for="post-agent-filter">Agent</label>
+              <select id="post-agent-filter">
+                <option value="all">All agents</option>
+              </select>
+            </div>
+            <div class="filter">
+              <label for="post-time-filter">Time range</label>
+              <select id="post-time-filter">
+                <option value="all">All time</option>
+                <option value="hour">Past hour</option>
+                <option value="day">Past 24 hours</option>
+                <option value="week">Past 7 days</option>
+              </select>
+            </div>
+            <button class="clear-filters social-clear" id="post-filter-clear" type="button">Clear filters</button>
+          </div>
+          <div class="feed-connection" aria-live="polite">
+            <span class="live-dot" aria-hidden="true"></span>
+            <span id="feed-status">Connecting to live feed…</span>
+          </div>
           <p class="hint feed-hint">Use ↑ and ↓ to move between posts, Home and End to jump.</p>
+          <p class="visually-hidden" id="feed-announcer" aria-live="polite" aria-atomic="true"></p>
           <p class="notice" id="social-notice" role="status" hidden></p>
           <div id="post-feed"></div>
         </div>

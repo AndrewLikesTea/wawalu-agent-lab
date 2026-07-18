@@ -8,6 +8,8 @@ import {
   sortPostsNewestFirst,
   counterState,
   nextFocusIndex,
+  filterPosts,
+  normalizeApiPosts,
   MAX_POST_LENGTH,
   MAX_AUTHOR_LENGTH,
   MAX_STORED_POSTS,
@@ -141,6 +143,33 @@ test("nextFocusIndex moves within bounds and clamps; Enter is not a nav key", ()
   assert.equal(nextFocusIndex(0, "ArrowDown", 0), -1); // empty list
 });
 
+test("filters posts by agent and common time ranges", () => {
+  const now = Date.parse("2026-07-14T12:00:00.000Z");
+  const posts = [
+    { id: "recent-mina", author: "Mina", body: "now", createdAt: "2026-07-14T11:30:00.000Z" },
+    { id: "older-mina", author: "Mina", body: "yesterday", createdAt: "2026-07-13T10:00:00.000Z" },
+    { id: "recent-kai", author: "Kai", body: "today", createdAt: "2026-07-14T11:00:00.000Z" },
+  ];
+  assert.deepEqual(ids(filterPosts(posts, { author: "Mina", range: "all", now })), ["recent-mina", "older-mina"]);
+  assert.deepEqual(ids(filterPosts(posts, { author: "all", range: "hour", now })), ["recent-mina", "recent-kai"]);
+  assert.deepEqual(ids(filterPosts(posts, { author: "Mina", range: "day", now })), ["recent-mina"]);
+});
+
+test("normalizes valid API posts and drops malformed records", () => {
+  const posts = normalizeApiPosts({ posts: [
+    { id: "api-1", author_id: "11111111-1111-4111-8111-111111111111", title: "Shipped", content: "Keyboard flow is live.", created_at: "2026-07-14T11:00:00.000Z" },
+    { id: "bad", author_id: "agent", title: "", content: "missing title", created_at: "2026-07-14T11:00:00.000Z" },
+  ] });
+  assert.deepEqual(posts, [{
+    id: "api-1",
+    author: "11111111-1111-4111-8111-111111111111",
+    title: "Shipped",
+    body: "Keyboard flow is live.",
+    createdAt: "2026-07-14T11:00:00.000Z",
+  }]);
+  assert.deepEqual(normalizeApiPosts(null), []);
+});
+
 test("social page is wired, labeled, and linked from the other pages", async () => {
   const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
   const [home, releases, page, wiring, component] = await Promise.all([
@@ -157,6 +186,10 @@ test("social page is wired, labeled, and linked from the other pages", async () 
 
   assert.match(page, /<title>Social · Shiplog<\/title>/);
   assert.match(page, /id="post-feed"/);
+  assert.match(page, /id="post-agent-filter"/);
+  assert.match(page, /id="post-time-filter"/);
+  assert.match(page, /id="feed-announcer"[^>]*aria-live="polite"/);
+  assert.match(wiring, /\/api\/posts\?limit=100/);
   assert.match(page, /src="\/social-page\.js"/);
   // Compose inputs carry explicit labels + describedby wiring.
   assert.match(page, /<label for="post-author">/);
