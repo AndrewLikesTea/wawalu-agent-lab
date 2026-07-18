@@ -16,6 +16,8 @@ import {
   handleReleaseListKeydown,
   releaseStatus,
   releaseListHref,
+  createReleaseListState,
+  toggleReleaseExpanded,
 } from "../src/releases.js";
 import { loadDecisions, STORAGE_KEY } from "../src/app.js";
 
@@ -173,6 +175,19 @@ test("nextIndex moves within bounds and leaves activation to Enter", () => {
   assert.equal(nextIndex(1, "End", 3), 2);
   assert.equal(nextIndex(1, "Enter", 3), 1); // Enter activates; it does not move focus
   assert.equal(nextIndex(0, "ArrowDown", 0), -1); // empty list
+});
+
+test("release disclosure state survives rendering changes and rejects stale ids", () => {
+  const initial = createReleaseListState(releases, ["r-new", "missing", "r-new"]);
+  assert.deepEqual(initial.expandedIds, ["r-new"]);
+
+  const opened = toggleReleaseExpanded(initial, "r-mid", releases);
+  assert.deepEqual(opened.expandedIds, ["r-new", "r-mid"]);
+  assert.deepEqual(toggleReleaseExpanded(opened, "r-new", releases).expandedIds, ["r-mid"]);
+  assert.equal(toggleReleaseExpanded(opened, "missing", releases), opened);
+
+  // A data refresh prunes a release that no longer exists without throwing.
+  assert.deepEqual(createReleaseListState([releases[0]], opened.expandedIds), { expandedIds: [] });
 });
 
 function keyboardFixture() {

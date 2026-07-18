@@ -205,6 +205,24 @@ export function nextIndex(current, key, length) {
   }
 }
 
+// Disclosure state is independent of the DOM so a filter-driven re-render does
+// not unexpectedly collapse releases the user already opened. Unknown ids are
+// ignored, which also makes the state safe when fresh data replaces the list.
+export function createReleaseListState(releases = [], expandedIds = []) {
+  const validIds = new Set(releases.map(({ id }) => id));
+  return {
+    expandedIds: [...new Set(expandedIds)].filter((id) => validIds.has(id)),
+  };
+}
+
+export function toggleReleaseExpanded(state, id, releases = []) {
+  if (!releases.some((release) => release.id === id)) return state;
+  const expanded = new Set(state.expandedIds);
+  if (expanded.has(id)) expanded.delete(id);
+  else expanded.add(id);
+  return { expandedIds: [...expanded] };
+}
+
 // ---------------------------------------------------------------------------
 // Rendering layer. Everything below touches the DOM and is exercised in the
 // browser; the pure core above is what the unit tests cover. Every field is
@@ -268,16 +286,17 @@ function renderDetailLink(release) {
   return link;
 }
 
-function renderReleaseItem(release) {
+function renderReleaseItem(release, index, expanded = false) {
   const item = el("li", "release-item");
-  const toggleId = `release-toggle-${release.id}`;
-  const panelId = `release-panel-${release.id}`;
+  // Render-local ids keep arbitrary stored release ids out of ARIA IDREFs.
+  const toggleId = `release-toggle-${index}`;
+  const panelId = `release-panel-${index}`;
 
   const heading = el("h3", "release-heading");
   const toggle = el("button", "release-toggle");
   toggle.type = "button";
   toggle.id = toggleId;
-  toggle.setAttribute("aria-expanded", "false");
+  toggle.setAttribute("aria-expanded", String(expanded));
   toggle.setAttribute("aria-controls", panelId);
   toggle.dataset.releaseId = release.id;
 
@@ -296,7 +315,7 @@ function renderReleaseItem(release) {
 
   const panel = el("div", "release-panel");
   panel.id = panelId;
-  panel.hidden = true;
+  panel.hidden = !expanded;
   panel.setAttribute("role", "region");
   panel.setAttribute("aria-labelledby", toggleId);
   panel.append(renderReleaseBody(release));
@@ -320,8 +339,9 @@ export function renderReleaseList(container, resolvedReleases, options = {}) {
   }
 
   const list = el("ol", "release-list");
-  resolvedReleases.forEach((release) => {
-    list.append(renderReleaseItem(release));
+  const expandedIds = new Set(options.expandedIds ?? []);
+  resolvedReleases.forEach((release, index) => {
+    list.append(renderReleaseItem(release, index, expandedIds.has(release.id)));
   });
   container.append(list);
 }
@@ -358,14 +378,16 @@ export function focusRelease(container, id) {
 // (or a future filter control) can re-render with fresh data.
 export function mountReleaseList(container, data = {}) {
   let current = data;
+  let state = createReleaseListState(current.releases ?? []);
   // Returns the releases actually shown so callers get the visible count from
   // the same computation that rendered them, rather than re-deriving it by
   // querying the rendered DOM (which would couple the page to class names here).
   const render = (next = current, filters = {}) => {
     current = next;
+    state = createReleaseListState(current.releases ?? [], state.expandedIds);
     const shown = filterReleases(current.releases ?? [], current.decisions ?? [], filters);
     const filtered = (filters.status !== undefined && filters.status !== "all") || Boolean(filters.query?.trim());
-    renderReleaseList(container, shown, { filtered });
+    renderReleaseList(container, shown, { filtered, expandedIds: state.expandedIds });
     return shown;
   };
 
@@ -378,10 +400,11 @@ export function mountReleaseList(container, data = {}) {
   container.addEventListener("click", (event) => {
     const toggle = event.target.closest?.(".release-toggle");
     if (!toggle) return;
-    const expanded = toggle.getAttribute("aria-expanded") === "true";
-    toggle.setAttribute("aria-expanded", String(!expanded));
+    state = toggleReleaseExpanded(state, toggle.dataset.releaseId, current.releases ?? []);
+    const expanded = state.expandedIds.includes(toggle.dataset.releaseId);
+    toggle.setAttribute("aria-expanded", String(expanded));
     const panel = container.ownerDocument.getElementById(toggle.getAttribute("aria-controls"));
-    if (panel) panel.hidden = expanded;
+    if (panel) panel.hidden = !expanded;
   });
 
   render(data);
