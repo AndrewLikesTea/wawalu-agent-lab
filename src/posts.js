@@ -164,6 +164,12 @@ function allowed(method, allow, requestId) {
   return json(405, { error: { code: "method_not_allowed", message: `${method} is not allowed.`, request_id: requestId } }, requestId, { allow });
 }
 
+function parsePaginationInteger(value, { minimum, maximum = Number.MAX_SAFE_INTEGER }) {
+  if (!/^\d+$/.test(value)) return null;
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) && parsed >= minimum && parsed <= maximum ? parsed : null;
+}
+
 async function bodyOf(request, requestId) {
   if (!/^application\/json(?:;|$)/i.test(request.headers.get("content-type") ?? "")) return { response: failure(415, "unsupported_media_type", "Content-Type must be application/json.", requestId) };
   let body; try { body = await request.json(); } catch { return { response: failure(400, "invalid_body", "Request body must be valid JSON.", requestId) }; }
@@ -189,7 +195,9 @@ export async function handlePostsRequest(request, deps) {
   try {
     const url = new URL(request.url); const match = /\/(?:api\/)?posts(?:\/([^/]+))?\/?$/.exec(url.pathname);
     if (!match) return failure(404, "not_found", "Unknown posts route.", requestId);
-    let id = match[1] ? decodeURIComponent(match[1]) : null;
+    let id = null;
+    try { id = match[1] ? decodeURIComponent(match[1]) : null; }
+    catch { return failure(400, "invalid_id", "Post id must be a UUID.", requestId); }
     if (id === "healthz") {
       if (request.method !== "GET") return allowed(request.method, "GET", requestId);
       try {
@@ -202,10 +210,11 @@ export async function handlePostsRequest(request, deps) {
     }
     if (id && !UUID.test(id)) return failure(400, "invalid_id", "Post id must be a UUID.", requestId);
     if (!id && request.method === "GET") {
-      const limit = url.searchParams.get("limit") ?? String(DEFAULT_PAGE_SIZE), offset = url.searchParams.get("offset") ?? "0";
-      if (!/^\d+$/.test(limit) || Number(limit) < 1 || Number(limit) > MAX_PAGE_SIZE || !/^\d+$/.test(offset)) return failure(400, "invalid_query", `limit must be 1-${MAX_PAGE_SIZE} and offset must be a non-negative integer.`, requestId);
-      const result = await deps.store.list({ limit: Number(limit), offset: Number(offset) });
-      return json(200, { posts: result.posts, pagination: { limit: Number(limit), offset: Number(offset), total: result.total } }, requestId);
+      const limit = parsePaginationInteger(url.searchParams.get("limit") ?? String(DEFAULT_PAGE_SIZE), { minimum: 1, maximum: MAX_PAGE_SIZE });
+      const offset = parsePaginationInteger(url.searchParams.get("offset") ?? "0", { minimum: 0 });
+      if (limit === null || offset === null) return failure(400, "invalid_query", `limit must be 1-${MAX_PAGE_SIZE} and offset must be a non-negative safe integer.`, requestId);
+      const result = await deps.store.list({ limit, offset });
+      return json(200, { posts: result.posts, pagination: { limit, offset, total: result.total } }, requestId);
     }
     if (!id && request.method === "POST") {
       const occurredAt = deps.now?.() ?? new Date().toISOString();

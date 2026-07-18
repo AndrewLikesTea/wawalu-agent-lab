@@ -70,9 +70,29 @@ test("GET collection is public, bounded, and GET item reports 404", async () => 
   const list = await call("GET", "/api/posts?limit=1&offset=0");
   assert.equal(list.status, 200); assert.equal(list.json.posts.length, 1); assert.equal(list.json.pagination.total, 1);
   assert.equal((await call("GET", "/api/posts?limit=101")).status, 400);
+  assert.equal((await call("GET", `/api/posts?offset=${Number.MAX_SAFE_INTEGER + 1}`)).status, 400);
+  assert.equal((await call("GET", `/api/posts?offset=${"9".repeat(400)}`)).status, 400);
   assert.equal((await call("GET", `/api/posts/${first.json.post.id}`)).status, 200);
   assert.equal((await call("GET", `/api/posts/${MISSING_ID}`)).status, 404);
   assert.equal((await call("GET", "/api/posts/not-a-uuid")).status, 400);
+  assert.equal((await call("GET", "/api/posts/%E0%A4%A")).status, 400);
+});
+
+test("deployment adapter reports a consistent storage configuration error", async () => {
+  const { onRequest } = await import("../functions/api/posts/[[route]].js");
+  const response = await onRequest({
+    request: new Request("https://test.invalid/api/posts", { headers: { "cf-ray": "edge-trace" } }),
+    env: {},
+  });
+  assert.equal(response.status, 503);
+  assert.equal(response.headers.get("x-request-id"), "edge-trace");
+  assert.deepEqual(await response.json(), {
+    error: {
+      code: "storage_unavailable",
+      message: "The posts database (D1 binding 'DB') is not configured.",
+      request_id: "edge-trace",
+    },
+  });
 });
 
 test("PUT atomically updates mutable fields and DELETE removes the row", async () => {

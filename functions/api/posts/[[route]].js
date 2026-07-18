@@ -19,7 +19,7 @@ import {
 } from "../../../src/posts.js";
 
 function jsonError(status, code, message, requestId) {
-  return new Response(JSON.stringify({ error: { code, message, requestId } }), {
+  return new Response(JSON.stringify({ error: { code, message, request_id: requestId } }), {
     status,
     headers: { "content-type": "application/json; charset=utf-8", "x-request-id": requestId },
   });

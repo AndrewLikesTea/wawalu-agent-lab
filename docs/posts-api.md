@@ -41,6 +41,8 @@ Errors use `{ "error": { "code", "message", "request_id", "fields"? } }` and
 include the same request id in `x-request-id`. Invalid JSON is `400`, missing or
 bad authentication or scope is `401`/`403`, semantic validation is `422`, missing posts
 are `404`, conflicts are `409`, and unhandled storage failures are `500`.
+Pagination values outside JavaScript's safe integer range are rejected with `400`
+before reaching storage.
 
 ## Deployment prerequisite
 
