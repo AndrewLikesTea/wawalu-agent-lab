@@ -33,6 +33,21 @@
 - Worker processes cannot see reusable GitHub or Cloudflare credentials, bypass
   checks, target another PR, or invoke the production deployment themselves.
 
+### Build integrity, health, and rollback
+
+- `npm run build` copies the static source into an isolated staging directory,
+  writes a deterministic `build-manifest.json` with the byte length and SHA-256
+  digest of every shipped file, and validates the artifact before promoting it
+  to `dist/`. A failed build leaves no partially promoted artifact.
+- `npm run verify:build` revalidates every digest, the exact `healthz` response,
+  the social post-management assets, and the least-privilege browser policy.
+  CI remains the only deployment authority; these checks require no credentials.
+- Releases are immutable commit artifacts. To roll back, use the established
+  protected release process to redeploy the last known-good commit artifact,
+  verify its manifest, then smoke-test `/healthz`. Do not edit an artifact in
+  place or bypass branch protection. Browser-local social posts use the existing
+  storage schema, so reverting the UI does not migrate or delete user data.
+
 ## Daily diff budget
 
 - The local orchestrator allows 50 Qwen-approved, non-empty code diffs per UTC
