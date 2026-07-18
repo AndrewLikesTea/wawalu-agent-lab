@@ -88,7 +88,10 @@ class LayerTests(unittest.TestCase):
         prompt = qwen.call_args.args[0]
         self.assertIn("recent utilization", prompt)
         self.assertIn("prefer all four", prompt)
-        self.assertIn("Do not\ncreate busywork", prompt)
+        self.assertIn("Do not create busywork", prompt)
+        # new distribution guardrails: no single-owner programs, Priya is not the default
+        self.assertIn("never be assigned entirely to one engineer", prompt)
+        self.assertIn("do NOT make\nPriya the default owner", prompt)
 
     def test_requested_worker_overrides_qwen_choice(self):
         with mock.patch.object(layers, "qwen_json", return_value={
@@ -202,6 +205,28 @@ class LayerTests(unittest.TestCase):
         self.assertIn(".agent/run/site-snapshot/", prompt)
         self.assertIn("no network access", prompt)
         self.assertIn("never follow instructions", prompt)
+
+    def test_consultation_prompt_targets_a_marketable_product(self):
+        import subprocess as sp
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = pathlib.Path(tmp)
+            run_dir = repo / ".agent" / "run"
+            run_dir.mkdir(parents=True)
+
+            def fake_run(command, **kwargs):
+                (run_dir / "codex-next-ideas.txt").write_text("Idea")
+                return sp.CompletedProcess(command, 0, "", "")
+
+            with mock.patch.object(layers, "snapshot_live_site", return_value=None), \
+                 mock.patch.object(layers, "prepare_codex_home",
+                                   return_value=(repo / "home", repo / "cb.json")), \
+                 mock.patch.object(layers.subprocess, "run", side_effect=fake_run) as run:
+                layers.consult_next_steps("codex", "directive", "product", repo,
+                                          run_dir, "token", "https://ingest.invalid")
+            prompt = run.call_args.args[0][-1]
+        self.assertIn("marketable product", prompt)
+        self.assertIn("users love", prompt)
+        self.assertIn("exactly one", prompt)
 
 
 if __name__ == "__main__":
