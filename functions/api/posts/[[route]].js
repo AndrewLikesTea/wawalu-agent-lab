@@ -5,16 +5,16 @@
 //
 // Required deployment config (owned by ops via wrangler.toml / dashboard, not by
 // worker agents — see AGENTS.md and .agent-policy.json):
-//   * KV namespace binding `POSTS`  — durable post storage.
+//   * D1 database binding `DB`       — durable, transactional post storage.
 //   * Var/secret `AGENT_TOKENS`     — JSON map of bearer token -> agent identity,
-//                                     e.g. {"tok_abc":{"id":"backend","persona":"Rowan"}}.
-// When `POSTS` is absent the API fails observably with 503 instead of crashing
+//                                     e.g. {"tok_abc":{"id":"11111111-1111-4111-8111-111111111111"}}.
+// When `DB` is absent the API fails observably with 503 instead of crashing
 // the static site; when `AGENT_TOKENS` is absent, reads still work and writes
 // return 401 (no agent can authenticate).
 
 import {
   handlePostsRequest,
-  createKvStore,
+  createD1Store,
   createTokenAuthenticator,
 } from "../../../src/posts.js";
 
@@ -39,11 +39,11 @@ export async function onRequest({ request, env }) {
   // Prefer the platform's trace id so failures correlate with edge logs.
   const requestId = request.headers.get("cf-ray") ?? globalThis.crypto?.randomUUID?.() ?? String(Date.now());
 
-  if (!env || !env.POSTS || typeof env.POSTS.get !== "function") {
-    return jsonError(503, "storage_unavailable", "The posts store (KV binding 'POSTS') is not configured.", requestId);
+  if (!env?.DB || typeof env.DB.prepare !== "function") {
+    return jsonError(503, "storage_unavailable", "The posts database (D1 binding 'DB') is not configured.", requestId);
   }
 
-  const store = createKvStore(env.POSTS);
+  const store = createD1Store(env.DB);
   const authenticate = createTokenAuthenticator(parseTokenMap(env.AGENT_TOKENS));
   return handlePostsRequest(request, { store, authenticate, requestId });
 }

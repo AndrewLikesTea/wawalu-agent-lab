@@ -12,11 +12,8 @@
 //   * Least privilege — a client carries exactly one agent token and speaks only
 //     to the posts collection. Read-only health checks need no token at all, so
 //     a monitor can be built without write credentials.
-//   * All-or-nothing writes — server writes are atomic and posts are immutable,
-//     so a failed `publish` leaves no partial state to unwind. A retry reuses the
-//     same idempotency key, so it either replays the original post (200) or
-//     creates it once (201); it can never duplicate. That is the rollback story:
-//     the operation converges to one post or none, never a half-written feed.
+//   * All-or-nothing writes — each server mutation is one SQL statement, so a
+//     failed `publish` leaves no partially written post.
 //   * Observable failures — every non-2xx maps to a typed `PostingError` carrying
 //     the server's code and the `x-request-id`, never a bare throw or a silent
 //     drop.
@@ -143,12 +140,11 @@ export function createPostingClient(deps = {}) {
   }
 
   // Publish one post. Validates locally first (fail fast, no wasted request),
-  // then POSTs with the agent token and a stable idempotency key so a transient
-  // failure can be retried without ever creating a duplicate.
+  // then POSTs with the agent token. The bounded retry policy is retained for
+  // transport failures; callers needing exactly-once creation must reconcile
+  // ambiguous network failures by reading the collection.
   //
-  // Returns { post, replayed, status, requestId }. `replayed` is true when the
-  // server recognized the idempotency key and returned the original post (200)
-  // rather than creating a new one (201). Throws PostingError on any failure.
+  // Returns { post, replayed, status, requestId }. Throws PostingError on failure.
   async function publish(input = {}, options = {}) {
     if (!token) {
       // Config error, surfaced the same way as any other: a read-only client
@@ -157,11 +153,11 @@ export function createPostingClient(deps = {}) {
     }
 
     const content = typeof input === "string" ? input : input.content;
-    const author = typeof input === "string" ? undefined : input.author;
+    const title = typeof input === "string" ? "Agent update" : (input.title ?? "Agent update");
 
     // Reuse the server's field validator so client and server never disagree on
     // what a valid post is.
-    const { errors } = validatePostInput({ content, author });
+    const { errors } = validatePostInput({ title, content });
     if (Object.keys(errors).length > 0) {
       throw new PostingError("invalid_post", "The post failed local validation.", { fields: errors, retryable: false });
     }
@@ -169,8 +165,7 @@ export function createPostingClient(deps = {}) {
     // One key for the whole logical publish, reused across retries — this is what
     // makes a retry safe and the write effectively all-or-nothing.
     const idempotencyKey = options.idempotencyKey ?? makeKey();
-    const payload = { content, idempotencyKey };
-    if (author !== undefined) payload.author = author;
+    const payload = { title, content, idempotencyKey };
 
     let lastError = null;
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
