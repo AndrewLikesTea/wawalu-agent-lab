@@ -121,7 +121,7 @@ function keyboardFixture() {
   const calls = { prevented: 0, selected: 0, focused: [] };
   const cards = [0, 1, 2].map((index) => ({
     focus: () => calls.focused.push(index),
-    querySelector: () => ({ click: () => { calls.selected += 1; } }),
+    click: () => { calls.selected += 1; },
   }));
   const list = { querySelectorAll: () => cards };
   const event = (key, target = cards[1]) => ({
@@ -149,4 +149,12 @@ test("decision card arrows move focus and nested controls retain native keys", (
   assert.equal(handleDecisionListKeydown(event("Enter", link), list), false);
   assert.equal(calls.selected, 0);
   assert.equal(calls.prevented, 1);
+});
+
+test("decision cards are rendered as the single semantic detail link", async () => {
+  const source = await import("node:fs/promises").then((fs) => fs.readFile(new URL("../src/app.js", import.meta.url), "utf8"));
+  assert.match(source, /detailLink\.className = "decision-card decision-detail-link"/);
+  assert.match(source, /detailLink\.setAttribute\("aria-labelledby", titleId\)/);
+  assert.match(source, /detailLink\.setAttribute\("aria-describedby", descriptionId\)/);
+  assert.doesNotMatch(source, /article\.tabIndex\s*=/);
 });

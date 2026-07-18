@@ -1,4 +1,4 @@
-:root { color-scheme:light; font-family:Inter,ui-sans-serif,system-ui,sans-serif; background:#f3f1eb; color:#171713; }
+:root { color-scheme:light; font-family:Inter,ui-sans-serif,system-ui,sans-serif; background:#f3f1eb; color:#171713; --focus-ring:#155f9e; }
 * { box-sizing:border-box; }
 html { scroll-behavior:smooth; }
 body { margin:0; min-height:100vh; background:radial-gradient(circle at 84% 0,#d6e6fa 0,transparent 30%),#f3f1eb; }
@@ -28,7 +28,7 @@ label { font-size:14px; font-weight:700; }
 input,textarea,select { width:100%; border:1px solid #bdbbb3; border-radius:9px; padding:11px 12px; background:#fff; color:#171713; font:inherit; line-height:1.4; }
 textarea { resize:vertical; min-height:116px; }
 input:hover,textarea:hover,select:hover { border-color:#777771; }
-input:focus-visible,textarea:focus-visible,select:focus-visible,button:focus-visible,.brand:focus-visible { outline:3px solid #8abbe9; outline-offset:2px; border-color:#1f70c1; }
+input:focus-visible,textarea:focus-visible,select:focus-visible,button:focus-visible,a:focus-visible { outline:3px solid var(--focus-ring); outline-offset:2px; border-color:#1f70c1; }
 .hint { color:#6a6a65; font-size:12px; line-height:1.45; }
 button { grid-column:1/-1; display:flex; align-items:center; justify-content:space-between; min-height:46px; margin-top:4px; border:0; border-radius:9px; padding:0 16px; background:#171713; color:#fff; font:700 14px/1 system-ui,sans-serif; cursor:pointer; }
 button:hover { background:#1f70c1; }
@@ -41,11 +41,11 @@ button:hover { background:#1f70c1; }
 .clear-filters { grid-column:auto; align-self:end; flex:0 0 auto; min-height:41px; margin:0; padding:0 14px; background:transparent; color:#1f70c1; border:1px solid #9cb9d4; }
 .clear-filters:hover { background:#eef4fb; color:#174f84; }
 .decision-list { display:grid; gap:14px; margin:0; padding:0; list-style:none; }
-.decision-card { padding:21px; border:1px solid #d9d7d0; border-radius:12px; background:#fff; }
-.decision-card:focus-visible { outline:3px solid #8abbe9; outline-offset:2px; border-color:#1f70c1; }
+.decision-card { display:block; padding:21px; border:1px solid #d9d7d0; border-radius:12px; background:#fff; color:inherit; text-decoration:none; }
+.decision-card:focus-visible { outline:3px solid var(--focus-ring); outline-offset:2px; border-color:#1f70c1; }
 /* Deep-link highlight: when arrived at via /#decision-<id> from a release
    detail view, mark the target card so it is easy to spot after the jump. */
-.decision-card:target { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2f7; scroll-margin-top:24px; }
+article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2f7; scroll-margin-top:24px; }
 .decision-meta { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:14px; }
 .badge { border-radius:99px; padding:5px 8px; font:750 10px/1 ui-monospace,monospace; letter-spacing:.07em; text-transform:uppercase; }
 .badge-proposed { background:#fff0c7; color:#72520a; }
@@ -59,10 +59,9 @@ button:hover { background:#1f70c1; }
 .alternatives { display:grid; gap:5px; margin:14px 0 0; color:#555550; line-height:1.6; white-space:pre-wrap; overflow-wrap:anywhere; }
 .owner { display:flex; gap:10px; margin:18px 0 0; padding-top:15px; border-top:1px solid #ebe9e3; font-size:13px; overflow-wrap:anywhere; }
 .owner-label { color:#777771; font:700 10px/1.5 ui-monospace,monospace; letter-spacing:.08em; text-transform:uppercase; }
-.decision-detail-link { display:inline-flex; margin-top:16px; color:#1f70c1; font-size:13px; font-weight:700; text-decoration:none; }
-.decision-detail-link::after { content:"→"; margin-left:7px; }
-.decision-detail-link:hover { text-decoration:underline; }
-.decision-detail-link:focus-visible { outline:3px solid #8abbe9; outline-offset:2px; border-radius:5px; }
+.decision-action { display:inline-flex; margin-top:16px; color:#1f70c1; font-size:13px; font-weight:700; }
+.decision-action::after { content:"→"; margin-left:7px; }
+.decision-detail-link:hover .decision-action { text-decoration:underline; }
 .empty-state { padding:58px 20px; color:#696963; text-align:center; }
 .empty-state p { margin:5px 0; }
 .empty-state .empty-title { margin:5px 0; color:#282824; font-size:18px; font-weight:700; }
