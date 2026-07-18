@@ -159,7 +159,9 @@ export function handleDecisionListKeydown(event, list) {
   const cards = [...list.querySelectorAll(".decision-card")];
   event.preventDefault();
   if (event.key === "Enter") {
-    card.querySelector(".decision-detail-link")?.click();
+    // Cards are native links, so this mirrors their native activation while
+    // keeping the state transition explicit and independently testable.
+    card.click();
   } else {
     focusCard(cards, nextFocusIndex(cards.indexOf(card), event.key, cards.length));
   }
@@ -179,8 +181,11 @@ export function focusLinkedDecision(root = document, hash = window.location.hash
     return false;
   }
   const target = root.getElementById(id);
-  if (!target?.classList.contains("decision-card")) return false;
-  target.focus({ preventScroll: true });
+  const card = target?.classList.contains("decision-card")
+    ? target
+    : target?.querySelector?.(".decision-card");
+  if (!card) return false;
+  card.focus({ preventScroll: true });
   target.scrollIntoView({ block: "center" });
   return true;
 }
@@ -213,18 +218,23 @@ function renderDecisions(container, count, decisions, view) {
 
   const list = document.createElement("ol");
   list.className = "decision-list";
-  visible.forEach((decision) => {
+  visible.forEach((decision, index) => {
     const item = document.createElement("li");
     const article = document.createElement("article");
-    article.className = "decision-card";
+    const detailLink = document.createElement("a");
+    detailLink.className = "decision-card decision-detail-link";
     // Deep-link target: the release detail view links a decision as
     // `/#decision-<id>` (see decisionDetailHref in releases.js). Rendering the
     // matching id makes that a native anchor — the browser scrolls to it and
     // `:target` highlights it, with no routing code. Cross-page seam only.
     article.id = `decision-${decision.id}`;
-    // Every card is a Tab stop. Arrow keys are an additional, faster way to
-    // traverse the list (see the delegated keydown handler below).
-    article.tabIndex = 0;
+    detailLink.href = `/decision.html?id=${encodeURIComponent(decision.id)}`;
+
+    // Render-local ids avoid leaking arbitrary stored ids into ARIA IDREFs.
+    const titleId = `decision-title-${index}`;
+    const descriptionId = `decision-summary-${index}`;
+    detailLink.setAttribute("aria-labelledby", titleId);
+    detailLink.setAttribute("aria-describedby", descriptionId);
 
     const meta = document.createElement("div");
     meta.className = "decision-meta";
@@ -232,23 +242,27 @@ function renderDecisions(container, count, decisions, view) {
     appendTextElement(meta, "time", "date", new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(new Date(decision.createdAt)))
       .dateTime = decision.createdAt;
 
-    appendTextElement(article, "h3", "", decision.title);
-    appendTextElement(article, "p", "context", decision.context);
+    const title = appendTextElement(detailLink, "h3", "", decision.title);
+    title.id = titleId;
+    const summary = document.createElement("div");
+    summary.id = descriptionId;
+    appendTextElement(summary, "p", "context", decision.context);
     if (decision.alternatives) {
       const alternatives = document.createElement("p");
       alternatives.className = "alternatives";
       appendTextElement(alternatives, "span", "owner-label", "Alternatives");
       alternatives.append(document.createTextNode(decision.alternatives));
-      article.append(alternatives);
+      summary.append(alternatives);
     }
     const owner = document.createElement("p");
     owner.className = "owner";
     appendTextElement(owner, "span", "owner-label", "Owner");
     owner.append(document.createTextNode(decision.owner));
-    article.prepend(meta);
-    article.append(owner);
-    const detailLink = appendTextElement(article, "a", "decision-detail-link", "View decision details");
-    detailLink.href = `/decision.html?id=${encodeURIComponent(decision.id)}`;
+    summary.prepend(meta);
+    summary.append(owner);
+    appendTextElement(summary, "span", "decision-action", "View decision details");
+    detailLink.append(summary);
+    article.append(detailLink);
     item.append(article);
     list.append(item);
   });
@@ -309,8 +323,8 @@ export function initDecisionLog(root = document, storage = localStorage) {
   });
 
   // Keyboard navigation is delegated to the list container so it survives every
-  // re-render without re-binding. Only direct card focus is handled: the nested
-  // detail link retains its native Enter and arrow-key behavior.
+  // re-render without re-binding. Each card is one native-link Tab stop; arrows
+  // are an additional list-local shortcut and Enter activates the same link.
   list.addEventListener("keydown", (event) => {
     handleDecisionListKeydown(event, list);
   });
