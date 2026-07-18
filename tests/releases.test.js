@@ -12,7 +12,10 @@ import {
   indexById,
   RELEASE_STORAGE_KEY,
   filterReleases,
+  focusRelease,
+  handleReleaseListKeydown,
   releaseStatus,
+  releaseListHref,
 } from "../src/releases.js";
 import { loadDecisions, STORAGE_KEY } from "../src/app.js";
 
@@ -160,7 +163,7 @@ test("saveReleases round-trips through loadReleases", () => {
   assert.deepEqual(loadReleases(storage), [record]);
 });
 
-test("nextIndex moves within bounds and clamps; Enter is not a nav key", () => {
+test("nextIndex moves within bounds and leaves activation to Enter", () => {
   assert.equal(nextIndex(0, "ArrowDown", 3), 1);
   assert.equal(nextIndex(2, "ArrowDown", 3), 2); // clamps at last
   assert.equal(nextIndex(1, "ArrowUp", 3), 0);
@@ -168,8 +171,73 @@ test("nextIndex moves within bounds and clamps; Enter is not a nav key", () => {
   assert.equal(nextIndex(-1, "ArrowDown", 3), 0); // nothing focused yet
   assert.equal(nextIndex(1, "Home", 3), 0);
   assert.equal(nextIndex(1, "End", 3), 2);
-  assert.equal(nextIndex(1, "Enter", 3), 1); // Enter toggles the button, not nav
+  assert.equal(nextIndex(1, "Enter", 3), 1); // Enter activates; it does not move focus
   assert.equal(nextIndex(0, "ArrowDown", 0), -1); // empty list
+});
+
+function keyboardFixture() {
+  const calls = { prevented: 0, selected: 0, focused: [] };
+  const items = [0, 1, 2].map((index) => {
+    const link = { click: () => { calls.selected += 1; } };
+    const item = { querySelector: () => link };
+    return {
+      dataset: { releaseId: `r-${index}` },
+      focus: () => calls.focused.push(index),
+      scrollIntoView: () => {},
+      closest(selector) {
+        if (selector === ".release-toggle") return this;
+        return selector === ".release-item" ? item : null;
+      },
+    };
+  });
+  const container = { querySelectorAll: () => items };
+  const event = (key, target = items[1]) => ({
+    key,
+    target,
+    preventDefault: () => { calls.prevented += 1; },
+  });
+  return { calls, items, container, event };
+}
+
+test("release Enter activates details and arrows move focus", () => {
+  const { calls, container, event } = keyboardFixture();
+  assert.equal(handleReleaseListKeydown(event("Enter"), container), true);
+  assert.equal(calls.selected, 1);
+  assert.deepEqual(calls.focused, []);
+  assert.equal(handleReleaseListKeydown(event("ArrowDown"), container), true);
+  assert.deepEqual(calls.focused, [2]);
+  assert.equal(calls.prevented, 2);
+});
+
+test("Space and unhandled keys fall through so the disclosure still expands", () => {
+  // Space (and any non-nav key) must NOT be intercepted: the native <button>
+  // click is the single source of truth for inline expansion. If a future edit
+  // adds " " to NAV_KEYS, preventDefault would swallow the toggle click.
+  const { calls, container, event } = keyboardFixture();
+  for (const key of [" ", "Tab", "a"]) {
+    assert.equal(handleReleaseListKeydown(event(key), container), false);
+  }
+  assert.equal(calls.prevented, 0);
+  assert.equal(calls.selected, 0);
+  assert.deepEqual(calls.focused, []);
+});
+
+test("nested release controls retain native keyboard behavior", () => {
+  const { calls, items, container, event } = keyboardFixture();
+  const link = { closest: () => items[1] };
+  assert.equal(handleReleaseListKeydown(event("Enter", link), container), false);
+  assert.equal(calls.prevented, 0);
+  assert.equal(calls.selected, 0);
+});
+
+test("returning from detail restores focus only for a visible release", () => {
+  const { calls, container } = keyboardFixture();
+  assert.equal(focusRelease(container, "r-1"), true);
+  assert.deepEqual(calls.focused, [1]);
+  assert.equal(focusRelease(container, "missing"), false);
+  assert.equal(focusRelease(container, "%"), false);
+  assert.equal(releaseListHref("r/1"), "/releases.html?focus=r%2F1");
+  assert.equal(releaseListHref(""), "/releases.html");
 });
 
 test("releases page is wired and linked from the decisions page", async () => {

@@ -2,7 +2,7 @@
 // releases-data.js (shared with the detail view); this layer only binds the
 // composed data to the DOM so releases.js stays reusable and unit-testable.
 
-import { mountReleaseList } from "/releases.js";
+import { focusRelease, mountReleaseList } from "/releases.js";
 import { loadReleaseData } from "/releases-data.js";
 
 async function init() {
@@ -23,6 +23,8 @@ async function init() {
   search?.addEventListener("input", update);
   status?.addEventListener("change", update);
   update();
+  const focusId = new URLSearchParams(window.location.search).get("focus");
+  if (focusId) focusRelease(container, focusId);
   document.documentElement.dataset.shiplogReleases = "ready";
 }
 
