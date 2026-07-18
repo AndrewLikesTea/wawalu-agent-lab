@@ -66,8 +66,8 @@ class AutonomousTests(unittest.TestCase):
         self.assertFalse(autonomous.within_persona_window("frontend", config, now))
         self.assertTrue(autonomous.within_persona_window("backend", config, now))
         self.assertEqual(autonomous.choose_issue([frontend, backend], autonomous.State(pathlib.Path(tempfile.gettempdir()) / "rhythm-state.json"), config, now)["number"], 4)
-        self.assertGreaterEqual(autonomous.issue_delay_seconds(backend), 20 * 60)
-        self.assertLessEqual(autonomous.issue_delay_seconds(backend), 90 * 60)
+        self.assertGreaterEqual(autonomous.issue_delay_seconds(backend), 1 * 60)
+        self.assertLessEqual(autonomous.issue_delay_seconds(backend), 6 * 60)
 
     def test_directive_is_private_persistent_and_consumed(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -132,6 +132,24 @@ class AutonomousTests(unittest.TestCase):
         self.assertEqual(autonomous.recent_issue_context("token"), [
             "[Rowan (backend)] Build API", "[unassigned] Untriaged",
         ])
+
+    @mock.patch.object(autonomous, "github")
+    def test_persona_load_line_counts_open_issues_per_engineer(self, github):
+        github.return_value = [
+            {"labels": [{"name": "persona:staff"}]},
+            {"labels": [{"name": "persona:staff"}]},
+            {"labels": [{"name": "persona:frontend"}]},
+            {"pull_request": {}, "labels": [{"name": "persona:staff"}]},  # PRs excluded
+            {"labels": []},  # untriaged excluded
+        ]
+        line = autonomous.persona_load_line("token")
+        self.assertIn("Rowan (backend) 0", line)
+        self.assertIn("Mina (frontend) 1", line)
+        self.assertIn("Priya (staff) 2", line)
+
+    @mock.patch.object(autonomous, "github", side_effect=RuntimeError("api down"))
+    def test_persona_load_line_is_advisory_and_never_raises(self, github):
+        self.assertEqual(autonomous.persona_load_line("token"), "")
 
     @mock.patch.object(autonomous, "github")
     def test_consultation_waits_until_every_mvp_issue_is_closed(self, github):
