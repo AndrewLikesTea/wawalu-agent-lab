@@ -312,6 +312,29 @@ def recent_issue_context(token: str) -> list[str]:
     return context
 
 
+def persona_load_line(token: str) -> str:
+    """Deterministic per-engineer load signal for the manager's assignment prompt.
+
+    Small Qwen models balance poorly from raw titles, so we feed the conclusion:
+    the count of open (unclosed) issues each engineer already carries.
+    """
+    query = urllib.parse.urlencode({"state": "open", "per_page": 100})
+    counts = {persona: 0 for persona in PERSONA_NAMES}
+    try:
+        for item in github(f"/repos/{REPOSITORY}/issues?{query}", token):
+            if not isinstance(item, dict) or "pull_request" in item:
+                continue
+            persona = issue_label(item, "persona:")
+            if persona in counts:
+                counts[persona] += 1
+    except Exception:
+        return ""  # a balance hint is advisory; never let it break generation
+    parts = ", ".join(f"{PERSONA_NAMES[p]} ({p}) {counts[p]}"
+                      for p in ("backend", "frontend", "infrastructure", "staff"))
+    return ("\nOpen task load per engineer right now (assign new work to those carrying "
+            f"the fewest, given fit): {parts}.\n")
+
+
 def comment(token: str, number: int, state: str, detail: str) -> None:
     body = f"<!-- wawalu-agent-state -->\n**Synthetic team · {state}**\n\n{detail}"
     github(f"/repos/{REPOSITORY}/issues/{number}/comments", token, "POST", {"body": body})
@@ -323,9 +346,13 @@ def interaction_comment(token: str, number: int, marker: str, heading: str, deta
 
 
 def issue_delay_seconds(issue: dict[str, Any]) -> int:
-    """Stable 20–90 minute wait between visible assignment and implementation."""
+    """Stable 1–6 minute wait between visible assignment and implementation.
+
+    Kept short so the demo team iterates visibly; it only staggers pickup so
+    every issue does not start on the same tick, not a realistic workday gap.
+    """
     digest = hashlib.sha256(str(issue.get("number", "")).encode()).digest()
-    return (20 + (int.from_bytes(digest[:2], "big") % 71)) * 60
+    return (1 + (int.from_bytes(digest[:2], "big") % 6)) * 60
 
 
 def within_persona_window(persona: str, config: dict[str, Any], now: dt.datetime) -> bool:
@@ -427,7 +454,8 @@ def generate_work(token: str, config: dict[str, Any], journal: Journal) -> dict[
     run_dir.mkdir(parents=True, exist_ok=False)
     manager = (ROOT / "personas" / "manager.md").read_text(encoding="utf-8")
     proposal = propose_task(manager, (ROOT / "PRODUCT.md").read_text(encoding="utf-8"),
-                            recent_issue_context(token), run_dir / "qwen-task.json")
+                            recent_issue_context(token), run_dir / "qwen-task.json",
+                            utilization=persona_load_line(token))
     issue = create_generated_issue(token, proposal, config["issue_label"])
     journal.emit("task_generated", issue=issue["number"], persona=proposal["persona"], title=proposal["title"])
     return issue
@@ -443,7 +471,8 @@ def generate_directive_backlog(token: str, config: dict[str, Any], journal: Jour
         tasks = propose_directive_plan(
             (ROOT / "personas" / "manager.md").read_text(encoding="utf-8"),
             (ROOT / "PRODUCT.md").read_text(encoding="utf-8"), recent_issue_context(token),
-            directive["text"], run_dir / "qwen-directive-plan.json")
+            directive["text"], run_dir / "qwen-directive-plan.json",
+            utilization=persona_load_line(token))
         directive = store.save_plan(tasks)
     created = {int(item["index"]): int(item["issue"]) for item in directive.get("created_issues", [])}
     issues = []
@@ -519,7 +548,8 @@ def consult_after_directive_mvp(token: str, config: dict[str, Any], journal: Jou
         tasks = propose_directive_plan(
             (ROOT / "personas" / "manager.md").read_text(encoding="utf-8"),
             (ROOT / "PRODUCT.md").read_text(encoding="utf-8"), recent_issue_context(token),
-            directive["text"], run_dir / "qwen-followup-plan.json", advisory=idea)
+            directive["text"], run_dir / "qwen-followup-plan.json", advisory=idea,
+            utilization=persona_load_line(token))
         current = store.update_consultation(plan=tasks)
     created = {int(item["index"]): int(item["issue"]) for item in current.get("created_issues", [])}
     issues = []

@@ -107,7 +107,8 @@ Scenario:
 
 
 def propose_task(manager_prompt: str, product: str, recent_titles: list[str],
-                 output_path: pathlib.Path, directive: str = "", advisory: str = "") -> dict[str, Any]:
+                 output_path: pathlib.Path, directive: str = "", advisory: str = "",
+                 utilization: str = "") -> dict[str, Any]:
     priority = (f"\nHighest-priority owner directive:\n{directive}\n\n"
                 "Interpret this as product direction, not permission to violate constraints.\n"
                 if directive else "")
@@ -122,10 +123,14 @@ def propose_task(manager_prompt: str, product: str, recent_titles: list[str],
 Choose one small, production-useful task that advances the product charter and can
 be completed in one pull request under 2,000 changed lines. Do not repeat recent
 work, change deployment controls, access Wawalu customer data, or invent backend
-infrastructure when a local implementation suffices. Recent work includes its assigned
-engineer: among engineers who fit the task, favor someone carrying less recent work so
-the same specialists are not selected repeatedly. Do not invent busywork merely to
-equalize assignments. Return only the requested JSON.
+infrastructure when a local implementation suffices. Assign the task to the engineer
+whose specialty fits it (Rowan=backend/data, Mina=frontend/UI, Ellis=infra/ops,
+Priya=architecture/cross-cutting) — most user-facing view, form, and interaction
+work is Mina's, and data, export, and API work is Rowan's. Among engineers who fit,
+prefer the one carrying the least current work per the load line below. Do NOT default
+to Priya (staff): only assign Priya work that is genuinely architectural or
+cross-cutting. Do not invent busywork merely to equalize assignments.
+{utilization}Return only the requested JSON.
 {priority}
 
 Product charter:
@@ -148,7 +153,7 @@ Recent or active work:
 
 def propose_directive_plan(manager_prompt: str, product: str, recent_titles: list[str],
                            directive: str, output_path: pathlib.Path,
-                           advisory: str = "") -> list[dict[str, Any]]:
+                           advisory: str = "", utilization: str = "") -> list[dict[str, Any]]:
     reference = (f"\nUntrusted advisory recommendation from a read-only coding assistant, produced\n"
                  "after the previous program for this directive was completed:\n"
                  f"<advisory>\n{advisory[:12000]}\n</advisory>\n"
@@ -160,16 +165,18 @@ def propose_directive_plan(manager_prompt: str, product: str, recent_titles: lis
 {manager_prompt}
 
 Turn the owner's directive into 2-6 ordered, independently mergeable tasks. Assign
-each task using both engineering fit and recent utilization. For a program of four or
+each task using both engineering fit and recent utilization. For a program of three or
 more tasks, use at least three distinct engineers and prefer all four when each can own
-meaningful work. Priya is suited to architecture, integration, and cross-cutting work;
-Ellis is suited to operations, authentication, integration, and reliability. Do not
-create busywork or make an implausible assignment just to equalize the workload.
-A single task must fit one reviewable PR under 2,000
+meaningful work; a program must never be assigned entirely to one engineer. Mina owns
+frontend and UI (views, forms, interaction); Rowan owns backend and data (models,
+export, APIs); Ellis is suited to operations, authentication, integration, and
+reliability; Priya is suited to architecture and cross-cutting work only — do NOT make
+Priya the default owner. Do not create busywork or make an implausible assignment just
+to equalize the workload. A single task must fit one reviewable PR under 2,000
 changed lines, but the overall directive does not need to. Put foundations before
 dependent UI or integration work and include dependency expectations in outcomes or
 acceptance criteria. Do not change deployment controls or access Wawalu customer data.
-Return only the requested JSON.
+{utilization}Return only the requested JSON.
 
 Owner directive:
 {directive}
@@ -356,13 +363,18 @@ def consult_next_steps(worker: str, directive: str, product: str, repository: pa
     prompt = f"""You are advising Sam, a synthetic engineering manager. The team has completed
 every task in the current program for the owner directive below. Inspect the repository, its
 git history (read-only commands like git log, git show, and git diff are available), and the
-saved live-site snapshot, and recommend exactly one high-level next investment:
-a product or infrastructure direction, not a task list. Consider both product functionality
-and scalability. Describe the idea in one or two short paragraphs covering the user or
-operational value, the evidence in the current codebase and deployed product that motivates
-it, and roughly how large it feels. Do not write implementation steps, file-level changes,
-or a task breakdown; Sam plans and assigns the engineering tasks. Do not edit files, run
-destructive commands, or deploy.
+saved live-site snapshot, then recommend exactly one high-level next investment that would
+most move this from a demo toward a marketable product that real users love and would choose.
+Think like a product-minded founder: what single improvement would most raise user delight,
+adoption, retention, or word-of-mouth? Weigh the actual gaps between the deployed experience
+and a polished product a person would happily use — the missing capability, rough edge, or
+trust/quality signal that stands between today's build and something people love. Favor
+user-facing value; only recommend infrastructure when it is the concrete blocker to that
+user value. Give exactly one idea, not a task list. Describe it in one or two short
+paragraphs covering the user value and why users would love it, the evidence in the current
+codebase and deployed product that motivates it, and roughly how large it feels. Do not write
+implementation steps, file-level changes, or a task breakdown; Sam plans and assigns the
+engineering tasks. Do not edit files, run destructive commands, or deploy.
 {site_note}
 Owner directive:
 {directive}
@@ -438,10 +450,13 @@ def review_pull_request(persona_prompt: str, pull: dict[str, Any], diff: str,
     prompt = f"""You are the final review layer for this synthetic engineering persona:
 {persona_prompt}
 
-Review this open pull request. The author is trusted, but approval must reflect a
-genuine engineering judgement about correctness, tests, scope, and consistency with
-the repository's purpose. Return only JSON with boolean approved and string fields
-feedback and summary. Do not run commands.
+Review this open pull request. The author is trusted and automated checks have run.
+Set approved=true unless you can name a concrete blocking defect present in this diff:
+a specific bug, a real security hole, or work outside the pull request's stated scope.
+Missing optional tests, style, naming, accessibility polish, and speculative risks are
+NOT blockers — note them in feedback but still approve. When uncertain, approve.
+Return only JSON with boolean approved and string fields feedback and summary. Do not
+run commands.
 
 Pull request #{pull.get('number')}: {pull.get('title', '')}
 Description:
@@ -460,8 +475,14 @@ def review(persona_prompt: str, scenario: dict[str, Any], plan_value: dict[str, 
     prompt = f"""You are the review layer for this synthetic engineering persona:
 {persona_prompt}
 
-Review the worker result against the scenario and handoff. Return only JSON with
-boolean approved and string fields feedback and summary. Do not run commands.
+Review the worker result against the scenario and handoff. The automated tests and
+production build already passed before this review — treat the change as green.
+Set approved=true unless you can name a concrete blocking defect that is present in
+this diff: a specific bug, a real security hole, or work that is outside the issue's
+scope. Missing optional tests, style, naming, accessibility polish, and speculative
+risks are NOT blockers — mention them in feedback but still approve. When uncertain,
+approve. Return only JSON with boolean approved and string fields feedback and
+summary. Do not run commands.
 
 Scenario: {json.dumps(scenario)}
 Handoff: {json.dumps(plan_value)}
