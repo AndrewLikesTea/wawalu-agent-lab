@@ -33,6 +33,18 @@ const decisions = [
   { id: "d-csv",    title: "Sunset CSV",    context: "c", owner: "Mina",  status: "superseded", createdAt: "2026-03-10T00:00:00.000Z" },
 ];
 
+test("release summaries count the current decision workflow statuses", () => {
+  const release = { id: "current", version: "v3", createdAt: "2026-07-01T00:00:00.000Z", decisionIds: ["pending", "approved"] };
+  const current = [
+    { id: "pending", title: "Queue", context: "c", owner: "Mina", status: "pending", createdAt: release.createdAt },
+    { id: "approved", title: "Cache", context: "c", owner: "Mina", status: "approved", createdAt: release.createdAt },
+  ];
+  const resolved = resolveRelease(release, current);
+  assert.equal(resolved.counts.pending, 1);
+  assert.equal(resolved.counts.approved, 1);
+  assert.equal(statusSummaryText(resolved), "2 decisions · 1 pending, 1 approved");
+});
+
 const releases = [
   { id: "r-old", version: "v1.0.0", createdAt: "2026-03-15T00:00:00.000Z", decisionIds: [] },
   { id: "r-new", version: "v1.3.0", createdAt: "2026-07-01T00:00:00.000Z", decisionIds: ["d-flags", "d-queue"] },

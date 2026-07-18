@@ -1,5 +1,7 @@
 export const STORAGE_KEY = "shiplog.decisions.v1";
-export const STATUSES = ["proposed", "accepted", "superseded"];
+// The current workflow uses pending/approved. The original three values remain
+// readable so existing local logs and demo/release associations are not lost.
+export const STATUSES = ["pending", "approved", "proposed", "accepted", "superseded"];
 
 // Sort strategies keyed by the value emitted by the sort <select>. Each entry is
 // a pure comparator so the ordering stays testable without a DOM. Ties fall back
@@ -102,12 +104,16 @@ export function uniqueOwners(decisions) {
 // Pure view derivation: filter by status/owner, then sort. Never mutates the
 // input array, and an unknown sort key degrades gracefully to the default.
 export function selectDecisions(decisions, view = {}) {
-  const { status = "all", owner = "all", sort = DEFAULT_SORT } = view;
+  const { owner = "all", sort = DEFAULT_SORT } = view;
+  const status = STATUSES.includes(view.status) ? view.status : "all";
+  const query = typeof view.query === "string" ? view.query.trim().toLocaleLowerCase() : "";
   const compare = (SORTS[sort] ?? SORTS[DEFAULT_SORT]).compare;
   return decisions
     .filter((decision) =>
       (status === "all" || decision.status === status)
-      && (owner === "all" || decision.owner === owner))
+      && (owner === "all" || decision.owner === owner)
+      && (!query || [decision.title, decision.context, decision.alternatives]
+        .some((value) => typeof value === "string" && value.toLocaleLowerCase().includes(query))))
     .sort(compare);
 }
 
@@ -199,8 +205,8 @@ function renderDecisions(container, count, decisions, view) {
   if (visible.length === 0) {
     const empty = document.createElement("div");
     empty.className = "empty-state";
-    appendTextElement(empty, "p", "empty-title", "No decisions match these filters.");
-    appendTextElement(empty, "p", "", "Clear or widen the filters to see more records.");
+    appendTextElement(empty, "p", "empty-title", "No matching decisions.");
+    appendTextElement(empty, "p", "", "Try a different search, owner, or status filter.");
     container.append(empty);
     return;
   }
@@ -267,12 +273,15 @@ export function initDecisionLog(root = document, storage = localStorage) {
   const statusFilter = root.querySelector("#filter-status");
   const ownerFilter = root.querySelector("#filter-owner");
   const sortBy = root.querySelector("#sort-by");
+  const search = root.querySelector("#decision-search");
+  const clearFilters = root.querySelector("#clear-decision-filters");
   let decisions = loadDecisions(storage);
 
   const currentView = () => ({
     status: statusFilter?.value ?? "all",
     owner: ownerFilter?.value ?? "all",
     sort: sortBy?.value ?? DEFAULT_SORT,
+    query: search?.value ?? "",
   });
 
   // Full refresh: re-derive owner options (data may have changed) then re-render.
@@ -289,6 +298,15 @@ export function initDecisionLog(root = document, storage = localStorage) {
   for (const control of [statusFilter, ownerFilter, sortBy]) {
     control?.addEventListener("change", () => renderDecisions(list, count, decisions, currentView()));
   }
+  search?.addEventListener("input", () => renderDecisions(list, count, decisions, currentView()));
+  clearFilters?.addEventListener("click", () => {
+    if (search) search.value = "";
+    if (statusFilter) statusFilter.value = "all";
+    if (ownerFilter) ownerFilter.value = "all";
+    if (sortBy) sortBy.value = DEFAULT_SORT;
+    renderDecisions(list, count, decisions, currentView());
+    search?.focus();
+  });
 
   // Keyboard navigation is delegated to the list container so it survives every
   // re-render without re-binding. Only direct card focus is handled: the nested

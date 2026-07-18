@@ -17,17 +17,33 @@ const sample = [
   { id: "alpha",  title: "Alpha cache",  context: "c", owner: "Ari", status: "accepted",   createdAt: "2026-03-01T00:00:00.000Z" },
   { id: "middle", title: "Middle plan",  context: "c", owner: "Kai", status: "accepted",   createdAt: "2026-02-01T00:00:00.000Z" },
   { id: "sunset", title: "sunset flag",  context: "c", owner: "ari", status: "superseded", createdAt: "2026-04-01T00:00:00.000Z" },
+  { id: "approve", title: "Approve edge cache", context: "Reduce latency", alternatives: "Regional proxy", owner: "Mina", status: "approved", createdAt: "2026-05-01T00:00:00.000Z" },
+  { id: "pending", title: "Queue selection", context: "Retries are required", alternatives: "Poll the database", owner: "Mina", status: "pending", createdAt: "2026-06-01T00:00:00.000Z" },
 ];
 
 const ids = (decisions) => decisions.map((decision) => decision.id);
 
 test("defaults to newest-first ordering with no filters", () => {
-  assert.deepEqual(ids(selectDecisions(sample)), ["sunset", "alpha", "middle", "zebra"]);
+  assert.deepEqual(ids(selectDecisions(sample)), ["pending", "approve", "sunset", "alpha", "middle", "zebra"]);
 });
 
 test("filters by status", () => {
   assert.deepEqual(ids(selectDecisions(sample, { status: "accepted" })), ["alpha", "middle"]);
   assert.deepEqual(selectDecisions(sample, { status: "proposed" }).length, 1);
+  assert.deepEqual(ids(selectDecisions(sample, { status: "approved" })), ["approve"]);
+  assert.deepEqual(ids(selectDecisions(sample, { status: "pending" })), ["pending"]);
+});
+
+test("searches title, context, and alternatives case-insensitively", () => {
+  assert.deepEqual(ids(selectDecisions(sample, { query: "queue" })), ["pending", "zebra"]);
+  assert.deepEqual(ids(selectDecisions(sample, { query: "LATENCY" })), ["approve"]);
+  assert.deepEqual(ids(selectDecisions(sample, { query: "regional proxy" })), ["approve"]);
+  assert.equal(selectDecisions(sample, { query: "  " }).length, sample.length);
+});
+
+test("search composes with status and owner and ignores unknown status state", () => {
+  assert.deepEqual(ids(selectDecisions(sample, { query: "retries", status: "pending", owner: "Mina" })), ["pending"]);
+  assert.equal(selectDecisions(sample, { status: "corrupt" }).length, sample.length);
 });
 
 test("filters by owner (exact, case-sensitive value from the control)", () => {
@@ -45,12 +61,12 @@ test("'all' sentinels and empty view are pass-through", () => {
 });
 
 test("sorts by title alphabetically, case-insensitively", () => {
-  assert.deepEqual(ids(selectDecisions(sample, { sort: "title" })), ["alpha", "middle", "sunset", "zebra"]);
+  assert.deepEqual(ids(selectDecisions(sample, { sort: "title" })), ["alpha", "approve", "middle", "pending", "sunset", "zebra"]);
 });
 
 test("sorts by owner, breaking ties with newest-first", () => {
   // Ari/ari sort together; within the Kai group the Feb entry precedes the Jan one.
-  assert.deepEqual(ids(selectDecisions(sample, { sort: "owner" })), ["sunset", "alpha", "middle", "zebra"]);
+  assert.deepEqual(ids(selectDecisions(sample, { sort: "owner" })), ["sunset", "alpha", "middle", "zebra", "pending", "approve"]);
 });
 
 test("unknown sort key falls back to the default order", () => {
@@ -71,7 +87,7 @@ test("filtering an empty list yields an empty list", () => {
 });
 
 test("uniqueOwners returns distinct owners sorted case-insensitively", () => {
-  assert.deepEqual(uniqueOwners(sample), ["Ari", "ari", "Kai"]);
+  assert.deepEqual(uniqueOwners(sample), ["Ari", "ari", "Kai", "Mina"]);
   assert.deepEqual(uniqueOwners([]), []);
 });
 
