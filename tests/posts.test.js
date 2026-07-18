@@ -13,8 +13,8 @@ const NOW = "2026-07-18T12:00:00.000Z";
 const LATER = "2026-07-18T13:00:00.000Z";
 
 test("post model has only the explicit durable fields", () => {
-  const post = createPost({ title: "  Release  ", content: " shipped " }, { identity: { id: AUTHOR_ID }, id: POST_ID, now: NOW });
-  assert.deepEqual(post, { id: POST_ID, title: "Release", content: "shipped", author_id: AUTHOR_ID, created_at: NOW, updated_at: NOW });
+  const post = createPost({ title: "  Release  ", content: " shipped " }, { identity: { id: AUTHOR_ID, persona: "Priya" }, id: POST_ID, now: NOW });
+  assert.deepEqual(post, { id: POST_ID, title: "Release", content: "shipped", author_id: AUTHOR_ID, agent_name: "Priya", created_at: NOW, updated_at: NOW });
   assert.throws(() => { post.title = "changed"; }, TypeError);
 });
 
@@ -27,7 +27,7 @@ test("validation is bounded and supports partial updates", () => {
 
 function harness() {
   const store = createMemoryStore();
-  const authenticate = createTokenAuthenticator({ secret: { id: AUTHOR_ID, scopes: ["posts:write"] }, unscoped: { id: AUTHOR_ID }, other: { id: OTHER_AUTHOR_ID, scopes: ["posts:write"] } });
+  const authenticate = createTokenAuthenticator({ secret: { id: AUTHOR_ID, persona: "Priya", scopes: ["posts:write"] }, unscoped: { id: AUTHOR_ID, persona: "Priya" }, other: { id: OTHER_AUTHOR_ID, persona: "Rowan", scopes: ["posts:write"] } });
   let now = NOW;
   async function call(method, path, options = {}) {
     const headers = {};
@@ -59,6 +59,7 @@ test("POST creates, derives author, and rejects malformed input", async () => {
   const made = await call("POST", "/api/posts", { token: "secret", body: { title: "Title", content: "Body", author_id: MISSING_ID } });
   assert.equal(made.status, 201);
   assert.equal(made.json.post.author_id, AUTHOR_ID);
+  assert.equal(made.json.post.agent_name, "Priya");
   assert.match(made.json.post.id, /^[0-9a-f-]{36}$/);
   assert.equal(made.response.headers.get("location"), `/api/posts/${made.json.post.id}`);
 });
@@ -96,6 +97,22 @@ test("healthz probes durable storage without authentication", async () => {
   assert.equal(health.response.headers.get("cache-control"), "no-store");
 });
 
+test("every create attempt emits a credential-free audit event", async () => {
+  const store = createMemoryStore();
+  const authenticate = createTokenAuthenticator({ secret: { id: AUTHOR_ID, persona: "Priya", scopes: ["posts:write"] } });
+  const events = [];
+  const call = (token, body) => handlePostsRequest(new Request("https://x/api/posts", {
+    method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, body: JSON.stringify(body),
+  }), { store, authenticate, now: () => NOW, requestId: "audit-1", audit: (event) => events.push(event) });
+  assert.equal((await call("wrong", { title: "x", content: "y" })).status, 401);
+  assert.equal((await call("secret", { title: "x", content: "y" })).status, 201);
+  assert.deepEqual(events.map(({ outcome, status }) => ({ outcome, status })), [
+    { outcome: "rejected", status: 401 }, { outcome: "created", status: 201 },
+  ]);
+  assert.equal(events[1].agentName, "Priya");
+  assert.equal(JSON.stringify(events).includes("secret"), false);
+});
+
 test("healthz reports an unavailable durable store without leaking details", async () => {
   const response = await handlePostsRequest(new Request("https://x/api/posts/healthz"), {
     store: { health: async () => { throw new Error("database password"); } },
@@ -116,8 +133,8 @@ test("unexpected storage failures are observable without leaking details", async
 
 test("D1 repository uses parameterized atomic mutation statements", async () => {
   const seen = [];
-  const db = { prepare(sql) { const stmt = { bind(...args) { seen.push({ sql, args }); return stmt; }, async first() { return sql.startsWith("INSERT") ? { id: POST_ID, title: "T", content: "C", author_id: AUTHOR_ID, created_at: NOW, updated_at: NOW } : null; } }; return stmt; } };
+  const db = { prepare(sql) { const stmt = { bind(...args) { seen.push({ sql, args }); return stmt; }, async first() { return sql.startsWith("INSERT") ? { id: POST_ID, title: "T", content: "C", author_id: AUTHOR_ID, agent_name: "Priya", created_at: NOW, updated_at: NOW } : null; } }; return stmt; } };
   const store = createD1Store(db);
-  const saved = await store.create(createPost({ title: "T", content: "C" }, { identity: { id: AUTHOR_ID }, id: POST_ID, now: NOW }));
-  assert.equal(saved.id, POST_ID); assert.match(seen[0].sql, /INSERT INTO posts/); assert.equal(seen[0].args.length, 6);
+  const saved = await store.create(createPost({ title: "T", content: "C" }, { identity: { id: AUTHOR_ID, persona: "Priya" }, id: POST_ID, now: NOW }));
+  assert.equal(saved.id, POST_ID); assert.match(seen[0].sql, /INSERT INTO posts/); assert.equal(seen[0].args.length, 7);
 });

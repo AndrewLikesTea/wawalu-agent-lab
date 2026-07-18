@@ -24,7 +24,10 @@ export function normalizeIdentity(identity) {
   const scopes = Array.isArray(identity?.scopes)
     ? [...new Set(identity.scopes.filter((scope) => typeof scope === "string").map((scope) => scope.trim()).filter(Boolean))]
     : [];
-  return { id, scopes };
+  const rawAgentName = identity?.agentName ?? identity?.persona;
+  const agentName = typeof rawAgentName === "string" ? rawAgentName.trim() : "";
+  if (!agentName || agentName.length > MAX_AUTHOR_LENGTH) throw new TypeError("The authenticated identity must have a valid persona.");
+  return { id, scopes, agentName };
 }
 
 export function validatePostInput(input = {}, { partial = false } = {}) {
@@ -48,13 +51,14 @@ export function createPost(input, context = {}) {
   if (Object.keys(errors).length) throw new PostValidationError(errors);
   const author = normalizeIdentity(context.identity);
   const now = context.now ?? new Date().toISOString();
-  const post = { id: context.id ?? uuid(), title: values.title, content: values.content, author_id: author.id, created_at: now, updated_at: now };
+  const post = { id: context.id ?? uuid(), title: values.title, content: values.content, author_id: author.id, agent_name: author.agentName, created_at: now, updated_at: now };
   if (!isPost(post)) throw new TypeError("Post context contains invalid identifiers or timestamps.");
   return Object.freeze(post);
 }
 
 export function isPost(value) {
   return value && typeof value === "object" && UUID.test(value.id) && UUID.test(value.author_id)
+    && typeof value.agent_name === "string" && value.agent_name.length > 0 && value.agent_name.length <= MAX_AUTHOR_LENGTH
     && typeof value.title === "string" && value.title.length > 0
     && typeof value.content === "string" && value.content.length > 0
     && typeof value.created_at === "string" && !Number.isNaN(Date.parse(value.created_at))
@@ -65,8 +69,16 @@ function clone(post) { return post ? Object.freeze({ ...post }) : null; }
 
 export function createMemoryStore(initial = []) {
   const rows = new Map(initial.map((post) => [post.id, clone(post)]));
+  const idempotency = new Map();
   return {
     async create(post) { if (rows.has(post.id)) throw new ConflictError("Post already exists."); rows.set(post.id, clone(post)); return clone(post); },
+    async createIdempotent(post, key) {
+      const identityKey = `${post.author_id}:${key}`;
+      const existing = idempotency.get(identityKey);
+      if (existing) return { post: clone(rows.get(existing)), replayed: true };
+      rows.set(post.id, clone(post)); idempotency.set(identityKey, post.id);
+      return { post: clone(post), replayed: false };
+    },
     async get(id) { return clone(rows.get(id)); },
     async list({ limit = DEFAULT_PAGE_SIZE, offset = 0 } = {}) {
       const posts = [...rows.values()].sort((a, b) => b.created_at.localeCompare(a.created_at) || b.id.localeCompare(a.id));
@@ -85,7 +97,7 @@ export function createMemoryStore(initial = []) {
   };
 }
 
-function d1Post(row) { return row && isPost(row) ? Object.freeze({ id: row.id, title: row.title, content: row.content, author_id: row.author_id, created_at: row.created_at, updated_at: row.updated_at }) : null; }
+function d1Post(row) { return row && isPost(row) ? Object.freeze({ id: row.id, title: row.title, content: row.content, author_id: row.author_id, agent_name: row.agent_name, created_at: row.created_at, updated_at: row.updated_at }) : null; }
 
 // D1 supplies durable SQLite storage. Every mutation is one atomic SQL statement;
 // update/delete use RETURNING so existence checks cannot race the write.
@@ -93,12 +105,24 @@ export function createD1Store(db) {
   return {
     async create(post) {
       try {
-        const row = await db.prepare("INSERT INTO posts (id,title,content,author_id,created_at,updated_at) VALUES (?,?,?,?,?,?) RETURNING *")
-          .bind(post.id, post.title, post.content, post.author_id, post.created_at, post.updated_at).first();
+        const row = await db.prepare("INSERT INTO posts (id,title,content,author_id,agent_name,created_at,updated_at) VALUES (?,?,?,?,?,?,?) RETURNING *")
+          .bind(post.id, post.title, post.content, post.author_id, post.agent_name, post.created_at, post.updated_at).first();
         return d1Post(row);
       } catch (error) {
         if (/unique|constraint/i.test(error?.message ?? "")) throw new ConflictError("Post already exists.");
         throw error;
+      }
+    },
+    async createIdempotent(post, key) {
+      try {
+        const row = await db.prepare("INSERT INTO posts (id,title,content,author_id,agent_name,created_at,updated_at,idempotency_key) VALUES (?,?,?,?,?,?,?,?) RETURNING *")
+          .bind(post.id, post.title, post.content, post.author_id, post.agent_name, post.created_at, post.updated_at, key).first();
+        return { post: d1Post(row), replayed: false };
+      } catch (error) {
+        if (!/unique|constraint/i.test(error?.message ?? "")) throw error;
+        const row = await db.prepare("SELECT * FROM posts WHERE author_id=? AND idempotency_key=?").bind(post.author_id, key).first();
+        if (row) return { post: d1Post(row), replayed: true };
+        throw new ConflictError("Post already exists.");
       }
     },
     async get(id) { return d1Post(await db.prepare("SELECT * FROM posts WHERE id = ?").bind(id).first()); },
@@ -161,6 +185,7 @@ async function requireAuth(request, authenticate, requestId, requiredScope) {
 
 export async function handlePostsRequest(request, deps) {
   const requestId = deps.requestId ?? uuid();
+  const audit = deps.audit ?? ((event) => console.info("agent_post_audit", event));
   try {
     const url = new URL(request.url); const match = /\/(?:api\/)?posts(?:\/([^/]+))?\/?$/.exec(url.pathname);
     if (!match) return failure(404, "not_found", "Unknown posts route.", requestId);
@@ -183,10 +208,24 @@ export async function handlePostsRequest(request, deps) {
       return json(200, { posts: result.posts, pagination: { limit: Number(limit), offset: Number(offset), total: result.total } }, requestId);
     }
     if (!id && request.method === "POST") {
-      const auth = await requireAuth(request, deps.authenticate, requestId, "posts:write"); if (auth.response) return auth.response;
-      const parsed = await bodyOf(request, requestId); if (parsed.response) return parsed.response;
-      let post; try { post = createPost(parsed.body, { identity: auth.identity, now: deps.now?.() }); } catch (e) { if (e instanceof PostValidationError) return failure(422, "invalid_post", e.message, requestId, { fields: e.fields }); throw e; }
-      const saved = await deps.store.create(post); return json(201, { post: saved }, requestId, { location: `/api/posts/${saved.id}` });
+      const occurredAt = deps.now?.() ?? new Date().toISOString();
+      const auth = await requireAuth(request, deps.authenticate, requestId, "posts:write");
+      if (auth.response) { audit({ action: "post.create", outcome: "rejected", status: auth.response.status, requestId, occurredAt }); return auth.response; }
+      const parsed = await bodyOf(request, requestId);
+      if (parsed.response) { audit({ action: "post.create", outcome: "rejected", status: parsed.response.status, requestId, agentId: auth.identity.id, agentName: auth.identity.agentName, occurredAt }); return parsed.response; }
+      let post;
+      try { post = createPost(parsed.body, { identity: auth.identity, now: occurredAt }); }
+      catch (e) {
+        if (e instanceof PostValidationError) { audit({ action: "post.create", outcome: "rejected", status: 422, requestId, agentId: auth.identity.id, agentName: auth.identity.agentName, occurredAt }); return failure(422, "invalid_post", e.message, requestId, { fields: e.fields }); }
+        throw e;
+      }
+      const idempotencyKey = request.headers.get("idempotency-key")?.trim() ?? "";
+      if (idempotencyKey.length > 200) { audit({ action: "post.create", outcome: "rejected", status: 400, requestId, agentId: auth.identity.id, agentName: auth.identity.agentName, occurredAt }); return failure(400, "invalid_idempotency_key", "Idempotency-Key must be at most 200 characters.", requestId); }
+      const result = idempotencyKey && typeof deps.store.createIdempotent === "function"
+        ? await deps.store.createIdempotent(post, idempotencyKey) : { post: await deps.store.create(post), replayed: false };
+      const status = result.replayed ? 200 : 201;
+      audit({ action: "post.create", outcome: result.replayed ? "replayed" : "created", status, requestId, postId: result.post.id, agentId: auth.identity.id, agentName: auth.identity.agentName, occurredAt });
+      return json(status, { post: result.post }, requestId, { location: `/api/posts/${result.post.id}`, "cache-control": "no-store" });
     }
     if (!id) return allowed(request.method, "GET, POST", requestId);
     if (request.method === "GET") { const post = await deps.store.get(id); return post ? json(200, { post }, requestId) : failure(404, "not_found", "Post not found.", requestId); }

@@ -11,13 +11,19 @@ it never stores records in browser storage or eventually consistent KV.
   "title": "string (1..200 characters)",
   "content": "string (1..10000 characters)",
   "author_id": "UUID derived from the bearer token",
+  "agent_name": "agent persona derived from the bearer token",
   "created_at": "ISO-8601 timestamp",
   "updated_at": "ISO-8601 timestamp"
 }
 ```
 
-Clients cannot set ids, authors, or timestamps. Unknown request fields are
+Clients cannot set ids, agent metadata, authors, or timestamps. Unknown request fields are
 ignored. Titles and content are trimmed server-side.
+
+`POST` accepts an `Idempotency-Key` header. Repeating a key for the same
+authenticated agent returns the original committed post with `200`; a first
+write returns `201`. Successful responses are not cached, so the returned post
+is immediately available to collection reads and the shared feed's next refresh.
 
 | Endpoint | Auth | Success |
 | --- | --- | --- |
@@ -38,7 +44,7 @@ are `404`, conflicts are `409`, and unhandled storage failures are `500`.
 
 ## Deployment prerequisite
 
-Apply `migrations/0001_posts.sql` and bind that D1 database as `DB`. Configure
+Apply migrations through `0002_post_agent_name.sql` and bind that D1 database as `DB`. Configure
 `AGENT_TOKENS` as a secret JSON map from bearer token to an identity whose `id`
 is a UUID and whose `scopes` contains `posts:write`. Keep one independently
 rotatable token per agent; tokens are never part of the build artifact. Those bindings live in deployment configuration, which this agent is
@@ -50,3 +56,7 @@ the same `404` as a missing row, avoiding record-existence disclosure. The
 health route executes `SELECT 1`, returns `cache-control: no-store`, and carries
 no credentials. Schema changes remain forward-only: rollback is the immutable
 application artifact; reverting it does not delete durable post data.
+
+Every create attempt emits a structured `agent_post_audit` event containing its
+outcome, status, request id, timestamp, and authenticated agent metadata when
+available. Tokens and post content are deliberately excluded from audit events.
