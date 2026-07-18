@@ -184,11 +184,10 @@ export function statusSummaryText(resolved) {
   return parts.length ? `${head} · ${parts.join(", ")}` : head;
 }
 
-// Roving-focus math for the expansion controls. Unlike app.js's nextFocusIndex,
-// Enter is deliberately NOT a navigation key here: the expansion controls are
-// native <button>s, so Enter/Space must reach them to toggle the disclosure.
-// Arrow/Home/End move focus and clamp at the ends (no wrap).
-const NAV_KEYS = new Set(["ArrowDown", "ArrowUp", "Home", "End"]);
+// Focus math for the release controls. Arrow/Home/End move focus and clamp at
+// the ends (no wrap); Enter activates the selected release's detail action.
+// Space retains the native button behavior and expands the inline disclosure.
+const NAV_KEYS = new Set(["ArrowDown", "ArrowUp", "Enter", "Home", "End"]);
 
 export function nextIndex(current, key, length) {
   if (length === 0) return -1;
@@ -269,7 +268,7 @@ function renderDetailLink(release) {
   return link;
 }
 
-function renderReleaseItem(release, isFirst) {
+function renderReleaseItem(release) {
   const item = el("li", "release-item");
   const toggleId = `release-toggle-${release.id}`;
   const panelId = `release-panel-${release.id}`;
@@ -280,9 +279,7 @@ function renderReleaseItem(release, isFirst) {
   toggle.id = toggleId;
   toggle.setAttribute("aria-expanded", "false");
   toggle.setAttribute("aria-controls", panelId);
-  // Roving tabindex: only the first control is a tab stop; arrow keys move
-  // focus between the release headers (see the keydown handler in mount).
-  toggle.tabIndex = isFirst ? 0 : -1;
+  toggle.dataset.releaseId = release.id;
 
   const info = el("span", "release-info");
   info.append(el("span", "release-version", releaseTitle(release)));
@@ -323,15 +320,37 @@ export function renderReleaseList(container, resolvedReleases, options = {}) {
   }
 
   const list = el("ol", "release-list");
-  resolvedReleases.forEach((release, index) => {
-    list.append(renderReleaseItem(release, index === 0));
+  resolvedReleases.forEach((release) => {
+    list.append(renderReleaseItem(release));
   });
   container.append(list);
 }
 
 function focusToggle(toggles, index) {
-  toggles.forEach((toggle, i) => { toggle.tabIndex = i === index ? 0 : -1; });
   toggles[index]?.focus();
+}
+
+export function handleReleaseListKeydown(event, container) {
+  const toggle = event.target.closest?.(".release-toggle");
+  if (!toggle || event.target !== toggle || !NAV_KEYS.has(event.key)) return false;
+  const toggles = [...container.querySelectorAll(".release-toggle")];
+  event.preventDefault();
+  if (event.key === "Enter") {
+    toggle.closest?.(".release-item")?.querySelector?.(".release-detail-link")?.click();
+  } else {
+    focusToggle(toggles, nextIndex(toggles.indexOf(toggle), event.key, toggles.length));
+  }
+  return true;
+}
+
+export function focusRelease(container, id) {
+  if (typeof id !== "string" || id === "") return false;
+  const toggle = [...container.querySelectorAll(".release-toggle")]
+    .find((candidate) => candidate.dataset.releaseId === id);
+  if (!toggle) return false;
+  toggle.focus({ preventScroll: true });
+  toggle.scrollIntoView({ block: "center" });
+  return true;
 }
 
 // Wire the interactive behaviour. Handlers are delegated to the container so
@@ -351,15 +370,11 @@ export function mountReleaseList(container, data = {}) {
   };
 
   container.addEventListener("keydown", (event) => {
-    const toggle = event.target.closest?.(".release-toggle");
-    if (!toggle || !NAV_KEYS.has(event.key)) return;
-    const toggles = [...container.querySelectorAll(".release-toggle")];
-    event.preventDefault();
-    focusToggle(toggles, nextIndex(toggles.indexOf(toggle), event.key, toggles.length));
+    handleReleaseListKeydown(event, container);
   });
 
-  // Toggle the disclosure. click fires for pointer AND for Enter/Space on the
-  // native <button>, so this is the single source of truth for expansion.
+  // Toggle the disclosure. Pointer clicks and Space activation on the native
+  // button arrive here; Enter is intercepted above to open the detail view.
   container.addEventListener("click", (event) => {
     const toggle = event.target.closest?.(".release-toggle");
     if (!toggle) return;
@@ -384,9 +399,13 @@ export function mountReleaseList(container, data = {}) {
 
 export const RELEASE_LIST_HREF = "/releases.html";
 
-function renderBackLink() {
+export function releaseListHref(id) {
+  return id ? `${RELEASE_LIST_HREF}?focus=${encodeURIComponent(id)}` : RELEASE_LIST_HREF;
+}
+
+function renderBackLink(releaseId) {
   const back = el("a", "detail-back");
-  back.href = RELEASE_LIST_HREF;
+  back.href = releaseListHref(releaseId);
   back.append(el("span", "detail-back-arrow", "←"));
   back.querySelector(".detail-back-arrow").setAttribute("aria-hidden", "true");
   back.append(document.createTextNode(" All releases"));
@@ -471,7 +490,7 @@ function renderDetailDecisions(resolved) {
 // not-found state name the id that failed to resolve.
 export function renderReleaseDetail(container, resolved, options = {}) {
   container.replaceChildren();
-  container.append(renderBackLink());
+  container.append(renderBackLink(resolved?.id));
 
   if (!resolved) {
     const empty = el("div", "empty-state");
