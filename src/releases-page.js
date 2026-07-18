@@ -4,6 +4,7 @@
 
 import { mountReleaseList } from "/releases.js";
 import { loadReleaseData } from "/releases-data.js";
+import { mountReleaseForm } from "/release-form.js";
 
 async function init() {
   const container = document.querySelector("#release-list");
@@ -13,6 +14,13 @@ async function init() {
   if (!container) return;
 
   const { decisions, releases } = await loadReleaseData(localStorage);
+
+  const formRoot = document.querySelector("#release-form-root");
+  if (formRoot) mountReleaseForm(formRoot, {
+    decisions,
+    storage: localStorage,
+    onCreated: () => window.location.reload(),
+  });
 
   const view = mountReleaseList(container, { releases, decisions });
   const update = () => {
