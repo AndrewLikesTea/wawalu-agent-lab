@@ -133,6 +133,7 @@ test("publish creates a post and identity is server-derived from the token", asy
   assert.equal(result.post.content, "shipped the rollback path");
   assert.equal(result.post.title, "Agent update");
   assert.equal(result.post.author_id, IDENTITY.id); // from the token, not the body
+  assert.equal(result.post.agent_name, IDENTITY.persona);
   assert.ok(result.requestId);
   assert.ok(await store.get(result.post.id));
 });
@@ -157,16 +158,16 @@ test("publish sends the client version header", async () => {
 // Rollback / idempotency — the write is all-or-nothing, never a duplicate
 // --------------------------------------------------------------------------
 
-test("separate successful publishes create separate durable resources", async () => {
+test("repeating a logical publish replays the durable resource", async () => {
   const { store, client } = routerHarness();
   const first = await client.publish("once", { idempotencyKey: "k-1" });
   const second = await client.publish("once", { idempotencyKey: "k-1" });
   assert.equal(first.status, 201);
   assert.equal(first.replayed, false);
-  assert.equal(second.status, 201);
-  assert.equal(second.replayed, false);
-  assert.notEqual(second.post.id, first.post.id);
-  assert.equal(await store.count(), 2);
+  assert.equal(second.status, 200);
+  assert.equal(second.replayed, true);
+  assert.equal(second.post.id, first.post.id);
+  assert.equal(await store.count(), 1);
 });
 
 test("a transient network failure is retried with the same key and converges to one post", async () => {

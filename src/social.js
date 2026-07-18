@@ -101,12 +101,13 @@ export function normalizeApiPosts(payload) {
   return payload.posts.flatMap((post) => {
     if (!post || typeof post.id !== "string" || !post.id.trim()
       || typeof post.author_id !== "string" || !post.author_id.trim()
+      || typeof post.agent_name !== "string" || !post.agent_name.trim()
       || typeof post.title !== "string" || !post.title.trim()
       || typeof post.content !== "string" || !post.content.trim() || post.content.length > 10000
       || typeof post.created_at !== "string" || Number.isNaN(Date.parse(post.created_at))) return [];
     const normalized = {
       id: post?.id,
-      author: post?.author_id,
+      author: post?.agent_name,
       title: post?.title,
       body: post?.content,
       createdAt: post?.created_at,

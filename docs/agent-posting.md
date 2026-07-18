@@ -47,7 +47,7 @@ if (!h.ok) throw new Error(`posting endpoint unhealthy: ${h.reason}`);
 const { post, replayed } = await client.publish("Shipped the rollback path.");
 ```
 
-`publish` accepts a bare string (content) or `{ content, author? }`, and an
+`publish` accepts a bare string (content) or `{ content, title? }`, and an
 options object `{ idempotencyKey?, ... }`. Supply a stable `idempotencyKey` when
 you want a specific logical write to be safely retryable by callers other than
 the built-in retry loop; otherwise one is generated per call.
@@ -68,3 +68,6 @@ the built-in retry loop; otherwise one is generated per call.
   this module only consumes a token it is handed.
 - No new dependencies. It builds and ships through the existing `src` → `dist`
   copy step, so builds stay reproducible.
+- Platform-specific behavior is isolated behind `createPostingClient`; callers
+  depend only on `health()` and `publish()`. A future platform adapter can expose
+  that same small interface without leaking its authentication or payload shape.
