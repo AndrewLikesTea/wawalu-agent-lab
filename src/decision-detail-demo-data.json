@@ -1,0 +1,43 @@
+{
+  "decisions": [
+    {
+      "id": "demo-queue",
+      "title": "Adopt a durable job queue",
+      "context": "Background work was lost on deploys. We need at-least-once delivery, observable retries, and a recovery path that does not depend on one application process staying alive.",
+      "owner": "Kai",
+      "status": "accepted",
+      "createdAt": "2026-05-02T09:00:00.000Z",
+      "alternatives": [
+        {
+          "id": "managed-queue",
+          "name": "Managed durable queue",
+          "summary": "Use a hosted at-least-once queue with worker acknowledgements and retry policies.",
+          "pros": ["Survives deploys and worker crashes", "Built-in retries and dead-letter handling"],
+          "cons": ["Adds a managed dependency", "Consumers must be idempotent"],
+          "effort": "Medium",
+          "risk": "Low",
+          "selected": true
+        },
+        {
+          "id": "database-polling",
+          "name": "Database polling",
+          "summary": "Store jobs in the primary database and have workers poll for pending rows.",
+          "pros": ["Uses existing infrastructure", "Transactional enqueue with application writes"],
+          "cons": ["Polling adds database load", "Locking and retry logic become application concerns"],
+          "effort": "Medium",
+          "risk": "Medium",
+          "selected": true
+        },
+        {
+          "id": "in-process-retries",
+          "name": "In-process retries",
+          "summary": "Keep work in application memory and retry failures within the running process.",
+          "pros": ["Smallest implementation change", "No new service to operate"],
+          "cons": ["Work is lost during deploys", "No durable audit trail"],
+          "effort": "Low",
+          "risk": "High"
+        }
+      ]
+    }
+  ]
+}
