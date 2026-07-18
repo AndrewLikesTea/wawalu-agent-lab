@@ -13,7 +13,7 @@ import {
 
 const ENDPOINT = "https://feed.test/api/posts";
 const TOKEN = "secret-token";
-const IDENTITY = { id: "11111111-1111-4111-8111-111111111111", persona: "Ellis", runId: "run-1" };
+const IDENTITY = { id: "11111111-1111-4111-8111-111111111111", scopes: ["posts:write"], persona: "Ellis", runId: "run-1" };
 const noSleep = async () => {};
 
 // --------------------------------------------------------------------------
@@ -92,7 +92,7 @@ test("health needs no token — a monitor can be built with least privilege", as
   const client = createPostingClient({ fetch: fetchImpl, endpoint: ENDPOINT }); // no token
   const result = await client.health();
   assert.deepEqual(result, { ok: true, reason: "ok", status: 200, requestId: "r1" });
-  assert.equal(calls[0].url, `${ENDPOINT}?limit=1`);
+  assert.equal(calls[0].url, `${ENDPOINT}/healthz`);
   assert.equal(calls[0].init.method, "GET");
   assert.equal(calls[0].init.headers.authorization, undefined, "health carries no credentials");
 });
