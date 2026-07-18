@@ -5,11 +5,11 @@
   "type": "module",
   "scripts": {
     "build": "node scripts/build.mjs",
+    "verify:build": "node scripts/verify-build.mjs dist",
     "test": "node --test",
-    "check": "npm test && npm run build"
+    "check": "npm test && npm run build && npm run verify:build"
   },
   "devDependencies": {
     "wrangler": "4.110.0"
   }
 }
-
