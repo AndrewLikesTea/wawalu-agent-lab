@@ -8,6 +8,7 @@ import {
 const AUTHOR_ID = "11111111-1111-4111-8111-111111111111";
 const POST_ID = "22222222-2222-4222-8222-222222222222";
 const MISSING_ID = "33333333-3333-4333-8333-333333333333";
+const OTHER_AUTHOR_ID = "44444444-4444-4444-8444-444444444444";
 const NOW = "2026-07-18T12:00:00.000Z";
 const LATER = "2026-07-18T13:00:00.000Z";
 
@@ -26,7 +27,7 @@ test("validation is bounded and supports partial updates", () => {
 
 function harness() {
   const store = createMemoryStore();
-  const authenticate = createTokenAuthenticator({ secret: { id: AUTHOR_ID } });
+  const authenticate = createTokenAuthenticator({ secret: { id: AUTHOR_ID, scopes: ["posts:write"] }, unscoped: { id: AUTHOR_ID }, other: { id: OTHER_AUTHOR_ID, scopes: ["posts:write"] } });
   let now = NOW;
   async function call(method, path, options = {}) {
     const headers = {};
@@ -45,6 +46,7 @@ test("write endpoints require authentication", async () => {
   assert.equal((await call("POST", "/api/posts", { body: { title: "x", content: "y" } })).status, 401);
   assert.equal((await call("PUT", `/api/posts/${POST_ID}`, { body: { title: "x" } })).status, 401);
   assert.equal((await call("DELETE", `/api/posts/${POST_ID}`)).status, 401);
+  assert.equal((await call("POST", "/api/posts", { token: "unscoped", body: { title: "x", content: "y" } })).status, 403);
 });
 
 test("POST creates, derives author, and rejects malformed input", async () => {
@@ -79,9 +81,32 @@ test("PUT atomically updates mutable fields and DELETE removes the row", async (
   const changed = await call("PUT", `/api/posts/${made.json.post.id}`, { token: "secret", body: { title: "New", author_id: MISSING_ID } });
   assert.equal(changed.status, 200); assert.equal(changed.json.post.title, "New"); assert.equal(changed.json.post.author_id, AUTHOR_ID);
   assert.equal(changed.json.post.created_at, NOW); assert.equal(changed.json.post.updated_at, LATER);
+  assert.equal((await call("PUT", `/api/posts/${made.json.post.id}`, { token: "other", body: { title: "stolen" } })).status, 404);
+  assert.equal((await call("DELETE", `/api/posts/${made.json.post.id}`, { token: "other" })).status, 404);
   assert.equal((await call("PUT", `/api/posts/${MISSING_ID}`, { token: "secret", body: { title: "x" } })).status, 404);
   assert.equal((await call("DELETE", `/api/posts/${made.json.post.id}`, { token: "secret" })).status, 204);
   assert.equal((await call("DELETE", `/api/posts/${made.json.post.id}`, { token: "secret" })).status, 404);
+});
+
+test("healthz probes durable storage without authentication", async () => {
+  const { call } = harness();
+  const health = await call("GET", "/api/posts/healthz");
+  assert.equal(health.status, 200);
+  assert.deepEqual(health.json, { status: "ok", storage: "available" });
+  assert.equal(health.response.headers.get("cache-control"), "no-store");
+});
+
+test("healthz reports an unavailable durable store without leaking details", async () => {
+  const response = await handlePostsRequest(new Request("https://x/api/posts/healthz"), {
+    store: { health: async () => { throw new Error("database password"); } },
+    authenticate: async () => null,
+    requestId: "health-trace",
+  });
+  assert.equal(response.status, 503);
+  const body = await response.json();
+  assert.equal(body.error.code, "storage_unavailable");
+  assert.equal(body.error.request_id, "health-trace");
+  assert.doesNotMatch(body.error.message, /password/);
 });
 
 test("unexpected storage failures are observable without leaking details", async () => {

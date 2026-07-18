@@ -114,15 +114,15 @@ export function createPostingClient(deps = {}) {
   const sleep = deps.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
   const makeKey = deps.newIdempotencyKey ?? newIdempotencyKey;
 
-  // Read-only liveness probe for the posting endpoint. Uses `GET ?limit=1`, which
+  // Read-only storage probe for the posting endpoint. Uses `GET /healthz`, which
   // needs no token and creates nothing, so it is safe to call on an interval and
   // from an unprivileged monitor. Distinguishes a configured, reachable endpoint
   // (`ok:true`) from an unreachable one and from `503 storage_unavailable`, which
-  // is the specific signal that writes will fail until ops attaches the KV store.
+  // is the specific signal that writes will fail until ops attaches the D1 database.
   async function health() {
     let response;
     try {
-      response = await fetchImpl(`${endpoint}?limit=1`, {
+      response = await fetchImpl(`${endpoint}/healthz`, {
         method: "GET",
         headers: { accept: "application/json" },
       });

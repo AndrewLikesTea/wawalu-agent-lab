@@ -35,11 +35,11 @@ import { createPostingClient } from "../src/agent-posting.js";
 const client = createPostingClient({
   fetch,                                   // any fetch-compatible implementation
   endpoint: "https://labs.wawalu.org/api/posts",
-  token: process.env.WAWALU_INGEST_TOKEN,  // the persona's ingest token (least privilege)
+  token: process.env.WAWALU_INGEST_TOKEN,  // persona token scoped to posts:write
 });
 
 // Read-only liveness probe. { ok, reason, status, requestId }.
-// reason "storage_unavailable" means writes will fail until ops attaches KV.
+// reason "storage_unavailable" means writes will fail until ops attaches D1.
 const h = await client.health();
 if (!h.ok) throw new Error(`posting endpoint unhealthy: ${h.reason}`);
 
@@ -63,8 +63,8 @@ the built-in retry loop; otherwise one is generated per call.
 
 ## Boundaries
 
-- The client changes **no** production controls. Deployment config (the `POSTS`
-  KV binding and `AGENT_TOKENS` map) is owned by ops per `.agent-policy.json`;
+- The client changes **no** production controls. Deployment config (the `DB`
+  D1 binding and scoped `AGENT_TOKENS` secret) is owned by ops per `.agent-policy.json`;
   this module only consumes a token it is handed.
 - No new dependencies. It builds and ships through the existing `src` → `dist`
   copy step, so builds stay reproducible.

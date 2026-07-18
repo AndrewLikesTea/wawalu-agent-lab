@@ -21,7 +21,10 @@ function uuid() {
 export function normalizeIdentity(identity) {
   const id = typeof identity?.id === "string" ? identity.id.trim() : "";
   if (!UUID.test(id)) throw new TypeError("The authenticated identity id must be a UUID.");
-  return { id };
+  const scopes = Array.isArray(identity?.scopes)
+    ? [...new Set(identity.scopes.filter((scope) => typeof scope === "string").map((scope) => scope.trim()).filter(Boolean))]
+    : [];
+  return { id, scopes };
 }
 
 export function validatePostInput(input = {}, { partial = false } = {}) {
@@ -69,12 +72,16 @@ export function createMemoryStore(initial = []) {
       const posts = [...rows.values()].sort((a, b) => b.created_at.localeCompare(a.created_at) || b.id.localeCompare(a.id));
       return { posts: posts.slice(offset, offset + limit).map(clone), total: posts.length };
     },
-    async update(id, changes, updatedAt) {
-      const current = rows.get(id); if (!current) return null;
+    async update(id, changes, updatedAt, authorId) {
+      const current = rows.get(id); if (!current || current.author_id !== authorId) return null;
       const next = Object.freeze({ ...current, ...changes, updated_at: updatedAt }); rows.set(id, next); return clone(next);
     },
-    async delete(id) { return rows.delete(id); },
+    async delete(id, authorId) {
+      const current = rows.get(id);
+      return Boolean(current && current.author_id === authorId && rows.delete(id));
+    },
     async count() { return rows.size; },
+    async health() { return true; },
   };
 }
 
@@ -102,12 +109,13 @@ export function createD1Store(db) {
       ]);
       return { posts: (page.results ?? []).map(d1Post).filter(Boolean), total: Number(count.results?.[0]?.total ?? 0) };
     },
-    async update(id, changes, updatedAt) {
-      const row = await db.prepare("UPDATE posts SET title=COALESCE(?,title), content=COALESCE(?,content), updated_at=? WHERE id=? RETURNING *")
-        .bind(changes.title ?? null, changes.content ?? null, updatedAt, id).first();
+    async update(id, changes, updatedAt, authorId) {
+      const row = await db.prepare("UPDATE posts SET title=COALESCE(?,title), content=COALESCE(?,content), updated_at=? WHERE id=? AND author_id=? RETURNING *")
+        .bind(changes.title ?? null, changes.content ?? null, updatedAt, id, authorId).first();
       return d1Post(row);
     },
-    async delete(id) { return Boolean(await db.prepare("DELETE FROM posts WHERE id=? RETURNING id").bind(id).first()); },
+    async delete(id, authorId) { return Boolean(await db.prepare("DELETE FROM posts WHERE id=? AND author_id=? RETURNING id").bind(id, authorId).first()); },
+    async health() { return Boolean(await db.prepare("SELECT 1 AS healthy").first()); },
   };
 }
 
@@ -139,10 +147,16 @@ async function bodyOf(request, requestId) {
   return { body };
 }
 
-async function requireAuth(request, authenticate, requestId) {
+async function requireAuth(request, authenticate, requestId, requiredScope) {
   const identity = await authenticate(request);
   if (!identity) return { response: failure(401, "unauthenticated", "A valid bearer token is required.", requestId, { }), identity: null };
-  try { return { identity: normalizeIdentity(identity) }; } catch { return { response: failure(403, "invalid_identity", "The authenticated principal has no valid UUID.", requestId), identity: null }; }
+  try {
+    const normalized = normalizeIdentity(identity);
+    if (requiredScope && !normalized.scopes.includes(requiredScope)) {
+      return { response: failure(403, "insufficient_scope", `The ${requiredScope} scope is required.`, requestId), identity: null };
+    }
+    return { identity: normalized };
+  } catch { return { response: failure(403, "invalid_identity", "The authenticated principal has no valid UUID.", requestId), identity: null }; }
 }
 
 export async function handlePostsRequest(request, deps) {
@@ -151,6 +165,16 @@ export async function handlePostsRequest(request, deps) {
     const url = new URL(request.url); const match = /\/(?:api\/)?posts(?:\/([^/]+))?\/?$/.exec(url.pathname);
     if (!match) return failure(404, "not_found", "Unknown posts route.", requestId);
     let id = match[1] ? decodeURIComponent(match[1]) : null;
+    if (id === "healthz") {
+      if (request.method !== "GET") return allowed(request.method, "GET", requestId);
+      try {
+        if (typeof deps.store.health !== "function" || !await deps.store.health()) throw new Error("Posts storage health check failed.");
+      } catch (error) {
+        console.error("posts_storage_unavailable", { requestId, error: error?.message ?? String(error) });
+        return failure(503, "storage_unavailable", "The posts database is unavailable.", requestId);
+      }
+      return json(200, { status: "ok", storage: "available" }, requestId, { "cache-control": "no-store" });
+    }
     if (id && !UUID.test(id)) return failure(400, "invalid_id", "Post id must be a UUID.", requestId);
     if (!id && request.method === "GET") {
       const limit = url.searchParams.get("limit") ?? String(DEFAULT_PAGE_SIZE), offset = url.searchParams.get("offset") ?? "0";
@@ -159,7 +183,7 @@ export async function handlePostsRequest(request, deps) {
       return json(200, { posts: result.posts, pagination: { limit: Number(limit), offset: Number(offset), total: result.total } }, requestId);
     }
     if (!id && request.method === "POST") {
-      const auth = await requireAuth(request, deps.authenticate, requestId); if (auth.response) return auth.response;
+      const auth = await requireAuth(request, deps.authenticate, requestId, "posts:write"); if (auth.response) return auth.response;
       const parsed = await bodyOf(request, requestId); if (parsed.response) return parsed.response;
       let post; try { post = createPost(parsed.body, { identity: auth.identity, now: deps.now?.() }); } catch (e) { if (e instanceof PostValidationError) return failure(422, "invalid_post", e.message, requestId, { fields: e.fields }); throw e; }
       const saved = await deps.store.create(post); return json(201, { post: saved }, requestId, { location: `/api/posts/${saved.id}` });
@@ -167,14 +191,14 @@ export async function handlePostsRequest(request, deps) {
     if (!id) return allowed(request.method, "GET, POST", requestId);
     if (request.method === "GET") { const post = await deps.store.get(id); return post ? json(200, { post }, requestId) : failure(404, "not_found", "Post not found.", requestId); }
     if (request.method === "PUT") {
-      const auth = await requireAuth(request, deps.authenticate, requestId); if (auth.response) return auth.response;
+      const auth = await requireAuth(request, deps.authenticate, requestId, "posts:write"); if (auth.response) return auth.response;
       const parsed = await bodyOf(request, requestId); if (parsed.response) return parsed.response;
       const { values, errors } = validatePostInput(parsed.body, { partial: true }); if (Object.keys(errors).length) return failure(422, "invalid_post", "The post failed validation.", requestId, { fields: errors });
-      const post = await deps.store.update(id, values, deps.now?.() ?? new Date().toISOString()); return post ? json(200, { post }, requestId) : failure(404, "not_found", "Post not found.", requestId);
+      const post = await deps.store.update(id, values, deps.now?.() ?? new Date().toISOString(), auth.identity.id); return post ? json(200, { post }, requestId) : failure(404, "not_found", "Post not found.", requestId);
     }
     if (request.method === "DELETE") {
-      const auth = await requireAuth(request, deps.authenticate, requestId); if (auth.response) return auth.response;
-      return await deps.store.delete(id) ? new Response(null, { status: 204, headers: { "x-request-id": requestId } }) : failure(404, "not_found", "Post not found.", requestId);
+      const auth = await requireAuth(request, deps.authenticate, requestId, "posts:write"); if (auth.response) return auth.response;
+      return await deps.store.delete(id, auth.identity.id) ? new Response(null, { status: 204, headers: { "x-request-id": requestId } }) : failure(404, "not_found", "Post not found.", requestId);
     }
     return allowed(request.method, "GET, PUT, DELETE", requestId);
   } catch (error) {
