@@ -7,6 +7,7 @@ import {
   DEFAULT_SORT,
   SORTS,
   focusLinkedDecision,
+  handleDecisionListKeydown,
 } from "../src/app.js";
 
 // Fixtures deliberately vary title, owner, status, and date so a single set
@@ -80,13 +81,13 @@ test("every advertised sort option has a comparator", () => {
   }
 });
 
-test("nextFocusIndex moves within bounds and clamps at the ends", () => {
+test("nextFocusIndex moves within bounds and leaves activation to Enter", () => {
   assert.equal(nextFocusIndex(0, "ArrowDown", 3), 1);
   assert.equal(nextFocusIndex(2, "ArrowDown", 3), 2); // clamps at last
   assert.equal(nextFocusIndex(1, "ArrowUp", 3), 0);
   assert.equal(nextFocusIndex(0, "ArrowUp", 3), 0); // clamps at first
   assert.equal(nextFocusIndex(-1, "ArrowDown", 3), 0); // nothing focused yet
-  assert.equal(nextFocusIndex(1, "Enter", 3), 2); // Enter advances like ArrowDown
+  assert.equal(nextFocusIndex(1, "Enter", 3), 1); // Enter selects; it does not move focus
   assert.equal(nextFocusIndex(1, "Home", 3), 0);
   assert.equal(nextFocusIndex(1, "End", 3), 2);
   assert.equal(nextFocusIndex(1, "Tab", 3), 1); // unhandled key is a no-op
@@ -98,4 +99,38 @@ test("focusLinkedDecision ignores malformed and unrelated fragments", () => {
   assert.equal(focusLinkedDecision(root, "#elsewhere"), false);
   assert.equal(focusLinkedDecision(root, "#decision-%E0%A4%A"), false);
   assert.equal(focusLinkedDecision(root, "#decision-missing"), false);
+});
+
+function keyboardFixture() {
+  const calls = { prevented: 0, selected: 0, focused: [] };
+  const cards = [0, 1, 2].map((index) => ({
+    focus: () => calls.focused.push(index),
+    querySelector: () => ({ click: () => { calls.selected += 1; } }),
+  }));
+  const list = { querySelectorAll: () => cards };
+  const event = (key, target = cards[1]) => ({
+    key,
+    target: Object.assign(target, { closest: () => cards[1] }),
+    preventDefault: () => { calls.prevented += 1; },
+  });
+  return { calls, cards, list, event };
+}
+
+test("decision card Enter selects its existing detail action without moving focus", () => {
+  const { calls, list, event } = keyboardFixture();
+  assert.equal(handleDecisionListKeydown(event("Enter"), list), true);
+  assert.equal(calls.selected, 1);
+  assert.deepEqual(calls.focused, []);
+  assert.equal(calls.prevented, 1);
+});
+
+test("decision card arrows move focus and nested controls retain native keys", () => {
+  const { calls, cards, list, event } = keyboardFixture();
+  assert.equal(handleDecisionListKeydown(event("ArrowDown"), list), true);
+  assert.deepEqual(calls.focused, [2]);
+
+  const link = { closest: () => cards[1] };
+  assert.equal(handleDecisionListKeydown(event("Enter", link), list), false);
+  assert.equal(calls.selected, 0);
+  assert.equal(calls.prevented, 1);
 });
