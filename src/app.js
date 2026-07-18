@@ -111,13 +111,12 @@ export function selectDecisions(decisions, view = {}) {
     .sort(compare);
 }
 
-// Roving-focus index math for arrow/Home/End/Enter navigation. Kept separate so
-// the movement rules can be unit tested. Movement clamps at the ends (no wrap).
+// Focus-index math for optional arrow/Home/End navigation. Cards also remain in
+// the normal Tab order; movement clamps at the ends (no wrap).
 export function nextFocusIndex(current, key, length) {
   if (length === 0) return -1;
   switch (key) {
     case "ArrowDown":
-    case "Enter":
       return current < 0 ? 0 : Math.min(current + 1, length - 1);
     case "ArrowUp":
       return current <= 0 ? 0 : current - 1;
@@ -144,16 +143,27 @@ function recordLabel(count) {
   return `${count} ${count === 1 ? "record" : "records"}`;
 }
 
-// Applies a roving tabindex so only one card is a tab stop, and moves focus.
 function focusCard(cards, index) {
-  cards.forEach((card, i) => { card.tabIndex = i === index ? 0 : -1; });
   cards[index]?.focus();
+}
+
+export function handleDecisionListKeydown(event, list) {
+  const card = event.target.closest?.(".decision-card");
+  if (!card || event.target !== card || !NAV_KEYS.has(event.key)) return false;
+  const cards = [...list.querySelectorAll(".decision-card")];
+  event.preventDefault();
+  if (event.key === "Enter") {
+    card.querySelector(".decision-detail-link")?.click();
+  } else {
+    focusCard(cards, nextFocusIndex(cards.indexOf(card), event.key, cards.length));
+  }
+  return true;
 }
 
 // The decision list is rendered after module evaluation, so the browser may
 // have attempted fragment navigation before its target existed. Restore the
-// expected link behavior explicitly: make the linked card the roving tab stop,
-// move focus to it, and reveal it without an animated scroll.
+// expected link behavior explicitly: move focus to it and reveal it without an
+// animated scroll.
 export function focusLinkedDecision(root = document, hash = window.location.hash) {
   if (!hash.startsWith("#decision-")) return false;
   let id;
@@ -164,8 +174,6 @@ export function focusLinkedDecision(root = document, hash = window.location.hash
   }
   const target = root.getElementById(id);
   if (!target?.classList.contains("decision-card")) return false;
-  const cards = [...root.querySelectorAll(".decision-card")];
-  cards.forEach((card) => { card.tabIndex = card === target ? 0 : -1; });
   target.focus({ preventScroll: true });
   target.scrollIntoView({ block: "center" });
   return true;
@@ -199,7 +207,7 @@ function renderDecisions(container, count, decisions, view) {
 
   const list = document.createElement("ol");
   list.className = "decision-list";
-  visible.forEach((decision, index) => {
+  visible.forEach((decision) => {
     const item = document.createElement("li");
     const article = document.createElement("article");
     article.className = "decision-card";
@@ -208,9 +216,9 @@ function renderDecisions(container, count, decisions, view) {
     // matching id makes that a native anchor — the browser scrolls to it and
     // `:target` highlights it, with no routing code. Cross-page seam only.
     article.id = `decision-${decision.id}`;
-    // Roving tabindex: the first card is the single tab stop; arrow keys move
-    // focus between cards (see the keydown handler in initDecisionLog).
-    article.tabIndex = index === 0 ? 0 : -1;
+    // Every card is a Tab stop. Arrow keys are an additional, faster way to
+    // traverse the list (see the delegated keydown handler below).
+    article.tabIndex = 0;
 
     const meta = document.createElement("div");
     meta.className = "decision-meta";
@@ -283,13 +291,10 @@ export function initDecisionLog(root = document, storage = localStorage) {
   }
 
   // Keyboard navigation is delegated to the list container so it survives every
-  // re-render without re-binding. It only acts when a card is focused.
+  // re-render without re-binding. Only direct card focus is handled: the nested
+  // detail link retains its native Enter and arrow-key behavior.
   list.addEventListener("keydown", (event) => {
-    const card = event.target.closest?.(".decision-card");
-    if (!card || !NAV_KEYS.has(event.key)) return;
-    const cards = [...list.querySelectorAll(".decision-card")];
-    event.preventDefault();
-    focusCard(cards, nextFocusIndex(cards.indexOf(card), event.key, cards.length));
+    handleDecisionListKeydown(event, list);
   });
 
   form.addEventListener("submit", (event) => {
