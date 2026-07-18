@@ -6,6 +6,7 @@ import {
   loadPosts,
   savePosts,
   sortPostsNewestFirst,
+  reconcilePosts,
   counterState,
   nextFocusIndex,
   filterPosts,
@@ -113,6 +114,29 @@ test("orders posts reverse-chronologically without mutating the input", () => {
   const before = ids(sample);
   assert.deepEqual(ids(sortPostsNewestFirst(sample)), ["p-new", "p-mid", "p-old"]);
   assert.deepEqual(ids(sample), before);
+});
+
+test("reconciles remote snapshots with local posts without losing either source", () => {
+  const local = [
+    { id: "local-only", author: "Mina", body: "Still uploading", createdAt: "2026-07-14T13:00:00.000Z" },
+    { id: "shared", author: "Mina", body: "Local draft", createdAt: "2026-07-14T11:00:00.000Z" },
+  ];
+  const remote = [
+    { id: "remote-only", author: "Kai", body: "Already durable", createdAt: "2026-07-14T12:00:00.000Z" },
+    { id: "shared", author: "Mina", body: "Durable version", createdAt: "2026-07-14T11:00:00.000Z" },
+  ];
+
+  const reconciled = reconcilePosts(remote, local);
+  assert.deepEqual(ids(reconciled), ["local-only", "remote-only", "shared"]);
+  assert.equal(reconciled.at(-1).body, "Durable version");
+  assert.deepEqual(ids(local), ["local-only", "shared"]);
+  assert.deepEqual(ids(remote), ["remote-only", "shared"]);
+});
+
+test("reconcile ignores malformed inputs and tolerates missing source arrays", () => {
+  const valid = { id: "valid", author: "Mina", body: "Ready", createdAt: "2026-07-14T13:00:00.000Z" };
+  assert.deepEqual(reconcilePosts(null, [valid, { ...valid, id: "", body: "bad" }]), [valid]);
+  assert.deepEqual(reconcilePosts(undefined, undefined), []);
 });
 
 test("counterState reports remaining budget and warning thresholds", () => {
