@@ -17,7 +17,7 @@ export const RELEASE_STATUSES = ["planned", "completed", "cancelled"];
 
 // Mirrors STATUSES in app.js. Kept local (see the module note above); the order
 // here is the order breakdown counts are reported in.
-export const RELEASE_DECISION_STATUSES = ["proposed", "accepted", "superseded"];
+export const RELEASE_DECISION_STATUSES = ["pending", "approved", "proposed", "accepted", "superseded"];
 
 // URL builders are the single seam between views. They are pure and unit-tested
 // so the routing shape lives in one place: the list links to a release detail

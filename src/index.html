@@ -58,9 +58,8 @@
             <div class="field">
               <label for="status">Status</label>
               <select id="status" name="status" required>
-                <option value="proposed">Proposed</option>
-                <option value="accepted">Accepted</option>
-                <option value="superseded">Superseded</option>
+                <option value="pending">Pending</option>
+                <option value="approved">Approved</option>
               </select>
             </div>
 
@@ -76,11 +75,17 @@
             </div>
             <span class="count" id="decision-count" aria-live="polite">0 records</span>
           </div>
-          <div class="filters" role="group" aria-label="Filter and sort decisions">
+          <div class="filters" role="search" aria-label="Search and filter decisions">
+            <div class="filter decision-search-filter">
+              <label for="decision-search">Search decisions</label>
+              <input id="decision-search" type="search" placeholder="Title, context, or alternatives" autocomplete="off" aria-describedby="decision-filter-hint" />
+            </div>
             <div class="filter">
               <label for="filter-status">Status</label>
               <select id="filter-status">
                 <option value="all">All statuses</option>
+                <option value="approved">Approved</option>
+                <option value="pending">Pending</option>
                 <option value="proposed">Proposed</option>
                 <option value="accepted">Accepted</option>
                 <option value="superseded">Superseded</option>
@@ -100,7 +105,9 @@
                 <option value="owner">Owner (A–Z)</option>
               </select>
             </div>
+            <button class="clear-filters" id="clear-decision-filters" type="button">Clear filters</button>
           </div>
+          <p class="hint decision-filter-hint" id="decision-filter-hint">Search updates as you type. Use ↑ and ↓ to move between decisions, Home and End to jump, and Enter to open details.</p>
           <p class="notice" id="storage-notice" role="status" hidden></p>
           <div id="decision-list"></div>
         </div>

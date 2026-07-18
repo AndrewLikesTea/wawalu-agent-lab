@@ -32,6 +32,15 @@ test("rejects incomplete decisions and unsupported statuses", () => {
   assert.throws(() => createDecision({ title: "Choice", context: "Why", owner: "Kai", status: "done" }), TypeError);
 });
 
+test("creates decisions with the approved and pending workflow statuses", () => {
+  for (const status of ["approved", "pending"]) {
+    assert.equal(createDecision(
+      { title: "Choice", context: "Why", owner: "Mina", status },
+      { id: status, createdAt: "2026-07-18T12:00:00.000Z" },
+    ).status, status);
+  }
+});
+
 test("persists and reloads decisions from local storage", () => {
   const storage = memoryStorage();
   const decision = createDecision(
