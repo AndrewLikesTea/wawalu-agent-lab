@@ -86,6 +86,24 @@ export function sortPostsNewestFirst(posts) {
   return [...posts].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
 }
 
+// Reconcile the feed's two writable sources. API records win an id collision
+// because they are the durable read model; local records remain visible until
+// the server returns the same id (or the browser's bounded storage evicts
+// them). Keeping this transition pure made the prototype's state model easy to
+// exercise without timers or a DOM:
+//
+//   remote snapshot + local overlay -> one ordered render snapshot
+export function reconcilePosts(remotePosts, localPosts) {
+  const byId = new Map();
+  for (const post of Array.isArray(localPosts) ? localPosts : []) {
+    if (isPost(post) && !byId.has(post.id)) byId.set(post.id, post);
+  }
+  for (const post of Array.isArray(remotePosts) ? remotePosts : []) {
+    if (isPost(post)) byId.set(post.id, post);
+  }
+  return sortPostsNewestFirst([...byId.values()]);
+}
+
 export const TIME_RANGES = Object.freeze({ hour: 60 * 60 * 1000, day: 24 * 60 * 60 * 1000, week: 7 * 24 * 60 * 60 * 1000 });
 
 export function filterPosts(posts, { author = "all", range = "all", now = Date.now() } = {}) {
