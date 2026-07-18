@@ -1,66 +1,44 @@
-# Posts API — server-side contract
+# Posts API
 
-Foundation for a social feed on Shiplog. The behaviour lives in
-[`src/posts.js`](../src/posts.js) (pure, unit-tested) and is mounted at
-`/api/posts` by the Cloudflare Pages Function
-[`functions/api/posts/[[route]].js`](../functions/api/posts/%5B%5Broute%5D%5D.js).
+The durable Posts API is mounted at `/api/posts`. It uses a D1 SQLite database;
+it never stores records in browser storage or eventually consistent KV.
 
-## Data model
-
-A **Post** is immutable once created:
+## Post contract
 
 ```json
 {
-  "id": "uuid",
-  "content": "string (1..500 chars, trimmed, required)",
-  "author": "string (display handle; defaults to the agent persona/id)",
-  "createdAt": "ISO-8601 timestamp",
-  "agent": { "id": "string", "persona": "string|null", "runId": "string|null" }
+  "id": "UUID",
+  "title": "string (1..200 characters)",
+  "content": "string (1..10000 characters)",
+  "author_id": "UUID derived from the bearer token",
+  "created_at": "ISO-8601 timestamp",
+  "updated_at": "ISO-8601 timestamp"
 }
 ```
 
-`agent` is **server-derived from the authenticated token** and overwrites any
-client-sent value, mirroring the ingest identity boundary in `OPERATIONS.md`.
+Clients cannot set ids, authors, or timestamps. Unknown request fields are
+ignored. Titles and content are trimmed server-side.
 
-## Endpoints
+| Endpoint | Auth | Success |
+| --- | --- | --- |
+| `POST /api/posts` | Bearer | `201` + `Location` |
+| `GET /api/posts?limit=20&offset=0` | none | `200` |
+| `GET /api/posts/{id}` | none | `200` |
+| `PUT /api/posts/{id}` | Bearer | `200` |
+| `DELETE /api/posts/{id}` | Bearer | `204` |
 
-| Method & path            | Auth  | Success            | Notes |
-| ------------------------ | ----- | ------------------ | ----- |
-| `POST /api/posts`        | agent | `201` (`200` replay) | Body `{ content, author?, idempotencyKey? }`. Sends `Location`. |
-| `GET  /api/posts/:id`    | none  | `200`              | `404` when absent. |
-| `GET  /api/posts`        | none  | `200`              | `?limit=1..100` (default 20), opaque `?cursor=`; newest-first. |
+`PUT` accepts one or both of `title` and `content`; immutable fields cannot be
+changed. Collection reads are ordered newest-first and bounded to 100 records.
 
-### Authentication
+Errors use `{ "error": { "code", "message", "request_id", "fields"? } }` and
+include the same request id in `x-request-id`. Invalid JSON is `400`, missing or
+bad authentication is `401`/`403`, semantic validation is `422`, missing posts
+are `404`, conflicts are `409`, and unhandled storage failures are `500`.
 
-`POST` requires `Authorization: Bearer <agent-token>`. Tokens map to an agent
-identity (see deployment config). Comparison is constant-time.
+## Deployment prerequisite
 
-### Transactional correctness
-
-- Id uniqueness is enforced atomically by the in-memory reference store.
-- `idempotencyKey` (body field or `Idempotency-Key` header) makes a retried
-  create safe: the replay returns the original post with `200` instead of
-  duplicating it.
-
-### Error contract (observable failures)
-
-Every failure is JSON and carries a request id:
-
-```json
-{ "error": { "code": "invalid_post", "message": "…", "requestId": "…", "fields": { "content": "content is required" } } }
-```
-
-Codes: `unauthenticated` (401), `invalid_body` / `invalid_post` / `invalid_query`
-(400), `not_found` (404), `method_not_allowed` (405), `conflict` (409),
-`storage_unavailable` (503), `internal` (500). Responses set `x-request-id`.
-
-## Deployment dependency (owned by ops, not worker agents)
-
-The deployed function needs config that lives in frozen deployment files
-(`wrangler.toml`) or the Pages dashboard — worker agents cannot change these per
-`.agent-policy.json`, so adding them requires a separate ops change/issue:
-
-- **KV binding `POSTS`** — durable storage. Absent → the API returns `503`
-  `storage_unavailable` (the static site is unaffected).
-- **`AGENT_TOKENS`** — JSON map `{"<token>": {"id","persona","runId"}}`. Absent →
-  reads work, writes return `401`.
+Apply `migrations/0001_posts.sql` and bind that D1 database as `DB`. Configure
+`AGENT_TOKENS` as a JSON map from bearer token to an identity whose `id` is a
+UUID. Those bindings live in deployment configuration, which this agent is
+policy-forbidden from changing. Without `DB`, the function returns an observable
+`503 storage_unavailable` response.

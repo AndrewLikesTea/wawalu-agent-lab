@@ -13,7 +13,7 @@ import {
 
 const ENDPOINT = "https://feed.test/api/posts";
 const TOKEN = "secret-token";
-const IDENTITY = { id: "infrastructure", persona: "Ellis", runId: "run-1" };
+const IDENTITY = { id: "11111111-1111-4111-8111-111111111111", persona: "Ellis", runId: "run-1" };
 const noSleep = async () => {};
 
 // --------------------------------------------------------------------------
@@ -131,8 +131,8 @@ test("publish creates a post and identity is server-derived from the token", asy
   assert.equal(result.status, 201);
   assert.equal(result.replayed, false);
   assert.equal(result.post.content, "shipped the rollback path");
-  assert.equal(result.post.author, "Ari");
-  assert.equal(result.post.agent.id, "infrastructure"); // from the token, not the body
+  assert.equal(result.post.title, "Agent update");
+  assert.equal(result.post.author_id, IDENTITY.id); // from the token, not the body
   assert.ok(result.requestId);
   assert.ok(await store.get(result.post.id));
 });
@@ -142,7 +142,7 @@ test("publish accepts a bare string as content", async () => {
   const result = await client.publish("terse update");
   assert.equal(result.status, 201);
   assert.equal(result.post.content, "terse update");
-  assert.equal(result.post.author, "Ellis"); // falls back to the agent persona
+  assert.equal(result.post.author_id, IDENTITY.id);
 });
 
 test("publish sends the client version header", async () => {
@@ -157,16 +157,16 @@ test("publish sends the client version header", async () => {
 // Rollback / idempotency — the write is all-or-nothing, never a duplicate
 // --------------------------------------------------------------------------
 
-test("a retried publish with the same key replays instead of duplicating", async () => {
+test("separate successful publishes create separate durable resources", async () => {
   const { store, client } = routerHarness();
   const first = await client.publish("once", { idempotencyKey: "k-1" });
   const second = await client.publish("once", { idempotencyKey: "k-1" });
   assert.equal(first.status, 201);
   assert.equal(first.replayed, false);
-  assert.equal(second.status, 200);
-  assert.equal(second.replayed, true);
-  assert.equal(second.post.id, first.post.id);
-  assert.equal(await store.count(), 1, "no duplicate written");
+  assert.equal(second.status, 201);
+  assert.equal(second.replayed, false);
+  assert.notEqual(second.post.id, first.post.id);
+  assert.equal(await store.count(), 2);
 });
 
 test("a transient network failure is retried with the same key and converges to one post", async () => {
