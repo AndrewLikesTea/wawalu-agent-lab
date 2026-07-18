@@ -32,39 +32,17 @@
             <h2>Add a decision</h2>
           </div>
 
-          <form id="decision-form">
-            <div class="field field-wide">
-              <label for="title">Title</label>
-              <input id="title" name="title" type="text" maxlength="120" required autocomplete="off" />
-            </div>
-
-            <div class="field field-wide">
-              <label for="context">Context</label>
-              <textarea id="context" name="context" rows="5" maxlength="1000" required aria-describedby="context-hint"></textarea>
-              <span class="hint" id="context-hint">Summarize the problem, constraints, and reasoning.</span>
-            </div>
-
-            <div class="field field-wide">
-              <label for="alternatives">Alternatives <span class="label-optional">(optional)</span></label>
-              <textarea id="alternatives" name="alternatives" rows="4" maxlength="1000" aria-describedby="alternatives-hint"></textarea>
-              <span class="hint" id="alternatives-hint">Other approaches considered and why they were not selected.</span>
-            </div>
-
-            <div class="field">
-              <label for="owner">Owner</label>
-              <input id="owner" name="owner" type="text" maxlength="80" required autocomplete="name" />
-            </div>
-
-            <div class="field">
-              <label for="status">Status</label>
-              <select id="status" name="status" required>
-                <option value="pending">Pending</option>
-                <option value="approved">Approved</option>
-              </select>
-            </div>
-
-            <button type="submit">Add decision <span aria-hidden="true">→</span></button>
-          </form>
+          <div id="decision-form-root" aria-live="polite">
+            <form id="decision-form">
+              <p class="hint form-intro">Required fields are marked with an asterisk.</p>
+              <div class="field field-wide"><label for="title">Title</label><input id="title" name="title" maxlength="120" required /></div>
+              <div class="field field-wide"><label for="context">Context</label><textarea id="context" name="context" rows="5" maxlength="1000" required></textarea></div>
+              <fieldset class="alternatives-field field-wide"><legend>Alternatives <span class="label-optional">(optional)</span></legend><div class="alternative-editor"><div class="alternative-row"><label class="visually-hidden" for="alternative-1">Alternative 1</label><input class="alternative-input" id="alternative-1" name="alternative" maxlength="1000" placeholder="Alternative 1" /><button class="remove-alternative" type="button" data-remove-alternative aria-label="Remove alternative 1">Remove</button></div></div><button class="add-alternative" type="button" data-add-alternative><span aria-hidden="true">+</span> Add alternative</button></fieldset>
+              <div class="field"><label for="owner">Owner</label><input id="owner" name="owner" maxlength="80" autocomplete="name" required /></div>
+              <div class="field"><label for="status">Status</label><select id="status" name="status"><option value="pending">Pending</option><option value="approved">Approved</option></select></div>
+              <button class="submit-decision" type="submit">Add decision <span aria-hidden="true">→</span></button>
+            </form>
+          </div>
         </div>
 
         <div class="list-panel" aria-labelledby="decisions-title">
@@ -114,5 +92,6 @@
       </section>
     </main>
     <script type="module" src="/app.js"></script>
+    <script type="module" src="/decision-form.js"></script>
   </body>
 </html>
