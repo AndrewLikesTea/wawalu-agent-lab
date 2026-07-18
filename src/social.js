@@ -86,6 +86,35 @@ export function sortPostsNewestFirst(posts) {
   return [...posts].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
 }
 
+export const TIME_RANGES = Object.freeze({ hour: 60 * 60 * 1000, day: 24 * 60 * 60 * 1000, week: 7 * 24 * 60 * 60 * 1000 });
+
+export function filterPosts(posts, { author = "all", range = "all", now = Date.now() } = {}) {
+  const cutoff = TIME_RANGES[range] ? now - TIME_RANGES[range] : null;
+  return sortPostsNewestFirst(posts).filter((post) => {
+    if (author !== "all" && post.author !== author) return false;
+    return cutoff === null || Date.parse(post.createdAt) >= cutoff;
+  });
+}
+
+export function normalizeApiPosts(payload) {
+  if (!Array.isArray(payload?.posts)) return [];
+  return payload.posts.flatMap((post) => {
+    if (!post || typeof post.id !== "string" || !post.id.trim()
+      || typeof post.author_id !== "string" || !post.author_id.trim()
+      || typeof post.title !== "string" || !post.title.trim()
+      || typeof post.content !== "string" || !post.content.trim() || post.content.length > 10000
+      || typeof post.created_at !== "string" || Number.isNaN(Date.parse(post.created_at))) return [];
+    const normalized = {
+      id: post?.id,
+      author: post?.author_id,
+      title: post?.title,
+      body: post?.content,
+      createdAt: post?.created_at,
+    };
+    return [normalized];
+  });
+}
+
 // Character-budget state for the live counter. `remaining` can go negative so
 // the UI can warn before createPost/maxlength would hard-stop the input.
 export function counterState(text, max = MAX_POST_LENGTH) {
@@ -156,6 +185,7 @@ function renderPostCard(post, isFirst) {
   // Roving tabindex: the first card is the single tab stop; arrow keys move
   // focus between cards (see the keydown handler in mountSocialFeed).
   article.tabIndex = isFirst ? 0 : -1;
+  article.dataset.postId = post.id;
 
   const header = el("header", "post-head");
   const avatar = el("span", "post-avatar", initials(post.author));
@@ -169,20 +199,21 @@ function renderPostCard(post, isFirst) {
 
   header.append(avatar, byline);
   article.append(header);
+  if (post.title) article.append(el("h3", "post-title", post.title));
   article.append(el("p", "post-body", post.body));
 
   item.append(article);
   return item;
 }
 
-export function renderPosts(container, posts) {
+export function renderPosts(container, posts, emptyMessage = "Share the first update to start the feed.") {
   const ordered = sortPostsNewestFirst(posts);
   container.replaceChildren();
 
   if (ordered.length === 0) {
     const empty = el("div", "empty-state");
     empty.append(el("p", "empty-title", "No posts yet."));
-    empty.append(el("p", undefined, "Share the first update to start the feed."));
+    empty.append(el("p", undefined, emptyMessage));
     container.append(empty);
     return;
   }
@@ -212,14 +243,33 @@ export function mountSocialFeed(root, options = {}) {
   const counter = root.querySelector("#post-counter");
   const notice = root.querySelector("#social-notice");
   const count = root.querySelector("#post-count");
+  const agentFilter = root.querySelector("#post-agent-filter");
+  const timeFilter = root.querySelector("#post-time-filter");
+  const clearFilters = root.querySelector("#post-filter-clear");
 
   let posts = options.posts ?? [];
 
   const postLabel = (n) => `${n} ${n === 1 ? "post" : "posts"}`;
 
   const render = () => {
-    renderPosts(feed, posts);
-    if (count) count.textContent = postLabel(posts.length);
+    const focusedId = feed.querySelector(".post-card:focus")?.dataset.postId;
+    const visible = filterPosts(posts, { author: agentFilter?.value, range: timeFilter?.value });
+    const filtering = agentFilter?.value !== "all" || timeFilter?.value !== "all";
+    renderPosts(feed, visible, filtering ? "No posts match these filters." : undefined);
+    if (count) count.textContent = filtering ? `${postLabel(visible.length)} of ${posts.length}` : postLabel(visible.length);
+    if (focusedId) {
+      const cards = [...feed.querySelectorAll(".post-card")];
+      const index = cards.findIndex((card) => card.dataset.postId === focusedId);
+      if (index >= 0) focusCard(cards, index);
+    }
+  };
+
+  const renderAgents = () => {
+    if (!agentFilter) return;
+    const selected = agentFilter.value;
+    const authors = [...new Set(posts.map((post) => post.author))].sort((a, b) => a.localeCompare(b));
+    agentFilter.replaceChildren(new Option("All agents", "all"), ...authors.map((author) => new Option(author, author)));
+    agentFilter.value = authors.includes(selected) ? selected : "all";
   };
 
   const updateCounter = () => {
@@ -271,6 +321,7 @@ export function mountSocialFeed(root, options = {}) {
       }
 
       posts = [post, ...posts];
+      renderAgents();
       try {
         // Persist only browser-created posts. `posts` may also contain bundled
         // demo examples supplied by social-page.js; saving those would turn an
@@ -290,10 +341,22 @@ export function mountSocialFeed(root, options = {}) {
     });
   }
 
+
+  agentFilter?.addEventListener("change", render);
+  timeFilter?.addEventListener("change", render);
+  clearFilters?.addEventListener("click", () => {
+    agentFilter.value = "all";
+    timeFilter.value = "all";
+    render();
+    agentFilter.focus();
+  });
+
+  renderAgents();
   render();
   updateCounter();
   return {
     render,
-    seed(next) { posts = next ?? []; render(); },
+    seed(next) { posts = next ?? []; renderAgents(); render(); },
+    getPosts() { return [...posts]; },
   };
 }
