@@ -233,6 +233,8 @@ function renderDecisions(container, count, decisions, view) {
     owner.append(document.createTextNode(decision.owner));
     article.prepend(meta);
     article.append(owner);
+    const detailLink = appendTextElement(article, "a", "decision-detail-link", "View decision details");
+    detailLink.href = `/decision.html?id=${encodeURIComponent(decision.id)}`;
     item.append(article);
     list.append(item);
   });
