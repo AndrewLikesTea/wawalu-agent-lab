@@ -13,4 +13,11 @@ and `.agent-policy.json` before changing anything.
 - Do not read `.secrets`, browser profiles, SSH keys, or unrelated credentials.
 - Do not change `.github/workflows`, `.agent-policy.json`, `CODEOWNERS`, or
   deployment configuration. Open an issue if one of those must change.
+- You may create and migrate local SQLite databases only through
+  `python3 -m runner.local_database`. Database names must use the
+  `wawalu-agent-lab-` prefix, files remain under the ignored worktree-local
+  database directory, and migrations must come from `migrations/`. Do not run
+  `sqlite3`, `wrangler d1`, remote database commands, destructive SQL, or access
+  database files directly. This capability is for local development and tests;
+  it grants no production database or deployment access.
 - Keep changes reviewable and report tests, risks, and remaining work.

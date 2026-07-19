@@ -16,6 +16,7 @@
     "tests/agent-observatory.test.js",
     "runner/autonomous.py",
     "runner/delivery.py",
+    "runner/local_database.py",
     "config/autonomy.example.json",
     "config/team-behaviors.json",
     "runner/simulation.py",
@@ -28,8 +29,20 @@
     "git push origin main",
     "gh pr merge",
     "gh secret",
+    "sqlite3",
+    "wrangler d1",
     "wrangler secret",
     "wrangler pages deploy",
     "rm -rf"
-  ]
+  ],
+  "local_databases": {
+    "enabled": true,
+    "directory": ".agent/local-databases",
+    "name_prefix": "wawalu-agent-lab-",
+    "max_name_length": 64,
+    "migration_directory": "migrations",
+    "allowed_operations": ["create", "migrate", "check", "path"],
+    "destructive_sql_allowed": false,
+    "symlinks_allowed": false
+  }
 }

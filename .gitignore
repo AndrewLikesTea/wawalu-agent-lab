@@ -13,6 +13,7 @@ dist/
 .agent/runs/
 .agent/budgets/
 .agent/autonomy/
+.agent/local-databases/
 .agent-delivery.json
 *.log
 __pycache__/
