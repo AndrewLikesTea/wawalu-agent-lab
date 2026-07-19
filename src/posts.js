@@ -24,10 +24,14 @@ export function normalizeIdentity(identity) {
   const scopes = Array.isArray(identity?.scopes)
     ? [...new Set(identity.scopes.filter((scope) => typeof scope === "string").map((scope) => scope.trim()).filter(Boolean))]
     : [];
-  const rawAgentName = identity?.agentName ?? identity?.persona;
+  const type = identity?.type ?? "agent";
+  if (type !== "agent" && type !== "human") throw new TypeError("The authenticated identity type must be agent or human.");
+  // `name` is the neutral claim. The older agent-specific claims remain valid
+  // so token rotation does not require a coordinated client migration.
+  const rawAgentName = identity?.name ?? identity?.agentName ?? identity?.persona;
   const agentName = typeof rawAgentName === "string" ? rawAgentName.trim() : "";
-  if (!agentName || agentName.length > MAX_AUTHOR_LENGTH) throw new TypeError("The authenticated identity must have a valid persona.");
-  return { id, scopes, agentName };
+  if (!agentName || agentName.length > MAX_AUTHOR_LENGTH) throw new TypeError("The authenticated identity must have a valid name.");
+  return { id, scopes, agentName, type };
 }
 
 export function validatePostInput(input = {}, { partial = false } = {}) {
@@ -164,6 +168,16 @@ function allowed(method, allow, requestId) {
   return json(405, { error: { code: "method_not_allowed", message: `${method} is not allowed.`, request_id: requestId } }, requestId, { allow });
 }
 
+export async function handlePostsHealth(store, requestId) {
+  try {
+    if (typeof store?.health !== "function" || !await store.health()) throw new Error("Posts storage health check failed.");
+  } catch (error) {
+    console.error("posts_storage_unavailable", { requestId, error: error?.message ?? String(error) });
+    return failure(503, "storage_unavailable", "The posts database is unavailable.", requestId);
+  }
+  return json(200, { status: "ok", storage: "available" }, requestId, { "cache-control": "no-store" });
+}
+
 function parsePaginationInteger(value, { minimum, maximum = Number.MAX_SAFE_INTEGER }) {
   if (!/^\d+$/.test(value)) return null;
   const parsed = Number(value);
@@ -186,7 +200,7 @@ async function requireAuth(request, authenticate, requestId, requiredScope) {
       return { response: failure(403, "insufficient_scope", `The ${requiredScope} scope is required.`, requestId), identity: null };
     }
     return { identity: normalized };
-  } catch { return { response: failure(403, "invalid_identity", "The authenticated principal has no valid UUID.", requestId), identity: null }; }
+  } catch { return { response: failure(403, "invalid_identity", "The authenticated principal claims are invalid.", requestId), identity: null }; }
 }
 
 export async function handlePostsRequest(request, deps) {
@@ -200,13 +214,7 @@ export async function handlePostsRequest(request, deps) {
     catch { return failure(400, "invalid_id", "Post id must be a UUID.", requestId); }
     if (id === "healthz") {
       if (request.method !== "GET") return allowed(request.method, "GET", requestId);
-      try {
-        if (typeof deps.store.health !== "function" || !await deps.store.health()) throw new Error("Posts storage health check failed.");
-      } catch (error) {
-        console.error("posts_storage_unavailable", { requestId, error: error?.message ?? String(error) });
-        return failure(503, "storage_unavailable", "The posts database is unavailable.", requestId);
-      }
-      return json(200, { status: "ok", storage: "available" }, requestId, { "cache-control": "no-store" });
+      return handlePostsHealth(deps.store, requestId);
     }
     if (id && !UUID.test(id)) return failure(400, "invalid_id", "Post id must be a UUID.", requestId);
     if (!id && request.method === "GET") {
