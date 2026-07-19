@@ -42,18 +42,26 @@ export function createSocialTokenAuthenticator(tokenMap = {}) {
   };
 }
 
-export function validateSocialPostInput(input) {
+// `requireProvenance` gates the fields the server owns for human writes
+// (`timestamp`, `source`). Agents self-report provenance and must send both;
+// for humans the server sets them, so requiring the client to also send valid
+// values it then overwrites would be a leaky, self-contradictory contract.
+export function validateSocialPostInput(input, { requireProvenance = true } = {}) {
   const errors = {};
   const values = {};
-  for (const [field, max] of [["author", MAX_SOCIAL_AUTHOR_LENGTH], ["content", MAX_SOCIAL_CONTENT_LENGTH], ["source", MAX_SOCIAL_SOURCE_LENGTH]]) {
+  const fields = [["author", MAX_SOCIAL_AUTHOR_LENGTH], ["content", MAX_SOCIAL_CONTENT_LENGTH]];
+  if (requireProvenance) fields.push(["source", MAX_SOCIAL_SOURCE_LENGTH]);
+  for (const [field, max] of fields) {
     if (typeof input?.[field] !== "string") errors[field] = `${field} must be a string`;
     else if (!input[field].trim()) errors[field] = `${field} is required`;
     else if (input[field].trim().length > max) errors[field] = `${field} must be at most ${max} characters`;
     else values[field] = input[field].trim();
   }
-  if (typeof input?.timestamp !== "string") errors.timestamp = "timestamp must be an ISO-8601 string";
-  else if (!isValidIsoTimestamp(input.timestamp)) errors.timestamp = "timestamp must be a valid ISO-8601 timestamp";
-  else values.timestamp = new Date(input.timestamp).toISOString();
+  if (requireProvenance) {
+    if (typeof input?.timestamp !== "string") errors.timestamp = "timestamp must be an ISO-8601 string";
+    else if (!isValidIsoTimestamp(input.timestamp)) errors.timestamp = "timestamp must be a valid ISO-8601 timestamp";
+    else values.timestamp = new Date(input.timestamp).toISOString();
+  }
   return { values, errors };
 }
 
@@ -72,6 +80,11 @@ function normalizeIdentity(identity) {
   const scopes = Array.isArray(identity?.scopes) ? identity.scopes : [];
   if (!UUID.test(id) || !author || author.length > MAX_SOCIAL_AUTHOR_LENGTH) return null;
   return { id, author, scopes };
+}
+
+function normalizeHumanIdentity(identity) {
+  const id = typeof identity?.id === "string" ? identity.id.trim() : "";
+  return id ? { id, scopes: ["social-posts:write"], human: true } : null;
 }
 
 export function createMemorySocialPostStore(initial = []) {
@@ -146,8 +159,13 @@ export async function handleSocialPostsRequest(request, deps) {
     }
     if (request.method !== "POST") return json(405, { error: { code: "method_not_allowed", message: `${request.method} is not allowed.`, request_id: requestId } }, requestId, { allow: "GET, POST" });
 
-    const identity = normalizeIdentity(await deps.authenticate(request));
-    if (!identity) return failure(401, "unauthenticated", "A valid bearer token is required.", requestId);
+    const hasAuthorization = request.headers.has("authorization");
+    const identity = hasAuthorization
+      ? normalizeIdentity(await deps.authenticate(request))
+      : normalizeHumanIdentity(await deps.identifyHuman?.(request));
+    if (!identity) return failure(401, "unauthenticated", hasAuthorization
+      ? "A valid bearer token is required."
+      : "Human posting is unavailable for this request.", requestId);
     if (!identity.scopes.includes("social-posts:write")) return failure(403, "insufficient_scope", "The social-posts:write scope is required.", requestId);
 
     const nowMs = deps.nowMs?.() ?? Date.now();
@@ -157,11 +175,17 @@ export async function handleSocialPostsRequest(request, deps) {
 
     const parsed = await parseBody(request, requestId);
     if (parsed.response) return parsed.response;
-    const { values, errors } = validateSocialPostInput(parsed.body);
+    const { values, errors } = validateSocialPostInput(parsed.body, { requireProvenance: !identity.human });
     if (Object.keys(errors).length) return failure(422, "invalid_social_post", "The social post failed validation.", requestId, { fields: errors });
-    if (values.author !== identity.author) return failure(403, "author_mismatch", "author must match the authenticated agent.", requestId);
+    if (!identity.human && values.author !== identity.author) return failure(403, "author_mismatch", "author must match the authenticated agent.", requestId);
 
     const createdAt = new Date(nowMs).toISOString();
+    // Human provenance and ordering are server-owned; only the demo display
+    // name is self-asserted. Any client-sent timestamp/source is ignored here.
+    if (identity.human) {
+      values.timestamp = createdAt;
+      values.source = "shiplog-web";
+    }
     const post = await deps.store.create({ id: uuid(), ...values, principal_id: identity.id, created_at: createdAt });
     return json(201, { post }, requestId, { ...rateHeaders, "cache-control": "no-store" });
   } catch (error) {

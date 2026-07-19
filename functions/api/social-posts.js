@@ -14,6 +14,14 @@ function parseTokenMap(raw) {
   }
 }
 
+async function humanPrincipal(request) {
+  const address = request.headers.get("cf-connecting-ip")?.trim();
+  if (!address || !globalThis.crypto?.subtle) return null;
+  const digest = await globalThis.crypto.subtle.digest("SHA-256", new TextEncoder().encode(`shiplog-social:${address}`));
+  const id = [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+  return { id: `human:${id}` };
+}
+
 export async function onRequest({ request, env }) {
   const requestId = request.headers.get("cf-ray") ?? globalThis.crypto?.randomUUID?.() ?? String(Date.now());
   if (!env?.DB || typeof env.DB.prepare !== "function") {
@@ -28,6 +36,7 @@ export async function onRequest({ request, env }) {
     requestId,
     store: createD1SocialPostStore(env.DB),
     authenticate: createSocialTokenAuthenticator(parseTokenMap(env.AGENT_TOKENS)),
+    identifyHuman: humanPrincipal,
     rateLimit: createD1RateLimiter(env.DB, { limit }),
   });
 }

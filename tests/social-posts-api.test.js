@@ -76,6 +76,51 @@ test("POST authenticates, persists, and makes the post visible to public clients
   assert.deepEqual(listed.json.posts, [created.json.post]);
 });
 
+test("human browser writes need only author + content; server owns provenance", async () => {
+  const store = createMemorySocialPostStore();
+  async function humanPost(body) {
+    return handleSocialPostsRequest(new Request("https://test.invalid/api/social-posts", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    }), {
+      store,
+      authenticate: async () => null,
+      identifyHuman: async () => ({ id: "human:hashed-network-principal" }),
+      rateLimit: createMemoryRateLimiter(),
+      nowMs: () => NOW,
+      requestId: "human-request",
+    });
+  }
+  // The client sends no timestamp/source at all — the server supplies them.
+  const response = await humanPost({ author: "Morgan", content: valid.content });
+  assert.equal(response.status, 201);
+  const post = (await response.json()).post;
+  assert.equal(post.author, "Morgan");
+  assert.equal(post.timestamp, "2026-07-18T12:00:00.000Z");
+  assert.equal(post.source, "shiplog-web");
+  assert.deepEqual(await store.list(1), [post]);
+
+  // Any client-sent timestamp/source is ignored rather than honored.
+  const spoofed = await humanPost({ author: "Morgan", content: valid.content, timestamp: "2020-01-01T00:00:00Z", source: "agent-orchestrator" });
+  const spoofedPost = (await spoofed.json()).post;
+  assert.equal(spoofedPost.timestamp, "2026-07-18T12:00:00.000Z");
+  assert.equal(spoofedPost.source, "shiplog-web");
+});
+
+test("provenance validation is skipped for human writes but enforced for agents", () => {
+  // Agents must self-report timestamp + source.
+  assert.deepEqual(validateSocialPostInput({ author: "Priya", content: "hi" }).errors, {
+    source: "source must be a string",
+    timestamp: "timestamp must be an ISO-8601 string",
+  });
+  // Humans need only author + content; provenance is server-owned.
+  assert.deepEqual(validateSocialPostInput({ author: "Morgan", content: "hi" }, { requireProvenance: false }), {
+    values: { author: "Morgan", content: "hi" },
+    errors: {},
+  });
+});
+
 test("rejects missing credentials, missing scope, and author impersonation", async () => {
   const { call } = harness({ tokens: {
     secret: AUTH,

@@ -3,10 +3,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import {
   createPost,
-  loadPosts,
-  savePosts,
   sortPostsNewestFirst,
-  reconcilePosts,
   counterState,
   nextFocusIndex,
   filterPosts,
@@ -14,18 +11,8 @@ import {
   normalizeSocialApiPosts,
   MAX_POST_LENGTH,
   MAX_AUTHOR_LENGTH,
-  MAX_STORED_POSTS,
   DEFAULT_AUTHOR,
-  SOCIAL_STORAGE_KEY,
 } from "../src/social.js";
-
-function memoryStorage(initial = {}) {
-  const values = new Map(Object.entries(initial));
-  return {
-    getItem: (key) => values.get(key) ?? null,
-    setItem: (key, value) => values.set(key, value),
-  };
-}
 
 const sample = [
   { id: "p-old", author: "Kai",  body: "first",  createdAt: "2026-07-10T00:00:00.000Z" },
@@ -66,77 +53,10 @@ test("rejects an over-budget author", () => {
   assert.throws(() => createPost({ author: "x".repeat(MAX_AUTHOR_LENGTH + 1), body: "hello" }), TypeError);
 });
 
-test("persists and reloads posts from local storage", () => {
-  const storage = memoryStorage();
-  const post = createPost(
-    { author: "Ari", body: "Prevent <img onerror=alert(1)> from running" },
-    { id: "safe", createdAt: "2026-07-14T12:00:00.000Z" },
-  );
-  savePosts(storage, [post]);
-  assert.deepEqual(loadPosts(storage), [post]);
-  // Stored verbatim; rendering (textContent) is what keeps it inert.
-  assert.match(storage.getItem(SOCIAL_STORAGE_KEY), /<img onerror=alert\(1\)>/);
-});
-
-test("browser storage is bounded and excludes invalid entries", () => {
-  const storage = memoryStorage();
-  const posts = Array.from({ length: MAX_STORED_POSTS + 5 }, (_, index) => ({
-    id: `p-${index}`,
-    author: "Ari",
-    body: "update",
-    createdAt: "2026-07-14T12:00:00.000Z",
-  }));
-  posts.splice(1, 0, { ...posts[0], id: "invalid", author: "x".repeat(MAX_AUTHOR_LENGTH + 1) });
-  savePosts(storage, posts);
-  assert.equal(loadPosts(storage).length, MAX_STORED_POSTS);
-  assert.equal(loadPosts(storage).some((post) => post.id === "invalid"), false);
-});
-
-test("malformed or invalid stored data is ignored", () => {
-  assert.deepEqual(loadPosts(memoryStorage()), []);
-  assert.deepEqual(loadPosts(memoryStorage({ [SOCIAL_STORAGE_KEY]: "not json" })), []);
-  assert.deepEqual(loadPosts(memoryStorage({ [SOCIAL_STORAGE_KEY]: JSON.stringify({}) })), []);
-  assert.deepEqual(
-    loadPosts(memoryStorage({
-      [SOCIAL_STORAGE_KEY]: JSON.stringify([
-        { id: "ok", author: "Kai", body: "fine", createdAt: "2026-07-14T00:00:00.000Z" },
-        { id: "", author: "Kai", body: "no id", createdAt: "2026-07-14T00:00:00.000Z" },
-        { id: "no-body", author: "Kai", body: "  ", createdAt: "2026-07-14T00:00:00.000Z" },
-        { id: "bad-date", author: "Kai", body: "when", createdAt: "never" },
-        { id: "too-long", author: "Kai", body: "x".repeat(MAX_POST_LENGTH + 1), createdAt: "2026-07-14T00:00:00.000Z" },
-      ]),
-    })).map((p) => p.id),
-    ["ok"],
-  );
-});
-
 test("orders posts reverse-chronologically without mutating the input", () => {
   const before = ids(sample);
   assert.deepEqual(ids(sortPostsNewestFirst(sample)), ["p-new", "p-mid", "p-old"]);
   assert.deepEqual(ids(sample), before);
-});
-
-test("reconciles remote snapshots with local posts without losing either source", () => {
-  const local = [
-    { id: "local-only", author: "Mina", body: "Still uploading", createdAt: "2026-07-14T13:00:00.000Z" },
-    { id: "shared", author: "Mina", body: "Local draft", createdAt: "2026-07-14T11:00:00.000Z" },
-  ];
-  const remote = [
-    { id: "remote-only", author: "Kai", body: "Already durable", createdAt: "2026-07-14T12:00:00.000Z" },
-    { id: "shared", author: "Mina", body: "Durable version", createdAt: "2026-07-14T11:00:00.000Z" },
-  ];
-
-  const reconciled = reconcilePosts(remote, local);
-  assert.deepEqual(ids(reconciled), ["local-only", "remote-only", "shared"]);
-  assert.equal(reconciled.at(-1).body, "Durable version");
-  assert.deepEqual(ids(local), ["local-only", "shared"]);
-  assert.deepEqual(ids(remote), ["remote-only", "shared"]);
-});
-
-test("reconcile ignores malformed inputs and tolerates missing source arrays", () => {
-  const valid = { id: "valid", author: "Mina", body: "Ready", createdAt: "2026-07-14T13:00:00.000Z" };
-  assert.deepEqual(reconcilePosts(null, [valid, { ...valid, id: "", body: "bad" }]), [valid]);
-  assert.deepEqual(reconcilePosts(undefined, undefined), []);
 });
 
 test("counterState reports remaining budget and warning thresholds", () => {
@@ -222,6 +142,8 @@ test("social page is wired, labeled, and linked from the other pages", async () 
   assert.match(page, /id="post-time-filter"/);
   assert.match(page, /id="feed-announcer"[^>]*aria-live="polite"/);
   assert.match(wiring, /\/api\/social-posts\?limit=100/);
+  assert.match(wiring, /method: "POST"/);
+  assert.doesNotMatch(wiring, /localStorage/);
   assert.match(page, /src="\/social-page\.js"/);
   // Compose inputs carry explicit labels + describedby wiring.
   assert.match(page, /<label for="post-author">/);
@@ -238,7 +160,12 @@ test("demo seed contains only valid, demo-only posts", async () => {
   const raw = await readFile(new URL("../src/social-demo-data.json", import.meta.url), "utf8");
   const data = JSON.parse(raw);
   assert.ok(Array.isArray(data.posts) && data.posts.length > 0);
-  // Every seed post must survive the same validation used for stored posts.
-  const storage = memoryStorage({ [SOCIAL_STORAGE_KEY]: JSON.stringify(data.posts) });
-  assert.equal(loadPosts(storage).length, data.posts.length);
+  // The seed is the offline fallback rendered directly by the feed, so every
+  // entry must carry the render shape the feed expects.
+  for (const post of data.posts) {
+    assert.equal(typeof post.id === "string" && post.id.trim() !== "", true);
+    assert.equal(typeof post.author === "string" && post.author.trim() !== "" && post.author.length <= MAX_AUTHOR_LENGTH, true);
+    assert.equal(typeof post.body === "string" && post.body.trim() !== "" && post.body.length <= MAX_POST_LENGTH, true);
+    assert.equal(typeof post.createdAt === "string" && !Number.isNaN(Date.parse(post.createdAt)), true);
+  }
 });
