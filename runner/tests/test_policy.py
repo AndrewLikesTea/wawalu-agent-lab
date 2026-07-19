@@ -22,6 +22,18 @@ class RunnerPolicyTests(unittest.TestCase):
         self.assertIn("wrangler.toml", policy["forbidden_paths"])
         self.assertIn("gh pr merge", policy["forbidden_commands"])
 
+    def test_local_database_capability_is_narrow_and_brokered(self):
+        policy = json.loads((ROOT / ".agent-policy.json").read_text())
+        databases = policy["local_databases"]
+        self.assertTrue(databases["enabled"])
+        self.assertEqual(databases["name_prefix"], "wawalu-agent-lab-")
+        self.assertEqual(databases["directory"], ".agent/local-databases")
+        self.assertFalse(databases["destructive_sql_allowed"])
+        self.assertFalse(databases["symlinks_allowed"])
+        self.assertIn("runner/local_database.py", policy["forbidden_paths"])
+        self.assertIn("sqlite3", policy["forbidden_commands"])
+        self.assertIn("wrangler d1", policy["forbidden_commands"])
+
     def test_worker_merge_capability_is_branch_bound(self):
         source = (ROOT / "runner/orchestrator.py").read_text()
         self.assertIn("consume_merge_request(worktree, persona, branch)", source)
