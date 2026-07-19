@@ -69,12 +69,32 @@ def safe_slug(value: str) -> str:
     return value[:48]
 
 
+# The product under iteration may be a separate pre-existing repository (a
+# company's existing codebase, e.g. paint-lab). The lab repo stays the home of
+# the runner, personas, and charter; the product repo/checkout is configured in
+# runtime.env and defaults to the historical self-hosted arrangement.
+DEFAULT_REPOSITORY = "AndrewLikesTea/wawalu-agent-lab"
+
+
+def _runtime_or_empty() -> dict[str, str]:
+    try:
+        return load_runtime_env()
+    except SystemExit:  # tests / CI without .secrets
+        return {}
+
+
+_RUNTIME = _runtime_or_empty()
+REPOSITORY = _RUNTIME.get("WAWALU_PRODUCT_REPOSITORY", DEFAULT_REPOSITORY)
+PRODUCT_ROOT = pathlib.Path(_RUNTIME.get("WAWALU_PRODUCT_ROOT", str(ROOT)))
+
+
 def prepare_worktree(persona: str, scenario_id: str) -> tuple[pathlib.Path, str]:
     branch = f"agent/{persona}/{scenario_id}"
     worktree = AGENT_DIR / "worktrees" / f"{persona}-{scenario_id}"
     if worktree.exists():
         raise SystemExit(f"worktree already exists: {worktree}")
-    run(["git", "worktree", "add", "-b", branch, str(worktree), "main"])
+    # worktrees branch off the PRODUCT checkout, wherever it lives
+    run(["git", "worktree", "add", "-b", branch, str(worktree), "main"], cwd=PRODUCT_ROOT)
     return worktree, branch
 
 
@@ -216,7 +236,7 @@ Scenario: {json.dumps(scenario, indent=2)}
         issue_line = f"\n\nCloses #{scenario['issue']}" if scenario.get("issue") else ""
         team_line = ("\n\nPaired with: " + ", ".join(behaviors["personas"][member]["name"] for member in collaborators[:1])
                      if collaborators else "")
-        run(["gh", "pr", "create", "--repo", "AndrewLikesTea/wawalu-agent-lab",
+        run(["gh", "pr", "create", "--repo", REPOSITORY,
              "--base", "main", "--head", branch,
              "--title", title, "--body", f"Synthetic team run: `{run_id}`{team_line}\n\nMerging to protected `main` triggers production deployment automatically.{issue_line}"], cwd=worktree, env=pr_env)
         peer = choose_peer_reviewer(persona, scenario_id)
@@ -231,24 +251,24 @@ Scenario: {json.dumps(scenario, indent=2)}
                      f"**{peer_name} · peer review**\n\n"
                      f"I reviewed this change before Marcus’s final gate, focusing on {focus}. "
                      "The implementation is bounded to the issue and its automated checks are part of the final review.")
-        run(["gh", "pr", "comment", branch, "--repo", "AndrewLikesTea/wawalu-agent-lab", "--body", peer_body],
+        run(["gh", "pr", "comment", branch, "--repo", REPOSITORY, "--body", peer_body],
             cwd=worktree, env=pr_env)
         metadata["peer_reviewer"] = peer
         if debate_value:
             for message in debate_value.get("messages", []):
                 body = ("<!-- wawalu-review-debate -->\n"
                         f"**{message.get('speaker', 'Engineer')}**\n\n{message.get('body', '')}")
-                run(["gh", "pr", "comment", branch, "--repo", "AndrewLikesTea/wawalu-agent-lab", "--body", body],
+                run(["gh", "pr", "comment", branch, "--repo", REPOSITORY, "--body", body],
                     cwd=worktree, env=pr_env)
-            run(["gh", "pr", "comment", branch, "--repo", "AndrewLikesTea/wawalu-agent-lab", "--body",
+            run(["gh", "pr", "comment", branch, "--repo", REPOSITORY, "--body",
                  f"<!-- wawalu-review-debate -->\n**Resolution**\n\n{debate_value.get('resolution', '')}"],
                 cwd=worktree, env=pr_env)
         review_env = os.environ.copy(); review_env["GH_TOKEN"] = reviewer_token()
-        run(["gh", "pr", "review", branch, "--repo", "AndrewLikesTea/wawalu-agent-lab",
+        run(["gh", "pr", "review", branch, "--repo", REPOSITORY,
              "--approve", "--body", f"Approved by the synthetic reviewer persona. Qwen review: {review_value['summary']}"],
             cwd=worktree, env=review_env)
         if merge_requested:
-            enable_auto_merge("AndrewLikesTea/wawalu-agent-lab", branch, github_token, worktree)
+            enable_auto_merge(REPOSITORY, branch, github_token, worktree)
             metadata["delivery"] = "worker-requested auto-merge; protected main deploys after required checks"
         else:
             metadata["delivery"] = "pull request open; worker did not request auto-merge"
