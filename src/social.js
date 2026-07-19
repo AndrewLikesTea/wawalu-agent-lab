@@ -3,57 +3,23 @@
 // Structured like releases.js and app.js: a pure, DOM-free core (validation,
 // normalization, ordering, character-budget math, focus math) that is unit
 // tested without a browser, plus a thin rendering layer that turns posts into
-// accessible DOM. Data sourcing (storage + demo seed) lives in social-page.js
+// accessible DOM. Data sourcing (durable API + demo seed) lives in social-page.js
 // so this module stays reusable and testable in isolation.
 //
-// Demo-only, by design (PRODUCT.md): posts live entirely in this browser's
-// localStorage and a static seed file. No customer data, cookies, credentials,
+// Demo-only, by design (PRODUCT.md): posts come from the shared backend with a
+// static seed fallback. No customer data, cookies, credentials,
 // or internal APIs are read or written, and — like the rest of Shiplog — every
 // field is written through textContent / text nodes, never HTML strings, so a
 // post body can never execute markup.
-
-export const SOCIAL_STORAGE_KEY = "shiplog.social.v1";
 
 // A single, classic short-post budget. Enforced in three places that must agree:
 // the textarea `maxlength`, the live counter, and createPost's validation.
 export const MAX_POST_LENGTH = 280;
 export const MAX_AUTHOR_LENGTH = 60;
 
-// Keep browser-owned state bounded. The feed is a demo, not an unbounded local
-// database; older posts remain disposable and bundled examples are never saved.
-export const MAX_STORED_POSTS = 100;
-
 // Author is optional in the compose form; an empty author normalizes to this so
 // the card always has a stable byline.
 export const DEFAULT_AUTHOR = "Guest";
-
-function isPost(value) {
-  return value !== null
-    && typeof value === "object"
-    && typeof value.id === "string" && value.id.trim() !== ""
-    && typeof value.author === "string" && value.author.trim() !== ""
-    && value.author.length <= MAX_AUTHOR_LENGTH
-    && typeof value.body === "string" && value.body.trim() !== ""
-    && value.body.length <= MAX_POST_LENGTH
-    && typeof value.createdAt === "string"
-    && !Number.isNaN(Date.parse(value.createdAt));
-}
-
-// Tolerant of malformed storage, never throws, and drops entries that do not
-// satisfy the post shape (mirrors loadDecisions / loadReleases).
-export function loadPosts(storage) {
-  try {
-    const value = JSON.parse(storage.getItem(SOCIAL_STORAGE_KEY) ?? "[]");
-    return Array.isArray(value) ? value.filter(isPost) : [];
-  } catch {
-    return [];
-  }
-}
-
-export function savePosts(storage, posts) {
-  const valid = Array.isArray(posts) ? posts.filter(isPost).slice(0, MAX_STORED_POSTS) : [];
-  storage.setItem(SOCIAL_STORAGE_KEY, JSON.stringify(valid));
-}
 
 // Normalize + validate a post from raw form values. Body is required and must
 // fit the budget; author is optional and falls back to DEFAULT_AUTHOR. Throws
@@ -84,24 +50,6 @@ export function createPost(values, options = {}) {
 // back to input order via JS sort stability.
 export function sortPostsNewestFirst(posts) {
   return [...posts].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
-}
-
-// Reconcile the feed's two writable sources. API records win an id collision
-// because they are the durable read model; local records remain visible until
-// the server returns the same id (or the browser's bounded storage evicts
-// them). Keeping this transition pure made the prototype's state model easy to
-// exercise without timers or a DOM:
-//
-//   remote snapshot + local overlay -> one ordered render snapshot
-export function reconcilePosts(remotePosts, localPosts) {
-  const byId = new Map();
-  for (const post of Array.isArray(localPosts) ? localPosts : []) {
-    if (isPost(post) && !byId.has(post.id)) byId.set(post.id, post);
-  }
-  for (const post of Array.isArray(remotePosts) ? remotePosts : []) {
-    if (isPost(post)) byId.set(post.id, post);
-  }
-  return sortPostsNewestFirst([...byId.values()]);
 }
 
 export const TIME_RANGES = Object.freeze({ hour: 60 * 60 * 1000, day: 24 * 60 * 60 * 1000, week: 7 * 24 * 60 * 60 * 1000 });
@@ -266,7 +214,6 @@ function focusCard(cards, index) {
 // the feed container so they survive a re-render without re-binding. Returns a
 // small API so the page can seed and re-render with fresh data.
 export function mountSocialFeed(root, options = {}) {
-  const storage = options.storage ?? globalThis.localStorage;
   const feed = root.querySelector("#post-feed");
   const form = root.querySelector("#post-form");
   const bodyInput = root.querySelector("#post-body");
@@ -334,7 +281,7 @@ export function mountSocialFeed(root, options = {}) {
   }
 
   if (form) {
-    form.addEventListener("submit", (event) => {
+    form.addEventListener("submit", async (event) => {
       event.preventDefault();
       if (!form.reportValidity()) return;
 
@@ -351,19 +298,20 @@ export function mountSocialFeed(root, options = {}) {
         return;
       }
 
-      posts = [post, ...posts];
-      renderAgents();
       try {
-        // Persist only browser-created posts. `posts` may also contain bundled
-        // demo examples supplied by social-page.js; saving those would turn an
-        // immutable asset into stale browser state on the first submission.
-        savePosts(storage, [post, ...loadPosts(storage)]);
+        form.querySelector("button[type=submit]")?.setAttribute("disabled", "");
+        const saved = options.create ? await options.create(post) : post;
+        posts = [saved, ...posts.filter((item) => item.id !== saved.id)];
+        renderAgents();
         if (notice) notice.hidden = true;
       } catch {
         if (notice) {
-          notice.textContent = "This post is visible for now, but could not be saved in this browser.";
+          notice.textContent = "This post could not be saved. Check the live connection and try again.";
           notice.hidden = false;
         }
+        return;
+      } finally {
+        form.querySelector("button[type=submit]")?.removeAttribute("disabled");
       }
       render();
       form.reset();
