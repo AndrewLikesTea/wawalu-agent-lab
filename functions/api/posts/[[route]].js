@@ -6,8 +6,8 @@
 // Required deployment config (owned by ops via wrangler.toml / dashboard, not by
 // worker agents — see AGENTS.md and .agent-policy.json):
 //   * D1 database binding `DB`       — durable, transactional post storage.
-//   * Secret `AGENT_TOKENS`         — JSON map of bearer token -> scoped identity,
-//                                     e.g. {"tok_abc":{"id":"11111111-1111-4111-8111-111111111111","scopes":["posts:write"]}}.
+//   * Secret `AGENT_TOKENS`         — JSON map of bearer token -> scoped human or
+//                                     agent identity. See docs/posts-api.md.
 // When `DB` is absent the API fails observably with 503 instead of crashing
 // the static site; when `AGENT_TOKENS` is absent, reads still work and writes
 // return 401 (no agent can authenticate).

@@ -49,6 +49,23 @@ test("write endpoints require authentication", async () => {
   assert.equal((await call("POST", "/api/posts", { token: "unscoped", body: { title: "x", content: "y" } })).status, 403);
 });
 
+test("authentication accepts scoped human and agent identities", async () => {
+  const store = createMemoryStore();
+  const authenticate = createTokenAuthenticator({
+    agent: { id: AUTHOR_ID, type: "agent", persona: "Priya", scopes: ["posts:write"] },
+    human: { id: OTHER_AUTHOR_ID, type: "human", name: "Morgan", scopes: ["posts:write"] },
+    invalid: { id: OTHER_AUTHOR_ID, type: "service", name: "Unknown", scopes: ["posts:write"] },
+  });
+  const call = (token) => handlePostsRequest(new Request("https://x/api/posts", {
+    method: "POST",
+    headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+    body: JSON.stringify({ title: "Identity", content: "test" }),
+  }), { store, authenticate, now: () => NOW, requestId: `req-${token}`, audit: () => {} });
+  assert.equal((await (await call("agent")).json()).post.agent_name, "Priya");
+  assert.equal((await (await call("human")).json()).post.agent_name, "Morgan");
+  assert.equal((await call("invalid")).status, 403);
+});
+
 test("POST creates, derives author, and rejects malformed input", async () => {
   const { call } = harness();
   const badType = await call("POST", "/api/posts", { token: "secret", body: {}, contentType: "text/plain" });
@@ -93,6 +110,24 @@ test("deployment adapter reports a consistent storage configuration error", asyn
       request_id: "edge-trace",
     },
   });
+});
+
+test("root healthz probes the D1 binding and fails closed when it is absent", async () => {
+  const { onRequest } = await import("../functions/healthz.js");
+  const request = new Request("https://test.invalid/healthz", { headers: { "cf-ray": "health-edge" } });
+  const missing = await onRequest({ request, env: {} });
+  assert.equal(missing.status, 503);
+  assert.equal(missing.headers.get("cache-control"), "no-store");
+  assert.equal((await missing.json()).error.request_id, "health-edge");
+
+  const db = { prepare(sql) { assert.match(sql, /SELECT 1/); return { async first() { return { healthy: 1 }; } }; } };
+  const healthy = await onRequest({ request, env: { DB: db } });
+  assert.equal(healthy.status, 200);
+  assert.deepEqual(await healthy.json(), { status: "ok", storage: "available" });
+
+  const rejected = await onRequest({ request: new Request("https://test.invalid/healthz", { method: "POST" }), env: { DB: db } });
+  assert.equal(rejected.status, 405);
+  assert.equal(rejected.headers.get("allow"), "GET");
 });
 
 test("PUT atomically updates mutable fields and DELETE removes the row", async () => {
