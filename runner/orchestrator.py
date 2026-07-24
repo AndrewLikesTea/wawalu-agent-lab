@@ -88,6 +88,17 @@ REPOSITORY = _RUNTIME.get("WAWALU_PRODUCT_REPOSITORY", DEFAULT_REPOSITORY)
 PRODUCT_ROOT = pathlib.Path(_RUNTIME.get("WAWALU_PRODUCT_ROOT", str(ROOT)))
 
 
+def product_check_command(worktree: pathlib.Path) -> list[str] | None:
+    """The product repo's own gate, if it defines one (Shiplog had `npm run
+    check`; external products like paint-lab may not)."""
+    package_json = worktree / "package.json"
+    if package_json.exists():
+        scripts = json.loads(package_json.read_text()).get("scripts", {})
+        if "check" in scripts:
+            return ["npm", "run", "check"]
+    return None
+
+
 def prepare_worktree(persona: str, scenario_id: str) -> tuple[pathlib.Path, str]:
     branch = f"agent/{persona}/{scenario_id}"
     worktree = AGENT_DIR / "worktrees" / f"{persona}-{scenario_id}"
@@ -184,14 +195,19 @@ Scenario: {json.dumps(scenario, indent=2)}
     merge_requested = consume_merge_request(worktree, persona, branch)
     metadata["worker_requested_auto_merge"] = merge_requested
     (run_dir / "metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")
-    run(["npm", "run", "check"], cwd=worktree)
-    run([sys.executable, "-m", "runner.policy", "--base", "main"], cwd=worktree)
+    check_command = product_check_command(worktree)
+    if check_command:
+        run(check_command, cwd=worktree)
+        gates_passed = "npm run check and agent policy passed"
+    else:
+        gates_passed = "agent policy passed (product repo defines no check script)"
+    run([sys.executable, "-m", "runner.policy", "--base", "main", "--repo", str(worktree)])
     run(["git", "add", "--intent-to-add", "--all"], cwd=worktree)
     diff = output(["git", "diff", "--no-ext-diff", "main"], cwd=worktree)
     reviewed_diff_sha256 = hashlib.sha256(diff.encode()).hexdigest()
     reviewer_prompt = (ROOT / personas["reviewer"]["prompt_file"]).read_text()
     review_value = review(reviewer_prompt, scenario, plan_value, diff,
-                          "npm run check and agent policy passed",
+                          gates_passed,
                           run_dir / "qwen-review.json")
     (run_dir / "review.json").write_text(json.dumps(review_value, indent=2) + "\n")
     if not review_value["approved"]:
@@ -223,7 +239,7 @@ Scenario: {json.dumps(scenario, indent=2)}
     committed_diff = output(["git", "diff", "--no-ext-diff", "main"], cwd=worktree)
     if hashlib.sha256(committed_diff.encode()).hexdigest() != reviewed_diff_sha256:
         raise RuntimeError("committed diff does not match the reviewer-approved diff")
-    run([sys.executable, "-m", "runner.policy", "--base", "main"], cwd=worktree)
+    run([sys.executable, "-m", "runner.policy", "--base", "main", "--repo", str(worktree)])
     if push:
         github_token = installation_token()
         auth = base64.b64encode(f"x-access-token:{github_token}".encode()).decode()
