@@ -106,7 +106,23 @@ def prepare_worktree(persona: str, scenario_id: str) -> tuple[pathlib.Path, str]
         raise SystemExit(f"worktree already exists: {worktree}")
     # worktrees branch off the PRODUCT checkout, wherever it lives
     run(["git", "worktree", "add", "-b", branch, str(worktree), "main"], cwd=PRODUCT_ROOT)
+    install_product_dependencies(worktree)
     return worktree, branch
+
+
+def install_product_dependencies(worktree: pathlib.Path) -> None:
+    """Workers must be able to run the product's own linters and tests, so a
+    JS product worktree needs node_modules before the worker starts. Best
+    effort: a failed install shouldn't kill the run before the worker exists."""
+    if not (worktree / "package.json").exists():
+        return
+    lockfile = worktree / "package-lock.json"
+    command = ["npm", "ci"] if lockfile.exists() else ["npm", "install"]
+    try:
+        run(command, cwd=worktree, capture_output=True)
+    except subprocess.CalledProcessError as error:
+        print(f"dependency install failed ({' '.join(command)}): "
+              f"{(error.stderr or '')[-500:]}", file=sys.stderr)
 
 
 def command_status() -> int:
