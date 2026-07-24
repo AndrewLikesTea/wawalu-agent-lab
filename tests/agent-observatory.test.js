@@ -13,6 +13,7 @@ test("agent observatory publishes named demo prompts and remains policy-protecte
   assert.match(home, /href="\/agents\.html"/);
   assert.match(page, /Published prompt trace/);
   assert.match(script, /api\.github\.com\/repos\/AndrewLikesTea\/wawalu-agent-lab\/events/);
+  assert.match(script, /api\.github\.com\/repos\/AndrewLikesTea\/paint-lab\/events/);
   assert.match(script, /Exact.*worker prompt/);
   for (const name of ["Sam", "Priya", "Mina", "Rowan", "Ellis", "Marcus"])
     assert.match(demo, new RegExp(`\\"name\\": \\"${name}\\"`));
