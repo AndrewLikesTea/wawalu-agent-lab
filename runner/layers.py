@@ -236,6 +236,21 @@ Recent or active work:
 {json.dumps(recent_titles[-30:], indent=2)}
 {history}{reference}
 """
+    # A draw that dissolves under the shipped-work filter is a normal outcome, not a
+    # failure: the model keeps re-decomposing the stale directive. Redraw a few times
+    # so one bad draw cannot crash the tick and stall the whole consultation round.
+    attempts = 3 if delivered else 1
+    for attempt in range(1, attempts + 1):
+        try:
+            return _directive_plan_draw(prompt, output_path, delivered)
+        except ValueError:
+            if attempt == attempts:
+                raise
+
+
+def _directive_plan_draw(prompt: str, output_path: pathlib.Path,
+                         delivered: list[str] | None) -> list[dict[str, Any]]:
+    """One planner draw, validated and stripped of work the team already shipped."""
     value = qwen_json(prompt, output_path, DIRECTIVE_PLAN_SCHEMA)
     tasks = value.get("tasks", [])
     normalized = []

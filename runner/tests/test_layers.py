@@ -92,6 +92,32 @@ class LayerTests(unittest.TestCase):
                                               pathlib.Path("unused"), advisory="Build rooms",
                                               delivered=delivered)
 
+    def test_followup_plan_redraws_after_a_wholly_duplicate_draw(self):
+        # One bad draw used to raise straight out of the tick, so a consultation round that
+        # merely got unlucky stalled the product direction until a later tick retried it.
+        duplicates = [
+            {"persona": "backend", "title": "Fix subpath safety for asset paths",
+             "outcome": "Paths work", "acceptance_criteria": ["Assets load", "Tests pass"]},
+            {"persona": "frontend", "title": "Improve first load experience",
+             "outcome": "Loads fast", "acceptance_criteria": ["Loads fast", "Tests pass"]},
+        ]
+        fresh = [
+            {"persona": "frontend", "title": "Add a shareable collaboration room URL",
+             "outcome": "Rooms are shareable", "acceptance_criteria": ["URL opens a room", "Tests pass"]},
+            {"persona": "staff", "title": "Persist room membership and ownership",
+             "outcome": "Rooms have owners", "acceptance_criteria": ["Owner recorded", "Tests pass"]},
+        ]
+        delivered = ["Fix subpath-safety for asset paths", "Improve first-load experience"]
+        with mock.patch.object(layers, "qwen_json",
+                               side_effect=[{"tasks": duplicates}, {"tasks": fresh}]) as qwen:
+            value = layers.propose_directive_plan("Sam", "product", [], "Make Paint usable",
+                                                  pathlib.Path("unused"), advisory="Build rooms",
+                                                  delivered=delivered)
+        self.assertEqual([task["title"] for task in value],
+                         ["Add a shareable collaboration room URL",
+                          "Persist room membership and ownership"])
+        self.assertEqual(qwen.call_count, 2)
+
     def test_directive_becomes_multi_engineer_program(self):
         tasks = [
             {"persona": "backend", "title": "Model posts", "outcome": "Post model exists",
