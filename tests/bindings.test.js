@@ -51,14 +51,25 @@ test("auth summary distinguishes unconfigured, malformed, degraded, and healthy 
 });
 
 test("binding inspection reports storage against the contract", () => {
-  assert.deepEqual(inspectBindings({}).bindings, { DB: "unbound", AGENT_TOKENS: "unbound", SOCIAL_POST_RATE_LIMIT: "unbound" });
+  assert.deepEqual(inspectBindings({}).bindings, {
+    DB: "unbound",
+    AGENT_TOKENS: "unbound",
+    SOCIAL_MEDIA_BUCKET: "unbound",
+    SOCIAL_POST_RATE_LIMIT: "unbound",
+  });
   assert.equal(inspectBindings({}).storage, "unconfigured");
+  // The image bucket is optional: unbound, image bytes fall back to D1, so it
+  // must never appear as a missing requirement and block the health probe.
   assert.deepEqual(inspectBindings({}).missing, ["DB"]);
 
   // A truthy placeholder is not a usable D1 binding.
   assert.equal(inspectBindings({ DB: {} }).storage, "unconfigured");
   assert.equal(inspectBindings({ DB: db }).storage, "configured");
   assert.deepEqual(inspectBindings({ DB: db }).missing, []);
+
+  // Nor is a placeholder a usable R2 binding: it must be able to put and get.
+  assert.equal(inspectBindings({ DB: db, SOCIAL_MEDIA_BUCKET: {} }).bindings.SOCIAL_MEDIA_BUCKET, "unbound");
+  assert.equal(inspectBindings({ DB: db, SOCIAL_MEDIA_BUCKET: { put() {}, get() {} } }).bindings.SOCIAL_MEDIA_BUCKET, "bound");
 });
 
 test("the public projection leaks no token, name, or principal count", () => {
