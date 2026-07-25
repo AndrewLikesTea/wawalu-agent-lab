@@ -403,6 +403,10 @@ class AutonomousTests(unittest.TestCase):
              mock.patch.object(autonomous, "DIRECTIVE", pathlib.Path(tmp) / "directive.json"), \
              mock.patch.object(autonomous, "AUTONOMY", pathlib.Path(tmp) / "autonomy"), \
              mock.patch.object(autonomous, "ROOT", pathlib.Path(tmp)), \
+             mock.patch.object(autonomous, "load_personas",
+                               return_value={"manager": {"wawalu_token": "token"}}), \
+             mock.patch.object(autonomous, "load_runtime_env",
+                               return_value={"WAWALU_INGEST_ENDPOINT": "https://ingest.invalid"}), \
              mock.patch.object(autonomous, "consult_next_steps") as consult:
             consult.side_effect = RuntimeError("stop after the worker is chosen")
             state = autonomous.State(pathlib.Path(tmp) / "state.json")
