@@ -13,8 +13,10 @@ import {
   MAX_SOCIAL_SOURCE_LENGTH,
   validateSocialPostInput,
 } from "../src/social-posts-api.js";
+import { createTestD1 } from "./support/d1-sqlite.js";
 
 const ID = "11111111-1111-4111-8111-111111111111";
+const OTHER_ID = "22222222-2222-4222-8222-222222222222";
 const NOW = Date.parse("2026-07-18T12:00:00.000Z");
 const AUTH = { id: ID, persona: "Priya", scopes: ["social-posts:write"] };
 
@@ -61,12 +63,21 @@ test("POST authenticates, persists, and makes the post visible to public clients
   const { call } = harness();
   const created = await call("POST", { body: valid });
   assert.equal(created.status, 201);
+  // A text post is the image post with every image field null -- one shape for
+  // every kind of post, so clients never branch on which sort they received.
   assert.deepEqual(created.json.post, {
     id: created.json.post.id,
     author: "Priya",
     content: valid.content,
+    caption: null,
     timestamp: "2026-07-18T11:59:00.000Z",
     source: "agent-orchestrator",
+    image_url: null,
+    image_alt: null,
+    image_width: null,
+    image_height: null,
+    like_count: 0,
+    comment_count: 0,
   });
   assert.equal(created.response.headers.get("cache-control"), "no-store");
   assert.equal(created.response.headers.get("ratelimit-remaining"), "29");
@@ -170,36 +181,61 @@ test("storage failures are opaque and correlated", async () => {
   assert.doesNotMatch(body.error.message, /password/);
 });
 
-test("D1 adapters use parameterized atomic statements", async () => {
-  const seen = [];
-  const db = { prepare(sql) {
-    const statement = {
-      bind(...args) { seen.push({ sql, args }); return statement; },
-      async first() {
-        if (sql.startsWith("INSERT INTO social_posts")) return { id: "p", ...valid, timestamp: "2026-07-18T11:59:00.000Z" };
-        return { request_count: 1 };
-      },
-      async all() { return { results: [] }; },
-    };
-    return statement;
-  } };
+// Runs the real migrations against a real SQLite engine rather than asserting
+// on SQL strings: the properties this store depends on -- durable ordering,
+// idempotent rate counters, a genuinely atomic insert -- are engine behaviour,
+// and a string match cannot observe any of them.
+test("D1 post store persists, orders, and rate-limits against real SQL", async (t) => {
+  const db = await createTestD1();
+  t.after(() => db.close());
   const store = createD1SocialPostStore(db);
-  await store.create({ id: "p", ...valid, principal_id: ID, created_at: new Date(NOW).toISOString() });
+
+  const first = await store.create({ id: ID, ...valid, timestamp: "2026-07-18T11:59:00.000Z", principal_id: ID, created_at: new Date(NOW).toISOString() });
+  assert.equal(first.author, "Priya");
+  assert.equal(first.like_count, 0);
+  assert.equal(first.image_url, null);
+
+  const second = await store.create({ id: OTHER_ID, ...valid, timestamp: "2026-07-18T12:30:00.000Z", principal_id: ID, created_at: new Date(NOW).toISOString() });
+  assert.deepEqual((await store.list(10)).map((post) => post.id), [second.id, first.id], "newest first");
+  assert.deepEqual(await store.get(ID), first);
+
   const rateLimit = createD1RateLimiter(db, { limit: 2 });
-  assert.equal((await rateLimit(ID, NOW)).allowed, true);
-  assert.match(seen[0].sql, /INSERT INTO social_posts/);
-  assert.equal(seen[0].args.length, 7);
-  assert.match(seen[1].sql, /ON CONFLICT/);
-  assert.deepEqual(seen[1].args, [ID, NOW]);
+  assert.deepEqual(
+    [(await rateLimit(ID, NOW)).remaining, (await rateLimit(ID, NOW)).remaining, (await rateLimit(ID, NOW)).allowed],
+    [1, 0, false],
+    "the durable counter increments across calls in one window",
+  );
+  // A new window resets the budget rather than carrying the exhausted count.
+  assert.equal((await rateLimit(ID, NOW + 60_000)).allowed, true);
 });
 
-test("deployment adapter and migration keep persistence and auth at the edge", async () => {
-  const [adapter, migration] = await Promise.all([
-    readFile(new URL("../functions/api/social-posts.js", import.meta.url), "utf8"),
-    readFile(new URL("../migrations/0003_social_posts.sql", import.meta.url), "utf8"),
-  ]);
-  assert.match(adapter, /env\.DB/);
-  assert.match(adapter, /env\.AGENT_TOKENS/);
+test("deployment adapters and migrations keep persistence and auth at the edge", async () => {
+  const [collection, subresources, media, edge, migration, mediaMigration] = await Promise.all([
+    "../functions/api/social-posts.js",
+    "../functions/api/social-posts/[[route]].js",
+    "../functions/api/social-media/[[route]].js",
+    "../src/social-edge.js",
+    "../migrations/0003_social_posts.sql",
+    "../migrations/0004_social_post_media.sql",
+  ].map((path) => readFile(new URL(path, import.meta.url), "utf8")));
+
+  // The exact-path route must delegate, never re-implement: two wirings for one
+  // endpoint is how the collection quietly drifts from its sub-resources.
+  assert.match(collection, /export \{ onRequest \} from "\.\/social-posts\/\[\[route\]\]\.js"/);
+  for (const adapter of [subresources, media]) {
+    assert.match(adapter, /socialDependencies/);
+    assert.match(adapter, /storageUnavailable/);
+  }
+  assert.match(edge, /env\.DB/);
+  assert.match(edge, /env\.AGENT_TOKENS/);
+  assert.match(edge, /env\.SOCIAL_MEDIA_BUCKET/);
   assert.match(migration, /CREATE TABLE IF NOT EXISTS social_posts/);
   assert.match(migration, /CREATE TABLE IF NOT EXISTS social_post_rate_limits/);
+  assert.match(mediaMigration, /CREATE TABLE IF NOT EXISTS social_media_objects/);
+  assert.match(mediaMigration, /CREATE TABLE IF NOT EXISTS social_post_likes/);
+  assert.match(mediaMigration, /CREATE TABLE IF NOT EXISTS social_post_comments/);
+  // Forward-only: the unified model may add columns and tables, never drop or
+  // rewrite what 0003 already persisted. (ON DELETE CASCADE is a constraint on
+  // new tables, not a data-destroying statement, so it is deliberately allowed.)
+  assert.doesNotMatch(mediaMigration, /\bDROP\s+(TABLE|COLUMN|INDEX)\b|\bDELETE\s+FROM\b|\bUPDATE\s+social_posts\b/i);
 });

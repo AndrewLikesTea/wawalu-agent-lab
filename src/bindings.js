@@ -29,6 +29,13 @@ export const BINDING_CONTRACT = Object.freeze([
     privilege: "One independently rotatable token per principal, each carrying only the scopes it needs. When absent, reads still work and every write is rejected with 401.",
   }),
   Object.freeze({
+    name: "SOCIAL_MEDIA_BUCKET",
+    kind: "r2",
+    required: false,
+    purpose: "Object storage for social post image bytes.",
+    privilege: "Read/write on this project's media bucket only. When absent, image bytes fall back to the bounded social_media_blobs table in D1, so the feature degrades in capacity rather than availability.",
+  }),
+  Object.freeze({
     name: "SOCIAL_POST_RATE_LIMIT",
     kind: "var",
     required: false,
@@ -41,6 +48,9 @@ function isBound(value, kind) {
   // A D1 binding is only useful if it can actually prepare a statement; a
   // truthy placeholder must not read as healthy.
   if (kind === "d1") return typeof value?.prepare === "function";
+  // Same rule for R2: a truthy placeholder that cannot store an object must not
+  // read as bound, or the health probe would call an unusable binding healthy.
+  if (kind === "r2") return typeof value?.put === "function" && typeof value?.get === "function";
   return value !== undefined && value !== null && String(value) !== "";
 }
 
