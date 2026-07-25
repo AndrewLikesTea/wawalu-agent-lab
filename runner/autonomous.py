@@ -23,7 +23,7 @@ from zoneinfo import ZoneInfo
 
 from runner.delivery import enable_auto_merge
 from runner.github_app import installation_token, reviewer_token
-from runner.layers import CAPACITY_EXIT_CODES, consult_next_steps, propose_directive_plan, propose_task, review_pull_request
+from runner.layers import CAPACITY_EXIT_CODES, WORKERS, consult_next_steps, propose_directive_plan, propose_task, review_pull_request
 from runner.orchestrator import PRODUCT_ROOT, REPOSITORY, load_personas, load_runtime_env, safe_slug
 from runner.simulation import choose_collaborator, load_behaviors
 from scripts.check_reviewer_approval import REVIEWER_LOGINS, approved_current_head
@@ -72,6 +72,7 @@ class State:
         self.value.setdefault("pr_updates", {})
         self.value.setdefault("standups", {})
         self.value.setdefault("handoffs", {})
+        self.value.setdefault("worker_cooldowns", {})
 
     def save(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -97,6 +98,21 @@ class State:
 
     def record_submission(self, persona: str, now: dt.datetime | None = None) -> None:
         self.value["persona_submissions"][persona] = (now or utc_now()).isoformat()
+        self.save()
+
+    def worker_available(self, worker: str, now: dt.datetime | None = None) -> bool:
+        until = self.value["worker_cooldowns"].get(worker)
+        if not until:
+            return True
+        try:
+            return dt.datetime.fromisoformat(until) <= (now or utc_now())
+        except ValueError:
+            return True
+
+    def record_worker_capacity(self, worker: str, delay_seconds: int,
+                               now: dt.datetime | None = None) -> None:
+        until = (now or utc_now()) + dt.timedelta(seconds=delay_seconds)
+        self.value["worker_cooldowns"][worker] = until.isoformat()
         self.save()
 
 
@@ -832,6 +848,23 @@ def run_worker_process(command: list[str], timeout_seconds: int, journal: Journa
         return 124
 
 
+def resolve_worker(requested: str, state: State, now: dt.datetime | None = None) -> str | None:
+    """Route around a provider that recently reported capacity exhaustion.
+
+    With ``auto`` the planning layer picks the worker, so a session-limited
+    provider keeps getting re-picked and burns a full plan/worktree cycle
+    before failing. Returns None when every provider is cooling down.
+    """
+    available = sorted(worker for worker in WORKERS if state.worker_available(worker, now))
+    if not available:
+        return None
+    if requested in available:
+        return requested
+    if requested == "auto" and len(available) == len(WORKERS):
+        return "auto"
+    return available[0]
+
+
 def execute_issue(issue: dict[str, Any], config: dict[str, Any], state: State,
                   journal: Journal, token: str) -> int:
     number = int(issue["number"])
@@ -859,7 +892,8 @@ def execute_issue(issue: dict[str, Any], config: dict[str, Any], state: State,
     replace_state_label(token, issue, config["issue_label"], "agent-running", keep_ready=True)
     comment(token, number, "planning", f"Sam assigned this issue to **{persona}**. Qwen is preparing the implementation handoff.")
     journal.emit("run_started", issue=number, persona=persona)
-    requested_worker = record.get("worker_override", config["default_worker"])
+    requested_worker = resolve_worker(
+        record.get("worker_override", config["default_worker"]), state) or config["default_worker"]
     command = [sys.executable, "-m", "runner.orchestrator", "run", persona,
                str(scenario_path.relative_to(ROOT)), "--push", "--worker", requested_worker]
     exit_code = run_worker_process(
@@ -882,6 +916,7 @@ def execute_issue(issue: dict[str, Any], config: dict[str, Any], state: State,
         record.update({"status": "retry", "attempts": prior_attempts,
                        "capacity_failures": failures, "worker_override": alternate,
                        "retry_at": (utc_now() + dt.timedelta(seconds=delay)).isoformat()})
+        state.record_worker_capacity(exhausted, delay)
         comment(token, number, "capacity deferred",
                 f"{exhausted.title()} reported temporary account capacity exhaustion. This did not consume "
                 f"an implementation attempt; Sam will retry with {alternate.title()} after the backoff.")
@@ -951,6 +986,9 @@ def tick(config: dict[str, Any], state: State, journal: Journal, token: str | No
             return "persona-pr-rate-limit"
     if issue is None:
         return "idle"
+    if resolve_worker(config["default_worker"], state) is None:
+        journal.emit("workers_capacity_exhausted", issue=int(issue["number"]))
+        return "workers-capacity-exhausted"
     execute_issue(issue, config, state, journal, token)
     return "executed"
 

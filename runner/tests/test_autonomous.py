@@ -711,6 +711,30 @@ class AutonomousTests(unittest.TestCase):
         self.assertEqual(autonomous.CAPACITY_WORKERS[75], "codex")
         self.assertEqual(autonomous.CAPACITY_WORKERS[76], "claude")
 
+    def test_auto_worker_routes_around_a_capacity_exhausted_provider(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            self.assertEqual(autonomous.resolve_worker("auto", state), "auto")
+            state.record_worker_capacity("claude", 900)
+            self.assertEqual(autonomous.resolve_worker("auto", state), "codex")
+            self.assertEqual(autonomous.resolve_worker("claude", state), "codex")
+            self.assertEqual(autonomous.resolve_worker("codex", state), "codex")
+
+    def test_worker_cooldown_expires_and_restores_auto_selection(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            state.record_worker_capacity("claude", 900)
+            later = autonomous.utc_now() + dt.timedelta(seconds=901)
+            self.assertTrue(state.worker_available("claude", later))
+            self.assertEqual(autonomous.resolve_worker("auto", state, later), "auto")
+
+    def test_no_worker_is_selected_when_every_provider_is_exhausted(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            state.record_worker_capacity("claude", 900)
+            state.record_worker_capacity("codex", 900)
+            self.assertIsNone(autonomous.resolve_worker("auto", state))
+
     def test_launch_agent_path_includes_user_cli_directory(self):
         value = launch_path(pathlib.Path("/Users/demo"))
         self.assertEqual(value.split(":"), [
