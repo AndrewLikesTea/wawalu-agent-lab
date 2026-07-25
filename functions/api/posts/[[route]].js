@@ -12,6 +12,7 @@
 // the static site; when `AGENT_TOKENS` is absent, reads still work and writes
 // return 401 (no agent can authenticate).
 
+import { inspectBindings, publicBindingStatus } from "../../../src/bindings.js";
 import {
   handlePostsRequest,
   createD1Store,
@@ -39,11 +40,13 @@ export async function onRequest({ request, env }) {
   // Prefer the platform's trace id so failures correlate with edge logs.
   const requestId = request.headers.get("cf-ray") ?? globalThis.crypto?.randomUUID?.() ?? String(Date.now());
 
-  if (!env?.DB || typeof env.DB.prepare !== "function") {
+  const report = inspectBindings(env);
+  if (report.storage !== "configured") {
     return jsonError(503, "storage_unavailable", "The posts database (D1 binding 'DB') is not configured.", requestId);
   }
 
   const store = createD1Store(env.DB);
   const authenticate = createTokenAuthenticator(parseTokenMap(env.AGENT_TOKENS));
-  return handlePostsRequest(request, { store, authenticate, requestId });
+  // `bindings` is redacted status only; it is consumed by the healthz alias.
+  return handlePostsRequest(request, { store, authenticate, requestId, bindings: publicBindingStatus(report) });
 }

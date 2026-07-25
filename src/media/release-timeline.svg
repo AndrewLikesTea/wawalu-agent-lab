@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" width="1200" height="900">
+  <title>A rising bar chart of five releases above a labelled baseline</title>
+  <rect width="1200" height="900" fill="#f6f4ee" />
+  <g fill="#e2ded3">
+    <rect x="120" y="240" width="960" height="3" />
+    <rect x="120" y="420" width="960" height="3" />
+    <rect x="120" y="600" width="960" height="3" />
+  </g>
+  <g fill="#1f70c1">
+    <rect x="170" y="540" width="120" height="180" rx="14" />
+    <rect x="350" y="450" width="120" height="270" rx="14" />
+    <rect x="530" y="480" width="120" height="240" rx="14" />
+    <rect x="710" y="330" width="120" height="390" rx="14" />
+    <rect x="890" y="200" width="120" height="520" rx="14" />
+  </g>
+  <g fill="#3a8a4b">
+    <circle cx="230" cy="540" r="18" />
+    <circle cx="410" cy="450" r="18" />
+    <circle cx="590" cy="480" r="18" />
+    <circle cx="770" cy="330" r="18" />
+    <circle cx="950" cy="200" r="18" />
+  </g>
+  <rect x="120" y="742" width="960" height="6" rx="3" fill="#282824" />
+  <g fill="#74746e">
+    <rect x="170" y="778" width="120" height="16" rx="8" />
+    <rect x="350" y="778" width="120" height="16" rx="8" />
+    <rect x="530" y="778" width="120" height="16" rx="8" />
+    <rect x="710" y="778" width="120" height="16" rx="8" />
+    <rect x="890" y="778" width="120" height="16" rx="8" />
+  </g>
+</svg>

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" width="1200" height="900">
+  <title>Three stacked cards, the middle one wrapped in a blue focus ring</title>
+  <rect width="1200" height="900" fill="#f2f5fb" />
+  <rect x="180" y="120" width="840" height="170" rx="24" fill="#ffffff" stroke="#d9d7d0" stroke-width="4" />
+  <rect x="240" y="175" width="380" height="26" rx="13" fill="#dcdbd4" />
+  <rect x="240" y="223" width="560" height="18" rx="9" fill="#e8e7e1" />
+  <rect x="168" y="352" width="864" height="194" rx="30" fill="none" stroke="#8abbe9" stroke-width="14" />
+  <rect x="180" y="364" width="840" height="170" rx="24" fill="#ffffff" stroke="#1f70c1" stroke-width="4" />
+  <rect x="240" y="419" width="380" height="26" rx="13" fill="#1f70c1" />
+  <rect x="240" y="467" width="560" height="18" rx="9" fill="#bcd6ef" />
+  <rect x="180" y="610" width="840" height="170" rx="24" fill="#ffffff" stroke="#d9d7d0" stroke-width="4" />
+  <rect x="240" y="665" width="380" height="26" rx="13" fill="#dcdbd4" />
+  <rect x="240" y="713" width="560" height="18" rx="9" fill="#e8e7e1" />
+</svg>

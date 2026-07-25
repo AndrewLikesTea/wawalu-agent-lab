@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" width="1200" height="900">
+  <title>A grid of nine tiles with arrow keys tracing a path across it</title>
+  <rect width="1200" height="900" fill="#eef4ee" />
+  <g fill="#ffffff" stroke="#d9d7d0" stroke-width="4">
+    <rect x="150" y="120" width="260" height="200" rx="20" />
+    <rect x="470" y="120" width="260" height="200" rx="20" />
+    <rect x="790" y="120" width="260" height="200" rx="20" />
+    <rect x="150" y="360" width="260" height="200" rx="20" />
+    <rect x="790" y="360" width="260" height="200" rx="20" />
+    <rect x="150" y="600" width="260" height="200" rx="20" />
+    <rect x="470" y="600" width="260" height="200" rx="20" />
+    <rect x="790" y="600" width="260" height="200" rx="20" />
+  </g>
+  <rect x="458" y="348" width="284" height="224" rx="28" fill="none" stroke="#3a8a4b" stroke-width="12" />
+  <rect x="470" y="360" width="260" height="200" rx="20" fill="#ffffff" stroke="#3a8a4b" stroke-width="4" />
+  <g fill="#3a8a4b">
+    <path d="M600 400 l44 52 h-88 z" />
+    <path d="M600 520 l44 -52 h-88 z" />
+    <path d="M512 460 l52 -44 v88 z" />
+    <path d="M688 460 l-52 -44 v88 z" />
+  </g>
+  <g fill="#c8cec6">
+    <rect x="210" y="200" width="140" height="18" rx="9" />
+    <rect x="530" y="200" width="140" height="18" rx="9" />
+    <rect x="850" y="200" width="140" height="18" rx="9" />
+    <rect x="210" y="440" width="140" height="18" rx="9" />
+    <rect x="850" y="440" width="140" height="18" rx="9" />
+    <rect x="210" y="680" width="140" height="18" rx="9" />
+    <rect x="530" y="680" width="140" height="18" rx="9" />
+    <rect x="850" y="680" width="140" height="18" rx="9" />
+  </g>
+</svg>

@@ -123,7 +123,9 @@ test("root healthz probes the D1 binding and fails closed when it is absent", as
   const db = { prepare(sql) { assert.match(sql, /SELECT 1/); return { async first() { return { healthy: 1 }; } }; } };
   const healthy = await onRequest({ request, env: { DB: db } });
   assert.equal(healthy.status, 200);
-  assert.deepEqual(await healthy.json(), { status: "ok", storage: "available" });
+  // No AGENT_TOKENS secret in this env, so the auth binding reports unconfigured
+  // without failing the probe. See tests/bindings.test.js.
+  assert.deepEqual(await healthy.json(), { status: "ok", storage: "available", auth: "unconfigured" });
 
   const rejected = await onRequest({ request: new Request("https://test.invalid/healthz", { method: "POST" }), env: { DB: db } });
   assert.equal(rejected.status, 405);

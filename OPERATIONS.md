@@ -42,6 +42,12 @@
 - `npm run verify:build` revalidates every digest, the exact `healthz` response,
   the social post-management assets, and the least-privilege browser policy.
   CI remains the only deployment authority; these checks require no credentials.
+- Runtime bindings are declared as digest-pinned data in `src/bindings.js` and
+  reported by `/healthz` as `storage` and `auth`. Storage fails the probe closed;
+  auth configuration is reported but never gates it, so a token rotation cannot
+  fail a deploy or block a rollback. Alert on `auth: "degraded"` and the
+  `binding_health` log rather than on the probe's status code. Provisioning the
+  bindings stays operations-owned. See `docs/auth-storage-bindings.md`.
 - Releases are immutable commit artifacts. To roll back, use the established
   protected release process to redeploy the last known-good commit artifact,
   verify its manifest, then smoke-test `/healthz`. Do not edit an artifact in
