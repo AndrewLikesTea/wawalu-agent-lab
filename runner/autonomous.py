@@ -22,7 +22,8 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from runner.delivery import enable_auto_merge
-from runner.github_app import installation_token, reviewer_token
+from runner.github_app import (current_token, installation_token, refresh_token,
+                               reviewer_token)
 from runner.layers import (CAPACITY_EXIT_CODES, WORKERS, ConsultantCapacityExhausted,
                            consult_next_steps, propose_directive_plan, propose_task,
                            review_pull_request)
@@ -315,7 +316,7 @@ def try_lock(path: pathlib.Path):
             fcntl.flock(handle, fcntl.LOCK_UN)
 
 
-def github(path: str, token: str, method: str = "GET", data: dict | None = None) -> Any:
+def _github_call(path: str, token: str, method: str, data: dict | None) -> Any:
     request = urllib.request.Request(
         "https://api.github.com" + path,
         data=json.dumps(data).encode() if data is not None else None,
@@ -325,6 +326,17 @@ def github(path: str, token: str, method: str = "GET", data: dict | None = None)
     )
     with urllib.request.urlopen(request, timeout=30) as response:
         return json.load(response) if response.length != 0 else None
+
+
+def github(path: str, token: str, method: str = "GET", data: dict | None = None) -> Any:
+    """Call the GitHub API, re-minting the token once if the run outlived its hour."""
+    token = current_token(token)
+    try:
+        return _github_call(path, token, method, data)
+    except urllib.error.HTTPError as error:
+        if error.code != 401:
+            raise
+        return _github_call(path, refresh_token(token), method, data)
 
 
 def issue_label(issue: dict[str, Any], prefix: str) -> str | None:
@@ -653,13 +665,23 @@ def consult_after_directive_mvp(token: str, config: dict[str, Any], journal: Jou
     return issues
 
 
-def fetch_pull_diff(number: int, token: str) -> str:
+def _pull_diff_call(number: int, token: str) -> str:
     request = urllib.request.Request(
         f"https://api.github.com/repos/{REPOSITORY}/pulls/{number}",
         headers={"Authorization": "Bearer " + token, "Accept": "application/vnd.github.v3.diff",
                  "X-GitHub-Api-Version": "2022-11-28", "User-Agent": "wawalu-autonomous-team"})
     with urllib.request.urlopen(request, timeout=30) as response:
         return response.read().decode("utf-8", "replace")
+
+
+def fetch_pull_diff(number: int, token: str) -> str:
+    token = current_token(token)
+    try:
+        return _pull_diff_call(number, token)
+    except urllib.error.HTTPError as error:
+        if error.code != 401:
+            raise
+        return _pull_diff_call(number, refresh_token(token))
 
 
 def review_owner_pull(pull: dict[str, Any], token: str, config: dict[str, Any],

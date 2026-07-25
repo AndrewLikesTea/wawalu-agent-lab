@@ -4,9 +4,10 @@ import pathlib
 import subprocess
 import tempfile
 import unittest
+import urllib.error
 from unittest import mock
 
-from runner import autonomous
+from runner import autonomous, github_app
 from scripts.manage_autonomy import launch_path
 
 
@@ -935,6 +936,76 @@ class AutonomousTests(unittest.TestCase):
             state.record_worker_capacity("claude", 900)
             state.record_worker_capacity("codex", 900)
             self.assertIsNone(autonomous.resolve_worker("auto", state))
+
+    def http_error(self, url, code, reason):
+        """An HTTPError that releases its backing temp file when the test ends."""
+        error = urllib.error.HTTPError(url, code, reason, {}, None)
+        self.addCleanup(error.close)
+        return error
+
+    def expired_then_ok(self, payload=b'{"ok": true}'):
+        """A urlopen stub that 401s on the stale token and succeeds on any other."""
+        calls = []
+
+        def urlopen(request, timeout=None):
+            token = request.headers["Authorization"].removeprefix("Bearer ")
+            calls.append(token)
+            if token == "stale":
+                raise self.http_error(request.full_url, 401, "Unauthorized")
+            response = mock.MagicMock()
+            response.length = len(payload)
+            response.read.return_value = payload
+            response.__enter__.return_value = response
+            return response
+
+        return urlopen, calls
+
+    def test_github_call_survives_a_token_that_expired_during_a_long_run(self):
+        urlopen, calls = self.expired_then_ok()
+        with mock.patch.object(github_app, "_SCOPES", {}), \
+             mock.patch.object(github_app, "_REPLACED", {}), \
+             mock.patch.object(github_app, "installation_token", return_value="fresh"), \
+             mock.patch.object(autonomous.urllib.request, "urlopen", urlopen):
+            self.assertEqual(autonomous.github("/rate_limit", "stale"), {"ok": True})
+            self.assertEqual(calls, ["stale", "fresh"])
+            # A caller still holding the dead token transparently gets the successor.
+            self.assertEqual(autonomous.github("/rate_limit", "stale"), {"ok": True})
+            self.assertEqual(calls, ["stale", "fresh", "fresh"])
+
+    def test_pull_diff_survives_an_expired_token(self):
+        urlopen, calls = self.expired_then_ok(b"diff --git a/a b/a")
+        with mock.patch.object(github_app, "_SCOPES", {}), \
+             mock.patch.object(github_app, "_REPLACED", {}), \
+             mock.patch.object(github_app, "installation_token", return_value="fresh"), \
+             mock.patch.object(autonomous.urllib.request, "urlopen", urlopen):
+            self.assertEqual(autonomous.fetch_pull_diff(7, "stale"), "diff --git a/a b/a")
+            self.assertEqual(calls, ["stale", "fresh"])
+
+    def test_non_auth_errors_are_not_retried_with_a_new_token(self):
+        def urlopen(request, timeout=None):
+            raise self.http_error(request.full_url, 404, "Not Found")
+
+        with mock.patch.object(github_app, "_SCOPES", {}), \
+             mock.patch.object(github_app, "_REPLACED", {}), \
+             mock.patch.object(github_app, "installation_token") as mint, \
+             mock.patch.object(autonomous.urllib.request, "urlopen", urlopen):
+            with self.assertRaises(urllib.error.HTTPError):
+                autonomous.github("/missing", "stale")
+            mint.assert_not_called()
+
+    def test_refreshed_token_keeps_the_scope_it_was_minted_with(self):
+        with mock.patch.object(github_app, "_SCOPES", {"stale": ("paint-lab", "github-reviewer-app", {"x": "y"})}), \
+             mock.patch.object(github_app, "_REPLACED", {}), \
+             mock.patch.object(github_app, "installation_token", return_value="fresh") as mint:
+            self.assertEqual(github_app.refresh_token("stale"), "fresh")
+            mint.assert_called_once_with("paint-lab", "github-reviewer-app", {"x": "y"})
+
+    def test_token_memory_is_bounded(self):
+        with mock.patch.object(github_app, "_SCOPES", {}), \
+             mock.patch.object(github_app, "_REPLACED", {}):
+            for index in range(github_app._REMEMBERED * 3):
+                github_app._remember(f"token-{index}", ("repo", "github-app", None))
+            self.assertEqual(len(github_app._SCOPES), github_app._REMEMBERED)
 
     def test_launch_agent_path_includes_user_cli_directory(self):
         value = launch_path(pathlib.Path("/Users/demo"))
