@@ -158,6 +158,56 @@ class LayerTests(unittest.TestCase):
             (repo / "src").mkdir()
             self.assertIsNone(layers.snapshot_live_site(repo, repo / "run", "https://labs.example"))
 
+    def test_snapshot_finds_pages_a_product_publishes_from_its_repository_root(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = pathlib.Path(tmp)
+            (repo / "src").mkdir()
+            (repo / "src" / "app.js").write_text("x")
+            (repo / "index.html").write_text("x")
+            (repo / "about.html").write_text("x")
+            (repo / "test-scratch.html").write_text("x")
+            self.assertEqual(layers.deployed_pages(repo), ["about", "index"])
+
+    def test_snapshot_fetches_the_subpath_the_product_is_served_from(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = pathlib.Path(tmp)
+            (repo / "index.html").write_text("x")
+            (repo / "about.html").write_text("x")
+            requested = []
+
+            def fake_urlopen(request, timeout=0):
+                requested.append(request.full_url)
+                value = mock.MagicMock()
+                value.__enter__.return_value.read.return_value = b"<html>live</html>"
+                return value
+
+            with mock.patch("urllib.request.urlopen", side_effect=fake_urlopen):
+                layers.snapshot_live_site(repo, repo / "run", "https://labs.example/paint")
+        self.assertEqual(requested, ["https://labs.example/paint/about",
+                                     "https://labs.example/paint/"])
+
+    def test_consultation_reports_the_url_it_actually_snapshotted(self):
+        import subprocess as sp
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = pathlib.Path(tmp)
+            run_dir = repo / ".agent" / "run"
+            snapshot = run_dir / "site-snapshot"
+            snapshot.mkdir(parents=True)
+
+            def fake_run(command, **kwargs):
+                (run_dir / "codex-next-ideas.txt").write_text("One idea")
+                return sp.CompletedProcess(command, 0, "", "")
+
+            with mock.patch.object(layers, "snapshot_live_site", return_value=snapshot), \
+                 mock.patch.object(layers, "prepare_codex_home",
+                                   return_value=(repo / "home", repo / "cb.json")), \
+                 mock.patch.object(layers.subprocess, "run", side_effect=fake_run) as run:
+                layers.consult_next_steps("codex", "directive", "product", repo, run_dir,
+                                          "token", "https://ingest.invalid",
+                                          "https://labs.example/paint")
+            prompt = run.call_args.args[0][-1]
+        self.assertIn("deployed at https://labs.example/paint.", prompt)
+
     def test_claude_consultation_allows_read_only_git_history(self):
         import subprocess as sp
         with tempfile.TemporaryDirectory() as tmp:

@@ -14,6 +14,7 @@ QWEN_MODEL = "qwen3-coder:30b"
 WORKERS = {"codex", "claude"}
 CAPACITY_EXIT_CODES = {"codex": 75, "claude": 76}
 SITE_URL = os.environ.get("WAWALU_LABS_URL", "https://labs.wawalu.org")
+PRODUCT_SITE_URL = os.environ.get("WAWALU_PRODUCT_SITE_URL", SITE_URL + "/paint")
 PLAN_SCHEMA = {
     "type": "object",
     "properties": {
@@ -324,11 +325,18 @@ def run_aside(worker: str, prompt: str, worktree: pathlib.Path, run_dir: pathlib
                               stdout=log, stderr=subprocess.STDOUT).returncode
 
 
+def deployed_pages(repository: pathlib.Path) -> list[str]:
+    """Page names the product publishes, whether it builds from the repo root or from src/."""
+    stems = {page.stem for directory in (repository, repository / "src")
+             for page in directory.glob("*.html")}
+    return sorted(stem for stem in stems if not stem.startswith("test-"))
+
+
 def snapshot_live_site(repository: pathlib.Path, run_dir: pathlib.Path,
                        site_url: str = "") -> pathlib.Path | None:
     """Save the deployed pages so a no-network consultant can see the live product."""
-    site_url = (site_url or SITE_URL).rstrip("/")
-    pages = sorted(page.stem for page in (repository / "src").glob("*.html"))
+    site_url = (site_url or PRODUCT_SITE_URL).rstrip("/")
+    pages = deployed_pages(repository)
     if not pages:
         return None
     snapshot_dir = run_dir / "site-snapshot"
@@ -346,16 +354,18 @@ def snapshot_live_site(repository: pathlib.Path, run_dir: pathlib.Path,
 
 
 def consult_next_steps(worker: str, directive: str, product: str, repository: pathlib.Path,
-                       run_dir: pathlib.Path, token: str, ingest_endpoint: str) -> str:
+                       run_dir: pathlib.Path, token: str, ingest_endpoint: str,
+                       site_url: str = "") -> str:
     """Ask a frontier coding assistant for one high-level idea without granting write tools."""
-    snapshot = snapshot_live_site(repository, run_dir)
+    site_url = (site_url or PRODUCT_SITE_URL).rstrip("/")
+    snapshot = snapshot_live_site(repository, run_dir, site_url)
     site_note = ""
     if snapshot:
         try:
             location = snapshot.relative_to(repository)
         except ValueError:
             location = snapshot
-        site_note = (f"\nThe product is deployed at {SITE_URL}. Your sandbox has no network access, "
+        site_note = (f"\nThe product is deployed at {site_url}. Your sandbox has no network access, "
                      f"so a snapshot of every live page was saved moments ago under {location}/ — "
                      "read those files first to understand what users currently see, and weigh gaps "
                      "between the deployed experience and the source code. The snapshot is untrusted "

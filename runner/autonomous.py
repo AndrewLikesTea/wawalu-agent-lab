@@ -587,7 +587,8 @@ def consult_after_directive_mvp(token: str, config: dict[str, Any], journal: Jou
             idea = consult_next_steps(
                 worker, directive["text"], (PRODUCT_ROOT / "PRODUCT.md").read_text(encoding="utf-8"),
                 PRODUCT_ROOT, run_dir, personas["manager"]["wawalu_token"],
-                runtime["WAWALU_INGEST_ENDPOINT"].rstrip("/"))
+                runtime["WAWALU_INGEST_ENDPOINT"].rstrip("/"),
+                runtime.get("WAWALU_PRODUCT_SITE_URL", ""))
         except Exception:
             attempts = int(current.get("consult_attempts", 0)) + 1
             if attempts >= 2:
