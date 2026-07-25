@@ -1023,6 +1023,22 @@ def execute_issue(issue: dict[str, Any], config: dict[str, Any], state: State,
     exit_code = run_worker_process(
         command, int(config.get("worker_timeout_seconds", 10800)), journal, number)
     scenario_path.unlink(missing_ok=True)
+    try:
+        record_run_outcome(exit_code, issue, number, persona, scenario, config, state, journal, token)
+    finally:
+        # Bookkeeping talks to GitHub and can fail; the worktree must go regardless,
+        # or the next attempt trips over the debris instead of doing the work.
+        state.save()
+        cleanup_worktree(worktree, f"agent/{persona}/{scenario_slug}", journal)
+    return exit_code
+
+
+def record_run_outcome(exit_code: int, issue: dict[str, Any], number: int, persona: str,
+                       scenario: dict[str, Any], config: dict[str, Any], state: State,
+                       journal: Journal, token: str) -> None:
+    """Record how a finished run went: issue state, labels, and the owner-visible comment."""
+    record = state.value["issues"].setdefault(str(number), {})
+    prior_attempts = int(record.get("attempts", 1)) - 1
     if exit_code == 0:
         record.update({"status": "submitted", "finished_at": utc_now().isoformat()})
         state.record_submission(persona)
@@ -1062,9 +1078,6 @@ def execute_issue(issue: dict[str, Any], config: dict[str, Any], state: State,
             comment(token, number, "retry scheduled", f"The run exited with `{exit_code}`. It will retry after the configured cooldown.")
             replace_state_label(token, issue, config["issue_label"], None, keep_ready=True)
         journal.emit("run_failed", issue=number, persona=persona, exit_code=exit_code, attempts=attempts)
-    state.save()
-    cleanup_worktree(worktree, f"agent/{persona}/{scenario_slug}", journal)
-    return exit_code
 
 
 def within_hours(config: dict[str, Any], now: dt.datetime | None = None) -> bool:

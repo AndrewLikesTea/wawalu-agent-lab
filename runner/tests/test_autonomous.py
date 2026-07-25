@@ -7,7 +7,7 @@ import unittest
 import urllib.error
 from unittest import mock
 
-from runner import autonomous, github_app
+from runner import autonomous, github_app, orchestrator
 from scripts.manage_autonomy import launch_path
 
 
@@ -1006,6 +1006,37 @@ class AutonomousTests(unittest.TestCase):
             for index in range(github_app._REMEMBERED * 3):
                 github_app._remember(f"token-{index}", ("repo", "github-app", None))
             self.assertEqual(len(github_app._SCOPES), github_app._REMEMBERED)
+
+    def test_worktree_is_cleaned_even_when_bookkeeping_fails(self):
+        """A GitHub outage after the run must not strand the worktree the retry needs."""
+        with tempfile.TemporaryDirectory() as tmp:
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            issue = {"number": 23, "title": "Touch drawing", "body": "",
+                     "labels": [{"name": "persona:backend"}]}
+            with mock.patch.object(autonomous, "replace_state_label"), \
+                 mock.patch.object(autonomous, "comment"), \
+                 mock.patch.object(autonomous, "run_worker_process", return_value=0), \
+                 mock.patch.object(autonomous, "record_run_outcome",
+                                   side_effect=RuntimeError("github is down")), \
+                 mock.patch.object(autonomous, "cleanup_worktree") as cleanup:
+                with self.assertRaisesRegex(RuntimeError, "github is down"):
+                    autonomous.execute_issue(issue, {**self.config(), "issue_label": "agent-ready",
+                                                     "default_worker": "codex",
+                                                     "worker_timeout_seconds": 10},
+                                             state, autonomous.Journal(pathlib.Path(tmp) / "events.jsonl"),
+                                             "token")
+                cleanup.assert_called_once()
+
+    def test_stale_worktree_is_reclaimed_instead_of_failing_the_retry(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            worktree = pathlib.Path(tmp) / "backend-issue-23"
+            worktree.mkdir()
+            (worktree / "leftover.txt").write_text("debris")
+            with mock.patch.object(orchestrator.subprocess, "run") as sub:
+                orchestrator.reclaim_worktree(worktree, "agent/backend/issue-23")
+            self.assertFalse(worktree.exists())
+            self.assertIn(["git", "worktree", "remove", "--force", str(worktree)],
+                          [call.args[0] for call in sub.call_args_list])
 
     def test_launch_agent_path_includes_user_cli_directory(self):
         value = launch_path(pathlib.Path("/Users/demo"))
