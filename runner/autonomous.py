@@ -48,7 +48,8 @@ PERSONAS = set(PERSONA_NAMES)
 ASSIGNABLE_PERSONAS = tuple(PERSONA_NAMES)
 CAPACITY_WORKERS = {code: worker for worker, code in CAPACITY_EXIT_CODES.items()}
 DELIVERY_ATTEMPT_LIMIT = 3
-DIRECTIVE = AUTONOMY / "directive.json"
+DIRECTIVE = AUTONOMY / "directive.json"        # legacy single-slot record, read once and carried forward
+DIRECTIVES = AUTONOMY / "directives.json"
 PACIFIC = ZoneInfo("America/Los_Angeles")
 
 
@@ -151,61 +152,170 @@ class State:
         return delay
 
 
-class DirectiveStore:
-    def __init__(self, path: pathlib.Path | None = None):
-        self.path = path or DIRECTIVE
+class DirectiveBook:
+    """Every owner directive, each with its own program, persona scope, and lineage.
 
-    def read(self) -> dict[str, Any] | None:
+    The team runs more than one product line, so one directive slot is not enough:
+    setting a second directive used to overwrite the first, discarding a live
+    program's issue list and its consultation history. Directives are held as an
+    ordered list instead, each independently pending, consumed, and consulted.
+    """
+
+    def __init__(self, path: pathlib.Path | None = None, legacy: pathlib.Path | None = None):
+        self.path = path or DIRECTIVES
+        self.legacy = legacy if legacy is not None else DIRECTIVE
+
+    def _load(self) -> list[dict[str, Any]]:
         try:
             value = json.loads(self.path.read_text(encoding="utf-8"))
-            return value if isinstance(value, dict) and value.get("status") == "pending" else None
         except (OSError, ValueError):
-            return None
+            return self._adopt_legacy()
+        directives = value.get("directives") if isinstance(value, dict) else None
+        return [item for item in directives if isinstance(item, dict)] if isinstance(directives, list) else []
 
-    def read_any(self) -> dict[str, Any] | None:
+    def _adopt_legacy(self) -> list[dict[str, Any]]:
+        """Carry a single-slot directive forward the first time the book is read.
+
+        The upgrade must not strand a directive whose program is mid-flight, so the
+        old record keeps its issues, plan, and consultation rounds and simply becomes
+        the first entry. The legacy file is left untouched as a backup.
+        """
         try:
-            value = json.loads(self.path.read_text(encoding="utf-8"))
-            return value if isinstance(value, dict) else None
+            value = json.loads(self.legacy.read_text(encoding="utf-8"))
         except (OSError, ValueError):
-            return None
+            return []
+        if not isinstance(value, dict) or not value.get("text"):
+            return []
+        value.setdefault("id", slug_for_directive(value["text"], value.get("created_at", "")))
+        directives = [value]
+        self._write(directives)
+        return directives
 
-    def set(self, text: str) -> dict[str, Any]:
+    def write(self, directives: list[dict[str, Any]]) -> None:
+        """Replace the whole book. Private to the owner, like every other autonomy file."""
+        self.path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        self.path.write_text(json.dumps({"directives": directives}, indent=2) + "\n", encoding="utf-8")
+        self.path.chmod(0o600)
+
+    _write = write
+
+    def read(self) -> list[dict[str, Any]]:
+        """All directives, with legacy single-consultation records converted."""
+        directives, changed = self._load(), False
+        for value in directives:
+            if "consultation" in value and not value.get("consultations"):
+                legacy = value.pop("consultation")
+                value["consultations"] = [{
+                    "worker": legacy.get("worker"), "created_at": legacy.get("created_at"),
+                    "plan": [{"title": "migrated single follow-up"}],
+                    "created_issues": [{"index": 0, "issue": int(legacy["issue"])}],
+                }]
+                changed = True
+        if changed:
+            self._write(directives)
+        return directives
+
+    def get(self, directive_id: str) -> dict[str, Any] | None:
+        return next((item for item in self.read() if item.get("id") == directive_id), None)
+
+    def pending(self) -> list[dict[str, Any]]:
+        return [item for item in self.read() if item.get("status") == "pending"]
+
+    def consumed(self) -> list[dict[str, Any]]:
+        return [item for item in self.read() if item.get("status") == "consumed"]
+
+    def add(self, text: str, personas: list[str] | None = None,
+            directive_id: str | None = None) -> dict[str, Any]:
         text = " ".join(text.split()).strip()
         if not text:
             raise ValueError("manager directive cannot be empty")
         if len(text) > 4000:
             raise ValueError("manager directive cannot exceed 4,000 characters")
-        self.path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-        value = {"status": "pending", "text": text, "created_at": utc_now().isoformat()}
-        self.path.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
-        self.path.chmod(0o600)
+        scope = [str(name).strip() for name in (personas or []) if str(name).strip()]
+        unknown = [name for name in scope if name not in PERSONAS]
+        if unknown:
+            raise ValueError(f"unknown persona(s): {', '.join(sorted(unknown))}")
+        directives = self.read()
+        created_at = utc_now().isoformat()
+        value = {"id": directive_id or unique_directive_id(text, created_at, directives),
+                 "status": "pending", "text": text, "created_at": created_at}
+        if scope:
+            value["personas"] = scope
+        if any(item.get("id") == value["id"] for item in directives):
+            raise ValueError(f"directive id already exists: {value['id']}")
+        directives.append(value)
+        self._write(directives)
         return value
+
+    def replace(self, value: dict[str, Any]) -> dict[str, Any]:
+        directives = self.read()
+        for index, item in enumerate(directives):
+            if item.get("id") == value.get("id"):
+                directives[index] = value
+                self._write(directives)
+                return value
+        raise RuntimeError(f"no directive to update: {value.get('id')}")
+
+    def clear(self, directive_id: str | None = None) -> int:
+        directives = self.read()
+        keep = [item for item in directives if directive_id and item.get("id") != directive_id]
+        self._write(keep)
+        return len(directives) - len(keep)
+
+
+def slug_for_directive(text: str, created_at: str) -> str:
+    """A short, stable, human-recognizable id drawn from the directive's own words."""
+    words = [word for word in re.findall(r"[a-z0-9]+", text.lower()) if len(word) > 3][:3]
+    stem = "-".join(words) or "directive"
+    return f"{stem}-{hashlib.sha256(f'{text}:{created_at}'.encode()).hexdigest()[:6]}"
+
+
+def unique_directive_id(text: str, created_at: str, existing: list[dict[str, Any]]) -> str:
+    taken = {item.get("id") for item in existing}
+    candidate = slug_for_directive(text, created_at)
+    suffix = 2
+    while candidate in taken:
+        candidate = f"{slug_for_directive(text, created_at)}-{suffix}"
+        suffix += 1
+    return candidate
+
+
+class DirectiveStore:
+    """One directive inside the book, with the record-keeping a program needs.
+
+    Bound to a single id so the planning, issue-creation, and consultation paths can
+    keep writing to "their" directive without knowing the book exists.
+    """
+
+    def __init__(self, directive_id: str | None = None, book: DirectiveBook | None = None):
+        self.book = book or DirectiveBook()
+        self.directive_id = directive_id
+
+    def _entry(self) -> dict[str, Any] | None:
+        if self.directive_id is None:
+            pending = self.book.pending()
+            return pending[0] if pending else None
+        return self.book.get(self.directive_id)
+
+    def read(self) -> dict[str, Any] | None:
+        value = self._entry()
+        return value if value and value.get("status") == "pending" else None
+
+    def read_any(self) -> dict[str, Any] | None:
+        return self._entry()
+
+    def read_migrated(self) -> dict[str, Any] | None:
+        return self._entry()
 
     def consume(self, issue: int) -> None:
         value = self.read()
         if not value:
             return
         value.update({"status": "consumed", "issue": issue, "consumed_at": utc_now().isoformat()})
-        self.path.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
-        self.path.chmod(0o600)
+        self.book.replace(value)
 
     def _write(self, value: dict[str, Any]) -> None:
-        self.path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-        self.path.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
-        self.path.chmod(0o600)
-
-    def read_migrated(self) -> dict[str, Any] | None:
-        """Read the directive, converting the pre-round single-consultation record."""
-        value = self.read_any()
-        if value and "consultation" in value and not value.get("consultations"):
-            legacy = value.pop("consultation")
-            value["consultations"] = [{
-                "worker": legacy.get("worker"), "created_at": legacy.get("created_at"),
-                "plan": [{"title": "migrated single follow-up"}],
-                "created_issues": [{"index": 0, "issue": int(legacy["issue"])}],
-            }]
-            self._write(value)
-        return value
+        self.book.replace(value)
 
     def begin_consultation(self, worker: str) -> dict[str, Any]:
         value = self.read_any()
@@ -243,8 +353,7 @@ class DirectiveStore:
         if not value:
             raise RuntimeError("no pending directive")
         value.update({"plan": tasks, "created_issues": value.get("created_issues", [])})
-        self.path.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
-        self.path.chmod(0o600)
+        self._write(value)
         return value
 
     def record_created_issue(self, index: int, issue: int) -> dict[str, Any]:
@@ -254,12 +363,11 @@ class DirectiveStore:
         created = list(value.get("created_issues", []))
         created.append({"index": index, "issue": issue})
         value["created_issues"] = created
-        self.path.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
-        self.path.chmod(0o600)
+        self._write(value)
         return value
 
     def clear(self) -> None:
-        self.path.unlink(missing_ok=True)
+        self.book.clear(self.directive_id)
 
 
 def summarize_directive(value: dict[str, Any] | None) -> dict[str, Any] | None:
@@ -267,7 +375,9 @@ def summarize_directive(value: dict[str, Any] | None) -> dict[str, Any] | None:
     if not value:
         return None
     summary = {
+        "id": value.get("id"),
         "status": value.get("status"),
+        "personas": value.get("personas", "all"),
         "text": value.get("text"),
         "created_at": value.get("created_at"),
         "issues": [int(item["issue"]) for item in value.get("created_issues", [])],
@@ -396,11 +506,14 @@ def delivered_work_context(token: str) -> list[str]:
     return delivered
 
 
-def persona_load_line(token: str) -> str:
+def persona_load_line(token: str, personas: list[str] | None = None) -> str:
     """Deterministic per-engineer load signal for the manager's assignment prompt.
 
     Small Qwen models balance poorly from raw titles, so we feed the conclusion:
-    the count of open (unclosed) issues each engineer already carries.
+    the count of open (unclosed) issues each engineer already carries. The count
+    spans every directive, because an engineer's real load is what they carry
+    across all of them — but only engineers this directive may use are listed,
+    so the prompt never advertises someone the plan is not allowed to assign.
     """
     query = urllib.parse.urlencode({"state": "open", "per_page": 100})
     counts = {persona: 0 for persona in PERSONA_NAMES}
@@ -413,8 +526,8 @@ def persona_load_line(token: str) -> str:
                 counts[persona] += 1
     except Exception:
         return ""  # a balance hint is advisory; never let it break generation
-    parts = ", ".join(f"{PERSONA_NAMES[p]} ({p}) {counts[p]}"
-                      for p in ASSIGNABLE_PERSONAS)
+    eligible = [p for p in ASSIGNABLE_PERSONAS if not personas or p in personas] or list(ASSIGNABLE_PERSONAS)
+    parts = ", ".join(f"{PERSONA_NAMES[p]} ({p}) {counts[p]}" for p in eligible)
     return ("\nOpen task load per engineer right now (assign new work to those carrying "
             f"the fewest, given fit): {parts}.\n")
 
@@ -516,15 +629,23 @@ def ensure_labels(token: str, ready_label: str) -> None:
 
 
 def create_generated_issue(token: str, proposal: dict[str, Any], ready_label: str,
-                           depends_on: int | None = None) -> dict[str, Any]:
+                           depends_on: int | None = None,
+                           directive_id: str | None = None) -> dict[str, Any]:
     criteria = "\n".join(f"- [ ] {item}" for item in proposal["acceptance_criteria"])
     dependency = f"\n\n## Dependency\n\nDepends on #{depends_on}." if depends_on else ""
+    # With several directives in flight the issue must say which product line it
+    # belongs to; otherwise a queue of mixed work is unreadable to a human and the
+    # observatory cannot tell two programs apart.
+    program = f"\n\n## Program\n\nDirective `{directive_id}`." if directive_id else ""
     body = (f"Generated by Sam, the synthetic engineering manager, from `PRODUCT.md`.\n\n"
             f"## Outcome\n\n{proposal['outcome']}\n\n## Acceptance criteria\n\n{criteria}\n\n"
-            f"This is a bounded demo-team task. Normal review and production controls apply.{dependency}")
+            f"This is a bounded demo-team task. Normal review and production controls apply."
+            f"{program}{dependency}")
+    labels = [ready_label, f"persona:{proposal['persona']}"]
+    if directive_id:
+        labels.append(f"directive:{directive_id}")
     return github(f"/repos/{REPOSITORY}/issues", token, "POST", {
-        "title": proposal["title"], "body": body,
-        "labels": [ready_label, f"persona:{proposal['persona']}"]})
+        "title": proposal["title"], "body": body, "labels": labels})
 
 
 def replace_state_label(token: str, issue: dict[str, Any], ready_label: str,
@@ -564,7 +685,7 @@ def task_persona(task: dict[str, Any]) -> str:
 
 def generate_directive_backlog(token: str, config: dict[str, Any], journal: Journal,
                                directive: dict[str, Any]) -> list[dict[str, Any]]:
-    store = DirectiveStore()
+    store = DirectiveStore(directive.get("id"))
     run_dir = AUTONOMY / "manager" / (utc_now().strftime("%Y%m%dT%H%M%SZ") + "-directive")
     run_dir.mkdir(parents=True, exist_ok=False)
     tasks = directive.get("plan")
@@ -573,7 +694,8 @@ def generate_directive_backlog(token: str, config: dict[str, Any], journal: Jour
             (ROOT / "personas" / "manager.md").read_text(encoding="utf-8"),
             (PRODUCT_ROOT / "PRODUCT.md").read_text(encoding="utf-8"), recent_issue_context(token),
             directive["text"], run_dir / "qwen-directive-plan.json",
-            utilization=persona_load_line(token))
+            utilization=persona_load_line(token, directive.get("personas")),
+            personas=directive.get("personas"))
         directive = store.save_plan(tasks)
     created = {int(item["index"]): int(item["issue"]) for item in directive.get("created_issues", [])}
     issues = []
@@ -585,7 +707,8 @@ def generate_directive_backlog(token: str, config: dict[str, Any], journal: Jour
             previous[persona] = int(issue["number"])
             issues.append(issue)
             continue
-        issue = create_generated_issue(token, task, config["issue_label"], previous.get(persona))
+        issue = create_generated_issue(token, task, config["issue_label"], previous.get(persona),
+                                       directive_id=directive.get("id"))
         store.record_created_issue(index, issue["number"])
         previous[persona] = int(issue["number"])
         issues.append(issue)
@@ -593,6 +716,7 @@ def generate_directive_backlog(token: str, config: dict[str, Any], journal: Jour
                      persona=task["persona"], title=task["title"])
     store.consume(issues[0]["number"])
     journal.emit("directive_backlog_created", issues=[item["number"] for item in issues],
+                 directive=directive.get("id"),
                  directive_sha256=hashlib.sha256(directive["text"].encode()).hexdigest())
     return issues
 
@@ -616,11 +740,29 @@ def program_task_pending(issue: dict[str, Any]) -> bool:
                    for label in issue.get("labels", []))
 
 
+def consult_every_directive(token: str, config: dict[str, Any], journal: Journal,
+                            worker: str = "auto", state: "State | None" = None,
+                            ) -> list[dict[str, Any]] | None:
+    """Advance the first directive whose current program has finished.
+
+    Each directive keeps its own consultation lineage, so a finished FinOps program
+    asks for the next FinOps idea while an unfinished one waits — one consultation
+    per tick, because each is a paid worker run.
+    """
+    for directive in DirectiveBook().consumed():
+        issues = consult_after_directive_mvp(token, config, journal, worker, state, directive)
+        if issues:
+            return issues
+    return None
+
+
 def consult_after_directive_mvp(token: str, config: dict[str, Any], journal: Journal,
                                 worker: str = "auto", state: "State | None" = None,
+                                directive: dict[str, Any] | None = None,
                                 ) -> list[dict[str, Any]] | None:
-    store = DirectiveStore()
-    directive = store.read_migrated()
+    book = DirectiveBook()
+    directive = directive or next(iter(book.consumed()), None)
+    store = DirectiveStore(directive.get("id") if directive else None, book)
     if not directive or directive.get("status") != "consumed" or not directive.get("created_issues"):
         return None
     rounds = list(directive.get("consultations", []))
@@ -691,7 +833,8 @@ def consult_after_directive_mvp(token: str, config: dict[str, Any], journal: Jou
             (ROOT / "personas" / "manager.md").read_text(encoding="utf-8"),
             (PRODUCT_ROOT / "PRODUCT.md").read_text(encoding="utf-8"), recent_issue_context(token),
             directive["text"], run_dir / "qwen-followup-plan.json", advisory=idea,
-            utilization=persona_load_line(token), delivered=delivered_work_context(token))
+            utilization=persona_load_line(token, directive.get("personas")),
+            delivered=delivered_work_context(token), personas=directive.get("personas"))
         current = store.update_consultation(plan=tasks)
     created = {int(item["index"]): int(item["issue"]) for item in current.get("created_issues", [])}
     issues = []
@@ -703,14 +846,15 @@ def consult_after_directive_mvp(token: str, config: dict[str, Any], journal: Jou
             previous[persona] = int(issue["number"])
             issues.append(issue)
             continue
-        issue = create_generated_issue(token, task, config["issue_label"], previous.get(persona))
+        issue = create_generated_issue(token, task, config["issue_label"], previous.get(persona),
+                                       directive_id=directive.get("id"))
         store.record_consultation_issue(index, issue["number"])
         previous[persona] = int(issue["number"])
         issues.append(issue)
         journal.emit("directive_followup_task_generated", issue=issue["number"], order=index + 1,
                      round=round_number, persona=task["persona"], title=task["title"])
     journal.emit("directive_followup_consulted", worker=worker, round=round_number,
-                 issues=[item["number"] for item in issues],
+                 issues=[item["number"] for item in issues], directive=directive.get("id"),
                  directive_sha256=hashlib.sha256(directive["text"].encode()).hexdigest())
     return issues
 
@@ -1174,19 +1318,22 @@ def tick(config: dict[str, Any], state: State, journal: Journal, token: str | No
     if config.get("interaction_rhythm", False):
         post_daily_standup(token, state, issues, journal, utc_now())
         post_dependency_handoffs(token, state, issues, journal, utc_now())
-    directive = DirectiveStore().read()
+    # One directive is planned per tick. The rest stay pending and are planned on
+    # later ticks, so several product lines can be in flight without a single tick
+    # spending several paid planning runs back to back.
+    pending = DirectiveBook().pending()
     issue = None
-    if directive:
-        generated = generate_directive_backlog(token, config, journal, directive)
+    if pending:
+        generated = generate_directive_backlog(token, config, journal, pending[0])
         issue = choose_issue(generated, state, config, utc_now())
-        if issue is None:
-            return "persona-pr-rate-limit"
+    # A rate-limited persona on one directive must not stall every other directive:
+    # fall through to the shared ready queue instead of returning early.
     if issue is None:
         issue = choose_issue(issues, state, config, utc_now())
-    if issue is None and issues:
+    if issue is None and (issues or pending):
         return "queued-personas-rate-limited"
     if issue is None and config.get("consult_after_directive_mvp", False):
-        generated = consult_after_directive_mvp(token, config, journal, state=state)
+        generated = consult_every_directive(token, config, journal, state=state)
         if generated:
             issue = choose_issue(generated, state, config, utc_now())
             if issue is None:
@@ -1231,7 +1378,12 @@ def main() -> int:
     sub.add_parser("review-prs")
     directive = sub.add_parser("directive")
     directive.add_argument("text", nargs="*")
-    directive.add_argument("--clear", action="store_true")
+    directive.add_argument("--clear", nargs="?", const="__all__", metavar="ID",
+                           help="clear one directive by id, or every directive when given no id")
+    directive.add_argument("--personas", default="",
+                           help="comma-separated personas this directive may be assigned to")
+    directive.add_argument("--id", dest="directive_id", default=None,
+                           help="explicit directive id (defaults to a slug of the text)")
     args = parser.parse_args()
     AUTONOMY.mkdir(parents=True, exist_ok=True)
     if args.command == "stop":
@@ -1239,13 +1391,15 @@ def main() -> int:
     if args.command == "resume":
         STOP.unlink(missing_ok=True); print("autonomous team resumed"); return 0
     if args.command == "directive":
-        store = DirectiveStore()
+        book = DirectiveBook()
         if args.clear:
-            store.clear(); print("manager directive cleared"); return 0
+            removed = book.clear(None if args.clear == "__all__" else args.clear)
+            print(f"cleared {removed} directive(s)"); return 0
         if args.text:
-            value = store.set(" ".join(args.text))
-            print(json.dumps({"status": value["status"], "text": value["text"]}, indent=2)); return 0
-        print(json.dumps(summarize_directive(store.read_migrated()), indent=2)); return 0
+            personas = [name.strip() for name in args.personas.split(",") if name.strip()]
+            value = book.add(" ".join(args.text), personas, args.directive_id)
+            print(json.dumps(summarize_directive(value), indent=2)); return 0
+        print(json.dumps([summarize_directive(item) for item in book.read()], indent=2)); return 0
     if args.command == "review-prs":
         approved = review_outstanding_prs(installation_token(), load_config(), State(), Journal())
         print(json.dumps({"approved_pulls": approved}, indent=2)); return 0
@@ -1254,7 +1408,7 @@ def main() -> int:
         print(json.dumps({"enabled": config.get("enabled"), "stopped": STOP.exists(),
                           "attempts_today": state.runs_today(),
                           "min_pr_interval_seconds": config.get("min_pr_interval_seconds"),
-                          "directive": summarize_directive(DirectiveStore().read_migrated()),
+                          "directives": [summarize_directive(item) for item in DirectiveBook().read()],
                           "state": state.value}, indent=2)); return 0
     return command_loop(args.once)
 

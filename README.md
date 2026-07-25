@@ -60,21 +60,33 @@ python3 -m runner.autonomous status
 python3 -m runner.autonomous stop
 python3 -m runner.autonomous resume
 python3 -m runner.autonomous directive "Prioritize release history and JSON export"
+python3 -m runner.autonomous directive --personas product,design,evaluation "Define the literacy score"
 python3 -m runner.autonomous directive
+python3 -m runner.autonomous directive --clear build-finops-executive-baa4a9
 python3 -m runner.autonomous directive --clear
 ```
 
-Running `directive` with no text prints the current directive's full evolution:
-its status, the issues of the initial program, and each consultation round's
-worker, high-level idea, and generated issues.
+Several directives can be in flight at once, so one product line does not have to
+finish before another starts. Each keeps its own program, issue list, and
+consultation lineage; setting a new one adds to the book rather than replacing
+what is already running. `--personas` restricts a directive to part of the team,
+which is enforced when the plan is validated, not merely requested in the prompt.
+Each tick plans at most one pending directive and runs at most one consultation,
+so several product lines never turn into several paid planning runs per tick.
+
+Running `directive` with no text prints every directive's full evolution: its id,
+status, persona scope, the issues of its initial program, and each consultation
+round's worker, high-level idea, and generated issues. `--clear` takes an optional
+id; with no id it clears every directive.
 
 The macOS LaunchAgent restarts after failures and laptop login. A stopped team
 remains stopped across restarts until `resume` removes the emergency-stop file.
 A pending free-text directive takes priority over the ordinary issue queue for
-Sam's next generated task. It is stored locally with private permissions and is
-not copied verbatim into the public issue; the generated task is public.
+Sam's next generated task. Directives are stored locally with private permissions
+and are not copied verbatim into the public issue; the generated task is public
+and carries a `directive:<id>` label so mixed queues stay readable.
 
-Every time all issues in the directive's current program close, Sam makes one
+Every time all issues in a directive's current program close, Sam makes one
 read-only Codex or Claude consultation. The consultant returns a single high-level
 product or infrastructure idea, and Sam decomposes it into a new 2-6 issue program
 with persona assignments and dependencies, exactly like the initial directive. Each

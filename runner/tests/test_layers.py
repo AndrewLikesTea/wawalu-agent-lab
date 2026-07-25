@@ -174,11 +174,58 @@ class LayerTests(unittest.TestCase):
                                           "Build social", pathlib.Path("unused"))
         prompt = qwen.call_args.args[0]
         self.assertIn("recent utilization", prompt)
-        self.assertIn("prefer all four", prompt)
+        self.assertIn("prefer giving every eligible engineer meaningful work", prompt)
         self.assertIn("Do not create busywork", prompt)
         # new distribution guardrails: no single-owner programs, Priya is not the default
         self.assertIn("never be assigned entirely to one engineer", prompt)
-        self.assertIn("do NOT make\nPriya the default owner", prompt)
+        self.assertIn("do NOT make Priya the default owner", prompt)
+        # An unscoped directive offers the whole roster, specialists included.
+        for name in ("Mina", "Rowan", "Ellis", "Priya", "Noor", "Iris", "Theo", "Anya"):
+            self.assertIn(name, prompt)
+
+    def test_scoped_directive_offers_and_accepts_only_its_personas(self):
+        """A directive scoped to some of the team must not leak the rest into the plan."""
+        scoped = ["product", "design"]
+        tasks = [
+            {"persona": "product", "title": "Define the literacy metric", "outcome": "Defined",
+             "acceptance_criteria": ["Definition is unambiguous", "Reviewed"]},
+            {"persona": "design", "title": "Draw the grade", "outcome": "Drawn",
+             "acceptance_criteria": ["States drawn", "Contrast verified"]},
+        ]
+        with mock.patch.object(layers, "qwen_json", return_value={"tasks": tasks}) as qwen:
+            plan = layers.propose_directive_plan("Sam", "product", [], "Define the score",
+                                                 pathlib.Path("unused"), personas=scoped)
+        prompt = qwen.call_args.args[0]
+        self.assertIn("scoped to a subset of the team", prompt)
+        self.assertIn("Noor (product)", prompt)
+        for absent in ("Rowan", "Ellis", "Mina"):
+            self.assertNotIn(absent, prompt)
+        self.assertEqual([task["persona"] for task in plan], scoped)
+
+    def test_scoped_directive_rejects_an_out_of_scope_assignment(self):
+        """Scope is enforced on the returned plan, not merely requested in the prompt."""
+        tasks = [
+            {"persona": "product", "title": "Define it", "outcome": "Defined",
+             "acceptance_criteria": ["Unambiguous", "Reviewed"]},
+            {"persona": "infrastructure", "title": "Deploy it", "outcome": "Deployed",
+             "acceptance_criteria": ["Reversible", "Health checked"]},
+        ]
+        with mock.patch.object(layers, "qwen_json", return_value={"tasks": tasks}):
+            with self.assertRaisesRegex(ValueError, "incomplete"):
+                layers.propose_directive_plan("Sam", "product", [], "Define the score",
+                                              pathlib.Path("unused"), personas=["product", "design"])
+
+    def test_two_persona_directive_still_plans_four_tasks(self):
+        """The three-engineer spread rule cannot exceed the personas a directive has."""
+        tasks = [
+            {"persona": persona, "title": f"Task {index}", "outcome": "Useful outcome",
+             "acceptance_criteria": ["Behavior works", "Tests pass"]}
+            for index, persona in enumerate(["product", "design", "product", "design"], 1)
+        ]
+        with mock.patch.object(layers, "qwen_json", return_value={"tasks": tasks}):
+            plan = layers.propose_directive_plan("Sam", "product", [], "Define the score",
+                                                 pathlib.Path("unused"), personas=["product", "design"])
+        self.assertEqual(len(plan), 4)
 
     def test_requested_worker_overrides_qwen_choice(self):
         with mock.patch.object(layers, "qwen_json", return_value={

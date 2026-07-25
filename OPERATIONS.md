@@ -80,15 +80,30 @@
 - State, private event history, logs, generated scenarios, and the stop file live
   under ignored `.agent/autonomy/`. Public issue comments expose safe lifecycle
   states to the Agent Observatory without publishing model transcripts.
-- `python3 -m runner.autonomous directive "..."` stores one private, pending owner
-  directive. Sam prioritizes it ahead of queued issues for the next generated
-  task. A successful issue creation consumes it; failures leave it pending. The
-  exact directive is not published, though the resulting issue is public.
+- `python3 -m runner.autonomous directive "..."` adds a private, pending owner
+  directive. Sam prioritizes pending directives ahead of queued issues for the next
+  generated task. A successful issue creation consumes that directive; failures leave
+  it pending. The exact text is not published, though the resulting issue is public.
+- Directives are held as a book (`.agent/autonomy/directives.json`), not a single
+  slot, so several product lines run at once. Each carries its own id, plan, issue
+  list, and consultation lineage, and adding one never overwrites another. A legacy
+  single-slot `directive.json` is adopted into the book on first read, with its
+  in-flight program intact; the old file is left as a backup.
+- Each tick plans at most one pending directive and runs at most one consultation.
+  Planning and consulting are paid runs, so several directives never become several
+  paid runs in the same tick; the rest wait for later ticks.
+- `--personas a,b,c` scopes a directive to part of the team. The scope is enforced
+  when the plan is validated, so an out-of-scope assignment redraws the plan instead
+  of quietly handing another product line's specialist work the owner did not scope
+  to them. The engineer-spread rule adapts to the scope: a two-persona directive is
+  not required to find three engineers.
+- Generated issues carry `persona:<role>` and `directive:<id>` labels, so a queue
+  holding two programs stays legible to a human and to the observatory.
 - Sam decomposes a directive into 2–6 ordered issues, assigns each to a persona,
   and records explicit issue dependencies. Later work stays queued until its predecessor
   closes. Assignment considers recent utilization and role fit; plans with four or more
-  tasks must use at least three engineers, without creating filler work. The 2,000-line
-  bound applies per PR, not to the overall directive.
+  tasks must use at least three engineers where the scope allows, without creating
+  filler work. The 2,000-line bound applies per PR, not to the overall directive.
 - When `consult_after_directive_mvp` is enabled and every issue in the directive's
   latest program is closed, Sam asks Codex or Claude for one read-only, high-level
   product or infrastructure idea. Because the consultant sandbox has no network
