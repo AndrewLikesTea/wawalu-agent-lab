@@ -8,8 +8,15 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 
+# The working tree git inspects. It defaults to the lab repo, and `--repo`
+# points it at a worktree of an external product repository. The guardrails
+# themselves are always read from ROOT: the product repo does not get to define
+# the limits its own agents are held to.
+REPO = ROOT
+
+
 def git(*args: str) -> str:
-    return subprocess.check_output(["git", *args], cwd=ROOT, text=True).strip()
+    return subprocess.check_output(["git", *args], cwd=REPO, text=True).strip()
 
 
 def validate(base: str) -> list[str]:
@@ -38,9 +45,13 @@ def validate(base: str) -> list[str]:
 
 
 def main() -> int:
+    global REPO
     parser = argparse.ArgumentParser()
     parser.add_argument("--base", default="main")
+    parser.add_argument("--repo", default=str(ROOT),
+                        help="working tree to validate (an agent worktree, which may be an external product repo)")
     args = parser.parse_args()
+    REPO = pathlib.Path(args.repo)
     errors = validate(args.base)
     if errors:
         print("\n".join(f"policy: {error}" for error in errors), file=sys.stderr)

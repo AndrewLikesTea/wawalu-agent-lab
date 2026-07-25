@@ -24,7 +24,7 @@ from zoneinfo import ZoneInfo
 from runner.delivery import enable_auto_merge
 from runner.github_app import installation_token, reviewer_token
 from runner.layers import CAPACITY_EXIT_CODES, consult_next_steps, propose_directive_plan, propose_task, review_pull_request
-from runner.orchestrator import load_personas, load_runtime_env, safe_slug
+from runner.orchestrator import PRODUCT_ROOT, REPOSITORY, load_personas, load_runtime_env, safe_slug
 from runner.simulation import choose_collaborator, load_behaviors
 from scripts.check_reviewer_approval import REVIEWER_LOGINS, approved_current_head
 
@@ -32,7 +32,6 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 AUTONOMY = ROOT / ".agent" / "autonomy"
 CONFIG = ROOT / ".secrets" / "autonomy.json"
 STOP = AUTONOMY / "STOP"
-REPOSITORY = "AndrewLikesTea/wawalu-agent-lab"
 OWNER = REPOSITORY.split("/")[0]
 PERSONAS = {"backend", "frontend", "infrastructure", "staff"}
 PERSONA_NAMES = {"backend": "Rowan", "frontend": "Mina",
@@ -453,7 +452,7 @@ def generate_work(token: str, config: dict[str, Any], journal: Journal) -> dict[
     run_dir = AUTONOMY / "manager" / utc_now().strftime("%Y%m%dT%H%M%SZ")
     run_dir.mkdir(parents=True, exist_ok=False)
     manager = (ROOT / "personas" / "manager.md").read_text(encoding="utf-8")
-    proposal = propose_task(manager, (ROOT / "PRODUCT.md").read_text(encoding="utf-8"),
+    proposal = propose_task(manager, (PRODUCT_ROOT / "PRODUCT.md").read_text(encoding="utf-8"),
                             recent_issue_context(token), run_dir / "qwen-task.json",
                             utilization=persona_load_line(token))
     issue = create_generated_issue(token, proposal, config["issue_label"])
@@ -470,7 +469,7 @@ def generate_directive_backlog(token: str, config: dict[str, Any], journal: Jour
     if not isinstance(tasks, list):
         tasks = propose_directive_plan(
             (ROOT / "personas" / "manager.md").read_text(encoding="utf-8"),
-            (ROOT / "PRODUCT.md").read_text(encoding="utf-8"), recent_issue_context(token),
+            (PRODUCT_ROOT / "PRODUCT.md").read_text(encoding="utf-8"), recent_issue_context(token),
             directive["text"], run_dir / "qwen-directive-plan.json",
             utilization=persona_load_line(token))
         directive = store.save_plan(tasks)
@@ -530,8 +529,8 @@ def consult_after_directive_mvp(token: str, config: dict[str, Any], journal: Jou
         personas, runtime = load_personas(), load_runtime_env()
         try:
             idea = consult_next_steps(
-                worker, directive["text"], (ROOT / "PRODUCT.md").read_text(encoding="utf-8"),
-                ROOT, run_dir, personas["manager"]["wawalu_token"],
+                worker, directive["text"], (PRODUCT_ROOT / "PRODUCT.md").read_text(encoding="utf-8"),
+                PRODUCT_ROOT, run_dir, personas["manager"]["wawalu_token"],
                 runtime["WAWALU_INGEST_ENDPOINT"].rstrip("/"))
         except Exception:
             attempts = int(current.get("consult_attempts", 0)) + 1
@@ -547,7 +546,7 @@ def consult_after_directive_mvp(token: str, config: dict[str, Any], journal: Jou
     if not isinstance(tasks, list):
         tasks = propose_directive_plan(
             (ROOT / "personas" / "manager.md").read_text(encoding="utf-8"),
-            (ROOT / "PRODUCT.md").read_text(encoding="utf-8"), recent_issue_context(token),
+            (PRODUCT_ROOT / "PRODUCT.md").read_text(encoding="utf-8"), recent_issue_context(token),
             directive["text"], run_dir / "qwen-followup-plan.json", advisory=idea,
             utilization=persona_load_line(token))
         current = store.update_consultation(plan=tasks)
@@ -794,20 +793,20 @@ def choose_issue(issues: list[dict[str, Any]], state: State, config: dict[str, A
 
 
 def sync_main() -> None:
-    branch = subprocess.check_output(["git", "branch", "--show-current"], cwd=ROOT, text=True).strip()
+    branch = subprocess.check_output(["git", "branch", "--show-current"], cwd=PRODUCT_ROOT, text=True).strip()
     if branch != "main":
         raise RuntimeError(f"autonomous checkout must be on main, found {branch!r}")
-    subprocess.run(["git", "fetch", "origin", "main", "--prune"], cwd=ROOT, check=True)
-    subprocess.run(["git", "merge", "--ff-only", "origin/main"], cwd=ROOT, check=True)
+    subprocess.run(["git", "fetch", "origin", "main", "--prune"], cwd=PRODUCT_ROOT, check=True)
+    subprocess.run(["git", "merge", "--ff-only", "origin/main"], cwd=PRODUCT_ROOT, check=True)
 
 
 def cleanup_worktree(path: pathlib.Path, branch: str, journal: Journal) -> None:
-    subprocess.run(["git", "worktree", "prune"], cwd=ROOT, check=True)
+    subprocess.run(["git", "worktree", "prune"], cwd=PRODUCT_ROOT, check=True)
     if path.is_dir():
-        subprocess.run(["git", "worktree", "remove", "--force", str(path)], cwd=ROOT, check=False)
+        subprocess.run(["git", "worktree", "remove", "--force", str(path)], cwd=PRODUCT_ROOT, check=False)
         if not path.exists():
             journal.emit("worktree_cleaned", path=path.name)
-    deleted = subprocess.run(["git", "branch", "--delete", "--force", branch], cwd=ROOT,
+    deleted = subprocess.run(["git", "branch", "--delete", "--force", branch], cwd=PRODUCT_ROOT,
                              text=True, capture_output=True)
     if deleted.returncode == 0:
         journal.emit("local_branch_cleaned", branch=branch)

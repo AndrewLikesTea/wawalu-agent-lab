@@ -10,6 +10,9 @@ from runner import autonomous
 from scripts.manage_autonomy import launch_path
 
 
+REPO = autonomous.REPOSITORY
+
+
 class AutonomousTests(unittest.TestCase):
     def config(self):
         return {"retry_cooldown_seconds": 60, "max_attempts": 2,
@@ -259,7 +262,7 @@ class AutonomousTests(unittest.TestCase):
                 "token", {"issue_label": "agent-ready"}, mock.Mock())
         self.assertIsNone(result)
         consult.assert_not_called()
-        self.assertEqual(github.call_args.args[0], "/repos/AndrewLikesTea/wawalu-agent-lab/issues/24")
+        self.assertEqual(github.call_args.args[0], f"/repos/{REPO}/issues/24")
 
     @mock.patch.object(autonomous, "github", return_value={"state": "closed"})
     def test_consultation_round_cap_stops_new_rounds(self, github):
@@ -350,7 +353,7 @@ class AutonomousTests(unittest.TestCase):
             self.assertEqual(state.value["pr_reviews"]["40"]["sha"], "abc123")
             self.assertTrue(state.value["pr_reviews"]["40"]["approved"])
         submitted = github.call_args_list[2]
-        self.assertEqual(submitted.args[0], "/repos/AndrewLikesTea/wawalu-agent-lab/pulls/40/reviews")
+        self.assertEqual(submitted.args[0], f"/repos/{REPO}/pulls/40/reviews")
         self.assertEqual(submitted.args[1], "reviewer-token")
         self.assertEqual(submitted.args[3]["commit_id"], "abc123")
         self.assertEqual(submitted.args[3]["event"], "APPROVE")
@@ -419,7 +422,7 @@ class AutonomousTests(unittest.TestCase):
             self.assertFalse(state.value["pr_reviews"]["40"]["approved"])
         self.assertEqual(approved, [])
         commented = github.call_args_list[2]
-        self.assertEqual(commented.args[0], "/repos/AndrewLikesTea/wawalu-agent-lab/issues/40/comments")
+        self.assertEqual(commented.args[0], f"/repos/{REPO}/issues/40/comments")
         self.assertIn("Missing tests", commented.args[3]["body"])
         merge.assert_not_called()
 
@@ -455,7 +458,7 @@ class AutonomousTests(unittest.TestCase):
         self.assertEqual(approved, [])
         review.assert_not_called()
         updated = github.call_args_list[3]
-        self.assertEqual(updated.args[0], "/repos/AndrewLikesTea/wawalu-agent-lab/pulls/40/update-branch")
+        self.assertEqual(updated.args[0], f"/repos/{REPO}/pulls/40/update-branch")
         self.assertEqual(updated.args[2], "PUT")
         self.assertEqual(updated.args[3], {"expected_head_sha": "abc123"})
 
@@ -468,7 +471,7 @@ class AutonomousTests(unittest.TestCase):
             autonomous.update_pull_branch(pull, "token", {}, state, mock.Mock())
             self.assertEqual(state.value["pr_updates"]["40"]["result"], "conflict")
             commented = github.call_args_list[1]
-            self.assertEqual(commented.args[0], "/repos/AndrewLikesTea/wawalu-agent-lab/issues/40/comments")
+            self.assertEqual(commented.args[0], f"/repos/{REPO}/issues/40/comments")
             self.assertIn("conflicts with `main`", commented.args[3]["body"])
             autonomous.update_pull_branch(pull, "token", {}, state, mock.Mock())
         self.assertEqual(github.call_count, 2)
@@ -505,16 +508,16 @@ class AutonomousTests(unittest.TestCase):
             self.assertEqual(record["status"], "requeued")
             self.assertEqual(record["attempts"], 1)
         closed = github.call_args_list[2]
-        self.assertEqual(closed.args[0], "/repos/AndrewLikesTea/wawalu-agent-lab/pulls/41")
+        self.assertEqual(closed.args[0], f"/repos/{REPO}/pulls/41")
         self.assertEqual(closed.args[3], {"state": "closed"})
         deleted = github.call_args_list[3]
         self.assertEqual(deleted.args[0],
-                         "/repos/AndrewLikesTea/wawalu-agent-lab/git/refs/heads/agent/staff/issue-8-decision-detail")
+                         f"/repos/{REPO}/git/refs/heads/agent/staff/issue-8-decision-detail")
         self.assertEqual(deleted.args[2], "DELETE")
         relabeled = github.call_args_list[4]
         self.assertEqual(sorted(relabeled.args[3]["labels"]), ["agent-ready", "persona:staff"])
         commented = github.call_args_list[5]
-        self.assertEqual(commented.args[0], "/repos/AndrewLikesTea/wawalu-agent-lab/issues/8/comments")
+        self.assertEqual(commented.args[0], f"/repos/{REPO}/issues/8/comments")
         self.assertIn("fresh implementation", commented.args[3]["body"])
 
     @mock.patch.object(autonomous, "github")
@@ -525,7 +528,7 @@ class AutonomousTests(unittest.TestCase):
             autonomous.update_pull_branch(dict(self.AGENT_PULL), "token",
                                           {"issue_label": "agent-ready"}, state, mock.Mock())
         commented = github.call_args_list[2]
-        self.assertEqual(commented.args[0], "/repos/AndrewLikesTea/wawalu-agent-lab/issues/41/comments")
+        self.assertEqual(commented.args[0], f"/repos/{REPO}/issues/41/comments")
         self.assertIn("manual rebase", commented.args[3]["body"])
 
     @mock.patch.object(autonomous, "github")
@@ -664,7 +667,11 @@ class AutonomousTests(unittest.TestCase):
     def test_tick_does_not_mint_token_outside_working_hours(self, token):
         config = {"enabled": True, "working_hours": {"start": 0, "end": 0},
                   "max_runs_per_day": 1}
-        result = autonomous.tick(config, mock.Mock(), mock.Mock())
+        # isolate from the machine's real stop flag — a stopped live daemon
+        # must not change what this test observes
+        with tempfile.TemporaryDirectory() as tmp:
+            with mock.patch.object(autonomous, "STOP", pathlib.Path(tmp) / "stop"):
+                result = autonomous.tick(config, mock.Mock(), mock.Mock())
         self.assertEqual(result, "outside-working-hours")
         token.assert_not_called()
 

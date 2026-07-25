@@ -1,4 +1,9 @@
-const EVENTS_URL = "https://api.github.com/repos/AndrewLikesTea/wawalu-agent-lab/events?per_page=30";
+// The team now iterates on an external product (paint-lab); the lab repo still
+// carries runner and process activity, so the observatory watches both.
+const EVENTS_URLS = [
+  "https://api.github.com/repos/AndrewLikesTea/paint-lab/events?per_page=30",
+  "https://api.github.com/repos/AndrewLikesTea/wawalu-agent-lab/events?per_page=30",
+];
 const REFRESH_MS = 90_000;
 const DEMO_DATA_URL = "/agent-demo-data.json";
 const PERSONAS = {
@@ -188,10 +193,16 @@ export async function loadActivity(root = document, fetcher = fetch) {
   const updated = root.querySelector("#last-updated");
   status.textContent = "Refreshing public repository activity…";
   try {
-    const response = await fetcher(EVENTS_URL, { headers: { Accept: "application/vnd.github+json" } });
-    if (!response.ok) throw new Error(`GitHub returned ${response.status}`);
-    const events = await response.json();
-    const count = renderEvents(list, Array.isArray(events) ? events : []);
+    const responses = await Promise.all(EVENTS_URLS.map(
+      (url) => fetcher(url, { headers: { Accept: "application/vnd.github+json" } }),
+    ));
+    if (!responses.some((response) => response.ok)) throw new Error(`GitHub returned ${responses[0].status}`);
+    const payloads = await Promise.all(responses.map((response) => (response.ok ? response.json() : [])));
+    const events = payloads
+      .flatMap((payload) => (Array.isArray(payload) ? payload : []))
+      .sort((a, b) => new Date(b.created_at ?? 0) - new Date(a.created_at ?? 0))
+      .slice(0, 30);
+    const count = renderEvents(list, events);
     status.textContent = `${count} relevant events · refreshes every 90 seconds`;
     signal.dataset.connected = "true";
     label.textContent = "Live signal";

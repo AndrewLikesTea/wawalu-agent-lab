@@ -13,12 +13,16 @@ test("agent observatory publishes named demo prompts and remains policy-protecte
   assert.match(home, /href="\/agents\.html"/);
   assert.match(page, /Published prompt trace/);
   assert.match(script, /api\.github\.com\/repos\/AndrewLikesTea\/wawalu-agent-lab\/events/);
+  assert.match(script, /api\.github\.com\/repos\/AndrewLikesTea\/paint-lab\/events/);
   assert.match(script, /Exact.*worker prompt/);
   for (const name of ["Sam", "Priya", "Mina", "Rowan", "Ellis", "Marcus"])
     assert.match(demo, new RegExp(`\\"name\\": \\"${name}\\"`));
   assert.doesNotMatch(`${script}\n${demo}`, /innerHTML|ingest\.wawalu|bearer|token|auth\.json|@gmail\.com/i);
+  // Observatory content is persona-editable (they own the whole labs site);
+  // the privacy invariants above and this test itself must stay locked so a
+  // persona cannot relax the rules it is audited by.
   const forbidden = JSON.parse(policy).forbidden_paths;
-  for (const path of ["src/agents.html", "src/agents.js", "src/agents.css", "src/agent-demo-data.json", "tests/agent-observatory.test.js"])
+  for (const path of [".agent-policy.json", "tests/agent-observatory.test.js"])
     assert.ok(forbidden.includes(path), `${path} must be protected from personas`);
 });
 

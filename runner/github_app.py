@@ -37,8 +37,19 @@ def api(path: str, token: str, data=None):
     with urllib.request.urlopen(request, timeout=20) as response: return json.load(response)
 
 
-def installation_token(repository="wawalu-agent-lab", stem="github-app",
+def _product_repo_name() -> str:
+    """Short name of the configured product repository (token scoping)."""
+    env_file = SECRETS / "runtime.env"
+    if env_file.exists():
+        for line in env_file.read_text().splitlines():
+            if line.strip().startswith("WAWALU_PRODUCT_REPOSITORY="):
+                return line.split("=", 1)[1].strip().split("/")[-1]
+    return "wawalu-agent-lab"
+
+
+def installation_token(repository=None, stem="github-app",
                        permissions=None) -> str:
+    repository = repository or _product_repo_name()
     jwt = app_jwt(stem)
     installations = api("/app/installations", jwt)
     installation = next((item for item in installations if item["account"]["login"] == "AndrewLikesTea"), None)
@@ -51,6 +62,6 @@ def installation_token(repository="wawalu-agent-lab", stem="github-app",
     return result["token"]
 
 
-def reviewer_token(repository="wawalu-agent-lab") -> str:
-    return installation_token(repository, "github-reviewer-app",
+def reviewer_token(repository=None) -> str:
+    return installation_token(repository or _product_repo_name(), "github-reviewer-app",
                               {"contents": "read", "pull_requests": "write"})
