@@ -22,8 +22,11 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from runner.delivery import enable_auto_merge
-from runner.github_app import installation_token, reviewer_token
-from runner.layers import CAPACITY_EXIT_CODES, consult_next_steps, propose_directive_plan, propose_task, review_pull_request
+from runner.github_app import (current_token, installation_token, refresh_token,
+                               reviewer_token)
+from runner.layers import (CAPACITY_EXIT_CODES, WORKERS, ConsultantCapacityExhausted,
+                           consult_next_steps, propose_directive_plan, propose_task,
+                           review_pull_request)
 from runner.orchestrator import PRODUCT_ROOT, REPOSITORY, load_personas, load_runtime_env, safe_slug
 from runner.simulation import choose_collaborator, load_behaviors
 from scripts.check_reviewer_approval import REVIEWER_LOGINS, approved_current_head
@@ -37,6 +40,7 @@ PERSONAS = {"backend", "frontend", "infrastructure", "staff"}
 PERSONA_NAMES = {"backend": "Rowan", "frontend": "Mina",
                  "infrastructure": "Ellis", "staff": "Priya"}
 CAPACITY_WORKERS = {code: worker for worker, code in CAPACITY_EXIT_CODES.items()}
+DELIVERY_ATTEMPT_LIMIT = 3
 DIRECTIVE = AUTONOMY / "directive.json"
 PACIFIC = ZoneInfo("America/Los_Angeles")
 
@@ -70,8 +74,10 @@ class State:
         self.value.setdefault("persona_submissions", {})
         self.value.setdefault("pr_reviews", {})
         self.value.setdefault("pr_updates", {})
+        self.value.setdefault("pr_deliveries", {})
         self.value.setdefault("standups", {})
         self.value.setdefault("handoffs", {})
+        self.value.setdefault("worker_cooldowns", {})
 
     def save(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -98,6 +104,44 @@ class State:
     def record_submission(self, persona: str, now: dt.datetime | None = None) -> None:
         self.value["persona_submissions"][persona] = (now or utc_now()).isoformat()
         self.save()
+
+    def worker_available(self, worker: str, now: dt.datetime | None = None) -> bool:
+        entry = self.value["worker_cooldowns"].get(worker)
+        until = entry.get("until") if isinstance(entry, dict) else entry
+        if not until:
+            return True
+        try:
+            return dt.datetime.fromisoformat(str(until)) <= (now or utc_now())
+        except ValueError:
+            return True
+
+    def record_worker_capacity(self, worker: str, delay_seconds: int,
+                               now: dt.datetime | None = None,
+                               maximum_seconds: int | None = None) -> int:
+        """Hold an exhausted provider out for longer each time it reports exhaustion.
+
+        A session limit outlives one issue's backoff, so a flat cooldown lets the
+        next issue re-pick the dead provider and burn another plan/worktree cycle
+        before failing. The streak restarts once the provider has been quiet for a
+        full ``maximum_seconds``, so a recovered provider is tried again cheaply.
+        """
+        now = now or utc_now()
+        maximum = int(maximum_seconds or delay_seconds)
+        previous = self.value["worker_cooldowns"].get(worker)
+        streak = 1
+        if isinstance(previous, dict):
+            try:
+                last = dt.datetime.fromisoformat(str(previous.get("at")))
+            except (TypeError, ValueError):
+                last = None
+            if last and last + dt.timedelta(seconds=maximum) > now:
+                streak = int(previous.get("streak", 1)) + 1
+        delay = min(int(delay_seconds) * (2 ** (streak - 1)), maximum)
+        self.value["worker_cooldowns"][worker] = {
+            "until": (now + dt.timedelta(seconds=delay)).isoformat(),
+            "streak": streak, "at": now.isoformat()}
+        self.save()
+        return delay
 
 
 class DirectiveStore:
@@ -272,7 +316,7 @@ def try_lock(path: pathlib.Path):
             fcntl.flock(handle, fcntl.LOCK_UN)
 
 
-def github(path: str, token: str, method: str = "GET", data: dict | None = None) -> Any:
+def _github_call(path: str, token: str, method: str, data: dict | None) -> Any:
     request = urllib.request.Request(
         "https://api.github.com" + path,
         data=json.dumps(data).encode() if data is not None else None,
@@ -282,6 +326,17 @@ def github(path: str, token: str, method: str = "GET", data: dict | None = None)
     )
     with urllib.request.urlopen(request, timeout=30) as response:
         return json.load(response) if response.length != 0 else None
+
+
+def github(path: str, token: str, method: str = "GET", data: dict | None = None) -> Any:
+    """Call the GitHub API, re-minting the token once if the run outlived its hour."""
+    token = current_token(token)
+    try:
+        return _github_call(path, token, method, data)
+    except urllib.error.HTTPError as error:
+        if error.code != 401:
+            raise
+        return _github_call(path, refresh_token(token), method, data)
 
 
 def issue_label(issue: dict[str, Any], prefix: str) -> str | None:
@@ -309,6 +364,29 @@ def recent_issue_context(token: str) -> list[str]:
                       if persona else "unassigned")
         context.append(f"[{assignment}] {item.get('title', '')}")
     return context
+
+
+def delivered_work_context(token: str) -> list[str]:
+    """Titles of work already shipped, so a new program never re-proposes finished work.
+
+    A consultation round fires only once the previous program is fully merged, which means
+    the owner directive it still carries describes work that is already live. Without this
+    list the planner happily re-decomposes that stale directive into duplicates of its own
+    merged pull requests.
+    """
+    delivered: list[str] = []
+    query = urllib.parse.urlencode({"state": "closed", "sort": "updated", "direction": "desc",
+                                    "per_page": 50})
+    try:
+        for item in github(f"/repos/{REPOSITORY}/issues?{query}", token):
+            if not isinstance(item, dict):
+                continue
+            title = str(item.get("title", "")).strip()
+            if title and title not in delivered:
+                delivered.append(title)
+    except Exception:
+        return delivered
+    return delivered
 
 
 def persona_load_line(token: str) -> str:
@@ -460,6 +538,17 @@ def generate_work(token: str, config: dict[str, Any], journal: Journal) -> dict[
     return issue
 
 
+def task_persona(task: dict[str, Any]) -> str:
+    """Owner of a generated task; backlogs chain per persona, never as one queue.
+
+    A single chain across the whole backlog leaves exactly one workable issue, so
+    the team stalls for hours whenever that issue belongs to a persona whose work
+    window is closed. Chaining within a persona keeps each track ordered while
+    every other persona still has a head it can pick up.
+    """
+    return str(task.get("persona") or "staff")
+
+
 def generate_directive_backlog(token: str, config: dict[str, Any], journal: Journal,
                                directive: dict[str, Any]) -> list[dict[str, Any]]:
     store = DirectiveStore()
@@ -475,13 +564,17 @@ def generate_directive_backlog(token: str, config: dict[str, Any], journal: Jour
         directive = store.save_plan(tasks)
     created = {int(item["index"]): int(item["issue"]) for item in directive.get("created_issues", [])}
     issues = []
+    previous: dict[str, int] = {}
     for index, task in enumerate(tasks):
+        persona = task_persona(task)
         if index in created:
-            issues.append(github(f"/repos/{REPOSITORY}/issues/{created[index]}", token))
+            issue = github(f"/repos/{REPOSITORY}/issues/{created[index]}", token)
+            previous[persona] = int(issue["number"])
+            issues.append(issue)
             continue
-        dependency = issues[-1]["number"] if issues else None
-        issue = create_generated_issue(token, task, config["issue_label"], dependency)
+        issue = create_generated_issue(token, task, config["issue_label"], previous.get(persona))
         store.record_created_issue(index, issue["number"])
+        previous[persona] = int(issue["number"])
         issues.append(issue)
         journal.emit("directive_task_generated", issue=issue["number"], order=index + 1,
                      persona=task["persona"], title=task["title"])
@@ -496,8 +589,23 @@ def consultation_complete(consultation: dict[str, Any]) -> bool:
     return isinstance(plan, list) and len(consultation.get("created_issues", [])) >= len(plan)
 
 
+def program_task_pending(issue: dict[str, Any]) -> bool:
+    """True while a program task still owes work the next consultation should wait for.
+
+    A blocked task never closes on its own, so holding the next round behind it
+    freezes product direction until a human intervenes — and the team meanwhile
+    falls back to idle filler work. It already carries the label that asks for
+    attention, so let the program move on without it.
+    """
+    if issue.get("state") == "closed":
+        return False
+    return not any((label.get("name", "") if isinstance(label, dict) else str(label)) == "agent-blocked"
+                   for label in issue.get("labels", []))
+
+
 def consult_after_directive_mvp(token: str, config: dict[str, Any], journal: Journal,
-                                worker: str = "auto") -> list[dict[str, Any]] | None:
+                                worker: str = "auto", state: "State | None" = None,
+                                ) -> list[dict[str, Any]] | None:
     store = DirectiveStore()
     directive = store.read_migrated()
     if not directive or directive.get("status") != "consumed" or not directive.get("created_issues"):
@@ -508,7 +616,7 @@ def consult_after_directive_mvp(token: str, config: dict[str, Any], journal: Jou
         latest = current.get("created_issues", []) if current else directive["created_issues"]
         for reference in latest:
             issue = github(f"/repos/{REPOSITORY}/issues/{int(reference['issue'])}", token)
-            if issue.get("state") != "closed":
+            if program_task_pending(issue):
                 return None
         max_rounds = int(config.get("max_consultation_rounds", 0))
         if max_rounds and len(rounds) >= max_rounds:
@@ -518,7 +626,11 @@ def consult_after_directive_mvp(token: str, config: dict[str, Any], journal: Jou
             worker = "codex" if int(digest, 16) % 2 == 0 else "claude"
         if worker not in {"codex", "claude"}:
             raise ValueError("consultation worker must be auto, codex, or claude")
-        current = store.begin_consultation(worker)
+        routed = worker if state is None else resolve_worker(worker, state)
+        if routed is None:
+            journal.emit("consultation_capacity_deferred", worker=worker, round=len(rounds) + 1)
+            return None
+        current = store.begin_consultation(routed)
         rounds.append(current)
     round_number = len(rounds)
     worker = current["worker"]
@@ -527,20 +639,38 @@ def consult_after_directive_mvp(token: str, config: dict[str, Any], journal: Jou
     idea = current.get("idea")
     if not idea:
         personas, runtime = load_personas(), load_runtime_env()
-        try:
-            idea = consult_next_steps(
-                worker, directive["text"], (PRODUCT_ROOT / "PRODUCT.md").read_text(encoding="utf-8"),
-                PRODUCT_ROOT, run_dir, personas["manager"]["wawalu_token"],
-                runtime["WAWALU_INGEST_ENDPOINT"].rstrip("/"))
-        except Exception:
-            attempts = int(current.get("consult_attempts", 0)) + 1
-            if attempts >= 2:
+        attempted: set[str] = set()
+        while True:
+            try:
+                idea = consult_next_steps(
+                    worker, directive["text"], (PRODUCT_ROOT / "PRODUCT.md").read_text(encoding="utf-8"),
+                    PRODUCT_ROOT, run_dir, personas["manager"]["wawalu_token"],
+                    runtime["WAWALU_INGEST_ENDPOINT"].rstrip("/"),
+                    runtime.get("WAWALU_PRODUCT_SITE_URL", ""))
+                break
+            except ConsultantCapacityExhausted:
+                attempted.add(worker)
+                if state is not None:
+                    state.record_worker_capacity(
+                        worker, int(config.get("capacity_retry_seconds", 900)),
+                        maximum_seconds=int(config.get("capacity_retry_max_seconds", 18000)))
                 other = "claude" if worker == "codex" else "codex"
-                store.update_consultation(worker=other, consult_attempts=0)
-                journal.emit("consultation_worker_switched", worker=other, after_failures=attempts)
-            else:
-                store.update_consultation(consult_attempts=attempts)
-            raise
+                if other in attempted or (state is not None and not state.worker_available(other)):
+                    journal.emit("consultation_capacity_deferred", worker=worker, round=round_number)
+                    return None
+                current = store.update_consultation(worker=other, consult_attempts=0)
+                journal.emit("consultation_worker_switched", worker=other, after_failures=0,
+                             reason="capacity")
+                worker = other
+            except Exception:
+                attempts = int(current.get("consult_attempts", 0)) + 1
+                if attempts >= 2:
+                    other = "claude" if worker == "codex" else "codex"
+                    store.update_consultation(worker=other, consult_attempts=0)
+                    journal.emit("consultation_worker_switched", worker=other, after_failures=attempts)
+                else:
+                    store.update_consultation(consult_attempts=attempts)
+                raise
         current = store.update_consultation(idea=idea)
     tasks = current.get("plan")
     if not isinstance(tasks, list):
@@ -548,17 +678,21 @@ def consult_after_directive_mvp(token: str, config: dict[str, Any], journal: Jou
             (ROOT / "personas" / "manager.md").read_text(encoding="utf-8"),
             (PRODUCT_ROOT / "PRODUCT.md").read_text(encoding="utf-8"), recent_issue_context(token),
             directive["text"], run_dir / "qwen-followup-plan.json", advisory=idea,
-            utilization=persona_load_line(token))
+            utilization=persona_load_line(token), delivered=delivered_work_context(token))
         current = store.update_consultation(plan=tasks)
     created = {int(item["index"]): int(item["issue"]) for item in current.get("created_issues", [])}
     issues = []
+    previous: dict[str, int] = {}
     for index, task in enumerate(tasks):
+        persona = task_persona(task)
         if index in created:
-            issues.append(github(f"/repos/{REPOSITORY}/issues/{created[index]}", token))
+            issue = github(f"/repos/{REPOSITORY}/issues/{created[index]}", token)
+            previous[persona] = int(issue["number"])
+            issues.append(issue)
             continue
-        dependency = issues[-1]["number"] if issues else None
-        issue = create_generated_issue(token, task, config["issue_label"], dependency)
+        issue = create_generated_issue(token, task, config["issue_label"], previous.get(persona))
         store.record_consultation_issue(index, issue["number"])
+        previous[persona] = int(issue["number"])
         issues.append(issue)
         journal.emit("directive_followup_task_generated", issue=issue["number"], order=index + 1,
                      round=round_number, persona=task["persona"], title=task["title"])
@@ -568,13 +702,23 @@ def consult_after_directive_mvp(token: str, config: dict[str, Any], journal: Jou
     return issues
 
 
-def fetch_pull_diff(number: int, token: str) -> str:
+def _pull_diff_call(number: int, token: str) -> str:
     request = urllib.request.Request(
         f"https://api.github.com/repos/{REPOSITORY}/pulls/{number}",
         headers={"Authorization": "Bearer " + token, "Accept": "application/vnd.github.v3.diff",
                  "X-GitHub-Api-Version": "2022-11-28", "User-Agent": "wawalu-autonomous-team"})
     with urllib.request.urlopen(request, timeout=30) as response:
         return response.read().decode("utf-8", "replace")
+
+
+def fetch_pull_diff(number: int, token: str) -> str:
+    token = current_token(token)
+    try:
+        return _pull_diff_call(number, token)
+    except urllib.error.HTTPError as error:
+        if error.code != 401:
+            raise
+        return _pull_diff_call(number, refresh_token(token))
 
 
 def review_owner_pull(pull: dict[str, Any], token: str, config: dict[str, Any],
@@ -645,6 +789,36 @@ def requeue_conflicted_pull(pull: dict[str, Any], token: str, config: dict[str, 
     return True
 
 
+def deliver_approved_pull(pull: dict[str, Any], token: str, state: State,
+                          journal: Journal) -> None:
+    """Ask GitHub to merge a reviewer-approved team pull the worker forgot to deliver.
+
+    Auto-merge is normally requested by the worker through the branch-bound
+    ``.agent-delivery.json`` capability. A worker that finishes its change but
+    omits that request leaves an approved, green pull request open forever:
+    nothing else in the loop merges it, the issue keeps its ``agent-running``
+    label, and the queue stalls behind finished work. The reviewer approval on
+    the exact head is still the gate, and ``--auto`` keeps required checks in
+    charge of delivery, so this only restores the intended ending.
+    """
+    number = int(pull["number"])
+    head_sha = pull["head"]["sha"]
+    record = state.value["pr_deliveries"].get(str(number), {})
+    attempts = int(record.get("attempts", 0)) if record.get("sha") == head_sha else 0
+    if attempts >= DELIVERY_ATTEMPT_LIMIT:
+        return
+    state.value["pr_deliveries"][str(number)] = {
+        "sha": head_sha, "attempts": attempts + 1, "at": utc_now().isoformat()}
+    state.save()
+    try:
+        enable_auto_merge(REPOSITORY, str(pull["head"]["ref"]), token, ROOT)
+    except Exception as error:
+        journal.emit("team_pr_auto_merge_failed", pull=number, sha=head_sha,
+                     attempts=attempts + 1, error=type(error).__name__, detail=str(error)[:300])
+        return
+    journal.emit("team_pr_auto_merge_enabled", pull=number, sha=head_sha)
+
+
 def update_pull_branch(pull: dict[str, Any], token: str, config: dict[str, Any],
                        state: State, journal: Journal) -> None:
     """Unstick an approved, auto-merging pull request whose branch fell behind main."""
@@ -701,7 +875,7 @@ def _review_outstanding_prs(token: str, config: dict[str, Any], state: State,
     pulls = github(f"/repos/{REPOSITORY}/pulls?state=open&per_page=50", token)
     open_numbers = {str(int(pull["number"])) for pull in pulls or []}
     pruned = False
-    for bucket in ("pr_reviews", "pr_updates"):
+    for bucket in ("pr_reviews", "pr_updates", "pr_deliveries"):
         for key in [key for key in state.value[bucket] if key not in open_numbers]:
             state.value[bucket].pop(key)
             pruned = True
@@ -722,8 +896,11 @@ def _review_outstanding_prs(token: str, config: dict[str, Any], state: State,
         if author != OWNER and not is_team_pull and not team_approved_before:
             continue
         if approved_current_head(reviews, head_sha):
-            if pull.get("auto_merge") and config.get("update_stuck_prs", True):
-                update_pull_branch(pull, token, config, state, journal)
+            if pull.get("auto_merge"):
+                if config.get("update_stuck_prs", True):
+                    update_pull_branch(pull, token, config, state, journal)
+            elif is_team_pull and config.get("deliver_approved_team_prs", True):
+                deliver_approved_pull(pull, token, state, journal)
             continue
         record = state.value["pr_reviews"].get(str(number), {})
         if record.get("sha") == head_sha:
@@ -832,6 +1009,23 @@ def run_worker_process(command: list[str], timeout_seconds: int, journal: Journa
         return 124
 
 
+def resolve_worker(requested: str, state: State, now: dt.datetime | None = None) -> str | None:
+    """Route around a provider that recently reported capacity exhaustion.
+
+    With ``auto`` the planning layer picks the worker, so a session-limited
+    provider keeps getting re-picked and burns a full plan/worktree cycle
+    before failing. Returns None when every provider is cooling down.
+    """
+    available = sorted(worker for worker in WORKERS if state.worker_available(worker, now))
+    if not available:
+        return None
+    if requested in available:
+        return requested
+    if requested == "auto" and len(available) == len(WORKERS):
+        return "auto"
+    return available[0]
+
+
 def execute_issue(issue: dict[str, Any], config: dict[str, Any], state: State,
                   journal: Journal, token: str) -> int:
     number = int(issue["number"])
@@ -859,20 +1053,55 @@ def execute_issue(issue: dict[str, Any], config: dict[str, Any], state: State,
     replace_state_label(token, issue, config["issue_label"], "agent-running", keep_ready=True)
     comment(token, number, "planning", f"Sam assigned this issue to **{persona}**. Qwen is preparing the implementation handoff.")
     journal.emit("run_started", issue=number, persona=persona)
-    requested_worker = record.get("worker_override", config["default_worker"])
+    requested_worker = resolve_worker(
+        record.get("worker_override", config["default_worker"]), state) or config["default_worker"]
     command = [sys.executable, "-m", "runner.orchestrator", "run", persona,
                str(scenario_path.relative_to(ROOT)), "--push", "--worker", requested_worker]
     exit_code = run_worker_process(
         command, int(config.get("worker_timeout_seconds", 10800)), journal, number)
     scenario_path.unlink(missing_ok=True)
+    try:
+        record_run_outcome(exit_code, issue, number, persona, scenario, config, state, journal, token)
+    finally:
+        # Bookkeeping talks to GitHub and can fail; the worktree must go regardless,
+        # or the next attempt trips over the debris instead of doing the work.
+        state.save()
+        cleanup_worktree(worktree, f"agent/{persona}/{scenario_slug}", journal)
+    return exit_code
+
+
+def _bookkeeper(journal: Journal, number: int):
+    """Announce a run's outcome to GitHub without letting the network veto the record.
+
+    A DNS blip or a 5xx while commenting used to abort the rest of
+    ``record_run_outcome``, so the run's terminal journal event never landed and
+    the issue kept a stale ``agent-running`` label. The local state transition is
+    the source of truth; the GitHub-facing half is best effort and self-reports.
+    """
+    def tell(action: str, call) -> None:
+        try:
+            call()
+        except OSError as error:  # URLError and HTTPError both land here
+            journal.emit("github_bookkeeping_failed", issue=number, action=action,
+                         error=type(error).__name__, detail=str(error))
+    return tell
+
+
+def record_run_outcome(exit_code: int, issue: dict[str, Any], number: int, persona: str,
+                       scenario: dict[str, Any], config: dict[str, Any], state: State,
+                       journal: Journal, token: str) -> None:
+    """Record how a finished run went: issue state, labels, and the owner-visible comment."""
+    record = state.value["issues"].setdefault(str(number), {})
+    prior_attempts = int(record.get("attempts", 1)) - 1
+    tell = _bookkeeper(journal, number)
     if exit_code == 0:
         record.update({"status": "submitted", "finished_at": utc_now().isoformat()})
         state.record_submission(persona)
         for collaborator in scenario.get("collaborators", []):
             state.record_submission(collaborator)
-        comment(token, number, "submitted", "The worker completed its run and opened a reviewed pull request. If it requested merge, GitHub will deliver it after required checks.")
-        replace_state_label(token, issue, config["issue_label"], "agent-running", keep_ready=False)
         journal.emit("run_submitted", issue=number, persona=persona)
+        tell("comment", lambda: comment(token, number, "submitted", "The worker completed its run and opened a reviewed pull request. If it requested merge, GitHub will deliver it after required checks."))
+        tell("label", lambda: replace_state_label(token, issue, config["issue_label"], "agent-running", keep_ready=False))
     elif exit_code in CAPACITY_WORKERS:
         exhausted = CAPACITY_WORKERS[exit_code]
         alternate = "claude" if exhausted == "codex" else "codex"
@@ -882,27 +1111,32 @@ def execute_issue(issue: dict[str, Any], config: dict[str, Any], state: State,
         record.update({"status": "retry", "attempts": prior_attempts,
                        "capacity_failures": failures, "worker_override": alternate,
                        "retry_at": (utc_now() + dt.timedelta(seconds=delay)).isoformat()})
-        comment(token, number, "capacity deferred",
-                f"{exhausted.title()} reported temporary account capacity exhaustion. This did not consume "
-                f"an implementation attempt; Sam will retry with {alternate.title()} after the backoff.")
-        replace_state_label(token, issue, config["issue_label"], None, keep_ready=True)
+        cooldown = state.record_worker_capacity(
+            exhausted, int(config.get("capacity_retry_seconds", 900)),
+            maximum_seconds=int(config.get("capacity_retry_max_seconds", 18000)))
         journal.emit("run_capacity_deferred", issue=number, persona=persona, exhausted_worker=exhausted,
-                     next_worker=alternate, delay_seconds=delay, failures=failures)
+                     next_worker=alternate, delay_seconds=delay, worker_cooldown_seconds=cooldown,
+                     failures=failures)
+        tell("comment", lambda: comment(token, number, "capacity deferred",
+             f"{exhausted.title()} reported temporary account capacity exhaustion. This did not consume "
+             f"an implementation attempt; Sam will retry with {alternate.title()} after the backoff."))
+        tell("label", lambda: replace_state_label(token, issue, config["issue_label"], None, keep_ready=True))
     else:
         attempts = int(record["attempts"])
         if attempts >= int(config["max_attempts"]):
             record["status"] = "blocked"
-            comment(token, number, "blocked", f"The run failed {attempts} times and needs human attention. Exit code: `{exit_code}`.")
-            replace_state_label(token, issue, config["issue_label"], "agent-blocked", keep_ready=False)
+            blocked = True
         else:
             record["status"] = "retry"
             record["retry_at"] = (utc_now() + dt.timedelta(seconds=int(config["retry_cooldown_seconds"]))).isoformat()
-            comment(token, number, "retry scheduled", f"The run exited with `{exit_code}`. It will retry after the configured cooldown.")
-            replace_state_label(token, issue, config["issue_label"], None, keep_ready=True)
+            blocked = False
         journal.emit("run_failed", issue=number, persona=persona, exit_code=exit_code, attempts=attempts)
-    state.save()
-    cleanup_worktree(worktree, f"agent/{persona}/{scenario_slug}", journal)
-    return exit_code
+        if blocked:
+            tell("comment", lambda: comment(token, number, "blocked", f"The run failed {attempts} times and needs human attention. Exit code: `{exit_code}`."))
+            tell("label", lambda: replace_state_label(token, issue, config["issue_label"], "agent-blocked", keep_ready=False))
+        else:
+            tell("comment", lambda: comment(token, number, "retry scheduled", f"The run exited with `{exit_code}`. It will retry after the configured cooldown."))
+            tell("label", lambda: replace_state_label(token, issue, config["issue_label"], None, keep_ready=True))
 
 
 def within_hours(config: dict[str, Any], now: dt.datetime | None = None) -> bool:
@@ -939,7 +1173,7 @@ def tick(config: dict[str, Any], state: State, journal: Journal, token: str | No
     if issue is None and issues:
         return "queued-personas-rate-limited"
     if issue is None and config.get("consult_after_directive_mvp", False):
-        generated = consult_after_directive_mvp(token, config, journal)
+        generated = consult_after_directive_mvp(token, config, journal, state=state)
         if generated:
             issue = choose_issue(generated, state, config, utc_now())
             if issue is None:
@@ -951,6 +1185,9 @@ def tick(config: dict[str, Any], state: State, journal: Journal, token: str | No
             return "persona-pr-rate-limit"
     if issue is None:
         return "idle"
+    if resolve_worker(config["default_worker"], state) is None:
+        journal.emit("workers_capacity_exhausted", issue=int(issue["number"]))
+        return "workers-capacity-exhausted"
     execute_issue(issue, config, state, journal, token)
     return "executed"
 

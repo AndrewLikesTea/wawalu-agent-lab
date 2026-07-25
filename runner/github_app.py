@@ -47,6 +47,43 @@ def _product_repo_name() -> str:
     return "wawalu-agent-lab"
 
 
+# GitHub installation tokens expire one hour after minting, but a tick that runs a
+# worker can easily outlive that, so the token it captured at the start is dead by
+# the time the run is recorded. These maps let an expired token be traded in for a
+# fresh one with the same scope: _SCOPES remembers how each token was minted and
+# _REPLACED points a token every caller still holds at its live successor.
+_SCOPES: dict[str, tuple] = {}
+_REPLACED: dict[str, str] = {}
+_REMEMBERED = 32
+
+
+def _remember(token: str, scope: tuple) -> None:
+    _SCOPES[token] = scope
+    while len(_SCOPES) > _REMEMBERED:
+        stale, _ = next(iter(_SCOPES.items()))
+        del _SCOPES[stale]
+        _REPLACED.pop(stale, None)
+
+
+def current_token(token: str) -> str:
+    """Follow refresh chains so a caller holding an expired token uses its successor."""
+    seen = {token}
+    while (successor := _REPLACED.get(token)) and successor not in seen:
+        token = successor
+        seen.add(token)
+    return token
+
+
+def refresh_token(stale: str) -> str:
+    """Mint a replacement for an expired token, preserving the scope it was minted with."""
+    live = current_token(stale)
+    if live != stale:
+        return live
+    fresh = installation_token(*_SCOPES.get(stale, ()))
+    _REPLACED[stale] = fresh
+    return fresh
+
+
 def installation_token(repository=None, stem="github-app",
                        permissions=None) -> str:
     repository = repository or _product_repo_name()
@@ -59,6 +96,7 @@ def installation_token(repository=None, stem="github-app",
     if permissions is not None:
         data["permissions"] = permissions
     result = api(f"/app/installations/{installation['id']}/access_tokens", jwt, data)
+    _remember(result["token"], (repository, stem, permissions))
     return result["token"]
 
 

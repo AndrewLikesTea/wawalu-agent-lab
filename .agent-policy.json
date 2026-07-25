@@ -5,6 +5,12 @@
   "max_diff_lines": 2000,
   "max_agent_turns": 20,
   "allowed_workspace_root": ".agent/worktrees",
+  "generated_artifact_paths": [
+    "cypress/screenshots/",
+    "cypress/videos/",
+    "cypress/downloads/",
+    "__diff_output__/"
+  ],
   "forbidden_paths": [
     ".github/workflows/",
     ".github/CODEOWNERS",

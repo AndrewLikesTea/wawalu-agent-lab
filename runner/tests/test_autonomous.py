@@ -4,9 +4,10 @@ import pathlib
 import subprocess
 import tempfile
 import unittest
+import urllib.error
 from unittest import mock
 
-from runner import autonomous
+from runner import autonomous, github_app, orchestrator
 from scripts.manage_autonomy import launch_path
 
 
@@ -170,6 +171,39 @@ class AutonomousTests(unittest.TestCase):
         self.assertIsNone(result)
         consult.assert_not_called()
 
+    def test_program_task_pending_ignores_a_task_the_team_cannot_finish(self):
+        self.assertFalse(autonomous.program_task_pending({"state": "closed", "labels": []}))
+        self.assertTrue(autonomous.program_task_pending(
+            {"state": "open", "labels": [{"name": "agent-ready"}]}))
+        self.assertFalse(autonomous.program_task_pending(
+            {"state": "open", "labels": [{"name": "persona:backend"}, {"name": "agent-blocked"}]}))
+
+    @mock.patch.object(autonomous, "create_generated_issue",
+                       side_effect=[{"number": 24}, {"number": 25}])
+    @mock.patch.object(autonomous, "propose_directive_plan")
+    @mock.patch.object(autonomous, "consult_next_steps", return_value="Add notifications")
+    @mock.patch.object(autonomous, "load_runtime_env", return_value={"WAWALU_INGEST_ENDPOINT": "https://example.invalid"})
+    @mock.patch.object(autonomous, "load_personas", return_value={"manager": {"wawalu_token": "manager-token"}})
+    @mock.patch.object(autonomous, "recent_issue_context", return_value=[])
+    @mock.patch.object(autonomous, "github")
+    def test_a_blocked_task_does_not_freeze_the_next_consultation(
+            self, github, recent, personas, runtime, consult, propose, create):
+        propose.return_value = self.FOLLOWUP_PLAN
+        github.side_effect = [{"state": "closed", "labels": []},
+                              {"state": "open", "labels": [{"name": "agent-blocked"}]}]
+        with tempfile.TemporaryDirectory() as tmp, \
+             mock.patch.object(autonomous, "DIRECTIVE", pathlib.Path(tmp) / "directive.json"), \
+             mock.patch.object(autonomous, "AUTONOMY", pathlib.Path(tmp) / "autonomy"), \
+             mock.patch.object(autonomous, "ROOT", pathlib.Path(tmp)):
+            self.consultation_workspace(tmp, {
+                "status": "consumed", "text": "Build social",
+                "created_issues": [{"index": 0, "issue": 20}, {"index": 1, "issue": 21}],
+            })
+            issues = autonomous.consult_after_directive_mvp(
+                "token", {"issue_label": "agent-ready"}, mock.Mock(), "claude")
+        self.assertEqual([item["number"] for item in issues], [24, 25])
+        consult.assert_called_once()
+
     FOLLOWUP_PLAN = [
         {"persona": "backend", "title": "Model notifications", "outcome": "Notification model exists",
          "acceptance_criteria": ["Model is bounded", "Tests pass"]},
@@ -216,7 +250,8 @@ class AutonomousTests(unittest.TestCase):
         consult.assert_called_once()
         self.assertEqual(propose.call_args.kwargs["advisory"], "Add notifications")
         self.assertEqual(propose.call_args.args[3], "Build social")
-        self.assertEqual(create.call_args_list[1].args[3], 24)
+        # Rowan's model and Mina's feed are separate tracks: neither waits on the other.
+        self.assertEqual([call.args[3] for call in create.call_args_list], [None, None])
 
     @mock.patch.object(autonomous, "create_generated_issue",
                        side_effect=[{"number": 30}, {"number": 31}])
@@ -305,6 +340,111 @@ class AutonomousTests(unittest.TestCase):
             self.assertEqual([item["number"] for item in issues], [30, 31])
         consult.assert_not_called()
         self.assertEqual(propose.call_args.kwargs["advisory"], "Add notifications")
+
+    @mock.patch.object(autonomous, "create_generated_issue",
+                       side_effect=[{"number": 30}, {"number": 31}])
+    @mock.patch.object(autonomous, "propose_directive_plan")
+    @mock.patch.object(autonomous, "load_runtime_env", return_value={"WAWALU_INGEST_ENDPOINT": "https://example.invalid"})
+    @mock.patch.object(autonomous, "load_personas", return_value={"manager": {"wawalu_token": "manager-token"}})
+    @mock.patch.object(autonomous, "recent_issue_context", return_value=[])
+    @mock.patch.object(autonomous, "github", return_value={"state": "closed"})
+    def test_capacity_limited_consultant_hands_the_round_to_the_other_provider(
+            self, github, recent, personas, runtime, propose, create):
+        propose.return_value = self.FOLLOWUP_PLAN
+        journal = mock.Mock()
+        with tempfile.TemporaryDirectory() as tmp, \
+             mock.patch.object(autonomous, "DIRECTIVE", pathlib.Path(tmp) / "directive.json"), \
+             mock.patch.object(autonomous, "AUTONOMY", pathlib.Path(tmp) / "autonomy"), \
+             mock.patch.object(autonomous, "ROOT", pathlib.Path(tmp)), \
+             mock.patch.object(autonomous, "consult_next_steps") as consult:
+            consult.side_effect = [autonomous.ConsultantCapacityExhausted("claude"), "Add notifications"]
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            self.consultation_workspace(tmp, {
+                "status": "consumed", "text": "Build social",
+                "created_issues": [{"index": 0, "issue": 20}],
+            })
+            issues = autonomous.consult_after_directive_mvp(
+                "token", {"issue_label": "agent-ready"}, journal, "claude", state)
+            self.assertEqual([item["number"] for item in issues], [30, 31])
+            round_one = autonomous.DirectiveStore().read_any()["consultations"][0]
+            self.assertEqual(round_one["worker"], "codex")
+            self.assertFalse(state.worker_available("claude"))
+        self.assertEqual([call.args[0] for call in consult.call_args_list], ["claude", "codex"])
+        self.assertIn("consultation_worker_switched",
+                      [call.args[0] for call in journal.emit.call_args_list])
+
+    @mock.patch.object(autonomous, "load_runtime_env", return_value={"WAWALU_INGEST_ENDPOINT": "https://example.invalid"})
+    @mock.patch.object(autonomous, "load_personas", return_value={"manager": {"wawalu_token": "manager-token"}})
+    @mock.patch.object(autonomous, "github", return_value={"state": "closed"})
+    def test_consultation_defers_when_both_providers_are_exhausted(self, github, personas, runtime):
+        journal = mock.Mock()
+        with tempfile.TemporaryDirectory() as tmp, \
+             mock.patch.object(autonomous, "DIRECTIVE", pathlib.Path(tmp) / "directive.json"), \
+             mock.patch.object(autonomous, "AUTONOMY", pathlib.Path(tmp) / "autonomy"), \
+             mock.patch.object(autonomous, "ROOT", pathlib.Path(tmp)), \
+             mock.patch.object(autonomous, "consult_next_steps") as consult:
+            consult.side_effect = autonomous.ConsultantCapacityExhausted("codex")
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            state.record_worker_capacity("claude", 900)
+            self.consultation_workspace(tmp, {
+                "status": "consumed", "text": "Build social",
+                "created_issues": [{"index": 0, "issue": 20}],
+            })
+            result = autonomous.consult_after_directive_mvp(
+                "token", {"issue_label": "agent-ready"}, journal, "codex", state)
+        self.assertIsNone(result)
+        self.assertEqual(consult.call_count, 1)
+        self.assertIn("consultation_capacity_deferred",
+                      [call.args[0] for call in journal.emit.call_args_list])
+
+    @mock.patch.object(autonomous, "github", return_value={"state": "closed"})
+    def test_new_round_skips_a_consultant_that_is_cooling_down(self, github):
+        with tempfile.TemporaryDirectory() as tmp, \
+             mock.patch.object(autonomous, "DIRECTIVE", pathlib.Path(tmp) / "directive.json"), \
+             mock.patch.object(autonomous, "AUTONOMY", pathlib.Path(tmp) / "autonomy"), \
+             mock.patch.object(autonomous, "ROOT", pathlib.Path(tmp)), \
+             mock.patch.object(autonomous, "load_personas",
+                               return_value={"manager": {"wawalu_token": "token"}}), \
+             mock.patch.object(autonomous, "load_runtime_env",
+                               return_value={"WAWALU_INGEST_ENDPOINT": "https://ingest.invalid"}), \
+             mock.patch.object(autonomous, "consult_next_steps") as consult:
+            consult.side_effect = RuntimeError("stop after the worker is chosen")
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            state.record_worker_capacity("codex", 900)
+            self.consultation_workspace(tmp, {
+                "status": "consumed", "text": "Build social",
+                "created_issues": [{"index": 0, "issue": 20}],
+            })
+            with self.assertRaises(RuntimeError):
+                autonomous.consult_after_directive_mvp(
+                    "token", {"issue_label": "agent-ready"}, mock.Mock(), "codex", state)
+            self.assertEqual(
+                autonomous.DirectiveStore().read_any()["consultations"][0]["worker"], "claude")
+        self.assertEqual(consult.call_args.args[0], "claude")
+
+    BACKLOG_PLAN = [
+        {"persona": "staff", "title": "Fix subpaths", "outcome": "Assets load under /paint",
+         "acceptance_criteria": ["No absolute paths", "Tests pass"]},
+        {"persona": "frontend", "title": "Speed up first load", "outcome": "Fast first paint",
+         "acceptance_criteria": ["No console errors", "Tests pass"]},
+        {"persona": "staff", "title": "Trim desktop UI", "outcome": "No Electron-only controls",
+         "acceptance_criteria": ["Web-only menus", "Tests pass"]},
+    ]
+
+    @mock.patch.object(autonomous, "create_generated_issue",
+                       side_effect=[{"number": 40}, {"number": 41}, {"number": 42}])
+    def test_directive_backlog_chains_each_persona_track_separately(self, create):
+        with tempfile.TemporaryDirectory() as tmp, \
+             mock.patch.object(autonomous, "DIRECTIVE", pathlib.Path(tmp) / "directive.json"), \
+             mock.patch.object(autonomous, "AUTONOMY", pathlib.Path(tmp) / "autonomy"):
+            store = autonomous.DirectiveStore()
+            store.path.write_text(json.dumps({
+                "status": "pending", "text": "Ship paint", "plan": self.BACKLOG_PLAN}))
+            issues = autonomous.generate_directive_backlog(
+                "token", {"issue_label": "agent-ready"}, mock.Mock(), store.read())
+        self.assertEqual([item["number"] for item in issues], [40, 41, 42])
+        # Frontend starts free of the staff track; staff's second task waits on its own first.
+        self.assertEqual([call.args[3] for call in create.call_args_list], [None, None, 40])
 
     @mock.patch.object(autonomous, "github")
     def test_legacy_single_consultation_migrates_to_a_completed_round(self, github):
@@ -633,6 +773,76 @@ class AutonomousTests(unittest.TestCase):
             autonomous.review_outstanding_prs("token", {}, state, mock.Mock())
         update.assert_not_called()
 
+    APPROVED_REVIEW = [{"state": "APPROVED", "commit_id": "def456",
+                        "user": {"login": "wawalu-synthetic-reviewer[bot]"}}]
+
+    def undelivered_agent_pull(self) -> dict:
+        pull = dict(self.AGENT_PULL)
+        pull.pop("auto_merge")
+        return pull
+
+    @mock.patch.object(autonomous, "enable_auto_merge")
+    @mock.patch.object(autonomous, "github")
+    def test_approved_team_pr_without_auto_merge_is_delivered(self, github, merge):
+        with tempfile.TemporaryDirectory() as tmp, \
+             mock.patch.object(autonomous, "AUTONOMY", pathlib.Path(tmp) / "autonomy"), \
+             mock.patch.object(autonomous, "ROOT", pathlib.Path(tmp)):
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            github.side_effect = [[self.undelivered_agent_pull()], list(self.APPROVED_REVIEW)]
+            autonomous.review_outstanding_prs("token", {}, state, mock.Mock())
+            record = state.value["pr_deliveries"]["41"]
+        merge.assert_called_once_with(
+            autonomous.REPOSITORY, "agent/staff/issue-8-decision-detail", "token",
+            pathlib.Path(tmp))
+        self.assertEqual(record["sha"], "def456")
+
+    @mock.patch.object(autonomous, "enable_auto_merge")
+    @mock.patch.object(autonomous, "github")
+    def test_team_pr_delivery_can_be_disabled(self, github, merge):
+        with tempfile.TemporaryDirectory() as tmp, \
+             mock.patch.object(autonomous, "AUTONOMY", pathlib.Path(tmp) / "autonomy"), \
+             mock.patch.object(autonomous, "ROOT", pathlib.Path(tmp)):
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            github.side_effect = [[self.undelivered_agent_pull()], list(self.APPROVED_REVIEW)]
+            autonomous.review_outstanding_prs(
+                "token", {"deliver_approved_team_prs": False}, state, mock.Mock())
+        merge.assert_not_called()
+
+    @mock.patch.object(autonomous, "enable_auto_merge",
+                       side_effect=RuntimeError("gh pr merge failed"))
+    @mock.patch.object(autonomous, "github")
+    def test_failed_team_delivery_stops_retrying_the_same_head(self, github, merge):
+        journal = mock.Mock()
+        with tempfile.TemporaryDirectory() as tmp, \
+             mock.patch.object(autonomous, "AUTONOMY", pathlib.Path(tmp) / "autonomy"), \
+             mock.patch.object(autonomous, "ROOT", pathlib.Path(tmp)):
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            for _ in range(autonomous.DELIVERY_ATTEMPT_LIMIT + 2):
+                github.side_effect = [[self.undelivered_agent_pull()], list(self.APPROVED_REVIEW)]
+                autonomous.review_outstanding_prs("token", {}, state, journal)
+            attempts = state.value["pr_deliveries"]["41"]["attempts"]
+        self.assertEqual(merge.call_count, autonomous.DELIVERY_ATTEMPT_LIMIT)
+        self.assertEqual(attempts, autonomous.DELIVERY_ATTEMPT_LIMIT)
+        self.assertEqual(
+            [call.args[0] for call in journal.emit.call_args_list],
+            ["team_pr_auto_merge_failed"] * autonomous.DELIVERY_ATTEMPT_LIMIT)
+
+    @mock.patch.object(autonomous, "enable_auto_merge")
+    @mock.patch.object(autonomous, "github")
+    def test_delivery_retries_after_the_worker_pushes_a_new_head(self, github, merge):
+        with tempfile.TemporaryDirectory() as tmp, \
+             mock.patch.object(autonomous, "AUTONOMY", pathlib.Path(tmp) / "autonomy"), \
+             mock.patch.object(autonomous, "ROOT", pathlib.Path(tmp)):
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            state.value["pr_deliveries"]["41"] = {
+                "sha": "old-sha", "attempts": autonomous.DELIVERY_ATTEMPT_LIMIT,
+                "at": "2026-07-25T00:00:00+00:00"}
+            github.side_effect = [[self.undelivered_agent_pull()], list(self.APPROVED_REVIEW)]
+            autonomous.review_outstanding_prs("token", {}, state, mock.Mock())
+            record = state.value["pr_deliveries"]["41"]
+        merge.assert_called_once()
+        self.assertEqual((record["sha"], record["attempts"]), ("def456", 1))
+
     def test_directive_summary_shows_consultation_evolution(self):
         self.assertIsNone(autonomous.summarize_directive(None))
         summary = autonomous.summarize_directive({
@@ -710,6 +920,181 @@ class AutonomousTests(unittest.TestCase):
     def test_capacity_exit_codes_map_to_the_exhausted_provider(self):
         self.assertEqual(autonomous.CAPACITY_WORKERS[75], "codex")
         self.assertEqual(autonomous.CAPACITY_WORKERS[76], "claude")
+
+    def test_auto_worker_routes_around_a_capacity_exhausted_provider(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            self.assertEqual(autonomous.resolve_worker("auto", state), "auto")
+            state.record_worker_capacity("claude", 900)
+            self.assertEqual(autonomous.resolve_worker("auto", state), "codex")
+            self.assertEqual(autonomous.resolve_worker("claude", state), "codex")
+            self.assertEqual(autonomous.resolve_worker("codex", state), "codex")
+
+    def test_worker_cooldown_expires_and_restores_auto_selection(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            state.record_worker_capacity("claude", 900)
+            later = autonomous.utc_now() + dt.timedelta(seconds=901)
+            self.assertTrue(state.worker_available("claude", later))
+            self.assertEqual(autonomous.resolve_worker("auto", state, later), "auto")
+
+    def test_repeated_capacity_exhaustion_extends_the_provider_cooldown(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            now = autonomous.utc_now()
+            first = state.record_worker_capacity("claude", 900, now, maximum_seconds=18000)
+            second = state.record_worker_capacity(
+                "claude", 900, now + dt.timedelta(seconds=1000), maximum_seconds=18000)
+            self.assertEqual([first, second], [900, 1800])
+            # A session limit outlives one issue's backoff, so the second hold is longer.
+            self.assertFalse(state.worker_available("claude", now + dt.timedelta(seconds=2500)))
+            self.assertTrue(state.worker_available("claude", now + dt.timedelta(seconds=2900)))
+
+    def test_a_recovered_provider_restarts_the_capacity_backoff(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            now = autonomous.utc_now()
+            state.record_worker_capacity("claude", 900, now, maximum_seconds=3600)
+            quiet = now + dt.timedelta(seconds=3601)
+            self.assertEqual(
+                state.record_worker_capacity("claude", 900, quiet, maximum_seconds=3600), 900)
+
+    def test_legacy_string_worker_cooldowns_are_still_honoured(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            now = autonomous.utc_now()
+            state.value["worker_cooldowns"]["claude"] = (now + dt.timedelta(seconds=60)).isoformat()
+            self.assertFalse(state.worker_available("claude", now))
+            self.assertTrue(state.worker_available("claude", now + dt.timedelta(seconds=61)))
+
+    def test_no_worker_is_selected_when_every_provider_is_exhausted(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            state.record_worker_capacity("claude", 900)
+            state.record_worker_capacity("codex", 900)
+            self.assertIsNone(autonomous.resolve_worker("auto", state))
+
+    def http_error(self, url, code, reason):
+        """An HTTPError that releases its backing temp file when the test ends."""
+        error = urllib.error.HTTPError(url, code, reason, {}, None)
+        self.addCleanup(error.close)
+        return error
+
+    def expired_then_ok(self, payload=b'{"ok": true}'):
+        """A urlopen stub that 401s on the stale token and succeeds on any other."""
+        calls = []
+
+        def urlopen(request, timeout=None):
+            token = request.headers["Authorization"].removeprefix("Bearer ")
+            calls.append(token)
+            if token == "stale":
+                raise self.http_error(request.full_url, 401, "Unauthorized")
+            response = mock.MagicMock()
+            response.length = len(payload)
+            response.read.return_value = payload
+            response.__enter__.return_value = response
+            return response
+
+        return urlopen, calls
+
+    def test_github_call_survives_a_token_that_expired_during_a_long_run(self):
+        urlopen, calls = self.expired_then_ok()
+        with mock.patch.object(github_app, "_SCOPES", {}), \
+             mock.patch.object(github_app, "_REPLACED", {}), \
+             mock.patch.object(github_app, "installation_token", return_value="fresh"), \
+             mock.patch.object(autonomous.urllib.request, "urlopen", urlopen):
+            self.assertEqual(autonomous.github("/rate_limit", "stale"), {"ok": True})
+            self.assertEqual(calls, ["stale", "fresh"])
+            # A caller still holding the dead token transparently gets the successor.
+            self.assertEqual(autonomous.github("/rate_limit", "stale"), {"ok": True})
+            self.assertEqual(calls, ["stale", "fresh", "fresh"])
+
+    def test_pull_diff_survives_an_expired_token(self):
+        urlopen, calls = self.expired_then_ok(b"diff --git a/a b/a")
+        with mock.patch.object(github_app, "_SCOPES", {}), \
+             mock.patch.object(github_app, "_REPLACED", {}), \
+             mock.patch.object(github_app, "installation_token", return_value="fresh"), \
+             mock.patch.object(autonomous.urllib.request, "urlopen", urlopen):
+            self.assertEqual(autonomous.fetch_pull_diff(7, "stale"), "diff --git a/a b/a")
+            self.assertEqual(calls, ["stale", "fresh"])
+
+    def test_non_auth_errors_are_not_retried_with_a_new_token(self):
+        def urlopen(request, timeout=None):
+            raise self.http_error(request.full_url, 404, "Not Found")
+
+        with mock.patch.object(github_app, "_SCOPES", {}), \
+             mock.patch.object(github_app, "_REPLACED", {}), \
+             mock.patch.object(github_app, "installation_token") as mint, \
+             mock.patch.object(autonomous.urllib.request, "urlopen", urlopen):
+            with self.assertRaises(urllib.error.HTTPError):
+                autonomous.github("/missing", "stale")
+            mint.assert_not_called()
+
+    def test_refreshed_token_keeps_the_scope_it_was_minted_with(self):
+        with mock.patch.object(github_app, "_SCOPES", {"stale": ("paint-lab", "github-reviewer-app", {"x": "y"})}), \
+             mock.patch.object(github_app, "_REPLACED", {}), \
+             mock.patch.object(github_app, "installation_token", return_value="fresh") as mint:
+            self.assertEqual(github_app.refresh_token("stale"), "fresh")
+            mint.assert_called_once_with("paint-lab", "github-reviewer-app", {"x": "y"})
+
+    def test_token_memory_is_bounded(self):
+        with mock.patch.object(github_app, "_SCOPES", {}), \
+             mock.patch.object(github_app, "_REPLACED", {}):
+            for index in range(github_app._REMEMBERED * 3):
+                github_app._remember(f"token-{index}", ("repo", "github-app", None))
+            self.assertEqual(len(github_app._SCOPES), github_app._REMEMBERED)
+
+    def test_worktree_is_cleaned_even_when_bookkeeping_fails(self):
+        """A GitHub outage after the run must not strand the worktree the retry needs."""
+        with tempfile.TemporaryDirectory() as tmp:
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            issue = {"number": 23, "title": "Touch drawing", "body": "",
+                     "labels": [{"name": "persona:backend"}]}
+            with mock.patch.object(autonomous, "replace_state_label"), \
+                 mock.patch.object(autonomous, "comment"), \
+                 mock.patch.object(autonomous, "run_worker_process", return_value=0), \
+                 mock.patch.object(autonomous, "record_run_outcome",
+                                   side_effect=RuntimeError("github is down")), \
+                 mock.patch.object(autonomous, "cleanup_worktree") as cleanup:
+                with self.assertRaisesRegex(RuntimeError, "github is down"):
+                    autonomous.execute_issue(issue, {**self.config(), "issue_label": "agent-ready",
+                                                     "default_worker": "codex",
+                                                     "worker_timeout_seconds": 10},
+                                             state, autonomous.Journal(pathlib.Path(tmp) / "events.jsonl"),
+                                             "token")
+                cleanup.assert_called_once()
+
+    def test_outcome_is_recorded_when_github_notification_fails(self):
+        """A DNS blip while commenting must not swallow the run's terminal event."""
+        with tempfile.TemporaryDirectory() as tmp:
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            state.value["issues"]["60"] = {"status": "running", "attempts": 1}
+            events = pathlib.Path(tmp) / "events.jsonl"
+            journal = autonomous.Journal(events)
+            issue = {"number": 60, "title": "Share button", "body": "",
+                     "labels": [{"name": "agent-ready"}, {"name": "agent-running"}]}
+            outage = urllib.error.URLError("nodename nor servname provided")
+            with mock.patch.object(autonomous, "comment", side_effect=outage), \
+                 mock.patch.object(autonomous, "replace_state_label", side_effect=outage):
+                autonomous.record_run_outcome(
+                    76, issue, 60, "frontend", {}, {**self.config(), "issue_label": "agent-ready"},
+                    state, journal, "token")
+            emitted = [json.loads(line)["event"] for line in events.read_text().splitlines()]
+            self.assertIn("run_capacity_deferred", emitted)
+            self.assertIn("github_bookkeeping_failed", emitted)
+            self.assertEqual(state.value["issues"]["60"]["status"], "retry")
+            self.assertEqual(state.value["issues"]["60"]["worker_override"], "codex")
+
+    def test_stale_worktree_is_reclaimed_instead_of_failing_the_retry(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            worktree = pathlib.Path(tmp) / "backend-issue-23"
+            worktree.mkdir()
+            (worktree / "leftover.txt").write_text("debris")
+            with mock.patch.object(orchestrator.subprocess, "run") as sub:
+                orchestrator.reclaim_worktree(worktree, "agent/backend/issue-23")
+            self.assertFalse(worktree.exists())
+            self.assertIn(["git", "worktree", "remove", "--force", str(worktree)],
+                          [call.args[0] for call in sub.call_args_list])
 
     def test_launch_agent_path_includes_user_cli_directory(self):
         value = launch_path(pathlib.Path("/Users/demo"))

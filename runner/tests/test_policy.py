@@ -1,6 +1,8 @@
 import json
 import os
 import pathlib
+import subprocess
+import tempfile
 import unittest
 from unittest import mock
 
@@ -71,6 +73,44 @@ class RunnerPolicyTests(unittest.TestCase):
         source = (ROOT / "runner/policy.py").read_text()
         self.assertIn('git("diff", "--name-only")', source)
         self.assertIn('git("diff", "--cached", "--name-only")', source)
+
+    def test_generated_test_output_is_discarded_before_review(self):
+        policy = json.loads((ROOT / ".agent-policy.json").read_text())
+        self.assertIn("cypress/screenshots/", policy["generated_artifact_paths"])
+        with tempfile.TemporaryDirectory() as directory:
+            repo = pathlib.Path(directory)
+            git = lambda *args: subprocess.run(["git", *args], cwd=repo, check=True,
+                                               capture_output=True, text=True)
+            git("init", "-q")
+            git("config", "user.email", "test@example.com")
+            git("config", "user.name", "test")
+            (repo / "cypress" / "screenshots").mkdir(parents=True)
+            (repo / "cypress" / "screenshots" / "tool tests (failed).png").write_text("baseline")
+            (repo / "app.js").write_text("original\n")
+            git("add", "--all")
+            git("commit", "-qm", "base")
+            # what a worker's test run leaves behind, alongside its real change
+            (repo / "cypress" / "screenshots" / "tool tests (failed).png").write_text("rerun")
+            (repo / "cypress" / "screenshots" / "visual tests (failed).png").write_text("new")
+            (repo / "app.js").write_text("edited\n")
+            (repo / "styles.css").write_text("added\n")
+
+            discarded = orchestrator.discard_generated_artifacts(repo)
+
+            self.assertEqual(len(discarded), 2)
+            self.assertEqual((repo / "cypress" / "screenshots" / "tool tests (failed).png").read_text(),
+                             "baseline")
+            self.assertFalse((repo / "cypress" / "screenshots" / "visual tests (failed).png").exists())
+            self.assertEqual((repo / "app.js").read_text(), "edited\n")
+            self.assertTrue((repo / "styles.css").exists())
+            self.assertEqual(orchestrator.discard_generated_artifacts(repo), [])
+
+    def test_policy_gate_runs_after_new_files_are_staged(self):
+        source = (ROOT / "runner/orchestrator.py").read_text()
+        staged = source.index('run(["git", "add", "--intent-to-add", "--all"], cwd=worktree)')
+        gate = source.index('run([sys.executable, "-m", "runner.policy"', staged)
+        self.assertLess(source.index("discard_generated_artifacts(worktree)", staged - 400), staged)
+        self.assertLess(staged, gate)
 
 
 if __name__ == "__main__":

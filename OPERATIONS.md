@@ -119,6 +119,18 @@
   rejection posts Marcus's feedback as a PR comment instead. Each head SHA is
   reviewed at most once (tracked in local state); a new push triggers a fresh
   review. `python3 -m runner.autonomous review-prs` runs one sweep on demand.
+- With `review_prs_after_hours` enabled the sweep also runs outside
+  `working_hours`. No new implementation work starts off-shift; this only lets
+  already-approved pull requests finish landing instead of waiting for the next
+  morning.
+- With `deliver_approved_team_prs` enabled, the sweep asks GitHub to merge an
+  `agent/*` pull request that the Reviewer App approved at its current head but
+  that carries no auto-merge. Auto-merge is normally requested by the worker
+  through the branch-bound `.agent-delivery.json` capability; a worker that
+  finishes its change and omits that request otherwise leaves an approved, green
+  pull request open forever, with its issue stuck on `agent-running`. Delivery
+  uses `--auto`, so required checks still own the release, and it is attempted at
+  most three times per head SHA.
 - With `update_stuck_prs` enabled, the same sweep unsticks eligible pull requests
   that are approved at their current head with auto-merge enabled but whose branch
   fell behind protected `main`: it calls the GitHub update-branch API pinned to the
