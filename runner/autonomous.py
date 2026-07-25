@@ -366,6 +366,29 @@ def recent_issue_context(token: str) -> list[str]:
     return context
 
 
+def delivered_work_context(token: str) -> list[str]:
+    """Titles of work already shipped, so a new program never re-proposes finished work.
+
+    A consultation round fires only once the previous program is fully merged, which means
+    the owner directive it still carries describes work that is already live. Without this
+    list the planner happily re-decomposes that stale directive into duplicates of its own
+    merged pull requests.
+    """
+    delivered: list[str] = []
+    query = urllib.parse.urlencode({"state": "closed", "sort": "updated", "direction": "desc",
+                                    "per_page": 50})
+    try:
+        for item in github(f"/repos/{REPOSITORY}/issues?{query}", token):
+            if not isinstance(item, dict):
+                continue
+            title = str(item.get("title", "")).strip()
+            if title and title not in delivered:
+                delivered.append(title)
+    except Exception:
+        return delivered
+    return delivered
+
+
 def persona_load_line(token: str) -> str:
     """Deterministic per-engineer load signal for the manager's assignment prompt.
 
@@ -655,7 +678,7 @@ def consult_after_directive_mvp(token: str, config: dict[str, Any], journal: Jou
             (ROOT / "personas" / "manager.md").read_text(encoding="utf-8"),
             (PRODUCT_ROOT / "PRODUCT.md").read_text(encoding="utf-8"), recent_issue_context(token),
             directive["text"], run_dir / "qwen-followup-plan.json", advisory=idea,
-            utilization=persona_load_line(token))
+            utilization=persona_load_line(token), delivered=delivered_work_context(token))
         current = store.update_consultation(plan=tasks)
     created = {int(item["index"]): int(item["issue"]) for item in current.get("created_issues", [])}
     issues = []
