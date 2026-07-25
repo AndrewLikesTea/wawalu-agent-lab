@@ -101,19 +101,42 @@ class State:
         self.save()
 
     def worker_available(self, worker: str, now: dt.datetime | None = None) -> bool:
-        until = self.value["worker_cooldowns"].get(worker)
+        entry = self.value["worker_cooldowns"].get(worker)
+        until = entry.get("until") if isinstance(entry, dict) else entry
         if not until:
             return True
         try:
-            return dt.datetime.fromisoformat(until) <= (now or utc_now())
+            return dt.datetime.fromisoformat(str(until)) <= (now or utc_now())
         except ValueError:
             return True
 
     def record_worker_capacity(self, worker: str, delay_seconds: int,
-                               now: dt.datetime | None = None) -> None:
-        until = (now or utc_now()) + dt.timedelta(seconds=delay_seconds)
-        self.value["worker_cooldowns"][worker] = until.isoformat()
+                               now: dt.datetime | None = None,
+                               maximum_seconds: int | None = None) -> int:
+        """Hold an exhausted provider out for longer each time it reports exhaustion.
+
+        A session limit outlives one issue's backoff, so a flat cooldown lets the
+        next issue re-pick the dead provider and burn another plan/worktree cycle
+        before failing. The streak restarts once the provider has been quiet for a
+        full ``maximum_seconds``, so a recovered provider is tried again cheaply.
+        """
+        now = now or utc_now()
+        maximum = int(maximum_seconds or delay_seconds)
+        previous = self.value["worker_cooldowns"].get(worker)
+        streak = 1
+        if isinstance(previous, dict):
+            try:
+                last = dt.datetime.fromisoformat(str(previous.get("at")))
+            except (TypeError, ValueError):
+                last = None
+            if last and last + dt.timedelta(seconds=maximum) > now:
+                streak = int(previous.get("streak", 1)) + 1
+        delay = min(int(delay_seconds) * (2 ** (streak - 1)), maximum)
+        self.value["worker_cooldowns"][worker] = {
+            "until": (now + dt.timedelta(seconds=delay)).isoformat(),
+            "streak": streak, "at": now.isoformat()}
         self.save()
+        return delay
 
 
 class DirectiveStore:
@@ -476,6 +499,17 @@ def generate_work(token: str, config: dict[str, Any], journal: Journal) -> dict[
     return issue
 
 
+def task_persona(task: dict[str, Any]) -> str:
+    """Owner of a generated task; backlogs chain per persona, never as one queue.
+
+    A single chain across the whole backlog leaves exactly one workable issue, so
+    the team stalls for hours whenever that issue belongs to a persona whose work
+    window is closed. Chaining within a persona keeps each track ordered while
+    every other persona still has a head it can pick up.
+    """
+    return str(task.get("persona") or "staff")
+
+
 def generate_directive_backlog(token: str, config: dict[str, Any], journal: Journal,
                                directive: dict[str, Any]) -> list[dict[str, Any]]:
     store = DirectiveStore()
@@ -491,13 +525,17 @@ def generate_directive_backlog(token: str, config: dict[str, Any], journal: Jour
         directive = store.save_plan(tasks)
     created = {int(item["index"]): int(item["issue"]) for item in directive.get("created_issues", [])}
     issues = []
+    previous: dict[str, int] = {}
     for index, task in enumerate(tasks):
+        persona = task_persona(task)
         if index in created:
-            issues.append(github(f"/repos/{REPOSITORY}/issues/{created[index]}", token))
+            issue = github(f"/repos/{REPOSITORY}/issues/{created[index]}", token)
+            previous[persona] = int(issue["number"])
+            issues.append(issue)
             continue
-        dependency = issues[-1]["number"] if issues else None
-        issue = create_generated_issue(token, task, config["issue_label"], dependency)
+        issue = create_generated_issue(token, task, config["issue_label"], previous.get(persona))
         store.record_created_issue(index, issue["number"])
+        previous[persona] = int(issue["number"])
         issues.append(issue)
         journal.emit("directive_task_generated", issue=issue["number"], order=index + 1,
                      persona=task["persona"], title=task["title"])
@@ -568,13 +606,17 @@ def consult_after_directive_mvp(token: str, config: dict[str, Any], journal: Jou
         current = store.update_consultation(plan=tasks)
     created = {int(item["index"]): int(item["issue"]) for item in current.get("created_issues", [])}
     issues = []
+    previous: dict[str, int] = {}
     for index, task in enumerate(tasks):
+        persona = task_persona(task)
         if index in created:
-            issues.append(github(f"/repos/{REPOSITORY}/issues/{created[index]}", token))
+            issue = github(f"/repos/{REPOSITORY}/issues/{created[index]}", token)
+            previous[persona] = int(issue["number"])
+            issues.append(issue)
             continue
-        dependency = issues[-1]["number"] if issues else None
-        issue = create_generated_issue(token, task, config["issue_label"], dependency)
+        issue = create_generated_issue(token, task, config["issue_label"], previous.get(persona))
         store.record_consultation_issue(index, issue["number"])
+        previous[persona] = int(issue["number"])
         issues.append(issue)
         journal.emit("directive_followup_task_generated", issue=issue["number"], order=index + 1,
                      round=round_number, persona=task["persona"], title=task["title"])
@@ -916,13 +958,16 @@ def execute_issue(issue: dict[str, Any], config: dict[str, Any], state: State,
         record.update({"status": "retry", "attempts": prior_attempts,
                        "capacity_failures": failures, "worker_override": alternate,
                        "retry_at": (utc_now() + dt.timedelta(seconds=delay)).isoformat()})
-        state.record_worker_capacity(exhausted, delay)
+        cooldown = state.record_worker_capacity(
+            exhausted, int(config.get("capacity_retry_seconds", 900)),
+            maximum_seconds=int(config.get("capacity_retry_max_seconds", 18000)))
         comment(token, number, "capacity deferred",
                 f"{exhausted.title()} reported temporary account capacity exhaustion. This did not consume "
                 f"an implementation attempt; Sam will retry with {alternate.title()} after the backoff.")
         replace_state_label(token, issue, config["issue_label"], None, keep_ready=True)
         journal.emit("run_capacity_deferred", issue=number, persona=persona, exhausted_worker=exhausted,
-                     next_worker=alternate, delay_seconds=delay, failures=failures)
+                     next_worker=alternate, delay_seconds=delay, worker_cooldown_seconds=cooldown,
+                     failures=failures)
     else:
         attempts = int(record["attempts"])
         if attempts >= int(config["max_attempts"]):

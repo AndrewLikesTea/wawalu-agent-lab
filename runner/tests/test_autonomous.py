@@ -216,7 +216,8 @@ class AutonomousTests(unittest.TestCase):
         consult.assert_called_once()
         self.assertEqual(propose.call_args.kwargs["advisory"], "Add notifications")
         self.assertEqual(propose.call_args.args[3], "Build social")
-        self.assertEqual(create.call_args_list[1].args[3], 24)
+        # Rowan's model and Mina's feed are separate tracks: neither waits on the other.
+        self.assertEqual([call.args[3] for call in create.call_args_list], [None, None])
 
     @mock.patch.object(autonomous, "create_generated_issue",
                        side_effect=[{"number": 30}, {"number": 31}])
@@ -305,6 +306,30 @@ class AutonomousTests(unittest.TestCase):
             self.assertEqual([item["number"] for item in issues], [30, 31])
         consult.assert_not_called()
         self.assertEqual(propose.call_args.kwargs["advisory"], "Add notifications")
+
+    BACKLOG_PLAN = [
+        {"persona": "staff", "title": "Fix subpaths", "outcome": "Assets load under /paint",
+         "acceptance_criteria": ["No absolute paths", "Tests pass"]},
+        {"persona": "frontend", "title": "Speed up first load", "outcome": "Fast first paint",
+         "acceptance_criteria": ["No console errors", "Tests pass"]},
+        {"persona": "staff", "title": "Trim desktop UI", "outcome": "No Electron-only controls",
+         "acceptance_criteria": ["Web-only menus", "Tests pass"]},
+    ]
+
+    @mock.patch.object(autonomous, "create_generated_issue",
+                       side_effect=[{"number": 40}, {"number": 41}, {"number": 42}])
+    def test_directive_backlog_chains_each_persona_track_separately(self, create):
+        with tempfile.TemporaryDirectory() as tmp, \
+             mock.patch.object(autonomous, "DIRECTIVE", pathlib.Path(tmp) / "directive.json"), \
+             mock.patch.object(autonomous, "AUTONOMY", pathlib.Path(tmp) / "autonomy"):
+            store = autonomous.DirectiveStore()
+            store.path.write_text(json.dumps({
+                "status": "pending", "text": "Ship paint", "plan": self.BACKLOG_PLAN}))
+            issues = autonomous.generate_directive_backlog(
+                "token", {"issue_label": "agent-ready"}, mock.Mock(), store.read())
+        self.assertEqual([item["number"] for item in issues], [40, 41, 42])
+        # Frontend starts free of the staff track; staff's second task waits on its own first.
+        self.assertEqual([call.args[3] for call in create.call_args_list], [None, None, 40])
 
     @mock.patch.object(autonomous, "github")
     def test_legacy_single_consultation_migrates_to_a_completed_round(self, github):
@@ -727,6 +752,35 @@ class AutonomousTests(unittest.TestCase):
             later = autonomous.utc_now() + dt.timedelta(seconds=901)
             self.assertTrue(state.worker_available("claude", later))
             self.assertEqual(autonomous.resolve_worker("auto", state, later), "auto")
+
+    def test_repeated_capacity_exhaustion_extends_the_provider_cooldown(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            now = autonomous.utc_now()
+            first = state.record_worker_capacity("claude", 900, now, maximum_seconds=18000)
+            second = state.record_worker_capacity(
+                "claude", 900, now + dt.timedelta(seconds=1000), maximum_seconds=18000)
+            self.assertEqual([first, second], [900, 1800])
+            # A session limit outlives one issue's backoff, so the second hold is longer.
+            self.assertFalse(state.worker_available("claude", now + dt.timedelta(seconds=2500)))
+            self.assertTrue(state.worker_available("claude", now + dt.timedelta(seconds=2900)))
+
+    def test_a_recovered_provider_restarts_the_capacity_backoff(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            now = autonomous.utc_now()
+            state.record_worker_capacity("claude", 900, now, maximum_seconds=3600)
+            quiet = now + dt.timedelta(seconds=3601)
+            self.assertEqual(
+                state.record_worker_capacity("claude", 900, quiet, maximum_seconds=3600), 900)
+
+    def test_legacy_string_worker_cooldowns_are_still_honoured(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            now = autonomous.utc_now()
+            state.value["worker_cooldowns"]["claude"] = (now + dt.timedelta(seconds=60)).isoformat()
+            self.assertFalse(state.worker_available("claude", now))
+            self.assertTrue(state.worker_available("claude", now + dt.timedelta(seconds=61)))
 
     def test_no_worker_is_selected_when_every_provider_is_exhausted(self):
         with tempfile.TemporaryDirectory() as tmp:
