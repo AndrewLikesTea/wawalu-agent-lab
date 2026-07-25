@@ -1,0 +1,158 @@
+{
+  "organization": {
+    "name": "Northwind Technology",
+    "period": "25 Jun – 25 Jul 2026",
+    "hrisSource": "Workday · demo sync",
+    "identitySource": "Okta · demo sync",
+    "providers": [
+      "OpenAI",
+      "Anthropic",
+      "AWS Bedrock",
+      "GitHub Copilot"
+    ],
+    "peerCohort": "Enterprise SaaS · 2,000–10,000 employees",
+    "peerMedianScore": 61,
+    "peerTopQuartileScore": 78,
+    "peerPercentile": 66
+  },
+  "departments": [
+    {
+      "id": "data-ml",
+      "name": "Data & ML",
+      "costCenter": "CC-4120",
+      "leader": "Directorate of Data Platform",
+      "headcount": 26,
+      "seats": 26,
+      "spendUsd": 52140,
+      "queries": 74300,
+      "previousScore": 84,
+      "peerPercentile": 91,
+      "mix": {
+        "highValue": 0.76,
+        "overProvisioned": 0.06,
+        "inefficient": 0.08,
+        "outOfScope": 0.1
+      }
+    },
+    {
+      "id": "backend",
+      "name": "Backend Platform",
+      "costCenter": "CC-4010",
+      "leader": "Directorate of Core Services",
+      "headcount": 48,
+      "seats": 46,
+      "spendUsd": 41280,
+      "queries": 128400,
+      "previousScore": 71,
+      "peerPercentile": 74,
+      "mix": {
+        "highValue": 0.61,
+        "overProvisioned": 0.18,
+        "inefficient": 0.13,
+        "outOfScope": 0.08
+      }
+    },
+    {
+      "id": "frontend",
+      "name": "Frontend Experience",
+      "costCenter": "CC-4035",
+      "leader": "Directorate of Product Engineering",
+      "headcount": 34,
+      "seats": 33,
+      "spendUsd": 28950,
+      "queries": 96200,
+      "previousScore": 74,
+      "peerPercentile": 42,
+      "mix": {
+        "highValue": 0.5,
+        "overProvisioned": 0.12,
+        "inefficient": 0.3,
+        "outOfScope": 0.08
+      }
+    },
+    {
+      "id": "sre",
+      "name": "Site Reliability",
+      "costCenter": "CC-4200",
+      "leader": "Directorate of Infrastructure",
+      "headcount": 21,
+      "seats": 21,
+      "spendUsd": 19870,
+      "queries": 52600,
+      "previousScore": 79,
+      "peerPercentile": 68,
+      "mix": {
+        "highValue": 0.66,
+        "overProvisioned": 0.14,
+        "inefficient": 0.14,
+        "outOfScope": 0.06
+      }
+    },
+    {
+      "id": "mobile",
+      "name": "Mobile",
+      "costCenter": "CC-4048",
+      "leader": "Directorate of Product Engineering",
+      "headcount": 18,
+      "seats": 17,
+      "spendUsd": 15420,
+      "queries": 41800,
+      "previousScore": 68,
+      "peerPercentile": 55,
+      "mix": {
+        "highValue": 0.53,
+        "overProvisioned": 0.22,
+        "inefficient": 0.16,
+        "outOfScope": 0.09
+      }
+    },
+    {
+      "id": "quality",
+      "name": "QA & Release",
+      "costCenter": "CC-4090",
+      "leader": "Directorate of Core Services",
+      "headcount": 15,
+      "seats": 15,
+      "spendUsd": 11240,
+      "queries": 38900,
+      "previousScore": 69,
+      "peerPercentile": 23,
+      "mix": {
+        "highValue": 0.39,
+        "overProvisioned": 0.31,
+        "inefficient": 0.19,
+        "outOfScope": 0.11
+      }
+    },
+    {
+      "id": "security",
+      "name": "Security Engineering",
+      "costCenter": "CC-4310",
+      "leader": "Directorate of Infrastructure",
+      "headcount": 12,
+      "seats": 12,
+      "spendUsd": 9860,
+      "queries": 21400,
+      "previousScore": 78,
+      "peerPercentile": 77,
+      "mix": {
+        "highValue": 0.69,
+        "overProvisioned": 0.12,
+        "inefficient": 0.13,
+        "outOfScope": 0.06
+      }
+    }
+  ],
+  "redactionSamples": [
+    {
+      "id": "sample-1",
+      "label": "Ticket triage prompt",
+      "raw": "Escalation from ana.reyes@northwind.example about order 4111 1111 1111 1111 failing at https://internal.northwind.example/orders/8842 — our key sk-demo-000000000000 is in the header. Write a root-cause summary with the timeline, the customer impact, and the rollback we should recommend."
+    },
+    {
+      "id": "sample-2",
+      "label": "Infrastructure prompt",
+      "raw": "The node at 10.42.7.19 is dropping health checks after the 14:05 deploy. Bearer demo-token-not-real-000 was used by the probe. Given the attached scaling policy, propose three causes ranked by likelihood and the check that would confirm each."
+    }
+  ]
+}

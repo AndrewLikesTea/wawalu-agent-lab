@@ -1,0 +1,126 @@
+/* Wawalu Evolution — AI FinOps executive view.
+   Layers on styles.css: the header, nav, eyebrow, filter, hint, and focus tokens
+   are shared so this tab reads as one system with Decisions and Releases.
+
+   The four category colors are a validated categorical set for this surface
+   (#f3f1eb): every adjacent pair clears the CVD and normal-vision separation
+   floors. Two of them sit below 3:1 contrast against the page, so identity is
+   never carried by color alone — every segment has a visible legend label with
+   its own value, and the department table repeats the same numbers as text. */
+:root {
+  --cat-high-value:#1baf7a;
+  --cat-over-provisioned:#eda100;
+  --cat-inefficient:#2a78d6;
+  --cat-out-of-scope:#e34948;
+  --panel-border:#d1cfc7;
+  --ink-muted:#6f6f69;
+}
+.nav-evolution { display:inline-flex; align-items:center; gap:7px; }
+.nav-evolution::before { content:""; width:6px; height:6px; border-radius:2px; background:#1baf7a; }
+
+.finops-hero { display:grid; grid-template-columns:minmax(0,1fr) 280px; align-items:end; gap:48px; padding:clamp(60px,8vw,104px) 0 56px; }
+.finops-hero h1 { margin-bottom:22px; }
+/* Scoped to the copy column: the score card is also a direct child of the hero,
+   and a `.finops-hero>div>p` rule would out-specify the hero number's own size. */
+.finops-hero .hero-copy>p { max-width:680px; margin:0; color:#555550; font-size:18px; line-height:1.65; }
+.finops-hero .hero-copy>p.finops-provenance { margin-top:18px; color:var(--ink-muted); font:600 12px/1.6 ui-monospace,monospace; }
+
+/* Hero number: the "are we wasting money" answer, readable in one glance. */
+.score-card { display:grid; gap:6px; border:1px solid var(--panel-border); border-radius:16px; padding:22px; background:rgba(255,255,255,.72); box-shadow:0 14px 40px rgba(38,38,31,.04); }
+.score-grade { margin:6px 0 0; font-size:66px; line-height:.9; letter-spacing:-.05em; font-weight:750; }
+.score-card[data-band="good"] .score-grade { color:#17845c; }
+.score-card[data-band="watch"] .score-grade { color:#8a6d0a; }
+.score-card[data-band="poor"] .score-grade { color:#a5322f; }
+.score-value { margin:8px 0 0; font-size:15px; font-weight:650; }
+.score-peer { margin:2px 0 0; color:var(--ink-muted); font:600 11px/1.5 ui-monospace,monospace; }
+
+.kpi-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr)); gap:16px; }
+.kpi { border:1px solid var(--panel-border); border-radius:14px; padding:20px; background:rgba(255,255,255,.68); }
+.kpi-alert { border-color:#e6c3c2; background:#fdf5f4; }
+.kpi-label { margin:0; color:var(--ink-muted); font:700 10px/1.4 ui-monospace,monospace; letter-spacing:.09em; text-transform:uppercase; }
+.kpi-value { margin:12px 0 0; font-size:32px; font-weight:750; letter-spacing:-.035em; }
+.kpi-alert .kpi-value { color:#a5322f; }
+.kpi-note { margin:8px 0 0; color:var(--ink-muted); font-size:12px; line-height:1.5; }
+
+.finops-panel { margin-top:24px; border:1px solid var(--panel-border); border-radius:18px; padding:30px; background:rgba(255,255,255,.68); box-shadow:0 14px 40px rgba(38,38,31,.04); }
+.finops-panel .section-heading>p:last-child { max-width:720px; margin:12px 0 0; color:var(--ink-muted); line-height:1.55; }
+.finops-panel .list-heading { align-items:end; margin-bottom:16px; }
+.finops-panel .list-heading .section-heading { margin-bottom:0; }
+.finops-panel .filter { flex:0 0 auto; min-width:190px; }
+
+/* Stacked spend bar: 2px surface gaps separate segments, and the outer data
+   ends are rounded so the bar reads as one measured quantity. */
+.mix-bar { display:flex; gap:2px; height:52px; margin:6px 0 22px; }
+.mix-segment { min-width:3px; border-radius:2px; }
+.mix-segment:first-child { border-radius:4px 2px 2px 4px; }
+.mix-segment:last-child { border-radius:2px 4px 4px 2px; }
+.mix-legend { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr)); gap:16px; margin:0; padding:0; list-style:none; }
+.mix-legend li { display:grid; gap:6px; padding-top:14px; border-top:2px solid currentColor; color:inherit; }
+.mix-legend .legend-head { display:flex; align-items:baseline; justify-content:space-between; gap:10px; }
+.mix-legend .legend-label { display:flex; align-items:center; gap:8px; font-size:14px; font-weight:700; }
+.mix-legend .legend-swatch { width:9px; height:9px; flex:none; border-radius:2px; }
+.mix-legend .legend-share { color:#3f3f3a; font:750 13px/1 ui-monospace,monospace; }
+.mix-legend .legend-spend { color:#3f3f3a; font:650 12px/1.4 ui-monospace,monospace; }
+.mix-legend .legend-copy { margin:0; color:var(--ink-muted); font-size:12px; line-height:1.5; }
+.mix-legend .legend-action { margin:0; color:#41586d; font-size:12px; line-height:1.5; }
+
+.table-wrap { overflow-x:auto; }
+.finops-table { width:100%; min-width:760px; border-collapse:collapse; }
+.finops-table caption { text-align:left; }
+.finops-table th,.finops-table td { padding:13px 14px; border-bottom:1px solid #e5e3dc; text-align:right; vertical-align:middle; white-space:nowrap; }
+.finops-table th:first-child,.finops-table td:first-child { text-align:left; white-space:normal; }
+.finops-table thead th { border-bottom:1px solid #cfcdc5; color:var(--ink-muted); font:700 10px/1.4 ui-monospace,monospace; letter-spacing:.08em; text-transform:uppercase; }
+.finops-table tbody tr:last-child td { border-bottom:0; }
+.finops-table tbody tr:hover { background:#faf9f5; }
+.dept-name { display:grid; gap:3px; }
+.dept-name strong { font-size:15px; font-weight:700; letter-spacing:-.01em; }
+.dept-name span { color:var(--ink-muted); font:600 11px/1.4 ui-monospace,monospace; }
+.numeric { font:650 13px/1.4 ui-monospace,monospace; }
+.recoverable { color:#a5322f; font-weight:750; }
+/* Literacy grade chip: letter + number together, so the grade is never a color alone. */
+.grade-chip { display:inline-flex; align-items:baseline; gap:7px; border-radius:99px; padding:5px 10px; font:750 12px/1 ui-monospace,monospace; }
+.grade-chip[data-band="good"] { background:#dcefdc; color:#17603a; }
+.grade-chip[data-band="watch"] { background:#fff0c7; color:#72520a; }
+.grade-chip[data-band="poor"] { background:#f6dede; color:#8a2b2b; }
+.grade-chip span { font-weight:650; opacity:.85; }
+.trend { display:block; margin-top:4px; font:650 10px/1.4 ui-monospace,monospace; }
+.trend-up { color:#17845c; }
+.trend-down { color:#a5322f; }
+.trend-flat { color:var(--ink-muted); }
+.table-empty { padding:48px 12px; color:var(--ink-muted); text-align:center; }
+
+.action-list { display:grid; gap:14px; margin:0; padding:0; list-style:none; }
+.action-card { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:10px 24px; align-items:start; padding:20px; border:1px solid #d9d7d0; border-radius:13px; background:#fff; }
+.action-copy { display:grid; gap:7px; min-width:0; }
+.action-team { color:var(--ink-muted); font:700 10px/1.4 ui-monospace,monospace; letter-spacing:.08em; text-transform:uppercase; }
+.action-headline { margin:0; font-size:17px; font-weight:700; letter-spacing:-.015em; }
+.action-step { margin:0; color:#4c4c47; font-size:14px; line-height:1.55; }
+.action-amount { display:grid; gap:3px; text-align:right; }
+.action-amount strong { color:#a5322f; font-size:21px; font-weight:750; letter-spacing:-.02em; }
+.action-amount span { color:var(--ink-muted); font:650 10px/1.4 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; }
+
+.redaction-list { display:grid; gap:14px; margin:0 0 22px; padding:0; list-style:none; }
+.redaction-item { border:1px solid #d9d7d0; border-radius:13px; padding:18px; background:#fff; }
+.redaction-label { margin:0 0 12px; color:var(--ink-muted); font:700 10px/1.4 ui-monospace,monospace; letter-spacing:.08em; text-transform:uppercase; }
+.redaction-pair { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
+.redaction-side { display:grid; gap:7px; min-width:0; }
+.redaction-side h3 { margin:0; font-size:12px; font-weight:750; letter-spacing:.02em; }
+.redaction-text { margin:0; padding:13px; border-radius:9px; color:#3d3d38; font:500 11px/1.6 ui-monospace,monospace; white-space:pre-wrap; overflow-wrap:anywhere; }
+.redaction-raw { background:#fbf1f1; border:1px solid #efd9d9; }
+.redaction-clean { background:#eef6f2; border:1px solid #cfe4da; }
+.privacy-note { margin:0; border-radius:10px; padding:14px; background:#e9f1f8; color:#55616b; font-size:12px; line-height:1.55; }
+.privacy-note strong { display:block; margin-bottom:3px; color:#283b4a; }
+
+@media(max-width:900px) {
+  .finops-hero { grid-template-columns:1fr; gap:32px; }
+  .score-card { width:min(100%,320px); }
+  .redaction-pair { grid-template-columns:1fr; }
+}
+@media(max-width:640px) {
+  .finops-panel { padding:21px; }
+  .finops-panel .list-heading { align-items:stretch; flex-direction:column; gap:14px; }
+  .finops-panel .filter { width:100%; }
+  .action-card { grid-template-columns:1fr; }
+  .action-amount { text-align:left; }
+  .mix-bar { height:44px; }
+}
