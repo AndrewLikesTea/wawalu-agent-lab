@@ -171,6 +171,39 @@ class AutonomousTests(unittest.TestCase):
         self.assertIsNone(result)
         consult.assert_not_called()
 
+    def test_program_task_pending_ignores_a_task_the_team_cannot_finish(self):
+        self.assertFalse(autonomous.program_task_pending({"state": "closed", "labels": []}))
+        self.assertTrue(autonomous.program_task_pending(
+            {"state": "open", "labels": [{"name": "agent-ready"}]}))
+        self.assertFalse(autonomous.program_task_pending(
+            {"state": "open", "labels": [{"name": "persona:backend"}, {"name": "agent-blocked"}]}))
+
+    @mock.patch.object(autonomous, "create_generated_issue",
+                       side_effect=[{"number": 24}, {"number": 25}])
+    @mock.patch.object(autonomous, "propose_directive_plan")
+    @mock.patch.object(autonomous, "consult_next_steps", return_value="Add notifications")
+    @mock.patch.object(autonomous, "load_runtime_env", return_value={"WAWALU_INGEST_ENDPOINT": "https://example.invalid"})
+    @mock.patch.object(autonomous, "load_personas", return_value={"manager": {"wawalu_token": "manager-token"}})
+    @mock.patch.object(autonomous, "recent_issue_context", return_value=[])
+    @mock.patch.object(autonomous, "github")
+    def test_a_blocked_task_does_not_freeze_the_next_consultation(
+            self, github, recent, personas, runtime, consult, propose, create):
+        propose.return_value = self.FOLLOWUP_PLAN
+        github.side_effect = [{"state": "closed", "labels": []},
+                              {"state": "open", "labels": [{"name": "agent-blocked"}]}]
+        with tempfile.TemporaryDirectory() as tmp, \
+             mock.patch.object(autonomous, "DIRECTIVE", pathlib.Path(tmp) / "directive.json"), \
+             mock.patch.object(autonomous, "AUTONOMY", pathlib.Path(tmp) / "autonomy"), \
+             mock.patch.object(autonomous, "ROOT", pathlib.Path(tmp)):
+            self.consultation_workspace(tmp, {
+                "status": "consumed", "text": "Build social",
+                "created_issues": [{"index": 0, "issue": 20}, {"index": 1, "issue": 21}],
+            })
+            issues = autonomous.consult_after_directive_mvp(
+                "token", {"issue_label": "agent-ready"}, mock.Mock(), "claude")
+        self.assertEqual([item["number"] for item in issues], [24, 25])
+        consult.assert_called_once()
+
     FOLLOWUP_PLAN = [
         {"persona": "backend", "title": "Model notifications", "outcome": "Notification model exists",
          "acceptance_criteria": ["Model is bounded", "Tests pass"]},

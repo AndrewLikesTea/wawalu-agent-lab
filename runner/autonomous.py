@@ -566,6 +566,20 @@ def consultation_complete(consultation: dict[str, Any]) -> bool:
     return isinstance(plan, list) and len(consultation.get("created_issues", [])) >= len(plan)
 
 
+def program_task_pending(issue: dict[str, Any]) -> bool:
+    """True while a program task still owes work the next consultation should wait for.
+
+    A blocked task never closes on its own, so holding the next round behind it
+    freezes product direction until a human intervenes — and the team meanwhile
+    falls back to idle filler work. It already carries the label that asks for
+    attention, so let the program move on without it.
+    """
+    if issue.get("state") == "closed":
+        return False
+    return not any((label.get("name", "") if isinstance(label, dict) else str(label)) == "agent-blocked"
+                   for label in issue.get("labels", []))
+
+
 def consult_after_directive_mvp(token: str, config: dict[str, Any], journal: Journal,
                                 worker: str = "auto", state: "State | None" = None,
                                 ) -> list[dict[str, Any]] | None:
@@ -579,7 +593,7 @@ def consult_after_directive_mvp(token: str, config: dict[str, Any], journal: Jou
         latest = current.get("created_issues", []) if current else directive["created_issues"]
         for reference in latest:
             issue = github(f"/repos/{REPOSITORY}/issues/{int(reference['issue'])}", token)
-            if issue.get("state") != "closed":
+            if program_task_pending(issue):
                 return None
         max_rounds = int(config.get("max_consultation_rounds", 0))
         if max_rounds and len(rounds) >= max_rounds:
