@@ -100,6 +100,31 @@ def product_check_command(worktree: pathlib.Path) -> list[str] | None:
     return None
 
 
+def discard_generated_artifacts(worktree: pathlib.Path) -> list[str]:
+    """Drop test-run exhaust so review and policy see the change, not its debris.
+
+    One Cypress visual run leaves dozens of failure screenshots behind. They are
+    not the engineer's work, but they counted against the file-count policy, so a
+    finished run could die at the last gate over its own test output.
+    """
+    prefixes = [str(prefix) for prefix in
+                json.loads((ROOT / ".agent-policy.json").read_text()).get("generated_artifact_paths", [])
+                if str(prefix).strip()]
+    if not prefixes:
+        return []
+    discarded = output(["git", "status", "--porcelain", "--", *prefixes], cwd=worktree).splitlines()
+    if not discarded:
+        return []
+    run(["git", "clean", "-fdq", "--", *prefixes], cwd=worktree)
+    modified = [name for name in
+                output(["git", "diff", "--name-only", "-z", "HEAD", "--", *prefixes],
+                       cwd=worktree).split("\0") if name]
+    if modified:
+        run(["git", "checkout", "HEAD", "--", *modified], cwd=worktree)
+    print(f"discarded {len(discarded)} generated test artifact(s)")
+    return discarded
+
+
 def reclaim_worktree(worktree: pathlib.Path, branch: str) -> None:
     """Clear a worktree a dead run left behind, so a retry is not blocked by its own wreckage.
 
@@ -234,8 +259,12 @@ Scenario: {json.dumps(scenario, indent=2)}
         gates_passed = "npm run check and agent policy passed"
     else:
         gates_passed = "agent policy passed (product repo defines no check script)"
-    run([sys.executable, "-m", "runner.policy", "--base", "main", "--repo", str(worktree)])
+    discard_generated_artifacts(worktree)
+    # The gate has to see new files too. Staging intent first means an oversized
+    # change fails here, in seconds, instead of after the reviewer has spent an
+    # hour on work the final policy check was always going to throw away.
     run(["git", "add", "--intent-to-add", "--all"], cwd=worktree)
+    run([sys.executable, "-m", "runner.policy", "--base", "main", "--repo", str(worktree)])
     diff = output(["git", "diff", "--no-ext-diff", "main"], cwd=worktree)
     reviewed_diff_sha256 = hashlib.sha256(diff.encode()).hexdigest()
     reviewer_prompt = (ROOT / personas["reviewer"]["prompt_file"]).read_text()
