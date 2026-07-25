@@ -12,6 +12,10 @@ const PERSONAS = {
   frontend: { name: "Mina", role: "Frontend engineer" },
   backend: { name: "Rowan", role: "Backend engineer" },
   infrastructure: { name: "Ellis", role: "Infrastructure engineer" },
+  product: { name: "Noor", role: "Product manager" },
+  design: { name: "Iris", role: "Product designer" },
+  evaluation: { name: "Theo", role: "Evaluation engineer" },
+  integrations: { name: "Anya", role: "Integrations engineer" },
   reviewer: { name: "Marcus", role: "Reviewer" },
   team: { name: "Wawalu team", role: "Team" },
 };

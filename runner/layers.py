@@ -64,7 +64,8 @@ REVIEW_SCHEMA = {
 TASK_SCHEMA = {
     "type": "object",
     "properties": {
-        "persona": {"type": "string", "enum": ["backend", "frontend", "infrastructure", "staff"]},
+        "persona": {"type": "string", "enum": ["backend", "frontend", "infrastructure", "staff",
+                                               "product", "design", "evaluation", "integrations"]},
         "title": {"type": "string"},
         "outcome": {"type": "string"},
         "acceptance_criteria": {"type": "array", "items": {"type": "string"}, "minItems": 2, "maxItems": 8},

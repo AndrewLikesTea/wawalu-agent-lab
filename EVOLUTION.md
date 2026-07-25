@@ -65,21 +65,35 @@ and responsive, tests and a production build green before merge.
 
 ## Cross-functional ownership
 
+This product line added four specialists to the synthetic team. The full roster:
+
+| Persona | Name | Owns |
+|---|---|---|
+| `manager` | Sam | Scope, sequencing, dependencies, assignment |
+| `product` | Noor | Metric definitions, dashboard scope, what a view must answer |
+| `design` | Iris | Reading experience, grading legibility, accessibility |
+| `evaluation` | Theo | Judge rubrics, scoring fixtures, score reproducibility |
+| `integrations` | Anya | HRIS, identity, and provider export contracts |
+| `staff` | Priya | Architecture and cross-cutting seams |
+| `backend` | Rowan | Data models, aggregation, service contracts |
+| `frontend` | Mina | Interfaces, interaction states, resilient UI |
+| `infrastructure` | Ellis | Gateway and operational design, reversibility |
+| `reviewer` | Marcus | Final review of every diff |
+
 | Directive from the brief | Owner |
 |---|---|
-| Define the C-suite dashboard; it answers "are we wasting money?" in five seconds | Sam (EM) with Priya |
-| Integration strategy — the endpoint contracts for Workday, Bedrock, OpenAI, Anthropic | Priya (staff) |
-| Privacy & compliance — the exact redaction logic, scored without storing IP or PII | Rowan (backend) |
-| Gateway architecture — asynchronous scoring that adds no latency to the user's request | Ellis (infra) |
-| Evaluation pipeline — the LLM-as-a-judge grading intent, efficiency, model-matching | Rowan (backend) |
-| Data aggregation — token and score metrics mapped to the HRIS org structure | Rowan (backend) |
-| Executive consumption — widget-based, embeddable, legible to non-technical readers | Mina (frontend) |
-| The literacy score — a grading system an executive reads instantly | Mina with Priya |
-| Actionable insights — a low score always guides toward the fix | Mina (frontend) |
+| Define the C-suite dashboard; it answers "are we wasting money?" in five seconds | Noor with Sam |
+| Integration strategy — the endpoint contracts for Workday, Bedrock, OpenAI, Anthropic | Anya |
+| Privacy & compliance — the exact redaction logic, scored without storing IP or PII | Theo with Rowan |
+| Gateway architecture — asynchronous scoring that adds no latency to the user's request | Ellis |
+| Evaluation pipeline — the LLM-as-a-judge grading intent, efficiency, model-matching | Theo |
+| Data aggregation — usage and score metrics mapped to the HRIS org structure | Rowan |
+| Executive consumption — widget-based, embeddable, legible to non-technical readers | Iris with Mina |
+| The literacy score — a grading system an executive reads instantly | Iris with Noor |
+| Actionable insights — a low score always guides toward the fix | Iris with Mina |
 
-Design and product-management responsibilities currently sit with Mina (interaction,
-visual system, accessibility) and Sam (dashboard definition, scope, sequencing);
-dedicated designer and PM personas are a possible future addition to the team.
+A definition task is sequenced before the build that depends on it: Noor defines a
+metric and Theo defends how it is computed before Mina renders it.
 
 Marcus reviews every diff. Branch protection, CI, and the daily diff budget are
 unchanged by this product line.

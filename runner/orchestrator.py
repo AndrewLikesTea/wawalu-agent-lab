@@ -324,7 +324,13 @@ Scenario: {json.dumps(scenario, indent=2)}
             "backend": "data contracts, edge cases, and test coverage",
             "infrastructure": "operational safety, reversibility, and hidden coupling",
             "staff": "scope boundaries, integration seams, and long-term maintainability",
-        }[peer]
+            "product": "whether the change answers the question it claims to, and what it leaves ambiguous",
+            "design": "hierarchy, legibility, drawn states, and meaning that rests on color alone",
+            "evaluation": "reproducibility of any score, stated assumptions, and fixture coverage",
+            "integrations": "schema contracts, versioning, and behavior on partial or malformed data",
+        # A peer whose discipline is not listed still gets a review; falling back
+        # beats a KeyError that would abort an otherwise finished run.
+        }.get(peer, "correctness, tests, and whether the change matches its stated scope")
         peer_body = ("<!-- wawalu-peer-review -->\n"
                      f"**{peer_name} · peer review**\n\n"
                      f"I reviewed this change before Marcus’s final gate, focusing on {focus}. "

@@ -36,9 +36,16 @@ AUTONOMY = ROOT / ".agent" / "autonomy"
 CONFIG = ROOT / ".secrets" / "autonomy.json"
 STOP = AUTONOMY / "STOP"
 OWNER = REPOSITORY.split("/")[0]
-PERSONAS = {"backend", "frontend", "infrastructure", "staff"}
 PERSONA_NAMES = {"backend": "Rowan", "frontend": "Mina",
-                 "infrastructure": "Ellis", "staff": "Priya"}
+                 "infrastructure": "Ellis", "staff": "Priya",
+                 "product": "Noor", "design": "Iris",
+                 "evaluation": "Theo", "integrations": "Anya"}
+# Assignable engineers, in the order they are shown to the planner. Derived from
+# PERSONA_NAMES so a roster change lands in one place: an earlier split between
+# this set, the planner's schema, and the label map is how a persona ends up
+# assignable but unlabelled, or named but never assigned.
+PERSONAS = set(PERSONA_NAMES)
+ASSIGNABLE_PERSONAS = tuple(PERSONA_NAMES)
 CAPACITY_WORKERS = {code: worker for worker, code in CAPACITY_EXIT_CODES.items()}
 DELIVERY_ATTEMPT_LIMIT = 3
 DIRECTIVE = AUTONOMY / "directive.json"
@@ -407,7 +414,7 @@ def persona_load_line(token: str) -> str:
     except Exception:
         return ""  # a balance hint is advisory; never let it break generation
     parts = ", ".join(f"{PERSONA_NAMES[p]} ({p}) {counts[p]}"
-                      for p in ("backend", "frontend", "infrastructure", "staff"))
+                      for p in ASSIGNABLE_PERSONAS)
     return ("\nOpen task load per engineer right now (assign new work to those carrying "
             f"the fewest, given fit): {parts}.\n")
 
@@ -438,6 +445,8 @@ def within_persona_window(persona: str, config: dict[str, Any], now: dt.datetime
     windows = config.get("persona_work_windows", {
         "infrastructure": [8, 13], "backend": [9, 14],
         "frontend": [10, 15], "staff": [11, 16],
+        "product": [8, 13], "design": [10, 15],
+        "evaluation": [9, 14], "integrations": [11, 16],
     })
     start, end = windows.get(persona, [8, 18])
     return int(start) <= now.astimezone(PACIFIC).hour < int(end)
@@ -494,6 +503,10 @@ def ensure_labels(token: str, ready_label: str) -> None:
         "persona:frontend": ("9b59b6", "Assigned to Mina"),
         "persona:infrastructure": ("596b31", "Assigned to Ellis"),
         "persona:staff": ("245a8d", "Assigned to Priya"),
+        "persona:product": ("0f7b6c", "Assigned to Noor"),
+        "persona:design": ("b5427a", "Assigned to Iris"),
+        "persona:evaluation": ("7d5a1f", "Assigned to Theo"),
+        "persona:integrations": ("34618a", "Assigned to Anya"),
     }
     existing = {item["name"] for item in github(f"/repos/{REPOSITORY}/labels?per_page=100", token)}
     for name, (color, description) in labels.items():
