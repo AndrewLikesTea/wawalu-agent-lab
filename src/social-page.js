@@ -57,9 +57,12 @@ async function init() {
 
   const status = root.querySelector("#feed-status");
   const announcer = root.querySelector("#feed-announcer");
-  const demo = await fetchDemoPosts();
-  const fallback = dedupeById(demo);
-  const feed = mountSocialFeed(root, { posts: fallback, create: createLivePost });
+  // Mount before any fetch resolves so the first paint is a reserved skeleton
+  // grid rather than a blank panel that later jumps to full height.
+  const feed = mountSocialFeed(root, { posts: [], state: "loading", create: createLivePost });
+
+  const fallback = dedupeById(await fetchDemoPosts());
+  if (fallback.length) feed.seed(fallback);
   let knownIds = new Set(fallback.map((post) => post.id));
   let hasConnected = false;
 
@@ -75,6 +78,9 @@ async function init() {
       hasConnected = true;
     } catch {
       if (status) status.textContent = hasConnected ? "Live updates paused · retrying" : "Demo posts · live service unavailable";
+      // Posts already on screen stay on screen; the error state is only for the
+      // case where a reader would otherwise be staring at a skeleton forever.
+      if (feed.getPosts().length === 0) feed.setState("error");
     }
   };
 
