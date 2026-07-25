@@ -37,6 +37,7 @@ PERSONAS = {"backend", "frontend", "infrastructure", "staff"}
 PERSONA_NAMES = {"backend": "Rowan", "frontend": "Mina",
                  "infrastructure": "Ellis", "staff": "Priya"}
 CAPACITY_WORKERS = {code: worker for worker, code in CAPACITY_EXIT_CODES.items()}
+DELIVERY_ATTEMPT_LIMIT = 3
 DIRECTIVE = AUTONOMY / "directive.json"
 PACIFIC = ZoneInfo("America/Los_Angeles")
 
@@ -70,6 +71,7 @@ class State:
         self.value.setdefault("persona_submissions", {})
         self.value.setdefault("pr_reviews", {})
         self.value.setdefault("pr_updates", {})
+        self.value.setdefault("pr_deliveries", {})
         self.value.setdefault("standups", {})
         self.value.setdefault("handoffs", {})
         self.value.setdefault("worker_cooldowns", {})
@@ -703,6 +705,36 @@ def requeue_conflicted_pull(pull: dict[str, Any], token: str, config: dict[str, 
     return True
 
 
+def deliver_approved_pull(pull: dict[str, Any], token: str, state: State,
+                          journal: Journal) -> None:
+    """Ask GitHub to merge a reviewer-approved team pull the worker forgot to deliver.
+
+    Auto-merge is normally requested by the worker through the branch-bound
+    ``.agent-delivery.json`` capability. A worker that finishes its change but
+    omits that request leaves an approved, green pull request open forever:
+    nothing else in the loop merges it, the issue keeps its ``agent-running``
+    label, and the queue stalls behind finished work. The reviewer approval on
+    the exact head is still the gate, and ``--auto`` keeps required checks in
+    charge of delivery, so this only restores the intended ending.
+    """
+    number = int(pull["number"])
+    head_sha = pull["head"]["sha"]
+    record = state.value["pr_deliveries"].get(str(number), {})
+    attempts = int(record.get("attempts", 0)) if record.get("sha") == head_sha else 0
+    if attempts >= DELIVERY_ATTEMPT_LIMIT:
+        return
+    state.value["pr_deliveries"][str(number)] = {
+        "sha": head_sha, "attempts": attempts + 1, "at": utc_now().isoformat()}
+    state.save()
+    try:
+        enable_auto_merge(REPOSITORY, str(pull["head"]["ref"]), token, ROOT)
+    except Exception as error:
+        journal.emit("team_pr_auto_merge_failed", pull=number, sha=head_sha,
+                     attempts=attempts + 1, error=type(error).__name__, detail=str(error)[:300])
+        return
+    journal.emit("team_pr_auto_merge_enabled", pull=number, sha=head_sha)
+
+
 def update_pull_branch(pull: dict[str, Any], token: str, config: dict[str, Any],
                        state: State, journal: Journal) -> None:
     """Unstick an approved, auto-merging pull request whose branch fell behind main."""
@@ -759,7 +791,7 @@ def _review_outstanding_prs(token: str, config: dict[str, Any], state: State,
     pulls = github(f"/repos/{REPOSITORY}/pulls?state=open&per_page=50", token)
     open_numbers = {str(int(pull["number"])) for pull in pulls or []}
     pruned = False
-    for bucket in ("pr_reviews", "pr_updates"):
+    for bucket in ("pr_reviews", "pr_updates", "pr_deliveries"):
         for key in [key for key in state.value[bucket] if key not in open_numbers]:
             state.value[bucket].pop(key)
             pruned = True
@@ -780,8 +812,11 @@ def _review_outstanding_prs(token: str, config: dict[str, Any], state: State,
         if author != OWNER and not is_team_pull and not team_approved_before:
             continue
         if approved_current_head(reviews, head_sha):
-            if pull.get("auto_merge") and config.get("update_stuck_prs", True):
-                update_pull_branch(pull, token, config, state, journal)
+            if pull.get("auto_merge"):
+                if config.get("update_stuck_prs", True):
+                    update_pull_branch(pull, token, config, state, journal)
+            elif is_team_pull and config.get("deliver_approved_team_prs", True):
+                deliver_approved_pull(pull, token, state, journal)
             continue
         record = state.value["pr_reviews"].get(str(number), {})
         if record.get("sha") == head_sha:

@@ -658,6 +658,76 @@ class AutonomousTests(unittest.TestCase):
             autonomous.review_outstanding_prs("token", {}, state, mock.Mock())
         update.assert_not_called()
 
+    APPROVED_REVIEW = [{"state": "APPROVED", "commit_id": "def456",
+                        "user": {"login": "wawalu-synthetic-reviewer[bot]"}}]
+
+    def undelivered_agent_pull(self) -> dict:
+        pull = dict(self.AGENT_PULL)
+        pull.pop("auto_merge")
+        return pull
+
+    @mock.patch.object(autonomous, "enable_auto_merge")
+    @mock.patch.object(autonomous, "github")
+    def test_approved_team_pr_without_auto_merge_is_delivered(self, github, merge):
+        with tempfile.TemporaryDirectory() as tmp, \
+             mock.patch.object(autonomous, "AUTONOMY", pathlib.Path(tmp) / "autonomy"), \
+             mock.patch.object(autonomous, "ROOT", pathlib.Path(tmp)):
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            github.side_effect = [[self.undelivered_agent_pull()], list(self.APPROVED_REVIEW)]
+            autonomous.review_outstanding_prs("token", {}, state, mock.Mock())
+            record = state.value["pr_deliveries"]["41"]
+        merge.assert_called_once_with(
+            autonomous.REPOSITORY, "agent/staff/issue-8-decision-detail", "token",
+            pathlib.Path(tmp))
+        self.assertEqual(record["sha"], "def456")
+
+    @mock.patch.object(autonomous, "enable_auto_merge")
+    @mock.patch.object(autonomous, "github")
+    def test_team_pr_delivery_can_be_disabled(self, github, merge):
+        with tempfile.TemporaryDirectory() as tmp, \
+             mock.patch.object(autonomous, "AUTONOMY", pathlib.Path(tmp) / "autonomy"), \
+             mock.patch.object(autonomous, "ROOT", pathlib.Path(tmp)):
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            github.side_effect = [[self.undelivered_agent_pull()], list(self.APPROVED_REVIEW)]
+            autonomous.review_outstanding_prs(
+                "token", {"deliver_approved_team_prs": False}, state, mock.Mock())
+        merge.assert_not_called()
+
+    @mock.patch.object(autonomous, "enable_auto_merge",
+                       side_effect=RuntimeError("gh pr merge failed"))
+    @mock.patch.object(autonomous, "github")
+    def test_failed_team_delivery_stops_retrying_the_same_head(self, github, merge):
+        journal = mock.Mock()
+        with tempfile.TemporaryDirectory() as tmp, \
+             mock.patch.object(autonomous, "AUTONOMY", pathlib.Path(tmp) / "autonomy"), \
+             mock.patch.object(autonomous, "ROOT", pathlib.Path(tmp)):
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            for _ in range(autonomous.DELIVERY_ATTEMPT_LIMIT + 2):
+                github.side_effect = [[self.undelivered_agent_pull()], list(self.APPROVED_REVIEW)]
+                autonomous.review_outstanding_prs("token", {}, state, journal)
+            attempts = state.value["pr_deliveries"]["41"]["attempts"]
+        self.assertEqual(merge.call_count, autonomous.DELIVERY_ATTEMPT_LIMIT)
+        self.assertEqual(attempts, autonomous.DELIVERY_ATTEMPT_LIMIT)
+        self.assertEqual(
+            [call.args[0] for call in journal.emit.call_args_list],
+            ["team_pr_auto_merge_failed"] * autonomous.DELIVERY_ATTEMPT_LIMIT)
+
+    @mock.patch.object(autonomous, "enable_auto_merge")
+    @mock.patch.object(autonomous, "github")
+    def test_delivery_retries_after_the_worker_pushes_a_new_head(self, github, merge):
+        with tempfile.TemporaryDirectory() as tmp, \
+             mock.patch.object(autonomous, "AUTONOMY", pathlib.Path(tmp) / "autonomy"), \
+             mock.patch.object(autonomous, "ROOT", pathlib.Path(tmp)):
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            state.value["pr_deliveries"]["41"] = {
+                "sha": "old-sha", "attempts": autonomous.DELIVERY_ATTEMPT_LIMIT,
+                "at": "2026-07-25T00:00:00+00:00"}
+            github.side_effect = [[self.undelivered_agent_pull()], list(self.APPROVED_REVIEW)]
+            autonomous.review_outstanding_prs("token", {}, state, mock.Mock())
+            record = state.value["pr_deliveries"]["41"]
+        merge.assert_called_once()
+        self.assertEqual((record["sha"], record["attempts"]), ("def456", 1))
+
     def test_directive_summary_shows_consultation_evolution(self):
         self.assertIsNone(autonomous.summarize_directive(None))
         summary = autonomous.summarize_directive({
