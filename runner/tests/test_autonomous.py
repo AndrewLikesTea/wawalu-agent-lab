@@ -1060,6 +1060,27 @@ class AutonomousTests(unittest.TestCase):
                                              "token")
                 cleanup.assert_called_once()
 
+    def test_outcome_is_recorded_when_github_notification_fails(self):
+        """A DNS blip while commenting must not swallow the run's terminal event."""
+        with tempfile.TemporaryDirectory() as tmp:
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            state.value["issues"]["60"] = {"status": "running", "attempts": 1}
+            events = pathlib.Path(tmp) / "events.jsonl"
+            journal = autonomous.Journal(events)
+            issue = {"number": 60, "title": "Share button", "body": "",
+                     "labels": [{"name": "agent-ready"}, {"name": "agent-running"}]}
+            outage = urllib.error.URLError("nodename nor servname provided")
+            with mock.patch.object(autonomous, "comment", side_effect=outage), \
+                 mock.patch.object(autonomous, "replace_state_label", side_effect=outage):
+                autonomous.record_run_outcome(
+                    76, issue, 60, "frontend", {}, {**self.config(), "issue_label": "agent-ready"},
+                    state, journal, "token")
+            emitted = [json.loads(line)["event"] for line in events.read_text().splitlines()]
+            self.assertIn("run_capacity_deferred", emitted)
+            self.assertIn("github_bookkeeping_failed", emitted)
+            self.assertEqual(state.value["issues"]["60"]["status"], "retry")
+            self.assertEqual(state.value["issues"]["60"]["worker_override"], "codex")
+
     def test_stale_worktree_is_reclaimed_instead_of_failing_the_retry(self):
         with tempfile.TemporaryDirectory() as tmp:
             worktree = pathlib.Path(tmp) / "backend-issue-23"

@@ -1070,20 +1070,38 @@ def execute_issue(issue: dict[str, Any], config: dict[str, Any], state: State,
     return exit_code
 
 
+def _bookkeeper(journal: Journal, number: int):
+    """Announce a run's outcome to GitHub without letting the network veto the record.
+
+    A DNS blip or a 5xx while commenting used to abort the rest of
+    ``record_run_outcome``, so the run's terminal journal event never landed and
+    the issue kept a stale ``agent-running`` label. The local state transition is
+    the source of truth; the GitHub-facing half is best effort and self-reports.
+    """
+    def tell(action: str, call) -> None:
+        try:
+            call()
+        except OSError as error:  # URLError and HTTPError both land here
+            journal.emit("github_bookkeeping_failed", issue=number, action=action,
+                         error=type(error).__name__, detail=str(error))
+    return tell
+
+
 def record_run_outcome(exit_code: int, issue: dict[str, Any], number: int, persona: str,
                        scenario: dict[str, Any], config: dict[str, Any], state: State,
                        journal: Journal, token: str) -> None:
     """Record how a finished run went: issue state, labels, and the owner-visible comment."""
     record = state.value["issues"].setdefault(str(number), {})
     prior_attempts = int(record.get("attempts", 1)) - 1
+    tell = _bookkeeper(journal, number)
     if exit_code == 0:
         record.update({"status": "submitted", "finished_at": utc_now().isoformat()})
         state.record_submission(persona)
         for collaborator in scenario.get("collaborators", []):
             state.record_submission(collaborator)
-        comment(token, number, "submitted", "The worker completed its run and opened a reviewed pull request. If it requested merge, GitHub will deliver it after required checks.")
-        replace_state_label(token, issue, config["issue_label"], "agent-running", keep_ready=False)
         journal.emit("run_submitted", issue=number, persona=persona)
+        tell("comment", lambda: comment(token, number, "submitted", "The worker completed its run and opened a reviewed pull request. If it requested merge, GitHub will deliver it after required checks."))
+        tell("label", lambda: replace_state_label(token, issue, config["issue_label"], "agent-running", keep_ready=False))
     elif exit_code in CAPACITY_WORKERS:
         exhausted = CAPACITY_WORKERS[exit_code]
         alternate = "claude" if exhausted == "codex" else "codex"
@@ -1096,25 +1114,29 @@ def record_run_outcome(exit_code: int, issue: dict[str, Any], number: int, perso
         cooldown = state.record_worker_capacity(
             exhausted, int(config.get("capacity_retry_seconds", 900)),
             maximum_seconds=int(config.get("capacity_retry_max_seconds", 18000)))
-        comment(token, number, "capacity deferred",
-                f"{exhausted.title()} reported temporary account capacity exhaustion. This did not consume "
-                f"an implementation attempt; Sam will retry with {alternate.title()} after the backoff.")
-        replace_state_label(token, issue, config["issue_label"], None, keep_ready=True)
         journal.emit("run_capacity_deferred", issue=number, persona=persona, exhausted_worker=exhausted,
                      next_worker=alternate, delay_seconds=delay, worker_cooldown_seconds=cooldown,
                      failures=failures)
+        tell("comment", lambda: comment(token, number, "capacity deferred",
+             f"{exhausted.title()} reported temporary account capacity exhaustion. This did not consume "
+             f"an implementation attempt; Sam will retry with {alternate.title()} after the backoff."))
+        tell("label", lambda: replace_state_label(token, issue, config["issue_label"], None, keep_ready=True))
     else:
         attempts = int(record["attempts"])
         if attempts >= int(config["max_attempts"]):
             record["status"] = "blocked"
-            comment(token, number, "blocked", f"The run failed {attempts} times and needs human attention. Exit code: `{exit_code}`.")
-            replace_state_label(token, issue, config["issue_label"], "agent-blocked", keep_ready=False)
+            blocked = True
         else:
             record["status"] = "retry"
             record["retry_at"] = (utc_now() + dt.timedelta(seconds=int(config["retry_cooldown_seconds"]))).isoformat()
-            comment(token, number, "retry scheduled", f"The run exited with `{exit_code}`. It will retry after the configured cooldown.")
-            replace_state_label(token, issue, config["issue_label"], None, keep_ready=True)
+            blocked = False
         journal.emit("run_failed", issue=number, persona=persona, exit_code=exit_code, attempts=attempts)
+        if blocked:
+            tell("comment", lambda: comment(token, number, "blocked", f"The run failed {attempts} times and needs human attention. Exit code: `{exit_code}`."))
+            tell("label", lambda: replace_state_label(token, issue, config["issue_label"], "agent-blocked", keep_ready=False))
+        else:
+            tell("comment", lambda: comment(token, number, "retry scheduled", f"The run exited with `{exit_code}`. It will retry after the configured cooldown."))
+            tell("label", lambda: replace_state_label(token, issue, config["issue_label"], None, keep_ready=True))
 
 
 def within_hours(config: dict[str, Any], now: dt.datetime | None = None) -> bool:
