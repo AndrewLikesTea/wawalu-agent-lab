@@ -1,10 +1,44 @@
 {
   "personas": {
-    "manager": {"wawalu_token": "REPLACE", "prompt_file": "personas/manager.md"},
-    "staff": {"wawalu_token": "REPLACE", "prompt_file": "personas/staff.md"},
-    "backend": {"wawalu_token": "REPLACE", "prompt_file": "personas/backend.md"},
-    "frontend": {"wawalu_token": "REPLACE", "prompt_file": "personas/frontend.md"},
-    "infrastructure": {"wawalu_token": "REPLACE", "prompt_file": "personas/infrastructure.md"},
-    "reviewer": {"wawalu_token": "REPLACE", "prompt_file": "personas/reviewer.md"}
+    "manager": {
+      "wawalu_token": "REPLACE",
+      "prompt_file": "personas/manager.md"
+    },
+    "staff": {
+      "wawalu_token": "REPLACE",
+      "prompt_file": "personas/staff.md"
+    },
+    "backend": {
+      "wawalu_token": "REPLACE",
+      "prompt_file": "personas/backend.md"
+    },
+    "frontend": {
+      "wawalu_token": "REPLACE",
+      "prompt_file": "personas/frontend.md"
+    },
+    "infrastructure": {
+      "wawalu_token": "REPLACE",
+      "prompt_file": "personas/infrastructure.md"
+    },
+    "reviewer": {
+      "wawalu_token": "REPLACE",
+      "prompt_file": "personas/reviewer.md"
+    },
+    "product": {
+      "wawalu_token": "REPLACE",
+      "prompt_file": "personas/product.md"
+    },
+    "design": {
+      "wawalu_token": "REPLACE",
+      "prompt_file": "personas/design.md"
+    },
+    "evaluation": {
+      "wawalu_token": "REPLACE",
+      "prompt_file": "personas/evaluation.md"
+    },
+    "integrations": {
+      "wawalu_token": "REPLACE",
+      "prompt_file": "personas/integrations.md"
+    }
   }
 }

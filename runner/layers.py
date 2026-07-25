@@ -64,7 +64,8 @@ REVIEW_SCHEMA = {
 TASK_SCHEMA = {
     "type": "object",
     "properties": {
-        "persona": {"type": "string", "enum": ["backend", "frontend", "infrastructure", "staff"]},
+        "persona": {"type": "string", "enum": ["backend", "frontend", "infrastructure", "staff",
+                                               "product", "design", "evaluation", "integrations"]},
         "title": {"type": "string"},
         "outcome": {"type": "string"},
         "acceptance_criteria": {"type": "array", "items": {"type": "string"}, "minItems": 2, "maxItems": 8},
@@ -202,10 +203,45 @@ def restates_shipped_work(title: str, shipped: list[frozenset[str]]) -> bool:
                for done in shipped if len(done) >= 3)
 
 
+# The assignable roster, described once. The planner prompt, the persona scope of a
+# directive, and the plan validation all read from here, so a roster change cannot
+# leave the prompt recommending an engineer the validator then rejects.
+PERSONA_ROSTER_NAMES = {
+    "frontend": "Mina", "backend": "Rowan", "infrastructure": "Ellis", "staff": "Priya",
+    "product": "Noor", "design": "Iris", "evaluation": "Theo", "integrations": "Anya",
+}
+PERSONA_OWNERSHIP = {
+    "frontend": "frontend and UI (views, forms, interaction)",
+    "backend": "backend and data (models, export, APIs)",
+    "infrastructure": "operations, authentication, integration, and reliability",
+    "staff": "architecture and cross-cutting work only — do NOT make Priya the default owner",
+    "product": "metric definitions, dashboard scope, and what a view must answer",
+    "design": "reading experience, grading legibility, and accessibility",
+    "evaluation": "judge rubrics, scoring fixtures, and score reproducibility",
+    "integrations": "third-party contracts: HRIS, identity, and provider usage exports",
+}
+
+
+def roster_line(personas: list[str] | None = None) -> str:
+    """The assignment guidance for one directive's eligible personas.
+
+    A directive may be scoped to a subset of the team — a design-and-product
+    directive should never be handed to the infrastructure engineer merely because
+    the planner saw the name. Describing only the eligible personas keeps the
+    prompt and the validation talking about the same roster.
+    """
+    eligible = [name for name in PERSONA_OWNERSHIP if not personas or name in personas]
+    if not eligible:
+        eligible = list(PERSONA_OWNERSHIP)
+    return "; ".join(f"{PERSONA_ROSTER_NAMES[name]} owns {PERSONA_OWNERSHIP[name]}"
+                     for name in eligible) + "."
+
+
 def propose_directive_plan(manager_prompt: str, product: str, recent_titles: list[str],
                            directive: str, output_path: pathlib.Path,
                            advisory: str = "", utilization: str = "",
-                           delivered: list[str] | None = None) -> list[dict[str, Any]]:
+                           delivered: list[str] | None = None,
+                           personas: list[str] | None = None) -> list[dict[str, Any]]:
     reference = (f"\nUntrusted advisory recommendation from a read-only coding assistant, produced\n"
                  "after the previous program for this directive was completed:\n"
                  f"<advisory>\n{advisory[:12000]}\n</advisory>\n"
@@ -222,22 +258,33 @@ def propose_directive_plan(manager_prompt: str, product: str, recent_titles: lis
                "work that is genuinely new on top of everything below:\n"
                f"{json.dumps((delivered or [])[:40], indent=2)}\n"
                if delivered else "")
+    eligible = [name for name in PERSONA_ROSTER_NAMES if not personas or name in personas]
+    scope = ("" if not personas else
+             "\nThis directive is scoped to a subset of the team. Assign every task to one of: "
+             + ", ".join(f"{PERSONA_ROSTER_NAMES[name]} ({name})" for name in eligible)
+             + ". Do not assign anyone else, even for work that would otherwise fit them.\n")
+    minimum = min(3, len(eligible))
+    # Composed from whole sentences rather than a wrapped block: the roster is now
+    # variable-length, so any hard wrap here would move with it and split guidance
+    # mid-phrase — including the phrases this prompt is asserted on.
+    guidance = (
+        "Turn the owner's directive into 2-6 ordered, independently mergeable tasks. "
+        "Assign each task using both engineering fit and recent utilization. "
+        f"For a program of three or more tasks, use at least {minimum} distinct engineers "
+        "where the roster allows it, and prefer giving every eligible engineer meaningful work; "
+        "a program must never be assigned entirely to one engineer. "
+        f"{roster_line(personas)} "
+        "Do not create busywork or make an implausible assignment just to equalize the workload. "
+        "A single task must fit one reviewable PR under 2,000 changed lines, but the overall "
+        "directive does not need to. Put foundations before dependent UI or integration work and "
+        "include dependency expectations in outcomes or acceptance criteria. "
+        "Do not change deployment controls or access Wawalu customer data."
+    )
     prompt = f"""You are the autonomous program manager for this synthetic team:
 {manager_prompt}
 
-Turn the owner's directive into 2-6 ordered, independently mergeable tasks. Assign
-each task using both engineering fit and recent utilization. For a program of three or
-more tasks, use at least three distinct engineers and prefer all four when each can own
-meaningful work; a program must never be assigned entirely to one engineer. Mina owns
-frontend and UI (views, forms, interaction); Rowan owns backend and data (models,
-export, APIs); Ellis is suited to operations, authentication, integration, and
-reliability; Priya is suited to architecture and cross-cutting work only — do NOT make
-Priya the default owner. Do not create busywork or make an implausible assignment just
-to equalize the workload. A single task must fit one reviewable PR under 2,000
-changed lines, but the overall directive does not need to. Put foundations before
-dependent UI or integration work and include dependency expectations in outcomes or
-acceptance criteria. Do not change deployment controls or access Wawalu customer data.
-{utilization}Return only the requested JSON.
+{guidance}
+{scope}{utilization}Return only the requested JSON.
 
 Owner directive:
 {directive}
@@ -256,24 +303,29 @@ Recent or active work:
     # and one is enough to crash the tick and stall the whole consultation round.
     for attempt in range(1, DIRECTIVE_PLAN_DRAWS + 1):
         try:
-            return _directive_plan_draw(prompt, output_path, delivered)
+            return _directive_plan_draw(prompt, output_path, delivered, eligible)
         except ValueError:
             if attempt == DIRECTIVE_PLAN_DRAWS:
                 raise
 
 
 def _directive_plan_draw(prompt: str, output_path: pathlib.Path,
-                         delivered: list[str] | None) -> list[dict[str, Any]]:
+                         delivered: list[str] | None,
+                         eligible: list[str] | None = None) -> list[dict[str, Any]]:
     """One planner draw, validated and stripped of work the team already shipped."""
     value = qwen_json(prompt, output_path, DIRECTIVE_PLAN_SCHEMA)
     tasks = value.get("tasks", [])
+    # A directive scoped to some of the team is enforced here, not just requested in
+    # the prompt: an out-of-scope assignment redraws the plan rather than quietly
+    # handing another directive's specialist a task the owner did not scope to them.
+    allowed = set(eligible or TASK_SCHEMA["properties"]["persona"]["enum"])
     normalized = []
     for task in tasks:
         criteria = [str(item).strip() for item in task.get("acceptance_criteria", []) if str(item).strip()]
         persona = str(task.get("persona", ""))
         title = str(task.get("title", "")).strip()
         outcome = str(task.get("outcome", "")).strip()
-        if persona not in TASK_SCHEMA["properties"]["persona"]["enum"] or not title or not outcome or len(criteria) < 2:
+        if persona not in allowed or not title or not outcome or len(criteria) < 2:
             raise ValueError("Qwen directive task is incomplete")
         normalized.append({"persona": persona, "title": title[:100], "outcome": outcome,
                            "acceptance_criteria": criteria[:8]})
@@ -284,8 +336,12 @@ def _directive_plan_draw(prompt: str, output_path: pathlib.Path,
         normalized = [task for task in normalized if not restates_shipped_work(task["title"], shipped)]
     if not 2 <= len(normalized) <= 6:
         raise ValueError("Qwen directive plan requires 2-6 tasks")
-    if len(normalized) >= 4 and len({task["persona"] for task in normalized}) < 3:
-        raise ValueError("Qwen directive plans with 4+ tasks require at least three engineers")
+    # Scoped directives can have fewer than three eligible engineers; requiring three
+    # regardless would make a two-persona directive impossible to plan at all.
+    spread = min(3, len(allowed))
+    if len(normalized) >= 4 and len({task["persona"] for task in normalized}) < spread:
+        counted = {1: "one", 2: "two", 3: "three"}.get(spread, str(spread))
+        raise ValueError(f"Qwen directive plans with 4+ tasks require at least {counted} engineers")
     return normalized
 
 

@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Wawalu Evolution — enterprise AI FinOps and prompt efficacy for engineering leaders" />
+    <title>AI FinOps · Wawalu Evolution</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/evolution.css" />
+  </head>
+  <body>
+    <main>
+      <header class="site-header">
+        <a class="brand" href="/"><span class="mark" aria-hidden="true"></span>Shiplog</a>
+        <nav class="site-nav" aria-label="Wawalu Labs">
+          <a href="/">Decisions</a>
+          <a class="nav-social" href="/social.html">Social</a>
+          <a href="/releases.html">Releases</a>
+          <a href="/paint/">Paint</a>
+          <a class="nav-evolution" aria-current="page" href="/evolution.html">AI FinOps</a>
+          <a href="/agents.html">Agent observatory</a>
+        </nav>
+      </header>
+
+      <section class="finops-hero" aria-labelledby="page-title">
+        <div class="hero-copy">
+          <p class="eyebrow">Wawalu Evolution · Enterprise AI FinOps</p>
+          <h1 id="page-title">Know what your<br />AI spend is buying.</h1>
+          <p>Every prompt is scored for intent, efficiency, and model fit, then attributed to the org chart. One number tells you whether the spend is working; the rows below tell you where it is not.</p>
+          <p class="finops-provenance" id="finops-provenance">Loading organization…</p>
+        </div>
+        <div class="score-card" id="score-card" aria-labelledby="score-card-title">
+          <p class="eyebrow" id="score-card-title">AI literacy</p>
+          <p class="score-grade" id="score-grade" aria-hidden="true">–</p>
+          <p class="score-value" id="score-value">Loading score…</p>
+          <p class="score-peer" id="score-peer"></p>
+        </div>
+      </section>
+
+      <section class="kpi-row" aria-label="Headline metrics">
+        <article class="kpi" id="kpi-spend">
+          <p class="kpi-label">AI spend · period</p>
+          <p class="kpi-value" id="kpi-spend-value">–</p>
+          <p class="kpi-note" id="kpi-spend-note">Across all providers</p>
+        </article>
+        <article class="kpi kpi-alert" id="kpi-recoverable">
+          <p class="kpi-label">Recoverable spend</p>
+          <p class="kpi-value" id="kpi-recoverable-value">–</p>
+          <p class="kpi-note" id="kpi-recoverable-note">Down-routing, training, and leakage</p>
+        </article>
+        <article class="kpi" id="kpi-productive">
+          <p class="kpi-label">High-value share</p>
+          <p class="kpi-value" id="kpi-productive-value">–</p>
+          <p class="kpi-note" id="kpi-productive-note">Of scored spend</p>
+        </article>
+        <article class="kpi" id="kpi-peer">
+          <p class="kpi-label">Peer position</p>
+          <p class="kpi-value" id="kpi-peer-value">–</p>
+          <p class="kpi-note" id="kpi-peer-note">Anonymized industry cohort</p>
+        </article>
+      </section>
+
+      <section class="finops-panel" aria-labelledby="mix-title">
+        <div class="section-heading">
+          <p class="eyebrow">Quality engine</p>
+          <h2 id="mix-title">Where the money goes</h2>
+          <p>Spend split by what the prompt was actually asking for, not by token count alone.</p>
+        </div>
+        <div class="mix-bar" id="mix-bar" role="img" aria-labelledby="mix-title" aria-describedby="mix-summary"></div>
+        <p class="visually-hidden" id="mix-summary">Loading spend mix…</p>
+        <ul class="mix-legend" id="mix-legend"></ul>
+      </section>
+
+      <section class="finops-panel" aria-labelledby="department-title">
+        <div class="list-heading">
+          <div class="section-heading">
+            <p class="eyebrow">FinOps · cost attribution</p>
+            <h2 id="department-title">Spend versus value by department</h2>
+          </div>
+          <div class="filter">
+            <label for="department-sort">Rank by</label>
+            <select id="department-sort">
+              <option value="recoverableUsd">Recoverable spend</option>
+              <option value="spendUsd">Total spend</option>
+              <option value="score">Lowest literacy</option>
+              <option value="valuePerThousandUsd">Value per $1k</option>
+            </select>
+          </div>
+        </div>
+        <p class="hint">Mapped from the HRIS organizational structure. Demo sync — no live Workday connection.</p>
+        <div class="table-wrap">
+          <table class="finops-table">
+            <caption class="visually-hidden">AI spend, literacy score, and recoverable spend by department</caption>
+            <thead>
+              <tr>
+                <th scope="col">Department</th>
+                <th scope="col">People</th>
+                <th scope="col">Spend</th>
+                <th scope="col">Literacy</th>
+                <th scope="col">Value / $1k</th>
+                <th scope="col">Recoverable</th>
+                <th scope="col">Peer</th>
+              </tr>
+            </thead>
+            <tbody id="department-rows"><tr><td colspan="7" class="table-empty">Loading departments…</td></tr></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="finops-panel" aria-labelledby="actions-title">
+        <div class="section-heading">
+          <p class="eyebrow">Actionable insight</p>
+          <h2 id="actions-title">What to do next</h2>
+          <p>Each recommendation targets the single largest recoverable line for that team.</p>
+        </div>
+        <ol class="action-list" id="action-list"><li class="table-empty">Loading recommendations…</li></ol>
+      </section>
+
+      <section class="finops-panel" aria-labelledby="privacy-title">
+        <div class="section-heading">
+          <p class="eyebrow">Privacy &amp; compliance</p>
+          <h2 id="privacy-title">Scored on shape, never on secrets</h2>
+          <p>Prompts pass through redaction before any judge model or score record sees them. Structure survives; identity and credentials do not.</p>
+        </div>
+        <ul class="redaction-list" id="redaction-list"></ul>
+        <p class="privacy-note"><strong>Demo boundary</strong> This tab renders hand-authored sample data. No production gateway, HRIS connection, customer prompt, or telemetry store is read by this page.</p>
+      </section>
+    </main>
+    <script type="module" src="/evolution-page.js"></script>
+  </body>
+</html>

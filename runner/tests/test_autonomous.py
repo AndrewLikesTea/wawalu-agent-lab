@@ -14,6 +14,16 @@ from scripts.manage_autonomy import launch_path
 REPO = autonomous.REPOSITORY
 
 
+def seed_directives(*values):
+    """Seed the directive book the way an earlier tick would have left it."""
+    directives = []
+    for index, value in enumerate(values):
+        value.setdefault("id", f"seeded-{index}")
+        directives.append(value)
+    autonomous.DirectiveBook().write(directives)
+    return autonomous.DirectiveStore(directives[0]["id"])
+
+
 class AutonomousTests(unittest.TestCase):
     def config(self):
         return {"retry_cooldown_seconds": 60, "max_attempts": 2,
@@ -73,24 +83,90 @@ class AutonomousTests(unittest.TestCase):
         self.assertGreaterEqual(autonomous.issue_delay_seconds(backend), 1 * 60)
         self.assertLessEqual(autonomous.issue_delay_seconds(backend), 6 * 60)
 
+    def directive_book(self, tmp):
+        return autonomous.DirectiveBook(pathlib.Path(tmp) / "directives.json",
+                                        legacy=pathlib.Path(tmp) / "directive.json")
+
     def test_directive_is_private_persistent_and_consumed(self):
         with tempfile.TemporaryDirectory() as tmp:
-            store = autonomous.DirectiveStore(pathlib.Path(tmp) / "directive.json")
-            value = store.set("  Prioritize   release history  ")
+            book = self.directive_book(tmp)
+            value = book.add("  Prioritize   release history  ")
             self.assertEqual(value["text"], "Prioritize release history")
-            self.assertEqual(store.path.stat().st_mode & 0o777, 0o600)
+            self.assertEqual(book.path.stat().st_mode & 0o777, 0o600)
+            store = autonomous.DirectiveStore(value["id"], book)
             store.consume(14)
             self.assertIsNone(store.read())
-            persisted = json.loads(store.path.read_text())
-            self.assertEqual(persisted["issue"], 14)
+            self.assertEqual(book.get(value["id"])["issue"], 14)
+            self.assertEqual(book.get(value["id"])["status"], "consumed")
 
     def test_directive_rejects_empty_and_oversized_text(self):
         with tempfile.TemporaryDirectory() as tmp:
-            store = autonomous.DirectiveStore(pathlib.Path(tmp) / "directive.json")
+            book = self.directive_book(tmp)
             with self.assertRaisesRegex(ValueError, "empty"):
-                store.set("  ")
+                book.add("  ")
             with self.assertRaisesRegex(ValueError, "4,000"):
-                store.set("x" * 4001)
+                book.add("x" * 4001)
+            with self.assertRaisesRegex(ValueError, "unknown persona"):
+                book.add("Scope this", ["nobody"])
+
+    def test_several_directives_live_side_by_side(self):
+        """Setting a second directive must not overwrite a live program's record."""
+        with tempfile.TemporaryDirectory() as tmp:
+            book = self.directive_book(tmp)
+            social = book.add("Evolve the social app into a photo feed")
+            finops = book.add("Build the AI FinOps executive view",
+                              ["product", "design", "evaluation"])
+            self.assertNotEqual(social["id"], finops["id"])
+            self.assertEqual(len(book.pending()), 2)
+            self.assertEqual(finops["personas"], ["product", "design", "evaluation"])
+            self.assertNotIn("personas", social)   # unscoped means the whole team
+
+            # Consuming one leaves the other pending and untouched.
+            autonomous.DirectiveStore(social["id"], book).consume(20)
+            self.assertEqual([item["id"] for item in book.pending()], [finops["id"]])
+            self.assertEqual([item["id"] for item in book.consumed()], [social["id"]])
+
+            # Each program records its own issues.
+            autonomous.DirectiveStore(finops["id"], book).save_plan([{"persona": "product"}])
+            autonomous.DirectiveStore(finops["id"], book).record_created_issue(0, 31)
+            self.assertEqual(book.get(finops["id"])["created_issues"], [{"index": 0, "issue": 31}])
+            self.assertNotIn("created_issues", book.get(social["id"]))
+
+            # Clearing one is not clearing all.
+            self.assertEqual(book.clear(social["id"]), 1)
+            self.assertEqual([item["id"] for item in book.read()], [finops["id"]])
+            self.assertEqual(book.clear(), 1)
+            self.assertEqual(book.read(), [])
+
+    def test_directive_ids_are_stable_readable_and_unique(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            book = self.directive_book(tmp)
+            first = book.add("Build the AI FinOps executive view for engineering leaders")
+            self.assertRegex(first["id"], r"^build-finops-executive-[0-9a-f]{6}$")
+            second = book.add("Build the AI FinOps executive view for engineering leaders")
+            self.assertNotEqual(first["id"], second["id"])
+            with self.assertRaisesRegex(ValueError, "already exists"):
+                book.add("Another directive", directive_id=first["id"])
+
+    def test_a_single_slot_directive_upgrades_into_the_book(self):
+        """An in-flight program must survive the upgrade with its lineage intact."""
+        with tempfile.TemporaryDirectory() as tmp:
+            legacy = pathlib.Path(tmp) / "directive.json"
+            legacy.write_text(json.dumps({
+                "status": "consumed", "text": "Build social", "created_at": "2026-07-01T00:00:00+00:00",
+                "created_issues": [{"index": 0, "issue": 20}],
+                "consultations": [{"worker": "codex", "created_issues": [{"index": 0, "issue": 22}]}],
+            }))
+            book = self.directive_book(tmp)
+            carried = book.read()
+            self.assertEqual(len(carried), 1)
+            self.assertEqual(carried[0]["created_issues"], [{"index": 0, "issue": 20}])
+            self.assertEqual(len(carried[0]["consultations"]), 1)
+            self.assertTrue(carried[0]["id"])
+            # The legacy file is left alone as a backup, and adoption is not repeated.
+            self.assertTrue(legacy.exists())
+            book.add("A second product line")
+            self.assertEqual(len(self.directive_book(tmp).read()), 2)
 
     def test_choose_issue_skips_submitted_blocked_and_cooling_down(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -159,12 +235,12 @@ class AutonomousTests(unittest.TestCase):
     def test_consultation_waits_until_every_mvp_issue_is_closed(self, github):
         with tempfile.TemporaryDirectory() as tmp, \
              mock.patch.object(autonomous, "DIRECTIVE", pathlib.Path(tmp) / "directive.json"), \
+             mock.patch.object(autonomous, "DIRECTIVES", pathlib.Path(tmp) / "directives.json"), \
              mock.patch.object(autonomous, "consult_next_steps") as consult:
-            store = autonomous.DirectiveStore()
-            store.path.write_text(json.dumps({
+            store = seed_directives({
                 "status": "consumed", "text": "Build social",
                 "created_issues": [{"index": 0, "issue": 20}, {"index": 1, "issue": 21}],
-            }))
+            })
             github.side_effect = [{"state": "closed"}, {"state": "open"}]
             result = autonomous.consult_after_directive_mvp(
                 "token", {"issue_label": "agent-ready"}, mock.Mock())
@@ -193,6 +269,7 @@ class AutonomousTests(unittest.TestCase):
                               {"state": "open", "labels": [{"name": "agent-blocked"}]}]
         with tempfile.TemporaryDirectory() as tmp, \
              mock.patch.object(autonomous, "DIRECTIVE", pathlib.Path(tmp) / "directive.json"), \
+             mock.patch.object(autonomous, "DIRECTIVES", pathlib.Path(tmp) / "directives.json"), \
              mock.patch.object(autonomous, "AUTONOMY", pathlib.Path(tmp) / "autonomy"), \
              mock.patch.object(autonomous, "ROOT", pathlib.Path(tmp)):
             self.consultation_workspace(tmp, {
@@ -215,8 +292,7 @@ class AutonomousTests(unittest.TestCase):
         pathlib.Path(tmp, "PRODUCT.md").write_text("Product")
         pathlib.Path(tmp, "personas").mkdir(exist_ok=True)
         pathlib.Path(tmp, "personas", "manager.md").write_text("Sam")
-        store = autonomous.DirectiveStore()
-        store.path.write_text(json.dumps(directive))
+        store = seed_directives(directive)
         return store
 
     @mock.patch.object(autonomous, "create_generated_issue",
@@ -232,6 +308,7 @@ class AutonomousTests(unittest.TestCase):
         propose.return_value = self.FOLLOWUP_PLAN
         with tempfile.TemporaryDirectory() as tmp, \
              mock.patch.object(autonomous, "DIRECTIVE", pathlib.Path(tmp) / "directive.json"), \
+             mock.patch.object(autonomous, "DIRECTIVES", pathlib.Path(tmp) / "directives.json"), \
              mock.patch.object(autonomous, "AUTONOMY", pathlib.Path(tmp) / "autonomy"), \
              mock.patch.object(autonomous, "ROOT", pathlib.Path(tmp)):
             self.consultation_workspace(tmp, {
@@ -241,7 +318,7 @@ class AutonomousTests(unittest.TestCase):
             issues = autonomous.consult_after_directive_mvp(
                 "token", {"issue_label": "agent-ready"}, mock.Mock(), "claude")
             self.assertEqual([item["number"] for item in issues], [24, 25])
-            value = autonomous.DirectiveStore().read_any()
+            value = autonomous.DirectiveBook().read()[0]
             rounds = value["consultations"]
             self.assertEqual(rounds[0]["worker"], "claude")
             self.assertEqual(rounds[0]["idea"], "Add notifications")
@@ -266,6 +343,7 @@ class AutonomousTests(unittest.TestCase):
         propose.return_value = self.FOLLOWUP_PLAN
         with tempfile.TemporaryDirectory() as tmp, \
              mock.patch.object(autonomous, "DIRECTIVE", pathlib.Path(tmp) / "directive.json"), \
+             mock.patch.object(autonomous, "DIRECTIVES", pathlib.Path(tmp) / "directives.json"), \
              mock.patch.object(autonomous, "AUTONOMY", pathlib.Path(tmp) / "autonomy"), \
              mock.patch.object(autonomous, "ROOT", pathlib.Path(tmp)):
             self.consultation_workspace(tmp, {
@@ -277,21 +355,21 @@ class AutonomousTests(unittest.TestCase):
             issues = autonomous.consult_after_directive_mvp(
                 "token", {"issue_label": "agent-ready"}, mock.Mock(), "claude")
             self.assertEqual([item["number"] for item in issues], [30, 31])
-            self.assertEqual(len(autonomous.DirectiveStore().read_any()["consultations"]), 2)
+            self.assertEqual(len(autonomous.DirectiveBook().read()[0]["consultations"]), 2)
         consult.assert_called_once()
 
     @mock.patch.object(autonomous, "github")
     def test_consultation_waits_for_open_followup_round(self, github):
         with tempfile.TemporaryDirectory() as tmp, \
              mock.patch.object(autonomous, "DIRECTIVE", pathlib.Path(tmp) / "directive.json"), \
+             mock.patch.object(autonomous, "DIRECTIVES", pathlib.Path(tmp) / "directives.json"), \
              mock.patch.object(autonomous, "consult_next_steps") as consult:
-            store = autonomous.DirectiveStore()
-            store.path.write_text(json.dumps({
+            store = seed_directives({
                 "status": "consumed", "text": "Build social",
                 "created_issues": [{"index": 0, "issue": 20}],
                 "consultations": [{"worker": "codex", "plan": [{"title": "pending"}],
                                    "created_issues": [{"index": 0, "issue": 24}]}],
-            }))
+            })
             github.return_value = {"state": "open"}
             result = autonomous.consult_after_directive_mvp(
                 "token", {"issue_label": "agent-ready"}, mock.Mock())
@@ -303,14 +381,14 @@ class AutonomousTests(unittest.TestCase):
     def test_consultation_round_cap_stops_new_rounds(self, github):
         with tempfile.TemporaryDirectory() as tmp, \
              mock.patch.object(autonomous, "DIRECTIVE", pathlib.Path(tmp) / "directive.json"), \
+             mock.patch.object(autonomous, "DIRECTIVES", pathlib.Path(tmp) / "directives.json"), \
              mock.patch.object(autonomous, "consult_next_steps") as consult:
-            store = autonomous.DirectiveStore()
-            store.path.write_text(json.dumps({
+            store = seed_directives({
                 "status": "consumed", "text": "Build social",
                 "created_issues": [{"index": 0, "issue": 20}],
                 "consultations": [{"worker": "codex", "plan": [{"title": "done"}],
                                    "created_issues": [{"index": 0, "issue": 24}]}],
-            }))
+            })
             result = autonomous.consult_after_directive_mvp(
                 "token", {"issue_label": "agent-ready", "max_consultation_rounds": 1}, mock.Mock())
         self.assertIsNone(result)
@@ -326,6 +404,7 @@ class AutonomousTests(unittest.TestCase):
         propose.return_value = self.FOLLOWUP_PLAN
         with tempfile.TemporaryDirectory() as tmp, \
              mock.patch.object(autonomous, "DIRECTIVE", pathlib.Path(tmp) / "directive.json"), \
+             mock.patch.object(autonomous, "DIRECTIVES", pathlib.Path(tmp) / "directives.json"), \
              mock.patch.object(autonomous, "AUTONOMY", pathlib.Path(tmp) / "autonomy"), \
              mock.patch.object(autonomous, "ROOT", pathlib.Path(tmp)), \
              mock.patch.object(autonomous, "consult_next_steps") as consult:
@@ -354,6 +433,7 @@ class AutonomousTests(unittest.TestCase):
         journal = mock.Mock()
         with tempfile.TemporaryDirectory() as tmp, \
              mock.patch.object(autonomous, "DIRECTIVE", pathlib.Path(tmp) / "directive.json"), \
+             mock.patch.object(autonomous, "DIRECTIVES", pathlib.Path(tmp) / "directives.json"), \
              mock.patch.object(autonomous, "AUTONOMY", pathlib.Path(tmp) / "autonomy"), \
              mock.patch.object(autonomous, "ROOT", pathlib.Path(tmp)), \
              mock.patch.object(autonomous, "consult_next_steps") as consult:
@@ -366,7 +446,7 @@ class AutonomousTests(unittest.TestCase):
             issues = autonomous.consult_after_directive_mvp(
                 "token", {"issue_label": "agent-ready"}, journal, "claude", state)
             self.assertEqual([item["number"] for item in issues], [30, 31])
-            round_one = autonomous.DirectiveStore().read_any()["consultations"][0]
+            round_one = autonomous.DirectiveBook().read()[0]["consultations"][0]
             self.assertEqual(round_one["worker"], "codex")
             self.assertFalse(state.worker_available("claude"))
         self.assertEqual([call.args[0] for call in consult.call_args_list], ["claude", "codex"])
@@ -380,6 +460,7 @@ class AutonomousTests(unittest.TestCase):
         journal = mock.Mock()
         with tempfile.TemporaryDirectory() as tmp, \
              mock.patch.object(autonomous, "DIRECTIVE", pathlib.Path(tmp) / "directive.json"), \
+             mock.patch.object(autonomous, "DIRECTIVES", pathlib.Path(tmp) / "directives.json"), \
              mock.patch.object(autonomous, "AUTONOMY", pathlib.Path(tmp) / "autonomy"), \
              mock.patch.object(autonomous, "ROOT", pathlib.Path(tmp)), \
              mock.patch.object(autonomous, "consult_next_steps") as consult:
@@ -401,6 +482,7 @@ class AutonomousTests(unittest.TestCase):
     def test_new_round_skips_a_consultant_that_is_cooling_down(self, github):
         with tempfile.TemporaryDirectory() as tmp, \
              mock.patch.object(autonomous, "DIRECTIVE", pathlib.Path(tmp) / "directive.json"), \
+             mock.patch.object(autonomous, "DIRECTIVES", pathlib.Path(tmp) / "directives.json"), \
              mock.patch.object(autonomous, "AUTONOMY", pathlib.Path(tmp) / "autonomy"), \
              mock.patch.object(autonomous, "ROOT", pathlib.Path(tmp)), \
              mock.patch.object(autonomous, "load_personas",
@@ -419,7 +501,7 @@ class AutonomousTests(unittest.TestCase):
                 autonomous.consult_after_directive_mvp(
                     "token", {"issue_label": "agent-ready"}, mock.Mock(), "codex", state)
             self.assertEqual(
-                autonomous.DirectiveStore().read_any()["consultations"][0]["worker"], "claude")
+                autonomous.DirectiveBook().read()[0]["consultations"][0]["worker"], "claude")
         self.assertEqual(consult.call_args.args[0], "claude")
 
     BACKLOG_PLAN = [
@@ -436,10 +518,10 @@ class AutonomousTests(unittest.TestCase):
     def test_directive_backlog_chains_each_persona_track_separately(self, create):
         with tempfile.TemporaryDirectory() as tmp, \
              mock.patch.object(autonomous, "DIRECTIVE", pathlib.Path(tmp) / "directive.json"), \
+             mock.patch.object(autonomous, "DIRECTIVES", pathlib.Path(tmp) / "directives.json"), \
              mock.patch.object(autonomous, "AUTONOMY", pathlib.Path(tmp) / "autonomy"):
-            store = autonomous.DirectiveStore()
-            store.path.write_text(json.dumps({
-                "status": "pending", "text": "Ship paint", "plan": self.BACKLOG_PLAN}))
+            store = seed_directives({
+                "status": "pending", "text": "Ship paint", "plan": self.BACKLOG_PLAN})
             issues = autonomous.generate_directive_backlog(
                 "token", {"issue_label": "agent-ready"}, mock.Mock(), store.read())
         self.assertEqual([item["number"] for item in issues], [40, 41, 42])
@@ -450,17 +532,17 @@ class AutonomousTests(unittest.TestCase):
     def test_legacy_single_consultation_migrates_to_a_completed_round(self, github):
         with tempfile.TemporaryDirectory() as tmp, \
              mock.patch.object(autonomous, "DIRECTIVE", pathlib.Path(tmp) / "directive.json"), \
+             mock.patch.object(autonomous, "DIRECTIVES", pathlib.Path(tmp) / "directives.json"), \
              mock.patch.object(autonomous, "consult_next_steps") as consult:
-            store = autonomous.DirectiveStore()
-            store.path.write_text(json.dumps({
+            store = seed_directives({
                 "status": "consumed", "text": "Build social",
                 "created_issues": [{"index": 0, "issue": 20}],
                 "consultation": {"worker": "claude", "issue": 24},
-            }))
+            })
             github.return_value = {"state": "open"}
             result = autonomous.consult_after_directive_mvp(
                 "token", {"issue_label": "agent-ready"}, mock.Mock())
-            migrated = autonomous.DirectiveStore().read_any()
+            migrated = autonomous.DirectiveBook().read()[0]
         self.assertIsNone(result)
         consult.assert_not_called()
         self.assertNotIn("consultation", migrated)
@@ -725,6 +807,7 @@ class AutonomousTests(unittest.TestCase):
             self, personas, runtime, consult):
         with tempfile.TemporaryDirectory() as tmp, \
              mock.patch.object(autonomous, "DIRECTIVE", pathlib.Path(tmp) / "directive.json"), \
+             mock.patch.object(autonomous, "DIRECTIVES", pathlib.Path(tmp) / "directives.json"), \
              mock.patch.object(autonomous, "AUTONOMY", pathlib.Path(tmp) / "autonomy"), \
              mock.patch.object(autonomous, "ROOT", pathlib.Path(tmp)):
             self.consultation_workspace(tmp, {
@@ -736,9 +819,63 @@ class AutonomousTests(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError, "cli down"):
                     autonomous.consult_after_directive_mvp(
                         "token", {"issue_label": "agent-ready"}, mock.Mock())
-                value = autonomous.DirectiveStore().read_any()["consultations"][0]
+                value = autonomous.DirectiveBook().read()[0]["consultations"][0]
                 self.assertEqual(value.get("consult_attempts", 0), expected_attempts)
             self.assertEqual(value["worker"], "claude")
+
+    @mock.patch.object(autonomous, "execute_issue")
+    @mock.patch.object(autonomous, "resolve_worker", return_value="codex")
+    @mock.patch.object(autonomous, "generate_directive_backlog")
+    @mock.patch.object(autonomous, "list_ready_issues", return_value=[])
+    @mock.patch.object(autonomous, "sweep_outstanding_prs")
+    @mock.patch.object(autonomous, "ensure_labels")
+    @mock.patch.object(autonomous, "sync_main")
+    @mock.patch.object(autonomous, "installation_token", return_value="token")
+    def test_each_tick_plans_one_directive_and_leaves_the_rest_pending(
+            self, token, sync, labels, sweep, ready, backlog, worker, execute):
+        """Two product lines can be in flight without spending two paid plans per tick."""
+        backlog.side_effect = lambda *args, **kwargs: [
+            {"number": 41, "labels": [{"name": "persona:product"}], "title": "Task"}]
+        with tempfile.TemporaryDirectory() as tmp, \
+             mock.patch.object(autonomous, "STOP", pathlib.Path(tmp) / "STOP"), \
+             mock.patch.object(autonomous, "DIRECTIVE", pathlib.Path(tmp) / "directive.json"), \
+             mock.patch.object(autonomous, "DIRECTIVES", pathlib.Path(tmp) / "directives.json"):
+            book = autonomous.DirectiveBook()
+            first = book.add("Evolve the social app")
+            second = book.add("Build the AI FinOps view", ["product", "design"])
+            config = {"enabled": True, "working_hours": {"start": 0, "end": 24},
+                      "issue_label": "agent-ready", "min_pr_interval_seconds": 0,
+                      "max_attempts": 3, "retry_cooldown_seconds": 0, "default_worker": "auto"}
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            result = autonomous.tick(config, state, mock.Mock())
+
+        self.assertEqual(result, "executed")
+        # Only the first pending directive was planned this tick...
+        self.assertEqual(backlog.call_count, 1)
+        self.assertEqual(backlog.call_args.args[3]["id"], first["id"])
+        # ...and the second is still waiting its turn, with its scope intact.
+        self.assertEqual(backlog.call_args.args[3].get("personas"), None)
+        self.assertEqual(second["personas"], ["product", "design"])
+
+    @mock.patch.object(autonomous, "consult_after_directive_mvp")
+    def test_consultation_advances_the_first_finished_program(self, consult):
+        """A finished program consults while an unfinished one keeps waiting."""
+        consult.side_effect = [None, [{"number": 55}]]
+        with tempfile.TemporaryDirectory() as tmp, \
+             mock.patch.object(autonomous, "DIRECTIVE", pathlib.Path(tmp) / "directive.json"), \
+             mock.patch.object(autonomous, "DIRECTIVES", pathlib.Path(tmp) / "directives.json"):
+            seed_directives(
+                {"status": "consumed", "text": "Unfinished", "created_issues": [{"index": 0, "issue": 20}]},
+                {"status": "consumed", "text": "Finished", "created_issues": [{"index": 0, "issue": 30}]},
+            )
+            issues = autonomous.consult_every_directive("token", {"issue_label": "agent-ready"}, mock.Mock())
+
+        self.assertEqual([item["number"] for item in issues], [55])
+        # Each directive is offered its own consultation, in order, and the loop stops
+        # at the first one that produced a program — consultations are paid runs.
+        self.assertEqual(consult.call_count, 2)
+        self.assertEqual([call.args[-1]["text"] for call in consult.call_args_list],
+                         ["Unfinished", "Finished"])
 
     @mock.patch.object(autonomous, "sweep_outstanding_prs")
     @mock.patch.object(autonomous, "installation_token", return_value="token")
