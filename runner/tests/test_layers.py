@@ -381,5 +381,48 @@ class LayerTests(unittest.TestCase):
         self.assertIn("exactly one", prompt)
 
 
+class ClaudeBudgetCapTests(unittest.TestCase):
+    """Every paid Claude session must carry a hard spend ceiling so a looping
+    agent cannot burn context for the whole wall-clock timeout."""
+
+    def _claude_command(self, invoke):
+        import subprocess as sp
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            run_dir = root / ".agent" / "run"
+            run_dir.mkdir(parents=True)
+            settings = run_dir / "claude-settings.json"
+            settings.write_text('{"env": {}}')
+
+            def fake_run(command, **kwargs):
+                (run_dir / "claude-next-ideas.txt").write_text("Idea")
+                return sp.CompletedProcess(command, 0, "Idea", "")
+
+            with mock.patch.object(layers, "snapshot_live_site", return_value=None), \
+                 mock.patch.object(layers, "prepare_claude_settings", return_value=settings), \
+                 mock.patch.object(layers.subprocess, "run", side_effect=fake_run) as run:
+                invoke(root, run_dir)
+            return run.call_args.args[0]
+
+    def _budget_of(self, command):
+        self.assertIn("--max-budget-usd", command)
+        return command[command.index("--max-budget-usd") + 1]
+
+    def test_claude_worker_session_is_budget_capped(self):
+        command = self._claude_command(lambda root, run_dir: layers.run_worker(
+            "claude", "prompt", root, run_dir, "backend", "token", "https://ingest.invalid"))
+        self.assertEqual(self._budget_of(command), layers.CLAUDE_BUDGET_USD["worker"])
+
+    def test_claude_aside_session_is_budget_capped(self):
+        command = self._claude_command(lambda root, run_dir: layers.run_aside(
+            "claude", "prompt", root, run_dir, "backend", "token", "https://ingest.invalid"))
+        self.assertEqual(self._budget_of(command), layers.CLAUDE_BUDGET_USD["aside"])
+
+    def test_claude_consultation_is_budget_capped(self):
+        command = self._claude_command(lambda root, run_dir: layers.consult_next_steps(
+            "claude", "directive", "product", root, run_dir, "token", "https://ingest.invalid"))
+        self.assertEqual(self._budget_of(command), layers.CLAUDE_BUDGET_USD["consult"])
+
+
 if __name__ == "__main__":
     unittest.main()

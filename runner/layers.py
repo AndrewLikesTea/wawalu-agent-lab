@@ -28,6 +28,16 @@ WORKERS = {"codex", "claude"}
 CAPACITY_EXIT_CODES = {"codex": 75, "claude": 76}
 SITE_URL = os.environ.get("WAWALU_LABS_URL", "https://labs.wawalu.org")
 PRODUCT_SITE_URL = os.environ.get("WAWALU_PRODUCT_SITE_URL", SITE_URL + "/paint")
+# Every paid Claude CLI session carries a hard estimated-spend ceiling so a
+# looping agent cannot burn context for the whole wall-clock timeout. These are
+# backstops sized well above a healthy session, not throttles — a capped run
+# fails and retries like any other failure. Codex has no equivalent flag; its
+# burn is bounded by worker_timeout_seconds.
+CLAUDE_BUDGET_USD = {
+    "worker": os.environ.get("WAWALU_CLAUDE_WORKER_BUDGET_USD", "8"),
+    "consult": os.environ.get("WAWALU_CLAUDE_CONSULT_BUDGET_USD", "3"),
+    "aside": os.environ.get("WAWALU_CLAUDE_ASIDE_BUDGET_USD", "1"),
+}
 PLAN_SCHEMA = {
     "type": "object",
     "properties": {
@@ -338,7 +348,8 @@ def run_worker(worker: str, prompt: str, worktree: pathlib.Path, run_dir: pathli
         command = ["claude", "-p", "--output-format", "stream-json", "--verbose",
                    "--no-session-persistence", "--no-chrome", "--disable-slash-commands",
                    "--setting-sources", "", "--settings", str(settings),
-                   "--permission-mode", "dontAsk", "--allowedTools",
+                   "--permission-mode", "dontAsk", "--max-budget-usd", CLAUDE_BUDGET_USD["worker"],
+                   "--allowedTools",
                    "Read,Edit,Write,Glob,Grep,Bash(npm *),Bash(node *),Bash(python3 -m unittest *),Bash(git status*),Bash(git diff*)",
                    "--name", f"wawalu-{persona}", prompt]
         log_path = run_dir / f"claude{('-' + log_label) if log_label else ''}.jsonl"
@@ -384,6 +395,7 @@ def run_aside(worker: str, prompt: str, worktree: pathlib.Path, run_dir: pathlib
         command = ["claude", "-p", "--output-format", "stream-json", "--verbose",
                    "--no-session-persistence", "--no-chrome", "--disable-slash-commands",
                    "--setting-sources", "", "--settings", str(settings), "--permission-mode", "dontAsk",
+                   "--max-budget-usd", CLAUDE_BUDGET_USD["aside"],
                    "--allowedTools", "", "--name", f"wawalu-{persona}-aside", safe_prompt]
     else:
         raise ValueError(f"unsupported worker: {worker}")
@@ -477,6 +489,7 @@ Product charter:
         command = ["claude", "-p", "--output-format", "text", "--no-session-persistence",
                    "--no-chrome", "--disable-slash-commands", "--setting-sources", "",
                    "--settings", str(settings), "--permission-mode", "dontAsk",
+                   "--max-budget-usd", CLAUDE_BUDGET_USD["consult"],
                    "--allowedTools", "Read,Glob,Grep,Bash(git log*),Bash(git show*),Bash(git diff*)",
                    "--name", "wawalu-manager-consultation", prompt]
         completed = subprocess.run(command, cwd=repository, env=env, text=True,
