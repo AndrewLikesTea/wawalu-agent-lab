@@ -9,8 +9,11 @@ import {
   filterPosts,
   normalizeApiPosts,
   normalizeSocialApiPosts,
+  normalizeImage,
+  columnCount,
   MAX_POST_LENGTH,
   MAX_AUTHOR_LENGTH,
+  MAX_IMAGE_ALT_LENGTH,
   DEFAULT_AUTHOR,
 } from "../src/social.js";
 
@@ -21,6 +24,22 @@ const sample = [
 ];
 
 const ids = (posts) => posts.map((post) => post.id);
+
+// Tag-balance check for the hand-authored SVG assets. A mismatched or unclosed
+// tag makes a browser drop the image, which would silently demote every seeded
+// card to its "Image unavailable" state — a failure unit tests would otherwise
+// never see.
+function unbalancedTag(markup) {
+  const stack = [];
+  for (const [, closing, opening, , selfClosing] of markup.matchAll(/<(?:\/([\w:-]+)|([\w:-]+)((?:"[^"]*"|'[^']*'|[^>"'])*?)(\/?))>/g)) {
+    if (closing) {
+      if (stack.pop() !== closing) return `unbalanced </${closing}>`;
+    } else if (!selfClosing) {
+      stack.push(opening);
+    }
+  }
+  return stack.length ? `unclosed <${stack.at(-1)}>` : null;
+}
 
 test("creates a normalized post with deterministic metadata", () => {
   const post = createPost(
@@ -88,6 +107,63 @@ test("nextFocusIndex moves within bounds and clamps; Enter is not a nav key", ()
   assert.equal(nextFocusIndex(0, "ArrowDown", 0), -1); // empty list
 });
 
+test("arrow keys walk the grid by card and by row", () => {
+  // 5 cards over 2 columns: [0 1 / 2 3 / 4]
+  assert.equal(nextFocusIndex(0, "ArrowRight", 5, 2), 1);
+  assert.equal(nextFocusIndex(1, "ArrowLeft", 5, 2), 0);
+  assert.equal(nextFocusIndex(0, "ArrowDown", 5, 2), 2); // down a whole row
+  assert.equal(nextFocusIndex(3, "ArrowUp", 5, 2), 1);
+  assert.equal(nextFocusIndex(3, "ArrowDown", 5, 2), 4); // clamps to the last card
+  assert.equal(nextFocusIndex(1, "ArrowUp", 5, 2), 1); // already on the top row
+  assert.equal(nextFocusIndex(4, "ArrowRight", 5, 2), 4); // clamps at the end
+  assert.equal(nextFocusIndex(-1, "ArrowRight", 5, 2), 0);
+  assert.equal(nextFocusIndex(0, "ArrowDown", 0, 3), -1);
+  // A degenerate column count must not stall navigation.
+  assert.equal(nextFocusIndex(0, "ArrowDown", 3, 0), 1);
+});
+
+test("columnCount reads the grid width off the laid-out rows", () => {
+  assert.equal(columnCount([0, 0, 0, 320, 320, 640]), 3);
+  assert.equal(columnCount([0, 210, 420]), 1); // single column, one card per row
+  assert.equal(columnCount([0, 0]), 2);
+  assert.equal(columnCount([]), 0);
+  assert.equal(columnCount(null), 0);
+});
+
+test("normalizeImage accepts same-origin assets and rejects everything else", () => {
+  assert.deepEqual(normalizeImage({ src: "/media/focus-ring.svg", alt: "  A blue ring  ", width: 1200, height: 900 }), {
+    src: "/media/focus-ring.svg",
+    alt: "A blue ring",
+    width: 1200,
+    height: 900,
+  });
+  // Alt is optional; the caption describes the image when it is absent.
+  assert.deepEqual(normalizeImage({ src: "/media/a.png" }), { src: "/media/a.png", alt: "" });
+  assert.equal(normalizeImage({ src: "/media/a.png", alt: "x".repeat(MAX_IMAGE_ALT_LENGTH + 40) }).alt.length, MAX_IMAGE_ALT_LENGTH);
+
+  // Dimensions are only kept as a usable pair, and only when sane.
+  assert.equal("width" in normalizeImage({ src: "/media/a.png", width: 800 }), false);
+  assert.equal("height" in normalizeImage({ src: "/media/a.png", width: 0, height: 900 }), false);
+  assert.equal("width" in normalizeImage({ src: "/media/a.png", width: 12.5, height: 900 }), false);
+
+  for (const src of [
+    "https://cdn.example.com/a.png", // off-origin: blocked by img-src 'self'
+    "//cdn.example.com/a.png", // protocol-relative
+    "data:image/svg+xml,<svg/>", // inline payload
+    "javascript:alert(1)",
+    "media/a.png", // not root-relative
+    "/media/../../etc/passwd",
+    "/media/a.png?track=1", // query string is not part of the asset alphabet
+    "/media/a b.png",
+    "",
+    "   ",
+  ]) {
+    assert.equal(normalizeImage({ src }), null, `expected ${JSON.stringify(src)} to be rejected`);
+  }
+  assert.equal(normalizeImage(null), null);
+  assert.equal(normalizeImage({ src: 42 }), null);
+});
+
 test("filters posts by agent and common time ranges", () => {
   const now = Date.parse("2026-07-14T12:00:00.000Z");
   const posts = [
@@ -120,6 +196,41 @@ test("normalizes durable social API posts and drops malformed records", () => {
     { id: "social-1", author: "Priya", content: "Shipped.", timestamp: "2026-07-18T12:00:00Z", source: "agent-orchestrator" },
     { id: "bad", author: "Priya", content: "", timestamp: "2026-07-18T12:00:00Z", source: "agent-orchestrator" },
   ] }), [{ id: "social-1", author: "Priya", body: "Shipped.", createdAt: "2026-07-18T12:00:00Z", source: "agent-orchestrator" }]);
+});
+
+test("carries image posts through the API normalizer in either field shape", () => {
+  const base = { id: "social-1", author: "Priya", content: "Shipped.", timestamp: "2026-07-18T12:00:00Z", source: "agent-orchestrator" };
+  const image = { src: "/media/focus-ring.svg", alt: "A blue focus ring", width: 1200, height: 900 };
+
+  const [nested] = normalizeSocialApiPosts({ posts: [{ ...base, image }] });
+  assert.deepEqual(nested.image, image);
+
+  // The flat column shape the durable API would most plausibly grow.
+  const [flat] = normalizeSocialApiPosts({ posts: [{
+    ...base,
+    image_url: "/media/release-timeline.svg",
+    image_alt: "A rising bar chart",
+    image_width: 1200,
+    image_height: 900,
+  }] });
+  assert.deepEqual(flat.image, { src: "/media/release-timeline.svg", alt: "A rising bar chart", width: 1200, height: 900 });
+
+  // A text-only post stays text-only — no empty image key.
+  assert.equal("image" in normalizeSocialApiPosts({ posts: [base] })[0], false);
+});
+
+test("a rejected image drops the image, never the post", () => {
+  const posts = normalizeSocialApiPosts({ posts: [{
+    id: "social-2",
+    author: "Priya",
+    content: "The caption still has to survive.",
+    timestamp: "2026-07-18T12:00:00Z",
+    source: "agent-orchestrator",
+    image: { src: "https://cdn.example.com/tracker.gif", alt: "off-origin" },
+  }] });
+  assert.equal(posts.length, 1);
+  assert.equal(posts[0].body, "The caption still has to survive.");
+  assert.equal("image" in posts[0], false);
 });
 
 test("social page is wired, labeled, and linked from the other pages", async () => {
@@ -167,5 +278,28 @@ test("demo seed contains only valid, demo-only posts", async () => {
     assert.equal(typeof post.author === "string" && post.author.trim() !== "" && post.author.length <= MAX_AUTHOR_LENGTH, true);
     assert.equal(typeof post.body === "string" && post.body.trim() !== "" && post.body.length <= MAX_POST_LENGTH, true);
     assert.equal(typeof post.createdAt === "string" && !Number.isNaN(Date.parse(post.createdAt)), true);
+  }
+});
+
+test("seeded images pass validation, ship as assets, and describe themselves", async () => {
+  const data = JSON.parse(await readFile(new URL("../src/social-demo-data.json", import.meta.url), "utf8"));
+  const imagePosts = data.posts.filter((post) => post.image);
+  // The seed is the only path that exercises the image layout while the durable
+  // API is text-only, so it must actually contain image posts.
+  assert.ok(imagePosts.length > 0, "expected the demo seed to include image posts");
+
+  for (const post of imagePosts) {
+    const image = normalizeImage(post.image);
+    assert.ok(image, `seed image ${post.image.src} must survive normalizeImage`);
+    // Alt text is required of the seed even though the renderer tolerates its
+    // absence: hand-authored content has no excuse.
+    assert.ok(image.alt.length > 0 && image.alt.length <= MAX_IMAGE_ALT_LENGTH);
+    assert.ok(image.width > 0 && image.height > 0, "seed images reserve layout space");
+    // The referenced asset must exist in src/, or the card renders its error state.
+    const file = await readFile(new URL(`../src${image.src}`, import.meta.url), "utf8");
+    assert.match(file, /^<svg[^>]*viewBox=/, `${image.src} must be an SVG that scales to its tile`);
+    assert.equal(unbalancedTag(file), null, `${image.src} must be well-formed`);
+    // Assets are static art: no scripting, no off-origin fetches.
+    assert.doesNotMatch(file, /<script|xlink:href|https?:\/\/(?!www\.w3\.org)/i);
   }
 });

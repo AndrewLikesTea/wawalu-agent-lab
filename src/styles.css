@@ -205,9 +205,11 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .live-dot { width:8px; height:8px; border-radius:50%; background:#3a8a4b; box-shadow:0 0 0 4px #e4f2e6; }
 .visually-hidden { position:absolute!important; width:1px!important; height:1px!important; padding:0!important; margin:-1px!important; overflow:hidden!important; clip:rect(0,0,0,0)!important; white-space:nowrap!important; border:0!important; }
 /* Responsive post grid: one column when the panel is narrow, filling to more
-   columns as space allows (mobile → tablet → desktop) without media queries. */
-.post-list { display:grid; grid-template-columns:repeat(auto-fill,minmax(min(100%,260px),1fr)); gap:14px; margin:0; padding:0; list-style:none; }
-.post-card { height:100%; padding:18px; border:1px solid #d9d7d0; border-radius:12px; background:#fff; }
+   columns as space allows (mobile → tablet → desktop) without media queries.
+   The card is a flex column so the caption sits directly under the image and
+   every card in a row ends at the same height. */
+.post-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(min(100%,272px),1fr)); gap:16px; margin:0; padding:0; list-style:none; }
+.post-card { display:flex; flex-direction:column; height:100%; padding:18px; border:1px solid #d9d7d0; border-radius:12px; background:#fff; }
 .post-card:focus-visible { outline:3px solid #8abbe9; outline-offset:2px; border-color:#1f70c1; }
 .post-head { display:flex; align-items:center; gap:12px; margin-bottom:12px; }
 .post-avatar { flex:none; display:grid; place-items:center; width:38px; height:38px; border-radius:99px; background:#e7eefb; color:#1f5fa8; font:750 13px/1 ui-monospace,monospace; }
@@ -216,10 +218,37 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .post-date { color:#74746e; font:600 11px/1.4 ui-monospace,monospace; }
 .post-body { margin:0; color:#333330; line-height:1.55; white-space:pre-wrap; overflow-wrap:anywhere; }
 .post-title { margin:0 0 8px; font-size:16px; line-height:1.35; letter-spacing:-.015em; overflow-wrap:anywhere; }
+/* Image posts. The image is the loudest element in the card (full width, fixed
+   4:3 tile); the caption below it is deliberately quieter — smaller, softer
+   colour — but still ~10:1 on white, well past the 4.5:1 AA minimum. The error
+   note is ~7:1 on its own tint. */
+.post-figure { display:flex; flex-direction:column; margin:2px 0 0; }
+.post-media { position:relative; overflow:hidden; aspect-ratio:4/3; display:grid; place-items:center; border-radius:10px; background:#eeece5; }
+.post-image { display:block; width:100%; height:100%; object-fit:cover; }
+/* The tile reserves its space before the image arrives, so a slow load never
+   pushes the caption — or the cards below it — down the page. */
+.post-media[data-state="loading"] { background:linear-gradient(100deg,#eeece5 30%,#f7f6f2 50%,#eeece5 70%) #eeece5; background-size:220% 100%; animation:shiplog-shimmer 1.4s linear infinite; }
+.post-media[data-state="error"] { background:#f8f1ef; box-shadow:inset 0 0 0 1px #dcc2be; }
+/* The fallback carries the image's description, so it is clamped rather than
+   allowed to overflow the tile it replaces. */
+.post-media-fallback { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:5; overflow:hidden; margin:0; padding:0 14px; color:#7c3f3a; font:650 12px/1.5 ui-monospace,monospace; text-align:center; }
+.post-caption { margin:12px 0 0; color:#42423d; font-size:14px; line-height:1.55; white-space:pre-wrap; overflow-wrap:anywhere; }
+@keyframes shiplog-shimmer { from { background-position:120% 0; } to { background-position:-120% 0; } }
+/* First-load placeholders: same geometry as a real card, so the grid does not
+   resize when posts replace them. */
+.post-card-skeleton { gap:12px; }
+.skeleton-media { aspect-ratio:4/3; border-radius:10px; }
+.skeleton-line { height:13px; border-radius:7px; }
+.skeleton-line-short { width:62%; }
+.skeleton-media,.skeleton-line { background:linear-gradient(100deg,#eeece5 30%,#f7f6f2 50%,#eeece5 70%) #eeece5; background-size:220% 100%; animation:shiplog-shimmer 1.4s linear infinite; }
 @media(max-width:800px) { .workspace{grid-template-columns:1fr}.form-panel{position:static}.hero{padding-bottom:52px} }
 @media(max-width:520px) { main{width:calc(100% - 24px);padding-top:18px}.site-header{align-items:flex-start;flex-direction:column;gap:14px}.site-nav{justify-content:flex-start;width:100%;overflow-x:auto;padding:2px 2px 8px;scrollbar-width:thin}.site-nav a{flex:none;min-height:44px;display:inline-flex;align-items:center}.form-panel,.list-panel{padding:21px}.hero{padding-top:48px}.hero h1{font-size:clamp(38px,13vw,56px)}form{grid-template-columns:1fr}.field{grid-column:1/-1}.list-heading{align-items:start;flex-direction:column;gap:10px}.filters,.social-toolbar{align-items:stretch;flex-direction:column;gap:14px}.filter{flex:1 1 auto;width:100%;min-width:0}.clear-filters{width:100%;justify-content:center} }
 @media(max-width:520px) { .release-filters{align-items:stretch;flex-direction:column}.release-search-filter{flex:1 1 auto} }
 @media(max-width:520px) { .release-toggle{align-items:flex-start;padding:16px}.release-info{align-items:flex-start;flex-direction:column}.release-chevron{margin-top:5px}.detail-decision{align-items:flex-start}.detail-decision-owner{width:100%;padding-left:0}.detail-meta{display:grid;grid-template-columns:1fr;gap:14px}.detail-decision-alternatives{align-items:flex-start;flex-direction:column;gap:3px} }
 @media(max-width:760px) { .alternative-grid{grid-template-columns:1fr}.decision-section-heading{align-items:stretch;flex-direction:column}.comparison-controls{align-items:stretch;flex-direction:column}.comparison-status{max-width:none;text-align:left}.comparison-toggle{width:100%}.decision-context{grid-template-columns:1fr;gap:10px} }
 @media(max-width:520px) { .decision-detail-panel{padding:20px}.alternative-card{padding:17px}.alternative-heading{align-items:stretch;flex-direction:column}.comparison-check{width:max-content}.alternative-points-grid{grid-template-columns:1fr}.comparison-view{padding:16px}.decision-detail{gap:28px} }
-@media(prefers-reduced-motion:reduce) { html{scroll-behavior:auto}.release-chevron{transition:none} }
+/* Tablet: two comfortable columns instead of three cramped ones. */
+@media(max-width:1000px) { .post-grid{grid-template-columns:repeat(auto-fill,minmax(min(100%,240px),1fr))} }
+/* Phone: a single column of full-bleed images, the Instagram reading posture. */
+@media(max-width:520px) { .post-grid{grid-template-columns:1fr;gap:14px}.post-card{padding:16px}.post-media{aspect-ratio:1/1} }
+@media(prefers-reduced-motion:reduce) { html{scroll-behavior:auto}.release-chevron{transition:none}.post-media[data-state="loading"],.skeleton-media,.skeleton-line{animation:none} }

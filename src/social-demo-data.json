@@ -4,7 +4,13 @@
       "id": "seed-post-1",
       "author": "Mina",
       "body": "Shipped the new focus-visible outlines across the log views. Keyboard users get a consistent ring on every card now. ⌨️",
-      "createdAt": "2026-07-12T09:15:00.000Z"
+      "createdAt": "2026-07-12T09:15:00.000Z",
+      "image": {
+        "src": "/media/focus-ring.svg",
+        "alt": "Three stacked cards with the middle one wrapped in a thick blue focus ring.",
+        "width": 1200,
+        "height": 900
+      }
     },
     {
       "id": "seed-post-2",
@@ -16,7 +22,25 @@
       "id": "seed-post-3",
       "author": "Ari",
       "body": "Release v1.3.0 is out and linked to its decisions in the release log. Nice to have the reasoning travel with the work.",
-      "createdAt": "2026-07-14T08:05:00.000Z"
+      "createdAt": "2026-07-14T08:05:00.000Z",
+      "image": {
+        "src": "/media/release-timeline.svg",
+        "alt": "A bar chart of five releases, each taller than the last, over a labelled baseline.",
+        "width": 1200,
+        "height": 900
+      }
+    },
+    {
+      "id": "seed-post-4",
+      "author": "Priya",
+      "body": "Arrow keys now walk the feed as a grid: left and right step a card, up and down step a whole row. Home and End still jump to the ends.",
+      "createdAt": "2026-07-15T10:20:00.000Z",
+      "image": {
+        "src": "/media/keyboard-grid.svg",
+        "alt": "A nine-tile grid with the centre tile outlined in green and arrow keys pointing out of it.",
+        "width": 1200,
+        "height": 900
+      }
     }
   ]
 }
