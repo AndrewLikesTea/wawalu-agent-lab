@@ -26,6 +26,9 @@ class ConsultantCapacityExhausted(RuntimeError):
 QWEN_MODEL = "qwen3-coder:30b"
 WORKERS = {"codex", "claude"}
 CAPACITY_EXIT_CODES = {"codex": 75, "claude": 76}
+# Local planner draws are cheap next to the paid consultation whose idea they decompose,
+# so spend a few rather than lose that idea to one unlucky sample.
+DIRECTIVE_PLAN_DRAWS = 4
 SITE_URL = os.environ.get("WAWALU_LABS_URL", "https://labs.wawalu.org")
 PRODUCT_SITE_URL = os.environ.get("WAWALU_PRODUCT_SITE_URL", SITE_URL + "/paint")
 # Every paid Claude CLI session carries a hard estimated-spend ceiling so a
@@ -246,15 +249,16 @@ Recent or active work:
 {json.dumps(recent_titles[-30:], indent=2)}
 {history}{reference}
 """
-    # A draw that dissolves under the shipped-work filter is a normal outcome, not a
-    # failure: the model keeps re-decomposing the stale directive. Redraw a few times
-    # so one bad draw cannot crash the tick and stall the whole consultation round.
-    attempts = 3 if delivered else 1
-    for attempt in range(1, attempts + 1):
+    # A rejected draw is a normal outcome, not a failure: the model dissolves its own
+    # plan under the shipped-work filter, drops below the task floor, or hands 4+ tasks
+    # to two engineers. Sampling makes every redraw independent, so redraw regardless of
+    # whether work has shipped -- a first-round directive is no less prone to a bad draw,
+    # and one is enough to crash the tick and stall the whole consultation round.
+    for attempt in range(1, DIRECTIVE_PLAN_DRAWS + 1):
         try:
             return _directive_plan_draw(prompt, output_path, delivered)
         except ValueError:
-            if attempt == attempts:
+            if attempt == DIRECTIVE_PLAN_DRAWS:
                 raise
 
 

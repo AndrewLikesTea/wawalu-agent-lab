@@ -118,6 +118,28 @@ class LayerTests(unittest.TestCase):
                           "Persist room membership and ownership"])
         self.assertEqual(qwen.call_count, 2)
 
+    def test_first_round_plan_redraws_after_a_concentrated_draw(self):
+        # Redrawing used to be gated on already-delivered work, so a directive's opening
+        # round got exactly one draw and any rejected sample threw away the paid
+        # consultation idea it was decomposing.
+        concentrated = [
+            {"persona": persona, "title": f"Task {index}", "outcome": "Useful outcome",
+             "acceptance_criteria": ["Behavior works", "Tests pass"]}
+            for index, persona in enumerate(["backend", "frontend", "backend", "frontend"], 1)
+        ]
+        spread = [
+            {"persona": persona, "title": f"Task {index}", "outcome": "Useful outcome",
+             "acceptance_criteria": ["Behavior works", "Tests pass"]}
+            for index, persona in enumerate(["backend", "frontend", "infrastructure", "staff"], 1)
+        ]
+        with mock.patch.object(layers, "qwen_json",
+                               side_effect=[{"tasks": concentrated}, {"tasks": spread}]) as qwen:
+            value = layers.propose_directive_plan("Sam", "product", [], "Build social",
+                                                  pathlib.Path("unused"))
+        self.assertEqual([task["persona"] for task in value],
+                         ["backend", "frontend", "infrastructure", "staff"])
+        self.assertEqual(qwen.call_count, 2)
+
     def test_directive_becomes_multi_engineer_program(self):
         tasks = [
             {"persona": "backend", "title": "Model posts", "outcome": "Post model exists",
