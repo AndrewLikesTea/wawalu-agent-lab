@@ -307,6 +307,83 @@ class AutonomousTests(unittest.TestCase):
         consult.assert_not_called()
         self.assertEqual(propose.call_args.kwargs["advisory"], "Add notifications")
 
+    @mock.patch.object(autonomous, "create_generated_issue",
+                       side_effect=[{"number": 30}, {"number": 31}])
+    @mock.patch.object(autonomous, "propose_directive_plan")
+    @mock.patch.object(autonomous, "load_runtime_env", return_value={"WAWALU_INGEST_ENDPOINT": "https://example.invalid"})
+    @mock.patch.object(autonomous, "load_personas", return_value={"manager": {"wawalu_token": "manager-token"}})
+    @mock.patch.object(autonomous, "recent_issue_context", return_value=[])
+    @mock.patch.object(autonomous, "github", return_value={"state": "closed"})
+    def test_capacity_limited_consultant_hands_the_round_to_the_other_provider(
+            self, github, recent, personas, runtime, propose, create):
+        propose.return_value = self.FOLLOWUP_PLAN
+        journal = mock.Mock()
+        with tempfile.TemporaryDirectory() as tmp, \
+             mock.patch.object(autonomous, "DIRECTIVE", pathlib.Path(tmp) / "directive.json"), \
+             mock.patch.object(autonomous, "AUTONOMY", pathlib.Path(tmp) / "autonomy"), \
+             mock.patch.object(autonomous, "ROOT", pathlib.Path(tmp)), \
+             mock.patch.object(autonomous, "consult_next_steps") as consult:
+            consult.side_effect = [autonomous.ConsultantCapacityExhausted("claude"), "Add notifications"]
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            self.consultation_workspace(tmp, {
+                "status": "consumed", "text": "Build social",
+                "created_issues": [{"index": 0, "issue": 20}],
+            })
+            issues = autonomous.consult_after_directive_mvp(
+                "token", {"issue_label": "agent-ready"}, journal, "claude", state)
+            self.assertEqual([item["number"] for item in issues], [30, 31])
+            round_one = autonomous.DirectiveStore().read_any()["consultations"][0]
+            self.assertEqual(round_one["worker"], "codex")
+            self.assertFalse(state.worker_available("claude"))
+        self.assertEqual([call.args[0] for call in consult.call_args_list], ["claude", "codex"])
+        self.assertIn("consultation_worker_switched",
+                      [call.args[0] for call in journal.emit.call_args_list])
+
+    @mock.patch.object(autonomous, "load_runtime_env", return_value={"WAWALU_INGEST_ENDPOINT": "https://example.invalid"})
+    @mock.patch.object(autonomous, "load_personas", return_value={"manager": {"wawalu_token": "manager-token"}})
+    @mock.patch.object(autonomous, "github", return_value={"state": "closed"})
+    def test_consultation_defers_when_both_providers_are_exhausted(self, github, personas, runtime):
+        journal = mock.Mock()
+        with tempfile.TemporaryDirectory() as tmp, \
+             mock.patch.object(autonomous, "DIRECTIVE", pathlib.Path(tmp) / "directive.json"), \
+             mock.patch.object(autonomous, "AUTONOMY", pathlib.Path(tmp) / "autonomy"), \
+             mock.patch.object(autonomous, "ROOT", pathlib.Path(tmp)), \
+             mock.patch.object(autonomous, "consult_next_steps") as consult:
+            consult.side_effect = autonomous.ConsultantCapacityExhausted("codex")
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            state.record_worker_capacity("claude", 900)
+            self.consultation_workspace(tmp, {
+                "status": "consumed", "text": "Build social",
+                "created_issues": [{"index": 0, "issue": 20}],
+            })
+            result = autonomous.consult_after_directive_mvp(
+                "token", {"issue_label": "agent-ready"}, journal, "codex", state)
+        self.assertIsNone(result)
+        self.assertEqual(consult.call_count, 1)
+        self.assertIn("consultation_capacity_deferred",
+                      [call.args[0] for call in journal.emit.call_args_list])
+
+    @mock.patch.object(autonomous, "github", return_value={"state": "closed"})
+    def test_new_round_skips_a_consultant_that_is_cooling_down(self, github):
+        with tempfile.TemporaryDirectory() as tmp, \
+             mock.patch.object(autonomous, "DIRECTIVE", pathlib.Path(tmp) / "directive.json"), \
+             mock.patch.object(autonomous, "AUTONOMY", pathlib.Path(tmp) / "autonomy"), \
+             mock.patch.object(autonomous, "ROOT", pathlib.Path(tmp)), \
+             mock.patch.object(autonomous, "consult_next_steps") as consult:
+            consult.side_effect = RuntimeError("stop after the worker is chosen")
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            state.record_worker_capacity("codex", 900)
+            self.consultation_workspace(tmp, {
+                "status": "consumed", "text": "Build social",
+                "created_issues": [{"index": 0, "issue": 20}],
+            })
+            with self.assertRaises(RuntimeError):
+                autonomous.consult_after_directive_mvp(
+                    "token", {"issue_label": "agent-ready"}, mock.Mock(), "codex", state)
+            self.assertEqual(
+                autonomous.DirectiveStore().read_any()["consultations"][0]["worker"], "claude")
+        self.assertEqual(consult.call_args.args[0], "claude")
+
     BACKLOG_PLAN = [
         {"persona": "staff", "title": "Fix subpaths", "outcome": "Assets load under /paint",
          "acceptance_criteria": ["No absolute paths", "Tests pass"]},

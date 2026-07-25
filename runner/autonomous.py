@@ -23,7 +23,9 @@ from zoneinfo import ZoneInfo
 
 from runner.delivery import enable_auto_merge
 from runner.github_app import installation_token, reviewer_token
-from runner.layers import CAPACITY_EXIT_CODES, WORKERS, consult_next_steps, propose_directive_plan, propose_task, review_pull_request
+from runner.layers import (CAPACITY_EXIT_CODES, WORKERS, ConsultantCapacityExhausted,
+                           consult_next_steps, propose_directive_plan, propose_task,
+                           review_pull_request)
 from runner.orchestrator import PRODUCT_ROOT, REPOSITORY, load_personas, load_runtime_env, safe_slug
 from runner.simulation import choose_collaborator, load_behaviors
 from scripts.check_reviewer_approval import REVIEWER_LOGINS, approved_current_head
@@ -553,7 +555,8 @@ def consultation_complete(consultation: dict[str, Any]) -> bool:
 
 
 def consult_after_directive_mvp(token: str, config: dict[str, Any], journal: Journal,
-                                worker: str = "auto") -> list[dict[str, Any]] | None:
+                                worker: str = "auto", state: "State | None" = None,
+                                ) -> list[dict[str, Any]] | None:
     store = DirectiveStore()
     directive = store.read_migrated()
     if not directive or directive.get("status") != "consumed" or not directive.get("created_issues"):
@@ -574,7 +577,11 @@ def consult_after_directive_mvp(token: str, config: dict[str, Any], journal: Jou
             worker = "codex" if int(digest, 16) % 2 == 0 else "claude"
         if worker not in {"codex", "claude"}:
             raise ValueError("consultation worker must be auto, codex, or claude")
-        current = store.begin_consultation(worker)
+        routed = worker if state is None else resolve_worker(worker, state)
+        if routed is None:
+            journal.emit("consultation_capacity_deferred", worker=worker, round=len(rounds) + 1)
+            return None
+        current = store.begin_consultation(routed)
         rounds.append(current)
     round_number = len(rounds)
     worker = current["worker"]
@@ -583,21 +590,38 @@ def consult_after_directive_mvp(token: str, config: dict[str, Any], journal: Jou
     idea = current.get("idea")
     if not idea:
         personas, runtime = load_personas(), load_runtime_env()
-        try:
-            idea = consult_next_steps(
-                worker, directive["text"], (PRODUCT_ROOT / "PRODUCT.md").read_text(encoding="utf-8"),
-                PRODUCT_ROOT, run_dir, personas["manager"]["wawalu_token"],
-                runtime["WAWALU_INGEST_ENDPOINT"].rstrip("/"),
-                runtime.get("WAWALU_PRODUCT_SITE_URL", ""))
-        except Exception:
-            attempts = int(current.get("consult_attempts", 0)) + 1
-            if attempts >= 2:
+        attempted: set[str] = set()
+        while True:
+            try:
+                idea = consult_next_steps(
+                    worker, directive["text"], (PRODUCT_ROOT / "PRODUCT.md").read_text(encoding="utf-8"),
+                    PRODUCT_ROOT, run_dir, personas["manager"]["wawalu_token"],
+                    runtime["WAWALU_INGEST_ENDPOINT"].rstrip("/"),
+                    runtime.get("WAWALU_PRODUCT_SITE_URL", ""))
+                break
+            except ConsultantCapacityExhausted:
+                attempted.add(worker)
+                if state is not None:
+                    state.record_worker_capacity(
+                        worker, int(config.get("capacity_retry_seconds", 900)),
+                        maximum_seconds=int(config.get("capacity_retry_max_seconds", 18000)))
                 other = "claude" if worker == "codex" else "codex"
-                store.update_consultation(worker=other, consult_attempts=0)
-                journal.emit("consultation_worker_switched", worker=other, after_failures=attempts)
-            else:
-                store.update_consultation(consult_attempts=attempts)
-            raise
+                if other in attempted or (state is not None and not state.worker_available(other)):
+                    journal.emit("consultation_capacity_deferred", worker=worker, round=round_number)
+                    return None
+                current = store.update_consultation(worker=other, consult_attempts=0)
+                journal.emit("consultation_worker_switched", worker=other, after_failures=0,
+                             reason="capacity")
+                worker = other
+            except Exception:
+                attempts = int(current.get("consult_attempts", 0)) + 1
+                if attempts >= 2:
+                    other = "claude" if worker == "codex" else "codex"
+                    store.update_consultation(worker=other, consult_attempts=0)
+                    journal.emit("consultation_worker_switched", worker=other, after_failures=attempts)
+                else:
+                    store.update_consultation(consult_attempts=attempts)
+                raise
         current = store.update_consultation(idea=idea)
     tasks = current.get("plan")
     if not isinstance(tasks, list):
@@ -1055,7 +1079,7 @@ def tick(config: dict[str, Any], state: State, journal: Journal, token: str | No
     if issue is None and issues:
         return "queued-personas-rate-limited"
     if issue is None and config.get("consult_after_directive_mvp", False):
-        generated = consult_after_directive_mvp(token, config, journal)
+        generated = consult_after_directive_mvp(token, config, journal, state=state)
         if generated:
             issue = choose_issue(generated, state, config, utc_now())
             if issue is None:

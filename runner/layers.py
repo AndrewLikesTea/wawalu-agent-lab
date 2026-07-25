@@ -10,6 +10,18 @@ import urllib.request
 from typing import Any
 
 
+class ConsultantCapacityExhausted(RuntimeError):
+    """The consultant CLI stopped on a provider quota, not on a defect worth retrying.
+
+    Consultation is how the directive keeps evolving, so a session limit must route
+    to the other provider instead of stalling the program behind a failing worker.
+    """
+
+    def __init__(self, worker: str):
+        super().__init__(f"{worker} consultation hit provider capacity limits")
+        self.worker = worker
+
+
 QWEN_MODEL = "qwen3-coder:30b"
 WORKERS = {"codex", "claude"}
 CAPACITY_EXIT_CODES = {"codex": 75, "claude": 76}
@@ -417,8 +429,14 @@ Product charter:
         output_path.write_text(completed.stdout, encoding="utf-8")
     else:
         raise ValueError(f"unsupported consultant: {worker}")
+    log_path = run_dir / f"{worker}-consultation.log"
+    log_path.write_text((completed.stdout or "") + (completed.stderr or ""), encoding="utf-8")
     if completed.returncode:
-        raise RuntimeError(f"{worker} consultation failed with exit code {completed.returncode}")
+        if is_capacity_limited(log_path):
+            raise ConsultantCapacityExhausted(worker)
+        tail = " ".join(log_path.read_text(encoding="utf-8", errors="replace").split())[-400:]
+        raise RuntimeError(f"{worker} consultation failed with exit code "
+                           f"{completed.returncode}: {tail or '(no output)'}")
     ideas = output_path.read_text(encoding="utf-8").strip()
     if not ideas:
         raise RuntimeError(f"{worker} consultation returned no ideas")

@@ -232,6 +232,43 @@ class LayerTests(unittest.TestCase):
             self.assertNotIn("Edit", tool)
         self.assertIn("git history", command[-1])
 
+    def test_session_limited_consultation_is_reported_as_capacity(self):
+        import subprocess as sp
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = pathlib.Path(tmp)
+            run_dir = repo / ".agent" / "run"
+            run_dir.mkdir(parents=True)
+            settings = run_dir / "claude-settings.json"
+            settings.write_text('{"env": {}}')
+            limited = sp.CompletedProcess([], 1, "You've hit your session limit · resets 1:40pm", "")
+            with mock.patch.object(layers, "snapshot_live_site", return_value=None), \
+                 mock.patch.object(layers, "prepare_claude_settings", return_value=settings), \
+                 mock.patch.object(layers.subprocess, "run", return_value=limited):
+                with self.assertRaises(layers.ConsultantCapacityExhausted) as raised:
+                    layers.consult_next_steps("claude", "directive", "product", repo,
+                                              run_dir, "token", "https://ingest.invalid")
+            self.assertEqual(raised.exception.worker, "claude")
+            self.assertIn("session limit",
+                          (run_dir / "claude-consultation.log").read_text(encoding="utf-8"))
+
+    def test_failed_consultation_reports_what_the_cli_printed(self):
+        import subprocess as sp
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = pathlib.Path(tmp)
+            run_dir = repo / ".agent" / "run"
+            run_dir.mkdir(parents=True)
+            settings = run_dir / "claude-settings.json"
+            settings.write_text('{"env": {}}')
+            broken = sp.CompletedProcess([], 1, "", "Error: invalid --setting-sources value")
+            with mock.patch.object(layers, "snapshot_live_site", return_value=None), \
+                 mock.patch.object(layers, "prepare_claude_settings", return_value=settings), \
+                 mock.patch.object(layers.subprocess, "run", return_value=broken):
+                with self.assertRaises(RuntimeError) as raised:
+                    layers.consult_next_steps("claude", "directive", "product", repo,
+                                              run_dir, "token", "https://ingest.invalid")
+        self.assertNotIsInstance(raised.exception, layers.ConsultantCapacityExhausted)
+        self.assertIn("invalid --setting-sources value", str(raised.exception))
+
     def test_consultation_prompt_points_at_the_live_site_snapshot(self):
         import subprocess as sp
         with tempfile.TemporaryDirectory() as tmp:
