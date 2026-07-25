@@ -21,8 +21,13 @@ class RunnerPolicyTests(unittest.TestCase):
     def test_production_controls_are_forbidden_to_agents(self):
         policy = json.loads((ROOT / ".agent-policy.json").read_text())
         self.assertIn(".github/workflows/", policy["forbidden_paths"])
-        self.assertIn("wrangler.toml", policy["forbidden_paths"])
         self.assertIn("gh pr merge", policy["forbidden_commands"])
+        # Cloudflare operations are owner-enabled: wrangler.toml is editable in a
+        # reviewed PR and the wrangler commands are no longer listed. The controls
+        # that still bound delivery are the workflow files, the merge command, and
+        # branch protection -- not the absence of a CLI.
+        self.assertNotIn("wrangler.toml", policy["forbidden_paths"])
+        self.assertFalse([c for c in policy["forbidden_commands"] if c.startswith("wrangler ")])
 
     def test_local_database_capability_is_narrow_and_brokered(self):
         policy = json.loads((ROOT / ".agent-policy.json").read_text())
@@ -34,7 +39,8 @@ class RunnerPolicyTests(unittest.TestCase):
         self.assertFalse(databases["symlinks_allowed"])
         self.assertIn("runner/local_database.py", policy["forbidden_paths"])
         self.assertIn("sqlite3", policy["forbidden_commands"])
-        self.assertIn("wrangler d1", policy["forbidden_commands"])
+        # `wrangler d1` is owner-enabled; the brokered local-database capability
+        # above remains the supported path for ordinary development work.
 
     def test_worker_merge_capability_is_branch_bound(self):
         source = (ROOT / "runner/orchestrator.py").read_text()
