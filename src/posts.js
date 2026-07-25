@@ -168,14 +168,17 @@ function allowed(method, allow, requestId) {
   return json(405, { error: { code: "method_not_allowed", message: `${method} is not allowed.`, request_id: requestId } }, requestId, { allow });
 }
 
-export async function handlePostsHealth(store, requestId) {
+// `bindings` is an optional, already-redacted status projection (see
+// src/bindings.js). Only storage can fail the probe: it is a hard dependency.
+// Auth configuration is reported, never gating -- see docs/auth-storage-bindings.md.
+export async function handlePostsHealth(store, requestId, bindings = null) {
   try {
     if (typeof store?.health !== "function" || !await store.health()) throw new Error("Posts storage health check failed.");
   } catch (error) {
     console.error("posts_storage_unavailable", { requestId, error: error?.message ?? String(error) });
     return failure(503, "storage_unavailable", "The posts database is unavailable.", requestId);
   }
-  return json(200, { status: "ok", storage: "available" }, requestId, { "cache-control": "no-store" });
+  return json(200, { status: "ok", storage: "available", ...(bindings ?? {}) }, requestId, { "cache-control": "no-store" });
 }
 
 function parsePaginationInteger(value, { minimum, maximum = Number.MAX_SAFE_INTEGER }) {
@@ -214,7 +217,7 @@ export async function handlePostsRequest(request, deps) {
     catch { return failure(400, "invalid_id", "Post id must be a UUID.", requestId); }
     if (id === "healthz") {
       if (request.method !== "GET") return allowed(request.method, "GET", requestId);
-      return handlePostsHealth(deps.store, requestId);
+      return handlePostsHealth(deps.store, requestId, deps.bindings);
     }
     if (id && !UUID.test(id)) return failure(400, "invalid_id", "Post id must be a UUID.", requestId);
     if (!id && request.method === "GET") {

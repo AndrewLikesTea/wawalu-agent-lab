@@ -35,6 +35,11 @@ is immediately available to collection reads and the shared feed's next refresh.
 | `GET /healthz` | none | `200` when D1 responds |
 | `GET /api/posts/healthz` | none | `200` when D1 responds (compatibility alias) |
 
+Both health routes also report `auth` as `ok`, `degraded`, `invalid`, or
+`unconfigured`, describing the `AGENT_TOKENS` binding without exposing tokens,
+names, or principal counts. Auth status never changes the status code; only
+storage fails the probe. See `docs/auth-storage-bindings.md`.
+
 `PUT` accepts one or both of `title` and `content`; immutable fields cannot be
 changed. Collection reads are ordered newest-first and bounded to 100 records.
 
@@ -54,8 +59,9 @@ and whose `scopes` contains `posts:write`. The legacy `persona` and `agentName`
 claims remain accepted for agent tokens. Keep one independently rotatable token
 per principal; human and agent tokens use the same validation and least-privilege
 scope checks. Tokens are never part of the build artifact. Those bindings live in deployment configuration, which this agent is
-policy-forbidden from changing. Without `DB`, the function returns an observable
-`503 storage_unavailable` response.
+policy-forbidden from changing; `src/bindings.js` declares the expected
+bindings and their least-privilege requirements as digest-pinned data. Without
+`DB`, the function returns an observable `503 storage_unavailable` response.
 
 Mutations are constrained to the authenticated author's rows. A non-owner gets
 the same `404` as a missing row, avoiding record-existence disclosure. The
