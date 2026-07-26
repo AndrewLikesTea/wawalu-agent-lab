@@ -17,7 +17,8 @@ from runner.github_app import installation_token, reviewer_token
 from runner.budget import DiffBudget, DiffBudgetExhausted
 from runner.delivery import DELIVERY_REQUEST, consume_merge_request, enable_auto_merge
 from runner.layers import CAPACITY_EXIT_CODES, plan, review, review_debate, run_aside, run_worker, WORKERS
-from runner.simulation import choose_distraction, choose_peer_reviewer, happens, load_behaviors, personality_context
+from runner.simulation import (choose_distraction, choose_peer_reviewer, happens, load_behaviors,
+                               personality_context, retry_salt)
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 AGENT_DIR = ROOT / ".agent"
@@ -270,7 +271,11 @@ def command_run(persona: str, scenario_path: str, push: bool, requested_worker: 
     persona_prompt = (ROOT / personas[persona]["prompt_file"]).read_text()
     behaviors = load_behaviors()
     profile = behaviors["personas"][persona]
-    first_pass_tendency = happens(float(profile["error_proneness"]), "first-pass", persona, scenario_id)
+    # The daemon stamps this run's attempt number so a retry re-rolls the simulated
+    # behavior instead of reproducing the draw the reviewer just rejected.
+    attempt = int(scenario.get("attempt", 1))
+    salt = retry_salt(attempt)
+    first_pass_tendency = happens(float(profile["error_proneness"]), "first-pass", persona, scenario_id, *salt)
     persona_prompt += "\n\n" + personality_context(profile, first_pass_tendency)
     plan_value = plan(persona_prompt, scenario, run_dir / "qwen-plan.json", requested_worker)
     worker_prompt = f'''{persona_prompt}
@@ -286,7 +291,7 @@ exactly this JSON to {DELIVERY_REQUEST}:
 Do not invoke GitHub yourself and do not request delivery for another branch.
 '''
     (run_dir / "worker-prompt.txt").write_text(worker_prompt)
-    distraction = choose_distraction(persona, scenario_id, behaviors)
+    distraction = choose_distraction(persona, scenario_id, behaviors, attempt)
     if distraction:
         run_aside(plan_value["worker"], distraction, worktree, run_dir, persona,
                   personas[persona]["wawalu_token"], runtime["WAWALU_INGEST_ENDPOINT"].rstrip("/"))
@@ -296,6 +301,7 @@ Do not invoke GitHub yourself and do not request delivery for another branch.
     collaborators = [item for item in scenario.get("collaborators", [])
                      if item in personas and item not in {persona, "manager", "reviewer"}]
     metadata = {"run_id": run_id, "persona": persona, "collaborators": collaborators[:1],
+                "attempt": attempt,
                 "distraction": bool(distraction), "first_pass_tendency": first_pass_tendency,
                 "scenario": scenario_id, "worker": plan_value["worker"], "branch": branch,
                 "worktree": str(worktree), "exit_code": exit_code}

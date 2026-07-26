@@ -1374,8 +1374,9 @@ def execute_issue(issue: dict[str, Any], config: dict[str, Any], state: State,
     # run may be changing, and a second reader must see this run's attempt.
     with state.mutate():
         record = state.value["issues"].setdefault(str(number), {})
+        attempt = int(record.get("attempts", 0)) + 1
         record.update({"status": "running", "persona": persona,
-                       "attempts": int(record.get("attempts", 0)) + 1,
+                       "attempts": attempt,
                        "started_at": utc_now().isoformat()})
         state.record_run()
         requested_worker = resolve_worker(
@@ -1384,6 +1385,7 @@ def execute_issue(issue: dict[str, Any], config: dict[str, Any], state: State,
     scenario_dir.mkdir(parents=True, exist_ok=True)
     scenario_path = scenario_dir / f"issue-{number}-{uuid.uuid4().hex[:6]}.json"
     scenario = scenario_from_issue(issue, persona)
+    scenario["attempt"] = attempt
     behaviors = load_behaviors()
     eligible = [candidate for candidate in PERSONAS
                 if state.persona_available(candidate, int(config["min_pr_interval_seconds"]))]

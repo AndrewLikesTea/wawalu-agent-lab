@@ -33,3 +33,25 @@ class SimulationTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class RetryRerollTest(unittest.TestCase):
+    BEHAVIORS = {
+        "personas": {"frontend": {"distraction_rate": 0.5}},
+        "distractions": ["a", "b", "c", "d", "e", "f", "g", "h"],
+    }
+
+    def test_first_attempt_keeps_its_historical_draw(self):
+        self.assertEqual(
+            choose_distraction("frontend", "issue-199", self.BEHAVIORS, 1),
+            choose_distraction("frontend", "issue-199", self.BEHAVIORS))
+
+    def test_retries_do_not_reproduce_the_rejected_draw(self):
+        draws = {choose_distraction("frontend", "issue-199", self.BEHAVIORS, attempt)
+                 for attempt in (1, 2, 3)}
+        self.assertGreater(len(draws), 1)
+
+    def test_each_attempt_is_still_reproducible(self):
+        self.assertEqual(
+            choose_distraction("frontend", "issue-199", self.BEHAVIORS, 3),
+            choose_distraction("frontend", "issue-199", self.BEHAVIORS, 3))
