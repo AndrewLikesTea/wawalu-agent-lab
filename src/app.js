@@ -210,7 +210,7 @@ export function renderDecisionState(container, state, options = {}) {
   panel.className = `list-state list-state-${state}`;
   panel.setAttribute("role", state === "error" ? "alert" : "status");
   const copy = {
-    loading: ["Loading decisions", "Building your decision history…"],
+    loading: ["Loading decisions", "Getting all decisions ready…"],
     error: ["Decisions could not be loaded", "Your saved decisions are still shown when available. Try reloading for the example history."],
     empty: options.filtered
       ? ["No matching decisions", "Try a different search, owner, or status filter."]
