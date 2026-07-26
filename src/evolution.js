@@ -88,6 +88,22 @@ export function literacyScore(mix) {
   return Math.round(score);
 }
 
+/** Reproducible explanation for a literacy score shown to an executive. */
+export function explainLiteracyScore(mix) {
+  const shares = normalizeMix(mix);
+  const terms = QUERY_CATEGORIES.map((category) => ({
+    key: category.key,
+    share: shares[category.key],
+    weight: category.scoreWeight,
+    contribution: shares[category.key] * category.scoreWeight,
+  }));
+  return {
+    version: "literacy-mix/1.0.0",
+    terms,
+    arithmetic: `${terms.map((term) => `${(term.share * 100).toFixed(1)}%×${term.weight}`).join(" + ")} = ${terms.reduce((sum, term) => sum + term.contribution, 0).toFixed(1)}; rounded to nearest integer`,
+  };
+}
+
 /** Letter grade for a 0–100 score, so the headline reads in one glance. */
 export function letterGrade(score) {
   const value = Number.isFinite(Number(score)) ? Number(score) : 0;
@@ -196,6 +212,13 @@ export function summarize(departments = []) {
   return {
     spendUsd, recoverableUsd, queries, headcount, score,
     grade: letterGrade(score),
+    scoreExplanation: {
+      version: "literacy-mix/1.0.0",
+      rule: "Organization score = sum(department score × department spend) ÷ total spend; nearest integer.",
+      arithmetic: spendUsd === 0
+        ? "No spend: score = 0."
+        : `${list.map((department) => `${literacyScore(department.mix)}×${toFiniteNumber(department.spendUsd)}`).join(" + ")} ÷ ${spendUsd} = ${(weighted / spendUsd).toFixed(2)}; rounded = ${score}`,
+    },
     mix: normalizeMix(mix),
     recoverableShare: spendUsd === 0 ? 0 : recoverableUsd / spendUsd,
     departments: list.length,
