@@ -1,0 +1,24 @@
+[
+  {
+    "schema_version": "1.0",
+    "kind": "wawalu.integration.provider-usage-billing",
+    "export_id": "30000000-0000-4000-8000-000000000006",
+    "snapshot": { "source_instance_id": "psn_provider_demo_00001", "sequence": 22, "generated_at": "2026-07-25T12:40:00Z", "period_start": "2026-07-24", "period_end": "2026-07-25", "completeness": "complete", "omitted_record_count": 0, "issues": [] },
+    "privacy": { "aggregation": "daily-org-unit-service", "minimum_group_size": 10, "direct_identifiers_included": false, "content_included": false },
+    "records": [
+      { "aggregate_id": "psn_aggregate_demo_0001", "revision": 5, "usage_date": "2026-07-24", "org_unit_id": "psn_unit_demo_00000002", "provider": "openai", "service_category": "text-generation", "usage": { "quantity": 450000, "unit": "tokens" }, "cost": { "amount_minor": 1300, "currency": "USD", "status": "final" } },
+      { "aggregate_id": "psn_aggregate_demo_0001", "revision": 5, "usage_date": "2026-07-24", "org_unit_id": "psn_unit_demo_00000002", "provider": "openai", "service_category": "text-generation", "usage": { "quantity": 450000, "unit": "tokens" }, "cost": { "amount_minor": 1300, "currency": "USD", "status": "final" } }
+    ]
+  },
+  {
+    "schema_version": "1.0",
+    "kind": "wawalu.integration.provider-usage-billing",
+    "export_id": "30000000-0000-4000-8000-000000000006",
+    "snapshot": { "source_instance_id": "psn_provider_demo_00001", "sequence": 22, "generated_at": "2026-07-25T12:40:00Z", "period_start": "2026-07-24", "period_end": "2026-07-25", "completeness": "complete", "omitted_record_count": 0, "issues": [] },
+    "privacy": { "aggregation": "daily-org-unit-service", "minimum_group_size": 10, "direct_identifiers_included": false, "content_included": false },
+    "records": [
+      { "aggregate_id": "psn_aggregate_demo_0001", "revision": 5, "usage_date": "2026-07-24", "org_unit_id": "psn_unit_demo_00000002", "provider": "openai", "service_category": "text-generation", "usage": { "quantity": 450000, "unit": "tokens" }, "cost": { "amount_minor": 1300, "currency": "USD", "status": "final" } },
+      { "aggregate_id": "psn_aggregate_demo_0001", "revision": 5, "usage_date": "2026-07-24", "org_unit_id": "psn_unit_demo_00000002", "provider": "openai", "service_category": "text-generation", "usage": { "quantity": 450000, "unit": "tokens" }, "cost": { "amount_minor": 1300, "currency": "USD", "status": "final" } }
+    ]
+  }
+]
