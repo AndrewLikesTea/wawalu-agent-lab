@@ -9,6 +9,7 @@ import {
 } from "../src/integration-contracts.js";
 
 const ROOT = new URL("../contracts/integrations/", import.meta.url);
+const BROWSER_MANIFEST = new URL("browser-compatibility/v1/manifest.json", ROOT);
 const INTEGRATIONS = [
   ["hris-org", "wawalu.integration.hris-org"],
   ["identity", "wawalu.integration.identity"],
@@ -17,6 +18,16 @@ const INTEGRATIONS = [
 
 async function json(url) {
   return JSON.parse(await readFile(url, "utf8"));
+}
+
+function deliveries(fixture) {
+  return Array.isArray(fixture) ? fixture : [fixture];
+}
+
+function assertExactKeys(value, allowed, label) {
+  for (const key of Object.keys(value)) {
+    assert.ok(allowed.includes(key), `${label} contains unmapped field ${key}`);
+  }
 }
 
 for (const [directory, kind] of INTEGRATIONS) {
@@ -69,6 +80,127 @@ test("identity fixtures exclude direct identity and provider fixtures exclude co
   assert.equal(identity.privacy.direct_identifiers_included, false);
   assert.ok(provider.privacy.minimum_group_size >= 10);
   assert.equal(provider.privacy.content_included, false);
+});
+
+test("browser compatibility manifest stays pinned to authoritative contract fields", async () => {
+  const manifest = await json(BROWSER_MANIFEST);
+  assert.equal(manifest.manifest_version, "1.0");
+  assert.equal(manifest.privacy.fixture_data, "synthetic-only");
+  assert.equal(manifest.privacy.allows_live_credentials, false);
+  assert.deepEqual(manifest.supported_file_formats.map(({ format }) => format), ["json"]);
+  assert.ok(manifest.unsupported_file_formats.includes("csv"));
+  assert.ok(manifest.unsupported_file_formats.includes("xlsx"));
+
+  for (const [manifestKey, directory] of [
+    ["provider_export", "provider-usage-billing"],
+    ["hris_mapping", "hris-org"],
+  ]) {
+    const advertised = manifest.contracts[manifestKey];
+    const schema = await json(new URL(`${directory}/v1/schema.json`, ROOT));
+    assert.equal(advertised.kind, schema.properties.kind.const);
+    assert.equal(advertised.schema_version, schema.properties.schema_version.const);
+    assert.deepEqual(advertised.envelope_required, schema.required);
+    assert.deepEqual(advertised.snapshot_required, schema.properties.snapshot.required);
+    const recordSchema = manifestKey === "provider_export"
+      ? schema.$defs.aggregate
+      : schema.$defs.unit;
+    assert.deepEqual(advertised.record_required, recordSchema.required);
+    assert.equal(advertised.schema_url,
+      `/contracts/integrations/${directory}/v1/schema.json`);
+  }
+
+  const providerSchema = await json(new URL("provider-usage-billing/v1/schema.json", ROOT));
+  assert.deepEqual(
+    manifest.contracts.provider_export.nested_required.usage,
+    providerSchema.$defs.aggregate.properties.usage.required,
+  );
+  assert.deepEqual(
+    manifest.contracts.provider_export.nested_required.cost,
+    providerSchema.$defs.aggregate.properties.cost.required,
+  );
+  assert.deepEqual(
+    manifest.contracts.hris_mapping.upsert_required,
+    ["parent_unit_id", "unit_type", "active"],
+  );
+  assert.match(manifest.join_requirements[0].on_missing, /never assign a default unit/);
+});
+
+test("browser fixture matrix conforms to contracts and actionable outcomes", async () => {
+  const manifest = await json(BROWSER_MANIFEST);
+  const expectedScenarios = ["valid", "partial", "stale", "duplicated", "reordered", "malformed"];
+  assert.deepEqual(manifest.fixtures.map(({ scenario }) => scenario), expectedScenarios);
+  assert.deepEqual(Object.keys(manifest.validation_reasons).sort(), [...expectedScenarios].sort());
+
+  const schemas = {
+    provider_export: await json(new URL("provider-usage-billing/v1/schema.json", ROOT)),
+    hris_mapping: await json(new URL("hris-org/v1/schema.json", ROOT)),
+  };
+  for (const fixtureEntry of manifest.fixtures) {
+    assert.equal(
+      fixtureEntry.expected_code,
+      manifest.validation_reasons[fixtureEntry.scenario].code,
+    );
+    for (const [contractKey, urlKey] of [
+      ["provider_export", "provider_url"],
+      ["hris_mapping", "hris_url"],
+    ]) {
+      assert.ok(fixtureEntry[urlKey].startsWith("/contracts/integrations/"));
+      const fixture = await json(new URL(fixtureEntry[urlKey].replace(
+        "/contracts/integrations/", ""), ROOT));
+      const schema = schemas[contractKey];
+      for (const delivery of deliveries(fixture)) {
+        if (!fixtureEntry.schema_valid) {
+          assert.notEqual(delivery.export_id.length, 36);
+          continue;
+        }
+        assert.equal(delivery.schema_version, schema.properties.schema_version.const);
+        assert.equal(delivery.kind, schema.properties.kind.const);
+        assertExactKeys(delivery, Object.keys(schema.properties), `${fixtureEntry.scenario} envelope`);
+        for (const required of schema.required) assert.ok(required in delivery);
+        assertExactKeys(delivery.snapshot, Object.keys(schema.properties.snapshot.properties),
+          `${fixtureEntry.scenario} snapshot`);
+        for (const required of schema.properties.snapshot.required) {
+          assert.ok(required in delivery.snapshot);
+        }
+        const recordSchema = contractKey === "provider_export"
+          ? schema.$defs.aggregate
+          : schema.$defs.unit;
+        for (const record of delivery.records) {
+          assertExactKeys(record, Object.keys(recordSchema.properties),
+            `${fixtureEntry.scenario} record`);
+          for (const required of recordSchema.required) assert.ok(required in record);
+          if (contractKey === "provider_export") {
+            assert.ok(delivery.privacy.minimum_group_size >= 10);
+            assert.equal(delivery.privacy.direct_identifiers_included, false);
+            assert.equal(delivery.privacy.content_included, false);
+          } else {
+            assert.equal(delivery.privacy.direct_identifiers_included, false);
+            if (record.operation === "upsert") {
+              for (const required of manifest.contracts.hris_mapping.upsert_required) {
+                assert.ok(required in record);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+});
+
+test("valid provider attribution uses an exact synthetic HRIS unit mapping", async () => {
+  const manifest = await json(BROWSER_MANIFEST);
+  const fixtureEntry = manifest.fixtures.find(({ scenario }) => scenario === "valid");
+  const provider = await json(new URL(fixtureEntry.provider_url.replace(
+    "/contracts/integrations/", ""), ROOT));
+  const hris = await json(new URL(fixtureEntry.hris_url.replace(
+    "/contracts/integrations/", ""), ROOT));
+  const activeUnits = new Set(hris.records
+    .filter(({ operation, active }) => operation === "upsert" && active)
+    .map(({ unit_id }) => unit_id));
+
+  assert.ok(provider.records.length > 0);
+  assert.ok(provider.records.every(({ org_unit_id }) => activeUnits.has(org_unit_id)));
+  assert.ok(provider.records.every(({ org_unit_id }) => org_unit_id.startsWith("psn_")));
 });
 
 test("reordered fixtures make record revision, not arrival, authoritative", async () => {

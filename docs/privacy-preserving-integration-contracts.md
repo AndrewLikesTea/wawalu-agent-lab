@@ -274,6 +274,26 @@ places a newer export/revision before an older one to prove arrival order is not
 authority. `duplicated` repeats an identical delivery and record to establish
 that exact retries/copies collapse without a second write.
 
+Browser consumers use the versioned compatibility manifest at
+[`contracts/integrations/browser-compatibility/v1/manifest.json`](../contracts/integrations/browser-compatibility/v1/manifest.json).
+It pins the provider and HRIS schema versions, advertises JSON as the only
+supported upload format, lists field mappings and minimum usable data, and
+pairs every provider scenario with its HRIS mapping scenario. The manifest,
+both schemas, and all paired fixtures are published as same-origin static JSON.
+They contain synthetic data only and do not add a live connection or credential
+path.
+
+Manifest version `1.0` is compatible only with the exact contract versions it
+names. Adding an optional browser capability requires a manifest minor version;
+changing a required mapping, failure behavior, privacy rule, or supported
+contract requires a major version. Consumers reject unknown manifest versions.
+For partial inputs, independent valid records may commit as the underlying
+contract permits, but absence never deletes data, unmatched organization IDs
+are quarantined rather than guessed, and provider totals remain explicitly
+estimate-only. The manifest's actionable validation reasons are summaries of
+the normative reconciliation and failure rules above; the schemas and this
+document remain authoritative.
+
 ## Ownership and deployment boundary
 
 | Responsibility | Integrations contract owner | Customer/deployment owner | Consumer implementer |

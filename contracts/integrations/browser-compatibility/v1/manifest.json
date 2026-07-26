@@ -1,0 +1,209 @@
+{
+  "manifest_version": "1.0",
+  "kind": "wawalu.integration.browser-compatibility",
+  "published_at": "2026-07-25T00:00:00Z",
+  "privacy": {
+    "fixture_data": "synthetic-only",
+    "allows_live_credentials": false,
+    "allows_direct_identifiers": false,
+    "allows_provider_content": false,
+    "unknown_fields": "reject-and-privacy-quarantine",
+    "raw_quarantine_max_days": 7
+  },
+  "supported_file_formats": [
+    {
+      "format": "json",
+      "media_type": "application/json",
+      "extensions": [".json"],
+      "encoding": "utf-8",
+      "document_shape": "one contract envelope object",
+      "duplicate_keys": "reject",
+      "schema_dialect": "https://json-schema.org/draft/2020-12/schema"
+    }
+  ],
+  "unsupported_file_formats": ["csv", "tsv", "xlsx", "xml", "ndjson"],
+  "contracts": {
+    "provider_export": {
+      "kind": "wawalu.integration.provider-usage-billing",
+      "schema_version": "1.0",
+      "schema_url": "/contracts/integrations/provider-usage-billing/v1/schema.json",
+      "envelope_required": ["schema_version", "kind", "export_id", "snapshot", "privacy", "records"],
+      "snapshot_required": ["source_instance_id", "sequence", "generated_at", "period_start", "period_end", "completeness", "omitted_record_count", "issues"],
+      "record_required": ["aggregate_id", "revision", "usage_date", "org_unit_id", "provider", "service_category", "usage", "cost"],
+      "nested_required": {
+        "usage": ["quantity", "unit"],
+        "cost": ["amount_minor", "currency", "status"]
+      },
+      "field_mappings": [
+        {
+          "target": "records[].aggregate_id",
+          "source_requirement": "stable aggregate key pseudonymized with the reviewed tenant integration key",
+          "required": true
+        },
+        {
+          "target": "records[].org_unit_id",
+          "source_requirement": "HRIS unit source ID pseudonymized with the org-unit namespace; must equal an HRIS records[].unit_id",
+          "required": true
+        },
+        {
+          "target": "records[].usage_date",
+          "source_requirement": "calendar date of the aggregate in UTC, within [snapshot.period_start, snapshot.period_end)",
+          "required": true
+        },
+        {
+          "target": "records[].provider",
+          "source_requirement": "map vendor to the schema enum; use other only when no reviewed enum value applies",
+          "required": true
+        },
+        {
+          "target": "records[].service_category",
+          "source_requirement": "map service to the coarse schema enum; never include product, prompt, or model text",
+          "required": true
+        },
+        {
+          "target": "records[].usage",
+          "source_requirement": "nonnegative aggregate quantity and its schema-enumerated unit",
+          "required": true
+        },
+        {
+          "target": "records[].cost",
+          "source_requirement": "nonnegative integer minor units, ISO 4217-style uppercase currency, and estimated or final status",
+          "required": true
+        }
+      ],
+      "minimum_required_data": {
+        "structural": "all envelope, snapshot, privacy, and record-required fields; zero records is allowed",
+        "usable_aggregate": "one schema-valid record attributed to a known active HRIS unit and privacy.minimum_group_size >= 10",
+        "reconciliation": "complete closed-period export with no sequence gap and final costs; partial or stale data is estimate-only"
+      }
+    },
+    "hris_mapping": {
+      "kind": "wawalu.integration.hris-org",
+      "schema_version": "1.0",
+      "schema_url": "/contracts/integrations/hris-org/v1/schema.json",
+      "envelope_required": ["schema_version", "kind", "export_id", "snapshot", "privacy", "records"],
+      "snapshot_required": ["source_instance_id", "sequence", "generated_at", "mode", "completeness", "omitted_record_count", "issues"],
+      "record_required": ["unit_id", "revision", "operation", "effective_at"],
+      "upsert_required": ["parent_unit_id", "unit_type", "active"],
+      "field_mappings": [
+        {
+          "target": "records[].unit_id",
+          "source_requirement": "stable HRIS unit source ID pseudonymized with the org-unit namespace",
+          "required": true
+        },
+        {
+          "target": "records[].parent_unit_id",
+          "source_requirement": "parent HRIS unit pseudonymized identically, or null for a root; upserts only",
+          "required": true
+        },
+        {
+          "target": "records[].unit_type",
+          "source_requirement": "map source hierarchy type to the coarse schema enum; do not export a source label",
+          "required": true
+        },
+        {
+          "target": "records[].active",
+          "source_requirement": "boolean source status; never infer from a missing partial record",
+          "required": true
+        }
+      ],
+      "minimum_required_data": {
+        "structural": "all envelope, snapshot, privacy, and operation-specific required fields; zero records is allowed",
+        "provider_attribution": "a schema-valid active upsert whose unit_id equals provider records[].org_unit_id",
+        "topology": "each parent is present in committed state or the complete export; partial unknown-parent records are quarantined"
+      }
+    }
+  },
+  "join_requirements": [
+    {
+      "from": "provider_export.records[].org_unit_id",
+      "to": "hris_mapping.records[].unit_id",
+      "cardinality": "many-to-one",
+      "required_for": "provider attribution",
+      "on_missing": "quarantine the provider record; never assign a default unit",
+      "identifier_rule": "exact opaque-ID match produced with the same tenant integration key, salt_scope, and org-unit namespace"
+    }
+  ],
+  "validation_reasons": {
+    "partial": {
+      "code": "partial_export",
+      "reason": "completeness is partial, omitted_record_count is positive, or a declared issue reports missing or suppressed data",
+      "behavior": "accept independent valid records atomically; never infer deletion or synthesize omitted values; mark views degraded and provider totals estimate-only",
+      "recovery": "retry the same export or missing page, then request a complete snapshot or final closed-period export"
+    },
+    "stale": {
+      "code": "stale_export",
+      "reason": "sequence is below the committed high-water mark or freshness exceeds the contract target",
+      "behavior": "ignore sequence and revision rollback; retain last accepted state and warn; stale provider data cannot reconcile invoices",
+      "recovery": "verify producer clock and replay missing sequences or request a new complete export"
+    },
+    "duplicated": {
+      "code": "duplicate_delivery",
+      "reason": "export_id and content digest repeat, or identical entity and revision records repeat",
+      "behavior": "collapse identical copies to one no-op; conflicting content with the same identity is identity_conflict or revision_conflict",
+      "recovery": "acknowledge identical retries; for conflicts stop the source and issue a corrected higher revision with a new export_id"
+    },
+    "reordered": {
+      "code": "sequence_gap_or_reordered_revision",
+      "reason": "a higher sequence arrives before a missing sequence, or record revisions arrive out of order",
+      "behavior": "buffer sequence gaps and process numerically; greatest valid revision wins independent of array or arrival order",
+      "recovery": "replay the gap and commit atomically in sequence order"
+    },
+    "malformed": {
+      "code": "schema_or_privacy_violation",
+      "reason": "invalid JSON, duplicate keys, unsupported version, missing or unknown fields, bad formats, direct identifiers, content, or a group threshold below 10",
+      "behavior": "reject the entire document to privacy quarantine; do not change state or the high-water mark",
+      "recovery": "remove prohibited data, correct the mapping, validate against the exact schema, and issue a new export_id"
+    },
+    "valid": {
+      "code": "accepted",
+      "reason": "the document matches the exact allowlisted schema and passes semantic, privacy, join, freshness, and ordering checks",
+      "behavior": "commit idempotently and retain only the allowlisted derived projection",
+      "recovery": "none"
+    }
+  },
+  "fixtures": [
+    {
+      "scenario": "valid",
+      "provider_url": "/contracts/integrations/provider-usage-billing/v1/fixtures/valid.json",
+      "hris_url": "/contracts/integrations/hris-org/v1/fixtures/valid.json",
+      "schema_valid": true,
+      "expected_code": "accepted"
+    },
+    {
+      "scenario": "partial",
+      "provider_url": "/contracts/integrations/provider-usage-billing/v1/fixtures/partial.json",
+      "hris_url": "/contracts/integrations/hris-org/v1/fixtures/partial.json",
+      "schema_valid": true,
+      "expected_code": "partial_export"
+    },
+    {
+      "scenario": "stale",
+      "provider_url": "/contracts/integrations/provider-usage-billing/v1/fixtures/stale.json",
+      "hris_url": "/contracts/integrations/hris-org/v1/fixtures/stale.json",
+      "schema_valid": true,
+      "expected_code": "stale_export"
+    },
+    {
+      "scenario": "duplicated",
+      "provider_url": "/contracts/integrations/provider-usage-billing/v1/fixtures/duplicated.json",
+      "hris_url": "/contracts/integrations/hris-org/v1/fixtures/duplicated.json",
+      "schema_valid": true,
+      "expected_code": "duplicate_delivery"
+    },
+    {
+      "scenario": "reordered",
+      "provider_url": "/contracts/integrations/provider-usage-billing/v1/fixtures/reordered.json",
+      "hris_url": "/contracts/integrations/hris-org/v1/fixtures/reordered.json",
+      "schema_valid": true,
+      "expected_code": "sequence_gap_or_reordered_revision"
+    },
+    {
+      "scenario": "malformed",
+      "provider_url": "/contracts/integrations/provider-usage-billing/v1/fixtures/malformed.json",
+      "hris_url": "/contracts/integrations/hris-org/v1/fixtures/malformed.json",
+      "schema_valid": false,
+      "expected_code": "schema_or_privacy_violation"
+    }
+  ]
+}
