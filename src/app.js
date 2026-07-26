@@ -203,6 +203,30 @@ export function focusLinkedDecision(root = document, hash = window.location.hash
   return true;
 }
 
+// The recorder remains an ordinary page region, not a modal. Moving focus to
+// its first required field makes the empty-state action useful without trapping
+// keyboard users or changing the established form workflow.
+export function enterDecisionRecorder(root, trigger) {
+  const title = root.querySelector("#title");
+  if (!title) return false;
+  title.focus({ preventScroll: true });
+  title.scrollIntoView?.({ block: "center" });
+  returnFocusTarget = trigger ?? null;
+  return true;
+}
+
+let returnFocusTarget = null;
+
+export function exitDecisionRecorder(root) {
+  const fallback = root.querySelector("#decisions-title");
+  const target = returnFocusTarget?.isConnected === false ? fallback : (returnFocusTarget ?? fallback);
+  if (!target) return false;
+  target.focus?.({ preventScroll: true });
+  target.scrollIntoView?.({ block: "center" });
+  returnFocusTarget = null;
+  return true;
+}
+
 export function renderDecisionState(container, state, options = {}) {
   container.replaceChildren();
   container.setAttribute("aria-busy", String(state === "loading"));
@@ -214,10 +238,19 @@ export function renderDecisionState(container, state, options = {}) {
     error: ["Decisions could not be loaded", "Your saved decisions are still shown when available. Try reloading for the example history."],
     empty: options.filtered
       ? ["No matching decisions", "Change your search or filters, or select Clear filters to see every decision."]
-      : ["No decisions yet", "Complete the Record a decision form to add your first decision."],
+      : [
+        "No decisions yet",
+        "Record the title, context, owner, and status behind a useful decision. You can link it to a release when that work ships.",
+      ],
   }[state];
   appendTextElement(panel, "h3", "", copy[0]);
   appendTextElement(panel, "p", "", copy[1]);
+  if (state === "empty" && !options.filtered) {
+    const action = appendTextElement(panel, "button", "empty-action decision-empty-action", "Record your first decision");
+    action.type = "button";
+    action.setAttribute("aria-controls", "decision-form");
+    action.dataset.action = "record-decision";
+  }
   container.append(panel);
 }
 
@@ -322,6 +355,7 @@ export async function initDecisionLog(root = document, storage = localStorage) {
   const sortBy = root.querySelector("#sort-by");
   const search = root.querySelector("#decision-search");
   const clearFilters = root.querySelector("#clear-decision-filters");
+  const exitRecorder = root.querySelector("#exit-decision-recorder");
   let recordedDecisions = loadDecisions(storage);
   let decisions = recordedDecisions;
   list?.setAttribute("aria-busy", "true");
@@ -378,6 +412,11 @@ export async function initDecisionLog(root = document, storage = localStorage) {
   list.addEventListener("keydown", (event) => {
     handleDecisionListKeydown(event, list);
   });
+  list.addEventListener("click", (event) => {
+    const trigger = event.target.closest?.('[data-action="record-decision"]');
+    if (trigger) enterDecisionRecorder(root, trigger);
+  });
+  exitRecorder?.addEventListener("click", () => exitDecisionRecorder(root));
 
   form.addEventListener("submit", (event) => {
     event.preventDefault();

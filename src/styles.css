@@ -73,6 +73,8 @@ input:focus-visible,textarea:focus-visible,select:focus-visible,button:focus-vis
 .hint { color:#6a6a65; font-size:12px; line-height:1.45; }
 button { grid-column:1/-1; display:flex; align-items:center; justify-content:space-between; min-height:46px; margin-top:4px; border:0; border-radius:9px; padding:0 16px; background:#171713; color:#fff; font:700 14px/1 system-ui,sans-serif; cursor:pointer; }
 button:hover { background:#1f70c1; }
+.recorder-exit { justify-content:center; margin-top:-6px; border:1px solid #9cb9d4; background:transparent; color:#1f70c1; }
+.recorder-exit:hover { background:#eef4fb; color:#174f84; }
 .filters { display:flex; flex-wrap:wrap; gap:14px 16px; margin-bottom:22px; }
 .filter { display:flex; flex-direction:column; gap:7px; flex:1 1 150px; min-width:130px; }
 .filter label { color:#62625d; font:700 11px/1.4 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; }
@@ -110,6 +112,7 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .empty-state,.list-state { padding:58px 20px; color:#5f5f59; text-align:center; }
 .empty-state p,.list-state p { margin:7px 0 0; line-height:1.55; }
 .empty-state .empty-title,.list-state h3 { margin:0; color:#282824; font-size:18px; line-height:1.35; }
+.list-state .decision-empty-action { display:inline-flex; width:auto; margin:20px auto 0; }
 .list-state-error { border:1px solid #d5aaa6; border-radius:11px; background:#fbf1f1; color:#713b37; }
 .list-state-error h3 { color:#713b37; }
 .list-state-loading h3::before { content:""; display:inline-block; width:10px; height:10px; margin-right:9px; border:2px solid #7e9fbd; border-top-color:#155f9e; border-radius:50%; animation:shiplog-spin .8s linear infinite; }
