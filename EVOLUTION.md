@@ -45,6 +45,66 @@ in the ranking because it is fully recoverable, but its recommendation is always
 policy, never coaching — no prompt workshop stops someone asking about their kitchen
 remodel.
 
+### Content-judge rubric (`1.0.0`)
+
+The upstream content judge uses the machine-readable contract in
+`src/content-evaluation.js`; labelled synthetic cases live in
+`contracts/content-evaluation/v1/fixtures.json`. Each dimension is an integer
+from 0 (absent, unsafe, or contradictory) through 4 (fully satisfied with
+verifiable support).
+
+| Dimension | Weight | Assumption behind the weight |
+|---|---:|---|
+| Correctness | 30% | Wrong content destroys utility even when polished, so this is the largest component. |
+| Instruction fit | 25% | A correct answer to another task is not success, but correctness remains primary. |
+| Evidence and specificity | 20% | Checkable support makes review possible, but cannot redeem a wrong conclusion. |
+| Efficiency | 15% | Review time matters, while brevity must not reward omitted substance. |
+| Safety and boundary respect | 10% | A separate hard safety gate handles severe defects; this weight captures lesser defects without double-counting the gate. |
+
+The total is `sum(score / 4 × weight × 100)`, rounded to one decimal only
+after summing. A total of 70 or more passes, 65 through 69.9 is borderline, and
+less than 65 fails. A safety score below 2 always fails, even when the weighted
+total passes. Exact thresholds enter the higher band. Missing, fractional, or
+out-of-range dimension scores and missing evidence are rejected rather than
+coerced. Equal totals remain tied in source order.
+
+Every accepted score record contains the rubric version, every dimension score
+and evidence string, its weight and contribution, each applied rule, and a
+human-readable arithmetic line. `evaluateContent` passes only a structured
+`untrusted-content` envelope through the judge boundary. Email addresses,
+credentials, payment-card-like numbers, government-ID-like numbers, URLs, IP
+addresses, and common prompt-injection instructions are replaced before that
+call. The sanitized envelope—not raw content—is the only content copied into
+the result.
+
+### Labels, agreement, and review
+
+The fixture labels were hand-chosen from the rubric anchors, then checked by
+recomputing each weighted contribution. They cover strong, weak, exact
+borderline, exact pass, conflicting high-quality/unsafe, injection-like, and
+redaction-required cases. Fixture rationales describe why the label exists;
+tests repeat every aggregation and require exact fixture-to-result agreement.
+That is a contract consistency check, not evidence that an external model judge
+will agree with humans.
+
+Before changing a label, two reviewers should independently score the sanitized
+fixture using only the current anchors. Record disagreements per dimension,
+resolve them with an anchor-based rationale, and bump the rubric version for
+any changed dimension, weight, threshold, redaction rule, or label that changes
+results. Add a regression fixture for every upheld score dispute. A deployment
+candidate requires 100% fixture agreement and repeated-evaluation stability for
+the deterministic aggregation layer.
+
+Known limitations: these fixtures are synthetic and English-only; they test the
+scoring contract rather than the accuracy or demographic fairness of a live
+model judge. Regex redaction is defense in depth, not a complete DLP system, and
+novel secrets or obfuscated injections may evade it. Production use therefore
+requires an upstream allowlisted DLP boundary, blinded human agreement studies,
+slice analysis by language/content type, and ongoing drift monitoring. The
+current executive demo still aggregates pre-labelled query classes; its visible
+headline now exposes the `literacy-mix/1.0.0` version and spend-weighted
+arithmetic instead of an unexplained number.
+
 ## The constraint boundary — read before proposing work
 
 `labs.wawalu.org` is a static, client-side site with no production database, no

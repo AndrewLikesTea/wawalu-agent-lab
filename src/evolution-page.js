@@ -51,7 +51,7 @@ function renderHeadline(organization, totals) {
   setText("score-grade", totals.grade);
   setText("score-value", `${totals.score} / 100 · grade ${totals.grade}`);
   setText("score-peer",
-    `${quartileLabel(organization?.peerPercentile)} · cohort median ${organization?.peerMedianScore ?? "–"}`);
+    `${totals.scoreExplanation.version} · ${totals.scoreExplanation.rule} ${totals.scoreExplanation.arithmetic}`);
 
   setText("kpi-spend-value", formatUsd(totals.spendUsd));
   setText("kpi-spend-note",
