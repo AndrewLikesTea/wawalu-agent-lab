@@ -16,6 +16,8 @@ const PERSONAS = {
   design: { name: "Iris", role: "Product designer" },
   evaluation: { name: "Theo", role: "Evaluation engineer" },
   integrations: { name: "Anya", role: "Integrations engineer" },
+  copywriter: { name: "Jude", role: "Copywriter" },
+  sales: { name: "Sasha", role: "Sales lead" },
   reviewer: { name: "Marcus", role: "Reviewer" },
   team: { name: "Wawalu team", role: "Team" },
 };

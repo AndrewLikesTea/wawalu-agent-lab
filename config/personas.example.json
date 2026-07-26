@@ -39,6 +39,14 @@
     "integrations": {
       "wawalu_token": "REPLACE",
       "prompt_file": "personas/integrations.md"
+    },
+    "copywriter": {
+      "wawalu_token": "REPLACE",
+      "prompt_file": "personas/copywriter.md"
+    },
+    "sales": {
+      "wawalu_token": "REPLACE",
+      "prompt_file": "personas/sales.md"
     }
   }
 }
