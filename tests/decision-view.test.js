@@ -172,7 +172,13 @@ test("decision list exposes semantic loading, empty, and error states", async ()
   assert.match(page, /<h3>Loading decisions<\/h3>/);
   assert.match(page, /<h2 id="decisions-title">All decisions<\/h2>/);
   assert.match(page, /<p>Loading all decisions…<\/p>/);
-  assert.match(page, /<button type="submit">Save decision<\/button>/);
+  assert.match(page, /<h2>Record a decision<\/h2>/);
+  assert.match(page, /<button type="submit">Record decision<\/button>/);
+  assert.match(page, /id="title-hint">A short name for the decision\.<\/span>/);
+  assert.match(page, /id="context-hint">The problem, constraints, and reasoning\.<\/span>/);
+  assert.match(page, /id="alternatives-hint">Other options considered and why they were not chosen\.<\/span>/);
+  assert.match(page, /id="owner-hint">The person responsible for the decision\.<\/span>/);
+  assert.match(page, /id="status-hint">The decision's current stage\.<\/span>/);
   assert.match(source, /panel\.setAttribute\("role", state === "error" \? "alert" : "status"\)/);
   assert.match(source, /container\.setAttribute\("aria-busy", String\(state === "loading"\)\)/);
   assert.match(source, /\["Loading decisions", "Loading all decisions…"\]/);
