@@ -45,6 +45,7 @@
       "periodDays": 31,
       "previousPeriod": {"period":"25 May–24 Jun 2026","spendUsd":49800,"score":84},
       "sampling": {"status":"available","sampledQueries":620,"sampledThrough":"2026-07-25","freshnessLabel":"current through period end"},
+      "actionPlan": {"status":"completed","title":"Block personal-use traffic from the enterprise plan","rationale":"Out-of-scope use is the department’s largest fully recoverable line, so routing policy has a clearer return than broad coaching.","impact":"Recover 9–10% of monthly department spend","confidence":"High · direct category-to-policy match","accountableRole":"AI Platform product owner","provenance":"Synthetic policy simulation v1 · bundled 25 Jul 2026","baselineUsd":5214,"targetUsd":0,"estimatedSavingsUsd":5214,"realizedSavingsUsd":4870,"diagnosis":"10% of scored spend is out-of-scope; acceptable-use routing directly removes that diagnosed leakage from the enterprise plan."},
       "peerPercentile": 91,
       "mix": {
         "highValue": 0.76,
@@ -67,6 +68,7 @@
       "periodDays": 31,
       "previousPeriod": {"period":"25 May–24 Jun 2026","spendUsd":38600,"score":71},
       "sampling": {"status":"available","sampledQueries":760,"sampledThrough":"2026-07-25","freshnessLabel":"current through period end"},
+      "actionPlan": {"status":"in_progress","title":"Route short, low-context requests to the standard model","rationale":"Over-provisioning is the largest recoverable cost line and can be addressed at the gateway without changing productive workflows.","impact":"Reduce monthly spend by an estimated 12.6%","confidence":"High · 760-query scored sample","accountableRole":"Core Services platform director","provenance":"Synthetic recommendation fixture · rubric literacy-mix/1.0.0","baselineUsd":7430,"targetUsd":2230,"estimatedSavingsUsd":5200,"diagnosis":"18% of spend used frontier capacity for simple work; a bounded routing rule targets that category while leaving high-value prompts unchanged."},
       "peerPercentile": 74,
       "mix": {
         "highValue": 0.61,
@@ -89,6 +91,7 @@
       "periodDays": 31,
       "previousPeriod": {"period":"25 May–24 Jun 2026","spendUsd":26100,"score":74},
       "sampling": {"status":"available","sampledQueries":480,"sampledThrough":"2026-07-24","freshnessLabel":"1-day reporting lag"},
+      "actionPlan": {"status":"planned","title":"Run retry-reduction clinics with frontend tech leads","rationale":"Repeated repair prompts are the department’s largest recoverable behavior and need shared diagnosis and acceptance-criteria patterns.","impact":"Reduce inefficient retry spend by 40%","confidence":"Medium · one-day lag and 480-query sample","accountableRole":"Frontend engineering enablement lead","provenance":"Synthetic recommendation fixture · rubric literacy-mix/1.0.0","baselineUsd":8685,"targetUsd":5211,"estimatedSavingsUsd":3474,"diagnosis":"30% of spend is classified as inefficient; targeted practice addresses the missing-state and unverified-answer pattern shown in the retained evidence."},
       "peerPercentile": 42,
       "mix": {
         "highValue": 0.5,
@@ -111,6 +114,7 @@
       "periodDays": 31,
       "previousPeriod": {"period":"25 May–24 Jun 2026","spendUsd":20500,"score":79},
       "sampling": {"status":"available","sampledQueries":350,"sampledThrough":"2026-07-25","freshnessLabel":"current through period end"},
+      "actionPlan": {"status":"planned","title":"Add a standard-model default for one-step transformations","rationale":"A narrow routing default addresses the largest recoverable line without constraining complex incident-response work.","impact":"Reduce monthly spend by an estimated 9.8%","confidence":"Medium · 350-query scored sample","accountableRole":"Infrastructure AI service owner","provenance":"Synthetic recommendation fixture · rubric literacy-mix/1.0.0","baselineUsd":2782,"targetUsd":835,"estimatedSavingsUsd":1947,"diagnosis":"14% of spend is over-provisioned; the retained sample shows a one-line transformation routed to a frontier model."},
       "peerPercentile": 68,
       "mix": {
         "highValue": 0.66,
@@ -133,6 +137,7 @@
       "periodDays": 31,
       "previousPeriod": {"period":"25 May–24 Jun 2026","spendUsd":14900,"score":68},
       "sampling": {"status":"available","sampledQueries":230,"sampledThrough":"2026-07-23","freshnessLabel":"2-day reporting lag"},
+      "actionPlan": {"status":"planned","title":"Pilot complexity-based model routing for build-support prompts","rationale":"Over-provisioned traffic is the largest recoverable line, but the reporting lag makes a limited pilot more truthful than a broad rollout.","impact":"Reduce monthly spend by an estimated 15.4%","confidence":"Medium-low · 230-query sample with two-day lag","accountableRole":"Mobile developer productivity lead","provenance":"Synthetic recommendation fixture · rubric literacy-mix/1.0.0","baselineUsd":3392,"targetUsd":1018,"estimatedSavingsUsd":2374,"diagnosis":"22% of spend is over-provisioned; a limited routing pilot tests the diagnosed opportunity before expanding it."},
       "peerPercentile": 55,
       "mix": {
         "highValue": 0.53,
@@ -155,6 +160,7 @@
       "periodDays": 31,
       "previousPeriod": {"period":"25 May–24 Jun 2026","spendUsd":9800,"score":69},
       "sampling": {"status":"available","sampledQueries":180,"sampledThrough":"2026-07-25","freshnessLabel":"current through period end"},
+      "actionPlan": {"status":"completed","title":"Down-route routine formatting and release-note transforms","rationale":"Over-provisioning is the largest recoverable line, and the retained evidence identifies a safe, specific routing boundary.","impact":"Recover about one fifth of monthly department spend","confidence":"Medium · 180-query sample","accountableRole":"Release engineering manager","provenance":"Synthetic routing simulation v1 · bundled 25 Jul 2026","baselineUsd":3484,"targetUsd":1045,"estimatedSavingsUsd":2439,"realizedSavingsUsd":2196,"diagnosis":"31% of spend is over-provisioned; the sampled formatting task is directly addressable with a cheaper-model routing rule."},
       "peerPercentile": 23,
       "mix": {
         "highValue": 0.39,
@@ -177,6 +183,7 @@
       "periodDays": 31,
       "previousPeriod": {"period":"25 May–24 Jun 2026","spendUsd":9300,"score":78},
       "sampling": {"status":"unavailable","sampledQueries":0,"sampledThrough":null,"freshnessLabel":"unavailable","reason":"The synthetic provider export omitted sampling metadata for this department."},
+      "actionPlan": {"status":"unavailable","unavailableReason":"No intervention was produced because the static provider fixture omitted eligible sampling metadata."},
       "peerPercentile": 77,
       "mix": {
         "highValue": 0.69,
@@ -194,6 +201,146 @@
     {"sampleId":"syn-data-005","departmentId":"data-ml","category":"High-value","summary":"The analysis request defined its dataset boundary, method, and decision threshold.","scoredAt":"2026-07-25"},
     {"sampleId":"syn-sre-011","departmentId":"sre","category":"Over-provisioned","summary":"A one-line transformation was routed to a frontier model in the synthetic fixture.","scoredAt":"2026-07-25"}
   ],
+  "actionPlan": {
+    "schemaVersion": "action-plan/1.0.0",
+    "generatedAt": "2026-07-25",
+    "provenance": "Deterministic projection of the bundled synthetic Evolution department and evidence fixture; no live or customer data.",
+    "eligibilityRule": "Include only departments with available sampling and at least one retained evidence record. Departments without retained evidence receive no evidence-backed action.",
+    "orderingRule": "Within each department, rank ascending by priorityRank, then actionId. Exactly one action per included department has priorityRank 1 and isTopNextAction true.",
+    "metricDefinitions": {
+      "recoverable_spend_usd": {
+        "unit": "USD",
+        "precision": "whole dollars",
+        "calculation": "Round once to the nearest whole USD: spendUsd × (0.70 × normalized overProvisioned share + 0.40 × normalized inefficient share + 1.00 × normalized outOfScope share). normalized share = non-negative category value ÷ sum of all four non-negative category values.",
+        "comparisonRule": "Before and after use the same formula and department scope over equal 31-day periods. Savings realized = before value − after value; a missing after value remains pending and is not treated as zero."
+      }
+    },
+    "benchmarkPeriods": [
+      {
+        "periodId": "period-2026-05-25-2026-06-24",
+        "label": "25 May–24 Jun 2026",
+        "startDate": "2026-05-25",
+        "endDate": "2026-06-24",
+        "inclusiveDays": 31,
+        "purpose": "historical comparison",
+        "source": "departments[].previousPeriod.period"
+      },
+      {
+        "periodId": "period-2026-06-25-2026-07-25",
+        "label": "25 Jun–25 Jul 2026",
+        "startDate": "2026-06-25",
+        "endDate": "2026-07-25",
+        "inclusiveDays": 31,
+        "purpose": "action baseline",
+        "source": "departments[].period"
+      },
+      {
+        "periodId": "period-2026-07-26-2026-08-25",
+        "label": "26 Jul–25 Aug 2026",
+        "startDate": "2026-07-26",
+        "endDate": "2026-08-25",
+        "inclusiveDays": 31,
+        "purpose": "post-action measurement",
+        "source": "synthetic equal-length successor to the existing action baseline"
+      }
+    ],
+    "actions": [
+      {
+        "actionId": "action-data-ml-acceptable-use-v1",
+        "departmentId": "data-ml",
+        "departmentName": "Data & ML",
+        "evidenceRefs": ["syn-data-005"],
+        "priorityRank": 1,
+        "isTopNextAction": true,
+        "accountableRole": "Directorate of Data Platform",
+        "action": "Apply acceptable-use routing so personal queries leave the enterprise plan.",
+        "estimatedSavingsUsd": 5214,
+        "savingsCalculationBasis": "Round(52140 USD baseline spend × 0.10 normalized outOfScope share × 1.00 recoverable share) = 5214 USD.",
+        "confidence": {
+          "value": 0.72,
+          "scale": "0_to_1",
+          "provenance": "Judgment-based synthetic fixture confidence: aggregate mix is available, but the sole retained sample is High-value rather than Out-of-scope."
+        },
+        "rationale": "Out-of-scope spend is the department's largest single recoverable category; retained evidence confirms the scored sample belongs to this department but does not independently validate the out-of-scope estimate.",
+        "baseline": {"metricName":"recoverable_spend_usd","value":9072,"unit":"USD","periodRef":"period-2026-06-25-2026-07-25"},
+        "target": {"metricName":"recoverable_spend_usd","value":3858,"unit":"USD","periodRef":"period-2026-07-26-2026-08-25","comparison":"less_than_or_equal"},
+        "benchmarkPeriodRefs": {"historical":"period-2026-05-25-2026-06-24","baseline":"period-2026-06-25-2026-07-25","after":"period-2026-07-26-2026-08-25"},
+        "tracking": {"before":{"metricName":"recoverable_spend_usd","value":9072,"unit":"USD","periodRef":"period-2026-06-25-2026-07-25","status":"observed"},"after":{"metricName":"recoverable_spend_usd","value":null,"unit":"USD","periodRef":"period-2026-07-26-2026-08-25","status":"pending"}}
+      },
+      {
+        "actionId": "action-backend-down-route-v1",
+        "departmentId": "backend",
+        "departmentName": "Backend Platform",
+        "evidenceRefs": ["syn-backend-033"],
+        "priorityRank": 1,
+        "isTopNextAction": true,
+        "accountableRole": "Directorate of Core Services",
+        "action": "Enable automated down-routing for short, low-context prompts.",
+        "estimatedSavingsUsd": 5201,
+        "savingsCalculationBasis": "Round(41280 USD baseline spend × 0.18 normalized overProvisioned share × 0.70 recoverable share) = 5201 USD.",
+        "confidence": {"value":0.74,"scale":"0_to_1","provenance":"Judgment-based synthetic fixture confidence: aggregate mix is available, but the sole retained sample is High-value rather than Over-provisioned."},
+        "rationale": "Over-provisioned spend is the department's largest single recoverable category; retained evidence confirms department-scoped scoring but does not independently validate the routing estimate.",
+        "baseline": {"metricName":"recoverable_spend_usd","value":10650,"unit":"USD","periodRef":"period-2026-06-25-2026-07-25"},
+        "target": {"metricName":"recoverable_spend_usd","value":5449,"unit":"USD","periodRef":"period-2026-07-26-2026-08-25","comparison":"less_than_or_equal"},
+        "benchmarkPeriodRefs": {"historical":"period-2026-05-25-2026-06-24","baseline":"period-2026-06-25-2026-07-25","after":"period-2026-07-26-2026-08-25"},
+        "tracking": {"before":{"metricName":"recoverable_spend_usd","value":10650,"unit":"USD","periodRef":"period-2026-06-25-2026-07-25","status":"observed"},"after":{"metricName":"recoverable_spend_usd","value":null,"unit":"USD","periodRef":"period-2026-07-26-2026-08-25","status":"pending"}}
+      },
+      {
+        "actionId": "action-frontend-retry-workshop-v1",
+        "departmentId": "frontend",
+        "departmentName": "Frontend Experience",
+        "evidenceRefs": ["syn-frontend-008"],
+        "priorityRank": 1,
+        "isTopNextAction": true,
+        "accountableRole": "Directorate of Product Engineering",
+        "action": "Run a prompt engineering workshop focused on diagnosing failures before retrying.",
+        "estimatedSavingsUsd": 3474,
+        "savingsCalculationBasis": "Round(28950 USD baseline spend × 0.30 normalized inefficient share × 0.40 recoverable share) = 3474 USD.",
+        "confidence": {"value":0.88,"scale":"0_to_1","provenance":"Judgment-based synthetic fixture confidence supported by aggregate mix and retained Inefficient evidence syn-frontend-008."},
+        "rationale": "Inefficient spend is the department's largest single recoverable category, and the retained sample describes an unverified retry matching that intervention.",
+        "baseline": {"metricName":"recoverable_spend_usd","value":8222,"unit":"USD","periodRef":"period-2026-06-25-2026-07-25"},
+        "target": {"metricName":"recoverable_spend_usd","value":4748,"unit":"USD","periodRef":"period-2026-07-26-2026-08-25","comparison":"less_than_or_equal"},
+        "benchmarkPeriodRefs": {"historical":"period-2026-05-25-2026-06-24","baseline":"period-2026-06-25-2026-07-25","after":"period-2026-07-26-2026-08-25"},
+        "tracking": {"before":{"metricName":"recoverable_spend_usd","value":8222,"unit":"USD","periodRef":"period-2026-06-25-2026-07-25","status":"observed"},"after":{"metricName":"recoverable_spend_usd","value":null,"unit":"USD","periodRef":"period-2026-07-26-2026-08-25","status":"pending"}}
+      },
+      {
+        "actionId": "action-sre-down-route-v1",
+        "departmentId": "sre",
+        "departmentName": "Site Reliability",
+        "evidenceRefs": ["syn-sre-011"],
+        "priorityRank": 1,
+        "isTopNextAction": true,
+        "accountableRole": "Directorate of Infrastructure",
+        "action": "Enable automated down-routing for short, low-context prompts.",
+        "estimatedSavingsUsd": 1947,
+        "savingsCalculationBasis": "Round(19870 USD baseline spend × 0.14 normalized overProvisioned share × 0.70 recoverable share) = 1947 USD.",
+        "confidence": {"value":0.90,"scale":"0_to_1","provenance":"Judgment-based synthetic fixture confidence supported by aggregate mix and retained Over-provisioned evidence syn-sre-011."},
+        "rationale": "Over-provisioned spend is the department's largest single recoverable category, and the retained sample describes frontier routing for a one-line transformation.",
+        "baseline": {"metricName":"recoverable_spend_usd","value":4252,"unit":"USD","periodRef":"period-2026-06-25-2026-07-25"},
+        "target": {"metricName":"recoverable_spend_usd","value":2305,"unit":"USD","periodRef":"period-2026-07-26-2026-08-25","comparison":"less_than_or_equal"},
+        "benchmarkPeriodRefs": {"historical":"period-2026-05-25-2026-06-24","baseline":"period-2026-06-25-2026-07-25","after":"period-2026-07-26-2026-08-25"},
+        "tracking": {"before":{"metricName":"recoverable_spend_usd","value":4252,"unit":"USD","periodRef":"period-2026-06-25-2026-07-25","status":"observed"},"after":{"metricName":"recoverable_spend_usd","value":null,"unit":"USD","periodRef":"period-2026-07-26-2026-08-25","status":"pending"}}
+      },
+      {
+        "actionId": "action-quality-down-route-v1",
+        "departmentId": "quality",
+        "departmentName": "QA & Release",
+        "evidenceRefs": ["syn-qa-014","syn-qa-021"],
+        "priorityRank": 1,
+        "isTopNextAction": true,
+        "accountableRole": "Directorate of Core Services",
+        "action": "Enable automated down-routing for short, low-context prompts.",
+        "estimatedSavingsUsd": 2439,
+        "savingsCalculationBasis": "Round(11240 USD baseline spend × 0.31 normalized overProvisioned share × 0.70 recoverable share) = 2439 USD.",
+        "confidence": {"value":0.92,"scale":"0_to_1","provenance":"Judgment-based synthetic fixture confidence supported by aggregate mix and retained Over-provisioned evidence syn-qa-014; syn-qa-021 supplies secondary retry context."},
+        "rationale": "Over-provisioned spend is the department's largest single recoverable category, and retained evidence directly identifies frontier-model use for a formatting task.",
+        "baseline": {"metricName":"recoverable_spend_usd","value":4530,"unit":"USD","periodRef":"period-2026-06-25-2026-07-25"},
+        "target": {"metricName":"recoverable_spend_usd","value":2091,"unit":"USD","periodRef":"period-2026-07-26-2026-08-25","comparison":"less_than_or_equal"},
+        "benchmarkPeriodRefs": {"historical":"period-2026-05-25-2026-06-24","baseline":"period-2026-06-25-2026-07-25","after":"period-2026-07-26-2026-08-25"},
+        "tracking": {"before":{"metricName":"recoverable_spend_usd","value":4530,"unit":"USD","periodRef":"period-2026-06-25-2026-07-25","status":"observed"},"after":{"metricName":"recoverable_spend_usd","value":null,"unit":"USD","periodRef":"period-2026-07-26-2026-08-25","status":"pending"}}
+      }
+    ]
+  },
   "redactionSamples": [
     {
       "id": "sample-1",

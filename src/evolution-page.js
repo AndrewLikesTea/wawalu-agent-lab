@@ -8,7 +8,7 @@
 // executing user-generated markup, so no markup string is ever assigned here.
 
 import {
-  benchmarkComparison, departmentPerformance, departmentTrend, evidenceForDepartment,
+  actionPlanFor, benchmarkComparison, departmentPerformance, departmentTrend, evidenceForDepartment,
   QUERY_CATEGORIES, formatCount, formatPercent, formatUsd,
   letterGrade, literacyScore, quartileLabel, rankDepartmentsForHelp,
   recoverableSpendUsd, redactForScoring, summarize,
@@ -125,18 +125,64 @@ function definitionTerm(label, value) {
   return fragment;
 }
 
+function renderUnavailableAction(reason) {
+  const actionSurface = document.getElementById("action-result");
+  if (actionSurface) {
+    actionSurface.dataset.status = "unavailable";
+    actionSurface.setAttribute("aria-busy", "false");
+  }
+  setText("action-status", "Result unavailable");
+  setText("action-title", "No prioritized intervention available");
+  setText("action-rationale", reason);
+  setText("action-impact", "Unavailable");
+  setText("action-confidence", "Unavailable");
+  setText("action-owner", "Unassigned");
+  setText("action-provenance", "Bundled static fixture · no live fallback");
+  setText("action-baseline", "Unavailable");
+  setText("action-target", "Unavailable");
+  setText("action-estimate", "Unavailable");
+  setText("action-realized", "Not available");
+  setText("action-diagnosis", reason);
+}
+
 function renderDecisionDetail(department, data) {
   const performance = departmentPerformance(department);
   const trend = departmentTrend(department);
   const comparison = benchmarkComparison(department, data.benchmark ?? {});
   const sampling = department.sampling ?? {};
   const provenance = data.provenance ?? {};
+  const action = actionPlanFor(department);
 
   setText("detail-name", department.name ?? "Unnamed department");
   setText("detail-score", performance.available ? `${performance.score}/100` : "Unavailable");
   setText("detail-sample", performance.available
     ? `${performance.rubricVersion} · ${sampling.sampledQueries} sampled queries · through ${sampling.sampledThrough} (${sampling.freshnessLabel}) · 95% sampling uncertainty ±${performance.uncertaintyPoints} points · ${provenance.label}`
     : `${performance.rubricVersion} · Sampling unavailable: ${performance.reason} · ${provenance.label}`);
+
+  const actionSurface = document.getElementById("action-result");
+  if (actionSurface) {
+    actionSurface.dataset.status = action.status;
+    actionSurface.setAttribute("aria-busy", "false");
+  }
+  setText("action-status", action.statusLabel);
+  if (!action.available) {
+    renderUnavailableAction(performance.available
+      ? "A score is available, but this fixture does not contain a reviewed intervention."
+      : `No action conclusion: ${performance.reason}`);
+  } else {
+    setText("action-title", action.title);
+    setText("action-rationale", action.rationale);
+    setText("action-impact", action.impact);
+    setText("action-confidence", action.confidence);
+    setText("action-owner", action.accountableRole);
+    setText("action-provenance", action.provenance);
+    setText("action-baseline", formatUsd(action.baselineUsd));
+    setText("action-target", formatUsd(action.targetUsd));
+    setText("action-estimate", formatUsd(action.estimatedSavingsUsd));
+    setText("action-realized", action.realizedSavingsUsd === null
+      ? "Not yet simulated" : formatUsd(action.realizedSavingsUsd));
+    setText("action-diagnosis", action.diagnosis);
+  }
 
   setText("trend-answer", trend.worsening === true
     ? "Yes. Cost rose while performance fell."
@@ -196,6 +242,10 @@ function renderDecisionSurface(data, departments) {
   const ranked = rankDepartmentsForHelp(departments);
   if (!ranked.length) {
     list?.append(element("li", "evidence-empty", "No departments are present in this bundled period."));
+    setText("detail-name", "No department result");
+    setText("detail-score", "Unavailable");
+    setText("detail-sample", "The bundled period contains no department records.");
+    renderUnavailableAction("No department records are available in this bundled period.");
     return;
   }
   ranked.forEach((department, index) => {
@@ -280,6 +330,13 @@ async function init() {
   } catch {
     setText("finops-provenance", "Demo data unavailable — the executive view will populate once the feed returns.");
     setText("score-value", "Score unavailable");
+    const list = document.getElementById("department-priority");
+    list?.replaceChildren(element("li", "evidence-empty",
+      "Bundled demo data could not be loaded. No live fallback was attempted."));
+    setText("detail-name", "Demo result unavailable");
+    setText("detail-score", "Unavailable");
+    setText("detail-sample", "The bundled static fixture could not be read.");
+    renderUnavailableAction("The bundled static fixture could not be read. No live analysis was attempted.");
     return;
   }
 
