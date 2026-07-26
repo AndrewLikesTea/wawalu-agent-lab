@@ -10,6 +10,8 @@ import subprocess
 import urllib.request
 from typing import Any
 
+from runner.generation_gateway import GenerationGateway
+
 
 class ConsultantCapacityExhausted(RuntimeError):
     """The consultant CLI stopped on a provider quota, not on a defect worth retrying.
@@ -96,16 +98,34 @@ def _extract_json(raw: str) -> dict[str, Any]:
     return value
 
 
-def qwen_json(prompt: str, output_path: pathlib.Path,
-              schema: dict[str, Any]) -> dict[str, Any]:
+def _qwen_transport(payload: dict[str, Any]) -> dict[str, Any]:
     request = urllib.request.Request(
         "http://127.0.0.1:11434/api/generate",
-        data=json.dumps({"model": QWEN_MODEL, "prompt": prompt, "stream": False,
-                         "think": False, "format": schema}).encode(),
+        data=json.dumps(payload).encode(),
         headers={"Content-Type": "application/json"}, method="POST",
     )
     with urllib.request.urlopen(request, timeout=900) as response:
-        envelope = json.load(response)
+        return json.load(response)
+
+
+def qwen_json(prompt: str, output_path: pathlib.Path,
+              schema: dict[str, Any]) -> dict[str, Any]:
+    payload = {"model": QWEN_MODEL, "prompt": prompt, "stream": False,
+               "think": False, "format": schema}
+    spool = os.environ.get("WAWALU_GENERATION_GATEWAY_DIR", "").strip()
+    if spool:
+        gateway = GenerationGateway(
+            pathlib.Path(spool),
+            sample_rate=float(os.environ.get("WAWALU_GENERATION_SAMPLE_RATE", "0")),
+            sample_seed=os.environ.get("WAWALU_GENERATION_SAMPLE_SEED", ""),
+            max_attempts=int(os.environ.get("WAWALU_GENERATION_MAX_ATTEMPTS", "3")),
+        )
+        request_id = gateway.enqueue(payload, operation="qwen_json")
+        if gateway.dispatch(request_id, _qwen_transport) is None:
+            raise RuntimeError(f"generation request {request_id} was claimed by another dispatcher")
+        envelope = gateway.result(request_id)["response"]
+    else:
+        envelope = _qwen_transport(payload)
     generated = str(envelope.get("response", ""))
     output_path.write_text(generated, encoding="utf-8")
     return _extract_json(generated)
