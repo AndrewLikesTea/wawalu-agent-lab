@@ -52,8 +52,46 @@ def run(command: list[str], cwd: pathlib.Path = ROOT, **kwargs):
     return subprocess.run(command, cwd=cwd, check=True, text=True, **kwargs)
 
 
-def output(command: list[str], cwd: pathlib.Path = ROOT) -> str:
-    return subprocess.check_output(command, cwd=cwd, text=True).strip()
+def output(command: list[str], cwd: pathlib.Path = ROOT, **kwargs) -> str:
+    return subprocess.check_output(command, cwd=cwd, text=True, **kwargs).strip()
+
+
+def push_branch(branch: str, worktree: pathlib.Path, env: dict[str, str]) -> None:
+    """Push the run's branch, replacing whatever an earlier attempt left behind.
+
+    Branch names come from persona and issue, so a retried issue pushes the same name
+    twice and the second push is rejected as non-fast-forward — throwing away a whole
+    paid worker session at its very last step. The branch is this run's alone and holds
+    exactly the diff the reviewer just approved, so replacing a stale tip is the right
+    move; the lease is read first so a ref that moved after we looked still wins.
+    """
+    attempt = subprocess.run(["git", "push", "--set-upstream", "origin", branch],
+                             cwd=worktree, env=env, text=True)
+    if not attempt.returncode:
+        return
+    stale = output(["git", "ls-remote", "origin", f"refs/heads/{branch}"], cwd=worktree, env=env)
+    if not stale:
+        raise RuntimeError(f"pushing {branch} failed and no remote branch explains it")
+    run(["git", "push", f"--force-with-lease={branch}:{stale.split()[0]}",
+         "--set-upstream", "origin", branch], cwd=worktree, env=env)
+
+
+def create_pull_request(command: list[str], branch: str, worktree: pathlib.Path,
+                        env: dict[str, str]) -> None:
+    """Open the pull request, tolerating one an earlier attempt already opened.
+
+    A retry that force-pushed its branch has already updated that open PR with the new
+    work, so `gh pr create` refusing a duplicate head is success, not failure.
+    """
+    attempt = subprocess.run(command, cwd=worktree, env=env, text=True)
+    if not attempt.returncode:
+        return
+    existing = output(["gh", "pr", "list", "--repo", REPOSITORY, "--head", branch,
+                       "--state", "open", "--json", "number", "--jq", ".[].number"],
+                      cwd=worktree, env=env)
+    if not existing:
+        raise RuntimeError(f"opening a pull request for {branch} failed and none is open")
+    print(f"reusing open pull request #{existing.splitlines()[0]} for {branch}")
 
 
 def collaborator_capacity_deferred(exit_code: int) -> bool:
@@ -334,15 +372,16 @@ Scenario: {json.dumps(scenario, indent=2)}
         push_env = os.environ.copy()
         push_env.update({"GIT_CONFIG_COUNT": "1", "GIT_CONFIG_KEY_0": "http.https://github.com/.extraheader",
                          "GIT_CONFIG_VALUE_0": "AUTHORIZATION: basic " + auth})
-        run(["git", "push", "--set-upstream", "origin", branch], cwd=worktree, env=push_env)
+        push_branch(branch, worktree, push_env)
         title = scenario.get("title", scenario["outcome"].splitlines()[0])[:100]
         pr_env = os.environ.copy(); pr_env["GH_TOKEN"] = github_token
         issue_line = f"\n\nCloses #{scenario['issue']}" if scenario.get("issue") else ""
         team_line = ("\n\nPaired with: " + ", ".join(behaviors["personas"][member]["name"] for member in collaborators[:1])
                      if collaborators else "")
-        run(["gh", "pr", "create", "--repo", REPOSITORY,
+        create_pull_request(["gh", "pr", "create", "--repo", REPOSITORY,
              "--base", "main", "--head", branch,
-             "--title", title, "--body", f"Synthetic team run: `{run_id}`{team_line}\n\nMerging to protected `main` triggers production deployment automatically.{issue_line}"], cwd=worktree, env=pr_env)
+             "--title", title, "--body", f"Synthetic team run: `{run_id}`{team_line}\n\nMerging to protected `main` triggers production deployment automatically.{issue_line}"],
+             branch, worktree, pr_env)
         peer = choose_peer_reviewer(persona, scenario_id)
         peer_name = behaviors["personas"][peer]["name"]
         focus = {
