@@ -15,6 +15,8 @@ import {
 } from "/evolution.js";
 import { formatIntegrationProvenance } from "/integration-contracts.js";
 import { createStaticGateway } from "/static-gateway.js";
+import { createFinancePortfolio } from "/finance-portfolio.js";
+import { mountFinancePortfolio, renderPortfolioUnavailable } from "/finance-portfolio-view.js";
 
 const DATA_URL = "/evolution-demo-data.json";
 const CATEGORY_VARS = {
@@ -41,6 +43,33 @@ function element(tag, className, text) {
 function setText(id, text) {
   const node = document.getElementById(id);
   if (node) node.textContent = text;
+}
+
+// The portfolio's DOM lives in finance-portfolio-view.js so its untrusted-text
+// handling can be exercised directly by a test; this layer only locates the
+// nodes and decides what to show when the data itself will not load.
+function renderFinancePortfolio(data) {
+  const list = document.getElementById("portfolio-list");
+  if (!list) return;
+  try {
+    mountFinancePortfolio(createFinancePortfolio(data), {
+      department: document.getElementById("portfolio-department"),
+      state: document.getElementById("portfolio-state"),
+      list,
+      projected: document.getElementById("portfolio-projected"),
+      completed: document.getElementById("portfolio-completed"),
+      verified: document.getElementById("portfolio-verified"),
+      count: document.getElementById("portfolio-count"),
+    });
+  } catch (error) {
+    // Lifecycle rows are validated one at a time, so reaching here means the
+    // action plan itself is unreadable. Say so in the panel instead of leaving
+    // the loading copy in place, and keep the reason in the console for review.
+    console.error("finance_portfolio_unavailable", { error: error?.message ?? String(error) });
+    setText("portfolio-count", "0 actions shown");
+    list.replaceChildren(renderPortfolioUnavailable(
+      "The bundled action lifecycle could not be read, so no savings figure is shown."));
+  }
 }
 
 function renderHeadline(organization, totals) {
@@ -342,6 +371,7 @@ async function init() {
 
   const departments = Array.isArray(data.departments) ? data.departments : [];
   const totals = summarize(departments);
+  renderFinancePortfolio(data);
   renderHeadline(data.organization ?? {}, totals);
   renderDecisionSurface(data, departments);
   renderMix(totals);

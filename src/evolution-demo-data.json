@@ -201,6 +201,11 @@
     {"sampleId":"syn-data-005","departmentId":"data-ml","category":"High-value","summary":"The analysis request defined its dataset boundary, method, and decision threshold.","scoredAt":"2026-07-25"},
     {"sampleId":"syn-sre-011","departmentId":"sre","category":"Over-provisioned","summary":"A one-line transformation was routed to a frontier model in the synthetic fixture.","scoredAt":"2026-07-25"}
   ],
+  "portfolioLifecycle": [
+    {"actionId":"action-backend-down-route-v1","status":"in_progress"},
+    {"actionId":"action-frontend-retry-workshop-v1","status":"completed","realizedImpact":{"value":2800,"periodRef":"period-2026-07-26-2026-08-25"}},
+    {"actionId":"action-quality-down-route-v1","status":"verified","realizedImpact":{"value":2196,"periodRef":"period-2026-07-26-2026-08-25"}}
+  ],
   "actionPlan": {
     "schemaVersion": "action-plan/1.0.0",
     "generatedAt": "2026-07-25",

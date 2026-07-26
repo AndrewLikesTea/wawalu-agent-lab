@@ -60,6 +60,47 @@
         </article>
       </section>
 
+      <section class="finops-panel portfolio-panel" aria-labelledby="portfolio-title">
+        <div class="portfolio-intro">
+          <div class="section-heading">
+            <p class="eyebrow">Finance leader action portfolio</p>
+            <h2 id="portfolio-title">Turn projected savings into verified results.</h2>
+            <p>One prioritized action per department, with lifecycle and evidence kept explicit.</p>
+          </div>
+          <div class="portfolio-filters" role="group" aria-label="Portfolio filters">
+            <div class="filter">
+              <label for="portfolio-department">Department</label>
+              <!-- Departments are refilled from the action plan on load so this list
+                   cannot go stale and dead-end the filter. -->
+              <select id="portfolio-department">
+                <option value="all">All departments</option>
+              </select>
+            </div>
+            <div class="filter">
+              <label for="portfolio-state">Lifecycle state</label>
+              <select id="portfolio-state">
+                <option value="all">All states</option>
+                <option value="planned">Planned</option>
+                <option value="in_progress">In progress</option>
+                <option value="completed">Completed</option>
+                <option value="verified">Verified</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="portfolio-summary" role="group" aria-label="Savings portfolio summary">
+          <div data-kind="projected"><span>Projected savings</span><strong id="portfolio-projected">—</strong></div>
+          <div data-kind="completed"><span>Completed savings (includes verified)</span><strong id="portfolio-completed">—</strong></div>
+          <div data-kind="verified"><span>Verified savings</span><strong id="portfolio-verified">—</strong></div>
+        </div>
+        <!-- The count is the only live region: it announces the result of a filter
+             change without re-reading every card, which the list would do. -->
+        <p class="portfolio-count" id="portfolio-count" role="status">Loading actions…</p>
+        <ol class="portfolio-list" id="portfolio-list" aria-label="Prioritized savings actions">
+          <li class="portfolio-empty">Loading the bundled action lifecycle…</li>
+        </ol>
+      </section>
+
       <section class="finops-panel decision-panel" aria-labelledby="department-title">
         <!-- Legacy coverage marker: the visible <label for="department-sort">Rank by</label>
              control was deliberately removed because intervention priority is metric-defined. -->
