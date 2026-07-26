@@ -1,0 +1,14 @@
+.state-panel { display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap:10px 12px; width:100%; min-height:150px; padding:32px 20px; color:#4f4f49; text-align:center; }
+.state-title,.state-value { color:#242420; font-size:16px; font-weight:750; }
+.state-spinner { width:24px; height:24px; flex:none; border:3px solid #9bbbd9; border-top-color:#174f83; border-radius:50%; animation:state-spin .8s linear infinite; }
+.state-summary,.state-guidance { flex-basis:100%; margin:0; }
+.state-summary { display:flex; justify-content:center; gap:7px; }
+.state-label { color:#5f5f59; font:750 11px/1.6 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; }
+.state-guidance { max-width:560px; color:#5f5f59; line-height:1.55; }
+.state-action { display:inline-flex; align-items:center; justify-content:center; min-height:44px; margin-top:6px; border:1px solid #174f83; border-radius:9px; padding:10px 16px; background:#fff; color:#174f83; font:750 13px/1 system-ui,sans-serif; text-decoration:none; cursor:pointer; }
+.state-action:hover { background:#e9f1f8; }
+.state-action:focus-visible { outline:3px solid #8abbe9; outline-offset:2px; }
+.state-panel-error { border:1px solid #d6b9b5; border-radius:10px; background:#fbf3f1; }
+.state-panel-error .state-value { color:#6e302c; }
+@keyframes state-spin { to { transform:rotate(360deg); } }
+@media(prefers-reduced-motion:reduce) { .state-spinner { animation:none; border-color:#174f83; border-right-color:transparent; } }

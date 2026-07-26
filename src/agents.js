@@ -1,3 +1,5 @@
+import { renderState } from "./state-ui.js";
+
 // The team now iterates on an external product (paint-lab); the lab repo still
 // carries runner and process activity, so the observatory watches both.
 const EVENTS_URLS = [
@@ -172,9 +174,17 @@ export function safeActivityUrl(value) {
 
 export function renderEvents(list, events) {
   list.replaceChildren();
+  list.setAttribute("aria-busy", "false");
   const visible = events.map((event) => ({ event, item: describeEvent(event) })).filter(({ item }) => item);
   if (!visible.length) {
-    appendText(list, "li", "activity-empty", "No recent agent activity is public yet.");
+    renderState(list, {
+      state: "empty",
+      item: true,
+      label: "Activity status",
+      value: "No public activity yet.",
+      description: "Check back after the team publishes repository work.",
+      action: { label: "View the repository", href: "https://github.com/AndrewLikesTea/wawalu-agent-lab" },
+    });
     return 0;
   }
   for (const { event, item } of visible.slice(0, 16)) {
@@ -203,6 +213,11 @@ export async function loadActivity(root = document, fetcher = fetch) {
   const label = root.querySelector("#connection-label");
   const updated = root.querySelector("#last-updated");
   status.textContent = "Refreshing public repository activity…";
+  const hasEvents = Boolean(list.querySelector?.(".activity-item"));
+  if (!hasEvents) {
+    list.setAttribute("aria-busy", "true");
+    renderState(list, { state: "loading", item: true, title: "Loading recent activity…" });
+  }
   try {
     const responses = await Promise.all(EVENTS_URLS.map(
       (url) => fetcher(url, { headers: { Accept: "application/vnd.github+json" } }),
@@ -221,8 +236,19 @@ export async function loadActivity(root = document, fetcher = fetch) {
   } catch {
     status.textContent = "Public activity is temporarily unavailable. Existing product data is unaffected.";
     signal.dataset.connected = "false";
-    label.textContent = "Signal paused";
-    updated.textContent = "Try again shortly";
+    label.textContent = "Connection status: paused";
+    updated.textContent = "Last request: failed";
+    if (!hasEvents) {
+      list.setAttribute("aria-busy", "false");
+      renderState(list, {
+        state: "error",
+        item: true,
+        label: "Activity error",
+        value: "Repository activity unavailable.",
+        description: "Existing product data is unaffected. Retry the public request.",
+        action: { label: "Retry activity", onClick: () => loadActivity(root, fetcher) },
+      });
+    }
   }
 }
 
@@ -238,6 +264,7 @@ export function renderDemoData(root, data) {
   const personas = root.querySelector("#persona-list");
   const trace = root.querySelector("#prompt-trace");
   personas.replaceChildren();
+  personas.setAttribute("aria-busy", "false");
   data.personas.forEach((persona, index) => {
     const row = document.createElement("li");
     appendText(row, "span", "", String(index + 1).padStart(2, "0"));
@@ -254,6 +281,7 @@ export function renderDemoData(root, data) {
   });
 
   trace.replaceChildren();
+  trace.setAttribute("aria-busy", "false");
   const heading = document.createElement("div");
   heading.className = "trace-heading";
   appendText(heading, "strong", "", `${data.run.personaName} · ${data.run.personaRole}`);
@@ -276,9 +304,22 @@ export async function loadDemoData(root = document, fetcher = fetch) {
 if (typeof document !== "undefined") {
   const refresh = () => loadActivity();
   document.querySelector("#refresh-activity")?.addEventListener("click", refresh);
+  renderState(document.querySelector("#persona-list"), { state: "loading", item: true, title: "Loading demo personas…" });
+  renderState(document.querySelector("#prompt-trace"), { state: "loading", title: "Loading published prompt trace…" });
   refresh();
   loadDemoData().catch(() => {
-    document.querySelector("#prompt-trace").textContent = "Published demo prompts are temporarily unavailable.";
+    const personas = document.querySelector("#persona-list");
+    const trace = document.querySelector("#prompt-trace");
+    personas.setAttribute("aria-busy", "false");
+    trace.setAttribute("aria-busy", "false");
+    renderState(personas, {
+      state: "error", item: true, label: "Persona error", value: "Demo personas unavailable.",
+      description: "Refresh the page to retry the static demo data.",
+    });
+    renderState(trace, {
+      state: "error", label: "Prompt error", value: "Published prompt trace unavailable.",
+      description: "Refresh the page to retry the static demo data.",
+    });
   });
   setInterval(refresh, REFRESH_MS);
 }
