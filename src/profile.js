@@ -174,6 +174,8 @@ export function countLabel(count, singular, plural = `${singular}s`) {
   return `${count} ${count === 1 ? singular : plural}`;
 }
 
+const EMPTY_PROFILE_MESSAGE = "You haven’t posted anything yet. Start by sharing an image.";
+
 /* ------------------------------ rendering layer --------------------------- */
 // Everything below touches the DOM. Text is written via textContent only.
 
@@ -275,14 +277,14 @@ function renderSkeleton(container, count = 6) {
 
 function renderEmpty(container, { author, hasTextPosts }) {
   const empty = el("div", "empty-state");
-  empty.append(el("p", "empty-title", "No image posts yet."));
+  empty.append(el("p", "empty-title", hasTextPosts ? "No image posts yet." : EMPTY_PROFILE_MESSAGE));
   // The two empty states are genuinely different situations, and telling them
   // apart is the difference between "you posted, just without pictures" and
   // "this profile is blank".
   empty.append(el("p", undefined, hasTextPosts
     ? `${author} has posted, but none of those posts carry an image. Posts with an image appear here.`
     : "Share a post with an image on the team feed and it will appear here."));
-  const link = el("a", "empty-action", "Go to the team feed");
+  const link = el("a", "empty-action", "Share your first post");
   link.href = "/social.html";
   empty.append(link);
   container.append(empty);
@@ -333,6 +335,10 @@ export function renderProfileHeader(elements, author, summary) {
   }
   if (elements.name) elements.name.textContent = author;
   if (elements.summary) {
+    if (summary.total === 0) {
+      elements.summary.textContent = EMPTY_PROFILE_MESSAGE;
+      return;
+    }
     const parts = [countLabel(summary.withImages, "image post"), `${countLabel(summary.total, "post")} in total`];
     if (summary.latest) parts.push(`last posted ${formatDate(summary.latest)}`);
     elements.summary.textContent = parts.join(" · ");
@@ -372,11 +378,17 @@ export function mountProfile(root, options = {}) {
       hasTextPosts: summary.total > summary.withImages,
       onRetry: options.onRetry,
     });
-    if (elements.count) elements.count.textContent = countLabel(mine.length, "image post");
+    if (elements.count) {
+      elements.count.textContent = summary.total === 0
+        ? EMPTY_PROFILE_MESSAGE
+        : countLabel(mine.length, "image post");
+    }
     if (elements.announcer && state === "ready") {
       elements.announcer.textContent = mine.length
         ? `Showing ${countLabel(mine.length, "image post")} by ${author}.`
-        : `${author} has no image posts yet.`;
+        : summary.total === 0
+          ? EMPTY_PROFILE_MESSAGE
+          : `${author} has no image posts yet.`;
     }
     if (options.onRender) options.onRender({ author, posts: mine, summary });
   };
