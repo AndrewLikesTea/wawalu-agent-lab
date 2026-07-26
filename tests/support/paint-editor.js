@@ -108,7 +108,7 @@ function twoDimensionalCanvas(bitmap) {
   return { context, operations };
 }
 
-export function createPaintHarness({ createImageBitmap } = {}) {
+export function createPaintHarness({ createImageBitmap, exportBlob } = {}) {
   const { gl, uploads } = webGl();
   const frame = element();
   const statusLine = element();
@@ -179,7 +179,7 @@ export function createPaintHarness({ createImageBitmap } = {}) {
           operations,
           getContext: () => context,
           toBlob(callback, type) {
-            callback(new Blob(["png"], { type }));
+            callback(exportBlob ?? new Blob(["png"], { type }));
           },
         });
       }
