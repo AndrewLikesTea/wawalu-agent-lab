@@ -18,6 +18,19 @@ test("product has a health endpoint and accessible title", async () => {
   assert.match(html, /<label for="filter-owner">Filter by owner:<\/label>\s*<select id="filter-owner">\s*<option value="all">all<\/option>/);
 });
 
+test("homepage explains the decision-to-release value and links to live examples", async () => {
+  const html = await readFile(new URL("../src/index.html", import.meta.url), "utf8");
+
+  assert.match(html, /Know why it shipped\./);
+  assert.match(html, /record decisions and track the releases/);
+  assert.match(html, /id="decision-to-release"/);
+  assert.match(html, /Keep reasoning with the work/);
+  assert.match(html, /data-proof-point="decision-to-release"/);
+  assert.match(html, /data-conversion-slot="hero"/);
+  assert.match(html, /href="\/decision\.html\?id=demo-queue"/);
+  assert.match(html, /href="\/release\.html\?id=demo-r-1-3-0"/);
+});
+
 test("security headers ship with the site", async () => {
   const headers = await readFile(new URL("../src/_headers", import.meta.url), "utf8");
   assert.match(headers, /Content-Security-Policy:.*script-src 'self'/);
