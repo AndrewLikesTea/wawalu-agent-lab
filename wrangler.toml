@@ -2,8 +2,12 @@ name = "wawalu-agent-lab"
 pages_build_output_dir = "dist"
 compatibility_date = "2026-07-13"
 
-[images]
-binding = "IMAGES"
+# No [images] block: `wrangler pages deploy` fails configuration validation with
+# `Configuration file for Pages projects does not support "images"`, so declaring
+# the Images binding here made every production deploy exit 1 while CI stayed
+# green -- main kept merging and the live site kept serving the last good build.
+# The IMAGES binding is optional in src/bindings.js (/api/image/export returns 503
+# without it), so it stays dashboard-configured until Pages supports it in config.
 
 # The posts and social-post APIs require this binding; `/healthz` fails closed
 # without it, which is what kept every production smoke test red. Declared here
