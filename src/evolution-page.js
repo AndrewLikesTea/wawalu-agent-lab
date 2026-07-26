@@ -21,7 +21,8 @@ import {
   renderFinopsEvaluationPanel, renderFinopsEvaluationUnavailable,
 } from "/finops-evaluation-view.js";
 import {
-  localFinopsJsonExport, localFinopsMeetingSummary, normalizeLocalFinops, parseLocalFinopsFile,
+  localFinopsJsonExport, localFinopsMeetingSummary, normalizeLocalFinopsHistory,
+  parseLocalFinopsFile,
 } from "/local-finops.js";
 import { headlineTrust } from "/finops-display.js";
 
@@ -93,7 +94,7 @@ function mountLocalFinopsImport() {
   const stateNode = document.getElementById("local-import-state");
   const resultsNode = document.getElementById("local-results");
   const clear = document.getElementById("clear-local-analysis");
-  const loaded = {};
+  const loaded = { providers: new Map() };
   let result = null;
 
   const announce = (state, title, copy) => {
@@ -102,6 +103,47 @@ function mountLocalFinopsImport() {
       element("strong", undefined, title),
       element("span", undefined, copy),
     );
+  };
+  const renderDepartment = (department, buttons) => {
+    buttons.forEach((button) =>
+      button.setAttribute("aria-pressed", String(button.dataset.departmentId === department.id)));
+    setText("local-detail-name", department.name);
+    setText("local-detail-why",
+      `${department.recoverableUsd.toFixed(2)} USD is the largest disclosed routing scenario for this department. `
+      + "It matters because the action can be bounded and checked without inspecting prompt content.");
+    const trend = department.trendAvailable
+      ? `${department.spendChangePercent > 0 ? "+" : ""}${department.spendChangePercent}% `
+        + `(${department.spendChangeUsd >= 0 ? "+" : "−"}${Math.abs(department.spendChangeUsd).toFixed(2)} USD)`
+      : `Unavailable · ${department.trendReason}`;
+    document.getElementById("local-detail-facts")?.replaceChildren(
+      definitionTerm("Current impact", `${department.spendUsd.toFixed(2)} USD observed · ${department.recoverableUsd.toFixed(2)} USD scenario`),
+      definitionTerm("Confidence", `${result.confidence} · coarse billing category scenario`),
+      definitionTerm("Trend", trend),
+      definitionTerm("Provenance", `${department.records} joined aggregate${department.records === 1 ? "" : "s"} · ${result.period}`),
+    );
+  };
+  const renderDepartments = (next) => {
+    const list = document.getElementById("local-department-list");
+    list?.replaceChildren();
+    const buttons = next.rankedDepartments.map((department, index) => {
+      const button = element("button", "local-department-choice");
+      button.type = "button";
+      button.dataset.departmentId = department.id;
+      button.setAttribute("aria-pressed", String(index === 0));
+      button.append(
+        element("span", undefined, `${String(index + 1).padStart(2, "0")} · ${department.name}`),
+        element("strong", undefined, `${department.recoverableUsd.toFixed(2)} USD`),
+      );
+      button.addEventListener("click", () => renderDepartment(department, buttons));
+      list?.append(button);
+      return button;
+    });
+    if (next.topDepartment) renderDepartment(next.topDepartment, buttons);
+    else {
+      setText("local-detail-name", "No joined department evidence");
+      setText("local-detail-why", "No active HRIS unit matched a provider aggregate.");
+      document.getElementById("local-detail-facts")?.replaceChildren();
+    }
   };
   const renderResult = (next) => {
     result = next;
@@ -116,6 +158,25 @@ function mountLocalFinopsImport() {
     setText("local-action", next.action);
     setText("local-provenance",
       `${next.provenance} Confidence is ${next.confidence.toLowerCase()} because the estimate uses coarse billing categories, not prompt content.`);
+    const trend = next.history;
+    const trendState = document.getElementById("local-trend-state");
+    if (trendState) trendState.dataset.state = trend.state;
+    setText("local-trend-answer", trend.organizationTrendAvailable
+      ? `${trend.organizationSpendChangePercent > 0 ? "+" : ""}${trend.organizationSpendChangePercent}% organization spend`
+      : trend.state === "incompatible" ? "Incompatible periods"
+        : trend.state === "missing" ? "Missing history" : "Trend unavailable");
+    setText("local-trend-why", trend.organizationTrendAvailable
+      ? `${trend.currentPeriod} versus ${trend.previousPeriod}. ${trend.message}`
+      : trend.state === "available"
+        ? "The preceding organization period has no positive spend, so percentage change is undefined."
+        : trend.message);
+    setText("local-benchmark-answer", "Unavailable benchmark");
+    setText("local-benchmark-why", next.benchmark.message);
+    fillTextList("local-periods", trend.periods.map((period) =>
+      `${period.period} · ${period.spendUsd.toFixed(2)} USD observed · `
+      + `${period.recoverableUsd.toFixed(2)} USD scenario · ${period.completeness} export · ${period.exportId}`),
+    "No provider periods available.");
+    renderDepartments(next);
     setText("local-warning-count", `(${next.warnings.length})`);
     fillTextList("local-assumptions", next.assumptions, "No mapping assumptions.");
     fillTextList("local-warnings", next.warnings, "No declared data-quality warnings.");
@@ -129,7 +190,7 @@ function mountLocalFinopsImport() {
     resultsNode.focus?.();
   };
   const reset = () => {
-    delete loaded.provider;
+    loaded.providers.clear();
     delete loaded.hris;
     result = null;
     input.value = "";
@@ -153,15 +214,20 @@ function mountLocalFinopsImport() {
     try {
       for (const file of files) {
         const parsed = parseLocalFinopsFile(await file.text(), file.name, file.type);
-        loaded[parsed.type] = parsed;
+        if (parsed.type === "provider")
+          loaded.providers.set(parsed.document.export_id, parsed);
+        else loaded.hris = parsed;
       }
-      if (!loaded.provider || !loaded.hris) {
-        const missing = loaded.provider ? "HRIS mapping" : "provider export";
+      if (!loaded.providers.size || !loaded.hris) {
+        const missing = loaded.providers.size ? "HRIS mapping" : "provider export";
         announce("ready", `${files.length} compatible file${files.length === 1 ? "" : "s"} ready.`,
           `Add the ${missing}; sample analysis remains visible.`);
         return;
       }
-      renderResult(normalizeLocalFinops(loaded));
+      renderResult(normalizeLocalFinopsHistory({
+        providers: [...loaded.providers.values()],
+        hris: loaded.hris,
+      }));
     } catch (error) {
       announce("error", "This file was not analyzed.",
         `${error.message} Existing analysis was not replaced; choose a manifest-compatible JSON export.`);

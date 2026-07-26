@@ -64,7 +64,7 @@
           <div class="section-heading">
             <p class="eyebrow">Bring your own exports · browser only</p>
             <h2 id="local-import-title">Analyze provider spend without uploading it.</h2>
-            <p>Select one manifest-compatible provider export and one HRIS mapping. Both must be UTF-8 JSON v1 contract envelopes; CSV, spreadsheets, NDJSON, and unknown fields are refused.</p>
+            <p>Select one or more manifest-compatible provider exports and one HRIS mapping. Two contiguous, equal-length provider periods unlock a like-for-like trend; a single period keeps the current decision brief unchanged.</p>
           </div>
           <span class="sample-badge" id="analysis-mode">Sample mode</span>
         </div>
@@ -74,9 +74,9 @@
         </div>
         <div class="local-import-controls">
           <div>
-            <label for="local-finops-files">Provider export + HRIS mapping</label>
+            <label for="local-finops-files">Provider period(s) + HRIS mapping</label>
             <input id="local-finops-files" type="file" accept=".json,application/json" multiple aria-describedby="local-file-help" />
-            <p id="local-file-help">Choose both files together or add them one at a time. A valid pair replaces the sample analysis below.</p>
+            <p id="local-file-help">Choose files together or add them in batches. Provider periods must use the same source; all processing and state stay in this tab.</p>
           </div>
           <button id="clear-local-analysis" type="button" hidden>Return to sample</button>
         </div>
@@ -85,7 +85,7 @@
           <span>The bundled synthetic analysis remains visible until both compatible exports are ready.</span>
         </div>
 
-        <section class="local-results" id="local-results" aria-labelledby="local-results-title" hidden>
+        <section class="local-results" id="local-results" tabindex="-1" aria-labelledby="local-results-title" hidden>
           <div class="local-result-heading">
             <div>
               <p class="eyebrow">Imported result</p>
@@ -102,11 +102,42 @@
             <div><span>Confidence</span><strong id="local-confidence">—</strong></div>
           </div>
           <article class="local-priority">
-            <p class="eyebrow">Priority 01 · next action</p>
+            <p class="eyebrow">Attention now · priority 01</p>
             <h4 id="local-action">Waiting for a supported pair…</h4>
             <p id="local-provenance"></p>
           </article>
+          <div class="local-state-grid" aria-label="Longitudinal analysis states">
+            <article id="local-trend-state">
+              <p class="eyebrow">Material trend</p>
+              <h4 id="local-trend-answer">History not yet analyzed</h4>
+              <p id="local-trend-why"></p>
+            </article>
+            <article id="local-benchmark-state">
+              <p class="eyebrow">Benchmark</p>
+              <h4 id="local-benchmark-answer">Unavailable</h4>
+              <p id="local-benchmark-why"></p>
+            </article>
+          </div>
+          <section class="local-department-evidence" aria-labelledby="local-departments-title">
+            <div>
+              <p class="eyebrow">Progressive disclosure</p>
+              <h4 id="local-departments-title">Department evidence</h4>
+              <p>Select a department to inspect the current impact and its like-for-like trajectory.</p>
+            </div>
+            <div class="local-department-layout">
+              <div id="local-department-list" class="local-department-list" role="group" aria-label="Departments ordered by recoverable scenario"></div>
+              <article id="local-department-detail" class="local-department-detail" aria-live="polite">
+                <h5 id="local-detail-name">No department selected</h5>
+                <p id="local-detail-why"></p>
+                <dl id="local-detail-facts"></dl>
+              </article>
+            </div>
+          </section>
           <div class="local-disclosures">
+            <details>
+              <summary>Period-level detail</summary>
+              <ol id="local-periods"></ol>
+            </details>
             <details>
               <summary>Mapping assumptions</summary>
               <ul id="local-assumptions"></ul>
