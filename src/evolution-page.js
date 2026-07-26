@@ -13,10 +13,8 @@ import {
   letterGrade, literacyScore, quartileLabel, rankDepartmentsForHelp,
   recoverableSpendUsd, redactForScoring, summarize,
 } from "/evolution.js";
-import {
-  formatIntegrationProvenance,
-  loadIntegrationFixtureInspection,
-} from "/integration-contracts.js";
+import { formatIntegrationProvenance } from "/integration-contracts.js";
+import { createStaticGateway } from "/static-gateway.js";
 
 const DATA_URL = "/evolution-demo-data.json";
 const CATEGORY_VARS = {
@@ -256,14 +254,25 @@ async function loadData() {
 
 async function init() {
   if (!document.getElementById("department-priority")) return;
-  loadIntegrationFixtureInspection()
-    .then((inspection) => {
-      setText("integration-contract-provenance", formatIntegrationProvenance(inspection));
-    })
-    .catch(() => {
+  const gateway = createStaticGateway();
+  const refreshGateway = document.getElementById("integration-gateway-refresh");
+  gateway.subscribe(({ status, inspection, metadata }) => {
+    if (refreshGateway) refreshGateway.disabled = status === "pending";
+    if (status === "pending") {
       setText("integration-contract-provenance",
-        "Contract fixtures unavailable · demo remains isolated from credentials and live enterprise calls");
-    });
+        `Gateway pending · ${metadata.sourceType} · sample ${metadata.sampleWindow} · freshness ${metadata.freshness} · failure none`);
+      return;
+    }
+    if (status === "completed") {
+      setText("integration-contract-provenance",
+        `Gateway completed · ${formatIntegrationProvenance(inspection)} · sample ${metadata.sampleWindow} · freshness ${metadata.freshness} · failure ${metadata.failureState}`);
+      return;
+    }
+    setText("integration-contract-provenance",
+      `Gateway unavailable · ${metadata.sourceType} · sample ${metadata.sampleWindow} · freshness ${metadata.freshness} · failure ${metadata.failureState} · no live fallback`);
+  });
+  refreshGateway?.addEventListener("click", () => gateway.refresh());
+  gateway.refresh();
 
   let data;
   try {
