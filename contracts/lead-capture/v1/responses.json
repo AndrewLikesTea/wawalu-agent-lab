@@ -1,0 +1,118 @@
+{
+  "$comment": "Response contract for the field-note lead capture endpoint. The browser client (src/lead-capture.js) maps `code` to copy it owns; it never renders `message`, which is for logs and non-browser API consumers only. tests/leads.test.js drives the real handler and adapter to prove every entry below is still what the endpoint actually returns.",
+  "schema_version": "1.0",
+  "kind": "wawalu.lead-capture.response",
+  "endpoint": "POST /api/leads",
+  "request": {
+    "content_type": "application/json",
+    "body": { "email": "string, trimmed and lowercased server-side, max 254 chars" }
+  },
+  "response_headers": {
+    "content-type": "application/json; charset=utf-8",
+    "cache-control": "no-store",
+    "x-request-id": "echoes cf-ray when present, otherwise a generated id"
+  },
+  "captured_values": {
+    "true": "The address is stored. Safe to tell the visitor they are on the list.",
+    "false": "The address is definitely not stored. Safe to tell the visitor it was not saved.",
+    "unknown": "The origin may or may not have stored the address. The page must claim neither capture nor loss."
+  },
+  "success": [
+    {
+      "id": "created",
+      "status": 201,
+      "body": { "subscribed": true },
+      "captured": true,
+      "meaning": "First time this address was seen; a row was inserted."
+    },
+    {
+      "id": "already_subscribed",
+      "status": 200,
+      "body": { "subscribed": false },
+      "captured": true,
+      "meaning": "Address was already on the list. Still a success for the visitor; `subscribed:false` reports insert-vs-noop, not failure."
+    }
+  ],
+  "errors": [
+    {
+      "id": "invalid_email",
+      "code": "invalid_email",
+      "status": 422,
+      "origin": "application",
+      "captured": false,
+      "retryable": true,
+      "meaning": "Body parsed but the address failed normalization (empty, malformed, or over 254 chars)."
+    },
+    {
+      "id": "invalid_json",
+      "code": "invalid_json",
+      "status": 400,
+      "origin": "application",
+      "captured": false,
+      "retryable": true,
+      "meaning": "Request body was not valid JSON. Not reachable from the shipped form; guards other callers."
+    },
+    {
+      "id": "unsupported_media_type",
+      "code": "unsupported_media_type",
+      "status": 415,
+      "origin": "application",
+      "captured": false,
+      "retryable": true,
+      "meaning": "Content-Type was not application/json."
+    },
+    {
+      "id": "method_not_allowed",
+      "code": "method_not_allowed",
+      "status": 405,
+      "origin": "application",
+      "captured": false,
+      "retryable": false,
+      "meaning": "Non-POST method. Responds with an Allow: POST header."
+    },
+    {
+      "id": "storage_error",
+      "code": "storage_error",
+      "status": 500,
+      "origin": "application",
+      "captured": false,
+      "retryable": true,
+      "meaning": "The store threw. The insert did not commit, so the address is definitely not stored. Underlying error detail is never included in the body."
+    },
+    {
+      "id": "storage_unavailable",
+      "code": "storage_unavailable",
+      "status": 503,
+      "origin": "deployment-adapter",
+      "captured": false,
+      "retryable": true,
+      "meaning": "functions/api/leads.js found no DB binding, so the request never reached the handler. Retrying immediately fails identically; the page must offer a recovery action rather than a bare retry."
+    }
+  ],
+  "intermediary_responses": [
+    {
+      "id": "rate_limited",
+      "status": 429,
+      "origin": "intermediary",
+      "captured": false,
+      "retryable": true,
+      "meaning": "No application code emits 429. Only an edge rate limiter can, and it blocks before the origin, so nothing was stored. The client keys this off status alone because there is no application `code` to key off."
+    },
+    {
+      "id": "gateway_failure",
+      "status": "any non-2xx without a recognized application `code`",
+      "origin": "intermediary",
+      "captured": "unknown",
+      "retryable": true,
+      "meaning": "A proxy, CDN, or error page answered. It may have failed before or after the origin ran, so capture is unknown. Body may not be JSON at all. The client must treat this as unconfirmed, not as a definite failure, and must not render the body."
+    },
+    {
+      "id": "unreachable",
+      "status": "no response",
+      "origin": "transport",
+      "captured": "unknown",
+      "retryable": true,
+      "meaning": "fetch rejected or the client-side timeout fired. The request may already have reached the origin and committed, so the page must not claim the address was lost."
+    }
+  ]
+}
