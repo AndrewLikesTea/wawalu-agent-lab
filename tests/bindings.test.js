@@ -56,6 +56,7 @@ test("binding inspection reports storage against the contract", () => {
     AGENT_TOKENS: "unbound",
     SOCIAL_MEDIA_BUCKET: "unbound",
     SOCIAL_POST_RATE_LIMIT: "unbound",
+    IMAGE_UPLOAD_RATE_LIMIT: "unbound",
   });
   assert.equal(inspectBindings({}).storage, "unconfigured");
   // The image bucket is optional: unbound, image bytes fall back to D1, so it

@@ -32,8 +32,19 @@ export const BINDING_CONTRACT = Object.freeze([
     name: "SOCIAL_MEDIA_BUCKET",
     kind: "r2",
     required: false,
-    purpose: "Object storage for social post image bytes.",
+    // Named for its first caller. It is now the shared media bucket for every
+    // namespace (/api/social-posts images and /api/images alike), which is why
+    // keys carry a namespace prefix. Renaming the binding is an operations
+    // change agents cannot make; the name is cosmetic and the key space is not.
+    purpose: "Object storage for image bytes, shared across media namespaces.",
     privilege: "Read/write on this project's media bucket only. When absent, image bytes fall back to the bounded social_media_blobs table in D1, so the feature degrades in capacity rather than availability.",
+  }),
+  Object.freeze({
+    name: "IMAGE_UPLOAD_RATE_LIMIT",
+    kind: "var",
+    required: false,
+    purpose: "Positive integer upload budget per principal per minute for /api/images. Defaults to 10.",
+    privilege: "Plain configuration value; carries no credential.",
   }),
   Object.freeze({
     name: "SOCIAL_POST_RATE_LIMIT",
