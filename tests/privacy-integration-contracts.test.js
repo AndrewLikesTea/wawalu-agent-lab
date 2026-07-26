@@ -121,6 +121,9 @@ test("the AI FinOps inspection surface exposes contract provenance", async () =>
     readFile(new URL("../src/evolution-page.js", import.meta.url), "utf8"),
   ]);
   assert.match(page, /id="integration-contract-provenance"/);
-  assert.match(pageScript, /loadIntegrationFixtureInspection/);
-  assert.match(pageScript, /Contract fixtures unavailable/);
+  assert.match(page, /id="integration-gateway-refresh"/);
+  assert.match(pageScript, /createStaticGateway/);
+  assert.match(pageScript, /Gateway unavailable/);
+  assert.match(pageScript, /Gateway pending/);
+  assert.match(pageScript, /Gateway completed/);
 });
