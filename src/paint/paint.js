@@ -25,6 +25,17 @@ export function persistTheme(storage, theme) {
   }
 }
 
+export function normalizedOpacity(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.max(0, Math.min(100, Math.round(number))) : 100;
+}
+
+export const supportedBlendModes = new Set(["normal", "multiply", "screen", "overlay", "darken", "lighten"]);
+
+export function normalizedBlendMode(value) {
+  return supportedBlendModes.has(value) ? value : "normal";
+}
+
 export function applyTheme(root, button, theme) {
   const dark = theme === "dark";
   root.dataset.theme = dark ? "dark" : "light";
@@ -107,6 +118,33 @@ export function initEditor(root = document, environment = globalThis) {
   const viewport = canvas.closest(".canvas-viewport");
   const prompt = root.querySelector("#drop-prompt");
   const fileInput = root.querySelector("#file-input");
+  const opacity = root.querySelector("#layer-opacity");
+  const opacityValue = root.querySelector("#layer-opacity-value");
+  const blendMode = root.querySelector("#blend-mode");
+  const visibility = root.querySelector("#layer-visibility");
+  let layerVisible = true;
+
+  function updateLayerAppearance(message) {
+    const amount = normalizedOpacity(opacity.value);
+    const mode = normalizedBlendMode(blendMode.value);
+    opacity.value = String(amount);
+    opacityValue.textContent = `${amount}%`;
+    canvas.style.opacity = String(amount / 100);
+    canvas.style.mixBlendMode = mode;
+    if (message) root.querySelector("#save-state").textContent = message;
+  }
+
+  opacity.addEventListener("input", () => updateLayerAppearance(`Layer opacity ${normalizedOpacity(opacity.value)}%`));
+  blendMode.addEventListener("change", () => {
+    updateLayerAppearance(`${blendMode.options?.[blendMode.selectedIndex]?.text ?? blendMode.value} blend mode`);
+  });
+  visibility.addEventListener("click", () => {
+    layerVisible = !layerVisible;
+    visibility.setAttribute("aria-pressed", String(layerVisible));
+    visibility.setAttribute("aria-label", `${layerVisible ? "Hide" : "Show"} Bitmap layer`);
+    frame.classList.toggle("is-layer-hidden", !layerVisible);
+    root.querySelector("#save-state").textContent = layerVisible ? "Layer shown" : "Layer hidden";
+  });
 
   function updateDocumentUi() {
     root.querySelector("#document-width").textContent = `${image.width} px`;
@@ -288,8 +326,15 @@ export function initEditor(root = document, environment = globalThis) {
   });
   environment.addEventListener?.("resize", scheduleRender);
   updateDocumentUi();
+  updateLayerAppearance();
   scheduleRender();
-  return { get document() { return image; }, render: scheduleRender };
+  return {
+    get document() { return image; },
+    get layerAppearance() {
+      return { opacity: normalizedOpacity(opacity.value), blendMode: normalizedBlendMode(blendMode.value), visible: layerVisible };
+    },
+    render: scheduleRender,
+  };
 }
 
 if (typeof document !== "undefined") {
