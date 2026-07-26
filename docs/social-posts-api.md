@@ -71,7 +71,10 @@ holds an uploaded image and no post — an image nothing references and nothing
 will reclaim. `image` and `media_id` are mutually exclusive; sending both is a
 `422`, because merging them would mean guessing which image the caller meant.
 
-Inline validation errors are reported per field under the `image.` prefix
+Inline Paint images accept only `image/png` and `image/jpeg`. The separate
+two-step media uploader remains compatible with GIF and WebP files, but
+generated content has a deliberately smaller contract matching Paint's export
+formats. Inline validation errors are reported per field under the `image.` prefix
 (`image.data`, `image.alt`, `image.content_type`, `image.dimensions`), so a
 client can point at the field the user has to fix.
 
@@ -84,8 +87,9 @@ are therefore only two: a post with its image, or no post and no image. A failed
 byte or metadata write answers `503` (retry the whole post); a post row that
 fails after the image committed answers `500` with the image already discarded.
 
-Content types are limited to `image/png`, `image/jpeg`, `image/gif`, and
-`image/webp`, capped at 512 KB. The declared type is not trusted: the leading
+The general media uploader accepts `image/png`, `image/jpeg`, `image/gif`, and
+`image/webp`; inline Paint images accept PNG and JPEG. Both are capped at 512
+KB. The declared type is not trusted: the leading
 bytes must match it, so a document cannot be parked in storage behind an image
 label. SVG is absent from the allowlist because it is a script host, and
 PRODUCT.md forbids executing user-generated markup. `alt` is mandatory — an

@@ -272,6 +272,29 @@ test("a post can carry its image inline and lands as one indistinguishable recor
   assert.equal((await api.posts("POST", "/api/social-posts", { body: { author: "Priya", content: "x", image: upload }, token: "nobody" })).status, 401);
 });
 
+test("inline Paint images accept JPEG and use the existing canonical storage path", async () => {
+  const api = harness();
+  const jpeg = {
+    content_type: "image/jpeg",
+    // Transport whitespace is accepted, but only decoded bytes reach storage.
+    data: " /9j/\n2Q== ",
+    alt: "A tiny generated JPEG.",
+  };
+  const created = await api.posts("POST", "/api/social-posts", {
+    body: {
+      author: "Priya", content: "Painted in JPEG.", timestamp: "2026-07-18T11:59:00Z",
+      source: "paint", image: jpeg,
+    },
+  });
+
+  assert.equal(created.status, 201, created.text);
+  const mediaId = created.json.post.image_url.split("/")[3];
+  const object = await api.stores.media.get(mediaId);
+  assert.equal(object.content_type, "image/jpeg");
+  assert.equal(object.storage_key, `social-media/${mediaId}.jpg`);
+  assert.deepEqual([...((await api.stores.blobs.get(object.storage_key)).bytes)], [0xff, 0xd8, 0xff, 0xd9]);
+});
+
 test("inline images are held to the upload rules, and a rejected post stores nothing", async () => {
   const api = harness();
   const body = { author: "Priya", content: "Painted this.", timestamp: "2026-07-18T11:59:00Z", source: "paint" };
@@ -280,6 +303,7 @@ test("inline images are held to the upload rules, and a rejected post stores not
     [{ ...upload, data: "not base64!!" }, "image.data", /valid base64/],
     // A declared type the bytes do not support, refused before storage.
     [{ ...upload, data: GIF }, "image.data", /does not contain/],
+    [{ content_type: "image/gif", data: GIF, alt: "A GIF." }, "image.content_type", /image\/png, image\/jpeg/],
     // Oversized payloads are refused on encoded length, before any decode.
     [{ ...upload, data: "A".repeat(MAX_MEDIA_BYTES * 2) }, "image.data", /at most 524288 bytes/],
     [{ ...upload, alt: "   " }, "image.alt", /required/],

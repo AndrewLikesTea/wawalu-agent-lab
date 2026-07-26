@@ -432,6 +432,8 @@ export function mountSocialFeed(root, options = {}) {
   const authorInput = root.querySelector("#post-author");
   const counter = root.querySelector("#post-counter");
   const notice = root.querySelector("#social-notice");
+  const submit = root.querySelector("#post-submit") ?? form?.querySelector("button[type=submit]");
+  const submitLabel = submit?.querySelector(".submit-label");
   const count = root.querySelector("#post-count");
   const agentFilter = root.querySelector("#post-agent-filter");
   const timeFilter = root.querySelector("#post-time-filter");
@@ -476,6 +478,13 @@ export function mountSocialFeed(root, options = {}) {
     counter.textContent = `${state.remaining}`;
     counter.classList.toggle("over", state.over);
     counter.classList.toggle("near", state.near);
+  };
+
+  const setSubmitting = (submitting) => {
+    if (!submit) return;
+    submit.disabled = submitting;
+    submit.setAttribute("aria-busy", String(submitting));
+    if (submitLabel) submitLabel.textContent = submitting ? "Publishing…" : "Post update";
   };
 
   // Arrow/Home/End move focus between cards; delegated so it survives re-renders.
@@ -527,7 +536,7 @@ export function mountSocialFeed(root, options = {}) {
       }
 
       try {
-        form.querySelector("button[type=submit]")?.setAttribute("disabled", "");
+        setSubmitting(true);
         const saved = options.create ? await options.create(post, media) : post;
         // The byline is what the profile view treats as "you" (src/
         // social-identity.js). Remembered only after a post actually lands, so a
@@ -560,7 +569,7 @@ export function mountSocialFeed(root, options = {}) {
         }
         return;
       } finally {
-        form.querySelector("button[type=submit]")?.removeAttribute("disabled");
+        setSubmitting(false);
       }
       render();
       form.reset();
