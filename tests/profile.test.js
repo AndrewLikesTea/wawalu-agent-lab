@@ -265,6 +265,11 @@ test("an empty profile gives one message and a route into Paint", () => {
   assert.equal(action.textContent, "Open Paint");
   assert.equal(action.href, "/paint/?from=profile&author=Mina");
   assert.equal(action.tagName, "A", "the primary action is keyboard reachable without scripted key handling");
+  assert.match(action.href, /^\/paint\//, "first-time visitors get a visible route into creation");
+  const actions = byClass(empty, "empty-action");
+  assert.equal(actions.length, 2);
+  assert.equal(actions[1].textContent, "Write a post");
+  assert.equal(actions[1].href, "/social.html#post-form");
 });
 
 test("a failed load is offered a retry, not a false empty state", () => {

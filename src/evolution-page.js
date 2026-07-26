@@ -23,6 +23,7 @@ import {
 import {
   localFinopsJsonExport, localFinopsMeetingSummary, normalizeLocalFinops, parseLocalFinopsFile,
 } from "/local-finops.js";
+import { headlineTrust } from "/finops-display.js";
 
 const DATA_URL = "/evolution-demo-data.json";
 const EVALUATION_URL = "/finops-evaluation-fixtures.json";
@@ -50,6 +51,18 @@ function element(tag, className, text) {
 function setText(id, text) {
   const node = document.getElementById(id);
   if (node) node.textContent = text;
+}
+
+function setLoadState(state, title, copy) {
+  const region = document.getElementById("finops-load-state");
+  const retry = document.getElementById("finops-data-retry");
+  if (region) region.dataset.state = state;
+  setText("finops-load-title", title);
+  setText("finops-load-copy", copy);
+  if (retry) {
+    retry.hidden = state !== "error";
+    retry.disabled = state === "loading";
+  }
 }
 
 function fillTextList(id, values, emptyText) {
@@ -198,29 +211,46 @@ function renderFinancePortfolio(data) {
 }
 
 function renderHeadline(organization, totals) {
+  const trust = headlineTrust(totals, organization);
   const providers = Array.isArray(organization?.providers) ? organization.providers.join(", ") : "";
   setText("finops-provenance",
     `${organization?.name ?? "Organization"} · ${organization?.period ?? "current period"} · `
     + `${organization?.hrisSource ?? "HRIS"} · ${providers}`);
 
   const card = document.getElementById("score-card");
-  if (card) card.dataset.band = band(totals.score);
-  setText("score-grade", totals.grade);
-  setText("score-value", `${totals.score} / 100 · grade ${totals.grade}`);
-  setText("score-peer",
-    `${totals.scoreExplanation.version} · ${totals.scoreExplanation.rule} ${totals.scoreExplanation.arithmetic}`);
+  if (card) {
+    card.dataset.band = trust.score.plausible ? band(totals.score) : "review";
+    card.dataset.metricState = trust.score.plausible ? "available" : "needs-review";
+  }
+  setText("score-grade", trust.score.plausible ? totals.grade : "!");
+  setText("score-value", trust.score.plausible
+    ? `${totals.score} / 100 · grade ${totals.grade}` : "Needs review · score unavailable");
+  setText("score-peer", trust.score.plausible
+    ? `${totals.scoreExplanation.version} · ${totals.scoreExplanation.rule} ${totals.scoreExplanation.arithmetic}`
+    : "The calculated score fell outside the supported 0–100 range and is not presented as reliable.");
 
-  setText("kpi-spend-value", formatUsd(totals.spendUsd));
+  setText("kpi-spend-value", trust.spend.plausible ? formatUsd(totals.spendUsd) : "Needs review");
   setText("kpi-spend-note",
-    `${formatCount(totals.queries)} scored queries · ${totals.departments} departments · ${formatCount(totals.headcount)} people`);
-  setText("kpi-recoverable-value", formatUsd(totals.recoverableUsd));
+    trust.queries.plausible && trust.departments.plausible && trust.headcount.plausible
+      ? `${formatCount(totals.queries)} scored queries · ${totals.departments} departments · ${formatCount(totals.headcount)} people`
+      : "Supporting counts are unavailable pending data review");
+  setText("kpi-recoverable-value", trust.recoverable.plausible
+    ? formatUsd(totals.recoverableUsd) : "Needs review");
   setText("kpi-recoverable-note",
-    `${formatPercent(totals.recoverableShare)} of spend — down-routing, training, and leakage`);
-  setText("kpi-productive-value", formatPercent(totals.mix.highValue));
+    trust.recoverable.plausible && Number.isFinite(totals.recoverableShare)
+      && totals.recoverableShare >= 0 && totals.recoverableShare <= 1
+      ? `${formatPercent(totals.recoverableShare)} of spend — down-routing, training, and leakage`
+      : "Unavailable · recoverable spend must not exceed total spend");
+  setText("kpi-productive-value", trust.highValue.plausible
+    ? formatPercent(totals.mix.highValue) : "Needs review");
   setText("kpi-productive-note",
-    `${formatUsd(Math.round(totals.spendUsd * totals.mix.highValue))} of scored spend was high-value`);
-  setText("kpi-peer-value", `${organization?.peerPercentile ?? "–"}th`);
-  setText("kpi-peer-note", `${quartileLabel(organization?.peerPercentile)} · ${organization?.peerCohort ?? "peer cohort"}`);
+    trust.spend.plausible && trust.highValue.plausible
+      ? `${formatUsd(Math.round(totals.spendUsd * totals.mix.highValue))} of scored spend was high-value`
+      : "Unavailable until spend and share pass review");
+  setText("kpi-peer-value", trust.percentile.plausible ? `${organization.peerPercentile}th` : "Unavailable");
+  setText("kpi-peer-note", trust.percentile.plausible
+    ? `${quartileLabel(organization.peerPercentile)} · ${organization?.peerCohort ?? "peer cohort"}`
+    : "Needs review · percentile must be between 0 and 100");
 }
 
 function renderMix(totals) {
@@ -499,31 +529,57 @@ async function init() {
   gateway.refresh();
   renderEvaluationDemo();
 
-  let data;
-  try {
-    data = await loadData();
-  } catch {
-    setText("finops-provenance", "Demo data unavailable — the executive view will populate once the feed returns.");
-    setText("score-value", "Score unavailable");
-    const list = document.getElementById("department-priority");
-    list?.replaceChildren(element("li", "evidence-empty",
-      "Bundled demo data could not be loaded. No live fallback was attempted."));
-    setText("detail-name", "Demo result unavailable");
-    setText("detail-score", "Unavailable");
-    setText("detail-sample", "The bundled static fixture could not be read.");
-    renderUnavailableAction("The bundled static fixture could not be read. No live analysis was attempted.");
-    return;
+  const retryData = document.getElementById("finops-data-retry");
+  retryData?.addEventListener("click", () => loadAndRender());
+  let hasRenderedAnalysis = false;
+
+  async function loadAndRender() {
+    setLoadState("loading", "Loading bundled analysis…",
+      "Previously rendered content stays visible while the synthetic fixture is refreshed.");
+    let data;
+    try {
+      data = await loadData();
+    } catch {
+      setLoadState("error", "Bundled analysis unavailable",
+        hasRenderedAnalysis
+          ? "The refresh failed. The last successful synthetic analysis remains visible; retry when ready."
+          : "The synthetic fixture could not be loaded. Local import and inspectable evaluation remain available.");
+      if (hasRenderedAnalysis) return;
+      setText("finops-provenance", "Demo data unavailable — the executive view will populate once the feed returns.");
+      setText("score-value", "Score unavailable");
+      setText("score-peer", "No metric is inferred from a failed load.");
+      for (const id of ["kpi-spend-value", "kpi-recoverable-value", "kpi-productive-value", "kpi-peer-value"])
+        setText(id, "Unavailable");
+      const portfolioList = document.getElementById("portfolio-list");
+      portfolioList?.setAttribute("aria-busy", "false");
+      portfolioList?.replaceChildren(renderPortfolioUnavailable(
+        "The bundled analysis could not be loaded. Retry to restore the action portfolio."));
+      setText("portfolio-count", "Portfolio unavailable");
+      const list = document.getElementById("department-priority");
+      list?.replaceChildren(element("li", "evidence-empty",
+        "Bundled demo data could not be loaded. No live fallback was attempted."));
+      setText("detail-name", "Demo result unavailable");
+      setText("detail-score", "Unavailable");
+      setText("detail-sample", "The bundled static fixture could not be read.");
+      renderUnavailableAction("The bundled static fixture could not be read. No live analysis was attempted.");
+      return;
+    }
+
+    const departments = Array.isArray(data.departments) ? data.departments : [];
+    const totals = summarize(departments);
+    renderFinancePortfolio(data);
+    renderHeadline(data.organization ?? {}, totals);
+    renderDecisionSurface(data, departments);
+    renderMix(totals);
+    renderRedaction(data.redactionSamples);
+
+    setLoadState("ready", "Bundled analysis ready",
+      "Synthetic headline metrics, decisions, and action portfolio are available.");
+    hasRenderedAnalysis = true;
+    document.documentElement.dataset.shiplogEvolution = "ready";
   }
 
-  const departments = Array.isArray(data.departments) ? data.departments : [];
-  const totals = summarize(departments);
-  renderFinancePortfolio(data);
-  renderHeadline(data.organization ?? {}, totals);
-  renderDecisionSurface(data, departments);
-  renderMix(totals);
-  renderRedaction(data.redactionSamples);
-
-  document.documentElement.dataset.shiplogEvolution = "ready";
+  await loadAndRender();
 }
 
 init();
