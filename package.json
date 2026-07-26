@@ -8,6 +8,7 @@
     "benchmark:paint": "node scripts/benchmark-paint.mjs",
     "verify:build": "node scripts/verify-build.mjs dist",
     "test": "node --test",
+    "test:e2e": "node --test tests/history-e2e.test.js",
     "check": "npm test && npm run build && npm run verify:build"
   },
   "devDependencies": {
