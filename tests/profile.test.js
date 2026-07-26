@@ -260,8 +260,10 @@ test("an empty profile says why it is empty", () => {
 
   const blank = createElement("div");
   renderProfileGrid(blank, [], { author: "Mina" });
-  assert.match(blank.textContent, /Share a post with an image/);
-  assert.equal(first(blank, "empty-action").href, "/social.html");
+  assert.equal(first(blank, "empty-title").textContent, "You haven’t posted anything yet. Start by sharing an image.");
+  const action = first(blank, "empty-action");
+  assert.equal(action.textContent, "Share your first post");
+  assert.equal(action.href, "/social.html");
 });
 
 test("a failed load is offered a retry, not a false empty state", () => {
@@ -319,4 +321,10 @@ test("the header shows who this is and what the counts mean", () => {
   assert.equal(elements.avatar.getAttribute("aria-hidden"), "true", "the avatar is decoration beside the name");
   assert.equal(elements.name.textContent, "Mina Okafor");
   assert.match(elements.summary.textContent, /^2 image posts · 3 posts in total · last posted /);
+});
+
+test("an empty header guides the author to their first image post", () => {
+  const elements = { avatar: createElement("span"), name: createElement("span"), summary: createElement("p") };
+  renderProfileHeader(elements, "Mina Okafor", { total: 0, withImages: 0, likes: 0, latest: null });
+  assert.equal(elements.summary.textContent, "You haven’t posted anything yet. Start by sharing an image.");
 });
