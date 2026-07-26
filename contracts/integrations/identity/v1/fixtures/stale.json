@@ -1,0 +1,8 @@
+{
+  "schema_version": "1.0",
+  "kind": "wawalu.integration.identity",
+  "export_id": "20000000-0000-4000-8000-000000000003",
+  "snapshot": { "source_instance_id": "psn_idp_demo_000000001", "sequence": 89, "generated_at": "2026-07-24T00:00:00Z", "mode": "delta", "completeness": "complete", "omitted_record_count": 0, "issues": [] },
+  "privacy": { "identifier_method": "hmac-sha256-truncated", "direct_identifiers_included": false, "salt_scope": "tenant-integration-v1" },
+  "records": []
+}

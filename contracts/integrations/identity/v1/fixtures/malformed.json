@@ -1,0 +1,17 @@
+{
+  "schema_version": "1.0",
+  "kind": "wawalu.integration.identity",
+  "export_id": "bad",
+  "snapshot": { "source_instance_id": "customer-domain.example", "sequence": "latest", "generated_at": "today", "mode": "full", "completeness": "complete", "omitted_record_count": 0, "issues": [] },
+  "privacy": { "identifier_method": "hmac-sha256-truncated", "direct_identifiers_included": true, "salt_scope": "tenant-integration-v1" },
+  "records": [{
+    "subject_id": "alice@example.invalid",
+    "revision": -1,
+    "operation": "upsert",
+    "effective_at": "today",
+    "org_unit_ids": ["Finance"],
+    "account_state": "employed",
+    "access_tier": "owner",
+    "display_name": "Example Person"
+  }]
+}

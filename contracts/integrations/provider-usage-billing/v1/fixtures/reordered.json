@@ -1,0 +1,18 @@
+[
+  {
+    "schema_version": "1.0",
+    "kind": "wawalu.integration.provider-usage-billing",
+    "export_id": "30000000-0000-4000-8000-000000000004",
+    "snapshot": { "source_instance_id": "psn_provider_demo_00001", "sequence": 21, "generated_at": "2026-07-25T12:30:00Z", "period_start": "2026-07-24", "period_end": "2026-07-25", "completeness": "complete", "omitted_record_count": 0, "issues": [] },
+    "privacy": { "aggregation": "daily-org-unit-service", "minimum_group_size": 10, "direct_identifiers_included": false, "content_included": false },
+    "records": [{ "aggregate_id": "psn_aggregate_demo_0001", "revision": 4, "usage_date": "2026-07-24", "org_unit_id": "psn_unit_demo_00000002", "provider": "openai", "service_category": "text-generation", "usage": { "quantity": 450000, "unit": "tokens" }, "cost": { "amount_minor": 1300, "currency": "USD", "status": "final" } }]
+  },
+  {
+    "schema_version": "1.0",
+    "kind": "wawalu.integration.provider-usage-billing",
+    "export_id": "30000000-0000-4000-8000-000000000005",
+    "snapshot": { "source_instance_id": "psn_provider_demo_00001", "sequence": 20, "generated_at": "2026-07-25T12:35:00Z", "period_start": "2026-07-24", "period_end": "2026-07-25", "completeness": "complete", "omitted_record_count": 0, "issues": [] },
+    "privacy": { "aggregation": "daily-org-unit-service", "minimum_group_size": 10, "direct_identifiers_included": false, "content_included": false },
+    "records": [{ "aggregate_id": "psn_aggregate_demo_0001", "revision": 3, "usage_date": "2026-07-24", "org_unit_id": "psn_unit_demo_00000002", "provider": "openai", "service_category": "text-generation", "usage": { "quantity": 440000, "unit": "tokens" }, "cost": { "amount_minor": 1275, "currency": "USD", "status": "estimated" } }]
+  }
+]

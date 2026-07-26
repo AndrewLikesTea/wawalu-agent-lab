@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://labs.wawalu.org/contracts/integrations/identity/v1/schema.json",
+  "title": "Privacy-preserving identity affiliation export",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "kind", "export_id", "snapshot", "privacy", "records"],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "kind": { "const": "wawalu.integration.identity" },
+    "export_id": { "type": "string", "format": "uuid" },
+    "snapshot": { "$ref": "#/$defs/snapshot" },
+    "privacy": { "$ref": "#/$defs/privacy" },
+    "records": {
+      "type": "array",
+      "maxItems": 100000,
+      "items": { "$ref": "#/$defs/identity" }
+    }
+  },
+  "$defs": {
+    "opaqueId": { "type": "string", "pattern": "^psn_[A-Za-z0-9_-]{16,64}$" },
+    "snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_instance_id", "sequence", "generated_at", "mode", "completeness", "omitted_record_count", "issues"],
+      "properties": {
+        "source_instance_id": { "$ref": "#/$defs/opaqueId" },
+        "sequence": { "type": "integer", "minimum": 0 },
+        "generated_at": { "type": "string", "format": "date-time" },
+        "mode": { "enum": ["full", "delta"] },
+        "completeness": { "enum": ["complete", "partial"] },
+        "omitted_record_count": { "type": "integer", "minimum": 0 },
+        "issues": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["code", "scope", "retryable"],
+            "properties": {
+              "code": { "enum": ["source_timeout", "source_rate_limited", "record_redacted", "page_missing", "unknown"] },
+              "scope": { "enum": ["export", "page", "record"] },
+              "retryable": { "type": "boolean" }
+            }
+          }
+        }
+      }
+    },
+    "privacy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["identifier_method", "direct_identifiers_included", "salt_scope"],
+      "properties": {
+        "identifier_method": { "const": "hmac-sha256-truncated" },
+        "direct_identifiers_included": { "const": false },
+        "salt_scope": { "const": "tenant-integration-v1" }
+      }
+    },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["subject_id", "revision", "operation", "effective_at"],
+      "properties": {
+        "subject_id": { "$ref": "#/$defs/opaqueId" },
+        "revision": { "type": "integer", "minimum": 0 },
+        "operation": { "enum": ["upsert", "delete"] },
+        "effective_at": { "type": "string", "format": "date-time" },
+        "org_unit_ids": {
+          "type": "array",
+          "maxItems": 20,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaqueId" }
+        },
+        "account_state": { "enum": ["active", "suspended", "disabled"] },
+        "access_tier": { "enum": ["member", "manager", "administrator"] }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "operation": { "const": "upsert" } }, "required": ["operation"] },
+          "then": { "required": ["org_unit_ids", "account_state", "access_tier"] }
+        },
+        {
+          "if": { "properties": { "operation": { "const": "delete" } }, "required": ["operation"] },
+          "then": {
+            "not": {
+              "anyOf": [
+                { "required": ["org_unit_ids"] },
+                { "required": ["account_state"] },
+                { "required": ["access_tier"] }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

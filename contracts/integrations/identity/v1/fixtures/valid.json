@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0",
+  "kind": "wawalu.integration.identity",
+  "export_id": "20000000-0000-4000-8000-000000000001",
+  "snapshot": { "source_instance_id": "psn_idp_demo_000000001", "sequence": 91, "generated_at": "2026-07-25T12:00:00Z", "mode": "full", "completeness": "complete", "omitted_record_count": 0, "issues": [] },
+  "privacy": { "identifier_method": "hmac-sha256-truncated", "direct_identifiers_included": false, "salt_scope": "tenant-integration-v1" },
+  "records": [{
+    "subject_id": "psn_subject_demo_00001",
+    "revision": 7,
+    "operation": "upsert",
+    "effective_at": "2026-07-25T11:59:00Z",
+    "org_unit_ids": ["psn_unit_demo_00000002"],
+    "account_state": "active",
+    "access_tier": "member"
+  }]
+}

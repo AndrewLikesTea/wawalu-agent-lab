@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0",
+  "kind": "wawalu.integration.provider-usage-billing",
+  "export_id": "bad",
+  "snapshot": { "source_instance_id": "provider-account-123", "sequence": -1, "generated_at": "today", "period_start": "July", "period_end": "August", "completeness": "complete", "omitted_record_count": -1, "issues": [] },
+  "privacy": { "aggregation": "per-user-request", "minimum_group_size": 1, "direct_identifiers_included": true, "content_included": true },
+  "records": [{
+    "aggregate_id": "request-123",
+    "revision": -1,
+    "usage_date": "today",
+    "org_unit_id": "Finance",
+    "provider": "unknown-vendor",
+    "service_category": "prompts",
+    "usage": { "quantity": -4, "unit": "words" },
+    "cost": { "amount_minor": 1.5, "currency": "dollars", "status": "paid" },
+    "prompt": "must never cross this boundary"
+  }]
+}
