@@ -1,0 +1,12 @@
+{
+  "schema_version": "1.0",
+  "kind": "wawalu.paint.editor-import",
+  "transfer_id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+  "source": {
+    "application": "paint",
+    "drawing_id": "synthetic-landscape",
+    "revision": 8,
+    "exported_at": "2026-07-25T12:05:00.000Z"
+  },
+  "canvas": { "width": 1024, "height": 768 }
+}

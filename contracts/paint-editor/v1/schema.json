@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://labs.wawalu.org/contracts/paint-editor/v1/schema.json",
+  "title": "Paint editor import",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "kind", "transfer_id", "source", "asset", "canvas"],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "kind": { "const": "wawalu.paint.editor-import" },
+    "transfer_id": { "type": "string", "format": "uuid" },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["application", "drawing_id", "revision", "exported_at"],
+      "properties": {
+        "application": { "const": "paint" },
+        "drawing_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "revision": { "type": "integer", "minimum": 0 },
+        "exported_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "asset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "url", "content_type", "byte_size", "checksum_sha256"],
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "url": { "type": "string", "pattern": "^/api/images/[0-9a-fA-F-]+/content$" },
+        "content_type": { "enum": ["image/png", "image/jpeg", "image/gif", "image/webp"] },
+        "byte_size": { "type": "integer", "minimum": 1, "maximum": 5242880 },
+        "checksum_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      }
+    },
+    "canvas": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["width", "height"],
+      "properties": {
+        "width": { "type": "integer", "minimum": 1, "maximum": 16384 },
+        "height": { "type": "integer", "minimum": 1, "maximum": 16384 }
+      }
+    },
+    "title": { "type": "string", "minLength": 1, "maxLength": 200 }
+  }
+}
