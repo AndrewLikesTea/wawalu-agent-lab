@@ -13,9 +13,9 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { parseHtml, tabSequence, textOf } from "./support/browser.js";
 import {
-  announce, applyFieldDiagnostic, applyMetricBasis, applyRequirements, applyStage,
-  diagnosticFor, focusStageHeading, IMPORT_STAGES, importStage, mappingRequirements,
-  metricBasis, redactDiagnostic, stageProgress,
+  announce, applyDatasetProvenance, applyFieldDiagnostic, applyLeadingFinding, applyMetricBasis,
+  applyRequirements, applyStage, diagnosticFor, EXAMPLE_DATASET_PROVENANCE, focusStageHeading,
+  IMPORT_STAGES, importStage, mappingRequirements, metricBasis, redactDiagnostic, stageProgress,
 } from "../src/local-import-flow.js";
 
 const PAGE = new URL("../src/evolution.html", import.meta.url);
@@ -277,4 +277,91 @@ test("the panel draws focus, disabled, and status states from existing tokens", 
   assert.match(styles, /\.mapping-requirement \.requirement-status/);
   // The mapping summary stays usable at small widths.
   assert.match(styles, /@media\(max-width:640px\)[\s\S]*\.import-stage\s*\{\s*flex:1 1 100%/);
+});
+
+// --- example data: one label everywhere, one action that clears it ----------
+
+test("the entry action is one button beside the picker, with nothing to confirm", async () => {
+  const doc = await page();
+  const action = doc.getElementById("try-example-dataset");
+  assert.ok(action, "a visitor with no export must have one thing to click");
+  assert.equal(action.tagName, "BUTTON");
+  assert.equal(action.getAttribute("type"), "button");
+  assert.ok(tabSequence(doc).includes(action), "the entry action must be keyboard reachable");
+  // One dataset, one action: exactly one entry control, and no chooser, wizard,
+  // or confirm step anywhere in the import panel.
+  assert.equal(doc.querySelectorAll(".local-example-action").length, 1);
+  const html = await readFile(PAGE, "utf8");
+  assert.doesNotMatch(html, /<dialog|example-scenario|example-dataset-picker/i);
+});
+
+test("every surface that renders analysis numbers carries the one provenance label", async () => {
+  const doc = await page();
+  const surfaces = doc.querySelectorAll("[data-analysis-surface]");
+  assert.ok(surfaces.length >= 2, "the results brief and the leading finding both render envelope data");
+  // The audit is mechanical: a surface that renders analysis numbers either
+  // carries a provenance slot or it is a defect. Nothing is per-view copy.
+  for (const surface of surfaces) {
+    assert.ok(surface.querySelectorAll("[data-dataset-provenance]").length > 0
+      || surface.getAttribute("data-dataset-provenance") !== null,
+    `${surface.getAttribute("id")} renders analysis data with no provenance slot`);
+  }
+
+  const state = applyDatasetProvenance(doc, true);
+  const notes = doc.querySelectorAll("[data-dataset-provenance]");
+  assert.ok(notes.length >= 3);
+  for (const note of notes) {
+    assert.equal(note.hidden, false);
+    assert.equal(note.getAttribute("data-dataset"), "example");
+    // One string, repeated exactly: the label, and what to bring to replace it.
+    assert.match(normalized(note), new RegExp(state.label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+    assert.match(normalized(note), /v1 provider-usage JSON export/);
+  }
+  for (const surface of doc.querySelectorAll("[data-analysis-surface]"))
+    assert.equal(surface.getAttribute("data-dataset"), "example");
+
+  // The metric basis beside the headline number reads from the same copy, so
+  // the number and the word for what kind of number it is cannot disagree.
+  const basis = metricBasis({ mode: "example-dataset" });
+  assert.equal(basis.real, false);
+  assert.equal(basis.label, EXAMPLE_DATASET_PROVENANCE.label);
+  assert.match(basis.detail, /v1 provider-usage JSON export/);
+});
+
+test("clearing example data leaves no residue in state, storage, or the URL", async () => {
+  const doc = await page();
+  applyDatasetProvenance(doc, true);
+  applyLeadingFinding(doc, {
+    available: true, question: "Why did spend rise in June 2026?",
+    metric: "+39200.00 USD (+34%) versus May 2026",
+    driverSentence: "Department …atlas0 contributed +34500.00 USD.",
+    action: { available: true, text: "Pilot lower-cost routing." },
+  });
+  const finding = doc.getElementById("local-lead-finding");
+  assert.equal(finding.hidden, false);
+  assert.match(normalized(doc.getElementById("local-lead-question")), /June 2026/);
+
+  // The one clearing action returns every labelled surface to a fresh state.
+  applyDatasetProvenance(doc, false);
+  for (const note of doc.querySelectorAll("[data-dataset-provenance]")) {
+    assert.equal(note.hidden, true);
+    assert.equal(normalized(note), "", "a cleared provenance note keeps no text");
+    assert.equal(note.getAttribute("data-dataset"), "user");
+  }
+  for (const surface of doc.querySelectorAll("[data-analysis-surface]"))
+    assert.equal(surface.getAttribute("data-dataset"), "user");
+
+  // A reload can only resurrect the example if something wrote it down. Nothing
+  // on this path has any writer: no storage, no cookie, no URL mutation.
+  for (const module of [
+    "../src/example-dataset.js", "../src/finops-leading-finding.js",
+    "../src/local-import-flow.js", "../src/evolution-page.js",
+  ]) {
+    const source = await readFile(new URL(module, import.meta.url), "utf8");
+    assert.doesNotMatch(source, /localStorage|sessionStorage|document\.cookie|pushState|replaceState/,
+      `${module} must not persist analysis state`);
+  }
+  // And the markup ships no example numbers of its own to fall back on.
+  const html = await readFile(PAGE, "utf8");
+  assert.doesNotMatch(html, /atlas0|39200|154500/);
 });

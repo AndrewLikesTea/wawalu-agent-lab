@@ -79,6 +79,7 @@
    so each mode gets a wash; the bare outline is only the pre-JS default. */
 .sample-badge { display:inline-flex; align-items:center; gap:6px; flex:none; border:1px solid #789284; border-radius:99px; padding:6px 10px; background:transparent; color:#315f50; font:750 10px/1.3 ui-monospace,monospace; text-transform:uppercase; }
 .sample-badge[data-mode="example"] { border-color:var(--state-warn-line); background:var(--state-warn-wash); color:var(--state-warn-ink); }
+.sample-badge[data-mode="example-dataset"] { border-color:var(--state-warn-line); background:var(--state-warn-wash); color:var(--state-warn-ink); }
 .sample-badge[data-mode="local"] { border-color:var(--import-accent); background:var(--import-wash); color:var(--import-ink); }
 .sample-marker { display:flex; align-items:baseline; gap:8px; grid-column:1/-1; margin:0 0 4px; border:1px solid var(--state-warn-line); border-left:5px solid var(--state-warn-line); border-radius:9px; padding:10px 13px; background:var(--state-warn-wash); color:var(--state-warn-ink); font-size:12px; line-height:1.5; }
 .sample-marker-shape { flex:none; font-weight:750; }
@@ -91,6 +92,10 @@
 .local-import-controls p { margin:0; color:var(--ink-muted); font-size:11px; line-height:1.5; }
 .local-import button { min-height:42px; border:1px solid #7f9c8c; border-radius:8px; padding:9px 13px; background:#fff; color:#244c3c; font-weight:750; cursor:pointer; }
 .local-import button:hover { background:#edf5f1; }
+/* The one entry action for a visitor with no export in hand; filled so it reads
+   as the primary offer beside the file picker, not a second-tier control. */
+.local-import button.local-example-action { border-color:var(--import-accent); background:var(--import-accent); color:#fff; }
+.local-import button.local-example-action:hover { background:var(--import-ink); }
 /* The shared focus token, not the accent blue this panel used to hard-code.
    #2a78d6 measured 4.02:1 against the panel wash where var(--focus-ring)
    measures 6.04:1, and one focus ring per site is one thing to learn. */
@@ -158,6 +163,22 @@
 .local-export-actions { display:flex; gap:8px; }
 .local-result-notice { display:grid; gap:3px; margin-top:20px; border:1px solid #b88e2e; border-left:5px solid #9b791c; border-radius:9px; padding:13px 15px; background:#fffaf0; color:#614a12; font-size:12px; line-height:1.5; }
 .local-result-notice[data-state="error"] { border-color:#b4453a; background:#fdf4f3; color:#6f2821; }
+/* Provenance. One rule for one label, wherever it is placed; the word "Example
+   data" and the replacement instruction always ship together, and the shape
+   repeats what the tint says so colour is never the only signal. */
+.dataset-provenance { display:grid; grid-template-columns:auto 1fr; gap:2px 8px; margin:16px 0 0; border:1px solid var(--state-warn-line); border-left:5px solid var(--state-warn-ink); border-radius:9px; padding:12px 14px; background:var(--state-warn-wash); color:var(--state-warn-ink); font-size:12px; line-height:1.5; }
+.dataset-provenance .provenance-shape { grid-row:1/4; font-weight:750; }
+.dataset-provenance .provenance-label { font:750 11px/1.4 ui-monospace,monospace; letter-spacing:.05em; text-transform:uppercase; }
+.dataset-provenance .provenance-swap { font-weight:700; }
+/* The landing surface: the question first, then the one number that answers it. */
+.local-lead-finding { margin-top:20px; border:1px solid #9eb9aa; border-top:5px solid #315f50; border-radius:12px; padding:clamp(18px,3vw,24px); background:#fff; }
+.local-lead-finding h4 { max-width:760px; margin:6px 0 0; font-size:clamp(21px,3.2vw,29px); line-height:1.2; letter-spacing:-.025em; }
+.local-lead-metric { margin:14px 0 0; color:#8a2b2b; font-size:clamp(22px,3.4vw,30px); font-weight:750; letter-spacing:-.025em; line-height:1.2; overflow-wrap:anywhere; }
+.local-lead-driver { margin:8px 0 0; font-size:14px; line-height:1.5; }
+.local-lead-next { margin-top:18px; padding-top:16px; border-top:1px solid #d8e2dc; }
+.local-lead-action { margin:5px 0 0; font-size:14px; font-weight:700; line-height:1.5; }
+.local-lead-action[data-available="false"] { color:var(--state-warn-ink); font-weight:400; }
+.local-lead-finding[data-state="unavailable"] .local-lead-metric { color:var(--state-warn-ink); font-size:16px; }
 .local-finding { margin-top:20px; border:1px solid #9eb9aa; border-top:5px solid #315f50; border-radius:12px; padding:clamp(18px,3vw,24px); background:#fff; }
 .local-finding-lead { display:flex; align-items:start; justify-content:space-between; gap:18px; }
 .local-finding-lead h4 { max-width:760px; margin:7px 0 0; font-size:clamp(20px,3vw,27px); line-height:1.25; letter-spacing:-.025em; }
