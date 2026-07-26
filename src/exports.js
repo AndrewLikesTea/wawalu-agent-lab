@@ -1,6 +1,7 @@
 export const EXPORT_VERSION = "1";
 
-const EXPORT_PATH = /^\/api\/exports(?:\/(decisions|releases|portfolio))?\/?$/;
+const EXPORT_PATH =
+  /^\/api\/exports(?:\/(decisions|releases|portfolio|reconciliation))?\/?$/;
 
 function jsonResponse(value, init = {}) {
   const headers = new Headers(init.headers);
@@ -25,6 +26,9 @@ export function createExport(records, options = {}) {
   if (records.decisions !== undefined) payload.decisions = structuredClone(records.decisions);
   if (records.releases !== undefined) payload.releases = structuredClone(records.releases);
   if (records.portfolio !== undefined) payload.portfolio = structuredClone(records.portfolio);
+  if (records.reconciliation !== undefined) {
+    payload.reconciliation = structuredClone(records.reconciliation);
+  }
   return payload;
 }
 
@@ -43,6 +47,8 @@ export async function handleExportRequest(request, deps) {
     let records;
     if (type === "portfolio") {
       records = { portfolio: await deps.listPortfolio() };
+    } else if (type === "reconciliation") {
+      records = { reconciliation: await deps.listReconciliation() };
     } else if (type === "all" && typeof deps.store.listAll === "function") {
       records = await deps.store.listAll();
     } else {

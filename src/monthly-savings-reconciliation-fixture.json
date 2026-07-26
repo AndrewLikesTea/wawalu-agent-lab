@@ -1,0 +1,142 @@
+{
+  "schemaVersion": "monthly-savings-reconciliation/1.0.0",
+  "portfolioSchemaVersion": "savings-portfolio/1.1.0",
+  "records": [
+    {
+      "actionId": "syn-finops-routing",
+      "measurementMonth": "2026-06",
+      "projectionBaseline": {
+        "annualizedSavingsUsd": 72000,
+        "monthlySavingsUsd": 0,
+        "allocationRule": "not-yet-active"
+      },
+      "simulatedRealizedSavingsUsd": null,
+      "varianceReason": "measurement-unavailable",
+      "evidenceProvenance": {
+        "source": "bundled synthetic reconciliation fixture",
+        "evidenceRefs": []
+      },
+      "availabilityState": "unavailable",
+      "availabilityReason": "action-not-started"
+    },
+    {
+      "actionId": "syn-platform-cache",
+      "measurementMonth": "2026-06",
+      "projectionBaseline": {
+        "annualizedSavingsUsd": 24000,
+        "monthlySavingsUsd": 2000,
+        "allocationRule": "even-twelfth"
+      },
+      "simulatedRealizedSavingsUsd": 2250,
+      "varianceReason": "above-projection",
+      "evidenceProvenance": {
+        "source": "bundled synthetic reconciliation fixture",
+        "evidenceRefs": ["syn-recon-cache-2026-06"]
+      },
+      "availabilityState": "available",
+      "availabilityReason": null
+    },
+    {
+      "actionId": "syn-quality-retry",
+      "measurementMonth": "2026-06",
+      "projectionBaseline": {
+        "annualizedSavingsUsd": 88000,
+        "monthlySavingsUsd": 0,
+        "allocationRule": "not-yet-active"
+      },
+      "simulatedRealizedSavingsUsd": null,
+      "varianceReason": "measurement-unavailable",
+      "evidenceProvenance": {
+        "source": "bundled synthetic reconciliation fixture",
+        "evidenceRefs": []
+      },
+      "availabilityState": "unavailable",
+      "availabilityReason": "action-not-started"
+    },
+    {
+      "actionId": "syn-support-library",
+      "measurementMonth": "2026-06",
+      "projectionBaseline": {
+        "annualizedSavingsUsd": 110000,
+        "monthlySavingsUsd": 0,
+        "allocationRule": "not-yet-active"
+      },
+      "simulatedRealizedSavingsUsd": null,
+      "varianceReason": "measurement-unavailable",
+      "evidenceProvenance": {
+        "source": "bundled synthetic reconciliation fixture",
+        "evidenceRefs": []
+      },
+      "availabilityState": "unavailable",
+      "availabilityReason": "action-not-started"
+    },
+    {
+      "actionId": "syn-finops-routing",
+      "measurementMonth": "2026-07",
+      "projectionBaseline": {
+        "annualizedSavingsUsd": 72000,
+        "monthlySavingsUsd": 6000,
+        "allocationRule": "even-twelfth"
+      },
+      "simulatedRealizedSavingsUsd": 5750,
+      "varianceReason": "below-projection",
+      "evidenceProvenance": {
+        "source": "bundled synthetic reconciliation fixture",
+        "evidenceRefs": ["syn-recon-routing-2026-07"]
+      },
+      "availabilityState": "available",
+      "availabilityReason": null
+    },
+    {
+      "actionId": "syn-platform-cache",
+      "measurementMonth": "2026-07",
+      "projectionBaseline": {
+        "annualizedSavingsUsd": 24000,
+        "monthlySavingsUsd": 2000,
+        "allocationRule": "even-twelfth"
+      },
+      "simulatedRealizedSavingsUsd": 1750,
+      "varianceReason": "below-projection",
+      "evidenceProvenance": {
+        "source": "bundled synthetic reconciliation fixture",
+        "evidenceRefs": ["syn-recon-cache-2026-07"]
+      },
+      "availabilityState": "available",
+      "availabilityReason": null
+    },
+    {
+      "actionId": "syn-quality-retry",
+      "measurementMonth": "2026-07",
+      "projectionBaseline": {
+        "annualizedSavingsUsd": 88000,
+        "monthlySavingsUsd": 7333,
+        "allocationRule": "even-twelfth"
+      },
+      "simulatedRealizedSavingsUsd": null,
+      "varianceReason": "measurement-unavailable",
+      "evidenceProvenance": {
+        "source": "bundled synthetic reconciliation fixture",
+        "evidenceRefs": []
+      },
+      "availabilityState": "unavailable",
+      "availabilityReason": "measurement-pending"
+    },
+    {
+      "actionId": "syn-support-library",
+      "measurementMonth": "2026-07",
+      "projectionBaseline": {
+        "annualizedSavingsUsd": 110000,
+        "monthlySavingsUsd": 0,
+        "allocationRule": "not-yet-active"
+      },
+      "simulatedRealizedSavingsUsd": null,
+      "varianceReason": "measurement-unavailable",
+      "evidenceProvenance": {
+        "source": "bundled synthetic reconciliation fixture",
+        "evidenceRefs": []
+      },
+      "availabilityState": "unavailable",
+      "availabilityReason": "action-not-started"
+    }
+  ]
+}
