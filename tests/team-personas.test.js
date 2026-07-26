@@ -15,7 +15,8 @@ const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 // Personas that take assigned implementation work. The manager and the reviewer
 // are deliberately excluded: they are never assignees.
 const ASSIGNABLE = ["backend", "frontend", "infrastructure", "staff",
-  "product", "design", "evaluation", "integrations"];
+  "product", "design", "evaluation", "integrations",
+  "copywriter", "graphics", "fullstack", "qa", "security", "platform"];
 const NON_ASSIGNABLE = ["manager", "reviewer"];
 
 test("every assignable persona is declared everywhere the runner looks", async () => {

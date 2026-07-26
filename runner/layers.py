@@ -66,7 +66,8 @@ TASK_SCHEMA = {
     "properties": {
         "persona": {"type": "string", "enum": ["backend", "frontend", "infrastructure", "staff",
                                                "product", "design", "evaluation", "integrations",
-                                               "copywriter"]},
+                                               "copywriter", "graphics", "fullstack", "qa",
+                                               "security", "platform"]},
         "title": {"type": "string"},
         "outcome": {"type": "string"},
         "acceptance_criteria": {"type": "array", "items": {"type": "string"}, "minItems": 2, "maxItems": 8},
@@ -210,7 +211,8 @@ def restates_shipped_work(title: str, shipped: list[frozenset[str]]) -> bool:
 PERSONA_ROSTER_NAMES = {
     "frontend": "Mina", "backend": "Rowan", "infrastructure": "Ellis", "staff": "Priya",
     "product": "Noor", "design": "Iris", "evaluation": "Theo", "integrations": "Anya",
-    "copywriter": "Jude",
+    "copywriter": "Jude", "graphics": "Kai", "fullstack": "Remy",
+    "qa": "Tess", "security": "Vera", "platform": "Omar",
 }
 PERSONA_OWNERSHIP = {
     "frontend": "frontend and UI (views, forms, interaction)",
@@ -222,6 +224,11 @@ PERSONA_OWNERSHIP = {
     "evaluation": "judge rubrics, scoring fixtures, and score reproducibility",
     "integrations": "third-party contracts: HRIS, identity, and provider usage exports",
     "copywriter": "product copy: titles, labels, empty states, error text, and explanatory prose",
+    "graphics": "canvas and WebGL rendering, image processing pipelines, and drawing performance",
+    "fullstack": "features spanning UI and data when one owner should carry both sides end to end",
+    "qa": "test suites, regression coverage, and end-to-end verification of user flows",
+    "security": "input validation, abuse resistance, and safe handling of user-generated content",
+    "platform": "build, deploy, Cloudflare configuration, storage bindings, and rollback paths",
 }
 
 

@@ -328,6 +328,12 @@ Scenario: {json.dumps(scenario, indent=2)}
             "design": "hierarchy, legibility, drawn states, and meaning that rests on color alone",
             "evaluation": "reproducibility of any score, stated assumptions, and fixture coverage",
             "integrations": "schema contracts, versioning, and behavior on partial or malformed data",
+            "copywriter": "clarity, tone, and consistency of user-facing wording, and that changed strings render where intended",
+            "graphics": "rendering correctness, canvas performance, and pixel fidelity across devices and DPIs",
+            "fullstack": "end-to-end coherence from UI to storage, and the seams between layers",
+            "qa": "regression risk, coverage of the changed behavior, and flake resistance",
+            "security": "input handling, injection surfaces, abuse resistance, and least privilege",
+            "platform": "build and deploy safety, binding configuration, and rollback paths",
         # A peer whose discipline is not listed still gets a review; falling back
         # beats a KeyError that would abort an otherwise finished run.
         }.get(peer, "correctness, tests, and whether the change matches its stated scope")
