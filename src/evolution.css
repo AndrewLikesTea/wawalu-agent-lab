@@ -78,14 +78,18 @@
 .local-results { margin-top:26px; border-top:1px solid #d6e0da; padding-top:24px; }
 .local-result-heading h3 { margin:5px 0 0; font-size:24px; }
 .local-export-actions { display:flex; gap:8px; }
-.local-kpis { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:20px; }
-.local-kpis>div { display:grid; gap:7px; min-width:0; border:1px solid #d4ddd8; border-radius:10px; padding:15px; background:#fff; }
-.local-kpis span { color:var(--ink-muted); font:700 9px/1.4 ui-monospace,monospace; text-transform:uppercase; }
-.local-kpis strong { font-size:22px; overflow-wrap:anywhere; }
-.local-kpis>div:first-child strong { color:#a5322f; font-size:30px; }
-.local-priority { margin-top:12px; border-radius:11px; padding:18px; background:#214c3c; color:#fff; }
-.local-priority h4 { margin:6px 0 10px; font-size:20px; line-height:1.35; }
-.local-priority p:last-child { margin:0; color:#d7e7df; font:600 10px/1.55 ui-monospace,monospace; overflow-wrap:anywhere; }
+.local-result-notice { display:grid; gap:3px; margin-top:20px; border:1px solid #b88e2e; border-left:5px solid #9b791c; border-radius:9px; padding:13px 15px; background:#fffaf0; color:#614a12; font-size:12px; line-height:1.5; }
+.local-result-notice[data-state="error"] { border-color:#b4453a; background:#fdf4f3; color:#6f2821; }
+.local-finding { margin-top:20px; border:1px solid #9eb9aa; border-top:5px solid #315f50; border-radius:12px; padding:clamp(18px,3vw,24px); background:#fff; }
+.local-finding-lead { display:flex; align-items:start; justify-content:space-between; gap:18px; }
+.local-finding-lead h4 { max-width:760px; margin:7px 0 0; font-size:clamp(20px,3vw,27px); line-height:1.25; letter-spacing:-.025em; }
+/* Filled wash denotes a dynamic confidence signal; its text carries the state. */
+.local-finding-status { flex:none; border-radius:5px; padding:6px 9px; background:#fff0c7; color:#72520a; font:750 10px/1.3 ui-monospace,monospace; text-transform:uppercase; }
+.local-finding-facts { display:grid; grid-template-columns:1.1fr .8fr .9fr 1.4fr; gap:14px 20px; margin:22px 0 0; padding-top:18px; border-top:1px solid #d8e2dc; }
+.local-finding-facts div { min-width:0; }
+.local-finding-facts dt { color:var(--ink-muted); font:700 9px/1.4 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; }
+.local-finding-facts dd { margin:5px 0 0; font-size:13px; font-weight:700; line-height:1.45; overflow-wrap:anywhere; }
+.local-finding-facts .local-impact dd { color:#8a2b2b; font-size:24px; letter-spacing:-.025em; }
 .local-state-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-top:12px; }
 .local-state-grid article { border:1px solid #d4ddd8; border-left:5px solid #315f50; border-radius:10px; padding:16px; background:#fff; }
 .local-state-grid article[data-state="missing"] { border-left-color:#9b791c; background:#fffaf0; }
@@ -95,13 +99,17 @@
 .local-department-evidence { margin-top:12px; border:1px solid #d4ddd8; border-radius:11px; padding:18px; background:#fff; }
 .local-department-evidence h4 { margin:5px 0; font-size:19px; }
 .local-department-evidence>div>p:last-child { margin:0; color:var(--ink-muted); font-size:12px; }
-.local-department-layout { display:grid; grid-template-columns:minmax(190px,.7fr) minmax(0,1.3fr); gap:14px; margin-top:16px; }
-.local-department-list { display:grid; align-content:start; gap:7px; }
-.local-import .local-department-choice { display:flex; justify-content:space-between; gap:12px; width:100%; color:var(--ink); text-align:left; }
-.local-department-choice strong { flex:none; color:#8a2b2b; font:750 11px/1.4 ui-monospace,monospace; }
-.local-department-choice[aria-pressed="true"] { border-color:#315f50; background:#edf5f1; box-shadow:inset 3px 0 #315f50; }
-.local-department-detail { border-radius:9px; padding:16px; background:#f7f8f4; }
-.local-department-detail h5 { margin:0 0 7px; font-size:18px; }
+.local-department-list { display:grid; gap:8px; margin:16px 0 0; padding:0; list-style:none; }
+.local-department-item { border:1px solid #d8d6cf; border-radius:9px; overflow:hidden; }
+.local-import .local-department-choice { display:grid; grid-template-columns:auto minmax(0,1fr) auto auto; align-items:center; gap:10px; width:100%; min-height:52px; margin:0; border:0; border-radius:0; padding:11px 13px; background:#fff; color:var(--ink); text-align:left; }
+.local-import .local-department-choice:hover { background:#f7f8f4; }
+.local-department-rank { color:var(--ink-muted); font:700 10px/1.4 ui-monospace,monospace; }
+.local-department-choice strong { min-width:0; font-size:13px; overflow-wrap:anywhere; }
+.local-department-amount { color:#8a2b2b; font:750 11px/1.4 ui-monospace,monospace; white-space:nowrap; }
+.local-department-chevron { width:8px; height:8px; border-right:2px solid currentColor; border-bottom:2px solid currentColor; transform:rotate(45deg); transition:transform .15s ease; }
+.local-department-choice[aria-expanded="true"] { background:#edf5f1; box-shadow:inset 4px 0 #315f50; }
+.local-department-choice[aria-expanded="true"] .local-department-chevron { transform:rotate(225deg); }
+.local-department-detail { border-top:1px solid #d8e2dc; padding:16px; background:#f7f8f4; }
 .local-department-detail>p { margin:0; font-size:12px; line-height:1.5; }
 .local-department-detail dl { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin:16px 0 0; }
 .local-department-detail dt { color:var(--ink-muted); font:700 9px/1.4 ui-monospace,monospace; text-transform:uppercase; }
@@ -333,7 +341,12 @@
   .proof-point-boundary { align-items:start; flex-direction:column; }
   .local-import-heading,.local-import-controls,.local-result-heading { align-items:stretch; flex-direction:column; }
   .sample-badge { width:fit-content; }
-  .local-kpis,.local-disclosures,.local-state-grid,.local-department-layout { grid-template-columns:1fr; }
+  .local-disclosures,.local-state-grid,.local-finding-facts { grid-template-columns:1fr; }
+  .local-finding-lead { display:grid; }
+  .local-finding-status { width:fit-content; }
+  .local-import .local-department-choice { grid-template-columns:auto minmax(0,1fr) auto; }
+  .local-department-amount { grid-column:2; }
+  .local-department-chevron { grid-column:3; grid-row:1/3; }
   .local-department-detail dl { grid-template-columns:1fr; }
   .local-export-actions { display:grid; grid-template-columns:1fr 1fr; }
   .finops-panel { padding:21px; }

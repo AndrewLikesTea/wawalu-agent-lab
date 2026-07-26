@@ -85,7 +85,7 @@
           <span>The bundled synthetic analysis remains visible until both compatible exports are ready.</span>
         </div>
 
-        <section class="local-results" id="local-results" tabindex="-1" aria-labelledby="local-results-title" hidden>
+        <section class="local-results" id="local-results" tabindex="-1" aria-labelledby="local-results-title" aria-busy="false" hidden>
           <div class="local-result-heading">
             <div>
               <p class="eyebrow">Imported result</p>
@@ -96,25 +96,34 @@
               <button id="export-local-summary" type="button">Meeting summary</button>
             </div>
           </div>
-          <div class="local-kpis" aria-label="Imported headline results">
-            <div><span>Recoverable scenario</span><strong id="local-recoverable">—</strong></div>
-            <div><span>Ranked department</span><strong id="local-department">—</strong></div>
-            <div><span>Confidence</span><strong id="local-confidence">—</strong></div>
+          <div class="local-result-notice" id="local-result-notice" role="status" aria-live="polite" hidden>
+            <strong id="local-result-notice-title"></strong>
+            <span id="local-result-notice-copy"></span>
           </div>
-          <article class="local-priority">
-            <p class="eyebrow">Attention now · priority 01</p>
-            <h4 id="local-action">Waiting for a supported pair…</h4>
-            <p id="local-provenance"></p>
+          <article class="local-finding" aria-labelledby="local-action">
+            <header class="local-finding-lead">
+              <div>
+                <p class="eyebrow">Recommended department action</p>
+                <h4 id="local-action">Waiting for a supported pair…</h4>
+              </div>
+              <span class="local-finding-status" id="local-confidence">Confidence unavailable</span>
+            </header>
+            <dl class="local-finding-facts" aria-label="Finding decision facts">
+              <div class="local-impact"><dt>Quantified impact</dt><dd id="local-recoverable">—</dd></div>
+              <div><dt>Department</dt><dd id="local-department">—</dd></div>
+              <div><dt>Benchmark</dt><dd id="local-benchmark-summary">Unavailable</dd></div>
+              <div><dt>Data provenance</dt><dd id="local-provenance">Waiting for an imported result.</dd></div>
+            </dl>
           </article>
-          <div class="local-state-grid" aria-label="Longitudinal analysis states">
-            <article id="local-trend-state">
+          <div class="local-state-grid" aria-label="Supporting trend and benchmark evidence">
+            <article id="local-trend-state" aria-labelledby="local-trend-title" aria-describedby="local-trend-why">
               <p class="eyebrow">Material trend</p>
-              <h4 id="local-trend-answer">History not yet analyzed</h4>
+              <h4 id="local-trend-title"><span id="local-trend-shape" aria-hidden="true">—</span> <span id="local-trend-answer">History not yet analyzed</span></h4>
               <p id="local-trend-why"></p>
             </article>
-            <article id="local-benchmark-state">
+            <article id="local-benchmark-state" aria-labelledby="local-benchmark-title" aria-describedby="local-benchmark-why">
               <p class="eyebrow">Benchmark</p>
-              <h4 id="local-benchmark-answer">Unavailable</h4>
+              <h4 id="local-benchmark-title"><span aria-hidden="true">◇</span> <span id="local-benchmark-answer">Unavailable</span></h4>
               <p id="local-benchmark-why"></p>
             </article>
           </div>
@@ -122,16 +131,9 @@
             <div>
               <p class="eyebrow">Progressive disclosure</p>
               <h4 id="local-departments-title">Department evidence</h4>
-              <p>Select a department to inspect the current impact and its like-for-like trajectory.</p>
+              <p>Expand a department finding to inspect impact, trend, confidence, and provenance in that order.</p>
             </div>
-            <div class="local-department-layout">
-              <div id="local-department-list" class="local-department-list" role="group" aria-label="Departments ordered by recoverable scenario"></div>
-              <article id="local-department-detail" class="local-department-detail" aria-live="polite">
-                <h5 id="local-detail-name">No department selected</h5>
-                <p id="local-detail-why"></p>
-                <dl id="local-detail-facts"></dl>
-              </article>
-            </div>
+            <ol id="local-department-list" class="local-department-list" aria-label="Departments ordered by recoverable scenario"></ol>
           </section>
           <div class="local-disclosures">
             <details>
