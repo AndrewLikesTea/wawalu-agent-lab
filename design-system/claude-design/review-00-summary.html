@@ -1,0 +1,32 @@
+<!-- @dsCard group="Read me" -->
+<!doctype html><html><head><meta charset="utf-8"><title>wawalu UX review — summary</title><style>
+:root{--page:#f9f9f7;--surface:#fcfcfb;--ink1:#0b0b0b;--ink2:#52514e;--ink3:#898781;--border:rgba(11,11,11,.1);--accent:#2a78d6;--wash:rgba(42,120,214,.08);--bad:#d03b3b;--good:#0ca30c}
+@media(prefers-color-scheme:dark){:root{--page:#0d0d0d;--surface:#1a1a19;--ink1:#fff;--ink2:#c3c2b7;--ink3:#898781;--border:rgba(255,255,255,.1);--accent:#3987e5;--wash:rgba(57,135,229,.12);--bad:#e05252}}
+body{margin:0;background:var(--page);color:var(--ink1);font:14px/1.55 system-ui,-apple-system,sans-serif;padding:24px}
+.mono{font-family:ui-monospace,Menlo,monospace}
+h1{font-size:18px;margin:0 0 4px}
+.sub{color:var(--ink3);font-size:12px;margin:0 0 18px}
+.item{display:grid;grid-template-columns:26px 1fr auto;gap:10px;align-items:baseline;padding:9px 0;border-top:1px solid var(--border)}
+.n{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--accent);font-weight:700}
+.t b{font-weight:650}
+.t span{color:var(--ink2)}
+.sev{font-family:ui-monospace,Menlo,monospace;font-size:10px;padding:2px 7px;border-radius:5px;white-space:nowrap}
+.hi{color:var(--bad);background:color-mix(in srgb,var(--bad) 10%,transparent)}
+.med{color:var(--accent);background:var(--wash)}
+.lo{color:var(--ink3);background:color-mix(in srgb,var(--ink3) 12%,transparent)}
+</style></head><body>
+<h1>wawalu.org — UX review</h1>
+<p class="sub">from live production screenshots (desktop light/dark + 390px mobile) · each finding has a card with a proposed fix</p>
+<div class="item"><span class="n">01</span><p class="t"><b>Mobile: category bars vanish &amp; chips clip.</b> <span>.cat-row's fixed 5-column grid has no responsive rule — the bar track collapses to ~0px at 390px.</span></p><span class="sev hi">high</span></div>
+<div class="item"><span class="n">02</span><p class="t"><b>Token chart says almost nothing.</b> <span>Cache reads are structurally ~99% of tokens, so a linear axis flattens input/output/cache-create into invisibility.</span></p><span class="sev hi">high</span></div>
+<div class="item"><span class="n">03</span><p class="t"><b>Views and person filters look identical.</b> <span>"michael.albada" sits in the same tab row as "overview" — reads as a page, and two tabs appear selected at once.</span></p><span class="sev hi">high</span></div>
+<div class="item"><span class="n">04</span><p class="t"><b>Topic titles wrap one word per line.</b> <span>110px title column forces 5-line titles; huge cards, poor scanning.</span></p><span class="sev med">medium</span></div>
+<div class="item"><span class="n">05</span><p class="t"><b>"new" delta-chip noise.</b> <span>When every category is new the chip repeats 4× and reads as a button.</span></p><span class="sev med">medium</span></div>
+<div class="item"><span class="n">06</span><p class="t"><b>No URL state.</b> <span>Tab, person, and time range live in React state only — refresh resets, nothing is shareable or deep-linkable.</span></p><span class="sev med">medium</span></div>
+<div class="item"><span class="n">07</span><p class="t"><b>Global range toggle lies.</b> <span>1h/24h/7d stays prominent on connect / organization / admin where it does nothing.</span></p><span class="sev med">medium</span></div>
+<div class="item"><span class="n">08</span><p class="t"><b>Weak affordances on Connect.</b> <span>"Set up browser extension" renders as bare text next to a filled primary — invisible as an action.</span></p><span class="sev med">medium</span></div>
+<div class="item"><span class="n">09</span><p class="t"><b>Destructive "archive" sits beside "save details".</b> <span>Equal visual weight, no confirmation, one slip archives a group.</span></p><span class="sev med">medium</span></div>
+<div class="item"><span class="n">10</span><p class="t"><b>Verdict placeholder is a large empty banner.</b> <span>"reading the day's activity…" holds a full-width card hostage while the LLM writes.</span></p><span class="sev lo">low</span></div>
+<div class="item"><span class="n">11</span><p class="t"><b>Category colors aren't reused on Topics.</b> <span>Overview gives each category a color; Topics shows plain gray ALL-CAPS badges — a missed scanning aid.</span></p><span class="sev lo">low</span></div>
+<div class="item"><span class="n">12</span><p class="t"><b>Wordmark undersells the product.</b> <span>"claude telemetry" — it now captures Codex, ChatGPT and Gemini too.</span></p><span class="sev lo">low</span></div>
+</body></html>

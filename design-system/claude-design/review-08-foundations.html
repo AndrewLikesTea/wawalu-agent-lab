@@ -1,0 +1,56 @@
+<!-- @dsCard group="Foundations" -->
+<!doctype html><html><head><meta charset="utf-8"><title>wawalu tokens — what exists, where it drifts</title><style>
+:root{--page:#f9f9f7;--surface:#fcfcfb;--ink1:#0b0b0b;--ink2:#52514e;--ink3:#898781;--grid:#e1e0d9;--border:rgba(11,11,11,.1);--accent:#2a78d6;--wash:rgba(42,120,214,.08);--in:#2a78d6;--out:#1baf7a;--cr:#eda100;--cc:#4a3aa7;--t5:#0f8b9d;--good:#0ca30c;--bad:#d03b3b}
+@media(prefers-color-scheme:dark){:root{--page:#0d0d0d;--surface:#1a1a19;--ink1:#fff;--ink2:#c3c2b7;--grid:#2c2c2a;--border:rgba(255,255,255,.1);--accent:#3987e5;--wash:rgba(57,135,229,.12);--in:#3987e5;--out:#199e70;--cr:#c98500;--cc:#9085e9;--t5:#26a5b8;--bad:#e05252}}
+body{margin:0;background:var(--page);color:var(--ink1);font:13px/1.5 system-ui,sans-serif;padding:20px;display:grid;gap:16px;max-width:640px}
+h2{font-size:12px;margin:0 0 8px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink3);font-family:ui-monospace,Menlo,monospace}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px}
+.note{font-size:11.5px;color:var(--ink2);margin:8px 0 0}
+.sw{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+.s{border:1px solid var(--border);border-radius:8px;overflow:hidden;font-family:ui-monospace,Menlo,monospace;font-size:9.5px;color:var(--ink3)}
+.s .c{height:34px}.s span{display:block;padding:3px 6px}
+.type div{padding:4px 0;border-top:1px solid var(--grid)}
+.type div:first-child{border-top:none}
+.mono{font-family:ui-monospace,Menlo,monospace}
+.usage{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.chip{font-family:ui-monospace,Menlo,monospace;font-size:10px;padding:2px 8px;border-radius:5px}
+</style></head><body>
+
+<div class="card">
+<h2>Series palette — one meaning per hue (mostly holds)</h2>
+<div class="sw">
+<div class="s"><div class="c" style="background:var(--in)"></div><span>input / Feature&nbsp;work / accent</span></div>
+<div class="s"><div class="c" style="background:var(--out)"></div><span>output / topic&nbsp;cost</span></div>
+<div class="s"><div class="c" style="background:var(--cr)"></div><span>cache&nbsp;read / Exploration / impersonation</span></div>
+<div class="s"><div class="c" style="background:var(--cc)"></div><span>cache&nbsp;create / Infra‑DevOps / org&nbsp;token</span></div>
+<div class="s"><div class="c" style="background:var(--t5)"></div><span>tool&nbsp;#5</span></div>
+<div class="s"><div class="c" style="background:var(--bad)"></div><span>bad / Debugging / danger</span></div>
+</div>
+<p class="note">The doubling-up is fine (chart series vs work categories never co-occur) with one exception worth guarding: <b>blue is both "input tokens" and "the accent/selection color"</b> — in dense views a selected element and an input-series mark are the same hue. Consider shifting selection washes toward the neutral inks.</p>
+</div>
+
+<div class="card">
+<h2>Type scale — two families, clear roles</h2>
+<div class="type">
+<div style="font:650 15px/1.3 ui-monospace,Menlo,monospace">wawalu · wordmark &amp; nav — mono 12.5–15px</div>
+<div style="font:700 26px/1.2 system-ui">$116.39 — stat numerals, system-ui 26px</div>
+<div style="font:650 14px/1.4 system-ui">Card titles — system-ui 650</div>
+<div style="font:400 12px/1.5 system-ui;color:var(--ink3)">Subtitles &amp; captions — ink-3 11–12.5px</div>
+<div class="mono" style="font-size:11.5px;color:var(--ink3)">metadata · timestamps · statuses — mono ink-3</div>
+</div>
+<p class="note">Consistent and distinctive. One drift: statuses use mono lowercase everywhere <em>except</em> a few Title-Case buttons ("Generate setup command", "Create invitation") — pick one button voice. The lowercase-mono voice is the brand; keep it.</p>
+</div>
+
+<div class="card">
+<h2>Chip inventory — five look-alikes, three jobs</h2>
+<div class="usage">
+<span class="chip" style="color:var(--accent);background:var(--wash)">new</span>
+<span class="chip" style="border:1px solid var(--border);color:var(--ink3)">INFRA/DEVOPS</span>
+<span class="chip" style="border:1px solid var(--good);color:var(--good)">analytics</span>
+<span class="chip" style="border:1px solid var(--border);color:var(--ink3)">PENDING</span>
+<span class="chip" style="color:var(--ink3);background:color-mix(in srgb,var(--ink3) 12%,transparent)">Claude Code</span>
+</div>
+<p class="note">Delta chips, category badges, permission labels, states, and source tags share one silhouette. Rule of thumb going forward: <b>filled wash = dynamic signal</b> (deltas, live states), <b>outline = static classification</b> (categories, permissions). The green "analytics/transcript" outlines currently read as toggles — reserve green fills/outlines for live-good states and let permissions be neutral outlines.</p>
+</div>
+
+</body></html>
