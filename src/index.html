@@ -101,35 +101,38 @@
           <form id="decision-form">
             <div class="field field-wide">
               <label for="title">Title</label>
-              <input id="title" name="title" type="text" maxlength="120" required autocomplete="off" />
+              <input id="title" name="title" type="text" maxlength="120" required autocomplete="off" aria-describedby="title-hint" />
+              <span class="hint" id="title-hint">A short name for the decision.</span>
             </div>
 
             <div class="field field-wide">
               <label for="context">Context</label>
               <textarea id="context" name="context" rows="5" maxlength="1000" required aria-describedby="context-hint"></textarea>
-              <span class="hint" id="context-hint">Summarize the problem, constraints, and reasoning.</span>
+              <span class="hint" id="context-hint">The problem, constraints, and reasoning.</span>
             </div>
 
             <div class="field field-wide">
               <label for="alternatives">Alternatives <span class="label-optional">(optional)</span></label>
               <textarea id="alternatives" name="alternatives" rows="4" maxlength="1000" aria-describedby="alternatives-hint"></textarea>
-              <span class="hint" id="alternatives-hint">Other approaches considered and why they were not selected.</span>
+              <span class="hint" id="alternatives-hint">Other options considered and why they were not chosen.</span>
             </div>
 
             <div class="field">
               <label for="owner">Owner</label>
-              <input id="owner" name="owner" type="text" maxlength="80" required autocomplete="name" />
+              <input id="owner" name="owner" type="text" maxlength="80" required autocomplete="name" aria-describedby="owner-hint" />
+              <span class="hint" id="owner-hint">The person responsible for the decision.</span>
             </div>
 
             <div class="field">
               <label for="status">Status</label>
-              <select id="status" name="status" required>
+              <select id="status" name="status" required aria-describedby="status-hint">
                 <option value="pending">Pending</option>
                 <option value="approved">Approved</option>
               </select>
+              <span class="hint" id="status-hint">The decision's current stage.</span>
             </div>
 
-            <button type="submit">Save decision</button>
+            <button type="submit">Record decision</button>
           </form>
         </div>
 
