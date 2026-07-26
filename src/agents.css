@@ -37,7 +37,9 @@
 .activity-copy a:hover { color:#1f70c1; text-decoration:underline; }
 .activity-copy span { color:#6f6f69; font-size:13px; line-height:1.5; }
 .activity-time { color:#85857e; font:600 10px/1.5 ui-monospace,monospace; white-space:nowrap; }
-.activity-empty { padding:70px 20px; color:#6c6c66; text-align:center; }
+.activity-list>.state-panel { grid-column:1/-1; }
+.persona-list>.state-panel { display:flex; border-top:0; }
+.prompt-trace>.state-panel { grid-column:1/-1; }
 .prompt-panel { margin-top:24px; padding:30px; }
 .section-heading h2 { margin:7px 0 0; font-size:26px; letter-spacing:-.03em; }
 .section-heading>p:last-child { max-width:720px; margin:12px 0 0; color:#6f6f69; line-height:1.55; }
