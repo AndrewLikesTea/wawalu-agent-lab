@@ -1,4 +1,5 @@
 import { dedupeById, fetchDemoData } from "./demo-data.js";
+import { initLeadCapture } from "./lead-capture.js";
 import { loadReleases, mountReleaseList } from "./releases.js";
 
 export const STORAGE_KEY = "shiplog.decisions.v1";
@@ -283,6 +284,7 @@ function syncOwnerOptions(select, decisions) {
 }
 
 export async function initDecisionLog(root = document, storage = localStorage) {
+  initLeadCapture(root);
   const form = root.querySelector("#decision-form");
   const list = root.querySelector("#decision-list");
   const count = root.querySelector("#decision-count");
