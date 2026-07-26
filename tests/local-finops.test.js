@@ -5,6 +5,7 @@ import {
   localFinopsJsonExport,
   localFinopsMeetingSummary,
   normalizeLocalFinops,
+  normalizeLocalFinopsHistory,
   parseLocalFinopsFile,
 } from "../src/local-finops.js";
 
@@ -93,6 +94,60 @@ test("unmatched, partial, and estimated data remain explicit quality context", a
   assert.match(result.action, /Resolve data-quality gaps/);
 });
 
+test("local history derives a same-source equal-period organization and department trend", async () => {
+  const pair = await validPair();
+  const previous = structuredClone(pair.provider);
+  const current = structuredClone(pair.provider);
+  previous.document.export_id = "11111111-1111-4111-8111-111111111111";
+  previous.document.snapshot.period_start = "2026-05-01";
+  previous.document.snapshot.period_end = "2026-06-01";
+  previous.document.records[0].cost.amount_minor = 1000;
+  current.document.export_id = "22222222-2222-4222-8222-222222222222";
+  current.document.snapshot.period_start = "2026-06-01";
+  current.document.snapshot.period_end = "2026-07-02";
+  current.document.records[0].cost.amount_minor = 1250;
+
+  const result = normalizeLocalFinopsHistory({
+    providers: [current, previous],
+    hris: pair.hris,
+  });
+  assert.equal(result.history.state, "available");
+  assert.equal(result.history.organizationSpendChangePercent, 25);
+  assert.equal(result.topDepartment.spendChangePercent, 25);
+  assert.equal(result.history.periodCount, 2);
+  assert.equal(result.benchmark.state, "unavailable");
+  assert.match(result.benchmark.message, /no compatible peer cohort/);
+});
+
+test("missing history and incompatible periods are explicit and never flattened", async () => {
+  const pair = await validPair();
+  const single = normalizeLocalFinopsHistory({
+    providers: [pair.provider], hris: pair.hris,
+  });
+  assert.equal(single.history.state, "missing");
+  assert.equal(single.history.organizationSpendChangePercent, null);
+
+  const prior = structuredClone(pair.provider);
+  const current = structuredClone(pair.provider);
+  prior.document.export_id = "11111111-1111-4111-8111-111111111111";
+  prior.document.snapshot.period_start = "2026-04-01";
+  prior.document.snapshot.period_end = "2026-05-01";
+  current.document.export_id = "22222222-2222-4222-8222-222222222222";
+  current.document.snapshot.period_start = "2026-06-01";
+  current.document.snapshot.period_end = "2026-07-01";
+  const incompatible = normalizeLocalFinopsHistory({
+    providers: [prior, current], hris: pair.hris,
+  });
+  assert.equal(incompatible.history.state, "incompatible");
+  assert.equal(incompatible.history.organizationTrendAvailable, false);
+  assert.match(incompatible.history.message, /not contiguous/);
+
+  current.document.snapshot.source_instance_id = "another-source";
+  assert.throws(() => normalizeLocalFinopsHistory({
+    providers: [prior, current], hris: pair.hris,
+  }), (error) => error.code === "incompatible_periods");
+});
+
 test("exports contain decision results, provenance, quality, limits, and privacy context", async () => {
   const result = normalizeLocalFinops(await validPair());
   const json = JSON.parse(localFinopsJsonExport(result));
@@ -114,9 +169,12 @@ test("the page exposes an accessible local workflow and progressive disclosures"
   assert.match(page, /role="status" aria-live="polite"/);
   assert.match(page, /No upload · no credentials · no network transfer · no browser storage/);
   for (const label of [
-    "Mapping assumptions", "Data-quality warnings", "Benchmark and trend limits",
+    "Period-level detail", "Mapping assumptions", "Data-quality warnings", "Benchmark and trend limits",
     "Recommendation evidence",
   ]) assert.match(page, new RegExp(`<summary>${label}`));
+  assert.match(page, /id="local-department-list".*role="group"/);
+  assert.match(page, /id="local-trend-state"/);
+  assert.match(page, /id="local-benchmark-state"/);
   assert.match(page, /id="export-local-json"/);
   assert.match(page, /id="export-local-summary"/);
 });
