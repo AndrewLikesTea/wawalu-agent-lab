@@ -104,6 +104,22 @@
         </ol>
       </section>
 
+      <section class="finops-panel" aria-labelledby="evaluation-title">
+        <div class="section-heading">
+          <p class="eyebrow">Defensible evaluation · static fixture</p>
+          <h2 id="evaluation-title">Inspect how a recommendation earns its score.</h2>
+          <p>Every point maps to a labelled criterion, evidence statement, and documented weight assumption. Unsafe content cannot be averaged into approval.</p>
+        </div>
+        <p class="decision-provenance">Bundled synthetic fixture · deterministic rubric · no stored prompts, credentials, customer data, or live provider calls.</p>
+        <!-- Deliberately not aria-live: the panel populates once on load with
+             several full breakdowns, and announcing all of them would bury the
+             page. aria-busy covers the loading state, and the failure notice
+             carries role="alert" so only the surprising outcome interrupts. -->
+        <div id="finops-evaluation-result" aria-busy="true">
+          <p>Loading inspectable fixture scores…</p>
+        </div>
+      </section>
+
       <section class="finops-panel decision-panel" aria-labelledby="department-title">
         <!-- Legacy coverage marker: the visible <label for="department-sort">Rank by</label>
              control was deliberately removed because intervention priority is metric-defined. -->
