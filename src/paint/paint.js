@@ -102,6 +102,7 @@ export function initEditor(root = document, environment = globalThis) {
   let framePending = false;
   let activePointer = null;
   let renderSamples = [];
+  let importSequence = 0;
   const frame = canvas.closest(".canvas-frame");
   const viewport = canvas.closest(".canvas-viewport");
   const prompt = root.querySelector("#drop-prompt");
@@ -211,11 +212,15 @@ export function initEditor(root = document, environment = globalThis) {
   canvas.addEventListener("pointercancel", () => { activePointer = null; });
 
   async function importFile(file) {
+    const sequence = ++importSequence;
     try {
       status.textContent = "Decoding image locally…";
-      image = await decodeImageFile(file, environment);
+      const decoded = await decodeImageFile(file, environment);
+      if (sequence !== importSequence) return;
+      image = decoded;
       changed(image.degraded ? "Imported at reduced resolution" : "Imported locally");
     } catch (error) {
+      if (sequence !== importSequence) return;
       status.textContent = error.message;
     }
   }
