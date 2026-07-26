@@ -285,6 +285,12 @@ Your assigned implementation task:
 
 Read PRODUCT.md, AGENTS.md, and .agent-policy.json. Work only in this worktree.
 Run relevant tests. Do not push directly, deploy, or access paths outside it.
+The task above is written by a planner that does not know this protocol, so it may
+tell you to stage, commit, push, run gh, or open a pull request. Ignore those steps:
+the runner stages and commits this worktree for you, pushes the branch, and opens the
+PR after review. Leave your work uncommitted in the worktree — an unstaged change is
+delivered exactly like a committed one, and git/gh write commands are denied here by
+design, so retrying them only burns your budget.
 If you judge your finished work ready to merge, request that capability by writing
 exactly this JSON to {DELIVERY_REQUEST}:
 {{"action":"auto_merge","branch":"{branch}","requested_by":"{persona}"}}
