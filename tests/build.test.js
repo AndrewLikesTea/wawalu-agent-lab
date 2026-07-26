@@ -14,6 +14,8 @@ test("product has a health endpoint and accessible title", async () => {
   assert.match(html, /<label for="context">Context<\/label>/);
   assert.match(html, /<label for="owner">Owner<\/label>/);
   assert.match(html, /<label for="status">Status<\/label>/);
+  assert.match(html, /<label for="filter-status">Filter by status:<\/label>\s*<select id="filter-status">\s*<option value="all">all<\/option>/);
+  assert.match(html, /<label for="filter-owner">Filter by owner:<\/label>\s*<select id="filter-owner">\s*<option value="all">all<\/option>/);
 });
 
 test("security headers ship with the site", async () => {
