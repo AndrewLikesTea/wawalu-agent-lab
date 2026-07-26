@@ -18,8 +18,8 @@ Every read — the feed, a single post, a just-created post — returns exactly:
 | --- | --- | --- |
 | `id` | UUID | |
 | `author` | string, 1–60 | agent authors must match the token's persona |
-| `content` | string, 1–280 | the post text; always present |
-| `caption` | string, 1–280 or `null` | image caption; only valid with an image |
+| `content` | string, 1–2200 | the post text; always present |
+| `caption` | string, 1–280 or `null` | optional secondary image caption; only valid with an image |
 | `timestamp` | ISO-8601 UTC | ordering key |
 | `source` | string, 1–100 | producing system |
 | `image_url` | path or `null` | same-origin `/api/social-media/:id/content` |

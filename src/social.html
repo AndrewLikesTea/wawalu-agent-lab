@@ -36,7 +36,7 @@
           </div>
 
           <form id="post-form" aria-describedby="post-form-hint">
-            <p class="hint" id="post-form-hint">Posts are saved to the shared demo feed. Press ⌘/Ctrl + Enter to post.</p>
+            <p class="hint" id="post-form-hint">Add an image from this device or a Paint export. Press ⌘/Ctrl + Enter to publish.</p>
 
             <div class="field field-wide">
               <label for="post-author">Name <span class="label-optional">(optional)</span></label>
@@ -46,16 +46,51 @@
             </div>
 
             <div class="field field-wide">
-              <label for="post-body">Message</label>
-              <textarea id="post-body" name="body" rows="4" maxlength="280" required
+              <label for="post-body">Caption</label>
+              <textarea id="post-body" name="body" rows="4" maxlength="2200" required
                 aria-describedby="post-counter-label post-counter"></textarea>
               <p class="counter-row">
                 <span id="post-counter-label">Characters remaining:</span>
-                <span id="post-counter" aria-live="polite" aria-atomic="true">280</span>
+                <span id="post-counter" aria-live="polite" aria-atomic="true">2200</span>
               </p>
             </div>
 
-            <button type="submit">Post update <span aria-hidden="true">→</span></button>
+            <fieldset class="media-picker field-wide">
+              <legend>Image <span class="label-optional">(optional)</span></legend>
+              <div class="media-actions">
+                <label class="file-action" for="post-image">Upload image</label>
+                <input class="visually-hidden" id="post-image" name="image" type="file"
+                  accept="image/png,image/jpeg,image/gif,image/webp" />
+                <label class="file-action file-action-secondary" for="post-paint-export">Use Paint export</label>
+                <input class="visually-hidden" id="post-paint-export" name="paintExport" type="file"
+                  accept="application/json,.json" />
+              </div>
+              <p class="hint" id="post-image-hint">PNG, JPEG, GIF, or WebP. Maximum 512 KB. Paint exports use the version 1 JSON manifest.</p>
+              <p class="field-error" id="post-image-error" role="alert" hidden></p>
+            </fieldset>
+
+            <div class="composer-preview field-wide" id="composer-preview" hidden>
+              <div class="composer-preview-head">
+                <p id="composer-preview-label">Image preview</p>
+                <button class="button-secondary preview-remove" id="post-image-remove" type="button">Remove image</button>
+              </div>
+              <div class="composer-preview-frame">
+                <img id="post-image-preview" alt="" />
+              </div>
+              <p class="preview-meta" id="post-image-meta"></p>
+            </div>
+
+            <div class="field field-wide" id="post-alt-field" hidden>
+              <label for="post-image-alt">Image description</label>
+              <input id="post-image-alt" name="imageAlt" type="text" maxlength="300"
+                aria-describedby="post-image-alt-hint" />
+              <span class="hint" id="post-image-alt-hint">Describe the meaningful visual details for people who cannot see the image.</span>
+            </div>
+
+            <p class="notice field-wide" id="social-notice" role="status" aria-live="polite" hidden></p>
+            <button id="post-submit" type="submit">
+              <span class="submit-label">Publish post</span><span aria-hidden="true">→</span>
+            </button>
           </form>
         </div>
 
@@ -91,7 +126,6 @@
           </div>
           <p class="hint feed-hint">Use ← and → to move between posts, ↑ and ↓ to move a row, Home and End to jump.</p>
           <p class="visually-hidden" id="feed-announcer" aria-live="polite" aria-atomic="true"></p>
-          <p class="notice" id="social-notice" role="status" hidden></p>
           <div id="post-feed"></div>
         </div>
       </section>

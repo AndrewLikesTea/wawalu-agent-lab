@@ -38,7 +38,7 @@ import {
 } from "./social-engagement.js";
 
 export const MAX_SOCIAL_AUTHOR_LENGTH = 60;
-export const MAX_SOCIAL_CONTENT_LENGTH = 280;
+export const MAX_SOCIAL_CONTENT_LENGTH = 2200;
 export const MAX_SOCIAL_CAPTION_LENGTH = 280;
 export const MAX_SOCIAL_SOURCE_LENGTH = 100;
 export const DEFAULT_SOCIAL_PAGE_SIZE = 50;
@@ -306,7 +306,7 @@ export function createMemorySocialPostStore(initial = []) {
 // are correlated subqueries rather than columns on social_posts: a stored
 // counter needs a second write to stay true and drifts the moment that write is
 // lost, and this feed is bounded to MAX_SOCIAL_PAGE_SIZE rows.
-const POST_COLUMNS = `p.id, p.author, p.content, p.caption, p.timestamp, p.source, p.media_id,
+const POST_COLUMNS = `p.id, p.author, COALESCE(p.long_content, p.content) AS content, p.caption, p.timestamp, p.source, p.media_id,
   m.alt_text AS image_alt, m.width AS image_width, m.height AS image_height,
   (SELECT COUNT(*) FROM social_post_likes l WHERE l.post_id = p.id) AS like_count,
   (SELECT COUNT(*) FROM social_post_comments c WHERE c.post_id = p.id) AS comment_count`;
@@ -321,14 +321,15 @@ export function createD1SocialPostStore(db) {
     // constraint error, and makes the check unable to go stale between a
     // separate read and this write.
     async create(post) {
-      const inserted = await db.prepare(`INSERT INTO social_posts (id,author,content,caption,media_id,timestamp,source,principal_id,created_at)
-        SELECT ?,?,?,?,?,?,?,?,?
+      const longContent = post.content.length > 280 ? post.content : null;
+      const inserted = await db.prepare(`INSERT INTO social_posts (id,author,content,long_content,caption,media_id,timestamp,source,principal_id,created_at)
+        SELECT ?,?,?,?,?,?,?,?,?,?
         WHERE ? IS NULL OR EXISTS (
           SELECT 1 FROM social_media_objects m
           WHERE m.id = ? AND m.principal_id = ?
             AND NOT EXISTS (SELECT 1 FROM social_posts p WHERE p.media_id = m.id))
         RETURNING id`)
-        .bind(post.id, post.author, post.content, post.caption ?? null, post.media_id ?? null, post.timestamp, post.source, post.principal_id, post.created_at,
+        .bind(post.id, post.author, longContent ? post.content.slice(0, 280) : post.content, longContent, post.caption ?? null, post.media_id ?? null, post.timestamp, post.source, post.principal_id, post.created_at,
           post.media_id ?? null, post.media_id ?? null, post.principal_id)
         .first();
       return inserted ? this.get(post.id) : null;
@@ -342,8 +343,10 @@ export function createD1SocialPostStore(db) {
     },
     // Ownership and existence in one statement; no read-then-write window.
     async updateOwned(id, principalId, changes) {
-      const row = await db.prepare("UPDATE social_posts SET content = COALESCE(?, content), caption = CASE WHEN ? THEN ? ELSE caption END WHERE id = ? AND principal_id = ? RETURNING id")
-        .bind(changes.content ?? null, "caption" in changes ? 1 : 0, changes.caption ?? null, id, principalId)
+      const content = changes.content;
+      const row = await db.prepare("UPDATE social_posts SET content = CASE WHEN ? IS NULL THEN content ELSE ? END, long_content = CASE WHEN ? IS NULL THEN long_content WHEN length(?) > 280 THEN ? ELSE NULL END, caption = CASE WHEN ? THEN ? ELSE caption END WHERE id = ? AND principal_id = ? RETURNING id")
+        .bind(content ?? null, content?.slice(0, 280) ?? null, content ?? null, content ?? null, content ?? null,
+          "caption" in changes ? 1 : 0, changes.caption ?? null, id, principalId)
         .first();
       return row ? this.get(id) : null;
     },

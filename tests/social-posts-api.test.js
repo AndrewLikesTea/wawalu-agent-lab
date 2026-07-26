@@ -199,6 +199,17 @@ test("D1 post store persists, orders, and rate-limits against real SQL", async (
   assert.deepEqual((await store.list(10)).map((post) => post.id), [second.id, first.id], "newest first");
   assert.deepEqual(await store.get(ID), first);
 
+  const longContent = "A".repeat(2200);
+  const long = await store.create({
+    id: "33333333-3333-4333-8333-333333333333",
+    ...valid,
+    content: longContent,
+    timestamp: "2026-07-18T12:45:00.000Z",
+    principal_id: ID,
+    created_at: new Date(NOW).toISOString(),
+  });
+  assert.equal(long.content, longContent, "the persistence layer keeps the full composer budget");
+
   const rateLimit = createD1RateLimiter(db, { limit: 2 });
   assert.deepEqual(
     [(await rateLimit(ID, NOW)).remaining, (await rateLimit(ID, NOW)).remaining, (await rateLimit(ID, NOW)).allowed],
@@ -210,13 +221,14 @@ test("D1 post store persists, orders, and rate-limits against real SQL", async (
 });
 
 test("deployment adapters and migrations keep persistence and auth at the edge", async () => {
-  const [collection, subresources, media, edge, migration, mediaMigration] = await Promise.all([
+  const [collection, subresources, media, edge, migration, mediaMigration, captionMigration] = await Promise.all([
     "../functions/api/social-posts.js",
     "../functions/api/social-posts/[[route]].js",
     "../functions/api/social-media/[[route]].js",
     "../src/social-edge.js",
     "../migrations/0003_social_posts.sql",
     "../migrations/0004_social_post_media.sql",
+    "../migrations/0007_social_post_long_captions.sql",
   ].map((path) => readFile(new URL(path, import.meta.url), "utf8")));
 
   // The exact-path route must delegate, never re-implement: two wirings for one
@@ -232,6 +244,7 @@ test("deployment adapters and migrations keep persistence and auth at the edge",
   assert.match(migration, /CREATE TABLE IF NOT EXISTS social_posts/);
   assert.match(migration, /CREATE TABLE IF NOT EXISTS social_post_rate_limits/);
   assert.match(mediaMigration, /CREATE TABLE IF NOT EXISTS social_media_objects/);
+  assert.match(captionMigration, /ADD COLUMN long_content/);
   assert.match(mediaMigration, /CREATE TABLE IF NOT EXISTS social_post_likes/);
   assert.match(mediaMigration, /CREATE TABLE IF NOT EXISTS social_post_comments/);
   // Forward-only: the unified model may add columns and tables, never drop or

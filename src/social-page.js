@@ -7,6 +7,7 @@
 // no customer or production data is read here.
 
 import { mountSocialFeed, normalizeSocialApiPosts } from "/social.js";
+import { imagePayload } from "/social-composer.js";
 
 const REFRESH_INTERVAL = 10_000;
 
@@ -16,14 +17,18 @@ async function fetchLivePosts() {
   return normalizeSocialApiPosts(await response.json());
 }
 
-async function createLivePost(post) {
+async function createLivePost(post, media) {
+  const image = await imagePayload(media, post.imageAlt);
   const response = await fetch("/api/social-posts", {
     method: "POST",
     headers: { "content-type": "application/json", accept: "application/json" },
     // timestamp and source are server-owned for human writes; the API sets them.
-    body: JSON.stringify({ author: post.author, content: post.body }),
+    body: JSON.stringify({ author: post.author, content: post.body, ...(image ? { image } : {}) }),
   });
-  if (!response.ok) throw new Error(`Posts API returned ${response.status}`);
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null);
+    throw new Error(payload?.error?.message ?? `Posts API returned ${response.status}`);
+  }
   const saved = normalizeSocialApiPosts({ posts: [(await response.json()).post] });
   if (!saved[0]) throw new Error("Posts API returned an invalid post");
   return saved[0];

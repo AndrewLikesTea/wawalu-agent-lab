@@ -23,12 +23,17 @@
 // profile remembers cannot drift apart.
 import { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH, readStoredAuthor, rememberAuthor } from "./social-identity.js";
 import { renderState } from "./state-ui.js";
+import {
+  formatImageSize,
+  parsePaintExport,
+  validateImageFile,
+} from "./social-composer.js";
 
 export { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH };
 
 // A single, classic short-post budget. Enforced in three places that must agree:
 // the textarea `maxlength`, the live counter, and createPost's validation.
-export const MAX_POST_LENGTH = 280;
+export const MAX_POST_LENGTH = 2200;
 export const MAX_IMAGE_ALT_LENGTH = 200;
 
 // Normalize + validate a post from raw form values. Body is required and must
@@ -48,12 +53,14 @@ export function createPost(values, options = {}) {
     throw new TypeError(`An author must be ${MAX_AUTHOR_LENGTH} characters or fewer.`);
   }
 
-  return {
+  const post = {
     id: options.id ?? globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`,
     author,
     body,
     createdAt: options.createdAt ?? new Date().toISOString(),
   };
+  if (values.imageAlt !== undefined) post.imageAlt = String(values.imageAlt).trim();
+  return post;
 }
 
 // Reverse chronological order (newest first). Never mutates the input; ties fall
@@ -436,9 +443,22 @@ export function mountSocialFeed(root, options = {}) {
   const agentFilter = root.querySelector("#post-agent-filter");
   const timeFilter = root.querySelector("#post-time-filter");
   const clearFilters = root.querySelector("#post-filter-clear");
+  const imageInput = root.querySelector("#post-image");
+  const paintInput = root.querySelector("#post-paint-export");
+  const preview = root.querySelector("#composer-preview");
+  const previewImage = root.querySelector("#post-image-preview");
+  const previewMeta = root.querySelector("#post-image-meta");
+  const imageError = root.querySelector("#post-image-error");
+  const imageRemove = root.querySelector("#post-image-remove");
+  const altField = root.querySelector("#post-alt-field");
+  const altInput = root.querySelector("#post-image-alt");
+  const submit = root.querySelector("#post-submit");
+  const submitLabel = submit?.querySelector(".submit-label");
 
   let posts = options.posts ?? [];
   let state = options.state ?? "ready";
+  let selectedMedia = null;
+  let objectUrl = null;
   // The card that owns the tab stop, remembered across re-renders so a
   // background refresh cannot silently send a returning keyboard user back to
   // the top of the feed.
@@ -478,6 +498,69 @@ export function mountSocialFeed(root, options = {}) {
     counter.classList.toggle("near", state.near);
   };
 
+  const showImageError = (message = "") => {
+    if (!imageError) return;
+    imageError.textContent = message;
+    imageError.hidden = !message;
+  };
+
+  const clearMedia = ({ focus = false } = {}) => {
+    if (objectUrl) URL.revokeObjectURL(objectUrl);
+    objectUrl = null;
+    selectedMedia = null;
+    if (imageInput) imageInput.value = "";
+    if (paintInput) paintInput.value = "";
+    if (preview) preview.hidden = true;
+    if (previewImage) previewImage.removeAttribute("src");
+    if (previewMeta) previewMeta.textContent = "";
+    if (altField) altField.hidden = true;
+    if (altInput) {
+      altInput.value = "";
+      altInput.required = false;
+    }
+    showImageError();
+    if (focus) imageInput?.focus();
+  };
+
+  const showMedia = (media, message = "") => {
+    selectedMedia = media;
+    if (previewImage) previewImage.src = media.src;
+    if (previewMeta) previewMeta.textContent = `${media.kind === "paint" ? "Paint export" : "Upload"} · ${formatImageSize(media.size)}`;
+    if (preview) preview.hidden = false;
+    if (altField) altField.hidden = false;
+    if (altInput) altInput.required = true;
+    showImageError(message);
+    altInput?.focus();
+  };
+
+  imageInput?.addEventListener("change", () => {
+    const file = imageInput.files?.[0];
+    const error = validateImageFile(file);
+    if (error) {
+      clearMedia();
+      showImageError(error);
+      return;
+    }
+    clearMedia();
+    objectUrl = URL.createObjectURL(file);
+    showMedia({ kind: "upload", name: file.name, src: objectUrl, contentType: file.type, size: file.size, file });
+  });
+
+  paintInput?.addEventListener("change", async () => {
+    const file = paintInput.files?.[0];
+    if (!file) return;
+    const result = parsePaintExport(await file.text());
+    if (result.error) {
+      clearMedia();
+      showImageError(result.error);
+      return;
+    }
+    clearMedia();
+    showMedia(result.media, result.warning);
+  });
+
+  imageRemove?.addEventListener("click", () => clearMedia({ focus: true }));
+
   // Arrow/Home/End move focus between cards; delegated so it survives re-renders.
   feed.addEventListener("keydown", (event) => {
     const card = event.target.closest?.(".post-card");
@@ -512,7 +595,7 @@ export function mountSocialFeed(root, options = {}) {
 
       let post;
       try {
-        post = createPost({ author: authorInput?.value, body: bodyInput?.value });
+        post = createPost({ author: authorInput?.value, body: bodyInput?.value, imageAlt: altInput?.value });
       } catch {
         // Should be unreachable behind reportValidity()/maxlength, but keeps the
         // submit flow resilient rather than throwing into the console.
@@ -524,26 +607,39 @@ export function mountSocialFeed(root, options = {}) {
       }
 
       try {
-        form.querySelector("button[type=submit]")?.setAttribute("disabled", "");
-        const saved = options.create ? await options.create(post) : post;
+        submit?.setAttribute("disabled", "");
+        form.setAttribute("aria-busy", "true");
+        if (submitLabel) submitLabel.textContent = "Publishing…";
+        if (notice) notice.hidden = true;
+        const saved = options.create ? await options.create(post, selectedMedia) : post;
         // The byline is what the profile view treats as "you" (src/
         // social-identity.js). Remembered only after a post actually lands, so a
         // failed submit cannot rewrite who this browser thinks it is.
         rememberAuthor(options.storage ?? globalThis.localStorage, saved.author);
         posts = [saved, ...posts.filter((item) => item.id !== saved.id)];
         renderAgents();
-        if (notice) notice.hidden = true;
-      } catch {
         if (notice) {
-          notice.textContent = "This post could not be saved. Check the live connection and try again.";
+          notice.textContent = "Post published successfully.";
+          notice.className = "notice notice-success";
+          notice.hidden = false;
+        }
+      } catch (error) {
+        if (notice) {
+          notice.className = "notice notice-error";
+          notice.textContent = error?.message === "paint_export_unavailable"
+            ? "The Paint export is unavailable. Choose it again or try another image."
+            : "This post could not be published. Your caption and image are still here—please try again.";
           notice.hidden = false;
         }
         return;
       } finally {
-        form.querySelector("button[type=submit]")?.removeAttribute("disabled");
+        submit?.removeAttribute("disabled");
+        form.removeAttribute("aria-busy");
+        if (submitLabel) submitLabel.textContent = "Publish post";
       }
       render();
       form.reset();
+      clearMedia();
       updateCounter();
       bodyInput?.focus();
     });
