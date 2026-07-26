@@ -68,8 +68,25 @@
 - A per-user macOS LaunchAgent (`org.wawalu.agent-lab`) runs one manager loop.
 - The installed service is wrapped in macOS `caffeinate`, keeping an AC-powered,
   logged-in laptop awake while the manager runs. Launchd restarts unexpected exits.
-- An advisory file lock prevents concurrent managers and workers run sequentially
-  so the 30B Qwen model, Codex or Claude, Docker, and tests share laptop memory.
+- An advisory file lock prevents concurrent managers. Within the one manager,
+  `max_concurrent_runs` (default 1) sets how many issues are implemented at once:
+  each run executes on its own thread, so the tick loop keeps sweeping pull requests,
+  running stakeholder reviews, and planning directives instead of blocking for the
+  10–60 minutes a run takes. Raise it only as far as the laptop can carry — local
+  Qwen serializes its own queue, so planning phases simply wait their turn, while
+  the paid worker CLIs are cloud-side and genuinely parallel.
+- No two runs ever share an issue, and no two ever share a persona: an engineer is
+  one person, so a second run under the same name is refused until the first ends.
+- `state.json` is written under an exclusive lock on a `.lock` sidecar, re-read
+  inside that lock before every change. A run that started an hour ago therefore
+  cannot save its stale snapshot over a newer run's record, or over a requeue you
+  made by hand while the daemon was working. Worker subprocesses never hold it.
+- The git commands that touch the shared checkout — fast-forwarding main, adding,
+  reclaiming, and removing worktrees — take one checkout lock across threads and
+  worker processes. Work inside a worktree is unaffected and never holds it.
+- Stopping is immediate: `STOP` ends the loop without waiting for runs in flight.
+  Their worker processes keep their own session and still finish their pull request;
+  only the daemon-side bookkeeping for those runs is lost, as with any kill.
 - `agent-ready` GitHub issues are the durable queue. A `persona:<role>` label
   assigns the worker; unassigned tasks fall back to the staff persona.
 - When the queue is empty, Sam may generate one bounded issue from `PRODUCT.md`.

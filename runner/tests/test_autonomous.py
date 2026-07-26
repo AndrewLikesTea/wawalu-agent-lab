@@ -1,8 +1,10 @@
+import contextlib
 import datetime as dt
 import json
 import pathlib
 import subprocess
 import tempfile
+import threading
 import unittest
 import urllib.error
 from unittest import mock
@@ -1297,6 +1299,213 @@ class StakeholderLoopTests(unittest.TestCase):
                     "token", self.CONFIG, state, journal, autonomous.utc_now())
         events = [call.args[0] for call in journal.emit.call_args_list]
         self.assertIn("stakeholder_review_failed", events)
+
+
+class ParallelRunTests(unittest.TestCase):
+    """Several issues in flight at once, without the runs overwriting each other."""
+
+    CONFIG = {"enabled": True, "issue_label": "agent-ready", "max_attempts": 3,
+              "retry_cooldown_seconds": 60, "min_pr_interval_seconds": 0,
+              "default_worker": "codex", "worker_timeout_seconds": 10,
+              "working_hours": {"start": 0, "end": 24}}
+
+    def issue(self, number, persona):
+        return {"number": number, "title": f"Task {number}", "body": "",
+                "labels": [{"name": "agent-ready"}, {"name": f"persona:{persona}"}]}
+
+    def test_concurrent_runs_do_not_lose_each_others_records(self):
+        """Two engineers finishing at once must both be recorded, not last-write-wins.
+
+        Both runs hold a State loaded before either wrote anything, which is exactly
+        the situation a long run is in when a shorter one finishes underneath it.
+        """
+        with tempfile.TemporaryDirectory() as tmp, \
+             mock.patch.object(autonomous, "ROOT", pathlib.Path(tmp)), \
+             mock.patch.object(autonomous, "AUTONOMY", pathlib.Path(tmp) / "autonomy"), \
+             mock.patch.object(autonomous, "replace_state_label"), \
+             mock.patch.object(autonomous, "comment"), \
+             mock.patch.object(autonomous, "cleanup_worktree"):
+            path = pathlib.Path(tmp) / "state.json"
+            journal = autonomous.Journal(pathlib.Path(tmp) / "events.jsonl")
+            work = [(101, "backend", autonomous.State(path)),
+                    (102, "frontend", autonomous.State(path))]
+            inside = threading.Barrier(len(work))
+
+            def worker_process(command, timeout_seconds, emitter, number):
+                inside.wait(10)  # both runs are mid-flight before either records anything
+                return 0
+
+            failures = []
+
+            def execute(number, persona, state):
+                try:
+                    autonomous.execute_issue(self.issue(number, persona), self.CONFIG,
+                                             state, journal, "token")
+                except Exception as error:  # surfaced below, not swallowed by the thread
+                    failures.append(error)
+
+            with mock.patch.object(autonomous, "run_worker_process", side_effect=worker_process):
+                threads = [threading.Thread(target=execute, args=item) for item in work]
+                for thread in threads:
+                    thread.start()
+                for thread in threads:
+                    thread.join(20)
+            self.assertEqual(failures, [])
+            value = json.loads(path.read_text())
+
+        self.assertEqual(value["issues"]["101"]["status"], "submitted")
+        self.assertEqual(value["issues"]["102"]["status"], "submitted")
+        self.assertEqual(value["issues"]["101"]["attempts"], 1)
+        self.assertEqual(value["issues"]["102"]["attempts"], 1)
+        # Both engineers are spaced out for their next pull request; a run may also
+        # record the collaborator it paired with, so this is a subset check.
+        self.assertLessEqual({"backend", "frontend"}, set(value["persona_submissions"]))
+        # The daily tally is a read-modify-write of its own: neither run may be lost.
+        self.assertEqual(sum(value["daily_runs"].values()), 2)
+
+    def test_hand_edited_requeue_survives_a_running_run(self):
+        """Requeuing by hand mid-run must keep working: the run re-reads before it writes."""
+        with tempfile.TemporaryDirectory() as tmp, \
+             mock.patch.object(autonomous, "replace_state_label"), \
+             mock.patch.object(autonomous, "comment"):
+            path = pathlib.Path(tmp) / "state.json"
+            seed = autonomous.State(path)
+            with seed.mutate():
+                seed.value["issues"]["7"] = {"status": "running", "attempts": 1}
+                seed.value["issues"]["9"] = {"status": "blocked", "attempts": 3}
+            running = autonomous.State(path)  # the run thread's handle, loaded now
+            edited = json.loads(path.read_text())
+            edited["issues"].pop("9")  # the owner requeues #9 while the run works
+            path.write_text(json.dumps(edited), encoding="utf-8")
+
+            autonomous.record_run_outcome(
+                0, self.issue(7, "backend"), 7, "backend", {}, self.CONFIG, running,
+                autonomous.Journal(pathlib.Path(tmp) / "events.jsonl"), "token")
+            value = json.loads(path.read_text())
+
+        self.assertEqual(value["issues"]["7"]["status"], "submitted")
+        self.assertNotIn("9", value["issues"])
+
+    def test_journal_lines_from_many_threads_stay_whole(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = pathlib.Path(tmp) / "events.jsonl"
+            journal = autonomous.Journal(path)
+
+            def emit(number):
+                for index in range(20):
+                    journal.emit("run_started", issue=number, detail="x" * 600, index=index)
+
+            threads = [threading.Thread(target=emit, args=(number,)) for number in range(8)]
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join(20)
+            lines = path.read_text(encoding="utf-8").splitlines()
+
+        self.assertEqual(len(lines), 160)
+        self.assertEqual({json.loads(line)["event"] for line in lines}, {"run_started"})
+
+    def test_registry_refuses_a_second_claim_and_frees_it_when_the_run_ends(self):
+        runs = autonomous.RunRegistry()
+        release = threading.Event()
+        self.assertTrue(runs.start(11, "backend", release.wait))
+        self.assertFalse(runs.start(12, "backend", release.wait))  # same engineer
+        self.assertFalse(runs.start(11, "frontend", release.wait))  # same issue
+        self.assertTrue(runs.start(13, "frontend", release.wait))
+        self.assertEqual(runs.active(), {11: "backend", 13: "frontend"})
+        release.set()
+        runs.join(10)
+        self.assertEqual(len(runs), 0)
+        self.assertTrue(runs.start(12, "backend", release.wait))
+        runs.join(10)
+
+    def test_a_failing_run_thread_is_journaled_and_releases_its_persona(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            journal = mock.Mock()
+            runs = autonomous.RunRegistry()
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            with mock.patch.object(autonomous, "execute_issue",
+                                   side_effect=RuntimeError("worker exploded")):
+                self.assertTrue(autonomous.start_run(self.issue(21, "backend"), self.CONFIG,
+                                                     state, journal, "token", runs))
+                runs.join(10)
+        self.assertEqual(len(runs), 0)
+        self.assertIn("run_thread_error", [call.args[0] for call in journal.emit.call_args_list])
+
+    @contextlib.contextmanager
+    def daemon(self, tmp, max_concurrent):
+        """A tick environment with the network, git, and the directive book stubbed out."""
+        with mock.patch.object(autonomous, "STOP", pathlib.Path(tmp) / "STOP"), \
+             mock.patch.object(autonomous, "DIRECTIVE", pathlib.Path(tmp) / "directive.json"), \
+             mock.patch.object(autonomous, "DIRECTIVES", pathlib.Path(tmp) / "directives.json"), \
+             mock.patch.object(autonomous, "installation_token", return_value="token"), \
+             mock.patch.object(autonomous, "resolve_worker", return_value="codex"), \
+             mock.patch.object(autonomous, "sweep_outstanding_prs"), \
+             mock.patch.object(autonomous, "ensure_labels"), \
+             mock.patch.object(autonomous, "sync_main"):
+            yield {**self.CONFIG, "max_concurrent_runs": max_concurrent}
+
+    @contextlib.contextmanager
+    def held_runs(self):
+        """Hold every started run open, so a later tick sees it in flight.
+
+        Yields the gate that frees them. No tick may run outside this block: a real
+        ``execute_issue`` would launch a worker against the live repository.
+        """
+        gate = threading.Event()
+        with mock.patch.object(autonomous, "execute_issue",
+                               side_effect=lambda *a, **k: gate.wait(20)):
+            try:
+                yield gate
+            finally:
+                gate.set()
+
+    def test_tick_refuses_a_second_concurrent_run_for_one_persona(self):
+        """A persona is one person: their second issue waits, someone else's does not."""
+        queue = [self.issue(31, "backend"), self.issue(32, "backend"),
+                 self.issue(33, "frontend")]
+        with tempfile.TemporaryDirectory() as tmp, \
+             self.daemon(tmp, max_concurrent=3) as config, \
+             mock.patch.object(autonomous, "list_ready_issues", return_value=queue):
+            runs = autonomous.RunRegistry()
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            journal = mock.Mock()
+            with self.held_runs() as gate:
+                first = autonomous.tick(config, state, journal, runs=runs)
+                second = autonomous.tick(config, state, journal, runs=runs)
+                active = runs.active()
+                gate.set()
+                runs.join(20)
+
+        self.assertEqual([first, second], ["executed", "executed"])
+        # Rowan carries #31, so #32 waits for him; Mina is free, so #33 starts.
+        self.assertEqual(active, {31: "backend", 33: "frontend"})
+
+    def test_one_concurrent_run_keeps_the_team_sequential(self):
+        queue = [self.issue(41, "backend"), self.issue(42, "frontend")]
+        with tempfile.TemporaryDirectory() as tmp, \
+             self.daemon(tmp, max_concurrent=1) as config, \
+             mock.patch.object(autonomous, "list_ready_issues", return_value=queue):
+            runs = autonomous.RunRegistry()
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            journal = mock.Mock()
+            with self.held_runs() as gate:
+                first = autonomous.tick(config, state, journal, runs=runs)
+                second = autonomous.tick(config, state, journal, runs=runs)
+                held = runs.active()
+                # The tick was not blocked by the run: it kept serving the rest of the team.
+                third = autonomous.tick({**config, "max_concurrent_runs": 2},
+                                        state, journal, runs=runs)
+                gate.set()
+                runs.join(20)
+                after = autonomous.tick(config, state, journal, runs=runs)
+                runs.join(20)
+
+        self.assertEqual([first, second], ["executed", "run-slots-full"])
+        self.assertEqual(held, {41: "backend"})
+        # Only the configured limit was holding #42 back, not the queue or the personas.
+        self.assertEqual(third, "executed")
+        self.assertEqual(after, "executed")
 
 
 if __name__ == "__main__":

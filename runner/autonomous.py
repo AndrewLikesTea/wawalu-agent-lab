@@ -11,6 +11,7 @@ import re
 import signal
 import subprocess
 import sys
+import threading
 import time
 import urllib.error
 import urllib.parse
@@ -27,7 +28,8 @@ from runner.github_app import (current_token, installation_token, refresh_token,
 from runner.layers import (CAPACITY_EXIT_CODES, WORKERS, ConsultantCapacityExhausted,
                            consult_next_steps, propose_directive_plan, propose_task,
                            review_pull_request, snapshot_live_site, stakeholder_review)
-from runner.orchestrator import PRODUCT_ROOT, REPOSITORY, load_personas, load_runtime_env, safe_slug
+from runner.orchestrator import (PRODUCT_ROOT, REPOSITORY, checkout_lock, load_personas,
+                                 load_runtime_env, safe_slug)
 from runner.simulation import choose_collaborator, load_behaviors
 from scripts.check_reviewer_approval import REVIEWER_LOGINS, approved_current_head
 
@@ -64,38 +66,100 @@ def utc_now() -> dt.datetime:
 
 
 class Journal:
+    """Append-only record of what the team did, written from every run thread.
+
+    One ``write`` per line under a shared lock keeps entries whole: a partially
+    flushed line would corrupt the only durable account of a run's outcome.
+    """
+
+    _write_lock = threading.Lock()
+
     def __init__(self, path: pathlib.Path = AUTONOMY / "events.jsonl"):
         self.path = path
 
     def emit(self, event: str, **fields: Any) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
         entry = {"at": utc_now().isoformat(), "event": event, **fields}
-        with self.path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(entry, separators=(",", ":")) + "\n")
+        line = json.dumps(entry, separators=(",", ":")) + "\n"
+        with self._write_lock, self.path.open("a", encoding="utf-8") as handle:
+            handle.write(line)
         self.path.chmod(0o600)
 
 
 class State:
+    """The manager's durable memory, mutated by the tick thread and every run thread.
+
+    Writes go through :meth:`mutate`, which holds an exclusive ``flock`` on a sidecar
+    file across load→change→save. Re-reading inside that lock is the point of it: a
+    run that started an hour ago must not save the snapshot it loaded back then over
+    a newer run's record — or over the owner's requeue edit, made by hand while the
+    daemon was working. Reads stay lock-free, because :meth:`save` swaps the file in
+    by rename, so a reader always sees one whole version.
+    """
+
+    BUCKETS = ("issues", "daily_runs", "persona_submissions", "pr_reviews", "pr_updates",
+               "pr_deliveries", "standups", "handoffs", "worker_cooldowns")
+
     def __init__(self, path: pathlib.Path = AUTONOMY / "state.json"):
         self.path = path
+        self.lock_path = path.with_name(path.name + ".lock")
+        self._guard = threading.RLock()
+        self._held = 0
+        self.value: dict[str, Any] = {}
+        self._adopt(self._read())
+
+    def _read(self) -> dict[str, Any] | None:
         try:
-            value = json.loads(path.read_text(encoding="utf-8"))
-            self.value = value if isinstance(value, dict) else {}
+            value = json.loads(self.path.read_text(encoding="utf-8"))
         except (OSError, ValueError):
-            self.value = {}
-        self.value.setdefault("issues", {})
-        self.value.setdefault("daily_runs", {})
-        self.value.setdefault("persona_submissions", {})
-        self.value.setdefault("pr_reviews", {})
-        self.value.setdefault("pr_updates", {})
-        self.value.setdefault("pr_deliveries", {})
-        self.value.setdefault("standups", {})
-        self.value.setdefault("handoffs", {})
-        self.value.setdefault("worker_cooldowns", {})
+            return None
+        return value if isinstance(value, dict) else {}
+
+    def _adopt(self, value: dict[str, Any] | None) -> None:
+        if value is not None:
+            self.value = value
+        for bucket in self.BUCKETS:
+            self.value.setdefault(bucket, {})
+
+    def reload(self) -> None:
+        """Re-read the file, keeping the in-memory value when there is nothing on disk yet."""
+        self._adopt(self._read())
+
+    @contextmanager
+    def mutate(self):
+        """Hold an exclusive lock across load→mutate→save, so no write lands on stale data.
+
+        Re-entrant, so a helper such as ``record_submission`` can be called from inside
+        a larger locked section without deadlocking on its own lock; the whole section
+        then lands as a single write. Never wrap long work (a worker subprocess, a
+        GitHub call) in this — the lock is for the read-modify-write, nothing more.
+        """
+        with self._guard:
+            if self._held:
+                self._held += 1
+                try:
+                    yield self
+                finally:
+                    self._held -= 1
+                return
+            self.lock_path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+            with self.lock_path.open("a+", encoding="utf-8") as handle:
+                fcntl.flock(handle, fcntl.LOCK_EX)
+                self.lock_path.chmod(0o600)
+                self._held = 1
+                try:
+                    self.reload()
+                    yield self
+                    self.save()
+                finally:
+                    self._held = 0
+                    fcntl.flock(handle, fcntl.LOCK_UN)
 
     def save(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-        temporary = self.path.with_suffix(".tmp")
+        # The scratch name carries the writer's identity: two runs saving at once must
+        # not hand each other a half-written temporary file to rename into place.
+        temporary = self.path.with_name(f"{self.path.name}.{os.getpid()}-{threading.get_ident()}.tmp")
         temporary.write_text(json.dumps(self.value, indent=2) + "\n", encoding="utf-8")
         temporary.chmod(0o600)
         temporary.replace(self.path)
@@ -104,9 +168,9 @@ class State:
         return int(self.value["daily_runs"].get((now or utc_now()).date().isoformat(), 0))
 
     def record_run(self, now: dt.datetime | None = None) -> None:
-        day = (now or utc_now()).date().isoformat()
-        self.value["daily_runs"][day] = self.runs_today(now) + 1
-        self.save()
+        with self.mutate():
+            day = (now or utc_now()).date().isoformat()
+            self.value["daily_runs"][day] = self.runs_today(now) + 1
 
     def persona_available(self, persona: str, interval_seconds: int,
                           now: dt.datetime | None = None) -> bool:
@@ -116,8 +180,8 @@ class State:
         return dt.datetime.fromisoformat(submitted_at) + dt.timedelta(seconds=interval_seconds) <= (now or utc_now())
 
     def record_submission(self, persona: str, now: dt.datetime | None = None) -> None:
-        self.value["persona_submissions"][persona] = (now or utc_now()).isoformat()
-        self.save()
+        with self.mutate():
+            self.value["persona_submissions"][persona] = (now or utc_now()).isoformat()
 
     def worker_available(self, worker: str, now: dt.datetime | None = None) -> bool:
         entry = self.value["worker_cooldowns"].get(worker)
@@ -141,21 +205,83 @@ class State:
         """
         now = now or utc_now()
         maximum = int(maximum_seconds or delay_seconds)
-        previous = self.value["worker_cooldowns"].get(worker)
-        streak = 1
-        if isinstance(previous, dict):
-            try:
-                last = dt.datetime.fromisoformat(str(previous.get("at")))
-            except (TypeError, ValueError):
-                last = None
-            if last and last + dt.timedelta(seconds=maximum) > now:
-                streak = int(previous.get("streak", 1)) + 1
-        delay = min(int(delay_seconds) * (2 ** (streak - 1)), maximum)
-        self.value["worker_cooldowns"][worker] = {
-            "until": (now + dt.timedelta(seconds=delay)).isoformat(),
-            "streak": streak, "at": now.isoformat()}
-        self.save()
+        with self.mutate():
+            previous = self.value["worker_cooldowns"].get(worker)
+            streak = 1
+            if isinstance(previous, dict):
+                try:
+                    last = dt.datetime.fromisoformat(str(previous.get("at")))
+                except (TypeError, ValueError):
+                    last = None
+                if last and last + dt.timedelta(seconds=maximum) > now:
+                    streak = int(previous.get("streak", 1)) + 1
+            delay = min(int(delay_seconds) * (2 ** (streak - 1)), maximum)
+            self.value["worker_cooldowns"][worker] = {
+                "until": (now + dt.timedelta(seconds=delay)).isoformat(),
+                "streak": streak, "at": now.isoformat()}
         return delay
+
+
+class RunRegistry:
+    """The runs currently in flight, so the tick thread can keep working while they last.
+
+    A run used to occupy the tick for its whole 10–60 minutes, which is why the team
+    could only ever do one thing at a time: no sweep, no stakeholder review, and no
+    planning happened while an engineer was implementing. Runs now execute on their
+    own threads and this registry is what the tick consults instead.
+
+    Two claims are taken together, and both matter. The issue, so a slow tick never
+    starts a second run for work already underway. And the persona, because a persona
+    is one person: two simultaneous runs under one name would put the same engineer on
+    two pull requests at once, break the per-persona submission spacing, and make the
+    team's story incoherent to anyone reading the repository.
+    """
+
+    def __init__(self):
+        self._lock = threading.Lock()
+        self._active: dict[int, tuple[str, threading.Thread]] = {}
+
+    def start(self, issue: int, persona: str, body) -> bool:
+        """Claim an issue and its persona, then run ``body`` on a daemon thread.
+
+        Returns False when either claim is already held. Daemon threads are
+        deliberate: a STOP must never wait on a run that has an hour left in it.
+        """
+        issue = int(issue)
+        with self._lock:
+            if issue in self._active or any(name == persona for name, _ in self._active.values()):
+                return False
+            thread = threading.Thread(target=self._run, args=(issue, body),
+                                      name=f"run-issue-{issue}", daemon=True)
+            self._active[issue] = (persona, thread)
+        thread.start()
+        return True
+
+    def _run(self, issue: int, body) -> None:
+        try:
+            body()
+        finally:
+            with self._lock:
+                self._active.pop(issue, None)
+
+    def active(self) -> dict[int, str]:
+        with self._lock:
+            return {issue: persona for issue, (persona, _) in self._active.items()}
+
+    def join(self, timeout: float | None = None) -> None:
+        with self._lock:
+            threads = [thread for _, thread in self._active.values()]
+        for thread in threads:
+            thread.join(timeout)
+
+    def __len__(self) -> int:
+        with self._lock:
+            return len(self._active)
+
+
+def max_concurrent_runs(config: dict[str, Any]) -> int:
+    """How many issues may be implemented at once; 1 keeps the historical one-at-a-time team."""
+    return max(1, int(config.get("max_concurrent_runs", 1)))
 
 
 class DirectiveBook:
@@ -470,6 +596,16 @@ def issue_label(issue: dict[str, Any], prefix: str) -> str | None:
     return None
 
 
+def run_persona(issue: dict[str, Any]) -> str:
+    """The engineer who will actually run this issue, after the unknown-label fallback.
+
+    Pickup and execution have to agree on the name, or the registry would reserve a
+    persona nobody is running and leave the real one free to be picked twice.
+    """
+    persona = issue_label(issue, "persona:") or "staff"
+    return persona if persona in PERSONAS else "staff"
+
+
 def list_ready_issues(token: str, label: str) -> list[dict[str, Any]]:
     query = urllib.parse.urlencode({"state": "open", "labels": label, "sort": "created", "direction": "asc", "per_page": 100})
     value = github(f"/repos/{REPOSITORY}/issues?{query}", token)
@@ -585,8 +721,8 @@ def post_daily_standup(token: str, state: State, issues: list[dict[str, Any]], j
     detail = ("Today’s focus:\n" + "\n".join(f"- {item}" for item in active) +
               "\n\nRhythm: planning in the morning, implementation through midday, then reviews and handoffs later in the day.")
     interaction_comment(token, int(issues[0]["number"]), "wawalu-standup", "Sam · daily standup", detail)
-    state.value["standups"][day] = int(issues[0]["number"])
-    state.save()
+    with state.mutate():
+        state.value["standups"][day] = int(issues[0]["number"])
     journal.emit("daily_standup_posted", issue=int(issues[0]["number"]), day=day)
 
 
@@ -610,8 +746,8 @@ def post_dependency_handoffs(token: str, state: State, issues: list[dict[str, An
                   "Validation: protected CI and review completed before merge.\n\n"
                   "Known limitation: none recorded; raise a focused follow-up if the integration exposes one.")
         interaction_comment(token, int(issue["number"]), "wawalu-handoff", f"{name} · handoff", detail)
-        state.value["handoffs"][str(issue["number"])] = int(dependency["number"])
-        state.save()
+        with state.mutate():
+            state.value["handoffs"][str(issue["number"])] = int(dependency["number"])
         journal.emit("dependency_handoff_posted", issue=int(issue["number"]), dependency=int(dependency["number"]), persona=persona)
 
 
@@ -938,20 +1074,20 @@ def requeue_conflicted_pull(pull: dict[str, Any], token: str, config: dict[str, 
         github(f"/repos/{REPOSITORY}/git/refs/heads/{urllib.parse.quote(branch)}", token, "DELETE")
     except urllib.error.HTTPError:
         pass
-    record = state.value["issues"].setdefault(str(issue_number), {})
-    record.pop("retry_at", None)
     ready = config["issue_label"]
-    if int(record.get("attempts", 0)) >= int(config.get("max_attempts", 2)):
-        record.update({"status": "blocked", "blocked_at": utc_now().isoformat()})
-        state.save()
+    with state.mutate():
+        record = state.value["issues"].setdefault(str(issue_number), {})
+        record.pop("retry_at", None)
+        exhausted = int(record.get("attempts", 0)) >= int(config.get("max_attempts", 2))
+        record.update({"status": "blocked", "blocked_at": utc_now().isoformat()} if exhausted else
+                      {"status": "requeued", "requeued_at": utc_now().isoformat()})
+    if exhausted:
         replace_state_label(token, issue, ready, "agent-blocked", keep_ready=False)
         comment(token, issue_number, "blocked",
                 f"Pull request #{pull_number} conflicted with `main` and this issue has already "
                 "used its retry budget. It needs human attention.")
         journal.emit("pr_conflict_blocked", pull=pull_number, issue=issue_number, branch=branch)
         return True
-    record.update({"status": "requeued", "requeued_at": utc_now().isoformat()})
-    state.save()
     replace_state_label(token, issue, ready, ready, keep_ready=True)
     comment(token, issue_number, "requeued",
             f"Pull request #{pull_number} conflicted with `main` after other work merged, so it "
@@ -974,13 +1110,14 @@ def deliver_approved_pull(pull: dict[str, Any], token: str, state: State,
     """
     number = int(pull["number"])
     head_sha = pull["head"]["sha"]
-    record = state.value["pr_deliveries"].get(str(number), {})
-    attempts = int(record.get("attempts", 0)) if record.get("sha") == head_sha else 0
+    with state.mutate():
+        record = state.value["pr_deliveries"].get(str(number), {})
+        attempts = int(record.get("attempts", 0)) if record.get("sha") == head_sha else 0
+        if attempts < DELIVERY_ATTEMPT_LIMIT:
+            state.value["pr_deliveries"][str(number)] = {
+                "sha": head_sha, "attempts": attempts + 1, "at": utc_now().isoformat()}
     if attempts >= DELIVERY_ATTEMPT_LIMIT:
         return
-    state.value["pr_deliveries"][str(number)] = {
-        "sha": head_sha, "attempts": attempts + 1, "at": utc_now().isoformat()}
-    state.save()
     try:
         enable_auto_merge(REPOSITORY, str(pull["head"]["ref"]), token, ROOT)
     except Exception as error:
@@ -1001,9 +1138,9 @@ def update_pull_branch(pull: dict[str, Any], token: str, config: dict[str, Any],
     detail = github(f"/repos/{REPOSITORY}/pulls/{number}", token)
     mergeable_state = str(detail.get("mergeable_state") or "unknown")
     if mergeable_state == "dirty":
-        state.value["pr_updates"][str(number)] = {
-            "sha": head_sha, "result": "conflict", "at": utc_now().isoformat()}
-        state.save()
+        with state.mutate():
+            state.value["pr_updates"][str(number)] = {
+                "sha": head_sha, "result": "conflict", "at": utc_now().isoformat()}
         journal.emit("pr_update_conflict", pull=number, sha=head_sha)
         if config.get("requeue_conflicted_prs", True) and \
                 requeue_conflicted_pull(pull, token, config, state, journal):
@@ -1024,9 +1161,9 @@ def update_pull_branch(pull: dict[str, Any], token: str, config: dict[str, Any],
         if error.code != 422:
             raise
         return
-    state.value["pr_updates"][str(number)] = {
-        "sha": head_sha, "result": "updated", "at": utc_now().isoformat()}
-    state.save()
+    with state.mutate():
+        state.value["pr_updates"][str(number)] = {
+            "sha": head_sha, "result": "updated", "at": utc_now().isoformat()}
     journal.emit("pr_branch_updated", pull=number, sha=head_sha)
 
 
@@ -1045,13 +1182,10 @@ def _review_outstanding_prs(token: str, config: dict[str, Any], state: State,
     approved = []
     pulls = github(f"/repos/{REPOSITORY}/pulls?state=open&per_page=50", token)
     open_numbers = {str(int(pull["number"])) for pull in pulls or []}
-    pruned = False
-    for bucket in ("pr_reviews", "pr_updates", "pr_deliveries"):
-        for key in [key for key in state.value[bucket] if key not in open_numbers]:
-            state.value[bucket].pop(key)
-            pruned = True
-    if pruned:
-        state.save()
+    with state.mutate():
+        for bucket in ("pr_reviews", "pr_updates", "pr_deliveries"):
+            for key in [key for key in state.value[bucket] if key not in open_numbers]:
+                state.value[bucket].pop(key)
     for pull in pulls or []:
         if pull.get("draft"):
             continue
@@ -1082,9 +1216,9 @@ def _review_outstanding_prs(token: str, config: dict[str, Any], state: State,
             journal.emit("owner_review_error", pull=number,
                          error=type(error).__name__, detail=str(error)[:300])
             continue
-        state.value["pr_reviews"][str(number)] = {
-            "sha": head_sha, "approved": verdict["approved"], "at": utc_now().isoformat()}
-        state.save()
+        with state.mutate():
+            state.value["pr_reviews"][str(number)] = {
+                "sha": head_sha, "approved": verdict["approved"], "at": utc_now().isoformat()}
         if verdict["approved"]:
             approved.append(number)
     return approved
@@ -1108,11 +1242,16 @@ def scenario_from_issue(issue: dict[str, Any], persona: str) -> dict[str, Any]:
                                     "The production build succeeds"], "assigned_persona": persona}
 
 
-def choose_issue(issues: list[dict[str, Any]], state: State, config: dict[str, Any], now: dt.datetime) -> dict[str, Any] | None:
+def choose_issue(issues: list[dict[str, Any]], state: State, config: dict[str, Any],
+                 now: dt.datetime, active: dict[int, str] | None = None) -> dict[str, Any] | None:
     cooldown = int(config["retry_cooldown_seconds"])
     max_attempts = int(config["max_attempts"])
     open_numbers = {int(issue["number"]) for issue in issues}
+    active = active or {}
+    busy_personas = set(active.values())
     for issue in issues:
+        if int(issue["number"]) in active or run_persona(issue) in busy_personas:
+            continue
         dependency = __import__("re").search(r"Depends on #(\d+)", str(issue.get("body") or ""))
         if dependency and int(dependency.group(1)) in open_numbers:
             continue
@@ -1144,18 +1283,27 @@ def sync_main() -> None:
     branch = subprocess.check_output(["git", "branch", "--show-current"], cwd=PRODUCT_ROOT, text=True).strip()
     if branch != "main":
         raise RuntimeError(f"autonomous checkout must be on main, found {branch!r}")
-    subprocess.run(["git", "fetch", "origin", "main", "--prune"], cwd=PRODUCT_ROOT, check=True)
-    subprocess.run(["git", "merge", "--ff-only", "origin/main"], cwd=PRODUCT_ROOT, check=True)
+    with checkout_lock():
+        subprocess.run(["git", "fetch", "origin", "main", "--prune"], cwd=PRODUCT_ROOT, check=True)
+        subprocess.run(["git", "merge", "--ff-only", "origin/main"], cwd=PRODUCT_ROOT, check=True)
 
 
 def cleanup_worktree(path: pathlib.Path, branch: str, journal: Journal) -> None:
-    subprocess.run(["git", "worktree", "prune"], cwd=PRODUCT_ROOT, check=True)
-    if path.is_dir():
-        subprocess.run(["git", "worktree", "remove", "--force", str(path)], cwd=PRODUCT_ROOT, check=False)
-        if not path.exists():
-            journal.emit("worktree_cleaned", path=path.name)
-    deleted = subprocess.run(["git", "branch", "--delete", "--force", branch], cwd=PRODUCT_ROOT,
-                             text=True, capture_output=True)
+    """Retire one run's worktree and branch, serialized against every other run's.
+
+    Runs work inside their own worktree, but adding, pruning, and removing one all
+    write the single shared `.git` directory, as does the tick thread's fast-forward
+    of main. Two of those at once race on worktree metadata and ref locks, so all of
+    them take the same checkout lock.
+    """
+    with checkout_lock():
+        subprocess.run(["git", "worktree", "prune"], cwd=PRODUCT_ROOT, check=True)
+        if path.is_dir():
+            subprocess.run(["git", "worktree", "remove", "--force", str(path)], cwd=PRODUCT_ROOT, check=False)
+            if not path.exists():
+                journal.emit("worktree_cleaned", path=path.name)
+        deleted = subprocess.run(["git", "branch", "--delete", "--force", branch], cwd=PRODUCT_ROOT,
+                                 text=True, capture_output=True)
     if deleted.returncode == 0:
         journal.emit("local_branch_cleaned", branch=branch)
 
@@ -1200,14 +1348,18 @@ def resolve_worker(requested: str, state: State, now: dt.datetime | None = None)
 def execute_issue(issue: dict[str, Any], config: dict[str, Any], state: State,
                   journal: Journal, token: str) -> int:
     number = int(issue["number"])
-    persona = issue_label(issue, "persona:") or "staff"
-    if persona not in PERSONAS:
-        persona = "staff"
-    record = state.value["issues"].setdefault(str(number), {})
-    prior_attempts = int(record.get("attempts", 0))
-    record.update({"status": "running", "persona": persona,
-                   "attempts": prior_attempts + 1, "started_at": utc_now().isoformat()})
-    state.record_run()
+    persona = run_persona(issue)
+    # One locked section for the whole "this run has started" transition: the attempt
+    # count, the daily tally, and the worker choice all read state that a concurrent
+    # run may be changing, and a second reader must see this run's attempt.
+    with state.mutate():
+        record = state.value["issues"].setdefault(str(number), {})
+        record.update({"status": "running", "persona": persona,
+                       "attempts": int(record.get("attempts", 0)) + 1,
+                       "started_at": utc_now().isoformat()})
+        state.record_run()
+        requested_worker = resolve_worker(
+            record.get("worker_override", config["default_worker"]), state) or config["default_worker"]
     scenario_dir = AUTONOMY / "scenarios"
     scenario_dir.mkdir(parents=True, exist_ok=True)
     scenario_path = scenario_dir / f"issue-{number}-{uuid.uuid4().hex[:6]}.json"
@@ -1224,8 +1376,6 @@ def execute_issue(issue: dict[str, Any], config: dict[str, Any], state: State,
     replace_state_label(token, issue, config["issue_label"], "agent-running", keep_ready=True)
     comment(token, number, "planning", f"Sam assigned this issue to **{persona}**. Qwen is preparing the implementation handoff.")
     journal.emit("run_started", issue=number, persona=persona)
-    requested_worker = resolve_worker(
-        record.get("worker_override", config["default_worker"]), state) or config["default_worker"]
     command = [sys.executable, "-m", "runner.orchestrator", "run", persona,
                str(scenario_path.relative_to(ROOT)), "--push", "--worker", requested_worker]
     exit_code = run_worker_process(
@@ -1236,7 +1386,6 @@ def execute_issue(issue: dict[str, Any], config: dict[str, Any], state: State,
     finally:
         # Bookkeeping talks to GitHub and can fail; the worktree must go regardless,
         # or the next attempt trips over the debris instead of doing the work.
-        state.save()
         cleanup_worktree(worktree, f"agent/{persona}/{scenario_slug}", journal)
     return exit_code
 
@@ -1261,30 +1410,38 @@ def _bookkeeper(journal: Journal, number: int):
 def record_run_outcome(exit_code: int, issue: dict[str, Any], number: int, persona: str,
                        scenario: dict[str, Any], config: dict[str, Any], state: State,
                        journal: Journal, token: str) -> None:
-    """Record how a finished run went: issue state, labels, and the owner-visible comment."""
-    record = state.value["issues"].setdefault(str(number), {})
-    prior_attempts = int(record.get("attempts", 1)) - 1
+    """Record how a finished run went: issue state, labels, and the owner-visible comment.
+
+    Each branch takes the state lock only long enough to write its own transition, and
+    re-reads inside it, because this run may have started before other runs that have
+    already finished. The GitHub half stays outside the lock: it is slow, it fails, and
+    nothing about it should block another run from recording its outcome.
+    """
     tell = _bookkeeper(journal, number)
     if exit_code == 0:
-        record.update({"status": "submitted", "finished_at": utc_now().isoformat()})
-        state.record_submission(persona)
-        for collaborator in scenario.get("collaborators", []):
-            state.record_submission(collaborator)
+        with state.mutate():
+            record = state.value["issues"].setdefault(str(number), {})
+            record.update({"status": "submitted", "finished_at": utc_now().isoformat()})
+            state.record_submission(persona)
+            for collaborator in scenario.get("collaborators", []):
+                state.record_submission(collaborator)
         journal.emit("run_submitted", issue=number, persona=persona)
         tell("comment", lambda: comment(token, number, "submitted", "The worker completed its run and opened a reviewed pull request. If it requested merge, GitHub will deliver it after required checks."))
         tell("label", lambda: replace_state_label(token, issue, config["issue_label"], "agent-running", keep_ready=False))
     elif exit_code in CAPACITY_WORKERS:
         exhausted = CAPACITY_WORKERS[exit_code]
         alternate = "claude" if exhausted == "codex" else "codex"
-        failures = int(record.get("capacity_failures", 0)) + 1
-        delay = min(int(config.get("capacity_retry_seconds", 900)) * (2 ** (failures - 1)),
-                    int(config.get("capacity_retry_max_seconds", 18000)))
-        record.update({"status": "retry", "attempts": prior_attempts,
-                       "capacity_failures": failures, "worker_override": alternate,
-                       "retry_at": (utc_now() + dt.timedelta(seconds=delay)).isoformat()})
-        cooldown = state.record_worker_capacity(
-            exhausted, int(config.get("capacity_retry_seconds", 900)),
-            maximum_seconds=int(config.get("capacity_retry_max_seconds", 18000)))
+        with state.mutate():
+            record = state.value["issues"].setdefault(str(number), {})
+            failures = int(record.get("capacity_failures", 0)) + 1
+            delay = min(int(config.get("capacity_retry_seconds", 900)) * (2 ** (failures - 1)),
+                        int(config.get("capacity_retry_max_seconds", 18000)))
+            record.update({"status": "retry", "attempts": int(record.get("attempts", 1)) - 1,
+                           "capacity_failures": failures, "worker_override": alternate,
+                           "retry_at": (utc_now() + dt.timedelta(seconds=delay)).isoformat()})
+            cooldown = state.record_worker_capacity(
+                exhausted, int(config.get("capacity_retry_seconds", 900)),
+                maximum_seconds=int(config.get("capacity_retry_max_seconds", 18000)))
         journal.emit("run_capacity_deferred", issue=number, persona=persona, exhausted_worker=exhausted,
                      next_worker=alternate, delay_seconds=delay, worker_cooldown_seconds=cooldown,
                      failures=failures)
@@ -1293,14 +1450,13 @@ def record_run_outcome(exit_code: int, issue: dict[str, Any], number: int, perso
              f"an implementation attempt; Sam will retry with {alternate.title()} after the backoff."))
         tell("label", lambda: replace_state_label(token, issue, config["issue_label"], None, keep_ready=True))
     else:
-        attempts = int(record["attempts"])
-        if attempts >= int(config["max_attempts"]):
-            record["status"] = "blocked"
-            blocked = True
-        else:
-            record["status"] = "retry"
-            record["retry_at"] = (utc_now() + dt.timedelta(seconds=int(config["retry_cooldown_seconds"]))).isoformat()
-            blocked = False
+        with state.mutate():
+            record = state.value["issues"].setdefault(str(number), {})
+            attempts = int(record.get("attempts", 1))
+            blocked = attempts >= int(config["max_attempts"])
+            record["status"] = "blocked" if blocked else "retry"
+            if not blocked:
+                record["retry_at"] = (utc_now() + dt.timedelta(seconds=int(config["retry_cooldown_seconds"]))).isoformat()
         journal.emit("run_failed", issue=number, persona=persona, exit_code=exit_code, attempts=attempts)
         if blocked:
             tell("comment", lambda: comment(token, number, "blocked", f"The run failed {attempts} times and needs human attention. Exit code: `{exit_code}`."))
@@ -1327,6 +1483,19 @@ def list_open_issue_titles(token: str) -> list[str]:
     return [str(item.get("title", "")) for item in issues if "pull_request" not in item]
 
 
+def stakeholder_ledger_entry(state: State, persona: str, day: str) -> dict[str, Any]:
+    """This stakeholder's ledger entry for today, rolled over inside the state lock.
+
+    Returned as a copy: the rate-limit decision that follows is made outside the
+    lock, and the live entry may be replaced by any other writer in the meantime.
+    """
+    with state.mutate():
+        record = state.value.setdefault("stakeholder_reviews", {}).setdefault(persona, {})
+        if record.get("day") != day:
+            record.update({"day": day, "count": 0})
+        return dict(record)
+
+
 def post_stakeholder_reviews(token: str, config: dict[str, Any], state: State,
                              journal: Journal, now: dt.datetime) -> None:
     """Let non-engineering stakeholders steer the product on a cadence.
@@ -1340,16 +1509,13 @@ def post_stakeholder_reviews(token: str, config: dict[str, Any], state: State,
     if not reviews:
         return
     day = now.astimezone(PACIFIC).date().isoformat()
-    ledger = state.value.setdefault("stakeholder_reviews", {})
     delivered = open_titles = None
     for review in reviews:
         persona = str(review.get("persona", ""))
         allowed = [name for name in review.get("assign_to", []) if name in PERSONAS]
         if not allowed or persona not in {**PERSONA_NAMES, **STAKEHOLDER_NAMES}:
             continue
-        record = ledger.setdefault(persona, {})
-        if record.get("day") != day:
-            record.update({"day": day, "count": 0})
+        record = stakeholder_ledger_entry(state, persona, day)
         if record["count"] >= int(review.get("max_daily", 2)):
             continue
         last = record.get("last_at")
@@ -1391,14 +1557,37 @@ def post_stakeholder_reviews(token: str, config: dict[str, Any], state: State,
                 "labels": [config["issue_label"], f"persona:{task['persona']}"]})
             created.append(int(issue["number"]))
             open_titles.append(task["title"])  # a later stakeholder must not duplicate it
-        record["count"] += 1
-        record["last_at"] = now.isoformat()
-        state.save()
+        with state.mutate():
+            entry = state.value.setdefault("stakeholder_reviews", {}).setdefault(persona, {})
+            entry["count"] = int(entry.get("count", 0)) + 1
+            entry["last_at"] = now.isoformat()
         journal.emit("stakeholder_review_posted", persona=persona,
                      tasks=len(created), issues=created)
 
 
-def tick(config: dict[str, Any], state: State, journal: Journal, token: str | None = None) -> str:
+def start_run(issue: dict[str, Any], config: dict[str, Any], state: State, journal: Journal,
+              token: str, runs: RunRegistry) -> bool:
+    """Hand one issue to a run thread, leaving the tick free to serve the rest of the team.
+
+    The thread gets its own ``State`` handle rather than the tick's: what keeps
+    concurrent runs from overwriting each other is the file lock, not a shared object,
+    and a handle per thread means one run's re-read never moves another's ground.
+    """
+    number = int(issue["number"])
+
+    def body() -> None:
+        try:
+            execute_issue(issue, config, State(state.path), journal, token)
+        except Exception as error:
+            journal.emit("run_thread_error", issue=number,
+                         error=type(error).__name__, detail=str(error)[:500])
+
+    return runs.start(number, run_persona(issue), body)
+
+
+def tick(config: dict[str, Any], state: State, journal: Journal, token: str | None = None,
+         runs: RunRegistry | None = None) -> str:
+    runs = runs if runs is not None else RunRegistry()
     if STOP.exists() or not config.get("enabled", False):
         return "stopped"
     if not within_hours(config):
@@ -1419,25 +1608,30 @@ def tick(config: dict[str, Any], state: State, journal: Journal, token: str | No
     # later ticks, so several product lines can be in flight without a single tick
     # spending several paid planning runs back to back.
     pending = DirectiveBook().pending()
-    issue = None
-    if pending:
-        generated = generate_directive_backlog(token, config, journal, pending[0])
-        issue = choose_issue(generated, state, config, utc_now())
+    generated = generate_directive_backlog(token, config, journal, pending[0]) if pending else None
+    # Planning keeps happening while runs are in flight; only starting another one is
+    # gated, so a full team still gets its next program written and queued.
+    if len(runs) >= max_concurrent_runs(config):
+        return "run-slots-full"
+    # A run thread may have recorded a submission since this tick began.
+    state.reload()
+    active = runs.active()
+    issue = choose_issue(generated, state, config, utc_now(), active) if generated else None
     # A rate-limited persona on one directive must not stall every other directive:
     # fall through to the shared ready queue instead of returning early.
     if issue is None:
-        issue = choose_issue(issues, state, config, utc_now())
+        issue = choose_issue(issues, state, config, utc_now(), active)
     if issue is None and (issues or pending):
         return "queued-personas-rate-limited"
     if issue is None and config.get("consult_after_directive_mvp", False):
         generated = consult_every_directive(token, config, journal, state=state)
         if generated:
-            issue = choose_issue(generated, state, config, utc_now())
+            issue = choose_issue(generated, state, config, utc_now(), active)
             if issue is None:
                 return "persona-pr-rate-limit"
     if issue is None and config.get("generate_when_idle", False):
         generated = generate_work(token, config, journal)
-        issue = choose_issue([generated], state, config, utc_now())
+        issue = choose_issue([generated], state, config, utc_now(), active)
         if issue is None:
             return "persona-pr-rate-limit"
     if issue is None:
@@ -1445,24 +1639,37 @@ def tick(config: dict[str, Any], state: State, journal: Journal, token: str | No
     if resolve_worker(config["default_worker"], state) is None:
         journal.emit("workers_capacity_exhausted", issue=int(issue["number"]))
         return "workers-capacity-exhausted"
-    execute_issue(issue, config, state, journal, token)
+    if not start_run(issue, config, state, journal, token, runs):
+        return "run-already-active"
     return "executed"
 
 
 def command_loop(once: bool = False) -> int:
     config = load_config()
     journal = Journal()
+    runs = RunRegistry()
     with singleton():
-        journal.emit("daemon_started", once=once)
+        journal.emit("daemon_started", once=once,
+                     max_concurrent_runs=max_concurrent_runs(config))
         while True:
             try:
-                result = tick(config, State(), journal)
-                journal.emit("tick", result=result)
+                result = tick(config, State(), journal, runs=runs)
+                journal.emit("tick", result=result, active_runs=len(runs))
             except Exception as error:
                 journal.emit("daemon_error", error=type(error).__name__, detail=str(error)[:500])
-            if once or STOP.exists():
+            if once:
+                # A single-shot invocation was asked for one complete run, so see it out.
+                runs.join()
+                break
+            if STOP.exists():
                 break
             time.sleep(max(30, int(config["poll_seconds"])))
+        # A STOP must take effect now, not in an hour, so runs still in flight are left
+        # to their own worker processes: those keep their own session and finish their
+        # pull request, only their bookkeeping is lost. Same as a kill has always been.
+        orphaned = sorted(runs.active())
+        if orphaned:
+            journal.emit("daemon_stopped_with_active_runs", issues=orphaned)
         journal.emit("daemon_stopped")
     return 0
 
@@ -1504,6 +1711,7 @@ def main() -> int:
         config = load_config(); state = State()
         print(json.dumps({"enabled": config.get("enabled"), "stopped": STOP.exists(),
                           "attempts_today": state.runs_today(),
+                          "max_concurrent_runs": max_concurrent_runs(config),
                           "min_pr_interval_seconds": config.get("min_pr_interval_seconds"),
                           "directives": [summarize_directive(item) for item in DirectiveBook().read()],
                           "state": state.value}, indent=2)); return 0
