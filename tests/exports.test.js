@@ -8,6 +8,10 @@ import {
 } from "../src/exports.js";
 import { createSavingsPortfolio } from "../src/savings-portfolio.js";
 import portfolioFixture from "../src/savings-portfolio-fixture.json" with { type: "json" };
+import { createMonthlySavingsReconciliation } from "../src/monthly-savings-reconciliation.js";
+import reconciliationFixture from "../src/monthly-savings-reconciliation-fixture.json" with {
+  type: "json",
+};
 
 const decision = {
   id: "d1", title: "Use queues", context: "Retries", alternatives: "Polling",
@@ -89,6 +93,42 @@ test("portfolio endpoint exports accountable actions and reconciled aggregates w
     "Synthetic Platform Director");
   assert.equal(exported.portfolio.actions[0].lifecycleTransitions.at(-1).state, "completed");
   assert.deepEqual(exported.portfolio.actions[0].verificationEvidence, []);
+  assert.equal(exported.decisions, undefined);
+  assert.equal(exported.releases, undefined);
+  assert.equal(exported.reconciliation, undefined);
+});
+
+test("reconciliation endpoint exports the monthly review inputs without storage", async () => {
+  const reconciliation = createMonthlySavingsReconciliation(
+    reconciliationFixture, createSavingsPortfolio(portfolioFixture),
+  );
+  const response = await handleExportRequest(
+    new Request("https://shiplog.test/api/exports/reconciliation"),
+    {
+      store: {},
+      listReconciliation: async () => reconciliation,
+      now: () => NOW,
+      requestId: "reconciliation-1",
+    },
+  );
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("content-disposition"),
+    'attachment; filename="shiplog-reconciliation-2026-07-18.json"');
+  const exported = await response.json();
+  assert.deepEqual(exported.metadata, {
+    timestamp: NOW.toISOString(), version: EXPORT_VERSION,
+  });
+  assert.deepEqual(exported.reconciliation.measurementWindow, {
+    firstMonth: "2026-06", lastMonth: "2026-07", monthCount: 2,
+  });
+  assert.equal(exported.reconciliation.monthlyAggregationInputs.at(-1).measuredVarianceUsd,
+    -500);
+  assert.equal(
+    exported.reconciliation.monthlyAggregationInputs.at(-1).unmeasuredProjectedSavingsUsd,
+    7_333);
+  assert.equal(exported.reconciliation.actionAggregationInputs.length,
+    reconciliation.actionAggregationInputs.length);
+  assert.equal(exported.portfolio, undefined);
   assert.equal(exported.decisions, undefined);
   assert.equal(exported.releases, undefined);
 });
