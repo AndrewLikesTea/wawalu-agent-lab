@@ -1,0 +1,4 @@
+Date,SubscriptionId,ResourceGroup,MeterCategory,MeterName,Quantity,CostInBillingCurrency,BillingCurrency
+6/5/2026,sub-atlas,rg-atlas-platform,Azure OpenAI,gpt-4o Input Tokens,1420000,318.44,USD
+6/5/2026,sub-boreal,rg-boreal-support,Storage,Hot LRS Data Stored,820.5,14.28,USD
+6/12/2026,sub-cinder,rg-cinder-research,Azure OpenAI,gpt-4o Output Tokens,264000,142.90,USD

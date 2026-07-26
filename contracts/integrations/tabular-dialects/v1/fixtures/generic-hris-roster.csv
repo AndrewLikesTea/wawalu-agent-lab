@@ -1,0 +1,4 @@
+employee_id,full_name,work_email,job_title,department,manager_employee_id,employment_status,location
+emp-1001,Ada Fern,ada.fern@example.invalid,Staff Engineer,Atlas Platform,emp-1000,Active,Remote
+emp-1002,Bo Larkin,bo.larkin@example.invalid,Support Lead,Boreal Support,emp-1000,On Leave,Remote
+emp-1003,Cy Rowan,cy.rowan@example.invalid,Researcher,Cinder Research,emp-1001,Terminated,Remote
