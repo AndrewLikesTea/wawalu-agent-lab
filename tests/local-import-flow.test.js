@@ -1,0 +1,280 @@
+// Reading-experience regression for the browser-local import and mapping flow.
+//
+// Every assertion here drives the shipped markup — src/evolution.html parsed by
+// the same harness the decisions end-to-end suite uses — rather than a fixture
+// authored for the test. What it pins is the part that is easy to regress
+// silently: the diagnostic stays attached to the control it concerns, the
+// headline number never appears without a word saying what kind of number it
+// is, one commit produces one announcement, and nothing read out of a selected
+// file reaches visible text or a live region.
+
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import test from "node:test";
+import { parseHtml, tabSequence, textOf } from "./support/browser.js";
+import {
+  announce, applyFieldDiagnostic, applyMetricBasis, applyRequirements, applyStage,
+  diagnosticFor, focusStageHeading, IMPORT_STAGES, importStage, mappingRequirements,
+  metricBasis, redactDiagnostic, stageProgress,
+} from "../src/local-import-flow.js";
+
+const PAGE = new URL("../src/evolution.html", import.meta.url);
+
+async function page() {
+  return parseHtml(await readFile(PAGE, "utf8"));
+}
+
+const normalized = (node) => textOf(node);
+
+// --- stage model -----------------------------------------------------------
+
+test("the stage model names the stages the flow already walked, and no more", () => {
+  assert.deepEqual(IMPORT_STAGES.map((stage) => stage.id), ["select", "check", "read"]);
+  assert.equal(importStage({}), "select");
+  assert.equal(importStage({ providers: 1 }), "check");
+  assert.equal(importStage({ hris: true }), "check");
+  assert.equal(importStage({ providers: 2, hris: true, hasResult: true }), "read");
+
+  const progress = stageProgress("check");
+  assert.deepEqual(progress.map((step) => step.state), ["complete", "current", "remaining"]);
+  assert.deepEqual(progress.map((step) => step.status), ["done", "now", "next"]);
+  // Shape and word travel with every state so the tint is never the only signal.
+  assert.deepEqual(progress.map((step) => step.shape), ["✓", "●", "○"]);
+});
+
+test("the stage indicator exposes the current step to assistive tech", async () => {
+  const doc = await page();
+  applyStage(doc, "check");
+  const steps = doc.querySelectorAll("li");
+  const stages = steps.filter((step) => step.className === "import-stage");
+  assert.equal(stages.length, 3);
+  assert.equal(stages[0].getAttribute("aria-current"), null);
+  assert.equal(stages[1].getAttribute("aria-current"), "step");
+  assert.equal(stages[2].getAttribute("aria-current"), null);
+  assert.match(normalized(stages[1]), /Step 2\s*Check the mapping\s*now/);
+  assert.equal(stages[0].dataset.state, "complete");
+  assert.equal(stages[2].dataset.state, "remaining");
+
+  // Repainting a later stage moves aria-current rather than accumulating it.
+  applyStage(doc, "read");
+  const repainted = doc.querySelectorAll("li").filter((step) => step.className === "import-stage");
+  assert.deepEqual(repainted.map((step) => step.getAttribute("aria-current")), [null, null, "step"]);
+});
+
+// --- per-field diagnostics -------------------------------------------------
+
+test("a rejected file is diagnosed at the control, not in a page banner", async () => {
+  const doc = await page();
+  const control = doc.getElementById("local-finops-files");
+  const diagnostic = diagnosticFor({
+    code: "missing_field",
+    message: "provider records[3] is missing required field “org_unit_id”.",
+    ordinal: 2, total: 3,
+  });
+  applyFieldDiagnostic(doc, diagnostic);
+
+  assert.equal(control.getAttribute("aria-invalid"), "true");
+  assert.equal(control.getAttribute("aria-describedby"), "local-file-help local-file-error");
+  const errorNode = doc.getElementById("local-file-error");
+  assert.equal(errorNode.hidden, false);
+  // The failing file is identified by position and the field by header name.
+  assert.match(normalized(errorNode), /File 2 of 3/);
+  assert.match(normalized(errorNode), /org_unit_id/);
+  // The recovery is present at the control, not somewhere else on the page.
+  assert.match(normalized(errorNode), /Add the named field to the source export/);
+  assert.equal(doc.getElementById("local-file-recovery").hidden, false);
+
+  // Resolving the error clears the invalid state and restores the plain
+  // description; focus is not left pointing at a message that no longer exists.
+  applyFieldDiagnostic(doc, null);
+  assert.equal(control.getAttribute("aria-invalid"), "false");
+  assert.equal(control.getAttribute("aria-describedby"), "local-file-help");
+  assert.equal(doc.getElementById("local-file-error").hidden, true);
+  assert.equal(doc.getElementById("local-file-recovery").hidden, true);
+});
+
+test("each unresolved requirement carries the jump to the control that fixes it", async () => {
+  const doc = await page();
+  applyRequirements(doc, { providers: 2, hris: false });
+  const rows = doc.querySelectorAll("li").filter((row) => row.className === "mapping-requirement");
+  assert.deepEqual(rows.map((row) => row.dataset.state), ["ready", "missing"]);
+  assert.match(normalized(rows[0]), /Provider period export\s*2 periods ready/);
+  assert.match(normalized(rows[1]), /HRIS org mapping\s*not selected/);
+  assert.equal(rows[0].querySelector("button"), null);
+
+  const jump = rows[1].querySelector("button");
+  assert.equal(jump.getAttribute("type"), "button");
+  assert.match(jump.getAttribute("aria-label"), /moves focus to the file chooser/);
+  jump.click();
+  assert.equal(doc.activeElement, doc.getElementById("local-finops-files"));
+
+  assert.deepEqual(
+    mappingRequirements({ providers: 0, hris: false }).map((row) => row.state),
+    ["missing", "missing"],
+  );
+});
+
+// --- the metric is never ambiguous ----------------------------------------
+
+test("every non-real headline condition is stated in words beside the number", () => {
+  assert.deepEqual(metricBasis({ mode: "example" }).label, "Example data");
+  assert.equal(metricBasis({ mode: "example" }).real, false);
+  assert.equal(metricBasis({ mode: "failed" }).label, "Import failed");
+  assert.equal(metricBasis({ mode: "partial", providers: 1, hris: false }).label, "Incomplete mapping");
+  assert.match(metricBasis({ mode: "partial", providers: 1, hris: false }).detail, /HRIS org mapping/);
+  assert.equal(metricBasis({ mode: "local", plausible: false }).label, "Needs review");
+  assert.equal(metricBasis({ mode: "local", departments: 0 }).label, "No rows matched");
+  const real = metricBasis({ mode: "local", departments: 3, joinedRecords: 12 });
+  assert.equal(real.label, "Local import");
+  assert.equal(real.real, true);
+  assert.match(real.detail, /12 joined records/);
+});
+
+test("the example-data case labels the headline metric on a cold load", async () => {
+  const doc = await page();
+  // Authored state, before any script runs.
+  assert.equal(doc.getElementById("local-metric-label").textContent.trim(), "Example data");
+  assert.equal(doc.getElementById("local-recoverable").dataset.real, "false");
+  assert.match(normalized(doc.getElementById("headline-basis")), /Example data — bundled synthetic sample/);
+  assert.equal(doc.getElementById("analysis-mode").dataset.mode, "example");
+
+  applyMetricBasis(doc, metricBasis({ mode: "local", departments: 4, joinedRecords: 9 }));
+  assert.equal(doc.getElementById("local-metric-label").textContent, "Local import");
+  assert.equal(doc.getElementById("local-metric-label").dataset.real, "true");
+  assert.equal(doc.getElementById("local-recoverable").dataset.real, "true");
+
+  // Empty result: the mapping is valid, so the label says so rather than
+  // leaving the reader to read a dash as either zero or broken.
+  applyMetricBasis(doc, metricBasis({ mode: "local", departments: 0, joinedRecords: 0 }));
+  assert.equal(doc.getElementById("local-metric-label").dataset.real, "false");
+  assert.match(normalized(doc.getElementById("local-metric-detail")), /no provider aggregate joined/i);
+});
+
+// --- announcements ---------------------------------------------------------
+
+test("one commit produces one announcement, routed by severity", async () => {
+  const doc = await page();
+  const status = doc.getElementById("local-import-state");
+  const alert = doc.getElementById("local-import-alert");
+  assert.equal(status.getAttribute("aria-live"), "polite");
+  assert.equal(alert.getAttribute("role"), "alert");
+  assert.equal(alert.getAttribute("aria-live"), "assertive");
+
+  announce(doc, { severity: "polite", state: "loading", title: "Reading files in this tab…", copy: "Parsing locally." });
+  assert.match(normalized(status), /Reading files in this tab/);
+  assert.equal(normalized(alert), "");
+  assert.equal(status.dataset.state, "loading");
+
+  // A hard failure moves to the assertive region and empties the polite one, so
+  // the same outcome is never read from two places.
+  announce(doc, { severity: "assertive", state: "error", title: "This file was not analyzed.", copy: "Not valid JSON." });
+  assert.match(normalized(alert), /This file was not analyzed\.\s*Not valid JSON\./);
+  assert.equal(normalized(status), "");
+
+  announce(doc, { severity: "polite", state: "ready", title: "Local analysis ready.", copy: "Done." });
+  assert.equal(normalized(alert), "");
+  assert.match(normalized(status), /Local analysis ready/);
+});
+
+test("stage change moves focus to the new stage's own heading or control", async () => {
+  const doc = await page();
+  assert.equal(focusStageHeading(doc, "read"), doc.getElementById("local-results-title"));
+  assert.equal(doc.getElementById("local-results-title").getAttribute("tabindex"), "-1");
+  assert.equal(doc.activeElement, doc.getElementById("local-results-title"));
+  focusStageHeading(doc, "select");
+  assert.equal(doc.activeElement, doc.getElementById("local-finops-files"));
+});
+
+// --- redaction -------------------------------------------------------------
+
+test("no value read out of a selected file reaches text or a live region", async () => {
+  const doc = await page();
+  const hostile = "Record psn_abcdefghijklmnop0123 in export "
+    + "3f2504e0-4f89-11d3-9a0c-0305e82c3301 from /Users/leader/Downloads/october-billing.json "
+    + "is missing required field “cost”.";
+  const scrubbed = redactDiagnostic(hostile);
+  assert.doesNotMatch(scrubbed, /psn_/);
+  assert.doesNotMatch(scrubbed, /3f2504e0/);
+  assert.doesNotMatch(scrubbed, /october-billing|Downloads/);
+  // The contract field name survives: it is the header a reader needs to fix.
+  assert.match(scrubbed, /“cost”/);
+
+  const diagnostic = diagnosticFor({ code: "missing_field", message: hostile, ordinal: 1, total: 1 });
+  applyFieldDiagnostic(doc, diagnostic);
+  announce(doc, { severity: "assertive", state: "error", title: "This file was not analyzed.", copy: diagnostic.text });
+  for (const node of [doc.getElementById("local-file-error"), doc.getElementById("local-import-alert")]) {
+    const text = normalized(node);
+    assert.doesNotMatch(text, /psn_|3f2504e0|october-billing|Downloads/);
+  }
+});
+
+test("the redaction promise is stated where the numbers are read, not in a footer", async () => {
+  const html = await readFile(PAGE, "utf8");
+  const boundary = html.indexOf('class="privacy-boundary"');
+  assert.ok(boundary > 0 && boundary < html.indexOf('id="local-finops-files"'),
+    "the boundary must precede the control that starts the import");
+  assert.match(html, /Column headers and totals are shown; source rows and cell values are never rendered/);
+  assert.match(html, /No cell value, record identifier, or file name is rendered, announced, or written to an export/);
+
+  // Detailed provenance recedes into disclosure; the promise itself does not.
+  const doc = await page();
+  const provenance = doc.getElementById("local-provenance");
+  assert.equal(provenance.closest("details").className, "local-provenance-detail");
+  assert.equal(doc.querySelector(".privacy-boundary").closest("details"), null);
+});
+
+// --- keyboard completeness -------------------------------------------------
+
+test("the import surface is keyboard-complete and in reading order", async () => {
+  const html = await readFile(PAGE, "utf8");
+  // Ordering is fixed in the DOM, never patched with a positive tabindex.
+  assert.doesNotMatch(html, /tabindex="[1-9]/);
+
+  const doc = await page();
+  applyStage(doc, "check");
+  applyRequirements(doc, { providers: 1, hris: false });
+  applyFieldDiagnostic(doc, diagnosticFor({ code: "invalid_json", message: "The file is not valid JSON." }));
+  doc.getElementById("local-results").hidden = false;
+  doc.getElementById("clear-local-analysis").hidden = false;
+
+  const ids = tabSequence(doc).map((node) => node.getAttribute("id")).filter(Boolean);
+  const order = [
+    "local-finops-files", "local-file-repick", "local-file-discard",
+    "clear-local-analysis", "export-local-json", "export-local-summary",
+  ];
+  const positions = order.map((id) => ids.indexOf(id));
+  for (const [index, position] of positions.entries())
+    assert.ok(position >= 0, `${order[index]} must be reachable by keyboard`);
+  assert.deepEqual([...positions].sort((left, right) => left - right), positions,
+    "tab order must follow the staged reading order");
+
+  // The requirement jump is a real button in the sequence, between the control
+  // it points at and the export actions that follow the result.
+  const jump = tabSequence(doc).find((node) => node.className === "requirement-jump");
+  assert.ok(jump, "an unresolved requirement must expose its jump to the keyboard");
+
+  // Hidden stages contribute nothing to the sequence.
+  doc.getElementById("local-results").hidden = true;
+  const hiddenIds = tabSequence(doc).map((node) => node.getAttribute("id"));
+  assert.ok(!hiddenIds.includes("export-local-json"));
+});
+
+test("the panel draws focus, disabled, and status states from existing tokens", async () => {
+  const styles = await readFile(new URL("../src/evolution.css", import.meta.url), "utf8");
+  // No raw hex is introduced by the refinement: the new roles are named tokens.
+  for (const token of [
+    "--import-ink", "--import-accent", "--import-line", "--import-wash",
+    "--state-warn-ink", "--state-warn-line", "--state-warn-wash",
+    "--state-error-ink", "--state-error-line", "--state-error-wash",
+  ]) assert.match(styles, new RegExp(`${token}\\s*:`), `${token} must be defined`);
+
+  // The focus ring is the site token, not a per-panel blue, and it is never
+  // removed.
+  assert.match(styles, /\.local-import button:focus-visible[^{]*\{\s*outline:3px solid var\(--focus-ring\)/);
+  assert.doesNotMatch(styles, /outline:\s*none/);
+  // Stage and requirement states are never carried by color alone.
+  assert.match(styles, /\.import-stage \.stage-status/);
+  assert.match(styles, /\.mapping-requirement \.requirement-status/);
+  // The mapping summary stays usable at small widths.
+  assert.match(styles, /@media\(max-width:640px\)[\s\S]*\.import-stage\s*\{\s*flex:1 1 100%/);
+});

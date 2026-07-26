@@ -14,6 +14,19 @@
   --cat-out-of-scope:#e34948;
   --panel-border:#d1cfc7;
   --ink-muted:#6f6f69;
+  /* Import-flow roles. Every value below already shipped inline in this file;
+     naming them stops the stage, requirement, and diagnostic states from
+     re-deriving the panel's green/amber/red by hand. No new hue is introduced. */
+  --import-ink:#244c3c;        /* body text inside the local-import panel */
+  --import-accent:#315f50;     /* the panel's structural rule and marker edge */
+  --import-line:#9eb9aa;       /* panel and control borders */
+  --import-wash:#eef6f2;       /* resolved / active fill inside the panel */
+  --state-warn-ink:#614a12;    /* unresolved-but-recoverable text */
+  --state-warn-line:#9b791c;
+  --state-warn-wash:#fffaf0;
+  --state-error-ink:#6f2821;   /* rejected-input text */
+  --state-error-line:#b4453a;
+  --state-error-wash:#fdf4f3;
 }
 .nav-evolution { display:inline-flex; align-items:center; gap:7px; }
 .nav-evolution::before { content:""; width:6px; height:6px; border-radius:2px; background:#1baf7a; }
@@ -61,7 +74,14 @@
 .local-import { border-color:#9eb9aa; background:linear-gradient(145deg,#f7fbf8,#fff 55%); }
 .local-import-heading,.local-result-heading { display:flex; align-items:start; justify-content:space-between; gap:24px; }
 /* Static classifications are outlined; dynamic status chips use filled washes. */
-.sample-badge { flex:none; border:1px solid #789284; border-radius:99px; padding:6px 10px; background:transparent; color:#315f50; font:750 10px/1.3 ui-monospace,monospace; text-transform:uppercase; }
+/* Chip silhouette follows design-system/claude-design/review-08-foundations:
+   filled wash = dynamic signal. Which data the page is showing is a live state,
+   so each mode gets a wash; the bare outline is only the pre-JS default. */
+.sample-badge { display:inline-flex; align-items:center; gap:6px; flex:none; border:1px solid #789284; border-radius:99px; padding:6px 10px; background:transparent; color:#315f50; font:750 10px/1.3 ui-monospace,monospace; text-transform:uppercase; }
+.sample-badge[data-mode="example"] { border-color:var(--state-warn-line); background:var(--state-warn-wash); color:var(--state-warn-ink); }
+.sample-badge[data-mode="local"] { border-color:var(--import-accent); background:var(--import-wash); color:var(--import-ink); }
+.sample-marker { display:flex; align-items:baseline; gap:8px; grid-column:1/-1; margin:0 0 4px; border:1px solid var(--state-warn-line); border-left:5px solid var(--state-warn-line); border-radius:9px; padding:10px 13px; background:var(--state-warn-wash); color:var(--state-warn-ink); font-size:12px; line-height:1.5; }
+.sample-marker-shape { flex:none; font-weight:750; }
 .privacy-boundary { display:grid; gap:3px; margin:22px 0; border:1px solid #b9cec4; border-left:5px solid #315f50; border-radius:10px; padding:14px 16px; background:#eef6f2; font-size:13px; line-height:1.5; }
 .privacy-boundary span { color:#496056; }
 .local-import-controls { display:flex; justify-content:space-between; align-items:end; gap:20px; }
@@ -71,9 +91,67 @@
 .local-import-controls p { margin:0; color:var(--ink-muted); font-size:11px; line-height:1.5; }
 .local-import button { min-height:42px; border:1px solid #7f9c8c; border-radius:8px; padding:9px 13px; background:#fff; color:#244c3c; font-weight:750; cursor:pointer; }
 .local-import button:hover { background:#edf5f1; }
-.local-import button:focus-visible,.local-import input:focus-visible,.local-disclosures summary:focus-visible { outline:3px solid #2a78d6; outline-offset:3px; }
+/* The shared focus token, not the accent blue this panel used to hard-code.
+   #2a78d6 measured 4.02:1 against the panel wash where var(--focus-ring)
+   measures 6.04:1, and one focus ring per site is one thing to learn. */
+.local-import button:focus-visible,.local-import input:focus-visible,.local-import summary:focus-visible,.local-disclosures summary:focus-visible,.local-results h3:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+
+/* Stage indicator — position, name, and word for every step. Colour is the
+   fourth signal, never the first. */
+.import-stages { display:flex; flex-wrap:wrap; gap:8px; margin:0 0 18px; padding:0; list-style:none; }
+.import-stage { display:flex; align-items:baseline; gap:8px; flex:1 1 190px; min-width:0; border:1px solid var(--import-line); border-radius:9px; padding:10px 12px; background:#fff; }
+.import-stage .stage-shape { flex:none; font-weight:750; }
+.import-stage .stage-index { color:var(--ink-muted); font:700 9px/1.4 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; white-space:nowrap; }
+.import-stage .stage-name { min-width:0; font-size:13px; font-weight:750; overflow-wrap:anywhere; }
+.import-stage .stage-status { margin-left:auto; color:var(--ink-muted); font:700 10px/1.4 ui-monospace,monospace; white-space:nowrap; }
+.import-stage[data-state="current"] { border-color:var(--import-accent); box-shadow:inset 4px 0 var(--import-accent); background:var(--import-wash); }
+.import-stage[data-state="current"] .stage-status,.import-stage[data-state="complete"] .stage-status { color:var(--import-ink); }
+.import-stage[data-state="complete"] { border-color:var(--import-line); background:var(--import-wash); }
+.import-stage[data-state="remaining"] { border-style:dashed; }
+
+/* Requirement rows — the mapping summary. Each unresolved row carries the jump
+   that moves focus to the control which resolves it. */
+.mapping-requirements { display:grid; gap:8px; margin:16px 0 0; padding:0; list-style:none; }
+.mapping-requirement { display:flex; align-items:baseline; flex-wrap:wrap; gap:8px 10px; border:1px solid var(--import-line); border-radius:9px; padding:10px 12px; background:#fff; }
+.mapping-requirement .requirement-shape { flex:none; font-weight:750; }
+.mapping-requirement .requirement-name { min-width:0; flex:1 1 180px; font-size:13px; font-weight:750; overflow-wrap:anywhere; }
+.mapping-requirement .requirement-status { color:var(--ink-muted); font:700 10px/1.4 ui-monospace,monospace; }
+.mapping-requirement[data-state="ready"] { border-color:var(--import-accent); background:var(--import-wash); }
+.mapping-requirement[data-state="ready"] .requirement-status { color:var(--import-ink); }
+.mapping-requirement[data-state="missing"] { border-color:var(--state-warn-line); border-style:dashed; background:var(--state-warn-wash); }
+.mapping-requirement[data-state="missing"] .requirement-status { color:var(--state-warn-ink); }
+.local-import .requirement-jump { min-height:34px; margin:0; border-color:var(--state-warn-line); padding:5px 11px; color:var(--state-warn-ink); font-size:12px; }
+
+/* Per-field diagnostic: at the control, described by it, recoverable from it. */
+.local-import-field { display:grid; gap:7px; min-width:0; }
+.local-import .field-error { display:grid; gap:4px; margin:0; border:1px solid var(--state-error-line); border-left:5px solid var(--state-error-line); border-radius:9px; padding:11px 13px; background:var(--state-error-wash); color:var(--state-error-ink); font-size:12px; line-height:1.5; overflow-wrap:anywhere; }
+.local-import .field-error[hidden] { display:none; }
+.local-import .field-error-label { font:750 10px/1.4 ui-monospace,monospace; letter-spacing:.05em; text-transform:uppercase; }
+.field-recovery { display:flex; flex-wrap:wrap; gap:8px; }
+.field-recovery[hidden] { display:none; }
+.local-import .field-recovery-action { min-height:38px; margin:0; border-color:var(--state-error-line); padding:7px 12px; color:var(--state-error-ink); font-size:12px; }
+.local-import .field-recovery-action:hover { background:var(--state-error-wash); }
+.local-import-alert { display:grid; gap:3px; margin-top:12px; border:1px solid var(--state-error-line); border-left:5px solid var(--state-error-line); border-radius:9px; padding:13px 15px; background:var(--state-error-wash); color:var(--state-error-ink); font-size:12px; line-height:1.5; }
+.local-import-alert:empty { display:none; }
+
+/* The number and the sentence that says what kind of number it is. */
+.local-finding-facts .metric-basis { display:grid; gap:3px; margin:8px 0 0; font-size:12px; font-weight:400; }
+.metric-basis-label { justify-self:start; border:1px solid var(--state-warn-line); border-radius:5px; padding:3px 8px; background:var(--state-warn-wash); color:var(--state-warn-ink); font:750 10px/1.3 ui-monospace,monospace; text-transform:uppercase; }
+.metric-basis-label[data-real="true"] { border-color:var(--import-accent); background:var(--import-wash); color:var(--import-ink); }
+.metric-basis-detail { color:var(--ink-muted); font-size:12px; font-weight:400; line-height:1.5; }
+.local-finding-facts .local-impact dd[data-real="false"] { color:var(--state-warn-ink); }
+.local-finding-status .status-shape { font-weight:750; }
+
+/* Provenance recedes into disclosure; the redaction promise does not. */
+.local-provenance-detail { margin-top:18px; border-top:1px solid #d8e2dc; padding-top:14px; }
+.local-provenance-detail summary { cursor:pointer; color:var(--ink-muted); font:700 10px/1.4 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; }
+.local-provenance-detail p { margin:12px 0 0; font-size:12px; line-height:1.55; overflow-wrap:anywhere; }
+.local-provenance-detail .local-redaction-note { color:var(--ink-muted); }
 .local-import-state { display:grid; gap:3px; margin-top:18px; border:1px dashed #aaa79d; border-radius:9px; padding:13px 15px; color:var(--ink-muted); font-size:12px; line-height:1.5; }
-.local-import-state[data-state="error"] { border-color:#b4453a; background:#fdf4f3; color:#6f2821; }
+.local-import-state[data-state="error"] { border-color:var(--state-error-line); background:var(--state-error-wash); color:var(--state-error-ink); }
+/* A hard failure is announced from the assertive region below, which empties
+   this one; an empty box must not leave a tinted frame behind. */
+.local-import-state:empty { display:none; }
 .local-import-state[data-state="loading"] { background:#f7f6f1; }
 .local-results { margin-top:26px; border-top:1px solid #d6e0da; padding-top:24px; }
 .local-result-heading h3 { margin:5px 0 0; font-size:24px; }
@@ -85,7 +163,7 @@
 .local-finding-lead h4 { max-width:760px; margin:7px 0 0; font-size:clamp(20px,3vw,27px); line-height:1.25; letter-spacing:-.025em; }
 /* Filled wash denotes a dynamic confidence signal; its text carries the state. */
 .local-finding-status { flex:none; border-radius:5px; padding:6px 9px; background:#fff0c7; color:#72520a; font:750 10px/1.3 ui-monospace,monospace; text-transform:uppercase; }
-.local-finding-facts { display:grid; grid-template-columns:1.1fr .8fr .9fr 1.4fr; gap:14px 20px; margin:22px 0 0; padding-top:18px; border-top:1px solid #d8e2dc; }
+.local-finding-facts { display:grid; grid-template-columns:1.5fr .9fr 1fr; gap:14px 20px; margin:22px 0 0; padding-top:18px; border-top:1px solid #d8e2dc; }
 .local-finding-facts div { min-width:0; }
 .local-finding-facts dt { color:var(--ink-muted); font:700 9px/1.4 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; }
 .local-finding-facts dd { margin:5px 0 0; font-size:13px; font-weight:700; line-height:1.45; overflow-wrap:anywhere; }
@@ -340,6 +418,9 @@
   .proof-point-facts { grid-template-columns:1fr; }
   .proof-point-boundary { align-items:start; flex-direction:column; }
   .local-import-heading,.local-import-controls,.local-result-heading { align-items:stretch; flex-direction:column; }
+  .import-stage { flex:1 1 100%; }
+  .mapping-requirement .requirement-status { margin-left:auto; }
+  .field-recovery { display:grid; }
   .sample-badge { width:fit-content; }
   .local-disclosures,.local-state-grid,.local-finding-facts { grid-template-columns:1fr; }
   .local-finding-lead { display:grid; }

@@ -25,6 +25,10 @@ import {
   parseLocalFinopsFile,
 } from "/local-finops.js";
 import { headlineTrust } from "/finops-display.js";
+import {
+  announce as announceStage, applyFieldDiagnostic, applyMetricBasis, applyRequirements,
+  applyStage, diagnosticFor, focusStageHeading, importStage, metricBasis,
+} from "/local-import-flow.js";
 
 const DATA_URL = "/evolution-demo-data.json";
 const EVALUATION_URL = "/finops-evaluation-fixtures.json";
@@ -100,13 +104,38 @@ function mountLocalFinopsImport() {
   const plausibleUsd = (value) => Number.isFinite(value) && value >= 0 && value <= MAX_DISPLAY_USD;
   const moneyText = (value) => plausibleUsd(value) ? `${value.toFixed(2)} USD` : "Needs review · value withheld";
 
-  const announce = (state, title, copy) => {
-    stateNode.dataset.state = state;
-    stateNode.replaceChildren(
-      element("strong", undefined, title),
-      element("span", undefined, copy),
-    );
+  // One announcement per commit. A file input only commits on change, so there
+  // is no keystroke to debounce; what matters is that a single message goes to
+  // exactly one region, chosen by severity.
+  const announce = (state, title, copy) => announceStage(document, {
+    severity: state === "error" ? "assertive" : "polite", state, title, copy,
+  });
+
+  // The stage indicator and the requirement rows are the same fact told twice:
+  // where the flow is, and what is still missing. Both repaint together so they
+  // can never disagree, and focus only moves when the stage actually changed.
+  let stage = "select";
+  const syncStage = ({ hasResult = false, focus = false } = {}) => {
+    const next = importStage({
+      providers: loaded.providers.length, hris: Boolean(loaded.hris), hasResult,
+    });
+    const changed = next !== stage;
+    stage = next;
+    applyStage(document, stage);
+    applyRequirements(document, {
+      providers: loaded.providers.length, hris: Boolean(loaded.hris),
+    });
+    if (changed && focus) focusStageHeading(document, stage);
+    return changed;
   };
+  const setMode = (mode, label) => {
+    const badge = document.getElementById("analysis-mode");
+    if (badge) badge.dataset.mode = mode;
+    setText("analysis-mode-label", label);
+  };
+  const showMetricBasis = (basis) => applyMetricBasis(document, metricBasis({
+    ...basis, providers: loaded.providers.length, hris: Boolean(loaded.hris),
+  }));
   const departmentFacts = (department) => {
     const trend = department.trendAvailable
       ? `${department.spendChangePercent > 0 ? "↑ Increase " : department.spendChangePercent < 0 ? "↓ Decrease " : "→ No change "}`
@@ -172,7 +201,7 @@ function mountLocalFinopsImport() {
   const renderResult = (next) => {
     result = next;
     resultsNode.setAttribute("aria-busy", "false");
-    setText("analysis-mode", "Local analysis");
+    setMode("local", "Local import");
     setText("finops-intro",
       "This decision brief uses only the provider and HRIS exports selected in this tab. "
       + "It makes a bounded routing estimate and refuses unsupported benchmark or prompt-quality claims.");
@@ -183,6 +212,11 @@ function mountLocalFinopsImport() {
     if (notice) {
       notice.hidden = resultPlausible && next.rankedDepartments.length > 0;
       notice.dataset.state = resultPlausible ? "empty" : "error";
+      // The notice now sits with the number it qualifies and is reachable via
+      // the finding's aria-describedby, so leaving it live would read the same
+      // outcome twice on one commit. The polite import status owns the
+      // announcement; this element owns the visible sentence.
+      notice.setAttribute("aria-live", "off");
     }
     setText("local-result-notice-title", resultPlausible
       ? "No department finding available." : "Imported totals need review.");
@@ -190,8 +224,15 @@ function mountLocalFinopsImport() {
       ? "No provider aggregate joined an active HRIS unit. Resolve the mapping gaps before choosing an action."
       : "A total is outside the supported 0–1 trillion USD display range, or recoverable spend exceeds observed spend. Values are withheld; inspect the source export.");
     setText("local-recoverable", resultPlausible ? moneyText(next.recoverableUsd) : "Needs review");
+    // The number and the sentence that says what kind of number it is are
+    // written together; neither can ship without the other.
+    const basis = showMetricBasis({
+      mode: "local", plausible: resultPlausible,
+      departments: next.rankedDepartments.length,
+      joinedRecords: next.quality.joinedRecords,
+    });
     setText("local-department", next.topDepartment?.name ?? "Unavailable");
-    setText("local-confidence", `${resultPlausible ? next.confidence : "Withheld"} confidence`);
+    setText("local-confidence-label", `${resultPlausible ? next.confidence : "Withheld"} confidence`);
     setText("local-action", resultPlausible ? next.action : "Review imported totals before selecting a department action.");
     setText("local-provenance",
       next.provenance);
@@ -226,9 +267,14 @@ function mountLocalFinopsImport() {
     setSampleVisibility(false);
     resultsNode.hidden = false;
     clear.hidden = false;
-    announce("ready", "Local analysis ready.",
-      `${next.quality.joinedRecords} joined record${next.quality.joinedRecords === 1 ? "" : "s"}; sample analysis replaced until refresh or “Return to sample.”`);
-    resultsNode.focus?.();
+    applyFieldDiagnostic(document, null);
+    announce("ready", `Local analysis ready · ${basis.label}.`,
+      `${basis.detail} Example analysis replaced until refresh or “Return to example data.”`);
+    // Focus lands on the new stage's heading, not on the section wrapper, so a
+    // screen reader reads the brief's title rather than a nameless region. A
+    // re-import redraws the same stage, and the reader is still owed the move.
+    syncStage({ hasResult: true });
+    focusStageHeading(document, "read");
   };
   const reset = () => {
     loaded.providers.length = 0;
@@ -238,12 +284,17 @@ function mountLocalFinopsImport() {
     resultsNode.hidden = true;
     clear.hidden = true;
     setSampleVisibility(true);
-    setText("analysis-mode", "Sample mode");
+    setMode("example", "Example data");
+    applyFieldDiagnostic(document, null);
+    showMetricBasis({ mode: "example" });
     setText("finops-intro",
       "Every prompt is scored for intent, efficiency, and model fit, then attributed to the org chart. "
       + "One number tells you whether the spend is working; the rows below tell you where it is not.");
-    announce("ready", "Returned to sample mode.",
+    announce("ready", "Returned to example data.",
       "The selected file references and local result were discarded.");
+    // Returning to the first stage is a stage change too: focus goes back to the
+    // control that starts it rather than being dropped on the discarded button.
+    syncStage({ focus: true });
   };
 
   input.addEventListener("change", async () => {
@@ -251,10 +302,13 @@ function mountLocalFinopsImport() {
     if (!files.length) return;
     stateNode.setAttribute("aria-busy", "true");
     resultsNode.setAttribute("aria-busy", "true");
+    applyFieldDiagnostic(document, null);
     announce("loading", "Reading files in this tab…",
       "Parsing and validation are running locally; no file contents are being transferred.");
+    let ordinal = 0;
     try {
       for (const file of files) {
+        ordinal += 1;
         const parsed = parseLocalFinopsFile(await file.text(), file.name, file.type);
         if (parsed.type === "provider")
           loaded.providers.push(parsed);
@@ -262,8 +316,10 @@ function mountLocalFinopsImport() {
       }
       if (!loaded.providers.length || !loaded.hris) {
         const missing = loaded.providers.length ? "HRIS mapping" : "provider export";
+        showMetricBasis({ mode: "partial" });
+        syncStage({ focus: true });
         announce("ready", `${files.length} compatible file${files.length === 1 ? "" : "s"} ready.`,
-          `Add the ${missing}; sample analysis remains visible.`);
+          `Add the ${missing}; example analysis remains visible.`);
         return;
       }
       renderResult(normalizeLocalFinopsHistory({
@@ -271,8 +327,19 @@ function mountLocalFinopsImport() {
         hris: loaded.hris,
       }));
     } catch (error) {
+      // The diagnostic belongs to the control that produced it: the input goes
+      // aria-invalid, the message is described-by it, and the recovery sits
+      // beside it. The failing file is named by its position in the selection —
+      // never by file name, path, or any value read out of it.
+      const diagnostic = diagnosticFor({
+        code: error?.code, message: error?.message, ordinal, total: files.length,
+      });
+      applyFieldDiagnostic(document, diagnostic);
+      showMetricBasis({ mode: "failed" });
+      syncStage();
       announce("error", "This file was not analyzed.",
-        `${error.message} Existing analysis was not replaced; choose a manifest-compatible JSON export.`);
+        `${diagnostic.text} ${diagnostic.recovery} Existing analysis was not replaced.`);
+      input.focus?.();
     } finally {
       stateNode.setAttribute("aria-busy", "false");
       resultsNode.setAttribute("aria-busy", "false");
@@ -280,6 +347,15 @@ function mountLocalFinopsImport() {
     }
   });
   clear?.addEventListener("click", reset);
+  // Both recoveries live at the control. "Choose files again" reopens the same
+  // picker; "Discard this selection" drops what was accepted so a half-loaded
+  // pair cannot silently outlive the error that interrupted it.
+  document.getElementById("local-file-repick")?.addEventListener("click", () => {
+    applyFieldDiagnostic(document, null);
+    input.focus?.();
+    input.click?.();
+  });
+  document.getElementById("local-file-discard")?.addEventListener("click", reset);
   document.getElementById("export-local-json")?.addEventListener("click", () => {
     if (result) downloadLocalExport(localFinopsJsonExport(result),
       "application/json", "local-finops-results.json");
@@ -288,6 +364,11 @@ function mountLocalFinopsImport() {
     if (result) downloadLocalExport(localFinopsMeetingSummary(result),
       "text/plain", "local-finops-meeting-summary.txt");
   });
+  // Cold load: draw the first stage and the unresolved requirements before any
+  // interaction, so the idle surface is a state rather than a blank.
+  applyFieldDiagnostic(document, null);
+  showMetricBasis({ mode: "example" });
+  syncStage();
 }
 
 // The portfolio's DOM lives in finance-portfolio-view.js so its untrusted-text
