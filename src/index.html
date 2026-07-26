@@ -190,6 +190,17 @@
         </div>
       </section>
 
+      <section class="export-panel" aria-labelledby="export-title">
+        <div>
+          <p class="eyebrow">Portable history</p>
+          <h2 id="export-title">Export your Shiplog records</h2>
+          <p id="export-shiplog-counts" class="hint" aria-live="polite">Counting locally stored records…</p>
+          <p class="hint">The JSON file includes only decisions, releases, and their preserved links stored in this browser.</p>
+          <p id="export-shiplog-status" class="notice" role="status" aria-live="polite"></p>
+        </div>
+        <button id="export-shiplog" type="button">Download JSON</button>
+      </section>
+
       <section class="list-panel release-panel-wrap" aria-labelledby="sample-releases-title">
         <div class="section-heading list-heading">
           <div>
@@ -208,5 +219,6 @@
       </section>
     </main>
     <script type="module" src="/app.js"></script>
+    <script type="module" src="/shiplog-export-page.js"></script>
   </body>
 </html>
