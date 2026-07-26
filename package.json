@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "node scripts/build.mjs",
+    "benchmark:paint": "node scripts/benchmark-paint.mjs",
     "verify:build": "node scripts/verify-build.mjs dist",
     "test": "node --test",
     "check": "npm test && npm run build && npm run verify:build"

@@ -10,8 +10,25 @@ test("paint shell has semantic navigation and an accessible canvas", async () =>
   assert.match(html, /<main class="editor" aria-label="Image editor">/);
   assert.match(html, /<aside class="tool-rail" aria-label="Editing tools">/);
   assert.match(html, /id="editor-canvas" tabindex="0" role="region"/);
-  assert.match(html, /<canvas width="1200" height="800" aria-label="Blank image">/);
+  assert.match(html, /<canvas id="paint-canvas" width="1200" height="800" aria-label="Editable image">/);
   assert.match(html, /class="skip-link" href="#editor-canvas"/);
+  assert.match(html, /id="file-input" type="file" accept="image\/png,image\/jpeg,image\/webp,image\/gif"/);
+  assert.match(html, /data-tool="brush"/);
+  assert.match(html, /data-tool="rectangle"/);
+  assert.match(html, /data-filter="grayscale"/);
+  assert.doesNotMatch(html, /https?:\/\//);
+});
+
+test("paint ships as a self-contained static application", async () => {
+  const [html, script, engine] = await Promise.all([
+    readFile(new URL("../src/paint/index.html", import.meta.url), "utf8"),
+    readFile(new URL("../src/paint/paint.js", import.meta.url), "utf8"),
+    readFile(new URL("../src/paint/paint-engine.js", import.meta.url), "utf8"),
+  ]);
+  const source = `${html}\n${script}\n${engine}`;
+  assert.doesNotMatch(source, /\bfetch\s*\(|XMLHttpRequest|https?:\/\//);
+  assert.match(script, /createImageBitmap/);
+  assert.match(engine, /getContext\("webgl"/);
 });
 
 test("theme preference accepts only supported stored values", () => {
