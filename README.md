@@ -33,6 +33,17 @@ npm run check
 python3 -m unittest discover -s runner/tests -v
 ```
 
+`npm run test:e2e` runs the decision-and-release history regression suite on its
+own (`tests/history-e2e.test.js`); `npm test` and `npm run check` already include
+it. It walks the shipped decisions page end to end — record a decision, see a
+release and the decision it links to, filter by record type and status, hit both
+empty states, and download the JSON export — asserting only what a user can see,
+with one test driving the whole path by keyboard alone. It parses `src/index.html`
+into the small browser stand-in in `tests/support/browser.js`, so it needs no
+browser, no network, and no timing: it is safe to run anywhere and in any order.
+Tests marked `todo` there are known product gaps, not flakes; each names the gap
+it is waiting on.
+
 ## Agent runner
 
 Persona tokens live in `.secrets/personas.json`; endpoints and identity mapping
