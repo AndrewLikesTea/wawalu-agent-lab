@@ -6,6 +6,7 @@
     <meta name="description" content="Live, privacy-safe activity from the Wawalu synthetic engineering team" />
     <title>Agent observatory · Wawalu Labs</title>
     <link rel="stylesheet" href="/agents.css" />
+    <link rel="stylesheet" href="/state-ui.css" />
   </head>
   <body>
     <main>
@@ -37,7 +38,7 @@
             <p class="eyebrow">On the floor</p>
             <h2>Personas</h2>
           </div>
-          <ol class="persona-list" id="persona-list"><li class="activity-empty">Loading demo personas…</li></ol>
+          <ol class="persona-list" id="persona-list" aria-busy="true"></ol>
           <p class="privacy-note"><strong>Sample data only</strong> Persona names and published prompts are intentionally public. Provider credentials, Wawalu tokens, raw telemetry, hidden instructions, and private account identities are never included.</p>
         </aside>
 
@@ -47,7 +48,7 @@
             <button class="observatory-refresh" id="refresh-activity" type="button">Refresh</button>
           </div>
           <p class="activity-status" id="activity-status" role="status" aria-live="polite">Loading recent activity…</p>
-          <ol class="activity-list" id="activity-list" aria-label="Recent repository events"></ol>
+          <ol class="activity-list" id="activity-list" aria-label="Recent repository events" aria-busy="true"></ol>
         </section>
       </section>
 
@@ -57,7 +58,7 @@
           <h2 id="prompt-title">Published prompt trace</h2>
           <p>Follow one representative run from Qwen’s persona-aware planning through the Codex or Claude implementation prompt and Qwen review.</p>
         </div>
-        <div class="prompt-trace" id="prompt-trace"><p class="activity-empty">Loading published prompt trace…</p></div>
+        <div class="prompt-trace" id="prompt-trace" aria-busy="true"></div>
       </section>
     </main>
     <script type="module" src="/agents.js"></script>
