@@ -20,6 +20,9 @@ import { mountFinancePortfolio, renderPortfolioUnavailable } from "/finance-port
 import {
   renderFinopsEvaluationPanel, renderFinopsEvaluationUnavailable,
 } from "/finops-evaluation-view.js";
+import {
+  localFinopsJsonExport, localFinopsMeetingSummary, normalizeLocalFinops, parseLocalFinopsFile,
+} from "/local-finops.js";
 
 const DATA_URL = "/evolution-demo-data.json";
 const EVALUATION_URL = "/finops-evaluation-fixtures.json";
@@ -47,6 +50,122 @@ function element(tag, className, text) {
 function setText(id, text) {
   const node = document.getElementById(id);
   if (node) node.textContent = text;
+}
+
+function fillTextList(id, values, emptyText) {
+  const list = document.getElementById(id);
+  if (!list) return;
+  list.replaceChildren();
+  const items = values.length ? values : [emptyText];
+  for (const value of items) list.append(element("li", undefined, value));
+}
+
+function setSampleVisibility(visible) {
+  document.querySelectorAll("[data-sample-analysis]")
+    .forEach((node) => { node.hidden = !visible; });
+}
+
+function downloadLocalExport(content, type, fileName) {
+  const url = URL.createObjectURL(new Blob([content], { type }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function mountLocalFinopsImport() {
+  const input = document.getElementById("local-finops-files");
+  if (!input) return;
+  const stateNode = document.getElementById("local-import-state");
+  const resultsNode = document.getElementById("local-results");
+  const clear = document.getElementById("clear-local-analysis");
+  const loaded = {};
+  let result = null;
+
+  const announce = (state, title, copy) => {
+    stateNode.dataset.state = state;
+    stateNode.replaceChildren(
+      element("strong", undefined, title),
+      element("span", undefined, copy),
+    );
+  };
+  const renderResult = (next) => {
+    result = next;
+    setText("analysis-mode", "Local analysis");
+    setText("finops-intro",
+      "This decision brief uses only the provider and HRIS exports selected in this tab. "
+      + "It makes a bounded routing estimate and refuses unsupported benchmark or prompt-quality claims.");
+    setText("finops-provenance", `${next.period} · ${next.provenance}`);
+    setText("local-recoverable", `${next.recoverableUsd.toFixed(2)} USD`);
+    setText("local-department", next.topDepartment?.name ?? "Unavailable");
+    setText("local-confidence", `${next.confidence} · disclosed scenario`);
+    setText("local-action", next.action);
+    setText("local-provenance",
+      `${next.provenance} Confidence is ${next.confidence.toLowerCase()} because the estimate uses coarse billing categories, not prompt content.`);
+    setText("local-warning-count", `(${next.warnings.length})`);
+    fillTextList("local-assumptions", next.assumptions, "No mapping assumptions.");
+    fillTextList("local-warnings", next.warnings, "No declared data-quality warnings.");
+    fillTextList("local-limits", next.limits, "No declared limits.");
+    fillTextList("local-evidence", next.evidence, "No recommendation evidence.");
+    setSampleVisibility(false);
+    resultsNode.hidden = false;
+    clear.hidden = false;
+    announce("ready", "Local analysis ready.",
+      `${next.quality.joinedRecords} joined record${next.quality.joinedRecords === 1 ? "" : "s"}; sample analysis replaced until refresh or “Return to sample.”`);
+    resultsNode.focus?.();
+  };
+  const reset = () => {
+    delete loaded.provider;
+    delete loaded.hris;
+    result = null;
+    input.value = "";
+    resultsNode.hidden = true;
+    clear.hidden = true;
+    setSampleVisibility(true);
+    setText("analysis-mode", "Sample mode");
+    setText("finops-intro",
+      "Every prompt is scored for intent, efficiency, and model fit, then attributed to the org chart. "
+      + "One number tells you whether the spend is working; the rows below tell you where it is not.");
+    announce("ready", "Returned to sample mode.",
+      "The selected file references and local result were discarded.");
+  };
+
+  input.addEventListener("change", async () => {
+    const files = [...input.files];
+    if (!files.length) return;
+    stateNode.setAttribute("aria-busy", "true");
+    announce("loading", "Reading files in this tab…",
+      "Parsing and validation are running locally; no file contents are being transferred.");
+    try {
+      for (const file of files) {
+        const parsed = parseLocalFinopsFile(await file.text(), file.name, file.type);
+        loaded[parsed.type] = parsed;
+      }
+      if (!loaded.provider || !loaded.hris) {
+        const missing = loaded.provider ? "HRIS mapping" : "provider export";
+        announce("ready", `${files.length} compatible file${files.length === 1 ? "" : "s"} ready.`,
+          `Add the ${missing}; sample analysis remains visible.`);
+        return;
+      }
+      renderResult(normalizeLocalFinops(loaded));
+    } catch (error) {
+      announce("error", "This file was not analyzed.",
+        `${error.message} Existing analysis was not replaced; choose a manifest-compatible JSON export.`);
+    } finally {
+      stateNode.setAttribute("aria-busy", "false");
+      input.value = "";
+    }
+  });
+  clear?.addEventListener("click", reset);
+  document.getElementById("export-local-json")?.addEventListener("click", () => {
+    if (result) downloadLocalExport(localFinopsJsonExport(result),
+      "application/json", "local-finops-results.json");
+  });
+  document.getElementById("export-local-summary")?.addEventListener("click", () => {
+    if (result) downloadLocalExport(localFinopsMeetingSummary(result),
+      "text/plain", "local-finops-meeting-summary.txt");
+  });
 }
 
 // The portfolio's DOM lives in finance-portfolio-view.js so its untrusted-text
@@ -358,6 +477,7 @@ async function renderEvaluationDemo() {
 
 async function init() {
   if (!document.getElementById("department-priority")) return;
+  mountLocalFinopsImport();
   const gateway = createStaticGateway();
   const refreshGateway = document.getElementById("integration-gateway-refresh");
   gateway.subscribe(({ status, inspection, metadata }) => {
