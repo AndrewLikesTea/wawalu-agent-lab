@@ -267,6 +267,10 @@ test("social page is wired, labeled, and linked from the other pages", async () 
   assert.match(page, /id="compose-preview-image" alt=""/);
   assert.match(page, /id="post-image-alt"/);
   assert.match(page, /id="post-media-status" role="status" aria-live="polite"/);
+  assert.match(page, /id="post-submit"[^>]*aria-describedby="social-notice"/);
+  assert.match(page, /id="social-notice" role="status" aria-live="polite" aria-atomic="true"/);
+  assert.match(wiring, /selectionGeneration/);
+  assert.match(component, /Publishing…/);
   assert.match(wiring, /takePaintHandoff/);
   assert.match(wiring, /caption: post\.body/);
 
