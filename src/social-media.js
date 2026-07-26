@@ -30,7 +30,11 @@ const MEDIA_TYPES = Object.freeze({
 export const MEDIA_CONTENT_TYPES = Object.freeze(Object.keys(MEDIA_TYPES));
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const BASE64 = /^[A-Za-z0-9+/]+={0,2}$/;
+// JSON uploads use one canonical RFC 4648 representation. In particular, do
+// not silently discard whitespace or accept misplaced padding: storing one
+// stable spelling makes validation auditable and prevents parser differentials
+// between this boundary and future consumers.
+const BASE64 = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
 // 4 base64 characters per 3 bytes; refuse oversized payloads before decoding
 // them so a caller cannot spend the isolate's memory to earn a 422.
 const MAX_ENCODED_LENGTH = Math.ceil(MAX_MEDIA_BYTES / 3) * 4 + 4;
@@ -65,14 +69,18 @@ export function storageKeyFor(id, contentType, namespace = "social-media") {
 }
 
 export function decodeBase64(value) {
-  const compact = value.replace(/\s+/g, "");
-  if (!compact || compact.length % 4 !== 0 || !BASE64.test(compact)) return null;
+  if (typeof value !== "string" || !value || !BASE64.test(value)) return null;
   let binary;
   try {
-    binary = atob(compact);
+    binary = atob(value);
   } catch {
     return null;
   }
+  // Padding bits must be zero. Some decoders accept alternate spellings (for
+  // example, Zh== for the byte "f"); re-encoding gives us a small,
+  // well-understood canonicality check rather than maintaining those rules
+  // twice.
+  if (btoa(binary) !== value) return null;
   const bytes = new Uint8Array(binary.length);
   for (let index = 0; index < binary.length; index++) bytes[index] = binary.charCodeAt(index);
   return bytes;
@@ -83,6 +91,136 @@ export function matchesDeclaredType(bytes, contentType) {
   if (!type) return false;
   return type.signature.every(([offset, expected]) =>
     expected.every((byte, index) => bytes[offset + index] === byte));
+}
+
+function uint32be(bytes, offset) {
+  return (((bytes[offset] * 0x1000000) + (bytes[offset + 1] << 16)
+    + (bytes[offset + 2] << 8) + bytes[offset + 3]) >>> 0);
+}
+
+function uint32le(bytes, offset) {
+  return ((bytes[offset] + (bytes[offset + 1] << 8)
+    + (bytes[offset + 2] << 16) + (bytes[offset + 3] * 0x1000000)) >>> 0);
+}
+
+const CRC32_TABLE = Uint32Array.from({ length: 256 }, (_, value) => {
+  let crc = value;
+  for (let bit = 0; bit < 8; bit++) crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0);
+  return crc >>> 0;
+});
+
+function crc32(bytes, start, end) {
+  let crc = 0xffffffff;
+  for (let offset = start; offset < end; offset++) crc = (crc >>> 8) ^ CRC32_TABLE[(crc ^ bytes[offset]) & 0xff];
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function validPng(bytes) {
+  if (!matchesDeclaredType(bytes, "image/png")) return false;
+  let offset = 8;
+  let chunks = 0;
+  let sawHeader = false;
+  while (offset + 12 <= bytes.length) {
+    const length = uint32be(bytes, offset);
+    const typeOffset = offset + 4;
+    const end = typeOffset + 4 + length + 4;
+    if (end > bytes.length || ++chunks > 10000) return false;
+    if (crc32(bytes, typeOffset, end - 4) !== uint32be(bytes, end - 4)) return false;
+    const type = String.fromCharCode(...bytes.subarray(typeOffset, typeOffset + 4));
+    if (!sawHeader) {
+      if (type !== "IHDR" || length !== 13) return false;
+      sawHeader = true;
+    }
+    if (type === "IEND") return length === 0 && end === bytes.length;
+    offset = end;
+  }
+  return false;
+}
+
+function skipGifSubBlocks(bytes, offset) {
+  while (offset < bytes.length) {
+    const length = bytes[offset++];
+    if (length === 0) return offset;
+    if (offset + length > bytes.length) return -1;
+    offset += length;
+  }
+  return -1;
+}
+
+function validGif(bytes) {
+  if (!matchesDeclaredType(bytes, "image/gif") || bytes.length < 14) return false;
+  let offset = 13;
+  if (bytes[10] & 0x80) offset += 3 * (2 ** ((bytes[10] & 0x07) + 1));
+  while (offset < bytes.length) {
+    const introducer = bytes[offset++];
+    if (introducer === 0x3b) return offset === bytes.length;
+    if (introducer === 0x21) {
+      if (offset >= bytes.length) return false;
+      offset = skipGifSubBlocks(bytes, offset + 1);
+    } else if (introducer === 0x2c) {
+      if (offset + 9 > bytes.length) return false;
+      const packed = bytes[offset + 8];
+      offset += 9;
+      if (packed & 0x80) offset += 3 * (2 ** ((packed & 0x07) + 1));
+      if (offset >= bytes.length) return false;
+      offset = skipGifSubBlocks(bytes, offset + 1);
+    } else return false;
+    if (offset < 0 || offset > bytes.length) return false;
+  }
+  return false;
+}
+
+function validJpeg(bytes) {
+  if (!matchesDeclaredType(bytes, "image/jpeg") || bytes.length < 4) return false;
+  // JPEG entropy data is deliberately not decoded here, but the container must
+  // have a final EOI marker and no bytes hidden after it. Before the first scan,
+  // walk every length-delimited marker so truncated metadata cannot pass.
+  if (bytes.at(-2) !== 0xff || bytes.at(-1) !== 0xd9) return false;
+  let offset = 2;
+  while (offset < bytes.length - 2) {
+    while (bytes[offset] === 0xff) offset++;
+    const marker = bytes[offset++];
+    if (marker === 0xda) {
+      if (offset + 2 > bytes.length - 2) return false;
+      const length = (bytes[offset] << 8) | bytes[offset + 1];
+      return length >= 2 && offset + length <= bytes.length - 2;
+    }
+    if (marker === 0x01 || (marker >= 0xd0 && marker <= 0xd7)) continue;
+    if (marker === 0xd9 || marker === undefined || offset + 2 > bytes.length) return false;
+    const length = (bytes[offset] << 8) | bytes[offset + 1];
+    if (length < 2 || offset + length > bytes.length - 2) return false;
+    offset += length;
+  }
+  return false;
+}
+
+function validWebp(bytes) {
+  if (!matchesDeclaredType(bytes, "image/webp") || bytes.length < 20) return false;
+  if (uint32le(bytes, 4) + 8 !== bytes.length) return false;
+  let offset = 12;
+  let imageChunks = 0;
+  while (offset + 8 <= bytes.length) {
+    const type = String.fromCharCode(...bytes.subarray(offset, offset + 4));
+    const length = uint32le(bytes, offset + 4);
+    offset += 8;
+    if (offset + length > bytes.length) return false;
+    if (type === "VP8 " || type === "VP8L" || type === "VP8X") imageChunks++;
+    offset += length + (length % 2);
+  }
+  return offset === bytes.length && imageChunks === 1;
+}
+
+// Structural container validation complements the MIME allowlist and magic
+// bytes. It is intentionally modest—not a home-grown image decoder—but rejects
+// truncation, forged lengths, missing terminators, and bytes appended after the
+// image, all before anything reaches durable storage.
+export function isWellFormedImage(bytes, contentType) {
+  if (!(bytes instanceof Uint8Array)) return false;
+  if (contentType === "image/png") return validPng(bytes);
+  if (contentType === "image/jpeg") return validJpeg(bytes);
+  if (contentType === "image/gif") return validGif(bytes);
+  if (contentType === "image/webp") return validWebp(bytes);
+  return false;
 }
 
 function positiveInteger(value) {
@@ -114,8 +252,8 @@ export function validateMediaUpload(input) {
     if (!bytes) errors.data = "data must be valid base64";
     else if (bytes.byteLength === 0) errors.data = "data must not be empty";
     else if (bytes.byteLength > MAX_MEDIA_BYTES) errors.data = `data must decode to at most ${MAX_MEDIA_BYTES} bytes`;
-    else if (values.content_type && !matchesDeclaredType(bytes, values.content_type)) {
-      errors.data = `data does not contain a ${values.content_type} image`;
+    else if (values.content_type && !isWellFormedImage(bytes, values.content_type)) {
+      errors.data = `data does not contain a well-formed ${values.content_type} image`;
     } else values.bytes = bytes;
   }
 

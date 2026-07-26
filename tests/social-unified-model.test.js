@@ -100,10 +100,15 @@ test("upload validation enforces the allowlist, the size cap, and honest bytes",
 
   // A declared type the bytes do not support is refused, so a document can
   // never be parked in storage behind an image label.
-  assert.match(validateMediaUpload({ ...upload, data: GIF }).errors.data, /does not contain a image\/png image/);
+  assert.match(validateMediaUpload({ ...upload, data: GIF }).errors.data, /does not contain a well-formed image\/png image/);
   assert.deepEqual(validateMediaUpload({ ...upload, content_type: "image/gif", data: GIF }).errors, {});
 
   assert.match(validateMediaUpload({ ...upload, data: "not base64!!" }).errors.data, /valid base64/);
+  assert.match(validateMediaUpload({ ...upload, data: `${PNG.slice(0, 8)}\n${PNG.slice(8)}` }).errors.data, /valid base64/);
+  // Permissive decoders accept non-zero padding bits; the server requires the
+  // one canonical RFC 4648 spelling to avoid parser differentials.
+  assert.match(validateMediaUpload({ ...upload, data: "Zh==" }).errors.data, /valid base64/);
+  assert.match(validateMediaUpload({ ...upload, data: PNG.slice(0, -4) }).errors.data, /well-formed/);
   // Oversized payloads are refused on the encoded length, before any decode.
   assert.match(validateMediaUpload({ ...upload, data: "A".repeat(MAX_MEDIA_BYTES * 2) }).errors.data, /at most 524288 bytes/);
   // Alt text is required: an undescribed image is an accessibility defect.

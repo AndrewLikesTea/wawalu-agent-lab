@@ -93,9 +93,11 @@ anonymous browser path. A shared store hands out durable capacity, so every
 write is attributable to a named, individually revocable principal. Reads are
 open, since objects are addressed by unguessable ids.
 
-Only the four raster types the allowlist verifies by magic bytes are accepted.
-SVG is excluded and a payload that contradicts its declared type is rejected, so
-an active document cannot be parked in durable storage under an `image/*` label
+Only four raster types are accepted. Validation checks the caller's MIME type,
+the format signature, and the container structure before storage: PNG chunks
+and CRCs, GIF blocks and trailer, JPEG marker lengths and final EOI, or WebP
+RIFF/chunk lengths. Truncated files, forged lengths, and content appended after
+the image are rejected. SVG is excluded because it is an active document format
 (PRODUCT.md forbids user-generated HTML execution). Byte responses are locked
 down independently of `src/_headers`: allowlisted `Content-Type`, `nosniff`, and
 a sandboxed CSP.

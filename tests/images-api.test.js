@@ -37,6 +37,15 @@ function bytesOf(base64) {
   return new Uint8Array([...atob(base64)].map((character) => character.charCodeAt(0)));
 }
 
+function crc32(bytes, start, end) {
+  let crc = 0xffffffff;
+  for (let offset = start; offset < end; offset++) {
+    crc ^= bytes[offset];
+    for (let bit = 0; bit < 8; bit++) crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0);
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
 const PNG = bytesOf(PNG_BASE64);
 const GIF = bytesOf(GIF_BASE64);
 
@@ -156,8 +165,18 @@ test("the advertised ceiling is 5MB and an oversized upload is rejected with 413
 
 test("a file exactly at the ceiling is accepted", async () => {
   const { send, form } = harness();
+  // Signature + IHDR, one large private ancillary chunk, then IEND. A header
+  // followed by filler is malformed and must not prove the success path.
   const atLimit = new Uint8Array(MAX_IMAGE_BYTES);
-  atLimit.set(PNG.subarray(0, 8), 0);
+  atLimit.set(PNG.subarray(0, 33), 0);
+  const chunkLength = MAX_IMAGE_BYTES - 33 - 12 - 12;
+  new DataView(atLimit.buffer).setUint32(33, chunkLength);
+  atLimit.set(new TextEncoder().encode("ruSt"), 37);
+  new DataView(atLimit.buffer).setUint32(
+    MAX_IMAGE_BYTES - 16,
+    crc32(atLimit, 37, MAX_IMAGE_BYTES - 16),
+  );
+  atLimit.set(PNG.subarray(-12), MAX_IMAGE_BYTES - 12);
   const response = await send("POST", "/api/images", { body: form({ bytes: atLimit }) });
   assert.equal(response.status, 201);
   assert.equal((await response.json()).image.byte_size, MAX_IMAGE_BYTES);
@@ -206,7 +225,7 @@ test("a payload whose bytes contradict its declared type is rejected", async () 
   assert.equal(response.status, 422);
   const { error } = await response.json();
   assert.equal(error.code, "invalid_image");
-  assert.match(error.fields.file, /does not contain a image\/png image/);
+  assert.match(error.fields.file, /does not contain a well-formed image\/png image/);
 });
 
 test("HTML and SVG cannot be parked in durable storage", async () => {
@@ -219,6 +238,22 @@ test("HTML and SVG cannot be parked in durable storage", async () => {
     assert.equal(response.status, 422, `${contentType} must be rejected`);
   }
   assert.equal(await images.get("any"), null);
+});
+
+test("truncated images and bytes appended after the image are rejected", async () => {
+  const { send, form } = harness();
+  for (const bytes of [
+    PNG.subarray(0, PNG.length - 1),
+    Uint8Array.from(PNG, (byte, index) => index === 40 ? byte ^ 1 : byte),
+    Uint8Array.from([...PNG, ...new TextEncoder().encode("<script>alert(1)</script>")]),
+    GIF.subarray(0, GIF.length - 1),
+    Uint8Array.from([...GIF, 0x00]),
+  ]) {
+    const contentType = bytes[0] === 0x89 ? "image/png" : "image/gif";
+    const response = await send("POST", "/api/images", { body: form({ bytes, contentType }) });
+    assert.equal(response.status, 422);
+    assert.match((await response.json()).error.fields.file, /well-formed/);
+  }
 });
 
 test("missing file, empty file, and missing alt are reported as field errors", async () => {

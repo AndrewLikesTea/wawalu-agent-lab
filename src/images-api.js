@@ -30,7 +30,7 @@ import {
   MediaStorageError,
   MAX_MEDIA_BYTES,
   commitMedia,
-  matchesDeclaredType,
+  isWellFormedImage,
   sha256Hex,
   storageKeyFor,
 } from "./social-media.js";
@@ -138,10 +138,10 @@ export function validateImageUpload(input, { maxBytes = MAX_IMAGE_BYTES } = {}) 
     errors.file = "file must not be empty";
   } else if (bytes.byteLength > maxBytes) {
     oversize = true;
-  } else if (values.content_type && !matchesDeclaredType(bytes, values.content_type)) {
+  } else if (values.content_type && !isWellFormedImage(bytes, values.content_type)) {
     // The declared type is caller controlled; the magic bytes are not. This is
     // the check that keeps a renamed HTML document out of durable storage.
-    errors.file = `file does not contain a ${values.content_type} image`;
+    errors.file = `file does not contain a well-formed ${values.content_type} image`;
   } else {
     values.bytes = bytes;
   }

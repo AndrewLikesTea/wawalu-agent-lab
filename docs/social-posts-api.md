@@ -45,7 +45,10 @@ body, so the post write stays small and a failed image does not cost the caller
 their post text — the file is still on disk, and only the upload is retried.
 
 1. `POST /api/social-media` with `{ content_type, data, alt, width?, height? }`,
-   where `data` is base64. Returns `{ media: { id, url, alt, checksum_sha256, … } }`.
+   where `data` is canonical padded RFC 4648 base64 (no whitespace or data-URL
+   prefix). The decoded bytes must pass the same raster signature and structural
+   container validation as other image uploads. Returns
+   `{ media: { id, url, alt, checksum_sha256, … } }`.
 2. `POST /api/social-posts` with `media_id` (and optionally `caption`).
 
 **One step, for a client that generates its bytes.** `POST /api/social-posts`

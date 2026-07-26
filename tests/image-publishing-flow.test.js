@@ -185,7 +185,7 @@ test("PNG and JPG declarations preserve their exact format and bytes in storage"
     alt: "Mislabeled fixture.",
   });
   assert.equal(disguisedJpeg.status, 422);
-  assert.match(disguisedJpeg.body.error.fields.data, /does not contain a image\/png/);
+  assert.match(disguisedJpeg.body.error.fields.data, /does not contain a well-formed image\/png/);
 });
 
 test("empty feed, slow publication, and refresh mid-action never invent or hide posts", async () => {
