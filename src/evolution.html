@@ -84,6 +84,30 @@
               <p class="detail-score" id="detail-score">–</p>
             </div>
 
+            <section class="action-result" id="action-result" data-status="loading" aria-busy="true" aria-labelledby="action-title">
+              <div class="action-lead">
+                <div>
+                  <p class="eyebrow">Priority 01 · recommended intervention</p>
+                  <h4 id="action-title">Loading static action…</h4>
+                </div>
+                <span class="action-status" id="action-status">Loading fixture</span>
+              </div>
+              <p class="action-rationale" id="action-rationale">Reading the bundled demo result. No live analysis is running.</p>
+              <dl class="action-facts">
+                <div><dt>Expected impact</dt><dd id="action-impact">Loading…</dd></div>
+                <div><dt>Confidence</dt><dd id="action-confidence">Loading…</dd></div>
+                <div><dt>Accountable role</dt><dd id="action-owner">Loading…</dd></div>
+                <div><dt>Provenance</dt><dd id="action-provenance">Bundled static fixture</dd></div>
+              </dl>
+              <div class="savings-inspection" aria-label="Intervention savings">
+                <div><span>Baseline</span><strong id="action-baseline">—</strong></div>
+                <div><span>Target</span><strong id="action-target">—</strong></div>
+                <div><span>Estimated savings</span><strong id="action-estimate">—</strong></div>
+                <div><span>Simulated realized</span><strong id="action-realized">—</strong></div>
+              </div>
+              <p class="diagnosis-link"><strong>Why this action:</strong> <span id="action-diagnosis">Loading diagnosis…</span></p>
+            </section>
+
             <section class="decision-question" aria-labelledby="trend-title">
               <p class="eyebrow">Decision 2 of 3 · trajectory</p>
               <h4 id="trend-title">Is cost/performance worsening?</h4>
@@ -96,8 +120,10 @@
               <h4 id="benchmark-title">How does it compare with the benchmark?</h4>
               <p class="decision-answer" id="benchmark-answer">Loading comparator…</p>
               <p class="method-note" id="benchmark-method"></p>
-              <h5>Supporting scored evidence</h5>
-              <ul class="evidence-list" id="department-evidence"></ul>
+              <details class="evidence-disclosure">
+                <summary>Inspect supporting scored evidence</summary>
+                <ul class="evidence-list" id="department-evidence"></ul>
+              </details>
             </section>
           </article>
         </div>
