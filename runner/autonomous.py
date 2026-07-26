@@ -1728,7 +1728,7 @@ def command_loop(once: bool = False) -> int:
                 result = tick(config, State(), journal, runs=runs)
                 journal.emit("tick", result=result, active_runs=len(runs))
             except Exception as error:
-                journal.emit("daemon_error", error=type(error).__name__, detail=str(error)[:500])
+                journal.emit("daemon_error", error=type(error).__name__, detail=str(error)[:2000])
             if once:
                 # A single-shot invocation was asked for one complete run, so see it out.
                 runs.join()

@@ -2,6 +2,7 @@ import datetime as dt
 import json
 import pathlib
 import tempfile
+import time
 import unittest
 from unittest import mock
 
@@ -77,6 +78,43 @@ class GenerationGatewayTests(unittest.TestCase):
                                  {"value": "ok"})
                 self.assertFalse((pathlib.Path(tmp) / "spool").exists())
                 self.assertIn("codex", run.call_args.args[0])
+
+    def test_planner_asks_a_quota_exhausted_provider_last(self):
+        layers._planner_capacity.clear()
+        self.addCleanup(layers._planner_capacity.clear)
+        with tempfile.TemporaryDirectory() as tmp:
+            output = pathlib.Path(tmp) / "output.json"
+            calls: list[str] = []
+
+            def result(command, *_args, **_kwargs):
+                calls.append(command[0])
+                if command[0] == "codex":
+                    return mock.Mock(returncode=1, stdout="",
+                                     stderr="ERROR: You've hit your usage limit.")
+                return mock.Mock(returncode=0, stdout='{"value":"ok"}', stderr="")
+
+            with mock.patch.object(layers.subprocess, "run", side_effect=result):
+                self.assertEqual(layers.qwen_json("prompt", output, {"type": "object"}),
+                                 {"value": "ok"})
+                self.assertEqual(calls, ["codex", "claude"])
+                # The capped provider must not cost a doomed attempt on every tick.
+                calls.clear()
+                self.assertEqual(layers.qwen_json("prompt", output, {"type": "object"}),
+                                 {"value": "ok"})
+                self.assertEqual(calls, ["claude"])
+
+    def test_planner_still_tries_everyone_when_all_are_cooling_down(self):
+        layers._planner_capacity.clear()
+        self.addCleanup(layers._planner_capacity.clear)
+        layers.note_planner_capacity("codex")
+        layers.note_planner_capacity("claude")
+        self.assertEqual(sorted(layers.planner_order(["codex", "claude"])), ["claude", "codex"])
+
+    def test_planner_reconsiders_a_provider_once_its_cooldown_lapses(self):
+        layers._planner_capacity.clear()
+        self.addCleanup(layers._planner_capacity.clear)
+        layers.note_planner_capacity("codex", now=time.time() - layers.PLANNER_CAPACITY_COOLDOWN_SECONDS - 1)
+        self.assertEqual(layers.planner_order(["codex", "claude"]), ["codex", "claude"])
 
 
 if __name__ == "__main__":
