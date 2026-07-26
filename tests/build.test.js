@@ -14,7 +14,8 @@ test("product has a health endpoint and accessible title", async () => {
   assert.match(html, /<label for="context">Context<\/label>/);
   assert.match(html, /<label for="owner">Owner<\/label>/);
   assert.match(html, /<label for="status">Status<\/label>/);
-  assert.match(html, /<label for="filter-status">Filter by status:<\/label>\s*<select id="filter-status">\s*<option value="all">all<\/option>/);
+  assert.match(html, /<label for="filter-status">Decision status:<\/label>\s*<select id="filter-status" aria-describedby="filter-status-hint">\s*<option value="all">all<\/option>/);
+  assert.match(html, /<legend>Record type<\/legend>\s*<div class="filter-options">/);
   assert.match(html, /<label for="filter-owner">Filter by owner:<\/label>\s*<select id="filter-owner">\s*<option value="all">all<\/option>/);
 });
 

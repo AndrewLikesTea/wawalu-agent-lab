@@ -52,10 +52,13 @@ export function createElement(tagName) {
     setAttribute(name, value) { node.attributes[name] = String(value); },
     getAttribute(name) { return node.attributes[name] ?? null; },
     addEventListener(type, handler) { (node.listeners[type] ??= []).push(handler); },
-    dispatch(type) { for (const handler of node.listeners[type] ?? []) handler(); },
+    dispatch(type, event) { for (const handler of node.listeners[type] ?? []) handler(event); },
     querySelector(selector) {
-      if (selector.startsWith(".")) return walk(node, (candidate) => candidate.classes.includes(selector.slice(1)))[0] ?? null;
-      return walk(node, (candidate) => candidate.tagName === selector.toUpperCase())[0] ?? null;
+      return node.querySelectorAll(selector)[0] ?? null;
+    },
+    querySelectorAll(selector) {
+      if (selector.startsWith(".")) return walk(node, (candidate) => candidate.classes.includes(selector.slice(1)));
+      return walk(node, (candidate) => candidate.tagName === selector.toUpperCase());
     },
   };
   return node;

@@ -141,20 +141,37 @@
         <div class="list-panel" aria-labelledby="decisions-title">
           <div class="section-heading list-heading">
             <div>
-              <p class="eyebrow">Decisions</p>
-              <h2 id="decisions-title" tabindex="-1">All decisions</h2>
+              <p class="eyebrow">Decisions and releases</p>
+              <h2 id="decisions-title" tabindex="-1">All records</h2>
             </div>
-            <span class="count" id="decision-count" aria-live="polite">0 records</span>
+            <span class="count" id="decision-count">0 records</span>
           </div>
           <p class="hint sample-disclosure">Includes representative example records to demonstrate Shiplog. They are not customer or internal operational data.</p>
-          <div class="filters" role="search" aria-label="Search and filter decisions">
+          <div class="filters" role="search" aria-label="Search and filter the history">
             <div class="filter decision-search-filter">
-              <label for="decision-search">Search decisions</label>
-              <input id="decision-search" type="search" placeholder="Title, context, or alternatives" autocomplete="off" aria-describedby="decision-filter-hint" />
+              <label for="decision-search">Search records</label>
+              <input id="decision-search" type="search" placeholder="Title, context, alternatives, or release notes" autocomplete="off" aria-describedby="decision-filter-hint" />
             </div>
+            <fieldset class="filter filter-group">
+              <legend>Record type</legend>
+              <div class="filter-options">
+                <span class="filter-option">
+                  <input id="record-type-all" name="record-type" type="radio" value="all" checked />
+                  <label for="record-type-all">All records</label>
+                </span>
+                <span class="filter-option">
+                  <input id="record-type-decision" name="record-type" type="radio" value="decision" />
+                  <label for="record-type-decision">Decisions</label>
+                </span>
+                <span class="filter-option">
+                  <input id="record-type-release" name="record-type" type="radio" value="release" />
+                  <label for="record-type-release">Releases</label>
+                </span>
+              </div>
+            </fieldset>
             <div class="filter">
-              <label for="filter-status">Filter by status:</label>
-              <select id="filter-status">
+              <label for="filter-status">Decision status:</label>
+              <select id="filter-status" aria-describedby="filter-status-hint">
                 <option value="all">all</option>
                 <option value="approved">Approved</option>
                 <option value="pending">Pending</option>
@@ -162,6 +179,7 @@
                 <option value="accepted">Accepted</option>
                 <option value="superseded">Superseded</option>
               </select>
+              <span class="hint" id="filter-status-hint">Applies to decisions. Choosing a status shows decision records only.</span>
             </div>
             <div class="filter">
               <label for="filter-owner">Filter by owner:</label>
@@ -179,9 +197,13 @@
             </div>
             <button class="clear-filters" id="clear-decision-filters" type="button">Clear filters</button>
           </div>
-          <p class="hint decision-filter-hint" id="decision-filter-hint">Search updates as you type. Use ↑ and ↓ to move between decisions, and Home and End to jump. Press Enter to open details.</p>
+          <p class="hint decision-filter-hint" id="decision-filter-hint">Search updates as you type. Use ↑ and ↓ to move between records, and Home and End to jump. Press Enter to open details.</p>
           <p class="notice" id="storage-notice" role="status" hidden></p>
-          <div id="decision-list" aria-live="polite" aria-busy="true">
+          <!-- One stable, debounced live region carries the result count. The
+               list itself is deliberately not a live region: re-announcing every
+               matching record on each keystroke floods a screen reader. -->
+          <p class="visually-hidden" id="history-announcement" role="status" aria-live="polite"></p>
+          <div id="decision-list" aria-busy="true">
             <div class="list-state list-state-loading" role="status">
               <h3>Loading decisions</h3>
               <p>Loading all decisions…</p>
