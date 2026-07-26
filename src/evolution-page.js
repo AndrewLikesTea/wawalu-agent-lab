@@ -16,8 +16,12 @@ import {
   formatIntegrationProvenance,
   loadIntegrationFixtureInspection,
 } from "/integration-contracts.js";
+import {
+  FINOPS_RUBRIC, scoreFinOpsEvaluation, validateFixtureSet,
+} from "/finops-evaluation.js";
 
 const DATA_URL = "/evolution-demo-data.json";
+const EVALUATION_FIXTURES_URL = "/contracts/finops-evaluation/v1/fixtures.json";
 const CATEGORY_VARS = {
   highValue: "--cat-high-value",
   overProvisioned: "--cat-over-provisioned",
@@ -212,6 +216,116 @@ function renderRedaction(samples) {
   }
 }
 
+function renderRubricMethod() {
+  setText("rubric-rule",
+    `Rubric ${FINOPS_RUBRIC.version}. ${FINOPS_RUBRIC.thresholds.rule} ${FINOPS_RUBRIC.rounding}`);
+  const list = document.getElementById("rubric-list");
+  if (!list) return;
+  list.replaceChildren();
+  for (const dimension of FINOPS_RUBRIC.dimensions) {
+    const item = element("li");
+    item.append(
+      element("strong", undefined, `${dimension.label} · ${(dimension.weight * 100).toFixed(0)}%`),
+      element("span", "rubric-assumption", `Assumption: ${dimension.assumption}`),
+      element("span", "rubric-scoring", `Scoring rule: ${dimension.scoring}`));
+    list.append(item);
+  }
+}
+
+function renderEvaluationFixture(fixture) {
+  const container = document.getElementById("evaluation-result");
+  if (!container) return;
+  const result = scoreFinOpsEvaluation(fixture);
+  container.replaceChildren();
+  container.setAttribute("aria-busy", "false");
+
+  const header = element("div", "evaluation-head");
+  const copy = element("div");
+  copy.append(
+    element("p", "evaluation-label", fixture.label),
+    element("p", "evaluation-summary", fixture.summary),
+    element("p", "evaluation-rationale", `Human label rationale: ${fixture.labelRationale}`));
+  const score = element("div", "evaluation-score");
+  score.dataset.outcome = result.outcome;
+  score.setAttribute("aria-label", `${result.total} out of 100, ${result.outcome}`);
+  score.append(
+    element("strong", undefined, result.total.toFixed(1)),
+    element("span", undefined, `/ 100 · ${result.outcome}`));
+  header.append(copy, score);
+
+  const gate = element("p", `evaluation-gate ${result.blockingRules.length ? "evaluation-gate-blocked" : ""}`,
+    result.blockingRules.length
+      ? `Not eligible for executive use. ${result.blockingRules.join(" ")}`
+      : result.executiveEligible
+        ? "Eligible for executive use under this rubric."
+        : "Not yet eligible for executive use; review or remediation is required.");
+
+  const tableWrap = element("div", "table-wrap");
+  const table = element("table", "finops-table evaluation-table");
+  const caption = element("caption", "visually-hidden", `Score breakdown for ${fixture.label}`);
+  const head = element("thead");
+  const headRow = element("tr");
+  for (const heading of ["Dimension", "Weight", "Rating", "Points", "Evidence"])
+    headRow.append(element("th", undefined, heading));
+  head.append(headRow);
+  for (const cell of headRow.children) cell.setAttribute("scope", "col");
+  const body = element("tbody");
+  for (const dimension of result.dimensions) {
+    const row = element("tr");
+    row.append(
+      element("th", undefined, dimension.label),
+      element("td", "numeric", `${(dimension.weight * 100).toFixed(0)}%`),
+      element("td", "numeric", `${dimension.score} / ${FINOPS_RUBRIC.scale.max}`),
+      element("td", "numeric", dimension.contribution.toFixed(2)),
+      element("td", "evaluation-evidence", dimension.evidence));
+    row.children[0].setAttribute("scope", "row");
+    body.append(row);
+  }
+  table.append(caption, head, body);
+  tableWrap.append(table);
+  const arithmetic = element("p", "evaluation-arithmetic",
+    `${result.rubricId} v${result.rubricVersion} · ${result.arithmetic}`);
+  container.append(header, gate, tableWrap, arithmetic);
+}
+
+async function loadEvaluationFixtures() {
+  const response = await fetch(EVALUATION_FIXTURES_URL, {
+    cache: "no-store", headers: { accept: "application/json" },
+  });
+  if (!response.ok) throw new Error(`Evaluation fixtures returned ${response.status}`);
+  const fixtures = await response.json();
+  validateFixtureSet(fixtures);
+  return fixtures;
+}
+
+async function initEvaluation() {
+  renderRubricMethod();
+  const select = document.getElementById("evaluation-fixture");
+  const container = document.getElementById("evaluation-result");
+  if (!select || !container) return;
+  try {
+    const fixtures = await loadEvaluationFixtures();
+    select.replaceChildren();
+    for (const fixture of fixtures) {
+      const option = element("option", undefined, fixture.label);
+      option.value = fixture.fixtureId;
+      select.append(option);
+    }
+    const draw = () => renderEvaluationFixture(
+      fixtures.find(({ fixtureId }) => fixtureId === select.value) ?? fixtures[0]);
+    select.addEventListener("change", draw);
+    draw();
+    setText("evaluation-status",
+      `Rubric ${FINOPS_RUBRIC.version} · ${fixtures.length} static redacted labelled fixtures · deterministic local scoring · no judge model, stored prompt, credential, live integration, or external API`);
+  } catch {
+    container.replaceChildren(element("p", "table-empty",
+      "Evaluation fixtures unavailable. No score is shown without a validated labelled input."));
+    container.setAttribute("aria-busy", "false");
+    select.replaceChildren(element("option", undefined, "Unavailable"));
+    setText("evaluation-status", "Evaluation unavailable · validation failed before any score reached the view");
+  }
+}
+
 async function loadData() {
   const response = await fetch(DATA_URL, { cache: "no-store", headers: { accept: "application/json" } });
   if (!response.ok) throw new Error(`Demo data returned ${response.status}`);
@@ -220,6 +334,7 @@ async function loadData() {
 
 async function init() {
   if (!document.getElementById("department-rows")) return;
+  initEvaluation();
   loadIntegrationFixtureInspection()
     .then((inspection) => {
       setText("integration-contract-provenance", formatIntegrationProvenance(inspection));

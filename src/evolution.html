@@ -116,6 +116,33 @@
         <ol class="action-list" id="action-list"><li class="table-empty">Loading recommendations…</li></ol>
       </section>
 
+      <section class="finops-panel evaluation-panel" aria-labelledby="evaluation-title">
+        <div class="list-heading">
+          <div class="section-heading">
+            <p class="eyebrow">Recommendation evaluation</p>
+            <h2 id="evaluation-title">Defend the score, line by line</h2>
+            <p>A deterministic rubric scores redacted, labelled examples. Select a case to inspect its evidence, weights, arithmetic, and any rule that blocks executive use.</p>
+          </div>
+          <div class="filter">
+            <label for="evaluation-fixture">Labelled case</label>
+            <select id="evaluation-fixture" aria-describedby="evaluation-status">
+              <option value="">Loading fixtures…</option>
+            </select>
+          </div>
+        </div>
+        <div id="evaluation-result" aria-live="polite" aria-busy="true">
+          <p class="table-empty">Loading deterministic evaluation…</p>
+        </div>
+        <details class="rubric-method" id="rubric-method">
+          <summary>Inspect rubric weights and assumptions</summary>
+          <div class="rubric-method-body">
+            <p id="rubric-rule"></p>
+            <ol class="rubric-list" id="rubric-list"></ol>
+          </div>
+        </details>
+        <p class="privacy-note" id="evaluation-status" role="status">Static redacted fixtures only · no judge model, stored prompt, credential, live integration, or network API.</p>
+      </section>
+
       <section class="finops-panel" aria-labelledby="privacy-title">
         <div class="section-heading">
           <p class="eyebrow">Privacy &amp; compliance</p>

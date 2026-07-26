@@ -1,0 +1,77 @@
+[
+  {
+    "fixtureId": "strong-cost-action",
+    "label": "Supported optimization",
+    "summary": "Down-route a measured low-complexity workload and verify savings for one synthetic cost center.",
+    "redactionStatus": "redacted-static",
+    "ratings": {
+      "recommendationQuality": {"score": 4, "evidence": "Names the routing change, workload boundary, owner, and verification step."},
+      "costEvidence": {"score": 4, "evidence": "Synthetic monthly baseline, USD currency, rate source, and savings arithmetic are stated."},
+      "uncertainty": {"score": 4, "evidence": "Provides a savings range, assumptions, and a two-week validation window."},
+      "privacySafety": {"score": 4, "evidence": "Uses aggregate synthetic counts only; no prompt, person, credential, or customer field is present."},
+      "departmentAttribution": {"score": 4, "evidence": "Maps the synthetic cost center to a department for the same billing period."}
+    },
+    "expected": {"total": 100, "outcome": "pass"},
+    "labelRationale": "All five dimensions are specific and independently inspectable."
+  },
+  {
+    "fixtureId": "unsupported-savings",
+    "label": "Useful action, weak cost proof",
+    "summary": "Recommend caching, but present a point savings estimate without enough billing support.",
+    "redactionStatus": "redacted-static",
+    "ratings": {
+      "recommendationQuality": {"score": 3, "evidence": "The action and affected synthetic workload are clear, but rollout ownership is incomplete."},
+      "costEvidence": {"score": 1, "evidence": "A savings point estimate is stated without rate provenance or reproducible arithmetic."},
+      "uncertainty": {"score": 2, "evidence": "One limitation is named, but there is no confidence range."},
+      "privacySafety": {"score": 4, "evidence": "Only aggregate synthetic usage appears."},
+      "departmentAttribution": {"score": 4, "evidence": "Synthetic cost center and billing period align."}
+    },
+    "expected": {"total": 66.3, "outcome": "review"},
+    "labelRationale": "The recommendation is plausible, but finance cannot reproduce the savings claim."
+  },
+  {
+    "fixtureId": "privacy-gate",
+    "label": "Strong analysis, unsafe evidence",
+    "summary": "A polished recommendation relies on prohibited person-level prompt evidence.",
+    "redactionStatus": "redacted-static",
+    "ratings": {
+      "recommendationQuality": {"score": 4, "evidence": "The proposed intervention is specific and feasible."},
+      "costEvidence": {"score": 4, "evidence": "Synthetic cost arithmetic and source period are reproducible."},
+      "uncertainty": {"score": 3, "evidence": "Assumptions and validation are present; the range is coarse."},
+      "privacySafety": {"score": 0, "evidence": "The described method would retain person-level prompt text, which the rubric prohibits."},
+      "departmentAttribution": {"score": 4, "evidence": "Synthetic cost-center mapping is complete."}
+    },
+    "expected": {"total": 76.3, "outcome": "blocked"},
+    "labelRationale": "A high weighted total cannot override the privacy gate."
+  },
+  {
+    "fixtureId": "unmapped-shared-spend",
+    "label": "Unresolved attribution",
+    "summary": "Shared synthetic spend is assigned to one department without a documented allocation rule.",
+    "redactionStatus": "redacted-static",
+    "ratings": {
+      "recommendationQuality": {"score": 3, "evidence": "The action is feasible but may target the wrong owner."},
+      "costEvidence": {"score": 3, "evidence": "Aggregate cost is supported, while departmental allocation is not."},
+      "uncertainty": {"score": 3, "evidence": "The allocation limitation is disclosed with a proposed reconciliation."},
+      "privacySafety": {"score": 4, "evidence": "Only synthetic department aggregates are used."},
+      "departmentAttribution": {"score": 1, "evidence": "Shared spend lacks a stable cost-center allocation rule."}
+    },
+    "expected": {"total": 75, "outcome": "blocked"},
+    "labelRationale": "The total looks passable, but unresolved ownership blocks an executive score."
+  },
+  {
+    "fixtureId": "generic-low-evidence",
+    "label": "Generic recommendation",
+    "summary": "Suggest reducing usage without a quantified driver, validation plan, or reliable ownership.",
+    "redactionStatus": "redacted-static",
+    "ratings": {
+      "recommendationQuality": {"score": 1, "evidence": "The action is generic and has no prioritized cost driver."},
+      "costEvidence": {"score": 0, "evidence": "No baseline, rate, period, or savings arithmetic is supplied."},
+      "uncertainty": {"score": 1, "evidence": "Uncertainty is implied but neither bounded nor testable."},
+      "privacySafety": {"score": 4, "evidence": "No sensitive or prompt-level data is included."},
+      "departmentAttribution": {"score": 3, "evidence": "A synthetic department is named, but shared-spend handling is unstated."}
+    },
+    "expected": {"total": 38.8, "outcome": "fail"},
+    "labelRationale": "Safe presentation cannot compensate for an unsupported, non-actionable recommendation."
+  }
+]

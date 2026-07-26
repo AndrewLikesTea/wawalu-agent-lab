@@ -21,6 +21,11 @@ try {
       { recursive: true },
     );
   }
+  await cp(
+    resolve(root, "contracts", "finops-evaluation", "v1", "fixtures.json"),
+    resolve(staging, "contracts", "finops-evaluation", "v1", "fixtures.json"),
+    { recursive: true },
+  );
   await createManifest(staging);
   await verifyArtifact(staging);
 
