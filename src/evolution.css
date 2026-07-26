@@ -43,6 +43,38 @@
 .kpi-note { margin:8px 0 0; color:var(--ink-muted); font-size:12px; line-height:1.5; }
 
 .finops-panel { margin-top:24px; border:1px solid var(--panel-border); border-radius:18px; padding:30px; background:rgba(255,255,255,.68); box-shadow:0 14px 40px rgba(38,38,31,.04); }
+.local-import { border-color:#9eb9aa; background:linear-gradient(145deg,#f7fbf8,#fff 55%); }
+.local-import-heading,.local-result-heading { display:flex; align-items:start; justify-content:space-between; gap:24px; }
+.sample-badge { flex:none; border:1px solid #b9c9c0; border-radius:99px; padding:6px 10px; background:#eef5f1; color:#315f50; font:750 10px/1.3 ui-monospace,monospace; text-transform:uppercase; }
+.privacy-boundary { display:grid; gap:3px; margin:22px 0; border:1px solid #b9cec4; border-left:5px solid #315f50; border-radius:10px; padding:14px 16px; background:#eef6f2; font-size:13px; line-height:1.5; }
+.privacy-boundary span { color:#496056; }
+.local-import-controls { display:flex; justify-content:space-between; align-items:end; gap:20px; }
+.local-import-controls>div { display:grid; gap:7px; }
+.local-import-controls label { font-size:13px; font-weight:750; }
+.local-import-controls input { max-width:100%; min-height:44px; border:1px solid #aaa79d; border-radius:9px; padding:8px; background:#fff; }
+.local-import-controls p { margin:0; color:var(--ink-muted); font-size:11px; line-height:1.5; }
+.local-import button { min-height:42px; border:1px solid #7f9c8c; border-radius:8px; padding:9px 13px; background:#fff; color:#244c3c; font-weight:750; cursor:pointer; }
+.local-import button:hover { background:#edf5f1; }
+.local-import button:focus-visible,.local-import input:focus-visible,.local-disclosures summary:focus-visible { outline:3px solid #2a78d6; outline-offset:3px; }
+.local-import-state { display:grid; gap:3px; margin-top:18px; border:1px dashed #aaa79d; border-radius:9px; padding:13px 15px; color:var(--ink-muted); font-size:12px; line-height:1.5; }
+.local-import-state[data-state="error"] { border-color:#b4453a; background:#fdf4f3; color:#6f2821; }
+.local-import-state[data-state="loading"] { background:#f7f6f1; }
+.local-results { margin-top:26px; border-top:1px solid #d6e0da; padding-top:24px; }
+.local-result-heading h3 { margin:5px 0 0; font-size:24px; }
+.local-export-actions { display:flex; gap:8px; }
+.local-kpis { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:20px; }
+.local-kpis>div { display:grid; gap:7px; min-width:0; border:1px solid #d4ddd8; border-radius:10px; padding:15px; background:#fff; }
+.local-kpis span { color:var(--ink-muted); font:700 9px/1.4 ui-monospace,monospace; text-transform:uppercase; }
+.local-kpis strong { font-size:22px; overflow-wrap:anywhere; }
+.local-kpis>div:first-child strong { color:#a5322f; font-size:30px; }
+.local-priority { margin-top:12px; border-radius:11px; padding:18px; background:#214c3c; color:#fff; }
+.local-priority h4 { margin:6px 0 10px; font-size:20px; line-height:1.35; }
+.local-priority p:last-child { margin:0; color:#d7e7df; font:600 10px/1.55 ui-monospace,monospace; overflow-wrap:anywhere; }
+.local-disclosures { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin-top:12px; }
+.local-disclosures details { border:1px solid #d8d6cf; border-radius:9px; padding:13px; background:#fff; }
+.local-disclosures summary { cursor:pointer; font-size:12px; font-weight:750; }
+.local-disclosures ul { margin:12px 0 0; padding-left:20px; font-size:12px; line-height:1.55; }
+[data-sample-analysis][hidden] { display:none !important; }
 .finops-panel .section-heading>p:last-child { max-width:720px; margin:12px 0 0; color:var(--ink-muted); line-height:1.55; }
 .finops-panel .list-heading { align-items:end; margin-bottom:16px; }
 .finops-panel .list-heading .section-heading { margin-bottom:0; }
@@ -251,6 +283,10 @@
   .portfolio-facts { grid-template-columns:repeat(2,1fr); }
 }
 @media(max-width:640px) {
+  .local-import-heading,.local-import-controls,.local-result-heading { align-items:stretch; flex-direction:column; }
+  .sample-badge { width:fit-content; }
+  .local-kpis,.local-disclosures { grid-template-columns:1fr; }
+  .local-export-actions { display:grid; grid-template-columns:1fr 1fr; }
   .finops-panel { padding:21px; }
   .comparison-grid { grid-template-columns:1fr; }
   .comparison-grid dd { grid-row:auto; margin-bottom:8px; }
