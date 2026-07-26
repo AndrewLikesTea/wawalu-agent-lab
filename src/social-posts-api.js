@@ -46,6 +46,7 @@ export const MAX_SOCIAL_PAGE_SIZE = 100;
 export const DEFAULT_RATE_LIMIT = 30;
 export const RATE_WINDOW_MS = 60_000;
 export const SOCIAL_WRITE_SCOPE = "social-posts:write";
+export const PAINT_IMAGE_CONTENT_TYPES = Object.freeze(["image/png", "image/jpeg"]);
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const ISO_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/;
@@ -133,10 +134,12 @@ export function validateSocialPostInput(input, { requireProvenance = true } = {}
       errors.image = "send either image or media_id, not both";
     } else if (typeof input.image !== "object" || Array.isArray(input.image)) {
       errors.image = "image must be an object with data, content_type, and alt";
+    } else if (!PAINT_IMAGE_CONTENT_TYPES.includes(input.image.content_type?.trim())) {
+      errors["image.content_type"] = `content_type must be one of ${PAINT_IMAGE_CONTENT_TYPES.join(", ")}`;
     } else {
-      // Exactly the upload endpoint's rules -- allowlisted type, honest magic
-      // bytes, size cap, mandatory alt text. A one-request client must not get
-      // a looser gate than a two-step one just because the route differs.
+      // Paint emits PNG or JPEG. Keep this generated-content boundary narrower
+      // than the general media uploader, then reuse its magic-byte, decoded
+      // size, dimensions, and alt-text validation.
       const media = validateMediaUpload(input.image);
       for (const [field, message] of Object.entries(media.errors)) errors[`image.${field}`] = message;
       if (!Object.keys(media.errors).length) values.image = media.values;
