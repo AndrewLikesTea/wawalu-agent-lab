@@ -2,6 +2,9 @@ name = "wawalu-agent-lab"
 pages_build_output_dir = "dist"
 compatibility_date = "2026-07-13"
 
+[images]
+binding = "IMAGES"
+
 # The posts and social-post APIs require this binding; `/healthz` fails closed
 # without it, which is what kept every production smoke test red. Declared here
 # rather than only in the dashboard so the binding a commit expects travels with
