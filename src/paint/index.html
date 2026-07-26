@@ -92,15 +92,41 @@
           </section>
           <section class="layers-section" aria-labelledby="layers-heading">
             <div class="section-title">
-              <h3 id="layers-heading">Layers</h3>
+              <div>
+                <h3 id="layers-heading">Layers</h3>
+                <p id="layer-count">1 layer</p>
+              </div>
               <button type="button" aria-label="Add layer" disabled>+</button>
             </div>
-            <ol class="layer-list">
-              <li aria-current="true">
+            <div class="layer-state" id="layer-state" role="status" aria-live="polite" hidden></div>
+            <ol class="layer-list" id="layer-list" aria-label="Document layers">
+              <li class="layer-item" aria-current="true">
                 <span class="layer-thumbnail" aria-hidden="true"></span>
-                <span><strong>Background</strong><small>Image layer</small></span>
+                <span class="layer-details"><strong>Background</strong><small>Image layer · Selected</small></span>
               </li>
             </ol>
+            <fieldset class="appearance-controls" id="appearance-controls">
+              <legend>Appearance</legend>
+              <div class="field">
+                <label for="blend-mode">Blend mode</label>
+                <select id="blend-mode" name="blend-mode">
+                  <option value="normal">Normal</option>
+                  <option value="multiply">Multiply</option>
+                  <option value="screen">Screen</option>
+                  <option value="overlay">Overlay</option>
+                  <option value="darken">Darken</option>
+                  <option value="lighten">Lighten</option>
+                </select>
+              </div>
+              <div class="field opacity-field">
+                <div class="field-heading">
+                  <label for="layer-opacity">Opacity</label>
+                  <output id="opacity-value" for="layer-opacity" aria-live="polite">100%</output>
+                </div>
+                <input id="layer-opacity" name="layer-opacity" type="range" min="0" max="100" step="1" value="100" aria-describedby="opacity-help" />
+                <p id="opacity-help">0% is transparent; 100% is fully visible.</p>
+              </div>
+            </fieldset>
           </section>
         </aside>
       </main>
