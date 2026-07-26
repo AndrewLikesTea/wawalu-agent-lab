@@ -11,17 +11,32 @@ It deliberately does not answer when savings will arrive, whether an action caus
 an outcome, how currency should be converted, or how the answers should be
 displayed. Those questions require data and decisions outside this bounded fixture.
 
+## Accountable action records
+
+The `savings-portfolio/1.1.0` fixture is the sole static portfolio contract.
+Every action names an `accountableOwner.role`, its owning `department`, and the
+department's `accountableOwner.role`. All actions sharing a department ID must
+agree on both department name and owner.
+
+`lifecycleTransitions` is an ordered audit trail. It begins at `planned`,
+advances without gaps through `in-progress`, `completed`, and `verified`, uses
+real ISO calendar dates in non-decreasing order, and ends at `lifecycleState`.
+Invalid or skipped histories fail validation before aggregates are returned.
+
 ## Metric definitions
 
 - **Projected savings (USD):** the expected annualized amount for an action,
   stored as a non-negative whole-US-dollar integer. Portfolio and department
   totals include `planned`, `in-progress`, `completed`, and `verified` actions.
-- **Realized savings (USD):** the measured annualized amount supported by
-  verification evidence. It is a non-negative whole-US-dollar integer for a
-  `verified` action. Every other lifecycle must store `null` — never `0`, which
-  would claim a measurement nobody took.
-- **Credited realized savings (USD):** what a leader may actually book. It equals
-  `realizedSavingsUsd` for a `verified` action and `0` for every other lifecycle.
+- **Completed savings (USD):** the measured annualized result available at
+  `completed` or `verified`. Earlier states store `null`. Department and
+  portfolio totals expose this separately, because measured does not mean
+  verified.
+- **Verified savings (USD):** the evidence-backed annualized amount. It is a
+  non-negative whole-US-dollar integer for a `verified` action. Every other
+  lifecycle stores `null`.
+- **Credited verified savings (USD):** what a leader may actually book. It equals
+  `verifiedSavingsUsd` for a `verified` action and `0` for every other lifecycle.
   This is the only field summed into realized totals, so `null` never has to be
   coerced by a consumer.
 - **Variance (USD):** credited realized savings minus projected savings, reported
@@ -64,6 +79,13 @@ lifecycle it has work in, alongside `projectedSavingsUsd` for that lifecycle and
   totals. Two reads of the same fixture always produce equal summaries.
 - Departments are returned in ascending department-ID order; ranking never
   reorders them.
+- An empty action array is a valid static snapshot with zero projected,
+  completed, and realized totals, no departments, and no attention claim.
+- `loadSavingsPortfolio` is the browser boundary. It fetches the bundled
+  same-origin fixture without caching and validates it before returning data.
+- `GET /api/exports/portfolio` returns the same validated action and aggregate
+  snapshot as JSON without a database or credential. Decision and release
+  exports retain their existing routes and contents.
 - The fixture is synthetic by test, not by review: a check rejects email
   addresses, URLs, credential-shaped tokens, credential field names, live
   provider names, and government identifiers, and requires every owner to be a
@@ -78,6 +100,7 @@ lifecycle it has work in, alongside `projectedSavingsUsd` for that lifecycle and
   and portfolio level, with the levels reconciling exactly.
 - A leader asking “where do I intervene now?” receives exactly one department
   selected by the stable ranking above, plus an explanation.
-- Invalid lifecycle states, unverified realized values, verified actions without
-  evidence, malformed dates, duplicate action IDs, and conflicting department
-  names are rejected before consumption.
+- Invalid lifecycle states or histories, premature completed or verified
+  values, verified actions without evidence, malformed dates, duplicate action
+  IDs, and conflicting department names or owners are rejected before
+  consumption.

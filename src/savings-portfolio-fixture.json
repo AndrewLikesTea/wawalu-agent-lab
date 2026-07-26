@@ -1,15 +1,25 @@
 {
-  "schemaVersion": "savings-portfolio/1.0.0",
+  "schemaVersion": "savings-portfolio/1.1.0",
   "provenance": "Bundled synthetic executive savings portfolio; no customer or provider data.",
   "actions": [
     {
       "actionId": "syn-finops-routing",
       "title": "Route routine transformations to the standard tier",
-      "owner": "Synthetic Platform Director",
-      "department": { "id": "platform", "name": "Platform Engineering" },
+      "accountableOwner": { "role": "Synthetic Platform Delivery Lead" },
+      "department": {
+        "id": "platform",
+        "name": "Platform Engineering",
+        "accountableOwner": { "role": "Synthetic Platform Director" }
+      },
       "lifecycleState": "completed",
+      "lifecycleTransitions": [
+        { "state": "planned", "transitionedDate": "2026-06-20" },
+        { "state": "in-progress", "transitionedDate": "2026-07-01" },
+        { "state": "completed", "transitionedDate": "2026-07-18" }
+      ],
       "projectedSavingsUsd": 72000,
-      "realizedSavingsUsd": null,
+      "completedSavingsUsd": 69000,
+      "verifiedSavingsUsd": null,
       "verificationEvidence": [],
       "confidence": 0.86,
       "updatedDate": "2026-07-18"
@@ -17,11 +27,22 @@
     {
       "actionId": "syn-platform-cache",
       "title": "Cache repeated build guidance",
-      "owner": "Synthetic Developer Experience Lead",
-      "department": { "id": "platform", "name": "Platform Engineering" },
+      "accountableOwner": { "role": "Synthetic Developer Experience Lead" },
+      "department": {
+        "id": "platform",
+        "name": "Platform Engineering",
+        "accountableOwner": { "role": "Synthetic Platform Director" }
+      },
       "lifecycleState": "verified",
+      "lifecycleTransitions": [
+        { "state": "planned", "transitionedDate": "2026-06-12" },
+        { "state": "in-progress", "transitionedDate": "2026-06-19" },
+        { "state": "completed", "transitionedDate": "2026-07-20" },
+        { "state": "verified", "transitionedDate": "2026-07-22" }
+      ],
       "projectedSavingsUsd": 24000,
-      "realizedSavingsUsd": 21000,
+      "completedSavingsUsd": 21000,
+      "verifiedSavingsUsd": 21000,
       "verificationEvidence": [
         {
           "evidenceId": "syn-evidence-cache-01",
@@ -34,11 +55,20 @@
     {
       "actionId": "syn-quality-retry",
       "title": "Reduce repeated unverified test retries",
-      "owner": "Synthetic Quality Director",
-      "department": { "id": "quality", "name": "Quality Engineering" },
+      "accountableOwner": { "role": "Synthetic Quality Enablement Lead" },
+      "department": {
+        "id": "quality",
+        "name": "Quality Engineering",
+        "accountableOwner": { "role": "Synthetic Quality Director" }
+      },
       "lifecycleState": "in-progress",
+      "lifecycleTransitions": [
+        { "state": "planned", "transitionedDate": "2026-07-02" },
+        { "state": "in-progress", "transitionedDate": "2026-07-15" }
+      ],
       "projectedSavingsUsd": 88000,
-      "realizedSavingsUsd": null,
+      "completedSavingsUsd": null,
+      "verifiedSavingsUsd": null,
       "verificationEvidence": [],
       "confidence": 0.78,
       "updatedDate": "2026-07-15"
@@ -46,11 +76,19 @@
     {
       "actionId": "syn-support-library",
       "title": "Publish approved response patterns",
-      "owner": "Synthetic Support Operations Lead",
-      "department": { "id": "support", "name": "Support Operations" },
+      "accountableOwner": { "role": "Synthetic Support Enablement Lead" },
+      "department": {
+        "id": "support",
+        "name": "Support Operations",
+        "accountableOwner": { "role": "Synthetic Support Operations Director" }
+      },
       "lifecycleState": "planned",
+      "lifecycleTransitions": [
+        { "state": "planned", "transitionedDate": "2026-07-10" }
+      ],
       "projectedSavingsUsd": 110000,
-      "realizedSavingsUsd": null,
+      "completedSavingsUsd": null,
+      "verifiedSavingsUsd": null,
       "verificationEvidence": [],
       "confidence": 0.7,
       "updatedDate": "2026-07-10"

@@ -17,13 +17,15 @@
  * @typedef {object} SavingsAction
  * @property {string} actionId
  * @property {string} title
- * @property {string} owner
- * @property {{id: string, name: string}} department
+ * @property {{role: string}} accountableOwner
+ * @property {{id: string, name: string, accountableOwner: {role: string}}} department
  * @property {SavingsLifecycleState} lifecycleState
+ * @property {{state: SavingsLifecycleState, transitionedDate: string}[]} lifecycleTransitions
  * @property {number} projectedSavingsUsd Expected annualized whole-US-dollar savings.
- * @property {number|null} realizedSavingsUsd Verified annualized whole-US-dollar savings.
- * @property {number} creditedRealizedSavingsUsd Realized savings that may be credited; 0 until verified.
- * @property {number} varianceUsd Credited realized minus projected savings for this action.
+ * @property {number|null} completedSavingsUsd Measured savings once completed.
+ * @property {number|null} verifiedSavingsUsd Evidence-backed savings once verified.
+ * @property {number} creditedVerifiedSavingsUsd Verified savings that may be credited; 0 until verified.
+ * @property {number} varianceUsd Credited verified minus projected savings for this action.
  * @property {{evidenceId: string, description: string}[]} verificationEvidence
  * @property {number} confidence Support for the projection on a 0-to-1 scale.
  * @property {string} updatedDate ISO calendar date (YYYY-MM-DD).
@@ -36,10 +38,10 @@ export const SAVINGS_LIFECYCLE_STATES = Object.freeze([
 export const SAVINGS_PORTFOLIO_METRIC_RULES = Object.freeze({
   projectedSavings:
     "Sum projectedSavingsUsd for planned, in-progress, completed, and verified actions.",
-  realizedSavings:
-    "Sum realizedSavingsUsd for verified actions only; every other lifecycle contributes zero.",
+  verifiedSavings:
+    "Sum verifiedSavingsUsd for verified actions only; completed measurements remain visible but uncredited.",
   variance:
-    "Credited realized savings minus projected savings, reported identically for each action, each department, and the portfolio.",
+    "Credited verified savings minus projected savings, reported identically for each action, each department, and the portfolio.",
   attention:
     "Exclude verified actions. Rank departments by completed projected USD, then in-progress projected USD, then planned projected USD (all descending), then oldest updated date ascending, then department ID ascending.",
 });
@@ -104,6 +106,37 @@ export function validateSavingsAction(input, index = 0) {
     invalid(`${path}.department`, "must be an object");
   if (!Array.isArray(input.verificationEvidence))
     invalid(`${path}.verificationEvidence`, "must be an array");
+  if (!Array.isArray(input.lifecycleTransitions) || input.lifecycleTransitions.length === 0)
+    invalid(`${path}.lifecycleTransitions`, "must be a non-empty array");
+  if (!input.accountableOwner || typeof input.accountableOwner !== "object")
+    invalid(`${path}.accountableOwner`, "must be an object");
+  if (!input.department.accountableOwner
+    || typeof input.department.accountableOwner !== "object")
+    invalid(`${path}.department.accountableOwner`, "must be an object");
+
+  const lifecycleIndex = SAVINGS_LIFECYCLE_STATES.indexOf(lifecycleState);
+  const lifecycleTransitions = input.lifecycleTransitions.map((transition, transitionIndex) => {
+    const transitionPath = `${path}.lifecycleTransitions[${transitionIndex}]`;
+    if (!transition || typeof transition !== "object" || Array.isArray(transition))
+      invalid(transitionPath, "must be an object");
+    if (transition.state !== SAVINGS_LIFECYCLE_STATES[transitionIndex])
+      invalid(`${transitionPath}.state`, "must follow the lifecycle in order without gaps");
+    return {
+      state: transition.state,
+      transitionedDate: isoDate(
+        transition.transitionedDate, `${transitionPath}.transitionedDate`,
+      ),
+    };
+  });
+  if (lifecycleTransitions.length !== lifecycleIndex + 1
+    || lifecycleTransitions.at(-1).state !== lifecycleState)
+    invalid(`${path}.lifecycleTransitions`, "must end at lifecycleState");
+  for (let transitionIndex = 1; transitionIndex < lifecycleTransitions.length; transitionIndex += 1) {
+    if (lifecycleTransitions[transitionIndex].transitionedDate
+      < lifecycleTransitions[transitionIndex - 1].transitionedDate)
+      invalid(`${path}.lifecycleTransitions[${transitionIndex}].transitionedDate`,
+        "must not precede the prior transition");
+  }
 
   const verificationEvidence = input.verificationEvidence.map((evidence, evidenceIndex) => {
     const evidencePath = `${path}.verificationEvidence[${evidenceIndex}]`;
@@ -114,14 +147,20 @@ export function validateSavingsAction(input, index = 0) {
       description: requiredText(evidence.description, `${evidencePath}.description`),
     };
   });
-  const realizedSavingsUsd = input.realizedSavingsUsd;
+  const completedSavingsUsd = input.completedSavingsUsd;
+  const verifiedSavingsUsd = input.verifiedSavingsUsd;
+  if (lifecycleIndex >= SAVINGS_LIFECYCLE_STATES.indexOf("completed")) {
+    wholeUsd(completedSavingsUsd, `${path}.completedSavingsUsd`);
+  } else if (completedSavingsUsd !== null) {
+    invalid(`${path}.completedSavingsUsd`, "must be null until the action is completed");
+  }
   if (lifecycleState === "verified") {
-    wholeUsd(realizedSavingsUsd, `${path}.realizedSavingsUsd`);
+    wholeUsd(verifiedSavingsUsd, `${path}.verifiedSavingsUsd`);
     if (verificationEvidence.length === 0)
       invalid(`${path}.verificationEvidence`, "verified actions require evidence");
   } else {
-    if (realizedSavingsUsd !== null)
-      invalid(`${path}.realizedSavingsUsd`, "must be null until the action is verified");
+    if (verifiedSavingsUsd !== null)
+      invalid(`${path}.verifiedSavingsUsd`, "must be null until the action is verified");
     if (verificationEvidence.length !== 0)
       invalid(`${path}.verificationEvidence`, "must be empty until the action is verified");
   }
@@ -134,22 +173,31 @@ export function validateSavingsAction(input, index = 0) {
   );
   // One credit rule, applied once, so action, department, and portfolio variance
   // can never drift apart. Unverified savings credit zero without ever claiming
-  // that zero was measured — realizedSavingsUsd stays null.
-  const creditedRealizedSavingsUsd = lifecycleState === "verified" ? realizedSavingsUsd : 0;
+  // that zero was measured — verifiedSavingsUsd stays null.
+  const creditedVerifiedSavingsUsd = lifecycleState === "verified" ? verifiedSavingsUsd : 0;
 
   return deepFreeze({
     actionId: requiredText(input.actionId, `${path}.actionId`),
     title: requiredText(input.title, `${path}.title`),
-    owner: requiredText(input.owner, `${path}.owner`),
+    accountableOwner: {
+      role: requiredText(input.accountableOwner.role, `${path}.accountableOwner.role`),
+    },
     department: {
       id: requiredText(input.department.id, `${path}.department.id`),
       name: requiredText(input.department.name, `${path}.department.name`),
+      accountableOwner: {
+        role: requiredText(
+          input.department.accountableOwner.role, `${path}.department.accountableOwner.role`,
+        ),
+      },
     },
     lifecycleState,
+    lifecycleTransitions,
     projectedSavingsUsd,
-    realizedSavingsUsd,
-    creditedRealizedSavingsUsd,
-    varianceUsd: creditedRealizedSavingsUsd - projectedSavingsUsd,
+    completedSavingsUsd,
+    verifiedSavingsUsd,
+    creditedVerifiedSavingsUsd,
+    varianceUsd: creditedVerifiedSavingsUsd - projectedSavingsUsd,
     verificationEvidence,
     confidence: input.confidence,
     updatedDate: isoDate(input.updatedDate, `${path}.updatedDate`),
@@ -161,10 +209,13 @@ function portfolioTotals(actions) {
   const projectedSavingsUsd = actions.reduce(
     (total, action) => total + action.projectedSavingsUsd, 0,
   );
-  const realizedSavingsUsd = actions.reduce(
-    (total, action) => total + action.creditedRealizedSavingsUsd, 0,
+  const verifiedSavingsUsd = actions.reduce(
+    (total, action) => total + action.creditedVerifiedSavingsUsd, 0,
   );
-  return { projectedSavingsUsd, realizedSavingsUsd };
+  const completedSavingsUsd = actions.reduce(
+    (total, action) => total + (action.completedSavingsUsd ?? 0), 0,
+  );
+  return { projectedSavingsUsd, completedSavingsUsd, verifiedSavingsUsd };
 }
 
 function departmentSummary(actions) {
@@ -177,15 +228,17 @@ function departmentSummary(actions) {
     byState[action.lifecycleState] += 1;
     projectedByStateUsd[action.lifecycleState] += action.projectedSavingsUsd;
   }
-  const { projectedSavingsUsd, realizedSavingsUsd } = portfolioTotals(actions);
+  const { projectedSavingsUsd, completedSavingsUsd, verifiedSavingsUsd } =
+    portfolioTotals(actions);
   return {
     department: first.department,
     actionCount: actions.length,
     actionCountByLifecycle: byState,
     projectedByLifecycleUsd: projectedByStateUsd,
     projectedSavingsUsd,
-    realizedSavingsUsd,
-    varianceUsd: realizedSavingsUsd - projectedSavingsUsd,
+    completedSavingsUsd,
+    verifiedSavingsUsd,
+    varianceUsd: verifiedSavingsUsd - projectedSavingsUsd,
     oldestUnverifiedUpdatedDate: actions
       .filter((action) => action.lifecycleState !== "verified")
       .map((action) => action.updatedDate).sort()[0] ?? null,
@@ -250,14 +303,15 @@ function compareAttention(left, right) {
 export function createSavingsPortfolio(fixture) {
   if (!fixture || typeof fixture !== "object" || Array.isArray(fixture))
     invalid("fixture", "must be an object");
-  if (fixture.schemaVersion !== "savings-portfolio/1.0.0")
-    invalid("fixture.schemaVersion", "must equal savings-portfolio/1.0.0");
-  if (!Array.isArray(fixture.actions) || fixture.actions.length === 0)
-    invalid("fixture.actions", "must be a non-empty array");
+  if (fixture.schemaVersion !== "savings-portfolio/1.1.0")
+    invalid("fixture.schemaVersion", "must equal savings-portfolio/1.1.0");
+  if (!Array.isArray(fixture.actions))
+    invalid("fixture.actions", "must be an array");
 
   const actions = fixture.actions.map(validateSavingsAction);
   const actionIds = new Set();
   const departmentNames = new Map();
+  const departmentOwners = new Map();
   for (const [index, action] of actions.entries()) {
     if (actionIds.has(action.actionId))
       invalid(`actions[${index}].actionId`, "must be unique");
@@ -266,6 +320,11 @@ export function createSavingsPortfolio(fixture) {
     if (knownName && knownName !== action.department.name)
       invalid(`actions[${index}].department.name`, "must match the department ID");
     departmentNames.set(action.department.id, action.department.name);
+    const knownOwner = departmentOwners.get(action.department.id);
+    if (knownOwner && knownOwner !== action.department.accountableOwner.role)
+      invalid(`actions[${index}].department.accountableOwner.role`,
+        "must match the department ID");
+    departmentOwners.set(action.department.id, action.department.accountableOwner.role);
   }
 
   const grouped = Map.groupBy(actions, (action) => action.department.id);
@@ -275,17 +334,30 @@ export function createSavingsPortfolio(fixture) {
     .filter((department) => department.oldestUnverifiedUpdatedDate !== null)
     .sort(compareAttention);
   const attentionDepartment = attentionCandidates[0] ?? null;
-  const { projectedSavingsUsd, realizedSavingsUsd } = portfolioTotals(actions);
+  const { projectedSavingsUsd, completedSavingsUsd, verifiedSavingsUsd } =
+    portfolioTotals(actions);
 
   return deepFreeze({
     schemaVersion: fixture.schemaVersion,
     actions,
     summary: {
       projectedSavingsUsd,
-      realizedSavingsUsd,
-      varianceUsd: realizedSavingsUsd - projectedSavingsUsd,
+      completedSavingsUsd,
+      verifiedSavingsUsd,
+      varianceUsd: verifiedSavingsUsd - projectedSavingsUsd,
       departments,
       attention: attentionDepartment ? attentionFor(attentionDepartment) : null,
     },
   });
+}
+
+/** Load and validate the bundled static fixture through the browser data boundary. */
+export async function loadSavingsPortfolio(fetcher = fetch, url = "/savings-portfolio-fixture.json") {
+  const response = await fetcher(url, {
+    cache: "no-store", headers: { accept: "application/json" },
+  });
+  if (!response?.ok) {
+    throw new Error(`Savings portfolio returned ${response?.status ?? "an invalid response"}.`);
+  }
+  return createSavingsPortfolio(await response.json());
 }

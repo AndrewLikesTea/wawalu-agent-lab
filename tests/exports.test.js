@@ -6,6 +6,8 @@ import {
   createExport,
   handleExportRequest,
 } from "../src/exports.js";
+import { createSavingsPortfolio } from "../src/savings-portfolio.js";
+import portfolioFixture from "../src/savings-portfolio-fixture.json" with { type: "json" };
 
 const decision = {
   id: "d1", title: "Use queues", context: "Retries", alternatives: "Polling",
@@ -61,6 +63,34 @@ test("typed endpoints query and return only the requested table", async () => {
   assert.deepEqual(await decisionsResponse.json(), {
     metadata: { timestamp: NOW.toISOString(), version: EXPORT_VERSION }, decisions: [decision],
   });
+});
+
+test("portfolio endpoint exports accountable actions and reconciled aggregates without storage", async () => {
+  const portfolio = createSavingsPortfolio(portfolioFixture);
+  const response = await handleExportRequest(
+    new Request("https://shiplog.test/api/exports/portfolio"),
+    {
+      store: {},
+      listPortfolio: async () => portfolio,
+      now: () => NOW,
+      requestId: "portfolio-1",
+    },
+  );
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("content-disposition"),
+    'attachment; filename="shiplog-portfolio-2026-07-18.json"');
+  const exported = await response.json();
+  assert.deepEqual(exported.metadata, {
+    timestamp: NOW.toISOString(), version: EXPORT_VERSION,
+  });
+  assert.equal(exported.portfolio.summary.completedSavingsUsd, 90_000);
+  assert.equal(exported.portfolio.summary.verifiedSavingsUsd, 21_000);
+  assert.equal(exported.portfolio.actions[0].department.accountableOwner.role,
+    "Synthetic Platform Director");
+  assert.equal(exported.portfolio.actions[0].lifecycleTransitions.at(-1).state, "completed");
+  assert.deepEqual(exported.portfolio.actions[0].verificationEvidence, []);
+  assert.equal(exported.decisions, undefined);
+  assert.equal(exported.releases, undefined);
 });
 
 test("endpoint rejects writes and exposes storage failures without leaking details", async () => {
