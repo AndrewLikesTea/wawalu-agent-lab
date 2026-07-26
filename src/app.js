@@ -1,3 +1,5 @@
+import { initLeadCapture } from "./leads.js";
+
 export const STORAGE_KEY = "shiplog.decisions.v1";
 // The current workflow uses pending/approved. The original three values remain
 // readable so existing local logs and demo/release associations are not lost.
@@ -355,4 +357,5 @@ export function initDecisionLog(root = document, storage = localStorage) {
 // loadDecisions) without booting the decision log against a missing DOM.
 if (typeof document !== "undefined" && document.querySelector("#decision-form")) {
   initDecisionLog();
+  initLeadCapture();
 }
