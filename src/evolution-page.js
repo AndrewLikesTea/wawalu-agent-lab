@@ -96,6 +96,9 @@ function mountLocalFinopsImport() {
   const clear = document.getElementById("clear-local-analysis");
   const loaded = { providers: new Map() };
   let result = null;
+  const MAX_DISPLAY_USD = 1_000_000_000_000;
+  const plausibleUsd = (value) => Number.isFinite(value) && value >= 0 && value <= MAX_DISPLAY_USD;
+  const moneyText = (value) => plausibleUsd(value) ? `${value.toFixed(2)} USD` : "Needs review · value withheld";
 
   const announce = (state, title, copy) => {
     stateNode.dataset.state = state;
@@ -104,63 +107,100 @@ function mountLocalFinopsImport() {
       element("span", undefined, copy),
     );
   };
-  const renderDepartment = (department, buttons) => {
-    buttons.forEach((button) =>
-      button.setAttribute("aria-pressed", String(button.dataset.departmentId === department.id)));
-    setText("local-detail-name", department.name);
-    setText("local-detail-why",
-      `${department.recoverableUsd.toFixed(2)} USD is the largest disclosed routing scenario for this department. `
-      + "It matters because the action can be bounded and checked without inspecting prompt content.");
+  const departmentFacts = (department) => {
     const trend = department.trendAvailable
-      ? `${department.spendChangePercent > 0 ? "+" : ""}${department.spendChangePercent}% `
+      ? `${department.spendChangePercent > 0 ? "↑ Increase " : department.spendChangePercent < 0 ? "↓ Decrease " : "→ No change "}`
+        + `${department.spendChangePercent > 0 ? "+" : ""}${department.spendChangePercent}% `
         + `(${department.spendChangeUsd >= 0 ? "+" : "−"}${Math.abs(department.spendChangeUsd).toFixed(2)} USD)`
       : `Unavailable · ${department.trendReason}`;
-    document.getElementById("local-detail-facts")?.replaceChildren(
-      definitionTerm("Current impact", `${department.spendUsd.toFixed(2)} USD observed · ${department.recoverableUsd.toFixed(2)} USD scenario`),
+    const facts = element("dl");
+    facts.replaceChildren(
+      definitionTerm("Quantified impact", `${moneyText(department.spendUsd)} observed · ${moneyText(department.recoverableUsd)} scenario`),
+      definitionTerm("Like-for-like trend", trend),
       definitionTerm("Confidence", `${result.confidence} · coarse billing category scenario`),
-      definitionTerm("Trend", trend),
       definitionTerm("Provenance", `${department.records} joined aggregate${department.records === 1 ? "" : "s"} · ${result.period}`),
     );
+    return facts;
   };
   const renderDepartments = (next) => {
     const list = document.getElementById("local-department-list");
     list?.replaceChildren();
-    const buttons = next.rankedDepartments.map((department, index) => {
+    next.rankedDepartments.forEach((department, index) => {
+      const item = element("li", "local-department-item");
       const button = element("button", "local-department-choice");
+      const panel = element("div", "local-department-detail");
+      const panelId = `local-department-panel-${index}`;
       button.type = "button";
       button.dataset.departmentId = department.id;
-      button.setAttribute("aria-pressed", String(index === 0));
+      button.setAttribute("aria-expanded", String(index === 0));
+      button.setAttribute("aria-controls", panelId);
+      button.setAttribute("aria-label",
+        `${index === 0 ? "Collapse" : "Expand"} finding for ${department.name}, `
+        + `${moneyText(department.recoverableUsd)} recoverable scenario`);
       button.append(
-        element("span", undefined, `${String(index + 1).padStart(2, "0")} · ${department.name}`),
-        element("strong", undefined, `${department.recoverableUsd.toFixed(2)} USD`),
+        element("span", "local-department-rank", String(index + 1).padStart(2, "0")),
+        element("strong", undefined, department.name),
+        element("span", "local-department-amount", moneyText(department.recoverableUsd)),
+        element("span", "local-department-chevron"),
       );
-      button.addEventListener("click", () => renderDepartment(department, buttons));
-      list?.append(button);
-      return button;
+      button.lastElementChild?.setAttribute("aria-hidden", "true");
+      panel.id = panelId;
+      panel.hidden = index !== 0;
+      panel.setAttribute("role", "region");
+      panel.setAttribute("aria-label", `${department.name} finding evidence`);
+      panel.append(
+        element("p", undefined,
+          `${moneyText(department.recoverableUsd)} is the disclosed routing scenario. `
+          + "It can be bounded and checked without inspecting prompt content."),
+        departmentFacts(department),
+      );
+      button.addEventListener("click", () => {
+        const expanded = button.getAttribute("aria-expanded") === "true";
+        button.setAttribute("aria-expanded", String(!expanded));
+        button.setAttribute("aria-label",
+          `${expanded ? "Expand" : "Collapse"} finding for ${department.name}, `
+          + `${moneyText(department.recoverableUsd)} recoverable scenario`);
+        panel.hidden = expanded;
+      });
+      item.append(button, panel);
+      list?.append(item);
     });
-    if (next.topDepartment) renderDepartment(next.topDepartment, buttons);
-    else {
-      setText("local-detail-name", "No joined department evidence");
-      setText("local-detail-why", "No active HRIS unit matched a provider aggregate.");
-      document.getElementById("local-detail-facts")?.replaceChildren();
-    }
+    if (!next.rankedDepartments.length)
+      list?.append(element("li", "evidence-empty",
+        "No department findings. No active HRIS unit matched a provider aggregate."));
   };
   const renderResult = (next) => {
     result = next;
+    resultsNode.setAttribute("aria-busy", "false");
     setText("analysis-mode", "Local analysis");
     setText("finops-intro",
       "This decision brief uses only the provider and HRIS exports selected in this tab. "
       + "It makes a bounded routing estimate and refuses unsupported benchmark or prompt-quality claims.");
     setText("finops-provenance", `${next.period} · ${next.provenance}`);
-    setText("local-recoverable", `${next.recoverableUsd.toFixed(2)} USD`);
+    const resultPlausible = plausibleUsd(next.spendUsd) && plausibleUsd(next.recoverableUsd)
+      && next.recoverableUsd <= next.spendUsd;
+    const notice = document.getElementById("local-result-notice");
+    if (notice) {
+      notice.hidden = resultPlausible && next.rankedDepartments.length > 0;
+      notice.dataset.state = resultPlausible ? "empty" : "error";
+    }
+    setText("local-result-notice-title", resultPlausible
+      ? "No department finding available." : "Imported totals need review.");
+    setText("local-result-notice-copy", resultPlausible
+      ? "No provider aggregate joined an active HRIS unit. Resolve the mapping gaps before choosing an action."
+      : "A total is outside the supported 0–1 trillion USD display range, or recoverable spend exceeds observed spend. Values are withheld; inspect the source export.");
+    setText("local-recoverable", resultPlausible ? moneyText(next.recoverableUsd) : "Needs review");
     setText("local-department", next.topDepartment?.name ?? "Unavailable");
-    setText("local-confidence", `${next.confidence} · disclosed scenario`);
-    setText("local-action", next.action);
+    setText("local-confidence", `${resultPlausible ? next.confidence : "Withheld"} confidence`);
+    setText("local-action", resultPlausible ? next.action : "Review imported totals before selecting a department action.");
     setText("local-provenance",
-      `${next.provenance} Confidence is ${next.confidence.toLowerCase()} because the estimate uses coarse billing categories, not prompt content.`);
+      next.provenance);
     const trend = next.history;
     const trendState = document.getElementById("local-trend-state");
     if (trendState) trendState.dataset.state = trend.state;
+    setText("local-trend-shape", trend.organizationTrendAvailable
+      ? trend.organizationSpendChangePercent > 0 ? "↑" : trend.organizationSpendChangePercent < 0 ? "↓" : "→"
+      : "—");
     setText("local-trend-answer", trend.organizationTrendAvailable
       ? `${trend.organizationSpendChangePercent > 0 ? "+" : ""}${trend.organizationSpendChangePercent}% organization spend`
       : trend.state === "incompatible" ? "Incompatible periods"
@@ -171,6 +211,7 @@ function mountLocalFinopsImport() {
         ? "The preceding organization period has no positive spend, so percentage change is undefined."
         : trend.message);
     setText("local-benchmark-answer", "Unavailable benchmark");
+    setText("local-benchmark-summary", "Unavailable · no compatible cohort");
     setText("local-benchmark-why", next.benchmark.message);
     fillTextList("local-periods", trend.periods.map((period) =>
       `${period.period} · ${period.spendUsd.toFixed(2)} USD observed · `
@@ -209,6 +250,7 @@ function mountLocalFinopsImport() {
     const files = [...input.files];
     if (!files.length) return;
     stateNode.setAttribute("aria-busy", "true");
+    resultsNode.setAttribute("aria-busy", "true");
     announce("loading", "Reading files in this tab…",
       "Parsing and validation are running locally; no file contents are being transferred.");
     try {
@@ -233,6 +275,7 @@ function mountLocalFinopsImport() {
         `${error.message} Existing analysis was not replaced; choose a manifest-compatible JSON export.`);
     } finally {
       stateNode.setAttribute("aria-busy", "false");
+      resultsNode.setAttribute("aria-busy", "false");
       input.value = "";
     }
   });
