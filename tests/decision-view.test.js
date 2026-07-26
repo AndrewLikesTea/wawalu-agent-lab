@@ -156,5 +156,21 @@ test("decision cards are rendered as the single semantic detail link", async () 
   assert.match(source, /detailLink\.className = "decision-card decision-detail-link"/);
   assert.match(source, /detailLink\.setAttribute\("aria-labelledby", titleId\)/);
   assert.match(source, /detailLink\.setAttribute\("aria-describedby", descriptionId\)/);
+  assert.ok(
+    source.indexOf('appendTextElement(detailLink, "h3"') < source.indexOf('meta.className = "decision-meta"'),
+    "the decision title precedes its metadata in DOM reading order",
+  );
+  assert.match(source, /appendLabelledValue\(meta, "Status", decision\.status/);
   assert.doesNotMatch(source, /article\.tabIndex\s*=/);
+});
+
+test("decision list exposes semantic loading, empty, and error states", async () => {
+  const read = (path) => import("node:fs/promises")
+    .then((fs) => fs.readFile(new URL(`../${path}`, import.meta.url), "utf8"));
+  const [page, source] = await Promise.all([read("src/index.html"), read("src/app.js")]);
+  assert.match(page, /id="decision-list" aria-live="polite" aria-busy="true"/);
+  assert.match(page, /<h3>Loading decisions<\/h3>/);
+  assert.match(source, /panel\.setAttribute\("role", state === "error" \? "alert" : "status"\)/);
+  assert.match(source, /container\.setAttribute\("aria-busy", String\(state === "loading"\)\)/);
+  assert.match(source, /\["No decisions yet", "Add the first record/);
 });

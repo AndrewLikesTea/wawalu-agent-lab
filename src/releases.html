@@ -50,7 +50,12 @@
           </div>
         </div>
         <p class="hint release-hint">Use ↑ and ↓ to move between releases, Home and End to jump, Enter to view details, and Space to expand.</p>
-        <div id="release-list"></div>
+        <div id="release-list" aria-live="polite" aria-busy="true">
+          <div class="list-state list-state-loading" role="status">
+            <h3>Loading releases</h3>
+            <p>Building your shipping history…</p>
+          </div>
+        </div>
       </section>
     </main>
     <script type="module" src="/releases-page.js"></script>
