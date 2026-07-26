@@ -17,8 +17,12 @@ import { formatIntegrationProvenance } from "/integration-contracts.js";
 import { createStaticGateway } from "/static-gateway.js";
 import { createFinancePortfolio } from "/finance-portfolio.js";
 import { mountFinancePortfolio, renderPortfolioUnavailable } from "/finance-portfolio-view.js";
+import {
+  renderFinopsEvaluationPanel, renderFinopsEvaluationUnavailable,
+} from "/finops-evaluation-view.js";
 
 const DATA_URL = "/evolution-demo-data.json";
+const EVALUATION_URL = "/finops-evaluation-fixtures.json";
 const CATEGORY_VARS = {
   highValue: "--cat-high-value",
   overProvisioned: "--cat-over-provisioned",
@@ -333,6 +337,25 @@ async function loadData() {
   return response.json();
 }
 
+async function renderEvaluationDemo() {
+  const target = document.getElementById("finops-evaluation-result");
+  if (!target) return;
+  try {
+    const response = await fetch(EVALUATION_URL, {
+      cache: "no-store", headers: { accept: "application/json" },
+    });
+    if (!response.ok) throw new Error(`Evaluation fixture returned ${response.status}`);
+    // Every bundled fixture renders, including the rejected one: the gate is
+    // only defensible if a reviewer can read the score it overrode.
+    target.replaceChildren(renderFinopsEvaluationPanel(await response.json()));
+  } catch {
+    target.replaceChildren(renderFinopsEvaluationUnavailable(
+      "The bundled evaluation fixtures are unavailable. "
+      + "No score was produced, and no live provider or customer record was contacted."));
+  }
+  target.setAttribute("aria-busy", "false");
+}
+
 async function init() {
   if (!document.getElementById("department-priority")) return;
   const gateway = createStaticGateway();
@@ -354,6 +377,7 @@ async function init() {
   });
   refreshGateway?.addEventListener("click", () => gateway.refresh());
   gateway.refresh();
+  renderEvaluationDemo();
 
   let data;
   try {
