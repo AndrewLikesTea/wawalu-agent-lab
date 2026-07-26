@@ -34,6 +34,12 @@ export function createElement(tagName) {
         node.children.push(child);
       }
     },
+    prepend(...nodes) {
+      for (const child of [...nodes].reverse()) {
+        child.parent = node;
+        node.children.unshift(child);
+      }
+    },
     replaceChildren(...nodes) {
       node.children = [];
       node.ownText = "";
