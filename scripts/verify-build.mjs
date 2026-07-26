@@ -42,7 +42,13 @@ export async function verifyArtifact(root) {
   const health = await readFile(resolve(root, "healthz"), "utf8");
   if (health.trim() !== "ok") throw new Error("healthz must return exactly ok");
 
-  const required = new Set(["social.html", "social-page.js", "social.js", "social-demo-data.json"]);
+  // Every page ships with the module it loads: a half-published pair is a blank
+  // panel in production, which the manifest alone would happily attest to.
+  const required = new Set([
+    "social.html", "social-page.js", "social.js", "social-demo-data.json", "social-identity.js",
+    "profile.html", "profile-page.js", "profile.js",
+    "post.html", "post-page.js", "post-detail.js",
+  ]);
   const paths = new Set(actual.map(({ path }) => path));
   for (const path of required) if (!paths.has(path)) throw new Error(`missing social UI asset: ${path}`);
 

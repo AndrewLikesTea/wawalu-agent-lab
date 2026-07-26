@@ -17,15 +17,18 @@
 // rejected, or broken image degrades to a caption-only card. Sources are
 // restricted to same-origin asset paths — see normalizeImage.
 
+// The author-name rules live in social-identity.js, which is also what the
+// profile view reads, and are re-exported here so this module stays the feed's
+// single import. One owner, so the byline the feed accepts and the byline the
+// profile remembers cannot drift apart.
+import { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH, readStoredAuthor, rememberAuthor } from "./social-identity.js";
+
+export { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH };
+
 // A single, classic short-post budget. Enforced in three places that must agree:
 // the textarea `maxlength`, the live counter, and createPost's validation.
 export const MAX_POST_LENGTH = 280;
-export const MAX_AUTHOR_LENGTH = 60;
 export const MAX_IMAGE_ALT_LENGTH = 200;
-
-// Author is optional in the compose form; an empty author normalizes to this so
-// the card always has a stable byline.
-export const DEFAULT_AUTHOR = "Guest";
 
 // Normalize + validate a post from raw form values. Body is required and must
 // fit the budget; author is optional and falls back to DEFAULT_AUTHOR. Throws
@@ -510,6 +513,10 @@ export function mountSocialFeed(root, options = {}) {
       try {
         form.querySelector("button[type=submit]")?.setAttribute("disabled", "");
         const saved = options.create ? await options.create(post) : post;
+        // The byline is what the profile view treats as "you" (src/
+        // social-identity.js). Remembered only after a post actually lands, so a
+        // failed submit cannot rewrite who this browser thinks it is.
+        rememberAuthor(options.storage ?? globalThis.localStorage, saved.author);
         posts = [saved, ...posts.filter((item) => item.id !== saved.id)];
         renderAgents();
         if (notice) notice.hidden = true;
@@ -538,6 +545,11 @@ export function mountSocialFeed(root, options = {}) {
     render();
     agentFilter.focus();
   });
+
+  // Carry the byline across visits so the feed and the profile agree on who you
+  // are without asking twice. An untouched field only.
+  const remembered = readStoredAuthor(options.storage ?? globalThis.localStorage);
+  if (authorInput && !authorInput.value && remembered) authorInput.value = remembered;
 
   renderAgents();
   render();

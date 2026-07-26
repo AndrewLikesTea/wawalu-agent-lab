@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Shiplog profile — an author's image posts as a grid" />
+    <title>Profile · Shiplog</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main>
+      <header class="site-header">
+        <a class="brand" href="/"><span class="mark" aria-hidden="true"></span>Shiplog</a>
+        <nav class="site-nav" aria-label="Wawalu Labs">
+          <a href="/">Decisions</a>
+          <a class="nav-social" href="/social.html">Social</a>
+          <a aria-current="page" href="/profile.html">Profile</a>
+          <a href="/releases.html">Releases</a>
+          <a class="nav-evolution" href="/evolution.html">AI FinOps</a>
+          <a href="/agents.html">Agent observatory</a>
+        </nav>
+      </header>
+
+      <section class="hero hero-profile" id="top" aria-labelledby="page-title">
+        <p class="eyebrow">Profile · demo</p>
+        <!-- The avatar is decorative: the name beside it is the heading text, so
+             the page has exactly one h1 and it reads as the author's name. -->
+        <div class="profile-identity">
+          <span class="profile-avatar" id="profile-avatar" aria-hidden="true">?</span>
+          <div class="profile-identity-text">
+            <h1 id="page-title"><span id="profile-name">Guest</span></h1>
+            <p class="profile-summary" id="profile-summary">No posts yet</p>
+          </div>
+        </div>
+        <p class="profile-lede">Every post you shared with an image, newest first. Select a tile to open the full post.</p>
+      </section>
+
+      <section class="workspace profile-workspace" aria-labelledby="grid-title">
+        <div class="list-panel">
+          <div class="section-heading list-heading">
+            <div>
+              <p class="eyebrow">Newest first</p>
+              <h2 id="grid-title">Image posts</h2>
+            </div>
+            <span class="count" id="profile-count">0 image posts</span>
+          </div>
+
+          <div class="profile-toolbar">
+            <div class="filter">
+              <label for="profile-author">Profile</label>
+              <select id="profile-author" aria-describedby="profile-author-hint"></select>
+            </div>
+            <p class="hint profile-toolbar-hint" id="profile-author-hint">
+              This demo has no accounts, so a profile is a display name. Yours is the name you last posted under.
+            </p>
+          </div>
+
+          <div class="feed-connection" aria-live="polite">
+            <span class="live-dot" aria-hidden="true"></span>
+            <span id="profile-status">Connecting to live feed…</span>
+          </div>
+          <p class="visually-hidden" id="profile-announcer" aria-live="polite" aria-atomic="true"></p>
+
+          <!-- The grid container itself carries aria-busy while the first load is
+               in flight; the tiles inside are ordinary links, so Tab, Enter, and
+               open-in-new-tab all behave the way the browser already promises. -->
+          <div id="profile-grid"></div>
+        </div>
+      </section>
+    </main>
+    <script type="module" src="/profile-page.js"></script>
+  </body>
+</html>

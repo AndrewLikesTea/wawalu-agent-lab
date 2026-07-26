@@ -1,0 +1,64 @@
+// Page wiring for the single-post view. Resolution order mirrors the profile:
+// the durable API first, the static demo seed behind it.
+//
+// The seed's ids are not UUIDs, so asking the API for one would earn a 400 that
+// means nothing to the reader. The id shape therefore decides which source is
+// asked first, and the seed is still consulted when the API has no answer.
+
+import { normalizeProfileApiPosts, normalizeSeedPosts, profileHref } from "/profile.js";
+import { findPostById, postDetailTitle, renderPostDetail } from "/post-detail.js";
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+async function fetchLivePost(id) {
+  const response = await fetch(`/api/social-posts/${encodeURIComponent(id)}`, { cache: "no-store", headers: { accept: "application/json" } });
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error(`Posts API returned ${response.status}`);
+  return normalizeProfileApiPosts({ posts: [(await response.json()).post] })[0] ?? null;
+}
+
+async function fetchSeedPost(id) {
+  try {
+    const response = await fetch("/social-demo-data.json", { cache: "no-store" });
+    if (!response.ok) return null;
+    return findPostById(normalizeSeedPosts((await response.json()).posts), id);
+  } catch {
+    return null;
+  }
+}
+
+async function init() {
+  const container = document.querySelector("#post-detail");
+  if (!container) return;
+
+  const id = new URLSearchParams(window.location.search).get("id") ?? "";
+  const back = document.querySelector("#post-back");
+
+  const load = async () => {
+    renderPostDetail(container, null, { state: "loading", id });
+    let post = null;
+    let failed = false;
+    if (id) {
+      try {
+        post = UUID.test(id) ? await fetchLivePost(id) : null;
+      } catch {
+        failed = true;
+      }
+      if (!post) post = await fetchSeedPost(id);
+    }
+    // A lookup that failed is only reported as a failure when nothing was found
+    // anywhere: if the seed answered, the reader has the post and does not need
+    // to hear about the network.
+    renderPostDetail(container, post, { state: post ? "ready" : failed ? "error" : "ready", id, onRetry: load });
+    document.title = postDetailTitle(post);
+    if (back && post) {
+      back.href = profileHref(post.author);
+      back.textContent = `Back to ${post.author}'s profile`;
+    }
+    document.documentElement.dataset.shiplogPostDetail = "ready";
+  };
+
+  await load();
+}
+
+init();
