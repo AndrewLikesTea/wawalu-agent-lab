@@ -1,9 +1,16 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { byClass, createElement, installDocument, tags } from "./support/dom.js";
+
+installDocument();
+
 import {
+  decisionDetailState,
   normalizeAlternatives,
   createComparisonState,
+  renderDecisionDetail,
+  renderDecisionDetailState,
   toggleAlternative,
   toggleComparison,
   resolveDecisionDetail,
@@ -52,6 +59,78 @@ test("resolves known decisions and rejects stale ids", () => {
   assert.equal(resolveDecisionDetail(undefined, "known"), null);
 });
 
+test("derives available, absent, not-found, and error states without conflating them", () => {
+  assert.equal(decisionDetailState({ decision: { id: "known" }, unavailable: true }), "available");
+  assert.equal(decisionDetailState(), "empty");
+  assert.equal(decisionDetailState({ id: "stale" }), "not-found");
+  assert.equal(decisionDetailState({ id: "stale", unavailable: true }), "error");
+});
+
+test("loading, absent, not-found, and error states explain the outcome and keep return navigation first", () => {
+  const expected = {
+    loading: /finding this decision and its linked releases/i,
+    empty: /No decision was specified/i,
+    "not-found": /may have been removed/i,
+    error: /temporarily unavailable/i,
+  };
+
+  for (const [state, copy] of Object.entries(expected)) {
+    const container = createElement("div");
+    const panel = renderDecisionDetailState(container, state);
+    const links = tags(container, "A");
+    assert.equal(container.children[0], links[0], `${state} return link should be first`);
+    assert.equal(links[0].href, "/");
+    assert.equal(links[0].textContent, "← Back to Decisions");
+    assert.match(panel.textContent, copy);
+    assert.equal(panel.getAttribute("role"), state === "error" ? "alert" : "status");
+    assert.equal(panel.dataset.state, state);
+  }
+});
+
+test("available detail renders labelled text, empty alternatives, and linked-release navigation in logical order", () => {
+  const container = createElement("div");
+  renderDecisionDetail(container, {
+    id: "decision-1",
+    title: "Keep durable jobs in a queue",
+    status: "accepted",
+    owner: "Mina",
+    context: "Retries must survive a deploy.",
+    alternatives: "",
+    createdAt: "2026-07-01T00:00:00.000Z",
+  }, {
+    linkedReleases: [{
+      id: "release 1",
+      version: "v1.4.0",
+      title: "Reliable jobs",
+      status: "completed",
+    }],
+  });
+
+  assert.equal(tags(container, "A")[0].textContent, "← Back to Decisions");
+  assert.equal(tags(container, "H1")[0].textContent, "Keep durable jobs in a queue");
+  assert.match(container.textContent, /Status accepted Owner Mina Recorded/);
+  assert.match(container.textContent, /Context and rationale Retries must survive a deploy/);
+  assert.match(container.textContent, /No alternatives were recorded/);
+  assert.equal(byClass(container, "proof-relationship").length, 1);
+  const links = tags(container, "A");
+  assert.equal(links[1].href, "/release.html?id=release%201");
+});
+
+test("available detail states the absence of a linked release instead of hiding the relationship", () => {
+  const container = createElement("div");
+  renderDecisionDetail(container, {
+    id: "decision-2",
+    title: "Use a cache",
+    status: "proposed",
+    owner: "Ari",
+    context: "Reads are repeated.",
+    alternatives: "No cache.",
+    createdAt: "2026-07-01T00:00:00.000Z",
+  });
+
+  assert.match(byClass(container, "proof-relationship")[0].textContent, /No releases link to this decision yet/);
+});
+
 test("detail page uses semantic landmarks and safe DOM rendering", async () => {
   const read = (path) => readFile(new URL(`../src/${path}`, import.meta.url), "utf8");
   const [html, component, page, css] = await Promise.all([
@@ -62,8 +141,12 @@ test("detail page uses semantic landmarks and safe DOM rendering", async () => {
   assert.match(html, /aria-label="Decision detail"/);
   assert.match(component, /aria-live/);
   assert.match(component, /aria-controls/);
+  assert.match(component, /role", state === "error" \? "alert" : "status"/);
   assert.match(component, /el\("table"/);
   assert.doesNotMatch(`${component}\n${page}`, /innerHTML/);
+  assert.match(page, /renderDecisionDetailState\(container, "loading"\)/);
+  assert.match(page, /renderDecisionDetailState\(container, "error"\)/);
+  assert.match(html, /href="\/">← Back to Decisions<\/a>/);
   assert.match(css, /@media\(max-width:760px\)/);
 });
 

@@ -48,11 +48,58 @@ export function resolveDecisionDetail(decisions, id) {
   return (decisions ?? []).find((decision) => decision?.id === id) ?? null;
 }
 
+export function decisionDetailState({ id = "", decision = null, unavailable = false } = {}) {
+  if (decision) return "available";
+  if (unavailable) return "error";
+  return id ? "not-found" : "empty";
+}
+
 function el(tag, className, content) {
   const node = document.createElement(tag);
   if (className) node.className = className;
   if (content !== undefined) node.textContent = content;
   return node;
+}
+
+function renderBackLink() {
+  const back = el("a", "detail-back", "← Back to Decisions");
+  back.href = "/";
+  return back;
+}
+
+const DETAIL_STATE_COPY = {
+  loading: {
+    title: "Loading decision",
+    description: "We’re finding this decision and its linked releases.",
+  },
+  empty: {
+    title: "Choose a decision",
+    description: "No decision was specified. Return to Decisions to choose one from the log.",
+  },
+  "not-found": {
+    title: "Decision not found",
+    description: "This decision may have been removed or is not available in this browser.",
+  },
+  error: {
+    title: "Decision couldn’t be loaded",
+    description: "The decision log is temporarily unavailable. Your browser data has not been changed.",
+  },
+};
+
+export function renderDecisionDetailState(container, state) {
+  const copy = DETAIL_STATE_COPY[state] ?? DETAIL_STATE_COPY.error;
+  container.replaceChildren(renderBackLink());
+  const loadingHook = state === "loading" ? " list-state-loading" : "";
+  const panel = el("section", `detail-state detail-state-${state}${loadingHook}`);
+  panel.dataset.state = state;
+  panel.setAttribute("aria-labelledby", "decision-state-title");
+  panel.setAttribute("role", state === "error" ? "alert" : "status");
+  const label = el("p", "detail-state-label", state === "error" ? "Error" : "Decision status");
+  const title = el("h1", "detail-state-title", copy.title);
+  title.id = "decision-state-title";
+  panel.append(label, title, el("p", "detail-state-guidance", copy.description));
+  container.append(panel);
+  return panel;
 }
 
 function labelledList(title, values, kind) {
@@ -130,12 +177,10 @@ function renderComparison(alternatives) {
 }
 
 export function renderDecisionDetail(container, decision, options = {}) {
-  container.replaceChildren();
-  const back = el("a", "detail-back", "← Back to decisions"); back.href = "/"; container.append(back);
+  container.replaceChildren(renderBackLink());
   if (!decision) {
-    const empty = el("div", "empty-state"); empty.setAttribute("role", "status");
-    empty.append(el("h1", "empty-title", "Decision not found"), el("p", undefined, options.id ? "This decision may have been removed or is not available in this browser." : "No decision was specified."));
-    container.append(empty); return;
+    renderDecisionDetailState(container, decisionDetailState(options));
+    return;
   }
 
   const alternatives = normalizeAlternatives(decision);
@@ -156,11 +201,11 @@ export function renderDecisionDetail(container, decision, options = {}) {
   }
   header.append(meta); view.append(header);
   const linkedReleases = Array.isArray(options.linkedReleases) ? options.linkedReleases : [];
+  const relationship = el("section", "proof-relationship");
+  relationship.setAttribute("aria-labelledby", "linked-releases-title");
+  relationship.append(el("h2", undefined, "Linked releases"));
+  relationship.firstChild.id = "linked-releases-title";
   if (linkedReleases.length) {
-    const relationship = el("section", "proof-relationship");
-    relationship.setAttribute("aria-labelledby", "linked-releases-title");
-    relationship.append(el("h2", undefined, "Linked releases"));
-    relationship.firstChild.id = "linked-releases-title";
     const releaseList = el("ul");
     for (const release of linkedReleases) {
       const item = el("li");
@@ -170,8 +215,10 @@ export function renderDecisionDetail(container, decision, options = {}) {
       releaseList.append(item);
     }
     relationship.append(releaseList);
-    view.append(relationship);
+  } else {
+    relationship.append(el("p", "detail-muted", "No releases link to this decision yet."));
   }
+  view.append(relationship);
   const context = el("section", "decision-context"); context.setAttribute("aria-labelledby", "context-title");
   context.append(el("h2", undefined, "Context and rationale"), el("p", undefined, decision.context)); context.firstChild.id = "context-title"; view.append(context);
   const alternativesSection = el("section", "decision-alternatives"); alternativesSection.setAttribute("aria-labelledby", "alternatives-title");
@@ -190,6 +237,7 @@ export function renderDecisionDetail(container, decision, options = {}) {
   const cards = el("div", "alternative-grid"); const comparisonSlot = el("div");
   const update = ({ focusComparison = false, focusAlternative = "" } = {}) => {
     cards.replaceChildren();
+    if (!alternatives.length) cards.append(el("p", "detail-empty-copy", "No alternatives were recorded for this decision."));
     for (const alternative of alternatives) cards.append(renderAlternative(alternative, state.selectedIds.includes(alternative.id), (id) => { state = toggleAlternative(state, id, alternatives); update({ focusAlternative: id }); }, comparable));
     if (comparable) {
       button.disabled = state.selectedIds.length !== 2;
