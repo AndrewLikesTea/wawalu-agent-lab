@@ -186,6 +186,19 @@ function money(minor) {
   return Math.round(minor) / 100;
 }
 
+function periodMetadata(provider) {
+  const document = provider.document ?? provider;
+  const start = Date.parse(`${document.snapshot.period_start}T00:00:00Z`);
+  const end = Date.parse(`${document.snapshot.period_end}T00:00:00Z`);
+  return {
+    document,
+    start,
+    end,
+    days: Number.isFinite(start) && Number.isFinite(end)
+      ? Math.round((end - start) / 86_400_000) : null,
+  };
+}
+
 export function normalizeLocalFinops({ provider, hris }) {
   if (!provider || !hris) fail("incomplete_pair", "Add one provider export and one HRIS mapping.");
   const providerDoc = provider.document ?? provider;
@@ -290,6 +303,110 @@ export function normalizeLocalFinops({ provider, hris }) {
   });
 }
 
+/**
+ * Reconcile browser-local provider periods without broadening the v1 contract.
+ *
+ * The newest two periods are the decision window. They must be consecutive,
+ * equal-length exports from one provider source. Older compatible periods remain
+ * available as period evidence, but never change the current-period action.
+ */
+export function normalizeLocalFinopsHistory({ providers = [], hris }) {
+  const list = Array.isArray(providers) ? providers : [providers];
+  if (!hris || list.length === 0)
+    fail("incomplete_pair", "Add at least one provider export and one HRIS mapping.");
+
+  const ordered = list.map(periodMetadata).sort((left, right) => left.start - right.start);
+  const sourceIds = new Set(ordered.map(({ document }) => document.snapshot.source_instance_id));
+  const duplicatePeriods = new Set();
+  for (const { document } of ordered) {
+    const key = `${document.snapshot.period_start}:${document.snapshot.period_end}`;
+    if (duplicatePeriods.has(key))
+      fail("incompatible_periods", "History contains duplicate provider period boundaries.");
+    duplicatePeriods.add(key);
+  }
+  if (sourceIds.size !== 1)
+    fail("incompatible_periods", "Provider periods come from different source instances and cannot be merged.");
+
+  const periods = ordered.map(({ document, ...metadata }) => ({
+    ...metadata,
+    periodStart: document.snapshot.period_start,
+    periodEnd: document.snapshot.period_end,
+    exportId: document.export_id,
+    completeness: document.snapshot.completeness,
+    result: normalizeLocalFinops({ provider: document, hris }),
+  }));
+  const current = periods.at(-1);
+  const previous = periods.at(-2) ?? null;
+  let historyState = "missing";
+  let historyMessage = "Add the immediately preceding provider period to calculate a trend.";
+  if (previous) {
+    const equalLength = current.days > 0 && current.days === previous.days;
+    const contiguous = previous.periodEnd === current.periodStart;
+    if (!equalLength || !contiguous) {
+      historyState = "incompatible";
+      historyMessage = !equalLength
+        ? "The newest provider periods have different lengths; a like-for-like trend is unavailable."
+        : "The newest provider periods are not contiguous; the missing interval prevents a defensible trend.";
+    } else {
+      historyState = "available";
+      historyMessage = `${current.days}-day periods are contiguous and use the same provider source.`;
+    }
+  }
+
+  const priorById = new Map(previous?.result.rankedDepartments
+    .map((department) => [department.id, department]) ?? []);
+  const departments = current.result.rankedDepartments.map((department) => {
+    const prior = priorById.get(department.id) ?? null;
+    const trendAvailable = historyState === "available" && prior && prior.spendUsd > 0;
+    return Object.freeze({
+      ...department,
+      previousSpendUsd: prior?.spendUsd ?? null,
+      spendChangeUsd: trendAvailable
+        ? Math.round((department.spendUsd - prior.spendUsd) * 100) / 100 : null,
+      spendChangePercent: trendAvailable
+        ? Math.round(((department.spendUsd - prior.spendUsd) / prior.spendUsd) * 1000) / 10
+        : null,
+      trendAvailable: Boolean(trendAvailable),
+      trendReason: trendAvailable ? null
+        : historyState !== "available" ? historyMessage
+          : "This department has no positive spend in the preceding period.",
+    });
+  });
+  const top = departments[0] ?? null;
+  const organizationTrendAvailable = historyState === "available"
+    && previous.result.spendUsd > 0;
+  const organizationSpendChangePercent = organizationTrendAvailable
+    ? Math.round(((current.result.spendUsd - previous.result.spendUsd)
+      / previous.result.spendUsd) * 1000) / 10 : null;
+
+  return Object.freeze({
+    ...current.result,
+    schemaVersion: "local-finops-history/1.0.0",
+    rankedDepartments: Object.freeze(departments),
+    topDepartment: top,
+    history: Object.freeze({
+      state: historyState,
+      message: historyMessage,
+      periodCount: periods.length,
+      previousPeriod: previous?.result.period ?? null,
+      currentPeriod: current.result.period,
+      organizationTrendAvailable,
+      organizationSpendChangePercent,
+      periods: Object.freeze(periods.map((entry) => Object.freeze({
+        period: entry.result.period,
+        spendUsd: entry.result.spendUsd,
+        recoverableUsd: entry.result.recoverableUsd,
+        exportId: entry.exportId,
+        completeness: entry.completeness,
+      }))),
+    }),
+    benchmark: Object.freeze({
+      state: "unavailable",
+      message: "Unavailable: the imported contracts contain no compatible peer cohort or benchmark methodology.",
+    }),
+  });
+}
+
 export function localFinopsJsonExport(result) {
   return JSON.stringify({ exportedAt: new Date().toISOString(), results: result }, null, 2);
 }
@@ -303,6 +420,10 @@ export function localFinopsMeetingSummary(result) {
     `Recoverable scenario: ${result.recoverableUsd.toFixed(2)} USD`,
     `Ranked department: ${department}`,
     `Confidence: ${result.confidence}`,
+    `Trend: ${result.history?.organizationTrendAvailable
+      ? `${result.history.organizationSpendChangePercent > 0 ? "+" : ""}${result.history.organizationSpendChangePercent}% organization spend versus ${result.history.previousPeriod}`
+      : result.history?.message ?? "Unavailable from a single provider period."}`,
+    `Benchmark: ${result.benchmark?.message ?? "Unavailable from the imported contracts."}`,
     `Priority action: ${result.action}`,
     `Data quality: ${result.warnings.length ? result.warnings.join(" ") : "No declared warnings."}`,
     `Limits: ${result.limits.join(" ")}`,
