@@ -63,9 +63,24 @@ function fact(list, label, value) {
   list.append(element("dt", undefined, label), element("dd", undefined, value));
 }
 
-function measure(label, amount) {
+/**
+ * A dollar figure that is missing reads as missing. formatUsd answers "$0" for
+ * anything non-finite, which on this board would be a claim — that the action
+ * saved nothing — rather than an absence.
+ */
+function usdOrUnavailable(value, fallback = "Unavailable") {
+  return Number.isFinite(value) ? formatUsd(value) : fallback;
+}
+
+/**
+ * One labelled figure. dt/dd because the label and the amount are a pair, and a
+ * pair announced as a pair is the whole point of reading a number out loud.
+ * `absent` marks the figure as not-a-number so it is not styled like one.
+ */
+function measure(label, amount, absent = false) {
   const node = element("div", "money-measure");
-  node.append(element("span", undefined, label), element("strong", undefined, amount));
+  if (absent) node.dataset.value = "none";
+  node.append(element("dt", undefined, label), element("dd", undefined, amount));
   return node;
 }
 
@@ -79,50 +94,145 @@ function nextStepText(action) {
   return NEXT_STEPS[action.status] ?? "Confirm this action's lifecycle state.";
 }
 
-function comparisonText(comparison) {
-  if (comparison === null) return "Awaiting a completed measurement.";
-  if (comparison.amountUsd === 0) return "Matched projection exactly.";
+// Did this action meet its savings target? One definition, used everywhere.
+//
+// The plan states a target as a recoverable-spend ceiling for the measurement
+// period (`target.value`, comparison `less_than_or_equal`) and derives the
+// savings figure from it: estimatedImpactUsd === baseline.value - target.value.
+// So "realized savings reached the target" and "recoverable spend landed at or
+// under the ceiling" are the same sentence, and this card only ever says it the
+// first way. `comparison.amountUsd` is target minus realized, so a positive
+// amount is a shortfall.
+//
+// Every figure on a card covers one 31-day measurement period. Nothing here is
+// annualized, and nothing may be labelled as if it were: a monthly figure read
+// as a yearly one overstates the result by roughly twelve times.
+//
+// The states, in the order a leader asks for them:
+//   unavailable  no realized measurement exists yet — no verdict is claimed
+//   not-usable   a realized figure exists but cannot be savings, because it
+//                exceeds the baseline spend it was measured against
+//   met          realized >= target
+//   short        realized < target, by the dollar gap stated on the card
+//
+// There is deliberately no tolerance band. The plan defines none, so inventing
+// one here would be this view's opinion presented as the plan's. Any shortfall
+// reads as a shortfall and the dollar gap carries the materiality.
+function outcomeState(action, comparison) {
+  if (comparison === null) return {
+    code: "unavailable",
+    label: "Not yet measured",
+    text: "No realized savings have been recorded for this action.",
+  };
+
+  const baseline = action?.baseline?.value;
+  const realized = action?.realizedImpact?.value;
+  if (!Number.isFinite(baseline) || !Number.isFinite(realized)) return {
+    code: "not-usable",
+    label: "Result not usable",
+    text: "The baseline spend for this action is unavailable, so the recorded result cannot be checked against it.",
+  };
+  if (realized > baseline) return {
+    code: "not-usable",
+    label: "Result not usable",
+    text: `The recorded result is larger than the ${formatUsd(baseline)} of recoverable spend it was measured against, so it cannot be read as savings. Confirm the units and the reporting period.`,
+  };
+
+  const target = usdOrUnavailable(action?.estimatedImpactUsd, "stated");
+  const gap = formatUsd(Math.abs(comparison.amountUsd));
   const percent = comparison.percent === null ? "" : ` (${Math.abs(comparison.percent)}%)`;
-  return comparison.amountUsd > 0
-    ? `${formatUsd(comparison.amountUsd)} below projection${percent}.`
-    : `${formatUsd(Math.abs(comparison.amountUsd))} above projection${percent}.`;
+  if (comparison.amountUsd > 0) return {
+    code: "short",
+    label: "Short of target",
+    text: `${gap}${percent} below the ${target} savings target.`,
+  };
+  return {
+    code: "met",
+    label: "Target met",
+    text: comparison.amountUsd === 0
+      ? `Matched the ${target} savings target exactly.`
+      : `${gap}${percent} above the ${target} savings target.`,
+  };
 }
+
+const OUTCOME_MARKS = Object.freeze({
+  short: "↓", met: "✓", "not-usable": "!", unavailable: "—",
+});
 
 export function renderPortfolioCard(portfolio, action) {
   const item = element("li", "portfolio-card");
   item.dataset.state = action.status;
 
-  const heading = element("div", "portfolio-card-heading");
+  const article = element("article", "portfolio-card-content");
   const rank = Number.isFinite(action.priorityRank)
     ? String(action.priorityRank).padStart(2, "0") : "--";
+  const heading = element("header", "portfolio-card-heading");
   heading.append(
     element("p", "portfolio-rank",
       `Priority ${rank} · ${safeText(action.departmentName, "Department unavailable")}`),
-    element("span", "portfolio-state", portfolioStatusLabel(action.status)),
     element("h3", undefined, safeText(action.title, "Untitled action")),
   );
 
-  const money = element("div", "portfolio-money");
+  // The measurement period travels with the figures. A dollar amount with no
+  // period attached is the one number on this board a leader can misread by an
+  // order of magnitude without noticing.
+  const moneyBlock = element("div", "portfolio-money-block");
+  const money = element("dl", "portfolio-money");
+  const realizedUsd = action.realizedImpact?.value;
   money.append(
-    measure("Projected savings", formatUsd(action.estimatedImpactUsd)),
-    measure(action.status === "verified" ? "Verified savings" : "Completed savings",
-      action.realizedImpact ? formatUsd(action.realizedImpact.value) : "Not measured"),
+    measure("Savings target", usdOrUnavailable(action.estimatedImpactUsd)),
+    measure(action.status === "verified" ? "Verified savings" : "Realized savings",
+      Number.isFinite(realizedUsd) ? formatUsd(realizedUsd) : "Not yet measured",
+      !Number.isFinite(realizedUsd)),
+  );
+  const period = safeText(portfolio.periodFor(action.target?.periodRef)?.label, "");
+  moneyBlock.append(money, element("p", "portfolio-period",
+    period ? `Measured over ${period}.` : "Measurement period unavailable."));
+
+  const status = element("div", "portfolio-status-line");
+  status.append(
+    element("span", "portfolio-state", portfolioStatusLabel(action.status)),
+    element("span", "portfolio-confidence",
+      `Confidence · ${confidenceLabel(action.confidence)}`),
   );
 
   const next = element("p", "portfolio-next");
   next.append(element("strong", undefined, "Next action: "),
     element("span", undefined, nextStepText(action)));
 
+  // The verdict is carried by the visible words, not by the colour and not by
+  // an aria-label. An aria-label on a plain element is routinely dropped, so
+  // anything said only there is said to nobody; the mark is decoration on top
+  // of text that already reads correctly, and is hidden from the reading order.
+  const outcome = outcomeState(action, portfolio.comparison(action));
+  const comparison = element("p", "portfolio-comparison");
+  comparison.dataset.outcome = outcome.code;
+  const comparisonMark = element("span", "portfolio-comparison-mark",
+    OUTCOME_MARKS[outcome.code] ?? "—");
+  comparisonMark.setAttribute("aria-hidden", "true");
+  comparison.append(
+    comparisonMark,
+    element("strong", undefined, `Savings outcome: ${outcome.label}.`),
+    element("span", undefined, outcome.text),
+  );
+
   const details = element("details", "portfolio-details");
-  details.append(element("summary", undefined,
-    "Owner, evidence, confidence & savings comparison"));
+  const title = safeText(action.title, "Untitled action", 80);
+  const summary = element("summary", undefined, "Review owner, provenance, and evidence");
+  summary.setAttribute("aria-label", `Review owner, provenance, and evidence for ${title}`);
+  details.append(summary);
+  // Supporting evidence answers "where did this target come from?", so it shows
+  // the two spend figures the savings target is the difference between. Status,
+  // confidence, and the period are on the face of the card and are not repeated
+  // here; a disclosure that restates the summary is surface, not evidence.
   const body = element("div", "portfolio-details-body");
   const facts = element("dl", "portfolio-facts");
+  const basePeriod = safeText(portfolio.periodFor(action.baseline?.periodRef)?.label, "an unstated period");
   fact(facts, "Accountable owner", safeText(action.accountableRole, "Owner unassigned"));
-  fact(facts, "Confidence", confidenceLabel(action.confidence));
-  fact(facts, "Savings comparison", comparisonText(portfolio.comparison(action)));
-  fact(facts, "Measurement period",
-    safeText(portfolio.periodFor(action.target?.periodRef)?.label, "Period unavailable"));
+  fact(facts, "Baseline recoverable spend",
+    `${usdOrUnavailable(action.baseline?.value)} over ${basePeriod}`);
+  fact(facts, "Target recoverable spend",
+    `${usdOrUnavailable(action.target?.value)} or less over ${period || "an unstated period"}`);
 
   const evidenceList = element("ul", "portfolio-evidence");
   const records = portfolio.evidenceFor(action);
@@ -135,16 +245,20 @@ export function renderPortfolioCard(portfolio, action) {
       safeText(record.summary, "No summary retained"),
     ].join(" · ")));
 
-  body.append(facts, element("h4", undefined, "Verification evidence"), evidenceList,
-    element("p", "portfolio-provenance",
+  const provenance = element("p", "portfolio-provenance");
+  provenance.append(element("strong", undefined, "Confidence provenance: "),
+    element("span", undefined,
       safeText(action.provenance?.confidence, "Provenance unavailable")));
+  body.append(facts, element("h4", undefined, "Verification evidence"), evidenceList, provenance);
   details.append(body);
-  item.append(heading, money, next, details);
+  article.append(heading, moneyBlock, status, next, comparison, details);
+  item.append(article);
   return item;
 }
 
 export function renderPortfolioEmpty() {
-  const empty = element("li", "portfolio-empty");
+  const empty = element("li", "portfolio-message");
+  empty.dataset.state = "empty";
   empty.append(element("h3", undefined, "No matching portfolio actions"),
     element("p", undefined,
       "Change the department or lifecycle filter to see another state."));
@@ -152,12 +266,18 @@ export function renderPortfolioEmpty() {
 }
 
 export function renderPortfolioUnavailable(reason) {
-  const item = element("li", "portfolio-empty");
+  const item = element("li", "portfolio-message");
+  item.dataset.state = "error";
+  item.setAttribute("role", "alert");
   item.append(element("h3", undefined, "Portfolio unavailable"),
     element("p", undefined,
       safeText(reason, "The bundled action lifecycle could not be read.")));
   return item;
 }
+
+// There is no renderPortfolioLoading(): the loading row is served in the markup
+// so it is visible before this module runs, and the page only ever replaces it.
+// A second copy here would be user-facing copy maintained in two places.
 
 /** Departments are rebuilt from the data so a stale option cannot dead-end. */
 function fillDepartmentOptions(select, portfolio) {
@@ -193,6 +313,7 @@ export function mountFinancePortfolio(portfolio, nodes) {
       count.textContent =
         `${totals.actionCount} ${totals.actionCount === 1 ? "action" : "actions"} shown`;
     }
+    list.setAttribute("aria-busy", "false");
     list.replaceChildren(...(actions.length
       ? actions.map((action) => renderPortfolioCard(portfolio, action))
       : [renderPortfolioEmpty()]));

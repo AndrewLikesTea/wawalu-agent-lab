@@ -96,8 +96,11 @@
         <!-- The count is the only live region: it announces the result of a filter
              change without re-reading every card, which the list would do. -->
         <p class="portfolio-count" id="portfolio-count" role="status">Loading actions…</p>
-        <ol class="portfolio-list" id="portfolio-list" aria-label="Prioritized savings actions">
-          <li class="portfolio-empty">Loading the bundled action lifecycle…</li>
+        <ol class="portfolio-list" id="portfolio-list" aria-label="Prioritized savings actions" aria-busy="true">
+          <li class="portfolio-message" data-state="loading" role="status">
+            <h3>Loading action portfolio</h3>
+            <p>Savings targets and realized results will appear when the action lifecycle is ready.</p>
+          </li>
         </ol>
       </section>
 
