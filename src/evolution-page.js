@@ -22,8 +22,11 @@ import {
 } from "/finops-evaluation-view.js";
 import {
   localFinopsJsonExport, localFinopsMeetingSummary, normalizeLocalFinopsHistory,
-  parseLocalFinopsFile,
 } from "/local-finops.js";
+// One entry point for a selected file: `.json` keeps the reviewed JSON path
+// untouched, `.csv`/`.tsv`/`.txt` route through the delimited normalizer. Both
+// return the same parsed v1 envelope, so nothing below this line changes.
+import { parseLocalImportFile } from "/finops-tabular-import.js";
 import { headlineTrust } from "/finops-display.js";
 import {
   announce as announceStage, applyDatasetProvenance, applyFieldDiagnostic, applyLeadingFinding,
@@ -367,7 +370,10 @@ function mountLocalFinopsImport() {
     try {
       for (const file of files) {
         ordinal += 1;
-        const parsed = parseLocalFinopsFile(await file.text(), file.name, file.type);
+        // `file.text()` is the local Blob text API. Nothing here transfers,
+        // stores, or persists the bytes; the parsed projection lives in this
+        // closure for as long as the tab does and no longer.
+        const parsed = parseLocalImportFile(await file.text(), file.name, file.type);
         if (parsed.type === "provider")
           loaded.providers.push(parsed);
         else loaded.hris = parsed;

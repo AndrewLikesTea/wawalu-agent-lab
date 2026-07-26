@@ -1,0 +1,5 @@
+lineItem/UsageStartDate	resourceTags/user:CostCenter	lineItem/ProductCode	lineItem/UsageAmount	lineItem/UnblendedCost	lineItem/CurrencyCode
+2026-07-24T00:00:00Z	Atlas Platform	AmazonBedrock	1520	12.5	USD
+07/25/2026	Atlas Platform	AmazonBedrock	980	8.25	USD
+26/07/2026	Cinder Design	AmazonBedrock	400	3.10	USD
+Jul 27, 2026	Boreal Data Science	AmazonBedrock	220	1.05	USD

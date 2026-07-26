@@ -1,0 +1,7 @@
+Department,Parent,Unit Type,Active
+Wawalu Labs,,company,true
+Atlas Platform,Wawalu Labs,department,true
+"Boreal, Data
+Science",Wawalu Labs,department,true
+Cinder Design,Wawalu Labs,department,true
+Sunset Team,Wawalu Labs,team,false

@@ -1,0 +1,6 @@
+date,project_name,model,n_context_tokens_total,n_generated_tokens_total,amount,currency
+2026-07-24,Atlas Platform,gpt-4o-mini,120000,18000,42.55,USD
+2026-07-24,"Boreal, Data
+Science",gpt-4o,90000,12000,19.99,USD
+2026-07-25,Atlas Platform,text-embedding-3-large,240000,0,3.20,USD
+2026-07-25,Cinder Design,dall-e-3,0,0,7.05,USD

@@ -167,7 +167,22 @@ export function redactDiagnostic(text) {
 }
 
 const RECOVERY_BY_CODE = Object.freeze({
-  unsupported_format: "Select a .json export produced from the v1 compatibility manifest.",
+  unsupported_format: "Select a .json v1 export, or a .csv/.tsv provider usage export or org roster.",
+  // Delimited-import reasons. Each one names the single edit that clears it; the
+  // located row and column travel on the problem, never in this sentence.
+  empty_file: "The selected file has no rows; re-export the period and select it again.",
+  file_too_large: "Split the export into smaller periods; the size ceiling is stated in the message.",
+  too_many_rows: "Split the export into smaller periods; the row ceiling is stated in the message.",
+  malformed_quoted_field: "Re-export without editing the file by hand; a quoted field is left open.",
+  missing_required_column: "Add the named column to the export, or select the full provider export.",
+  unparseable_date: "Correct the dates in the named column, then select the file again.",
+  invalid_amount: "Correct the cost column so every row holds a non-negative amount.",
+  invalid_quantity: "Correct the usage column so every row holds a non-negative quantity.",
+  unsupported_currency: "Export one currency at a time; totals are not converted for you.",
+  malformed_row: "Correct the rows whose field count differs from the header row.",
+  missing_value: "Fill in the named column for every row, then select the file again.",
+  no_usable_rows: "No row could be normalized; check the date, org unit, and cost columns.",
+  contract_rejected: "The normalized export did not satisfy the v1 contract; report this file shape.",
   invalid_json: "Re-export the period; the file is not valid JSON.",
   unsupported_contract: "Select a v1 provider-usage or HRIS-org envelope.",
   unknown_field: "Remove the undeclared field from the source export and select the files again.",
