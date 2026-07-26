@@ -60,6 +60,28 @@
         </article>
       </section>
 
+      <section class="finops-panel gateway-panel" aria-labelledby="gateway-title">
+        <div class="gateway-heading">
+          <div class="section-heading">
+            <p class="eyebrow">Static gateway simulation</p>
+            <h2 id="gateway-title">Sampling lifecycle</h2>
+            <p>Refreshes replay reviewed, bundled contract fixtures in a fixed order. No provider, credential, or network call is used.</p>
+          </div>
+          <button class="gateway-refresh" id="gateway-refresh" type="button">Refresh sample</button>
+        </div>
+        <div class="gateway-status" id="gateway-status" data-state="pending" role="status" aria-live="polite" aria-atomic="true" aria-busy="true">
+          <p class="gateway-state"><span id="gateway-state-label">Pending</span></p>
+          <p id="gateway-state-summary">Preparing the bundled fixture simulation.</p>
+        </div>
+        <dl class="gateway-metadata" aria-label="Deterministic sampling metadata">
+          <div><dt>Source type</dt><dd id="gateway-source-type">Bundled provider contract fixture</dd></div>
+          <div><dt>Sample window</dt><dd id="gateway-sample-window">Awaiting deterministic fixture selection</dd></div>
+          <div><dt>Freshness</dt><dd id="gateway-freshness">Pending</dd></div>
+          <div><dt>Failure state</dt><dd id="gateway-failure-state">None</dd></div>
+        </dl>
+        <p class="gateway-fixture" id="gateway-fixture">Fixture selection pending · refresh 0</p>
+      </section>
+
       <section class="finops-panel" aria-labelledby="mix-title">
         <div class="section-heading">
           <p class="eyebrow">Quality engine</p>

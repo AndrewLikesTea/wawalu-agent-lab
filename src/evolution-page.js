@@ -16,6 +16,7 @@ import {
   formatIntegrationProvenance,
   loadIntegrationFixtureInspection,
 } from "/integration-contracts.js";
+import { createStaticGatewaySimulator, gatewayStateCopy } from "/static-gateway.js";
 
 const DATA_URL = "/evolution-demo-data.json";
 const CATEGORY_VARS = {
@@ -42,6 +43,32 @@ function element(tag, className, text) {
 function setText(id, text) {
   const node = document.getElementById(id);
   if (node) node.textContent = text;
+}
+
+function renderGatewayState(state) {
+  const status = document.getElementById("gateway-status");
+  const copy = gatewayStateCopy(state);
+  if (status) {
+    status.dataset.state = state.state;
+    status.setAttribute("aria-busy", String(state.state === "pending"));
+  }
+  setText("gateway-state-label", copy.label);
+  setText("gateway-state-summary", copy.summary);
+  setText("gateway-source-type", state.sourceType);
+  setText("gateway-sample-window", state.sampleWindow);
+  setText("gateway-freshness", state.freshness);
+  setText("gateway-failure-state", state.failureState);
+  setText("gateway-fixture",
+    `${state.fixture ? `Bundled fixture: ${state.fixture}` : "Fixture selection pending"} · refresh ${state.refreshNumber}`);
+}
+
+function initGatewaySimulation() {
+  const button = document.getElementById("gateway-refresh");
+  if (!button) return;
+  const gateway = createStaticGatewaySimulator();
+  const refresh = () => gateway.refresh(renderGatewayState);
+  button.addEventListener("click", refresh);
+  refresh();
 }
 
 function renderHeadline(organization, totals) {
@@ -220,6 +247,7 @@ async function loadData() {
 
 async function init() {
   if (!document.getElementById("department-rows")) return;
+  initGatewaySimulation();
   loadIntegrationFixtureInspection()
     .then((inspection) => {
       setText("integration-contract-provenance", formatIntegrationProvenance(inspection));
