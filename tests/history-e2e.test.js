@@ -15,7 +15,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { initDecisionLog, STORAGE_KEY } from "../src/app.js";
-import { initShiplogExport } from "../src/shiplog-export.js";
+import { createShiplogExport, initShiplogExport } from "../src/shiplog-export.js";
+import { initShiplogImport } from "../src/shiplog-import.js";
 import { RELEASE_STORAGE_KEY } from "../src/releases.js";
 import {
   DomEvent,
@@ -91,6 +92,7 @@ async function openHistory(t, { decisions = [], releases = [], demo = NO_DEMO_DA
   // The two module scripts src/index.html loads, in page order.
   await initDecisionLog(page.document, page.storage);
   initShiplogExport(page.document, page.storage);
+  initShiplogImport(page.document, page.storage);
   // Wait on state, not on time: the page marks itself ready once the history
   // has rendered.
   assert.equal(
@@ -463,6 +465,85 @@ test("opening a history row with Enter follows it to the record's detail page", 
     page.navigations,
     [`/decision.html?id=${SEEDED_DECISION.id}`],
     "pressing Enter on a history row did not open its detail page",
+  );
+});
+
+// Hand the page a chosen file the way the file picker would, then let the
+// module's own change handler run. Nothing here reaches the network: the
+// harness throws on an undeclared request, so a POST would fail this test.
+async function chooseImportFile(page, text) {
+  const input = page.document.querySelector("#import-shiplog-file");
+  assert.ok(input, "the history page has no import file control");
+  input.files = [{ text: async () => text }];
+  await input.dispatchEvent(new DomEvent("change", { bubbles: true }));
+  return input;
+}
+
+const importHeadline = (page) => textOf(page.document.querySelector("#import-shiplog-headline"));
+
+test("the import control is reachable by keyboard and summarises before writing", async (t) => {
+  const page = await openHistory(t, { decisions: [SEEDED_DECISION], releases: [SEEDED_RELEASE] });
+  const file = JSON.stringify(createShiplogExport({
+    getItem: () => JSON.stringify([SEEDED_PENDING_DECISION]),
+  }, { generatedAt: "2026-02-01T00:00:00.000Z" }));
+
+  // A real label/input pair, so the picker is in the document tab sequence.
+  tabTo(page, "#import-shiplog-file", "the import file control");
+  assert.ok(
+    textOf(page.document.querySelector('label[for="import-shiplog-file"]')).startsWith("Choose JSON file"),
+    "the import control has no visible label",
+  );
+
+  await chooseImportFile(page, file);
+
+  assert.equal(
+    importHeadline(page),
+    "Found 1 decision and 0 releases in this file. 1 record new, 0 already in this browser and skipped. 0 records rejected, 0 release links dropped.",
+    "the pre-commit summary does not state what would be written",
+  );
+  assert.equal(
+    textOf(page.document.querySelector("#import-shiplog-commit")),
+    "Restore 1 record",
+    "the primary action does not name the number of records it would write",
+  );
+  assert.deepEqual(
+    JSON.parse(page.storage.getItem(STORAGE_KEY)).map((decision) => decision.id),
+    [SEEDED_DECISION.id],
+    "records were written to storage before the user confirmed",
+  );
+
+  // Confirming from the keyboard writes once, and the restored record shows up
+  // in the very next export.
+  tabTo(page, "#import-shiplog-commit", "the restore button");
+  pressEnter(page.document);
+
+  assert.deepEqual(
+    JSON.parse(page.storage.getItem(STORAGE_KEY)).map((decision) => decision.id),
+    [SEEDED_DECISION.id, SEEDED_PENDING_DECISION.id],
+    "confirming the import did not restore the record",
+  );
+  assert.equal(
+    page.document.querySelector("#import-shiplog-summary").hidden,
+    true,
+    "the spent plan is still on screen",
+  );
+  assert.equal(
+    textOf(page.document.querySelector("#import-shiplog-status")),
+    "Restored 1 record. Reload to see them in your history.",
+  );
+});
+
+test("a file that is not a Shiplog export is refused as a whole and changes nothing", async (t) => {
+  const page = await openHistory(t, { decisions: [SEEDED_DECISION] });
+
+  await chooseImportFile(page, "not a shiplog file");
+
+  assert.match(importHeadline(page), /^This file could not be read as a Shiplog export\. file: expected JSON/);
+  assert.equal(page.document.querySelector("#import-shiplog-commit").hidden, true);
+  assert.deepEqual(
+    JSON.parse(page.storage.getItem(STORAGE_KEY)).map((decision) => decision.id),
+    [SEEDED_DECISION.id],
+    "an unreadable file changed stored records",
   );
 });
 
