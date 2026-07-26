@@ -154,8 +154,11 @@ export function captionFor(post) {
   return post?.caption?.trim() || post?.body?.trim() || "";
 }
 
-export function postDetailHref(id) {
-  return `/post.html?id=${encodeURIComponent(String(id ?? ""))}`;
+export function postDetailHref(id, author = "") {
+  const params = new URLSearchParams({ id: String(id ?? "") });
+  const name = String(author ?? "").trim();
+  if (name) params.set("author", name);
+  return `/post.html?${params}`;
 }
 
 export function profileHref(author) {
@@ -283,7 +286,7 @@ function renderTileMedia(image) {
 function renderTile(post, index) {
   const item = el("li", "profile-cell");
   const link = el("a", "profile-tile");
-  link.href = postDetailHref(post.id);
+  link.href = postDetailHref(post.id, post.author);
   link.dataset.postId = post.id;
 
   const figure = el("figure", "profile-figure");

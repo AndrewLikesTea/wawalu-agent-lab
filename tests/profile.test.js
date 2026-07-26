@@ -148,7 +148,8 @@ test("a tile always has a caption: the caption field, else the body", () => {
 });
 
 test("links carry ids and names through the query string, encoded", () => {
-  assert.equal(postDetailHref("a b&c"), "/post.html?id=a%20b%26c");
+  assert.equal(postDetailHref("a b&c"), "/post.html?id=a+b%26c");
+  assert.equal(postDetailHref("a b&c", "Mina O'Neil"), "/post.html?id=a+b%26c&author=Mina+O%27Neil");
   assert.equal(profileHref("Mina O'Neil"), "/profile.html?author=Mina%20O'Neil");
   assert.equal(profilePaintHref("Mina O'Neil"), "/paint/?from=profile&author=Mina+O%27Neil");
 });
@@ -174,7 +175,7 @@ test("a tile is a link to the post, named by its caption", () => {
 
   const tile = first(container, "profile-tile");
   assert.equal(tile.tagName, "A", "the whole tile is the navigation target");
-  assert.equal(tile.href, "/post.html?id=p-image");
+  assert.equal(tile.href, "/post.html?id=p-image&author=Mina");
   assert.equal(tile.dataset.postId, "p-image");
 
   // The accessible name is the caption alone — usable in a link list, where the
@@ -222,7 +223,7 @@ test("a dead image leaves the caption and the link intact", () => {
   assert.equal(first(container, "profile-media-fallback").hidden, false);
   // The tile is still a working link with a name.
   const tile = first(container, "profile-tile");
-  assert.equal(tile.href, "/post.html?id=p-image");
+  assert.equal(tile.href, "/post.html?id=p-image&author=Mina");
   assert.equal(first(tile, "profile-tile-caption").textContent, "Focus rings landed everywhere.");
 });
 

@@ -3,6 +3,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { byClass, createElement, first, ids, installDocument, tags } from "./support/dom.js";
 
 installDocument();
@@ -59,6 +60,12 @@ test("the detail view shows the image whole, with its caption and counts", () =>
   for (const id of label) assert.ok(ids(article).includes(id), `${id} must resolve inside the article`);
 });
 
+test("an image without source alt uses the visible caption as its description", () => {
+  const container = createElement("div");
+  renderPostDetail(container, { ...post, image: { ...post.image, alt: "" } });
+  assert.equal(tags(container, "IMG")[0].alt, "The middle card, ringed.");
+});
+
 test("a post with no separate caption shows its body once", () => {
   const container = createElement("div");
   renderPostDetail(container, { ...post, caption: null });
@@ -83,21 +90,33 @@ test("a dead image keeps its description rather than dropping it", () => {
 
   tags(container, "IMG")[0].dispatch("error");
   assert.equal(media.dataset.state, "error");
-  assert.equal(first(container, "detail-media-fallback").hidden, false);
-  assert.match(first(container, "detail-media-fallback").textContent, /Image unavailable: A card wrapped in a blue focus ring/);
+  const fallback = first(container, "detail-media-fallback");
+  assert.equal(fallback.hidden, false);
+  assert.equal(fallback.getAttribute("role"), "status");
+  assert.ok(ids(fallback).includes(fallback.getAttribute("aria-labelledby")));
+  assert.match(fallback.textContent, /Image unavailable.*Description: A card wrapped in a blue focus ring/);
+  const returnLink = first(fallback, "empty-action-secondary");
+  assert.equal(returnLink.tagName, "A");
+  assert.equal(returnLink.href, "/profile.html?author=Mina%20Okafor");
+  assert.equal(returnLink.getAttribute("aria-label"), "Return to Mina Okafor's profile");
 });
 
-test("a missing post and a failed lookup are different messages", () => {
+test("not-found and unavailable states are labelled and return to a profile", () => {
   const missing = createElement("div");
-  renderPostDetail(missing, null, { id: "p-gone" });
+  renderPostDetail(missing, null, { id: "p-gone", author: "Mina" });
   assert.equal(first(missing, "empty-title").textContent, "That post is not here.");
   assert.match(missing.textContent, /may have been removed/);
+  assert.equal(missing.firstChild.getAttribute("role"), "status");
+  assert.ok(ids(missing).includes(missing.firstChild.getAttribute("aria-labelledby")));
+  assert.equal(first(missing, "empty-action-secondary").href, "/profile.html?author=Mina");
 
   const failed = createElement("div");
   let retried = 0;
-  renderPostDetail(failed, null, { state: "error", id: "p-gone", onRetry: () => { retried += 1; } });
-  assert.equal(first(failed, "empty-title").textContent, "This post could not be loaded.");
-  first(failed, "empty-action").dispatch("click");
+  renderPostDetail(failed, null, { state: "error", id: "p-gone", author: "Mina", onRetry: () => { retried += 1; } });
+  assert.equal(first(failed, "empty-title").textContent, "This post is temporarily unavailable.");
+  assert.equal(failed.firstChild.getAttribute("role"), "alert");
+  assert.equal(first(failed, "empty-action-secondary").href, "/profile.html?author=Mina");
+  tags(failed, "BUTTON")[0].dispatch("click");
   assert.equal(retried, 1, "a failed load offers a retry");
 });
 
@@ -107,15 +126,27 @@ test("an id-less visit is told what the page needs", () => {
   assert.match(container.textContent, /needs a post to show/);
 });
 
-test("the loading state is busy and empty of claims", () => {
+test("the loading state is labelled, busy, and has profile recovery", () => {
   const container = createElement("div");
-  renderPostDetail(container, null, { state: "loading", id: "p-image" });
+  renderPostDetail(container, null, { state: "loading", id: "p-image", author: "Mina" });
   assert.equal(container.getAttribute("aria-busy"), "true");
+  assert.equal(first(container, "empty-title").textContent, "Loading post");
+  assert.equal(container.firstChild.getAttribute("role"), "status");
+  assert.ok(ids(container).includes(container.firstChild.getAttribute("aria-labelledby")));
+  assert.equal(first(container, "empty-action-secondary").href, "/profile.html?author=Mina");
   assert.equal(first(container, "detail-skeleton").getAttribute("aria-hidden"), "true");
-  assert.equal(byClass(container, "empty-state").length, 0, "loading never reads as 'not found'");
 });
 
 test("the document title names the post or says it is missing", () => {
   assert.match(postDetailTitle(post), /^Mina Okafor · .+ · Shiplog$/);
   assert.equal(postDetailTitle(null), "Post not found · Shiplog");
+});
+
+test("the visible back-to-profile control is the page's first focusable element", async () => {
+  const html = await readFile(new URL("../src/post.html", import.meta.url), "utf8");
+  const firstAnchor = html.indexOf("<a ");
+  const back = html.indexOf('id="post-back"');
+  assert.ok(firstAnchor >= 0 && back > firstAnchor, "the first anchor is the back control");
+  assert.match(html.slice(firstAnchor, back + 120), /class="detail-back detail-page-back"[\s\S]*aria-label="Back to profile"/);
+  assert.ok(back < html.indexOf('class="brand"'), "back precedes brand and navigation in DOM order");
 });

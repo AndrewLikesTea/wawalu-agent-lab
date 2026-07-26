@@ -30,14 +30,34 @@ function formatDateTime(iso) {
   return new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(iso));
 }
 
-function renderMedia(image) {
+function profileReturn(author) {
+  const link = el("a", "empty-action empty-action-secondary", "Return to profile");
+  link.href = profileHref(author);
+  link.setAttribute("aria-label", author ? `Return to ${author}'s profile` : "Return to profile");
+  return link;
+}
+
+function labelledState(className, title, message, author, role = "status") {
+  const state = el("div", `empty-state detail-state-message ${className}`.trim());
+  const heading = el("h2", "empty-title", title);
+  heading.id = `post-state-${className.replaceAll(" ", "-") || "message"}-title`;
+  state.setAttribute("role", role);
+  state.setAttribute("aria-labelledby", heading.id);
+  state.append(heading, el("p", undefined, message), profileReturn(author));
+  return state;
+}
+
+function renderMedia(image, author, caption) {
   const frame = el("div", "detail-media");
   frame.dataset.state = "loading";
 
   const img = document.createElement("img");
   img.className = "detail-image";
   img.src = image.src;
-  img.alt = image.alt;
+  // A detail image is content, not decoration. The API normally supplies its
+  // own description; older seed data can omit one, in which case the visible
+  // caption is the most useful truthful fallback.
+  img.alt = image.alt || caption;
   img.decoding = "async";
   if (image.width && image.height) {
     img.width = image.width;
@@ -46,7 +66,16 @@ function renderMedia(image) {
 
   // On the detail view the image is the point, so its failure note keeps the
   // description rather than discarding it with the element.
-  const fallback = el("p", "detail-media-fallback", image.alt ? `Image unavailable: ${image.alt}` : "Image unavailable.");
+  const fallback = el("div", "detail-media-fallback");
+  const fallbackTitle = el("h2", "detail-media-fallback-title", "Image unavailable");
+  fallbackTitle.id = "post-image-unavailable-title";
+  fallback.setAttribute("role", "status");
+  fallback.setAttribute("aria-labelledby", fallbackTitle.id);
+  fallback.append(
+    fallbackTitle,
+    el("p", undefined, `The post image could not be displayed. Description: ${img.alt}`),
+    profileReturn(author),
+  );
   fallback.hidden = true;
 
   const settle = (state) => {
@@ -62,22 +91,23 @@ function renderMedia(image) {
   return frame;
 }
 
-function renderMissing(container, id) {
-  const empty = el("div", "empty-state");
-  empty.append(el("p", "empty-title", "That post is not here."));
-  empty.append(el("p", undefined, id
-    ? "It may have been removed, or the link may be incomplete."
-    : "This page needs a post to show. Open one from a profile."));
-  const link = el("a", "empty-action", "Back to the team feed");
-  link.href = "/social.html";
-  empty.append(link);
-  container.append(empty);
+function renderMissing(container, id, author) {
+  container.append(labelledState(
+    "detail-state-not-found",
+    "That post is not here.",
+    id ? "It may have been removed, or the link may be incomplete." : "This page needs a post to show. Open one from a profile.",
+    author,
+  ));
 }
 
-function renderFailed(container, onRetry) {
-  const failed = el("div", "empty-state empty-state-error");
-  failed.append(el("p", "empty-title", "This post could not be loaded."));
-  failed.append(el("p", undefined, "The connection to the feed failed. The post itself is fine — try again."));
+function renderFailed(container, onRetry, author) {
+  const failed = labelledState(
+    "empty-state-error detail-state-unavailable",
+    "This post is temporarily unavailable.",
+    "The connection to the feed failed. The post may still be available — try again.",
+    author,
+    "alert",
+  );
   const retry = el("button", "empty-action", "Try again");
   retry.type = "button";
   if (onRetry) retry.addEventListener("click", onRetry);
@@ -85,22 +115,29 @@ function renderFailed(container, onRetry) {
   container.append(failed);
 }
 
-function renderLoading(container) {
+function renderLoading(container, author) {
+  const loading = labelledState(
+    "detail-state-loading",
+    "Loading post",
+    "The post image and details are loading.",
+    author,
+  );
   const skeleton = el("div", "detail-skeleton");
   skeleton.setAttribute("aria-hidden", "true");
   skeleton.append(el("div", "skeleton-line skeleton-line-short"), el("div", "skeleton-media"), el("div", "skeleton-line"));
-  container.append(skeleton);
+  loading.append(skeleton);
+  container.append(loading);
 }
 
 export function renderPostDetail(container, post, options = {}) {
-  const { state = "ready", id = "" } = options;
+  const { state = "ready", id = "", author: profileAuthor = "" } = options;
   container.replaceChildren();
   container.setAttribute("aria-busy", state === "loading" ? "true" : "false");
 
   if (!post) {
-    if (state === "loading") renderLoading(container);
-    else if (state === "error") renderFailed(container, options.onRetry);
-    else renderMissing(container, id);
+    if (state === "loading") renderLoading(container, profileAuthor);
+    else if (state === "error") renderFailed(container, options.onRetry, profileAuthor);
+    else renderMissing(container, id, profileAuthor);
     return;
   }
 
@@ -124,7 +161,7 @@ export function renderPostDetail(container, post, options = {}) {
   const caption = captionFor(post);
   if (post.image) {
     const figure = el("figure", "detail-figure");
-    figure.append(renderMedia(post.image));
+    figure.append(renderMedia(post.image, post.author, caption));
     const figcaption = el("figcaption", "detail-caption", caption);
     figcaption.id = "detail-caption";
     figure.append(figcaption);
