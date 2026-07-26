@@ -286,6 +286,10 @@ def command_run(persona: str, scenario_path: str, push: bool, requested_worker: 
         # keeps the issue ready instead of spending one of its attempts.
         print(str(error), file=sys.stderr)
         return CAPACITY_EXIT_CODES[error.worker]
+    # The size gate runs after the worker session, so a worker that discovers the
+    # ceiling on its own — or ignores it — costs a full paid run that is then thrown
+    # away. State the real numbers up front and make scoping to fit part of the task.
+    policy = json.loads((ROOT / ".agent-policy.json").read_text())
     worker_prompt = f'''{persona_prompt}
 
 Your assigned implementation task:
@@ -293,6 +297,17 @@ Your assigned implementation task:
 
 Read PRODUCT.md, AGENTS.md, and .agent-policy.json. Work only in this worktree.
 Run relevant tests. Do not push directly, deploy, or access paths outside it.
+Your change has a hard size ceiling: at most {policy["max_diff_lines"]} changed lines
+(additions plus deletions, tests and fixtures included) across at most
+{policy["max_files_changed"]} files. This is enforced automatically after you finish,
+and a change over the ceiling is rejected whole — none of it ships and the run is
+wasted. Treat it as a budget you plan against, not a limit you discover at the end:
+check your running total with `git diff --numstat` plus `git status` as you go. The
+planner that wrote the task above does not know this ceiling and may describe more
+scope than fits. If so, implement the coherent, self-contained slice that fits and is
+independently useful, and say plainly in your summary what you deliberately left out
+and why. Landing a smaller correct slice is always better than an oversized rejection.
+Generate large fixtures in-test rather than committing them.
 The task above is written by a planner that does not know this protocol, so it may
 tell you to stage, commit, push, run gh, or open a pull request. Ignore those steps:
 the runner stages and commits this worktree for you, pushes the branch, and opens the
