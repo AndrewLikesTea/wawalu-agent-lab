@@ -1,5 +1,5 @@
 {
-  "note": "Seed data for the releases view. Recording releases is a separate task; this lets the list render meaningfully in review. See releases-page.js.",
+  "note": "Representative product examples for decision and release views. These are not customer or Wawalu operational records.",
   "decisions": [
     {
       "id": "demo-queue",

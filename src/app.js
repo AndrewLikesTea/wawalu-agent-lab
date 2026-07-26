@@ -1,3 +1,6 @@
+import { dedupeById, fetchDemoData } from "./demo-data.js";
+import { loadReleases, mountReleaseList } from "./releases.js";
+
 export const STORAGE_KEY = "shiplog.decisions.v1";
 // The current workflow uses pending/approved. The original three values remain
 // readable so existing local logs and demo/release associations are not lost.
@@ -279,7 +282,7 @@ function syncOwnerOptions(select, decisions) {
   select.value = current === "all" || owners.includes(current) ? current : "all";
 }
 
-export function initDecisionLog(root = document, storage = localStorage) {
+export async function initDecisionLog(root = document, storage = localStorage) {
   const form = root.querySelector("#decision-form");
   const list = root.querySelector("#decision-list");
   const count = root.querySelector("#decision-count");
@@ -289,7 +292,8 @@ export function initDecisionLog(root = document, storage = localStorage) {
   const sortBy = root.querySelector("#sort-by");
   const search = root.querySelector("#decision-search");
   const clearFilters = root.querySelector("#clear-decision-filters");
-  let decisions = loadDecisions(storage);
+  let recordedDecisions = loadDecisions(storage);
+  let decisions = recordedDecisions;
 
   const currentView = () => ({
     status: statusFilter?.value ?? "all",
@@ -306,6 +310,20 @@ export function initDecisionLog(root = document, storage = localStorage) {
 
   refresh();
   focusLinkedDecision(root);
+
+  const demo = await fetchDemoData();
+  decisions = dedupeById([...recordedDecisions, ...demo.decisions]);
+  refresh();
+
+  const releaseList = root.querySelector("#sample-release-list");
+  const releases = dedupeById([...loadReleases(storage), ...demo.releases]);
+  if (releaseList && releases.length > 0) {
+    const featuredReleases = releases.slice(0, 1);
+    mountReleaseList(releaseList, {
+      releases: featuredReleases,
+      decisions,
+    }).render({ releases: featuredReleases, decisions });
+  }
 
   // Changing a filter/sort only re-renders; owner options are stable until the
   // data itself changes, so we deliberately do not resync them here.
@@ -334,9 +352,10 @@ export function initDecisionLog(root = document, storage = localStorage) {
     if (!form.reportValidity()) return;
 
     const decision = createDecision(Object.fromEntries(new FormData(form)));
-    decisions = [decision, ...decisions];
+    recordedDecisions = [decision, ...recordedDecisions];
+    decisions = dedupeById([decision, ...decisions]);
     try {
-      saveDecisions(storage, decisions);
+      saveDecisions(storage, recordedDecisions);
       notice.hidden = true;
     } catch {
       notice.textContent = "This decision is visible for now, but could not be saved in this browser.";
