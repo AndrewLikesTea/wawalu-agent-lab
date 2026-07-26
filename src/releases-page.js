@@ -2,7 +2,7 @@
 // releases-data.js (shared with the detail view); this layer only binds the
 // composed data to the DOM so releases.js stays reusable and unit-testable.
 
-import { focusRelease, mountReleaseList } from "/releases.js";
+import { focusRelease, mountReleaseList, renderReleaseListState } from "/releases.js";
 import { loadReleaseData } from "/releases-data.js";
 
 async function init() {
@@ -12,7 +12,21 @@ async function init() {
   const status = document.querySelector("#release-status");
   if (!container) return;
 
-  const { decisions, releases } = await loadReleaseData(localStorage);
+  container.setAttribute("aria-busy", "true");
+  let data;
+  try {
+    data = await loadReleaseData(localStorage);
+  } catch {
+    renderReleaseListState(container, "error");
+    if (count) count.textContent = "Unavailable";
+    return;
+  }
+  const { decisions, releases, unavailable } = data;
+  if (unavailable && releases.length === 0) {
+    renderReleaseListState(container, "error");
+    if (count) count.textContent = "Unavailable";
+    return;
+  }
 
   const view = mountReleaseList(container, { releases, decisions });
   const update = () => {

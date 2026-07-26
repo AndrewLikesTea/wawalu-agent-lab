@@ -132,7 +132,12 @@
           </div>
           <p class="hint decision-filter-hint" id="decision-filter-hint">Search updates as you type. Use ↑ and ↓ to move between decisions, Home and End to jump, and Enter to open details.</p>
           <p class="notice" id="storage-notice" role="status" hidden></p>
-          <div id="decision-list"></div>
+          <div id="decision-list" aria-live="polite" aria-busy="true">
+            <div class="list-state list-state-loading" role="status">
+              <h3>Loading decisions</h3>
+              <p>Building your decision history…</p>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -145,7 +150,12 @@
           <a class="release-detail-link" href="/releases.html">View release history <span aria-hidden="true">→</span></a>
         </div>
         <p class="hint release-hint">This example uses the same release model and linked decision records as the full release history. Expand it to inspect the associated decisions.</p>
-        <div id="sample-release-list"></div>
+        <div id="sample-release-list" aria-live="polite" aria-busy="true">
+          <div class="list-state list-state-loading" role="status">
+            <h3>Loading release</h3>
+            <p>Finding the latest release…</p>
+          </div>
+        </div>
       </section>
     </main>
     <script type="module" src="/app.js"></script>

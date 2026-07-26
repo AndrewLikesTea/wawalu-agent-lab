@@ -3,14 +3,15 @@
 export async function fetchDemoData() {
   try {
     const response = await fetch("/releases-demo-data.json", { cache: "no-store" });
-    if (!response.ok) return { decisions: [], releases: [] };
+    if (!response.ok) return { decisions: [], releases: [], unavailable: true };
     const data = await response.json();
     return {
       decisions: Array.isArray(data.decisions) ? data.decisions : [],
       releases: Array.isArray(data.releases) ? data.releases : [],
+      unavailable: false,
     };
   } catch {
-    return { decisions: [], releases: [] };
+    return { decisions: [], releases: [], unavailable: true };
   }
 }
 

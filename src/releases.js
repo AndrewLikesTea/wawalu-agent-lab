@@ -241,6 +241,13 @@ function formatDate(iso) {
   return new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(new Date(iso));
 }
 
+function labelledValue(label, value, className = "") {
+  const pair = el("span", `meta-pair ${className}`.trim());
+  pair.append(el("span", "meta-label", `${label}:`));
+  pair.append(el("span", "meta-value", value));
+  return pair;
+}
+
 function renderReleaseBody(release) {
   const body = el("div", "release-body");
 
@@ -257,14 +264,14 @@ function renderReleaseBody(release) {
   const list = el("ol", "release-decisions");
   for (const decision of release.decisions) {
     const row = el("li", "release-decision");
-    row.append(el("span", `badge badge-${decision.status}`, decision.status));
+    row.append(labelledValue("Status", decision.status, `badge badge-${decision.status}`));
     row.append(el("span", "release-decision-title", decision.title));
-    if (decision.owner) row.append(el("span", "release-decision-owner", decision.owner));
+    if (decision.owner) row.append(labelledValue("Owner", decision.owner, "release-decision-owner"));
     list.append(row);
   }
   for (const id of release.missingIds) {
     const row = el("li", "release-decision release-decision-missing");
-    row.append(el("span", "badge badge-missing", "missing"));
+    row.append(labelledValue("Status", "missing", "badge badge-missing"));
     const label = el("span", "release-decision-title");
     label.append(document.createTextNode("Linked decision "));
     label.append(el("code", undefined, id));
@@ -302,11 +309,14 @@ function renderReleaseItem(release, index, expanded = false) {
 
   const info = el("span", "release-info");
   info.append(el("span", "release-version", releaseTitle(release)));
-  info.append(el("span", `badge badge-release-${releaseStatus(release)}`, releaseStatus(release)));
+  info.append(labelledValue("Status", releaseStatus(release), `badge badge-release-${releaseStatus(release)}`));
   const time = el("time", "date", formatDate(release.createdAt));
   time.dateTime = release.createdAt;
-  info.append(time);
-  info.append(el("span", "release-summary", statusSummaryText(release)));
+  const datePair = el("span", "meta-pair date");
+  datePair.append(el("span", "meta-label", "Released:"));
+  datePair.append(time);
+  info.append(datePair);
+  info.append(labelledValue("Decisions", statusSummaryText(release), "release-summary"));
 
   const chevron = el("span", "release-chevron");
   chevron.setAttribute("aria-hidden", "true");
@@ -327,14 +337,10 @@ function renderReleaseItem(release, index, expanded = false) {
 
 export function renderReleaseList(container, resolvedReleases, options = {}) {
   container.replaceChildren();
+  container.setAttribute("aria-busy", "false");
 
   if (resolvedReleases.length === 0) {
-    const empty = el("div", "empty-state");
-    empty.append(el("p", "empty-title", options.filtered ? "No matching releases." : "No releases yet."));
-    empty.append(el("p", undefined, options.filtered
-      ? "Try a different search or status filter."
-      : "Record a release and link the decisions behind it to build a shipping history."));
-    container.append(empty);
+    renderReleaseListState(container, "empty", { filtered: options.filtered });
     return;
   }
 
@@ -344,6 +350,24 @@ export function renderReleaseList(container, resolvedReleases, options = {}) {
     list.append(renderReleaseItem(release, index, expandedIds.has(release.id)));
   });
   container.append(list);
+}
+
+export function renderReleaseListState(container, state, options = {}) {
+  container.replaceChildren();
+  container.setAttribute("aria-busy", String(state === "loading"));
+  const panel = el("div", `list-state list-state-${state}`);
+  panel.setAttribute("role", state === "error" ? "alert" : "status");
+  const noun = options.singular ? "release" : "releases";
+  const copy = {
+    loading: [`Loading ${noun}`, `Finding ${options.singular ? "the latest release" : "your shipping history"}…`],
+    error: [`${options.singular ? "Release" : "Releases"} could not be loaded`, "Try reloading this page. Your saved records have not been changed."],
+    empty: options.filtered
+      ? ["No matching releases", "Try a different search or status filter."]
+      : ["No releases yet", "Record a release and link the decisions behind it to build a shipping history."],
+  }[state];
+  panel.append(el("h3", undefined, copy[0]));
+  panel.append(el("p", undefined, copy[1]));
+  container.append(panel);
 }
 
 function focusToggle(toggles, index) {
