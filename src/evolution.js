@@ -184,6 +184,52 @@ export function evidenceForDepartment(evidence = [], departmentId) {
     .filter((item) => item?.departmentId === departmentId);
 }
 
+const ACTION_STATUSES = new Set(["planned", "in_progress", "completed", "unavailable"]);
+
+/**
+ * Normalize the one reviewed intervention attached to a department.
+ *
+ * The demo never invents an outcome from spend data. Missing or malformed
+ * action records become explicitly unavailable, and realized savings are only
+ * exposed for a completed simulation that supplied a finite value.
+ */
+export function actionPlanFor(department = {}) {
+  const source = department.actionPlan;
+  if (!source || !ACTION_STATUSES.has(source.status)) {
+    return {
+      available: false,
+      status: "unavailable",
+      statusLabel: "Result unavailable",
+      reason: source?.unavailableReason || "No reviewed intervention is included in this static fixture.",
+      realizedSavingsUsd: null,
+    };
+  }
+  if (source.status === "unavailable") {
+    return {
+      available: false,
+      status: "unavailable",
+      statusLabel: "Result unavailable",
+      reason: source.unavailableReason || "The static fixture has no eligible action result.",
+      realizedSavingsUsd: null,
+    };
+  }
+  const realized = Number(source.realizedSavingsUsd);
+  return {
+    ...source,
+    available: true,
+    statusLabel: {
+      planned: "Planned",
+      in_progress: "In progress",
+      completed: "Simulation completed",
+    }[source.status],
+    baselineUsd: Math.max(0, Number(source.baselineUsd) || 0),
+    targetUsd: Math.max(0, Number(source.targetUsd) || 0),
+    estimatedSavingsUsd: Math.max(0, Number(source.estimatedSavingsUsd) || 0),
+    realizedSavingsUsd: source.status === "completed" && Number.isFinite(realized)
+      ? Math.max(0, realized) : null,
+  };
+}
+
 /**
  * Departments needing help are available samples ordered by lowest performance,
  * then greatest recoverable spend, then source order. Unavailable samples follow

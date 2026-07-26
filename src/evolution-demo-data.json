@@ -45,6 +45,7 @@
       "periodDays": 31,
       "previousPeriod": {"period":"25 May–24 Jun 2026","spendUsd":49800,"score":84},
       "sampling": {"status":"available","sampledQueries":620,"sampledThrough":"2026-07-25","freshnessLabel":"current through period end"},
+      "actionPlan": {"status":"completed","title":"Block personal-use traffic from the enterprise plan","rationale":"Out-of-scope use is the department’s largest fully recoverable line, so routing policy has a clearer return than broad coaching.","impact":"Recover 9–10% of monthly department spend","confidence":"High · direct category-to-policy match","accountableRole":"AI Platform product owner","provenance":"Synthetic policy simulation v1 · bundled 25 Jul 2026","baselineUsd":5214,"targetUsd":0,"estimatedSavingsUsd":5214,"realizedSavingsUsd":4870,"diagnosis":"10% of scored spend is out-of-scope; acceptable-use routing directly removes that diagnosed leakage from the enterprise plan."},
       "peerPercentile": 91,
       "mix": {
         "highValue": 0.76,
@@ -67,6 +68,7 @@
       "periodDays": 31,
       "previousPeriod": {"period":"25 May–24 Jun 2026","spendUsd":38600,"score":71},
       "sampling": {"status":"available","sampledQueries":760,"sampledThrough":"2026-07-25","freshnessLabel":"current through period end"},
+      "actionPlan": {"status":"in_progress","title":"Route short, low-context requests to the standard model","rationale":"Over-provisioning is the largest recoverable cost line and can be addressed at the gateway without changing productive workflows.","impact":"Reduce monthly spend by an estimated 12.6%","confidence":"High · 760-query scored sample","accountableRole":"Core Services platform director","provenance":"Synthetic recommendation fixture · rubric literacy-mix/1.0.0","baselineUsd":7430,"targetUsd":2230,"estimatedSavingsUsd":5200,"diagnosis":"18% of spend used frontier capacity for simple work; a bounded routing rule targets that category while leaving high-value prompts unchanged."},
       "peerPercentile": 74,
       "mix": {
         "highValue": 0.61,
@@ -89,6 +91,7 @@
       "periodDays": 31,
       "previousPeriod": {"period":"25 May–24 Jun 2026","spendUsd":26100,"score":74},
       "sampling": {"status":"available","sampledQueries":480,"sampledThrough":"2026-07-24","freshnessLabel":"1-day reporting lag"},
+      "actionPlan": {"status":"planned","title":"Run retry-reduction clinics with frontend tech leads","rationale":"Repeated repair prompts are the department’s largest recoverable behavior and need shared diagnosis and acceptance-criteria patterns.","impact":"Reduce inefficient retry spend by 40%","confidence":"Medium · one-day lag and 480-query sample","accountableRole":"Frontend engineering enablement lead","provenance":"Synthetic recommendation fixture · rubric literacy-mix/1.0.0","baselineUsd":8685,"targetUsd":5211,"estimatedSavingsUsd":3474,"diagnosis":"30% of spend is classified as inefficient; targeted practice addresses the missing-state and unverified-answer pattern shown in the retained evidence."},
       "peerPercentile": 42,
       "mix": {
         "highValue": 0.5,
@@ -111,6 +114,7 @@
       "periodDays": 31,
       "previousPeriod": {"period":"25 May–24 Jun 2026","spendUsd":20500,"score":79},
       "sampling": {"status":"available","sampledQueries":350,"sampledThrough":"2026-07-25","freshnessLabel":"current through period end"},
+      "actionPlan": {"status":"planned","title":"Add a standard-model default for one-step transformations","rationale":"A narrow routing default addresses the largest recoverable line without constraining complex incident-response work.","impact":"Reduce monthly spend by an estimated 9.8%","confidence":"Medium · 350-query scored sample","accountableRole":"Infrastructure AI service owner","provenance":"Synthetic recommendation fixture · rubric literacy-mix/1.0.0","baselineUsd":2782,"targetUsd":835,"estimatedSavingsUsd":1947,"diagnosis":"14% of spend is over-provisioned; the retained sample shows a one-line transformation routed to a frontier model."},
       "peerPercentile": 68,
       "mix": {
         "highValue": 0.66,
@@ -133,6 +137,7 @@
       "periodDays": 31,
       "previousPeriod": {"period":"25 May–24 Jun 2026","spendUsd":14900,"score":68},
       "sampling": {"status":"available","sampledQueries":230,"sampledThrough":"2026-07-23","freshnessLabel":"2-day reporting lag"},
+      "actionPlan": {"status":"planned","title":"Pilot complexity-based model routing for build-support prompts","rationale":"Over-provisioned traffic is the largest recoverable line, but the reporting lag makes a limited pilot more truthful than a broad rollout.","impact":"Reduce monthly spend by an estimated 15.4%","confidence":"Medium-low · 230-query sample with two-day lag","accountableRole":"Mobile developer productivity lead","provenance":"Synthetic recommendation fixture · rubric literacy-mix/1.0.0","baselineUsd":3392,"targetUsd":1018,"estimatedSavingsUsd":2374,"diagnosis":"22% of spend is over-provisioned; a limited routing pilot tests the diagnosed opportunity before expanding it."},
       "peerPercentile": 55,
       "mix": {
         "highValue": 0.53,
@@ -155,6 +160,7 @@
       "periodDays": 31,
       "previousPeriod": {"period":"25 May–24 Jun 2026","spendUsd":9800,"score":69},
       "sampling": {"status":"available","sampledQueries":180,"sampledThrough":"2026-07-25","freshnessLabel":"current through period end"},
+      "actionPlan": {"status":"completed","title":"Down-route routine formatting and release-note transforms","rationale":"Over-provisioning is the largest recoverable line, and the retained evidence identifies a safe, specific routing boundary.","impact":"Recover about one fifth of monthly department spend","confidence":"Medium · 180-query sample","accountableRole":"Release engineering manager","provenance":"Synthetic routing simulation v1 · bundled 25 Jul 2026","baselineUsd":3484,"targetUsd":1045,"estimatedSavingsUsd":2439,"realizedSavingsUsd":2196,"diagnosis":"31% of spend is over-provisioned; the sampled formatting task is directly addressable with a cheaper-model routing rule."},
       "peerPercentile": 23,
       "mix": {
         "highValue": 0.39,
@@ -177,6 +183,7 @@
       "periodDays": 31,
       "previousPeriod": {"period":"25 May–24 Jun 2026","spendUsd":9300,"score":78},
       "sampling": {"status":"unavailable","sampledQueries":0,"sampledThrough":null,"freshnessLabel":"unavailable","reason":"The synthetic provider export omitted sampling metadata for this department."},
+      "actionPlan": {"status":"unavailable","unavailableReason":"No intervention was produced because the static provider fixture omitted eligible sampling metadata."},
       "peerPercentile": 77,
       "mix": {
         "highValue": 0.69,
