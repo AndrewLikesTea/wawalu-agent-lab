@@ -22,8 +22,9 @@ import {
 } from "/finops-evaluation-view.js";
 import {
   localFinopsJsonExport, localFinopsMeetingSummary, normalizeLocalFinopsHistory,
-  parseLocalFinopsFile,
 } from "/local-finops.js";
+import { formatBytes, groupDigits, importLimitsSentence } from "/finops-import-core.js";
+import { startFinopsImport } from "/finops-import-runner.js";
 import { headlineTrust } from "/finops-display.js";
 import {
   announce as announceStage, applyDatasetProvenance, applyFieldDiagnostic, applyLeadingFinding,
@@ -102,7 +103,19 @@ function mountLocalFinopsImport() {
   const stateNode = document.getElementById("local-import-state");
   const resultsNode = document.getElementById("local-results");
   const clear = document.getElementById("clear-local-analysis");
+  const progressNode = document.getElementById("local-import-progress");
+  const progressBar = document.getElementById("local-import-progress-bar");
+  const cancelButton = document.getElementById("local-import-cancel");
+  // `loaded` now holds per-file *headers* — kind, record count, period, byte
+  // size — and never a record array. Parsing happens on a worker thread and only
+  // headers and aggregates come back, so the page has nothing row-shaped to hold.
   const loaded = { providers: [] };
+  // The accepted selection is kept as File handles, not as parsed documents: a
+  // handle is a lazy pointer at the disk, so adding an HRIS mapping to an
+  // already-accepted provider period re-runs the whole set through the same
+  // worker instead of keeping a quarter-million rows alive between clicks.
+  let accepted = [];
+  let running = null;
   let result = null;
   // One flag decides everything the reader is told about where these numbers
   // came from: the badge, the metric basis, every provenance note, and the two
@@ -150,6 +163,38 @@ function mountLocalFinopsImport() {
   // non-example word.
   const showTransientBasis = (mode) =>
     showMetricBasis({ mode: exampleActive ? "example-dataset" : mode });
+
+  // Progress is painted into an ordinary element, never into the polite status
+  // region: a live region repeated once per megabyte would talk over the reader
+  // for the whole import. The status region still owns start, end, and failure.
+  const paintProgress = ({ phase, bytesRead = 0, totalBytes = 0, rowsProcessed = 0, fileOrdinal = 0, fileCount = 0 }) => {
+    if (progressBar) {
+      if (totalBytes > 0) progressBar.value = Math.min(100, Math.round((bytesRead / totalBytes) * 100));
+      else progressBar.removeAttribute("value");
+    }
+    const scope = fileCount > 1 ? `File ${fileOrdinal} of ${fileCount} · ` : "";
+    const read = totalBytes > 0
+      ? `${formatBytes(bytesRead)} of ${formatBytes(totalBytes)} read`
+      : `${formatBytes(bytesRead)} read`;
+    const step = phase === "aggregating" ? "Reconciling"
+      : phase === "reading" ? "Reading" : "Validating";
+    setText("local-import-progress-text",
+      `${scope}${step} · ${read} · `
+      + `${groupDigits(rowsProcessed)} record${rowsProcessed === 1 ? "" : "s"} parsed`);
+  };
+  const beginProgress = () => {
+    if (progressBar) progressBar.value = 0;
+    setText("local-import-progress-text", "Starting · 0.0 MB read · 0 records parsed");
+    if (cancelButton) cancelButton.disabled = false;
+    if (progressNode) progressNode.hidden = false;
+  };
+  // One exit for every ending — success, refusal, cancel, and the unexpected.
+  // The panel is left in a state a second import can start from immediately.
+  const endProgress = () => {
+    if (progressNode) progressNode.hidden = true;
+    if (cancelButton) cancelButton.disabled = false;
+    if (progressBar) progressBar.value = 0;
+  };
   const departmentFacts = (department) => {
     const trend = department.trendAvailable
       ? `${department.spendChangePercent > 0 ? "↑ Increase " : department.spendChangePercent < 0 ? "↓ Decrease " : "→ No change "}`
@@ -212,7 +257,7 @@ function mountLocalFinopsImport() {
       list?.append(element("li", "evidence-empty",
         "No department findings. No active HRIS unit matched a provider aggregate."));
   };
-  const renderResult = (next, { example = false, inputs = loaded } = {}) => {
+  const renderResult = (next, { example = false, inputs = null, verdict = null } = {}) => {
     result = next;
     exampleActive = example;
     resultsNode.setAttribute("aria-busy", "false");
@@ -251,12 +296,14 @@ function mountLocalFinopsImport() {
       joinedRecords: next.quality.joinedRecords,
     });
     // Whether the number is trustworthy is answered before the finding built on
-    // it. The verdict reads the parsed rows and roster the import already holds,
-    // plus the export ids reconciliation quarantined; it keeps no state of its
-    // own and does not re-parse anything.
-    applyTrustVerdict(document, trustVerdict({
-      providers: inputs.providers ?? [],
-      hris: inputs.hris ?? null,
+    // it. For an imported file the verdict arrives already computed, beside the
+    // envelope, from the same worker pass over the same reconciled rows — the
+    // page never holds those rows, so it could not recompute it here. The
+    // bundled example still has its documents in hand and computes it inline;
+    // both produce the identical structure, so nothing below this line branches.
+    applyTrustVerdict(document, verdict ?? trustVerdict({
+      providers: inputs?.providers ?? [],
+      hris: inputs?.hris ?? null,
       quarantinedExportIds: next.validation?.quarantinedExportIds ?? [],
     }));
     // The landing surface. It is drawn from the same envelope for example data
@@ -314,8 +361,14 @@ function mountLocalFinopsImport() {
   };
   const reset = () => {
     const wasExample = exampleActive;
+    // A discard during a running import stops it too; leaving a worker chewing
+    // through a file whose result has already been thrown away is the stuck
+    // spinner this control exists to prevent.
+    running?.cancel();
+    accepted = [];
     loaded.providers.length = 0;
     delete loaded.hris;
+    endProgress();
     result = null;
     exampleActive = false;
     input.value = "";
@@ -355,42 +408,66 @@ function mountLocalFinopsImport() {
     syncStage({ focus: true });
   };
 
+  // The ceiling is stated up front, from the constants that enforce it, so a
+  // reader learns the limit before choosing a file rather than after reading it.
+  setText("local-import-limits", importLimitsSentence());
+
   input.addEventListener("change", async () => {
-    const files = [...input.files];
-    if (!files.length) return;
+    const chosen = [...input.files];
+    if (!chosen.length) return;
+    // One import at a time. A second selection mid-parse would race two workers
+    // for the same panel, and the later result could overwrite the earlier.
+    if (running) {
+      input.value = "";
+      announce("loading", "An import is already running.",
+        "Cancel it first, or wait for it to finish, then select the next files.");
+      return;
+    }
+    const candidate = [...accepted, ...chosen];
     stateNode.setAttribute("aria-busy", "true");
     resultsNode.setAttribute("aria-busy", "true");
     applyFieldDiagnostic(document, null);
     announce("loading", "Reading files in this tab…",
-      "Parsing and validation are running locally; no file contents are being transferred.");
-    let ordinal = 0;
+      "Parsing and validation run on a background thread in this tab; no file contents are "
+      + "being transferred, and the import can be cancelled at any time.");
+    beginProgress();
+    const run = startFinopsImport(candidate, { onProgress: paintProgress });
+    running = run;
+    let outcome;
     try {
-      for (const file of files) {
-        ordinal += 1;
-        const parsed = parseLocalFinopsFile(await file.text(), file.name, file.type);
-        if (parsed.type === "provider")
-          loaded.providers.push(parsed);
-        else loaded.hris = parsed;
-      }
-      if (!loaded.providers.length || !loaded.hris) {
-        const missing = loaded.providers.length ? "HRIS mapping" : "provider export";
-        showTransientBasis("partial");
-        syncStage({ focus: true });
-        announce("ready", `${files.length} compatible file${files.length === 1 ? "" : "s"} ready.`,
-          `Add the ${missing}; example analysis remains visible.`);
-        return;
-      }
-      renderResult(normalizeLocalFinopsHistory({
-        providers: loaded.providers,
-        hris: loaded.hris,
-      }));
-    } catch (error) {
+      outcome = await run.settled;
+    } finally {
+      // Everything the next import needs cleared is cleared here, on every
+      // ending: no held run, no visible progress, no busy flag, and an input
+      // that will fire `change` again for the same file.
+      running = null;
+      endProgress();
+      stateNode.setAttribute("aria-busy", "false");
+      resultsNode.setAttribute("aria-busy", "false");
+      input.value = "";
+    }
+
+    if (outcome.status === "cancelled") {
+      // Nothing from the cancelled run is kept, and nothing already accepted is
+      // lost. The panel is back where it was before the selection.
+      showTransientBasis(loaded.providers.length || loaded.hris ? "partial" : "example");
+      syncStage();
+      announce("ready", "Import cancelled.",
+        "No partial total was computed and nothing from the cancelled selection was kept. "
+        + "Select files again whenever you are ready.");
+      input.focus?.();
+      return;
+    }
+
+    if (outcome.status === "rejected") {
       // The diagnostic belongs to the control that produced it: the input goes
       // aria-invalid, the message is described-by it, and the recovery sits
       // beside it. The failing file is named by its position in the selection —
-      // never by file name, path, or any value read out of it.
+      // never by file name, path, or any value read out of it. A ceiling breach
+      // arrives here too: it is a refusal, never a truncated number.
       const diagnostic = diagnosticFor({
-        code: error?.code, message: error?.message, ordinal, total: files.length,
+        code: outcome.error.code, message: outcome.error.message,
+        ordinal: outcome.error.ordinal, total: outcome.error.total,
       });
       applyFieldDiagnostic(document, diagnostic);
       showTransientBasis("failed");
@@ -398,11 +475,35 @@ function mountLocalFinopsImport() {
       announce("error", "This file was not analyzed.",
         `${diagnostic.text} ${diagnostic.recovery} Existing analysis was not replaced.`);
       input.focus?.();
-    } finally {
-      stateNode.setAttribute("aria-busy", "false");
-      resultsNode.setAttribute("aria-busy", "false");
-      input.value = "";
+      return;
     }
+
+    // The run stands. Only headers are retained — the record arrays stayed on
+    // the worker and were released there.
+    accepted = candidate;
+    loaded.providers.length = 0;
+    loaded.providers.push(...outcome.headers.filter((header) => header.type === "provider"));
+    const hrisHeader = outcome.headers.find((header) => header.type === "hris");
+    if (hrisHeader) loaded.hris = hrisHeader;
+    else delete loaded.hris;
+
+    if (outcome.status === "incomplete") {
+      const missing = outcome.providers ? "HRIS mapping" : "provider export";
+      showTransientBasis("partial");
+      syncStage({ focus: true });
+      announce("ready", `${candidate.length} compatible file${candidate.length === 1 ? "" : "s"} ready.`,
+        `Add the ${missing}; example analysis remains visible.`);
+      return;
+    }
+    renderResult(outcome.analysis, { verdict: outcome.verdict });
+  });
+  // Cancel terminates the worker rather than asking it to stop, so the promise
+  // settles even mid-parse. The button disables itself so a second click cannot
+  // arrive against an already-settled run.
+  cancelButton?.addEventListener("click", () => {
+    if (!running) return;
+    cancelButton.disabled = true;
+    running.cancel();
   });
   clear?.addEventListener("click", reset);
   // One click, one computed finding. Translating the bundled export and running

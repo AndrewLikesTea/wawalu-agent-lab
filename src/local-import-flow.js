@@ -176,6 +176,11 @@ const RECOVERY_BY_CODE = Object.freeze({
   record_outside_period: "Re-export so every record falls inside the declared period.",
   malformed_period: "Correct period_start and period_end, then select the files again.",
   incompatible_source: "Select periods from one source instance, or analyze each source separately.",
+  // The two import ceilings. Both refuse the whole import: a truncated read
+  // would produce a total that looks complete and is not.
+  file_too_large: "Re-export the period in smaller slices, then select the slices together.",
+  too_many_rows: "Import fewer periods at a time; each period can be analyzed on its own.",
+  worker_failed: "Select the files again; nothing from the interrupted read was kept.",
 });
 
 const DEFAULT_RECOVERY = "Select a manifest-compatible v1 JSON export and try again.";

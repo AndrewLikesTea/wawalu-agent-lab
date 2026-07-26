@@ -114,6 +114,16 @@
 .import-stage[data-state="complete"] { border-color:var(--import-line); background:var(--import-wash); }
 .import-stage[data-state="remaining"] { border-style:dashed; }
 
+/* Import progress and its cancel. Present only while a parse is running; the
+   bar never ships without the sentence that says the same thing in words. */
+.local-import-progress { display:flex; align-items:center; flex-wrap:wrap; gap:10px 12px; margin-top:16px; border:1px solid var(--import-line); border-radius:9px; padding:11px 13px; background:var(--import-wash); }
+.local-import-progress[hidden] { display:none; }
+.local-import-progress progress { flex:1 1 180px; min-width:120px; height:10px; accent-color:var(--import-accent); }
+.local-import-progress #local-import-progress-text { flex:1 1 220px; color:var(--import-ink); font:700 11px/1.5 ui-monospace,monospace; }
+.local-import .local-import-cancel { flex:none; min-height:38px; margin:0; border-color:var(--import-accent); padding:7px 12px; color:var(--import-ink); font-size:12px; }
+.local-import .local-import-cancel:hover { background:#fff; }
+.import-limits { color:var(--ink-muted); font-size:11px; line-height:1.5; }
+
 /* Requirement rows — the mapping summary. Each unresolved row carries the jump
    that moves focus to the control which resolves it. */
 .mapping-requirements { display:grid; gap:8px; margin:16px 0 0; padding:0; list-style:none; }

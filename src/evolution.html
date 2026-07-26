@@ -88,6 +88,11 @@
             <label for="local-finops-files">Provider period(s) + HRIS mapping</label>
             <input id="local-finops-files" type="file" accept=".json,application/json" multiple aria-describedby="local-file-help" aria-invalid="false" />
             <p id="local-file-help">Choose files together or add them in batches. Provider periods must use the same source; all processing and state stay in this tab.</p>
+            <!-- The ceiling is stated before a file is chosen, not discovered
+                 after a long read. The sentence is written by evolution-page.js
+                 from the constants in finops-import-core.js so the number shown
+                 and the number enforced cannot drift. -->
+            <p class="import-limits" id="local-import-limits"></p>
             <p class="field-error" id="local-file-error" hidden></p>
             <div class="field-recovery" id="local-file-recovery" hidden>
               <button class="field-recovery-action" id="local-file-repick" type="button">Choose files again</button>
@@ -99,6 +104,15 @@
                confirm step — a second dataset would be a second product. -->
           <button class="local-example-action" id="try-example-dataset" type="button">Try it with example data</button>
           <button id="clear-local-analysis" type="button" hidden>Return to example data</button>
+        </div>
+        <!-- Parsing runs off the main thread, so the panel can say how far it
+             has got and can be stopped. `progress` carries the value for
+             assistive tech; the sentence beside it carries the same fact in
+             words, because nothing here is signalled by a bar alone. -->
+        <div class="local-import-progress" id="local-import-progress" hidden>
+          <progress id="local-import-progress-bar" max="100" value="0" aria-labelledby="local-import-progress-text"></progress>
+          <span id="local-import-progress-text">Preparing…</span>
+          <button class="local-import-cancel" id="local-import-cancel" type="button">Cancel import</button>
         </div>
         <ul class="mapping-requirements" id="mapping-requirements" aria-label="Required inputs and what is still unresolved"></ul>
         <div class="local-import-state" id="local-import-state" role="status" aria-live="polite">
