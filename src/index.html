@@ -78,6 +78,7 @@
             </div>
             <span class="count" id="decision-count" aria-live="polite">0 records</span>
           </div>
+          <p class="hint sample-disclosure">Includes representative example records to demonstrate Shiplog. They are not customer or internal operational data.</p>
           <div class="filters" role="search" aria-label="Search and filter decisions">
             <div class="filter decision-search-filter">
               <label for="decision-search">Search decisions</label>
@@ -114,6 +115,18 @@
           <p class="notice" id="storage-notice" role="status" hidden></p>
           <div id="decision-list"></div>
         </div>
+      </section>
+
+      <section class="list-panel release-panel-wrap" aria-labelledby="sample-releases-title">
+        <div class="section-heading list-heading">
+          <div>
+            <p class="eyebrow">Representative release</p>
+            <h2 id="sample-releases-title">See decisions move into a release</h2>
+          </div>
+          <a class="release-detail-link" href="/releases.html">View release history <span aria-hidden="true">→</span></a>
+        </div>
+        <p class="hint release-hint">This example uses the same release model and linked decision records as the full release history. Expand it to inspect the associated decisions.</p>
+        <div id="sample-release-list"></div>
       </section>
     </main>
     <script type="module" src="/app.js"></script>

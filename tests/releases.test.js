@@ -261,6 +261,9 @@ test("releases page is wired and linked from the decisions page", async () => {
     read("src/index.html"), read("src/releases.html"), read("src/releases-page.js"),
   ]);
   assert.match(home, /href="\/releases\.html"/);
+  assert.match(home, /id="sample-release-list"/);
+  assert.match(home, /Representative release/);
+  assert.match(home, /not customer or internal operational data/);
   assert.match(page, /<title>Releases · Shiplog<\/title>/);
   assert.match(page, /id="release-list"/);
   assert.match(page, /id="release-search"/);
@@ -281,6 +284,11 @@ test("releases demo seed is valid and internally consistent", async () => {
   const seed = JSON.parse(raw);
   assert.ok(Array.isArray(seed.decisions) && seed.decisions.length > 0);
   assert.ok(Array.isArray(seed.releases) && seed.releases.length > 0);
+  assert.ok(seed.decisions.some(({ title, context, owner, status }) =>
+    title && context && owner && status), "the index has a complete representative decision");
+  assert.ok(seed.releases.some(({ title, createdAt, decisionIds }) =>
+    title && !Number.isNaN(Date.parse(createdAt)) && decisionIds.length > 0),
+  "the index has a dated representative release with associated decisions");
 
   // Every seed decision must survive the same validation stored decisions do.
   // This covers the status enum, field lengths, and the new `alternatives` type.
