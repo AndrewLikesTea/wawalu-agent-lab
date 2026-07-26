@@ -75,7 +75,7 @@ test("release detail page and its wiring are present and safe", async () => {
   const [html, wiring, data] = await Promise.all([
     read("src/release.html"), read("src/release-page.js"), read("src/releases-data.js"),
   ]);
-  assert.match(html, /<title>Release · Shiplog<\/title>/);
+  assert.match(html, /<title>Releases · Shiplog<\/title>/);
   assert.match(html, /id="release-detail"/);
   assert.match(html, /src="\/release-page\.js"/);
   assert.match(wiring, /resolveReleaseDetail/);
