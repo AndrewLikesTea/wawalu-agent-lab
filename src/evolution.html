@@ -26,10 +26,10 @@
         <div class="hero-copy">
           <p class="eyebrow">AI FinOps</p>
           <h1 id="page-title">Know what your<br />AI spend is buying.</h1>
-          <p>Every prompt is scored for intent, efficiency, and model fit, then attributed to the org chart. One number tells you whether the spend is working; the rows below tell you where it is not.</p>
+          <p id="finops-intro">Every prompt is scored for intent, efficiency, and model fit, then attributed to the org chart. One number tells you whether the spend is working; the rows below tell you where it is not.</p>
           <p class="finops-provenance" id="finops-provenance">Loading organization…</p>
         </div>
-        <div class="score-card" id="score-card" aria-labelledby="score-card-title">
+        <div class="score-card" id="score-card" data-sample-analysis aria-labelledby="score-card-title">
           <p class="eyebrow" id="score-card-title">AI literacy</p>
           <p class="score-grade" id="score-grade" aria-hidden="true">–</p>
           <p class="score-value" id="score-value">Loading score…</p>
@@ -37,7 +37,75 @@
         </div>
       </section>
 
-      <section class="kpi-row" aria-label="Headline metrics">
+      <section class="local-import finops-panel" aria-labelledby="local-import-title">
+        <div class="local-import-heading">
+          <div class="section-heading">
+            <p class="eyebrow">Bring your own exports · browser only</p>
+            <h2 id="local-import-title">Analyze provider spend without uploading it.</h2>
+            <p>Select one manifest-compatible provider export and one HRIS mapping. Both must be UTF-8 JSON v1 contract envelopes; CSV, spreadsheets, NDJSON, and unknown fields are refused.</p>
+          </div>
+          <span class="sample-badge" id="analysis-mode">Sample mode</span>
+        </div>
+        <div class="privacy-boundary" role="note" aria-label="Local processing privacy boundary">
+          <strong>Your files do not leave this tab.</strong>
+          <span>No upload · no credentials · no network transfer · no browser storage · results disappear on refresh.</span>
+        </div>
+        <div class="local-import-controls">
+          <div>
+            <label for="local-finops-files">Provider export + HRIS mapping</label>
+            <input id="local-finops-files" type="file" accept=".json,application/json" multiple aria-describedby="local-file-help" />
+            <p id="local-file-help">Choose both files together or add them one at a time. A valid pair replaces the sample analysis below.</p>
+          </div>
+          <button id="clear-local-analysis" type="button" hidden>Return to sample</button>
+        </div>
+        <div class="local-import-state" id="local-import-state" role="status" aria-live="polite">
+          <strong>Ready for local files.</strong>
+          <span>The bundled synthetic analysis remains visible until both compatible exports are ready.</span>
+        </div>
+
+        <section class="local-results" id="local-results" aria-labelledby="local-results-title" hidden>
+          <div class="local-result-heading">
+            <div>
+              <p class="eyebrow">Imported result</p>
+              <h3 id="local-results-title">Local FinOps decision brief</h3>
+            </div>
+            <div class="local-export-actions" aria-label="Export imported analysis">
+              <button id="export-local-json" type="button">Export JSON</button>
+              <button id="export-local-summary" type="button">Meeting summary</button>
+            </div>
+          </div>
+          <div class="local-kpis" aria-label="Imported headline results">
+            <div><span>Recoverable scenario</span><strong id="local-recoverable">—</strong></div>
+            <div><span>Ranked department</span><strong id="local-department">—</strong></div>
+            <div><span>Confidence</span><strong id="local-confidence">—</strong></div>
+          </div>
+          <article class="local-priority">
+            <p class="eyebrow">Priority 01 · next action</p>
+            <h4 id="local-action">Waiting for a supported pair…</h4>
+            <p id="local-provenance"></p>
+          </article>
+          <div class="local-disclosures">
+            <details>
+              <summary>Mapping assumptions</summary>
+              <ul id="local-assumptions"></ul>
+            </details>
+            <details>
+              <summary>Data-quality warnings <span id="local-warning-count"></span></summary>
+              <ul id="local-warnings"></ul>
+            </details>
+            <details>
+              <summary>Benchmark and trend limits</summary>
+              <ul id="local-limits"></ul>
+            </details>
+            <details>
+              <summary>Recommendation evidence</summary>
+              <ul id="local-evidence"></ul>
+            </details>
+          </div>
+        </section>
+      </section>
+
+      <section class="kpi-row" data-sample-analysis aria-label="Headline metrics">
         <article class="kpi" id="kpi-spend">
           <p class="kpi-label">AI spend · period</p>
           <p class="kpi-value" id="kpi-spend-value">–</p>
@@ -60,7 +128,7 @@
         </article>
       </section>
 
-      <section class="finops-panel portfolio-panel" aria-labelledby="portfolio-title">
+      <section class="finops-panel portfolio-panel" data-sample-analysis aria-labelledby="portfolio-title">
         <div class="portfolio-intro">
           <div class="section-heading">
             <p class="eyebrow">Finance leader action portfolio</p>
@@ -104,7 +172,7 @@
         </ol>
       </section>
 
-      <section class="finops-panel" aria-labelledby="evaluation-title">
+      <section class="finops-panel" data-sample-analysis aria-labelledby="evaluation-title">
         <div class="section-heading">
           <p class="eyebrow">Defensible evaluation · static fixture</p>
           <h2 id="evaluation-title">Inspect how a recommendation earns its score.</h2>
@@ -120,7 +188,7 @@
         </div>
       </section>
 
-      <section class="finops-panel decision-panel" aria-labelledby="department-title">
+      <section class="finops-panel decision-panel" data-sample-analysis aria-labelledby="department-title">
         <!-- Legacy coverage marker: the visible <label for="department-sort">Rank by</label>
              control was deliberately removed because intervention priority is metric-defined. -->
         <div class="section-heading">
@@ -189,7 +257,7 @@
         </div>
       </section>
 
-      <section class="finops-panel" aria-labelledby="mix-title">
+      <section class="finops-panel" data-sample-analysis aria-labelledby="mix-title">
         <div class="section-heading">
           <p class="eyebrow">Quality engine</p>
           <h2 id="mix-title">Where the money goes</h2>
