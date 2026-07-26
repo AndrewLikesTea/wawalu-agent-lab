@@ -206,6 +206,30 @@ test("the AI FinOps page exposes labelled loading and keyboard-native recovery",
   assert.match(styles, /\.sample-badge[^}]*background:transparent/);
 });
 
+test("the AI FinOps proof point is immediate, explicit, and linked to its evidence", async () => {
+  const [page, script, styles] = await Promise.all([
+    read("src/evolution.html"), read("src/evolution-page.js"), read("src/evolution.css"),
+  ]);
+  const proofPoint = page.slice(page.indexOf('<article class="proof-point"'),
+    page.indexOf('<section class="local-import'));
+
+  assert.match(proofPoint, /aria-labelledby="proof-point-title"/);
+  assert.match(proofPoint, /Monthly baseline[\s\S]*\$7,430/);
+  assert.match(proofPoint, /Projected savings[\s\S]*\$5,200 \/ month/);
+  assert.match(proofPoint, /Accountable role[\s\S]*Core Services platform director/);
+  assert.match(proofPoint, /Confidence[\s\S]*High · 760-query scored sample/);
+  assert.match(proofPoint, /Bundled synthetic sample data/);
+  assert.match(proofPoint, /not live analysis, customer data, or realized savings/i);
+  assert.match(proofPoint, /href="#recommendation-evidence"/);
+  assert.match(page, /id="recommendation-evidence"[\s\S]*aria-labelledby="evaluation-title"/);
+
+  // The useful example is authored in HTML before any organization or portfolio
+  // request starts, and therefore cannot be erased by either async failure path.
+  assert.doesNotMatch(script, /proof-point/);
+  assert.ok(page.indexOf('<article class="proof-point"') < page.indexOf('id="finops-load-state"'));
+  assert.match(styles, /@media\(max-width:640px\)[\s\S]*\.proof-point-facts\s*\{\s*grid-template-columns:1fr/);
+});
+
 test("every page in the site carries the AI FinOps tab", async () => {
   for (const page of ["index.html", "social.html", "releases.html", "decision.html", "release.html", "agents.html"])
     assert.match(await read(`src/${page}`), /href="\/evolution\.html"/, `${page} must link the AI FinOps tab`);
