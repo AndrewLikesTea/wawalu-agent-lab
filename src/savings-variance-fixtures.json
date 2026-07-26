@@ -1,0 +1,103 @@
+{
+  "schemaVersion": "savings-variance-fixtures/1.0.0",
+  "provenance": "Hand-authored synthetic reconciliation records using invented roles, identifiers, dates, and amounts only.",
+  "cases": [
+    {
+      "fixtureId": "verified-delivery",
+      "expectedStatus": "verified_delivery",
+      "expectedConfidenceLevel": "high",
+      "explanation": "The verified result is 4% below plan, inside the documented 5% tolerance.",
+      "reconciliation": {
+        "actionId": "syn-verified-delivery",
+        "title": "Synthetic verified delivery",
+        "accountableOwner": {"role": "Synthetic Delivery Lead"},
+        "department": {"id": "synthetic-alpha", "name": "Synthetic Alpha", "accountableOwner": {"role": "Synthetic Alpha Director"}},
+        "lifecycleState": "verified",
+        "lifecycleTransitions": [
+          {"state": "planned", "transitionedDate": "2026-01-01"},
+          {"state": "in-progress", "transitionedDate": "2026-01-02"},
+          {"state": "completed", "transitionedDate": "2026-02-01"},
+          {"state": "verified", "transitionedDate": "2026-02-02"}
+        ],
+        "projectedSavingsUsd": 10000,
+        "completedSavingsUsd": 9600,
+        "verifiedSavingsUsd": 9600,
+        "verificationEvidence": [{"evidenceId": "syn-evidence-delivery", "description": "Synthetic equal-period comparison."}],
+        "confidence": 0.9,
+        "updatedDate": "2026-02-02"
+      }
+    },
+    {
+      "fixtureId": "material-shortfall",
+      "expectedStatus": "material_shortfall",
+      "expectedConfidenceLevel": "moderate",
+      "explanation": "The verified result is 20% below plan, beyond the $500 tolerance.",
+      "reconciliation": {
+        "actionId": "syn-material-shortfall",
+        "title": "Synthetic material shortfall",
+        "accountableOwner": {"role": "Synthetic Delivery Lead"},
+        "department": {"id": "synthetic-beta", "name": "Synthetic Beta", "accountableOwner": {"role": "Synthetic Beta Director"}},
+        "lifecycleState": "verified",
+        "lifecycleTransitions": [
+          {"state": "planned", "transitionedDate": "2026-01-01"},
+          {"state": "in-progress", "transitionedDate": "2026-01-02"},
+          {"state": "completed", "transitionedDate": "2026-02-01"},
+          {"state": "verified", "transitionedDate": "2026-02-02"}
+        ],
+        "projectedSavingsUsd": 10000,
+        "completedSavingsUsd": 8000,
+        "verifiedSavingsUsd": 8000,
+        "verificationEvidence": [{"evidenceId": "syn-evidence-shortfall", "description": "Synthetic equal-period comparison."}],
+        "confidence": 0.8,
+        "updatedDate": "2026-02-02"
+      }
+    },
+    {
+      "fixtureId": "ambiguous-variance",
+      "expectedStatus": "ambiguous_variance",
+      "expectedConfidenceLevel": "limited",
+      "explanation": "A completed value is visible but remains unverified, so its variance cannot become an executive claim.",
+      "reconciliation": {
+        "actionId": "syn-ambiguous-variance",
+        "title": "Synthetic ambiguous variance",
+        "accountableOwner": {"role": "Synthetic Delivery Lead"},
+        "department": {"id": "synthetic-gamma", "name": "Synthetic Gamma", "accountableOwner": {"role": "Synthetic Gamma Director"}},
+        "lifecycleState": "completed",
+        "lifecycleTransitions": [
+          {"state": "planned", "transitionedDate": "2026-01-01"},
+          {"state": "in-progress", "transitionedDate": "2026-01-02"},
+          {"state": "completed", "transitionedDate": "2026-02-01"}
+        ],
+        "projectedSavingsUsd": 10000,
+        "completedSavingsUsd": 9900,
+        "verifiedSavingsUsd": null,
+        "verificationEvidence": [],
+        "confidence": 0.9,
+        "updatedDate": "2026-02-01"
+      }
+    },
+    {
+      "fixtureId": "unavailable-measurement",
+      "expectedStatus": "unavailable_measurement",
+      "expectedConfidenceLevel": "unavailable",
+      "explanation": "The action has no completed value, and missing measurement must remain unavailable rather than zero.",
+      "reconciliation": {
+        "actionId": "syn-unavailable-measurement",
+        "title": "Synthetic unavailable measurement",
+        "accountableOwner": {"role": "Synthetic Delivery Lead"},
+        "department": {"id": "synthetic-delta", "name": "Synthetic Delta", "accountableOwner": {"role": "Synthetic Delta Director"}},
+        "lifecycleState": "in-progress",
+        "lifecycleTransitions": [
+          {"state": "planned", "transitionedDate": "2026-01-01"},
+          {"state": "in-progress", "transitionedDate": "2026-01-02"}
+        ],
+        "projectedSavingsUsd": 10000,
+        "completedSavingsUsd": null,
+        "verifiedSavingsUsd": null,
+        "verificationEvidence": [],
+        "confidence": 0.9,
+        "updatedDate": "2026-01-02"
+      }
+    }
+  ]
+}
