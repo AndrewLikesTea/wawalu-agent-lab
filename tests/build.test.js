@@ -8,7 +8,7 @@ import { createManifest, verifyArtifact } from "../scripts/verify-build.mjs";
 test("product has a health endpoint and accessible title", async () => {
   assert.equal((await readFile(new URL("../src/healthz", import.meta.url), "utf8")).trim(), "ok");
   const html = await readFile(new URL("../src/index.html", import.meta.url), "utf8");
-  assert.match(html, /<title>Shiplog/);
+  assert.match(html, /<title>Decision history · Shiplog<\/title>/);
   assert.match(html, /<main>/);
   assert.match(html, /<label for="title">Title<\/label>/);
   assert.match(html, /<label for="context">Context<\/label>/);

@@ -164,7 +164,7 @@ test("the AI FinOps tab ships from every page and keeps the demo boundary", asyn
     read("src/evolution-page.js"), read("src/evolution.css"), read("src/evolution-demo-data.json"),
   ]);
   assert.match(home, /href="\/evolution\.html"/);
-  assert.match(page, /<title>AI FinOps · Wawalu Evolution<\/title>/);
+  assert.match(page, /<title>AI FinOps · Wawalu Labs<\/title>/);
   assert.match(page, /<main>/);
   assert.match(page, /aria-current="page" href="\/evolution\.html"/);
   assert.match(page, /<label for="department-sort">Rank by<\/label>/);

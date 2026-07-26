@@ -264,7 +264,7 @@ test("releases page is wired and linked from the decisions page", async () => {
   assert.match(home, /id="sample-release-list"/);
   assert.match(home, /Representative release/);
   assert.match(home, /not customer or internal operational data/);
-  assert.match(page, /<title>Releases · Shiplog<\/title>/);
+  assert.match(page, /<title>Release history · Shiplog<\/title>/);
   assert.match(page, /id="release-list"/);
   assert.match(page, /id="release-search"/);
   assert.match(page, /id="release-status"/);

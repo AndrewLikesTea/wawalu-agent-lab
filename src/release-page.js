@@ -17,7 +17,7 @@ async function init() {
   renderReleaseDetail(container, resolved, { id });
 
   if (resolved) {
-    document.title = `${resolved.version} · Releases · Shiplog`;
+    document.title = `${resolved.version} · Release · Shiplog`;
   } else {
     document.title = "Release not found · Shiplog";
   }

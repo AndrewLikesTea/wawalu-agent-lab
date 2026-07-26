@@ -21,7 +21,7 @@ async function init() {
   // anything it does not. This avoids coupling precedence to an id-prefix guess.
   const decision = resolveDecisionDetail(detailSeeds, id) ?? resolveDecisionDetail(decisions, id);
   renderDecisionDetail(container, decision, { id });
-  document.title = decision ? `${decision.title} · Decisions · Shiplog` : "Decision not found · Shiplog";
+  document.title = decision ? `${decision.title} · Decision · Shiplog` : "Decision not found · Shiplog";
   document.documentElement.dataset.shiplogDecisionDetail = "ready";
 }
 
