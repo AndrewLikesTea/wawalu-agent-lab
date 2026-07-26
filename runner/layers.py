@@ -1,4 +1,4 @@
-"""Two-layer synthetic team: local Qwen plans/reviews, Codex or Claude executes."""
+"""Synthetic team layers: Codex/Claude plan and review; workers execute changes."""
 from __future__ import annotations
 
 import json
@@ -9,9 +9,6 @@ import shutil
 import subprocess
 import urllib.request
 from typing import Any
-
-from runner.generation_gateway import GenerationGateway
-
 
 class ConsultantCapacityExhausted(RuntimeError):
     """The consultant CLI stopped on a provider quota, not on a defect worth retrying.
@@ -25,7 +22,6 @@ class ConsultantCapacityExhausted(RuntimeError):
         self.worker = worker
 
 
-QWEN_MODEL = "qwen3-coder:30b"
 WORKERS = {"codex", "claude"}
 CAPACITY_EXIT_CODES = {"codex": 75, "claude": 76}
 # Local planner draws are cheap next to the paid consultation whose idea they decompose,
@@ -98,37 +94,55 @@ def _extract_json(raw: str) -> dict[str, Any]:
     return value
 
 
-def _qwen_transport(payload: dict[str, Any]) -> dict[str, Any]:
-    request = urllib.request.Request(
-        "http://127.0.0.1:11434/api/generate",
-        data=json.dumps(payload).encode(),
-        headers={"Content-Type": "application/json"}, method="POST",
-    )
-    with urllib.request.urlopen(request, timeout=900) as response:
-        return json.load(response)
-
-
 def qwen_json(prompt: str, output_path: pathlib.Path,
               schema: dict[str, Any]) -> dict[str, Any]:
-    payload = {"model": QWEN_MODEL, "prompt": prompt, "stream": False,
-               "think": False, "format": schema}
-    spool = os.environ.get("WAWALU_GENERATION_GATEWAY_DIR", "").strip()
-    if spool:
-        gateway = GenerationGateway(
-            pathlib.Path(spool),
-            sample_rate=float(os.environ.get("WAWALU_GENERATION_SAMPLE_RATE", "0")),
-            sample_seed=os.environ.get("WAWALU_GENERATION_SAMPLE_SEED", ""),
-            max_attempts=int(os.environ.get("WAWALU_GENERATION_MAX_ATTEMPTS", "3")),
-        )
-        request_id = gateway.enqueue(payload, operation="qwen_json")
-        if gateway.dispatch(request_id, _qwen_transport) is None:
-            raise RuntimeError(f"generation request {request_id} was claimed by another dispatcher")
-        envelope = gateway.result(request_id)["response"]
-    else:
-        envelope = _qwen_transport(payload)
-    generated = str(envelope.get("response", ""))
-    output_path.write_text(generated, encoding="utf-8")
-    return _extract_json(generated)
+    """Return structured planning output from a frontier planner.
+
+    The legacy name is retained temporarily because the runner's tests and call
+    sites use it, but it no longer calls Qwen. Codex is the primary planner and
+    Claude is the capacity fallback; both are asked to return exactly the same
+    JSON schema that the validation layer already enforces.
+    """
+    planner_prompt = f"""You are the planning and review layer for a synthetic engineering team.
+Return only one JSON object that conforms exactly to this JSON Schema. Do not use
+Markdown fences, explanations, shell commands, or tools.
+
+JSON Schema:
+{json.dumps(schema, indent=2)}
+
+Task:
+{prompt}
+"""
+    repository = pathlib.Path(__file__).resolve().parents[1]
+    preferred = os.environ.get("WAWALU_PLANNER_WORKER", "codex").strip().lower()
+    workers = [preferred] if preferred in WORKERS else ["codex"]
+    workers.extend(worker for worker in ("codex", "claude") if worker not in workers)
+    errors: list[str] = []
+    for worker in workers:
+        if worker == "codex":
+            command = ["codex", "exec", "--sandbox", "read-only", "--cd", str(repository),
+                       "--output-last-message", str(output_path), "-c", "approval_policy=never",
+                       "-c", "sandbox_workspace_write.network_access=false", planner_prompt]
+            completed = subprocess.run(command, cwd=repository, text=True, stdin=subprocess.DEVNULL,
+                                       capture_output=True, timeout=900)
+            generated = output_path.read_text(encoding="utf-8") if output_path.exists() else ""
+        else:
+            command = ["claude", "-p", "--output-format", "text", "--no-session-persistence",
+                       "--no-chrome", "--disable-slash-commands", "--setting-sources", "",
+                       "--permission-mode", "dontAsk", "--max-budget-usd", CLAUDE_BUDGET_USD["consult"],
+                       "--allowedTools", "", "--name", "wawalu-planner", planner_prompt]
+            completed = subprocess.run(command, cwd=repository, text=True, stdin=subprocess.DEVNULL,
+                                       capture_output=True, timeout=900)
+            generated = completed.stdout
+            output_path.write_text(generated, encoding="utf-8")
+        if completed.returncode == 0:
+            try:
+                return _extract_json(generated)
+            except ValueError as error:
+                errors.append(f"{worker} returned invalid planner JSON: {error}")
+                continue
+        errors.append(f"{worker} exited {completed.returncode}: {(completed.stderr or completed.stdout)[-500:]}")
+    raise RuntimeError("frontier planner failed; " + " | ".join(errors))
 
 
 def plan(persona_prompt: str, scenario: dict[str, Any], output_path: pathlib.Path,
@@ -180,6 +194,17 @@ work is Mina's, and data, export, and API work is Rowan's. Among engineers who f
 prefer the one carrying the least current work per the load line below. Do NOT default
 to Priya (staff): only assign Priya work that is genuinely architectural or
 cross-cutting. Do not invent busywork merely to equalize assignments.
+The task must move the product forward for a named user: it should ship a visible
+workflow, a decision-changing view, or trustworthy behavior that a user can inspect
+and act on. State that user and their new decision or action in the outcome. Reject
+generic “define,” “document,” “design,” or “implement infrastructure” work unless
+the same PR also ships an inspectable product surface, executable fixture, or
+integration contract consumed by the product.
+For executive or operational product surfaces, favor a decisive unified-platform
+experience: one answerable question, one material metric or benchmark, one
+prioritized next action, and evidence available through progressive disclosure.
+Do not create dashboards that treat every signal as equally urgent. Use this as
+strategy only; never copy another company's branding, claims, or visual assets.
 {utilization}Return only the requested JSON.
 {priority}
 
@@ -308,6 +333,16 @@ def propose_directive_plan(manager_prompt: str, product: str, recent_titles: lis
         "A single task must fit one reviewable PR under 2,000 changed lines, but the overall "
         "directive does not need to. Put foundations before dependent UI or integration work and "
         "include dependency expectations in outcomes or acceptance criteria. "
+        "Default to product-moving vertical slices: each task must name the user who benefits and "
+        "the new decision, workflow, or trustworthy product behavior it enables. Outcomes such as "
+        "‘define a rubric,’ ‘document a contract,’ or ‘design a system’ are insufficient by "
+        "themselves. Only propose that kind of work when the same PR ships an inspectable product "
+        "surface, executable fixture, or integration contract that the product consumes. "
+        "For executive or operational interfaces, make the outcome feel decisive: lead with one "
+        "answerable question, one material metric or benchmark, and one prioritized next action; "
+        "consolidate related signals into evidence-backed findings and put supporting detail behind "
+        "progressive disclosure. This is product strategy only—never copy another company's "
+        "branding, proprietary content, claims, or visual assets. "
         "Do not change deployment controls or access Wawalu customer data."
     )
     prompt = f"""You are the autonomous program manager for this synthetic team:

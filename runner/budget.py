@@ -4,11 +4,25 @@ from __future__ import annotations
 import datetime as dt
 import fcntl
 import json
+import os
 import pathlib
 from typing import Any
 
 
-DAILY_DIFF_LIMIT = 50
+# Volume rail on approved synthetic diffs per UTC day. This is a throughput cap, not
+# a spend cap -- per-session dollar caps live in layers.CLAUDE_BUDGET_USD. Speed mode
+# plus two concurrent runs burns the historical 50 in a few hours, which stopped the
+# fleet for the rest of the day, so the limit is configurable and the exhaustion path
+# defers runs instead of failing them.
+DAILY_DIFF_LIMIT = int(os.environ.get("WAWALU_DAILY_DIFF_LIMIT", "") or 50)
+
+
+class DiffBudgetExhausted(RuntimeError):
+    """The daily approved-diff rail is spent.
+
+    Distinct from a run defect: the run never started, so it must not consume an
+    implementation attempt or send the issue to agent-blocked.
+    """
 
 
 def _day(now: dt.datetime | None = None) -> str:
@@ -37,7 +51,7 @@ class DiffBudget:
 
     def ensure_available(self, now: dt.datetime | None = None) -> None:
         if self.count(now) >= self.limit:
-            raise RuntimeError(f"daily approved diff limit reached ({self.limit})")
+            raise DiffBudgetExhausted(f"daily approved diff limit reached ({self.limit})")
 
     def record(self, entry: dict[str, Any], now: dt.datetime | None = None) -> int:
         ledger, lock = self._paths(now)
@@ -48,7 +62,7 @@ class DiffBudget:
             fcntl.flock(handle, fcntl.LOCK_EX)
             entries = self._read(ledger)
             if len(entries) >= self.limit:
-                raise RuntimeError(f"daily approved diff limit reached ({self.limit})")
+                raise DiffBudgetExhausted(f"daily approved diff limit reached ({self.limit})")
             entries.append(entry)
             temporary = ledger.with_suffix(".tmp")
             temporary.write_text(json.dumps(entries, indent=2) + "\n", encoding="utf-8")

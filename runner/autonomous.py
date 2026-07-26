@@ -28,8 +28,8 @@ from runner.github_app import (current_token, installation_token, refresh_token,
 from runner.layers import (CAPACITY_EXIT_CODES, WORKERS, ConsultantCapacityExhausted,
                            consult_next_steps, propose_directive_plan, propose_task,
                            review_pull_request, snapshot_live_site, stakeholder_review)
-from runner.orchestrator import (PRODUCT_ROOT, REPOSITORY, checkout_lock, load_personas,
-                                 load_runtime_env, safe_slug)
+from runner.orchestrator import (BUDGET, DIFF_BUDGET_EXIT_CODE, PRODUCT_ROOT, REPOSITORY,
+                                 checkout_lock, load_personas, load_runtime_env, safe_slug)
 from runner.simulation import choose_collaborator, load_behaviors
 from scripts.check_reviewer_approval import REVIEWER_LOGINS, approved_current_head
 
@@ -351,10 +351,15 @@ class DirectiveBook:
         return next((item for item in self.read() if item.get("id") == directive_id), None)
 
     def pending(self) -> list[dict[str, Any]]:
-        return [item for item in self.read() if item.get("status") == "pending"]
+        return self._by_priority(item for item in self.read() if item.get("status") == "pending")
 
     def consumed(self) -> list[dict[str, Any]]:
-        return [item for item in self.read() if item.get("status") == "consumed"]
+        return self._by_priority(item for item in self.read() if item.get("status") == "consumed")
+
+    @staticmethod
+    def _by_priority(directives: Any) -> list[dict[str, Any]]:
+        """Return higher-priority programs first, retaining creation order for ties."""
+        return sorted(directives, key=lambda item: int(item.get("priority", 0)), reverse=True)
 
     def add(self, text: str, personas: list[str] | None = None,
             directive_id: str | None = None) -> dict[str, Any]:
@@ -1428,6 +1433,18 @@ def record_run_outcome(exit_code: int, issue: dict[str, Any], number: int, perso
         journal.emit("run_submitted", issue=number, persona=persona)
         tell("comment", lambda: comment(token, number, "submitted", "The worker completed its run and opened a reviewed pull request. If it requested merge, GitHub will deliver it after required checks."))
         tell("label", lambda: replace_state_label(token, issue, config["issue_label"], "agent-running", keep_ready=False))
+    elif exit_code == DIFF_BUDGET_EXIT_CODE:
+        # The daily diff rail, not a defect in the work: leave the issue ready and do
+        # not consume an implementation attempt, or a spent budget would blockade the
+        # whole queue by exhausting max_attempts on every issue it touches.
+        with state.mutate():
+            record = state.value["issues"].setdefault(str(number), {})
+            record.update({"status": "retry", "attempts": max(int(record.get("attempts", 1)) - 1, 0),
+                           "retry_at": (utc_now() + dt.timedelta(
+                               seconds=int(config.get("retry_cooldown_seconds", 60)))).isoformat()})
+        journal.emit("run_diff_budget_deferred", issue=number, persona=persona,
+                     approved_diffs_today=BUDGET.count(), limit=BUDGET.limit)
+        tell("label", lambda: replace_state_label(token, issue, config["issue_label"], None, keep_ready=True))
     elif exit_code in CAPACITY_WORKERS:
         exhausted = CAPACITY_WORKERS[exit_code]
         alternate = "claude" if exhausted == "codex" else "codex"
@@ -1585,6 +1602,19 @@ def start_run(issue: dict[str, Any], config: dict[str, Any], state: State, journ
     return runs.start(number, run_persona(issue), body)
 
 
+def apply_diff_limit(config: dict[str, Any]) -> int:
+    """Bind the daily approved-diff rail to config and return it.
+
+    The orchestrator runs in a child process and reads the rail from the
+    environment at import, so the value is exported here rather than passed
+    per-run: both sides of the fence then agree on one number.
+    """
+    limit = int(config.get("daily_diff_limit", BUDGET.limit))
+    BUDGET.limit = limit
+    os.environ["WAWALU_DAILY_DIFF_LIMIT"] = str(limit)
+    return limit
+
+
 def tick(config: dict[str, Any], state: State, journal: Journal, token: str | None = None,
          runs: RunRegistry | None = None) -> str:
     runs = runs if runs is not None else RunRegistry()
@@ -1613,6 +1643,10 @@ def tick(config: dict[str, Any], state: State, journal: Journal, token: str | No
     # gated, so a full team still gets its next program written and queued.
     if len(runs) >= max_concurrent_runs(config):
         return "run-slots-full"
+    # Planning above still runs; only starting work is gated, so the directive program
+    # keeps evolving while the day's diff rail is spent.
+    if apply_diff_limit(config) <= BUDGET.count():
+        return "diff-budget-exhausted"
     # A run thread may have recorded a submission since this tick began.
     state.reload()
     active = runs.active()
