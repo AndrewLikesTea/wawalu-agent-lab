@@ -70,8 +70,9 @@ button:disabled { opacity: .46; cursor: not-allowed; }
 .zoom-controls output { min-width: 52px; color: var(--muted); font-size: 12px; font-weight: 700; text-align: center; }
 .canvas-viewport { display: grid; place-items: center; min-width: 0; min-height: 0; overflow: auto; padding: clamp(18px, 4vw, 52px); }
 .canvas-frame { position: relative; width: min(100%, 900px); aspect-ratio: 3 / 2; flex: none; overflow: hidden; border: 1px solid rgb(0 0 0 / 18%); background: #fff; box-shadow: var(--shadow); }
-.canvas-frame canvas { display: block; width: 100%; height: 100%; background: #fff; }
+.canvas-frame canvas { display: block; width: 100%; height: 100%; background: #fff; touch-action: none; }
 .empty-canvas { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 7px; color: #575a54; text-align: center; pointer-events: none; }
+.empty-canvas[hidden] { display: none; }
 .empty-canvas svg { width: 48px; margin-bottom: 7px; fill: none; stroke: #8a8d86; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.5; }
 .empty-canvas strong { color: #30322f; font-size: clamp(15px, 2vw, 18px); }
 .empty-canvas span { font-size: 12px; }
@@ -87,6 +88,15 @@ button:disabled { opacity: .46; cursor: not-allowed; }
 .property-list dt, .property-list dd { margin: 0; font-size: 12px; }
 .property-list dt { color: var(--muted); }
 .property-list dd { font-weight: 650; }
+.control-grid { display: grid; gap: 12px; margin-top: 17px; }
+.control-grid label { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; align-items: center; gap: 8px; color: var(--muted); font-size: 11px; }
+.control-grid input[type="color"] { width: 38px; height: 30px; padding: 2px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface-raised); }
+.control-grid output { color: var(--text); font-size: 10px; font-variant-numeric: tabular-nums; }
+.action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+.action-grid button, .import-button { display: grid; place-items: center; min-height: 34px; padding: 7px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface-raised); color: var(--text); font: inherit; font-size: 10px; font-weight: 650; cursor: pointer; }
+.import-button input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.canvas-viewport.is-dragging { outline: 4px solid var(--accent); outline-offset: -8px; background: var(--accent-soft); }
+.canvas-toolbar p.is-error .status-dot { background: #c43b38; }
 .section-title { display: flex; align-items: center; justify-content: space-between; }
 .section-title h3 { margin: 0; }
 .section-title button { min-width: 32px; min-height: 32px; padding: 3px; }

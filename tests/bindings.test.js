@@ -57,6 +57,7 @@ test("binding inspection reports storage against the contract", () => {
     SOCIAL_MEDIA_BUCKET: "unbound",
     SOCIAL_POST_RATE_LIMIT: "unbound",
     IMAGE_UPLOAD_RATE_LIMIT: "unbound",
+    IMAGES: "unbound",
   });
   assert.equal(inspectBindings({}).storage, "unconfigured");
   // The image bucket is optional: unbound, image bytes fall back to D1, so it
@@ -71,6 +72,8 @@ test("binding inspection reports storage against the contract", () => {
   // Nor is a placeholder a usable R2 binding: it must be able to put and get.
   assert.equal(inspectBindings({ DB: db, SOCIAL_MEDIA_BUCKET: {} }).bindings.SOCIAL_MEDIA_BUCKET, "unbound");
   assert.equal(inspectBindings({ DB: db, SOCIAL_MEDIA_BUCKET: { put() {}, get() {} } }).bindings.SOCIAL_MEDIA_BUCKET, "bound");
+  assert.equal(inspectBindings({ DB: db, IMAGES: {} }).bindings.IMAGES, "unbound");
+  assert.equal(inspectBindings({ DB: db, IMAGES: { input() {} } }).bindings.IMAGES, "bound");
 });
 
 test("the public projection leaks no token, name, or principal count", () => {

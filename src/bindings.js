@@ -47,6 +47,13 @@ export const BINDING_CONTRACT = Object.freeze([
     privilege: "Plain configuration value; carries no credential.",
   }),
   Object.freeze({
+    name: "IMAGES",
+    kind: "images",
+    required: false,
+    purpose: "Stateless decode, transformation, and PNG/JPEG encoding for /api/image/export/{format}.",
+    privilege: "Transform request-scoped image bytes only; grants no D1, R2, filesystem, or account-wide storage access. The export endpoint returns 503 when absent.",
+  }),
+  Object.freeze({
     name: "SOCIAL_POST_RATE_LIMIT",
     kind: "var",
     required: false,
@@ -62,6 +69,7 @@ function isBound(value, kind) {
   // Same rule for R2: a truthy placeholder that cannot store an object must not
   // read as bound, or the health probe would call an unusable binding healthy.
   if (kind === "r2") return typeof value?.put === "function" && typeof value?.get === "function";
+  if (kind === "images") return typeof value?.input === "function";
   return value !== undefined && value !== null && String(value) !== "";
 }
 
