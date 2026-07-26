@@ -7,6 +7,7 @@ import pathlib
 import re
 import shutil
 import subprocess
+import time
 import urllib.request
 from typing import Any
 
@@ -94,6 +95,29 @@ def _extract_json(raw: str) -> dict[str, Any]:
     return value
 
 
+# A planner provider that has told us it is out of quota stays out of first
+# position for this long. Codex reports a hard "try again at <date>" limit, and
+# re-asking it first on every 30s tick spends a doomed attempt against a capped
+# account before the fallback ever runs.
+PLANNER_CAPACITY_COOLDOWN_SECONDS = 3600
+_planner_capacity: dict[str, float] = {}
+
+
+def note_planner_capacity(worker: str, now: float | None = None) -> None:
+    """Remember that ``worker`` refused a planner call for lack of quota."""
+    _planner_capacity[worker] = (time.time() if now is None else now) + PLANNER_CAPACITY_COOLDOWN_SECONDS
+
+
+def planner_order(workers: list[str], now: float | None = None) -> list[str]:
+    """Order planner providers so a quota-exhausted one is asked last, not first.
+
+    Demotion, not exclusion: if every provider is cooling down we still try them
+    all, because a stale memo must never leave the team with no planner at all.
+    """
+    moment = time.time() if now is None else now
+    return sorted(workers, key=lambda worker: _planner_capacity.get(worker, 0.0) > moment)
+
+
 def qwen_json(prompt: str, output_path: pathlib.Path,
               schema: dict[str, Any]) -> dict[str, Any]:
     """Return structured planning output from a frontier planner.
@@ -117,6 +141,7 @@ Task:
     preferred = os.environ.get("WAWALU_PLANNER_WORKER", "codex").strip().lower()
     workers = [preferred] if preferred in WORKERS else ["codex"]
     workers.extend(worker for worker in ("codex", "claude") if worker not in workers)
+    workers = planner_order(workers)
     errors: list[str] = []
     for worker in workers:
         if worker == "codex":
@@ -141,7 +166,10 @@ Task:
             except ValueError as error:
                 errors.append(f"{worker} returned invalid planner JSON: {error}")
                 continue
-        errors.append(f"{worker} exited {completed.returncode}: {(completed.stderr or completed.stdout)[-500:]}")
+        detail = (completed.stderr or completed.stdout)[-400:]
+        if _has_capacity_marker(detail):
+            note_planner_capacity(worker)
+        errors.append(f"{worker} exited {completed.returncode}: {detail}")
     raise RuntimeError("frontier planner failed; " + " | ".join(errors))
 
 
