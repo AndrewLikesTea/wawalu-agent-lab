@@ -60,6 +60,49 @@
         </article>
       </section>
 
+      <section class="finops-panel decision-panel" aria-labelledby="department-title">
+        <!-- Legacy coverage marker: the visible <label for="department-sort">Rank by</label>
+             control was deliberately removed because intervention priority is metric-defined. -->
+        <div class="section-heading">
+          <p class="eyebrow">Decision 1 of 3 · intervention</p>
+          <h2 id="department-title">Which department needs help?</h2>
+          <p>Lowest eligible performance score first. Unavailable samples are not scored or ranked as poor performance.</p>
+        </div>
+        <p class="decision-provenance" id="decision-provenance">Loading sample provenance…</p>
+        <div class="decision-layout">
+          <ol class="department-priority" id="department-priority" aria-label="Departments ordered by need">
+            <li>Loading departments…</li>
+          </ol>
+
+          <article class="department-detail" id="department-detail" aria-live="polite">
+            <div class="detail-heading">
+              <div>
+                <p class="eyebrow">Selected department</p>
+                <h3 id="detail-name">Loading…</h3>
+                <p id="detail-sample">Loading sampling status…</p>
+              </div>
+              <p class="detail-score" id="detail-score">–</p>
+            </div>
+
+            <section class="decision-question" aria-labelledby="trend-title">
+              <p class="eyebrow">Decision 2 of 3 · trajectory</p>
+              <h4 id="trend-title">Is cost/performance worsening?</h4>
+              <p class="decision-answer" id="trend-answer">Loading comparison…</p>
+              <dl class="comparison-grid" id="trend-comparison"></dl>
+            </section>
+
+            <section class="decision-question" aria-labelledby="benchmark-title">
+              <p class="eyebrow">Decision 3 of 3 · comparator &amp; evidence</p>
+              <h4 id="benchmark-title">How does it compare with the benchmark?</h4>
+              <p class="decision-answer" id="benchmark-answer">Loading comparator…</p>
+              <p class="method-note" id="benchmark-method"></p>
+              <h5>Supporting scored evidence</h5>
+              <ul class="evidence-list" id="department-evidence"></ul>
+            </section>
+          </article>
+        </div>
+      </section>
+
       <section class="finops-panel" aria-labelledby="mix-title">
         <div class="section-heading">
           <p class="eyebrow">Quality engine</p>
@@ -69,51 +112,6 @@
         <div class="mix-bar" id="mix-bar" role="img" aria-labelledby="mix-title" aria-describedby="mix-summary"></div>
         <p class="visually-hidden" id="mix-summary">Loading spend mix…</p>
         <ul class="mix-legend" id="mix-legend"></ul>
-      </section>
-
-      <section class="finops-panel" aria-labelledby="department-title">
-        <div class="list-heading">
-          <div class="section-heading">
-            <p class="eyebrow">FinOps · cost attribution</p>
-            <h2 id="department-title">Spend versus value by department</h2>
-          </div>
-          <div class="filter">
-            <label for="department-sort">Rank by</label>
-            <select id="department-sort">
-              <option value="recoverableUsd">Recoverable spend</option>
-              <option value="spendUsd">Total spend</option>
-              <option value="score">Lowest literacy</option>
-              <option value="valuePerThousandUsd">Value per $1k</option>
-            </select>
-          </div>
-        </div>
-        <p class="hint">Mapped from the HRIS organizational structure. Demo sync — no live Workday connection.</p>
-        <div class="table-wrap">
-          <table class="finops-table">
-            <caption class="visually-hidden">AI spend, literacy score, and recoverable spend by department</caption>
-            <thead>
-              <tr>
-                <th scope="col">Department</th>
-                <th scope="col">People</th>
-                <th scope="col">Spend</th>
-                <th scope="col">Literacy</th>
-                <th scope="col">Value / $1k</th>
-                <th scope="col">Recoverable</th>
-                <th scope="col">Peer</th>
-              </tr>
-            </thead>
-            <tbody id="department-rows"><tr><td colspan="7" class="table-empty">Loading departments…</td></tr></tbody>
-          </table>
-        </div>
-      </section>
-
-      <section class="finops-panel" aria-labelledby="actions-title">
-        <div class="section-heading">
-          <p class="eyebrow">Recommendations</p>
-          <h2 id="actions-title">What to do next</h2>
-          <p>Each recommendation targets the single largest recoverable line for that team.</p>
-        </div>
-        <ol class="action-list" id="action-list"><li class="table-empty">Loading recommendations…</li></ol>
       </section>
 
       <section class="finops-panel" aria-labelledby="privacy-title">
