@@ -1,0 +1,19 @@
+{
+  "schema_version": "2.0",
+  "kind": "wawalu.paint.editor-import",
+  "transfer_id": "not-a-uuid",
+  "source": {
+    "application": "paint",
+    "drawing_id": "",
+    "revision": -1,
+    "exported_at": "yesterday"
+  },
+  "asset": {
+    "id": "11111111-1111-4111-8111-111111111111",
+    "url": "https://untrusted.example/drawing.svg",
+    "content_type": "image/svg+xml",
+    "byte_size": 0,
+    "checksum_sha256": "no"
+  },
+  "canvas": { "width": 0, "height": 99999 }
+}
