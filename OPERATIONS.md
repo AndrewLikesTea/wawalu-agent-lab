@@ -90,6 +90,19 @@
 - `agent-ready` GitHub issues are the durable queue. A `persona:<role>` label
   assigns the worker; unassigned tasks fall back to the staff persona.
 - When the queue is empty, Sam may generate one bounded issue from `PRODUCT.md`.
+- Qwen generation remains synchronous by default. Setting
+  `WAWALU_GENERATION_GATEWAY_DIR` opts the manager into a private, durable local
+  file spool. Each request is atomically claimed and completed; repeated failures move to `failed/`
+  after `WAWALU_GENERATION_MAX_ATTEMPTS` (default 3). The transport must therefore
+  remain idempotent. `recover_inflight()` is an explicit operator/startup action
+  that must run only after dispatchers stop; it returns interrupted claims to
+  pending. This adds no Cloudflare or production binding.
+- `WAWALU_GENERATION_SAMPLE_RATE` (0–1, default 0) and
+  `WAWALU_GENERATION_SAMPLE_SEED` deterministically select completed requests for
+  future trend analysis. Samples retain request/model/operation/timestamps,
+  attempt count, and prompt/schema/response hashes; prompt and response content
+  remain only in the private queue record. Disable or roll back by unsetting the
+  gateway directory; the existing direct Ollama request path is unchanged.
 - Default operation is 08:00–18:00 Pacific time, at most one submitted PR per
   engineer in a rolling hour, two attempts per issue, and a 30-minute retry cooldown. Edit the ignored
   `.secrets/autonomy.json` to change those controls.
