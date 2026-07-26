@@ -40,7 +40,9 @@ PERSONA_NAMES = {"backend": "Rowan", "frontend": "Mina",
                  "infrastructure": "Ellis", "staff": "Priya",
                  "product": "Noor", "design": "Iris",
                  "evaluation": "Theo", "integrations": "Anya",
-                 "copywriter": "Jude"}
+                 "copywriter": "Jude", "graphics": "Kai",
+                 "fullstack": "Remy", "qa": "Tess",
+                 "security": "Vera", "platform": "Omar"}
 # Stakeholders speak (feedback + filed tasks) but never receive assignments or
 # run workers themselves, so they live outside PERSONA_NAMES.
 STAKEHOLDER_NAMES = {"sales": "Sasha"}
@@ -564,7 +566,8 @@ def within_persona_window(persona: str, config: dict[str, Any], now: dt.datetime
         "frontend": [10, 15], "staff": [11, 16],
         "product": [8, 13], "design": [10, 15],
         "evaluation": [9, 14], "integrations": [11, 16],
-        "copywriter": [9, 18],
+        "copywriter": [9, 18], "graphics": [9, 18], "fullstack": [10, 19],
+        "qa": [8, 17], "security": [11, 20], "platform": [8, 17],
     })
     start, end = windows.get(persona, [8, 18])
     return int(start) <= now.astimezone(PACIFIC).hour < int(end)
@@ -626,6 +629,11 @@ def ensure_labels(token: str, ready_label: str) -> None:
         "persona:evaluation": ("7d5a1f", "Assigned to Theo"),
         "persona:integrations": ("34618a", "Assigned to Anya"),
         "persona:copywriter": ("8a6d3b", "Assigned to Jude"),
+        "persona:graphics": ("b45309", "Assigned to Kai"),
+        "persona:fullstack": ("0e7490", "Assigned to Remy"),
+        "persona:qa": ("15803d", "Assigned to Tess"),
+        "persona:security": ("b91c1c", "Assigned to Vera"),
+        "persona:platform": ("4d7c0f", "Assigned to Omar"),
     }
     existing = {item["name"] for item in github(f"/repos/{REPOSITORY}/labels?per_page=100", token)}
     for name, (color, description) in labels.items():

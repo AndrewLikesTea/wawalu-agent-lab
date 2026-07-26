@@ -62,6 +62,15 @@ def choose_peer_reviewer(author: str, scenario_id: str) -> str:
         "design": ("frontend", "product"),
         "evaluation": ("backend", "staff"),
         "integrations": ("backend", "infrastructure"),
+        # The 2026-07-25 hires: copy is reviewed by the disciplines that render it,
+        # pixels by the people who consume them, tests by those they gate, security
+        # by the operators, and platform by the engineers it deploys.
+        "copywriter": ("design", "frontend"),
+        "graphics": ("frontend", "design"),
+        "fullstack": ("backend", "frontend"),
+        "qa": ("staff", "backend"),
+        "security": ("infrastructure", "backend"),
+        "platform": ("infrastructure", "staff"),
     }
     choices = complements.get(author, ("staff", "backend"))
     return stable_random("peer-review", author, scenario_id).choice(choices)
