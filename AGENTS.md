@@ -11,13 +11,20 @@ and `.agent-policy.json` before changing anything.
   The runner validates the request; protected checks still own delivery.
 - Do not access paths outside this repository.
 - Do not read `.secrets`, browser profiles, SSH keys, or unrelated credentials.
-- Do not change `.github/workflows`, `.agent-policy.json`, `CODEOWNERS`, or
-  deployment configuration. Open an issue if one of those must change.
-- You may create and migrate local SQLite databases only through
+- Do not change `.github/workflows`, `.agent-policy.json`, or `CODEOWNERS`.
+  Open an issue if one of those must change.
+- You may change `wrangler.toml` and run `wrangler`. The owner enabled this so
+  a missing binding can be fixed the same way as any other defect. Declare a
+  binding in `wrangler.toml` and let the reviewed pipeline apply it at deploy
+  time; prefer that over mutating live infrastructure by hand. Never run
+  `wrangler pages deploy` against production or use it to ship an artifact that
+  did not come through `main` — protected CI owns delivery, and bypassing it
+  puts an unreviewed build on `labs.wawalu.org`. Say so in the PR whenever a
+  change touches bindings, migrations, or anything with a production effect.
+- You may create and migrate local SQLite databases through
   `python3 -m runner.local_database`. Database names must use the
   `wawalu-agent-lab-` prefix, files remain under the ignored worktree-local
-  database directory, and migrations must come from `migrations/`. Do not run
-  `sqlite3`, `wrangler d1`, remote database commands, destructive SQL, or access
-  database files directly. This capability is for local development and tests;
-  it grants no production database or deployment access.
+  database directory, and migrations must come from `migrations/`. Prefer it
+  for ordinary development and tests: it needs no credential and cannot reach
+  production. Do not run destructive SQL or access database files directly.
 - Keep changes reviewable and report tests, risks, and remaining work.
