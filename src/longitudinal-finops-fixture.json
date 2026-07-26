@@ -1,0 +1,283 @@
+{
+  "schemaVersion": "longitudinal-finops/1.0.0",
+  "source": "hand-authored synthetic longitudinal fixture; no live provider, customer, or personnel data",
+  "records": [
+    {
+      "departmentId": "syn-dept-alpha",
+      "periodLabel": "2026-04",
+      "spendUsd": 40000,
+      "currency": "USD",
+      "provenance": {
+        "source": "bundled synthetic longitudinal fixture",
+        "derivedFromFields": [
+          "local.provider_export.cost.amount_minor",
+          "local.provider_export.snapshot.period_start",
+          "local.hris_export.org_unit_id"
+        ]
+      }
+    },
+    {
+      "departmentId": "syn-dept-alpha",
+      "periodLabel": "2026-05",
+      "spendUsd": 44000,
+      "currency": "USD",
+      "provenance": {
+        "source": "bundled synthetic longitudinal fixture",
+        "derivedFromFields": [
+          "local.provider_export.cost.amount_minor",
+          "local.provider_export.snapshot.period_start",
+          "local.hris_export.org_unit_id"
+        ]
+      }
+    },
+    {
+      "departmentId": "syn-dept-alpha",
+      "periodLabel": "2026-06",
+      "spendUsd": 48400,
+      "currency": "USD",
+      "provenance": {
+        "source": "bundled synthetic longitudinal fixture",
+        "derivedFromFields": [
+          "local.provider_export.cost.amount_minor",
+          "local.provider_export.snapshot.period_start",
+          "local.hris_export.org_unit_id"
+        ]
+      }
+    },
+    {
+      "departmentId": "syn-dept-bravo",
+      "periodLabel": "2026-04",
+      "spendUsd": 60000,
+      "currency": "USD",
+      "provenance": {
+        "source": "bundled synthetic longitudinal fixture",
+        "derivedFromFields": [
+          "local.provider_export.cost.amount_minor",
+          "local.provider_export.snapshot.period_start",
+          "local.hris_export.org_unit_id"
+        ]
+      }
+    },
+    {
+      "departmentId": "syn-dept-bravo",
+      "periodLabel": "2026-05",
+      "spendUsd": 55000,
+      "currency": "USD",
+      "provenance": {
+        "source": "bundled synthetic longitudinal fixture",
+        "derivedFromFields": [
+          "local.provider_export.cost.amount_minor",
+          "local.provider_export.snapshot.period_start",
+          "local.hris_export.org_unit_id"
+        ]
+      }
+    },
+    {
+      "departmentId": "syn-dept-bravo",
+      "periodLabel": "2026-06",
+      "spendUsd": 48400,
+      "currency": "USD",
+      "provenance": {
+        "source": "bundled synthetic longitudinal fixture",
+        "derivedFromFields": [
+          "local.provider_export.cost.amount_minor",
+          "local.provider_export.snapshot.period_start",
+          "local.hris_export.org_unit_id"
+        ]
+      }
+    },
+    {
+      "departmentId": "syn-dept-charlie",
+      "periodLabel": "2026-05",
+      "spendUsd": 12000,
+      "currency": "USD",
+      "provenance": {
+        "source": "bundled synthetic longitudinal fixture",
+        "derivedFromFields": [
+          "local.provider_export.cost.amount_minor",
+          "local.provider_export.snapshot.period_start",
+          "local.hris_export.org_unit_id"
+        ]
+      }
+    },
+    {
+      "departmentId": "syn-dept-charlie",
+      "periodLabel": "2026-06",
+      "spendUsd": 13000,
+      "currency": "USD",
+      "provenance": {
+        "source": "bundled synthetic longitudinal fixture",
+        "derivedFromFields": [
+          "local.provider_export.cost.amount_minor",
+          "local.provider_export.snapshot.period_start",
+          "local.hris_export.org_unit_id"
+        ]
+      }
+    },
+    {
+      "departmentId": "syn-dept-delta",
+      "periodLabel": "2026-04",
+      "spendUsd": 20000,
+      "currency": "USD",
+      "provenance": {
+        "source": "bundled synthetic longitudinal fixture",
+        "derivedFromFields": [
+          "local.provider_export.cost.amount_minor",
+          "local.provider_export.snapshot.period_start",
+          "local.hris_export.org_unit_id"
+        ]
+      }
+    },
+    {
+      "departmentId": "syn-dept-delta",
+      "periodLabel": "2026-06",
+      "spendUsd": 21000,
+      "currency": "USD",
+      "provenance": {
+        "source": "bundled synthetic longitudinal fixture",
+        "derivedFromFields": [
+          "local.provider_export.cost.amount_minor",
+          "local.provider_export.snapshot.period_start",
+          "local.hris_export.org_unit_id"
+        ]
+      }
+    },
+    {
+      "departmentId": "syn-dept-delta",
+      "periodLabel": "2026-07",
+      "spendUsd": 22000,
+      "currency": "USD",
+      "provenance": {
+        "source": "bundled synthetic longitudinal fixture",
+        "derivedFromFields": [
+          "local.provider_export.cost.amount_minor",
+          "local.provider_export.snapshot.period_start",
+          "local.hris_export.org_unit_id"
+        ]
+      }
+    },
+    {
+      "departmentId": "syn-dept-echo",
+      "periodLabel": "2026-04",
+      "spendUsd": 30000,
+      "currency": "USD",
+      "provenance": {
+        "source": "bundled synthetic longitudinal fixture",
+        "derivedFromFields": [
+          "local.provider_export.cost.amount_minor",
+          "local.provider_export.snapshot.period_start",
+          "local.hris_export.org_unit_id"
+        ]
+      }
+    },
+    {
+      "departmentId": "syn-dept-echo",
+      "periodLabel": "2026-05",
+      "spendUsd": null,
+      "currency": "USD",
+      "provenance": {
+        "source": "bundled synthetic longitudinal fixture",
+        "derivedFromFields": [
+          "local.provider_export.snapshot.period_start",
+          "local.hris_export.org_unit_id"
+        ]
+      }
+    },
+    {
+      "departmentId": "syn-dept-echo",
+      "periodLabel": "2026-06",
+      "spendUsd": null,
+      "currency": "USD",
+      "provenance": {
+        "source": "bundled synthetic longitudinal fixture",
+        "derivedFromFields": [
+          "local.provider_export.snapshot.period_start",
+          "local.hris_export.org_unit_id"
+        ]
+      }
+    },
+    {
+      "departmentId": "syn-dept-foxtrot",
+      "periodLabel": "2026-04",
+      "spendUsd": 15000,
+      "currency": "USD",
+      "provenance": {
+        "source": "bundled synthetic longitudinal fixture",
+        "derivedFromFields": [
+          "local.provider_export.cost.amount_minor",
+          "local.provider_export.snapshot.period_start",
+          "local.hris_export.org_unit_id"
+        ]
+      }
+    },
+    {
+      "departmentId": "syn-dept-foxtrot",
+      "periodLabel": "2026-05",
+      "spendUsd": 0,
+      "currency": "USD",
+      "provenance": {
+        "source": "bundled synthetic longitudinal fixture",
+        "derivedFromFields": [
+          "local.provider_export.cost.amount_minor",
+          "local.provider_export.snapshot.period_start",
+          "local.hris_export.org_unit_id"
+        ]
+      }
+    },
+    {
+      "departmentId": "syn-dept-foxtrot",
+      "periodLabel": "2026-06",
+      "spendUsd": 9000,
+      "currency": "USD",
+      "provenance": {
+        "source": "bundled synthetic longitudinal fixture",
+        "derivedFromFields": [
+          "local.provider_export.cost.amount_minor",
+          "local.provider_export.snapshot.period_start",
+          "local.hris_export.org_unit_id"
+        ]
+      }
+    },
+    {
+      "departmentId": "syn-dept-golf",
+      "periodLabel": "2026-04",
+      "spendUsd": 25000,
+      "currency": "USD",
+      "provenance": {
+        "source": "bundled synthetic longitudinal fixture",
+        "derivedFromFields": [
+          "local.provider_export.cost.amount_minor",
+          "local.provider_export.snapshot.period_start",
+          "local.hris_export.org_unit_id"
+        ]
+      }
+    },
+    {
+      "departmentId": "syn-dept-golf",
+      "periodLabel": "2026-05",
+      "spendUsd": 26000,
+      "currency": "USD",
+      "provenance": {
+        "source": "bundled synthetic longitudinal fixture",
+        "derivedFromFields": [
+          "local.provider_export.cost.amount_minor",
+          "local.provider_export.snapshot.period_start",
+          "local.hris_export.org_unit_id"
+        ]
+      }
+    },
+    {
+      "departmentId": "syn-dept-golf",
+      "periodLabel": "2026-06",
+      "spendUsd": 27000,
+      "currency": "USD",
+      "provenance": {
+        "source": "bundled synthetic longitudinal fixture",
+        "derivedFromFields": [
+          "local.provider_export.cost.amount_minor",
+          "local.provider_export.snapshot.period_start"
+        ]
+      }
+    }
+  ]
+}
