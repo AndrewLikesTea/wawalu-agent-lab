@@ -23,10 +23,12 @@ import {
 import {
   localFinopsJsonExport, localFinopsMeetingSummary, normalizeLocalFinops, parseLocalFinopsFile,
 } from "/local-finops.js";
+import { renderLongitudinalFinops } from "/local-finops-longitudinal-view.js";
 import { headlineTrust } from "/finops-display.js";
 
 const DATA_URL = "/evolution-demo-data.json";
 const EVALUATION_URL = "/finops-evaluation-fixtures.json";
+const LONGITUDINAL_URL = "/local-finops-longitudinal-fixture.json";
 const CATEGORY_VARS = {
   highValue: "--cat-high-value",
   overProvisioned: "--cat-over-provisioned",
@@ -505,6 +507,29 @@ async function renderEvaluationDemo() {
   target.setAttribute("aria-busy", "false");
 }
 
+async function renderLongitudinalDemo() {
+  const target = document.getElementById("longitudinal-findings");
+  if (!target) return;
+  try {
+    const response = await fetch(LONGITUDINAL_URL, {
+      cache: "no-store", headers: { accept: "application/json" },
+    });
+    if (!response.ok) throw new Error(`Longitudinal fixture returned ${response.status}`);
+    const { analysis, list } = renderLongitudinalFinops(await response.json());
+    target.replaceChildren(list);
+    const covered = analysis.provenance.coveredPeriods;
+    setText("longitudinal-provenance",
+      `${analysis.provenance.source} · periods ${covered[0].id}–${covered.at(-1).id} · fields: `
+      + `${analysis.provenance.fields.join(", ")}. ${analysis.provenance.handling}`);
+  } catch {
+    target.replaceChildren(element("li", "portfolio-message",
+      "Longitudinal findings are unavailable. No trend, benchmark, confidence, or priority was inferred."));
+    setText("longitudinal-provenance",
+      "Bundled fixture unavailable; no live source or persisted browser data was used.");
+  }
+  target.setAttribute("aria-busy", "false");
+}
+
 async function init() {
   if (!document.getElementById("department-priority")) return;
   mountLocalFinopsImport();
@@ -528,6 +553,7 @@ async function init() {
   refreshGateway?.addEventListener("click", () => gateway.refresh());
   gateway.refresh();
   renderEvaluationDemo();
+  renderLongitudinalDemo();
 
   const retryData = document.getElementById("finops-data-retry");
   retryData?.addEventListener("click", () => loadAndRender());

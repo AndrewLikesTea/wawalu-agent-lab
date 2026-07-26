@@ -137,6 +137,28 @@
         </article>
       </section>
 
+      <section class="finops-panel longitudinal-panel" data-sample-analysis
+        aria-labelledby="longitudinal-title">
+        <div class="section-heading">
+          <p class="eyebrow">Browser-local longitudinal decision brief</p>
+          <h2 id="longitudinal-title">Where is spend changing materially, and what should we do first?</h2>
+          <p>Read in priority order: change over time, eligible peer comparison, confidence, then the first action. Unsupported comparisons are stated instead of inferred.</p>
+        </div>
+        <ol id="longitudinal-findings" class="longitudinal-findings" aria-busy="true">
+          <li class="portfolio-message" role="status">Loading privacy-safe multi-period findings…</li>
+        </ol>
+        <details class="longitudinal-provenance">
+          <summary>Metric definitions and provenance</summary>
+          <p id="longitudinal-provenance">Loading covered periods, fields, and browser handling…</p>
+          <ul>
+            <li>Trend: percentage change from each period to its declared consecutive successor, using only the same metric, currency, and coverage; a zero prior value is non-comparable.</li>
+            <li>Peer benchmark: arithmetic mean of every other eligible department’s latest-period value. Eligibility requires at least two departments sharing metric, currency, period, and coverage.</li>
+            <li>Confidence: high with three consecutive comparable periods and an eligible benchmark; medium with the history but no eligible benchmark; otherwise non-comparable.</li>
+            <li>Priority: estimated latest-period excess spend descending, then confidence, then absolute latest trend magnitude.</li>
+          </ul>
+        </details>
+      </section>
+
       <section class="finops-panel portfolio-panel" data-sample-analysis aria-labelledby="portfolio-title">
         <div class="portfolio-intro">
           <div class="section-heading">
