@@ -170,10 +170,12 @@ test("decision list exposes semantic loading, empty, and error states", async ()
   const [page, source] = await Promise.all([read("src/index.html"), read("src/app.js")]);
   assert.match(page, /id="decision-list" aria-live="polite" aria-busy="true"/);
   assert.match(page, /<h3>Loading decisions<\/h3>/);
-  assert.match(page, /<h2 id="decisions-title">Decision history<\/h2>/);
+  assert.match(page, /<h2 id="decisions-title">All decisions<\/h2>/);
+  assert.match(page, /<p>Loading all decisions…<\/p>/);
   assert.match(page, /<button type="submit">Save decision<\/button>/);
   assert.match(source, /panel\.setAttribute\("role", state === "error" \? "alert" : "status"\)/);
   assert.match(source, /container\.setAttribute\("aria-busy", String\(state === "loading"\)\)/);
+  assert.match(source, /\["Loading decisions", "Loading all decisions…"\]/);
   assert.match(source, /\["No decisions yet", "Complete the Record a decision form/);
   assert.match(source, /\["No matching decisions", "Change your search or filters/);
 });
