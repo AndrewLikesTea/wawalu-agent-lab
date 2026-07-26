@@ -36,7 +36,7 @@ tenant integration key and `org-unit` namespace. Subject identifiers are never
 shared with provider exports.
 
 Consumers keep the raw document only in an encrypted quarantine area long
-enough to validate and recover (recommended maximum 7 days), then delete it.
+enough to validate and recover, with a hard maximum of 7 days, then delete it.
 Persist only allowlisted fields needed by the product. Access is least-privilege
 and audited. Backups follow the same retention/deletion policy. A tenant
 offboarding or erasure workflow deletes the integration key, raw quarantine,
@@ -94,6 +94,9 @@ Schema: [`contracts/integrations/hris-org/v1/schema.json`](../contracts/integrat
 Shared data is only pseudonymous unit identity, parent topology, a coarse unit
 type, active state, revision, and effective time. Unit labels, managers, members,
 cost centers, legal entity metadata, and all worker fields are excluded.
+The complete record allowlist is `unit_id`, `revision`, `operation`,
+`effective_at`, `parent_unit_id`, `unit_type`, and `active`; delete records omit
+the last three topology/state fields as required by the schema.
 
 Semantic validation rejects self-parenting, cycles, duplicate unit revisions
 with conflicting content, and a parent reference absent from both committed
@@ -150,6 +153,9 @@ distinct subjects before aggregation; groups below the threshold are omitted
 and counted as `group_suppressed`. Producers must apply thresholding before
 delivery. The consumer cannot accept a producer assertion as permission to
 ingest user-level rows: the fixed shape and absent subject field are mandatory.
+The complete aggregate-record allowlist is `aggregate_id`, `revision`,
+`usage_date`, `org_unit_id`, `provider`, `service_category`, `usage.quantity`,
+`usage.unit`, `cost.amount_minor`, `cost.currency`, and `cost.status`.
 
 Costs use integer minor currency units and are never floating point. Aggregates
 with different currencies are not summed. `estimated` may be replaced only by a

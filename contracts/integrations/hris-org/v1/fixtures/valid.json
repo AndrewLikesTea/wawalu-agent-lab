@@ -32,7 +32,7 @@
       "operation": "upsert",
       "effective_at": "2026-07-25T11:56:00Z",
       "parent_unit_id": "psn_unit_demo_00000001",
-      "unit_type": "team",
+      "unit_type": "department",
       "active": true
     }
   ]
