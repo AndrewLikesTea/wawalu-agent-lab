@@ -1,0 +1,4 @@
+usage_start_time,project.id,service.description,sku.description,usage.amount,usage.unit,cost,currency
+2026-06-05 00:00:00 UTC,atlas-platform,Vertex AI,"Gemini 2.0 Flash, Input Tokens",1960000,tokens,244.15,USD
+2026-06-05 00:00:00 UTC,boreal-support,Cloud Storage,Standard Storage US,742.0,gibibyte month,18.06,USD
+2026-06-06 00:00:00 UTC,quartz-data,Vertex AI,"Text Embedding, Input Tokens",3120000,tokens,31.20,USD
