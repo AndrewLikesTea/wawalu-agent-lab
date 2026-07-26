@@ -242,7 +242,12 @@ export function parseLocalFinopsFile(text, fileName = "local.json", mediaType = 
   });
 }
 
-function reconcileRecords(records, idKey, exportId) {
+/**
+ * Exported so the trust verdict can count the *same* rows the analysis counts.
+ * A second reconciliation would be a second definition of "the imported
+ * dataset", and the two would eventually disagree in front of a reader.
+ */
+export function reconcileRecords(records, idKey, exportId) {
   const revisions = new Map();
   const latest = new Map();
   const quarantine = [];

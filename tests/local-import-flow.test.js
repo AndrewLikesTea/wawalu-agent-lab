@@ -14,9 +14,11 @@ import test from "node:test";
 import { parseHtml, tabSequence, textOf } from "./support/browser.js";
 import {
   announce, applyDatasetProvenance, applyFieldDiagnostic, applyLeadingFinding, applyMetricBasis,
-  applyRequirements, applyStage, diagnosticFor, EXAMPLE_DATASET_PROVENANCE, focusStageHeading,
-  IMPORT_STAGES, importStage, mappingRequirements, metricBasis, redactDiagnostic, stageProgress,
+  applyRequirements, applyStage, applyTrustVerdict, diagnosticFor, EXAMPLE_DATASET_PROVENANCE,
+  focusStageHeading, IMPORT_STAGES, importStage, mappingRequirements, metricBasis,
+  redactDiagnostic, stageProgress,
 } from "../src/local-import-flow.js";
+import { trustVerdict } from "../src/finops-trust-verdict.js";
 
 const PAGE = new URL("../src/evolution.html", import.meta.url);
 
@@ -293,6 +295,114 @@ test("the entry action is one button beside the picker, with nothing to confirm"
   assert.equal(doc.querySelectorAll(".local-example-action").length, 1);
   const html = await readFile(PAGE, "utf8");
   assert.doesNotMatch(html, /<dialog|example-scenario|example-dataset-picker/i);
+});
+
+// --- trust verdict ---------------------------------------------------------
+
+const UNIT_A = "psn_flow_unit_alpha000001";
+const UNIT_MISSING = "psn_flow_unit_absent00002";
+
+function trustFixture(rows) {
+  return trustVerdict({
+    providers: [{
+      export_id: "flow-export",
+      snapshot: { period_start: "2026-06-01", period_end: "2026-07-01" },
+      records: rows.map((row, index) => ({
+        aggregate_id: `psn_flow_agg_${index}`,
+        revision: 0,
+        org_unit_id: row.unit,
+        cost: { amount_minor: row.minor, currency: "USD", status: "final" },
+      })),
+    }],
+    hris: {
+      export_id: "flow-hris",
+      records: [{ unit_id: UNIT_A, revision: 0, operation: "upsert", active: true }],
+    },
+  });
+}
+
+test("the trust verdict paints coverage with its numerator and denominator, never alone", async () => {
+  const doc = await page();
+  applyTrustVerdict(doc, trustFixture([
+    { unit: UNIT_A, minor: 9_000 },
+    { unit: UNIT_MISSING, minor: 1_000 },
+  ]));
+  const section = doc.getElementById("local-trust");
+  assert.equal(section.hidden, false);
+  assert.equal(section.dataset.state, "findings");
+  assert.equal(normalized(doc.getElementById("local-trust-coverage")), "90.0%");
+  const inputs = normalized(doc.getElementById("local-trust-inputs"));
+  assert.match(inputs, /90\.00 USD attributed of 100\.00 USD total/);
+  assert.match(inputs, /1 of 2 rows/);
+});
+
+test("a finding's per-row detail is built only when it is expanded", async () => {
+  const doc = await page();
+  applyTrustVerdict(doc, trustFixture([
+    { unit: UNIT_A, minor: 9_000 },
+    { unit: UNIT_MISSING, minor: 600 },
+    { unit: UNIT_MISSING, minor: 400 },
+  ]));
+  const [item] = doc.querySelectorAll(".local-trust-finding");
+  const button = item.querySelector(".local-trust-choice");
+  const panel = doc.getElementById(button.getAttribute("aria-controls"));
+  assert.equal(button.getAttribute("aria-expanded"), "false");
+  assert.equal(panel.hidden, true);
+  // Collapsed: provenance and the confidence rule only. No row list has been
+  // grouped, so a large import pays nothing for detail nobody opened.
+  assert.equal(panel.querySelectorAll(".local-trust-detail-rows").length, 0);
+  button.click();
+  assert.equal(button.getAttribute("aria-expanded"), "true");
+  assert.equal(panel.hidden, false);
+  const rows = panel.querySelectorAll("li");
+  assert.equal(rows.length, 1);
+  // The six-character tail, never the whole opaque id.
+  assert.match(normalized(rows[0]), /…t00002/);
+  assert.match(normalized(rows[0]), /10\.00 USD/);
+  // No full opaque identifier reaches the DOM, expanded or not.
+  assert.ok(!normalized(doc.getElementById("local-trust")).includes(UNIT_MISSING));
+});
+
+test("full coverage degrades to an all-clear, not to an empty shell", async () => {
+  const doc = await page();
+  applyTrustVerdict(doc, trustFixture([{ unit: UNIT_A, minor: 12_345 }]));
+  const section = doc.getElementById("local-trust");
+  assert.equal(section.dataset.state, "all_clear");
+  assert.equal(normalized(doc.getElementById("local-trust-coverage")), "100.0%");
+  assert.match(normalized(doc.getElementById("local-trust-inputs")), /123\.45 USD attributed/);
+  assert.match(normalized(doc.getElementById("local-trust-answer")), /^Yes\./);
+  // No findings section and no next action, and neither is left as a stub.
+  assert.equal(doc.getElementById("local-trust-findings-section").hidden, true);
+  assert.equal(doc.getElementById("local-trust-findings").querySelectorAll("li").length, 0);
+  assert.equal(doc.getElementById("local-trust-next").hidden, true);
+});
+
+test("the one next action links back into the step that would close the gap", async () => {
+  const doc = await page();
+  applyTrustVerdict(doc, trustFixture([
+    { unit: UNIT_A, minor: 1_000 },
+    { unit: UNIT_MISSING, minor: 9_000 },
+  ]));
+  const next = doc.getElementById("local-trust-next");
+  assert.equal(next.hidden, false);
+  // Exactly one action, never a list of them.
+  assert.equal(next.querySelectorAll(".local-trust-action").length, 1);
+  const action = doc.getElementById("local-trust-action");
+  assert.equal(action.dataset.available, "true");
+  assert.match(normalized(action), /90\.00 USD/);
+  const jump = doc.getElementById("local-trust-jump");
+  assert.equal(jump.hidden, false);
+  assert.equal(jump.dataset.step, "roster");
+  jump.click();
+  assert.equal(doc.activeElement, doc.getElementById("local-finops-files"));
+});
+
+test("an empty import shows no percentage at all", async () => {
+  const doc = await page();
+  applyTrustVerdict(doc, trustVerdict({ providers: [], hris: null }));
+  assert.equal(doc.getElementById("local-trust").dataset.state, "empty");
+  assert.equal(normalized(doc.getElementById("local-trust-coverage")), "No percentage");
+  assert.doesNotMatch(normalized(doc.getElementById("local-trust")), /100(\.0)?%/);
 });
 
 test("every surface that renders analysis numbers carries the one provenance label", async () => {

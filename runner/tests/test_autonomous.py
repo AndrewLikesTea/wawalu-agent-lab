@@ -749,7 +749,10 @@ class AutonomousTests(IsolatedDiffBudget):
                                           {"issue_label": "agent-ready"}, state, mock.Mock())
             record = state.value["issues"]["8"]
             self.assertEqual(record["status"], "requeued")
-            self.assertEqual(record["attempts"], 1)
+            # The pull reached review, so the race clears stale failures and is
+            # charged to the conflict budget instead.
+            self.assertEqual(record["attempts"], 0)
+            self.assertEqual(record["conflict_requeues"], 1)
         closed = github.call_args_list[2]
         self.assertEqual(closed.args[0], f"/repos/{REPO}/pulls/41")
         self.assertEqual(closed.args[3], {"state": "closed"})
@@ -774,11 +777,11 @@ class AutonomousTests(IsolatedDiffBudget):
         self.assertEqual(commented.args[0], f"/repos/{REPO}/issues/41/comments")
         self.assertIn("manual rebase", commented.args[3]["body"])
 
-    @mock.patch.object(autonomous, "github")
-    def test_conflict_with_exhausted_attempts_blocks_instead_of_requeueing(self, github):
+    def conflict_after(self, github, record, config):
+        """Drive a dirty agent pull through the sweep with the given history."""
         with tempfile.TemporaryDirectory() as tmp:
             state = autonomous.State(pathlib.Path(tmp) / "state.json")
-            state.value["issues"]["8"] = {"status": "submitted", "persona": "staff", "attempts": 2}
+            state.value["issues"]["8"] = {"status": "submitted", "persona": "staff", **record}
             github.side_effect = [
                 {"mergeable_state": "dirty"},
                 {"state": "open", "number": 8,
@@ -788,9 +791,26 @@ class AutonomousTests(IsolatedDiffBudget):
                 None, None,
             ]
             autonomous.update_pull_branch(dict(self.AGENT_PULL), "token",
-                                          {"issue_label": "agent-ready", "max_attempts": 2},
+                                          {"issue_label": "agent-ready", **config},
                                           state, mock.Mock())
-            self.assertEqual(state.value["issues"]["8"]["status"], "blocked")
+            return dict(state.value["issues"]["8"])
+
+    @mock.patch.object(autonomous, "github")
+    def test_conflict_after_spent_attempts_requeues_instead_of_blocking(self, github):
+        # An issue whose earlier attempts failed for unrelated reasons finally
+        # produced an approved pull and then lost the race to `main`. Blocking it
+        # here threw away finished work and waited on a human to requeue.
+        record = self.conflict_after(github, {"attempts": 2}, {"max_attempts": 2})
+        self.assertEqual(record["status"], "requeued")
+        relabeled = github.call_args_list[5]
+        self.assertIn("agent-ready", relabeled.args[3]["labels"])
+        self.assertNotIn("agent-blocked", relabeled.args[3]["labels"])
+
+    @mock.patch.object(autonomous, "github")
+    def test_repeated_conflicts_still_stop_at_their_own_budget(self, github):
+        record = self.conflict_after(github, {"attempts": 0, "conflict_requeues": 2},
+                                     {"max_conflict_requeues": 2})
+        self.assertEqual(record["status"], "blocked")
         relabeled = github.call_args_list[5]
         self.assertIn("agent-blocked", relabeled.args[3]["labels"])
         self.assertNotIn("agent-ready", relabeled.args[3]["labels"])

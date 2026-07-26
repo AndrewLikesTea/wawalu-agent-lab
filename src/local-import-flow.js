@@ -352,6 +352,131 @@ export function applyLeadingFinding(doc, finding) {
   return finding;
 }
 
+/**
+ * Paint the trust verdict: the coverage headline with its own numerator and
+ * denominator beside it, the ranked findings, and the one next action.
+ *
+ * Every string comes from the verdict model. This layer chooses no words of its
+ * own beyond the static labels already in the markup, and it never builds a
+ * finding's per-identifier detail until that finding is actually expanded — the
+ * model hands the detail over as a thunk precisely so a collapsed verdict over
+ * a large import costs nothing.
+ */
+export function applyTrustVerdict(doc, verdict) {
+  const section = byId(doc, "local-trust");
+  if (!section) return verdict;
+  section.dataset.state = verdict.state;
+  section.hidden = false;
+  const write = (id, text) => {
+    const node = byId(doc, id);
+    if (node) node.textContent = text;
+  };
+  const { headline } = verdict;
+  write("local-trust-question", verdict.question);
+  write("local-trust-coverage", headline.available ? headline.coverageText : "No percentage");
+  const coverage = byId(doc, "local-trust-coverage");
+  if (coverage) coverage.dataset.available = String(headline.available);
+  // The percentage alone is not enough to act on. Numerator, denominator, and
+  // both row counts ship with it, always, in the same line of sight.
+  write("local-trust-inputs", headline.available
+    ? `${headline.attributed} attributed of ${headline.total} total · `
+      + `${headline.attributedRows} of ${headline.totalRows} rows`
+    : `${headline.totalRows} parsed row${headline.totalRows === 1 ? "" : "s"}; no total can be shown`);
+  write("local-trust-answer", verdict.answer);
+
+  const list = byId(doc, "local-trust-findings");
+  const findingsSection = byId(doc, "local-trust-findings-section");
+  if (findingsSection) findingsSection.hidden = verdict.findings.length === 0;
+  if (list) list.replaceChildren(...verdict.findings.map((finding, index) => {
+    const item = doc.createElement("li");
+    item.className = "local-trust-finding";
+    item.dataset.finding = finding.id;
+    item.dataset.blocking = String(Boolean(finding.blocking));
+    const panelId = `local-trust-detail-${index}`;
+    const button = doc.createElement("button");
+    button.type = "button";
+    button.className = "local-trust-choice";
+    button.setAttribute("aria-expanded", "false");
+    button.setAttribute("aria-controls", panelId);
+    button.setAttribute("aria-label",
+      `Expand ${finding.title}, ${finding.impact} of spend across ${finding.rows} row${finding.rows === 1 ? "" : "s"}`);
+    button.append(
+      textNode(doc, "span", "local-trust-rank", String(index + 1).padStart(2, "0")),
+      textNode(doc, "strong", "local-trust-title", finding.title),
+      textNode(doc, "span", "local-trust-impact", finding.impact),
+      textNode(doc, "span", "local-trust-confidence", `${finding.confidence} classification`),
+    );
+    const panel = doc.createElement("div");
+    panel.id = panelId;
+    panel.className = "local-trust-detail";
+    panel.hidden = true;
+    panel.setAttribute("role", "region");
+    panel.setAttribute("aria-label", `${finding.title} detail`);
+    let built = false;
+    button.addEventListener("click", () => {
+      const expanded = button.getAttribute("aria-expanded") === "true";
+      button.setAttribute("aria-expanded", String(!expanded));
+      button.setAttribute("aria-label",
+        `${expanded ? "Expand" : "Collapse"} ${finding.title}, ${finding.impact} of spend `
+        + `across ${finding.rows} row${finding.rows === 1 ? "" : "s"}`);
+      panel.hidden = expanded;
+      if (expanded || built) return;
+      built = true;
+      const rows = doc.createElement("ol");
+      rows.className = "local-trust-detail-rows";
+      rows.replaceChildren(...finding.detail().map((group) => {
+        const row = doc.createElement("li");
+        row.append(
+          textNode(doc, "span", "local-trust-detail-label", group.label),
+          textNode(doc, "span", "local-trust-detail-rows-count",
+            `${group.rows} row${group.rows === 1 ? "" : "s"}`),
+          textNode(doc, "span", "local-trust-detail-impact", group.impact),
+        );
+        return row;
+      }));
+      panel.append(rows);
+    });
+    panel.append(
+      textNode(doc, "p", "local-trust-provenance", finding.provenance),
+      textNode(doc, "p", "local-trust-confidence-reason", finding.confidenceReason),
+    );
+    item.append(button, panel);
+    return item;
+  }));
+
+  const next = byId(doc, "local-trust-next");
+  if (next) next.hidden = !verdict.nextAction;
+  if (!verdict.nextAction) {
+    // An all-clear has no action, and a stale one left hidden in the markup is
+    // still a sentence waiting to be shown at the wrong moment.
+    write("local-trust-action", "—");
+    const cleared = byId(doc, "local-trust-jump");
+    if (cleared) cleared.hidden = true;
+  } else {
+    write("local-trust-action", verdict.nextAction.text);
+    const action = byId(doc, "local-trust-action");
+    if (action) action.dataset.available = String(verdict.nextAction.available);
+    // The action links back into the step that closes the gap. When no step in
+    // this product could close it, there is no link to offer and the sentence
+    // above already says why.
+    const jump = byId(doc, "local-trust-jump");
+    if (jump) {
+      jump.hidden = !verdict.nextAction.control;
+      jump.dataset.step = verdict.nextAction.step ?? "";
+      // The control travels on the node, and the listener is bound once, so a
+      // re-import repoints the same button instead of stacking handlers on it.
+      jump.dataset.control = verdict.nextAction.control ?? "";
+      jump.setAttribute("aria-label",
+        `${jump.textContent} — moves focus to the control that closes this gap`);
+      if (!jump.dataset.bound) {
+        jump.dataset.bound = "true";
+        jump.addEventListener("click", () => byId(doc, jump.dataset.control)?.focus?.());
+      }
+    }
+  }
+  return verdict;
+}
+
 /** State the basis of the headline number in words, beside the number. */
 export function applyMetricBasis(doc, basis) {
   const label = byId(doc, "local-metric-label");

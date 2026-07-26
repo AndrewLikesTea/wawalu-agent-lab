@@ -27,11 +27,12 @@ import {
 import { headlineTrust } from "/finops-display.js";
 import {
   announce as announceStage, applyDatasetProvenance, applyFieldDiagnostic, applyLeadingFinding,
-  applyMetricBasis, applyRequirements, applyStage, diagnosticFor, EXAMPLE_DATASET_PROVENANCE,
-  focusStageHeading, importStage, metricBasis,
+  applyMetricBasis, applyRequirements, applyStage, applyTrustVerdict, diagnosticFor,
+  EXAMPLE_DATASET_PROVENANCE, focusStageHeading, importStage, metricBasis,
 } from "/local-import-flow.js";
-import { loadExampleDataset } from "/example-dataset.js";
+import { loadExampleDatasetInputs } from "/example-dataset.js";
 import { leadingFinding } from "/finops-leading-finding.js";
+import { trustVerdict } from "/finops-trust-verdict.js";
 
 const DATA_URL = "/evolution-demo-data.json";
 const EVALUATION_URL = "/finops-evaluation-fixtures.json";
@@ -211,7 +212,7 @@ function mountLocalFinopsImport() {
       list?.append(element("li", "evidence-empty",
         "No department findings. No active HRIS unit matched a provider aggregate."));
   };
-  const renderResult = (next, { example = false } = {}) => {
+  const renderResult = (next, { example = false, inputs = loaded } = {}) => {
     result = next;
     exampleActive = example;
     resultsNode.setAttribute("aria-busy", "false");
@@ -249,6 +250,15 @@ function mountLocalFinopsImport() {
       departments: next.rankedDepartments.length,
       joinedRecords: next.quality.joinedRecords,
     });
+    // Whether the number is trustworthy is answered before the finding built on
+    // it. The verdict reads the parsed rows and roster the import already holds,
+    // plus the export ids reconciliation quarantined; it keeps no state of its
+    // own and does not re-parse anything.
+    applyTrustVerdict(document, trustVerdict({
+      providers: inputs.providers ?? [],
+      hris: inputs.hris ?? null,
+      quarantinedExportIds: next.validation?.quarantinedExportIds ?? [],
+    }));
     // The landing surface. It is drawn from the same envelope for example data
     // and for a real import; there is no example-only branch below this line.
     applyLeadingFinding(document, leadingFinding(next));
@@ -319,6 +329,11 @@ function mountLocalFinopsImport() {
     // the finding are all discarded together. Nothing was ever written to
     // storage or the URL, so a reload is already a fresh visit.
     applyDatasetProvenance(document, false);
+    const trust = document.getElementById("local-trust");
+    if (trust) {
+      trust.hidden = true;
+      trust.dataset.state = "empty";
+    }
     const lead = document.getElementById("local-lead-finding");
     if (lead) {
       lead.hidden = true;
@@ -395,7 +410,8 @@ function mountLocalFinopsImport() {
   // there is no intermediate state to show and nothing to confirm.
   document.getElementById("try-example-dataset")?.addEventListener("click", () => {
     try {
-      renderResult(loadExampleDataset(), { example: true });
+      const inputs = loadExampleDatasetInputs();
+      renderResult(normalizeLocalFinopsHistory(inputs), { example: true, inputs });
     } catch (error) {
       // Unreachable while the bundled export matches the contract. If the
       // contract moves under it, say so rather than showing a stale surface.
