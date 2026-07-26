@@ -21,7 +21,12 @@
       </header>
 
       <section class="list-panel detail-panel decision-detail-panel" aria-label="Decision detail">
-        <div id="decision-detail"></div>
+        <div id="decision-detail" aria-busy="true">
+          <div class="list-state list-state-loading" role="status">
+            <h1>Loading decision</h1>
+            <p>Finding this decision…</p>
+          </div>
+        </div>
       </section>
     </main>
     <script type="module" src="/decision-page.js"></script>

@@ -12,6 +12,8 @@
 // decision module's load-time side effects. The seam to unify them later is a
 // small shared module; that abstraction is not yet earned by two call sites.
 
+import { createShareControl } from "./share-link.js";
+
 export const RELEASE_STORAGE_KEY = "shiplog.releases.v1";
 export const RELEASE_STATUSES = ["planned", "completed", "cancelled"];
 
@@ -32,7 +34,7 @@ export function releaseDetailHref(id) {
 }
 
 export function decisionDetailHref(id) {
-  return `/#decision-${encodeURIComponent(id)}`;
+  return `/decision.html?id=${encodeURIComponent(id)}`;
 }
 
 function isRelease(value) {
@@ -557,8 +559,14 @@ export function renderReleaseDetail(container, resolved, options = {}) {
 
   const article = el("article", "release-detail");
   const header = el("header", "detail-header");
-  header.append(el("p", "eyebrow", "Release"));
-  header.append(el("h1", "detail-version", resolved.version));
+  const heading = el("div", "detail-heading");
+  heading.append(el("p", "eyebrow", `Release · ${resolved.version}`));
+  heading.append(el("h1", "detail-version", releaseTitle(resolved)));
+  if (options.shareable) {
+    const share = createShareControl({ type: "release", id: resolved.id });
+    if (share) heading.append(share);
+  }
+  header.append(heading);
 
   const meta = el("dl", "detail-meta");
   const time = el("time", "date");
@@ -566,6 +574,7 @@ export function renderReleaseDetail(container, resolved, options = {}) {
   time.textContent = formatDate(resolved.createdAt);
   meta.append(renderMetaRow("Released", time));
   meta.append(renderMetaRow("Owner", document.createTextNode(releaseOwner(resolved))));
+  meta.append(renderMetaRow("Status", el("span", `badge badge-release-${releaseStatus(resolved)}`, releaseStatus(resolved))));
   header.append(meta);
 
   if (typeof resolved.notes === "string" && resolved.notes.trim() !== "") {

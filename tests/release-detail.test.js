@@ -63,10 +63,10 @@ test("resolveReleaseDetail returns null for an unknown or empty id", () => {
 
 test("href builders produce stable, encoded routes", () => {
   assert.equal(releaseDetailHref("demo-r-1-4-0"), "/release.html?id=demo-r-1-4-0");
-  assert.equal(decisionDetailHref("demo-flags"), "/#decision-demo-flags");
+  assert.equal(decisionDetailHref("demo-flags"), "/decision.html?id=demo-flags");
   // Ids are encoded so an unusual id can never break the URL.
   assert.equal(releaseDetailHref("a/b c"), "/release.html?id=a%2Fb%20c");
-  assert.equal(decisionDetailHref("a b"), "/#decision-a%20b");
+  assert.equal(decisionDetailHref("a b"), "/decision.html?id=a%20b");
   assert.equal(RELEASE_LIST_HREF, "/releases.html");
 });
 

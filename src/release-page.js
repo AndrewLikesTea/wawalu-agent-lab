@@ -11,10 +11,12 @@ async function init() {
   if (!container) return;
 
   const id = new URLSearchParams(window.location.search).get("id") ?? "";
-  const { decisions, releases } = await loadReleaseData(localStorage);
+  container.setAttribute("aria-busy", "true");
+  const { decisions, releases, publicReleaseIds } = await loadReleaseData(localStorage);
   const resolved = id ? resolveReleaseDetail(releases, decisions, id) : null;
 
-  renderReleaseDetail(container, resolved, { id });
+  renderReleaseDetail(container, resolved, { id, shareable: publicReleaseIds.has(id) });
+  container.setAttribute("aria-busy", "false");
 
   if (resolved) {
     document.title = `${resolved.version} · Releases · Shiplog`;
