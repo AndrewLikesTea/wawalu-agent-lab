@@ -162,6 +162,17 @@ export function profileHref(author) {
   return `/profile.html?author=${encodeURIComponent(String(author ?? ""))}`;
 }
 
+// Paint is a separate, full-screen workspace. Carry the selected display name
+// across that boundary so its back link can return to this exact profile rather
+// than dropping a first-time visitor at a generic page.
+export function profilePaintHref(author) {
+  const params = new URLSearchParams({
+    from: "profile",
+    author: String(author ?? "").trim(),
+  });
+  return `/paint/?${params}`;
+}
+
 // Two letters for the avatar chip. Decorative only — the name is always present
 // as text beside it.
 export function authorInitials(author) {
@@ -200,7 +211,6 @@ export const PROFILE_EMPTY_COPY = {
   // The grid's empty state: the next action, not a second telling of the state.
   guidance: "Make an image in Paint, then use it in a post.",
   actionLabel: "Open Paint",
-  actionHref: "/paint/",
 };
 
 // The profile description under the name. An author with posts but no images
@@ -317,11 +327,11 @@ function renderSkeleton(container, count = 6) {
 
 // One paragraph and one action. The hero has already said the profile is empty,
 // so this says what to do about it instead of saying it again.
-function renderEmpty(container) {
+function renderEmpty(container, author) {
   const empty = el("div", "empty-state");
   empty.append(el("p", "empty-title", PROFILE_EMPTY_COPY.guidance));
   const link = el("a", "empty-action", PROFILE_EMPTY_COPY.actionLabel);
-  link.href = PROFILE_EMPTY_COPY.actionHref;
+  link.href = profilePaintHref(author);
   empty.append(link);
   container.append(empty);
 }
@@ -342,7 +352,7 @@ function renderError(container, onRetry) {
 // always win over a pending or failed refresh — stale content beats a spinner
 // over content the reader could already see.
 export function renderProfileGrid(container, posts, options = {}) {
-  const { state = "ready", onRetry = null } = options;
+  const { state = "ready", onRetry = null, author = DEFAULT_AUTHOR } = options;
   const ordered = sortNewestFirst(posts ?? []);
   container.replaceChildren();
   container.setAttribute("aria-busy", state === "loading" && ordered.length === 0 ? "true" : "false");
@@ -350,7 +360,7 @@ export function renderProfileGrid(container, posts, options = {}) {
   if (ordered.length === 0) {
     if (state === "loading") renderSkeleton(container);
     else if (state === "error") renderError(container, onRetry);
-    else renderEmpty(container);
+    else renderEmpty(container, author);
     return;
   }
 
@@ -403,6 +413,7 @@ export function mountProfile(root, options = {}) {
     renderProfileGrid(grid, mine, {
       state,
       onRetry: options.onRetry,
+      author,
     });
     // A count, always — this sits beside the "Image posts" heading, and putting
     // the empty-state sentence here is what made the page say it twice.

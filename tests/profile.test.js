@@ -11,7 +11,7 @@ installDocument();
 const {
   PROFILE_EMPTY_COPY, authorInitials, captionFor, countLabel, distinctAuthors,
   mergePostsById, normalizeProfileApiPosts, normalizeSeedPosts, postDetailHref,
-  profileAnnouncement, profileHref, profileSummary, profileSummaryText,
+  profileAnnouncement, profileHref, profilePaintHref, profileSummary, profileSummaryText,
   renderProfileGrid, renderProfileHeader, resolveProfileAuthor, selectProfilePosts,
 } = await import("../src/profile.js");
 
@@ -150,6 +150,7 @@ test("a tile always has a caption: the caption field, else the body", () => {
 test("links carry ids and names through the query string, encoded", () => {
   assert.equal(postDetailHref("a b&c"), "/post.html?id=a%20b%26c");
   assert.equal(profileHref("Mina O'Neil"), "/profile.html?author=Mina%20O'Neil");
+  assert.equal(profilePaintHref("Mina O'Neil"), "/paint/?from=profile&author=Mina+O%27Neil");
 });
 
 test("initials and counts read as English", () => {
@@ -262,7 +263,8 @@ test("an empty profile gives one message and a route into Paint", () => {
   assert.match(empty.textContent, /Paint/);
   const action = first(empty, "empty-action");
   assert.equal(action.textContent, "Open Paint");
-  assert.equal(action.href, "/paint/");
+  assert.equal(action.href, "/paint/?from=profile&author=Mina");
+  assert.equal(action.tagName, "A", "the primary action is keyboard reachable without scripted key handling");
 });
 
 test("a failed load is offered a retry, not a false empty state", () => {
