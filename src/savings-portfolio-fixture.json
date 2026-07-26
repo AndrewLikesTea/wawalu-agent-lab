@@ -1,0 +1,59 @@
+{
+  "schemaVersion": "savings-portfolio/1.0.0",
+  "provenance": "Bundled synthetic executive savings portfolio; no customer or provider data.",
+  "actions": [
+    {
+      "actionId": "syn-finops-routing",
+      "title": "Route routine transformations to the standard tier",
+      "owner": "Synthetic Platform Director",
+      "department": { "id": "platform", "name": "Platform Engineering" },
+      "lifecycleState": "completed",
+      "projectedSavingsUsd": 72000,
+      "realizedSavingsUsd": null,
+      "verificationEvidence": [],
+      "confidence": 0.86,
+      "updatedDate": "2026-07-18"
+    },
+    {
+      "actionId": "syn-platform-cache",
+      "title": "Cache repeated build guidance",
+      "owner": "Synthetic Developer Experience Lead",
+      "department": { "id": "platform", "name": "Platform Engineering" },
+      "lifecycleState": "verified",
+      "projectedSavingsUsd": 24000,
+      "realizedSavingsUsd": 21000,
+      "verificationEvidence": [
+        {
+          "evidenceId": "syn-evidence-cache-01",
+          "description": "Synthetic before-and-after annualized cost comparison."
+        }
+      ],
+      "confidence": 0.92,
+      "updatedDate": "2026-07-22"
+    },
+    {
+      "actionId": "syn-quality-retry",
+      "title": "Reduce repeated unverified test retries",
+      "owner": "Synthetic Quality Director",
+      "department": { "id": "quality", "name": "Quality Engineering" },
+      "lifecycleState": "in-progress",
+      "projectedSavingsUsd": 88000,
+      "realizedSavingsUsd": null,
+      "verificationEvidence": [],
+      "confidence": 0.78,
+      "updatedDate": "2026-07-15"
+    },
+    {
+      "actionId": "syn-support-library",
+      "title": "Publish approved response patterns",
+      "owner": "Synthetic Support Operations Lead",
+      "department": { "id": "support", "name": "Support Operations" },
+      "lifecycleState": "planned",
+      "projectedSavingsUsd": 110000,
+      "realizedSavingsUsd": null,
+      "verificationEvidence": [],
+      "confidence": 0.7,
+      "updatedDate": "2026-07-10"
+    }
+  ]
+}
