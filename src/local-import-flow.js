@@ -147,7 +147,7 @@ export function redactDiagnostic(text) {
 }
 
 const RECOVERY_BY_CODE = Object.freeze({
-  unsupported_format: "Select a .json export produced from the v1 compatibility manifest.",
+  unsupported_format: "Select a JSON envelope or a delimited CSV, TSV, or plain-text export from the v1 compatibility manifest.",
   invalid_json: "Re-export the period; the file is not valid JSON.",
   unsupported_contract: "Select a v1 provider-usage or HRIS-org envelope.",
   unknown_field: "Remove the undeclared field from the source export and select the files again.",
@@ -156,6 +156,27 @@ const RECOVERY_BY_CODE = Object.freeze({
   record_outside_period: "Re-export so every record falls inside the declared period.",
   malformed_period: "Correct period_start and period_end, then select the files again.",
   incompatible_source: "Select periods from one source instance, or analyze each source separately.",
+  // Delimited CSV/TSV path. Same closed-set discipline: every reason code a
+  // reader can hit carries the one action that resolves it.
+  size_ceiling_exceeded: "Split the export into smaller files; the named byte ceiling was exceeded.",
+  row_ceiling_exceeded: "Split the export by period; the named row ceiling was exceeded.",
+  column_ceiling_exceeded: "Remove unused columns from the export and select the file again.",
+  empty_file: "Re-export the period; the selected file has no rows.",
+  missing_header_row: "Include the header row in the export so its columns can be identified.",
+  malformed_quoted_field: "Close the quoted field at the reported row, then select the file again.",
+  ragged_row: "Give the reported row the same number of cells as the header.",
+  missing_required_column: "Add the named column to the export, or rename it to a recognized spelling.",
+  unrecognized_kind: "Export a provider-usage file with date and cost columns, or an org-unit roster.",
+  unparseable_date: "Use an ISO date, an ISO timestamp, or YYYY-MM in the reported cell.",
+  unparseable_amount: "Use a plain decimal amount in the reported cell.",
+  negative_amount: "Remove credit lines; the v1 cost contract holds non-negative amounts only.",
+  amount_precision_exceeded: "Round the reported amount at the source to the currency's minor unit.",
+  unsupported_currency: "Export in a currency with a declared minor-unit exponent.",
+  unparseable_quantity: "Use a non-negative number for usage quantity in the reported cell.",
+  unparseable_flag: "Use true or false for the active column in the reported cell.",
+  unpseudonymized_identifier: "Map the reported cell to a pseudonymous unit id before import.",
+  no_mappable_rows: "Correct the reported rows; no row in the file could be mapped.",
+  duplicate_column: "Remove the duplicated column from the export.",
 });
 
 const DEFAULT_RECOVERY = "Select a manifest-compatible v1 JSON export and try again.";
@@ -163,13 +184,18 @@ const DEFAULT_RECOVERY = "Select a manifest-compatible v1 JSON export and try ag
 /**
  * A per-field diagnostic: which file in the selection failed (by position, not
  * by name), what the contract objected to, and the one action that fixes it.
+ *
+ * `problems` carries the delimited path's coordinate-tagged reason objects
+ * through untouched. They are already free of cell values by construction, and a
+ * later task renders them as a row-and-column list.
  */
-export function diagnosticFor({ code = "", message = "", ordinal = 1, total = 1 } = {}) {
+export function diagnosticFor({ code = "", message = "", ordinal = 1, total = 1, problems = [] } = {}) {
   const position = total > 1 ? `File ${ordinal} of ${total}: ` : "";
   return Object.freeze({
     code: String(code),
     text: `${position}${redactDiagnostic(message)}`.trim(),
     recovery: RECOVERY_BY_CODE[code] ?? DEFAULT_RECOVERY,
+    problems: Object.freeze([...problems]),
   });
 }
 

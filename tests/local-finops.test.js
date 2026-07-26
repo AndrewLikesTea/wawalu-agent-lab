@@ -261,7 +261,7 @@ test("the page exposes an accessible local workflow and progressive disclosures"
     readFile(new URL("../src/evolution-page.js", import.meta.url), "utf8"),
     readFile(new URL("../src/evolution.css", import.meta.url), "utf8"),
   ]);
-  assert.match(page, /type="file" accept="\.json,application\/json" multiple/);
+  assert.match(page, /type="file" accept="\.json,\.csv,\.tsv,\.txt,application\/json,text\/csv,text\/tab-separated-values,text\/plain" multiple/);
   assert.match(page, /role="status" aria-live="polite"/);
   assert.match(page, /No upload · no credentials · no network transfer · no browser storage/);
   for (const label of [

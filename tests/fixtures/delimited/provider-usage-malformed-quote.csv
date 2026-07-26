@@ -1,0 +1,3 @@
+date,cost center,cost,currency,notes
+2026-07-24,psn_unit_demo_00000002,12.34,USD,"unclosed note
+2026-07-25,psn_unit_demo_00000002,4.05,USD,closed note

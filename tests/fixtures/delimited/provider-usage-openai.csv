@@ -1,0 +1,5 @@
+date,cost center,provider,usage type,usage quantity,usage unit,cost,currency,status,notes
+2026-07-24,psn_unit_demo_00000002,OpenAI,chat completions,420000,tokens,12.34,USD,final,"Renewal, annual"
+2026-07-24,psn_unit_demo_00000003,Anthropic,messages,180000,tokens,19.99,USD,invoiced,"Multi-line
+note that stays in the file"
+2026-07-25,psn_unit_demo_00000002,Amazon Bedrock,Bedrock:ModelInvocation,90000,tokens,4.05,USD,estimated,"He said ""fine"""

@@ -200,21 +200,15 @@ function validateHrisRecord(record, index) {
   }
 }
 
-export function parseLocalFinopsFile(text, fileName = "local.json", mediaType = "") {
-  if (!fileName.toLowerCase().endsWith(ACCEPTED_LOCAL_FILE.extension)) {
-    fail("unsupported_format", "Choose a .json file; CSV, spreadsheets, and NDJSON are not declared formats.");
-  }
-  if (mediaType && !["application/json", "text/json"].includes(mediaType)) {
-    fail("unsupported_format", `The file media type “${mediaType}” is not declared by the manifest.`);
-  }
-  let document;
-  try {
-    rejectDuplicateJsonKeys(text);
-    document = JSON.parse(text);
-  } catch (error) {
-    if (error?.code) throw error;
-    fail("invalid_json", "The file is not valid JSON.");
-  }
+/**
+ * Validate an already-parsed v1 envelope against the manifest contract.
+ *
+ * Extracted so a second reader — the delimited CSV/TSV mapper — can prove its
+ * output satisfies exactly this contract before it reaches the analysis. There is
+ * one validator and one envelope shape; a tabular import that cannot pass here
+ * is a mapping defect, not a reason to widen the contract.
+ */
+export function validateLocalFinopsEnvelope(document) {
   exactKeys(document, ENVELOPE_KEYS, "document");
   required(document, ENVELOPE_KEYS, "document");
   if (document.schema_version !== "1.0" || !Object.values(LOCAL_KINDS).includes(document.kind)) {
@@ -235,8 +229,26 @@ export function parseLocalFinopsFile(text, fileName = "local.json", mediaType = 
         `Provider record ${outside.aggregate_id} falls outside the half-open export period.`);
     }
   }
+  return document.kind === LOCAL_KINDS.provider ? "provider" : "hris";
+}
+
+export function parseLocalFinopsFile(text, fileName = "local.json", mediaType = "") {
+  if (!fileName.toLowerCase().endsWith(ACCEPTED_LOCAL_FILE.extension)) {
+    fail("unsupported_format", "Choose a .json file; CSV, spreadsheets, and NDJSON are not declared formats.");
+  }
+  if (mediaType && !["application/json", "text/json"].includes(mediaType)) {
+    fail("unsupported_format", `The file media type “${mediaType}” is not declared by the manifest.`);
+  }
+  let document;
+  try {
+    rejectDuplicateJsonKeys(text);
+    document = JSON.parse(text);
+  } catch (error) {
+    if (error?.code) throw error;
+    fail("invalid_json", "The file is not valid JSON.");
+  }
   return Object.freeze({
-    type: document.kind === LOCAL_KINDS.provider ? "provider" : "hris",
+    type: validateLocalFinopsEnvelope(document),
     fileName,
     document,
   });

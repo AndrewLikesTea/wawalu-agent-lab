@@ -22,8 +22,8 @@ import {
 } from "/finops-evaluation-view.js";
 import {
   localFinopsJsonExport, localFinopsMeetingSummary, normalizeLocalFinopsHistory,
-  parseLocalFinopsFile,
 } from "/local-finops.js";
+import { parseLocalImportFile } from "/local-import-formats.js";
 import { headlineTrust } from "/finops-display.js";
 import {
   announce as announceStage, applyFieldDiagnostic, applyMetricBasis, applyRequirements,
@@ -100,6 +100,13 @@ function mountLocalFinopsImport() {
   const clear = document.getElementById("clear-local-analysis");
   const loaded = { providers: [] };
   let result = null;
+  // Per-row problems from a delimited file are a partial parse, not a failure:
+  // the count is announced, and the coordinates stay on the parsed result for
+  // the surface that will render them.
+  let rowProblems = 0;
+  const rowProblemNote = () => (rowProblems
+    ? ` ${rowProblems} row${rowProblems === 1 ? " was" : "s were"} skipped and reported by coordinate.`
+    : "");
   const MAX_DISPLAY_USD = 1_000_000_000_000;
   const plausibleUsd = (value) => Number.isFinite(value) && value >= 0 && value <= MAX_DISPLAY_USD;
   const moneyText = (value) => plausibleUsd(value) ? `${value.toFixed(2)} USD` : "Needs review · value withheld";
@@ -269,7 +276,7 @@ function mountLocalFinopsImport() {
     clear.hidden = false;
     applyFieldDiagnostic(document, null);
     announce("ready", `Local analysis ready · ${basis.label}.`,
-      `${basis.detail} Example analysis replaced until refresh or “Return to example data.”`);
+      `${basis.detail} Example analysis replaced until refresh or “Return to example data.”${rowProblemNote()}`);
     // Focus lands on the new stage's heading, not on the section wrapper, so a
     // screen reader reads the brief's title rather than a nameless region. A
     // re-import redraws the same stage, and the reader is still owed the move.
@@ -306,10 +313,17 @@ function mountLocalFinopsImport() {
     announce("loading", "Reading files in this tab…",
       "Parsing and validation are running locally; no file contents are being transferred.");
     let ordinal = 0;
+    rowProblems = 0;
     try {
       for (const file of files) {
         ordinal += 1;
-        const parsed = parseLocalFinopsFile(await file.text(), file.name, file.type);
+        // The browser's local file APIs are the only reader on this path: text()
+        // and size, no upload, no persistence beyond this selection.
+        const parsed = parseLocalImportFile(await file.text(), file.name, file.type, {
+          byteSize: file.size,
+          generatedAt: new Date().toISOString(),
+        });
+        rowProblems += parsed.errors.length;
         if (parsed.type === "provider")
           loaded.providers.push(parsed);
         else loaded.hris = parsed;
@@ -319,7 +333,7 @@ function mountLocalFinopsImport() {
         showMetricBasis({ mode: "partial" });
         syncStage({ focus: true });
         announce("ready", `${files.length} compatible file${files.length === 1 ? "" : "s"} ready.`,
-          `Add the ${missing}; example analysis remains visible.`);
+          `Add the ${missing}; example analysis remains visible.${rowProblemNote()}`);
         return;
       }
       renderResult(normalizeLocalFinopsHistory({
@@ -333,6 +347,7 @@ function mountLocalFinopsImport() {
       // never by file name, path, or any value read out of it.
       const diagnostic = diagnosticFor({
         code: error?.code, message: error?.message, ordinal, total: files.length,
+        problems: error?.problems ?? [],
       });
       applyFieldDiagnostic(document, diagnostic);
       showMetricBasis({ mode: "failed" });

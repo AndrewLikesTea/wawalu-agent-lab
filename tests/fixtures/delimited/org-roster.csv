@@ -1,0 +1,4 @@
+unit_id,parent_unit_id,unit_type,active,effective_at
+psn_unit_demo_00000001,,company,true,2026-07-25
+psn_unit_demo_00000002,psn_unit_demo_00000001,department,yes,2026-07-25
+psn_unit_demo_00000003,psn_unit_demo_00000001,team,TRUE,2026-07-25

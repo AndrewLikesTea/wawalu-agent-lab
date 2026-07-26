@@ -1,0 +1,6 @@
+﻿date	cost center	provider	usage type	usage quantity	usage unit	cost	currency
+2026-07-24	psn_unit_demo_00000002	OpenAI	chat completions	100	tokens	1.00	USD
+2026-07-25T06:15:00Z	psn_unit_demo_00000002	OpenAI	chat completions	100	tokens	2.00	USD
+2026-07-25T23:30:00-05:00	psn_unit_demo_00000003	Anthropic	messages	100	tokens	3.00	USD
+2026-07	psn_unit_demo_00000003	Anthropic	messages	100	tokens	4.00	USD
+03/07/2026	psn_unit_demo_00000003	Anthropic	messages	100	tokens	5.00	USD

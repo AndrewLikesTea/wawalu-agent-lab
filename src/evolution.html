@@ -82,8 +82,8 @@
         <div class="local-import-controls">
           <div class="local-import-field">
             <label for="local-finops-files">Provider period(s) + HRIS mapping</label>
-            <input id="local-finops-files" type="file" accept=".json,application/json" multiple aria-describedby="local-file-help" aria-invalid="false" />
-            <p id="local-file-help">Choose files together or add them in batches. Provider periods must use the same source; all processing and state stay in this tab.</p>
+            <input id="local-finops-files" type="file" accept=".json,.csv,.tsv,.txt,application/json,text/csv,text/tab-separated-values,text/plain" multiple aria-describedby="local-file-help" aria-invalid="false" />
+            <p id="local-file-help">Choose files together or add them in batches. A v1 JSON envelope or a delimited CSV/TSV export both work; provider periods must use the same source, and all processing and state stay in this tab.</p>
             <p class="field-error" id="local-file-error" hidden></p>
             <div class="field-recovery" id="local-file-recovery" hidden>
               <button class="field-recovery-action" id="local-file-repick" type="button">Choose files again</button>
