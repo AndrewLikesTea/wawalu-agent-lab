@@ -267,6 +267,8 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .media-status.is-error { color:#8c302d; }
 .notice.is-success { border:1px solid #b7d8bd; background:#edf7ef; color:#285f35; }
 .notice a { color:inherit; font-weight:800; }
+.submit-feedback { grid-column:1/-1; margin:0; }
+#post-submit[aria-busy="true"] { cursor:wait; }
 .counter-row { display:flex; justify-content:flex-end; gap:6px; margin:2px 0 0; color:#74746e; font:600 12px/1.4 ui-monospace,monospace; }
 #post-counter { font-weight:750; color:#4a4a45; }
 #post-counter.near { color:#8a6d0a; }

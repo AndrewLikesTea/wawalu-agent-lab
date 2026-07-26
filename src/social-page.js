@@ -90,6 +90,10 @@ function mountMediaComposer(root) {
   const status = root.querySelector("#post-media-status");
   const remove = root.querySelector("#remove-image");
   let media = null;
+  // FileReader and image decoding are asynchronous. A generation token keeps a
+  // slow first selection from replacing a newer preview after it finally
+  // finishes.
+  let selectionGeneration = 0;
 
   const setStatus = (message, error = false) => {
     status.textContent = message;
@@ -97,6 +101,7 @@ function mountMediaComposer(root) {
   };
 
   const clear = ({ focus = false } = {}) => {
+    selectionGeneration += 1;
     media = null;
     input.value = "";
     alt.value = "";
@@ -127,11 +132,16 @@ function mountMediaComposer(root) {
     setStatus("Preview unavailable. Remove this image and choose it again.", true);
   });
   input.addEventListener("change", async () => {
+    const generation = ++selectionGeneration;
+    const file = input.files?.[0];
     setStatus("Preparing image preview…");
     panel.hidden = true;
     try {
-      show(await fileToPublishImage(input.files?.[0]));
+      const next = await fileToPublishImage(file);
+      if (generation !== selectionGeneration) return;
+      show(next);
     } catch (error) {
+      if (generation !== selectionGeneration) return;
       clear();
       setStatus(error.message, true);
       input.focus();
