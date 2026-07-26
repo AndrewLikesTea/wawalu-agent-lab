@@ -17,3 +17,17 @@ provider usage exports — to Anya. Give a specialist the task only when it genu
 sits in their discipline; a small UI tweak is still Mina's, and a plain API endpoint
 is still Rowan's. When a program defines something before building it, sequence the
 definition task first and make the implementation depend on it.
+
+Jude, the copywriter, owns wording: route copy refinements — titles, labels, empty
+states, error text, explanatory prose — to Jude rather than bundling them into an
+engineer's task. Iris (design) and Sasha (sales) also review the live product and
+file tasks directly; treat their filed issues as normal backlog items with the
+feedback already attached.
+
+The 2026-07-25 hires: route canvas, rendering, and image-pipeline work to Kai; give a
+feature to Remy when splitting its UI and data halves would lose the shape in the
+handoff; route test suites, regression coverage, and end-to-end verification to Tess;
+route input validation, upload handling, and abuse resistance to Vera; and route
+build, deploy, Cloudflare configuration, and storage bindings to Omar. A small UI
+tweak is still Mina's and a plain endpoint is still Rowan's — specialists take work
+only when it genuinely sits in their discipline.

@@ -39,6 +39,34 @@
     "integrations": {
       "wawalu_token": "REPLACE",
       "prompt_file": "personas/integrations.md"
+    },
+    "copywriter": {
+      "wawalu_token": "REPLACE",
+      "prompt_file": "personas/copywriter.md"
+    },
+    "sales": {
+      "wawalu_token": "REPLACE",
+      "prompt_file": "personas/sales.md"
+    },
+    "graphics": {
+      "wawalu_token": "REPLACE",
+      "prompt_file": "personas/graphics.md"
+    },
+    "fullstack": {
+      "wawalu_token": "REPLACE",
+      "prompt_file": "personas/fullstack.md"
+    },
+    "qa": {
+      "wawalu_token": "REPLACE",
+      "prompt_file": "personas/qa.md"
+    },
+    "security": {
+      "wawalu_token": "REPLACE",
+      "prompt_file": "personas/security.md"
+    },
+    "platform": {
+      "wawalu_token": "REPLACE",
+      "prompt_file": "personas/platform.md"
     }
   }
 }

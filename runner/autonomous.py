@@ -26,7 +26,7 @@ from runner.github_app import (current_token, installation_token, refresh_token,
                                reviewer_token)
 from runner.layers import (CAPACITY_EXIT_CODES, WORKERS, ConsultantCapacityExhausted,
                            consult_next_steps, propose_directive_plan, propose_task,
-                           review_pull_request)
+                           review_pull_request, snapshot_live_site, stakeholder_review)
 from runner.orchestrator import PRODUCT_ROOT, REPOSITORY, load_personas, load_runtime_env, safe_slug
 from runner.simulation import choose_collaborator, load_behaviors
 from scripts.check_reviewer_approval import REVIEWER_LOGINS, approved_current_head
@@ -39,7 +39,13 @@ OWNER = REPOSITORY.split("/")[0]
 PERSONA_NAMES = {"backend": "Rowan", "frontend": "Mina",
                  "infrastructure": "Ellis", "staff": "Priya",
                  "product": "Noor", "design": "Iris",
-                 "evaluation": "Theo", "integrations": "Anya"}
+                 "evaluation": "Theo", "integrations": "Anya",
+                 "copywriter": "Jude", "graphics": "Kai",
+                 "fullstack": "Remy", "qa": "Tess",
+                 "security": "Vera", "platform": "Omar"}
+# Stakeholders speak (feedback + filed tasks) but never receive assignments or
+# run workers themselves, so they live outside PERSONA_NAMES.
+STAKEHOLDER_NAMES = {"sales": "Sasha"}
 # Assignable engineers, in the order they are shown to the planner. Derived from
 # PERSONA_NAMES so a roster change lands in one place: an earlier split between
 # this set, the planner's schema, and the label map is how a persona ends up
@@ -560,6 +566,8 @@ def within_persona_window(persona: str, config: dict[str, Any], now: dt.datetime
         "frontend": [10, 15], "staff": [11, 16],
         "product": [8, 13], "design": [10, 15],
         "evaluation": [9, 14], "integrations": [11, 16],
+        "copywriter": [9, 18], "graphics": [9, 18], "fullstack": [10, 19],
+        "qa": [8, 17], "security": [11, 20], "platform": [8, 17],
     })
     start, end = windows.get(persona, [8, 18])
     return int(start) <= now.astimezone(PACIFIC).hour < int(end)
@@ -620,6 +628,12 @@ def ensure_labels(token: str, ready_label: str) -> None:
         "persona:design": ("b5427a", "Assigned to Iris"),
         "persona:evaluation": ("7d5a1f", "Assigned to Theo"),
         "persona:integrations": ("34618a", "Assigned to Anya"),
+        "persona:copywriter": ("8a6d3b", "Assigned to Jude"),
+        "persona:graphics": ("b45309", "Assigned to Kai"),
+        "persona:fullstack": ("0e7490", "Assigned to Remy"),
+        "persona:qa": ("15803d", "Assigned to Tess"),
+        "persona:security": ("b91c1c", "Assigned to Vera"),
+        "persona:platform": ("4d7c0f", "Assigned to Omar"),
     }
     existing = {item["name"] for item in github(f"/repos/{REPOSITORY}/labels?per_page=100", token)}
     for name, (color, description) in labels.items():
@@ -1302,6 +1316,88 @@ def within_hours(config: dict[str, Any], now: dt.datetime | None = None) -> bool
     return int(window["start"]) <= hour < int(window["end"])
 
 
+def stakeholder_prompt(persona: str) -> str:
+    """A stakeholder's voice comes from its persona file; stakeholders that never
+    run workers (sales) have no .secrets entry, so read the prompt directly."""
+    return (ROOT / "personas" / f"{persona}.md").read_text(encoding="utf-8")
+
+
+def list_open_issue_titles(token: str) -> list[str]:
+    issues = github(f"/repos/{REPOSITORY}/issues?state=open&per_page=100", token)
+    return [str(item.get("title", "")) for item in issues if "pull_request" not in item]
+
+
+def post_stakeholder_reviews(token: str, config: dict[str, Any], state: State,
+                             journal: Journal, now: dt.datetime) -> None:
+    """Let non-engineering stakeholders steer the product on a cadence.
+
+    Each configured stakeholder (designer on UX, sales on sellability, copywriter
+    on wording) reviews the deployed pages through its own lens and files at most
+    two concrete tasks to the personas it may assign. Reviews are rate-limited per
+    stakeholder per day so feedback stays a signal, not a queue-flooding firehose.
+    """
+    reviews = config.get("stakeholder_reviews") or []
+    if not reviews:
+        return
+    day = now.astimezone(PACIFIC).date().isoformat()
+    ledger = state.value.setdefault("stakeholder_reviews", {})
+    delivered = open_titles = None
+    for review in reviews:
+        persona = str(review.get("persona", ""))
+        allowed = [name for name in review.get("assign_to", []) if name in PERSONAS]
+        if not allowed or persona not in {**PERSONA_NAMES, **STAKEHOLDER_NAMES}:
+            continue
+        record = ledger.setdefault(persona, {})
+        if record.get("day") != day:
+            record.update({"day": day, "count": 0})
+        if record["count"] >= int(review.get("max_daily", 2)):
+            continue
+        last = record.get("last_at")
+        if last and (now - dt.datetime.fromisoformat(last)).total_seconds() < int(
+                review.get("min_interval_seconds", 14400)):
+            continue
+        if delivered is None:  # one fetch shared by every due stakeholder this tick
+            delivered = delivered_work_context(token)
+            open_titles = list_open_issue_titles(token)
+        run_dir = AUTONOMY / "stakeholders" / (now.strftime("%Y%m%dT%H%M%SZ") + f"-{persona}")
+        run_dir.mkdir(parents=True, exist_ok=True)
+        site_url = load_runtime_env().get("WAWALU_PRODUCT_SITE_URL", "")
+        snapshot = snapshot_live_site(PRODUCT_ROOT, run_dir, site_url)
+        pages = []
+        if snapshot:
+            pages = [(page.stem, page.read_text(encoding="utf-8", errors="replace"))
+                     for page in sorted(snapshot.glob("*.html"))]
+        name = PERSONA_NAMES.get(persona) or STAKEHOLDER_NAMES.get(persona, persona)
+        try:
+            result = stakeholder_review(
+                stakeholder_prompt(persona), str(review.get("lens", "")),
+                (PRODUCT_ROOT / "PRODUCT.md").read_text(encoding="utf-8"),
+                pages, delivered, open_titles, allowed, run_dir / "review.json")
+        except Exception as error:
+            journal.emit("stakeholder_review_failed", persona=persona,
+                         error=type(error).__name__, detail=str(error)[:300])
+            continue
+        created = []
+        for task in result["tasks"]:
+            criteria = "\n".join(f"- [ ] {item}" for item in task["acceptance_criteria"])
+            role = str(review.get("role", persona))
+            body = (f"**{name} · {role} feedback**\n\n{result['feedback']}\n\n"
+                    f"## Outcome\n\n{task['outcome']}\n\n"
+                    f"## Acceptance criteria\n\n{criteria}\n\n"
+                    f"Filed by {name} from a live-product review. Normal review and "
+                    f"production controls apply.")
+            issue = github(f"/repos/{REPOSITORY}/issues", token, "POST", {
+                "title": task["title"], "body": body,
+                "labels": [config["issue_label"], f"persona:{task['persona']}"]})
+            created.append(int(issue["number"]))
+            open_titles.append(task["title"])  # a later stakeholder must not duplicate it
+        record["count"] += 1
+        record["last_at"] = now.isoformat()
+        state.save()
+        journal.emit("stakeholder_review_posted", persona=persona,
+                     tasks=len(created), issues=created)
+
+
 def tick(config: dict[str, Any], state: State, journal: Journal, token: str | None = None) -> str:
     if STOP.exists() or not config.get("enabled", False):
         return "stopped"
@@ -1318,6 +1414,7 @@ def tick(config: dict[str, Any], state: State, journal: Journal, token: str | No
     if config.get("interaction_rhythm", False):
         post_daily_standup(token, state, issues, journal, utc_now())
         post_dependency_handoffs(token, state, issues, journal, utc_now())
+    post_stakeholder_reviews(token, config, state, journal, utc_now())
     # One directive is planned per tick. The rest stay pending and are planned on
     # later ticks, so several product lines can be in flight without a single tick
     # spending several paid planning runs back to back.
