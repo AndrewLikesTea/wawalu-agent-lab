@@ -100,3 +100,34 @@ measurement to zero. The historical reference reuses the existing immediately
 preceding 31-day fixture period. This contract deliberately leaves out UI,
 forecasts, causal claims, live integrations, model behavior, employee detail,
 and actions for departments without retained evidence.
+
+## Reproducible action-outcome scoring
+
+`action-outcome/1.0.0` classifies the bundled labelled fixtures without a
+provider, HRIS, customer, or browser-clock dependency. Its output is the
+UI-facing contract: outcome code and label, projected and realized USD,
+variance, attainment percentage, tolerance, confidence explanation, priority,
+evidence references, and provenance.
+
+- An observed result meets target when `realized + tolerance >= projected`.
+  Tolerance is the greater of 5% of a non-zero projection or $100. The 5%
+  assumption covers ordinary measurement noise; the $100 floor covers
+  whole-dollar aggregation noise for small actions. Neither is intended to hide
+  a material miss.
+- A zero projection has zero tolerance and a `null` attainment percentage,
+  because dividing by zero would create an unexplainable metric.
+- A missing or non-observed result is `awaiting_result`, never zero savings.
+- Confidence below 0.75 changes an otherwise observed outcome to
+  `low_confidence`. The threshold assumes an executive claim needs at least
+  three quarters of its stated support. It is a disclosure gate, not a
+  calibrated probability.
+- When confidence signals conflict, the lowest valid signal wins. Averaging
+  could conceal weak retained evidence behind a strong aggregate assertion. The
+  numerical comparison remains in `comparisonCode` so the override is auditable.
+- Priority is authored evidence: ascending `priorityRank`, then `actionId`.
+  Outcome results never reshuffle the action queue.
+
+Every fixture references IDs already present in `evolution-demo-data.json`.
+Raw fixture prompts are untrusted. `scoreActionOutcome` omits them and exposes
+only `judgeInput.prompt` after `redactForScoring`, so a judge-facing consumer
+cannot accidentally select the raw field.
