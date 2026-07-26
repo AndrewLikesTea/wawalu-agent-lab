@@ -152,6 +152,13 @@
 .local-provenance-detail summary { cursor:pointer; color:var(--ink-muted); font:700 10px/1.4 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; }
 .local-provenance-detail p { margin:12px 0 0; font-size:12px; line-height:1.55; overflow-wrap:anywhere; }
 .local-provenance-detail .local-redaction-note { color:var(--ink-muted); }
+/* Painted only while a background import is running. The bar is one signal of
+   three — percentage, record count, and the cancel control all ship together —
+   so progress is never communicated by a moving tint alone. */
+.local-import-progress { display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-top:14px; }
+.local-import-progress[hidden] { display:none; }
+.local-import-progress progress { flex:1 1 180px; height:8px; }
+.local-import-progress p { margin:0; color:var(--ink-muted); font-size:12px; }
 .local-import-state { display:grid; gap:3px; margin-top:18px; border:1px dashed #aaa79d; border-radius:9px; padding:13px 15px; color:var(--ink-muted); font-size:12px; line-height:1.5; }
 .local-import-state[data-state="error"] { border-color:var(--state-error-line); background:var(--state-error-wash); color:var(--state-error-ink); }
 /* A hard failure is announced from the assertive region below, which empties

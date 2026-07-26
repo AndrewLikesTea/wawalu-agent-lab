@@ -6,6 +6,10 @@ defines and asserts, it does not display. The executable form is
 `src/longitudinal-finops-metrics.js`, exercised against
 `src/longitudinal-finops-fixture.json` by `tests/longitudinal-finops-metrics.test.js`.
 
+The exports feeding this view arrive through the browser-local import, which
+runs off the main thread and refuses a selection above 64 MB or 200,000 records
+rather than truncating it. See `docs/local-finops-import-execution.md`.
+
 ## The one question this view exists to answer
 
 **"Which department's spending has moved far enough from its own recent baseline

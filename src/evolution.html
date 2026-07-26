@@ -87,7 +87,7 @@
           <div class="local-import-field">
             <label for="local-finops-files">Provider period(s) + HRIS mapping</label>
             <input id="local-finops-files" type="file" accept=".json,application/json" multiple aria-describedby="local-file-help" aria-invalid="false" />
-            <p id="local-file-help">Choose files together or add them in batches. Provider periods must use the same source; all processing and state stay in this tab.</p>
+            <p id="local-file-help">Choose files together or add them in batches. Provider periods must use the same source; all processing and state stay in this tab. One import may total at most 64 MB and 200,000 records — split a larger export by date range and import the ranges in batches.</p>
             <p class="field-error" id="local-file-error" hidden></p>
             <div class="field-recovery" id="local-file-recovery" hidden>
               <button class="field-recovery-action" id="local-file-repick" type="button">Choose files again</button>
@@ -101,6 +101,14 @@
           <button id="clear-local-analysis" type="button" hidden>Return to example data</button>
         </div>
         <ul class="mapping-requirements" id="mapping-requirements" aria-label="Required inputs and what is still unresolved"></ul>
+        <!-- Reading and parsing run in a worker, so this region is painted from
+             its progress messages. Cancel terminates that worker and returns the
+             surface to exactly the state it had before the selection. -->
+        <div class="local-import-progress" id="local-import-progress" hidden>
+          <progress id="local-import-progress-bar" max="100" value="0" aria-label="Import progress"></progress>
+          <p id="local-import-progress-text"></p>
+          <button class="field-recovery-action" id="cancel-local-import" type="button" hidden>Cancel import</button>
+        </div>
         <div class="local-import-state" id="local-import-state" role="status" aria-live="polite">
           <strong>Ready for local files.</strong>
           <span>The bundled example analysis remains visible until both compatible exports are ready.</span>

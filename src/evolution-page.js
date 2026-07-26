@@ -20,16 +20,15 @@ import { mountFinancePortfolio, renderPortfolioUnavailable } from "/finance-port
 import {
   renderFinopsEvaluationPanel, renderFinopsEvaluationUnavailable,
 } from "/finops-evaluation-view.js";
-import {
-  localFinopsJsonExport, localFinopsMeetingSummary, normalizeLocalFinopsHistory,
-  parseLocalFinopsFile,
-} from "/local-finops.js";
+import { localFinopsJsonExport, localFinopsMeetingSummary } from "/local-finops.js";
 import { headlineTrust } from "/finops-display.js";
 import {
-  announce as announceStage, applyDatasetProvenance, applyFieldDiagnostic, applyLeadingFinding,
-  applyMetricBasis, applyRequirements, applyStage, diagnosticFor, EXAMPLE_DATASET_PROVENANCE,
-  focusStageHeading, importStage, metricBasis,
+  announce as announceStage, applyDatasetProvenance, applyFieldDiagnostic, applyImportProgress,
+  applyLeadingFinding, applyMetricBasis, applyRequirements, applyStage, diagnosticFor,
+  EXAMPLE_DATASET_PROVENANCE, focusStageHeading, importStage, metricBasis,
 } from "/local-import-flow.js";
+import { createImportRunner } from "/finops-import-runner.js";
+import { IMPORT_ERROR } from "/finops-import-protocol.js";
 import { loadExampleDataset } from "/example-dataset.js";
 import { leadingFinding } from "/finops-leading-finding.js";
 
@@ -101,7 +100,12 @@ function mountLocalFinopsImport() {
   const stateNode = document.getElementById("local-import-state");
   const resultsNode = document.getElementById("local-results");
   const clear = document.getElementById("clear-local-analysis");
-  const loaded = { providers: [] };
+  // The page keeps File handles and two counts — never a parsed document and
+  // never a record array. A batch that adds the second half of the pair re-runs
+  // the job over the accumulated handles, which is what keeps this bounded no
+  // matter how large the export is.
+  const loaded = { files: [], providers: 0, hris: false };
+  const runner = createImportRunner();
   let result = null;
   // One flag decides everything the reader is told about where these numbers
   // came from: the badge, the metric basis, every provenance note, and the two
@@ -124,13 +128,13 @@ function mountLocalFinopsImport() {
   let stage = "select";
   const syncStage = ({ hasResult = false, focus = false } = {}) => {
     const next = importStage({
-      providers: loaded.providers.length, hris: Boolean(loaded.hris), hasResult,
+      providers: loaded.providers, hris: loaded.hris, hasResult,
     });
     const changed = next !== stage;
     stage = next;
     applyStage(document, stage);
     applyRequirements(document, {
-      providers: loaded.providers.length, hris: Boolean(loaded.hris),
+      providers: loaded.providers, hris: loaded.hris,
     });
     if (changed && focus) focusStageHeading(document, stage);
     return changed;
@@ -141,7 +145,7 @@ function mountLocalFinopsImport() {
     setText("analysis-mode-label", label);
   };
   const showMetricBasis = (basis) => applyMetricBasis(document, metricBasis({
-    ...basis, providers: loaded.providers.length, hris: Boolean(loaded.hris),
+    ...basis, providers: loaded.providers, hris: loaded.hris,
   }));
   // While example numbers are on screen, a mid-import state must not relabel
   // them: a partial or failed selection changes nothing about what the visible
@@ -304,8 +308,9 @@ function mountLocalFinopsImport() {
   };
   const reset = () => {
     const wasExample = exampleActive;
-    loaded.providers.length = 0;
-    delete loaded.hris;
+    loaded.files.length = 0;
+    loaded.providers = 0;
+    loaded.hris = false;
     result = null;
     exampleActive = false;
     input.value = "";
@@ -315,6 +320,7 @@ function mountLocalFinopsImport() {
     setSampleVisibility(true);
     setMode("example", "Example data");
     applyFieldDiagnostic(document, null);
+    applyImportProgress(document, null);
     // Nothing survives the clear: the example result, its provenance labels, and
     // the finding are all discarded together. Nothing was ever written to
     // storage or the URL, so a reload is already a fresh visit.
@@ -340,42 +346,69 @@ function mountLocalFinopsImport() {
     syncStage({ focus: true });
   };
 
+  // The pre-import state, captured so a cancel can restore exactly it rather
+  // than an approximation of it. Files added in an earlier batch survive a
+  // cancelled batch; the batch that was cancelled leaves nothing behind.
+  const importSnapshot = () => ({
+    files: [...loaded.files], providers: loaded.providers, hris: loaded.hris,
+  });
+  const restoreImport = (snapshot) => {
+    loaded.files = snapshot.files;
+    loaded.providers = snapshot.providers;
+    loaded.hris = snapshot.hris;
+    applyImportProgress(document, null);
+    applyFieldDiagnostic(document, null);
+    showTransientBasis(loaded.files.length ? "partial" : "example");
+    syncStage();
+    stateNode.setAttribute("aria-busy", "false");
+    resultsNode.setAttribute("aria-busy", "false");
+    input.value = "";
+  };
+
   input.addEventListener("change", async () => {
-    const files = [...input.files];
-    if (!files.length) return;
+    const added = [...input.files];
+    if (!added.length) return;
+    const before = importSnapshot();
+    const selection = [...loaded.files, ...added];
     stateNode.setAttribute("aria-busy", "true");
     resultsNode.setAttribute("aria-busy", "true");
     applyFieldDiagnostic(document, null);
+    applyImportProgress(document, { bytesProcessed: 0, totalBytes: 1, rowsProcessed: 0 });
     announce("loading", "Reading files in this tab…",
-      "Parsing and validation are running locally; no file contents are being transferred.");
-    let ordinal = 0;
+      "Parsing and validation are running off the main thread; no file contents are being transferred.");
     try {
-      for (const file of files) {
-        ordinal += 1;
-        const parsed = parseLocalFinopsFile(await file.text(), file.name, file.type);
-        if (parsed.type === "provider")
-          loaded.providers.push(parsed);
-        else loaded.hris = parsed;
-      }
-      if (!loaded.providers.length || !loaded.hris) {
-        const missing = loaded.providers.length ? "HRIS mapping" : "provider export";
+      const outcome = await runner.run(selection, {
+        onProgress: (progress) => applyImportProgress(document, progress),
+      });
+      loaded.files = selection;
+      loaded.providers = outcome.providers;
+      loaded.hris = outcome.hris;
+      if (outcome.status !== "complete") {
+        const missing = outcome.providers ? "HRIS mapping" : "provider export";
         showTransientBasis("partial");
         syncStage({ focus: true });
-        announce("ready", `${files.length} compatible file${files.length === 1 ? "" : "s"} ready.`,
+        announce("ready", `${selection.length} compatible file${selection.length === 1 ? "" : "s"} ready.`,
           `Add the ${missing}; example analysis remains visible.`);
         return;
       }
-      renderResult(normalizeLocalFinopsHistory({
-        providers: loaded.providers,
-        hris: loaded.hris,
-      }));
+      renderResult(outcome.result);
     } catch (error) {
+      if (error?.code === IMPORT_ERROR.CANCELLED) {
+        // Cancel is not a diagnostic. Nothing was analyzed and nothing partial
+        // was drawn, so the surface goes back to where it was and says so.
+        restoreImport(before);
+        announce("ready", "Import cancelled.",
+          "No file was analyzed and no partial total was shown. Choose files again to retry.");
+        input.focus?.();
+        return;
+      }
       // The diagnostic belongs to the control that produced it: the input goes
       // aria-invalid, the message is described-by it, and the recovery sits
       // beside it. The failing file is named by its position in the selection —
       // never by file name, path, or any value read out of it.
       const diagnostic = diagnosticFor({
-        code: error?.code, message: error?.message, ordinal, total: files.length,
+        code: error?.code, message: error?.message,
+        ordinal: error?.ordinal ?? 0, total: selection.length,
       });
       applyFieldDiagnostic(document, diagnostic);
       showTransientBasis("failed");
@@ -384,10 +417,14 @@ function mountLocalFinopsImport() {
         `${diagnostic.text} ${diagnostic.recovery} Existing analysis was not replaced.`);
       input.focus?.();
     } finally {
+      applyImportProgress(document, null);
       stateNode.setAttribute("aria-busy", "false");
       resultsNode.setAttribute("aria-busy", "false");
       input.value = "";
     }
+  });
+  document.getElementById("cancel-local-import")?.addEventListener("click", () => {
+    runner.cancel();
   });
   clear?.addEventListener("click", reset);
   // One click, one computed finding. Translating the bundled export and running

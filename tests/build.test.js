@@ -35,6 +35,9 @@ test("homepage explains the decision-to-release value and links to live examples
 test("security headers ship with the site", async () => {
   const headers = await readFile(new URL("../src/_headers", import.meta.url), "utf8");
   assert.match(headers, /Content-Security-Policy:.*script-src 'self'/);
+  // The import worker is same-origin. Without this directive it falls back to
+  // default-src 'none' and the browser blocks it, silently costing the offload.
+  assert.match(headers, /worker-src 'self'/);
   assert.match(headers, /frame-ancestors 'none'/);
   assert.match(headers, /connect-src 'self' https:\/\/api\.github\.com/);
   assert.match(headers, /X-Content-Type-Options: nosniff/);

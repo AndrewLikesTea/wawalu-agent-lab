@@ -176,6 +176,11 @@ const RECOVERY_BY_CODE = Object.freeze({
   record_outside_period: "Re-export so every record falls inside the declared period.",
   malformed_period: "Correct period_start and period_end, then select the files again.",
   incompatible_source: "Select periods from one source instance, or analyze each source separately.",
+  // The two declared import ceilings. Neither truncates: the run failed whole,
+  // so the recovery is to make the input smaller, not to accept a partial total.
+  file_too_large: "Split the export by date range and import one range at a time.",
+  too_many_rows: "Split the export by date range and import one range at a time.",
+  worker_failed: "Choose the files again; the background reader stopped before anything was analyzed.",
 });
 
 const DEFAULT_RECOVERY = "Select a manifest-compatible v1 JSON export and try again.";
@@ -185,7 +190,9 @@ const DEFAULT_RECOVERY = "Select a manifest-compatible v1 JSON export and try ag
  * by name), what the contract objected to, and the one action that fixes it.
  */
 export function diagnosticFor({ code = "", message = "", ordinal = 1, total = 1 } = {}) {
-  const position = total > 1 ? `File ${ordinal} of ${total}: ` : "";
+  // A failure that belongs to the selection as a whole — the size ceiling, for
+  // one — carries no ordinal, and naming an arbitrary file for it would be a lie.
+  const position = total > 1 && ordinal > 0 ? `File ${ordinal} of ${total}: ` : "";
   return Object.freeze({
     code: String(code),
     text: `${position}${redactDiagnostic(message)}`.trim(),
@@ -265,6 +272,46 @@ export function applyRequirements(doc, counts, { onJump } = {}) {
     return item;
   }));
   return rows;
+}
+
+/**
+ * Paint the incremental progress of a background import, or clear it.
+ *
+ * Passing `null` is the reset: the region hides, the bar returns to zero, and
+ * the cancel control goes away. Cancel and completion both take that path, so
+ * a stale bar cannot outlive the run that drew it.
+ *
+ * The percentage is bytes read, not records: it is the only figure that is
+ * monotonic and known ahead of time. The record count ships beside it in words
+ * because a reader wants to know the export is being read, not only that some
+ * bytes moved.
+ */
+export function applyImportProgress(doc, progress) {
+  const region = byId(doc, "local-import-progress");
+  const bar = byId(doc, "local-import-progress-bar");
+  const text = byId(doc, "local-import-progress-text");
+  const cancel = byId(doc, "cancel-local-import");
+  if (!region) return null;
+  if (!progress) {
+    region.hidden = true;
+    if (bar) bar.value = 0;
+    if (text) text.textContent = "";
+    if (cancel) cancel.hidden = true;
+    return null;
+  }
+  const total = Number(progress.totalBytes) || 0;
+  const read = Number(progress.bytesProcessed) || 0;
+  const rows = Number(progress.rowsProcessed) || 0;
+  const percent = total > 0 ? Math.min(100, Math.round((read / total) * 100)) : 0;
+  region.hidden = false;
+  if (cancel) cancel.hidden = false;
+  if (bar) {
+    bar.value = percent;
+    bar.setAttribute("aria-valuenow", String(percent));
+  }
+  const painted = `${percent}% read · ${rows.toLocaleString("en-US")} record${rows === 1 ? "" : "s"} parsed`;
+  if (text) text.textContent = painted;
+  return Object.freeze({ percent, rows, text: painted });
 }
 
 /**
