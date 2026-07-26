@@ -1,5 +1,6 @@
 import { fitBitmapSize, FRAME_BUDGET_MS, PixelDocument, WebGLPresenter } from "./paint-engine.js";
 import { dataUrlPayload, writePaintHandoff } from "../publishing-media.js";
+import { resolveJourneyLinks } from "../paint-journey.js";
 
 export const THEME_KEY = "paint.theme.v1";
 
@@ -48,6 +49,22 @@ export function applyTheme(root, button, theme) {
   button?.setAttribute("aria-pressed", String(dark));
   button?.setAttribute("aria-label", `Switch to ${dark ? "light" : "dark"} mode`);
   return root.dataset.theme;
+}
+
+// Relabels the two escape links the shell already ships. This only ever writes
+// an href resolveJourneyLinks() built from its own literal path table, so a
+// crafted `?from=` can change the wording and nothing else. Anchors that are
+// absent (a trimmed-down shell, a future page) are skipped rather than assumed.
+export function initJourney(root = document, environment = globalThis) {
+  const anchors = [root.querySelector("#journey-primary"), root.querySelector("#journey-secondary")];
+  const links = resolveJourneyLinks(environment.location?.search ?? "");
+  anchors.forEach((anchor, index) => {
+    const link = links[index];
+    if (!anchor || !link) return;
+    anchor.href = link.href;
+    anchor.textContent = link.label;
+  });
+  return links;
 }
 
 export function initPaint(root = document, environment = globalThis) {
@@ -381,5 +398,6 @@ export function initEditor(root = document, environment = globalThis) {
 
 if (typeof document !== "undefined") {
   initPaint();
+  initJourney();
   initEditor();
 }

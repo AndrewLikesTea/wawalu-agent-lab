@@ -5,6 +5,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { byClass, createElement, first, ids, installDocument, tags } from "./support/dom.js";
+import { blocks, findRule, rule } from "./support/css.js";
 
 installDocument();
 
@@ -262,8 +263,20 @@ test("an empty profile says why it is empty", () => {
   renderProfileGrid(blank, [], { author: "Mina" });
   assert.equal(first(blank, "empty-title").textContent, "You haven’t posted anything yet. Start by sharing an image.");
   const action = first(blank, "empty-action");
-  assert.equal(action.textContent, "Share your first post");
-  assert.equal(action.href, "/social.html");
+  assert.equal(action.tagName, "A");
+  assert.equal(action.textContent, "Create your first image");
+  // The link names the profile it left, so Paint's way back returns here rather
+  // than to whichever profile this browser last posted under.
+  assert.equal(action.href, "/paint/?from=profile&author=Mina");
+
+  const textAction = first(withText, "empty-action");
+  assert.equal(textAction.textContent, "Create an image in Paint");
+  assert.equal(textAction.href, "/paint/?from=profile&author=Mina");
+
+  // A grid rendered before the author resolves still offers a working way in.
+  const unknown = createElement("div");
+  renderProfileGrid(unknown, [], {});
+  assert.equal(first(unknown, "empty-action").href, "/paint/?from=profile");
 });
 
 test("a failed load is offered a retry, not a false empty state", () => {
@@ -312,6 +325,26 @@ test("the profile and post pages are wired, labelled, and reachable", async () =
 
   // No innerHTML in any interactive layer: no user-generated HTML executes here.
   assert.doesNotMatch([component, detailComponent, profileWiring, detailWiring].join("\n"), /innerHTML/);
+});
+
+test("profile navigation and the empty-state action expose visible keyboard focus", async () => {
+  const css = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
+  assert.match(css, /a:focus-visible\s*\{[^}]*outline:3px solid var\(--focus-ring\)/);
+  assert.match(rule(css, ".empty-action:focus-visible"), /outline:3px solid var\(--focus-ring\)/);
+
+  // Both phone rules must live inside a phone media query. `styles.css` has
+  // several `@media(max-width:520px)` blocks, so find the one that carries each
+  // selector instead of assuming a single block or matching across the file.
+  const phones = blocks(css, "@media(max-width:520px)");
+  const inPhone = (selector, pattern) => assert.ok(
+    phones.some((phone) => pattern.test(findRule(phone, selector) ?? "")),
+    `expected ${selector} to match ${pattern} inside a max-width:520px block`,
+  );
+  // Nav scrolls rather than clipping, and the action is a full-width thumb
+  // target — neither may overflow the viewport at a phone width.
+  inPhone(".site-nav", /overflow-x:auto/);
+  inPhone(".empty-action", /width:100%/);
+  inPhone(".empty-action", /min-height:48px/);
 });
 
 test("the header shows who this is and what the counts mean", () => {

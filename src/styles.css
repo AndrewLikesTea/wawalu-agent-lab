@@ -364,6 +364,7 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
    is a real control, so it opts out of the form-grid button geometry. */
 .empty-action { display:inline-flex; align-items:center; justify-content:center; width:auto; margin:18px auto 0; border-radius:9px; padding:11px 18px; background:#171713; color:#fff; font:700 14px/1 system-ui,sans-serif; text-decoration:none; cursor:pointer; }
 .empty-action:hover { background:#1f70c1; }
+.empty-action:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
 .empty-state-error .empty-title { color:#7c3f3a; }
 /* Single post. The image leads at its natural aspect ratio — this is the view
    that exists to show it whole, not cropped to a grid cell. */
@@ -407,6 +408,8 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
   .profile-identity .profile-avatar{width:62px;height:62px;font-size:21px}
   .profile-toolbar{align-items:stretch;flex-direction:column;gap:12px}
   .profile-toolbar .filter{flex:1 1 auto;width:100%}
+  .empty-state{padding:42px 0}
+  .empty-action{width:100%;min-height:48px;padding-inline:14px}
   .detail-stats{gap:14px}
 }
 @media(prefers-reduced-motion:reduce) { html{scroll-behavior:auto}.release-chevron{transition:none}.list-state-loading h3::before,.post-media[data-state="loading"],.profile-media[data-state="loading"],.detail-media[data-state="loading"],.skeleton-media,.skeleton-line{animation:none}.profile-tile{transition:none}.profile-tile:hover{transform:none} }

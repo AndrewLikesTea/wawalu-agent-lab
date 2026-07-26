@@ -263,7 +263,9 @@ test("social page is wired, labeled, and linked from the other pages", async () 
   assert.match(page, /id="post-counter"[^>]*aria-live="polite"/);
   assert.match(page, /required/);
   assert.match(page, /id="post-image"[^>]*type="file"[^>]*accept="image\/png,image\/jpeg,image\/gif,image\/webp"/);
-  assert.match(page, /href="\/paint\/"/);
+  // The origin rides along so Paint can offer a way back here; the value itself
+  // is pinned in tests/paint-journey.test.js.
+  assert.match(page, /class="[^"]*paint-link[^"]*" href="\/paint\/\?from=feed"/);
   assert.match(page, /id="compose-preview-image" alt=""/);
   assert.match(page, /id="post-image-alt"/);
   assert.match(page, /id="post-media-status" role="status" aria-live="polite"/);

@@ -31,6 +31,19 @@
         </nav>
       </header>
 
+      <!-- The prose sits outside the landmark on purpose: a nav landmark is a
+           list of destinations, and a screen reader jumping landmarks should
+           hear the two links, not a paragraph of instructions. The hrefs below
+           are the no-JavaScript defaults; paint.js relabels them in place with
+           the page the visitor actually came from. -->
+      <div class="creation-route">
+        <p><strong>Create your image here.</strong> When it’s ready, choose <span>Use in post</span> to add a caption and share it.</p>
+        <nav class="creation-route-links" aria-label="Leave the editor">
+          <a id="journey-primary" href="/profile.html">Go to your profile</a>
+          <a id="journey-secondary" href="/social.html">Go to team feed</a>
+        </nav>
+      </div>
+
       <main class="editor" aria-label="Image editor">
         <aside class="tool-rail" aria-label="Editing tools">
           <div class="tool-group" role="group" aria-label="Tools">

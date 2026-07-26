@@ -23,6 +23,7 @@
 //      on the image inside the link when the tile is read rather than listed.
 
 import { normalizeImage } from "./social.js";
+import { paintEntryHref } from "./paint-journey.js";
 import { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH } from "./social-identity.js";
 
 export const MAX_CAPTION_LENGTH = 280;
@@ -283,9 +284,11 @@ function renderEmpty(container, { author, hasTextPosts }) {
   // "this profile is blank".
   empty.append(el("p", undefined, hasTextPosts
     ? `${author} has posted, but none of those posts carry an image. Posts with an image appear here.`
-    : "Share a post with an image on the team feed and it will appear here."));
-  const link = el("a", "empty-action", "Share your first post");
-  link.href = "/social.html";
+    : "Create an image in Paint, then add it to a post. Your image post will appear here."));
+  // The action carries the profile it left, so Paint's way back lands on this
+  // profile rather than whichever one this browser last posted under.
+  const link = el("a", "empty-action", hasTextPosts ? "Create an image in Paint" : "Create your first image");
+  link.href = paintEntryHref({ from: "profile", author });
   empty.append(link);
   container.append(empty);
 }

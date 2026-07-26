@@ -39,7 +39,7 @@ button:disabled { opacity: .46; cursor: not-allowed; }
 .visually-hidden { position: absolute!important; width: 1px!important; height: 1px!important; padding: 0!important; margin: -1px!important; overflow: hidden!important; clip: rect(0,0,0,0)!important; white-space: nowrap!important; border: 0!important; }
 .skip-link { position: fixed; z-index: 20; top: 8px; left: 8px; padding: 10px 14px; border-radius: 7px; background: var(--text); color: var(--surface); font-weight: 700; transform: translateY(-150%); }
 .skip-link:focus { transform: translateY(0); }
-.app-shell { display: grid; grid-template-rows: auto minmax(0, 1fr); min-height: 100vh; }
+.app-shell { display: grid; grid-template-rows: auto auto minmax(0, 1fr); min-height: 100vh; }
 .app-header { z-index: 2; display: grid; grid-template-columns: minmax(150px, 1fr) auto minmax(150px, 1fr); align-items: center; min-height: 64px; padding: 9px 16px; border-bottom: 1px solid var(--line); background: var(--surface); }
 .brand { display: inline-flex; align-items: center; gap: 10px; width: max-content; color: inherit; font-size: 18px; font-weight: 800; letter-spacing: -.03em; text-decoration: none; }
 .brand-mark { width: 24px; height: 24px; border: 6px solid var(--accent); border-radius: 50% 45% 55% 40%; transform: rotate(-12deg); }
@@ -51,6 +51,13 @@ button:disabled { opacity: .46; cursor: not-allowed; }
 .primary-action { padding-inline: 17px; border-color: var(--accent); background: var(--accent); color: #fff; font-size: 13px; font-weight: 750; }
 .secondary-action { padding-inline: 14px; font-size: 12px; font-weight: 700; }
 :root[data-theme="dark"] .primary-action { color: #161714; }
+.creation-route { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:10px 16px; border-bottom:1px solid var(--line); background:var(--accent-soft); color:var(--text); font-size:12px; line-height:1.45; }
+.creation-route p { min-width:0; margin:0; }
+.creation-route p span { font-weight:750; }
+/* Wraps because paint.js writes these labels from the page the visitor came
+   from — "Back to Rosalind’s profile" is not the width the markup ships with. */
+.creation-route-links { display:flex; flex:none; flex-wrap:wrap; align-items:center; gap:8px 14px; }
+.creation-route a { min-height:40px; display:inline-flex; align-items:center; border-radius:7px; color:var(--accent); font-weight:750; text-underline-offset:3px; }
 .icon-button svg, .tool-button svg { width: 20px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
 .moon-icon { display: none; }
 :root[data-theme="dark"] .sun-icon { display: none; }
@@ -140,6 +147,11 @@ button:disabled { opacity: .46; cursor: not-allowed; }
   .document-title { display: none; }
   .secondary-action { display: none; }
   .primary-action { padding-inline: 11px; }
+  .creation-route { align-items:flex-start; flex-direction:column; gap:5px; padding:10px; }
+  .creation-route-links { width:100%; }
+  /* 44px and a padded box so the escape links are a thumb target, matching the
+     mobile site nav rather than being the one row you have to aim at. */
+  .creation-route a { flex:1 1 auto; justify-content:center; min-height:44px; padding-inline:10px; background:var(--surface); }
   .editor { grid-template-columns: 1fr; }
   .tool-rail { padding: 7px 8px; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--line); }
   .tool-group { display: flex; width: max-content; }
