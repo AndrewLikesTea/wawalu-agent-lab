@@ -14,7 +14,7 @@ import sys
 import uuid
 
 from runner.github_app import installation_token, reviewer_token
-from runner.budget import DiffBudget
+from runner.budget import DiffBudget, DiffBudgetExhausted
 from runner.delivery import DELIVERY_REQUEST, consume_merge_request, enable_auto_merge
 from runner.layers import CAPACITY_EXIT_CODES, plan, review, review_debate, run_aside, run_worker, WORKERS
 from runner.simulation import choose_distraction, choose_peer_reviewer, happens, load_behaviors, personality_context
@@ -24,6 +24,8 @@ AGENT_DIR = ROOT / ".agent"
 SECRETS = ROOT / ".secrets" / "personas.json"
 RUNTIME_ENV = ROOT / ".secrets" / "runtime.env"
 BUDGET = DiffBudget(ROOT)
+# Distinct from the capacity codes in layers.CAPACITY_EXIT_CODES (75/76).
+DIFF_BUDGET_EXIT_CODE = 77
 
 
 CHECKOUT_LOCK = AGENT_DIR / "autonomy" / "checkout.lock"
@@ -204,7 +206,7 @@ def reclaim_worktree(worktree: pathlib.Path, branch: str) -> None:
                    cwd=PRODUCT_ROOT, check=False, capture_output=True)
 
 
-def prepare_worktree(persona: str, scenario_id: str) -> tuple[pathlib.Path, str]:
+def prepare_worktree(persona: str, scenario_id: str) -> tuple[pathlib.Path, str, str]:
     branch = f"agent/{persona}/{scenario_id}"
     worktree = AGENT_DIR / "worktrees" / f"{persona}-{scenario_id}"
     with checkout_lock():
@@ -212,8 +214,13 @@ def prepare_worktree(persona: str, scenario_id: str) -> tuple[pathlib.Path, str]
             reclaim_worktree(worktree, branch)
         # worktrees branch off the PRODUCT checkout, wherever it lives
         run(["git", "worktree", "add", "-b", branch, str(worktree), "main"], cwd=PRODUCT_ROOT)
+        # Pin the commit we branched from. `main` is a moving target: sibling
+        # runs and the merge sweep advance it mid-run, and a run that diffs
+        # against the name instead of the commit sees other people's merged
+        # work reversed into its own diff.
+        base_sha = output(["git", "rev-parse", "HEAD"], cwd=worktree).strip()
     install_product_dependencies(worktree)
-    return worktree, branch
+    return worktree, branch, base_sha
 
 
 def install_product_dependencies(worktree: pathlib.Path) -> None:
@@ -245,13 +252,18 @@ def command_status() -> int:
 
 
 def command_run(persona: str, scenario_path: str, push: bool, requested_worker: str) -> int:
-    BUDGET.ensure_available()
+    try:
+        BUDGET.ensure_available()
+    except DiffBudgetExhausted as error:
+        # Dedicated exit code: the daemon defers instead of burning an attempt.
+        print(str(error), file=sys.stderr)
+        return DIFF_BUDGET_EXIT_CODE
     personas = load_personas()
     runtime = load_runtime_env()
     if persona not in personas: raise SystemExit(f"unknown persona: {persona}")
     scenario = json.loads((ROOT / scenario_path).read_text())
     scenario_id = safe_slug(scenario["id"])
-    worktree, branch = prepare_worktree(persona, scenario_id)
+    worktree, branch, base_sha = prepare_worktree(persona, scenario_id)
     run_id = f"sim_{dt.datetime.now(dt.UTC).strftime('%Y%m%dT%H%M%SZ')}_{uuid.uuid4().hex[:8]}"
     run_dir = AGENT_DIR / "runs" / run_id
     run_dir.mkdir(parents=True)
@@ -328,8 +340,8 @@ Scenario: {json.dumps(scenario, indent=2)}
     # change fails here, in seconds, instead of after the reviewer has spent an
     # hour on work the final policy check was always going to throw away.
     run(["git", "add", "--intent-to-add", "--all"], cwd=worktree)
-    run([sys.executable, "-m", "runner.policy", "--base", "main", "--repo", str(worktree)])
-    diff = output(["git", "diff", "--no-ext-diff", "main"], cwd=worktree)
+    run([sys.executable, "-m", "runner.policy", "--base", base_sha, "--repo", str(worktree)])
+    diff = output(["git", "diff", "--no-ext-diff", base_sha], cwd=worktree)
     reviewed_diff_sha256 = hashlib.sha256(diff.encode()).hexdigest()
     reviewer_prompt = (ROOT / personas["reviewer"]["prompt_file"]).read_text()
     review_value = review(reviewer_prompt, scenario, plan_value, diff,
@@ -362,10 +374,10 @@ Scenario: {json.dumps(scenario, indent=2)}
     if output(["git", "status", "--porcelain"], cwd=worktree):
         run(["git", "add", "--all"], cwd=worktree)
         run(["git", "commit", "-m", f"Agent: {scenario.get('title', scenario_id)}"], cwd=worktree)
-    committed_diff = output(["git", "diff", "--no-ext-diff", "main"], cwd=worktree)
+    committed_diff = output(["git", "diff", "--no-ext-diff", base_sha], cwd=worktree)
     if hashlib.sha256(committed_diff.encode()).hexdigest() != reviewed_diff_sha256:
         raise RuntimeError("committed diff does not match the reviewer-approved diff")
-    run([sys.executable, "-m", "runner.policy", "--base", "main", "--repo", str(worktree)])
+    run([sys.executable, "-m", "runner.policy", "--base", base_sha, "--repo", str(worktree)])
     if push:
         github_token = installation_token()
         auth = base64.b64encode(f"x-access-token:{github_token}".encode()).decode()

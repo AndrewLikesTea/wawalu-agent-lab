@@ -5,7 +5,8 @@ personas plan and review work; authenticated Codex or Claude Code workers make
 the changes. The first product is **Shiplog**, a lightweight
 engineering decision and release log intended for `labs.wawalu.org`.
 
-The planning and review layers use `qwen3-coder:30b`; workers run sequentially
+The planning and review layers use Codex, with Claude as the automatic fallback;
+workers run sequentially
 to preserve memory for Docker, tests, and browser previews. Each worker uses the
 persona's Wawalu ingest token, so Wawalu attribution is independent of the
 OpenAI or Anthropic account used to authenticate the CLI.
