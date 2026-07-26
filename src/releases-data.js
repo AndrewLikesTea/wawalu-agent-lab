@@ -19,5 +19,11 @@ export async function loadReleaseData(storage) {
   const demo = await fetchDemoData();
   const decisions = dedupeById([...loadDecisions(storage), ...demo.decisions]);
   const releases = dedupeById([...loadReleases(storage), ...demo.releases]);
-  return { decisions, releases, unavailable: demo.unavailable === true };
+  return {
+    decisions,
+    releases,
+    publicDecisionIds: new Set(demo.decisions.map(({ id }) => id)),
+    publicReleaseIds: new Set(demo.releases.map(({ id }) => id)),
+    unavailable: demo.unavailable === true,
+  };
 }

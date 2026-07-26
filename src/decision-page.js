@@ -6,7 +6,8 @@ async function init() {
   if (!container) return;
 
   const id = new URLSearchParams(window.location.search).get("id") ?? "";
-  const { decisions } = await loadReleaseData(localStorage);
+  container.setAttribute("aria-busy", "true");
+  const { decisions, releases, publicDecisionIds } = await loadReleaseData(localStorage);
   let detailSeeds = [];
   try {
     const response = await fetch("/decision-detail-demo-data.json", { cache: "no-store" });
@@ -20,7 +21,15 @@ async function init() {
   // (localStorage first, then the release demo seed via loadReleaseData) resolve
   // anything it does not. This avoids coupling precedence to an id-prefix guess.
   const decision = resolveDecisionDetail(detailSeeds, id) ?? resolveDecisionDetail(decisions, id);
-  renderDecisionDetail(container, decision, { id });
+  const linkedReleases = decision
+    ? releases.filter((release) => release.decisionIds.includes(decision.id))
+    : [];
+  renderDecisionDetail(container, decision, {
+    id,
+    linkedReleases,
+    shareable: publicDecisionIds.has(id) || detailSeeds.some((seed) => seed.id === id),
+  });
+  container.setAttribute("aria-busy", "false");
   document.title = decision ? `${decision.title} · Decisions · Shiplog` : "Decision not found · Shiplog";
   document.documentElement.dataset.shiplogDecisionDetail = "ready";
 }

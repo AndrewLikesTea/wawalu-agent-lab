@@ -21,7 +21,12 @@
       </header>
 
       <section class="list-panel detail-panel" aria-label="Release detail">
-        <div id="release-detail"></div>
+        <div id="release-detail" aria-busy="true">
+          <div class="list-state list-state-loading" role="status">
+            <h1>Loading release</h1>
+            <p>Finding this release…</p>
+          </div>
+        </div>
       </section>
     </main>
     <script type="module" src="/release-page.js"></script>

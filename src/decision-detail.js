@@ -1,6 +1,8 @@
 // Decision-detail state model and renderer. State transitions are pure and live
 // above the DOM layer so selection rules can be verified independently.
 
+import { createShareControl } from "./share-link.js";
+
 export const MAX_COMPARISON_SELECTION = 2;
 
 const text = (value, fallback = "") => typeof value === "string" && value.trim() ? value.trim() : fallback;
@@ -140,13 +142,36 @@ export function renderDecisionDetail(container, decision, options = {}) {
   let state = createComparisonState(alternatives);
   const view = el("article", "decision-detail");
   const header = el("header", "decision-detail-header");
-  header.append(el("p", "eyebrow", "Engineering decision"), el("h1", undefined, decision.title));
+  const heading = el("div", "detail-heading");
+  heading.append(el("p", "eyebrow", "Engineering decision"), el("h1", undefined, decision.title));
+  if (options.shareable) {
+    const share = createShareControl({ type: "decision", id: decision.id });
+    if (share) heading.append(share);
+  }
+  header.append(heading);
   const meta = el("dl", "detail-meta decision-detail-meta");
   const created = new Intl.DateTimeFormat(undefined, { dateStyle: "long" }).format(new Date(decision.createdAt));
   for (const [label, value, className] of [["Status", decision.status, `badge badge-${decision.status}`], ["Owner", decision.owner], ["Recorded", created]]) {
     const row = el("div", "detail-meta-row"); row.append(el("dt", "detail-meta-label", label), el("dd", `detail-meta-value ${className ?? ""}`, value)); meta.append(row);
   }
   header.append(meta); view.append(header);
+  const linkedReleases = Array.isArray(options.linkedReleases) ? options.linkedReleases : [];
+  if (linkedReleases.length) {
+    const relationship = el("section", "proof-relationship");
+    relationship.setAttribute("aria-labelledby", "linked-releases-title");
+    relationship.append(el("h2", undefined, "Linked releases"));
+    relationship.firstChild.id = "linked-releases-title";
+    const releaseList = el("ul");
+    for (const release of linkedReleases) {
+      const item = el("li");
+      const link = el("a", undefined, `${release.version} · ${release.title || release.version}`);
+      link.href = `/release.html?id=${encodeURIComponent(release.id)}`;
+      item.append(link, el("span", `badge badge-release-${release.status}`, release.status));
+      releaseList.append(item);
+    }
+    relationship.append(releaseList);
+    view.append(relationship);
+  }
   const context = el("section", "decision-context"); context.setAttribute("aria-labelledby", "context-title");
   context.append(el("h2", undefined, "Context and rationale"), el("p", undefined, decision.context)); context.firstChild.id = "context-title"; view.append(context);
   const alternativesSection = el("section", "decision-alternatives"); alternativesSection.setAttribute("aria-labelledby", "alternatives-title");
