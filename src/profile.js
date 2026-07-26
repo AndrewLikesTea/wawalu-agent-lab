@@ -174,7 +174,51 @@ export function countLabel(count, singular, plural = `${singular}s`) {
   return `${count} ${count === 1 ? singular : plural}`;
 }
 
-const EMPTY_PROFILE_MESSAGE = "You haven’t posted anything yet. Start by sharing an image.";
+export function formatDate(iso) {
+  return new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(new Date(iso));
+}
+
+/* --------------------------- first-run copy ------------------------------- */
+
+// The one place the empty profile's wording lives. Four spots on the page speak
+// to this situation — the hero description, the heading count, the grid, and the
+// live region — and when each held its own literal the page printed the same
+// sentence twice while the grid said something else entirely.
+//
+// The terms are borrowed from the destination rather than invented here: Paint's
+// primary action is "Use in post", so this copy says "image post" and "use it in
+// a post", and it names Paint instead of gesturing at "the team feed".
+//
+// One message for every visitor, deliberately. This demo has no accounts (a
+// profile is a display name), so an empty profile you are only looking at and an
+// empty profile of your own are the same surface, and splitting the copy in two
+// is what produced the duplication in the first place. If accounts ever arrive,
+// branch here — not at four call sites.
+export const PROFILE_EMPTY_COPY = {
+  // The hero description: states the situation, once.
+  summary: "No image posts yet.",
+  // The grid's empty state: the next action, not a second telling of the state.
+  guidance: "Make an image in Paint, then use it in a post.",
+  actionLabel: "Open Paint",
+  actionHref: "/paint/",
+};
+
+// The profile description under the name. An author with posts but no images
+// reads "0 image posts · 3 posts in total", so the counts carry the "you posted,
+// just without pictures" case that the empty state used to spell out in prose.
+export function profileSummaryText(summary) {
+  if (summary.total === 0) return PROFILE_EMPTY_COPY.summary;
+  const parts = [countLabel(summary.withImages, "image post"), `${countLabel(summary.total, "post")} in total`];
+  if (summary.latest) parts.push(`last posted ${formatDate(summary.latest)}`);
+  return parts.join(" · ");
+}
+
+// What the live region announces after a refresh settles. It mirrors what the
+// grid now shows rather than composing a fourth variant of the same news.
+export function profileAnnouncement(author, visibleCount) {
+  if (visibleCount > 0) return `Showing ${countLabel(visibleCount, "image post")} by ${author}.`;
+  return `${PROFILE_EMPTY_COPY.summary} ${PROFILE_EMPTY_COPY.guidance}`;
+}
 
 /* ------------------------------ rendering layer --------------------------- */
 // Everything below touches the DOM. Text is written via textContent only.
@@ -184,10 +228,6 @@ function el(tag, className, text) {
   if (className) node.className = className;
   if (text !== undefined) node.textContent = text;
   return node;
-}
-
-export function formatDate(iso) {
-  return new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(new Date(iso));
 }
 
 // The tile image. Three states driven by one data attribute, so CSS owns the
@@ -275,17 +315,13 @@ function renderSkeleton(container, count = 6) {
   container.append(list);
 }
 
-function renderEmpty(container, { author, hasTextPosts }) {
+// One paragraph and one action. The hero has already said the profile is empty,
+// so this says what to do about it instead of saying it again.
+function renderEmpty(container) {
   const empty = el("div", "empty-state");
-  empty.append(el("p", "empty-title", hasTextPosts ? "No image posts yet." : EMPTY_PROFILE_MESSAGE));
-  // The two empty states are genuinely different situations, and telling them
-  // apart is the difference between "you posted, just without pictures" and
-  // "this profile is blank".
-  empty.append(el("p", undefined, hasTextPosts
-    ? `${author} has posted, but none of those posts carry an image. Posts with an image appear here.`
-    : "Share a post with an image on the team feed and it will appear here."));
-  const link = el("a", "empty-action", "Share your first post");
-  link.href = "/social.html";
+  empty.append(el("p", "empty-title", PROFILE_EMPTY_COPY.guidance));
+  const link = el("a", "empty-action", PROFILE_EMPTY_COPY.actionLabel);
+  link.href = PROFILE_EMPTY_COPY.actionHref;
   empty.append(link);
   container.append(empty);
 }
@@ -306,7 +342,7 @@ function renderError(container, onRetry) {
 // always win over a pending or failed refresh — stale content beats a spinner
 // over content the reader could already see.
 export function renderProfileGrid(container, posts, options = {}) {
-  const { state = "ready", author = "", hasTextPosts = false, onRetry = null } = options;
+  const { state = "ready", onRetry = null } = options;
   const ordered = sortNewestFirst(posts ?? []);
   container.replaceChildren();
   container.setAttribute("aria-busy", state === "loading" && ordered.length === 0 ? "true" : "false");
@@ -314,7 +350,7 @@ export function renderProfileGrid(container, posts, options = {}) {
   if (ordered.length === 0) {
     if (state === "loading") renderSkeleton(container);
     else if (state === "error") renderError(container, onRetry);
-    else renderEmpty(container, { author, hasTextPosts });
+    else renderEmpty(container);
     return;
   }
 
@@ -334,15 +370,7 @@ export function renderProfileHeader(elements, author, summary) {
     elements.avatar.setAttribute("aria-hidden", "true");
   }
   if (elements.name) elements.name.textContent = author;
-  if (elements.summary) {
-    if (summary.total === 0) {
-      elements.summary.textContent = EMPTY_PROFILE_MESSAGE;
-      return;
-    }
-    const parts = [countLabel(summary.withImages, "image post"), `${countLabel(summary.total, "post")} in total`];
-    if (summary.latest) parts.push(`last posted ${formatDate(summary.latest)}`);
-    elements.summary.textContent = parts.join(" · ");
-  }
+  if (elements.summary) elements.summary.textContent = profileSummaryText(summary);
 }
 
 /* -------------------------------- mounting -------------------------------- */
@@ -374,21 +402,13 @@ export function mountProfile(root, options = {}) {
     renderProfileHeader(elements, author, summary);
     renderProfileGrid(grid, mine, {
       state,
-      author,
-      hasTextPosts: summary.total > summary.withImages,
       onRetry: options.onRetry,
     });
-    if (elements.count) {
-      elements.count.textContent = summary.total === 0
-        ? EMPTY_PROFILE_MESSAGE
-        : countLabel(mine.length, "image post");
-    }
+    // A count, always — this sits beside the "Image posts" heading, and putting
+    // the empty-state sentence here is what made the page say it twice.
+    if (elements.count) elements.count.textContent = countLabel(mine.length, "image post");
     if (elements.announcer && state === "ready") {
-      elements.announcer.textContent = mine.length
-        ? `Showing ${countLabel(mine.length, "image post")} by ${author}.`
-        : summary.total === 0
-          ? EMPTY_PROFILE_MESSAGE
-          : `${author} has no image posts yet.`;
+      elements.announcer.textContent = profileAnnouncement(author, mine.length);
     }
     if (options.onRender) options.onRender({ author, posts: mine, summary });
   };
