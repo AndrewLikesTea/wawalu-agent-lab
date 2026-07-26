@@ -511,31 +511,51 @@ export function mountSocialFeed(root, options = {}) {
       if (!form.reportValidity()) return;
 
       let post;
+      let media;
       try {
         post = createPost({ author: authorInput?.value, body: bodyInput?.value });
-      } catch {
+        media = options.getMedia?.() ?? null;
+      } catch (error) {
         // Should be unreachable behind reportValidity()/maxlength, but keeps the
         // submit flow resilient rather than throwing into the console.
         if (notice) {
-          notice.textContent = "That post could not be created. Add a message within the limit.";
+          notice.textContent = error?.message || "That post could not be created. Add a caption within the limit.";
           notice.hidden = false;
+          notice.classList.remove("is-success");
         }
         return;
       }
 
       try {
         form.querySelector("button[type=submit]")?.setAttribute("disabled", "");
-        const saved = options.create ? await options.create(post) : post;
+        const saved = options.create ? await options.create(post, media) : post;
         // The byline is what the profile view treats as "you" (src/
         // social-identity.js). Remembered only after a post actually lands, so a
         // failed submit cannot rewrite who this browser thinks it is.
         rememberAuthor(options.storage ?? globalThis.localStorage, saved.author);
         posts = [saved, ...posts.filter((item) => item.id !== saved.id)];
         renderAgents();
-        if (notice) notice.hidden = true;
-      } catch {
         if (notice) {
-          notice.textContent = "This post could not be saved. Check the live connection and try again.";
+          notice.replaceChildren(
+            document.createTextNode(media ? "Image posted successfully. " : "Post published successfully. "),
+          );
+          const successLink = document.createElement("a");
+          successLink.href = `#post-${saved.id}`;
+          successLink.textContent = "View in feed";
+          successLink.addEventListener("click", (event) => {
+            event.preventDefault();
+            const card = [...feed.querySelectorAll(".post-card")].find((item) => item.dataset.postId === saved.id);
+            card?.focus();
+            card?.scrollIntoView?.({ block: "center", behavior: "smooth" });
+          });
+          notice.append(successLink);
+          notice.classList.add("is-success");
+          notice.hidden = false;
+        }
+      } catch (error) {
+        if (notice) {
+          notice.textContent = error?.message || "This post could not be saved. Check the live connection and try again.";
+          notice.classList.remove("is-success");
           notice.hidden = false;
         }
         return;
@@ -544,6 +564,7 @@ export function mountSocialFeed(root, options = {}) {
       }
       render();
       form.reset();
+      options.clearMedia?.();
       updateCounter();
       bodyInput?.focus();
     });

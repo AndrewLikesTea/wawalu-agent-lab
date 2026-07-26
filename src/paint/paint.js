@@ -1,4 +1,5 @@
 import { fitBitmapSize, FRAME_BUDGET_MS, PixelDocument, WebGLPresenter } from "./paint-engine.js";
+import { dataUrlPayload, writePaintHandoff } from "../publishing-media.js";
 
 export const THEME_KEY = "paint.theme.v1";
 
@@ -34,6 +35,11 @@ export const supportedBlendModes = new Set(["normal", "multiply", "screen", "ove
 
 export function normalizedBlendMode(value) {
   return supportedBlendModes.has(value) ? value : "normal";
+}
+
+export function paintHandoffFromDataUrl(dataUrl, { width, height, size }) {
+  const payload = dataUrlPayload(dataUrl);
+  return payload ? { ...payload, width, height, size, preview: dataUrl, source: "paint" } : null;
 }
 
 export function applyTheme(root, button, theme) {
@@ -307,7 +313,7 @@ export function initEditor(root = document, environment = globalThis) {
       scheduleRender();
     });
   }
-  root.querySelector("#export-button").addEventListener("click", () => {
+  function flattenedCanvas() {
     const exportCanvas = root.createElement("canvas");
     exportCanvas.width = image.width;
     exportCanvas.height = image.height;
@@ -315,6 +321,11 @@ export function initEditor(root = document, environment = globalThis) {
     const output = context.createImageData(image.width, image.height, { colorSpace: "srgb" });
     output.data.set(image.pixels);
     context.putImageData(output, 0, 0);
+    return exportCanvas;
+  }
+
+  root.querySelector("#export-button").addEventListener("click", () => {
+    const exportCanvas = flattenedCanvas();
     exportCanvas.toBlob((blob) => {
       if (!blob) return;
       const link = root.createElement("a");
@@ -322,6 +333,37 @@ export function initEditor(root = document, environment = globalThis) {
       link.href = URL.createObjectURL(blob);
       link.click();
       setTimeout(() => URL.revokeObjectURL(link.href), 0);
+    }, "image/png");
+  });
+  const publishButton = root.querySelector("#publish-button");
+  const publishStatus = root.querySelector("#publish-status");
+  publishButton?.addEventListener("click", () => {
+    publishButton.disabled = true;
+    publishStatus.textContent = "Preparing a preview for your post…";
+    const exportCanvas = flattenedCanvas();
+    exportCanvas.toBlob((blob) => {
+      if (!blob) {
+        publishStatus.textContent = "The drawing could not be prepared. Export it and upload the file from Social.";
+        publishButton.disabled = false;
+        return;
+      }
+      const reader = new FileReader();
+      reader.addEventListener("load", () => {
+        const handoff = paintHandoffFromDataUrl(reader.result, { width: image.width, height: image.height, size: blob.size });
+        const result = writePaintHandoff(environment.sessionStorage, handoff);
+        if (!result.ok) {
+          publishStatus.textContent = result.error;
+          publishButton.disabled = false;
+          return;
+        }
+        publishStatus.textContent = "Drawing ready. Opening the post preview…";
+        environment.location.assign("/social.html#post-form");
+      }, { once: true });
+      reader.addEventListener("error", () => {
+        publishStatus.textContent = "The drawing could not be read. Export it and upload the file from Social.";
+        publishButton.disabled = false;
+      }, { once: true });
+      reader.readAsDataURL(blob);
     }, "image/png");
   });
   environment.addEventListener?.("resize", scheduleRender);

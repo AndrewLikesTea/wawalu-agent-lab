@@ -36,7 +36,39 @@
           </div>
 
           <form id="post-form" aria-describedby="post-form-hint">
-            <p class="hint" id="post-form-hint">Posts are saved to the shared demo feed. Press ⌘/Ctrl + Enter to post.</p>
+            <p class="hint" id="post-form-hint">Add an image, check its preview, then write the caption. Posts are saved to the shared demo feed.</p>
+
+            <fieldset class="media-picker">
+              <legend>Image <span class="label-optional">(optional)</span></legend>
+              <div class="media-source-actions">
+                <label class="secondary-button file-button" for="post-image">Upload image
+                  <input id="post-image" name="image" type="file"
+                    accept="image/png,image/jpeg,image/gif,image/webp" aria-describedby="post-image-hint post-media-status" />
+                </label>
+                <a class="secondary-button paint-link" href="/paint/">Create in Paint <span aria-hidden="true">↗</span></a>
+              </div>
+              <p class="hint" id="post-image-hint">PNG, JPEG, GIF, or WebP · 512 KB maximum.</p>
+              <div class="compose-media" id="compose-media" hidden>
+                <div class="compose-media-head">
+                  <p><span class="source-shape" aria-hidden="true"></span><strong id="compose-media-source">Uploaded image</strong></p>
+                  <button class="text-button" id="remove-image" type="button">Remove image</button>
+                </div>
+                <figure class="compose-preview">
+                  <div class="compose-preview-frame" id="compose-preview-frame" data-state="loading">
+                    <img id="compose-preview-image" alt="" />
+                    <p id="compose-preview-error" hidden>Preview unavailable. Remove this image and choose it again.</p>
+                  </div>
+                  <figcaption id="compose-preview-caption">Preview before posting</figcaption>
+                </figure>
+                <div class="field field-wide">
+                  <label for="post-image-alt">Image description</label>
+                  <textarea id="post-image-alt" name="image-alt" rows="2" maxlength="200"
+                    aria-describedby="post-image-alt-hint"></textarea>
+                  <span class="hint" id="post-image-alt-hint">Describe what matters in the image for people who cannot see it.</span>
+                </div>
+              </div>
+              <p class="media-status" id="post-media-status" role="status" aria-live="polite"></p>
+            </fieldset>
 
             <div class="field field-wide">
               <label for="post-author">Name <span class="label-optional">(optional)</span></label>
@@ -46,7 +78,7 @@
             </div>
 
             <div class="field field-wide">
-              <label for="post-body">Message</label>
+              <label for="post-body">Caption</label>
               <textarea id="post-body" name="body" rows="4" maxlength="280" required
                 aria-describedby="post-counter-label post-counter"></textarea>
               <p class="counter-row">

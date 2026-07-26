@@ -47,8 +47,9 @@ button:disabled { opacity: .46; cursor: not-allowed; }
 .document-title strong { font-size: 14px; }
 .document-title span { color: var(--muted); font-size: 11px; }
 .header-actions { display: flex; justify-content: flex-end; gap: 9px; }
-.icon-button, .primary-action, .canvas-toolbar button, .section-title button { display: inline-grid; place-items: center; min-width: 40px; min-height: 40px; padding: 8px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-raised); cursor: pointer; }
+.icon-button, .primary-action, .secondary-action, .canvas-toolbar button, .section-title button { display: inline-grid; place-items: center; min-width: 40px; min-height: 40px; padding: 8px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-raised); cursor: pointer; }
 .primary-action { padding-inline: 17px; border-color: var(--accent); background: var(--accent); color: #fff; font-size: 13px; font-weight: 750; }
+.secondary-action { padding-inline: 14px; font-size: 12px; font-weight: 700; }
 :root[data-theme="dark"] .primary-action { color: #161714; }
 .icon-button svg, .tool-button svg { width: 20px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
 .moon-icon { display: none; }
@@ -124,6 +125,8 @@ button:disabled { opacity: .46; cursor: not-allowed; }
 .layer-empty, .layer-error { margin: 12px 0 0; padding: 12px; border: 1px dashed var(--line); border-radius: 8px; color: var(--muted); font-size: 10px; line-height: 1.45; }
 .layer-error { border-style: solid; color: var(--text); }
 .canvas-frame.is-layer-hidden canvas { visibility: hidden; }
+.publish-status { position: fixed; z-index: 5; right: 16px; bottom: 16px; max-width: min(420px, calc(100% - 32px)); margin: 0; padding: 11px 14px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-raised); box-shadow: var(--shadow); color: var(--text); font-size: 12px; font-weight: 650; }
+.publish-status:empty { display: none; }
 
 @media (max-width: 820px) {
   .editor { grid-template-columns: 68px minmax(0, 1fr); }
@@ -135,7 +138,8 @@ button:disabled { opacity: .46; cursor: not-allowed; }
 @media (max-width: 560px) {
   .app-header { grid-template-columns: 1fr auto; min-height: 58px; padding: 8px 10px; }
   .document-title { display: none; }
-  .primary-action { display: none; }
+  .secondary-action { display: none; }
+  .primary-action { padding-inline: 11px; }
   .editor { grid-template-columns: 1fr; }
   .tool-rail { padding: 7px 8px; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--line); }
   .tool-group { display: flex; width: max-content; }
