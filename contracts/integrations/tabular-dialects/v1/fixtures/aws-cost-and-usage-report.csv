@@ -1,0 +1,4 @@
+bill_billing_period_start_date,line_item_usage_start_date,line_item_usage_account_id,line_item_product_code,line_item_usage_amount,line_item_unblended_cost,line_item_currency_code,product_region
+2026-06-01,2026-06-05T00:00:00Z,acct-atlas,AmazonBedrock,1840.0,264.10,USD,us-east-1
+2026-06-01,2026-06-05T00:00:00Z,acct-boreal,AmazonS3,412.5,18.32,USD,us-west-2
+2026-06-01,2026-06-06T00:00:00Z,acct-cinder,AmazonS3,96.25,4.05,USD,eu-west-1

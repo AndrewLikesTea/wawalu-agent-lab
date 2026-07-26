@@ -1,0 +1,4 @@
+date,workspace,model,input_tokens,output_tokens,cost_usd,api_key
+2026-06-05,atlas-platform,claude-opus-4,2450000,318000,735.20,atlas-batch
+2026-06-05,boreal-support,claude-sonnet-4,1180000,142000,88.60,boreal-agent
+2026-06-06,ember-design,claude-haiku-3-5,640000,71000,12.85,ember-eval

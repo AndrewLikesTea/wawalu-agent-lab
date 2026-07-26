@@ -1,0 +1,4 @@
+usage_date,model,project,n_context_tokens_total,n_generated_tokens_total,amount,api_key_name
+2026-06-05,gpt-4o,atlas-platform,1840000,214000,412.75,atlas-batch
+2026-06-05,gpt-4o-mini,boreal-support,920000,88000,31.40,boreal-agent
+2026-06-06,gpt-4o,cinder-research,455000,61000,102.05,cinder-eval
