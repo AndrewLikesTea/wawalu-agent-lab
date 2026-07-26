@@ -170,6 +170,33 @@
 .dataset-provenance .provenance-shape { grid-row:1/4; font-weight:750; }
 .dataset-provenance .provenance-label { font:750 11px/1.4 ui-monospace,monospace; letter-spacing:.05em; text-transform:uppercase; }
 .dataset-provenance .provenance-swap { font-weight:700; }
+/* The trust verdict: coverage, what is missing, one action. Nothing is carried
+   by tint alone — the state word and the numbers are always in the text. */
+.local-trust { margin-top:20px; border:1px solid #b9b2a4; border-top:5px solid #6b5c3e; border-radius:12px; padding:clamp(18px,3vw,24px); background:#fff; }
+.local-trust h4 { max-width:760px; margin:6px 0 0; font-size:clamp(19px,2.8vw,25px); line-height:1.2; letter-spacing:-.025em; }
+.local-trust-coverage { margin:12px 0 0; font-size:clamp(26px,4vw,38px); font-weight:750; letter-spacing:-.03em; line-height:1.1; }
+.local-trust-coverage[data-available="false"] { color:var(--state-warn-ink); font-size:18px; }
+.local-trust-inputs { margin:4px 0 0; color:var(--ink-muted); font:600 12px/1.5 ui-monospace,monospace; overflow-wrap:anywhere; }
+.local-trust-answer { margin:10px 0 0; font-size:14px; line-height:1.5; }
+.local-trust[data-state="all_clear"] { border-top-color:#315f50; }
+.local-trust-findings-section { margin-top:18px; padding-top:16px; border-top:1px solid #e0dbd0; }
+.local-trust-findings { display:grid; gap:8px; margin:8px 0 0; padding:0; list-style:none; }
+.local-trust-finding { border:1px solid #d8d6cf; border-radius:9px; overflow:hidden; }
+.local-trust-finding[data-blocking="true"] { border-color:#b98a8a; }
+.local-trust-choice { display:flex; align-items:center; gap:10px; width:100%; padding:11px 13px; border:0; background:#fff; text-align:left; cursor:pointer; }
+.local-trust-choice[aria-expanded="true"] { background:#f4f1e9; box-shadow:inset 4px 0 #6b5c3e; }
+.local-trust-rank { color:var(--ink-muted); font:700 10px/1.4 ui-monospace,monospace; }
+.local-trust-title { flex:1; font-size:13px; }
+.local-trust-impact { color:#8a2b2b; font:750 12px/1.4 ui-monospace,monospace; white-space:nowrap; }
+.local-trust-confidence { color:var(--ink-muted); font:600 10px/1.4 ui-monospace,monospace; white-space:nowrap; }
+.local-trust-detail { display:grid; gap:8px; border-top:1px solid #e0dbd0; padding:14px; background:#f7f8f4; }
+.local-trust-detail p { margin:0; font-size:12px; line-height:1.5; }
+.local-trust-detail-rows { display:grid; gap:5px; margin:0; padding:0; list-style:none; }
+.local-trust-detail-rows li { display:flex; gap:10px; justify-content:space-between; font:600 11px/1.5 ui-monospace,monospace; }
+.local-trust-next { margin-top:18px; padding-top:16px; border-top:1px solid #e0dbd0; }
+.local-trust-action { margin:5px 0 0; font-size:14px; font-weight:700; line-height:1.5; }
+.local-trust-action[data-available="false"] { color:var(--state-warn-ink); font-weight:400; }
+.local-trust-jump { margin-top:10px; padding:7px 13px; border:1px solid #6b5c3e; border-radius:7px; background:#fff; font:700 12px/1.4 inherit; cursor:pointer; }
 /* The landing surface: the question first, then the one number that answers it. */
 .local-lead-finding { margin-top:20px; border:1px solid #9eb9aa; border-top:5px solid #315f50; border-radius:12px; padding:clamp(18px,3vw,24px); background:#fff; }
 .local-lead-finding h4 { max-width:760px; margin:6px 0 0; font-size:clamp(21px,3.2vw,29px); line-height:1.2; letter-spacing:-.025em; }
