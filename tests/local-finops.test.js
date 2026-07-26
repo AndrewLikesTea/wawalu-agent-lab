@@ -164,7 +164,11 @@ test("exports contain decision results, provenance, quality, limits, and privacy
 });
 
 test("the page exposes an accessible local workflow and progressive disclosures", async () => {
-  const page = await readFile(new URL("../src/evolution.html", import.meta.url), "utf8");
+  const [page, script, styles] = await Promise.all([
+    readFile(new URL("../src/evolution.html", import.meta.url), "utf8"),
+    readFile(new URL("../src/evolution-page.js", import.meta.url), "utf8"),
+    readFile(new URL("../src/evolution.css", import.meta.url), "utf8"),
+  ]);
   assert.match(page, /type="file" accept="\.json,application\/json" multiple/);
   assert.match(page, /role="status" aria-live="polite"/);
   assert.match(page, /No upload · no credentials · no network transfer · no browser storage/);
@@ -172,9 +176,53 @@ test("the page exposes an accessible local workflow and progressive disclosures"
     "Period-level detail", "Mapping assumptions", "Data-quality warnings", "Benchmark and trend limits",
     "Recommendation evidence",
   ]) assert.match(page, new RegExp(`<summary>${label}`));
-  assert.match(page, /id="local-department-list".*role="group"/);
+  assert.match(page, /<ol id="local-department-list".*aria-label="Departments ordered by recoverable scenario"/);
   assert.match(page, /id="local-trend-state"/);
   assert.match(page, /id="local-benchmark-state"/);
   assert.match(page, /id="export-local-json"/);
   assert.match(page, /id="export-local-summary"/);
+
+  // The finding face leads with the decision, then impact, department,
+  // benchmark, and provenance before supporting trend evidence.
+  const finding = page.slice(page.indexOf('<article class="local-finding"'),
+    page.indexOf('<div class="local-state-grid"'));
+  for (const label of [
+    "Recommended department action", "Quantified impact", "Department", "Benchmark", "Data provenance",
+  ]) assert.match(finding, new RegExp(label));
+  assert.ok(finding.indexOf("Recommended department action") < finding.indexOf("Quantified impact"));
+  assert.ok(finding.indexOf("Quantified impact") < finding.indexOf("Benchmark"));
+  assert.ok(finding.indexOf("Benchmark") < finding.indexOf("Data provenance"));
+
+  // Trend and benchmark have programmatic names and descriptions; glyphs are
+  // hidden accelerators beside equivalent visible words and values.
+  assert.match(page, /id="local-trend-state" aria-labelledby="local-trend-title" aria-describedby="local-trend-why"/);
+  assert.match(page, /id="local-benchmark-state" aria-labelledby="local-benchmark-title" aria-describedby="local-benchmark-why"/);
+  assert.match(page, /id="local-trend-shape" aria-hidden="true"/);
+  assert.match(script, /↑ Increase.*↓ Decrease.*→ No change/s);
+
+  // Every department disclosure is keyboard-native and exposes its changing
+  // state, controlled region, and understandable action.
+  assert.match(script, /button\.setAttribute\("aria-expanded"/);
+  assert.match(script, /button\.setAttribute\("aria-controls", panelId\)/);
+  assert.match(script, /panel\.setAttribute\("role", "region"\)/);
+  assert.match(script, /finding for \$\{department\.name\}/);
+  assert.match(styles, /\.local-import button:focus-visible/);
+  assert.match(styles, /@media\(max-width:640px\)[\s\S]*\.local-finding-facts\s*\{\s*grid-template-columns:1fr/);
+});
+
+test("local findings draw loading, empty, error, and implausible-value states", async () => {
+  const [page, script, styles] = await Promise.all([
+    readFile(new URL("../src/evolution.html", import.meta.url), "utf8"),
+    readFile(new URL("../src/evolution-page.js", import.meta.url), "utf8"),
+    readFile(new URL("../src/evolution.css", import.meta.url), "utf8"),
+  ]);
+  assert.match(page, /Reading files in this tab|Ready for local files/);
+  assert.match(page, /id="local-result-notice" role="status" aria-live="polite" hidden/);
+  assert.match(script, /No department finding available/);
+  assert.match(script, /This file was not analyzed/);
+  assert.match(script, /MAX_DISPLAY_USD = 1_000_000_000_000/);
+  assert.match(script, /Needs review · value withheld/);
+  assert.match(script, /recoverable spend exceeds observed spend/);
+  assert.match(styles, /\.local-result-notice\[data-state="error"\]/);
+  assert.doesNotMatch(script, /localStorage|sessionStorage|indexedDB/);
 });
