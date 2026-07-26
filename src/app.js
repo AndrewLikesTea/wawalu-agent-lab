@@ -213,8 +213,8 @@ export function renderDecisionState(container, state, options = {}) {
     loading: ["Loading decisions", "Building your decision history…"],
     error: ["Decisions could not be loaded", "Your saved decisions are still shown when available. Try reloading for the example history."],
     empty: options.filtered
-      ? ["No matching decisions", "Try a different search, owner, or status filter."]
-      : ["No decisions yet", "Add the first record to start your engineering history."],
+      ? ["No matching decisions", "Change your search or filters, or select Clear filters to see every decision."]
+      : ["No decisions yet", "Complete the Record a decision form to add your first decision."],
   }[state];
   appendTextElement(panel, "h3", "", copy[0]);
   appendTextElement(panel, "p", "", copy[1]);
