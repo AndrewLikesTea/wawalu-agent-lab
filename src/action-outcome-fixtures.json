@@ -1,0 +1,85 @@
+{
+  "schemaVersion": "action-outcome-fixtures/1.0.0",
+  "provenance": "Hand-authored synthetic outcomes linked to the bundled evaluation evidence; no live provider, HRIS, customer, or telemetry data.",
+  "actions": [
+    {
+      "fixtureId": "successful-savings",
+      "actionId": "action-quality-down-route-v1",
+      "departmentId": "quality",
+      "priorityRank": 1,
+      "projectedSavingsUsd": 2439,
+      "result": {"status": "observed", "realizedSavingsUsd": 2350},
+      "confidence": {
+        "value": 0.92,
+        "signals": [
+          {"source": "evaluation-evidence", "value": 0.90},
+          {"source": "measurement", "value": 0.96}
+        ]
+      },
+      "evidenceRefs": ["syn-qa-014", "syn-qa-021"],
+      "prompt": "Route qa.owner@northwind.example ticket https://internal.northwind.example/QA-14 using Bearer demo-quality-token-000; measure the down-routing savings."
+    },
+    {
+      "fixtureId": "under-target-savings",
+      "actionId": "action-frontend-retry-workshop-v1",
+      "departmentId": "frontend",
+      "priorityRank": 2,
+      "projectedSavingsUsd": 3474,
+      "result": {"status": "observed", "realizedSavingsUsd": 2800},
+      "confidence": {
+        "value": 0.88,
+        "signals": [
+          {"source": "evaluation-evidence", "value": 0.86},
+          {"source": "measurement", "value": 0.91}
+        ]
+      },
+      "evidenceRefs": ["syn-frontend-008"],
+      "prompt": "Review retry chain for dev.lead@northwind.example at 10.42.7.19 and measure workshop savings."
+    },
+    {
+      "fixtureId": "awaiting-no-result",
+      "actionId": "action-data-ml-acceptable-use-v1",
+      "departmentId": "data-ml",
+      "priorityRank": 3,
+      "projectedSavingsUsd": 5214,
+      "result": {"status": "pending", "realizedSavingsUsd": null},
+      "confidence": {
+        "value": 0.82,
+        "signals": [{"source": "evaluation-evidence", "value": 0.78}]
+      },
+      "evidenceRefs": ["syn-data-005"],
+      "prompt": "Await the successor period for key sk-demo-data-000000000000; do not treat a missing result as zero."
+    },
+    {
+      "fixtureId": "low-confidence-conflict",
+      "actionId": "action-backend-down-route-v1",
+      "departmentId": "backend",
+      "priorityRank": 4,
+      "projectedSavingsUsd": 5201,
+      "result": {"status": "observed", "realizedSavingsUsd": 5300},
+      "confidence": {
+        "value": 0.91,
+        "signals": [
+          {"source": "aggregate-judge", "value": 0.89},
+          {"source": "retained-evidence", "value": 0.42}
+        ]
+      },
+      "evidenceRefs": ["syn-backend-033"],
+      "prompt": "Use analyst@northwind.example and card 4111 1111 1111 1111 to validate the apparent savings."
+    },
+    {
+      "fixtureId": "zero-projected-savings",
+      "actionId": "action-zero-projection-control-v1",
+      "departmentId": "quality",
+      "priorityRank": 5,
+      "projectedSavingsUsd": 0,
+      "result": {"status": "observed", "realizedSavingsUsd": 0},
+      "confidence": {
+        "value": 0.95,
+        "signals": [{"source": "measurement", "value": 0.95}]
+      },
+      "evidenceRefs": ["syn-qa-014"],
+      "prompt": "Control fixture for qa.owner@northwind.example with no projected savings."
+    }
+  ]
+}
