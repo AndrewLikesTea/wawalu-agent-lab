@@ -1241,5 +1241,63 @@ class AutonomousTests(unittest.TestCase):
         ])
 
 
+class StakeholderLoopTests(unittest.TestCase):
+    CONFIG = {"issue_label": "agent-ready", "stakeholder_reviews": [
+        {"persona": "sales", "role": "sales", "lens": "sellability",
+         "assign_to": ["frontend"], "max_daily": 1, "min_interval_seconds": 0},
+    ]}
+
+    def test_reviews_file_tasks_and_respect_the_daily_cap(self):
+        created = []
+
+        def fake_github(path, token, method="GET", payload=None):
+            if method == "POST" and path.endswith("/issues"):
+                created.append(payload)
+                return {"number": 100 + len(created)}
+            return []
+
+        review = {"feedback": "No way to raise a hand.",
+                  "tasks": [{"persona": "frontend", "title": "Add a contact form",
+                             "outcome": "Leads can reach us",
+                             "acceptance_criteria": ["Form renders", "Tests pass"]}]}
+        journal = mock.Mock()
+        with tempfile.TemporaryDirectory() as tmp:
+            with mock.patch.object(autonomous, "AUTONOMY", pathlib.Path(tmp) / "autonomy"), \
+                 mock.patch.object(autonomous, "github", side_effect=fake_github), \
+                 mock.patch.object(autonomous, "delivered_work_context", return_value=[]), \
+                 mock.patch.object(autonomous, "snapshot_live_site", return_value=None), \
+                 mock.patch.object(autonomous, "load_runtime_env", return_value={}), \
+                 mock.patch.object(autonomous, "stakeholder_prompt", return_value="You are Sasha"), \
+                 mock.patch.object(autonomous, "stakeholder_review", return_value=review) as reviewer:
+                state = autonomous.State(pathlib.Path(tmp) / "state.json")
+                now = autonomous.utc_now()
+                autonomous.post_stakeholder_reviews("token", self.CONFIG, state, journal, now)
+                autonomous.post_stakeholder_reviews("token", self.CONFIG, state, journal, now)
+        self.assertEqual(reviewer.call_count, 1)  # second call hit the daily cap
+        self.assertEqual(len(created), 1)
+        self.assertEqual(created[0]["labels"], ["agent-ready", "persona:frontend"])
+        self.assertIn("Sasha · sales feedback", created[0]["body"])
+        self.assertIn("No way to raise a hand.", created[0]["body"])
+        posted = [call.args[0] for call in journal.emit.call_args_list]
+        self.assertEqual(posted.count("stakeholder_review_posted"), 1)
+
+    def test_review_failure_is_journaled_not_fatal(self):
+        journal = mock.Mock()
+        with tempfile.TemporaryDirectory() as tmp:
+            with mock.patch.object(autonomous, "AUTONOMY", pathlib.Path(tmp) / "autonomy"), \
+                 mock.patch.object(autonomous, "github", return_value=[]), \
+                 mock.patch.object(autonomous, "delivered_work_context", return_value=[]), \
+                 mock.patch.object(autonomous, "snapshot_live_site", return_value=None), \
+                 mock.patch.object(autonomous, "load_runtime_env", return_value={}), \
+                 mock.patch.object(autonomous, "stakeholder_prompt", return_value="You are Sasha"), \
+                 mock.patch.object(autonomous, "stakeholder_review",
+                                   side_effect=RuntimeError("qwen down")):
+                state = autonomous.State(pathlib.Path(tmp) / "state.json")
+                autonomous.post_stakeholder_reviews(
+                    "token", self.CONFIG, state, journal, autonomous.utc_now())
+        events = [call.args[0] for call in journal.emit.call_args_list]
+        self.assertIn("stakeholder_review_failed", events)
+
+
 if __name__ == "__main__":
     unittest.main()
