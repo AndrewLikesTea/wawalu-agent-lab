@@ -96,7 +96,7 @@ function mountLocalFinopsImport() {
   const stateNode = document.getElementById("local-import-state");
   const resultsNode = document.getElementById("local-results");
   const clear = document.getElementById("clear-local-analysis");
-  const loaded = { providers: new Map() };
+  const loaded = { providers: [] };
   let result = null;
   const MAX_DISPLAY_USD = 1_000_000_000_000;
   const plausibleUsd = (value) => Number.isFinite(value) && value >= 0 && value <= MAX_DISPLAY_USD;
@@ -233,7 +233,7 @@ function mountLocalFinopsImport() {
     resultsNode.focus?.();
   };
   const reset = () => {
-    loaded.providers.clear();
+    loaded.providers.length = 0;
     delete loaded.hris;
     result = null;
     input.value = "";
@@ -259,17 +259,17 @@ function mountLocalFinopsImport() {
       for (const file of files) {
         const parsed = parseLocalFinopsFile(await file.text(), file.name, file.type);
         if (parsed.type === "provider")
-          loaded.providers.set(parsed.document.export_id, parsed);
+          loaded.providers.push(parsed);
         else loaded.hris = parsed;
       }
-      if (!loaded.providers.size || !loaded.hris) {
-        const missing = loaded.providers.size ? "HRIS mapping" : "provider export";
+      if (!loaded.providers.length || !loaded.hris) {
+        const missing = loaded.providers.length ? "HRIS mapping" : "provider export";
         announce("ready", `${files.length} compatible file${files.length === 1 ? "" : "s"} ready.`,
           `Add the ${missing}; sample analysis remains visible.`);
         return;
       }
       renderResult(normalizeLocalFinopsHistory({
-        providers: [...loaded.providers.values()],
+        providers: loaded.providers,
         hris: loaded.hris,
       }));
     } catch (error) {
