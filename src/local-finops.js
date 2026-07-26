@@ -23,6 +23,9 @@ const HRIS_RECORD_KEYS = [
   "unit_id", "revision", "operation", "effective_at", "parent_unit_id", "unit_type", "active",
 ];
 const ROUTING_CANDIDATE_SHARE = 0.2;
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const OPAQUE_ID_PATTERN = /^psn_[A-Za-z0-9_-]{16,64}$/;
 
 function fail(code, message) {
   const error = new TypeError(message);
@@ -46,6 +49,15 @@ function required(value, keys, label) {
 function finiteNonNegative(value, label) {
   if (!Number.isFinite(value) || value < 0) fail("invalid_value", `${label} must be non-negative.`);
   return value;
+}
+
+function validDate(value) {
+  return typeof value === "string" && DATE_PATTERN.test(value)
+    && new Date(`${value}T00:00:00Z`).toISOString().startsWith(value);
+}
+
+function validDateTime(value) {
+  return typeof value === "string" && Number.isFinite(Date.parse(value));
 }
 
 function rejectDuplicateJsonKeys(text) {
@@ -87,12 +99,18 @@ function validatePrivacy(document, kind) {
     fail("privacy_violation", "Direct identifiers must be explicitly excluded.");
   }
   if (kind === LOCAL_KINDS.provider) {
+    if (privacy.aggregation !== "daily-org-unit-service") {
+      fail("invalid_value", "Provider privacy.aggregation is unsupported.");
+    }
     if (privacy.content_included !== false) {
       fail("privacy_violation", "Prompt or response content must be explicitly excluded.");
     }
     if (!Number.isInteger(privacy.minimum_group_size) || privacy.minimum_group_size < 10) {
       fail("privacy_violation", "Provider aggregates require a minimum group size of 10.");
     }
+  } else if (privacy.identifier_method !== "hmac-sha256-truncated"
+    || privacy.salt_scope !== "tenant-integration-v1") {
+    fail("privacy_violation", "HRIS pseudonyms must use the declared tenant integration method.");
   }
 }
 
@@ -106,14 +124,38 @@ function validateSnapshot(document, kind) {
   exactKeys(document.snapshot, requiredKeys, "snapshot");
   required(document.snapshot, requiredKeys, "snapshot");
   if (!Array.isArray(document.snapshot.issues)) fail("invalid_value", "snapshot.issues must be an array.");
+  if (!OPAQUE_ID_PATTERN.test(document.snapshot.source_instance_id)
+    || !Number.isInteger(document.snapshot.sequence) || document.snapshot.sequence < 0
+    || !validDateTime(document.snapshot.generated_at)
+    || !Number.isInteger(document.snapshot.omitted_record_count)
+    || document.snapshot.omitted_record_count < 0) {
+    fail("invalid_value", "snapshot source, sequence, timestamp, or omitted count is malformed.");
+  }
   if (!["complete", "partial"].includes(document.snapshot.completeness)) {
     fail("invalid_value", "snapshot.completeness is unsupported.");
+  }
+  if (provider && (!validDate(document.snapshot.period_start)
+    || !validDate(document.snapshot.period_end)
+    || document.snapshot.period_start >= document.snapshot.period_end)) {
+    fail("malformed_period", "Provider period boundaries must be valid dates in ascending order.");
+  }
+  if (!provider && !["full", "delta"].includes(document.snapshot.mode)) {
+    fail("invalid_value", "snapshot.mode is unsupported.");
   }
 }
 
 function validateProviderRecord(record, index) {
   exactKeys(record, PROVIDER_RECORD_KEYS, `provider records[${index}]`);
   required(record, PROVIDER_RECORD_KEYS, `provider records[${index}]`);
+  if (!OPAQUE_ID_PATTERN.test(record.aggregate_id)
+    || !OPAQUE_ID_PATTERN.test(record.org_unit_id)
+    || !Number.isInteger(record.revision) || record.revision < 0
+    || !validDate(record.usage_date)
+    || !["openai", "anthropic", "google", "aws", "azure", "other"].includes(record.provider)
+    || !["text-generation", "image-generation", "embedding", "storage", "other"]
+      .includes(record.service_category)) {
+    fail("invalid_value", `provider records[${index}] has malformed identity or dimensions.`);
+  }
   exactKeys(record.cost, ["amount_minor", "currency", "status"], `provider records[${index}].cost`);
   required(record.cost, ["amount_minor", "currency", "status"], `provider records[${index}].cost`);
   if (!Number.isInteger(record.cost.amount_minor)) {
@@ -131,13 +173,30 @@ function validateProviderRecord(record, index) {
   if (!Number.isFinite(record.usage.quantity) || record.usage.quantity < 0) {
     fail("invalid_value", `provider records[${index}].usage is invalid.`);
   }
+  if (!["tokens", "images", "requests", "byte-hours", "provider-units"]
+    .includes(record.usage.unit)) {
+    fail("invalid_value", `provider records[${index}].usage.unit is unsupported.`);
+  }
 }
 
 function validateHrisRecord(record, index) {
   exactKeys(record, HRIS_RECORD_KEYS, `HRIS records[${index}]`);
   required(record, ["unit_id", "revision", "operation", "effective_at"], `HRIS records[${index}]`);
+  if (!OPAQUE_ID_PATTERN.test(record.unit_id)
+    || !Number.isInteger(record.revision) || record.revision < 0
+    || !["upsert", "delete"].includes(record.operation)
+    || !validDateTime(record.effective_at)) {
+    fail("invalid_value", `HRIS records[${index}] has malformed identity, revision, or operation.`);
+  }
   if (record.operation === "upsert") {
     required(record, ["parent_unit_id", "unit_type", "active"], `HRIS records[${index}]`);
+    if ((record.parent_unit_id !== null && !OPAQUE_ID_PATTERN.test(record.parent_unit_id))
+      || !["company", "division", "department", "team", "other"].includes(record.unit_type)
+      || typeof record.active !== "boolean") {
+      fail("invalid_value", `HRIS records[${index}] has malformed hierarchy fields.`);
+    }
+  } else if ("parent_unit_id" in record || "unit_type" in record || "active" in record) {
+    fail("invalid_value", `HRIS delete records[${index}] cannot contain hierarchy fields.`);
   }
 }
 
@@ -161,11 +220,21 @@ export function parseLocalFinopsFile(text, fileName = "local.json", mediaType = 
   if (document.schema_version !== "1.0" || !Object.values(LOCAL_KINDS).includes(document.kind)) {
     fail("unsupported_contract", "The JSON is not a supported v1 provider or HRIS contract envelope.");
   }
+  if (!UUID_PATTERN.test(document.export_id)) fail("invalid_value", "document.export_id must be a UUID.");
   if (!Array.isArray(document.records)) fail("invalid_value", "document.records must be an array.");
   validatePrivacy(document, document.kind);
   validateSnapshot(document, document.kind);
   document.records.forEach(document.kind === LOCAL_KINDS.provider
     ? validateProviderRecord : validateHrisRecord);
+  if (document.kind === LOCAL_KINDS.provider) {
+    const outside = document.records.find((record) =>
+      record.usage_date < document.snapshot.period_start
+      || record.usage_date >= document.snapshot.period_end);
+    if (outside) {
+      fail("record_outside_period",
+        `Provider record ${outside.aggregate_id} falls outside the half-open export period.`);
+    }
+  }
   return Object.freeze({
     type: document.kind === LOCAL_KINDS.provider ? "provider" : "hris",
     fileName,
@@ -173,13 +242,35 @@ export function parseLocalFinopsFile(text, fileName = "local.json", mediaType = 
   });
 }
 
-function latestRecords(records, idKey) {
+function reconcileRecords(records, idKey, exportId) {
+  const revisions = new Map();
   const latest = new Map();
+  const quarantine = [];
   for (const record of records) {
-    const prior = latest.get(record[idKey]);
-    if (!prior || record.revision > prior.revision) latest.set(record[idKey], record);
+    const id = record[idKey];
+    const revisionKey = `${id}:${record.revision}`;
+    const serialized = JSON.stringify(record);
+    if (revisions.has(revisionKey)) {
+      quarantine.push(Object.freeze({
+        code: revisions.get(revisionKey) === serialized
+          ? "duplicate_record" : "conflicting_record_revision",
+        scope: "record",
+        exportId,
+        recordId: id,
+        action: revisions.get(revisionKey) === serialized
+          ? "Remove the repeated record; the first identical copy was retained."
+          : "Issue a corrected export with a higher revision and a new export ID.",
+        message: revisions.get(revisionKey) === serialized
+          ? `Record ${id} revision ${record.revision} is repeated.`
+          : `Record ${id} revision ${record.revision} has conflicting content.`,
+      }));
+      continue;
+    }
+    revisions.set(revisionKey, serialized);
+    const prior = latest.get(id);
+    if (!prior || record.revision > prior.revision) latest.set(id, record);
   }
-  return [...latest.values()];
+  return { records: [...latest.values()], quarantine };
 }
 
 function money(minor) {
@@ -206,15 +297,23 @@ export function normalizeLocalFinops({ provider, hris }) {
   if (providerDoc.kind !== LOCAL_KINDS.provider || hrisDoc.kind !== LOCAL_KINDS.hris) {
     fail("wrong_pair", "The import needs one provider export and one HRIS mapping.");
   }
-  const units = latestRecords(hrisDoc.records, "unit_id");
+  const hrisReconciliation = reconcileRecords(hrisDoc.records, "unit_id", hrisDoc.export_id);
+  const providerReconciliation = reconcileRecords(
+    providerDoc.records, "aggregate_id", providerDoc.export_id,
+  );
+  const units = hrisReconciliation.records;
   const active = new Map(units
     .filter((unit) => unit.operation === "upsert" && unit.active)
     .map((unit) => [unit.unit_id, unit]));
   const departments = new Set(units
     .filter((unit) => unit.operation === "upsert" && unit.active && unit.unit_type === "department")
     .map((unit) => unit.unit_id));
-  const aggregates = latestRecords(providerDoc.records, "aggregate_id");
+  const aggregates = providerReconciliation.records;
   const warnings = [];
+  const quarantine = [
+    ...hrisReconciliation.quarantine,
+    ...providerReconciliation.quarantine,
+  ];
   let quarantinedRecords = 0;
   const grouped = new Map();
   for (const record of aggregates) {
@@ -238,6 +337,11 @@ export function normalizeLocalFinops({ provider, hris }) {
   }
   if (quarantinedRecords) {
     warnings.push(`${quarantinedRecords} provider record${quarantinedRecords === 1 ? "" : "s"} quarantined because no active HRIS unit matched.`);
+  }
+  if (quarantine.length) {
+    warnings.push(`${quarantine.length} duplicate or conflicting record revision${
+      quarantine.length === 1 ? " was" : "s were"
+    } quarantined; review validation details.`);
   }
   if (providerDoc.snapshot.completeness !== "complete" || hrisDoc.snapshot.completeness !== "complete") {
     warnings.push("At least one export is partial; totals are directional and omitted records were not inferred.");
@@ -297,41 +401,130 @@ export function normalizeLocalFinops({ provider, hris }) {
       providerCompleteness: providerDoc.snapshot.completeness,
       hrisCompleteness: hrisDoc.snapshot.completeness,
       joinedRecords: ranked.reduce((sum, item) => sum + item.records, 0),
-      quarantinedRecords,
+      quarantinedRecords: quarantinedRecords + quarantine.length,
+      quarantine: Object.freeze(quarantine),
       warnings,
     },
   });
 }
 
+function validation(code, scope, message, action, details = {}) {
+  return Object.freeze({ code, scope, message, action, ...details });
+}
+
+function periodKey(document) {
+  return `${document.snapshot.period_start}:${document.snapshot.period_end}`;
+}
+
+function isCalendarMonth({ periodStart, periodEnd, start, end }) {
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return false;
+  const startDate = new Date(start);
+  const expectedEnd = Date.UTC(
+    startDate.getUTCFullYear(), startDate.getUTCMonth() + 1, 1,
+  );
+  return startDate.getUTCDate() === 1 && end === expectedEnd
+    && periodStart.endsWith("-01") && periodEnd.endsWith("-01");
+}
+
+function compatibleAdjacentPeriods(previous, current) {
+  const contiguous = previous.end === current.start;
+  const bothMonthly = isCalendarMonth(previous) && isCalendarMonth(current);
+  const equalLength = previous.days > 0 && previous.days === current.days;
+  return {
+    compatible: contiguous && (bothMonthly || equalLength),
+    contiguous,
+    basis: bothMonthly ? "calendar_month" : equalLength ? "equal_days" : null,
+  };
+}
+
+function deterministicSourceGroup(entries) {
+  const groups = new Map();
+  for (const entry of entries) {
+    const source = entry.document.snapshot.source_instance_id;
+    const group = groups.get(source) ?? [];
+    group.push(entry);
+    groups.set(source, group);
+  }
+  return [...groups.entries()].sort((left, right) =>
+    right[1].length - left[1].length || left[0].localeCompare(right[0]))[0];
+}
+
 /**
  * Reconcile browser-local provider periods without broadening the v1 contract.
  *
- * The newest two periods are the decision window. They must be consecutive,
- * equal-length exports from one provider source. Older compatible periods remain
- * available as period evidence, but never change the current-period action.
+ * The newest two compatible periods are the decision window. Calendar months
+ * are comparable despite differing day counts; non-monthly periods must be
+ * contiguous and equal length. Quarantined inputs never affect totals.
  */
 export function normalizeLocalFinopsHistory({ providers = [], hris }) {
   const list = Array.isArray(providers) ? providers : [providers];
   if (!hris || list.length === 0)
     fail("incomplete_pair", "Add at least one provider export and one HRIS mapping.");
 
-  const ordered = list.map(periodMetadata).sort((left, right) => left.start - right.start);
-  const sourceIds = new Set(ordered.map(({ document }) => document.snapshot.source_instance_id));
-  const duplicatePeriods = new Set();
-  for (const { document } of ordered) {
-    const key = `${document.snapshot.period_start}:${document.snapshot.period_end}`;
-    if (duplicatePeriods.has(key))
-      fail("incompatible_periods", "History contains duplicate provider period boundaries.");
-    duplicatePeriods.add(key);
+  const candidates = list.map(periodMetadata).sort((left, right) =>
+    left.start - right.start || left.end - right.end
+    || left.document.export_id.localeCompare(right.document.export_id));
+  const validations = [];
+  const quarantinedExports = [];
+  const validDates = candidates.filter((entry) => {
+    if (Number.isFinite(entry.start) && Number.isFinite(entry.end) && entry.end > entry.start)
+      return true;
+    validations.push(validation(
+      "malformed_period", "export", "The provider period has invalid or reversed boundaries.",
+      "Correct period_start and period_end and issue a new export ID.",
+      { exportId: entry.document.export_id, period: periodKey(entry.document) },
+    ));
+    quarantinedExports.push(entry.document.export_id);
+    return false;
+  });
+  if (!validDates.length)
+    fail("malformed_period", "No provider export has a valid positive period.");
+
+  const [acceptedSource, sourceEntries] = deterministicSourceGroup(validDates);
+  let ordered = sourceEntries;
+  for (const entry of validDates) {
+    if (entry.document.snapshot.source_instance_id === acceptedSource) continue;
+    quarantinedExports.push(entry.document.export_id);
+    validations.push(validation(
+      "incompatible_source", "export",
+      "The provider export belongs to a different source instance.",
+      `Use exports from source ${acceptedSource}, or analyze this source separately.`,
+      { exportId: entry.document.export_id, period: periodKey(entry.document) },
+    ));
   }
-  if (sourceIds.size !== 1)
-    fail("incompatible_periods", "Provider periods come from different source instances and cannot be merged.");
+
+  const seenExports = new Set();
+  const seenPeriods = new Set();
+  ordered = ordered.filter((entry) => {
+    const exportId = entry.document.export_id;
+    const period = periodKey(entry.document);
+    const code = seenExports.has(exportId) ? "duplicate_export"
+      : seenPeriods.has(period) ? "duplicate_period" : null;
+    if (!code) {
+      seenExports.add(exportId);
+      seenPeriods.add(period);
+      return true;
+    }
+    quarantinedExports.push(exportId);
+    validations.push(validation(
+      code, "export",
+      code === "duplicate_export"
+        ? `Export ${exportId} is repeated.`
+        : `Period ${period} is supplied by more than one export.`,
+      "Remove the duplicate and retain the first export in deterministic export-ID order.",
+      { exportId, period },
+    ));
+    return false;
+  });
+  if (!ordered.length)
+    fail("incompatible_periods", "No unique provider period remains after reconciliation.");
 
   const periods = ordered.map(({ document, ...metadata }) => ({
     ...metadata,
     periodStart: document.snapshot.period_start,
     periodEnd: document.snapshot.period_end,
     exportId: document.export_id,
+    generatedAt: document.snapshot.generated_at,
     completeness: document.snapshot.completeness,
     result: normalizeLocalFinops({ provider: document, hris }),
   }));
@@ -340,18 +533,30 @@ export function normalizeLocalFinopsHistory({ providers = [], hris }) {
   let historyState = "missing";
   let historyMessage = "Add the immediately preceding provider period to calculate a trend.";
   if (previous) {
-    const equalLength = current.days > 0 && current.days === previous.days;
-    const contiguous = previous.periodEnd === current.periodStart;
-    if (!equalLength || !contiguous) {
+    const compatibility = compatibleAdjacentPeriods(previous, current);
+    if (!compatibility.compatible) {
       historyState = "incompatible";
-      historyMessage = !equalLength
-        ? "The newest provider periods have different lengths; a like-for-like trend is unavailable."
-        : "The newest provider periods are not contiguous; the missing interval prevents a defensible trend.";
+      historyMessage = !compatibility.contiguous
+        ? "The newest provider periods are not contiguous; the missing interval prevents a defensible trend."
+        : "The newest periods are neither calendar months nor equal-length windows; a like-for-like trend is unavailable.";
+      validations.push(validation(
+        "incompatible_periods", "history", historyMessage,
+        "Supply adjacent calendar-month exports or adjacent windows with the same number of days.",
+        { previousPeriod: previous.result.period, currentPeriod: current.result.period },
+      ));
     } else {
       historyState = "available";
-      historyMessage = `${current.days}-day periods are contiguous and use the same provider source.`;
+      historyMessage = compatibility.basis === "calendar_month"
+        ? "Adjacent calendar-month exports use the same provider source."
+        : `${current.days}-day periods are contiguous and use the same provider source.`;
     }
   }
+  if (!previous) validations.push(validation(
+    "insufficient_history", "history",
+    "One accepted provider period cannot establish a trend.",
+    "Add the immediately preceding compatible provider period.",
+    { currentPeriod: current.result.period },
+  ));
 
   const priorById = new Map(previous?.result.rankedDepartments
     .map((department) => [department.id, department]) ?? []);
@@ -378,12 +583,25 @@ export function normalizeLocalFinopsHistory({ providers = [], hris }) {
   const organizationSpendChangePercent = organizationTrendAvailable
     ? Math.round(((current.result.spendUsd - previous.result.spendUsd)
       / previous.result.spendUsd) * 1000) / 10 : null;
+  const reconciliationWarnings = [
+    ...current.result.warnings,
+    ...validations.map((item) => `${item.message} ${item.action}`),
+  ];
 
   return Object.freeze({
     ...current.result,
     schemaVersion: "local-finops-history/1.0.0",
+    generatedAt: current.generatedAt,
     rankedDepartments: Object.freeze(departments),
     topDepartment: top,
+    warnings: Object.freeze(reconciliationWarnings),
+    quality: Object.freeze({
+      ...current.result.quality,
+      warnings: Object.freeze(reconciliationWarnings),
+      quarantinedRecords: periods.reduce(
+        (sum, entry) => sum + entry.result.quality.quarantinedRecords, 0,
+      ),
+    }),
     history: Object.freeze({
       state: historyState,
       message: historyMessage,
@@ -402,7 +620,67 @@ export function normalizeLocalFinopsHistory({ providers = [], hris }) {
     }),
     benchmark: Object.freeze({
       state: "unavailable",
+      eligible: false,
+      reasonCode: "no_compatible_cohort",
       message: "Unavailable: the imported contracts contain no compatible peer cohort or benchmark methodology.",
+    }),
+    decisionInputs: Object.freeze({
+      trends: Object.freeze({
+        organization: Object.freeze({
+          eligible: organizationTrendAvailable,
+          changePercent: organizationSpendChangePercent,
+          reason: organizationTrendAvailable ? null : historyMessage,
+        }),
+        departments: Object.freeze(departments.map((department) => Object.freeze({
+          departmentId: department.id,
+          eligible: department.trendAvailable,
+          spendChangeUsd: department.spendChangeUsd,
+          spendChangePercent: department.spendChangePercent,
+          reason: department.trendReason,
+        }))),
+      }),
+      departmentComparisons: Object.freeze(departments.map((department, index) =>
+        Object.freeze({
+          departmentId: department.id,
+          rank: index + 1,
+          observedSpendUsd: department.spendUsd,
+          recoverableScenarioUsd: department.recoverableUsd,
+          performance: Object.freeze({
+            eligible: false,
+            score: null,
+            reason: "The provider billing contract contains no scored query-category sample.",
+            rubricVersion: "literacy-mix/1.0.0",
+          }),
+        }))),
+      benchmarkEligibility: Object.freeze({
+        eligible: false,
+        reasonCode: "no_compatible_cohort",
+        reason: "The imported contracts contain no peer cohort scored with the same rubric.",
+      }),
+      provenance: Object.freeze({
+        processing: "browser_local_ephemeral",
+        providerSourceInstanceId: acceptedSource,
+        acceptedProviderExportIds: Object.freeze(periods.map((entry) => entry.exportId)),
+        hrisExportId: hris.document?.export_id ?? hris.export_id,
+        reconciliationVersion: "local-finops-history/1.0.0",
+      }),
+      confidence: Object.freeze({
+        level: current.result.confidence,
+        basis: Object.freeze([
+          "provider and HRIS completeness",
+          "record reconciliation and active-unit joins",
+          "compatible adjacent-period history",
+        ]),
+        historyEligible: historyState === "available",
+      }),
+    }),
+    validation: Object.freeze({
+      state: validations.length ? "needs_review" : "valid",
+      results: Object.freeze(validations),
+      quarantinedExportIds: Object.freeze([...new Set(quarantinedExports)]),
+      quarantinedRecords: Object.freeze(periods.flatMap(
+        (entry) => entry.result.quality.quarantine ?? [],
+      )),
     }),
   });
 }
