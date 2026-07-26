@@ -22,10 +22,12 @@
 
       <section class="list-panel detail-panel decision-detail-panel" aria-label="Decision detail">
         <div id="decision-detail" aria-busy="true">
-          <div class="list-state list-state-loading" role="status">
-            <h1>Loading decision</h1>
-            <p>Finding this decision…</p>
-          </div>
+          <a class="detail-back" href="/">← Back to Decisions</a>
+          <section class="detail-state detail-state-loading list-state-loading" data-state="loading" role="status" aria-labelledby="decision-state-title">
+            <p class="detail-state-label">Decision status</p>
+            <h1 class="detail-state-title" id="decision-state-title">Loading decision</h1>
+            <p class="detail-state-guidance">We’re finding this decision and its linked releases.</p>
+          </section>
         </div>
       </section>
     </main>
