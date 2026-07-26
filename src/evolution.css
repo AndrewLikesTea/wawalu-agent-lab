@@ -86,6 +86,27 @@
 .portfolio-empty { border:1px dashed #aaa79d; border-radius:10px; padding:28px; color:var(--ink-muted); text-align:center; }
 .portfolio-empty h3,.portfolio-empty p { margin:0; }
 .portfolio-empty p { margin-top:7px; font-size:13px; }
+.evaluation-list { display:grid; gap:14px; }
+.evaluation-card { border:1px solid #d5d3cb; border-radius:12px; padding:18px; background:#fff; }
+.evaluation-card[data-status="withheld"] { border-color:#d9aaa8; background:#fffafa; }
+.evaluation-heading { display:flex; justify-content:space-between; gap:18px; align-items:start; }
+.evaluation-heading h3 { margin:5px 0 0; font-size:19px; }
+.evaluation-status { border:1px solid #b9cec4; border-radius:99px; padding:6px 9px; color:#245643; font:750 10px/1.2 ui-monospace,monospace; text-transform:uppercase; }
+.evaluation-card[data-status="withheld"] .evaluation-status { border-color:#d9aaa8; color:#8c2c29; }
+.evaluation-score { margin:18px 0 3px; font-size:28px; font-weight:750; }
+.evaluation-threshold,.evaluation-unavailable { color:var(--ink-muted); font-size:12px; line-height:1.5; }
+.evaluation-details { margin-top:15px; border-top:1px solid #e2e0d9; padding-top:12px; }
+.evaluation-details summary { width:fit-content; cursor:pointer; font-size:12px; font-weight:750; }
+.evaluation-details summary:focus-visible { outline:3px solid #7aa7d1; outline-offset:3px; }
+.evaluation-withheld-note { margin:12px 0 0; border-left:4px solid #8c2c29; padding:8px 0 8px 10px; color:#8c2c29; font-size:12px; line-height:1.5; }
+.evaluation-breakdown { display:grid; gap:10px; margin:14px 0; }
+.evaluation-criterion { display:grid; grid-template-columns:minmax(180px,.7fr) minmax(100px,.3fr) 1fr; gap:5px 14px; border:1px solid #e2e0d9; border-radius:8px; padding:12px; }
+.evaluation-criterion dt { font-size:12px; font-weight:750; }
+.evaluation-criterion dd { margin:0; font-size:12px; line-height:1.45; }
+.evaluation-contribution { font-weight:750; text-align:right; }
+.evaluation-assumption,.evaluation-arithmetic,.evaluation-formula,.evaluation-sanitized { color:var(--ink-muted); font:600 10px/1.55 ui-monospace,monospace; }
+.evaluation-assumption,.evaluation-arithmetic { grid-column:3; }
+.evaluation-formula,.evaluation-sanitized { overflow-wrap:anywhere; }
 .decision-provenance,.method-note { color:var(--ink-muted); font:600 11px/1.55 ui-monospace,monospace; }
 .decision-provenance { margin:0 0 22px; }
 .decision-layout { display:grid; grid-template-columns:minmax(230px,.72fr) minmax(0,1.65fr); gap:24px; align-items:start; }
@@ -232,4 +253,9 @@
   .portfolio-filters { display:grid; }
   .portfolio-summary { grid-template-columns:1fr; }
   .portfolio-money,.portfolio-facts { grid-template-columns:1fr; }
+  .evaluation-heading { display:grid; }
+  .evaluation-status { width:fit-content; }
+  .evaluation-criterion { grid-template-columns:1fr; }
+  .evaluation-contribution { text-align:left; }
+  .evaluation-assumption,.evaluation-arithmetic { grid-column:auto; }
 }

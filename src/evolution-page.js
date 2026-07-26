@@ -17,8 +17,13 @@ import { formatIntegrationProvenance } from "/integration-contracts.js";
 import { createStaticGateway } from "/static-gateway.js";
 import { createFinancePortfolio } from "/finance-portfolio.js";
 import { mountFinancePortfolio, renderPortfolioUnavailable } from "/finance-portfolio-view.js";
+import { scoreFinOpsFixtures } from "/finops-evaluation.js";
+import {
+  mountFinOpsEvaluations, renderFinOpsEvaluationUnavailable,
+} from "/finops-evaluation-view.js";
 
 const DATA_URL = "/evolution-demo-data.json";
+const EVALUATION_URL = "/finops-evaluation-fixtures.json";
 const CATEGORY_VARS = {
   highValue: "--cat-high-value",
   overProvisioned: "--cat-over-provisioned",
@@ -331,6 +336,27 @@ async function loadData() {
   return response.json();
 }
 
+async function renderEvaluationPanel() {
+  const list = document.getElementById("finops-evaluation-list");
+  if (!list) return;
+  try {
+    const response = await fetch(EVALUATION_URL, {
+      cache: "no-store", headers: { accept: "application/json" },
+    });
+    if (!response.ok) throw new Error(`Evaluation fixture returned ${response.status}`);
+    const fixtureSet = await response.json();
+    mountFinOpsEvaluations(scoreFinOpsFixtures(fixtureSet), {
+      list,
+      method: document.getElementById("finops-evaluation-method"),
+    });
+  } catch (error) {
+    console.error("finops_evaluation_unavailable", { error: error?.message ?? String(error) });
+    list.replaceChildren(renderFinOpsEvaluationUnavailable());
+    list.setAttribute("aria-busy", "false");
+    setText("finops-evaluation-method", "Rubric or labelled fixture unavailable.");
+  }
+}
+
 async function init() {
   if (!document.getElementById("department-priority")) return;
   const gateway = createStaticGateway();
@@ -353,6 +379,11 @@ async function init() {
   refreshGateway?.addEventListener("click", () => gateway.refresh());
   gateway.refresh();
 
+  // The evaluation fixture is a separate static file with its own failure
+  // handling. Starting it here keeps a demo-data outage — which returns early
+  // below — from stranding the panel on its loading text forever.
+  const evaluationPanel = renderEvaluationPanel();
+
   let data;
   try {
     data = await loadData();
@@ -366,6 +397,7 @@ async function init() {
     setText("detail-score", "Unavailable");
     setText("detail-sample", "The bundled static fixture could not be read.");
     renderUnavailableAction("The bundled static fixture could not be read. No live analysis was attempted.");
+    await evaluationPanel;
     return;
   }
 
@@ -376,6 +408,7 @@ async function init() {
   renderDecisionSurface(data, departments);
   renderMix(totals);
   renderRedaction(data.redactionSamples);
+  await evaluationPanel;
 
   document.documentElement.dataset.shiplogEvolution = "ready";
 }
