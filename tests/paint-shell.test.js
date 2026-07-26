@@ -1,12 +1,16 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { applyTheme, normalizedBlendMode, normalizedOpacity, persistTheme, preferredTheme, storedTheme, THEME_KEY } from "../src/paint/paint.js";
+import {
+  applyTheme, normalizedBlendMode, normalizedOpacity, paintReturnContext,
+  persistTheme, preferredTheme, storedTheme, THEME_KEY,
+} from "../src/paint/paint.js";
 
 test("paint shell has semantic navigation and an accessible canvas", async () => {
   const html = await readFile(new URL("../src/paint/index.html", import.meta.url), "utf8");
   assert.match(html, /<header class="app-header">/);
   assert.match(html, /<nav class="header-actions" aria-label="Document actions">/);
+  assert.match(html, /id="paint-return" href="\/social\.html">Back to feed<\/a>/);
   assert.match(html, /<main class="editor" aria-label="Image editor">/);
   assert.match(html, /<aside class="tool-rail" aria-label="Editing tools">/);
   assert.match(html, /id="editor-canvas" tabindex="0" role="region"/);
@@ -24,6 +28,30 @@ test("paint shell has semantic navigation and an accessible canvas", async () =>
   assert.match(html, /id="publish-button"[^>]*>Use in post/);
   assert.match(html, /id="publish-status" role="status" aria-live="polite"/);
   assert.doesNotMatch(html, /https?:\/\//);
+});
+
+test("Paint preserves a safe, exact path back to the profile that opened it", () => {
+  assert.deepEqual(paintReturnContext("?from=profile&author=Mina+O%27Neil"), {
+    href: "/profile.html?author=Mina%20O'Neil",
+    label: "Back to profile",
+  });
+  assert.deepEqual(paintReturnContext("?from=profile"), {
+    href: "/social.html",
+    label: "Back to feed",
+  });
+  assert.deepEqual(paintReturnContext("?from=https://evil.invalid&author=Mina"), {
+    href: "/social.html",
+    label: "Back to feed",
+  });
+});
+
+test("Paint navigation keeps focus and narrow-layout safeguards", async () => {
+  const css = await readFile(new URL("../src/paint/paint.css", import.meta.url), "utf8");
+  assert.match(css, /a:focus-visible\s*\{\s*outline:\s*3px solid var\(--focus\)/);
+  assert.match(css, /@media \(max-width: 560px\)[\s\S]*\.app-header \{ grid-template-columns: auto minmax\(0, 1fr\)/);
+  assert.match(css, /@media \(max-width: 560px\)[\s\S]*\.header-actions \{ min-width: 0;/);
+  assert.doesNotMatch(css, /@media \(max-width: 560px\)[\s\S]*\.return-action \{[^}]*display:\s*none/);
+  assert.match(css, /@media \(max-width: 360px\)[\s\S]*\.theme-toggle \{ display: none; \}/);
 });
 
 test("layer appearance inputs safely handle empty and implausible extremes", () => {
