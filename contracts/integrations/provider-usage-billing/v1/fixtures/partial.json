@@ -1,0 +1,8 @@
+{
+  "schema_version": "1.0",
+  "kind": "wawalu.integration.provider-usage-billing",
+  "export_id": "30000000-0000-4000-8000-000000000002",
+  "snapshot": { "source_instance_id": "psn_provider_demo_00001", "sequence": 19, "generated_at": "2026-07-25T12:15:00Z", "period_start": "2026-07-24", "period_end": "2026-07-25", "completeness": "partial", "omitted_record_count": 3, "issues": [{ "code": "group_suppressed", "scope": "record", "retryable": false }] },
+  "privacy": { "aggregation": "daily-org-unit-service", "minimum_group_size": 10, "direct_identifiers_included": false, "content_included": false },
+  "records": []
+}

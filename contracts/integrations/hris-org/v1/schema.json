@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://labs.wawalu.org/contracts/integrations/hris-org/v1/schema.json",
+  "title": "Privacy-preserving HRIS organization export",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "kind", "export_id", "snapshot", "privacy", "records"],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "kind": { "const": "wawalu.integration.hris-org" },
+    "export_id": { "type": "string", "format": "uuid" },
+    "snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_instance_id", "sequence", "generated_at", "mode", "completeness", "omitted_record_count", "issues"],
+      "properties": {
+        "source_instance_id": { "$ref": "#/$defs/opaqueId" },
+        "sequence": { "type": "integer", "minimum": 0 },
+        "generated_at": { "type": "string", "format": "date-time" },
+        "mode": { "enum": ["full", "delta"] },
+        "completeness": { "enum": ["complete", "partial"] },
+        "omitted_record_count": { "type": "integer", "minimum": 0 },
+        "issues": {
+          "type": "array",
+          "maxItems": 100,
+          "items": { "$ref": "#/$defs/issue" }
+        }
+      }
+    },
+    "privacy": { "$ref": "#/$defs/privacy" },
+    "records": {
+      "type": "array",
+      "maxItems": 100000,
+      "items": { "$ref": "#/$defs/unit" }
+    }
+  },
+  "$defs": {
+    "opaqueId": {
+      "type": "string",
+      "pattern": "^psn_[A-Za-z0-9_-]{16,64}$"
+    },
+    "issue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "scope", "retryable"],
+      "properties": {
+        "code": { "enum": ["source_timeout", "source_rate_limited", "record_redacted", "page_missing", "unknown"] },
+        "scope": { "enum": ["export", "page", "record"] },
+        "retryable": { "type": "boolean" }
+      }
+    },
+    "privacy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["identifier_method", "direct_identifiers_included", "salt_scope"],
+      "properties": {
+        "identifier_method": { "const": "hmac-sha256-truncated" },
+        "direct_identifiers_included": { "const": false },
+        "salt_scope": { "const": "tenant-integration-v1" }
+      }
+    },
+    "unit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["unit_id", "revision", "operation", "effective_at"],
+      "properties": {
+        "unit_id": { "$ref": "#/$defs/opaqueId" },
+        "revision": { "type": "integer", "minimum": 0 },
+        "operation": { "enum": ["upsert", "delete"] },
+        "effective_at": { "type": "string", "format": "date-time" },
+        "parent_unit_id": {
+          "oneOf": [
+            { "$ref": "#/$defs/opaqueId" },
+            { "type": "null" }
+          ]
+        },
+        "unit_type": { "enum": ["company", "division", "department", "team", "other"] },
+        "active": { "type": "boolean" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "operation": { "const": "upsert" } }, "required": ["operation"] },
+          "then": { "required": ["parent_unit_id", "unit_type", "active"] }
+        },
+        {
+          "if": { "properties": { "operation": { "const": "delete" } }, "required": ["operation"] },
+          "then": {
+            "not": {
+              "anyOf": [
+                { "required": ["parent_unit_id"] },
+                { "required": ["unit_type"] },
+                { "required": ["active"] }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}
