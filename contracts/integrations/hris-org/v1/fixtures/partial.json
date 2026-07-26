@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "kind": "wawalu.integration.hris-org",
+  "export_id": "10000000-0000-4000-8000-000000000002",
+  "snapshot": {
+    "source_instance_id": "psn_hris_demo_00000001",
+    "sequence": 43,
+    "generated_at": "2026-07-25T12:15:00Z",
+    "mode": "full",
+    "completeness": "partial",
+    "omitted_record_count": 12,
+    "issues": [{ "code": "page_missing", "scope": "page", "retryable": true }]
+  },
+  "privacy": {
+    "identifier_method": "hmac-sha256-truncated",
+    "direct_identifiers_included": false,
+    "salt_scope": "tenant-integration-v1"
+  },
+  "records": []
+}

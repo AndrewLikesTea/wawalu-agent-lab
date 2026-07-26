@@ -1,0 +1,28 @@
+{
+  "schema_version": "2.0",
+  "kind": "wawalu.integration.hris-org",
+  "export_id": "not-a-uuid",
+  "snapshot": {
+    "source_instance_id": "raw-tenant-name",
+    "sequence": -1,
+    "generated_at": "yesterday",
+    "mode": "full",
+    "completeness": "complete",
+    "omitted_record_count": -2,
+    "issues": []
+  },
+  "privacy": {
+    "identifier_method": "plain-text",
+    "direct_identifiers_included": true,
+    "salt_scope": "global"
+  },
+  "records": [{
+    "unit_id": "Finance",
+    "revision": -1,
+    "operation": "upsert",
+    "effective_at": "now",
+    "unit_type": "secret",
+    "active": "yes",
+    "manager_email": "person@example.invalid"
+  }]
+}
