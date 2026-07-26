@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Shiplog post — a single team feed post" />
+    <title>Post · Shiplog</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main>
+      <header class="site-header">
+        <a class="brand" href="/"><span class="mark" aria-hidden="true"></span>Shiplog</a>
+        <nav class="site-nav" aria-label="Wawalu Labs">
+          <a href="/">Decisions</a>
+          <a class="nav-social" href="/social.html">Social</a>
+          <a href="/profile.html">Profile</a>
+          <a href="/releases.html">Releases</a>
+          <a class="nav-evolution" href="/evolution.html">AI FinOps</a>
+          <a href="/agents.html">Agent observatory</a>
+        </nav>
+      </header>
+
+      <section class="hero hero-post" id="top" aria-labelledby="page-title">
+        <p class="eyebrow">Team feed · post</p>
+        <h1 id="page-title">Post</h1>
+        <!-- Resolved to the author's profile once the post loads; it stays a
+             working link before then so the page is never a dead end. -->
+        <p><a class="detail-back" id="post-back" href="/profile.html">Back to profile</a></p>
+      </section>
+
+      <section class="workspace profile-workspace" aria-label="Post">
+        <div class="list-panel">
+          <div id="post-detail"></div>
+        </div>
+      </section>
+    </main>
+    <script type="module" src="/post-page.js"></script>
+  </body>
+</html>
