@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import {
-  QUERY_CATEGORIES, categorySpendUsd, formatUsd, letterGrade, literacyScore,
+  QUERY_CATEGORIES, categorySpendUsd, explainLiteracyScore, formatUsd, letterGrade, literacyScore,
   normalizeMix, quartileLabel, rankDepartments, recommendationFor,
   recoverableSpendUsd, redactForScoring, summarize, valuePerThousandUsd,
 } from "../src/evolution.js";
@@ -53,6 +53,9 @@ test("the literacy score ranks the four query classes and grades them", () => {
   assert.equal(letterGrade(60), "D");
   assert.equal(letterGrade(59), "F");
   assert.equal(letterGrade("not a score"), "F");
+  assert.deepEqual(explainLiteracyScore({ highValue: 1 }).terms[0],
+    { key: "highValue", share: 1, weight: 100, contribution: 100 });
+  assert.match(explainLiteracyScore({ highValue: 1 }).arithmetic, /= 100\.0/);
 });
 
 test("recoverable spend is conservative and category-attributed", () => {
@@ -89,8 +92,15 @@ test("organization totals are spend-weighted, not team-weighted", () => {
   assert.deepEqual(summarize(), {
     spendUsd: 0, recoverableUsd: 0, queries: 0, headcount: 0, score: 0, grade: "F",
     mix: { highValue: 0, overProvisioned: 0, inefficient: 0, outOfScope: 0 },
+    scoreExplanation: {
+      version: "literacy-mix/1.0.0",
+      rule: "Organization score = sum(department score × department spend) ÷ total spend; nearest integer.",
+      arithmetic: "No spend: score = 0.",
+    },
     recoverableShare: 0, departments: 0,
   });
+  assert.equal(totals.scoreExplanation.version, "literacy-mix/1.0.0");
+  assert.match(totals.scoreExplanation.arithmetic, /64×90000 \+ 100×10000 ÷ 100000 = 67\.60; rounded = 68/);
 });
 
 test("ranking puts the team that needs attention first for each metric", () => {
