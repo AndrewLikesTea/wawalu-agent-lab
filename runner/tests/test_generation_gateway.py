@@ -65,25 +65,18 @@ class GenerationGatewayTests(unittest.TestCase):
             gateway.dispatch_one(lambda payload: {"response": "answer"})
             self.assertEqual((pathlib.Path(tmp) / "samples/request-1.json").exists(), first)
 
-    def test_qwen_keeps_direct_transport_default_and_gateway_is_opt_in(self):
+    def test_planner_uses_codex_instead_of_the_qwen_gateway(self):
         with tempfile.TemporaryDirectory() as tmp:
             output = pathlib.Path(tmp) / "output.json"
-            envelope = {"response": '{"value":"ok"}'}
-            with mock.patch.object(layers, "_qwen_transport", return_value=envelope) as transport:
+            def codex_result(*_args, **_kwargs):
+                output.write_text('{"value":"ok"}')
+                return mock.Mock(returncode=0, stdout="", stderr="")
+
+            with mock.patch.object(layers.subprocess, "run", side_effect=codex_result) as run:
                 self.assertEqual(layers.qwen_json("prompt", output, {"type": "object"}),
                                  {"value": "ok"})
                 self.assertFalse((pathlib.Path(tmp) / "spool").exists())
-                transport.assert_called_once()
-
-            with mock.patch.dict("os.environ", {
-                "WAWALU_GENERATION_GATEWAY_DIR": str(pathlib.Path(tmp) / "spool"),
-                "WAWALU_GENERATION_SAMPLE_RATE": "1",
-                "WAWALU_GENERATION_SAMPLE_SEED": "tests",
-            }), mock.patch.object(layers, "_qwen_transport", return_value=envelope):
-                self.assertEqual(layers.qwen_json("prompt", output, {"type": "object"}),
-                                 {"value": "ok"})
-            self.assertEqual(len(list((pathlib.Path(tmp) / "spool/completed").glob("*.json"))), 1)
-            self.assertEqual(len(list((pathlib.Path(tmp) / "spool/samples").glob("*.json"))), 1)
+                self.assertIn("codex", run.call_args.args[0])
 
 
 if __name__ == "__main__":

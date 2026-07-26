@@ -26,7 +26,24 @@ def seed_directives(*values):
     return autonomous.DirectiveStore(directives[0]["id"])
 
 
-class AutonomousTests(unittest.TestCase):
+class IsolatedDiffBudget(unittest.TestCase):
+    """Keep tick's diff-budget rail off the developer's real ledger.
+
+    tick refuses to start runs once the day's approved diffs are spent. Without
+    this the suite passes or fails depending on how much work the live fleet
+    happened to ship today.
+    """
+
+    def setUp(self):
+        super().setUp()
+        directory = tempfile.TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        budget = autonomous.BUDGET
+        self.addCleanup(setattr, budget, "directory", budget.directory)
+        budget.directory = pathlib.Path(directory.name)
+
+
+class AutonomousTests(IsolatedDiffBudget):
     def config(self):
         return {"retry_cooldown_seconds": 60, "max_attempts": 2,
                 "working_hours": {"start": 8, "end": 18}, "min_pr_interval_seconds": 3600}
@@ -1224,6 +1241,51 @@ class AutonomousTests(unittest.TestCase):
             self.assertEqual(state.value["issues"]["60"]["status"], "retry")
             self.assertEqual(state.value["issues"]["60"]["worker_override"], "codex")
 
+    def test_spent_diff_budget_defers_without_consuming_an_attempt(self):
+        """A spent daily rail is not a defect: it must not march issues to agent-blocked.
+
+        The rail is global, so charging an attempt would blockade every issue the
+        exhausted budget touched, not just the one that happened to run.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            state.value["issues"]["194"] = {"status": "running", "attempts": 2}
+            events = pathlib.Path(tmp) / "events.jsonl"
+            journal = autonomous.Journal(events)
+            issue = {"number": 194, "title": "Benchmarks", "body": "",
+                     "labels": [{"name": "agent-ready"}, {"name": "agent-running"}]}
+            with mock.patch.object(autonomous, "comment"), \
+                 mock.patch.object(autonomous, "replace_state_label") as label:
+                autonomous.record_run_outcome(
+                    orchestrator.DIFF_BUDGET_EXIT_CODE, issue, 194, "product", {},
+                    {**self.config(), "issue_label": "agent-ready", "max_attempts": 2},
+                    state, journal, "token")
+            emitted = [json.loads(line)["event"] for line in events.read_text().splitlines()]
+            self.assertIn("run_diff_budget_deferred", emitted)
+            self.assertNotIn("run_failed", emitted)
+            record = state.value["issues"]["194"]
+            self.assertEqual(record["status"], "retry")
+            self.assertEqual(record["attempts"], 1)
+            self.assertTrue(label.call_args.kwargs["keep_ready"])
+
+    def test_tick_stops_starting_runs_when_the_daily_diff_rail_is_spent(self):
+        config = {**self.config(), "enabled": True, "issue_label": "agent-ready",
+                  "working_hours": {"start": 0, "end": 24}, "daily_diff_limit": 3}
+        with tempfile.TemporaryDirectory() as tmp:
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            journal = autonomous.Journal(pathlib.Path(tmp) / "events.jsonl")
+            for index in range(3):
+                autonomous.BUDGET.record({"run_id": f"sim_{index}"})
+            with mock.patch.object(autonomous, "sync_main"), \
+                 mock.patch.object(autonomous, "ensure_labels"), \
+                 mock.patch.object(autonomous, "sweep_outstanding_prs"), \
+                 mock.patch.object(autonomous, "post_stakeholder_reviews"), \
+                 mock.patch.object(autonomous, "list_ready_issues", return_value=[]), \
+                 mock.patch.object(autonomous, "start_run") as start:
+                result = autonomous.tick(config, state, journal, token="token")
+            self.assertEqual(result, "diff-budget-exhausted")
+            start.assert_not_called()
+
     def test_stale_worktree_is_reclaimed_instead_of_failing_the_retry(self):
         with tempfile.TemporaryDirectory() as tmp:
             worktree = pathlib.Path(tmp) / "backend-issue-23"
@@ -1301,7 +1363,7 @@ class StakeholderLoopTests(unittest.TestCase):
         self.assertIn("stakeholder_review_failed", events)
 
 
-class ParallelRunTests(unittest.TestCase):
+class ParallelRunTests(IsolatedDiffBudget):
     """Several issues in flight at once, without the runs overwriting each other."""
 
     CONFIG = {"enabled": True, "issue_label": "agent-ready", "max_attempts": 3,
