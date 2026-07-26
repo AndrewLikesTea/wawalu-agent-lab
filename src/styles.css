@@ -283,6 +283,7 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 /* First-load placeholders: same geometry as a real card, so the grid does not
    resize when posts replace them. */
 .post-card-skeleton { gap:12px; }
+.post-grid-skeleton + .state-panel { min-height:0; padding:20px; }
 .skeleton-media { aspect-ratio:4/3; border-radius:10px; }
 .skeleton-line { height:13px; border-radius:7px; }
 .skeleton-line-short { width:62%; }

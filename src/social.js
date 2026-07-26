@@ -22,6 +22,7 @@
 // single import. One owner, so the byline the feed accepts and the byline the
 // profile remembers cannot drift apart.
 import { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH, readStoredAuthor, rememberAuthor } from "./social-identity.js";
+import { renderState } from "./state-ui.js";
 
 export { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH };
 
@@ -373,17 +374,29 @@ export function renderPosts(container, posts, options = {}) {
   if (ordered.length === 0) {
     if (state === "loading") {
       renderSkeleton(container);
+      const loading = document.createElement("div");
+      renderState(loading, { state: "loading", title: "Loading team posts…" });
+      container.append(...loading.children);
       return;
     }
-    const empty = el("div", "empty-state");
     if (state === "error") {
-      empty.append(el("p", "empty-title", "Posts could not be loaded."));
-      empty.append(el("p", undefined, "The feed keeps retrying. Check the connection status above."));
+      const panel = renderState(container, {
+        state: "error",
+        label: "Feed error",
+        value: "Posts could not be loaded.",
+        description: "The feed keeps retrying. Check the connection status above.",
+      });
+      panel.classList.add("empty-state", "empty-state-error");
     } else {
-      empty.append(el("p", "empty-title", "No posts yet."));
-      empty.append(el("p", undefined, emptyMessage));
+      const panel = renderState(container, {
+        state: "empty",
+        label: "Feed status",
+        value: "No posts yet.",
+        description: emptyMessage,
+        action: { label: "Write an update", href: "#post-body" },
+      });
+      panel.classList.add("empty-state");
     }
-    container.append(empty);
     return;
   }
 
