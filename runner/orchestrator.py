@@ -16,7 +16,8 @@ import uuid
 from runner.github_app import installation_token, reviewer_token
 from runner.budget import DiffBudget, DiffBudgetExhausted
 from runner.delivery import DELIVERY_REQUEST, consume_merge_request, enable_auto_merge
-from runner.layers import CAPACITY_EXIT_CODES, plan, review, review_debate, run_aside, run_worker, WORKERS
+from runner.layers import (CAPACITY_EXIT_CODES, plan, PlannerCapacityExhausted, review, review_debate,
+                           run_aside, run_worker, WORKERS)
 from runner.simulation import (choose_distraction, choose_peer_reviewer, happens, load_behaviors,
                                personality_context, retry_salt)
 
@@ -277,7 +278,14 @@ def command_run(persona: str, scenario_path: str, push: bool, requested_worker: 
     salt = retry_salt(attempt)
     first_pass_tendency = happens(float(profile["error_proneness"]), "first-pass", persona, scenario_id, *salt)
     persona_prompt += "\n\n" + personality_context(profile, first_pass_tendency)
-    plan_value = plan(persona_prompt, scenario, run_dir / "qwen-plan.json", requested_worker)
+    try:
+        plan_value = plan(persona_prompt, scenario, run_dir / "qwen-plan.json", requested_worker)
+    except PlannerCapacityExhausted as error:
+        # No planner had quota, so the issue never reached a worker. Report it with the
+        # same capacity code a refused worker uses: the daemon defers with backoff and
+        # keeps the issue ready instead of spending one of its attempts.
+        print(str(error), file=sys.stderr)
+        return CAPACITY_EXIT_CODES[error.worker]
     worker_prompt = f'''{persona_prompt}
 
 Your assigned implementation task:

@@ -110,6 +110,62 @@ class GenerationGatewayTests(unittest.TestCase):
         layers.note_planner_capacity("claude")
         self.assertEqual(sorted(layers.planner_order(["codex", "claude"])), ["claude", "codex"])
 
+    def test_planner_refusal_printed_as_the_plan_is_capacity_not_bad_json(self):
+        """A refused CLI can exit 0 and print its refusal where the plan belongs.
+
+        Four issues were blocked on 2026-07-26 because that was recorded as invalid
+        planner JSON, which spent every implementation attempt on a session limit.
+        """
+        layers._planner_capacity.clear()
+        self.addCleanup(layers._planner_capacity.clear)
+        with tempfile.TemporaryDirectory() as tmp:
+            output = pathlib.Path(tmp) / "output.json"
+            refusal = "You've hit your session limit · resets 7:30am (America/Los_Angeles)"
+
+            def result(command, *_args, **_kwargs):
+                if command[0] == "codex":
+                    output.write_text(refusal)
+                    return mock.Mock(returncode=0, stdout="", stderr="")
+                return mock.Mock(returncode=0, stdout=refusal, stderr="")
+
+            with mock.patch.object(layers.subprocess, "run", side_effect=result):
+                with self.assertRaises(layers.PlannerCapacityExhausted) as caught:
+                    layers.qwen_json("prompt", output, {"type": "object"})
+            self.assertIn(caught.exception.worker, layers.WORKERS)
+            # Both providers are now known to be dry, so neither is asked first again.
+            self.assertEqual(sorted(layers._planner_capacity), ["claude", "codex"])
+
+    def test_planner_json_that_merely_mentions_a_quota_is_not_capacity(self):
+        """The product is a FinOps tool, so plan text legitimately says "usage limit"."""
+        layers._planner_capacity.clear()
+        self.addCleanup(layers._planner_capacity.clear)
+        with tempfile.TemporaryDirectory() as tmp:
+            output = pathlib.Path(tmp) / "output.json"
+
+            def result(command, *_args, **_kwargs):
+                output.write_text('{"task_prompt":"chart the usage limit per team"}')
+                return mock.Mock(returncode=0, stdout="", stderr="")
+
+            with mock.patch.object(layers.subprocess, "run", side_effect=result):
+                self.assertEqual(layers.qwen_json("prompt", output, {"type": "object"}),
+                                 {"task_prompt": "chart the usage limit per team"})
+            self.assertEqual(dict(layers._planner_capacity), {})
+
+    def test_a_real_planner_defect_stays_a_failure_and_still_burns_an_attempt(self):
+        layers._planner_capacity.clear()
+        self.addCleanup(layers._planner_capacity.clear)
+        with tempfile.TemporaryDirectory() as tmp:
+            output = pathlib.Path(tmp) / "output.json"
+
+            def result(command, *_args, **_kwargs):
+                output.write_text("not json at all")
+                return mock.Mock(returncode=0, stdout="not json at all", stderr="")
+
+            with mock.patch.object(layers.subprocess, "run", side_effect=result):
+                with self.assertRaises(RuntimeError) as caught:
+                    layers.qwen_json("prompt", output, {"type": "object"})
+            self.assertNotIsInstance(caught.exception, layers.PlannerCapacityExhausted)
+
     def test_planner_reconsiders_a_provider_once_its_cooldown_lapses(self):
         layers._planner_capacity.clear()
         self.addCleanup(layers._planner_capacity.clear)
