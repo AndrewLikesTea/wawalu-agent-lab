@@ -8,6 +8,32 @@ const EVENTS_URLS = [
 ];
 const REFRESH_MS = 90_000;
 const DEMO_DATA_URL = "/agent-demo-data.json";
+export const REPRESENTATIVE_ACTIVITY = [
+  {
+    persona: "Sam · Manager",
+    title: "Scope the observatory fallback",
+    detail: "Sam turns the product outcome into a bounded, testable task.",
+    phase: "Plan",
+  },
+  {
+    persona: "Mina · Frontend engineer",
+    title: "Build resilient loading and error states",
+    detail: "Mina implements an accessible interface using synthetic fixtures.",
+    phase: "Build",
+  },
+  {
+    persona: "Marcus · Independent reviewer",
+    title: "Review the representative experience",
+    detail: "Marcus checks privacy, accessibility, correctness, and focused tests.",
+    phase: "Review",
+  },
+  {
+    persona: "Wawalu team · Team",
+    title: "Publish reviewed repository work",
+    detail: "Protected checks remain responsible for delivery after approval.",
+    phase: "Deliver",
+  },
+];
 const PERSONAS = {
   manager: { name: "Sam", role: "Manager" },
   staff: { name: "Priya", role: "Staff engineer" },
@@ -206,6 +232,24 @@ export function renderEvents(list, events) {
   return visible.length;
 }
 
+export function renderRepresentativeActivity(list) {
+  list.replaceChildren();
+  list.setAttribute("aria-busy", "false");
+  list.setAttribute("aria-label", "Representative synthetic activity");
+  for (const item of REPRESENTATIVE_ACTIVITY) {
+    const row = document.createElement("li");
+    row.className = "activity-item activity-item-representative";
+    appendText(row, "span", "activity-persona", item.persona);
+    const copy = document.createElement("div");
+    copy.className = "activity-copy";
+    appendText(copy, "strong", "activity-title", item.title);
+    appendText(copy, "span", "", item.detail);
+    row.append(copy);
+    appendText(row, "span", "activity-phase", item.phase);
+    list.append(row);
+  }
+}
+
 export async function loadActivity(root = document, fetcher = fetch) {
   const list = root.querySelector("#activity-list");
   const status = root.querySelector("#activity-status");
@@ -213,10 +257,12 @@ export async function loadActivity(root = document, fetcher = fetch) {
   const label = root.querySelector("#connection-label");
   const updated = root.querySelector("#last-updated");
   status.textContent = "Refreshing public repository activity…";
-  const hasEvents = Boolean(list.querySelector?.(".activity-item"));
-  if (!hasEvents) {
-    list.setAttribute("aria-busy", "true");
-    renderState(list, { state: "loading", item: true, title: "Loading recent activity…" });
+  const hasLiveEvents = Boolean(list.querySelector?.(".activity-item:not(.activity-item-representative)"));
+  if (!hasLiveEvents) {
+    renderRepresentativeActivity(list);
+    status.textContent = "Loading public repository activity · showing representative synthetic activity";
+    label.textContent = "Representative preview";
+    updated.textContent = "Public request in progress";
   }
   try {
     const responses = await Promise.all(EVENTS_URLS.map(
@@ -229,25 +275,29 @@ export async function loadActivity(root = document, fetcher = fetch) {
       .sort((a, b) => new Date(b.created_at ?? 0) - new Date(a.created_at ?? 0))
       .slice(0, 30);
     const count = renderEvents(list, events);
-    status.textContent = `${count} relevant events · refreshes every 90 seconds`;
+    if (count) {
+      list.setAttribute("aria-label", "Recent public repository events");
+      status.textContent = `${count} relevant events · refreshes every 90 seconds`;
+      label.textContent = "Live signal";
+    } else {
+      renderRepresentativeActivity(list);
+      status.textContent = "No relevant public events yet · showing representative synthetic activity";
+      label.textContent = "Representative preview";
+    }
     signal.dataset.connected = "true";
-    label.textContent = "Live signal";
     updated.textContent = `Updated ${new Intl.DateTimeFormat(undefined, { timeStyle: "short" }).format(new Date())}`;
+    const refresh = root.querySelector("#refresh-activity");
+    if (refresh) refresh.textContent = "Refresh";
   } catch {
     status.textContent = "Public activity is temporarily unavailable. Existing product data is unaffected.";
     signal.dataset.connected = "false";
     label.textContent = "Connection status: paused";
     updated.textContent = "Last request: failed";
-    if (!hasEvents) {
-      list.setAttribute("aria-busy", "false");
-      renderState(list, {
-        state: "error",
-        item: true,
-        label: "Activity error",
-        value: "Repository activity unavailable.",
-        description: "Existing product data is unaffected. Retry the public request.",
-        action: { label: "Retry activity", onClick: () => loadActivity(root, fetcher) },
-      });
+    if (!hasLiveEvents) {
+      renderRepresentativeActivity(list);
+      status.textContent = "Public repository activity is unavailable · showing representative synthetic activity";
+      const retry = root.querySelector("#refresh-activity");
+      if (retry) retry.textContent = "Retry public activity";
     }
   }
 }
@@ -258,6 +308,23 @@ function promptBlock(label, value) {
   appendText(section, "p", "prompt-label", label);
   appendText(section, "pre", "prompt-copy", value);
   return section;
+}
+
+export function renderPromptTrace(trace, data, { full = false } = {}) {
+  trace.replaceChildren();
+  trace.setAttribute("aria-busy", "false");
+  const heading = document.createElement("div");
+  heading.className = "trace-heading";
+  appendText(heading, "strong", "", `${data.run.personaName} · ${data.run.personaRole}`);
+  appendText(heading, "span", "", `${data.run.scenarioTitle} · ${data.run.worker}`);
+  trace.append(heading);
+  trace.append(
+    promptBlock("1 · Qwen planning prompt", data.run.qwenPlanningPrompt),
+    promptBlock(`2 · Qwen handoff to ${data.run.worker}`, data.run.qwenHandoff),
+    promptBlock(`3 · Exact ${data.run.worker} worker prompt`, data.run.workerPrompt),
+    promptBlock("4 · Marcus / Qwen review", data.run.qwenReview),
+  );
+  if (full) trace.classList.add("prompt-trace-full");
 }
 
 export function renderDemoData(root, data) {
@@ -280,19 +347,7 @@ export function renderDemoData(root, data) {
     personas.append(row);
   });
 
-  trace.replaceChildren();
-  trace.setAttribute("aria-busy", "false");
-  const heading = document.createElement("div");
-  heading.className = "trace-heading";
-  appendText(heading, "strong", "", `${data.run.personaName} · ${data.run.personaRole}`);
-  appendText(heading, "span", "", `${data.run.scenarioTitle} · ${data.run.worker}`);
-  trace.append(heading);
-  trace.append(
-    promptBlock("1 · Qwen planning prompt", data.run.qwenPlanningPrompt),
-    promptBlock(`2 · Qwen handoff to ${data.run.worker}`, data.run.qwenHandoff),
-    promptBlock(`3 · Exact ${data.run.worker} worker prompt`, data.run.workerPrompt),
-    promptBlock("4 · Marcus / Qwen review", data.run.qwenReview),
-  );
+  renderPromptTrace(trace, data);
 }
 
 export async function loadDemoData(root = document, fetcher = fetch) {
@@ -301,7 +356,7 @@ export async function loadDemoData(root = document, fetcher = fetch) {
   renderDemoData(root, await response.json());
 }
 
-if (typeof document !== "undefined") {
+if (typeof document !== "undefined" && document.querySelector("#activity-list")) {
   const refresh = () => loadActivity();
   document.querySelector("#refresh-activity")?.addEventListener("click", refresh);
   renderState(document.querySelector("#persona-list"), { state: "loading", item: true, title: "Loading demo personas for planning and review" });
