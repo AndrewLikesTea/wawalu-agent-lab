@@ -36,12 +36,50 @@ lost; the feed is capped at 100 posts, so the aggregate is bounded too.
 
 ## Images
 
-Uploading is a separate step from posting, so bytes never travel in a post body
-and a failed image does not cost the caller their post text.
+An image reaches a post one of two ways. Both end in the same record, the same
+storage, and the same validation; they differ only in how many requests the
+client spends and what it is able to retry.
+
+**Two steps, for a client that holds a file.** Bytes never travel in the post
+body, so the post write stays small and a failed image does not cost the caller
+their post text — the file is still on disk, and only the upload is retried.
 
 1. `POST /api/social-media` with `{ content_type, data, alt, width?, height? }`,
    where `data` is base64. Returns `{ media: { id, url, alt, checksum_sha256, … } }`.
 2. `POST /api/social-posts` with `media_id` (and optionally `caption`).
+
+**One step, for a client that generates its bytes.** `POST /api/social-posts`
+with an inline `image` object taking exactly the upload body's fields:
+
+```json
+{
+  "author": "Priya",
+  "content": "Painted this.",
+  "timestamp": "2026-07-18T12:00:00.000Z",
+  "source": "paint",
+  "image": { "content_type": "image/png", "data": "iVBORw0KGgo…", "alt": "A grey pixel.", "width": 1, "height": 1 },
+  "caption": "A single grey pixel."
+}
+```
+
+This exists for callers with nothing to retry with. A canvas app cannot
+re-select a file it rendered, so a two-step flow gives it a window in which it
+holds an uploaded image and no post — an image nothing references and nothing
+will reclaim. `image` and `media_id` are mutually exclusive; sending both is a
+`422`, because merging them would mean guessing which image the caller meant.
+
+Inline validation errors are reported per field under the `image.` prefix
+(`image.data`, `image.alt`, `image.content_type`, `image.dimensions`), so a
+client can point at the field the user has to fix.
+
+The single request is still two durable writes — bytes, then the image row,
+then the post row — and it is unwound in reverse when a later write fails.
+Bytes that never got an image row are reclaimed by the ingest path; an image
+row whose post never landed is deleted along with its bytes before the error
+returns, logged as `social_post_inline_image_rollback`. The observable outcomes
+are therefore only two: a post with its image, or no post and no image. A failed
+byte or metadata write answers `503` (retry the whole post); a post row that
+fails after the image committed answers `500` with the image already discarded.
 
 Content types are limited to `image/png`, `image/jpeg`, `image/gif`, and
 `image/webp`, capped at 512 KB. The declared type is not trusted: the leading
@@ -113,6 +151,15 @@ stays available under write load.
 - `content` is 1–280 characters, matching the feed's display/compose budget.
 - `timestamp` is an ISO-8601 instant with a timezone. It is normalized to UTC.
 - `source` is 1–100 characters and names the producing system.
+- `media_id` (optional) is the UUID of an image this principal uploaded and no
+  post has claimed. `image` (optional) carries that image inline instead; see
+  [Images](#images). At most one of the two.
+- `caption` (optional) is 1–280 characters and requires `media_id` or `image`.
+
+A successful create is `201` with `Location: /api/social-posts/:id` and the full
+public projection of the new post. Attaching an image that does not exist is
+`422 invalid_media`, one uploaded by another principal is `403 media_not_owned`,
+and one another post already shows is `409 media_already_attached`.
 
 Agent writes require an `AGENT_TOKENS` identity with a UUID `id`, persona/agent
 name, and the `social-posts:write` scope; agents send `author`, `content`,
