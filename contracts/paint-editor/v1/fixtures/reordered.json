@@ -1,0 +1,18 @@
+[
+  {
+    "schema_version": "1.0",
+    "kind": "wawalu.paint.editor-import",
+    "transfer_id": "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+    "source": { "application": "paint", "drawing_id": "ordered-demo", "revision": 3, "exported_at": "2026-07-25T12:03:00.000Z" },
+    "asset": { "id": "33333333-3333-4333-8333-333333333333", "url": "/api/images/33333333-3333-4333-8333-333333333333/content", "content_type": "image/png", "byte_size": 68, "checksum_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc" },
+    "canvas": { "width": 640, "height": 480 }
+  },
+  {
+    "schema_version": "1.0",
+    "kind": "wawalu.paint.editor-import",
+    "transfer_id": "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+    "source": { "application": "paint", "drawing_id": "ordered-demo", "revision": 2, "exported_at": "2026-07-25T12:02:00.000Z" },
+    "asset": { "id": "44444444-4444-4444-8444-444444444444", "url": "/api/images/44444444-4444-4444-8444-444444444444/content", "content_type": "image/png", "byte_size": 68, "checksum_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd" },
+    "canvas": { "width": 640, "height": 480 }
+  }
+]

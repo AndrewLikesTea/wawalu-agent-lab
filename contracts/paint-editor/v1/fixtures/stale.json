@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "kind": "wawalu.paint.editor-import",
+  "transfer_id": "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+  "source": {
+    "application": "paint",
+    "drawing_id": "synthetic-landscape",
+    "revision": 6,
+    "exported_at": "2026-07-20T12:00:00.000Z"
+  },
+  "asset": {
+    "id": "22222222-2222-4222-8222-222222222222",
+    "url": "/api/images/22222222-2222-4222-8222-222222222222/content",
+    "content_type": "image/png",
+    "byte_size": 68,
+    "checksum_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  },
+  "canvas": { "width": 1024, "height": 768 }
+}
