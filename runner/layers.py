@@ -489,17 +489,93 @@ def run_worker(worker: str, prompt: str, worktree: pathlib.Path, run_dir: pathli
     return exit_code
 
 
+CAPACITY_MARKERS = (
+    "rate limit", "rate_limit_exceeded", "session limit", "usage limit",
+    "too many requests", "quota exceeded",
+)
+# A rate_limit_event is a routine heartbeat the Claude CLI emits on every run;
+# only a non-allowed status means the provider actually turned us away.
+ALLOWED_RATE_LIMIT_STATUSES = ("allowed", "allowed_warning")
+
+
 def is_capacity_limited(log_path: pathlib.Path) -> bool:
-    """Recognize provider quota/session exhaustion without treating ordinary failures as quota."""
+    """Recognize provider quota/session exhaustion without treating ordinary failures as quota.
+
+    Only the fields a CLI uses to report its OWN failure are examined. Scanning
+    the whole transcript is wrong twice over: the Claude CLI emits a
+    `rate_limit_event` heartbeat (usually status "allowed") on every run, and a
+    FinOps product means tool output and source files legitimately contain
+    phrases like "usage limit" and "quota exceeded". Either one used to pin a
+    perfectly healthy provider into an escalating capacity cooldown.
+    """
     try:
-        text = log_path.read_text(encoding="utf-8", errors="replace").lower()
+        text = log_path.read_text(encoding="utf-8", errors="replace")
     except OSError:
         return False
-    markers = (
-        "rate_limit", "rate limit", "session limit", "usage limit",
-        "rate_limit_exceeded", "too many requests", "quota exceeded",
-    )
-    return any(marker in text for marker in markers)
+    for line in text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        if not line.startswith("{"):
+            # Plain stderr from the CLI itself — no product text reaches here.
+            if _has_capacity_marker(line):
+                return True
+            continue
+        try:
+            record = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(record, dict):
+            continue
+        if _record_reports_capacity(record):
+            return True
+    return False
+
+
+def _has_capacity_marker(text: str) -> bool:
+    lowered = text.lower()
+    return any(marker in lowered for marker in CAPACITY_MARKERS)
+
+
+def _record_reports_capacity(record: dict[str, Any]) -> bool:
+    """Decide whether one transcript record is the provider refusing to serve us."""
+    kind = record.get("type")
+    if kind == "rate_limit_event":
+        info = record.get("rate_limit_info")
+        status = str(info.get("status", "")).lower() if isinstance(info, dict) else ""
+        return bool(status) and status not in ALLOWED_RATE_LIMIT_STATUSES
+    # Claude reports a refused session as a synthetic assistant turn.
+    if kind == "assistant" and record.get("is_api_error_message"):
+        return _has_capacity_marker(_message_text(record.get("message")))
+    if kind == "result":
+        # A run stopped by our own --max-budget-usd cap is a spend guard firing,
+        # not the provider running dry; it must never trigger a cooldown.
+        if str(record.get("subtype", "")).startswith("error_max_budget"):
+            return False
+        if record.get("is_error") or record.get("errors"):
+            return _has_capacity_marker(json.dumps(record.get("errors") or record.get("result") or ""))
+        return False
+    # Codex reports refusal as {"type":"error"} / {"type":"turn.failed"}.
+    error = record.get("error")
+    parts = [record.get("message") if kind in ("error", "turn.failed") else None]
+    if isinstance(error, dict):
+        parts.append(error.get("message"))
+    elif isinstance(error, str):
+        parts.append(error)
+    return _has_capacity_marker(" ".join(part for part in parts if isinstance(part, str)))
+
+
+def _message_text(message: Any) -> str:
+    """Flatten a Claude message's content blocks to their text."""
+    if not isinstance(message, dict):
+        return ""
+    content = message.get("content")
+    if isinstance(content, str):
+        return content
+    if not isinstance(content, list):
+        return ""
+    return " ".join(block.get("text", "") for block in content
+                    if isinstance(block, dict) and isinstance(block.get("text"), str))
 
 
 def run_aside(worker: str, prompt: str, worktree: pathlib.Path, run_dir: pathlib.Path,

@@ -8,15 +8,43 @@ from runner import layers
 
 
 class LayerTests(unittest.TestCase):
-    def test_capacity_detection_is_specific_to_provider_limit_markers(self):
+    def _capacity_verdict(self, *lines: str) -> bool:
         with tempfile.TemporaryDirectory() as tmp:
-            limited = pathlib.Path(tmp) / "limited.log"
-            limited.write_text('{"error":"rate_limit","message":"session limit"}')
-            ordinary = pathlib.Path(tmp) / "ordinary.log"
-            ordinary.write_text("tests failed: assertion error")
-            self.assertTrue(layers.is_capacity_limited(limited))
-            self.assertFalse(layers.is_capacity_limited(ordinary))
+            log = pathlib.Path(tmp) / "worker.jsonl"
+            log.write_text("\n".join(lines), encoding="utf-8")
+            return layers.is_capacity_limited(log)
+
+    def test_capacity_detection_is_specific_to_provider_limit_markers(self):
+        codex_limit = json.dumps({"type": "error", "message": "You've hit your usage limit."})
+        claude_limit = json.dumps({
+            "type": "assistant", "is_api_error_message": True,
+            "message": {"content": [{"type": "text",
+                                     "text": "You've hit your session limit · resets 9:10pm"}]},
+        })
+        rejected = json.dumps({"type": "rate_limit_event", "rate_limit_info": {"status": "rejected"}})
+        self.assertTrue(self._capacity_verdict(codex_limit))
+        self.assertTrue(self._capacity_verdict(claude_limit))
+        self.assertTrue(self._capacity_verdict(rejected))
+        self.assertFalse(self._capacity_verdict("tests failed: assertion error"))
         self.assertEqual(layers.CAPACITY_EXIT_CODES, {"codex": 75, "claude": 76})
+
+    def test_routine_rate_limit_heartbeat_is_not_capacity_exhaustion(self):
+        """The Claude CLI emits rate_limit_event on every run; "allowed" means served."""
+        for status in ("allowed", "allowed_warning"):
+            heartbeat = json.dumps({"type": "rate_limit_event",
+                                    "rate_limit_info": {"status": status, "ratelimittype": "five_hour"}})
+            self.assertFalse(self._capacity_verdict(heartbeat), status)
+
+    def test_budget_cap_and_product_text_are_not_capacity_exhaustion(self):
+        """Our own spend guard, and FinOps product vocabulary, must not cool down a provider."""
+        budget_stop = json.dumps({"type": "result", "subtype": "error_max_budget_usd",
+                                  "is_error": True, "errors": ["Reached maximum budget ($8)"]})
+        self.assertFalse(self._capacity_verdict(budget_stop))
+        product_text = json.dumps({"type": "user", "message": {"content": [
+            {"type": "tool_result", "content": "renderQuotaCard('quota exceeded', 'usage limit')"}]}})
+        self.assertFalse(self._capacity_verdict(product_text))
+        heartbeat = json.dumps({"type": "rate_limit_event", "rate_limit_info": {"status": "allowed"}})
+        self.assertFalse(self._capacity_verdict(heartbeat, product_text, budget_stop))
     def test_owner_directive_is_prioritized_in_manager_prompt(self):
         with mock.patch.object(layers, "qwen_json", return_value={
             "persona": "frontend", "title": "Improve filters", "outcome": "Faster browsing",
