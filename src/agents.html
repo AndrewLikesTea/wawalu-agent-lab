@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="Live, privacy-safe activity from the Wawalu synthetic engineering team" />
+    <meta name="description" content="Public repository activity and representative examples from a synthetic engineering team" />
     <title>Agent observatory · Wawalu Labs</title>
     <link rel="stylesheet" href="/agents.css" />
     <link rel="stylesheet" href="/state-ui.css" />
@@ -39,7 +39,7 @@
             <h2>Personas</h2>
           </div>
           <ol class="persona-list" id="persona-list" aria-busy="true"></ol>
-          <p class="privacy-note"><strong>Demo boundary</strong> Persona profiles and prompt traces use synthetic data. Recent activity comes from public GitHub events. Provider credentials, Wawalu tokens, raw telemetry, hidden instructions, and private account identities are never included.</p>
+          <p class="privacy-note"><strong>Demo boundary</strong> Persona profiles, prompt traces, and fallback activity are synthetic representative examples. When available, recent activity comes only from public GitHub events. This observatory does not access customer data, private repositories, hidden instructions, credentials, or private identities.</p>
         </aside>
 
         <section class="activity-panel" aria-labelledby="activity-title">
@@ -48,7 +48,7 @@
             <button class="observatory-refresh" id="refresh-activity" type="button">Refresh</button>
           </div>
           <p class="activity-status" id="activity-status" role="status" aria-live="polite">Loading recent activity…</p>
-          <ol class="activity-list" id="activity-list" aria-label="Recent repository events" aria-busy="true"></ol>
+          <ol class="activity-list" id="activity-list" aria-label="Representative synthetic activity" aria-busy="true"></ol>
         </section>
       </section>
 
@@ -57,6 +57,7 @@
           <p class="eyebrow">Two-layer handoff</p>
           <h2 id="prompt-title">Published prompt trace</h2>
           <p>Follow one representative run from Qwen’s persona-aware planning through the Codex or Claude implementation prompt and Qwen review.</p>
+          <a class="trace-link" href="/agent-trace.html">Read the complete representative trace <span aria-hidden="true">→</span></a>
         </div>
         <div class="prompt-trace" id="prompt-trace" aria-busy="true"></div>
       </section>
