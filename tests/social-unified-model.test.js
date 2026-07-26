@@ -8,7 +8,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  createD1RateLimiter,
   createD1SocialPostStore,
+  createD1SocialStores,
   createMemoryRateLimiter,
   createMemorySocialStores,
   handleSocialMediaRequest,
@@ -199,7 +201,7 @@ test("image references are validated, owner-scoped, and claimable exactly once",
   // surfacing the storage CHECK constraint as a 500.
   const captionOnly = await api.posts("POST", "/api/social-posts", { body: { ...body, caption: "orphan caption" } });
   assert.equal(captionOnly.status, 422);
-  assert.equal(captionOnly.json.error.fields.caption, "caption requires media_id");
+  assert.equal(captionOnly.json.error.fields.caption, "caption requires media_id or image");
 
   const unknown = await api.posts("POST", "/api/social-posts", { body: { ...body, media_id: OTHER_AGENT_ID } });
   assert.equal(unknown.status, 422);
@@ -219,6 +221,151 @@ test("image references are validated, owner-scoped, and claimable exactly once",
   assert.equal(reclaim.json.error.code, "media_already_attached");
 
   assert.match(validateSocialPostInput({ ...body, media_id: "nope" }).errors.media_id, /UUID of an uploaded image/);
+});
+
+/* ------------------------ single-request image posts --------------------- */
+
+// Console capture, so the observability these paths promise is asserted rather
+// than assumed -- and so a deliberate failure does not scribble on test output.
+async function captureErrors(run) {
+  const original = console.error;
+  const entries = [];
+  console.error = (event, detail) => entries.push({ event, detail });
+  try {
+    return { result: await run(), entries };
+  } finally {
+    console.error = original;
+  }
+}
+
+test("a post can carry its image inline and lands as one indistinguishable record", async () => {
+  const api = harness();
+  const created = await api.posts("POST", "/api/social-posts", {
+    body: {
+      author: "Priya", content: "Painted this.", timestamp: "2026-07-18T11:59:00Z",
+      source: "paint", image: upload, caption: "A single grey pixel.",
+    },
+  });
+  assert.equal(created.status, 201, created.text);
+  const post = created.json.post;
+  assert.match(post.image_url, /^\/api\/social-media\/[0-9a-f-]{36}\/content$/);
+  assert.equal(post.image_alt, "A single grey pixel.");
+  assert.deepEqual([post.image_width, post.image_height], [1, 1]);
+  assert.equal(post.caption, "A single grey pixel.");
+  assert.equal(created.response.headers.get("location"), `/api/social-posts/${post.id}`);
+
+  // Same public byte route as an uploaded image: how the image arrived is not
+  // part of the read contract.
+  const bytes = await api.media("GET", post.image_url, { token: null });
+  assert.equal(bytes.status, 200);
+  assert.equal(bytes.response.headers.get("content-type"), "image/png");
+
+  const listed = await api.posts("GET", "/api/social-posts", { token: null });
+  assert.deepEqual(listed.json.posts, [post]);
+
+  // Unauthenticated writers are refused before any byte is decoded.
+  assert.equal((await api.posts("POST", "/api/social-posts", { body: { author: "Priya", content: "x", image: upload }, token: "nobody" })).status, 401);
+});
+
+test("inline images are held to the upload rules, and a rejected post stores nothing", async () => {
+  const api = harness();
+  const body = { author: "Priya", content: "Painted this.", timestamp: "2026-07-18T11:59:00Z", source: "paint" };
+
+  for (const [image, field, message] of [
+    [{ ...upload, data: "not base64!!" }, "image.data", /valid base64/],
+    // A declared type the bytes do not support, refused before storage.
+    [{ ...upload, data: GIF }, "image.data", /does not contain/],
+    // Oversized payloads are refused on encoded length, before any decode.
+    [{ ...upload, data: "A".repeat(MAX_MEDIA_BYTES * 2) }, "image.data", /at most 524288 bytes/],
+    [{ ...upload, alt: "   " }, "image.alt", /required/],
+    [{ ...upload, content_type: "image/svg+xml" }, "image.content_type", /must be one of/],
+    [{ ...upload, height: undefined }, "image.dimensions", /both omitted/],
+  ]) {
+    const rejected = await api.posts("POST", "/api/social-posts", { body: { ...body, image } });
+    assert.equal(rejected.status, 422, `${field}: ${rejected.text}`);
+    assert.equal(rejected.json.error.code, "invalid_social_post");
+    assert.match(rejected.json.error.fields[field], message);
+  }
+
+  // A data URL or any other non-object is a client bug worth naming.
+  const scalar = await api.posts("POST", "/api/social-posts", { body: { ...body, image: "data:image/png;base64,iVBOR" } });
+  assert.match(scalar.json.error.fields.image, /must be an object/);
+
+  // Two ways to attach one image is ambiguous, not a merge.
+  const both = await api.posts("POST", "/api/social-posts", { body: { ...body, image: upload, media_id: AGENT_ID } });
+  assert.equal(both.status, 422);
+  assert.match(both.json.error.fields.image, /not both/);
+
+  assert.deepEqual((await api.posts("GET", "/api/social-posts", { token: null })).json.posts, []);
+});
+
+test("an inline image that cannot be stored fails the post as 503 and leaves no post", async () => {
+  const api = harness();
+  const body = { author: "Priya", content: "Painted this.", timestamp: "2026-07-18T11:59:00Z", source: "paint", image: upload };
+
+  const blobs = api.deps.blobs;
+  api.deps.blobs = { ...blobs, put: async () => { throw new Error("bucket unavailable"); } };
+  const noBytes = await captureErrors(() => api.posts("POST", "/api/social-posts", { body }));
+  api.deps.blobs = blobs;
+  assert.equal(noBytes.result.status, 503);
+  assert.equal(noBytes.result.json.error.code, "storage_unavailable");
+  // The binding's own message is logged and never returned to the caller.
+  assert.equal(noBytes.entries[0].event, "social_media_storage_failure");
+  assert.match(noBytes.entries[0].detail.error, /bucket unavailable/);
+  assert.doesNotMatch(noBytes.result.text, /bucket unavailable/);
+
+  const stored = [];
+  const blobPut = api.stores.blobs.put;
+  api.stores.blobs.put = async (key, ...rest) => { stored.push(key); return blobPut(key, ...rest); };
+  const mediaCreate = api.stores.media.create;
+  api.stores.media.create = async () => { throw new Error("d1 write failed"); };
+  const noRow = await captureErrors(() => api.posts("POST", "/api/social-posts", { body }));
+  api.stores.media.create = mediaCreate;
+  api.stores.blobs.put = blobPut;
+  assert.equal(noRow.result.status, 503);
+  // The metadata row is the commit point, so the written bytes were reclaimed.
+  assert.equal(stored.length, 1);
+  assert.equal(await api.stores.blobs.get(stored[0]), null);
+
+  // A deployment without the image stores still serves text posts, and says so
+  // rather than failing an image post as an unexplained 500.
+  const media = api.deps.media;
+  api.deps.media = null;
+  const unwired = await captureErrors(() => api.posts("POST", "/api/social-posts", { body }));
+  api.deps.media = media;
+  assert.equal(unwired.result.status, 503);
+  assert.match(unwired.result.json.error.message, /Image posting is not configured/);
+
+  assert.deepEqual((await api.posts("GET", "/api/social-posts", { token: null })).json.posts, []);
+});
+
+test("an inline image is rolled back when the post row it was created for never lands", async () => {
+  // Both ways the insert can fail after the image has already committed: it
+  // throws, or it refuses the row. Either way the request must leave nothing
+  // behind -- an image with no post is unreachable garbage nobody will reclaim.
+  for (const [outcome, create, code] of [
+    ["throws", async () => { throw new Error("d1 write failed"); }, "internal"],
+    ["refuses", async () => null, "internal"],
+  ]) {
+    const api = harness();
+    const written = [];
+    const mediaCreate = api.stores.media.create;
+    api.stores.media.create = async (row) => { written.push(row); return mediaCreate(row); };
+    api.deps.store.create = create;
+
+    const { result: failed, entries } = await captureErrors(() => api.posts("POST", "/api/social-posts", {
+      body: { author: "Priya", content: "Painted this.", timestamp: "2026-07-18T11:59:00Z", source: "paint", image: upload },
+    }));
+
+    assert.equal(failed.status, 500, outcome);
+    assert.equal(failed.json.error.code, code, outcome);
+    assert.equal(failed.json.error.request_id, "request-1");
+    assert.equal(written.length, 1, outcome);
+    assert.equal(await api.stores.media.get(written[0].id), null, `${outcome}: image row`);
+    assert.equal(await api.stores.blobs.get(written[0].storage_key), null, `${outcome}: image bytes`);
+    // The failure is named in the log, not swallowed.
+    assert.ok(entries.length > 0, outcome);
+  }
 });
 
 test("an attached image cannot be deleted out from under the post that shows it", async () => {
@@ -389,6 +536,47 @@ test("one rate budget covers every social write, so likes cannot dodge the post 
 });
 
 /* --------------------- transactional correctness on D1 -------------------- */
+
+test("an inline image post commits bytes, image row, and post row on real SQL", async (t) => {
+  const db = await createTestD1();
+  t.after(() => db.close());
+  const stores = createD1SocialStores(db);
+  const deps = {
+    ...stores, store: stores.posts,
+    authenticate: async () => AGENT,
+    rateLimit: createD1RateLimiter(db),
+    nowMs: () => NOW,
+    requestId: "request-1",
+  };
+
+  const response = await handleSocialPostsRequest(new Request("https://test.invalid/api/social-posts", {
+    method: "POST",
+    headers: { authorization: "Bearer agent", "content-type": "application/json" },
+    body: JSON.stringify({
+      author: "Priya", content: "Painted this.", timestamp: "2026-07-18T11:59:00Z",
+      source: "paint", image: upload, caption: "A single grey pixel.",
+    }),
+  }), deps);
+  assert.equal(response.status, 201);
+  const { post } = await response.json();
+
+  // Every layer the request touched is durable and consistent: the post row,
+  // the image row it references, and the bytes that row points at.
+  const mediaId = post.image_url.split("/")[3];
+  const object = await stores.media.get(mediaId);
+  assert.equal(object.principal_id, AGENT_ID);
+  assert.equal(object.byte_size, 70);
+  assert.equal((await stores.blobs.get(object.storage_key)).bytes.byteLength, 70);
+  assert.equal((await stores.posts.get(post.id)).caption, "A single grey pixel.");
+
+  // The image arrived inline, but it is an ordinary media object afterwards:
+  // one post owns it, and the unique index still refuses a second claim.
+  assert.equal(await stores.posts.create({
+    id: "44444444-4444-4444-8444-444444444444", author: "Priya", content: "Post text.",
+    timestamp: "2026-07-18T11:59:00.000Z", source: "paint", media_id: mediaId,
+    principal_id: AGENT_ID, created_at: "2026-07-18T12:00:00.000Z",
+  }), null);
+});
 
 test("the guarded insert lets exactly one post claim an image, in real SQL", async (t) => {
   const db = await createTestD1();

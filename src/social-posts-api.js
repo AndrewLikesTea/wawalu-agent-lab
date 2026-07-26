@@ -25,6 +25,7 @@ import {
   ingestMediaUpload,
   mediaUrl,
   publicMedia,
+  validateMediaUpload,
 } from "./social-media.js";
 import {
   DEFAULT_COMMENT_PAGE_SIZE,
@@ -109,13 +110,37 @@ export function validateSocialPostInput(input, { requireProvenance = true } = {}
     else values.timestamp = new Date(input.timestamp).toISOString();
   }
 
-  // Image fields. `media_id` names an already-uploaded object; bytes never
-  // travel in a post body, so a post write stays small and one failed image
-  // upload cannot cost the caller their post text.
-  if (input?.media_id !== undefined && input?.media_id !== null) {
+  // Image fields, in two mutually exclusive forms.
+  //
+  // `media_id` names an already-uploaded object: bytes never travel in the post
+  // body, so a post write stays small and one failed image upload cannot cost
+  // the caller their post text. That remains the right shape for a client that
+  // holds a file.
+  //
+  // `image` carries the bytes inline, for a client that produces them and has
+  // nothing to retry with -- a canvas app has no file to re-select, so a
+  // two-step flow only gives it a window in which it can end up holding an
+  // uploaded image and no post. One request, one outcome.
+  const hasMediaId = input?.media_id !== undefined && input?.media_id !== null;
+  const hasInlineImage = input?.image !== undefined && input?.image !== null;
+  if (hasMediaId) {
     if (typeof input.media_id !== "string" || !UUID.test(input.media_id.trim())) {
       errors.media_id = "media_id must be the UUID of an uploaded image";
     } else values.media_id = input.media_id.trim();
+  }
+  if (hasInlineImage) {
+    if (hasMediaId) {
+      errors.image = "send either image or media_id, not both";
+    } else if (typeof input.image !== "object" || Array.isArray(input.image)) {
+      errors.image = "image must be an object with data, content_type, and alt";
+    } else {
+      // Exactly the upload endpoint's rules -- allowlisted type, honest magic
+      // bytes, size cap, mandatory alt text. A one-request client must not get
+      // a looser gate than a two-step one just because the route differs.
+      const media = validateMediaUpload(input.image);
+      for (const [field, message] of Object.entries(media.errors)) errors[`image.${field}`] = message;
+      if (!Object.keys(media.errors).length) values.image = media.values;
+    }
   }
   if (input?.caption !== undefined && input?.caption !== null) {
     if (typeof input.caption !== "string") errors.caption = "caption must be a string";
@@ -123,8 +148,9 @@ export function validateSocialPostInput(input, { requireProvenance = true } = {}
     else if (input.caption.trim().length > MAX_SOCIAL_CAPTION_LENGTH) errors.caption = `caption must be at most ${MAX_SOCIAL_CAPTION_LENGTH} characters`;
     // A caption with nothing to caption is a client bug, and the storage layer
     // rejects it anyway (migrations/0004). Fail here with a usable message
-    // rather than surfacing a CHECK constraint as a 500.
-    else if (!values.media_id) errors.caption = "caption requires media_id";
+    // rather than surfacing a CHECK constraint as a 500. Keyed off intent, not
+    // the parsed value, so a bad media_id reports one fault instead of two.
+    else if (!hasMediaId && !hasInlineImage) errors.caption = "caption requires media_id or image";
     else values.caption = input.caption.trim();
   }
 
@@ -490,12 +516,87 @@ async function handleCollection(request, deps, requestId, nowMs, url) {
     values.timestamp = createdAt;
     values.source = "shiplog-web";
   }
-  const post = await deps.store.create({ id: uuid(), ...values, principal_id: identity.id, created_at: createdAt });
-  // A null here means only one thing: the guarded insert's image condition
-  // failed. Classify it with a follow-up read so the caller learns whether the
-  // image is missing, someone else's, or already spoken for.
-  if (!post) return mediaAttachFailure(deps, values.media_id, identity.id, requestId, headers);
+
+  // `image` is validated input, never a column: the row references the media
+  // object this request is about to create, exactly as the two-step path does.
+  const { image, ...postValues } = values;
+  let ingested = null;
+  if (image) {
+    const stored = await storeInlineImage(parsed.body.image, deps, identity.id, createdAt, requestId, headers);
+    if (stored.response) return stored.response;
+    ingested = stored.object;
+    postValues.media_id = ingested.id;
+  }
+
+  let post;
+  try {
+    post = await deps.store.create({ id: uuid(), ...postValues, principal_id: identity.id, created_at: createdAt });
+  } catch (error) {
+    // The image committed and the post did not, so the image is garbage that
+    // only this request knows about. Undo it before the 500 leaves.
+    await discardImage(deps, ingested, identity.id, requestId);
+    throw error;
+  }
+  if (!post) {
+    if (ingested) {
+      // The guarded insert's image condition cannot be what failed: this image
+      // was created moments ago, by this principal, and no post has seen its
+      // id. Something else refused the row, so report it as ours and roll back.
+      console.error("social_post_inline_image_rollback", { requestId, mediaId: ingested.id });
+      await discardImage(deps, ingested, identity.id, requestId);
+      return failure(500, "internal", "The post could not be created.", requestId, {}, headers);
+    }
+    // A null on the media_id path means only one thing: the guarded insert's
+    // image condition failed. Classify it with a follow-up read so the caller
+    // learns whether the image is missing, someone else's, or already claimed.
+    return mediaAttachFailure(deps, postValues.media_id, identity.id, requestId, headers);
+  }
   return json(201, { post }, requestId, { ...headers, location: `/api/social-posts/${post.id}`, "cache-control": "no-store" });
+}
+
+// Inline bytes take the same ingest as an upload -- bytes first, metadata row
+// as the commit point -- so both entry points share one storage contract and
+// one set of failure modes.
+async function storeInlineImage(input, deps, principalId, now, requestId, headers) {
+  // A deployment wired without the image stores can still serve text posts.
+  // Say so, rather than letting the missing store surface as a 500.
+  if (!deps.media || !deps.blobs) {
+    console.error("social_post_image_stores_missing", { requestId });
+    return { response: failure(503, "storage_unavailable", "Image posting is not configured.", requestId, {}, headers) };
+  }
+  try {
+    return { object: await ingestMediaUpload(input, { media: deps.media, blobs: deps.blobs, principalId, id: uuid(), now }) };
+  } catch (error) {
+    // Already validated above; reaching here means the two validators disagree,
+    // which is a defect worth surfacing as the same 422 rather than a 500.
+    if (error instanceof MediaValidationError) {
+      return { response: failure(422, "invalid_media", error.message, requestId, { fields: error.fields }, headers) };
+    }
+    if (error instanceof MediaStorageError) {
+      // The cause names the binding that failed and never reaches the client.
+      console.error("social_media_storage_failure", { requestId, error: error.cause?.message ?? String(error.cause) });
+      return { response: failure(503, "storage_unavailable", "The image could not be stored. Retry the post.", requestId, {}, headers) };
+    }
+    throw error;
+  }
+}
+
+// Undo an inline image whose post never landed. Best effort and always logged:
+// the caller is already getting an error, and a reclaim failure costs storage
+// rather than correctness -- but a leak nothing reports is the one found later.
+async function discardImage(deps, object, principalId, requestId) {
+  if (!object) return;
+  let removed = null;
+  try {
+    removed = await deps.media.deleteOwned(object.id, principalId);
+  } catch (error) {
+    console.error("social_media_orphaned_object", { requestId, mediaId: object.id, error: error?.message ?? String(error) });
+  }
+  // Bytes are reclaimed only once the row that pointed at them is gone. If the
+  // row survived, the image is still reachable and still the owner's to delete;
+  // deleting its bytes anyway would turn a leak into a broken image.
+  if (removed) await reclaimBlob(deps, object.storage_key, requestId);
+  else console.error("social_media_orphaned_object", { requestId, mediaId: object.id, storageKey: object.storage_key });
 }
 
 async function mediaAttachFailure(deps, mediaId, principalId, requestId, headers) {
