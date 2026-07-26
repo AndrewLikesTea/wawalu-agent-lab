@@ -211,6 +211,7 @@ export const PROFILE_EMPTY_COPY = {
   // The grid's empty state: the next action, not a second telling of the state.
   guidance: "Make an image in Paint, then use it in a post.",
   actionLabel: "Open Paint",
+  postActionLabel: "Write a post",
 };
 
 // The profile description under the name. An author with posts but no images
@@ -332,7 +333,12 @@ function renderEmpty(container, author) {
   empty.append(el("p", "empty-title", PROFILE_EMPTY_COPY.guidance));
   const link = el("a", "empty-action", PROFILE_EMPTY_COPY.actionLabel);
   link.href = profilePaintHref(author);
-  empty.append(link);
+  const postLink = el("a", "empty-action empty-action-secondary",
+    PROFILE_EMPTY_COPY.postActionLabel);
+  postLink.href = "/social.html#post-form";
+  const actions = el("div", "empty-actions");
+  actions.append(link, postLink);
+  empty.append(actions);
   container.append(empty);
 }
 
