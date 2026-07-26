@@ -201,6 +201,146 @@
     {"sampleId":"syn-data-005","departmentId":"data-ml","category":"High-value","summary":"The analysis request defined its dataset boundary, method, and decision threshold.","scoredAt":"2026-07-25"},
     {"sampleId":"syn-sre-011","departmentId":"sre","category":"Over-provisioned","summary":"A one-line transformation was routed to a frontier model in the synthetic fixture.","scoredAt":"2026-07-25"}
   ],
+  "actionPlan": {
+    "schemaVersion": "action-plan/1.0.0",
+    "generatedAt": "2026-07-25",
+    "provenance": "Deterministic projection of the bundled synthetic Evolution department and evidence fixture; no live or customer data.",
+    "eligibilityRule": "Include only departments with available sampling and at least one retained evidence record. Departments without retained evidence receive no evidence-backed action.",
+    "orderingRule": "Within each department, rank ascending by priorityRank, then actionId. Exactly one action per included department has priorityRank 1 and isTopNextAction true.",
+    "metricDefinitions": {
+      "recoverable_spend_usd": {
+        "unit": "USD",
+        "precision": "whole dollars",
+        "calculation": "Round once to the nearest whole USD: spendUsd × (0.70 × normalized overProvisioned share + 0.40 × normalized inefficient share + 1.00 × normalized outOfScope share). normalized share = non-negative category value ÷ sum of all four non-negative category values.",
+        "comparisonRule": "Before and after use the same formula and department scope over equal 31-day periods. Savings realized = before value − after value; a missing after value remains pending and is not treated as zero."
+      }
+    },
+    "benchmarkPeriods": [
+      {
+        "periodId": "period-2026-05-25-2026-06-24",
+        "label": "25 May–24 Jun 2026",
+        "startDate": "2026-05-25",
+        "endDate": "2026-06-24",
+        "inclusiveDays": 31,
+        "purpose": "historical comparison",
+        "source": "departments[].previousPeriod.period"
+      },
+      {
+        "periodId": "period-2026-06-25-2026-07-25",
+        "label": "25 Jun–25 Jul 2026",
+        "startDate": "2026-06-25",
+        "endDate": "2026-07-25",
+        "inclusiveDays": 31,
+        "purpose": "action baseline",
+        "source": "departments[].period"
+      },
+      {
+        "periodId": "period-2026-07-26-2026-08-25",
+        "label": "26 Jul–25 Aug 2026",
+        "startDate": "2026-07-26",
+        "endDate": "2026-08-25",
+        "inclusiveDays": 31,
+        "purpose": "post-action measurement",
+        "source": "synthetic equal-length successor to the existing action baseline"
+      }
+    ],
+    "actions": [
+      {
+        "actionId": "action-data-ml-acceptable-use-v1",
+        "departmentId": "data-ml",
+        "departmentName": "Data & ML",
+        "evidenceRefs": ["syn-data-005"],
+        "priorityRank": 1,
+        "isTopNextAction": true,
+        "accountableRole": "Directorate of Data Platform",
+        "action": "Apply acceptable-use routing so personal queries leave the enterprise plan.",
+        "estimatedSavingsUsd": 5214,
+        "savingsCalculationBasis": "Round(52140 USD baseline spend × 0.10 normalized outOfScope share × 1.00 recoverable share) = 5214 USD.",
+        "confidence": {
+          "value": 0.72,
+          "scale": "0_to_1",
+          "provenance": "Judgment-based synthetic fixture confidence: aggregate mix is available, but the sole retained sample is High-value rather than Out-of-scope."
+        },
+        "rationale": "Out-of-scope spend is the department's largest single recoverable category; retained evidence confirms the scored sample belongs to this department but does not independently validate the out-of-scope estimate.",
+        "baseline": {"metricName":"recoverable_spend_usd","value":9072,"unit":"USD","periodRef":"period-2026-06-25-2026-07-25"},
+        "target": {"metricName":"recoverable_spend_usd","value":3858,"unit":"USD","periodRef":"period-2026-07-26-2026-08-25","comparison":"less_than_or_equal"},
+        "benchmarkPeriodRefs": {"historical":"period-2026-05-25-2026-06-24","baseline":"period-2026-06-25-2026-07-25","after":"period-2026-07-26-2026-08-25"},
+        "tracking": {"before":{"metricName":"recoverable_spend_usd","value":9072,"unit":"USD","periodRef":"period-2026-06-25-2026-07-25","status":"observed"},"after":{"metricName":"recoverable_spend_usd","value":null,"unit":"USD","periodRef":"period-2026-07-26-2026-08-25","status":"pending"}}
+      },
+      {
+        "actionId": "action-backend-down-route-v1",
+        "departmentId": "backend",
+        "departmentName": "Backend Platform",
+        "evidenceRefs": ["syn-backend-033"],
+        "priorityRank": 1,
+        "isTopNextAction": true,
+        "accountableRole": "Directorate of Core Services",
+        "action": "Enable automated down-routing for short, low-context prompts.",
+        "estimatedSavingsUsd": 5201,
+        "savingsCalculationBasis": "Round(41280 USD baseline spend × 0.18 normalized overProvisioned share × 0.70 recoverable share) = 5201 USD.",
+        "confidence": {"value":0.74,"scale":"0_to_1","provenance":"Judgment-based synthetic fixture confidence: aggregate mix is available, but the sole retained sample is High-value rather than Over-provisioned."},
+        "rationale": "Over-provisioned spend is the department's largest single recoverable category; retained evidence confirms department-scoped scoring but does not independently validate the routing estimate.",
+        "baseline": {"metricName":"recoverable_spend_usd","value":10650,"unit":"USD","periodRef":"period-2026-06-25-2026-07-25"},
+        "target": {"metricName":"recoverable_spend_usd","value":5449,"unit":"USD","periodRef":"period-2026-07-26-2026-08-25","comparison":"less_than_or_equal"},
+        "benchmarkPeriodRefs": {"historical":"period-2026-05-25-2026-06-24","baseline":"period-2026-06-25-2026-07-25","after":"period-2026-07-26-2026-08-25"},
+        "tracking": {"before":{"metricName":"recoverable_spend_usd","value":10650,"unit":"USD","periodRef":"period-2026-06-25-2026-07-25","status":"observed"},"after":{"metricName":"recoverable_spend_usd","value":null,"unit":"USD","periodRef":"period-2026-07-26-2026-08-25","status":"pending"}}
+      },
+      {
+        "actionId": "action-frontend-retry-workshop-v1",
+        "departmentId": "frontend",
+        "departmentName": "Frontend Experience",
+        "evidenceRefs": ["syn-frontend-008"],
+        "priorityRank": 1,
+        "isTopNextAction": true,
+        "accountableRole": "Directorate of Product Engineering",
+        "action": "Run a prompt engineering workshop focused on diagnosing failures before retrying.",
+        "estimatedSavingsUsd": 3474,
+        "savingsCalculationBasis": "Round(28950 USD baseline spend × 0.30 normalized inefficient share × 0.40 recoverable share) = 3474 USD.",
+        "confidence": {"value":0.88,"scale":"0_to_1","provenance":"Judgment-based synthetic fixture confidence supported by aggregate mix and retained Inefficient evidence syn-frontend-008."},
+        "rationale": "Inefficient spend is the department's largest single recoverable category, and the retained sample describes an unverified retry matching that intervention.",
+        "baseline": {"metricName":"recoverable_spend_usd","value":8222,"unit":"USD","periodRef":"period-2026-06-25-2026-07-25"},
+        "target": {"metricName":"recoverable_spend_usd","value":4748,"unit":"USD","periodRef":"period-2026-07-26-2026-08-25","comparison":"less_than_or_equal"},
+        "benchmarkPeriodRefs": {"historical":"period-2026-05-25-2026-06-24","baseline":"period-2026-06-25-2026-07-25","after":"period-2026-07-26-2026-08-25"},
+        "tracking": {"before":{"metricName":"recoverable_spend_usd","value":8222,"unit":"USD","periodRef":"period-2026-06-25-2026-07-25","status":"observed"},"after":{"metricName":"recoverable_spend_usd","value":null,"unit":"USD","periodRef":"period-2026-07-26-2026-08-25","status":"pending"}}
+      },
+      {
+        "actionId": "action-sre-down-route-v1",
+        "departmentId": "sre",
+        "departmentName": "Site Reliability",
+        "evidenceRefs": ["syn-sre-011"],
+        "priorityRank": 1,
+        "isTopNextAction": true,
+        "accountableRole": "Directorate of Infrastructure",
+        "action": "Enable automated down-routing for short, low-context prompts.",
+        "estimatedSavingsUsd": 1947,
+        "savingsCalculationBasis": "Round(19870 USD baseline spend × 0.14 normalized overProvisioned share × 0.70 recoverable share) = 1947 USD.",
+        "confidence": {"value":0.90,"scale":"0_to_1","provenance":"Judgment-based synthetic fixture confidence supported by aggregate mix and retained Over-provisioned evidence syn-sre-011."},
+        "rationale": "Over-provisioned spend is the department's largest single recoverable category, and the retained sample describes frontier routing for a one-line transformation.",
+        "baseline": {"metricName":"recoverable_spend_usd","value":4252,"unit":"USD","periodRef":"period-2026-06-25-2026-07-25"},
+        "target": {"metricName":"recoverable_spend_usd","value":2305,"unit":"USD","periodRef":"period-2026-07-26-2026-08-25","comparison":"less_than_or_equal"},
+        "benchmarkPeriodRefs": {"historical":"period-2026-05-25-2026-06-24","baseline":"period-2026-06-25-2026-07-25","after":"period-2026-07-26-2026-08-25"},
+        "tracking": {"before":{"metricName":"recoverable_spend_usd","value":4252,"unit":"USD","periodRef":"period-2026-06-25-2026-07-25","status":"observed"},"after":{"metricName":"recoverable_spend_usd","value":null,"unit":"USD","periodRef":"period-2026-07-26-2026-08-25","status":"pending"}}
+      },
+      {
+        "actionId": "action-quality-down-route-v1",
+        "departmentId": "quality",
+        "departmentName": "QA & Release",
+        "evidenceRefs": ["syn-qa-014","syn-qa-021"],
+        "priorityRank": 1,
+        "isTopNextAction": true,
+        "accountableRole": "Directorate of Core Services",
+        "action": "Enable automated down-routing for short, low-context prompts.",
+        "estimatedSavingsUsd": 2439,
+        "savingsCalculationBasis": "Round(11240 USD baseline spend × 0.31 normalized overProvisioned share × 0.70 recoverable share) = 2439 USD.",
+        "confidence": {"value":0.92,"scale":"0_to_1","provenance":"Judgment-based synthetic fixture confidence supported by aggregate mix and retained Over-provisioned evidence syn-qa-014; syn-qa-021 supplies secondary retry context."},
+        "rationale": "Over-provisioned spend is the department's largest single recoverable category, and retained evidence directly identifies frontier-model use for a formatting task.",
+        "baseline": {"metricName":"recoverable_spend_usd","value":4530,"unit":"USD","periodRef":"period-2026-06-25-2026-07-25"},
+        "target": {"metricName":"recoverable_spend_usd","value":2091,"unit":"USD","periodRef":"period-2026-07-26-2026-08-25","comparison":"less_than_or_equal"},
+        "benchmarkPeriodRefs": {"historical":"period-2026-05-25-2026-06-24","baseline":"period-2026-06-25-2026-07-25","after":"period-2026-07-26-2026-08-25"},
+        "tracking": {"before":{"metricName":"recoverable_spend_usd","value":4530,"unit":"USD","periodRef":"period-2026-06-25-2026-07-25","status":"observed"},"after":{"metricName":"recoverable_spend_usd","value":null,"unit":"USD","periodRef":"period-2026-07-26-2026-08-25","status":"pending"}}
+      }
+    ]
+  },
   "redactionSamples": [
     {
       "id": "sample-1",

@@ -67,3 +67,36 @@ This static demo answers three questions, in order:
 - The department, trend, benchmark, and evidence surfaces state synthetic
   provenance, rubric version, sample freshness, and sampling uncertainty whenever
   a score is present.
+
+## Synthetic action-plan contract
+
+The already-consumed `evolution-demo-data.json` fixture includes
+`actionPlan` version `action-plan/1.0.0`. It answers one additional contract
+question without adding a view: **What is the one evidence-backed next action
+for each eligible department, who owns it, what could it save, and how will the
+same result be checked after an equal period?**
+
+An eligible department has available sampling and at least one retained evidence
+record. Mobile has no retained evidence and Security Engineering has unavailable
+sampling, so neither receives an action. Creating recommendations for them would
+present unsupported surface as evidence. Within each included department,
+ascending `priorityRank` then `actionId` is the deterministic order; exactly one
+record has rank 1 and `isTopNextAction: true`.
+
+The action baseline and target use only `recoverable_spend_usd`, defined as:
+
+`round(spendUsd × (0.70 × normalized overProvisioned + 0.40 × normalized inefficient + 1.00 × normalized outOfScope))`
+
+Normalize the four non-negative category values by their sum, and round only the
+final USD result to the nearest whole dollar. Estimated action savings is the
+largest single recoverable category using the same inputs and established
+recoverability factor. The target is baseline recoverable spend minus estimated
+action savings. It is a synthetic planning threshold, not realized savings.
+
+Tracking compares that identical metric and department scope over the existing
+31-day baseline and a defined, contiguous 31-day successor period. The after
+value is `null` with status `pending`; consumers must not convert missing
+measurement to zero. The historical reference reuses the existing immediately
+preceding 31-day fixture period. This contract deliberately leaves out UI,
+forecasts, causal claims, live integrations, model behavior, employee detail,
+and actions for departments without retained evidence.
