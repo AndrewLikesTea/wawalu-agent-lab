@@ -8,7 +8,13 @@ import {
   SORTS,
   focusLinkedDecision,
   handleDecisionListKeydown,
+  renderDecisions,
+  enterDecisionRecorder,
+  exitDecisionRecorder,
 } from "../src/app.js";
+import { byClass, createElement, installDocument, tags } from "./support/dom.js";
+
+installDocument();
 
 // Fixtures deliberately vary title, owner, status, and date so a single set
 // exercises every filter and sort path. Ids double as ordering assertions.
@@ -84,6 +90,33 @@ test("does not mutate the input array or its order", () => {
 
 test("filtering an empty list yields an empty list", () => {
   assert.deepEqual(selectDecisions([], { status: "accepted", owner: "Kai" }), []);
+});
+
+test("true-empty history renders the recording workflow action", () => {
+  const container = createElement("div");
+  const count = createElement("span");
+  renderDecisions(container, count, [], { query: "ignored because there are no records" });
+
+  assert.equal(count.textContent, "0 records");
+  assert.match(container.textContent, /No decisions yet/);
+  assert.match(container.textContent, /title, context, owner, and status/);
+  assert.match(container.textContent, /link it to a release/);
+  const [action] = byClass(container, "decision-empty-action");
+  assert.equal(action.tagName, "BUTTON");
+  assert.equal(action.type, "button");
+  assert.equal(action.getAttribute("aria-controls"), "decision-form");
+  assert.equal(action.dataset.action, "record-decision");
+});
+
+test("populated history with no filter matches does not show the first-decision action", () => {
+  const container = createElement("div");
+  const count = createElement("span");
+  renderDecisions(container, count, sample, { query: "not present in any decision" });
+
+  assert.equal(count.textContent, `0 of ${sample.length} records`);
+  assert.match(container.textContent, /No matching decisions/);
+  assert.equal(byClass(container, "decision-empty-action").length, 0);
+  assert.equal(tags(container, "OL").length, 0);
 });
 
 test("uniqueOwners returns distinct owners sorted case-insensitively", () => {
@@ -164,15 +197,41 @@ test("decision cards are rendered as the single semantic detail link", async () 
   assert.doesNotMatch(source, /article\.tabIndex\s*=/);
 });
 
+test("recording workflow entry and exit restore keyboard focus without a trap", () => {
+  const calls = [];
+  const title = {
+    focus: (options) => calls.push(["title-focus", options]),
+    scrollIntoView: (options) => calls.push(["title-scroll", options]),
+  };
+  const history = {
+    focus: (options) => calls.push(["history-focus", options]),
+    scrollIntoView: (options) => calls.push(["history-scroll", options]),
+  };
+  const trigger = {
+    isConnected: true,
+    focus: (options) => calls.push(["trigger-focus", options]),
+    scrollIntoView: (options) => calls.push(["trigger-scroll", options]),
+  };
+  const root = {
+    querySelector: (selector) => selector === "#title" ? title : history,
+  };
+
+  assert.equal(enterDecisionRecorder(root, trigger), true);
+  assert.equal(exitDecisionRecorder(root), true);
+  assert.deepEqual(calls.map(([name]) => name), [
+    "title-focus", "title-scroll", "trigger-focus", "trigger-scroll",
+  ]);
+});
+
 test("decision list exposes semantic loading, empty, and error states", async () => {
   const read = (path) => import("node:fs/promises")
     .then((fs) => fs.readFile(new URL(`../${path}`, import.meta.url), "utf8"));
   const [page, source] = await Promise.all([read("src/index.html"), read("src/app.js")]);
   assert.match(page, /id="decision-list" aria-live="polite" aria-busy="true"/);
   assert.match(page, /<h3>Loading decisions<\/h3>/);
-  assert.match(page, /<h2 id="decisions-title">All decisions<\/h2>/);
+  assert.match(page, /<h2 id="decisions-title" tabindex="-1">All decisions<\/h2>/);
   assert.match(page, /<p>Loading all decisions…<\/p>/);
-  assert.match(page, /<h2>Record a decision<\/h2>/);
+  assert.match(page, /<h2 id="decision-form-title">Record a decision<\/h2>/);
   assert.match(page, /<button type="submit">Record decision<\/button>/);
   assert.match(page, /id="title-hint">A short name for the decision\.<\/span>/);
   assert.match(page, /id="context-hint">The problem, constraints, and reasoning\.<\/span>/);
@@ -182,6 +241,9 @@ test("decision list exposes semantic loading, empty, and error states", async ()
   assert.match(source, /panel\.setAttribute\("role", state === "error" \? "alert" : "status"\)/);
   assert.match(source, /container\.setAttribute\("aria-busy", String\(state === "loading"\)\)/);
   assert.match(source, /\["Loading decisions", "Loading all decisions…"\]/);
-  assert.match(source, /\["No decisions yet", "Complete the Record a decision form/);
+  assert.match(source, /"No decisions yet"/);
+  assert.match(source, /"Record the title, context, owner, and status/);
   assert.match(source, /\["No matching decisions", "Change your search or filters/);
+  assert.match(page, /id="exit-decision-recorder" type="button">Back to decision history<\/button>/);
+  assert.match(page, /id="decisions-title" tabindex="-1"/);
 });

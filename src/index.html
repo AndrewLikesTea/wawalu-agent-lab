@@ -93,10 +93,10 @@
       </section>
 
       <section class="workspace" aria-label="Decision log">
-        <div class="form-panel">
+        <div class="form-panel" aria-labelledby="decision-form-title">
           <div class="section-heading">
             <p class="eyebrow">New record</p>
-            <h2>Record a decision</h2>
+            <h2 id="decision-form-title">Record a decision</h2>
           </div>
 
           <form id="decision-form">
@@ -134,6 +134,7 @@
             </div>
 
             <button type="submit">Record decision</button>
+            <button class="recorder-exit" id="exit-decision-recorder" type="button">Back to decision history</button>
           </form>
         </div>
 
@@ -141,7 +142,7 @@
           <div class="section-heading list-heading">
             <div>
               <p class="eyebrow">Decisions</p>
-              <h2 id="decisions-title">All decisions</h2>
+              <h2 id="decisions-title" tabindex="-1">All decisions</h2>
             </div>
             <span class="count" id="decision-count" aria-live="polite">0 records</span>
           </div>
