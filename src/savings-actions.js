@@ -3,16 +3,17 @@
  * There is deliberately no storage, clock, network, or prompt dependency.
  */
 
-/** @typedef {"planned" | "in_progress" | "completed"} SavingsActionStatus */
+/** @typedef {"planned" | "in_progress" | "completed" | "verified"} SavingsActionStatus */
 
 export const SAVINGS_ACTION_STATUSES = Object.freeze([
-  "planned", "in_progress", "completed",
+  "planned", "in_progress", "completed", "verified",
 ]);
 
 const TRANSITIONS = Object.freeze({
   planned: Object.freeze(["in_progress"]),
   in_progress: Object.freeze(["completed"]),
-  completed: Object.freeze([]),
+  completed: Object.freeze(["verified"]),
+  verified: Object.freeze([]),
 });
 
 export class SavingsActionError extends Error {
