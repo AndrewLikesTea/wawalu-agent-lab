@@ -56,9 +56,12 @@ export function mediaUrl(id) {
 }
 
 // Keyed by media id, so the key is derived (never parsed) and a retry of the
-// same upload is idempotent at the blob layer.
-export function storageKeyFor(id, contentType) {
-  return `social-media/${id}.${MEDIA_TYPES[contentType].extension}`;
+// same upload is idempotent at the blob layer. The namespace prefix is what
+// lets several callers share one bucket and one inline blob table without
+// colliding; it defaults to the social feed's original prefix so every key
+// written before namespacing existed still resolves byte-for-byte.
+export function storageKeyFor(id, contentType, namespace = "social-media") {
+  return `${namespace}/${id}.${MEDIA_TYPES[contentType].extension}`;
 }
 
 export function decodeBase64(value) {
@@ -267,8 +270,16 @@ export async function ingestMediaUpload(input, { media, blobs, principalId, id, 
     created_at: now,
   };
 
+  return commitMedia({ media, blobs, row, bytes: values.bytes, now, log });
+}
+
+// The durable commit, shared by every media namespace: bytes first, then the
+// metadata row that makes them reachable. Extracted so a second namespace
+// cannot reimplement the ordering -- getting it backwards is what produces a
+// row pointing at bytes that were never stored, which no cleanup can repair.
+export async function commitMedia({ media, blobs, row, bytes, now, log = console }) {
   try {
-    await blobs.put(storageKey, values.bytes, values.content_type, now);
+    await blobs.put(row.storage_key, bytes, row.content_type, now);
   } catch (error) {
     throw new MediaStorageError("The image bytes could not be stored.", error);
   }
@@ -280,9 +291,9 @@ export async function ingestMediaUpload(input, { media, blobs, principalId, id, 
     // failure mask the real error -- and always leave a log line naming the key,
     // because an orphan that nothing reports is an invisible storage leak.
     try {
-      await blobs.delete(storageKey);
+      await blobs.delete(row.storage_key);
     } catch (cleanupError) {
-      log.error?.("social_media_orphaned_blob", { storageKey, error: cleanupError?.message ?? String(cleanupError) });
+      log.error?.("social_media_orphaned_blob", { storageKey: row.storage_key, error: cleanupError?.message ?? String(cleanupError) });
     }
     throw new MediaStorageError("The image metadata could not be stored.", error);
   }
