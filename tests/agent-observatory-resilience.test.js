@@ -1,0 +1,123 @@
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import test from "node:test";
+import {
+  loadActivity,
+  renderPromptTrace,
+  renderRepresentativeActivity,
+} from "../src/agents.js";
+import { loadPublishedTrace } from "../src/agent-trace.js";
+import { byClass, createElement, installDocument, tags } from "./support/dom.js";
+
+installDocument();
+
+function activityRoot() {
+  const nodes = {
+    "#activity-list": createElement("ol"),
+    "#activity-status": createElement("p"),
+    ".signal-card": createElement("div"),
+    "#connection-label": createElement("strong"),
+    "#last-updated": createElement("span"),
+    "#refresh-activity": createElement("button"),
+  };
+  nodes["#activity-list"].querySelector = (selector) => {
+    const items = byClass(nodes["#activity-list"], "activity-item");
+    return selector.includes(":not")
+      ? items.find((item) => !item.classes.includes("activity-item-representative")) ?? null
+      : items[0] ?? null;
+  };
+  return { nodes, querySelector: (selector) => nodes[selector] ?? null };
+}
+
+test("representative activity is clearly labelled and contains no live links", () => {
+  const list = createElement("ol");
+  renderRepresentativeActivity(list);
+
+  assert.equal(list.getAttribute("aria-label"), "Representative synthetic activity");
+  assert.equal(list.getAttribute("aria-busy"), "false");
+  assert.equal(byClass(list, "activity-item-representative").length, 4);
+  assert.equal(tags(list, "A").length, 0);
+  assert.match(list.textContent, /Plan/);
+  assert.match(list.textContent, /Protected checks/);
+});
+
+test("unavailable public activity retains the representative fallback and retry", async () => {
+  const root = activityRoot();
+  await loadActivity(root, async () => ({ ok: false, status: 503 }));
+
+  assert.equal(byClass(root.nodes["#activity-list"], "activity-item-representative").length, 4);
+  assert.match(root.nodes["#activity-status"].textContent, /unavailable.*representative synthetic/i);
+  assert.equal(root.nodes["#connection-label"].textContent, "Connection status: paused");
+  assert.equal(root.nodes["#refresh-activity"].textContent, "Retry public activity");
+});
+
+test("live public activity replaces the representative fallback", async () => {
+  const root = activityRoot();
+  const event = {
+    type: "PullRequestEvent",
+    created_at: new Date().toISOString(),
+    payload: {
+      action: "opened",
+      pull_request: {
+        number: 219,
+        title: "Make the observatory resilient",
+        html_url: "https://github.com/example/repo/pull/219",
+        head: { ref: "agent/frontend/observatory" },
+      },
+    },
+  };
+  await loadActivity(root, async () => ({ ok: true, json: async () => [event] }));
+
+  assert.equal(byClass(root.nodes["#activity-list"], "activity-item-representative").length, 0);
+  assert.equal(byClass(root.nodes["#activity-list"], "activity-item").length, 2);
+  assert.equal(root.nodes["#activity-list"].getAttribute("aria-label"), "Recent public repository events");
+  assert.equal(root.nodes["#connection-label"].textContent, "Live signal");
+});
+
+test("an empty public response uses the labelled representative sequence", async () => {
+  const root = activityRoot();
+  await loadActivity(root, async () => ({ ok: true, json: async () => [] }));
+
+  assert.equal(byClass(root.nodes["#activity-list"], "activity-item-representative").length, 4);
+  assert.match(root.nodes["#activity-status"].textContent, /No relevant public events.*representative synthetic/i);
+  assert.equal(root.nodes["#connection-label"].textContent, "Representative preview");
+  assert.equal(root.nodes[".signal-card"].dataset.connected, "true");
+});
+
+test("published trace renders all steps as an end-to-end reading flow", () => {
+  const trace = createElement("div");
+  const data = {
+    run: {
+      personaName: "Mina",
+      personaRole: "Frontend engineer",
+      scenarioTitle: "Resilient observatory",
+      worker: "Codex",
+      qwenPlanningPrompt: "Plan",
+      qwenHandoff: "Handoff",
+      workerPrompt: "Implement",
+      qwenReview: "Review",
+    },
+  };
+  renderPromptTrace(trace, data, { full: true });
+
+  assert.equal(trace.getAttribute("aria-busy"), "false");
+  assert.equal(byClass(trace, "prompt-step").length, 4);
+  assert.ok(trace.classes.includes("prompt-trace-full"));
+  assert.match(trace.textContent, /1 · Qwen planning prompt.*4 · Marcus \/ Qwen review/);
+});
+
+test("trace page exposes semantic navigation, synthetic disclosure, and error boundary", async () => {
+  const page = await readFile(new URL("../src/agent-trace.html", import.meta.url), "utf8");
+  assert.match(page, /<article.*aria-labelledby="trace-page-title"/);
+  assert.match(page, /Synthetic example\./);
+  assert.match(page, /not live customer activity, a private repository transcript, or a record of hidden instructions/i);
+  assert.match(page, /href="\/agents\.html"/);
+  assert.match(page, /aria-label="Representative prompt trace steps"/);
+
+  const trace = createElement("div");
+  const root = { querySelector: () => trace };
+  await loadPublishedTrace(root, async () => ({ ok: false, status: 500 }));
+  assert.equal(trace.getAttribute("aria-busy"), "false");
+  assert.match(trace.textContent, /published representative trace could not be loaded/i);
+  assert.equal(tags(trace, "BUTTON")[0].textContent, "Retry trace");
+});
