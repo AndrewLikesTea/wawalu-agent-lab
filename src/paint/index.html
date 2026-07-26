@@ -107,15 +107,54 @@
           </section>
           <section class="layers-section" aria-labelledby="layers-heading">
             <div class="section-title">
-              <h3 id="layers-heading">Layers</h3>
-              <button id="clear-button" type="button" aria-label="Clear image">×</button>
+              <div>
+                <h3 id="layers-heading">Layer</h3>
+                <p class="section-summary" id="layer-selection-summary">1 selected</p>
+              </div>
+              <button id="clear-button" type="button" aria-label="Clear selected layer">×</button>
             </div>
-            <ol class="layer-list">
-              <li aria-current="true">
+            <div class="layer-state" id="layer-state" role="status" aria-live="polite">
+              <span class="state-shape" aria-hidden="true">✓</span>
+              <span id="layer-state-text">Layer ready</span>
+            </div>
+            <fieldset class="layer-controls" id="layer-controls">
+              <legend class="visually-hidden">Selected layer appearance</legend>
+              <label for="blend-mode">
+                <span>Blend mode</span>
+                <select id="blend-mode" aria-describedby="blend-mode-help">
+                  <option value="normal">Normal</option>
+                  <option value="multiply">Multiply</option>
+                  <option value="screen">Screen</option>
+                  <option value="overlay">Overlay</option>
+                  <option value="darken">Darken</option>
+                  <option value="lighten">Lighten</option>
+                  <option value="difference">Difference</option>
+                </select>
+              </label>
+              <p class="control-help" id="blend-mode-help">Controls how this layer combines with the canvas.</p>
+              <div class="opacity-heading">
+                <label for="layer-opacity">Opacity</label>
+                <label class="opacity-value" for="layer-opacity-number">
+                  <span class="visually-hidden">Opacity percentage</span>
+                  <input id="layer-opacity-number" type="number" min="0" max="100" step="1" value="100" inputmode="numeric" aria-describedby="opacity-message" />
+                  <span aria-hidden="true">%</span>
+                </label>
+              </div>
+              <input id="layer-opacity" type="range" min="0" max="100" step="1" value="100" aria-describedby="opacity-message" />
+              <p class="control-message" id="opacity-message">Fully opaque</p>
+            </fieldset>
+            <ol class="layer-list" id="layer-list" aria-label="Document layers">
+              <li aria-current="true" id="bitmap-layer">
                 <span class="layer-thumbnail" aria-hidden="true"></span>
                 <span><strong>Bitmap</strong><small>WebGL texture</small></span>
+                <span class="layer-meta" id="layer-meta">Normal · 100%</span>
               </li>
             </ol>
+            <div class="layer-empty" id="layer-empty" hidden>
+              <span class="state-shape" aria-hidden="true">＋</span>
+              <strong>No editable layer</strong>
+              <span>Draw or import an image to create one.</span>
+            </div>
           </section>
         </aside>
       </main>

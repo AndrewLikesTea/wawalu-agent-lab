@@ -1,7 +1,15 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { applyTheme, persistTheme, preferredTheme, storedTheme, THEME_KEY } from "../src/paint/paint.js";
+import {
+  applyTheme,
+  layerOpacityMessage,
+  normalizeLayerOpacity,
+  persistTheme,
+  preferredTheme,
+  storedTheme,
+  THEME_KEY,
+} from "../src/paint/paint.js";
 
 test("paint shell has semantic navigation and an accessible canvas", async () => {
   const html = await readFile(new URL("../src/paint/index.html", import.meta.url), "utf8");
@@ -16,6 +24,12 @@ test("paint shell has semantic navigation and an accessible canvas", async () =>
   assert.match(html, /data-tool="brush"/);
   assert.match(html, /data-tool="rectangle"/);
   assert.match(html, /data-filter="grayscale"/);
+  assert.match(html, /<fieldset class="layer-controls" id="layer-controls">/);
+  assert.match(html, /<select id="blend-mode" aria-describedby="blend-mode-help">/);
+  assert.match(html, /id="layer-opacity" type="range" min="0" max="100"/);
+  assert.match(html, /id="layer-opacity-number" type="number" min="0" max="100"/);
+  assert.match(html, /id="layer-state" role="status" aria-live="polite"/);
+  assert.match(html, /id="layer-empty" hidden/);
   assert.doesNotMatch(html, /https?:\/\//);
 });
 
@@ -71,4 +85,18 @@ test("theme uses a stable namespaced storage key", () => {
   assert.equal(persistTheme(storage, "dark"), true);
   assert.equal(values.get(THEME_KEY), "dark");
   assert.equal(storedTheme(storage), "dark");
+});
+
+test("layer opacity clamps implausible extremes and rejects missing values", () => {
+  assert.equal(normalizeLayerOpacity(-900), 0);
+  assert.equal(normalizeLayerOpacity(1400), 100);
+  assert.equal(normalizeLayerOpacity(48.6), 49);
+  assert.equal(normalizeLayerOpacity(""), null);
+  assert.equal(normalizeLayerOpacity("not a number"), null);
+});
+
+test("opacity messaging makes hidden and partial states explicit without color", () => {
+  assert.equal(layerOpacityMessage(0), "Hidden · Layer is fully transparent");
+  assert.equal(layerOpacityMessage(37), "37% visible");
+  assert.equal(layerOpacityMessage(100), "Fully opaque");
 });

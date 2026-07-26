@@ -33,6 +33,19 @@ export function applyTheme(root, button, theme) {
   return root.dataset.theme;
 }
 
+export function normalizeLayerOpacity(value) {
+  if (String(value).trim() === "") return null;
+  const number = Number(value);
+  if (!Number.isFinite(number)) return null;
+  return Math.max(0, Math.min(100, Math.round(number)));
+}
+
+export function layerOpacityMessage(opacity) {
+  if (opacity === 0) return "Hidden · Layer is fully transparent";
+  if (opacity === 100) return "Fully opaque";
+  return `${opacity}% visible`;
+}
+
 export function initPaint(root = document, environment = globalThis) {
   const html = root.documentElement;
   const toggle = root.querySelector("#theme-toggle");
@@ -106,6 +119,47 @@ export function initEditor(root = document, environment = globalThis) {
   const viewport = canvas.closest(".canvas-viewport");
   const prompt = root.querySelector("#drop-prompt");
   const fileInput = root.querySelector("#file-input");
+  const layerControls = root.querySelector("#layer-controls");
+  const layerState = root.querySelector("#layer-state");
+  const layerStateText = root.querySelector("#layer-state-text");
+  const layerList = root.querySelector("#layer-list");
+  const layerEmpty = root.querySelector("#layer-empty");
+  const layerOpacity = root.querySelector("#layer-opacity");
+  const layerOpacityNumber = root.querySelector("#layer-opacity-number");
+  const opacityMessage = root.querySelector("#opacity-message");
+  const blendMode = root.querySelector("#blend-mode");
+  let hasLayer = true;
+
+  function setLayerState(state, message) {
+    layerState.dataset.state = state;
+    layerState.querySelector(".state-shape").textContent = state === "loading" ? "…" : state === "error" ? "!" : "✓";
+    layerStateText.textContent = message;
+    const unavailable = state === "loading" || !hasLayer;
+    layerControls.disabled = unavailable;
+    root.querySelector("#clear-button").disabled = unavailable;
+    layerList.hidden = !hasLayer;
+    layerEmpty.hidden = hasLayer;
+    root.querySelector("#layer-selection-summary").textContent = hasLayer ? "1 selected" : "None selected";
+  }
+
+  function ensureLayer() {
+    if (hasLayer) return;
+    hasLayer = true;
+    setLayerState("ready", "Layer created");
+  }
+
+  function applyLayerAppearance() {
+    const opacity = normalizeLayerOpacity(layerOpacity.value) ?? 100;
+    canvas.style.opacity = String(opacity / 100);
+    canvas.style.mixBlendMode = blendMode.value;
+    layerOpacity.value = String(opacity);
+    layerOpacityNumber.value = String(opacity);
+    layerOpacityNumber.removeAttribute("aria-invalid");
+    opacityMessage.dataset.state = opacity === 0 ? "extreme" : "ready";
+    opacityMessage.textContent = layerOpacityMessage(opacity);
+    root.querySelector("#layer-meta").textContent = `${blendMode.selectedOptions[0].textContent} · ${opacity}%`;
+    root.querySelector("#save-state").textContent = "Layer appearance edited locally";
+  }
 
   function updateDocumentUi() {
     root.querySelector("#document-width").textContent = `${image.width} px`;
@@ -159,6 +213,7 @@ export function initEditor(root = document, environment = globalThis) {
     activePointer = { id: event.pointerId, start: point, last: point };
     canvas.setPointerCapture?.(event.pointerId);
     if (tool === "brush") {
+      ensureLayer();
       image.brushLine(point.x, point.y, point.x, point.y, {
         color: root.querySelector("#stroke-color").value,
         size: root.querySelector("#stroke-size").value,
@@ -190,6 +245,7 @@ export function initEditor(root = document, environment = globalThis) {
       };
     }
     if (tool === "rectangle") {
+      ensureLayer();
       image.rectangle(activePointer.start.x, activePointer.start.y, point.x, point.y, {
         color: root.querySelector("#stroke-color").value,
         size: root.querySelector("#stroke-size").value,
@@ -211,12 +267,17 @@ export function initEditor(root = document, environment = globalThis) {
   canvas.addEventListener("pointercancel", () => { activePointer = null; });
 
   async function importFile(file) {
+    if (!file) return;
     try {
+      setLayerState("loading", "Loading layer…");
       status.textContent = "Decoding image locally…";
       image = await decodeImageFile(file, environment);
+      hasLayer = true;
+      setLayerState("ready", image.degraded ? "Layer ready · reduced resolution" : "Layer ready");
       changed(image.degraded ? "Imported at reduced resolution" : "Imported locally");
     } catch (error) {
       status.textContent = error.message;
+      setLayerState("error", `Layer error · ${error.message}`);
     }
   }
   fileInput.addEventListener("change", () => importFile(fileInput.files?.[0]));
@@ -234,6 +295,23 @@ export function initEditor(root = document, environment = globalThis) {
   root.querySelector("#stroke-size").addEventListener("input", (event) => {
     root.querySelector("#stroke-size-value").textContent = `${event.target.value} px`;
   });
+  layerOpacity.addEventListener("input", () => {
+    layerOpacityNumber.value = layerOpacity.value;
+    applyLayerAppearance();
+  });
+  layerOpacityNumber.addEventListener("input", () => {
+    const opacity = normalizeLayerOpacity(layerOpacityNumber.value);
+    if (opacity === null) {
+      layerOpacityNumber.setAttribute("aria-invalid", "true");
+      opacityMessage.dataset.state = "error";
+      opacityMessage.textContent = "Enter a value from 0 to 100";
+      return;
+    }
+    layerOpacity.value = String(opacity);
+    applyLayerAppearance();
+  });
+  layerOpacityNumber.addEventListener("change", applyLayerAppearance);
+  blendMode.addEventListener("change", applyLayerAppearance);
   for (const button of root.querySelectorAll("[data-filter]")) {
     button.addEventListener("click", () => {
       image.filter(button.dataset.filter);
@@ -242,6 +320,8 @@ export function initEditor(root = document, environment = globalThis) {
   }
   root.querySelector("#clear-button").addEventListener("click", () => {
     image.clear();
+    hasLayer = false;
+    setLayerState("empty", "No layer selected");
     changed("Cleared locally");
   });
   root.querySelector("#crop-center-button").addEventListener("click", () => {
@@ -283,6 +363,8 @@ export function initEditor(root = document, environment = globalThis) {
   });
   environment.addEventListener?.("resize", scheduleRender);
   updateDocumentUi();
+  applyLayerAppearance();
+  setLayerState("ready", "Layer ready");
   scheduleRender();
   return { get document() { return image; }, render: scheduleRender };
 }
