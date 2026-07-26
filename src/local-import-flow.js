@@ -81,6 +81,18 @@ export function mappingRequirements({ providers = 0, hris = false } = {}) {
 }
 
 /**
+ * The one provenance label for the bundled example dataset. It is written once,
+ * here, and every surface that renders example numbers reads it — the badge, the
+ * metric basis, the notes painted by `applyDatasetProvenance`, and the download
+ * artifacts. A second wording anywhere is a defect, because the two would drift.
+ */
+export const EXAMPLE_DATASET_PROVENANCE = Object.freeze({
+  label: "Example data — not your data",
+  detail: "Computed from a bundled synthetic provider export and org roster.",
+  swap: "To replace it, import your own v1 provider-usage JSON export plus an HRIS org mapping.",
+});
+
+/**
  * What the headline number is, in words, right next to the number. The metric
  * area is never allowed to be ambiguous about whether a figure is real, so
  * every non-real condition returns `real: false` and its own label.
@@ -89,6 +101,14 @@ export function metricBasis({
   mode = "example", joinedRecords = 0, departments = 0, plausible = true,
   providers = 0, hris = false,
 } = {}) {
+  if (mode === "example-dataset") {
+    // A real computed number — but computed from the bundled export, so it is
+    // not a fact about the reader's spend and never claims to be.
+    return Object.freeze({
+      label: EXAMPLE_DATASET_PROVENANCE.label, real: false,
+      detail: `${EXAMPLE_DATASET_PROVENANCE.detail} ${EXAMPLE_DATASET_PROVENANCE.swap}`,
+    });
+  }
   if (mode === "failed") {
     return Object.freeze({
       label: "Import failed", real: false,
@@ -274,6 +294,62 @@ export function applyFieldDiagnostic(doc, diagnostic) {
   errorNode.hidden = false;
   if (recovery) recovery.hidden = false;
   return diagnostic;
+}
+
+/**
+ * Mark every surface that renders analysis numbers with where those numbers came
+ * from, and paint the provenance note on each one that declares a slot for it.
+ *
+ * The audit this makes possible is mechanical rather than editorial: a surface
+ * opts in with `data-analysis-surface`, and it either carries a
+ * `data-dataset-provenance` note or it is a defect. Nothing here is per-view
+ * copy — one string, one flag, applied everywhere at once.
+ */
+export function applyDatasetProvenance(doc, exampleActive) {
+  const dataset = exampleActive ? "example" : "user";
+  for (const surface of doc.querySelectorAll?.("[data-analysis-surface]") ?? [])
+    surface.dataset.dataset = dataset;
+  for (const note of doc.querySelectorAll?.("[data-dataset-provenance]") ?? []) {
+    note.dataset.dataset = dataset;
+    note.hidden = !exampleActive;
+    if (!exampleActive) {
+      note.replaceChildren();
+      continue;
+    }
+    const shape = textNode(doc, "span", "provenance-shape", "◇");
+    shape.setAttribute("aria-hidden", "true");
+    note.replaceChildren(
+      shape,
+      textNode(doc, "strong", "provenance-label", EXAMPLE_DATASET_PROVENANCE.label),
+      textNode(doc, "span", "provenance-detail", EXAMPLE_DATASET_PROVENANCE.detail),
+      textNode(doc, "span", "provenance-swap", EXAMPLE_DATASET_PROVENANCE.swap),
+    );
+  }
+  return exampleActive ? EXAMPLE_DATASET_PROVENANCE : null;
+}
+
+/**
+ * Paint the leading finding: the question, the one number that answers it, the
+ * driver behind that number, and the prioritized action. Every string comes from
+ * the finding model, which reads the analysis envelope; this layer chooses no
+ * words of its own beyond the static field labels in the markup.
+ */
+export function applyLeadingFinding(doc, finding) {
+  const section = byId(doc, "local-lead-finding");
+  if (!section) return finding;
+  section.dataset.state = finding.available ? "available" : "unavailable";
+  section.hidden = false;
+  const write = (id, text) => {
+    const node = byId(doc, id);
+    if (node) node.textContent = text;
+  };
+  write("local-lead-question", finding.question);
+  write("local-lead-metric", finding.metric);
+  write("local-lead-driver", finding.driverSentence);
+  write("local-lead-action", finding.action.text);
+  const action = byId(doc, "local-lead-action");
+  if (action) action.dataset.available = String(finding.action.available);
+  return finding;
 }
 
 /** State the basis of the headline number in words, beside the number. */

@@ -685,13 +685,28 @@ export function normalizeLocalFinopsHistory({ providers = [], hris }) {
   });
 }
 
-export function localFinopsJsonExport(result) {
-  return JSON.stringify({ exportedAt: new Date().toISOString(), results: result }, null, 2);
+// Example numbers must never be mistakable for a reader's own once they leave
+// the page. Blocking the download instead would have removed the one capability
+// an evaluator is here to inspect, so the provenance travels into the artifact:
+// a declared field in the JSON and the first line of the summary, both derived
+// from the same flag the page uses on screen.
+const EXAMPLE_DATASET_NOTICE =
+  "EXAMPLE DATA — computed from a bundled synthetic provider export and org roster. "
+  + "Not your data and not a report about any real organization.";
+
+export function localFinopsJsonExport(result, { exampleDataset = false } = {}) {
+  return JSON.stringify({
+    exportedAt: new Date().toISOString(),
+    dataset: exampleDataset ? "example" : "user",
+    ...(exampleDataset ? { datasetNotice: EXAMPLE_DATASET_NOTICE } : {}),
+    results: result,
+  }, null, 2);
 }
 
-export function localFinopsMeetingSummary(result) {
+export function localFinopsMeetingSummary(result, { exampleDataset = false } = {}) {
   const department = result.topDepartment?.name ?? "Unavailable";
   return [
+    ...(exampleDataset ? [EXAMPLE_DATASET_NOTICE] : []),
     "LOCAL FINOPS MEETING SUMMARY",
     `Period: ${result.period}`,
     `Observed spend: ${result.spendUsd.toFixed(2)} USD`,

@@ -78,6 +78,10 @@
         <!-- The three stages this flow already walked, now said out loud. The
              list is authored empty and painted by local-import-flow.js so the
              current step carries aria-current and a word, not only a tint. -->
+        <!-- One provenance label, painted from one piece of state onto every
+             surface that renders analysis numbers. The copy lives in
+             local-import-flow.js; these are slots, never wording. -->
+        <p class="dataset-provenance" id="dataset-provenance-panel" data-dataset-provenance data-dataset="user" role="note" aria-label="Data provenance" hidden></p>
         <ol class="import-stages" id="import-stages" aria-label="Import progress"></ol>
         <div class="local-import-controls">
           <div class="local-import-field">
@@ -90,6 +94,10 @@
               <button class="field-recovery-action" id="local-file-discard" type="button">Discard this selection</button>
             </div>
           </div>
+          <!-- The one exit from the unsatisfiable file picker: no export in
+               hand, one click, a computed finding. No chooser, no wizard, no
+               confirm step — a second dataset would be a second product. -->
+          <button class="local-example-action" id="try-example-dataset" type="button">Try it with example data</button>
           <button id="clear-local-analysis" type="button" hidden>Return to example data</button>
         </div>
         <ul class="mapping-requirements" id="mapping-requirements" aria-label="Required inputs and what is still unresolved"></ul>
@@ -101,7 +109,7 @@
              above, so no message is ever announced from both regions. -->
         <div class="local-import-alert" id="local-import-alert" role="alert" aria-live="assertive"></div>
 
-        <section class="local-results" id="local-results" aria-labelledby="local-results-title" aria-busy="false" hidden>
+        <section class="local-results" id="local-results" data-analysis-surface data-dataset="user" aria-labelledby="local-results-title" aria-busy="false" hidden>
           <div class="local-result-heading">
             <div>
               <p class="eyebrow">Imported result</p>
@@ -112,6 +120,21 @@
               <button id="export-local-summary" type="button">Meeting summary</button>
             </div>
           </div>
+          <p class="dataset-provenance" id="dataset-provenance-results" data-dataset-provenance data-dataset="user" role="note" aria-label="Data provenance" hidden></p>
+          <!-- The landing surface. One question, one number that answers it, the
+               driver behind that number, and the prioritized action — all read
+               out of the analysis envelope, none of it authored prose. -->
+          <article class="local-lead-finding" id="local-lead-finding" data-analysis-surface data-dataset="user" data-state="unavailable" aria-labelledby="local-lead-question" hidden>
+            <p class="eyebrow">The question this answers</p>
+            <h4 id="local-lead-question">—</h4>
+            <p class="local-lead-metric" id="local-lead-metric">—</p>
+            <p class="local-lead-driver" id="local-lead-driver">—</p>
+            <div class="local-lead-next">
+              <p class="eyebrow">Prioritized next action</p>
+              <p class="local-lead-action" id="local-lead-action" data-available="false">—</p>
+            </div>
+            <p class="dataset-provenance" id="dataset-provenance-finding" data-dataset-provenance data-dataset="user" role="note" aria-label="Data provenance" hidden></p>
+          </article>
           <article class="local-finding" aria-labelledby="local-action" aria-describedby="local-metric-detail">
             <header class="local-finding-lead">
               <div>
