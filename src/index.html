@@ -3,8 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="Shiplog engineering decision log" />
-    <title>Shiplog · Engineering decisions</title>
+    <meta name="description" content="Shiplog connects engineering decisions to releases so teams can understand why work shipped and make better decisions." />
+    <title>Shiplog · Decisions connected to releases</title>
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
@@ -23,9 +23,53 @@
       </header>
 
       <section class="hero" id="top" aria-labelledby="page-title">
-        <p class="eyebrow">Engineering decision log</p>
-        <h1 id="page-title">Keep the reasoning<br />with the work.</h1>
-        <p>Record the context behind a decision, make ownership clear, and give the team one durable history.</p>
+        <p class="eyebrow">Decision and release history for engineering teams</p>
+        <h1 id="page-title">Know why it shipped.<br />Decide what’s next.</h1>
+        <p>Shiplog helps engineering teams record decisions and track the releases they shape, preserving context, tradeoffs, ownership, and outcomes—so every release informs the next decision.</p>
+        <div class="hero-actions" data-conversion-slot="hero">
+          <a class="button-link" href="/decision.html?id=demo-queue">Explore the live demo <span aria-hidden="true">→</span></a>
+          <a class="text-link" href="#decision-to-release">See how it works</a>
+        </div>
+      </section>
+
+      <section class="product-story" id="decision-to-release" aria-labelledby="product-story-title" data-proof-point="decision-to-release">
+        <div class="product-story-intro">
+          <p class="eyebrow">Keep reasoning with the work</p>
+          <h2 id="product-story-title">From a hard call to a shipped outcome.</h2>
+          <p>Shiplog preserves what the team knew, what it considered, and who owned the call—then connects that reasoning to the release. New teammates get context without archaeology, and future decisions start with evidence instead of memory.</p>
+        </div>
+
+        <div class="story-flow" aria-label="Example decision connected to a release">
+          <article class="story-card story-decision">
+            <div class="story-card-meta">
+              <span class="story-step">01 · Decision</span>
+              <span class="badge badge-accepted">Accepted</span>
+            </div>
+            <h3>Adopt a durable job queue</h3>
+            <p>Background work was lost on deploys. The team compared a managed queue, database polling, and in-process retries before choosing a durable path.</p>
+            <dl class="story-facts">
+              <div><dt>Owner</dt><dd>Kai</dd></div>
+              <div><dt>Why</dt><dd>Reliable retries</dd></div>
+            </dl>
+            <a class="story-link" href="/decision.html?id=demo-queue">Open the sample decision <span aria-hidden="true">→</span></a>
+          </article>
+
+          <div class="story-connector" aria-hidden="true"><span>informs</span></div>
+
+          <article class="story-card story-release">
+            <div class="story-card-meta">
+              <span class="story-step">02 · Release</span>
+              <span class="badge badge-release-completed">Completed</span>
+            </div>
+            <h3>v1.3.0 · Throughput and latency</h3>
+            <p>The durable queue shipped alongside a read cache, keeping the release outcome connected to the decisions that shaped it.</p>
+            <dl class="story-facts">
+              <div><dt>Owner</dt><dd>Kai</dd></div>
+              <div><dt>Linked</dt><dd>2 decisions</dd></div>
+            </dl>
+            <a class="story-link" href="/release.html?id=demo-r-1-3-0">Open the sample release <span aria-hidden="true">→</span></a>
+          </article>
+        </div>
       </section>
 
       <section class="lead-capture" aria-labelledby="lead-capture-title">
