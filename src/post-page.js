@@ -18,24 +18,27 @@ async function fetchLivePost(id) {
 }
 
 async function fetchSeedPost(id) {
-  try {
-    const response = await fetch("/social-demo-data.json", { cache: "no-store" });
-    if (!response.ok) return null;
-    return findPostById(normalizeSeedPosts((await response.json()).posts), id);
-  } catch {
-    return null;
-  }
+  const response = await fetch("/social-demo-data.json", { cache: "no-store" });
+  if (!response.ok) throw new Error(`Demo posts returned ${response.status}`);
+  return findPostById(normalizeSeedPosts((await response.json()).posts), id);
 }
 
 async function init() {
   const container = document.querySelector("#post-detail");
   if (!container) return;
 
-  const id = new URLSearchParams(window.location.search).get("id") ?? "";
+  const params = new URLSearchParams(window.location.search);
+  const id = params.get("id") ?? "";
+  const requestedAuthor = (params.get("author") ?? "").trim();
   const back = document.querySelector("#post-back");
+  if (back && requestedAuthor) {
+    back.href = profileHref(requestedAuthor);
+    back.textContent = `← Back to ${requestedAuthor}'s profile`;
+    back.setAttribute("aria-label", `Back to ${requestedAuthor}'s profile`);
+  }
 
   const load = async () => {
-    renderPostDetail(container, null, { state: "loading", id });
+    renderPostDetail(container, null, { state: "loading", id, author: requestedAuthor });
     let post = null;
     let failed = false;
     if (id) {
@@ -44,16 +47,28 @@ async function init() {
       } catch {
         failed = true;
       }
-      if (!post) post = await fetchSeedPost(id);
+      if (!post) {
+        try {
+          post = await fetchSeedPost(id);
+        } catch {
+          failed = true;
+        }
+      }
     }
     // A lookup that failed is only reported as a failure when nothing was found
     // anywhere: if the seed answered, the reader has the post and does not need
     // to hear about the network.
-    renderPostDetail(container, post, { state: post ? "ready" : failed ? "error" : "ready", id, onRetry: load });
+    renderPostDetail(container, post, {
+      state: post ? "ready" : failed ? "error" : "ready",
+      id,
+      author: post?.author ?? requestedAuthor,
+      onRetry: load,
+    });
     document.title = postDetailTitle(post);
     if (back && post) {
       back.href = profileHref(post.author);
-      back.textContent = `Back to ${post.author}'s profile`;
+      back.textContent = `← Back to ${post.author}'s profile`;
+      back.setAttribute("aria-label", `Back to ${post.author}'s profile`);
     }
     document.documentElement.dataset.shiplogPostDetail = "ready";
   };

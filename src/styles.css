@@ -393,18 +393,23 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 /* Single post. The image leads at its natural aspect ratio — this is the view
    that exists to show it whole, not cropped to a grid cell. */
 .detail-back { color:#1f5fa8; font:650 13px/1.4 ui-monospace,monospace; }
-.detail-post { display:flex; flex-direction:column; max-width:720px; margin:auto; }
-.detail-figure { display:flex; flex-direction:column; margin:6px 0 0; }
-.detail-media { position:relative; overflow:hidden; display:grid; place-items:center; min-height:180px; border-radius:12px; background:#eeece5; }
-.detail-image { display:block; width:100%; height:auto; }
+.detail-page-back { margin:0 0 18px; min-height:44px; }
+.detail-post { display:flex; flex-direction:column; min-width:0; max-width:720px; margin:auto; }
+.detail-figure { display:flex; flex-direction:column; min-width:0; margin:6px 0 0; }
+.detail-media { position:relative; overflow:hidden; display:grid; place-items:center; min-width:0; min-height:180px; border-radius:12px; background:#eeece5; }
+.detail-image { display:block; width:100%; max-width:100%; height:auto; }
 .detail-media[data-state="loading"] { background:linear-gradient(100deg,#eeece5 30%,#f7f6f2 50%,#eeece5 70%) #eeece5; background-size:220% 100%; animation:shiplog-shimmer 1.4s linear infinite; }
 .detail-media[data-state="error"] { background:#f8f1ef; box-shadow:inset 0 0 0 1px #dcc2be; }
-.detail-media-fallback { margin:0; padding:24px 16px; color:#7c3f3a; font:650 13px/1.55 ui-monospace,monospace; text-align:center; }
+.detail-media-fallback { width:100%; margin:0; padding:24px 16px; color:#555550; text-align:center; }
+.detail-media-fallback-title { margin:0; color:#282824; font-size:18px; line-height:1.35; }
+.detail-media-fallback p { margin:7px auto 0; max-width:58ch; font-size:14px; line-height:1.55; overflow-wrap:anywhere; }
 .detail-caption { margin:16px 0 0; color:#282824; font-size:17px; line-height:1.6; white-space:pre-wrap; overflow-wrap:anywhere; }
 .detail-body { margin:14px 0 0; color:#42423d; font-size:15px; line-height:1.6; white-space:pre-wrap; overflow-wrap:anywhere; }
 .detail-stats { display:flex; gap:18px; margin:20px 0 0; padding-top:16px; border-top:1px solid #dedcd5; color:#62625d; font:650 12px/1.4 ui-monospace,monospace; }
 .detail-skeleton { display:flex; flex-direction:column; gap:14px; max-width:720px; margin:auto; }
 .detail-skeleton .skeleton-media { aspect-ratio:4/3; border-radius:12px; }
+.detail-state-message { max-width:720px; margin:auto; }
+.detail-state-message .detail-skeleton { margin-top:28px; text-align:left; }
 @media(max-width:800px) { .workspace{grid-template-columns:1fr}.form-panel{position:static}.hero{padding-bottom:52px}.lead-capture{grid-template-columns:1fr}.product-story-intro{grid-template-columns:1fr}.product-story-intro .eyebrow{grid-column:auto}.story-flow{grid-template-columns:1fr}.story-connector{min-height:62px}.story-connector::before{top:10px;bottom:10px;left:50%;right:auto;width:1px;height:auto}.story-connector::after{right:auto;bottom:9px;width:7px;height:7px;border-top:0;border-right:1px solid #8eacc8;border-bottom:1px solid #8eacc8;transform:rotate(45deg)}.story-connector span{writing-mode:horizontal-tb} }
 @media(max-width:520px) { main{width:calc(100% - 24px);padding-top:18px}.site-header{align-items:flex-start;flex-direction:column;gap:14px}.site-nav{justify-content:flex-start;width:100%;overflow-x:auto;padding:2px 2px 8px;scrollbar-width:thin}.site-nav a{flex:none;min-height:44px;display:inline-flex;align-items:center}.form-panel,.list-panel{padding:21px}.hero{padding-top:48px}.hero h1{font-size:clamp(38px,13vw,56px)}form{grid-template-columns:1fr}.field{grid-column:1/-1}.list-heading{align-items:start;flex-direction:column;gap:10px}.filters,.social-toolbar{align-items:stretch;flex-direction:column;gap:14px}.filter{flex:1 1 auto;width:100%;min-width:0}.clear-filters{width:100%;justify-content:center} }
 @media(max-width:520px) { .release-filters{align-items:stretch;flex-direction:column}.release-search-filter{flex:1 1 auto} }
