@@ -241,6 +241,68 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .skeleton-line { height:13px; border-radius:7px; }
 .skeleton-line-short { width:62%; }
 .skeleton-media,.skeleton-line { background:linear-gradient(100deg,#eeece5 30%,#f7f6f2 50%,#eeece5 70%) #eeece5; background-size:220% 100%; animation:shiplog-shimmer 1.4s linear infinite; }
+/* ---------------------------------------------------------------------------
+   Profile: one author's image posts as a grid of linked tiles.
+   The grid has no sidebar, so the panel spans the full width and the tiles do
+   the reflowing — the identity block above them stays a fixed hierarchy of
+   avatar → name → counts at every size.
+   --------------------------------------------------------------------------- */
+.profile-workspace { grid-template-columns:1fr; }
+.hero-profile { padding-bottom:56px; }
+.hero-profile h1 { margin:18px 0 0; font-size:clamp(34px,5.2vw,58px); line-height:1.02; overflow-wrap:anywhere; }
+.profile-identity { display:flex; align-items:center; gap:18px; margin-top:6px; }
+.profile-identity .profile-avatar { flex:none; display:grid; place-items:center; width:76px; height:76px; border-radius:99px; background:#e7eefb; color:#1f5fa8; font:750 26px/1 ui-monospace,monospace; }
+.profile-identity-text { min-width:0; }
+.profile-summary { margin:10px 0 0; color:#5b5b56; font:650 13px/1.5 ui-monospace,monospace; }
+.profile-lede { max-width:640px; margin:22px 0 0; color:#555550; font-size:17px; line-height:1.6; }
+.profile-toolbar { display:flex; align-items:end; flex-wrap:wrap; gap:12px 20px; margin:0 0 16px; }
+.profile-toolbar .filter { flex:0 1 240px; }
+.profile-toolbar-hint { flex:1 1 240px; margin:0 0 4px; }
+/* Fills from one column on a phone to as many as fit, with no media query doing
+   the deciding: the tile has a minimum comfortable size and the track count
+   follows the panel. */
+.profile-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(min(100%,240px),1fr)); gap:18px; margin:0; padding:0; list-style:none; }
+.profile-cell { display:flex; min-width:0; }
+/* The whole tile is the link, so the hit target is the image and its caption
+   rather than a word underneath them — 44px-plus in every direction at every
+   breakpoint. */
+.profile-tile { display:flex; flex-direction:column; width:100%; overflow:hidden; border:1px solid #d9d7d0; border-radius:12px; background:#fff; color:inherit; text-decoration:none; transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease; }
+.profile-tile:hover { border-color:#1f70c1; box-shadow:0 10px 26px rgba(38,38,31,.10); transform:translateY(-2px); }
+.profile-tile:focus-visible { outline:3px solid var(--focus-ring); outline-offset:2px; border-color:#1f70c1; }
+.profile-figure { display:flex; flex-direction:column; flex:1; margin:0; }
+.profile-media { position:relative; overflow:hidden; aspect-ratio:1/1; display:grid; place-items:center; background:#eeece5; }
+.profile-image { display:block; width:100%; height:100%; object-fit:cover; }
+.profile-media[data-state="loading"] { background:linear-gradient(100deg,#eeece5 30%,#f7f6f2 50%,#eeece5 70%) #eeece5; background-size:220% 100%; animation:shiplog-shimmer 1.4s linear infinite; }
+.profile-media[data-state="error"] { background:#f8f1ef; box-shadow:inset 0 0 0 1px #dcc2be; }
+.profile-media-fallback { padding:0 12px; color:#7c3f3a; font:650 12px/1.5 ui-monospace,monospace; text-align:center; }
+/* The caption is clamped, not truncated mid-thought: two lines keep every tile
+   in a row the same height, and the full text is one click away on the post. */
+.profile-tile-caption { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; margin:0; padding:14px 14px 0; color:#333330; font-size:14px; line-height:1.5; overflow-wrap:anywhere; }
+.profile-tile-meta { display:flex; align-items:center; justify-content:space-between; gap:10px; margin:0; padding:10px 14px 14px; color:#74746e; font:650 11px/1.4 ui-monospace,monospace; }
+.profile-tile-stat { text-align:right; }
+.profile-tile-skeleton { gap:12px; padding-bottom:14px; }
+.profile-tile-skeleton .skeleton-line { margin:0 14px; }
+.skeleton-media-square { aspect-ratio:1/1; border-radius:0; }
+/* Empty and error panels share the feed's centred layout; the action inside one
+   is a real control, so it opts out of the form-grid button geometry. */
+.empty-action { display:inline-flex; align-items:center; justify-content:center; width:auto; margin:18px auto 0; border-radius:9px; padding:11px 18px; background:#171713; color:#fff; font:700 14px/1 system-ui,sans-serif; text-decoration:none; cursor:pointer; }
+.empty-action:hover { background:#1f70c1; }
+.empty-state-error .empty-title { color:#7c3f3a; }
+/* Single post. The image leads at its natural aspect ratio — this is the view
+   that exists to show it whole, not cropped to a grid cell. */
+.detail-back { color:#1f5fa8; font:650 13px/1.4 ui-monospace,monospace; }
+.detail-post { display:flex; flex-direction:column; max-width:720px; margin:auto; }
+.detail-figure { display:flex; flex-direction:column; margin:6px 0 0; }
+.detail-media { position:relative; overflow:hidden; display:grid; place-items:center; min-height:180px; border-radius:12px; background:#eeece5; }
+.detail-image { display:block; width:100%; height:auto; }
+.detail-media[data-state="loading"] { background:linear-gradient(100deg,#eeece5 30%,#f7f6f2 50%,#eeece5 70%) #eeece5; background-size:220% 100%; animation:shiplog-shimmer 1.4s linear infinite; }
+.detail-media[data-state="error"] { background:#f8f1ef; box-shadow:inset 0 0 0 1px #dcc2be; }
+.detail-media-fallback { margin:0; padding:24px 16px; color:#7c3f3a; font:650 13px/1.55 ui-monospace,monospace; text-align:center; }
+.detail-caption { margin:16px 0 0; color:#282824; font-size:17px; line-height:1.6; white-space:pre-wrap; overflow-wrap:anywhere; }
+.detail-body { margin:14px 0 0; color:#42423d; font-size:15px; line-height:1.6; white-space:pre-wrap; overflow-wrap:anywhere; }
+.detail-stats { display:flex; gap:18px; margin:20px 0 0; padding-top:16px; border-top:1px solid #dedcd5; color:#62625d; font:650 12px/1.4 ui-monospace,monospace; }
+.detail-skeleton { display:flex; flex-direction:column; gap:14px; max-width:720px; margin:auto; }
+.detail-skeleton .skeleton-media { aspect-ratio:4/3; border-radius:12px; }
 @media(max-width:800px) { .workspace{grid-template-columns:1fr}.form-panel{position:static}.hero{padding-bottom:52px} }
 @media(max-width:520px) { main{width:calc(100% - 24px);padding-top:18px}.site-header{align-items:flex-start;flex-direction:column;gap:14px}.site-nav{justify-content:flex-start;width:100%;overflow-x:auto;padding:2px 2px 8px;scrollbar-width:thin}.site-nav a{flex:none;min-height:44px;display:inline-flex;align-items:center}.form-panel,.list-panel{padding:21px}.hero{padding-top:48px}.hero h1{font-size:clamp(38px,13vw,56px)}form{grid-template-columns:1fr}.field{grid-column:1/-1}.list-heading{align-items:start;flex-direction:column;gap:10px}.filters,.social-toolbar{align-items:stretch;flex-direction:column;gap:14px}.filter{flex:1 1 auto;width:100%;min-width:0}.clear-filters{width:100%;justify-content:center} }
 @media(max-width:520px) { .release-filters{align-items:stretch;flex-direction:column}.release-search-filter{flex:1 1 auto} }
@@ -251,4 +313,22 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 @media(max-width:1000px) { .post-grid{grid-template-columns:repeat(auto-fill,minmax(min(100%,240px),1fr))} }
 /* Phone: a single column of full-bleed images, the Instagram reading posture. */
 @media(max-width:520px) { .post-grid{grid-template-columns:1fr;gap:14px}.post-card{padding:16px}.post-media{aspect-ratio:1/1} }
-@media(prefers-reduced-motion:reduce) { html{scroll-behavior:auto}.release-chevron{transition:none}.post-media[data-state="loading"],.skeleton-media,.skeleton-line{animation:none} }
+/* Tablet: slightly smaller tiles so a narrowed panel keeps three across instead
+   of dropping to two very wide ones. */
+@media(max-width:1000px) { .profile-grid{grid-template-columns:repeat(auto-fill,minmax(min(100%,210px),1fr))} }
+/* Phone: a fixed two-up grid. One column would make a short profile a long
+   scroll, and the caption stays readable at this width where a three-up would
+   leave it a sliver. The identity block stacks so a long name has the full
+   width to wrap into. */
+@media(max-width:520px) {
+  .profile-grid{grid-template-columns:repeat(2,1fr);gap:12px}
+  .profile-tile-caption{padding:11px 11px 0;font-size:13px}
+  .profile-tile-meta{flex-direction:column;align-items:flex-start;gap:3px;padding:8px 11px 12px}
+  .profile-tile-stat{text-align:left}
+  .profile-identity{align-items:flex-start;flex-direction:column;gap:14px}
+  .profile-identity .profile-avatar{width:62px;height:62px;font-size:21px}
+  .profile-toolbar{align-items:stretch;flex-direction:column;gap:12px}
+  .profile-toolbar .filter{flex:1 1 auto;width:100%}
+  .detail-stats{gap:14px}
+}
+@media(prefers-reduced-motion:reduce) { html{scroll-behavior:auto}.release-chevron{transition:none}.post-media[data-state="loading"],.profile-media[data-state="loading"],.detail-media[data-state="loading"],.skeleton-media,.skeleton-line{animation:none}.profile-tile{transition:none}.profile-tile:hover{transform:none} }
