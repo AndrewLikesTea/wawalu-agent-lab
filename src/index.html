@@ -223,6 +223,33 @@
         <button id="export-shiplog" type="button">Download JSON</button>
       </section>
 
+      <!-- Restore side of the same portable contract. The file is read in this
+           tab: it is never uploaded, and nothing reaches storage until the
+           summary below is confirmed. -->
+      <section class="export-panel" aria-labelledby="import-title">
+        <div>
+          <p class="eyebrow">Portable history</p>
+          <h2 id="import-title">Import from JSON</h2>
+          <p class="hint" id="import-shiplog-help">Choose a file exported from Shiplog. It is read in this browser only — nothing is uploaded, and nothing is saved until you confirm the summary.</p>
+          <p id="import-shiplog-status" class="notice" role="status" aria-live="polite"></p>
+
+          <div class="import-summary" id="import-shiplog-summary" role="group" aria-labelledby="import-title" hidden>
+            <p class="hint" id="import-shiplog-headline" tabindex="-1" role="status"></p>
+            <details class="import-detail">
+              <summary id="import-shiplog-detail-toggle" hidden></summary>
+              <ul id="import-shiplog-detail"></ul>
+            </details>
+            <div class="import-actions">
+              <button id="import-shiplog-commit" type="button">Restore records</button>
+              <button id="import-shiplog-cancel" class="secondary-button" type="button">Cancel</button>
+            </div>
+          </div>
+        </div>
+        <label class="secondary-button file-button" for="import-shiplog-file">Choose JSON file
+          <input id="import-shiplog-file" type="file" accept=".json,application/json" aria-describedby="import-shiplog-help" />
+        </label>
+      </section>
+
       <section class="list-panel release-panel-wrap" aria-labelledby="sample-releases-title">
         <div class="section-heading list-heading">
           <div>
@@ -242,5 +269,6 @@
     </main>
     <script type="module" src="/app.js"></script>
     <script type="module" src="/shiplog-export-page.js"></script>
+    <script type="module" src="/shiplog-import-page.js"></script>
   </body>
 </html>
