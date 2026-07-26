@@ -88,6 +88,124 @@ export function literacyScore(mix) {
   return Math.round(score);
 }
 
+/**
+ * Decision-metric contract for the bounded executive demo.
+ *
+ * Performance is the existing literacy-mix/1.0.0 score. It is reported only
+ * when sampling is explicitly available and at least one query was scored.
+ * Uncertainty is the normal-approximation 95% margin of error for the mean of
+ * the four bounded category weights, in score points. Category counts are
+ * represented by their normalized shares and sampledQueries is the denominator.
+ */
+export function departmentPerformance(department = {}) {
+  const sampledQueries = Number(department.sampling?.sampledQueries);
+  const available = department.sampling?.status === "available"
+    && Number.isInteger(sampledQueries) && sampledQueries > 0
+    && Object.values(normalizeMix(department.mix)).some((share) => share > 0);
+  if (!available) {
+    return {
+      available: false, score: null, uncertaintyPoints: null,
+      reason: department.sampling?.reason || "No eligible scored sample for this period.",
+      rubricVersion: "literacy-mix/1.0.0",
+    };
+  }
+  const shares = normalizeMix(department.mix);
+  const mean = QUERY_CATEGORIES.reduce(
+    (sum, category) => sum + shares[category.key] * category.scoreWeight, 0,
+  );
+  const variance = QUERY_CATEGORIES.reduce(
+    (sum, category) => sum + shares[category.key] * (category.scoreWeight - mean) ** 2, 0,
+  );
+  return {
+    available: true,
+    score: Math.round(mean),
+    uncertaintyPoints: Math.round(1.96 * Math.sqrt(variance / sampledQueries) * 10) / 10,
+    reason: null,
+    rubricVersion: "literacy-mix/1.0.0",
+  };
+}
+
+/**
+ * Current period versus the immediately preceding equal-length period.
+ * Cost change is (current - prior) / prior × 100, rounded to one decimal.
+ * Performance change is current score minus prior score, in score points.
+ * A zero/missing prior cost or either unavailable score makes that comparison
+ * unavailable rather than infinite or zero.
+ */
+export function departmentTrend(department = {}) {
+  const current = departmentPerformance(department);
+  const priorSpend = Number(department.previousPeriod?.spendUsd);
+  const currentSpend = Number(department.spendUsd);
+  const priorScore = Number(department.previousPeriod?.score);
+  const costAvailable = Number.isFinite(currentSpend) && currentSpend >= 0
+    && Number.isFinite(priorSpend) && priorSpend > 0;
+  const performanceAvailable = current.available && Number.isFinite(priorScore);
+  return {
+    period: department.period ?? null,
+    comparisonPeriod: department.previousPeriod?.period ?? null,
+    equalLengthDays: Number(department.periodDays) || null,
+    costChangePercent: costAvailable
+      ? Math.round(((currentSpend - priorSpend) / priorSpend) * 1000) / 10 : null,
+    performanceChangePoints: performanceAvailable ? current.score - priorScore : null,
+    costAvailable,
+    performanceAvailable,
+    worsening: costAvailable && performanceAvailable
+      ? currentSpend > priorSpend && current.score < priorScore : null,
+  };
+}
+
+/**
+ * Comparator is the difference between an eligible department score and the
+ * median score of the named synthetic cohort, using the same rubric version.
+ */
+export function benchmarkComparison(department = {}, benchmark = {}) {
+  const performance = departmentPerformance(department);
+  const median = Number(benchmark.medianScore);
+  const compatible = benchmark.rubricVersion === performance.rubricVersion;
+  if (!performance.available || !Number.isFinite(median) || !compatible) {
+    return {
+      available: false, deltaPoints: null,
+      reason: !performance.available ? performance.reason
+        : !compatible ? "Benchmark rubric does not match the department rubric."
+          : "Benchmark median is unavailable.",
+    };
+  }
+  return {
+    available: true,
+    deltaPoints: performance.score - median,
+    reason: null,
+  };
+}
+
+/** Evidence is strictly scoped to the selected department. */
+export function evidenceForDepartment(evidence = [], departmentId) {
+  if (!departmentId) return [];
+  return (Array.isArray(evidence) ? evidence : [])
+    .filter((item) => item?.departmentId === departmentId);
+}
+
+/**
+ * Departments needing help are available samples ordered by lowest performance,
+ * then greatest recoverable spend, then source order. Unavailable samples follow
+ * and are never assigned a synthetic score.
+ */
+export function rankDepartmentsForHelp(departments = []) {
+  return [...(Array.isArray(departments) ? departments : [])]
+    .map((department, index) => ({
+      department, index, performance: departmentPerformance(department),
+      recoverable: recoverableSpendUsd(department),
+    }))
+    .sort((a, b) => {
+      if (a.performance.available !== b.performance.available)
+        return a.performance.available ? -1 : 1;
+      if (a.performance.available && a.performance.score !== b.performance.score)
+        return a.performance.score - b.performance.score;
+      if (a.recoverable !== b.recoverable) return b.recoverable - a.recoverable;
+      return a.index - b.index;
+    })
+    .map((item) => item.department);
+}
+
 /** Reproducible explanation for a literacy score shown to an executive. */
 export function explainLiteracyScore(mix) {
   const shares = normalizeMix(mix);

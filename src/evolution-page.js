@@ -8,9 +8,10 @@
 // executing user-generated markup, so no markup string is ever assigned here.
 
 import {
+  benchmarkComparison, departmentPerformance, departmentTrend, evidenceForDepartment,
   QUERY_CATEGORIES, formatCount, formatPercent, formatUsd,
-  letterGrade, literacyScore, quartileLabel, rankDepartments, recommendationFor,
-  recoverableSpendUsd, redactForScoring, summarize, valuePerThousandUsd,
+  letterGrade, literacyScore, quartileLabel, rankDepartmentsForHelp,
+  recoverableSpendUsd, redactForScoring, summarize,
 } from "/evolution.js";
 import {
   formatIntegrationProvenance,
@@ -116,77 +117,112 @@ function gradeChip(score) {
   return chip;
 }
 
-function trendLine(score, previous) {
-  const before = Number(previous);
-  if (!Number.isFinite(before)) return null;
-  const delta = score - before;
-  const direction = delta > 0 ? "up" : delta < 0 ? "down" : "flat";
-  const sign = delta > 0 ? "+" : "";
-  return element("span", `trend trend-${direction}`,
-    delta === 0 ? "no change" : `${sign}${delta} vs prior period`);
+function signed(value, suffix = "") {
+  return `${value > 0 ? "+" : ""}${value}${suffix}`;
 }
 
-function renderDepartments(departments, sortKey) {
-  const body = document.getElementById("department-rows");
-  if (!body) return;
-  body.replaceChildren();
+function definitionTerm(label, value) {
+  const fragment = document.createDocumentFragment();
+  fragment.append(element("dt", undefined, label), element("dd", undefined, value));
+  return fragment;
+}
 
-  for (const department of rankDepartments(departments, sortKey)) {
-    const score = literacyScore(department.mix);
-    const row = element("tr");
+function renderDecisionDetail(department, data) {
+  const performance = departmentPerformance(department);
+  const trend = departmentTrend(department);
+  const comparison = benchmarkComparison(department, data.benchmark ?? {});
+  const sampling = department.sampling ?? {};
+  const provenance = data.provenance ?? {};
 
-    const nameCell = element("td");
-    const name = element("div", "dept-name");
-    name.append(element("strong", undefined, department.name),
-      element("span", undefined, `${department.costCenter ?? "—"} · ${department.leader ?? "—"}`));
-    nameCell.append(name);
+  setText("detail-name", department.name ?? "Unnamed department");
+  setText("detail-score", performance.available ? `${performance.score}/100` : "Unavailable");
+  setText("detail-sample", performance.available
+    ? `${performance.rubricVersion} · ${sampling.sampledQueries} sampled queries · through ${sampling.sampledThrough} (${sampling.freshnessLabel}) · 95% sampling uncertainty ±${performance.uncertaintyPoints} points · ${provenance.label}`
+    : `${performance.rubricVersion} · Sampling unavailable: ${performance.reason} · ${provenance.label}`);
 
-    const peopleCell = element("td", "numeric", `${department.headcount}`);
-    const spendCell = element("td", "numeric", formatUsd(department.spendUsd));
+  setText("trend-answer", trend.worsening === true
+    ? "Yes. Cost rose while performance fell."
+    : trend.worsening === false ? "No. Cost and performance are not jointly worsening."
+      : "Unavailable. The equal-period comparison is incomplete.");
+  const trendList = document.getElementById("trend-comparison");
+  trendList?.replaceChildren(
+    definitionTerm("Cost", trend.costAvailable ? signed(trend.costChangePercent, "%") : "Unavailable"),
+    definitionTerm("Performance", trend.performanceAvailable
+      ? signed(trend.performanceChangePoints, " points") : "Unavailable"),
+    definitionTerm("Periods", trend.period && trend.comparisonPeriod
+      ? `${trend.period} vs ${trend.comparisonPeriod} · ${trend.equalLengthDays}-day periods`
+      : "Equal-period dates unavailable"),
+  );
 
-    const scoreCell = element("td");
-    scoreCell.append(gradeChip(score));
-    const trend = trendLine(score, department.previousScore);
-    if (trend) scoreCell.append(trend);
+  setText("benchmark-answer", comparison.available
+    ? `${signed(comparison.deltaPoints, " points")} versus the cohort median of ${data.benchmark.medianScore}.`
+    : `Unavailable. ${comparison.reason}`);
+  const benchmark = data.benchmark ?? {};
+  setText("benchmark-method",
+    `${benchmark.name ?? "Benchmark unavailable"} · ${benchmark.organizationCount ?? "–"} synthetic organizations · `
+    + `${benchmark.segment ?? "segment unavailable"} · snapshot ${benchmark.snapshotDate ?? "unavailable"} · `
+    + `${benchmark.rubricVersion ?? "rubric unavailable"} · ${benchmark.provenance ?? provenance.label ?? "provenance unavailable"}`);
 
-    const valueCell = element("td", "numeric", formatCount(valuePerThousandUsd(department)));
-    const recoverableCell = element("td", "numeric recoverable", formatUsd(recoverableSpendUsd(department)));
-    const peerCell = element("td", "numeric", quartileLabel(department.peerPercentile));
-
-    row.append(nameCell, peopleCell, spendCell, scoreCell, valueCell, recoverableCell, peerCell);
-    body.append(row);
+  const list = document.getElementById("department-evidence");
+  list?.replaceChildren();
+  if (!performance.available) {
+    list?.append(element("li", "evidence-empty",
+      `No evidence conclusion: ${performance.reason}`));
+    return;
   }
-
-  if (!body.children.length) {
-    const row = element("tr");
-    row.append(element("td", "table-empty", "No departments in this period."));
-    row.firstChild.colSpan = 7;
-    body.append(row);
+  const evidence = evidenceForDepartment(data.evidence, department.id);
+  if (!evidence.length) {
+    list?.append(element("li", "evidence-empty",
+      "No scored evidence was retained for this department in the bundled sample."));
+    return;
+  }
+  for (const record of evidence) {
+    const item = element("li", "evidence-item");
+    item.append(
+      element("p", "evidence-label", `${record.category} · ${record.sampleId}`),
+      element("p", "evidence-summary", record.summary),
+      element("p", "evidence-meta",
+        `${performance.rubricVersion} · scored ${record.scoredAt} · ${sampling.freshnessLabel} · synthetic redacted fixture`),
+    );
+    list?.append(item);
   }
 }
 
-function renderActions(departments) {
-  const list = document.getElementById("action-list");
-  if (!list) return;
-  list.replaceChildren();
-
-  const ranked = rankDepartments(departments, "recoverableUsd").slice(0, 3);
-  for (const department of ranked) {
-    const recommendation = recommendationFor(department);
-    const item = element("li", "action-card");
-    const copy = element("div", "action-copy");
-    copy.append(
-      element("p", "action-team", department.name),
-      element("p", "action-headline", recommendation.headline),
-      element("p", "action-step", recommendation.action));
-    const amount = element("div", "action-amount");
-    amount.append(element("strong", undefined, formatUsd(recommendation.lostUsd)),
-      element("span", undefined, "recoverable / period"));
-    item.append(copy, amount);
-    list.append(item);
+function renderDecisionSurface(data, departments) {
+  const provenance = data.provenance ?? {};
+  setText("decision-provenance",
+    `${provenance.label ?? "Synthetic bundled fixture"} · generated ${provenance.generatedAt ?? "date unavailable"} · `
+    + `${provenance.billingSource ?? "billing source unavailable"} · ${provenance.orgSource ?? "org source unavailable"}`);
+  const list = document.getElementById("department-priority");
+  list?.replaceChildren();
+  const ranked = rankDepartmentsForHelp(departments);
+  if (!ranked.length) {
+    list?.append(element("li", "evidence-empty", "No departments are present in this bundled period."));
+    return;
   }
-
-  if (!list.children.length) list.append(element("li", "table-empty", "No recommendations for this period."));
+  ranked.forEach((department, index) => {
+    const performance = departmentPerformance(department);
+    const item = element("li");
+    const button = element("button", "department-choice");
+    button.type = "button";
+    button.dataset.departmentId = department.id;
+    button.setAttribute("aria-pressed", String(index === 0));
+    button.append(
+      element("span", "priority-rank", performance.available ? String(index + 1).padStart(2, "0") : "—"),
+      element("span", "priority-name", department.name),
+      element("span", "priority-score", performance.available
+        ? `${performance.score}/100 · ±${performance.uncertaintyPoints}`
+        : "Sampling unavailable"),
+    );
+    button.addEventListener("click", () => {
+      list.querySelectorAll("button").forEach((candidate) =>
+        candidate.setAttribute("aria-pressed", String(candidate === button)));
+      renderDecisionDetail(department, data);
+    });
+    item.append(button);
+    list?.append(item);
+  });
+  renderDecisionDetail(ranked[0], data);
 }
 
 function renderRedaction(samples) {
@@ -219,7 +255,7 @@ async function loadData() {
 }
 
 async function init() {
-  if (!document.getElementById("department-rows")) return;
+  if (!document.getElementById("department-priority")) return;
   loadIntegrationFixtureInspection()
     .then((inspection) => {
       setText("integration-contract-provenance", formatIntegrationProvenance(inspection));
@@ -241,14 +277,9 @@ async function init() {
   const departments = Array.isArray(data.departments) ? data.departments : [];
   const totals = summarize(departments);
   renderHeadline(data.organization ?? {}, totals);
+  renderDecisionSurface(data, departments);
   renderMix(totals);
-  renderActions(departments);
   renderRedaction(data.redactionSamples);
-
-  const sort = document.getElementById("department-sort");
-  const draw = () => renderDepartments(departments, sort?.value ?? "recoverableUsd");
-  sort?.addEventListener("change", draw);
-  draw();
 
   document.documentElement.dataset.shiplogEvolution = "ready";
 }
