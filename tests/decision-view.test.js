@@ -114,7 +114,7 @@ test("populated history with no filter matches does not show the first-decision 
   renderDecisions(container, count, sample, { query: "not present in any decision" });
 
   assert.equal(count.textContent, `0 of ${sample.length} records`);
-  assert.match(container.textContent, /No matching decisions/);
+  assert.match(container.textContent, /No records match your filters/);
   assert.equal(byClass(container, "decision-empty-action").length, 0);
   assert.equal(tags(container, "OL").length, 0);
 });
@@ -186,7 +186,7 @@ test("decision card arrows move focus and nested controls retain native keys", (
 
 test("decision cards are rendered as the single semantic detail link", async () => {
   const source = await import("node:fs/promises").then((fs) => fs.readFile(new URL("../src/app.js", import.meta.url), "utf8"));
-  assert.match(source, /detailLink\.className = "decision-card decision-detail-link"/);
+  assert.match(source, /detailLink\.className = "history-card decision-card decision-detail-link"/);
   assert.match(source, /detailLink\.setAttribute\("aria-labelledby", titleId\)/);
   assert.match(source, /detailLink\.setAttribute\("aria-describedby", descriptionId\)/);
   assert.ok(
@@ -227,9 +227,13 @@ test("decision list exposes semantic loading, empty, and error states", async ()
   const read = (path) => import("node:fs/promises")
     .then((fs) => fs.readFile(new URL(`../${path}`, import.meta.url), "utf8"));
   const [page, source] = await Promise.all([read("src/index.html"), read("src/app.js")]);
-  assert.match(page, /id="decision-list" aria-live="polite" aria-busy="true"/);
+  // The list is not a live region: the debounced #history-announcement region
+  // carries the result count instead (see the note in index.html).
+  assert.match(page, /id="decision-list" aria-busy="true"/);
+  assert.doesNotMatch(page, /id="decision-list"[^>]*aria-live/);
+  assert.match(page, /id="history-announcement" role="status" aria-live="polite"/);
   assert.match(page, /<h3>Loading decisions<\/h3>/);
-  assert.match(page, /<h2 id="decisions-title" tabindex="-1">All decisions<\/h2>/);
+  assert.match(page, /<h2 id="decisions-title" tabindex="-1">All records<\/h2>/);
   assert.match(page, /<p>Loading all decisions…<\/p>/);
   assert.match(page, /<h2 id="decision-form-title">Record a decision<\/h2>/);
   assert.match(page, /<button type="submit">Record decision<\/button>/);
@@ -243,7 +247,7 @@ test("decision list exposes semantic loading, empty, and error states", async ()
   assert.match(source, /\["Loading decisions", "Loading all decisions…"\]/);
   assert.match(source, /"No decisions yet"/);
   assert.match(source, /"Record the title, context, owner, and status/);
-  assert.match(source, /\["No matching decisions", "Change your search or filters/);
+  assert.match(source, /\["No records match your filters", "No decision or release matches/);
   assert.match(page, /id="exit-decision-recorder" type="button">Back to decision history<\/button>/);
   assert.match(page, /id="decisions-title" tabindex="-1"/);
 });
