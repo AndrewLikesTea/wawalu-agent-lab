@@ -262,6 +262,13 @@ test("social page is wired, labeled, and linked from the other pages", async () 
   assert.match(page, /aria-describedby="post-counter-label post-counter"/);
   assert.match(page, /id="post-counter"[^>]*aria-live="polite"/);
   assert.match(page, /required/);
+  assert.match(page, /id="post-image"[^>]*type="file"[^>]*accept="image\/png,image\/jpeg,image\/gif,image\/webp"/);
+  assert.match(page, /href="\/paint\/"/);
+  assert.match(page, /id="compose-preview-image" alt=""/);
+  assert.match(page, /id="post-image-alt"/);
+  assert.match(page, /id="post-media-status" role="status" aria-live="polite"/);
+  assert.match(wiring, /takePaintHandoff/);
+  assert.match(wiring, /caption: post\.body/);
 
   // No innerHTML anywhere in the interactive layers (no user-generated HTML).
   assert.doesNotMatch(`${component}\n${wiring}`, /innerHTML/);
