@@ -21,7 +21,7 @@
     {
       "id": "seed-post-3",
       "author": "Ari",
-      "body": "Release v1.3.0 is out and linked to its decisions in the release log. Nice to have the reasoning travel with the work.",
+      "body": "Release v1.3.0 is out and linked to its decisions in the release history. Nice to have the reasoning travel with the work.",
       "createdAt": "2026-07-14T08:05:00.000Z",
       "image": {
         "src": "/media/release-timeline.svg",

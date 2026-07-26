@@ -304,7 +304,7 @@ export async function loadDemoData(root = document, fetcher = fetch) {
 if (typeof document !== "undefined") {
   const refresh = () => loadActivity();
   document.querySelector("#refresh-activity")?.addEventListener("click", refresh);
-  renderState(document.querySelector("#persona-list"), { state: "loading", item: true, title: "Loading demo personas…" });
+  renderState(document.querySelector("#persona-list"), { state: "loading", item: true, title: "Loading demo personas for planning and review" });
   renderState(document.querySelector("#prompt-trace"), { state: "loading", title: "Loading published prompt trace…" });
   refresh();
   loadDemoData().catch(() => {
