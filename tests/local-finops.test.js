@@ -116,7 +116,12 @@ test("local history derives a same-source equal-period organization and departme
   assert.equal(result.topDepartment.spendChangePercent, 25);
   assert.equal(result.history.periodCount, 2);
   assert.equal(result.benchmark.state, "unavailable");
+  assert.equal(result.benchmark.eligible, false);
   assert.match(result.benchmark.message, /no compatible peer cohort/);
+  assert.equal(result.decisionInputs.trends.organization.eligible, true);
+  assert.equal(result.decisionInputs.departmentComparisons[0].performance.eligible, false);
+  assert.equal(result.decisionInputs.benchmarkEligibility.eligible, false);
+  assert.equal(result.decisionInputs.provenance.processing, "browser_local_ephemeral");
 });
 
 test("missing history and incompatible periods are explicit and never flattened", async () => {
@@ -143,9 +148,96 @@ test("missing history and incompatible periods are explicit and never flattened"
   assert.match(incompatible.history.message, /not contiguous/);
 
   current.document.snapshot.source_instance_id = "another-source";
-  assert.throws(() => normalizeLocalFinopsHistory({
+  const quarantined = normalizeLocalFinopsHistory({
     providers: [prior, current], hris: pair.hris,
-  }), (error) => error.code === "incompatible_periods");
+  });
+  assert.equal(quarantined.history.periodCount, 1);
+  assert.equal(quarantined.validation.results[0].code, "incompatible_source");
+  assert.match(quarantined.validation.results[0].action, /analyze this source separately/);
+});
+
+test("calendar months reconcile deterministically despite different day counts", async () => {
+  const pair = await validPair();
+  const february = structuredClone(pair.provider);
+  const march = structuredClone(pair.provider);
+  february.document.export_id = "11111111-1111-4111-8111-111111111111";
+  february.document.snapshot.generated_at = "2026-03-01T01:00:00Z";
+  february.document.snapshot.period_start = "2026-02-01";
+  february.document.snapshot.period_end = "2026-03-01";
+  february.document.records[0].cost.amount_minor = 1000;
+  march.document.export_id = "22222222-2222-4222-8222-222222222222";
+  march.document.snapshot.generated_at = "2026-04-01T01:00:00Z";
+  march.document.snapshot.period_start = "2026-03-01";
+  march.document.snapshot.period_end = "2026-04-01";
+  march.document.records[0].cost.amount_minor = 1500;
+
+  const forward = normalizeLocalFinopsHistory({
+    providers: [february, march], hris: pair.hris,
+  });
+  const reversed = normalizeLocalFinopsHistory({
+    providers: [march, february], hris: pair.hris,
+  });
+  assert.equal(forward.history.state, "available");
+  assert.match(forward.history.message, /calendar-month/);
+  assert.equal(forward.history.organizationSpendChangePercent, 50);
+  assert.deepEqual(forward, reversed);
+  assert.equal(forward.generatedAt, "2026-04-01T01:00:00Z");
+});
+
+test("duplicate periods, exports, records, and insufficient history are actionable quarantines", async () => {
+  const pair = await validPair();
+  const duplicateRecord = structuredClone(pair.provider);
+  duplicateRecord.document.records.push(structuredClone(duplicateRecord.document.records[0]));
+  const single = normalizeLocalFinopsHistory({
+    providers: [duplicateRecord], hris: pair.hris,
+  });
+  assert.deepEqual(single.validation.results.map((item) => item.code), ["insufficient_history"]);
+  assert.equal(single.validation.quarantinedRecords[0].code, "duplicate_record");
+  assert.match(single.validation.quarantinedRecords[0].action, /Remove the repeated record/);
+
+  const repeated = structuredClone(pair.provider);
+  const duplicatePeriod = structuredClone(pair.provider);
+  duplicatePeriod.document.export_id = "99999999-9999-4999-8999-999999999999";
+  const reconciled = normalizeLocalFinopsHistory({
+    providers: [pair.provider, repeated, duplicatePeriod], hris: pair.hris,
+  });
+  assert.deepEqual(reconciled.validation.results.map((item) => item.code),
+    ["duplicate_export", "duplicate_period", "insufficient_history"]);
+  assert.equal(reconciled.validation.quarantinedExportIds.length, 2);
+});
+
+test("malformed schema values and out-of-period records fail with actionable codes", async () => {
+  const provider = await fixture("provider-usage-billing/v1/fixtures/valid.json");
+  const malformed = structuredClone(provider);
+  malformed.records[0].revision = -1;
+  assert.throws(() => parseLocalFinopsFile(JSON.stringify(malformed), "bad.json"),
+    (error) => error.code === "invalid_value" && /malformed/.test(error.message));
+
+  const outside = structuredClone(provider);
+  outside.records[0].usage_date = "2026-07-23";
+  assert.throws(() => parseLocalFinopsFile(JSON.stringify(outside), "outside.json"),
+    (error) => error.code === "record_outside_period" && /outside/.test(error.message));
+});
+
+test("browser-local analysis exposes Noor's full longitudinal decision contract", async () => {
+  const [pair, noorFixture] = await Promise.all([
+    validPair(),
+    readFile(new URL("../src/evolution-demo-data.json", import.meta.url), "utf8")
+      .then(JSON.parse),
+  ]);
+  const result = normalizeLocalFinopsHistory({
+    providers: [pair.provider], hris: pair.hris,
+  });
+  assert.ok(noorFixture.departments[0].previousPeriod);
+  assert.ok(noorFixture.benchmark.rubricVersion);
+  assert.ok(noorFixture.provenance);
+  assert.deepEqual(Object.keys(result.decisionInputs),
+    ["trends", "departmentComparisons", "benchmarkEligibility", "provenance", "confidence"]);
+  assert.equal(result.decisionInputs.trends.organization.changePercent, null);
+  assert.equal(result.decisionInputs.departmentComparisons[0].performance.score, null);
+  assert.match(result.decisionInputs.departmentComparisons[0].performance.reason,
+    /no scored query-category sample/);
+  assert.equal(result.decisionInputs.confidence.historyEligible, false);
 });
 
 test("exports contain decision results, provenance, quality, limits, and privacy context", async () => {
