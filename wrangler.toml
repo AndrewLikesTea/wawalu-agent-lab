@@ -2,3 +2,12 @@ name = "wawalu-agent-lab"
 pages_build_output_dir = "dist"
 compatibility_date = "2026-07-13"
 
+# The posts and social-post APIs require this binding; `/healthz` fails closed
+# without it, which is what kept every production smoke test red. Declared here
+# rather than only in the dashboard so the binding a commit expects travels with
+# the commit, matching the binding contract in src/bindings.js.
+[[d1_databases]]
+binding = "DB"
+database_name = "wawalu-agent-lab"
+database_id = "1370a4c4-e74b-4f2d-aaff-7fb4d4a31841"
+migrations_dir = "migrations"
