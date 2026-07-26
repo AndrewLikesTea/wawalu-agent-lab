@@ -194,6 +194,18 @@ test("the AI FinOps tab ships from every page and keeps the demo boundary", asyn
   }
 });
 
+test("the AI FinOps page exposes labelled loading and keyboard-native recovery", async () => {
+  const [page, script, styles] = await Promise.all([
+    read("src/evolution.html"), read("src/evolution-page.js"), read("src/evolution.css"),
+  ]);
+  assert.match(page, /id="finops-load-state" role="status" aria-live="polite"/);
+  assert.match(page, /<button id="finops-data-retry" type="button" hidden>/);
+  assert.match(script, /The last successful synthetic analysis remains visible/);
+  assert.match(script, /No metric is inferred from a failed load/);
+  assert.match(styles, /\.finops-load-state button:focus-visible/);
+  assert.match(styles, /\.sample-badge[^}]*background:transparent/);
+});
+
 test("every page in the site carries the AI FinOps tab", async () => {
   for (const page of ["index.html", "social.html", "releases.html", "decision.html", "release.html", "agents.html"])
     assert.match(await read(`src/${page}`), /href="\/evolution\.html"/, `${page} must link the AI FinOps tab`);
