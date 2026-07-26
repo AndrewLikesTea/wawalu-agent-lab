@@ -48,7 +48,9 @@ h1 { margin:16px 0 24px; font-size:clamp(44px,7.3vw,82px); line-height:.96; lett
 .lead-capture-controls input { min-height:48px; }
 .lead-capture-controls button { grid-column:auto; min-height:48px; margin:0; white-space:nowrap; gap:18px; }
 .lead-capture-controls button:disabled { background:#777771; cursor:wait; }
-.lead-capture-note,.lead-capture-status { margin:9px 0 0; color:#60605b; font-size:12px; line-height:1.45; }
+.lead-capture-note,.lead-capture-status,.lead-capture-recovery { margin:9px 0 0; color:#60605b; font-size:12px; line-height:1.45; }
+.lead-capture-recovery { border-left:2px solid #8a2b2b; padding-left:9px; color:#4a4a45; }
+.lead-capture-recovery[hidden] { display:none; }
 .lead-capture-status { min-height:1.45em; font-weight:700; }
 .lead-capture-form[data-state="success"] .lead-capture-status { color:#205d2b; }
 .lead-capture-form[data-state="error"] .lead-capture-status { color:#8a2b2b; }
