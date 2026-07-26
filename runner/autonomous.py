@@ -1076,7 +1076,20 @@ def review_owner_pull(pull: dict[str, Any], token: str, config: dict[str, Any],
 
 def requeue_conflicted_pull(pull: dict[str, Any], token: str, config: dict[str, Any],
                             state: State, journal: Journal) -> bool:
-    """Close a conflicted agent pull request and return its issue to the queue."""
+    """Close a conflicted agent pull request and return its issue to the queue.
+
+    A conflict here is a merge race, not a failed implementation: the run got a
+    worker through the gates and past the reviewer, and only lost because other
+    work reached ``main`` first. Charging that to the implementation attempt
+    budget threw away finished, approved work — an issue whose earlier attempts
+    failed for unrelated reasons arrived at its last attempt, succeeded, and was
+    still marked ``agent-blocked`` because the counter was already spent.
+
+    So the conflict path keeps its own small budget. Reaching an approved pull
+    request clears the stale failure count (the issue has proven it is workable
+    on current ``main``), while ``max_conflict_requeues`` still stops an issue
+    that genuinely cannot land from recycling forever.
+    """
     branch = str(pull["head"]["ref"])
     match = (re.match(r"agent/[^/]+/issue-(\d+)-", branch)
              or re.search(r"Closes #(\d+)", str(pull.get("body") or "")))
@@ -1096,14 +1109,16 @@ def requeue_conflicted_pull(pull: dict[str, Any], token: str, config: dict[str, 
     with state.mutate():
         record = state.value["issues"].setdefault(str(issue_number), {})
         record.pop("retry_at", None)
-        exhausted = int(record.get("attempts", 0)) >= int(config.get("max_attempts", 2))
+        conflicts = int(record.get("conflict_requeues", 0)) + 1
+        exhausted = conflicts > int(config.get("max_conflict_requeues", 2))
+        record["conflict_requeues"] = conflicts
         record.update({"status": "blocked", "blocked_at": utc_now().isoformat()} if exhausted else
-                      {"status": "requeued", "requeued_at": utc_now().isoformat()})
+                      {"status": "requeued", "requeued_at": utc_now().isoformat(), "attempts": 0})
     if exhausted:
         replace_state_label(token, issue, ready, "agent-blocked", keep_ready=False)
         comment(token, issue_number, "blocked",
                 f"Pull request #{pull_number} conflicted with `main` and this issue has already "
-                "used its retry budget. It needs human attention.")
+                "used its conflict-retry budget. It needs human attention.")
         journal.emit("pr_conflict_blocked", pull=pull_number, issue=issue_number, branch=branch)
         return True
     replace_state_label(token, issue, ready, ready, keep_ready=True)
