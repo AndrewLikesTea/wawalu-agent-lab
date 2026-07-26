@@ -26,6 +26,8 @@ export function createElement(tagName) {
     },
     get textContent() { return node.ownText || node.children.map((child) => child.textContent).join(" "); },
     set textContent(value) { node.ownText = String(value); node.children = []; },
+    get firstChild() { return node.children[0] ?? null; },
+    get lastChild() { return node.children.at(-1) ?? null; },
     append(...nodes) {
       for (const child of nodes) {
         child.parent = node;
@@ -45,13 +47,24 @@ export function createElement(tagName) {
     getAttribute(name) { return node.attributes[name] ?? null; },
     addEventListener(type, handler) { (node.listeners[type] ??= []).push(handler); },
     dispatch(type) { for (const handler of node.listeners[type] ?? []) handler(); },
+    querySelector(selector) {
+      if (selector.startsWith(".")) return walk(node, (candidate) => candidate.classes.includes(selector.slice(1)))[0] ?? null;
+      return walk(node, (candidate) => candidate.tagName === selector.toUpperCase())[0] ?? null;
+    },
   };
   return node;
 }
 
 // Render modules read the global `document`, so a test file installs it once.
 export function installDocument() {
-  globalThis.document = { createElement };
+  globalThis.document = {
+    createElement,
+    createTextNode(text) {
+      const node = createElement("#text");
+      node.textContent = text;
+      return node;
+    },
+  };
 }
 
 export function walk(node, predicate, found = []) {
