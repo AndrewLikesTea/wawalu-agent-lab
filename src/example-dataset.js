@@ -238,10 +238,12 @@ export function exampleDatasetFiles() {
 }
 
 /**
- * Translate the fixture and analyze it. Same two calls, in the same order, that
- * a selected set of files walks through in evolution-page.js.
+ * Translate the fixture and hand back the parsed inputs, in exactly the shape
+ * the file input accumulates them. The page needs these and not only the
+ * analysis: the trust verdict is computed from the parsed rows and the roster,
+ * so handing it a bare envelope would force it to re-parse the same bytes.
  */
-export function loadExampleDataset() {
+export function loadExampleDatasetInputs() {
   const providers = [];
   let hris = null;
   for (const file of exampleDatasetFiles()) {
@@ -249,5 +251,13 @@ export function loadExampleDataset() {
     if (parsed.type === "provider") providers.push(parsed);
     else hris = parsed;
   }
-  return normalizeLocalFinopsHistory({ providers, hris });
+  return { providers, hris };
+}
+
+/**
+ * Translate the fixture and analyze it. Same two calls, in the same order, that
+ * a selected set of files walks through in evolution-page.js.
+ */
+export function loadExampleDataset() {
+  return normalizeLocalFinopsHistory(loadExampleDatasetInputs());
 }

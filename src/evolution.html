@@ -121,6 +121,29 @@
             </div>
           </div>
           <p class="dataset-provenance" id="dataset-provenance-results" data-dataset-provenance data-dataset="user" role="note" aria-label="Data provenance" hidden></p>
+          <!-- Before any finding is worth reading, the reader has to know
+               whether the number under it is trustworthy. Three questions, in
+               this order: can I trust it, what is wrong and what is it worth,
+               and what do I do next. Nothing else belongs in this block. -->
+          <article class="local-trust" id="local-trust" data-analysis-surface data-dataset="user" data-state="empty" aria-labelledby="local-trust-question" hidden>
+            <p class="eyebrow">Post-import trust verdict</p>
+            <h4 id="local-trust-question">Can I trust this number?</h4>
+            <p class="local-trust-coverage" id="local-trust-coverage" data-available="false">—</p>
+            <!-- The percentage never ships alone: numerator, denominator, and
+                 both row counts sit with it so a leader can check the ratio. -->
+            <p class="local-trust-inputs" id="local-trust-inputs">—</p>
+            <p class="local-trust-answer" id="local-trust-answer">—</p>
+            <section class="local-trust-findings-section" id="local-trust-findings-section" aria-labelledby="local-trust-findings-title" hidden>
+              <p class="eyebrow" id="local-trust-findings-title">What is unattributed, ranked by money</p>
+              <ol class="local-trust-findings" id="local-trust-findings" aria-label="Unattributed spend by category, highest impact first"></ol>
+            </section>
+            <div class="local-trust-next" id="local-trust-next" hidden>
+              <p class="eyebrow">Next action</p>
+              <p class="local-trust-action" id="local-trust-action" data-available="false">—</p>
+              <button class="local-trust-jump" id="local-trust-jump" type="button" hidden>Open the import step</button>
+            </div>
+            <p class="dataset-provenance" id="dataset-provenance-trust" data-dataset-provenance data-dataset="user" role="note" aria-label="Data provenance" hidden></p>
+          </article>
           <!-- The landing surface. One question, one number that answers it, the
                driver behind that number, and the prioritized action — all read
                out of the analysis envelope, none of it authored prose. -->
