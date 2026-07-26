@@ -9,10 +9,10 @@ import { byClass, createElement, first, ids, installDocument, tags } from "./sup
 installDocument();
 
 const {
-  authorInitials, captionFor, countLabel, distinctAuthors, mergePostsById,
-  normalizeProfileApiPosts, normalizeSeedPosts, postDetailHref, profileHref,
-  profileSummary, renderProfileGrid, renderProfileHeader, resolveProfileAuthor,
-  selectProfilePosts,
+  PROFILE_EMPTY_COPY, authorInitials, captionFor, countLabel, distinctAuthors,
+  mergePostsById, normalizeProfileApiPosts, normalizeSeedPosts, postDetailHref,
+  profileAnnouncement, profileHref, profileSummary, profileSummaryText,
+  renderProfileGrid, renderProfileHeader, resolveProfileAuthor, selectProfilePosts,
 } = await import("../src/profile.js");
 
 const apiPost = {
@@ -252,18 +252,17 @@ test("posts already on screen outrank a pending or failed refresh", () => {
   }
 });
 
-test("an empty profile says why it is empty", () => {
-  const withText = createElement("div");
-  renderProfileGrid(withText, [], { author: "Mina", hasTextPosts: true });
-  assert.equal(first(withText, "empty-title").textContent, "No image posts yet.");
-  assert.match(withText.textContent, /Mina has posted, but none of those posts carry an image/);
-
-  const blank = createElement("div");
-  renderProfileGrid(blank, [], { author: "Mina" });
-  assert.equal(first(blank, "empty-title").textContent, "You haven’t posted anything yet. Start by sharing an image.");
-  const action = first(blank, "empty-action");
-  assert.equal(action.textContent, "Share your first post");
-  assert.equal(action.href, "/social.html");
+test("an empty profile gives one message and a route into Paint", () => {
+  const container = createElement("div");
+  renderProfileGrid(container, [], { author: "Mina" });
+  const empty = first(container, "empty-state");
+  assert.equal(tags(empty, "P").length, 1, "the empty state renders one message, not two");
+  assert.equal(first(empty, "empty-title").textContent, "Make an image in Paint, then use it in a post.");
+  // Named, not gestured at: the visitor has to know where to go.
+  assert.match(empty.textContent, /Paint/);
+  const action = first(empty, "empty-action");
+  assert.equal(action.textContent, "Open Paint");
+  assert.equal(action.href, "/paint/");
 });
 
 test("a failed load is offered a retry, not a false empty state", () => {
@@ -323,8 +322,57 @@ test("the header shows who this is and what the counts mean", () => {
   assert.match(elements.summary.textContent, /^2 image posts · 3 posts in total · last posted /);
 });
 
-test("an empty header guides the author to their first image post", () => {
+test("an empty header states the situation once, in image-post terms", () => {
   const elements = { avatar: createElement("span"), name: createElement("span"), summary: createElement("p") };
   renderProfileHeader(elements, "Mina Okafor", { total: 0, withImages: 0, likes: 0, latest: null });
-  assert.equal(elements.summary.textContent, "You haven’t posted anything yet. Start by sharing an image.");
+  assert.equal(elements.summary.textContent, "No image posts yet.");
+  // The description states the state; the grid's empty state gives the action.
+  // Neither repeats the other's sentence — that repetition was the bug.
+  assert.notEqual(elements.summary.textContent, PROFILE_EMPTY_COPY.guidance);
+});
+
+test("the description carries the posted-but-no-images case, so the empty state need not", () => {
+  // The old empty state spelled this out in a second paragraph. The counts say
+  // it better, and they say it in one place.
+  assert.equal(
+    profileSummaryText({ total: 3, withImages: 0, likes: 0, latest: null }),
+    "0 image posts · 3 posts in total",
+  );
+  assert.equal(profileSummaryText({ total: 0, withImages: 0, likes: 0, latest: null }), PROFILE_EMPTY_COPY.summary);
+});
+
+test("the empty profile says it once across the whole page", () => {
+  // Regression guard for the reported defect: the description, the heading
+  // count, and the grid each used to hold their own copy of this sentence, and
+  // two of them held it word-for-word.
+  const summary = { total: 0, withImages: 0, likes: 0, latest: null };
+  const elements = { avatar: createElement("span"), name: createElement("span"), summary: createElement("p") };
+  renderProfileHeader(elements, "Mina", summary);
+  const grid = createElement("div");
+  renderProfileGrid(grid, [], {});
+
+  const spoken = [
+    elements.summary.textContent,
+    countLabel(0, "image post"),
+    first(grid, "empty-title").textContent,
+    profileAnnouncement("Mina", 0),
+  ];
+  // The announcement is the one place that may restate the description, because
+  // a live region has no page around it to borrow context from.
+  const onPage = spoken.slice(0, 3);
+  assert.equal(new Set(onPage).size, onPage.length, "no two page regions print the same sentence");
+  assert.equal(onPage.filter((text) => text.includes(PROFILE_EMPTY_COPY.summary)).length, 1);
+  assert.equal(onPage.filter((text) => text.includes("Paint")).length, 1);
+  assert.equal(spoken[1], "0 image posts", "the heading count is a count, not a sentence");
+  assert.equal(profileAnnouncement("Mina", 0), "No image posts yet. Make an image in Paint, then use it in a post.");
+  assert.equal(profileAnnouncement("Mina", 2), "Showing 2 image posts by Mina.");
+});
+
+test("the profile page's static copy does not drift from the module's", async () => {
+  // profile.html renders before the module runs, so its defaults are the empty
+  // state a first-time visitor actually sees first.
+  const html = await readFile(new URL("../src/profile.html", import.meta.url), "utf8");
+  assert.match(html, new RegExp(`id="profile-summary">${PROFILE_EMPTY_COPY.summary}<`));
+  assert.match(html, new RegExp(`id="profile-count">${countLabel(0, "image post")}<`));
+  assert.doesNotMatch(html, /Start by sharing an image/);
 });
