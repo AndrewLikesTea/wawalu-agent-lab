@@ -41,11 +41,24 @@ def choose_collaborator(primary: str, scenario_id: str, eligible: list[str],
     return stable_random("collaborator", primary, scenario_id).choice(candidates)
 
 
-def choose_distraction(persona: str, scenario_id: str, behaviors: dict[str, Any]) -> str | None:
+def retry_salt(attempt: int) -> tuple[object, ...]:
+    """Extra seed parts that make a retry draw different behavior than the try before.
+
+    A draw seeded only on (persona, scenario) is identical on every attempt, so a
+    run rejected *because* of the drawn behavior — an aside that widens the diff
+    past the reviewer's scope bar — reproduces that rejection until the issue is
+    blocked. Attempt 1 keeps its historical seed so first passes stay reproducible.
+    """
+    return () if int(attempt) <= 1 else (int(attempt),)
+
+
+def choose_distraction(persona: str, scenario_id: str, behaviors: dict[str, Any],
+                       attempt: int = 1) -> str | None:
     profile = behaviors["personas"][persona]
-    if not happens(float(profile["distraction_rate"]), "distraction", persona, scenario_id):
+    salt = retry_salt(attempt)
+    if not happens(float(profile["distraction_rate"]), "distraction", persona, scenario_id, *salt):
         return None
-    return stable_random("aside", persona, scenario_id).choice(behaviors["distractions"])
+    return stable_random("aside", persona, scenario_id, *salt).choice(behaviors["distractions"])
 
 
 def choose_peer_reviewer(author: str, scenario_id: str) -> str:
