@@ -1,0 +1,57 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import { applyTheme, persistTheme, preferredTheme, storedTheme, THEME_KEY } from "../src/paint/paint.js";
+
+test("paint shell has semantic navigation and an accessible canvas", async () => {
+  const html = await readFile(new URL("../src/paint/index.html", import.meta.url), "utf8");
+  assert.match(html, /<header class="app-header">/);
+  assert.match(html, /<nav class="header-actions" aria-label="Document actions">/);
+  assert.match(html, /<main class="editor" aria-label="Image editor">/);
+  assert.match(html, /<aside class="tool-rail" aria-label="Editing tools">/);
+  assert.match(html, /id="editor-canvas" tabindex="0" role="region"/);
+  assert.match(html, /<canvas width="1200" height="800" aria-label="Blank image">/);
+  assert.match(html, /class="skip-link" href="#editor-canvas"/);
+});
+
+test("theme preference accepts only supported stored values", () => {
+  const storage = { getItem: () => "sepia" };
+  assert.equal(storedTheme(storage), null);
+  assert.equal(preferredTheme(storage, { matches: true }), "dark");
+  assert.equal(preferredTheme({ getItem: () => "light" }, { matches: true }), "light");
+});
+
+test("theme storage failures degrade to the system preference", () => {
+  const storage = {
+    getItem() { throw new Error("blocked"); },
+    setItem() { throw new Error("blocked"); },
+  };
+  assert.equal(preferredTheme(storage, { matches: false }), "light");
+  assert.equal(persistTheme(storage, "dark"), false);
+  assert.equal(persistTheme(storage, "contrast"), false);
+});
+
+test("applying a theme keeps visual and accessible toggle state aligned", () => {
+  const root = { dataset: {} };
+  const attributes = {};
+  const button = { setAttribute: (name, value) => { attributes[name] = value; } };
+  assert.equal(applyTheme(root, button, "dark"), "dark");
+  assert.deepEqual(attributes, {
+    "aria-pressed": "true",
+    "aria-label": "Switch to light mode",
+  });
+  assert.equal(applyTheme(root, button, "light"), "light");
+  assert.equal(attributes["aria-pressed"], "false");
+  assert.equal(attributes["aria-label"], "Switch to dark mode");
+});
+
+test("theme uses a stable namespaced storage key", () => {
+  const values = new Map();
+  const storage = {
+    getItem: (key) => values.get(key) ?? null,
+    setItem: (key, value) => values.set(key, value),
+  };
+  assert.equal(persistTheme(storage, "dark"), true);
+  assert.equal(values.get(THEME_KEY), "dark");
+  assert.equal(storedTheme(storage), "dark");
+});
