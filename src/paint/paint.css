@@ -47,9 +47,10 @@ button:disabled { opacity: .46; cursor: not-allowed; }
 .document-title strong { font-size: 14px; }
 .document-title span { color: var(--muted); font-size: 11px; }
 .header-actions { display: flex; justify-content: flex-end; gap: 9px; }
-.icon-button, .primary-action, .secondary-action, .canvas-toolbar button, .section-title button { display: inline-grid; place-items: center; min-width: 40px; min-height: 40px; padding: 8px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-raised); cursor: pointer; }
+.icon-button, .primary-action, .secondary-action, .return-action, .canvas-toolbar button, .section-title button { display: inline-grid; place-items: center; min-width: 40px; min-height: 40px; padding: 8px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-raised); cursor: pointer; }
 .primary-action { padding-inline: 17px; border-color: var(--accent); background: var(--accent); color: #fff; font-size: 13px; font-weight: 750; }
 .secondary-action { padding-inline: 14px; font-size: 12px; font-weight: 700; }
+.return-action { padding-inline: 12px; color: var(--text); font-size: 12px; font-weight: 700; text-decoration: none; white-space: nowrap; }
 :root[data-theme="dark"] .primary-action { color: #161714; }
 .icon-button svg, .tool-button svg { width: 20px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
 .moon-icon { display: none; }
@@ -136,9 +137,14 @@ button:disabled { opacity: .46; cursor: not-allowed; }
 }
 
 @media (max-width: 560px) {
-  .app-header { grid-template-columns: 1fr auto; min-height: 58px; padding: 8px 10px; }
+  .app-header { grid-template-columns: auto minmax(0, 1fr); min-height: 58px; padding: 8px 10px; }
+  .brand span:last-child { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
+  .brand { min-width: 40px; min-height: 40px; justify-content: center; }
+  .brand-mark { width: 22px; height: 22px; }
   .document-title { display: none; }
   .secondary-action { display: none; }
+  .header-actions { min-width: 0; gap: 6px; }
+  .return-action { min-width: 0; padding-inline: 8px; }
   .primary-action { padding-inline: 11px; }
   .editor { grid-template-columns: 1fr; }
   .tool-rail { padding: 7px 8px; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--line); }
@@ -151,6 +157,12 @@ button:disabled { opacity: .46; cursor: not-allowed; }
   .panel-heading { grid-column: 1 / -1; }
   .layers-section { grid-column: 1 / -1; }
   .canvas-help { text-align: left; }
+}
+
+/* Keep the two journey-critical actions visible at the supported 280px floor.
+   Theme still follows the system preference when its optional toggle is hidden. */
+@media (max-width: 360px) {
+  .theme-toggle { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

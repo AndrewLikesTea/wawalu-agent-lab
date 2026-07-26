@@ -2,6 +2,22 @@ import { fitBitmapSize, FRAME_BUDGET_MS, PixelDocument, WebGLPresenter } from ".
 import { dataUrlPayload, writePaintHandoff } from "../publishing-media.js";
 
 export const THEME_KEY = "paint.theme.v1";
+export const DEFAULT_PAINT_RETURN = {
+  href: "/social.html",
+  label: "Back to feed",
+};
+
+export function paintReturnContext(search = "") {
+  const params = new URLSearchParams(String(search).replace(/^\?/, ""));
+  if (params.get("from") !== "profile") return DEFAULT_PAINT_RETURN;
+
+  const author = params.get("author")?.trim();
+  if (!author || author.length > 60) return DEFAULT_PAINT_RETURN;
+  return {
+    href: `/profile.html?author=${encodeURIComponent(author)}`,
+    label: "Back to profile",
+  };
+}
 
 export function storedTheme(storage) {
   try {
@@ -53,6 +69,12 @@ export function applyTheme(root, button, theme) {
 export function initPaint(root = document, environment = globalThis) {
   const html = root.documentElement;
   const toggle = root.querySelector("#theme-toggle");
+  const returnLink = root.querySelector("#paint-return");
+  const returnContext = paintReturnContext(environment.location?.search);
+  if (returnLink) {
+    returnLink.href = returnContext.href;
+    returnLink.textContent = returnContext.label;
+  }
   const media = environment.matchMedia?.("(prefers-color-scheme: dark)");
   let theme = preferredTheme(environment.localStorage, media);
   applyTheme(html, toggle, theme);
