@@ -226,6 +226,20 @@
 .gateway-refresh { margin-top:12px; border:1px solid #b8c8d5; border-radius:8px; padding:9px 12px; background:#fff; color:#283b4a; font:700 12px/1.4 ui-monospace,monospace; cursor:pointer; }
 .gateway-refresh:hover { border-color:#55758d; background:#f5f8fa; }
 .gateway-refresh:disabled { cursor:wait; opacity:.65; }
+.evaluation-panel { display:grid; gap:18px; }
+.evaluation-unavailable { margin:18px 0 0; border:1px solid #b4453a; border-left-width:5px; border-radius:9px; padding:14px 16px; background:#fdf4f3; color:#5d1f18; line-height:1.55; }
+.evaluation-result { margin-top:18px; border:1px solid #d5d3cb; border-radius:12px; padding:18px; background:#fff; }
+.evaluation-result h3 { margin:0; }
+.evaluation-summary { margin:8px 0; font:750 15px/1.4 ui-monospace,monospace; text-transform:capitalize; }
+.evaluation-recommendation,.evaluation-department { margin:8px 0; line-height:1.55; }
+.evaluation-details { margin-top:16px; border-top:1px solid #e2e0d9; padding-top:14px; }
+.evaluation-details summary { width:fit-content; cursor:pointer; font-weight:750; }
+.evaluation-details summary:focus-visible { outline:3px solid #2a78d6; outline-offset:3px; }
+.evaluation-breakdown { display:grid; gap:10px; margin:16px 0; padding-left:24px; }
+.evaluation-criterion { border:1px solid #e1dfd8; border-radius:9px; padding:13px; background:#faf9f5; }
+.evaluation-criterion h4,.evaluation-criterion p { margin:0; }
+.evaluation-criterion p { margin-top:6px; color:var(--ink-muted); font-size:12px; line-height:1.5; }
+.evaluation-arithmetic,.evaluation-gate { font:650 11px/1.6 ui-monospace,monospace; }
 
 @media(max-width:900px) {
   .finops-hero { grid-template-columns:1fr; gap:32px; }
