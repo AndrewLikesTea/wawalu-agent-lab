@@ -274,7 +274,7 @@ function renderDecisions(container, count, decisions, view) {
 function syncOwnerOptions(select, decisions) {
   const current = select.value || "all";
   const owners = uniqueOwners(decisions);
-  select.replaceChildren(new Option("All owners", "all"));
+  select.replaceChildren(new Option("all", "all"));
   for (const owner of owners) select.append(new Option(owner, owner));
   select.value = current === "all" || owners.includes(current) ? current : "all";
 }
