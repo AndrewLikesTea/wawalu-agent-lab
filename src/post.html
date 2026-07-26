@@ -9,6 +9,11 @@
   </head>
   <body>
     <main>
+      <!-- First in focus order so a reader can immediately undo tile
+           navigation. It is refined to the loaded author's profile in JS. -->
+      <a class="detail-back detail-page-back" id="post-back" href="/profile.html"
+        aria-label="Back to profile">← Back to profile</a>
+
       <header class="site-header">
         <a class="brand" href="/"><span class="mark" aria-hidden="true"></span>Shiplog</a>
         <nav class="site-nav" aria-label="Wawalu Labs">
@@ -24,9 +29,6 @@
       <section class="hero hero-post" id="top" aria-labelledby="page-title">
         <p class="eyebrow">Team feed · post</p>
         <h1 id="page-title">Post</h1>
-        <!-- Resolved to the author's profile once the post loads; it stays a
-             working link before then so the page is never a dead end. -->
-        <p><a class="detail-back" id="post-back" href="/profile.html">Back to profile</a></p>
       </section>
 
       <section class="workspace profile-workspace" aria-label="Post">
