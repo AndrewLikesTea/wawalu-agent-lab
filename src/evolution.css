@@ -47,6 +47,38 @@
 .finops-panel .list-heading { align-items:end; margin-bottom:16px; }
 .finops-panel .list-heading .section-heading { margin-bottom:0; }
 .finops-panel .filter { flex:0 0 auto; min-width:190px; }
+.decision-provenance,.method-note { color:var(--ink-muted); font:600 11px/1.55 ui-monospace,monospace; }
+.decision-provenance { margin:0 0 22px; }
+.decision-layout { display:grid; grid-template-columns:minmax(230px,.72fr) minmax(0,1.65fr); gap:24px; align-items:start; }
+.department-priority,.evidence-list { margin:0; padding:0; list-style:none; }
+.department-priority { display:grid; gap:8px; }
+.department-choice { width:100%; display:grid; grid-template-columns:28px 1fr auto; gap:10px; align-items:center; border:1px solid #dbd9d1; border-radius:10px; padding:13px; background:#fff; color:#24241f; text-align:left; cursor:pointer; }
+.department-choice:hover { border-color:#aaa79d; }
+.department-choice[aria-pressed="true"] { border-color:#315f50; background:#f0f7f3; box-shadow:inset 3px 0 #315f50; }
+.priority-rank { color:var(--ink-muted); font:700 10px/1 ui-monospace,monospace; }
+.priority-name { font-size:13px; font-weight:700; }
+.priority-score { color:var(--ink-muted); font:650 10px/1.3 ui-monospace,monospace; text-align:right; }
+.department-detail { border:1px solid #d6d4cc; border-radius:14px; padding:24px; background:#fff; }
+.detail-heading { display:flex; justify-content:space-between; align-items:start; gap:24px; padding-bottom:22px; }
+.detail-heading h3 { margin:4px 0 8px; font-size:25px; }
+.detail-heading p:not(.eyebrow):not(.detail-score) { max-width:660px; margin:0; color:var(--ink-muted); font-size:11px; line-height:1.55; }
+.detail-score { margin:0; font-size:32px; font-weight:750; letter-spacing:-.04em; white-space:nowrap; }
+.decision-question { padding:22px 0; border-top:1px solid #e2e0d9; }
+.decision-question:last-child { padding-bottom:0; }
+.decision-question h4 { margin:5px 0 8px; font-size:20px; }
+.decision-answer { margin:0 0 15px; font-size:16px; font-weight:700; line-height:1.45; }
+.comparison-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:0; }
+.comparison-grid div { display:contents; }
+.comparison-grid dt { color:var(--ink-muted); font:700 10px/1.4 ui-monospace,monospace; text-transform:uppercase; }
+.comparison-grid dd { grid-row:2; margin:0; font-size:12px; line-height:1.45; }
+.decision-question h5 { margin:22px 0 10px; font-size:12px; }
+.evidence-list { display:grid; gap:8px; }
+.evidence-item,.evidence-empty { border:1px solid #e1dfd8; border-radius:9px; padding:13px; background:#faf9f5; }
+.evidence-item p { margin:0; }
+.evidence-label { font:700 10px/1.4 ui-monospace,monospace; text-transform:uppercase; }
+.evidence-summary { margin-top:5px !important; font-size:12px; line-height:1.5; }
+.evidence-meta { margin-top:7px !important; color:var(--ink-muted); font:600 10px/1.45 ui-monospace,monospace; }
+.evidence-empty { color:var(--ink-muted); font-size:12px; line-height:1.5; }
 
 /* Stacked spend bar: 2px surface gaps separate segments, and the outer data
    ends are rounded so the bar reads as one measured quantity. */
@@ -114,10 +146,14 @@
 @media(max-width:900px) {
   .finops-hero { grid-template-columns:1fr; gap:32px; }
   .score-card { width:min(100%,320px); }
+  .decision-layout { grid-template-columns:1fr; }
   .redaction-pair { grid-template-columns:1fr; }
 }
 @media(max-width:640px) {
   .finops-panel { padding:21px; }
+  .comparison-grid { grid-template-columns:1fr; }
+  .comparison-grid dd { grid-row:auto; margin-bottom:8px; }
+  .detail-heading { display:grid; }
   .finops-panel .list-heading { align-items:stretch; flex-direction:column; gap:14px; }
   .finops-panel .filter { width:100%; }
   .action-card { grid-template-columns:1fr; }
