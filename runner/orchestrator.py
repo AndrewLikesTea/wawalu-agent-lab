@@ -1,6 +1,8 @@
 import argparse
 import base64
+import contextlib
 import datetime as dt
+import fcntl
 import json
 import hashlib
 import os
@@ -22,6 +24,28 @@ AGENT_DIR = ROOT / ".agent"
 SECRETS = ROOT / ".secrets" / "personas.json"
 RUNTIME_ENV = ROOT / ".secrets" / "runtime.env"
 BUDGET = DiffBudget(ROOT)
+
+
+CHECKOUT_LOCK = AGENT_DIR / "autonomy" / "checkout.lock"
+
+
+@contextlib.contextmanager
+def checkout_lock(path: pathlib.Path = CHECKOUT_LOCK):
+    """Serialize the git commands that write the shared product checkout.
+
+    Each run works inside its own worktree, but creating, reclaiming, and removing a
+    worktree — and fast-forwarding main — all write the one `.git` directory they
+    share. With runs in flight at the same time, and in separate processes, that is a
+    real race on worktree metadata and ref locks, so those commands take this file
+    lock. Only the git calls do: the long work inside a worktree must never hold it.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    with path.open("a+", encoding="utf-8") as handle:
+        fcntl.flock(handle, fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(handle, fcntl.LOCK_UN)
 
 
 def run(command: list[str], cwd: pathlib.Path = ROOT, **kwargs):
@@ -128,8 +152,9 @@ def discard_generated_artifacts(worktree: pathlib.Path) -> list[str]:
 def reclaim_worktree(worktree: pathlib.Path, branch: str) -> None:
     """Clear a worktree a dead run left behind, so a retry is not blocked by its own wreckage.
 
-    The manager is a singleton and runs one issue at a time, so an existing worktree
-    is always debris rather than a peer's live workspace. Leaving it would make every
+    Worktrees are named for the persona and scenario, and the manager never runs two
+    issues for one persona at once, so a worktree already sitting at this path is
+    always debris rather than a peer's live workspace. Leaving it would make every
     retry fail instantly and burn the issue's remaining attempts.
     """
     print(f"reclaiming stale worktree: {worktree}", file=sys.stderr)
@@ -144,10 +169,11 @@ def reclaim_worktree(worktree: pathlib.Path, branch: str) -> None:
 def prepare_worktree(persona: str, scenario_id: str) -> tuple[pathlib.Path, str]:
     branch = f"agent/{persona}/{scenario_id}"
     worktree = AGENT_DIR / "worktrees" / f"{persona}-{scenario_id}"
-    if worktree.exists():
-        reclaim_worktree(worktree, branch)
-    # worktrees branch off the PRODUCT checkout, wherever it lives
-    run(["git", "worktree", "add", "-b", branch, str(worktree), "main"], cwd=PRODUCT_ROOT)
+    with checkout_lock():
+        if worktree.exists():
+            reclaim_worktree(worktree, branch)
+        # worktrees branch off the PRODUCT checkout, wherever it lives
+        run(["git", "worktree", "add", "-b", branch, str(worktree), "main"], cwd=PRODUCT_ROOT)
     install_product_dependencies(worktree)
     return worktree, branch
 
