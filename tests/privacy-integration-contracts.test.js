@@ -35,6 +35,7 @@ for (const [directory, kind] of INTEGRATIONS) {
     const partial = await json(new URL("partial.json", fixtureRoot));
     const stale = await json(new URL("stale.json", fixtureRoot));
     const malformed = await json(new URL("malformed.json", fixtureRoot));
+    const duplicated = await json(new URL("duplicated.json", fixtureRoot));
     const reordered = await json(new URL("reordered.json", fixtureRoot));
 
     assert.equal(valid.schema_version, "1.0");
@@ -46,6 +47,9 @@ for (const [directory, kind] of INTEGRATIONS) {
     assert.ok(Date.parse(stale.snapshot.generated_at) < Date.parse(valid.snapshot.generated_at));
     assert.ok(Array.isArray(reordered));
     assert.ok(reordered[0].snapshot.sequence > reordered[1].snapshot.sequence);
+    assert.ok(Array.isArray(duplicated));
+    assert.deepEqual(duplicated[0], duplicated[1]);
+    assert.deepEqual(duplicated[0].records[0], duplicated[0].records[1]);
     assert.ok(malformed.export_id === "bad" || malformed.export_id === "not-a-uuid");
   });
 }

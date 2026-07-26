@@ -1,0 +1,24 @@
+[
+  {
+    "schema_version": "1.0",
+    "kind": "wawalu.integration.hris-org",
+    "export_id": "10000000-0000-4000-8000-000000000006",
+    "snapshot": { "source_instance_id": "psn_hris_demo_00000001", "sequence": 45, "generated_at": "2026-07-25T12:40:00Z", "mode": "delta", "completeness": "complete", "omitted_record_count": 0, "issues": [] },
+    "privacy": { "identifier_method": "hmac-sha256-truncated", "direct_identifiers_included": false, "salt_scope": "tenant-integration-v1" },
+    "records": [
+      { "unit_id": "psn_unit_demo_00000002", "revision": 6, "operation": "upsert", "effective_at": "2026-07-25T12:39:00Z", "parent_unit_id": "psn_unit_demo_00000001", "unit_type": "team", "active": true },
+      { "unit_id": "psn_unit_demo_00000002", "revision": 6, "operation": "upsert", "effective_at": "2026-07-25T12:39:00Z", "parent_unit_id": "psn_unit_demo_00000001", "unit_type": "team", "active": true }
+    ]
+  },
+  {
+    "schema_version": "1.0",
+    "kind": "wawalu.integration.hris-org",
+    "export_id": "10000000-0000-4000-8000-000000000006",
+    "snapshot": { "source_instance_id": "psn_hris_demo_00000001", "sequence": 45, "generated_at": "2026-07-25T12:40:00Z", "mode": "delta", "completeness": "complete", "omitted_record_count": 0, "issues": [] },
+    "privacy": { "identifier_method": "hmac-sha256-truncated", "direct_identifiers_included": false, "salt_scope": "tenant-integration-v1" },
+    "records": [
+      { "unit_id": "psn_unit_demo_00000002", "revision": 6, "operation": "upsert", "effective_at": "2026-07-25T12:39:00Z", "parent_unit_id": "psn_unit_demo_00000001", "unit_type": "team", "active": true },
+      { "unit_id": "psn_unit_demo_00000002", "revision": 6, "operation": "upsert", "effective_at": "2026-07-25T12:39:00Z", "parent_unit_id": "psn_unit_demo_00000001", "unit_type": "team", "active": true }
+    ]
+  }
+]

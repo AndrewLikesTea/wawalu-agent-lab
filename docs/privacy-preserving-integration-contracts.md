@@ -55,6 +55,41 @@ The following data is always out of scope:
 reject and privacy-quarantine a document containing an unknown field; it must
 not strip the field and continue.
 
+### Data flow and privacy controls
+
+```mermaid
+flowchart LR
+  A[Enterprise source] --> B[Customer-owned exporter]
+  B --> C[Allowlist and pseudonymize]
+  C --> D[Aggregate and suppress provider data]
+  D --> E[Encrypted transport]
+  E --> F[Size, JSON, and schema gate]
+  F -->|invalid| Q[Encrypted privacy quarantine, max 7 days]
+  F -->|valid| G[Semantic and sequence gate]
+  G -->|conflict| R[Metadata-only rejection queue]
+  G -->|accepted| H[Minimal derived state]
+  H --> I[Degraded/current and aggregate views]
+```
+
+HRIS and identity skip the provider-only aggregation step. The exporter removes
+prohibited fields before transfer; the consumer repeats allowlist enforcement
+at the trust boundary. Neither quarantine path is a secondary analytics source.
+
+| Control | Producer obligation | Consumer obligation |
+| --- | --- | --- |
+| Data minimization | Select only schema fields; never serialize a full vendor object. | Reject unknown fields and persist only the documented projection. |
+| Pseudonymization | HMAC inside the customer boundary; never export the key/source ID. | Treat opaque IDs as confidential and never attempt re-identification. |
+| Provider aggregation | Aggregate and suppress groups below 10 before export. | Reject user/request-level shapes and threshold values below 10. |
+| Storage | Use an approved encrypted channel; omit credentials from payloads. | Encrypt data, restrict access, and keep logs metadata-only. |
+| Purpose limitation | Produce organization, affiliation, or aggregate cost data only. | Never use feeds for personnel evaluation, content analysis, or authentication. |
+| Deletion | Stop exports and support key destruction. | Delete quarantine within 7 days and tenant state on erasure/offboarding. |
+
+Derived organization and identity rows are retained only while the tenant is
+active and the row remains current, then deleted within 90 days of an accepted
+tombstone or offboarding. Provider daily aggregates have a default 13-month
+maximum, shortened where tenant policy requires. An approved legal hold is the
+only exception and must be recorded outside the payload.
+
 ## Versioning and reconciliation
 
 `schema_version` is `major.minor`. Consumers allowlist exact versions they have
@@ -79,6 +114,12 @@ a no-op; equal revisions with different content are `revision_conflict`.
 `generated_at` provides freshness only and never determines ordering. Exports
 from different source instances are not merged automatically.
 
+Duplicate records inside one export are resolved before any write: identical
+copies collapse to one; differing copies with the same entity and revision
+reject the export as `revision_conflict`. Duplicate entity IDs at different
+revisions reduce to the greatest revision only after every copy validates. This
+result is independent of array order.
+
 Partial exports are schema-valid and explicitly marked. Valid records may be
 upserted atomically, but absence never implies deletion and the high-water mark
 may advance after that atomic commit; a separate complete-snapshot baseline does
@@ -91,12 +132,28 @@ deletion.
 
 Schema: [`contracts/integrations/hris-org/v1/schema.json`](../contracts/integrations/hris-org/v1/schema.json)
 
+```mermaid
+flowchart LR
+  H[HRIS] --> X[Customer exporter: unit allowlist and HMAC]
+  X --> V[HRIS v1 validation]
+  V --> O[Pseudonymous unit topology]
+  O --> I[Identity unit-reference validation]
+  O --> U[Provider aggregate attribution]
+```
+
 Shared data is only pseudonymous unit identity, parent topology, a coarse unit
 type, active state, revision, and effective time. Unit labels, managers, members,
 cost centers, legal entity metadata, and all worker fields are excluded.
 The complete record allowlist is `unit_id`, `revision`, `operation`,
 `effective_at`, `parent_unit_id`, `unit_type`, and `active`; delete records omit
 the last three topology/state fields as required by the schema.
+
+| Object | Required fields | Optional fields and rules |
+| --- | --- | --- |
+| Envelope | `schema_version`, `kind`, UUID `export_id`, `snapshot`, `privacy`, `records` | None; every object rejects additional properties. |
+| Snapshot | opaque source, nonnegative sequence, RFC 3339 generated time, mode, completeness, omitted count, issues | None; issues are capped at 100 and use fixed codes/scopes. |
+| Unit upsert | opaque unit, revision, operation, effective time, parent, type, active | Parent is opaque or null. |
+| Unit delete | unit, revision, operation, effective time | Parent, type, and active are prohibited. |
 
 Semantic validation rejects self-parenting, cycles, duplicate unit revisions
 with conflicting content, and a parent reference absent from both committed
@@ -119,11 +176,26 @@ or overwrites data.
 
 Schema: [`contracts/integrations/identity/v1/schema.json`](../contracts/integrations/identity/v1/schema.json)
 
+```mermaid
+flowchart LR
+  P[Identity provider] --> X[Customer exporter: affiliation allowlist and HMAC]
+  H[Pseudonymous HRIS units] --> V[Identity v1 validation]
+  X --> V
+  V --> A[Affiliation projection]
+  A --> Z[Policy engine, separate deployment]
+```
+
 This is an affiliation/authorization projection, not a directory or
 authentication protocol. It shares only a pseudonymous subject, organization
 unit links, coarse account state and access tier. It contains no login name,
 profile, groups, entitlements, tokens, authentication events, or authentication
 factors. The contract does not grant access by itself.
+
+| Object | Required fields | Optional fields and rules |
+| --- | --- | --- |
+| Envelope/snapshot | Same strict envelope and snapshot fields as HRIS v1 | None; arrays are bounded and unknown properties fail closed. |
+| Identity upsert | opaque subject, revision, operation, effective time, unit IDs, account state, access tier | Unit IDs are unique and capped at 20. |
+| Identity delete | subject, revision, operation, effective time | Unit, state, and tier fields are prohibited. |
 
 An unknown `org_unit_id` is quarantined pending the HRIS unit; it is not mapped
 to a default unit. Access changes are fail-safe: a valid explicit `disabled`,
@@ -147,6 +219,15 @@ access is handled by deployment policy, not silently revoked from absence.
 
 Schema: [`contracts/integrations/provider-usage-billing/v1/schema.json`](../contracts/integrations/provider-usage-billing/v1/schema.json)
 
+```mermaid
+flowchart LR
+  P[Provider export] --> X[Customer exporter: daily aggregation]
+  H[Pseudonymous HRIS units] --> X
+  X --> S[Suppress groups below 10]
+  S --> V[Provider billing v1 validation]
+  V --> A[Aggregate cost and usage views]
+```
+
 Only daily aggregates by pseudonymous organization unit, provider, and coarse
 service category cross the boundary. Each group must represent at least 10
 distinct subjects before aggregation; groups below the threshold are omitted
@@ -156,6 +237,12 @@ ingest user-level rows: the fixed shape and absent subject field are mandatory.
 The complete aggregate-record allowlist is `aggregate_id`, `revision`,
 `usage_date`, `org_unit_id`, `provider`, `service_category`, `usage.quantity`,
 `usage.unit`, `cost.amount_minor`, `cost.currency`, and `cost.status`.
+
+| Object | Required fields | Optional fields and rules |
+| --- | --- | --- |
+| Envelope | Strict common envelope fields | None; unknown properties fail closed. |
+| Snapshot | opaque source, sequence, generated time, ISO period dates, completeness, omitted count, issues | None; dates form a half-open period. |
+| Aggregate | opaque aggregate/unit IDs, revision, usage date, provider, category, usage, cost | None; quantity is finite/nonnegative; cost is integer minor units; currency is three uppercase letters. |
 
 Costs use integer minor currency units and are never floating point. Aggregates
 with different currencies are not summed. `estimated` may be replaced only by a
@@ -179,12 +266,29 @@ chargeback, quota enforcement, or personnel decisions.
 
 ## Fixtures and implementation gate
 
-Each schema directory contains `valid`, `partial`, `stale`, `malformed`, and
-`reordered` fixtures. `partial` and `stale` are intentionally schema-valid;
+Each schema directory contains `valid`, `partial`, `stale`, `malformed`,
+`duplicated`, and `reordered` fixtures. `partial` and `stale` are intentionally schema-valid;
 freshness and completeness are semantic outcomes. `malformed` intentionally
 combines structural and privacy violations and must be rejected. `reordered`
 places a newer export/revision before an older one to prove arrival order is not
-authority.
+authority. `duplicated` repeats an identical delivery and record to establish
+that exact retries/copies collapse without a second write.
+
+## Ownership and deployment boundary
+
+| Responsibility | Integrations contract owner | Customer/deployment owner | Consumer implementer |
+| --- | --- | --- | --- |
+| Schema, fixtures, error semantics | Defines and reviews | Reviews field mapping | Implements exact reviewed version |
+| Source access and credentials | Has no access; none required for development | Selects vendor and provisions/rotates transport credentials | Never embeds credentials in payloads, fixtures, or logs |
+| Pseudonymization and aggregation | Defines algorithm and threshold | Operates tenant key/exporter inside its boundary | Verifies declarations and rejects invalid shapes |
+| Production and retention | Does not enable connections | Approves security, privacy, legal, and deployment settings | Enforces limits and safe degradation |
+| Incident/erasure response | Maintains guidance | Owns source-side investigation/key actions | Deletes or quarantines data and supplies metadata-only audit evidence |
+
+Development, CI, review, and conformance work use only these synthetic fixtures.
+No live enterprise credential, vendor sandbox, customer identifier, or
+production network connection is required or authorized. A real connector,
+mapping, schedule, and transport are separate deployment decisions requiring
+their own security and privacy approval.
 
 Before implementation, Anya must approve any schema revision and its updated
 fixtures in review. Implementation acceptance requires contract tests for every
