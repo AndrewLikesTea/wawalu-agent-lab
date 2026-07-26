@@ -314,3 +314,25 @@ test("seeded images pass validation, ship as assets, and describe themselves", a
     assert.doesNotMatch(file, /<script|xlink:href|https?:\/\/(?!www\.w3\.org)/i);
   }
 });
+
+test("every global social destination link uses the Social Profile label", async () => {
+  const pages = [
+    "index.html",
+    "decision.html",
+    "evolution.html",
+    "releases.html",
+    "release.html",
+    "post.html",
+    "profile.html",
+    "social.html",
+  ];
+
+  for (const page of pages) {
+    const html = await readFile(new URL(`../src/${page}`, import.meta.url), "utf8");
+    assert.match(
+      html,
+      /<a class="nav-social"(?: aria-current="page")? href="\/social\.html">Social Profile<\/a>/,
+      `${page} must use the Social Profile navigation label`,
+    );
+  }
+});
