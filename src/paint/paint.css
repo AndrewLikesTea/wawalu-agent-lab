@@ -32,9 +32,9 @@
 * { box-sizing: border-box; }
 html, body { margin: 0; min-width: 280px; min-height: 100%; }
 body { min-height: 100vh; background: var(--bg); color: var(--text); }
-button, output { font: inherit; }
+button, input, output, select { font: inherit; }
 button { color: inherit; }
-button:focus-visible, [tabindex]:focus-visible, a:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focus-visible, a:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
 button:disabled { opacity: .46; cursor: not-allowed; }
 .visually-hidden { position: absolute!important; width: 1px!important; height: 1px!important; padding: 0!important; margin: -1px!important; overflow: hidden!important; clip: rect(0,0,0,0)!important; white-space: nowrap!important; border: 0!important; }
 .skip-link { position: fixed; z-index: 20; top: 8px; left: 8px; padding: 10px 14px; border-radius: 7px; background: var(--text); color: var(--surface); font-weight: 700; transform: translateY(-150%); }
@@ -69,7 +69,7 @@ button:disabled { opacity: .46; cursor: not-allowed; }
 .canvas-toolbar button { min-width: 34px; min-height: 34px; padding: 4px; }
 .zoom-controls output { min-width: 52px; color: var(--muted); font-size: 12px; font-weight: 700; text-align: center; }
 .canvas-viewport { display: grid; place-items: center; min-width: 0; min-height: 0; overflow: auto; padding: clamp(18px, 4vw, 52px); }
-.canvas-frame { position: relative; width: min(100%, 900px); aspect-ratio: 3 / 2; flex: none; overflow: hidden; border: 1px solid rgb(0 0 0 / 18%); background: #fff; box-shadow: var(--shadow); }
+.canvas-frame { position: relative; width: min(100%, 900px); aspect-ratio: 3 / 2; flex: none; overflow: hidden; border: 1px solid rgb(0 0 0 / 18%); background-color: var(--surface-raised); background-image: linear-gradient(45deg, var(--line) 25%, transparent 25%), linear-gradient(-45deg, var(--line) 25%, transparent 25%), linear-gradient(45deg, transparent 75%, var(--line) 75%), linear-gradient(-45deg, transparent 75%, var(--line) 75%); background-position: 0 0, 0 8px, 8px -8px, -8px 0; background-size: 16px 16px; box-shadow: var(--shadow); }
 .canvas-frame canvas { display: block; width: 100%; height: 100%; background: #fff; touch-action: none; }
 .empty-canvas { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 7px; color: #575a54; text-align: center; pointer-events: none; }
 .empty-canvas[hidden] { display: none; }
@@ -99,13 +99,31 @@ button:disabled { opacity: .46; cursor: not-allowed; }
 .canvas-toolbar p.is-error .status-dot { background: #c43b38; }
 .section-title { display: flex; align-items: center; justify-content: space-between; }
 .section-title h3 { margin: 0; }
-.section-title button { min-width: 32px; min-height: 32px; padding: 3px; }
+.section-title p { margin: 3px 0 0; color: var(--muted); font-size: 9px; }
+.section-title button { min-width: 32px; min-height: 32px; padding: 5px 8px; font-size: 9px; font-weight: 700; }
+.layer-controls { display: grid; gap: 12px; margin-top: 14px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-raised); }
+.properties-panel .layer-controls h4 { margin: 0; font-size: 10px; }
+.select-control, .opacity-control { color: var(--muted); font-size: 10px; font-weight: 650; }
+.select-control { display: grid; gap: 6px; }
+.select-control select { width: 100%; min-height: 36px; padding: 7px 28px 7px 9px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--text); font-size: 11px; }
+.opacity-control { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 6px 8px; }
+.opacity-control output { color: var(--text); font-size: 11px; font-variant-numeric: tabular-nums; }
+.opacity-control input { grid-column: 1 / -1; width: 100%; margin: 2px 0; accent-color: var(--accent); }
+.opacity-control p { grid-column: 1 / -1; margin: 0; color: var(--muted); font-size: 9px; font-weight: 400; }
 .layer-list { margin: 12px 0 0; padding: 0; list-style: none; }
-.layer-list li { display: flex; align-items: center; gap: 10px; padding: 9px; border: 1px solid var(--accent); border-radius: 8px; background: var(--accent-soft); }
+.layer-list li { display: flex; align-items: center; gap: 8px; padding: 8px; border: 1px solid var(--accent); border-radius: 8px; background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
+.layer-visibility { display: grid; flex: 0 0 auto; place-items: center; width: 30px; height: 30px; padding: 5px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); cursor: pointer; }
+.layer-visibility:hover { background: var(--surface-raised); color: var(--text); }
+.layer-visibility svg { width: 17px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.7; }
+.layer-visibility .hidden-icon, .layer-visibility[aria-pressed="false"] .visible-icon { display: none; }
+.layer-visibility[aria-pressed="false"] .hidden-icon { display: block; }
 .layer-thumbnail { width: 38px; aspect-ratio: 3 / 2; border: 1px solid var(--line); border-radius: 3px; background: #fff; }
-.layer-list li > span:last-child { display: grid; min-width: 0; }
+.layer-name { display: grid; min-width: 0; }
 .layer-list strong { overflow: hidden; font-size: 11px; text-overflow: ellipsis; }
 .layer-list small { color: var(--muted); font-size: 9px; }
+.layer-empty, .layer-error { margin: 12px 0 0; padding: 12px; border: 1px dashed var(--line); border-radius: 8px; color: var(--muted); font-size: 10px; line-height: 1.45; }
+.layer-error { border-style: solid; color: var(--text); }
+.canvas-frame.is-layer-hidden canvas { visibility: hidden; }
 
 @media (max-width: 820px) {
   .editor { grid-template-columns: 68px minmax(0, 1fr); }
@@ -127,6 +145,7 @@ button:disabled { opacity: .46; cursor: not-allowed; }
   .canvas-viewport { padding: 20px 12px; }
   .properties-panel { grid-template-columns: 1fr 1fr; }
   .panel-heading { grid-column: 1 / -1; }
+  .layers-section { grid-column: 1 / -1; }
   .canvas-help { text-align: left; }
 }
 

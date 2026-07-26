@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { applyTheme, persistTheme, preferredTheme, storedTheme, THEME_KEY } from "../src/paint/paint.js";
+import { applyTheme, normalizedBlendMode, normalizedOpacity, persistTheme, preferredTheme, storedTheme, THEME_KEY } from "../src/paint/paint.js";
 
 test("paint shell has semantic navigation and an accessible canvas", async () => {
   const html = await readFile(new URL("../src/paint/index.html", import.meta.url), "utf8");
@@ -16,7 +16,20 @@ test("paint shell has semantic navigation and an accessible canvas", async () =>
   assert.match(html, /data-tool="brush"/);
   assert.match(html, /data-tool="rectangle"/);
   assert.match(html, /data-filter="grayscale"/);
+  assert.match(html, /<select id="blend-mode">/);
+  assert.match(html, /id="layer-opacity" type="range" min="0" max="100"/);
+  assert.match(html, /id="layer-visibility" type="button" aria-label="Hide Bitmap layer" aria-pressed="true"/);
+  assert.match(html, /class="layer-empty" hidden/);
+  assert.match(html, /class="layer-error" role="status" hidden/);
   assert.doesNotMatch(html, /https?:\/\//);
+});
+
+test("layer appearance inputs safely handle empty and implausible extremes", () => {
+  assert.equal(normalizedOpacity(-900), 0);
+  assert.equal(normalizedOpacity(900), 100);
+  assert.equal(normalizedOpacity("not a number"), 100);
+  assert.equal(normalizedBlendMode("multiply"), "multiply");
+  assert.equal(normalizedBlendMode("unexpected-mode"), "normal");
 });
 
 test("paint ships as a self-contained static application", async () => {
