@@ -741,7 +741,9 @@ class AutonomousTests(IsolatedDiffBudget):
                 {"mergeable_state": "dirty"},
                 {"state": "open", "number": 8,
                  "labels": [{"name": "agent-running"}, {"name": "persona:staff"}]},
-                None, None, None, None,
+                None, None,
+                {"number": 8, "labels": [{"name": "agent-running"}, {"name": "persona:staff"}]},
+                None, None,
             ]
             autonomous.update_pull_branch(dict(self.AGENT_PULL), "token",
                                           {"issue_label": "agent-ready"}, state, mock.Mock())
@@ -755,9 +757,9 @@ class AutonomousTests(IsolatedDiffBudget):
         self.assertEqual(deleted.args[0],
                          f"/repos/{REPO}/git/refs/heads/agent/staff/issue-8-decision-detail")
         self.assertEqual(deleted.args[2], "DELETE")
-        relabeled = github.call_args_list[4]
+        relabeled = github.call_args_list[5]
         self.assertEqual(sorted(relabeled.args[3]["labels"]), ["agent-ready", "persona:staff"])
-        commented = github.call_args_list[5]
+        commented = github.call_args_list[6]
         self.assertEqual(commented.args[0], f"/repos/{REPO}/issues/8/comments")
         self.assertIn("fresh implementation", commented.args[3]["body"])
 
@@ -781,16 +783,18 @@ class AutonomousTests(IsolatedDiffBudget):
                 {"mergeable_state": "dirty"},
                 {"state": "open", "number": 8,
                  "labels": [{"name": "agent-running"}, {"name": "persona:staff"}]},
-                None, None, None, None,
+                None, None,
+                {"number": 8, "labels": [{"name": "agent-running"}, {"name": "persona:staff"}]},
+                None, None,
             ]
             autonomous.update_pull_branch(dict(self.AGENT_PULL), "token",
                                           {"issue_label": "agent-ready", "max_attempts": 2},
                                           state, mock.Mock())
             self.assertEqual(state.value["issues"]["8"]["status"], "blocked")
-        relabeled = github.call_args_list[4]
+        relabeled = github.call_args_list[5]
         self.assertIn("agent-blocked", relabeled.args[3]["labels"])
         self.assertNotIn("agent-ready", relabeled.args[3]["labels"])
-        self.assertIn("human attention", github.call_args_list[5].args[3]["body"])
+        self.assertIn("human attention", github.call_args_list[6].args[3]["body"])
 
     @mock.patch.object(autonomous, "github")
     def test_concurrent_sweep_is_skipped_via_lock(self, github):
@@ -1048,6 +1052,36 @@ class AutonomousTests(IsolatedDiffBudget):
         self.assertEqual(github.call_args.args[1], "token")
         self.assertEqual(github.call_args.args[2], "PATCH")
         self.assertEqual(github.call_args.args[3]["labels"], ["persona:backend", "agent-running"])
+
+    @mock.patch.object(autonomous, "github")
+    def test_state_label_reads_current_labels_instead_of_the_run_start_snapshot(self, github):
+        stale = {"number": 152, "labels": [{"name": "agent-ready"}, {"name": "persona:security"}]}
+        github.return_value = {"number": 152, "labels": [{"name": "paused"},
+                                                         {"name": "persona:security"}]}
+        autonomous.replace_state_label("token", stale, "agent-ready", None, keep_ready=True)
+        patched = github.call_args.args[3]["labels"]
+        self.assertIn("paused", patched)
+        self.assertNotIn("agent-ready", patched)
+
+    @mock.patch.object(autonomous, "github")
+    def test_state_label_keeps_a_paused_issue_out_of_the_ready_queue(self, github):
+        issue = {"number": 152, "labels": [{"name": "paused"}, {"name": "agent-running"}]}
+        github.return_value = issue
+        autonomous.replace_state_label("token", issue, "agent-ready", "agent-ready", keep_ready=True)
+        self.assertEqual(github.call_args.args[3]["labels"], ["paused"])
+
+    def test_choose_issue_skips_owner_paused_issues(self):
+        paused = {"number": 152, "labels": [{"name": "agent-ready"}, {"name": "paused"},
+                                            {"name": "persona:security"}], "body": ""}
+        ready = {"number": 153, "labels": [{"name": "agent-ready"},
+                                           {"name": "persona:security"}], "body": ""}
+        config = {"retry_cooldown_seconds": 60, "max_attempts": 3, "min_pr_interval_seconds": 0,
+                  "persona_work_windows": {}, "working_hours": {"start": 0, "end": 24}}
+        state = mock.Mock()
+        state.value = {"issues": {}}
+        state.persona_available.return_value = True
+        chosen = autonomous.choose_issue([paused, ready], state, config, autonomous.utc_now())
+        self.assertEqual(chosen["number"], 153)
 
     @mock.patch.object(autonomous.subprocess, "run")
     def test_cleanup_targets_only_the_run_worktree_and_branch(self, run):

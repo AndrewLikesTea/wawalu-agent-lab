@@ -56,6 +56,7 @@ PERSONAS = set(PERSONA_NAMES)
 ASSIGNABLE_PERSONAS = tuple(PERSONA_NAMES)
 CAPACITY_WORKERS = {code: worker for worker, code in CAPACITY_EXIT_CODES.items()}
 DELIVERY_ATTEMPT_LIMIT = 3
+PAUSED_LABEL = "paused"                        # owner parks an issue: never queue or requeue it
 DIRECTIVE = AUTONOMY / "directive.json"        # legacy single-slot record, read once and carried forward
 DIRECTIVES = AUTONOMY / "directives.json"
 PACIFIC = ZoneInfo("America/Los_Angeles")
@@ -803,14 +804,26 @@ def create_generated_issue(token: str, proposal: dict[str, Any], ready_label: st
         "title": proposal["title"], "body": body, "labels": labels})
 
 
+def label_names(issue: dict[str, Any]) -> list[str]:
+    return [item.get("name", "") if isinstance(item, dict) else str(item)
+            for item in issue.get("labels", [])]
+
+
 def replace_state_label(token: str, issue: dict[str, Any], ready_label: str,
                         add: str | None, keep_ready: bool) -> None:
-    labels = [item.get("name", "") if isinstance(item, dict) else str(item)
-              for item in issue.get("labels", [])]
+    # Re-read the labels instead of trusting the snapshot taken when the run started:
+    # a run lasts many minutes, and writing back a stale set silently reverts whatever
+    # the owner changed meanwhile — including a PAUSED_LABEL parking an issue.
+    try:
+        current = github(f"/repos/{REPOSITORY}/issues/{issue['number']}", token)
+    except Exception:  # noqa: BLE001 - a failed re-read must not lose the state label
+        current = issue
+    labels = label_names(current if isinstance(current, dict) and current.get("labels") is not None else issue)
     labels = [label for label in labels if label not in {"agent-running", "agent-blocked"}]
-    if not keep_ready:
+    # A paused issue never returns to the queue on its own; only the owner lifts the pause.
+    if not keep_ready or PAUSED_LABEL in labels:
         labels = [label for label in labels if label != ready_label]
-    if add and add not in labels:
+    if add and add not in labels and not (PAUSED_LABEL in labels and add == ready_label):
         labels.append(add)
     github(f"/repos/{REPOSITORY}/issues/{issue['number']}", token, "PATCH", {"labels": labels})
 
@@ -1256,6 +1269,8 @@ def choose_issue(issues: list[dict[str, Any]], state: State, config: dict[str, A
     busy_personas = set(active.values())
     for issue in issues:
         if int(issue["number"]) in active or run_persona(issue) in busy_personas:
+            continue
+        if PAUSED_LABEL in label_names(issue):
             continue
         dependency = __import__("re").search(r"Depends on #(\d+)", str(issue.get("body") or ""))
         if dependency and int(dependency.group(1)) in open_numbers:
