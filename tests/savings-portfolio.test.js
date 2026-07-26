@@ -5,6 +5,7 @@ import {
   SAVINGS_LIFECYCLE_STATES,
   SavingsPortfolioValidationError,
   createSavingsPortfolio,
+  loadSavingsPortfolio,
   validateSavingsAction,
 } from "../src/savings-portfolio.js";
 
@@ -22,19 +23,30 @@ function fixtureAction(lifecycleState) {
 
 /** Minimal valid action; overrides isolate the one rule under test. */
 function syntheticAction(overrides = {}) {
-  return {
+  const action = {
     actionId: "syn-example",
     title: "Synthetic example action",
-    owner: "Synthetic Example Role",
-    department: { id: "alpha", name: "Alpha" },
+    accountableOwner: { role: "Synthetic Example Lead" },
+    department: {
+      id: "alpha", name: "Alpha",
+      accountableOwner: { role: "Synthetic Alpha Director" },
+    },
     lifecycleState: "planned",
+    lifecycleTransitions: [{ state: "planned", transitionedDate: "2026-07-20" }],
     projectedSavingsUsd: 10,
-    realizedSavingsUsd: null,
+    completedSavingsUsd: null,
+    verifiedSavingsUsd: null,
     verificationEvidence: [],
     confidence: 0.5,
     updatedDate: "2026-07-20",
     ...overrides,
   };
+  if (!Object.hasOwn(overrides, "lifecycleTransitions")) {
+    const end = SAVINGS_LIFECYCLE_STATES.indexOf(action.lifecycleState);
+    action.lifecycleTransitions = SAVINGS_LIFECYCLE_STATES.slice(0, end + 1)
+      .map((state) => ({ state, transitionedDate: action.updatedDate }));
+  }
+  return action;
 }
 
 function portfolioOf(...actions) {
@@ -47,7 +59,9 @@ test("the synthetic fixture validates every required action field and lifecycle"
   const portfolio = createSavingsPortfolio(fixture);
   assert.equal(portfolio.actions.length, 4);
   for (const action of portfolio.actions) {
-    assert.ok(action.owner);
+    assert.ok(action.accountableOwner.role);
+    assert.ok(action.department.accountableOwner.role);
+    assert.equal(action.lifecycleTransitions.at(-1).state, action.lifecycleState);
     assert.ok(action.department.id);
     assert.ok(action.updatedDate);
     assert.ok(Number.isInteger(action.projectedSavingsUsd));
@@ -60,6 +74,20 @@ test("the fixture exercises every lifecycle state the contract defines", () => {
   // would otherwise leave planned/in-progress/completed/verified untested.
   const present = new Set(fixture.actions.map((action) => action.lifecycleState));
   assert.deepEqual([...present].sort(), [...SAVINGS_LIFECYCLE_STATES].sort());
+});
+
+test("lifecycle history is contiguous, ordered, and ends at the declared state", () => {
+  const completed = fixtureAction("completed");
+  completed.lifecycleTransitions[1].transitionedDate = "2026-01-01";
+  assert.throws(() => validateSavingsAction(completed), /must not precede/);
+
+  const skipped = fixtureAction("verified");
+  skipped.lifecycleTransitions.splice(1, 1);
+  assert.throws(() => validateSavingsAction(skipped), /without gaps/);
+
+  const staleState = fixtureAction("completed");
+  staleState.lifecycleState = "verified";
+  assert.throws(() => validateSavingsAction(staleState), /must end at lifecycleState/);
 });
 
 test("the shipped fixture stays synthetic, with no credentials or live-provider data", () => {
@@ -75,7 +103,7 @@ test("the shipped fixture stays synthetic, with no credentials or live-provider 
     assert.equal(pattern.test(fixtureText), false, `fixture must not contain ${label}`);
   }
   for (const action of fixture.actions) {
-    assert.match(action.owner, /^Synthetic /,
+    assert.match(action.accountableOwner.role, /^Synthetic /,
       "owners must be synthetic roles, never named people");
   }
 });
@@ -83,14 +111,14 @@ test("the shipped fixture stays synthetic, with no credentials or live-provider 
 test("realized savings is credited only for verified outcomes with evidence", () => {
   const portfolio = createSavingsPortfolio(fixture);
   assert.equal(portfolio.summary.projectedSavingsUsd, 294000);
-  assert.equal(portfolio.summary.realizedSavingsUsd, 21000);
+  assert.equal(portfolio.summary.verifiedSavingsUsd, 21000);
   assert.equal(portfolio.summary.varianceUsd, -273000);
 
   const completed = fixtureAction("completed");
-  completed.realizedSavingsUsd = 70000;
+  completed.verifiedSavingsUsd = 70000;
   assert.throws(() => validateSavingsAction(completed),
     (error) => error instanceof SavingsPortfolioValidationError
-      && error.path.endsWith("realizedSavingsUsd"));
+      && error.path.endsWith("verifiedSavingsUsd"));
 
   const verified = fixtureAction("verified");
   verified.verificationEvidence = [];
@@ -102,13 +130,15 @@ test("each action carries its own credited realized amount and variance", () => 
   // interpretation the contract promises to remove.
   const portfolio = createSavingsPortfolio(fixture);
   const verified = portfolio.actions.find((item) => item.lifecycleState === "verified");
-  assert.equal(verified.realizedSavingsUsd, 21000);
-  assert.equal(verified.creditedRealizedSavingsUsd, 21000);
+  assert.equal(verified.completedSavingsUsd, 21000);
+  assert.equal(verified.verifiedSavingsUsd, 21000);
+  assert.equal(verified.creditedVerifiedSavingsUsd, 21000);
   assert.equal(verified.varianceUsd, 21000 - verified.projectedSavingsUsd);
 
   const completed = portfolio.actions.find((item) => item.lifecycleState === "completed");
-  assert.equal(completed.realizedSavingsUsd, null, "unmeasured savings stay unmeasured");
-  assert.equal(completed.creditedRealizedSavingsUsd, 0, "nothing is credited without evidence");
+  assert.equal(completed.completedSavingsUsd, 69000, "completed measurements stay visible");
+  assert.equal(completed.verifiedSavingsUsd, null, "unverified savings stay uncredited");
+  assert.equal(completed.creditedVerifiedSavingsUsd, 0, "nothing is credited without evidence");
   assert.equal(completed.varianceUsd, -completed.projectedSavingsUsd);
 });
 
@@ -116,10 +146,11 @@ test("action, department, and portfolio levels agree on totals and variance", ()
   const portfolio = createSavingsPortfolio(fixture);
   const { summary } = portfolio;
   assert.equal(sumBy(portfolio.actions, "projectedSavingsUsd"), summary.projectedSavingsUsd);
-  assert.equal(sumBy(portfolio.actions, "creditedRealizedSavingsUsd"), summary.realizedSavingsUsd);
+  assert.equal(sumBy(portfolio.actions, "creditedVerifiedSavingsUsd"), summary.verifiedSavingsUsd);
   assert.equal(sumBy(portfolio.actions, "varianceUsd"), summary.varianceUsd);
   assert.equal(sumBy(summary.departments, "projectedSavingsUsd"), summary.projectedSavingsUsd);
-  assert.equal(sumBy(summary.departments, "realizedSavingsUsd"), summary.realizedSavingsUsd);
+  assert.equal(sumBy(summary.departments, "completedSavingsUsd"), summary.completedSavingsUsd);
+  assert.equal(sumBy(summary.departments, "verifiedSavingsUsd"), summary.verifiedSavingsUsd);
   assert.equal(sumBy(summary.departments, "varianceUsd"), summary.varianceUsd);
 });
 
@@ -129,7 +160,8 @@ test("department totals use the same deterministic lifecycle inclusion rules", (
     (item) => item.department.id === "platform",
   );
   assert.equal(platform.projectedSavingsUsd, 96000);
-  assert.equal(platform.realizedSavingsUsd, 21000);
+  assert.equal(platform.completedSavingsUsd, 90000);
+  assert.equal(platform.verifiedSavingsUsd, 21000);
   assert.equal(platform.varianceUsd, -75000);
   assert.deepEqual(platform.projectedByLifecycleUsd, {
     planned: 0, "in-progress": 0, completed: 72000, verified: 24000,
@@ -178,7 +210,10 @@ test("attention tie-breaks by oldest update before department ID", () => {
     syntheticAction({ actionId: "syn-alpha", updatedDate: "2026-07-20" }),
     syntheticAction({
       actionId: "syn-zulu",
-      department: { id: "zulu", name: "Zulu" },
+      department: {
+        id: "zulu", name: "Zulu",
+        accountableOwner: { role: "Synthetic Zulu Director" },
+      },
       updatedDate: "2026-01-05",
     }),
   ).summary.attention;
@@ -187,7 +222,13 @@ test("attention tie-breaks by oldest update before department ID", () => {
 
   const byId = portfolioOf(
     syntheticAction({ actionId: "syn-alpha" }),
-    syntheticAction({ actionId: "syn-zulu", department: { id: "zulu", name: "Zulu" } }),
+    syntheticAction({
+      actionId: "syn-zulu",
+      department: {
+        id: "zulu", name: "Zulu",
+        accountableOwner: { role: "Synthetic Zulu Director" },
+      },
+    }),
   ).summary.attention;
   assert.equal(byId.department.id, "alpha");
 });
@@ -197,7 +238,14 @@ test("a fully verified portfolio reports no department needing attention", () =>
   allVerified.actions = allVerified.actions.map((action, index) => ({
     ...action,
     lifecycleState: "verified",
-    realizedSavingsUsd: index,
+    lifecycleTransitions: [
+      { state: "planned", transitionedDate: "2026-01-01" },
+      { state: "in-progress", transitionedDate: "2026-01-02" },
+      { state: "completed", transitionedDate: "2026-01-03" },
+      { state: "verified", transitionedDate: "2026-01-04" },
+    ],
+    completedSavingsUsd: index,
+    verifiedSavingsUsd: index,
     verificationEvidence: [{
       evidenceId: `syn-evidence-${index}`,
       description: "Synthetic verification comparison.",
@@ -227,10 +275,35 @@ test("invalid state, dates, duplicates, and department identity conflicts fail c
   assert.throws(() => createSavingsPortfolio(conflictingName), /must match/);
 });
 
+test("an empty fixture reports explicit zero aggregates and no presentation attention", () => {
+  const empty = createSavingsPortfolio({ schemaVersion: fixture.schemaVersion, actions: [] });
+  assert.deepEqual(empty.actions, []);
+  assert.deepEqual(empty.summary, {
+    projectedSavingsUsd: 0,
+    completedSavingsUsd: 0,
+    verifiedSavingsUsd: 0,
+    varianceUsd: 0,
+    departments: [],
+    attention: null,
+  });
+});
+
+test("the client data boundary validates static responses and exposes fetch failures", async () => {
+  const loaded = await loadSavingsPortfolio(async (url, options) => {
+    assert.equal(url, "/savings-portfolio-fixture.json");
+    assert.equal(options.cache, "no-store");
+    return { ok: true, async json() { return structuredClone(fixture); } };
+  });
+  assert.equal(loaded.summary.projectedSavingsUsd, 294_000);
+  assert.equal(loaded.summary.completedSavingsUsd, 90_000);
+
+  await assert.rejects(
+    loadSavingsPortfolio(async () => ({ ok: false, status: 404 })),
+    /returned 404/,
+  );
+});
+
 test("an unusable fixture envelope is rejected before any total is reported", () => {
-  assert.throws(() => createSavingsPortfolio({
-    schemaVersion: fixture.schemaVersion, actions: [],
-  }), /non-empty/);
   assert.throws(() => createSavingsPortfolio({
     schemaVersion: "savings-portfolio/2.0.0", actions: fixture.actions,
   }), /schemaVersion/);
