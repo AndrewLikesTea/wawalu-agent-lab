@@ -107,15 +107,44 @@
           </section>
           <section class="layers-section" aria-labelledby="layers-heading">
             <div class="section-title">
-              <h3 id="layers-heading">Layers</h3>
-              <button id="clear-button" type="button" aria-label="Clear image">×</button>
+              <div>
+                <h3 id="layers-heading">Layers</h3>
+                <p id="layer-count">1 layer</p>
+              </div>
+              <button id="clear-button" type="button">Clear layer</button>
             </div>
-            <ol class="layer-list">
+            <ol class="layer-list" aria-label="Layer stack">
               <li aria-current="true">
+                <button class="layer-visibility" id="layer-visibility" type="button" aria-label="Hide Bitmap layer" aria-pressed="true">
+                  <svg class="visible-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.5"/></svg>
+                  <svg class="hidden-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="m4 4 16 16M9.7 6.3A10.8 10.8 0 0 1 12 6c6 0 9.5 6 9.5 6a15 15 0 0 1-2.1 2.8M6.4 8.1A16.2 16.2 0 0 0 2.5 12s3.5 6 9.5 6c1 0 2-.2 2.8-.5M10 10a2.8 2.8 0 0 0 4 4"/></svg>
+                </button>
                 <span class="layer-thumbnail" aria-hidden="true"></span>
-                <span><strong>Bitmap</strong><small>WebGL texture</small></span>
+                <span class="layer-name"><strong>Bitmap</strong><small>Selected · Pixel layer</small></span>
               </li>
             </ol>
+            <div class="layer-controls" aria-labelledby="appearance-heading">
+              <h4 id="appearance-heading">Appearance</h4>
+              <label class="select-control" for="blend-mode">
+                <span>Blend mode</span>
+                <select id="blend-mode">
+                  <option value="normal">Normal</option>
+                  <option value="multiply">Multiply</option>
+                  <option value="screen">Screen</option>
+                  <option value="overlay">Overlay</option>
+                  <option value="darken">Darken</option>
+                  <option value="lighten">Lighten</option>
+                </select>
+              </label>
+              <div class="opacity-control">
+                <label for="layer-opacity">Opacity</label>
+                <output id="layer-opacity-value" for="layer-opacity">100%</output>
+                <input id="layer-opacity" type="range" min="0" max="100" step="1" value="100" aria-describedby="opacity-help" />
+                <p id="opacity-help">Use arrow keys for 1% steps.</p>
+              </div>
+            </div>
+            <p class="layer-empty" hidden>No layers yet. Import an image or draw on the canvas to begin.</p>
+            <p class="layer-error" role="status" hidden>Layer controls are unavailable. Your image is unchanged.</p>
           </section>
         </aside>
       </main>

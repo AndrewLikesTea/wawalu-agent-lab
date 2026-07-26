@@ -39,6 +39,30 @@ test("core canvas flow: drawing updates pixels, save state, and the visible WebG
   assert.equal(harness.selectors.get("#drop-prompt").hidden, true);
 });
 
+test("layer appearance: opacity, blend mode, and visibility stay visibly and accessibly aligned", async () => {
+  const harness = createPaintHarness();
+  const editor = initEditor(harness.root, harness.environment);
+  const opacity = harness.selectors.get("#layer-opacity");
+  const visibility = harness.selectors.get("#layer-visibility");
+  const blend = harness.selectors.get("#blend-mode");
+
+  opacity.value = "37";
+  await opacity.dispatch("input");
+  assert.equal(harness.canvas.style.opacity, "0.37");
+  assert.equal(harness.selectors.get("#layer-opacity-value").textContent, "37%");
+
+  blend.value = "multiply";
+  await blend.dispatch("change");
+  assert.equal(harness.canvas.style.mixBlendMode, "multiply");
+  assert.deepEqual(editor.layerAppearance, { opacity: 37, blendMode: "multiply", visible: true });
+
+  await visibility.dispatch("click");
+  assert.equal(visibility.getAttribute("aria-pressed"), "false");
+  assert.equal(visibility.getAttribute("aria-label"), "Show Bitmap layer");
+  assert.equal(harness.frame.classList.contains("is-layer-hidden"), true);
+  assert.equal(editor.layerAppearance.visible, false);
+});
+
 test("drag-and-drop import: a user gets the decoded image dimensions without a network request", async () => {
   const harness = createPaintHarness();
   const editor = initEditor(harness.root, harness.environment);

@@ -146,6 +146,10 @@ export function createPaintHarness({ createImageBitmap } = {}) {
     ["#zoom-in", element()],
     ["#zoom-level", element({ textContent: "100%" })],
     ["#export-button", element()],
+    ["#layer-opacity", element({ value: "100" })],
+    ["#layer-opacity-value", element({ textContent: "100%" })],
+    ["#blend-mode", element({ value: "normal" })],
+    ["#layer-visibility", element({ attributes: { "aria-pressed": "true" } })],
   ]);
   const tools = ["select", "crop", "brush", "rectangle"].map((tool) =>
     element({ dataset: { tool }, className: tool === "brush" ? "is-active" : "" }));
