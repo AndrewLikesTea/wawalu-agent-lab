@@ -87,7 +87,10 @@
               </p>
             </div>
 
-            <button type="submit">Post update <span aria-hidden="true">→</span></button>
+            <button id="post-submit" type="submit" aria-describedby="social-notice">
+              <span class="submit-label">Post update</span> <span aria-hidden="true">→</span>
+            </button>
+            <p class="notice submit-feedback" id="social-notice" role="status" aria-live="polite" aria-atomic="true" hidden></p>
           </form>
         </div>
 
@@ -123,7 +126,6 @@
           </div>
           <p class="hint feed-hint">Use ← and → to move between posts, ↑ and ↓ to move a row, Home and End to jump.</p>
           <p class="visually-hidden" id="feed-announcer" aria-live="polite" aria-atomic="true"></p>
-          <p class="notice" id="social-notice" role="status" hidden></p>
           <div id="post-feed"></div>
         </div>
       </section>
