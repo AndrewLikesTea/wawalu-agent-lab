@@ -66,54 +66,81 @@
             <h2 id="local-import-title">Analyze provider spend without uploading it.</h2>
             <p>Select one or more manifest-compatible provider exports and one HRIS mapping. Two contiguous, equal-length provider periods unlock a like-for-like trend; a single period keeps the current decision brief unchanged.</p>
           </div>
-          <span class="sample-badge" id="analysis-mode">Sample mode</span>
+          <span class="sample-badge" id="analysis-mode" data-mode="example">
+            <span class="badge-shape" aria-hidden="true">◇</span>
+            <span id="analysis-mode-label">Example data</span>
+          </span>
         </div>
         <div class="privacy-boundary" role="note" aria-label="Local processing privacy boundary">
           <strong>Your files do not leave this tab.</strong>
-          <span>No upload · no credentials · no network transfer · no browser storage · results disappear on refresh.</span>
+          <span>No upload · no credentials · no network transfer · no browser storage · results disappear on refresh. Column headers and totals are shown; source rows and cell values are never rendered, announced, or exported.</span>
         </div>
+        <!-- The three stages this flow already walked, now said out loud. The
+             list is authored empty and painted by local-import-flow.js so the
+             current step carries aria-current and a word, not only a tint. -->
+        <ol class="import-stages" id="import-stages" aria-label="Import progress"></ol>
         <div class="local-import-controls">
-          <div>
+          <div class="local-import-field">
             <label for="local-finops-files">Provider period(s) + HRIS mapping</label>
-            <input id="local-finops-files" type="file" accept=".json,application/json" multiple aria-describedby="local-file-help" />
+            <input id="local-finops-files" type="file" accept=".json,application/json" multiple aria-describedby="local-file-help" aria-invalid="false" />
             <p id="local-file-help">Choose files together or add them in batches. Provider periods must use the same source; all processing and state stay in this tab.</p>
+            <p class="field-error" id="local-file-error" hidden></p>
+            <div class="field-recovery" id="local-file-recovery" hidden>
+              <button class="field-recovery-action" id="local-file-repick" type="button">Choose files again</button>
+              <button class="field-recovery-action" id="local-file-discard" type="button">Discard this selection</button>
+            </div>
           </div>
-          <button id="clear-local-analysis" type="button" hidden>Return to sample</button>
+          <button id="clear-local-analysis" type="button" hidden>Return to example data</button>
         </div>
+        <ul class="mapping-requirements" id="mapping-requirements" aria-label="Required inputs and what is still unresolved"></ul>
         <div class="local-import-state" id="local-import-state" role="status" aria-live="polite">
           <strong>Ready for local files.</strong>
-          <span>The bundled synthetic analysis remains visible until both compatible exports are ready.</span>
+          <span>The bundled example analysis remains visible until both compatible exports are ready.</span>
         </div>
+        <!-- Hard failures only. Progress and success stay in the polite status
+             above, so no message is ever announced from both regions. -->
+        <div class="local-import-alert" id="local-import-alert" role="alert" aria-live="assertive"></div>
 
-        <section class="local-results" id="local-results" tabindex="-1" aria-labelledby="local-results-title" aria-busy="false" hidden>
+        <section class="local-results" id="local-results" aria-labelledby="local-results-title" aria-busy="false" hidden>
           <div class="local-result-heading">
             <div>
               <p class="eyebrow">Imported result</p>
-              <h3 id="local-results-title">Local FinOps decision brief</h3>
+              <h3 id="local-results-title" tabindex="-1">Local FinOps decision brief</h3>
             </div>
             <div class="local-export-actions" aria-label="Export imported analysis">
               <button id="export-local-json" type="button">Export JSON</button>
               <button id="export-local-summary" type="button">Meeting summary</button>
             </div>
           </div>
-          <div class="local-result-notice" id="local-result-notice" role="status" aria-live="polite" hidden>
-            <strong id="local-result-notice-title"></strong>
-            <span id="local-result-notice-copy"></span>
-          </div>
-          <article class="local-finding" aria-labelledby="local-action">
+          <article class="local-finding" aria-labelledby="local-action" aria-describedby="local-metric-detail">
             <header class="local-finding-lead">
               <div>
                 <p class="eyebrow">Recommended department action</p>
                 <h4 id="local-action">Waiting for a supported pair…</h4>
               </div>
-              <span class="local-finding-status" id="local-confidence">Confidence unavailable</span>
+              <span class="local-finding-status" id="local-confidence"><span class="status-shape" aria-hidden="true">◆</span> <span id="local-confidence-label">Confidence unavailable</span></span>
             </header>
             <dl class="local-finding-facts" aria-label="Finding decision facts">
-              <div class="local-impact"><dt>Quantified impact</dt><dd id="local-recoverable">—</dd></div>
+              <div class="local-impact">
+                <dt>Quantified impact</dt>
+                <dd id="local-recoverable" data-real="false">—</dd>
+                <dd class="metric-basis"><span class="metric-basis-label" id="local-metric-label" data-real="false">Example data</span> <span class="metric-basis-detail" id="local-metric-detail">Bundled synthetic sample — not your import and not realized savings.</span></dd>
+              </div>
               <div><dt>Department</dt><dd id="local-department">—</dd></div>
               <div><dt>Benchmark</dt><dd id="local-benchmark-summary">Unavailable</dd></div>
-              <div><dt>Data provenance</dt><dd id="local-provenance">Waiting for an imported result.</dd></div>
             </dl>
+            <!-- Demoted from the top of the results: a result-level notice is
+                 not per-field information, so it sits with the number it
+                 qualifies instead of banner-ing the whole section. -->
+            <div class="local-result-notice" id="local-result-notice" role="status" aria-live="polite" hidden>
+              <strong id="local-result-notice-title"></strong>
+              <span id="local-result-notice-copy"></span>
+            </div>
+            <details class="local-provenance-detail">
+              <summary>Data provenance and redaction</summary>
+              <p id="local-provenance">Waiting for an imported result.</p>
+              <p class="local-redaction-note">Only column headers, declared contract fields, and aggregate totals are read into this page. No cell value, record identifier, or file name is rendered, announced, or written to an export.</p>
+            </details>
           </article>
           <div class="local-state-grid" aria-label="Supporting trend and benchmark evidence">
             <article id="local-trend-state" aria-labelledby="local-trend-title" aria-describedby="local-trend-why">
@@ -169,6 +196,10 @@
       </section>
 
       <section class="kpi-row" data-sample-analysis aria-label="Headline metrics">
+        <!-- These four numbers only ever show the bundled sample: a local import
+             hides them. Say so beside them rather than leaving a reader to infer
+             it from a chip further up the page. -->
+        <p class="sample-marker" id="headline-basis"><span class="sample-marker-shape" aria-hidden="true">◇</span> Example data — bundled synthetic sample, replaced by your figures only after a local import.</p>
         <article class="kpi" id="kpi-spend">
           <p class="kpi-label">AI spend · period</p>
           <p class="kpi-value" id="kpi-spend-value">–</p>
