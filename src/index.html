@@ -82,12 +82,13 @@
           <div class="lead-capture-field">
             <label for="lead-email">Work email</label>
             <div class="lead-capture-controls">
-              <input id="lead-email" name="email" type="email" maxlength="254" inputmode="email" autocomplete="email" placeholder="you@company.com" required aria-describedby="lead-capture-note lead-capture-status" />
+              <input id="lead-email" name="email" type="email" maxlength="254" inputmode="email" autocomplete="email" placeholder="you@company.com" required aria-describedby="lead-capture-note lead-capture-recovery lead-capture-status" />
               <button type="submit">Get the field note <span aria-hidden="true">→</span></button>
             </div>
           </div>
-          <p class="lead-capture-note" id="lead-capture-note">Occasional product notes. No spam. Unsubscribe anytime.</p>
+          <p class="lead-capture-note" id="lead-capture-note">We’ll only use your email for occasional product notes. No spam. Unsubscribe anytime.</p>
           <p class="lead-capture-status" id="lead-capture-status" role="status" aria-live="polite"></p>
+          <p class="lead-capture-recovery" id="lead-capture-recovery" hidden>Your email is still in the field above. Sign-up usually recovers within a few minutes — resubmit then, or <a href="#decision-to-release">follow the decision-to-release story</a> in the meantime.</p>
         </form>
       </section>
 
