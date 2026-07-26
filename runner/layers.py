@@ -23,6 +23,20 @@ class ConsultantCapacityExhausted(RuntimeError):
         self.worker = worker
 
 
+class PlannerCapacityExhausted(RuntimeError):
+    """Every planner provider refused for lack of quota, so no plan could be drawn.
+
+    Distinct from a planner that answered badly: there is nothing wrong with the
+    issue, so the run must defer like any other capacity stop instead of spending
+    one of the issue's implementation attempts. Four issues were blocked this way
+    on 2026-07-26 when a Claude session limit was recorded as invalid planner JSON.
+    """
+
+    def __init__(self, worker: str, detail: str = ""):
+        super().__init__(f"{worker} planner hit provider capacity limits: {detail}".rstrip(": "))
+        self.worker = worker
+
+
 WORKERS = {"codex", "claude"}
 CAPACITY_EXIT_CODES = {"codex": 75, "claude": 76}
 # Local planner draws are cheap next to the paid consultation whose idea they decompose,
@@ -143,6 +157,7 @@ Task:
     workers.extend(worker for worker in ("codex", "claude") if worker not in workers)
     workers = planner_order(workers)
     errors: list[str] = []
+    refused: list[str] = []
     for worker in workers:
         if worker == "codex":
             command = ["codex", "exec", "--sandbox", "read-only", "--cd", str(repository),
@@ -164,12 +179,29 @@ Task:
             try:
                 return _extract_json(generated)
             except ValueError as error:
+                # A refused CLI can still exit 0 and print its refusal where the plan
+                # should be ("You've hit your session limit ..."). Only unparseable
+                # output is scanned for the marker: valid planner JSON already
+                # returned above, so no FinOps task text describing a "usage limit"
+                # can be mistaken for the provider turning us away.
+                if _has_capacity_marker(generated):
+                    note_planner_capacity(worker)
+                    refused.append(worker)
+                    errors.append(f"{worker} refused the planner call for capacity")
+                    continue
                 errors.append(f"{worker} returned invalid planner JSON: {error}")
                 continue
         detail = (completed.stderr or completed.stdout)[-400:]
         if _has_capacity_marker(detail):
             note_planner_capacity(worker)
+            refused.append(worker)
         errors.append(f"{worker} exited {completed.returncode}: {detail}")
+    if refused and len(refused) == len(workers):
+        # Every planner we have was out of quota. That is a pause, not a defect in the
+        # issue: raising the capacity type lets the caller defer without consuming an
+        # implementation attempt, so a session limit cannot blockade the queue by
+        # exhausting max_attempts on every issue it touches.
+        raise PlannerCapacityExhausted(refused[-1], "; ".join(errors))
     raise RuntimeError("frontier planner failed; " + " | ".join(errors))
 
 
