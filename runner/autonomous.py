@@ -1489,6 +1489,26 @@ def within_hours(config: dict[str, Any], now: dt.datetime | None = None) -> bool
     return int(window["start"]) <= hour < int(window["end"])
 
 
+def design_reference() -> str:
+    """Text digest of the owner's Claude Design mirror for the design stakeholder.
+
+    The dispatcher session refreshes design-system/claude-design/ from the owner's
+    claude.ai/design project; Iris reviews with that guidance in hand. Missing or
+    empty mirror simply yields no reference — the review proceeds unchanged.
+    """
+    from runner.layers import page_text
+    mirror = PRODUCT_ROOT / "design-system" / "claude-design"
+    if not mirror.is_dir():
+        return ""
+    parts = []
+    for path in sorted(mirror.glob("*.html")):
+        try:
+            parts.append(f"--- {path.name} ---\n{page_text(path.read_text(encoding='utf-8'), 5000)}")
+        except OSError:
+            continue
+    return "\n\n".join(parts)
+
+
 def stakeholder_prompt(persona: str) -> str:
     """A stakeholder's voice comes from its persona file; stakeholders that never
     run workers (sales) have no .secrets entry, so read the prompt directly."""
@@ -1555,7 +1575,8 @@ def post_stakeholder_reviews(token: str, config: dict[str, Any], state: State,
             result = stakeholder_review(
                 stakeholder_prompt(persona), str(review.get("lens", "")),
                 (PRODUCT_ROOT / "PRODUCT.md").read_text(encoding="utf-8"),
-                pages, delivered, open_titles, allowed, run_dir / "review.json")
+                pages, delivered, open_titles, allowed, run_dir / "review.json",
+                reference=design_reference() if persona == "design" else "")
         except Exception as error:
             journal.emit("stakeholder_review_failed", persona=persona,
                          error=type(error).__name__, detail=str(error)[:300])

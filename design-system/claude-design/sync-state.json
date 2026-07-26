@@ -1,0 +1,8 @@
+{
+  "projectId": "4559852b-c96c-49fa-81a7-77a37462894e",
+  "projectName": "wawalu — UX review",
+  "syncedAt": "2026-07-26T05:40:00Z",
+  "projectUpdatedAt": "2026-07-25T23:59:15.971846Z",
+  "mirrored": ["review/00-summary.html", "review/08-foundations.html"],
+  "remaining_cards": ["review/01-category-rows.html", "review/02-token-chart.html", "review/03-tabs.html", "review/04-topic-card.html", "review/05-connect-affordance.html", "review/06-org-danger.html", "review/07-verdict-loading.html", "review/09-header-redesign.html", "review/10-unattended-tile.html", "review/11-provenance-rows.html", "review/12-team-unattended-split.html", "review/13-verdict-unattended.html", "review/14-org-first.html"]
+}
