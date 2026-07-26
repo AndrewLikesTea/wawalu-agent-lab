@@ -1,6 +1,6 @@
 import { dedupeById, fetchDemoData } from "./demo-data.js";
 import { initLeadCapture } from "./lead-capture.js";
-import { loadReleases, mountReleaseList } from "./releases.js";
+import { loadReleases, mountReleaseList, renderReleaseListState } from "./releases.js";
 
 export const STORAGE_KEY = "shiplog.decisions.v1";
 // The current workflow uses pending/approved. The original three values remain
@@ -149,6 +149,15 @@ function appendTextElement(parent, tag, className, text) {
   return element;
 }
 
+function appendLabelledValue(parent, label, value, className = "") {
+  const pair = document.createElement("span");
+  pair.className = `meta-pair ${className}`.trim();
+  appendTextElement(pair, "span", "meta-label", `${label}:`);
+  appendTextElement(pair, "span", "meta-value", value);
+  parent.append(pair);
+  return pair;
+}
+
 function recordLabel(count) {
   return `${count} ${count === 1 ? "record" : "records"}`;
 }
@@ -194,29 +203,40 @@ export function focusLinkedDecision(root = document, hash = window.location.hash
   return true;
 }
 
-function renderDecisions(container, count, decisions, view) {
+export function renderDecisionState(container, state, options = {}) {
+  container.replaceChildren();
+  container.setAttribute("aria-busy", String(state === "loading"));
+  const panel = document.createElement("div");
+  panel.className = `list-state list-state-${state}`;
+  panel.setAttribute("role", state === "error" ? "alert" : "status");
+  const copy = {
+    loading: ["Loading decisions", "Building your decision history…"],
+    error: ["Decisions could not be loaded", "Your saved decisions are still shown when available. Try reloading for the example history."],
+    empty: options.filtered
+      ? ["No matching decisions", "Try a different search, owner, or status filter."]
+      : ["No decisions yet", "Add the first record to start your engineering history."],
+  }[state];
+  appendTextElement(panel, "h3", "", copy[0]);
+  appendTextElement(panel, "p", "", copy[1]);
+  container.append(panel);
+}
+
+export function renderDecisions(container, count, decisions, view) {
   const visible = selectDecisions(decisions, view);
   container.replaceChildren();
+  container.setAttribute("aria-busy", "false");
 
   count.textContent = visible.length === decisions.length
     ? recordLabel(decisions.length)
     : `${visible.length} of ${recordLabel(decisions.length)}`;
 
   if (decisions.length === 0) {
-    const empty = document.createElement("div");
-    empty.className = "empty-state";
-    appendTextElement(empty, "p", "empty-title", "No decisions yet.");
-    appendTextElement(empty, "p", "", "Add the first record to start your engineering history.");
-    container.append(empty);
+    renderDecisionState(container, "empty");
     return;
   }
 
   if (visible.length === 0) {
-    const empty = document.createElement("div");
-    empty.className = "empty-state";
-    appendTextElement(empty, "p", "empty-title", "No matching decisions.");
-    appendTextElement(empty, "p", "", "Try a different search, owner, or status filter.");
-    container.append(empty);
+    renderDecisionState(container, "empty", { filtered: true });
     return;
   }
 
@@ -240,14 +260,22 @@ function renderDecisions(container, count, decisions, view) {
     detailLink.setAttribute("aria-labelledby", titleId);
     detailLink.setAttribute("aria-describedby", descriptionId);
 
-    const meta = document.createElement("div");
-    meta.className = "decision-meta";
-    appendTextElement(meta, "span", `badge badge-${decision.status}`, decision.status);
-    appendTextElement(meta, "time", "date", new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(new Date(decision.createdAt)))
-      .dateTime = decision.createdAt;
-
     const title = appendTextElement(detailLink, "h3", "", decision.title);
     title.id = titleId;
+    const meta = document.createElement("div");
+    meta.className = "decision-meta";
+    appendLabelledValue(meta, "Status", decision.status, `badge badge-${decision.status}`);
+    const datePair = document.createElement("span");
+    datePair.className = "meta-pair date";
+    appendTextElement(datePair, "span", "meta-label", "Recorded:");
+    const time = appendTextElement(
+      datePair,
+      "time",
+      "meta-value",
+      new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(new Date(decision.createdAt)),
+    );
+    time.dateTime = decision.createdAt;
+    meta.append(datePair);
     const summary = document.createElement("div");
     summary.id = descriptionId;
     appendTextElement(summary, "p", "context", decision.context);
@@ -296,6 +324,7 @@ export async function initDecisionLog(root = document, storage = localStorage) {
   const clearFilters = root.querySelector("#clear-decision-filters");
   let recordedDecisions = loadDecisions(storage);
   let decisions = recordedDecisions;
+  list?.setAttribute("aria-busy", "true");
 
   const currentView = () => ({
     status: statusFilter?.value ?? "all",
@@ -310,12 +339,11 @@ export async function initDecisionLog(root = document, storage = localStorage) {
     renderDecisions(list, count, decisions, currentView());
   };
 
-  refresh();
-  focusLinkedDecision(root);
-
   const demo = await fetchDemoData();
   decisions = dedupeById([...recordedDecisions, ...demo.decisions]);
   refresh();
+  if (demo.unavailable && decisions.length === 0) renderDecisionState(list, "error");
+  focusLinkedDecision(root);
 
   const releaseList = root.querySelector("#sample-release-list");
   const releases = dedupeById([...loadReleases(storage), ...demo.releases]);
@@ -325,6 +353,8 @@ export async function initDecisionLog(root = document, storage = localStorage) {
       releases: featuredReleases,
       decisions,
     }).render({ releases: featuredReleases, decisions });
+  } else if (releaseList) {
+    renderReleaseListState(releaseList, demo.unavailable ? "error" : "empty", { singular: true });
   }
 
   // Changing a filter/sort only re-renders; owner options are stable until the

@@ -61,13 +61,17 @@ button:hover { background:#1f70c1; }
    detail view, mark the target card so it is easy to spot after the jump. */
 article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2f7; scroll-margin-top:24px; }
 .decision-meta { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:14px; }
+.meta-pair { display:inline-flex; align-items:baseline; gap:5px; }
+.meta-label { font:700 9px/1.4 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; }
+.badge .meta-label { color:inherit; }
+.badge .meta-value { font:inherit; letter-spacing:inherit; }
 .badge { border-radius:99px; padding:5px 8px; font:750 10px/1 ui-monospace,monospace; letter-spacing:.07em; text-transform:uppercase; }
 .badge-proposed { background:#fff0c7; color:#72520a; }
 .badge-accepted { background:#dcefdc; color:#205d2b; }
 .badge-superseded { background:#e8e6e2; color:#5c5b56; }
 .badge-pending { background:#fff0c7; color:#72520a; }
 .badge-approved { background:#dcefdc; color:#205d2b; }
-.date { color:#74746e; font:600 11px/1.4 ui-monospace,monospace; }
+.date { color:#62625d; font:600 11px/1.4 ui-monospace,monospace; }
 .decision-card h3 { margin:0 0 10px; font-size:20px; line-height:1.3; letter-spacing:-.02em; overflow-wrap:anywhere; }
 .context { margin:0; color:#555550; line-height:1.6; white-space:pre-wrap; overflow-wrap:anywhere; }
 .alternatives { display:grid; gap:5px; margin:14px 0 0; color:#555550; line-height:1.6; white-space:pre-wrap; overflow-wrap:anywhere; }
@@ -76,9 +80,13 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .decision-action { display:inline-flex; margin-top:16px; color:#1f70c1; font-size:13px; font-weight:700; }
 .decision-action::after { content:"→"; margin-left:7px; }
 .decision-detail-link:hover .decision-action { text-decoration:underline; }
-.empty-state { padding:58px 20px; color:#696963; text-align:center; }
-.empty-state p { margin:5px 0; }
-.empty-state .empty-title { margin:5px 0; color:#282824; font-size:18px; font-weight:700; }
+.empty-state,.list-state { padding:58px 20px; color:#5f5f59; text-align:center; }
+.empty-state p,.list-state p { margin:7px 0 0; line-height:1.55; }
+.empty-state .empty-title,.list-state h3 { margin:0; color:#282824; font-size:18px; line-height:1.35; }
+.list-state-error { border:1px solid #d5aaa6; border-radius:11px; background:#fbf1f1; color:#713b37; }
+.list-state-error h3 { color:#713b37; }
+.list-state-loading h3::before { content:""; display:inline-block; width:10px; height:10px; margin-right:9px; border:2px solid #7e9fbd; border-top-color:#155f9e; border-radius:50%; animation:shiplog-spin .8s linear infinite; }
+@keyframes shiplog-spin { to { transform:rotate(360deg); } }
 .notice { margin:0 0 16px; border-radius:8px; padding:10px 12px; background:#fff0c7; color:#644a0b; font-size:13px; }
 /* Release list view: an accessible disclosure list. Reuses the badge and date
    tokens from the decision cards so releases and decisions read as one system. */
@@ -97,7 +105,7 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .release-toggle:focus-visible { outline:3px solid var(--focus-ring); outline-offset:-3px; }
 .release-info { display:flex; align-items:baseline; flex-wrap:wrap; gap:6px 14px; flex:1; min-width:0; }
 .release-version { font-size:18px; font-weight:750; letter-spacing:-.02em; overflow-wrap:anywhere; }
-.release-summary { color:#5f5f59; font:600 12px/1.4 ui-monospace,monospace; }
+.release-summary { color:#555550; font:600 12px/1.4 ui-monospace,monospace; }
 .release-chevron { flex:none; width:9px; height:9px; margin-right:2px; border-right:2px solid #8a8a83; border-bottom:2px solid #8a8a83; transform:rotate(45deg); transition:transform .15s ease; }
 .release-toggle[aria-expanded="true"] .release-chevron { transform:rotate(225deg); }
 .release-panel { border-top:1px solid #ebe9e3; padding:16px 20px 20px; }
@@ -107,7 +115,7 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .release-decisions { display:grid; gap:8px; margin:0; padding:0; list-style:none; }
 .release-decision { display:flex; align-items:center; gap:12px; flex-wrap:wrap; padding:9px 11px; border:1px solid #e7e5df; border-radius:9px; background:#fafaf7; }
 .release-decision-title { font-size:14px; font-weight:600; overflow-wrap:anywhere; }
-.release-decision-owner { margin-left:auto; color:#777771; font:600 11px/1.4 ui-monospace,monospace; }
+.release-decision-owner { margin-left:auto; color:#62625d; font:600 11px/1.4 ui-monospace,monospace; }
 .release-decision-missing { background:#fbf1f1; border-color:#efd9d9; }
 .release-decision-missing code { font-size:12px; }
 .badge-missing { background:#f6dede; color:#8a2b2b; }
@@ -345,4 +353,4 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
   .profile-toolbar .filter{flex:1 1 auto;width:100%}
   .detail-stats{gap:14px}
 }
-@media(prefers-reduced-motion:reduce) { html{scroll-behavior:auto}.release-chevron{transition:none}.post-media[data-state="loading"],.profile-media[data-state="loading"],.detail-media[data-state="loading"],.skeleton-media,.skeleton-line{animation:none}.profile-tile{transition:none}.profile-tile:hover{transform:none} }
+@media(prefers-reduced-motion:reduce) { html{scroll-behavior:auto}.release-chevron{transition:none}.list-state-loading h3::before,.post-media[data-state="loading"],.profile-media[data-state="loading"],.detail-media[data-state="loading"],.skeleton-media,.skeleton-line{animation:none}.profile-tile{transition:none}.profile-tile:hover{transform:none} }

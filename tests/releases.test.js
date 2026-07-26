@@ -268,9 +268,15 @@ test("releases page is wired and linked from the decisions page", async () => {
   assert.match(page, /id="release-list"/);
   assert.match(page, /id="release-search"/);
   assert.match(page, /id="release-status"/);
+  assert.match(page, /id="release-list" aria-live="polite" aria-busy="true"/);
+  assert.match(page, /<h3>Loading releases<\/h3>/);
   assert.match(page, /src="\/releases-page\.js"/);
   // No innerHTML anywhere in the interactive layers (no user-generated HTML).
   const component = await read("src/releases.js");
+  assert.match(component, /const heading = el\("h3", "release-heading"\)/);
+  assert.match(component, /labelledValue\("Status", releaseStatus\(release\)/);
+  assert.match(component, /labelledValue\("Owner", decision\.owner/);
+  assert.match(component, /state === "error" \? "alert" : "status"/);
   assert.doesNotMatch(`${component}\n${wiring}`, /innerHTML/);
 });
 
