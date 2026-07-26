@@ -9,7 +9,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { installDocument, tags, walk } from "./support/dom.js";
+import { byClass, installDocument, tags, walk } from "./support/dom.js";
 
 installDocument();
 
@@ -65,8 +65,14 @@ test("hostile fixture text renders as inert text, never as markup or attributes"
 
   // Nothing in a portfolio card is a link, an image, or a handler target, so no
   // fixture value can reach a URL or an event attribute.
+  // Two attributes are set on a card and no more: the disclosure's accessible
+  // name, which carries fixture text, and the decorative mark's aria-hidden.
+  // Keeping the list this short is what makes "no fixture value reaches an
+  // attribute" checkable at a glance.
   for (const node of walk(card, () => true)) {
-    assert.deepEqual(Object.keys(node.attributes), [], node.tagName);
+    const allowed = node.tagName === "SUMMARY" ? ["aria-label"]
+      : node.classes.includes("portfolio-comparison-mark") ? ["aria-hidden"] : [];
+    assert.deepEqual(Object.keys(node.attributes), allowed, node.tagName);
     assert.deepEqual(Object.keys(node.listeners), [], node.tagName);
   }
 });
@@ -114,8 +120,11 @@ test("missing and malformed action values fall back instead of printing undefine
   assert.doesNotMatch(text, /undefined|NaN|\[object Object\]/);
   for (const fallback of [
     "Untitled action", "Owner unassigned", "State unavailable",
-    "Period unavailable", "Provenance unavailable", "Priority --",
+    "Measurement period unavailable", "Provenance unavailable", "Priority --",
   ]) assert.ok(text.includes(fallback), fallback);
+  // A missing target must not be reported as a $0 target, which reads as a
+  // target that was trivially met.
+  assert.match(text, /Target recoverable spend Unavailable/);
 });
 
 test("the bundled fixture renders in full, untruncated, with non-color state cues", () => {
@@ -131,6 +140,126 @@ test("the bundled fixture renders in full, untruncated, with non-color state cue
     seen.add(action.status);
   }
   assert.deepEqual([...seen].sort(), ["completed", "in_progress", "planned", "verified"]);
+});
+
+test("card reading order leads from action to money, status, confidence, and next step", () => {
+  const portfolio = createFinancePortfolio(fixture);
+  const card = renderPortfolioCard(portfolio, portfolio.select()[0]);
+  const article = tags(card, "ARTICLE")[0];
+
+  assert.deepEqual(article.children.map((node) => node.className), [
+    "portfolio-card-heading", "portfolio-money-block", "portfolio-status-line",
+    "portfolio-next", "portfolio-comparison", "portfolio-details",
+  ]);
+  assert.equal(tags(article.children[0], "H3").length, 1);
+  assert.match(article.children[1].textContent, /Savings target/);
+  assert.match(article.children[2].textContent, /Confidence ·/);
+  assert.match(article.children[3].textContent, /Next action:/);
+});
+
+// Every dollar figure on a card covers one 31-day measurement period. Labelling
+// one "annual" would overstate the result by roughly twelve times, so the word
+// is barred from the card and the period is stated next to the figures.
+test("money figures are labelled by period, never annualized, and pair with their labels", () => {
+  const portfolio = createFinancePortfolio(fixture);
+  for (const action of portfolio.select()) {
+    const card = renderPortfolioCard(portfolio, action);
+    assert.doesNotMatch(card.textContent, /annual|per year|\/yr/i, action.actionId);
+    assert.match(byClass(card, "portfolio-period")[0].textContent,
+      /^Measured over \d+ \w+–\d+ \w+ \d{4}\.$/, action.actionId);
+  }
+
+  // Only a verified result may be labelled "verified"; a completed one that has
+  // not been through evidence review says "realized".
+  const labelsFor = (status) => {
+    const action = portfolio.select().find((candidate) => candidate.status === status);
+    const money = tags(renderPortfolioCard(portfolio, action), "DL")[0];
+    assert.equal(money.className, "portfolio-money");
+    assert.equal(tags(money, "DD").length, 2);
+    return tags(money, "DT").map((node) => node.textContent);
+  };
+  assert.deepEqual(labelsFor("verified"), ["Savings target", "Verified savings"]);
+  assert.deepEqual(labelsFor("completed"), ["Savings target", "Realized savings"]);
+
+  // An unmeasured action says so in words; it must never show a $0 result,
+  // which reads as a measured failure rather than an absent measurement.
+  const planned = portfolio.select().find((action) => action.status === "planned");
+  const plannedMoney = tags(renderPortfolioCard(portfolio, planned), "DL")[0];
+  assert.equal(tags(plannedMoney, "DD")[1].textContent, "Not yet measured");
+  assert.equal(byClass(plannedMoney, "money-measure")[1].dataset.value, "none");
+});
+
+test("savings outcome states each pair a mark, a verdict, and the dollar gap", () => {
+  const portfolio = createFinancePortfolio(fixture);
+  const actions = portfolio.select();
+  const outcome = (action) =>
+    byClass(renderPortfolioCard(portfolio, action), "portfolio-comparison")[0];
+
+  const awaiting = outcome(actions.find((action) => action.status === "planned"));
+  assert.equal(awaiting.dataset.outcome, "unavailable");
+  assert.match(awaiting.textContent, /— Savings outcome: Not yet measured\..*No realized savings/);
+
+  const short = outcome(actions.find((action) => portfolio.comparison(action)?.amountUsd > 0));
+  assert.equal(short.dataset.outcome, "short");
+  assert.match(short.textContent,
+    /↓ Savings outcome: Short of target\. \$[\d,]+ \(\d+(\.\d+)?%\) below the \$[\d,]+ savings target\./);
+
+  const met = outcome({ ...actions[0], estimatedImpactUsd: 500, realizedImpact: { value: 500 } });
+  assert.equal(met.dataset.outcome, "met");
+  assert.match(met.textContent, /✓ Savings outcome: Target met\. Matched the \$500 savings target exactly\./);
+
+  const above = outcome({ ...actions[0], estimatedImpactUsd: 500, realizedImpact: { value: 700 } });
+  assert.equal(above.dataset.outcome, "met");
+  assert.match(above.textContent, /Target met\. \$200 \(40%\) above the \$500 savings target\./);
+
+  // A result larger than the recoverable spend it was measured against cannot
+  // be savings, so it is never presented as a target that was beaten.
+  const impossible = outcome({
+    ...actions[0], estimatedImpactUsd: 100,
+    baseline: { value: 8_222 }, realizedImpact: { value: 2_000_000_000 },
+  });
+  assert.equal(impossible.dataset.outcome, "not-usable");
+  assert.match(impossible.textContent,
+    /! Savings outcome: Result not usable\..*larger than the \$8,222 of recoverable spend.*Confirm the units/);
+
+  const unanchored = outcome({
+    ...actions[0], baseline: undefined, realizedImpact: { value: 100 },
+  });
+  assert.equal(unanchored.dataset.outcome, "not-usable");
+  assert.match(unanchored.textContent, /baseline spend for this action is unavailable/);
+});
+
+// The verdict has to survive with colour, the mark, and aria-label all gone —
+// aria-label on a plain element is routinely dropped by assistive technology,
+// so nothing may be said only there.
+test("outcome verdicts read from visible text alone, without color or aria-label", () => {
+  const portfolio = createFinancePortfolio(fixture);
+  for (const action of portfolio.select()) {
+    const comparison = byClass(renderPortfolioCard(portfolio, action), "portfolio-comparison")[0];
+    assert.equal(comparison.getAttribute("aria-label"), null, action.actionId);
+    assert.equal(byClass(comparison, "portfolio-comparison-mark")[0].getAttribute("aria-hidden"),
+      "true", action.actionId);
+    const words = tags(comparison, "STRONG")[0].textContent;
+    assert.match(words, /^Savings outcome: (Not yet measured|Result not usable|Target met|Short of target)\.$/);
+  }
+});
+
+test("evidence disclosure explains where the target came from, without restating the card", () => {
+  const portfolio = createFinancePortfolio(fixture);
+  const card = renderPortfolioCard(portfolio, portfolio.select()[0]);
+  const details = tags(card, "DETAILS")[0];
+  const summary = tags(details, "SUMMARY")[0];
+  assert.equal(summary.textContent, "Review owner, provenance, and evidence");
+  assert.match(summary.getAttribute("aria-label"),
+    /^Review owner, provenance, and evidence for /);
+  // The savings target is the gap between these two figures, so the disclosure
+  // is auditable rather than decorative.
+  assert.match(details.textContent,
+    /Accountable owner.*Baseline recoverable spend \$[\d,]+ over .*Target recoverable spend \$[\d,]+ or less over /);
+  assert.match(details.textContent, /Confidence provenance:/);
+  // Confidence and status are on the face of the card; repeating them here
+  // would be surface, not evidence.
+  assert.doesNotMatch(tags(details, "DL")[0].textContent, /Confidence/);
 });
 
 test("filters rebuild from data, stay keyboard-native, and keep an accessible empty state", () => {
@@ -153,7 +282,8 @@ test("filters rebuild from data, stay keyboard-native, and keep an accessible em
   nodes.state.dispatch("change");
   assert.equal(nodes.count.textContent, "0 actions shown");
   assert.equal(nodes.list.children.length, 1);
-  assert.equal(nodes.list.children[0].className, "portfolio-empty");
+  assert.equal(nodes.list.children[0].className, "portfolio-message");
+  assert.equal(nodes.list.children[0].dataset.state, "empty");
   assert.match(nodes.list.children[0].textContent, /No matching portfolio actions/);
   assert.equal(nodes.projected.textContent, "$0");
 });
@@ -173,6 +303,12 @@ test("a hostile department name reaches the filter control as text only", () => 
 test("an unreadable action plan states that no savings figure is shown", () => {
   assert.throws(() => createFinancePortfolio({ actionPlan: null }), /versioned action plan/);
   const item = renderPortfolioUnavailable(undefined);
+  assert.equal(item.dataset.state, "error");
+  assert.equal(item.getAttribute("role"), "alert");
   assert.match(item.textContent, /Portfolio unavailable/);
   assert.match(item.textContent, /could not be read/);
 });
+
+// The loading row is served in the markup, so it is on screen before this
+// module runs and exists in exactly one place. The assertions live with the
+// other document checks in finance-portfolio.test.js.

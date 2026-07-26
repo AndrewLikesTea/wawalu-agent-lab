@@ -61,12 +61,14 @@ function renderFinancePortfolio(data) {
       verified: document.getElementById("portfolio-verified"),
       count: document.getElementById("portfolio-count"),
     });
+    list.setAttribute("aria-busy", "false");
   } catch (error) {
     // Lifecycle rows are validated one at a time, so reaching here means the
     // action plan itself is unreadable. Say so in the panel instead of leaving
     // the loading copy in place, and keep the reason in the console for review.
     console.error("finance_portfolio_unavailable", { error: error?.message ?? String(error) });
     setText("portfolio-count", "0 actions shown");
+    list.setAttribute("aria-busy", "false");
     list.replaceChildren(renderPortfolioUnavailable(
       "The bundled action lifecycle could not be read, so no savings figure is shown."));
   }

@@ -148,10 +148,21 @@ test("finance leader UI has labelled native filters, resilient states, and non-c
   // re-read every card on every keystroke-driven filter change.
   assert.doesNotMatch(html, /<ol class="portfolio-list"[^>]*aria-live/);
   assert.match(html, /class="portfolio-filters" role="group"/);
+  // The loading row ships in the markup so it is on screen before the module
+  // runs, and it states an absence rather than a placeholder figure.
+  assert.match(html, /aria-busy="true"[\s\S]*?data-state="loading" role="status"/);
+  assert.match(html, /Savings targets and realized results will appear/);
+  assert.doesNotMatch(html.split("portfolio-list")[1].split("</ol>")[0], /\$0|\$—/);
   assert.match(css, /border-left-style:dashed/);
   assert.match(css, /border-left-style:double/);
   assert.match(view, /No matching portfolio actions/);
-  assert.match(view, /Owner, evidence, confidence & savings comparison/);
+  assert.match(view, /Review owner, provenance, and evidence/);
+  assert.match(view, /Savings outcome:/);
+  // Each outcome state needs a shape or a mark of its own; colour alone cannot
+  // be the difference between "target met" and "short of target".
+  for (const state of ["short", "met", "not-usable", "unavailable"])
+    assert.match(css, new RegExp(`\\[data-outcome="${state}"\\]`), state);
+  assert.match(view, /OUTCOME_MARKS/);
   for (const source of [page, view])
     assert.doesNotMatch(source, /innerHTML|outerHTML|insertAdjacentHTML|document\.write/);
 });

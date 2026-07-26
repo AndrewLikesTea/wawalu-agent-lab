@@ -52,28 +52,45 @@
 .portfolio-filters .filter { display:grid; gap:6px; }
 .portfolio-filters label { color:var(--ink-muted); font:700 10px/1.4 ui-monospace,monospace; text-transform:uppercase; }
 .portfolio-filters select { min-height:42px; border:1px solid #aaa79d; border-radius:8px; padding:8px 34px 8px 10px; background:#fff; color:#24241f; font:650 13px/1.3 inherit; }
-.portfolio-filters select:focus-visible,.portfolio-details summary:focus-visible { outline:3px solid #7aa7d1; outline-offset:3px; }
+.portfolio-filters select:focus-visible,.portfolio-details summary:focus-visible { outline:3px solid #2a78d6; outline-offset:3px; }
 .portfolio-summary { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin:26px 0 10px; }
 .portfolio-summary div { display:grid; gap:6px; border:1px solid #d8d6cf; border-radius:11px; padding:15px; background:#fff; }
 .portfolio-summary div::before { content:""; width:30px; border-top:4px solid #54544e; }
 .portfolio-summary [data-kind="completed"]::before { border-top-style:dashed; }
 .portfolio-summary [data-kind="verified"]::before { border-top-style:double; border-top-width:6px; }
-.portfolio-summary span,.money-measure span { color:var(--ink-muted); font:700 9px/1.4 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; }
+.portfolio-summary span { color:var(--ink-muted); font:700 9px/1.4 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; }
 .portfolio-summary strong { font-size:25px; }
 .portfolio-count { margin:0 0 12px; color:var(--ink-muted); font:650 11px/1.4 ui-monospace,monospace; }
 .portfolio-list { display:grid; gap:12px; margin:0; padding:0; list-style:none; }
-.portfolio-card { display:grid; grid-template-columns:minmax(0,1.25fr) minmax(260px,.75fr); gap:16px 24px; border:1px solid #d5d3cb; border-left:5px solid #565650; border-radius:12px; padding:18px; background:#fff; }
+.portfolio-card { border:1px solid #d5d3cb; border-left:5px solid #565650; border-radius:12px; padding:18px; background:#fff; }
 .portfolio-card[data-state="in_progress"] { border-left-style:dashed; }
 .portfolio-card[data-state="completed"] { border-left-style:double; border-left-width:7px; }
 .portfolio-card[data-state="verified"] { border-left:8px double #315f50; }
-.portfolio-card-heading { display:grid; grid-template-columns:1fr auto; align-items:start; gap:5px 16px; }
-.portfolio-card-heading h3 { grid-column:1/-1; margin:0; font-size:18px; line-height:1.35; }
+.portfolio-card-content { display:grid; grid-template-columns:minmax(0,1.25fr) minmax(260px,.75fr); gap:14px 24px; }
+.portfolio-card-heading { display:grid; align-content:start; gap:5px; }
+.portfolio-card-heading h3 { margin:0; font-size:18px; line-height:1.35; }
 .portfolio-rank { margin:0; color:var(--ink-muted); font:700 10px/1.4 ui-monospace,monospace; text-transform:uppercase; }
-.portfolio-state { border:1px solid #c9c7bf; border-radius:99px; padding:5px 8px; font:700 9px/1.3 ui-monospace,monospace; text-transform:uppercase; }
-.portfolio-money { display:grid; grid-template-columns:repeat(2,1fr); gap:1px; border:1px solid #dedcd4; border-radius:8px; overflow:hidden; background:#dedcd4; }
+.portfolio-state,.portfolio-confidence { border-radius:5px; padding:5px 8px; font:700 9px/1.3 ui-monospace,monospace; text-transform:uppercase; }
+.portfolio-state { background:#eceae3; }
+.portfolio-confidence { color:var(--ink-muted); background:#f4f3ef; }
+.portfolio-money-block { display:grid; align-content:start; gap:7px; }
+.portfolio-money { display:grid; grid-template-columns:repeat(2,1fr); gap:1px; margin:0; border:1px solid #dedcd4; border-radius:8px; overflow:hidden; background:#dedcd4; }
 .money-measure { display:grid; align-content:center; gap:6px; padding:12px; background:#faf9f5; }
-.money-measure strong { font-size:17px; }
+.money-measure dt { color:var(--ink-muted); font:700 10px/1.4 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; }
+.money-measure dd { margin:0; font-size:25px; font-weight:700; line-height:1.2; overflow-wrap:anywhere; }
+/* An absent figure is set as words, never at the weight of a measured number. */
+.money-measure[data-value="none"] dd { color:var(--ink-muted); font-size:14px; font-weight:650; }
+.portfolio-period { margin:0; color:var(--ink-muted); font:600 11px/1.5 ui-monospace,monospace; }
+.portfolio-status-line { display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
 .portfolio-next { grid-column:1/-1; margin:0; border-radius:8px; padding:11px 13px; background:#f0f5f2; font-size:13px; line-height:1.5; }
+/* Outcome states are told apart by the mark and the wording; colour only ever
+   agrees with what the text already says. */
+.portfolio-comparison { grid-column:1/-1; display:grid; grid-template-columns:22px auto 1fr; gap:7px; align-items:baseline; margin:0; border:1px solid #d8d6cf; border-radius:8px; padding:10px 12px; font-size:12px; line-height:1.5; }
+.portfolio-comparison-mark { display:grid; place-items:center; width:18px; height:18px; border:1px solid currentColor; border-radius:50%; font:750 11px/1 ui-monospace,monospace; }
+.portfolio-comparison[data-outcome="short"] { border-color:#e6c3c2; background:#fdf5f4; color:#7e302e; }
+.portfolio-comparison[data-outcome="met"] { border-color:#b9cec4; background:#f0f5f2; color:#245643; }
+.portfolio-comparison[data-outcome="not-usable"] { border-style:dashed; background:#fbf5e8; color:#6d5510; }
+.portfolio-comparison[data-outcome="unavailable"] { color:var(--ink-muted); }
 .portfolio-details { grid-column:1/-1; border-top:1px solid #e2e0d9; padding-top:12px; }
 .portfolio-details summary { width:fit-content; cursor:pointer; font-size:12px; font-weight:750; }
 .portfolio-details-body { margin-top:14px; }
@@ -83,9 +100,13 @@
 .portfolio-details h4 { margin:18px 0 8px; font-size:12px; }
 .portfolio-evidence { margin:0; padding-left:20px; font-size:12px; line-height:1.55; }
 .portfolio-provenance { color:var(--ink-muted); font:600 10px/1.5 ui-monospace,monospace; }
-.portfolio-empty { border:1px dashed #aaa79d; border-radius:10px; padding:28px; color:var(--ink-muted); text-align:center; }
-.portfolio-empty h3,.portfolio-empty p { margin:0; }
-.portfolio-empty p { margin-top:7px; font-size:13px; }
+.portfolio-message { border:1px dashed #aaa79d; border-radius:10px; padding:28px; color:var(--ink-muted); text-align:center; }
+.portfolio-message[data-state="error"] { border-color:#d9aaa8; color:#7e302e; }
+.portfolio-message[data-state="loading"] { background:linear-gradient(100deg,#f5f4ef 30%,#fff 50%,#f5f4ef 70%); background-size:200% 100%; animation:portfolio-loading 1.8s linear infinite; }
+.portfolio-message h3,.portfolio-message p { margin:0; }
+.portfolio-message p { margin-top:7px; font-size:13px; }
+@keyframes portfolio-loading { to { background-position:-200% 0; } }
+@media(prefers-reduced-motion:reduce) { .portfolio-message[data-state="loading"] { animation:none; } }
 .decision-provenance,.method-note { color:var(--ink-muted); font:600 11px/1.55 ui-monospace,monospace; }
 .decision-provenance { margin:0 0 22px; }
 .decision-layout { display:grid; grid-template-columns:minmax(230px,.72fr) minmax(0,1.65fr); gap:24px; align-items:start; }
@@ -212,7 +233,7 @@
   .decision-layout { grid-template-columns:1fr; }
   .redaction-pair { grid-template-columns:1fr; }
   .portfolio-intro { align-items:stretch; flex-direction:column; }
-  .portfolio-card { grid-template-columns:1fr; }
+  .portfolio-card-content { grid-template-columns:1fr; }
   .portfolio-facts { grid-template-columns:repeat(2,1fr); }
 }
 @media(max-width:640px) {
@@ -232,4 +253,6 @@
   .portfolio-filters { display:grid; }
   .portfolio-summary { grid-template-columns:1fr; }
   .portfolio-money,.portfolio-facts { grid-template-columns:1fr; }
+  .portfolio-comparison { grid-template-columns:22px 1fr; }
+  .portfolio-comparison>span:last-child { grid-column:2; }
 }
