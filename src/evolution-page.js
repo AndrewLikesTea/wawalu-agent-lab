@@ -12,6 +12,10 @@ import {
   letterGrade, literacyScore, quartileLabel, rankDepartments, recommendationFor,
   recoverableSpendUsd, redactForScoring, summarize, valuePerThousandUsd,
 } from "/evolution.js";
+import {
+  formatIntegrationProvenance,
+  loadIntegrationFixtureInspection,
+} from "/integration-contracts.js";
 
 const DATA_URL = "/evolution-demo-data.json";
 const CATEGORY_VARS = {
@@ -216,6 +220,15 @@ async function loadData() {
 
 async function init() {
   if (!document.getElementById("department-rows")) return;
+  loadIntegrationFixtureInspection()
+    .then((inspection) => {
+      setText("integration-contract-provenance", formatIntegrationProvenance(inspection));
+    })
+    .catch(() => {
+      setText("integration-contract-provenance",
+        "Contract fixtures unavailable · demo remains isolated from credentials and live enterprise calls");
+    });
+
   let data;
   try {
     data = await loadData();

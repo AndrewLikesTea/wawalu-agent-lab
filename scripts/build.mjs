@@ -12,6 +12,15 @@ let previousExists = false;
 try {
   await mkdir(staging, { recursive: true });
   await cp(resolve(root, "src"), staging, { recursive: true });
+  // Ship the reviewed, synthetic integration fixtures that the demo inspects.
+  // Schemas, invalid cases, docs, and every live connection remain source-only.
+  for (const integration of ["hris-org", "provider-usage-billing"]) {
+    await cp(
+      resolve(root, "contracts", "integrations", integration, "v1", "fixtures", "valid.json"),
+      resolve(staging, "contracts", "integrations", integration, "v1", "fixtures", "valid.json"),
+      { recursive: true },
+    );
+  }
   await createManifest(staging);
   await verifyArtifact(staging);
 

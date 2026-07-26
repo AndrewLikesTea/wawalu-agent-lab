@@ -1,6 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import {
+  INTEGRATION_FIXTURE_URLS,
+  formatIntegrationProvenance,
+  inspectIntegrationFixtures,
+  loadIntegrationFixtureInspection,
+} from "../src/integration-contracts.js";
 
 const ROOT = new URL("../contracts/integrations/", import.meta.url);
 const INTEGRATIONS = [
@@ -70,4 +76,51 @@ test("reordered fixtures make record revision, not arrival, authoritative", asyn
     const deliveries = await json(new URL(`${directory}/v1/fixtures/reordered.json`, ROOT));
     assert.ok(deliveries[0].records[0].revision > deliveries[1].records[0].revision);
   }
+});
+
+test("the demo consumes the reviewed HRIS-department and provider fixtures", async () => {
+  const hris = await json(new URL("hris-org/v1/fixtures/valid.json", ROOT));
+  const provider = await json(new URL("provider-usage-billing/v1/fixtures/valid.json", ROOT));
+  const inspection = inspectIntegrationFixtures(hris, provider);
+
+  assert.equal(inspection.version, "1.0");
+  assert.equal(inspection.departmentCount, 1);
+  assert.equal(inspection.aggregateCount, 1);
+  assert.deepEqual(inspection.providers, ["openai"]);
+  assert.equal(inspection.minimumGroupSize, 10);
+  assert.match(formatIntegrationProvenance(inspection),
+    /Contracts v1\.0 · synthetic static fixtures · 1 HRIS department · 1 daily provider aggregate \(openai\)/);
+  assert.match(formatIntegrationProvenance(inspection), /no credentials or live calls/);
+});
+
+test("fixture loading is same-origin, static, and rejects malformed contract input", async () => {
+  const requested = [];
+  const fixtures = new Map([
+    [INTEGRATION_FIXTURE_URLS.hris, await json(new URL("hris-org/v1/fixtures/valid.json", ROOT))],
+    [INTEGRATION_FIXTURE_URLS.provider,
+      await json(new URL("provider-usage-billing/v1/fixtures/valid.json", ROOT))],
+  ]);
+  const inspection = await loadIntegrationFixtureInspection(async (url, options) => {
+    requested.push([url, options]);
+    return { ok: true, json: async () => structuredClone(fixtures.get(url)) };
+  });
+
+  assert.equal(inspection.departmentCount, 1);
+  assert.deepEqual(requested.map(([url]) => url), Object.values(INTEGRATION_FIXTURE_URLS));
+  assert.ok(requested.every(([url]) => url.startsWith("/contracts/integrations/")));
+  assert.ok(requested.every(([, options]) => options.cache === "no-store"));
+
+  const malformed = await json(new URL("hris-org/v1/fixtures/malformed.json", ROOT));
+  assert.throws(() => inspectIntegrationFixtures(malformed, fixtures.get(INTEGRATION_FIXTURE_URLS.provider)),
+    /Unsupported or malformed/);
+});
+
+test("the AI FinOps inspection surface exposes contract provenance", async () => {
+  const [page, pageScript] = await Promise.all([
+    readFile(new URL("../src/evolution.html", import.meta.url), "utf8"),
+    readFile(new URL("../src/evolution-page.js", import.meta.url), "utf8"),
+  ]);
+  assert.match(page, /id="integration-contract-provenance"/);
+  assert.match(pageScript, /loadIntegrationFixtureInspection/);
+  assert.match(pageScript, /Contract fixtures unavailable/);
 });
