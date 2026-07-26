@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import {
-  benchmarkComparison, departmentPerformance, departmentTrend,
+  actionPlanFor, benchmarkComparison, departmentPerformance, departmentTrend,
   evidenceForDepartment, rankDepartmentsForHelp,
 } from "../src/evolution.js";
 
@@ -53,6 +53,38 @@ test("department drill-down never leaks another department's evidence", () => {
   assert.deepEqual(evidenceForDepartment(evidence), []);
 });
 
+test("a department exposes one truthful action result and only completed simulations realize savings", () => {
+  const planned = actionPlanFor(department({
+    actionPlan: {
+      status: "planned", title: "Down-route simple work", baselineUsd: 4000,
+      targetUsd: 1500, estimatedSavingsUsd: 2500, realizedSavingsUsd: 2000,
+    },
+  }));
+  assert.equal(planned.statusLabel, "Planned");
+  assert.equal(planned.estimatedSavingsUsd, 2500);
+  assert.equal(planned.realizedSavingsUsd, null);
+
+  const completed = actionPlanFor(department({
+    actionPlan: {
+      status: "completed", title: "Down-route simple work", baselineUsd: 4000,
+      targetUsd: 1500, estimatedSavingsUsd: 2500, realizedSavingsUsd: 2200,
+    },
+  }));
+  assert.equal(completed.statusLabel, "Simulation completed");
+  assert.equal(completed.realizedSavingsUsd, 2200);
+});
+
+test("a missing or unavailable action never implies a result", () => {
+  assert.deepEqual(actionPlanFor(department()), {
+    available: false, status: "unavailable", statusLabel: "Result unavailable",
+    reason: "No reviewed intervention is included in this static fixture.",
+    realizedSavingsUsd: null,
+  });
+  assert.match(actionPlanFor(department({
+    actionPlan: { status: "unavailable", unavailableReason: "Sample omitted." },
+  })).reason, /omitted/);
+});
+
 test("unavailable sampling is not converted into poor performance or a benchmark claim", () => {
   const unavailable = department({
     id: "missing", mix: {}, sampling: {
@@ -77,13 +109,21 @@ test("the bundled decision surface explains empty evidence and unavailable sampl
   ]);
   const fixture = JSON.parse(fixtureText);
   assert.match(page, /Which department needs help\?/);
+  assert.match(page, /Priority 01 · recommended intervention/);
+  assert.match(page, /<details class="evidence-disclosure">/);
+  assert.match(page, /Reading the bundled demo result\. No live analysis is running\./);
   assert.ok(page.indexOf("Which department needs help?")
     < page.indexOf("Is cost/performance worsening?"));
   assert.ok(page.indexOf("Is cost/performance worsening?")
     < page.indexOf("How does it compare with the benchmark?"));
   assert.match(script, /No scored evidence was retained/);
   assert.match(script, /No evidence conclusion/);
+  assert.match(script, /Not yet simulated/);
   assert.ok(fixture.departments.some((item) => item.sampling.status === "unavailable"));
+  assert.ok(fixture.departments.some((item) =>
+    item.actionPlan.status === "completed"
+    && Number.isFinite(item.actionPlan.realizedSavingsUsd)));
+  assert.ok(fixture.departments.some((item) => item.actionPlan.status === "unavailable"));
   assert.ok(fixture.departments.some((item) =>
     item.sampling.status === "available"
     && evidenceForDepartment(fixture.evidence, item.id).length === 0));
