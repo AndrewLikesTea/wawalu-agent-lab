@@ -4,6 +4,10 @@
 // accepts parsed JSON values, keeps only fields declared by Anya's compatibility
 // manifest, and returns a short-lived projection for the page and downloads.
 
+import {
+  ATTRIBUTION_SOURCES, ATTRIBUTION_VERSION, attributionUnit, BLANK_GROUP_PSEUDONYM, buildSpendMix,
+  coverageOf, coverageThreshold, isUnattributed, UNATTRIBUTED_KEY, UNATTRIBUTED_UNIT,
+} from "./attribution-units.js";
 import { analyzeModelRouting, evaluateDownRoutingCandidate } from "./down-routing-candidates.js";
 import { RUBRIC_VERSION_ID } from "./prompt-literacy-scoring.js";
 import { analyzeQueryLiteracy, missingInputNotice, NOT_GRADEABLE_COPY } from "./query-literacy.js";
@@ -313,6 +317,23 @@ function money(minor) {
   return Math.round(minor) / 100;
 }
 
+const blankGroup = (value) => value === undefined || value === null
+  || String(value).trim() === "" || String(value).trim() === BLANK_GROUP_PSEUDONYM;
+
+/**
+ * The attribution unit a provider record belongs to. A blank, empty, or
+ * whitespace-only `org_unit_id` is the one case that lands in the reserved
+ * bucket; everything else keeps its own identity, including a value that
+ * happens to spell "unattributed" — see the collision note in
+ * `attribution-units.js`.
+ */
+function unitFor(orgUnitId, departments) {
+  if (blankGroup(orgUnitId)) return UNATTRIBUTED_UNIT;
+  const id = String(orgUnitId).trim();
+  return attributionUnit(ATTRIBUTION_SOURCES.providerGroup, id,
+    departments.has(id) ? `Department …${id.slice(-6)}` : `Active unit …${id.slice(-6)}`);
+}
+
 function periodMetadata(provider) {
   const document = provider.document ?? provider;
   const start = Date.parse(`${document.snapshot.period_start}T00:00:00Z`);
@@ -333,21 +354,102 @@ function periodMetadata(provider) {
   };
 }
 
-export function normalizeLocalFinops({ provider, hris }) {
-  if (!provider || !hris) fail("incomplete_pair", "Add one provider export and one HRIS mapping.");
+/**
+ * Coverage for the three published figures, each computed from its own rows.
+ *
+ * The per-model finding and the ranked list are *findings*, so Noor's tiers
+ * decide whether each is shown, degraded, or suppressed — and the reason rides
+ * along either way, because a surface that knows only "no ranking" has to paint
+ * an empty list, while one that knows "suppressed, 12% attributed, under the
+ * 25% floor" can say so.
+ */
+function attributionFor({ aggregates, modelUsageRows, ranked, unitFor: unitOf, recoverableUsd }) {
+  const spendMix = buildSpendMix(aggregates, {
+    groupOf: (record) => record.org_unit_id,
+    spendOf: (record) => money(record.cost.amount_minor),
+    labelOf: (value) => unitOf(value).label,
+  });
+  const modelMix = buildSpendMix(modelUsageRows, {
+    groupOf: (row) => row.orgUnitId,
+    spendOf: (row) => money(Number(row.spendMinor ?? row.amountMinor ?? 0)),
+    labelOf: (value) => unitOf(value).label,
+  });
+  // The ranked list's own entries, not a re-derivation: coverage has to describe
+  // the figure a reader is looking at, so it is summed from the same rows the
+  // ranking published.
+  const rankedEntries = ranked.map((item) => ({ unit: item.unit, spendUsd: item.spendUsd }));
+  const rankedCoverage = coverageOf(rankedEntries);
+  const modelCoverage = modelMix.coverage;
+  return Object.freeze({
+    version: ATTRIBUTION_VERSION,
+    spendMix: Object.freeze({
+      units: Object.freeze(spendMix.units.map((entry) => Object.freeze({
+        unit: entry.unit, spendUsd: entry.spendUsd, records: entry.records,
+      }))),
+      coverage: spendMix.coverage,
+      totalSpendUsd: spendMix.totalSpendUsd,
+    }),
+    modelOverspend: Object.freeze({
+      coverage: modelCoverage,
+      totalSpendUsd: modelMix.totalSpendUsd,
+      threshold: coverageThreshold(modelCoverage),
+    }),
+    rankedRecoverable: Object.freeze({
+      coverage: rankedCoverage,
+      totalSpendUsd: Math.round(
+        (rankedCoverage.attributedSpend + rankedCoverage.unattributedSpend) * 100,
+      ) / 100,
+      recoverableUsd,
+      threshold: coverageThreshold(rankedCoverage),
+      unattributedRecoverableUsd: ranked
+        .filter((item) => isUnattributed(item.unit))
+        .reduce((sum, item) => sum + item.recoverableUsd, 0),
+    }),
+  });
+}
+
+/**
+ * @typedef {object} LocalFinopsInput
+ * @property {object} provider the parsed provider export. Required: it is the
+ *   file that carries the spend, and there is no analysis without it.
+ * @property {object} [hris] the optional HRIS/org mapping. Declared optional
+ *   here rather than defaulted to an empty object, because an empty mapping and
+ *   a missing one produce different, and differently trustworthy, answers: with
+ *   a mapping, spend outside it is quarantined; without one, the provider's own
+ *   grouping column is the attribution key and nothing is quarantined for the
+ *   lack of a file the reader never had.
+ */
+
+/**
+ * Normalize one provider period, with or without an org file.
+ *
+ * @param {LocalFinopsInput} input
+ */
+export function normalizeLocalFinops({ provider, hris = null }) {
+  // The two-file precondition is gone. A provider export alone is a complete
+  // run: it carries spend and it carries the grouping value the provider bills
+  // by. Only the file that carries the money is required.
+  if (!provider) fail("missing_provider", "Add one provider export.");
   const providerDoc = provider.document ?? provider;
-  const hrisDoc = hris.document ?? hris;
-  if (providerDoc.kind !== LOCAL_KINDS.provider || hrisDoc.kind !== LOCAL_KINDS.hris) {
-    fail("wrong_pair", "The import needs one provider export and one HRIS mapping.");
+  const hrisDoc = hris ? (hris.document ?? hris) : null;
+  if (providerDoc.kind !== LOCAL_KINDS.provider
+    || (hrisDoc && hrisDoc.kind !== LOCAL_KINDS.hris)) {
+    fail("wrong_pair", "The import needs one provider export, and an org mapping if supplied.");
   }
-  const hrisReconciliation = reconcileRecords(hrisDoc.records, "unit_id", hrisDoc.export_id);
+  const hrisReconciliation = hrisDoc
+    ? reconcileRecords(hrisDoc.records, "unit_id", hrisDoc.export_id)
+    : { records: [], quarantine: [] };
   const providerReconciliation = reconcileRecords(
     providerDoc.records, "aggregate_id", providerDoc.export_id,
   );
   const units = hrisReconciliation.records;
-  const active = new Map(units
-    .filter((unit) => unit.operation === "upsert" && unit.active)
-    .map((unit) => [unit.unit_id, unit]));
+  // `null` rather than an empty Map: "no org file" is not "an org file that
+  // matches nothing", and the branch below has to be able to tell them apart.
+  const active = hrisDoc
+    ? new Map(units
+      .filter((unit) => unit.operation === "upsert" && unit.active)
+      .map((unit) => [unit.unit_id, unit]))
+    : null;
   const departments = new Set(units
     .filter((unit) => unit.operation === "upsert" && unit.active && unit.unit_type === "department")
     .map((unit) => unit.unit_id));
@@ -360,12 +462,18 @@ export function normalizeLocalFinops({ provider, hris }) {
   let quarantinedRecords = 0;
   const grouped = new Map();
   for (const record of aggregates) {
-    if (!active.has(record.org_unit_id)) {
+    // With an org file the join is unchanged: a row outside the roster is
+    // quarantined, exactly as before. Without one there is nothing to be
+    // outside of, so every row is kept and a blank grouping value lands in the
+    // one reserved unit instead of being dropped on the floor.
+    if (active && !active.has(record.org_unit_id)) {
       quarantinedRecords += 1;
       continue;
     }
-    const current = grouped.get(record.org_unit_id) ?? {
-      id: record.org_unit_id, spendUsd: 0, records: 0, estimatedCosts: 0, contractRecords: [],
+    const unit = unitFor(record.org_unit_id, departments);
+    const current = grouped.get(unit.key) ?? {
+      id: isUnattributed(unit) ? UNATTRIBUTED_KEY : record.org_unit_id,
+      unit, spendUsd: 0, records: 0, estimatedCosts: 0, contractRecords: [],
     };
     const spendUsd = money(record.cost.amount_minor);
     current.spendUsd += spendUsd;
@@ -375,7 +483,7 @@ export function normalizeLocalFinops({ provider, hris }) {
     // whole record set — price per token, call shape, and volume together — so
     // it is computed once per unit below, by the rule the fixtures pin.
     current.contractRecords.push(record);
-    grouped.set(record.org_unit_id, current);
+    grouped.set(unit.key, current);
   }
   if (quarantinedRecords) {
     warnings.push(`${quarantinedRecords} provider record${quarantinedRecords === 1 ? "" : "s"} quarantined because no active HRIS unit matched.`);
@@ -385,10 +493,11 @@ export function normalizeLocalFinops({ provider, hris }) {
       quarantine.length === 1 ? " was" : "s were"
     } quarantined; review validation details.`);
   }
-  if (providerDoc.snapshot.completeness !== "complete" || hrisDoc.snapshot.completeness !== "complete") {
+  if (providerDoc.snapshot.completeness !== "complete"
+    || (hrisDoc && hrisDoc.snapshot.completeness !== "complete")) {
     warnings.push("At least one export is partial; totals are directional and omitted records were not inferred.");
   }
-  if (providerDoc.snapshot.issues.length || hrisDoc.snapshot.issues.length) {
+  if (providerDoc.snapshot.issues.length || hrisDoc?.snapshot.issues.length) {
     warnings.push("A source declared data-quality issues; review the source export before acting.");
   }
   const ranked = [...grouped.values()]
@@ -398,8 +507,7 @@ export function normalizeLocalFinops({ provider, hris }) {
       });
       return {
         ...item,
-        name: departments.has(item.id)
-          ? `Department …${item.id.slice(-6)}` : `Active unit …${item.id.slice(-6)}`,
+        name: item.unit.label,
         spendUsd: Math.round(item.spendUsd * 100) / 100,
         recoverableUsd: downRouting.recoverableUsd,
         downRouting,
@@ -413,22 +521,40 @@ export function normalizeLocalFinops({ provider, hris }) {
   ) / 100;
   const estimatedCosts = ranked.reduce((sum, item) => sum + item.estimatedCosts, 0);
   if (estimatedCosts) warnings.push(`${estimatedCosts} cost record${estimatedCosts === 1 ? " is" : "s are"} estimated, not final.`);
-  if (!ranked.length) warnings.push("No provider records joined to an active HRIS unit.");
+  if (!ranked.length) {
+    warnings.push(active
+      ? "No provider records joined to an active HRIS unit."
+      : "The provider export carries no records to attribute.");
+  }
+  const joins = (id) => !active || active.has(id);
   // Per-model exposure, over the rows that carry a model identifier. This is a
   // separate published figure from the blended `recoverableUsd` above, and it
   // separates "nothing to recover" from "we could not look": a unit with no
   // model dimension in its export is not scored zero into the ranking, it goes
   // to `insufficientData` with a reason code.
+  const modelUsageRows = (provider.modelUsage ?? []).filter((row) => joins(row.orgUnitId));
   const modelRouting = analyzeModelRouting({
-    modelUsage: (provider.modelUsage ?? []).filter((row) => active.has(row.orgUnitId)),
+    modelUsage: modelUsageRows,
     unitIds: ranked.map((item) => item.id),
+  });
+  // Coverage, three times, each from the rows of the figure it describes. There
+  // is deliberately no global figure pasted onto three headlines: the mix, the
+  // per-model finding, and the ranked list see different row sets, and a
+  // reader comparing two of them is entitled to see that.
+  const attribution = attributionFor({
+    // The mix describes the rows this run analysed. A row an org file
+    // quarantined is not unattributed — it was attributed to a unit the roster
+    // rejected — and it keeps the reporting it already had on
+    // `quality.quarantinedRecords` rather than being laundered into coverage.
+    aggregates: aggregates.filter((record) => joins(record.org_unit_id)),
+    modelUsageRows, ranked, unitFor: (id) => unitFor(id, departments), recoverableUsd,
   });
   // Prompt-literacy grades for the reader's own departments. The sample arrives
   // already classified — `query-sample.js` discards every excerpt inside the
   // tab — so what is joined here is a category, a model, and a department id.
   const literacy = analyzeQueryLiteracy({
     sample: provider.querySample ?? null,
-    providerRecords: aggregates.filter((record) => active.has(record.org_unit_id)),
+    providerRecords: aggregates.filter((record) => joins(record.org_unit_id)),
     departments: ranked.map((item) => ({
       id: item.id, name: item.name, spendUsd: item.spendUsd,
     })),
@@ -444,9 +570,12 @@ export function normalizeLocalFinops({ provider, hris }) {
     rankedDepartments: ranked,
     topDepartment: top,
     modelRouting,
+    attribution,
     literacy,
     confidence,
-    provenance: `Browser-local projection of provider export ${providerDoc.export_id} and HRIS export ${hrisDoc.export_id}.`,
+    provenance: hrisDoc
+      ? `Browser-local projection of provider export ${providerDoc.export_id} and HRIS export ${hrisDoc.export_id}.`
+      : `Browser-local projection of provider export ${providerDoc.export_id}, grouped by the export's own attribution key. No org file was supplied.`,
     action: top && top.recoverableUsd > 0
       ? `Pilot lower-cost routing for text-generation in ${top.name}; cap the pilot at ${money(top.recoverableUsd * 100).toFixed(2)} USD and verify against a like-for-like period.`
       : "Resolve data-quality gaps before selecting a cost action.",
@@ -456,7 +585,9 @@ export function normalizeLocalFinops({ provider, hris }) {
       + "priced above the premium-tier floor is repriced at the standard-tier reference rate. "
       + "The per-unit worked example shows the arithmetic; see DOWN_ROUTING_ASSUMPTIONS for every "
       + "threshold and the fact that neither reference price has a published source.",
-      "Unit names are not present in the privacy-safe HRIS contract, so shortened opaque labels are shown.",
+      hrisDoc
+        ? "Unit names are not present in the privacy-safe HRIS contract, so shortened opaque labels are shown."
+        : "No org file was supplied, so units are the provider export's own attribution key and spend with no key is reported as one unattributed unit rather than dropped.",
     ],
     warnings,
     limits: [
@@ -475,7 +606,10 @@ export function normalizeLocalFinops({ provider, hris }) {
     ] : ["No joined aggregate supports a recommendation."],
     quality: {
       providerCompleteness: providerDoc.snapshot.completeness,
-      hrisCompleteness: hrisDoc.snapshot.completeness,
+      // Null, not "complete": no org file was read, so nothing about one is
+      // being asserted. A default of "complete" would be a claim about a file
+      // that does not exist.
+      hrisCompleteness: hrisDoc ? hrisDoc.snapshot.completeness : null,
       joinedRecords: ranked.reduce((sum, item) => sum + item.records, 0),
       quarantinedRecords: quarantinedRecords + quarantine.length,
       quarantine: Object.freeze(quarantine),
@@ -576,10 +710,11 @@ function deterministicSourceGroup(entries) {
  * are comparable despite differing day counts; non-monthly periods must be
  * contiguous and equal length. Quarantined inputs never affect totals.
  */
-export function normalizeLocalFinopsHistory({ providers = [], hris }) {
+export function normalizeLocalFinopsHistory({ providers = [], hris = null }) {
   const list = Array.isArray(providers) ? providers : [providers];
-  if (!hris || list.length === 0)
-    fail("incomplete_pair", "Add at least one provider export and one HRIS mapping.");
+  // Same removal as the single-period path: only the file carrying the spend is
+  // required, and `hris` is an optional enrichment input on the way through.
+  if (list.length === 0) fail("missing_provider", "Add at least one provider export.");
 
   const candidates = list.map(periodMetadata).sort((left, right) =>
     left.start - right.start || left.end - right.end
@@ -793,7 +928,7 @@ export function normalizeLocalFinopsHistory({ providers = [], hris }) {
         processing: "browser_local_ephemeral",
         providerSourceInstanceId: acceptedSource,
         acceptedProviderExportIds: Object.freeze(periods.map((entry) => entry.exportId)),
-        hrisExportId: hris.document?.export_id ?? hris.export_id,
+        hrisExportId: hris ? (hris.document?.export_id ?? hris.export_id) : null,
         reconciliationVersion: "local-finops-history/1.0.0",
       }),
       confidence: Object.freeze({
