@@ -25,7 +25,8 @@ from zoneinfo import ZoneInfo
 from runner.delivery import enable_auto_merge
 from runner.github_app import (current_token, installation_token, refresh_token,
                                reviewer_token)
-from runner.layers import (CAPACITY_EXIT_CODES, WORKERS, ConsultantCapacityExhausted,
+from runner.layers import (CAPACITY_EXIT_CODES, PROVIDER_OVERLOAD_EXIT_CODE, WORKERS,
+                           ConsultantCapacityExhausted,
                            consult_next_steps, propose_directive_plan, propose_task,
                            review_pull_request, snapshot_live_site, stakeholder_review)
 from runner.orchestrator import (BUDGET, DIFF_BUDGET_EXIT_CODE, PRODUCT_ROOT, REPOSITORY,
@@ -1476,6 +1477,22 @@ def record_run_outcome(exit_code: int, issue: dict[str, Any], number: int, perso
                                seconds=int(config.get("retry_cooldown_seconds", 60)))).isoformat()})
         journal.emit("run_diff_budget_deferred", issue=number, persona=persona,
                      approved_diffs_today=BUDGET.count(), limit=BUDGET.limit)
+        tell("label", lambda: replace_state_label(token, issue, config["issue_label"], None, keep_ready=True))
+    elif exit_code == PROVIDER_OVERLOAD_EXIT_CODE:
+        # The provider's own servers fell over mid-run. Like the diff rail, this says
+        # nothing about the work, so it must not consume an implementation attempt: with
+        # one provider dark, an overload wave would otherwise walk every issue it touched
+        # to agent-blocked within max_attempts runs. No worker cooldown either — the
+        # outage is transient and switching providers does not help, so retry plainly.
+        with state.mutate():
+            record = state.value["issues"].setdefault(str(number), {})
+            record.update({"status": "retry", "attempts": max(int(record.get("attempts", 1)) - 1, 0),
+                           "retry_at": (utc_now() + dt.timedelta(
+                               seconds=int(config.get("retry_cooldown_seconds", 60)))).isoformat()})
+        journal.emit("run_provider_overload_deferred", issue=number, persona=persona)
+        tell("comment", lambda: comment(token, number, "provider overloaded",
+             "The provider returned a server-side overload error. This did not consume an "
+             "implementation attempt; Sam will retry after the cooldown."))
         tell("label", lambda: replace_state_label(token, issue, config["issue_label"], None, keep_ready=True))
     elif exit_code in CAPACITY_WORKERS:
         exhausted = CAPACITY_WORKERS[exit_code]
