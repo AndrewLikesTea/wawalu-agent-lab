@@ -26,7 +26,7 @@ from runner.delivery import enable_auto_merge
 from runner.github_app import (current_token, installation_token, refresh_token,
                                reviewer_token)
 from runner.layers import (CAPACITY_EXIT_CODES, PROVIDER_OVERLOAD_EXIT_CODE, WORKERS,
-                           ConsultantCapacityExhausted,
+                           ConsultantCapacityExhausted, capacity_reset_at,
                            consult_next_steps, propose_directive_plan, propose_task,
                            review_pull_request, snapshot_live_site, stakeholder_review)
 from runner.orchestrator import (BUDGET, DIFF_BUDGET_EXIT_CODE, PRODUCT_ROOT, REPOSITORY,
@@ -197,13 +197,20 @@ class State:
 
     def record_worker_capacity(self, worker: str, delay_seconds: int,
                                now: dt.datetime | None = None,
-                               maximum_seconds: int | None = None) -> int:
+                               maximum_seconds: int | None = None,
+                               reset_at: dt.datetime | None = None) -> int:
         """Hold an exhausted provider out for longer each time it reports exhaustion.
 
         A session limit outlives one issue's backoff, so a flat cooldown lets the
         next issue re-pick the dead provider and burn another plan/worktree cycle
         before failing. The streak restarts once the provider has been quiet for a
         full ``maximum_seconds``, so a recovered provider is tried again cheaply.
+
+        ``reset_at`` is the provider's own stated recovery time ("resets 8:50am").
+        It only ever SHORTENS the cooldown: a blind exponential backoff that outlives
+        the real reset idles the whole lab for nothing, which has cost this team
+        hours of dead time. It never lengthens the hold past the configured cap,
+        so a far-future reset claim cannot pin a provider out indefinitely.
         """
         now = now or utc_now()
         maximum = int(maximum_seconds or delay_seconds)
@@ -218,6 +225,9 @@ class State:
                 if last and last + dt.timedelta(seconds=maximum) > now:
                     streak = int(previous.get("streak", 1)) + 1
             delay = min(int(delay_seconds) * (2 ** (streak - 1)), maximum)
+            if reset_at is not None:
+                stated = max(int((reset_at - now).total_seconds()), 0)
+                delay = min(delay, stated)
             self.value["worker_cooldowns"][worker] = {
                 "until": (now + dt.timedelta(seconds=delay)).isoformat(),
                 "streak": streak, "at": now.isoformat()}
@@ -1445,6 +1455,23 @@ def _bookkeeper(journal: Journal, number: int):
     return tell
 
 
+def latest_run_transcripts() -> list[pathlib.Path]:
+    """The worker transcripts of the most recent orchestrator run.
+
+    The daemon never learns the run id — the orchestrator mints it in its own
+    process — so the newest directory under .agent/runs is the run that just
+    finished. Only used to read a capacity refusal's stated reset time, where
+    picking the wrong run costs nothing worse than an unchanged cooldown.
+    """
+    runs = ROOT / ".agent" / "runs"
+    try:
+        newest = max((path for path in runs.iterdir() if path.is_dir()),
+                     key=lambda path: path.stat().st_mtime, default=None)
+    except OSError:
+        return []
+    return sorted(newest.glob("*.jsonl")) if newest else []
+
+
 def record_run_outcome(exit_code: int, issue: dict[str, Any], number: int, persona: str,
                        scenario: dict[str, Any], config: dict[str, Any], state: State,
                        journal: Journal, token: str) -> None:
@@ -1503,6 +1530,7 @@ def record_run_outcome(exit_code: int, issue: dict[str, Any], number: int, perso
         # exhausted provider. Retry on the ordinary cooldown instead. This still burns no
         # attempt and still holds the exhausted provider out via record_worker_capacity.
         alternate_ready = state.worker_available(alternate)
+        stated_reset = capacity_reset_at(latest_run_transcripts())
         with state.mutate():
             record = state.value["issues"].setdefault(str(number), {})
             failures = int(record.get("capacity_failures", 0)) + 1
@@ -1515,10 +1543,12 @@ def record_run_outcome(exit_code: int, issue: dict[str, Any], number: int, perso
                            "retry_at": (utc_now() + dt.timedelta(seconds=delay)).isoformat()})
             cooldown = state.record_worker_capacity(
                 exhausted, int(config.get("capacity_retry_seconds", 900)),
-                maximum_seconds=int(config.get("capacity_retry_max_seconds", 18000)))
+                maximum_seconds=int(config.get("capacity_retry_max_seconds", 18000)),
+                reset_at=stated_reset)
         journal.emit("run_capacity_deferred", issue=number, persona=persona, exhausted_worker=exhausted,
                      next_worker=alternate, delay_seconds=delay, worker_cooldown_seconds=cooldown,
-                     failures=failures, alternate_ready=alternate_ready)
+                     failures=failures, alternate_ready=alternate_ready,
+                     stated_reset=stated_reset.isoformat() if stated_reset else None)
         tell("comment", lambda: comment(token, number, "capacity deferred",
              f"{exhausted.title()} reported temporary account capacity exhaustion. This did not consume "
              f"an implementation attempt; Sam will retry with {alternate.title()} after the backoff."))
@@ -1750,14 +1780,19 @@ def tick(config: dict[str, Any], state: State, journal: Journal, token: str | No
     # fall through to the shared ready queue instead of returning early.
     if issue is None:
         issue = choose_issue(issues, state, config, utc_now(), active)
-    if issue is None and (issues or pending):
-        return "queued-personas-rate-limited"
+    # Consultation comes BEFORE the rate-limit return. A trickle of stakeholder-filed
+    # work keeps the ready queue non-empty indefinitely, and gating the next round
+    # behind an empty queue froze directive evolution for hours while the team chewed
+    # filler. The round is self-gating anyway: it only fires once the current
+    # program's issues are all closed, so asking every tick costs nothing.
     if issue is None and config.get("consult_after_directive_mvp", False):
         generated = consult_every_directive(token, config, journal, state=state)
         if generated:
             issue = choose_issue(generated, state, config, utc_now(), active)
             if issue is None:
                 return "persona-pr-rate-limit"
+    if issue is None and (issues or pending):
+        return "queued-personas-rate-limited"
     if issue is None and config.get("generate_when_idle", False):
         generated = generate_work(token, config, journal)
         issue = choose_issue([generated], state, config, utc_now(), active)
