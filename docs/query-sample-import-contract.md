@@ -41,7 +41,7 @@ Per row, all required, with the declared type:
 
 | Field | Type | Note |
 | --- | --- | --- |
-| `org_unit_id` | `psn_` + 16–64 identifier characters | The HRIS org contract's `unit_id`, byte-for-byte. |
+| `org_unit_id` | `psn_` + 16–64 identifier characters, or a ≤64-character provider-native unit key | The HRIS org contract's `unit_id`, byte-for-byte — or the unit the billing export is grouped by. See **The key space**. |
 | `query_date` | string, `YYYY-MM-DD` | UTC calendar day. Validated against the real calendar. |
 | `model_raw` | string, `^[A-Za-z0-9._:@/-]{1,64}$` | The provider-usage-billing v1.1 field name and verbatim rule. |
 | `input_tokens` | integer ≥ 0 | The provider-usage-billing v1.1 field name. |
@@ -61,6 +61,24 @@ folding, no canonicalization, and no trimming beyond the surrounding whitespace
 a delimited reader strips from a cell. A key that does not match the HRIS
 pseudonym shape fails its row rather than being repaired into something that
 would join the wrong department.
+
+**The key space.** A reader with a provider export and a query sample but no
+HRIS file has no pseudonym to key by, and demanding one dead-ends their grade.
+So `org_unit_id` may instead carry the provider-native unit their bill is
+grouped by — a project, workspace, account, resource group, key, or tag. Which
+of the two applies is decided **once per file**, from the caller's
+`groupingUnit` option, which is `detectDialect(...).groupingUnit` passed
+straight through: declared, the column is validated as that unit and only that
+unit; omitted, it is validated as a pseudonym and only as a pseudonym. It is
+never chosen per row from the shape of a cell, because a project literally named
+`psn_something` would then pick a key space by accident and move a published
+grade on a regex. A provider unit key is still a bounded identifier — at most 64
+characters from the rubric's own conservative identifier class — so a mis-mapped
+free-text column cannot smuggle prompt text in through the join key.
+
+The same sample scores identically whichever key space it arrives in; that is
+asserted by a fixture pair in `tests/query-sample-contract.test.js` and again,
+at the join, in `tests/query-literacy-join.test.js`.
 
 **The bucket granularity.** Day, stated in `snapshot.bucket_granularity` and
 enforced per row. Rubric 1.0.0 weights every sampled query once and publishes no

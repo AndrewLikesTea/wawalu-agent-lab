@@ -66,6 +66,15 @@ const BOM = "﻿";
 
 /** The HRIS org contract's key shape, reused verbatim — not a lookalike. */
 const ORG_UNIT_ID_PATTERN = /^psn_[A-Za-z0-9_-]{16,64}$/;
+
+/**
+ * The shape a provider-native grouping value may take in the same column: a
+ * project, workspace, account, resource group, key, or tag name, as the
+ * provider spells it. Deliberately the rubric's own conservative identifier
+ * character class, bounded at 64 — the column is a join key, and a value that
+ * needs a space or a sentence is a mis-mapped column carrying prompt text.
+ */
+const PROVIDER_UNIT_KEY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:@/-]{0,63}$/;
 const QUERY_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const MODEL_ID_PATTERN = new RegExp(PROMPT_LITERACY_RUBRIC.redaction.modelIdPattern);
 
@@ -281,7 +290,7 @@ export function detectQuerySampleDialect(text) {
  * on a rule nobody read. It is a row-level refusal, so the rest of the file
  * still lands.
  */
-export function validateQuerySampleRow(values, row) {
+export function validateQuerySampleRow(values, row, { groupingUnit = null } = {}) {
   const issues = [];
   const record = {};
 
@@ -294,8 +303,21 @@ export function validateQuerySampleRow(values, row) {
   }
   if (issues.length) return Object.freeze({ ok: false, issues: Object.freeze(issues) });
 
+  // THE KEY-SPACE RULE, applied once per file and never per row. `groupingUnit`
+  // is the provider-native unit the caller's billing export is grouped by, read
+  // off Anya's dialect-detection result and passed down. Declared, this column
+  // is validated as a provider-native unit key and *only* as one; absent, it is
+  // validated as an HRIS pseudonym and only as one. Accepting either shape per
+  // row would let a project literally named `psn_something` pick a key space by
+  // accident, and a published grade would move on a regex.
   const orgUnitId = typeof values.org_unit_id === "string" ? values.org_unit_id.trim() : "";
-  if (!ORG_UNIT_ID_PATTERN.test(orgUnitId)) {
+  if (groupingUnit) {
+    if (!PROVIDER_UNIT_KEY_PATTERN.test(orgUnitId)) {
+      issues.push(rowIssue(row, "org_unit_id", QUERY_SAMPLE_CODES.INVALID_DEPARTMENT_KEY,
+        `org_unit_id must be the ${groupingUnit.replace(/_/g, " ")} the billing export groups by, `
+        + "as at most 64 identifier characters"));
+    } else record.orgUnitId = orgUnitId;
+  } else if (!ORG_UNIT_ID_PATTERN.test(orgUnitId)) {
     issues.push(rowIssue(row, "org_unit_id", QUERY_SAMPLE_CODES.INVALID_DEPARTMENT_KEY,
       "org_unit_id must be an HRIS org unit pseudonym of the form psn_ plus 16 to 64 identifier characters"));
   } else record.orgUnitId = orgUnitId;
@@ -535,6 +557,11 @@ function readJsonSample(detection, { lastAcceptedSequence = null } = {}) {
  * reported as a notice rather than passed over in silence, because an
  * unexpectedly shuffled file is usually a concatenation the producer did not
  * mean to make.
+ *
+ * `options.groupingUnit` is the provider-native unit the reader's billing export
+ * is grouped by — `detectDialect(...).groupingUnit`, passed straight through.
+ * Omitted, the department column is the HRIS pseudonym it has always been, so a
+ * caller that never detected an export sees no change at all.
  */
 export function parseQuerySample(text, options = {}) {
   const detection = detectQuerySampleDialect(text);
@@ -548,8 +575,10 @@ export function parseQuerySample(text, options = {}) {
   const issues = [...read.notices];
   let outOfOrderRowCount = 0;
   let previousDate = null;
+  const groupingUnit = typeof options.groupingUnit === "string" && options.groupingUnit
+    ? options.groupingUnit : null;
   for (const { values, row } of read.rows) {
-    const result = validateQuerySampleRow(values, row);
+    const result = validateQuerySampleRow(values, row, { groupingUnit });
     if (!result.ok) {
       issues.push(...result.issues);
       continue;
@@ -572,6 +601,10 @@ export function parseQuerySample(text, options = {}) {
   return Object.freeze({
     ok: true,
     contract: QUERY_SAMPLE_CONTRACT_ID,
+    // Which key space every `orgUnitId` above is stated in, published so a
+    // downstream join reads it rather than re-deciding it.
+    keySpace: groupingUnit ? "provider_unit" : "org_pseudonym",
+    groupingUnit,
     dialect: read.dialect,
     delimiter: read.delimiter,
     columns: read.columns,
@@ -621,6 +654,10 @@ export function classifyQuerySample(parsed, classify = () => null) {
   }
   return Object.freeze({
     contract: QUERY_SAMPLE_CONTRACT_ID,
+    // Carried through the redaction boundary unchanged: it is a key space, not
+    // a value, so there is nothing here to redact and everything to preserve.
+    keySpace: parsed?.keySpace ?? "org_pseudonym",
+    groupingUnit: parsed?.groupingUnit ?? null,
     records: Object.freeze(records),
     unclassified: Object.freeze(unclassified),
   });
