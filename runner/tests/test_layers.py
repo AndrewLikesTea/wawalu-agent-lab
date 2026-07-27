@@ -45,6 +45,44 @@ class LayerTests(unittest.TestCase):
         self.assertFalse(self._capacity_verdict(product_text))
         heartbeat = json.dumps({"type": "rate_limit_event", "rate_limit_info": {"status": "allowed"}})
         self.assertFalse(self._capacity_verdict(heartbeat, product_text, budget_stop))
+
+    def _overload_verdict(self, *lines: str) -> bool:
+        with tempfile.TemporaryDirectory() as tmp:
+            log = pathlib.Path(tmp) / "worker.jsonl"
+            log.write_text("\n".join(lines), encoding="utf-8")
+            return layers.is_provider_overloaded(log)
+
+    def test_server_side_overload_is_recognized_from_the_terminal_result(self):
+        """The shape a real 529 wave leaves behind: retries exhausted, then api_error."""
+        overloaded = json.dumps({
+            "type": "result", "subtype": "success", "is_error": True,
+            "terminal_reason": "api_error", "api_error_status": 529,
+            "result": "API Error: 529 Overloaded. This is a server-side issue.",
+        })
+        self.assertTrue(self._overload_verdict(overloaded))
+        self.assertTrue(self._overload_verdict(json.dumps(
+            {"type": "result", "is_error": True, "api_error_status": 503})))
+        self.assertEqual(layers.PROVIDER_OVERLOAD_EXIT_CODE, 78)
+
+    def test_overload_detection_ignores_product_text_and_ordinary_failures(self):
+        """Only the CLI's own numeric status counts, so a FinOps demo cannot forge one."""
+        product_text = json.dumps({"type": "user", "message": {"content": [
+            {"type": "tool_result", "content": "expect(res.status).toBe(529) // overloaded"}]}})
+        assistant_note = json.dumps({
+            "type": "assistant", "is_api_error_message": True,
+            "message": {"content": [{"type": "text", "text": "API Error: 529 Overloaded."}]}})
+        self.assertFalse(self._overload_verdict(product_text))
+        self.assertFalse(self._overload_verdict(assistant_note))
+        self.assertFalse(self._overload_verdict("tests failed: assertion error"))
+        self.assertFalse(self._overload_verdict(json.dumps(
+            {"type": "result", "is_error": True, "api_error_status": None})))
+
+    def test_a_refused_request_stays_on_the_capacity_path(self):
+        """429 is the provider turning us away, not its servers breaking."""
+        self.assertFalse(self._overload_verdict(json.dumps(
+            {"type": "result", "is_error": True, "api_error_status": 429,
+             "result": "too many requests"})))
+
     def test_owner_directive_is_prioritized_in_manager_prompt(self):
         with mock.patch.object(layers, "qwen_json", return_value={
             "persona": "frontend", "title": "Improve filters", "outcome": "Faster browsing",
