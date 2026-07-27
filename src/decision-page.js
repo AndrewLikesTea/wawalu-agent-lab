@@ -6,6 +6,7 @@ import {
 } from "/decision-detail.js";
 import { loadReleaseData } from "/releases-data.js";
 import { dedupeById } from "/demo-data.js";
+import { pageTitle, recordTitle } from "/page-title.js";
 
 export async function loadDecisionDetail(id, storage, options = {}) {
   const loadData = options.loadData ?? loadReleaseData;
@@ -55,12 +56,15 @@ export async function initDecisionDetail(options = {}) {
     } else {
       renderDecisionDetailState(container, result.state);
     }
+    // src/decision.html ships titled "Decision · Shiplog", so the tab names this
+    // page — not the log it came from — for the whole load. This only ever
+    // narrows that to the record actually on screen.
     document.title = result.decision
-      ? `${result.decision.title} · Decisions · Shiplog`
-      : result.state === "error" ? "Decision unavailable · Shiplog" : "Decision not found · Shiplog";
+      ? recordTitle(result.decision.title, { surface: "Decisions", fallback: "Decision" })
+      : result.state === "error" ? pageTitle("Decision unavailable") : pageTitle("Decision not found");
   } catch {
     renderDecisionDetailState(container, "error");
-    document.title = "Decision unavailable · Shiplog";
+    document.title = pageTitle("Decision unavailable");
   } finally {
     container.setAttribute("aria-busy", "false");
     document.documentElement.dataset.shiplogDecisionDetail = "ready";

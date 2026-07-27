@@ -4,20 +4,25 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="Shiplog post — a single post from Social" />
-    <title>Post · Shiplog</title>
+    <title>Post · Social · Shiplog</title>
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
     <main>
-      <!-- First in focus order so a reader can immediately undo tile
-           navigation. Every link into this page comes from a profile grid
-           (see postDetailHref in profile.js), so Profile is where "back" goes;
-           JS refines it to the loaded author's own profile.
+      <!-- First in focus order so a reader can leave a post in one key. It
+           points at Profile because that is where the rest of this author's
+           posts are (see postDetailHref in profile.js); JS refines it to the
+           loaded author's own profile.
 
-           This is the page's only back link. The state panel below never
+           It names its destination and does not say "back": a visitor who
+           opened a shared link never came from a profile, and telling them to
+           go "back" somewhere they have not been is a lie about their own
+           history.
+
+           This is the page's only such link. The state panel below never
            repeats it — see the note above feedReturn() in post-detail.js. -->
       <a class="detail-back detail-page-back" id="post-back" href="/profile.html"
-        aria-label="Back to Profile">← Back to Profile</a>
+        aria-label="Profile">← Profile</a>
 
       <header class="site-header">
         <a class="brand" href="/"><span class="mark" aria-hidden="true"></span>Shiplog</a>

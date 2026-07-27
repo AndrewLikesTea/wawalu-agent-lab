@@ -170,8 +170,11 @@ test("the visible back control is the page's first focusable element and names P
   const firstAnchor = html.indexOf("<a ");
   const back = html.indexOf('id="post-back"');
   assert.ok(firstAnchor >= 0 && back > firstAnchor, "the first anchor is the back control");
-  assert.match(html.slice(firstAnchor, back + 160), /class="detail-back detail-page-back"[\s\S]*aria-label="Back to Profile"/);
-  assert.match(html, /← Back to Profile<\/a>/, "the back link names the page it returns to");
+  assert.match(html.slice(firstAnchor, back + 160), /class="detail-back detail-page-back"[\s\S]*aria-label="Profile"/);
+  assert.match(html, /← Profile<\/a>/, "the link names the page it goes to");
+  // A shared link is the common way into this page, and its reader has never
+  // seen a profile. The control names where it goes, not where they came from.
+  assert.doesNotMatch(html.slice(firstAnchor, back + 200), /Back to/, "the link must not assert an origin");
   assert.ok(back < html.indexOf('class="brand"'), "back precedes brand and navigation in DOM order");
 });
 

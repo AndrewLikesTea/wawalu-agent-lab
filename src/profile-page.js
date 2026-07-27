@@ -17,6 +17,7 @@ import {
   distinctAuthors,
 } from "/profile.js";
 import { readStoredAuthor, rememberAuthor } from "/social-identity.js";
+import { recordTitle } from "/page-title.js";
 
 const REFRESH_INTERVAL = 30_000;
 
@@ -37,7 +38,7 @@ async function fetchSeedPosts() {
 }
 
 function updateTitle(author) {
-  document.title = `${author} · Profile · Shiplog`;
+  document.title = recordTitle(author, { surface: "Profile" });
 }
 
 async function init() {

@@ -5,6 +5,7 @@
 
 import { resolveReleaseDetail, renderReleaseDetail } from "/releases.js";
 import { loadReleaseData } from "/releases-data.js";
+import { pageTitle, recordTitle } from "/page-title.js";
 
 async function init() {
   const container = document.querySelector("#release-detail");
@@ -19,9 +20,9 @@ async function init() {
   container.setAttribute("aria-busy", "false");
 
   if (resolved) {
-    document.title = `${resolved.version} · Releases · Shiplog`;
+    document.title = recordTitle(resolved.version, { surface: "Releases", fallback: "Release" });
   } else {
-    document.title = "Release not found · Shiplog";
+    document.title = pageTitle("Release not found");
   }
   document.documentElement.dataset.shiplogReleaseDetail = "ready";
 }

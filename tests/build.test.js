@@ -9,7 +9,7 @@ import { parseHtml, pressEnter, pressTab } from "./support/browser.js";
 test("product has a health endpoint and accessible title", async () => {
   assert.equal((await readFile(new URL("../src/healthz", import.meta.url), "utf8")).trim(), "ok");
   const html = await readFile(new URL("../src/index.html", import.meta.url), "utf8");
-  assert.match(html, /<title>Decisions · Shiplog<\/title>/);
+  assert.match(html, /<title>Shiplog · Decision and release log<\/title>/);
   assert.match(html, /<main>/);
   assert.match(html, /<label for="title">Title<\/label>/);
   assert.match(html, /<label for="context">Context<\/label>/);
