@@ -81,6 +81,10 @@
         <div class="privacy-boundary" role="note" aria-label="Local processing privacy boundary">
           <strong>Your files do not leave this tab.</strong>
           <span>No upload · no credentials · no network transfer · no browser storage · results disappear on refresh. Column headers, one sample value per column while you check the mapping, and totals are shown; no other cell value is ever rendered, announced, or exported.</span>
+          <!-- Said before a file is chosen, not after: an assistant conversation
+               export carries prompt bodies, and the contract's rule for them is
+               stricter than the one above — no sample value, ever. -->
+          <span id="prompt-privacy-note"><strong>Prompt text is never one of them.</strong> An AI-assistant conversation or audit export is parsed in memory only to measure it: a character count and an estimated token count. The prompt itself is never rendered on this page, never written to an export, never stored in this browser, and never uploaded — see the <a href="/docs/conversation-export-import-contract.md">conversation-export contract</a>.</span>
         </div>
         <!-- The three stages this flow already walked, now said out loud. The
              list is authored empty and painted by local-import-flow.js so the
@@ -116,6 +120,18 @@
                `.local-example-action`: there is still exactly one way into the
                example dataset, and this is a download, not a second entry. -->
           <button id="download-query-sample-example" type="button">Download the query-sample template</button>
+          <!-- The same idea for the conversation-export contract, one control
+               further: four vendor shapes, so the chooser is a labelled select
+               rather than four buttons. The options are painted from the
+               profile registry by evolution-page.js — this is a slot, never a
+               list of vendor names — and the download is the same local blob
+               every other artifact on this page uses. -->
+          <div class="local-import-field">
+            <label for="conversation-example-dialect">Example conversation export</label>
+            <select id="conversation-example-dialect" aria-describedby="conversation-example-help"></select>
+            <button id="download-conversation-example" type="button">Download an example conversation export</button>
+            <p id="conversation-example-help">Invented sample prose only. Downloads from this tab; nothing is uploaded.</p>
+          </div>
           <button id="remap-local-import" type="button" hidden>Change column mapping</button>
           <button id="clear-local-analysis" type="button" hidden>Return to example data</button>
         </div>
