@@ -13,6 +13,7 @@
 //      contract fields and the position of a file in the selection; record
 //      identifiers, export IDs, and file names are replaced before display.
 
+import { ORG_MAPPING_REQUIREMENT_STATUS } from "./finops-attribution-policy.js";
 import { importLimitsSentence } from "./import-limits.js";
 
 /** The stages the shipped flow already walks. Naming them does not add one. */
@@ -67,7 +68,11 @@ export function stageProgress(stageId) {
  * resolves the row, so a summary entry can move focus to it rather than leaving
  * the reader to hunt for the field the message is about.
  *
- * The org mapping is **optional enrichment**, not a requirement. A provider
+ * The org mapping is **optional enrichment**, not a requirement — the state
+ * `finops-attribution-policy.js` calls `PROVIDER_PLUS_ORG_MAPPING`, which is a
+ * precision upgrade over `PROVIDER_PLUS_GROUPING` rather than a gate in front of
+ * it. The status word is imported from that module so the requirement row and
+ * the policy that classifies findings cannot drift. A provider
  * export carries its own grouping column — project, workspace, key alias, cost
  * tag — and `native-grouping.js` reads it, so a drop with no org file succeeds
  * and attributes spend under the export's own labels. The row therefore reports
@@ -96,7 +101,7 @@ export function mappingRequirements({ providers = 0, hris = false } = {}) {
       shape: hris ? "✓" : "–",
       status: hris
         ? "1 mapping ready"
-        : "not selected — your export's own grouping is used",
+        : `${ORG_MAPPING_REQUIREMENT_STATUS}; your export's own grouping is used`,
     }),
   ];
 }
