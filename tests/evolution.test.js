@@ -177,7 +177,11 @@ test("the AI FinOps tab ships from every page and keeps the demo boundary", asyn
   assert.match(page, /<title>AI FinOps · Shiplog<\/title>/);
   assert.match(page, /<main>/);
   assert.match(page, /aria-current="page" href="\/evolution\.html"/);
-  assert.match(page, /<label for="department-sort">Rank by<\/label>/);
+  // Intervention priority is metric-defined, so there is no "Rank by" control
+  // to assert. This used to match a label that only existed inside a developer
+  // comment; the ordered list the page actually ships is the real coverage.
+  assert.match(page, /<ol class="department-priority" id="department-priority"/);
+  assert.doesNotMatch(page, /id="department-sort"/);
 
   // No user-generated HTML execution, and no live enterprise system is contacted
   // from the browser: the tab renders a static, hand-authored sample only.
