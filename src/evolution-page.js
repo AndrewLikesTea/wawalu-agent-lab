@@ -292,6 +292,25 @@ function mountLocalFinopsImport() {
       item.append(button, panel);
       list?.append(item);
     });
+    // Coverage rides on the ranking, because a ranked list over two-fifths of
+    // the money is a different claim from the same list over all of it. A
+    // degraded or suppressed ranking says which threshold fired and what share
+    // was observed, so the reader never faces a panel that simply went quiet.
+    const figure = next.attribution?.rankedRecoverable;
+    const observed = figure?.coverage.attributedShare === null ? null
+      : Math.round((figure?.coverage.attributedShare ?? 0) * 1000) / 10;
+    if (figure && (figure.threshold.suppressed || figure.threshold.degraded
+      || figure.coverage.unattributedSpend > 0)) {
+      list?.prepend(element("li", "evidence-empty",
+        `${moneyText(figure.coverage.unattributedSpend)} of `
+        + `${moneyText(figure.totalSpendUsd)} carries no grouping value and is ranked as one `
+        + `unattributed unit${observed === null ? "" : ` — ${observed}% attributed`}. `
+        + (figure.threshold.suppressed
+          ? `This ranking is not shown as actionable. ${figure.threshold.reason.rule}`
+          : figure.threshold.degraded
+            ? `This ranking is provisional. ${figure.threshold.reason.rule}`
+            : "")));
+    }
     if (!next.rankedDepartments.length)
       list?.append(element("li", "evidence-empty",
         "No department findings. No active HRIS unit matched a provider aggregate."));
@@ -646,8 +665,11 @@ function mountLocalFinopsImport() {
 
   const finishSelection = (total) => {
     rebuildLoaded();
-    if (!loaded.providers.length || !loaded.hris) {
-      const missing = loaded.providers.length ? "HRIS mapping" : "provider export";
+    // The two-file precondition is gone: a provider export on its own is a
+    // complete run, grouped by the attribution key the export already carries.
+    // Only the file that carries the spend still blocks.
+    if (!loaded.providers.length) {
+      const missing = "provider export";
       showTransientBasis("partial");
       syncStage({ focus: true });
       // A query sample with no billing beside it has no spend denominator, so
@@ -662,7 +684,7 @@ function mountLocalFinopsImport() {
     }
     renderResult(normalizeLocalFinopsHistory({
       providers: loaded.providers,
-      hris: loaded.hris,
+      hris: loaded.hris ?? null,
     }));
   };
 
