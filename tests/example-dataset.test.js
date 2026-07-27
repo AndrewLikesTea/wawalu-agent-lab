@@ -68,7 +68,11 @@ test("the example dataset translates to a valid envelope with stable key totals"
 
   assert.equal(envelope.period, "2026-06-01 to 2026-07-01");
   assert.equal(envelope.spendUsd, 154_500);
-  assert.equal(envelope.recoverableUsd, 20_920);
+  // 104,600 USD of the month's spend is text-generation billed in tokens. The
+  // dataset bills 340 tokens per minor unit, so the observed price is
+  // round(1e6 ÷ 340) = 2,941 minor per million — above the 2,000 premium floor —
+  // and the same tokens at the 1,500 reference rate cost 53,346 USD.
+  assert.equal(envelope.recoverableUsd, 51_254);
   assert.equal(envelope.confidence, "Medium");
 
   assert.equal(envelope.history.state, "available");

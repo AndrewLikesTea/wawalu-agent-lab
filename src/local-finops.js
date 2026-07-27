@@ -4,6 +4,8 @@
 // accepts parsed JSON values, keeps only fields declared by Anya's compatibility
 // manifest, and returns a short-lived projection for the page and downloads.
 
+import { evaluateDownRoutingCandidate } from "./down-routing-candidates.js";
+
 export const LOCAL_KINDS = Object.freeze({
   provider: "wawalu.integration.provider-usage-billing",
   hris: "wawalu.integration.hris-org",
@@ -22,7 +24,6 @@ const PROVIDER_RECORD_KEYS = [
 const HRIS_RECORD_KEYS = [
   "unit_id", "revision", "operation", "effective_at", "parent_unit_id", "unit_type", "active",
 ];
-const ROUTING_CANDIDATE_SHARE = 0.2;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const OPAQUE_ID_PATTERN = /^psn_[A-Za-z0-9_-]{16,64}$/;
@@ -327,17 +328,16 @@ export function normalizeLocalFinops({ provider, hris }) {
       continue;
     }
     const current = grouped.get(record.org_unit_id) ?? {
-      id: record.org_unit_id, spendUsd: 0, recoverableUsd: 0, records: 0, estimatedCosts: 0,
+      id: record.org_unit_id, spendUsd: 0, records: 0, estimatedCosts: 0, contractRecords: [],
     };
     const spendUsd = money(record.cost.amount_minor);
     current.spendUsd += spendUsd;
     current.records += 1;
     if (record.cost.status !== "final") current.estimatedCosts += 1;
-    // The contract has no prompt classification. Only coarse text-generation
-    // spend is treated as a candidate, under a disclosed 20% routing scenario.
-    if (record.service_category === "text-generation") {
-      current.recoverableUsd += spendUsd * ROUTING_CANDIDATE_SHARE;
-    }
+    // Recoverable spend is not accumulated here. It is a property of the unit's
+    // whole record set — price per token, call shape, and volume together — so
+    // it is computed once per unit below, by the rule the fixtures pin.
+    current.contractRecords.push(record);
     grouped.set(record.org_unit_id, current);
   }
   if (quarantinedRecords) {
@@ -355,13 +355,19 @@ export function normalizeLocalFinops({ provider, hris }) {
     warnings.push("A source declared data-quality issues; review the source export before acting.");
   }
   const ranked = [...grouped.values()]
-    .map((item) => ({
-      ...item,
-      name: departments.has(item.id)
-        ? `Department …${item.id.slice(-6)}` : `Active unit …${item.id.slice(-6)}`,
-      spendUsd: Math.round(item.spendUsd * 100) / 100,
-      recoverableUsd: Math.round(item.recoverableUsd * 100) / 100,
-    }))
+    .map(({ contractRecords, ...item }) => {
+      const downRouting = evaluateDownRoutingCandidate({
+        unitId: item.id, records: contractRecords,
+      });
+      return {
+        ...item,
+        name: departments.has(item.id)
+          ? `Department …${item.id.slice(-6)}` : `Active unit …${item.id.slice(-6)}`,
+        spendUsd: Math.round(item.spendUsd * 100) / 100,
+        recoverableUsd: downRouting.recoverableUsd,
+        downRouting,
+      };
+    })
     .sort((left, right) => right.recoverableUsd - left.recoverableUsd
       || right.spendUsd - left.spendUsd || left.id.localeCompare(right.id));
   const spendUsd = Math.round(ranked.reduce((sum, item) => sum + item.spendUsd, 0) * 100) / 100;
@@ -388,7 +394,10 @@ export function normalizeLocalFinops({ provider, hris }) {
       : "Resolve data-quality gaps before selecting a cost action.",
     assumptions: [
       "Exact pseudonymous org-unit IDs are the only attribution key; no default department is assigned.",
-      "Recoverable spend is a scenario: 20% of joined text-generation spend may be routable to a lower-cost service.",
+      "Recoverable spend is a scenario, not a measured saving: token-billed text-generation spend "
+      + "priced above the premium-tier floor is repriced at the standard-tier reference rate. "
+      + "The per-unit worked example shows the arithmetic; see DOWN_ROUTING_ASSUMPTIONS for every "
+      + "threshold and the fact that neither reference price has a published source.",
       "Unit names are not present in the privacy-safe HRIS contract, so shortened opaque labels are shown.",
     ],
     warnings,
@@ -399,7 +408,8 @@ export function normalizeLocalFinops({ provider, hris }) {
     ],
     evidence: top ? [
       `${top.records} deduplicated provider aggregate${top.records === 1 ? "" : "s"} joined to ${top.id}.`,
-      `${top.spendUsd.toFixed(2)} USD observed; ${top.recoverableUsd.toFixed(2)} USD is the disclosed routing scenario.`,
+      `${top.spendUsd.toFixed(2)} USD observed; ${top.recoverableUsd.toFixed(2)} USD is the disclosed routing scenario `
+      + `(${top.downRouting.decisionCode}, confidence ${top.downRouting.confidence.level}).`,
       `${quarantinedRecords} unmatched aggregate${quarantinedRecords === 1 ? "" : "s"} excluded from results.`,
     ] : ["No joined aggregate supports a recommendation."],
     quality: {

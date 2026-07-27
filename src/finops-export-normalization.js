@@ -72,6 +72,7 @@
 
 import { LOCAL_KINDS, parseLocalFinopsFile } from "./local-finops.js";
 import { FINOPS_RUBRIC } from "./finops-evaluation.js";
+import { evaluateDownRoutingCandidate } from "./down-routing-candidates.js";
 
 /** This module's contract version. Bump on any output-shape change. */
 export const FINOPS_EXPORT_NORMALIZATION_VERSION = "finops-export-normalization/1.0.0";
@@ -100,11 +101,16 @@ export const SUPPORTED_CONTRACT_SCHEMA_VERSION = "1.0";
 export const DEFAULT_FRESHNESS_MAX_AGE_DAYS = 7;
 
 /**
- * The disclosed routing scenario: the share of joined text-generation spend
- * treated as a re-routing candidate. It is a scenario, not a measured saving,
- * and it matches the share the existing local FinOps projection discloses.
+ * The disclosed routing scenario is no longer a share of spend.
+ *
+ * It used to be `ROUTING_SCENARIO_SHARE = 0.2`: a flat 20% of joined
+ * text-generation spend, applied identically to a unit running short cheap
+ * calls and one running long-context calls that must stay on the premium tier.
+ * A director could not retrace it and could not argue with it. It is replaced
+ * by the fixture-pinned rule in `down-routing-candidates.js`, which reprices a
+ * unit's own tokens at a named reference rate and states every threshold it
+ * uses. Nothing in this module may reintroduce a flat share.
  */
-export const ROUTING_SCENARIO_SHARE = 0.2;
 
 /** Every stable code this module can emit. This set is the public contract. */
 export const NORMALIZATION_CODES = Object.freeze({
@@ -1225,7 +1231,10 @@ export function normalize(parsed, options = {}) {
   }
 
   const ranked = [...grouped.values()].map((unit) => {
-    unit.recoverableMinor = Math.round(unit.routableMinor * ROUTING_SCENARIO_SHARE);
+    unit.downRouting = evaluateDownRoutingCandidate({
+      unitId: unit.unitId, records: unit.records,
+    });
+    unit.recoverableMinor = Math.round(unit.downRouting.recoverableUsd * 100);
     unit.records.sort((left, right) => compareKeys(
       [left.recordId, left.exportId], [right.recordId, right.exportId],
     ));
@@ -1280,7 +1289,7 @@ export function normalize(parsed, options = {}) {
         observedSpendUsd: money(unit.spendMinor),
         routableSpendUsd: money(unit.routableMinor),
         recoverableScenarioUsd: money(unit.recoverableMinor),
-        routingScenarioShare: ROUTING_SCENARIO_SHARE,
+        downRouting: unit.downRouting,
       },
       quality: {
         coverageState: coverage.state,

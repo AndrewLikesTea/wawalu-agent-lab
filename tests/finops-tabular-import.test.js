@@ -249,7 +249,9 @@ test("normalized tabular output feeds the same analysis path the JSON envelope f
   });
   assert.equal(analysis.spendUsd, 72.79);
   assert.equal(analysis.rankedDepartments.length, 3);
-  assert.equal(analysis.recoverableUsd, 12.51);
+  // Repriced per unit from each unit's own tokens, not taken as a share of the
+  // 62.55 USD of routable spend the flat 20% scenario used to multiply.
+  assert.equal(analysis.recoverableUsd, 58.94);
   assert.ok(analysis.decisionInputs.trends.departments.length === 3);
   assert.equal(analysis.quality.joinedRecords, 4);
 
