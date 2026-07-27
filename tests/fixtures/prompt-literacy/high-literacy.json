@@ -1,0 +1,75 @@
+{
+  "fixtureId": "high-literacy",
+  "rubricVersion": "1.0.0",
+  "label": "Eight in ten queries land in the reference class; the rest is routing, not confusion.",
+  "expectedValuesAreHandAuthored": "Composite = (8x10000 + 2x5500) / (100 x 10) = 91. Intent = (8x100 + 2x80) / 10 = 96. Efficiency = (8x100 + 2x50) / 10 = 90. Model fit = (8x100 + 2x0) / 10 = 80. Nothing here was produced by calling the module.",
+  "records": [
+    {"queryId": "hi-01", "category": "highValue", "model": "acme-sonnet-1", "inputTokens": 1200, "outputTokens": 800},
+    {"queryId": "hi-02", "category": "highValue", "model": "acme-sonnet-1", "inputTokens": 1200, "outputTokens": 800},
+    {"queryId": "hi-03", "category": "highValue", "model": "acme-sonnet-1", "inputTokens": 1200, "outputTokens": 800},
+    {"queryId": "hi-04", "category": "highValue", "model": "acme-sonnet-1", "inputTokens": 1200, "outputTokens": 800},
+    {"queryId": "hi-05", "category": "highValue", "model": "acme-sonnet-1", "inputTokens": 1200, "outputTokens": 800},
+    {"queryId": "hi-06", "category": "highValue", "model": "acme-sonnet-1", "inputTokens": 1200, "outputTokens": 800},
+    {"queryId": "hi-07", "category": "highValue", "model": "acme-sonnet-1", "inputTokens": 1200, "outputTokens": 800},
+    {"queryId": "hi-08", "category": "highValue", "model": "acme-sonnet-1", "inputTokens": 1200, "outputTokens": 800},
+    {"queryId": "hi-09", "category": "overProvisioned", "model": "acme-opus-1", "inputTokens": 150, "outputTokens": 90},
+    {"queryId": "hi-10", "category": "overProvisioned", "model": "acme-opus-1", "inputTokens": 150, "outputTokens": 90}
+  ],
+  "expected": {
+    "rubricVersion": "1.0.0",
+    "rubricVersionId": "literacy-mix/1.0.0",
+    "scored": true,
+    "reason": null,
+    "records": {"total": 10, "scored": 10, "unclassified": 0},
+    "subscores": {"intent": 96, "efficiency": 90, "modelFit": 80},
+    "composite": 91,
+    "grade": "A",
+    "categories": [
+      {
+        "key": "highValue",
+        "label": "High-value",
+        "records": 8,
+        "share": 0.8,
+        "subscores": {"intent": 100, "efficiency": 100, "modelFit": 100},
+        "categoryScore": 100,
+        "contribution": 80,
+        "tokens": {"input": 9600, "output": 6400},
+        "models": ["acme-sonnet-1"]
+      },
+      {
+        "key": "overProvisioned",
+        "label": "Over-provisioned",
+        "records": 2,
+        "share": 0.2,
+        "subscores": {"intent": 80, "efficiency": 50, "modelFit": 0},
+        "categoryScore": 55,
+        "contribution": 11,
+        "tokens": {"input": 300, "output": 180},
+        "models": ["acme-opus-1"]
+      },
+      {
+        "key": "inefficient",
+        "label": "Inefficient",
+        "records": 0,
+        "share": 0,
+        "subscores": {"intent": 50, "efficiency": 0, "modelFit": 50},
+        "categoryScore": 35,
+        "contribution": 0,
+        "tokens": {"input": 0, "output": 0},
+        "models": []
+      },
+      {
+        "key": "outOfScope",
+        "label": "Out-of-scope",
+        "records": 0,
+        "share": 0,
+        "subscores": {"intent": 0, "efficiency": 0, "modelFit": 0},
+        "categoryScore": 0,
+        "contribution": 0,
+        "tokens": {"input": 0, "output": 0},
+        "models": []
+      }
+    ],
+    "tokens": {"input": 9900, "output": 6580}
+  }
+}

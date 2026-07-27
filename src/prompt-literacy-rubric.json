@@ -1,0 +1,128 @@
+{
+  "schemaVersion": "prompt-literacy-rubric/1.0.0",
+  "rubricId": "literacy-mix",
+  "rubricVersion": "1.0.0",
+  "publishedVersionRule": "The version string stamped on published scores is rubricId + \"/\" + rubricVersion. It is derived, never written down twice, so a rubric change cannot ship under an unchanged label.",
+  "provenance": "Hand-authored rubric for the bundled synthetic evaluation dataset. Contains no live provider, HRIS, customer, or telemetry data, and no prompt text.",
+  "scale": {
+    "minimum": 0,
+    "maximum": 100,
+    "assumption": "Every axis and every composite is stated on the same 0-100 scale so a subscore and the headline can be compared without a conversion step. 100 is a definition of the reference class, not a measured ceiling anyone reached."
+  },
+  "recordWeighting": {
+    "basis": "query_count",
+    "assumption": "Every scored query counts exactly once, whatever it cost. The department score this rubric has to reproduce is a share-of-queries number, so token-weighting it would silently restate an already-published grade. The consequence is stated plainly rather than hidden: in 1.0.0 a mis-modelled cheap query and a mis-modelled expensive one cost the same number of grade points, and the dollar gap between them is carried by the recoverable-spend figures printed beside the grade, not by the letter. Token-severity weighting is the first candidate for 1.1.0 and must arrive with its own fixtures."
+  },
+  "unclassifiedRecords": {
+    "behavior": "excluded_and_reported",
+    "assumption": "Classification happens upstream of this rubric. A record carrying an unrecognized category is counted and reported, never guessed at and never folded into a scored class, because a guessed category would move a grade with no evidence behind it."
+  },
+  "axes": [
+    {
+      "key": "intent",
+      "label": "Intent",
+      "weightPercent": 50,
+      "assumption": "Half the score, because intent is the only axis a person can change by rewriting the request. It asks whether the prompt stated its context, its constraints, and what a correct answer looks like. Coaching is the product's lever, so the axis coaching moves carries the largest single share."
+    },
+    {
+      "key": "efficiency",
+      "label": "Efficiency",
+      "weightPercent": 30,
+      "assumption": "Thirty, because wasted turns are real spend but they are a symptom of weak intent rather than an independent skill. Set above model fit so a re-prompt spiral costs more than a routing mistake, and below intent so it cannot outweigh the cause it follows from."
+    },
+    {
+      "key": "modelFit",
+      "label": "Model fit",
+      "weightPercent": 20,
+      "assumption": "Twenty, the smallest share, because routing is a platform fix: a gateway rule can correct a mis-modelled request without the requester changing anything, so it says least about literacy. It is not zero, because reaching for a frontier model to rename a variable is itself a judgement the requester made."
+    }
+  ],
+  "axisWeightRule": "Axis weightPercent values must sum to 100. A category's composite weight is the integer sum of weightPercent x axisCredit divided by 100, so the decomposition reconstitutes the published category weight exactly rather than approximating it.",
+  "categories": [
+    {
+      "key": "highValue",
+      "label": "High-value",
+      "axisCredits": {
+        "intent": 100,
+        "efficiency": 100,
+        "modelFit": 100
+      },
+      "assumption": "The reference class: a request that supplies context, constraints, and acceptance criteria, is answered in one pass, and used a model matched to the work. Full marks on all three axes is a definition of the top of the scale, not a claim that any sampled prompt was perfect."
+    },
+    {
+      "key": "overProvisioned",
+      "label": "Over-provisioned",
+      "axisCredits": {
+        "intent": 80,
+        "efficiency": 50,
+        "modelFit": 0
+      },
+      "assumption": "Legitimate work sent to the wrong model. Intent keeps 80 because the request itself is usually well-formed and loses 20 only because a prompt that stated its own triviality would have routed itself correctly. Efficiency keeps 50 because the answer still arrives in one pass, so the waste is capacity rather than turns. Model fit is 0 because this category is defined by the routing error; any credit here would stop the axis separating it from high-value work."
+    },
+    {
+      "key": "inefficient",
+      "label": "Inefficient",
+      "axisCredits": {
+        "intent": 50,
+        "efficiency": 0,
+        "modelFit": 50
+      },
+      "assumption": "A repeated request circling the same unanswered question. Intent keeps half credit: the goal is real, but a chain that had to repeat proves the first request omitted the failing state or the acceptance criteria. Efficiency is 0 because this category is the definition of the axis floor. Model fit keeps 50 because the model was not the mistake, but four calls where one would do is still a misallocation a router can see."
+    },
+    {
+      "key": "outOfScope",
+      "label": "Out-of-scope",
+      "axisCredits": {
+        "intent": 0,
+        "efficiency": 0,
+        "modelFit": 0
+      },
+      "assumption": "Non-business traffic earns no credit on any axis. It is already excluded from productivity metrics elsewhere, and partial literacy credit here would let leakage raise a team's grade, which is the one thing an executive reading this number would call a lie."
+    }
+  ],
+  "grades": [
+    {
+      "letter": "A",
+      "minimumScore": 90,
+      "assumption": "90 is where the sampled traffic has to be overwhelmingly high-value: at the cutoff a team can carry roughly a fifth of its queries as over-provisioned and nothing worse, or about a seventh as re-prompt spirals. An A is a claim that the team is a usable internal reference, so the room it allows is small."
+    },
+    {
+      "letter": "B",
+      "minimumScore": 80,
+      "assumption": "80 marks working-as-intended: about four queries in five land in the reference class and the remainder is routing rather than confusion. Ten points wide because a one-point drift between adjacent months should not change the letter an executive reads."
+    },
+    {
+      "letter": "C",
+      "minimumScore": 70,
+      "assumption": "70 is the acceptable-with-a-plan band. It sits deliberately above the synthetic peer cohort median of 61: this letter describes the rubric's standard, not the cohort's habits, or every grade would drift upward as the cohort got worse."
+    },
+    {
+      "letter": "D",
+      "minimumScore": 60,
+      "assumption": "60 is the last band where coaching alone is a credible answer. Below it the mix is dominated by categories a workshop does not fix, which is why the next cutoff is a failing letter rather than another ten-point step."
+    },
+    {
+      "letter": "F",
+      "minimumScore": 0,
+      "assumption": "Everything under 60 is one letter on purpose. Splitting the failing range would invite arguing about the difference between two scores that call for the same intervention, and the floor of 0 makes the table total so no score can fall through it."
+    }
+  ],
+  "gradeRule": "Cutoffs are read high to low with >=, so a boundary value belongs to the better letter. A score that is not a finite number is graded F rather than thrown away, because a missing grade renders as a blank badge.",
+  "emptyInput": {
+    "behavior": "unscored",
+    "assumption": "Zero scorable records is not a score of zero. A team that was never sampled would otherwise publish as an F, which is a measurement claim nobody made. The result reports scored:false with null subscores, a null composite and a null grade, so a caller has to decide what to render instead of dividing by an empty denominator."
+  },
+  "reporting": {
+    "compositeDecimals": 0,
+    "subscoreDecimals": 1,
+    "shareDecimals": 4,
+    "contributionDecimals": 2,
+    "assumption": "Every reported number is rounded once, at the end, from unrounded arithmetic; nothing is computed from a rounded intermediate. The composite is a whole number because a headline that moves on a tenth of a point invites arguing about the tenth. Subscores keep one decimal because two axes ten points apart is the signal a director is looking for, and shares keep four so a category's contribution can be recomputed by hand from the row beside it."
+  },
+  "redaction": {
+    "promptTextInOutput": "never",
+    "modelIdPattern": "^[A-Za-z0-9._:@/-]{1,64}$",
+    "unrecognizedModelLabel": "unrecognized",
+    "assumption": "Prompt text is untrusted and is never copied into a result, an error message, or a nested field at any depth. Model identifiers are reported because a disputed model-fit subscore is unanswerable without them, but only when they match a conservative identifier shape; anything longer or stranger is reported as \"unrecognized\" so a mis-mapped column carrying prompt text cannot leak through the one field that passes strings out."
+  }
+}

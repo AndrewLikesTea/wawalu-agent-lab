@@ -5,6 +5,7 @@
 // manifest, and returns a short-lived projection for the page and downloads.
 
 import { analyzeModelRouting, evaluateDownRoutingCandidate } from "./down-routing-candidates.js";
+import { RUBRIC_VERSION_ID } from "./prompt-literacy-scoring.js";
 import {
   PREVIOUS_PROVIDER_USAGE_SCHEMA_VERSION, PROVIDER_USAGE_SCHEMA_VERSION,
   SUPPORTED_PROVIDER_USAGE_SCHEMA_VERSIONS, USAGE_DETAIL_KEYS, usageDetailProblem,
@@ -705,7 +706,7 @@ export function normalizeLocalFinopsHistory({ providers = [], hris }) {
             eligible: false,
             score: null,
             reason: "The provider billing contract contains no scored query-category sample.",
-            rubricVersion: "literacy-mix/1.0.0",
+            rubricVersion: RUBRIC_VERSION_ID,
           }),
         }))),
       benchmarkEligibility: Object.freeze({
