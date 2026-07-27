@@ -1,0 +1,215 @@
+{
+  "provenance": "Bundled synthetic per-model usage. No customer, provider, or vendor data; model names are placeholders and every rate is derived from these rows alone.",
+  "input": {
+    "columns": {
+      "period": "Usage month",
+      "segment": "Workspace",
+      "model": "Model",
+      "requests": "Requests",
+      "spend": "Cost (USD)"
+    },
+    "rows": [
+      {
+        "period": "2026-05",
+        "segmentId": "seg-atlas",
+        "segmentLabel": "Atlas Platform",
+        "model": "syn-large-1",
+        "requests": 38000,
+        "spendMinor": 760000,
+        "observedDays": 30,
+        "daysInPeriod": 30,
+        "rowCount": 31
+      },
+      {
+        "period": "2026-05",
+        "segmentId": "seg-atlas",
+        "segmentLabel": "Atlas Platform",
+        "model": "syn-small-1",
+        "requests": 55000,
+        "spendMinor": 275000,
+        "observedDays": 30,
+        "daysInPeriod": 30,
+        "rowCount": 31
+      },
+      {
+        "period": "2026-06",
+        "segmentId": "seg-atlas",
+        "segmentLabel": "Atlas Platform",
+        "model": "syn-large-1",
+        "requests": 40000,
+        "spendMinor": 800000,
+        "observedDays": 30,
+        "daysInPeriod": 30,
+        "rowCount": 30
+      },
+      {
+        "period": "2026-06",
+        "segmentId": "seg-atlas",
+        "segmentLabel": "Atlas Platform",
+        "model": "syn-small-1",
+        "requests": 60000,
+        "spendMinor": 300000,
+        "observedDays": 30,
+        "daysInPeriod": 30,
+        "rowCount": 30
+      },
+      {
+        "period": "2026-06",
+        "segmentId": "seg-borealis",
+        "segmentLabel": "Borealis Research",
+        "model": "syn-large-1",
+        "requests": 12000,
+        "spendMinor": 360000,
+        "observedDays": 30,
+        "daysInPeriod": 30,
+        "rowCount": 30
+      },
+      {
+        "period": "2026-06",
+        "segmentId": "seg-borealis",
+        "segmentLabel": "Borealis Research",
+        "model": "syn-small-1",
+        "requests": 5000,
+        "spendMinor": 20000,
+        "observedDays": 30,
+        "daysInPeriod": 30,
+        "rowCount": 30
+      }
+    ]
+  },
+  "finding": {
+    "schemaVersion": "model-overspend-finding/1.0.0",
+    "status": "ok",
+    "question": "In 2026-06, where am I paying for a model that a cheaper tier one of my own teams already runs would have handled?",
+    "headline": "Atlas Platform spent 8000.00 USD on syn-large-1 in 2026-06; the same requests at this file's own observed rate for syn-small-1 would have cost 1969.23 USD.",
+    "metric": {
+      "available": true,
+      "reason": null,
+      "name": "estimated_monthly_overspend_usd",
+      "currency": "USD",
+      "amountMinor": 603077,
+      "amountUsd": 6030.77,
+      "period": "2026-06",
+      "model": "syn-large-1",
+      "segmentId": "seg-atlas",
+      "segmentLabel": "Atlas Platform",
+      "candidateModel": "syn-small-1",
+      "eligibleRequests": 40000,
+      "observedSpendMinor": 800000,
+      "candidateSpendMinor": 320000,
+      "candidateRequests": 65000,
+      "projectedSpendMinor": 196923,
+      "formula": "projected = round(40000 requests x 320000 minor / 65000 requests) = 196923 minor; overspend = 800000 - 196923 = 603077 minor"
+    },
+    "action": {
+      "available": true,
+      "text": "Route Atlas Platform's syn-large-1 traffic to syn-small-1, the tier that segment already ran for 60000 requests in 2026-06. Confirm output quality on a sample before moving production traffic: this file evidences routing candidacy, not equivalence.",
+      "reason": null
+    },
+    "confidence": {
+      "level": "medium",
+      "reasons": [
+        {
+          "code": "candidate_rate_pooled_across_segments",
+          "detail": "The cheaper tier's rate is pooled from more than one segment, so the named segment would not necessarily reproduce it exactly.",
+          "effect": "lowered one level"
+        }
+      ]
+    },
+    "benchmark": {
+      "scope": "intra_tenant",
+      "period": "2026-06",
+      "available": true,
+      "reason": null,
+      "model": "syn-large-1",
+      "segmentCostPerRequestMinor": 20,
+      "otherSegmentsCostPerRequestMinor": 30,
+      "otherSegments": 1
+    },
+    "provenance": {
+      "columns": {
+        "period": "Usage month",
+        "segment": "Workspace",
+        "model": "Model",
+        "requests": "Requests",
+        "spend": "Cost (USD)"
+      },
+      "periods": [
+        "2026-05",
+        "2026-06"
+      ],
+      "reportingPeriod": "2026-06",
+      "sourceRowCount": 182,
+      "analysisRowCount": 6,
+      "proration": {
+        "prorated": false,
+        "rule": "Calendar month. A month observed for fewer days than it contains is prorated by observed days: normalized = round(observed x daysInPeriod / observedDays), applied identically to spend and to requests. Every proration is recorded in provenance.proration; an unprorated month records prorated: false.",
+        "months": []
+      },
+      "unrecognizedModelSpendMinor": 0
+    },
+    "evidence": {
+      "disclosure": "progressive",
+      "note": "Supporting per-model rows. Not headline material: the headline is one finding, and these are what it was chosen from.",
+      "rows": [
+        {
+          "model": "syn-large-1",
+          "segmentId": "seg-atlas",
+          "segmentLabel": "Atlas Platform",
+          "requests": 40000,
+          "spendMinor": 800000,
+          "spendUsd": 8000,
+          "costPerRequestMinor": 20,
+          "candidateModel": "syn-small-1",
+          "overspendMinor": 603077,
+          "isHeadline": true,
+          "excludedReason": null,
+          "sourceRowCount": 30
+        },
+        {
+          "model": "syn-large-1",
+          "segmentId": "seg-borealis",
+          "segmentLabel": "Borealis Research",
+          "requests": 12000,
+          "spendMinor": 360000,
+          "spendUsd": 3600,
+          "costPerRequestMinor": 30,
+          "candidateModel": "syn-small-1",
+          "overspendMinor": 300923,
+          "isHeadline": false,
+          "excludedReason": null,
+          "sourceRowCount": 30
+        },
+        {
+          "model": "syn-small-1",
+          "segmentId": "seg-atlas",
+          "segmentLabel": "Atlas Platform",
+          "requests": 60000,
+          "spendMinor": 300000,
+          "spendUsd": 3000,
+          "costPerRequestMinor": 5,
+          "candidateModel": null,
+          "overspendMinor": null,
+          "isHeadline": false,
+          "excludedReason": "No cheaper model clears eligibility in this file for that month, so there is no rate to compare against. Nothing is estimated in its place.",
+          "sourceRowCount": 30
+        },
+        {
+          "model": "syn-small-1",
+          "segmentId": "seg-borealis",
+          "segmentLabel": "Borealis Research",
+          "requests": 5000,
+          "spendMinor": 20000,
+          "spendUsd": 200,
+          "costPerRequestMinor": 4,
+          "candidateModel": null,
+          "overspendMinor": null,
+          "isHeadline": false,
+          "excludedReason": "No cheaper model clears eligibility in this file for that month, so there is no rate to compare against. Nothing is estimated in its place.",
+          "sourceRowCount": 30
+        }
+      ],
+      "unattributedRows": []
+    }
+  }
+}
