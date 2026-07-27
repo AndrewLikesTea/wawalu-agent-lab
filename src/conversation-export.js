@@ -48,6 +48,16 @@ export const CONVERSATION_RECORD_KEYS = Object.freeze([
   "prompt_chars", "prompt_token_estimate", "prompt_empty",
 ]);
 
+/**
+ * The keys one classification entry may carry. A category key, two numbers, a
+ * closed reason code, and rule ids — every one of them a value this repository
+ * authored, none of them derived from a cell. The same allowlist discipline the
+ * records get, for the one other thing a prompt body is allowed to become.
+ */
+export const CONVERSATION_CLASSIFICATION_KEYS = Object.freeze([
+  "category", "classified", "confidence", "reason", "matchedRuleIds",
+]);
+
 /** Row-level skip codes. Downstream switches on the code, never the message. */
 export const CONVERSATION_ROW_CODES = Object.freeze({
   missingValue: "missing_required_value",
@@ -87,8 +97,21 @@ const issue = (rowIndex, conversationId, field, code, reason) => Object.freeze({
  * `table` is the `{ columns, rows }` shape the dialect layer consumes. The
  * result carries records, counted skips, derived ordering, and the department
  * grouping — and, when nothing matched, the untouched table for manual mapping.
+ *
+ * `classify` is the optional, caller-supplied prompt classifier — in practice
+ * `classifyQuery` from `query-classification.js`. This is the *only* place it
+ * can run, because this loop is the only place a prompt body exists: the record
+ * built below has no key one could survive in. It is handed the cell as a
+ * function argument and its answer is rebuilt from `CONVERSATION_CLASSIFICATION_KEYS`,
+ * so a classifier that echoed its input back would still leak nothing. The
+ * result is a frozen array index-aligned with `records` rather than a field on
+ * a record: the record vocabulary, the CSV columns, and the export payload are
+ * therefore byte-for-byte what they were before this option existed, whether or
+ * not a classifier was supplied.
  */
-export function parseConversationExport(table, { profiles = CONVERSATION_DIALECT_PROFILES } = {}) {
+export function parseConversationExport(table, {
+  profiles = CONVERSATION_DIALECT_PROFILES, classify = null,
+} = {}) {
   const detection = detectDialect(table, profiles);
   if (detection.status !== "matched") {
     return Object.freeze({
@@ -96,7 +119,8 @@ export function parseConversationExport(table, { profiles = CONVERSATION_DIALECT
       contractVersion: CONVERSATION_CONTRACT_VERSION,
       profileId: null, profileLabel: null, profileVersion: null, confidence: detection.confidence,
       reason: detection.reason,
-      records: Object.freeze([]), skipped: Object.freeze([]), skippedRowCount: 0,
+      records: Object.freeze([]), classifications: Object.freeze([]),
+      skipped: Object.freeze([]), skippedRowCount: 0,
       rowCount: detection.rows.length,
       grouped: false, departments: Object.freeze([]),
       span: null, outOfOrderRowCount: 0,
@@ -116,15 +140,21 @@ export function parseConversationExport(table, { profiles = CONVERSATION_DIALECT
   const grouped = departmentEntry?.columnIndex !== null && departmentEntry?.columnIndex !== undefined;
 
   const records = [];
+  const classifications = [];
   const skipped = [];
 
   detection.rows.forEach((row, rowIndex) => {
     const values = {};
     let identifier = null;
     let failed = false;
+    // The prompt body, held for the length of one row and never written into
+    // `values`. It exists in this scope so a classifier can be handed it; it is
+    // unreachable from anything this function returns.
+    let promptCell = "";
     for (const { entry, columnIndex } of mapped) {
       const raw = columnIndex === null ? undefined : row[columnIndex];
       const blank = raw === undefined || String(raw).trim() === "";
+      if (entry.sensitivity === NEVER_RENDER) promptCell = String(raw ?? "");
       if (blank && entry.sensitivity !== NEVER_RENDER) {
         // An absent column and an empty cell degrade the same way, because a
         // reader cannot tell them apart from the result and should not have to.
@@ -132,6 +162,9 @@ export function parseConversationExport(table, { profiles = CONVERSATION_DIALECT
           values[entry.field] = entry.whenAbsent.value;
           continue;
         }
+        // An omitted optional field is left unset rather than defaulted, and is
+        // not a skip: the row is complete, one thing about it is unknown.
+        if (entry.whenAbsent?.mode === "omit") continue;
         skipped.push(issue(rowIndex, identifier, entry.field, CONVERSATION_ROW_CODES.missingValue, "is empty"));
         failed = true;
         continue;
@@ -147,7 +180,11 @@ export function parseConversationExport(table, { profiles = CONVERSATION_DIALECT
         failed = true;
       }
     }
-    if (!failed) records.push(buildRecord(values));
+    if (failed) return;
+    records.push(buildRecord(values));
+    // A skipped row produces no record, so pushing here — and only here — is
+    // what keeps the two arrays index-aligned.
+    if (classify) classifications.push(classificationOf(classify, promptCell, values.model));
   });
 
   const ordered = [...records].sort((left, right) => (left.occurred_at < right.occurred_at ? -1 : 1));
@@ -165,6 +202,10 @@ export function parseConversationExport(table, { profiles = CONVERSATION_DIALECT
     confidence: detection.confidence,
     reason: detection.reason,
     records: Object.freeze(records),
+    // Empty when no classifier was supplied; otherwise exactly as long as
+    // `records`, entry i describing record i. Nothing else in this module reads
+    // it, so an unclassified import is the untouched shape it always was.
+    classifications: Object.freeze(classifications),
     skipped: Object.freeze(skipped),
     skippedRowCount: skipped.length ? new Set(skipped.map((entry) => entry.row)).size : 0,
     rowCount: detection.rows.length,
@@ -199,6 +240,83 @@ function buildRecord(values) {
     prompt_empty: signals.empty,
   };
   return Object.freeze(record);
+}
+
+/**
+ * Run the caller's classifier over one prompt cell and rebuild its answer from
+ * the allowlist.
+ *
+ * Rebuilt, not copied: a classifier is caller-supplied code, and the one thing
+ * this contract cannot delegate is whether prompt text escapes. `category` and
+ * `reason` are coerced to strings but they are the classifier's own vocabulary,
+ * so `assertClassificationsClean` checks them against a caller-supplied set of
+ * known values rather than trusting this function's shape alone.
+ *
+ * A classifier that throws does not fail the import: the row is reported
+ * unclassified with an authored reason code, because one bad excerpt is not a
+ * reason to lose a file.
+ */
+function classificationOf(classify, promptCell, model) {
+  let answer = null;
+  try {
+    answer = classify({ excerpt: promptCell, model });
+  } catch {
+    answer = null;
+  }
+  const classified = answer?.classified === true;
+  const confidence = Number(answer?.confidence);
+  return Object.freeze({
+    category: typeof answer?.category === "string" ? answer.category : UNCLASSIFIED_FALLBACK.category,
+    classified,
+    confidence: Number.isFinite(confidence) ? confidence : 0,
+    reason: classified ? null
+      : typeof answer?.reason === "string" ? answer.reason : UNCLASSIFIED_FALLBACK.reason,
+    matchedRuleIds: Object.freeze(
+      (Array.isArray(answer?.matchedRuleIds) ? answer.matchedRuleIds : [])
+        .filter((id) => typeof id === "string"),
+    ),
+  });
+}
+
+/** What a classifier that returned nothing usable is recorded as. */
+const UNCLASSIFIED_FALLBACK = Object.freeze({
+  category: "unclassified", reason: "classifier_returned_no_category",
+});
+
+/**
+ * The never-render rule for the classification half, as an executable assertion.
+ *
+ * @param {ReadonlyArray<object>} classifications the parse result's array.
+ * @param {{categories?: ReadonlyArray<string>, reasons?: ReadonlyArray<string>,
+ *   ruleIds?: ReadonlyArray<string>}} vocabulary the closed sets the classifier
+ *   is allowed to emit. Anything outside them is treated as a leak, because a
+ *   value this repository did not author came from somewhere — and the only
+ *   other thing in scope was a prompt.
+ */
+export function assertClassificationsClean(classifications, vocabulary = {}) {
+  const known = (list) => (Array.isArray(list) ? new Set(list) : null);
+  const categories = known(vocabulary.categories);
+  const reasons = known(vocabulary.reasons);
+  const ruleIds = known(vocabulary.ruleIds);
+  for (const entry of classifications ?? []) {
+    for (const key of Object.keys(entry)) {
+      if (!CONVERSATION_CLASSIFICATION_KEYS.includes(key)) {
+        throw new Error(`classification carries ${key}, which is outside the classification vocabulary`);
+      }
+    }
+    if (typeof entry.classified !== "boolean") throw new Error("classified is not a boolean");
+    if (!Number.isFinite(entry.confidence)) throw new Error("confidence is not a number");
+    if (categories && !categories.has(entry.category)) {
+      throw new Error("classification names a category outside the declared vocabulary");
+    }
+    if (reasons && entry.reason !== null && !reasons.has(entry.reason)) {
+      throw new Error("classification names a reason outside the declared vocabulary");
+    }
+    if (ruleIds && entry.matchedRuleIds.some((id) => !ruleIds.has(id))) {
+      throw new Error("classification names a rule id outside the declared vocabulary");
+    }
+  }
+  return true;
 }
 
 /** Per-department totals, alphabetical so a rendered table is stable. */
