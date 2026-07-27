@@ -629,6 +629,11 @@ def run_worker(worker: str, prompt: str, worktree: pathlib.Path, run_dir: pathli
 CAPACITY_MARKERS = (
     "rate limit", "rate_limit_exceeded", "session limit", "usage limit",
     "too many requests", "quota exceeded",
+    # Claude states a long refusal by its window, not the word "usage": "You've hit
+    # your weekly limit · resets Jul 29 at 12am". Without these the planner's last
+    # provider looked like an ordinary crash, so a quota pause failed the run and
+    # burned an implementation attempt instead of deferring.
+    "weekly limit", "5-hour limit", "hourly limit",
 )
 # A rate_limit_event is a routine heartbeat the Claude CLI emits on every run;
 # only a non-allowed status means the provider actually turned us away.
