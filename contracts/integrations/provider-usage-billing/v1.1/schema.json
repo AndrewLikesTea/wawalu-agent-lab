@@ -1,0 +1,121 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://labs.wawalu.org/contracts/integrations/provider-usage-billing/v1.1/schema.json",
+  "title": "Privacy-preserving provider usage and billing export, revision 1.1",
+  "description": "v1.0 plus model identity, normalized tier, request count, and the input/output token split. Additive only: every v1.0 field keeps its meaning and type, and null is the single representation of absence — never 0, never a missing key.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "kind", "export_id", "snapshot", "privacy", "records"],
+  "properties": {
+    "schema_version": { "const": "1.1" },
+    "kind": { "const": "wawalu.integration.provider-usage-billing" },
+    "export_id": { "type": "string", "format": "uuid" },
+    "snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_instance_id", "sequence", "generated_at", "period_start", "period_end", "completeness", "omitted_record_count", "issues"],
+      "properties": {
+        "source_instance_id": { "$ref": "#/$defs/opaqueId" },
+        "sequence": { "type": "integer", "minimum": 0 },
+        "generated_at": { "type": "string", "format": "date-time" },
+        "period_start": { "type": "string", "format": "date" },
+        "period_end": { "type": "string", "format": "date" },
+        "completeness": { "enum": ["complete", "partial"] },
+        "omitted_record_count": { "type": "integer", "minimum": 0 },
+        "issues": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["code", "scope", "retryable"],
+            "properties": {
+              "code": { "enum": ["source_timeout", "source_rate_limited", "invoice_open", "currency_unavailable", "group_suppressed", "page_missing", "unknown"] },
+              "scope": { "enum": ["export", "page", "record"] },
+              "retryable": { "type": "boolean" }
+            }
+          }
+        }
+      }
+    },
+    "privacy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["aggregation", "minimum_group_size", "direct_identifiers_included", "content_included"],
+      "properties": {
+        "aggregation": { "const": "daily-org-unit-service" },
+        "minimum_group_size": { "type": "integer", "minimum": 10 },
+        "direct_identifiers_included": { "const": false },
+        "content_included": { "const": false }
+      }
+    },
+    "records": {
+      "type": "array",
+      "maxItems": 100000,
+      "items": { "$ref": "#/$defs/aggregate" }
+    }
+  },
+  "$defs": {
+    "opaqueId": { "type": "string", "pattern": "^psn_[A-Za-z0-9_-]{16,64}$" },
+    "absentOrCount": {
+      "description": "A non-negative count, or null when the export does not report it. null is absence; 0 is a reported zero.",
+      "type": ["number", "null"],
+      "minimum": 0
+    },
+    "aggregate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["aggregate_id", "revision", "usage_date", "org_unit_id", "provider", "service_category", "usage", "cost", "model_raw", "model_tier", "request_count", "input_tokens", "output_tokens"],
+      "properties": {
+        "aggregate_id": { "$ref": "#/$defs/opaqueId" },
+        "revision": { "type": "integer", "minimum": 0 },
+        "usage_date": { "type": "string", "format": "date" },
+        "org_unit_id": { "$ref": "#/$defs/opaqueId" },
+        "provider": { "enum": ["openai", "anthropic", "google", "aws", "azure", "other"] },
+        "service_category": { "enum": ["text-generation", "image-generation", "embedding", "storage", "other"] },
+        "usage": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["quantity", "unit"],
+          "properties": {
+            "quantity": { "type": "number", "minimum": 0 },
+            "unit": { "enum": ["tokens", "images", "requests", "byte-hours", "provider-units"] }
+          }
+        },
+        "cost": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["amount_minor", "currency", "status"],
+          "properties": {
+            "amount_minor": { "type": "integer", "minimum": 0 },
+            "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+            "status": { "enum": ["estimated", "final"] }
+          }
+        },
+        "model_raw": {
+          "description": "The model identifier exactly as the export emitted it, verbatim and never truncated, or null when the export carried none or the aggregate folded rows that named different models. A vendor SKU string only: no prompt, completion, or free text.",
+          "type": ["string", "null"],
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "model_tier": {
+          "description": "The normalized tier for model_raw, from the closed vocabulary declared in src/provider-usage-record.js. A model string matching no declared rule is unrecognized — never the nearest-looking tier. null exactly when model_raw is null.",
+          "enum": ["premium", "standard", "economy", "unrecognized", null]
+        },
+        "request_count": {
+          "description": "API calls the export reported for this aggregate, or null when it reports no request count. A provider that reports zero requests yields 0.",
+          "type": ["integer", "null"],
+          "minimum": 0
+        },
+        "input_tokens": {
+          "$ref": "#/$defs/absentOrCount",
+          "description": "Prompt tokens, or null. An export carrying only a combined token total leaves this null and keeps the total in usage.quantity; no split is ever synthesized."
+        },
+        "output_tokens": {
+          "$ref": "#/$defs/absentOrCount",
+          "description": "Completion tokens, or null, under the same combined-total rule as input_tokens."
+        }
+      }
+    }
+  }
+}

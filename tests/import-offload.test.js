@@ -480,8 +480,11 @@ test("a large synthetic export completes within budget and retains no raw rows",
   assert.ok(records.length < PERFORMANCE_ROWS / 100,
     `${records.length} aggregates retained for ${PERFORMANCE_ROWS} rows`);
   for (const record of records) {
+    // The v1.0 fields plus the five provider-usage-billing v1.1 added. Still
+    // bounded per aggregate: nothing here grows with the row count.
     assert.deepEqual(Object.keys(record).sort(), [
-      "aggregate_id", "cost", "org_unit_id", "provider", "revision", "service_category",
+      "aggregate_id", "cost", "input_tokens", "model_raw", "model_tier", "org_unit_id",
+      "output_tokens", "provider", "request_count", "revision", "service_category",
       "usage", "usage_date",
     ]);
   }

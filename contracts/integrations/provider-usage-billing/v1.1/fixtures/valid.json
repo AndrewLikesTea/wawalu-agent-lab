@@ -1,0 +1,54 @@
+{
+  "schema_version": "1.1",
+  "kind": "wawalu.integration.provider-usage-billing",
+  "export_id": "30000000-0000-4000-8000-000000000011",
+  "snapshot": { "source_instance_id": "psn_provider_demo_00001", "sequence": 19, "generated_at": "2026-07-26T12:00:00Z", "period_start": "2026-07-24", "period_end": "2026-07-25", "completeness": "complete", "omitted_record_count": 0, "issues": [] },
+  "privacy": { "aggregation": "daily-org-unit-service", "minimum_group_size": 10, "direct_identifiers_included": false, "content_included": false },
+  "records": [
+    {
+      "aggregate_id": "psn_aggregate_demo_0001",
+      "revision": 2,
+      "usage_date": "2026-07-24",
+      "org_unit_id": "psn_unit_demo_00000002",
+      "provider": "openai",
+      "service_category": "text-generation",
+      "usage": { "quantity": 420000, "unit": "tokens" },
+      "cost": { "amount_minor": 1234, "currency": "USD", "status": "final" },
+      "model_raw": "gpt-4o",
+      "model_tier": "premium",
+      "request_count": 8400,
+      "input_tokens": 380000,
+      "output_tokens": 40000
+    },
+    {
+      "aggregate_id": "psn_aggregate_demo_0002",
+      "revision": 0,
+      "usage_date": "2026-07-24",
+      "org_unit_id": "psn_unit_demo_00000003",
+      "provider": "anthropic",
+      "service_category": "text-generation",
+      "usage": { "quantity": 96000, "unit": "tokens" },
+      "cost": { "amount_minor": 410, "currency": "USD", "status": "final" },
+      "model_raw": "orion-preview-9",
+      "model_tier": "unrecognized",
+      "request_count": 0,
+      "input_tokens": 90000,
+      "output_tokens": 6000
+    },
+    {
+      "aggregate_id": "psn_aggregate_demo_0003",
+      "revision": 0,
+      "usage_date": "2026-07-24",
+      "org_unit_id": "psn_unit_demo_00000004",
+      "provider": "aws",
+      "service_category": "text-generation",
+      "usage": { "quantity": 152000, "unit": "provider-units" },
+      "cost": { "amount_minor": 980, "currency": "USD", "status": "estimated" },
+      "model_raw": "AmazonBedrock",
+      "model_tier": "unrecognized",
+      "request_count": null,
+      "input_tokens": null,
+      "output_tokens": null
+    }
+  ]
+}
