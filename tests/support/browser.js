@@ -172,6 +172,11 @@ class Element {
 
   // --- tree ---
   get childElements() { return this.children.filter((child) => child.nodeType === 1); }
+  // The renderers label a section by appending its heading and then naming
+  // `firstChild`, so a page driven through this harness needs the same
+  // accessors the DOM offers (tests/support/dom.js already has them).
+  get firstChild() { return this.children[0] ?? null; }
+  get lastChild() { return this.children.at(-1) ?? null; }
 
   append(...nodes) {
     for (const node of expandFragments(nodes)) {

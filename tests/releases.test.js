@@ -286,8 +286,8 @@ test("releases page is wired and linked from the decisions page", async () => {
 // social seed is guarded: a bad status, an over-length field, a mistyped
 // decisionId, or a broken shape should fail the build, not ship silently.
 test("releases demo seed is valid and internally consistent", async () => {
-  const raw = await readFile(new URL("../src/releases-demo-data.json", import.meta.url), "utf8");
-  const seed = JSON.parse(raw);
+  const { SEED_DECISIONS, SEED_RELEASES } = await import("../src/seed-records.js");
+  const seed = { decisions: SEED_DECISIONS, releases: SEED_RELEASES };
   assert.ok(Array.isArray(seed.decisions) && seed.decisions.length > 0);
   assert.ok(Array.isArray(seed.releases) && seed.releases.length > 0);
   assert.ok(seed.decisions.some(({ title, context, owner, status }) =>

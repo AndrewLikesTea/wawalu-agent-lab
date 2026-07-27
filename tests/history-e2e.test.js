@@ -33,7 +33,10 @@ import { readFile } from "node:fs/promises";
 
 const DECISIONS_PAGE = new URL("../src/index.html", import.meta.url);
 const RELEASES_PAGE = new URL("../src/releases.html", import.meta.url);
-const DEMO_ROUTE = "/releases-demo-data.json";
+// The example records are a module constant the page composes in, not a fetch,
+// so a test that wants a history containing only its own fixtures hands the
+// page an empty seed rather than stubbing a route. tests/demo-path.test.js is
+// the one that exercises the real seed.
 const NO_DEMO_DATA = { decisions: [], releases: [] };
 
 // Fixtures are explicit and fixed: known ids, known past timestamps, known
@@ -86,11 +89,10 @@ async function openHistory(t, { decisions = [], releases = [], demo = NO_DEMO_DA
       [STORAGE_KEY]: JSON.stringify(decisions),
       [RELEASE_STORAGE_KEY]: JSON.stringify(releases),
     },
-    routes: { [DEMO_ROUTE]: demo },
   });
   t.after(() => page.restore());
   // The two module scripts src/index.html loads, in page order.
-  await initDecisionLog(page.document, page.storage);
+  await initDecisionLog(page.document, page.storage, { seed: demo });
   initShiplogExport(page.document, page.storage);
   initShiplogImport(page.document, page.storage);
   // Wait on state, not on time: the page marks itself ready once the history

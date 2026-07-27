@@ -144,6 +144,10 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .badge-approved { background:#dcefdc; color:#205d2b; }
 /* Record type is stated in text inside the badge, so the colour is decoration
    rather than the signal. */
+/* Example records are read-through demo data, never the visitor's own. The
+   badge rides alongside the type and status badges on a row and in a detail
+   header, so the disclosure survives every filter, sort, and direct URL load. */
+.badge-example { background:#f0ece4; color:#6b5a34; }
 .badge-type-decision { background:#e6ecf5; color:#2c4a6e; }
 .badge-type-release { background:#efe7f5; color:#553670; }
 .date { color:#62625d; font:600 11px/1.4 ui-monospace,monospace; }

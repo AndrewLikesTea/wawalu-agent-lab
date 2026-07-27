@@ -1,5 +1,6 @@
-import { dedupeById, fetchDemoData } from "./demo-data.js";
+import { dedupeById } from "./demo-data.js";
 import { initLeadCapture } from "./lead-capture.js";
+import { EXAMPLE_LABEL, SEED_DECISIONS, SEED_RELEASES } from "./seed-records.js";
 import {
   SUPERSEDE_ERRORS,
   formatSupersedeSummary,
@@ -146,15 +147,19 @@ export function uniqueOwners(decisions) {
 // release can never fall through a decision-shaped code path.
 export const RECORD_TYPES = ["all", "decision", "release"];
 
-export function toHistoryRecords(decisions = [], releases = []) {
+export function toHistoryRecords(decisions = [], releases = [], options = {}) {
   const byId = indexById(decisions);
   // Derived once per composition rather than per row, and only here: rows carry
-  // the answer, they never re-derive it.
+  // the answer, they never re-derive it. Which records are examples is decided
+  // by the caller that composed the stream, so a row never has to guess from an
+  // id shape that a visitor could also produce.
+  const exampleIds = options.exampleIds instanceof Set ? options.exampleIds : new Set(options.exampleIds ?? []);
   const { supersededBy } = indexSupersessions(decisions);
   return [
     ...decisions.map((decision) => ({
       type: "decision",
       id: decision.id,
+      example: exampleIds.has(decision.id),
       title: decision.title,
       owner: decision.owner,
       createdAt: decision.createdAt,
@@ -168,6 +173,7 @@ export function toHistoryRecords(decisions = [], releases = []) {
       return {
         type: "release",
         id: release.id,
+        example: exampleIds.has(release.id),
         title: releaseTitle(release),
         owner: releaseOwner(release),
         createdAt: release.createdAt,
@@ -194,6 +200,12 @@ export function toHistoryRecords(decisions = [], releases = []) {
 // active status narrows the stream to decisions even while the type filter says
 // "all records". The status control itself is disabled — and reset to "all" —
 // whenever the type filter is set to releases, where it could never match.
+//
+// Example ordering (single rule, applied here): the visitor's own records come
+// first and the examples follow, whatever the chosen sort. The sort still
+// orders within each group. A real record is a visitor's own work and must
+// never be pushed below the fold by demo data that is newer or alphabetically
+// earlier; a stream with no examples in it is unaffected.
 export function selectHistory(records, view = {}) {
   const { owner = "all", sort = DEFAULT_SORT } = view;
   const type = RECORD_TYPES.includes(view.type) ? view.type : "all";
@@ -211,7 +223,7 @@ export function selectHistory(records, view = {}) {
       return !query || record.searchable
         .some((value) => typeof value === "string" && value.toLocaleLowerCase().includes(query));
     })
-    .sort(compare);
+    .sort((a, b) => Number(a.example === true) - Number(b.example === true) || compare(a, b));
 }
 
 // The "current only" filter is the one filter whose state has to survive a
@@ -419,7 +431,15 @@ function appendOwner(summary, owner) {
   return element;
 }
 
-function renderDecisionRow(decision, index) {
+// The one place a row says a record is an example. Same badge idiom as the type
+// and status badges next to it, so the disclosure travels with the row through
+// every filter and sort instead of living only in the caption above the list.
+function appendExampleBadge(meta, example) {
+  if (example !== true) return null;
+  return appendTextElement(meta, "span", "badge badge-example", EXAMPLE_LABEL);
+}
+
+function renderDecisionRow(decision, index, example = false) {
   const item = document.createElement("li");
   const article = document.createElement("article");
   const detailLink = document.createElement("a");
@@ -445,6 +465,7 @@ function renderDecisionRow(decision, index) {
   // the mixed stream stays legible in a filtered result.
   appendLabelledValue(meta, "Type", "Decision", "badge badge-type badge-type-decision");
   appendLabelledValue(meta, "Status", decision.status, `badge badge-${decision.status}`);
+  appendExampleBadge(meta, example);
   appendRecordedDate(meta, decision.createdAt, "Recorded:");
   const summary = document.createElement("div");
   summary.id = descriptionId;
@@ -468,7 +489,7 @@ function renderDecisionRow(decision, index) {
 // A release row carries the same amount of context as a decision row — status,
 // date, description, linked-decision summary, owner — and the same open/act
 // affordance, so a filtered result is still actionable without a second hop.
-function renderReleaseRow(release, index) {
+function renderReleaseRow(release, index, example = false) {
   const item = document.createElement("li");
   const article = document.createElement("article");
   const detailLink = document.createElement("a");
@@ -490,6 +511,7 @@ function renderReleaseRow(release, index) {
   appendLabelledValue(meta, "Type", "Release", "badge badge-type badge-type-release");
   const status = releaseStatus(release);
   appendLabelledValue(meta, "Status", status, `badge badge-release-${status}`);
+  appendExampleBadge(meta, example);
   appendRecordedDate(meta, release.createdAt, "Released:");
   const summary = document.createElement("div");
   summary.id = descriptionId;
@@ -534,8 +556,8 @@ export function renderHistory(container, count, records, view = {}) {
   list.className = "decision-list";
   visible.forEach((record, index) => {
     list.append(record.type === "release"
-      ? renderReleaseRow(record.release, index)
-      : renderDecisionRow(record.decision, index));
+      ? renderReleaseRow(record.release, index, record.example)
+      : renderDecisionRow(record.decision, index, record.example));
   });
   container.append(list);
   return visible.length;
@@ -618,11 +640,17 @@ export async function initDecisionLog(root = document, storage = localStorage, o
   const announce = createCountAnnouncer(root.querySelector("#history-announcement"), {
     delay: options.announceDelay,
   });
+  // The examples are a module constant, so the composed history exists before
+  // the first render rather than a fetch later. `options.seed` exists for tests
+  // that need a history with nothing in it but their own fixtures.
+  const seed = options.seed ?? { decisions: SEED_DECISIONS, releases: SEED_RELEASES };
+  const seedDecisions = Array.isArray(seed.decisions) ? seed.decisions : [];
+  const seedReleases = Array.isArray(seed.releases) ? seed.releases : [];
   let recordedDecisions = loadDecisions(storage);
-  let decisions = recordedDecisions;
+  let recordedReleases = loadReleases(storage);
+  let decisions = [];
   let releases = [];
   let records = [];
-  list?.setAttribute("aria-busy", "true");
 
   // Single source of truth for the view. Controls write into it, the render
   // function reads from it; nothing re-reads filter state out of the DOM.
@@ -694,21 +722,33 @@ export async function initDecisionLog(root = document, storage = localStorage, o
 
   // Full refresh: recompose the stream and re-derive owner options (data may
   // have changed) then re-render.
+  //
+  // Recomposition always starts from what the visitor has recorded and merges
+  // the examples behind it. The examples are never written, so recording or
+  // importing can only add to the recorded half — it cannot delete, overwrite,
+  // or hide either half. dedupeById keeps the first occurrence, so a recorded
+  // record that shares an id with an example replaces it and is not badged.
   const refresh = () => {
-    records = toHistoryRecords(decisions, releases);
+    decisions = dedupeById([...recordedDecisions, ...seedDecisions]);
+    releases = dedupeById([...recordedReleases, ...seedReleases]);
+    const recordedIds = new Set([...recordedDecisions, ...recordedReleases].map(({ id }) => id));
+    const exampleIds = new Set([...seedDecisions, ...seedReleases]
+      .map(({ id }) => id)
+      .filter((id) => !recordedIds.has(id)));
+    records = toHistoryRecords(decisions, releases, { exampleIds });
     if (ownerFilter) syncOwnerOptions(ownerFilter, records);
     if (supersedesField) syncSupersedesOptions(supersedesField, decisions);
     view.owner = ownerFilter?.value ?? view.owner;
     render();
   };
 
-  const demo = await fetchDemoData();
-  decisions = dedupeById([...recordedDecisions, ...demo.decisions]);
-  releases = dedupeById([...loadReleases(storage), ...demo.releases]);
+  // Nothing is awaited before this point, and nothing needs to be: the history
+  // is composed and rendered inside the same synchronous turn that boots the
+  // page, so the record count and the rows are already correct on the first
+  // paint instead of counting up from the "0 records" in the static markup.
   syncStatusAvailability();
   syncCurrentOnlyControl();
   refresh();
-  if (demo.unavailable && decisions.length === 0) renderDecisionState(list, "error");
   focusLinkedDecision(root);
 
   const releaseList = root.querySelector("#sample-release-list");
@@ -719,7 +759,7 @@ export async function initDecisionLog(root = document, storage = localStorage, o
       decisions,
     }).render({ releases: featuredReleases, decisions });
   } else if (releaseList) {
-    renderReleaseListState(releaseList, demo.unavailable ? "error" : "empty", { singular: true });
+    renderReleaseListState(releaseList, "empty", { singular: true });
   }
 
   // Changing a filter/sort only re-renders; owner options are stable until the
@@ -812,8 +852,10 @@ export async function initDecisionLog(root = document, storage = localStorage, o
       return;
     }
     clearSupersedesError();
+    // Only the recorded half grows. refresh() recomposes the examples behind
+    // it, so a new decision is added to the visitor's records rather than
+    // replacing anything, and both sets survive.
     recordedDecisions = [decision, ...recordedDecisions];
-    decisions = dedupeById([decision, ...decisions]);
     try {
       saveDecisions(storage, recordedDecisions);
       notice.hidden = true;

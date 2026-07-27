@@ -3,23 +3,21 @@ import {
   resolveDecisionDetail,
   renderDecisionDetail,
   renderDecisionDetailState,
-} from "/decision-detail.js";
-import { loadReleaseData } from "/releases-data.js";
-import { dedupeById } from "/demo-data.js";
-import { pageTitle, recordTitle } from "/page-title.js";
+} from "./decision-detail.js";
+import { loadReleaseData } from "./releases-data.js";
+import { dedupeById } from "./demo-data.js";
+import { SEED_DECISION_DETAILS } from "./seed-records.js";
+import { pageTitle, recordTitle } from "./page-title.js";
 
-export async function loadDecisionDetail(id, storage, options = {}) {
+// Resolution is synchronous. The example records are module constants and the
+// visitor's records come from storage, so an id either resolves now or does not
+// exist — there is no pending window, and therefore no loading state to enter
+// and no way to be stranded in one. A missing id lands in "not-found", which is
+// a real rendered state with a way back, not a spinner that never settles.
+export function loadDecisionDetail(id, storage, options = {}) {
   const loadData = options.loadData ?? loadReleaseData;
-  const fetchImpl = options.fetchImpl ?? fetch;
-  const { decisions, releases, publicDecisionIds, unavailable = false } = await loadData(storage);
-  let detailSeeds = [];
-  try {
-    const response = await fetchImpl("/decision-detail-demo-data.json", { cache: "no-store" });
-    const data = response.ok ? await response.json() : {};
-    detailSeeds = Array.isArray(data.decisions) ? data.decisions : [];
-  } catch {
-    // Structured alternatives are an enhancement. Base records remain usable.
-  }
+  const { decisions, releases, publicDecisionIds, exampleDecisionIds } = loadData(storage);
+  const detailSeeds = options.detailSeeds ?? SEED_DECISION_DETAILS;
 
   const decision = resolveDecisionDetail(detailSeeds, id) ?? resolveDecisionDetail(decisions, id);
   const linkedReleases = decision
@@ -29,11 +27,14 @@ export async function loadDecisionDetail(id, storage, options = {}) {
   // just this record. Seeds win on id, matching how the decision itself resolves.
   const related = dedupeById([...detailSeeds, ...decisions]);
   return {
-    state: decisionDetailState({ id, decision, unavailable: unavailable && !decision }),
+    state: decisionDetailState({ id, decision }),
     decision,
     decisions: related,
     linkedReleases,
     shareable: publicDecisionIds.has(id) || detailSeeds.some((seed) => seed.id === id),
+    // Stated on the detail page as well as the list row: a reader who arrived
+    // by a direct URL never saw the list, and must still be told what this is.
+    example: exampleDecisionIds?.has(id) === true,
   };
 }
 
@@ -43,15 +44,15 @@ export async function initDecisionDetail(options = {}) {
 
   const id = new URLSearchParams(window.location.search).get("id") ?? "";
   container.setAttribute("aria-busy", "true");
-  renderDecisionDetailState(container, "loading");
   try {
-    const result = await loadDecisionDetail(id, localStorage, options);
+    const result = loadDecisionDetail(id, localStorage, options);
     if (result.state === "available") {
       renderDecisionDetail(container, result.decision, {
         id,
         decisions: result.decisions,
         linkedReleases: result.linkedReleases,
         shareable: result.shareable,
+        example: result.example,
       });
     } else {
       renderDecisionDetailState(container, result.state);
@@ -71,4 +72,8 @@ export async function initDecisionDetail(options = {}) {
   }
 }
 
-initDecisionDetail();
+// Guarded so this module can be imported by a test (or another page) without
+// booting against a document that is not the decision detail page.
+if (typeof document !== "undefined" && document.querySelector("#decision-detail")) {
+  initDecisionDetail();
+}
