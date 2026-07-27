@@ -11,7 +11,7 @@
 
 // Relative, not root-absolute: this module is imported by `node --test` as well
 // as by the browser, and only a relative specifier resolves in both.
-import { authorInitials, captionFor, countLabel, formatDate, profileHref } from "./profile.js";
+import { authorInitials, captionFor, countLabel, profileHref } from "./profile.js";
 
 export function findPostById(posts, id) {
   const wanted = String(id ?? "").trim();
@@ -30,21 +30,66 @@ function formatDateTime(iso) {
   return new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(iso));
 }
 
-function profileReturn(author) {
+// Recovery is offered to the nearest place the post came from: the author's
+// profile when the link carried one, and otherwise the feed itself. The feed is
+// called "Social" here because that is the name the site navigation gives it.
+function postReturn(author) {
+  if (!author) {
+    const feed = el("a", "empty-action empty-action-secondary", "Return to Social");
+    feed.href = "/social.html";
+    feed.setAttribute("aria-label", "Return to Social");
+    return feed;
+  }
   const link = el("a", "empty-action empty-action-secondary", "Return to profile");
   link.href = profileHref(author);
-  link.setAttribute("aria-label", author ? `Return to ${author}'s profile` : "Return to profile");
+  link.setAttribute("aria-label", `Return to ${author}'s profile`);
   return link;
 }
 
-function labelledState(className, title, message, author, role = "status") {
-  const state = el("div", `empty-state detail-state-message ${className}`.trim());
-  const heading = el("h2", "empty-title", title);
-  heading.id = `post-state-${className.replaceAll(" ", "-") || "message"}-title`;
-  state.setAttribute("role", role);
-  state.setAttribute("aria-labelledby", heading.id);
-  state.append(heading, el("p", undefined, message), profileReturn(author));
-  return state;
+// One title and one sentence per state, in the same shape the decision detail
+// uses: a category label, a heading that names the state, then a single line
+// saying what is happening. Nothing here reports a status code, an id, or an
+// exception — none of those tell a reader what to do next.
+const POST_STATE_COPY = {
+  loading: {
+    className: "detail-state-loading",
+    label: "Post status",
+    title: "Loading post",
+    description: "We’re finding this post and its author.",
+  },
+  empty: {
+    className: "detail-state-not-found",
+    label: "Post status",
+    title: "Choose a post",
+    description: "No post was specified. Open one from Social.",
+  },
+  "not-found": {
+    className: "detail-state-not-found",
+    label: "Post status",
+    title: "Post not found",
+    description: "This post may have been removed, or the link may be incomplete.",
+  },
+  error: {
+    className: "empty-state-error detail-state-unavailable",
+    label: "Error",
+    title: "Post couldn’t be loaded",
+    description: "We couldn’t reach Social, so this post didn’t load.",
+  },
+};
+
+function labelledState(state, author, action) {
+  const copy = POST_STATE_COPY[state] ?? POST_STATE_COPY.error;
+  const node = el("div", `empty-state detail-state-message ${copy.className}`);
+  const heading = el("h2", "empty-title", copy.title);
+  heading.id = `post-state-${state}-title`;
+  node.setAttribute("role", state === "error" ? "alert" : "status");
+  node.setAttribute("aria-labelledby", heading.id);
+  node.append(el("p", "detail-state-label", copy.label), heading, el("p", undefined, copy.description));
+  // The state's own action comes first; the standing way back is the fallback
+  // behind it.
+  if (action) node.append(action);
+  node.append(postReturn(author));
+  return node;
 }
 
 function renderMedia(image, author, caption) {
@@ -74,7 +119,7 @@ function renderMedia(image, author, caption) {
   fallback.append(
     fallbackTitle,
     el("p", undefined, `The post image could not be displayed. Description: ${img.alt}`),
-    profileReturn(author),
+    postReturn(author),
   );
   fallback.hidden = true;
 
@@ -92,36 +137,18 @@ function renderMedia(image, author, caption) {
 }
 
 function renderMissing(container, id, author) {
-  container.append(labelledState(
-    "detail-state-not-found",
-    "That post is not here.",
-    id ? "It may have been removed, or the link may be incomplete." : "This page needs a post to show. Open one from a profile.",
-    author,
-  ));
+  container.append(labelledState(id ? "not-found" : "empty", author));
 }
 
 function renderFailed(container, onRetry, author) {
-  const failed = labelledState(
-    "empty-state-error detail-state-unavailable",
-    "This post is temporarily unavailable.",
-    "The connection to the feed failed. The post may still be available — try again.",
-    author,
-    "alert",
-  );
   const retry = el("button", "empty-action", "Try again");
   retry.type = "button";
   if (onRetry) retry.addEventListener("click", onRetry);
-  failed.append(retry);
-  container.append(failed);
+  container.append(labelledState("error", author, retry));
 }
 
 function renderLoading(container, author) {
-  const loading = labelledState(
-    "detail-state-loading",
-    "Loading post",
-    "The post image and details are loading.",
-    author,
-  );
+  const loading = labelledState("loading", author);
   const skeleton = el("div", "detail-skeleton");
   skeleton.setAttribute("aria-hidden", "true");
   skeleton.append(el("div", "skeleton-line skeleton-line-short"), el("div", "skeleton-media"), el("div", "skeleton-line"));
@@ -184,6 +211,16 @@ export function renderPostDetail(container, post, options = {}) {
   container.append(article);
 }
 
-export function postDetailTitle(post) {
-  return post ? `${post.author} · ${formatDate(post.createdAt)} · Shiplog` : "Post not found · Shiplog";
+// The page heading names the post the way a reader would: by who wrote it. The
+// post record carries no title of its own, so the author is the only durable
+// name it has — the date and caption sit in the article underneath.
+export function postPageHeading(post) {
+  return post?.author ? `Post by ${post.author}` : "Post";
+}
+
+// Same shape as the decision detail's title — the record, then the surface the
+// nav names, then the product.
+export function postDetailTitle(post, state = "ready") {
+  if (post?.author) return `Post by ${post.author} · Social · Shiplog`;
+  return state === "error" ? "Post unavailable · Shiplog" : "Post not found · Shiplog";
 }

@@ -6,7 +6,7 @@
 // asked first, and the seed is still consulted when the API has no answer.
 
 import { normalizeProfileApiPosts, normalizeSeedPosts, profileHref } from "/profile.js";
-import { findPostById, postDetailTitle, renderPostDetail } from "/post-detail.js";
+import { findPostById, postDetailTitle, postPageHeading, renderPostDetail } from "/post-detail.js";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -37,7 +37,15 @@ async function init() {
     back.setAttribute("aria-label", `Back to ${requestedAuthor}'s profile`);
   }
 
+  const heading = document.querySelector("#page-title");
+  const nameHeading = (post) => {
+    if (heading) heading.textContent = postPageHeading(post);
+  };
+
   const load = async () => {
+    // The heading only names a post once there is one. Until then it names the
+    // page, and the panel below carries the state.
+    nameHeading(null);
     renderPostDetail(container, null, { state: "loading", id, author: requestedAuthor });
     let post = null;
     let failed = false;
@@ -58,13 +66,15 @@ async function init() {
     // A lookup that failed is only reported as a failure when nothing was found
     // anywhere: if the seed answered, the reader has the post and does not need
     // to hear about the network.
+    const state = post ? "ready" : failed ? "error" : "ready";
     renderPostDetail(container, post, {
-      state: post ? "ready" : failed ? "error" : "ready",
+      state,
       id,
       author: post?.author ?? requestedAuthor,
       onRetry: load,
     });
-    document.title = postDetailTitle(post);
+    nameHeading(post);
+    document.title = postDetailTitle(post, state);
     if (back && post) {
       back.href = profileHref(post.author);
       back.textContent = `← Back to ${post.author}'s profile`;
