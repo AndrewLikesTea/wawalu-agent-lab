@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="Shiplog Social — a demo-only space for quick team updates" />
+    <meta name="description" content="Shiplog Social — a shared demo feed of short posts about the work the team ships" />
     <title>Social · Shiplog</title>
     <link rel="stylesheet" href="/styles.css" />
     <link rel="stylesheet" href="/state-ui.css" />
@@ -26,18 +26,18 @@
       <section class="hero hero-social" id="top" aria-labelledby="page-title">
         <p class="eyebrow">Social · demo</p>
         <h1 id="page-title">Share the small<br />wins as they land.</h1>
-        <p>A lightweight feed for quick team updates. This is a demo space — posts are shared across browsers and use no customer or production data.</p>
+        <p>Social is a shared demo feed of short posts about the work the team ships, each with an optional image. Posts are shared across browsers and use no customer or production data.</p>
       </section>
 
       <section class="workspace" aria-label="Social">
         <div class="form-panel">
           <div class="section-heading">
             <p class="eyebrow">New post</p>
-            <h2>Share an update</h2>
+            <h2>Write a post</h2>
           </div>
 
           <form id="post-form" aria-describedby="post-form-hint">
-            <p class="hint" id="post-form-hint">Add an image, check its preview, then write the caption. Posts are saved to the shared demo feed.</p>
+            <p class="hint" id="post-form-hint">Write the caption. Add an image if you want one — a post with an image also appears on your profile.</p>
 
             <fieldset class="media-picker">
               <legend>Image <span class="label-optional">(optional)</span></legend>
@@ -89,7 +89,7 @@
             </div>
 
             <button id="post-submit" type="submit" aria-describedby="social-notice">
-              <span class="submit-label">Post update</span> <span aria-hidden="true">→</span>
+              <span class="submit-label">Publish post</span> <span aria-hidden="true">→</span>
             </button>
             <p class="notice submit-feedback" id="social-notice" role="status" aria-live="polite" aria-atomic="true" hidden></p>
           </form>
