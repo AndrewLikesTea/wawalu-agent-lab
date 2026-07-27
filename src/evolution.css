@@ -889,3 +889,108 @@
   .model-overspend-table { min-width:34rem; }
   .model-overspend-evidence-toggle { width:100%; }
 }
+
+/* --- Evidence behind one department's grade -------------------------------
+   Every colour, border, radius and type role below is already in this file: the
+   panel frame is `.finops-panel`'s, the muted metadata voice is `--ink-muted` in
+   mono, the warn and error roles are the import flow's, and the four category
+   hues are the validated set declared at the top. No new hue, no new type size.
+
+   Chip silhouette follows design-system/claude-design/review-08-foundations:
+   an outline is a static classification (length band, intent class, model tier,
+   signal name — all properties of a prompt already read), and a filled wash is a
+   dynamic signal (the panel's own state). Redaction is neutral, never the error
+   palette: withholding prompt text is a decision this product made, not a fault
+   it is reporting. */
+.department-evidence { margin-top:24px; border:1px solid var(--panel-border); border-radius:18px; padding:clamp(20px,3vw,28px); background:rgba(255,255,255,.68); box-shadow:0 14px 40px rgba(38,38,31,.04); }
+.department-evidence[hidden] { display:none; }
+.department-evidence-live { margin:14px 0 0; color:var(--ink-muted); font:600 11px/1.5 ui-monospace,monospace; }
+.department-evidence-live:empty { display:none; }
+/* Provenance hierarchy, in scale and rhythm rather than hue: the reader's own
+   finding gets the page's stat-numeral role and a full block of air; the bundled
+   sample sits a step down at the card-title role, indented behind a rule. Both
+   still carry the provenance label as text, so the ranking is never inferred. */
+.evidence-head { display:grid; gap:6px; }
+.evidence-head[data-rank="secondary"] { margin-left:14px; border-left:3px solid #d8d6cf; padding-left:15px; }
+.evidence-grade { margin:0; font-size:56px; font-weight:750; line-height:.92; letter-spacing:-.05em; }
+.evidence-head[data-rank="secondary"] .evidence-grade { font-size:32px; letter-spacing:-.035em; }
+.evidence-grade[data-state="graded"] { color:#17845c; }
+.evidence-grade[data-state="partial"] { color:#8a6d0a; }
+.evidence-grade[data-state="withheld"] { color:var(--state-warn-ink); font-size:32px; }
+.evidence-grade-line { margin:4px 0 0; font-size:20px; font-weight:650; line-height:1.3; letter-spacing:-.02em; overflow-wrap:anywhere; }
+.evidence-head[data-rank="secondary"] .evidence-grade-line { font-size:16px; }
+.evidence-shape { flex:none; margin-right:7px; font-weight:750; }
+.evidence-impact { margin:2px 0 0; max-width:70ch; font-size:14px; line-height:1.55; overflow-wrap:anywhere; }
+/* Reuses .confidence-chip's silhouette; only the tone tints differ, and the
+   state word inside the chip is what actually carries the meaning. */
+.evidence-confidence { justify-self:start; margin:10px 0 0; }
+.evidence-confidence[data-tone="ready"] { border-color:var(--import-accent); color:var(--import-ink); }
+.evidence-confidence[data-tone="warn"] { border-style:dashed; border-color:var(--state-warn-line); color:var(--state-warn-ink); }
+.evidence-confidence[data-tone="error"] { border-style:dotted; border-color:var(--state-error-line); color:var(--state-error-ink); }
+.evidence-confidence-detail,.evidence-coverage-rule { margin:6px 0 0; color:var(--ink-muted); font:600 11px/1.5 ui-monospace,monospace; overflow-wrap:anywhere; }
+.evidence-coverage { margin:8px 0 0; font-size:13px; font-weight:700; line-height:1.45; }
+.evidence-provenance { display:flex; align-items:baseline; flex-wrap:wrap; gap:4px 10px; margin:12px 0 0; }
+.evidence-provenance-label { flex:none; border:1px solid #789284; border-radius:99px; padding:3px 9px; color:#315f50; font:750 10px/1.3 ui-monospace,monospace; text-transform:uppercase; }
+.evidence-provenance[data-rank="secondary"] .evidence-provenance-label { border-color:var(--state-warn-line); color:var(--state-warn-ink); }
+.evidence-provenance-detail { color:var(--ink-muted); font-size:12px; line-height:1.5; overflow-wrap:anywhere; }
+.evidence-why { margin:10px 0 0; max-width:70ch; color:#4c5650; font-size:13px; line-height:1.55; }
+.evidence-action { margin-top:16px; padding-top:14px; border-top:1px solid #e2e0d9; }
+.evidence-action-text { display:flex; align-items:baseline; margin:5px 0 0; font-size:14px; font-weight:700; line-height:1.5; }
+.evidence-action[data-available="false"] .evidence-action-text { color:var(--ink-muted); font-weight:400; }
+/* The promise, persistent in every state and never behind the disclosure. A
+   neutral surface with its own shape and label: a reader must not be able to
+   mistake it for the error state two panels up. */
+.evidence-privacy { display:flex; align-items:baseline; flex-wrap:wrap; gap:4px 8px; margin:18px 0 0; border:1px solid #d1cfc7; border-left:5px solid #6f6f69; border-radius:10px; padding:12px 14px; background:#faf9f5; font-size:12px; line-height:1.55; }
+.evidence-privacy-label { flex:none; font:750 10px/1.4 ui-monospace,monospace; letter-spacing:.05em; text-transform:uppercase; }
+.evidence-privacy-copy { max-width:70ch; color:var(--ink-muted); }
+.evidence-shell { display:grid; gap:6px; }
+.evidence-shell-status { display:flex; align-items:baseline; margin:0; color:var(--ink-muted); font:750 10px/1.4 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; }
+.evidence-shell[data-state="error"] .evidence-shell-status { color:var(--state-error-ink); }
+.evidence-shell[data-state="withheld"] .evidence-shell-status { color:var(--state-warn-ink); }
+.evidence-shell-title { margin:4px 0 0; font-size:20px; font-weight:650; line-height:1.3; }
+.evidence-shell-impact { margin:2px 0 0; font-size:14px; line-height:1.55; }
+.evidence-shell-why { margin:6px 0 0; color:var(--ink-muted); font-size:12px; line-height:1.55; }
+.evidence-disclosure-block { margin-top:18px; border-top:1px solid #e2e0d9; padding-top:14px; }
+.evidence-disclosure-toggle { min-height:44px; border:1px solid #6b5c3e; border-radius:8px; padding:9px 13px; background:#fff; color:#24241f; font:750 12px/1.4 inherit; text-align:left; cursor:pointer; transition:background .15s ease; }
+.evidence-disclosure-toggle:hover { background:#f7f6f1; }
+.evidence-disclosure-toggle:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.evidence-disclosure-toggle[aria-expanded="true"] { background:#f4f1e9; box-shadow:inset 4px 0 #6b5c3e; }
+.evidence-disclosure-panel { display:grid; gap:18px; margin-top:14px; }
+.evidence-disclosure-panel[hidden] { display:none; }
+.evidence-disclosure-panel .eyebrow { margin:0 0 8px; }
+.evidence-count-list { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr)); gap:12px; margin:0; }
+.evidence-count-list dt { color:var(--ink-muted); font:700 9px/1.4 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; }
+.evidence-count-list dd { margin:4px 0 0; font-size:20px; font-weight:750; letter-spacing:-.02em; overflow-wrap:anywhere; }
+.evidence-signal-list,.evidence-distribution-list,.evidence-sketch-list { display:grid; gap:8px; margin:0; padding:0; list-style:none; }
+.evidence-signal { display:grid; grid-template-columns:minmax(0,1.1fr) auto auto; gap:4px 12px; border:1px solid #e1dfd8; border-radius:9px; padding:11px 13px; background:#faf9f5; }
+.evidence-signal[data-fired="false"] { border-style:dashed; color:var(--ink-muted); }
+.evidence-signal-label { min-width:0; font-size:13px; font-weight:700; overflow-wrap:anywhere; }
+.evidence-signal-count,.evidence-signal-impact { color:var(--ink-muted); font:600 11px/1.5 ui-monospace,monospace; white-space:nowrap; }
+.evidence-signal-evidence { grid-column:1/-1; font-size:12px; line-height:1.5; overflow-wrap:anywhere; }
+/* The bar is drawn from the same share the row prints as text; it is aria-hidden
+   and carries no value of its own, so a 0% row still reads as a labelled row. */
+.evidence-distribution-row { display:grid; grid-template-columns:minmax(0,1fr) auto auto; gap:4px 12px; align-items:baseline; border-bottom:1px solid #e2e0d9; padding-bottom:8px; }
+.evidence-distribution-label { min-width:0; font-size:13px; font-weight:700; overflow-wrap:anywhere; }
+.evidence-distribution-count,.evidence-distribution-score { color:var(--ink-muted); font:600 11px/1.5 ui-monospace,monospace; white-space:nowrap; }
+.evidence-bar { grid-column:1/-1; height:6px; border-radius:3px; background:#e2e0d9; }
+.evidence-bar::before { content:""; display:block; width:var(--evidence-bar-share,0%); height:100%; border-radius:3px; background:var(--ink-muted); }
+.evidence-distribution-row[data-category="highValue"] .evidence-bar::before { background:var(--cat-high-value); }
+.evidence-distribution-row[data-category="overProvisioned"] .evidence-bar::before { background:var(--cat-over-provisioned); }
+.evidence-distribution-row[data-category="inefficient"] .evidence-bar::before { background:var(--cat-inefficient); }
+.evidence-distribution-row[data-category="outOfScope"] .evidence-bar::before { background:var(--cat-out-of-scope); }
+/* A sketch row: a count, the withheld marker, and four outline classification
+   chips. Wraps rather than truncates — an unusually long class label makes the
+   row taller, never unreadable. */
+.evidence-sketch { display:flex; align-items:baseline; flex-wrap:wrap; gap:7px 9px; border:1px solid #e1dfd8; border-radius:9px; padding:11px 13px; background:#faf9f5; }
+.evidence-sketch-count { flex:none; font:750 12px/1.5 ui-monospace,monospace; }
+.evidence-sketch-redaction { display:inline-flex; align-items:baseline; flex:none; border-radius:5px; padding:2px 8px; background:color-mix(in srgb,var(--ink-muted) 14%,transparent); color:#4a4a45; font:700 10px/1.5 ui-monospace,monospace; }
+.evidence-chip { min-width:0; border:1px solid #aaa79d; border-radius:5px; padding:2px 8px; color:#4a4a45; font:600 11px/1.5 ui-monospace,monospace; overflow-wrap:anywhere; }
+.evidence-note { margin:10px 0 0; color:var(--ink-muted); font-size:12px; line-height:1.5; }
+@media (max-width:640px) {
+  .evidence-signal,.evidence-distribution-row { grid-template-columns:minmax(0,1fr); }
+  .evidence-signal-count,.evidence-signal-impact,.evidence-distribution-count,.evidence-distribution-score { white-space:normal; }
+  .evidence-head[data-rank="secondary"] { margin-left:0; }
+}
+/* Matches how the rest of the site handles motion: the only animated property
+   here is the toggle's own background, and reduced motion removes it. */
+@media (prefers-reduced-motion:reduce) { .evidence-disclosure-toggle { transition:none; } }
