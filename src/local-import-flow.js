@@ -312,6 +312,56 @@ export function applyFieldDiagnostic(doc, diagnostic) {
 }
 
 /**
+ * The sentence beside the determinate bar.
+ *
+ * Two facts, always both: how far through the bytes the read is, and how many
+ * rows have actually been counted. The percentage alone would be a bar with a
+ * number on it; the row count is what tells a reader the file is the size they
+ * thought it was. Row counts are unknown before the read, so there is no
+ * denominator to offer and none is invented.
+ */
+export function importProgressText({ ratio = 0, rows = 0, ordinal = 1, total = 1 } = {}) {
+  const percent = Math.round(Math.min(1, Math.max(0, ratio)) * 100);
+  const position = total > 1 ? `File ${ordinal} of ${total} · ` : "";
+  return `${position}${percent}% read · ${rows.toLocaleString("en-US")} row${rows === 1 ? "" : "s"} processed`;
+}
+
+/**
+ * Paint the determinate progress indicator and offer the cancel.
+ *
+ * `<progress>` is the platform's determinate indicator; it carries the value to
+ * assistive tech without a role, a library, or a store. The sentence beside it
+ * is the same fact in words, because a bar alone is a shape and this surface
+ * does not signal anything by shape alone. Passing `null` returns the region to
+ * its idle state — hidden, valueless, no stale percentage left behind.
+ */
+export function applyImportProgress(doc, progress) {
+  const region = byId(doc, "local-import-progress");
+  const bar = byId(doc, "local-import-progress-bar");
+  const text = byId(doc, "local-import-progress-text");
+  const cancel = byId(doc, "cancel-local-import");
+  if (!region) return null;
+  if (!progress) {
+    region.hidden = true;
+    region.dataset.state = "idle";
+    if (bar) bar.removeAttribute?.("value");
+    if (text) text.textContent = "";
+    if (cancel) cancel.hidden = true;
+    return null;
+  }
+  const sentence = importProgressText(progress);
+  region.hidden = false;
+  region.dataset.state = "running";
+  if (bar) {
+    bar.setAttribute("value", String(Math.round(Math.min(1, Math.max(0, progress.ratio ?? 0)) * 100)));
+    bar.setAttribute("aria-label", sentence);
+  }
+  if (text) text.textContent = sentence;
+  if (cancel) cancel.hidden = false;
+  return sentence;
+}
+
+/**
  * Mark every surface that renders analysis numbers with where those numbers came
  * from, and paint the provenance note on each one that declares a slot for it.
  *

@@ -52,9 +52,26 @@ export async function verifyArtifact(root) {
   const paths = new Set(actual.map(({ path }) => path));
   for (const path of required) if (!paths.has(path)) throw new Error(`missing social UI asset: ${path}`);
 
+  // The import worker is loaded by URL, not by a static import the page graph
+  // would drag along. A build that dropped it would pass every other check here
+  // and then fall back to the main thread for every reader, silently — so the
+  // chunk and everything it imports are named explicitly.
+  for (const path of ["import-worker.js", "import-worker-core.js", "import-protocol.js", "import-runner.js"]) {
+    if (!paths.has(path)) throw new Error(`missing import worker chunk: ${path}`);
+  }
+  const workerShell = await readFile(resolve(root, "import-runner.js"), "utf8");
+  if (!workerShell.includes('new URL("./import-worker.js", import.meta.url)')) {
+    throw new Error("import worker is not constructed from a static module URL");
+  }
+
   const headers = await readFile(resolve(root, "_headers"), "utf8");
   if (!headers.includes("default-src 'none'") || !headers.includes("Permissions-Policy: camera=(), geolocation=(), microphone=()")) {
     throw new Error("least-privilege security headers are missing");
+  }
+  // A dedicated worker under `default-src 'none'` needs worker-src named, or the
+  // constructor throws and every import quietly takes the fallback path.
+  if (!headers.includes("worker-src 'self'")) {
+    throw new Error("worker-src is missing; the import worker would be blocked");
   }
   return manifest;
 }

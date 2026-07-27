@@ -26,12 +26,18 @@ import {
 // One entry point for a selected file: `.json` keeps the reviewed JSON path
 // untouched, `.csv`/`.tsv`/`.txt` route through the delimited normalizer. Both
 // return the same parsed v1 envelope, so nothing below this line changes.
-import { parseLocalImportFile } from "/finops-tabular-import.js";
+//
+// `runImport` is the façade over that entry point. It streams the file, reports
+// progress, honours a cancel, and enforces the ceiling — on a worker where one
+// is available and inline where one is not. This file does not know which, and
+// must not: the arguments, the summary, and the thrown reason codes are the same
+// either way.
+import { ImportAborted, runImport } from "/import-runner.js";
 import { headlineTrust } from "/finops-display.js";
 import {
-  announce as announceStage, applyDatasetProvenance, applyFieldDiagnostic, applyLeadingFinding,
-  applyMetricBasis, applyRequirements, applyStage, applyTrustVerdict, diagnosticFor,
-  EXAMPLE_DATASET_PROVENANCE, focusStageHeading, importStage, metricBasis,
+  announce as announceStage, applyDatasetProvenance, applyFieldDiagnostic, applyImportProgress,
+  applyLeadingFinding, applyMetricBasis, applyRequirements, applyStage, applyTrustVerdict,
+  diagnosticFor, EXAMPLE_DATASET_PROVENANCE, focusStageHeading, importStage, metricBasis,
 } from "/local-import-flow.js";
 import { loadExampleDatasetInputs } from "/example-dataset.js";
 import { leadingFinding } from "/finops-leading-finding.js";
@@ -317,7 +323,11 @@ function mountLocalFinopsImport() {
   };
   const reset = () => {
     const wasExample = exampleActive;
-    loaded.providers.length = 0;
+    // Discarding a selection while it is still being read has to stop the read
+    // too, or the result of a discarded import arrives a second later.
+    cancelImport();
+    applyImportProgress(document, null);
+    loaded.providers = [];
     delete loaded.hris;
     result = null;
     exampleActive = false;
@@ -358,22 +368,48 @@ function mountLocalFinopsImport() {
     syncStage({ focus: true });
   };
 
+  // One import at a time, one controller for it. `null` between imports is the
+  // whole of the "is something running" state — there is no second flag to fall
+  // out of step with it.
+  let importAbort = null;
+  const cancelImport = () => {
+    importAbort?.abort();
+    importAbort = null;
+  };
+  document.getElementById("cancel-local-import")?.addEventListener("click", cancelImport);
+
   input.addEventListener("change", async () => {
     const files = [...input.files];
     if (!files.length) return;
+    // A new selection supersedes one still reading. The old worker is terminated
+    // by its own abort path before this one starts.
+    importAbort?.abort();
+    const controller = new AbortController();
+    importAbort = controller;
+    // What the batch may not keep if it is cancelled. Restoring this is what
+    // makes a cancel leave no half-loaded pair behind: the accepted files from
+    // *earlier* batches survive, the ones this batch added do not.
+    const before = { providers: [...loaded.providers], hris: loaded.hris };
     stateNode.setAttribute("aria-busy", "true");
     resultsNode.setAttribute("aria-busy", "true");
     applyFieldDiagnostic(document, null);
+    applyImportProgress(document, { ratio: 0, rows: 0, ordinal: 1, total: files.length });
     announce("loading", "Reading files in this tab…",
-      "Parsing and validation are running locally; no file contents are being transferred.");
+      "Parsing and validation are running locally; no file contents are being transferred. "
+      + "Cancel stops the read and discards everything it had accumulated.");
     let ordinal = 0;
     try {
       for (const file of files) {
         ordinal += 1;
-        // `file.text()` is the local Blob text API. Nothing here transfers,
-        // stores, or persists the bytes; the parsed projection lives in this
-        // closure for as long as the tab does and no longer.
-        const parsed = parseLocalImportFile(await file.text(), file.name, file.type);
+        // The file handle goes to the reader; the bytes are streamed there and
+        // never held on this thread. Nothing transfers, stores, or persists
+        // them; the folded summary lives in this closure for as long as the tab
+        // does and no longer.
+        const parsed = await runImport(file, {
+          signal: controller.signal,
+          onProgress: (progress) =>
+            applyImportProgress(document, { ...progress, ordinal, total: files.length }),
+        });
         if (parsed.type === "provider")
           loaded.providers.push(parsed);
         else loaded.hris = parsed;
@@ -391,10 +427,25 @@ function mountLocalFinopsImport() {
         hris: loaded.hris,
       }));
     } catch (error) {
+      if (error instanceof ImportAborted) {
+        // A cancel is not a failure and gets no diagnostic. Everything this
+        // batch accepted is dropped, so the surface is exactly where it was
+        // before the picker committed — and the same file can be chosen again.
+        loaded.providers = before.providers;
+        loaded.hris = before.hris;
+        syncStage();
+        announce("ready", "Import cancelled.",
+          "The read stopped and everything it had accumulated was discarded. "
+          + "Choose the same file or another one to start again.");
+        input.focus?.();
+        return;
+      }
       // The diagnostic belongs to the control that produced it: the input goes
       // aria-invalid, the message is described-by it, and the recovery sits
       // beside it. The failing file is named by its position in the selection —
-      // never by file name, path, or any value read out of it.
+      // never by file name, path, or any value read out of it. A ceiling breach
+      // arrives here like any other refusal: no partial total is ever shown for
+      // a file that was too large or too long.
       const diagnostic = diagnosticFor({
         code: error?.code, message: error?.message, ordinal, total: files.length,
       });
@@ -405,6 +456,11 @@ function mountLocalFinopsImport() {
         `${diagnostic.text} ${diagnostic.recovery} Existing analysis was not replaced.`);
       input.focus?.();
     } finally {
+      // The indicator never outlives the read that owns it, whichever way that
+      // read ended, and the input is cleared so re-choosing the same file still
+      // fires a change event.
+      applyImportProgress(document, null);
+      if (importAbort === controller) importAbort = null;
       stateNode.setAttribute("aria-busy", "false");
       resultsNode.setAttribute("aria-busy", "false");
       input.value = "";

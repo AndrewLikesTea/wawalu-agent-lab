@@ -87,7 +87,11 @@
           <div class="local-import-field">
             <label for="local-finops-files">Provider period(s) + HRIS mapping</label>
             <input id="local-finops-files" type="file" accept=".json,.csv,.tsv,.txt,application/json,text/csv,text/tab-separated-values,text/plain" multiple aria-describedby="local-file-help" aria-invalid="false" />
-            <p id="local-file-help">Choose files together or add them in batches. A v1 JSON envelope or a provider CSV/TSV export works; provider periods must use the same source, and all processing and state stay in this tab.</p>
+            <!-- The ceiling is stated before the picker opens, not after a
+                 five-minute read fails. The numbers here are the exported
+                 MAX_IMPORT_BYTES / MAX_IMPORT_ROWS constants; a test pins this
+                 sentence to them so the copy cannot drift from the control. -->
+            <p id="local-file-help">Choose files together or add them in batches. A v1 JSON envelope or a provider CSV/TSV export works; provider periods must use the same source, and all processing and state stay in this tab. Each file may be up to 8 MB and 50,000 rows; split a larger export by date range.</p>
             <p class="field-error" id="local-file-error" hidden></p>
             <div class="field-recovery" id="local-file-recovery" hidden>
               <button class="field-recovery-action" id="local-file-repick" type="button">Choose files again</button>
@@ -101,6 +105,14 @@
           <button id="clear-local-analysis" type="button" hidden>Return to example data</button>
         </div>
         <ul class="mapping-requirements" id="mapping-requirements" aria-label="Required inputs and what is still unresolved"></ul>
+        <!-- Determinate progress for a running read, plus the one control that
+             stops it. Both are hidden until an import is actually in flight, and
+             both return to hidden the moment it ends, whichever way it ends. -->
+        <div class="local-import-progress" id="local-import-progress" data-state="idle" hidden>
+          <progress id="local-import-progress-bar" max="100"></progress>
+          <span id="local-import-progress-text"></span>
+          <button class="local-import-cancel" id="cancel-local-import" type="button" hidden>Cancel import</button>
+        </div>
         <div class="local-import-state" id="local-import-state" role="status" aria-live="polite">
           <strong>Ready for local files.</strong>
           <span>The bundled example analysis remains visible until both compatible exports are ready.</span>

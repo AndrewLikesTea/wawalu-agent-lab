@@ -13,10 +13,10 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { parseHtml, tabSequence, textOf } from "./support/browser.js";
 import {
-  announce, applyDatasetProvenance, applyFieldDiagnostic, applyLeadingFinding, applyMetricBasis,
-  applyRequirements, applyStage, applyTrustVerdict, diagnosticFor, EXAMPLE_DATASET_PROVENANCE,
-  focusStageHeading, IMPORT_STAGES, importStage, mappingRequirements, metricBasis,
-  redactDiagnostic, stageProgress,
+  announce, applyDatasetProvenance, applyFieldDiagnostic, applyImportProgress, applyLeadingFinding,
+  applyMetricBasis, applyRequirements, applyStage, applyTrustVerdict, diagnosticFor,
+  EXAMPLE_DATASET_PROVENANCE, focusStageHeading, IMPORT_STAGES, importProgressText, importStage,
+  mappingRequirements, metricBasis, redactDiagnostic, stageProgress,
 } from "../src/local-import-flow.js";
 import { trustVerdict } from "../src/finops-trust-verdict.js";
 
@@ -395,6 +395,47 @@ test("the one next action links back into the step that would close the gap", as
   assert.equal(jump.dataset.step, "roster");
   jump.click();
   assert.equal(doc.activeElement, doc.getElementById("local-finops-files"));
+});
+
+// --- read progress ---------------------------------------------------------
+
+test("read progress is determinate, worded, and leaves nothing behind when it ends", async () => {
+  const doc = await page();
+  const region = doc.getElementById("local-import-progress");
+  const bar = doc.getElementById("local-import-progress-bar");
+  const cancel = doc.getElementById("cancel-local-import");
+
+  // Idle before anything is picked: hidden region, no cancel offered.
+  assert.equal(region.hidden, true);
+  assert.equal(cancel.hidden, true);
+
+  const sentence = applyImportProgress(doc, { ratio: 0.42, rows: 12_500, ordinal: 2, total: 3 });
+  assert.equal(region.hidden, false);
+  assert.equal(region.dataset.state, "running");
+  // The percentage is on the bar for assistive tech and in words beside it, so
+  // the state is never carried by the shape alone.
+  assert.equal(bar.getAttribute("value"), "42");
+  assert.equal(bar.getAttribute("aria-label"), sentence);
+  assert.equal(normalized(doc.getElementById("local-import-progress-text")), sentence);
+  assert.match(sentence, /File 2 of 3/);
+  assert.match(sentence, /42% read/);
+  // Rows processed ships with the percentage; there is no denominator, because
+  // the row count is unknown until the file has been read.
+  assert.match(sentence, /12,500 rows processed/);
+  assert.doesNotMatch(sentence, /of 12,500/);
+  assert.equal(cancel.hidden, false);
+
+  // A single file needs no file position, and a ratio outside [0,1] is clamped
+  // rather than painting a bar past its own end.
+  assert.equal(importProgressText({ ratio: 3, rows: 1 }), "100% read · 1 row processed");
+
+  // Ending the read returns the region to idle with no stale percentage.
+  assert.equal(applyImportProgress(doc, null), null);
+  assert.equal(region.hidden, true);
+  assert.equal(region.dataset.state, "idle");
+  assert.equal(bar.getAttribute("value"), null);
+  assert.equal(normalized(doc.getElementById("local-import-progress-text")), "");
+  assert.equal(cancel.hidden, true);
 });
 
 test("an empty import shows no percentage at all", async () => {

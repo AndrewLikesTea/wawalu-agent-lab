@@ -55,3 +55,28 @@ test("build manifest is reproducible and detects artifact mutation", async (t) =
   await writeFile(resolve(directory, "social.js"), "tampered\n");
   await assert.rejects(verifyArtifact(directory), /does not match build manifest/);
 });
+
+// The import worker is reached by URL rather than by a static import, so nothing
+// in the module graph would notice it going missing. These two assertions are the
+// only thing standing between a dropped chunk and every reader silently taking
+// the main-thread fallback, so they have to be shown to bite.
+test("a build without the import worker chunk fails verification", async (t) => {
+  const directory = await mkdtemp(resolve(tmpdir(), "shiplog-worker-test-"));
+  t.after(async () => (await import("node:fs/promises")).rm(directory, { recursive: true, force: true }));
+  await cp(new URL("../src", import.meta.url), directory, { recursive: true });
+
+  await (await import("node:fs/promises")).rm(resolve(directory, "import-worker.js"));
+  await createManifest(directory);
+  await assert.rejects(verifyArtifact(directory), /missing import worker chunk: import-worker\.js/);
+});
+
+test("a build whose CSP omits worker-src fails verification", async (t) => {
+  const directory = await mkdtemp(resolve(tmpdir(), "shiplog-csp-test-"));
+  t.after(async () => (await import("node:fs/promises")).rm(directory, { recursive: true, force: true }));
+  await cp(new URL("../src", import.meta.url), directory, { recursive: true });
+
+  const headers = await readFile(resolve(directory, "_headers"), "utf8");
+  await writeFile(resolve(directory, "_headers"), headers.replace(" worker-src 'self';", ""));
+  await createManifest(directory);
+  await assert.rejects(verifyArtifact(directory), /worker-src is missing/);
+});
