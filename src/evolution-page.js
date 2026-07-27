@@ -28,6 +28,10 @@ import {
 // return the same parsed v1 envelope, so nothing below this line changes.
 import { isDelimitedFileName, parseLocalImportFile } from "/finops-tabular-import.js";
 import { readDelimitedText } from "/delimited-text.js";
+// Where that one call runs. A module worker when the browser has one, this
+// thread when it does not; the ceilings and the messages are the same either
+// way, and the worker calls the same `parseLocalImportFile` imported above.
+import { CANCELLED_CODE, checkImportCeiling, createImportOffloader } from "/import-offload.js";
 // The column-review step. The model owns what every column became; the view
 // owns the surface; this layer owns only when the step opens and closes.
 import { createColumnMapping, mappingBinding, setColumnTarget, setMappingKind } from "/import-column-mapping.js";
@@ -36,9 +40,10 @@ import {
 } from "/import-mapping-view.js";
 import { headlineTrust } from "/finops-display.js";
 import {
-  announce as announceStage, applyDatasetProvenance, applyFieldDiagnostic, applyLeadingFinding,
-  applyMetricBasis, applyRequirements, applyStage, applyTrustVerdict, diagnosticFor,
-  EXAMPLE_DATASET_PROVENANCE, focusStageHeading, importStage, metricBasis, userDatasetProvenance,
+  announce as announceStage, applyDatasetProvenance, applyFieldDiagnostic, applyImportLimits,
+  applyImportProgress, applyLeadingFinding, applyMetricBasis, applyRequirements, applyStage,
+  applyTrustVerdict, diagnosticFor, EXAMPLE_DATASET_PROVENANCE, focusStageHeading, importStage,
+  metricBasis, userDatasetProvenance,
 } from "/local-import-flow.js";
 import { loadExampleDatasetInputs } from "/example-dataset.js";
 import { leadingFinding } from "/finops-leading-finding.js";
@@ -122,6 +127,26 @@ function mountLocalFinopsImport() {
   let queue = [];
   let review = null;
   let result = null;
+  // One offloader for the life of the page. It builds its worker lazily, retires
+  // it for good if the browser cannot load a module worker, and builds a fresh
+  // one after a cancel — so a cancelled import leaves nothing to clean up here.
+  const offloader = createImportOffloader({
+    scope: window,
+    workerUrl: new URL("./import-worker.js", import.meta.url).href,
+  });
+  const showProgress = (progress) => applyImportProgress(document, progress);
+  /**
+   * Run one import across the offload seam.
+   *
+   * The caller passes the same synchronous call it would otherwise have made.
+   * Exactly one of the two runs: the worker reconstructs it from `options` and
+   * runs `parseLocalImportFile` out of the same module this file imports, or —
+   * when there is no worker — `sync` is invoked here. There is no second parser.
+   */
+  const runImport = (file, options, sync) => offloader.run({
+    text: file.text, fileName: file.fileName, mediaType: file.mediaType,
+    byteSize: file.byteSize, options, sync,
+  }, { onProgress: showProgress });
   // One flag decides everything the reader is told about where these numbers
   // came from: the badge, the metric basis, every provenance note, and the two
   // download artifacts. Nothing else in this file gets to have an opinion.
@@ -342,6 +367,10 @@ function mountLocalFinopsImport() {
   };
   const reset = () => {
     const wasExample = exampleActive;
+    // A run still in flight is stopped before anything else is dropped, so its
+    // result cannot land on a surface that has already been cleared.
+    offloader.cancel();
+    applyImportProgress(document, null);
     loaded.providers.length = 0;
     delete loaded.hris;
     // Abandoning is total: the queued files, the retained delimited text, and
@@ -409,6 +438,7 @@ function mountLocalFinopsImport() {
   // file name, path, or any value read out of it.
   const failFile = (error, file) => {
     queue = [];
+    applyImportProgress(document, null);
     const diagnostic = diagnosticFor({
       code: error?.code, message: error?.message, ordinal: file.ordinal, total: file.total,
     });
@@ -466,7 +496,7 @@ function mountLocalFinopsImport() {
     return true;
   };
 
-  const confirmReview = () => {
+  const confirmReview = async () => {
     const binding = mappingBinding(review?.state);
     // The confirm control is disabled while a blocker stands; this is the second
     // lock, so a stale click can never reach the parser with a half-mapping.
@@ -474,19 +504,28 @@ function mountLocalFinopsImport() {
     const { file, entry, state } = review;
     let parsed;
     try {
-      parsed = parseLocalImportFile(file.text, file.fileName, file.mediaType, { mapping: binding });
+      // The reviewed mapping runs across the offload seam. The thunk below is
+      // the shipped synchronous call, unchanged, and it is what runs when the
+      // browser has no module worker.
+      parsed = await runImport(file, { mapping: binding },
+        () => parseLocalImportFile(file.text, file.fileName, file.mediaType, { mapping: binding }));
     } catch (error) {
+      applyImportProgress(document, null);
+      // A cancel is the reader's own decision, already announced where they made
+      // it. It is not a file defect and never paints a diagnostic.
+      if (error?.code === CANCELLED_CODE) return;
       closeReview();
       failFile(error, file);
       return;
     }
+    applyImportProgress(document, null);
     const stored = entry ?? { source: "delimited", fileName: file.fileName, mediaType: file.mediaType, text: file.text };
     stored.state = state;
     stored.parsed = parsed;
     stored.rows = state.dataRowCount;
     if (!entry) imports.push(stored);
     closeReview();
-    processQueue();
+    await processQueue();
   };
 
   const finishSelection = (total) => {
@@ -505,7 +544,7 @@ function mountLocalFinopsImport() {
     }));
   };
 
-  const processQueue = () => {
+  const processQueue = async () => {
     let total = imports.length + queue.length;
     while (queue.length) {
       const file = queue.shift();
@@ -519,16 +558,20 @@ function mountLocalFinopsImport() {
         return;
       }
       try {
-        const parsed = parseLocalImportFile(file.text, file.fileName, file.mediaType);
+        const parsed = await runImport(file, undefined,
+          () => parseLocalImportFile(file.text, file.fileName, file.mediaType));
         imports.push({
           source: "json", fileName: file.fileName, parsed, state: null,
           rows: parsed.document?.records?.length ?? 0,
         });
       } catch (error) {
+        applyImportProgress(document, null);
+        if (error?.code === CANCELLED_CODE) return;
         failFile(error, file);
         return;
       }
     }
+    applyImportProgress(document, null);
     finishSelection(total || imports.length);
   };
 
@@ -541,14 +584,26 @@ function mountLocalFinopsImport() {
     announce("loading", "Reading files in this tab…",
       "Parsing and validation are running locally; no file contents are being transferred.");
     try {
+      // The size ceiling is checked from `File.size`, before a byte is decoded
+      // and before a worker exists. An oversized file costs one comparison and
+      // yields one message; nothing partial is ever built from it.
+      const chosen = files.map((file, index) => ({
+        file, fileName: file.name, mediaType: file.type, byteSize: file.size,
+        ordinal: index + 1, total: files.length,
+      }));
+      const oversize = chosen.map((entry) => ({ entry, error: checkImportCeiling(entry.byteSize) }))
+        .find((checked) => checked.error);
+      if (oversize) {
+        failFile(oversize.error, oversize.entry);
+        return;
+      }
       // `file.text()` is the local Blob text API. Nothing here transfers,
       // stores, or persists the bytes; the text lives in this closure for as
       // long as the tab does and no longer.
-      queue = await Promise.all(files.map(async (file, index) => ({
-        fileName: file.name, mediaType: file.type, text: await file.text(),
-        ordinal: index + 1, total: files.length,
+      queue = await Promise.all(chosen.map(async ({ file, ...entry }) => ({
+        ...entry, text: await file.text(),
       })));
-      processQueue();
+      await processQueue();
     } finally {
       stateNode.setAttribute("aria-busy", "false");
       resultsNode.setAttribute("aria-busy", "false");
@@ -591,6 +646,22 @@ function mountLocalFinopsImport() {
     input.focus?.();
     input.click?.();
   });
+  // Cancel stops the work rather than hiding it: the worker is terminated, the
+  // partial text dies with the thread, and the queue behind it is dropped. The
+  // picker is cleared so the very same file can be chosen again immediately —
+  // a file input does not fire `change` for an unchanged value.
+  document.getElementById("local-import-cancel")?.addEventListener("click", () => {
+    const stopped = offloader.cancel();
+    queue = [];
+    applyImportProgress(document, null);
+    closeReview();
+    applyFieldDiagnostic(document, null);
+    input.value = "";
+    syncStage();
+    announce("ready", stopped ? "Import cancelled." : "Nothing was running.",
+      "No rows were kept and no total was produced. Choose the same file again, or a different one.");
+    input.focus?.();
+  });
   document.getElementById("local-file-discard")?.addEventListener("click", reset);
   document.getElementById("export-local-json")?.addEventListener("click", () => {
     if (result) downloadLocalExport(
@@ -608,6 +679,9 @@ function mountLocalFinopsImport() {
   // interaction, so the idle surface is a state rather than a blank.
   applyFieldDiagnostic(document, null);
   applyDatasetProvenance(document, false);
+  // The enforced ceilings, painted from the one place they are defined.
+  applyImportLimits(document);
+  applyImportProgress(document, null);
   showMetricBasis({ mode: "example" });
   syncStage();
 }

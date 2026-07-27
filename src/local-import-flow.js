@@ -13,6 +13,8 @@
 //      contract fields and the position of a file in the selection; record
 //      identifiers, export IDs, and file names are replaced before display.
 
+import { importLimitsSentence } from "./import-limits.js";
+
 /** The stages the shipped flow already walks. Naming them does not add one. */
 export const IMPORT_STAGES = Object.freeze([
   Object.freeze({ id: "select", label: "Select exports" }),
@@ -570,6 +572,83 @@ export function announce(doc, { severity = "polite", state = "ready", title, cop
     textNode(doc, "span", undefined, redactDiagnostic(copy)),
   );
   return { severity, title, copy: redactDiagnostic(copy) };
+}
+
+// --- import progress -------------------------------------------------------
+// A large export is parsed in a worker, so the page can say how far along it is
+// and offer a real cancel. Where a worker is unavailable the parse runs on the
+// page thread with no progress hooks; the copy below says that plainly rather
+// than animating a fraction nobody measured.
+
+const PROGRESS_PHASE_TEXT = Object.freeze({
+  read: "Reading the file",
+  parse: "Parsing and validating",
+  done: "Finished",
+});
+
+/**
+ * One sentence for one progress sample. A coarse sample gets no percentage,
+ * because there is no percentage to report — not a rounded guess at one.
+ */
+export function importProgressText(progress) {
+  const phase = PROGRESS_PHASE_TEXT[progress?.phase] ?? "Working";
+  if (progress?.coarse) {
+    return `${phase} on the page thread — this browser cannot run the import in a worker, `
+      + "so progress is coarse and the page may pause.";
+  }
+  if (!Number.isFinite(progress?.ratio)) return `${phase}…`;
+  return `${phase} — ${Math.round(progress.ratio * 100)}% of the file.`;
+}
+
+/**
+ * Paint the progress region and the cancel control. Passing `null` clears both,
+ * which is what a finished, failed, or cancelled import does.
+ */
+export function applyImportProgress(doc, progress) {
+  const region = byId(doc, "local-import-progress");
+  const bar = byId(doc, "local-import-progress-bar");
+  const text = byId(doc, "local-import-progress-text");
+  if (!region) return null;
+  if (!progress || progress.phase === "done") {
+    region.hidden = true;
+    if (text) text.textContent = "";
+    if (bar) {
+      bar.removeAttribute("value");
+      bar.setAttribute("aria-valuenow", "0");
+    }
+    return null;
+  }
+  region.hidden = false;
+  region.dataset.phase = progress.phase ?? "read";
+  region.dataset.coarse = String(Boolean(progress.coarse));
+  const sentence = importProgressText(progress);
+  if (text) text.textContent = sentence;
+  if (bar) {
+    // An indeterminate <progress> is one with no value attribute. A coarse or
+    // hookless phase gets exactly that instead of a number that means nothing.
+    if (Number.isFinite(progress.ratio) && !progress.coarse) {
+      const percent = Math.round(progress.ratio * 100);
+      bar.setAttribute("value", String(percent));
+      bar.setAttribute("aria-valuenow", String(percent));
+    } else {
+      bar.removeAttribute("value");
+      bar.removeAttribute("aria-valuenow");
+    }
+    bar.setAttribute("aria-label", sentence);
+  }
+  return sentence;
+}
+
+/**
+ * State the enforced import ceilings where the reader chooses a file, from the
+ * one place the numbers are defined. The markup carries no numbers of its own,
+ * so a raised limit cannot leave a stale promise on the page.
+ */
+export function applyImportLimits(doc) {
+  const help = byId(doc, "local-file-limits");
+  const sentence = importLimitsSentence();
+  if (help) help.textContent = sentence;
+  return sentence;
 }
 
 /** Move focus to the stage a reader has just been moved into. */

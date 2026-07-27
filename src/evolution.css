@@ -196,6 +196,17 @@
 .local-provenance-detail summary { cursor:pointer; color:var(--ink-muted); font:700 10px/1.4 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; }
 .local-provenance-detail p { margin:12px 0 0; font-size:12px; line-height:1.55; overflow-wrap:anywhere; }
 .local-provenance-detail .local-redaction-note { color:var(--ink-muted); }
+/* The ceiling sentence sits under the picker, in the same muted voice as the
+   help text it follows. It is painted, never authored here. */
+.local-file-limits { margin:0; color:var(--ink-muted); font-size:11px; line-height:1.5; }
+.local-file-limits:empty { display:none; }
+/* Import progress and its cancel. The phase word and the percentage both ship as
+   text, so nothing here is signalled by the bar alone. */
+.local-import-progress { display:flex; align-items:center; justify-content:space-between; gap:14px; margin-top:18px; border:1px solid #aaa79d; border-radius:9px; padding:11px 15px; background:#f7f6f1; }
+.local-import-progress-line { display:flex; align-items:center; gap:10px; margin:0; color:var(--ink-muted); font-size:12px; line-height:1.5; }
+.local-import-progress progress { width:140px; height:9px; }
+.local-import-progress[data-coarse="true"] progress { opacity:.6; }
+.local-import-progress button { min-height:44px; }
 .local-import-state { display:grid; gap:3px; margin-top:18px; border:1px dashed #aaa79d; border-radius:9px; padding:13px 15px; color:var(--ink-muted); font-size:12px; line-height:1.5; }
 .local-import-state[data-state="error"] { border-color:var(--state-error-line); background:var(--state-error-wash); color:var(--state-error-ink); }
 /* A hard failure is announced from the assertive region below, which empties
@@ -511,6 +522,8 @@
   .proof-point-boundary { align-items:start; flex-direction:column; }
   .local-import-heading,.local-import-controls,.local-result-heading { align-items:stretch; flex-direction:column; }
   .import-stage { flex:1 1 100%; }
+  .local-import-progress { align-items:stretch; flex-direction:column; }
+  .local-import-progress progress { width:100%; }
   /* No horizontal scroll on a phone: each column becomes its own card, with the
      four fixed labels drawn from data-label so the row stays readable. */
   .import-mapping-table,.import-mapping-table tbody,.import-mapping-table tr,.import-mapping-table td,.import-mapping-table th { display:block; }
