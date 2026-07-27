@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://labs.wawalu.org/contracts/integrations/query-sample/v1/schema.json",
+  "title": "Privacy-preserving query-sample export",
+  "description": "A sample of queries, one row per query, carrying exactly what the prompt-literacy rubric consumes to compute a grade and nothing else. A row states either a short prompt excerpt for browser-local classification or a category the producer already assigned — never both, never neither. Excerpts are classified in the reader's tab and discarded there; only the derived category label and the token counts survive the classification step.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "kind", "export_id", "snapshot", "privacy", "records"],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "kind": { "const": "wawalu.integration.query-sample" },
+    "export_id": { "type": "string", "format": "uuid" },
+    "snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_instance_id", "sequence", "generated_at", "bucket_granularity", "completeness", "omitted_record_count", "issues"],
+      "properties": {
+        "source_instance_id": { "$ref": "#/$defs/opaqueId" },
+        "sequence": { "type": "integer", "minimum": 0 },
+        "generated_at": { "type": "string", "format": "date-time" },
+        "bucket_granularity": {
+          "description": "The time granularity every record's query_date states. Day is the only accepted value in 1.0: the rubric weights each sampled query once and reports no time series, so an hour bucket would carry a precision the grade cannot use and the redaction boundary would rather not hold.",
+          "const": "day"
+        },
+        "completeness": { "enum": ["complete", "partial"] },
+        "omitted_record_count": { "type": "integer", "minimum": 0 },
+        "issues": {
+          "type": "array",
+          "maxItems": 100,
+          "items": { "$ref": "#/$defs/issue" }
+        }
+      }
+    },
+    "privacy": { "$ref": "#/$defs/privacy" },
+    "records": {
+      "type": "array",
+      "maxItems": 100000,
+      "items": { "$ref": "#/$defs/sample" }
+    }
+  },
+  "$defs": {
+    "opaqueId": {
+      "type": "string",
+      "pattern": "^psn_[A-Za-z0-9_-]{16,64}$"
+    },
+    "issue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "scope", "retryable"],
+      "properties": {
+        "code": { "enum": ["source_timeout", "source_rate_limited", "sample_truncated", "record_redacted", "page_missing", "unknown"] },
+        "scope": { "enum": ["export", "page", "record"] },
+        "retryable": { "type": "boolean" }
+      }
+    },
+    "privacy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["classification_site", "prompt_text_retained", "direct_identifiers_included"],
+      "properties": {
+        "classification_site": {
+          "description": "Where a prompt_excerpt is turned into a category. The one accepted value says it happens in the reader's own browser tab and the excerpt is discarded there.",
+          "const": "browser-tab"
+        },
+        "prompt_text_retained": { "const": false },
+        "direct_identifiers_included": { "const": false }
+      }
+    },
+    "sample": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["org_unit_id", "query_date", "model_raw", "input_tokens", "output_tokens"],
+      "properties": {
+        "org_unit_id": {
+          "description": "The HRIS org contract's unit_id, byte-for-byte and with the same pseudonym construction, so a sample joins the org tree without introducing a second notion of department. Compared verbatim: no case folding, no trimming beyond the surrounding whitespace a delimited reader strips, and no canonical form other than the one the HRIS producer emitted.",
+          "$ref": "#/$defs/opaqueId"
+        },
+        "query_date": {
+          "description": "The UTC calendar day this query fell in, as YYYY-MM-DD, validated against the real calendar. Same field type and format as the provider-usage contract's usage_date, so a sample and a billing aggregate bucket alike. Never a per-request instant.",
+          "type": "string",
+          "format": "date",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+        },
+        "model_raw": {
+          "description": "The model identifier exactly as the gateway or provider log emitted it. Same field name, meaning, and verbatim rule as the provider-usage-billing v1.1 record. Bounded to the conservative identifier shape the rubric declares in its redaction block, so the one string-valued field that passes through cannot carry prompt text.",
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._:@/-]{1,64}$"
+        },
+        "input_tokens": {
+          "description": "Prompt tokens for this one query. Same field name as the provider-usage-billing v1.1 record, but a required non-negative integer rather than that contract's absent-or-count: a single query is not an aggregate that may fold rows naming different models, so there is nothing for null to mean here.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "output_tokens": {
+          "description": "Completion tokens for this one query, under the same rule as input_tokens.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "prompt_excerpt": {
+          "description": "A short excerpt of the request, present only when the producer has not classified the row. It is read by the classifier in the reader's tab and discarded there; it is never persisted, never transmitted, and never copied into a result, a derived record, or an error message.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 280
+        },
+        "category": {
+          "description": "A category the producer already assigned, from the closed vocabulary of prompt-literacy rubric 1.0.0. Present only when the row carries no excerpt.",
+          "enum": ["highValue", "overProvisioned", "inefficient", "outOfScope"]
+        }
+      },
+      "oneOf": [
+        { "required": ["prompt_excerpt"], "not": { "required": ["category"] } },
+        { "required": ["category"], "not": { "required": ["prompt_excerpt"] } }
+      ]
+    }
+  }
+}

@@ -660,6 +660,27 @@ class StakeholderReviewTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             layers._extract_json("You've hit your session limit · resets 10:50pm")
 
+    def test_a_plan_missing_only_its_final_brace_is_closed_and_kept(self):
+        # Observed on 2026-07-27: stakeholder reviews came back complete and balanced
+        # but never wrote the outermost "}", so every paid draw was discarded and
+        # design filed no reviews that day.
+        raw = ('{"tasks": [{"persona": "design", "title": "Make the grade legible",'
+               ' "outcome": "A visitor can read it", "acceptance_criteria": ["contrast", "tokens"]}]')
+        value = layers._extract_json(raw)
+        self.assertEqual(value["tasks"][0]["persona"], "design")
+        self.assertEqual(value["tasks"][0]["acceptance_criteria"], ["contrast", "tokens"])
+
+    def test_a_plan_truncated_mid_sentence_is_still_rejected(self):
+        # Repair must not invent the rest of an acceptance criterion: output that
+        # stops inside a string is genuinely incomplete, not one character short.
+        with self.assertRaises(ValueError):
+            layers._extract_json('{"tasks": [{"persona": "design", "title": "Make the gra')
+
+    def test_repair_never_overrides_a_parseable_object(self):
+        # The intact document wins; the repair is a last resort, not a first pass.
+        raw = '{"worker": "claude", "rationale": "closes cleanly"} trailing chatter {'
+        self.assertEqual(layers._extract_json(raw)["worker"], "claude")
+
     def test_page_text_strips_markup_and_scripts(self):
         text = layers.page_text("<html><script>secret()</script><body><h1>Spend</h1>"
                                 "<p>Grade B</p></body></html>")
