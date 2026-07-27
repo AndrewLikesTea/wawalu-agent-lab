@@ -95,13 +95,27 @@ test("activating the skip link goes to the landmark, past every site-frame tab s
     // the target because it carries tabindex="-1" — the step above pins that.
     assert.deepEqual(document.navigations, [skip.href], `${file}: the skip link did not activate`);
 
-    // What the one press is worth: every tab stop the reader no longer walks.
+    // What the one press is worth: every tab stop the reader no longer walks —
+    // which is the stops *before* the landmark, not every stop outside it. The
+    // site footer sits after the content region, so its controls are behind a
+    // reader who has skipped, and counting them here would misreport the saving.
     const sequence = tabSequence(document);
     const landmark = document.querySelector(`#${skip.href.slice(1)}`);
     const inside = new Set(landmark.querySelectorAll("a,button,input,select,textarea"));
-    const skipped = sequence.filter((stop) => stop !== skip && !inside.has(stop));
+    const first = sequence.findIndex((stop) => inside.has(stop));
+    assert.ok(first > 0, `${file}: the content region has no tab stop of its own`);
+    const skipped = sequence.slice(0, first).filter((stop) => stop !== skip);
     assert.equal(skipped.length, 8, `${file}: expected the wordmark and seven nav links to be skipped`);
     assert.ok(skipped.every((stop) => stop.closest(".site-header")), `${file}: a content control sits outside <main>`);
+
+    // And nothing the footer contributes may shadow the landmark: every stop it
+    // owns follows the content region's own stops.
+    const footer = new Set(document.querySelector("#site-footer").querySelectorAll("a,button,input,select,textarea"));
+    assert.ok(sequence.some((stop) => footer.has(stop)), `${file}: the footer must be keyboard reachable`);
+    assert.ok(
+      sequence.filter((stop) => footer.has(stop)).every((stop) => sequence.indexOf(stop) > first),
+      `${file}: a footer control precedes the main content in the tab order`,
+    );
   }
 });
 

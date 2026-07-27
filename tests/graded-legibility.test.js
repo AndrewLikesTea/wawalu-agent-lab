@@ -389,10 +389,14 @@ test("extremes · a cohort of one, and a department name long enough to break a 
 
 test("extremes · an imported department name made of markup is text, never a node", async () => {
   const { document } = await openPage();
+  // The page's own module scripts, counted before the injection: the claim is
+  // that the hostile string produced no script node, not that the page ships a
+  // particular number of them.
+  const shipped = document.querySelectorAll("script").length;
   const hostile = '<img src=x onerror="alert(1)"><script>alert(2)</script>';
   applyGradedSample(document, model(300, 1000, { other: hostile }));
 
   assert.match(textOf(document.querySelector(".graded-action-text")), /<img src=x onerror="alert\(1\)">/);
   assert.equal(document.querySelectorAll("img").length, 0);
-  assert.equal(document.querySelectorAll("script").length, 1, "only the page's own module script exists");
+  assert.equal(document.querySelectorAll("script").length, shipped, "only the page's own module scripts exist");
 });

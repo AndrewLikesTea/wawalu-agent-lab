@@ -525,4 +525,41 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .filter-toggle { align-self:end; min-height:41px; margin:0; padding:0 14px; background:transparent; color:#1f70c1; border:1px solid #9cb9d4; }
 .filter-toggle[aria-pressed="true"] { background:#1f70c1; color:#fff; border-color:#1f70c1; }
 .field-error { margin:0; color:#8c2f28; font-size:12px; line-height:1.45; }
-@media(prefers-reduced-motion:reduce) { html{scroll-behavior:auto}.release-chevron{transition:none}.list-state-loading h3::before,.post-media[data-state="loading"],.profile-media[data-state="loading"],.detail-media[data-state="loading"],.skeleton-media,.skeleton-line{animation:none}.profile-tile{transition:none}.profile-tile:hover{transform:none} }
+/* Site footer ---------------------------------------------------------------
+   A quiet band after the content region, on every page. It is body-level and
+   full-bleed with its own inner measure, so it reads identically on a page that
+   wraps its frame in .page and on one that does not. Nothing here competes with
+   the page's own hierarchy: the heading is eyebrow-sized on purpose, and the
+   panel only exists once a visitor has asked for it. Markup: src/site-footer.js.
+   The mirror of this block lives in src/agents.css, which is the other
+   stylesheet the site's pages load. */
+.site-footer { border-top:1px solid #cfcdc5; background:rgba(255,255,255,.5); }
+.site-footer-inner { display:grid; justify-items:start; gap:13px; width:min(1180px,calc(100% - 40px)); margin:auto; padding:30px 0 44px; }
+.site-footer-title { margin:0; color:#65717d; font:700 11px/1.4 ui-monospace,monospace; letter-spacing:.11em; text-transform:uppercase; }
+.site-footer-identity { max-width:66ch; margin:0; color:#555550; font-size:14px; line-height:1.6; }
+.site-footer-trigger { min-height:44px; border:1px solid #171713; border-radius:9px; padding:0 17px; background:#171713; color:#fff; font:750 14px/1.4 inherit; cursor:pointer; }
+.site-footer-trigger:hover { border-color:#1f70c1; background:#1f70c1; }
+.site-footer-panel { display:grid; gap:13px; width:100%; max-width:620px; border:1px solid #c2d2e0; border-radius:13px; padding:18px; background:rgba(255,255,255,.88); animation:site-footer-reveal .18s ease-out; }
+.site-footer-panel[hidden] { display:none; }
+@keyframes site-footer-reveal { from { opacity:0; transform:translateY(-4px); } }
+.site-footer-form { display:grid; gap:12px; }
+.site-footer-field { display:grid; gap:7px; }
+.site-footer-field label { color:#2c2c28; font-size:14px; font-weight:700; }
+.site-footer-field input { min-height:46px; min-width:0; border:1px solid #a9bccd; border-radius:9px; padding:0 12px; background:#fff; font:inherit; }
+.site-footer-error { margin:0; border:1px solid #8a2b2b; border-left:5px solid #8a2b2b; border-radius:9px; padding:11px 13px; background:#fbeded; color:#6d2020; font:700 12px/1.5 inherit; }
+.site-footer-error[hidden] { display:none; }
+.site-footer-note { margin:0; color:#4f4f4a; font-size:12px; line-height:1.55; }
+.site-footer-actions { display:flex; flex-wrap:wrap; gap:10px; }
+.site-footer-actions button { min-height:44px; border:1px solid #171713; border-radius:9px; padding:0 16px; background:#171713; color:#fff; font:650 13px/1.4 inherit; cursor:pointer; }
+.site-footer-actions button[type="button"] { border-color:#a9bccd; background:#fff; color:#2c2c28; }
+.site-footer-actions button[aria-disabled="true"] { border-color:#777771; background:#777771; cursor:wait; }
+.site-footer-status { margin:0; min-height:1.5em; color:#2c2c28; font:700 13px/1.5 inherit; }
+.site-footer-form[data-state="success"]+.site-footer-status { color:#205d2b; }
+.site-footer-form[data-state="error"]+.site-footer-status { color:#8a2b2b; }
+.site-footer-recovery { margin:0; border-left:2px solid #8a2b2b; padding-left:11px; color:#4f4f4a; font-size:12px; line-height:1.5; }
+.site-footer-recovery[hidden] { display:none; }
+.site-footer button:focus-visible,.site-footer input:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+/* Narrow: the band keeps the page's own gutter, and every control goes full
+   width rather than wrapping into a sliver. */
+@media(max-width:520px) { .site-footer-inner{width:calc(100% - 24px);padding:24px 0 32px}.site-footer-trigger{width:100%}.site-footer-panel{padding:15px}.site-footer-actions button{flex:1 1 auto} }
+@media(prefers-reduced-motion:reduce) { html{scroll-behavior:auto}.release-chevron{transition:none}.list-state-loading h3::before,.post-media[data-state="loading"],.profile-media[data-state="loading"],.detail-media[data-state="loading"],.skeleton-media,.skeleton-line{animation:none}.profile-tile{transition:none}.profile-tile:hover{transform:none}.site-footer-panel{animation:none} }

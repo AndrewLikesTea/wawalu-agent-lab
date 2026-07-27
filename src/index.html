@@ -344,8 +344,39 @@
       </section>
       </main>
     </div>
+    <footer class="site-footer" id="site-footer" aria-labelledby="site-footer-title">
+      <div class="site-footer-inner">
+        <h2 class="site-footer-title" id="site-footer-title">About Shiplog</h2>
+        <p class="site-footer-identity">Shiplog is a demonstration engineering decision and release log, built and operated by Wawalu at labs.wawalu.org.</p>
+        <button class="site-footer-trigger" id="site-footer-open" type="button" aria-expanded="false" aria-controls="site-footer-panel">
+          Talk to us about Shiplog
+        </button>
+        <div class="site-footer-panel" id="site-footer-panel" hidden>
+          <form id="site-footer-form" class="site-footer-form" novalidate>
+            <div class="site-footer-field">
+              <label for="site-footer-email">Work email</label>
+              <!-- Only the note is named here. The inline error and the recovery
+                   paragraph are added to this description by site-footer.js when
+                   they exist, because a hidden element referenced by
+                   aria-describedby is still part of the accessible description
+                   and would otherwise be read on first focus. -->
+              <input id="site-footer-email" name="email" type="email" maxlength="254" inputmode="email" autocomplete="email" placeholder="you@company.com" required aria-describedby="site-footer-note" />
+            </div>
+            <p class="site-footer-error" id="site-footer-error" hidden></p>
+            <p class="site-footer-note" id="site-footer-note">This form sends one thing: the work email address you type. Nothing else on this page — nothing you have read, filtered, imported, or exported — is read, attached, or transmitted, and the address goes to the Wawalu team that operates Shiplog.</p>
+            <div class="site-footer-actions">
+              <button type="submit">Send my email</button>
+              <button id="site-footer-dismiss" type="button">Close</button>
+            </div>
+          </form>
+          <p class="site-footer-status" id="site-footer-status" role="status" aria-live="polite"></p>
+          <p class="site-footer-recovery" id="site-footer-recovery" hidden>Your email address is still in the field above, so you can send it again. Nothing else on this page changed.</p>
+        </div>
+      </div>
+    </footer>
     <script type="module" src="/app.js"></script>
     <script type="module" src="/shiplog-export-page.js"></script>
     <script type="module" src="/shiplog-import-page.js"></script>
+    <script type="module" src="/site-footer-page.js"></script>
   </body>
 </html>
