@@ -63,5 +63,43 @@ class CreatePullRequestTests(unittest.TestCase):
                 orchestrator.create_pull_request(["gh", "pr", "create"], BRANCH, WORKTREE, {})
 
 
+class OptionalReviewDebateTests(unittest.TestCase):
+    """The debate is narrative only, so it must never fail an already-approved run."""
+
+    def test_successful_debate_is_recorded(self):
+        debate = {"messages": [], "resolution": "ship it"}
+        metadata = {}
+        with mock.patch.object(orchestrator, "review_debate", return_value=debate):
+            value = orchestrator.optional_review_debate({}, {}, "", WORKTREE / "d.json", metadata)
+        self.assertEqual(value, debate)
+        self.assertEqual(metadata["review_debate"], debate)
+        self.assertNotIn("review_debate_error", metadata)
+
+    def test_planner_json_failure_leaves_the_run_alive(self):
+        metadata = {}
+        with mock.patch.object(orchestrator, "review_debate",
+                               side_effect=RuntimeError("frontier planner failed; bad JSON")):
+            value = orchestrator.optional_review_debate({}, {}, "", WORKTREE / "d.json", metadata)
+        self.assertIsNone(value)
+        self.assertIn("frontier planner failed", metadata["review_debate_error"])
+        self.assertNotIn("review_debate", metadata)
+
+    def test_planner_capacity_exhaustion_does_not_defer_shipped_work(self):
+        metadata = {}
+        with mock.patch.object(orchestrator, "review_debate",
+                               side_effect=orchestrator.PlannerCapacityExhausted("codex", "capped")):
+            value = orchestrator.optional_review_debate({}, {}, "", WORKTREE / "d.json", metadata)
+        self.assertIsNone(value)
+        self.assertIn("PlannerCapacityExhausted", metadata["review_debate_error"])
+
+    def test_planner_timeout_leaves_the_run_alive(self):
+        metadata = {}
+        with mock.patch.object(orchestrator, "review_debate",
+                               side_effect=subprocess.TimeoutExpired(["codex"], 900)):
+            value = orchestrator.optional_review_debate({}, {}, "", WORKTREE / "d.json", metadata)
+        self.assertIsNone(value)
+        self.assertIn("TimeoutExpired", metadata["review_debate_error"])
+
+
 if __name__ == "__main__":
     unittest.main()
