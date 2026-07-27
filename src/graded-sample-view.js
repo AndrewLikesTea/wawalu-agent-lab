@@ -14,7 +14,9 @@
 //      of the four survive monochrome, and the word is a text node beside the
 //      letter, so a screen reader reads it without a title or a class.
 //   2. **Coverage and confidence sit with the letter**, not in a disclosure and
-//      not in a footnote.
+//      not in a footnote. They share one bordered block with the letter, so a
+//      skimmer cannot lift the letter out of its qualifier: the border style
+//      itself differs (solid / dashed), which survives a monochrome screenshot.
 //   3. **A sample that cannot be graded publishes no figure.** The KPI row, the
 //      mix and the cohort statement are hidden outright rather than drawn empty.
 //   4. **The example surface is left alone until there is something to replace
@@ -29,6 +31,12 @@ const KPI_ROW_ID = "kpi-row";
 const MIX_PANEL_ID = "spend-mix-panel";
 const TOGGLE_ID = "graded-subscores-toggle";
 const PANEL_ID = "graded-subscores-panel";
+
+/**
+ * The first words of every announcement. A leader who is not looking at the
+ * page needs to know the example numbers are gone before they hear a figure.
+ */
+const REPLACED = "Example data replaced by your import.";
 
 const CATEGORY_VARS = {
   highValue: "--cat-high-value",
@@ -55,6 +63,21 @@ function shapeSpan(doc, glyph) {
 function setText(doc, id, text) {
   const node = byId(doc, id);
   if (node) node.textContent = text;
+  return node;
+}
+
+/**
+ * Write the live region only when the sentence actually changed.
+ *
+ * `paint` runs again on every disclosure toggle, and rewriting a status region
+ * with the same string is still a change to a screen reader: it would announce
+ * the whole grade a second time because the reader opened a panel. One
+ * replacement, one announcement.
+ */
+function announce(doc, text) {
+  const node = byId(doc, LIVE_ID);
+  if (!node || node.textContent === text) return node;
+  node.textContent = text;
   return node;
 }
 
@@ -110,6 +133,11 @@ export function clearGradedSample(doc) {
   // The example badge was hidden, never rewritten, so handing it back is one
   // flag rather than a second copy of its wording.
   show(doc, BADGE_ID, true);
+  for (const slot of Object.values(KPI_SLOT)) {
+    show(doc, `${slot}-flag`, false);
+    const card = byId(doc, slot);
+    if (card) delete card.dataset.available;
+  }
   return null;
 }
 
@@ -128,7 +156,7 @@ function paint(doc, section) {
     show(doc, KPI_ROW_ID, false);
     show(doc, MIX_PANEL_ID, false);
     paintProvenance(doc, model.provenance);
-    setText(doc, LIVE_ID, `${model.message.label}. ${model.nextAction.text}`);
+    announce(doc, `${REPLACED} ${model.message.label}. ${model.nextAction.text}`);
     return;
   }
 
@@ -144,8 +172,10 @@ function paint(doc, section) {
   paintMix(doc, model.mix);
   show(doc, KPI_ROW_ID, true);
   show(doc, MIX_PANEL_ID, true);
-  setText(doc, LIVE_ID,
-    `${model.gradeLine}. ${model.coverage.text} · ${model.coverage.label}.`);
+  // Grade, confidence and coverage in one sentence: "updated" would tell a
+  // screen-reader user that something moved and nothing about whether to act.
+  announce(doc,
+    `${REPLACED} ${model.gradeLine}. ${model.coverage.text} · ${model.coverage.label}.`);
 
   const focusId = section.dataset.focusTarget;
   if (focusId) {
@@ -157,14 +187,31 @@ function paint(doc, section) {
 // --- the letter, and everything a reader needs beside it --------------------
 
 function gradeBlock(doc, model) {
+  const status = model.provisional ? "provisional" : "confident";
   const block = element(doc, "div", "graded-headline");
-  block.dataset.gradeStatus = model.provisional ? "provisional" : "confident";
+  block.dataset.gradeStatus = status;
 
   // The letter itself is decorative: it is repeated in words on the line below,
   // and a screen reader that read both would say the grade twice.
   const letter = element(doc, "p", "graded-letter", model.grade);
-  letter.dataset.gradeStatus = model.provisional ? "provisional" : "confident";
+  letter.dataset.gradeStatus = status;
   letter.setAttribute("aria-hidden", "true");
+
+  // The same words the line below carries, drawn as a chip so the qualifier
+  // cannot be skimmed past — a leader who reads only the 62px letter still
+  // reads "Provisional grade" inside the same block. Filled wash because this
+  // is a live signal about the sample just imported, not a static
+  // classification (Claude Design · Foundations, chip inventory). Hidden from
+  // assistive tech: the grade line says it already, and a chip that repeated it
+  // would announce the qualifier twice.
+  const chip = element(doc, "p", "graded-status-chip");
+  chip.dataset.gradeStatus = status;
+  chip.setAttribute("aria-hidden", "true");
+  chip.append(shapeSpan(doc, model.statusShape),
+    element(doc, "span", "graded-status-word", model.statusWord));
+
+  const figure = element(doc, "div", "graded-figure");
+  figure.append(letter, chip);
 
   // Channel two and three: the word, and a shape beside it. Neither is a tint,
   // and the word is the accessible name of this figure.
@@ -177,7 +224,7 @@ function gradeBlock(doc, model) {
     element(doc, "span", "graded-coverage-value", model.coverage.text),
     element(doc, "span", "graded-coverage-label", model.coverage.label),
   );
-  block.append(letter, line, coverage,
+  block.append(figure, line, coverage,
     element(doc, "p", "graded-coverage-rule", model.coverage.rule));
   return block;
 }
@@ -194,23 +241,33 @@ function notGradeable(doc, model) {
   return [block, actionBlock(doc, model.nextAction)];
 }
 
+// Both blocks below head themselves with an h3: this section's own title is the
+// page's h2, so the graded region joins the document outline at the level under
+// it rather than being three unlabelled paragraphs a heading list never reaches.
+
 function actionBlock(doc, action) {
   const block = element(doc, "div", "graded-action");
   block.dataset.available = String(action.available);
   block.dataset.kind = action.kind;
-  block.append(
-    element(doc, "p", "eyebrow", "Prioritized next action"),
-    element(doc, "p", "graded-action-text", action.text),
-  );
+  const text = element(doc, "p", "graded-action-text");
+  text.append(shapeSpan(doc, action.available ? "▶" : "◇"),
+    element(doc, "span", "graded-action-words", action.text));
+  block.append(element(doc, "h3", "eyebrow", "Prioritized next action"), text);
   return block;
 }
 
 function cohortBlock(doc, cohort) {
   const block = element(doc, "div", "graded-cohort");
   block.dataset.available = String(cohort.available);
+  // The cohort verdict is a grade state of its own, and "no cohort" is the one
+  // a reader must not mistake for a weak-but-real comparison. Shape, border
+  // style and the sentence itself all carry it; the tint only agrees with them.
+  const answer = element(doc, "p", "graded-cohort-answer");
+  answer.append(shapeSpan(doc, cohort.available ? "●" : "◇"),
+    element(doc, "span", "graded-cohort-words", cohort.answer));
   block.append(
-    element(doc, "p", "eyebrow", "Cohort comparison"),
-    element(doc, "p", "graded-cohort-answer", cohort.answer),
+    element(doc, "h3", "eyebrow", "Cohort comparison"),
+    answer,
     element(doc, "p", "graded-cohort-reason", cohort.reason),
   );
   return block;
@@ -307,6 +364,10 @@ function paintKpis(doc, model) {
     setText(doc, `${slot}-note`, kpi.note);
     const card = byId(doc, slot);
     if (card) card.dataset.available = String(kpi.available);
+    // A card with no figure gets a marker of its own, authored in the page:
+    // "Not in this sample" set in a 32px numeral slot still reads as a figure
+    // at a glance, and the dashed edge alone would be one channel.
+    show(doc, `${slot}-flag`, !kpi.available);
   }
 }
 
