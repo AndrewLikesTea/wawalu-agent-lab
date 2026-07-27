@@ -321,11 +321,27 @@
         <button id="finops-data-retry" type="button" hidden>Retry bundled analysis</button>
       </section>
 
-      <section class="kpi-row" data-sample-analysis aria-label="Headline metrics">
+      <!-- The reader's own graded sample. Authored empty and hidden: a visitor
+           who imports nothing never sees this section, and the example surface
+           below is untouched until there is a grade to put in its place. The
+           grade, its coverage, the disclosed subscores, the cohort statement and
+           the one next action are all painted by graded-sample-view.js out of
+           the rubric and eligibility results; these are slots, never wording. -->
+      <section class="graded-sample" id="graded-sample" data-state="example" data-expanded="false" aria-labelledby="graded-sample-title" hidden>
+        <p class="eyebrow" id="graded-sample-title">Your graded sample</p>
+        <div id="graded-sample-body"></div>
+        <p class="graded-sample-live" id="graded-sample-live" role="status" aria-live="polite"></p>
+      </section>
+
+      <section class="kpi-row" id="kpi-row" data-sample-analysis aria-label="Headline metrics">
         <!-- These four numbers only ever show the bundled sample: a local import
              hides them. Say so beside them rather than leaving a reader to infer
              it from a chip further up the page. -->
         <p class="sample-marker" id="headline-basis"><span class="sample-marker-shape" aria-hidden="true">◇</span> Example data — bundled synthetic sample, replaced by your figures only after a local import.</p>
+        <!-- What replaces the badge above once these four numbers are the
+             reader's own: their file names and the rubric version they were
+             graded against. Authored empty and hidden. -->
+        <p class="graded-provenance" id="graded-provenance" role="note" aria-label="Data provenance" hidden></p>
         <article class="kpi" id="kpi-spend">
           <p class="kpi-label">AI spend · period</p>
           <p class="kpi-value" id="kpi-spend-value">–</p>
@@ -478,12 +494,16 @@
         </div>
       </section>
 
-      <section class="finops-panel" data-sample-analysis aria-labelledby="mix-title">
+      <section class="finops-panel" id="spend-mix-panel" data-sample-analysis aria-labelledby="mix-title">
         <div class="section-heading">
           <p class="eyebrow">Quality engine</p>
           <h2 id="mix-title">Where the money goes</h2>
           <p>Spend split by what the prompt was actually asking for, not by token count alone.</p>
         </div>
+        <!-- Only an imported query sample fills this: it carries no per-query
+             cost, so the bar it draws is a query mix and has to say so. Authored
+             empty and hidden; the bundled sample below is a spend mix. -->
+        <p class="mix-basis" id="mix-basis" hidden></p>
         <div class="mix-bar" id="mix-bar" role="img" aria-labelledby="mix-title" aria-describedby="mix-summary"></div>
         <p class="visually-hidden" id="mix-summary">Loading spend mix…</p>
         <ul class="mix-legend" id="mix-legend"></ul>
