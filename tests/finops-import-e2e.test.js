@@ -169,7 +169,7 @@ test("a leader imports the example provider export and reaches a decision they c
       // offered as something to add, because the export groups itself.
       assert.equal(shownText(document, "mapping-requirements"),
         "○Provider period exportnot selectedAdd it–Department names (optional)"
-        + "not selected — your export's own grouping is used");
+        + "optional — sharpens attribution; your export's own grouping is used");
       assert.equal(byId(document, "local-results").hidden, true,
         "no result may be on screen before a file is selected");
     });

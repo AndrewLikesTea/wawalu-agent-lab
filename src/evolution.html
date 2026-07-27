@@ -67,6 +67,11 @@
             <p class="eyebrow">Bring your own exports · browser only</p>
             <h2 id="local-import-title">Analyze provider spend without uploading it.</h2>
             <p>Select one or more manifest-compatible provider exports and one HRIS mapping. Two contiguous, equal-length provider periods unlock a like-for-like trend; a single period keeps the current decision brief unchanged.</p>
+            <!-- What this page will answer, said before a byte is selected. The
+                 three statements are painted from finops-attribution-policy.js
+                 by finops-attribution-view.js; this is a slot, never wording,
+                 and it is deliberately not a new section or expander. -->
+            <ul class="pre-upload-disclosure" id="pre-upload-disclosure" aria-label="What one provider export answers"></ul>
           </div>
           <span class="sample-badge" id="analysis-mode" data-mode="example">
             <span class="badge-shape" aria-hidden="true">◇</span>
@@ -174,6 +179,14 @@
         <!-- Hard failures only. Progress and success stay in the polite status
              above, so no message is ever announced from both regions. -->
         <div class="local-import-alert" id="local-import-alert" role="alert" aria-live="assertive"></div>
+        <!-- What is shown instead of a ranked savings figure when too little of
+             the spend is attributed to rank one honestly: the spend observed,
+             the largest concentration line, and the one sentence naming what
+             would raise confidence. Painted by finops-attribution-view.js; no
+             dollar savings number, range, or hedged amount is ever placed here.
+             It sits outside the live region above so the three facts are read,
+             not announced twice. -->
+        <div class="local-attribution-fallback" id="local-attribution-fallback" data-state="inactive" aria-label="What this export can answer without attribution" hidden></div>
 
         <section class="local-results" id="local-results" data-analysis-surface data-dataset="user" aria-labelledby="local-results-title" aria-busy="false" hidden>
           <div class="local-result-heading">
@@ -249,7 +262,12 @@
             <dl class="local-finding-facts" aria-label="Finding decision facts">
               <div class="local-impact">
                 <dt>Quantified impact</dt>
-                <dd id="local-recoverable" data-real="false">—</dd>
+                <dd id="local-recoverable" data-real="false" data-confidence="FULL_CONFIDENCE">—</dd>
+                <!-- The confidence word and, when the finding is degraded, the
+                     unattributed share it must carry verbatim. Painted from the
+                     classification, so the qualifier cannot be lifted off the
+                     number it qualifies. -->
+                <dd class="local-attribution-note" id="local-attribution-note" data-state="unknown" hidden></dd>
                 <dd class="metric-basis"><span class="metric-basis-label" id="local-metric-label" data-real="false">Example data</span> <span class="metric-basis-detail" id="local-metric-detail">Bundled synthetic sample — not your import and not realized savings.</span></dd>
               </div>
               <div><dt>Department</dt><dd id="local-department">—</dd></div>

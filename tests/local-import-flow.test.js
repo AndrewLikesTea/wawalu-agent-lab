@@ -103,7 +103,10 @@ test("each unresolved requirement carries the jump to the control that fixes it"
   const optional = doc.querySelectorAll("li").filter((row) => row.className === "mapping-requirement");
   assert.deepEqual(optional.map((row) => row.dataset.state), ["ready", "optional"]);
   assert.match(normalized(optional[0]), /Provider period export\s*2 periods ready/);
-  assert.match(normalized(optional[1]), /Department names \(optional\)\s*not selected/);
+  // The row reads as an enhancement, not an unresolved input: "optional —
+  // sharpens attribution", the wording finops-attribution-policy.js publishes.
+  assert.match(normalized(optional[1]),
+    /Department names \(optional\)\s*optional — sharpens attribution/);
   assert.equal(optional[1].querySelector("button"), null,
     "an optional input must not be offered as something to resolve");
 

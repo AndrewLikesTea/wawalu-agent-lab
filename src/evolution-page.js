@@ -60,6 +60,15 @@ import { applyGradedSample, clearGradedSample } from "/graded-sample-view.js";
 import { loadExampleDatasetInputs } from "/example-dataset.js";
 import { EXAMPLE_QUERY_SAMPLE_FILE, exampleQuerySampleText } from "/query-sample-example.js";
 import { leadingFinding } from "/finops-leading-finding.js";
+// The published attribution policy: three input states, one classification table,
+// two thresholds. Nothing on this page decides any of that for itself.
+import {
+  attributedSpendShare, attributionShareFromTotals, classifyFinding, CONFIDENCE, FINDING_CATEGORIES,
+  largestConcentrationLine, providerExportInputState, suppressedSavingsFallback,
+} from "/finops-attribution-policy.js";
+import {
+  applyAttributionNote, applyPreUploadDisclosure, applySuppressedSavings,
+} from "/finops-attribution-view.js";
 import { trustVerdict } from "/finops-trust-verdict.js";
 // The per-model overspend finding and its progressively disclosed evidence.
 // The panel is fed the bundled synthetic finding while the example dataset is
@@ -296,6 +305,62 @@ function mountLocalFinopsImport() {
       list?.append(element("li", "evidence-empty",
         "No department findings. No active HRIS unit matched a provider aggregate."));
   };
+  // ---------------------------------------------------------------------
+  // The attribution policy's inputs, read off what this page already holds.
+  // Nothing is re-parsed and no grouping column is re-detected: the line items
+  // are the parsed provider records, and whether the export carries a grouping
+  // column is the versioned answer `native-grouping.js` already published.
+  // ---------------------------------------------------------------------
+  const providerLineItems = () => imports
+    .filter((entry) => entry.parsed?.type === "provider")
+    .flatMap((entry) => (entry.parsed.document?.records ?? []).map((record) => ({
+      // One unit everywhere below: major USD, the unit `moneyText` prints.
+      cost: (record.cost?.amount_minor ?? 0) / 100,
+      groupingKey: record.org_unit_id ?? null,
+      provider: record.provider ?? null,
+      service: record.service_category ?? null,
+    })));
+  // A delimited export publishes `nativeGrouping`; a v1 JSON envelope carries
+  // `org_unit_id` as a declared contract field, which is the same fact stated by
+  // the contract instead of by detection. Either one is a grouping column.
+  const hasGroupingColumn = () => imports.some((entry) => entry.parsed?.type === "provider"
+    && (entry.state?.nativeGrouping?.status === "native"
+      || (entry.parsed.document?.records ?? [])
+        .some((record) => String(record.org_unit_id ?? "").trim())));
+  /**
+   * One place decides what the recoverable figure may claim. The share is
+   * measured; `classifyFinding` decides the rest from the published table, and
+   * a suppressed classification withholds the figure rather than hedging it.
+   */
+  const applyAttributionPolicy = (share) => {
+    const inputState = providerExportInputState({
+      hasProviderExport: loaded.providers.length > 0,
+      hasGroupingColumn: hasGroupingColumn(),
+      hasOrgMapping: Boolean(loaded.hris),
+    });
+    if (!inputState) {
+      applyAttributionNote(document, null);
+      applySuppressedSavings(document, null);
+      return null;
+    }
+    const classification = classifyFinding(
+      FINDING_CATEGORIES.RECOVERABLE_SAVINGS, inputState, share?.share ?? null,
+    );
+    applyAttributionNote(document, classification);
+    if (classification.confidence !== CONFIDENCE.SUPPRESSED) {
+      applySuppressedSavings(document, null);
+      return classification;
+    }
+    const items = providerLineItems();
+    applySuppressedSavings(document, suppressedSavingsFallback({
+      inputState,
+      share: share?.share ?? null,
+      lineItems: items,
+      totalCost: share?.totalCost ?? null,
+      concentration: largestConcentrationLine(items),
+    }), { formatMoney: moneyText });
+    return classification;
+  };
   // What the reader's own result is labelled with, everywhere the example
   // caption used to sit: their file names, the rows that were read, and the
   // shape each delimited file was read as.
@@ -384,16 +449,37 @@ function mountLocalFinopsImport() {
     // it. The verdict reads the parsed rows and roster the import already holds,
     // plus the export ids reconciliation quarantined; it keeps no state of its
     // own and does not re-parse anything.
-    applyTrustVerdict(document, trustVerdict({
+    const verdict = trustVerdict({
       providers: inputs.providers ?? [],
       hris: inputs.hris ?? null,
       quarantinedExportIds: next.validation?.quarantinedExportIds ?? [],
+    });
+    applyTrustVerdict(document, verdict);
+    // How much of this spend is attributed decides what the recoverable figure
+    // above may claim. The verdict has already summed both sides of that ratio;
+    // summing them again here is how two numbers on one screen start
+    // disagreeing, so the share is assembled from its totals.
+    const attribution = applyAttributionPolicy(attributionShareFromTotals({
+      attributedCost: (verdict.headline?.attributedMinor ?? 0) / 100,
+      totalCost: (verdict.headline?.totalMinor ?? 0) / 100,
     }));
+    // Below the floor the figure itself is withheld. A dollar amount with a
+    // caveat under it is the same unsupported claim with an asterisk on it.
+    if (attribution?.confidence === CONFIDENCE.SUPPRESSED) {
+      setText("local-recoverable", "Not shown · attribution below floor");
+      const figure = document.getElementById("local-recoverable");
+      if (figure) figure.dataset.real = "false";
+    }
     // The landing surface. It is drawn from the same envelope for example data
     // and for a real import; there is no example-only branch below this line.
     applyLeadingFinding(document, leadingFinding(next));
     setText("local-department", next.topDepartment?.name ?? "Unavailable");
-    setText("local-confidence-label", `${resultPlausible ? next.confidence : "Withheld"} confidence`);
+    // A withheld figure cannot carry the analysis's own confidence word beside
+    // it: the attribution policy has already decided the number is not shown, so
+    // the label says withheld rather than contradicting the slot next to it.
+    setText("local-confidence-label", attribution?.confidence === CONFIDENCE.SUPPRESSED
+      ? "Withheld confidence"
+      : `${resultPlausible ? next.confidence : "Withheld"} confidence`);
     setText("local-action", resultPlausible ? next.action : "Review imported totals before selecting a department action.");
     setText("local-provenance",
       next.provenance);
@@ -650,6 +736,12 @@ function mountLocalFinopsImport() {
       const missing = loaded.providers.length ? "HRIS mapping" : "provider export";
       showTransientBasis("partial");
       syncStage({ focus: true });
+      // A provider export whose rows carry no grouping value at all is the
+      // PROVIDER_ONLY state: it can still answer where the money is concentrated,
+      // and it must say so rather than leaving the reader at a dead end. The
+      // share is measured over the reader's own line items, and the policy
+      // decides whether anything is shown in place of the savings figure.
+      applyAttributionPolicy(attributedSpendShare(providerLineItems()));
       // A query sample with no billing beside it has no spend denominator, so
       // eligibility withholds the grade and says why. That is a state worth
       // showing, and it is the one the reader is now in.
@@ -822,6 +914,9 @@ function mountLocalFinopsImport() {
   applyDatasetProvenance(document, false);
   // The enforced ceilings, painted from the one place they are defined.
   applyImportLimits(document);
+  // What one provider export will answer, said before a byte is selected.
+  applyPreUploadDisclosure(document);
+  applySuppressedSavings(document, null);
   applyImportProgress(document, null);
   showMetricBasis({ mode: "example" });
   syncStage();
