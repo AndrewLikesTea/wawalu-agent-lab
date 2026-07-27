@@ -225,6 +225,10 @@ test("the disclosure reveals the subscores and the unclassified count, from the 
 
 test("a file name made of markup is a string on the page, never a node", async () => {
   const { document } = await openPage();
+  // The page's own module scripts, counted before the injection: the claim is
+  // that the hostile string produced no script node, not that the page ships a
+  // particular number of them.
+  const shipped = document.querySelectorAll("script").length;
   const hostile = '<img src=x onerror="alert(1)">&<script>alert(2)</script>.csv';
   applyGradedSample(document, model(900, 1000, { files: [hostile] }));
 
@@ -237,7 +241,7 @@ test("a file name made of markup is a string on the page, never a node", async (
   assert.deepEqual(label.children.map((child) => child.tagName), ["#text"],
     "the name produced one text node and no element");
   assert.equal(label.textContent.includes(hostile), true);
-  assert.equal(document.querySelectorAll("script").length, 1,
-    "only the page's own module script exists");
+  assert.equal(document.querySelectorAll("script").length, shipped,
+    "only the page's own module scripts exist");
   assert.equal(document.querySelectorAll("img").length, 0);
 });
