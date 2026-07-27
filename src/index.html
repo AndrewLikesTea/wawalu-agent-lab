@@ -82,7 +82,13 @@
           <div class="lead-capture-field">
             <label for="lead-email">Work email</label>
             <div class="lead-capture-controls">
-              <input id="lead-email" name="email" type="email" maxlength="254" inputmode="email" autocomplete="email" placeholder="you@company.com" required aria-describedby="lead-capture-note lead-capture-recovery lead-capture-status" />
+              <!-- The recovery paragraph is deliberately *not* named here. A
+                   hidden node referenced by aria-describedby is still part of
+                   the accessible description, so listing it in the markup read
+                   failure copy to every visitor who focused this field before
+                   they had submitted anything. lead-capture.js adds the id when
+                   a submission has actually failed and drops it again on edit. -->
+              <input id="lead-email" name="email" type="email" maxlength="254" inputmode="email" autocomplete="email" placeholder="you@company.com" required aria-describedby="lead-capture-note lead-capture-status" />
               <button type="submit">Get the field note <span aria-hidden="true">→</span></button>
             </div>
           </div>

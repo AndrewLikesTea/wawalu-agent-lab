@@ -313,6 +313,44 @@
         </section>
       </section>
 
+      <!-- Immediately below the result region and outside it: the decision brief
+           above is never swapped, covered, or unmounted by anything in here.
+           The section is always present because a result always is — the
+           bundled analysis on load, the example brief, or the reader's own
+           import — so there is no state in which a visitor who has reached a
+           number has no way to ask about it. -->
+      <section class="finops-panel finops-contact" id="finops-contact" aria-labelledby="finops-contact-title">
+        <div class="finops-contact-copy">
+          <p class="eyebrow">Next step</p>
+          <h2 id="finops-contact-title">Questions about this result?</h2>
+          <p>Everything above is computed in this tab. If you would rather go through it with a person, leave a work email and we will get in touch.</p>
+        </div>
+        <button class="finops-contact-trigger" id="finops-contact-open" type="button" aria-expanded="false" aria-controls="finops-contact-panel">
+          Talk to us about your numbers
+        </button>
+        <div class="finops-contact-panel" id="finops-contact-panel" hidden>
+          <form id="finops-contact-form" class="finops-contact-form" novalidate>
+            <div class="finops-contact-field">
+              <label for="finops-contact-email">Work email</label>
+              <!-- Only the note is named here. The inline error and the recovery
+                   paragraph are added to this description by finops-contact.js
+                   when they exist, because a hidden element referenced by
+                   aria-describedby is still part of the accessible description
+                   and would otherwise be read on first focus. -->
+              <input id="finops-contact-email" name="email" type="email" maxlength="254" inputmode="email" autocomplete="email" placeholder="you@company.com" required aria-describedby="finops-contact-note" />
+            </div>
+            <p class="field-error" id="finops-contact-error" hidden></p>
+            <p class="finops-contact-note" id="finops-contact-note">This form sends one thing: the work email address you type. No figure, file name, column value, or department name from your import is read, attached, or transmitted — this form cannot reach your file, and nothing about the analysis above changes when you send it.</p>
+            <div class="finops-contact-actions">
+              <button type="submit">Send my email</button>
+              <button id="finops-contact-dismiss" type="button">Close</button>
+            </div>
+          </form>
+          <p class="finops-contact-status" id="finops-contact-status" role="status" aria-live="polite"></p>
+          <p class="finops-contact-recovery" id="finops-contact-recovery" hidden>Your email address is still in the field, and nothing from your analysis was sent. Try again in a few minutes — the result above is unchanged and stays until you refresh.</p>
+        </div>
+      </section>
+
       <section class="finops-load-state" id="finops-load-state" role="status" aria-live="polite" aria-atomic="true">
         <div>
           <strong id="finops-load-title">Loading bundled analysis…</strong>
