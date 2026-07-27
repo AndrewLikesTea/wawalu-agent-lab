@@ -253,6 +253,24 @@ def command_status() -> int:
     return 0
 
 
+def optional_review_debate(prompts: dict[str, str], scenario: dict, diff: str,
+                           output_path: pathlib.Path, metadata: dict) -> dict | None:
+    """Generate the synthetic PR debate, or record why there isn't one.
+
+    The debate is decorative: it only ever becomes PR comments. It runs after the
+    diff has already passed the product gates and final review, so a planner that
+    is out of quota, times out, or returns unparseable JSON must not throw away an
+    approved run and burn an implementation attempt against the issue.
+    """
+    try:
+        value = review_debate(prompts, scenario, diff, output_path)
+    except Exception as error:  # noqa: BLE001 - narrative flavor never discards shipped work
+        metadata["review_debate_error"] = f"{type(error).__name__}: {error}"[:400]
+        return None
+    metadata["review_debate"] = value
+    return value
+
+
 def command_run(persona: str, scenario_path: str, push: bool, requested_worker: str) -> int:
     try:
         BUDGET.ensure_available()
@@ -395,8 +413,8 @@ Scenario: {json.dumps(scenario, indent=2)}
                    (ROOT / personas[member]["prompt_file"]).read_text() + "\n" + behaviors["personas"][member]["work_style"]
                    for member in debate_cast}
         prompts["Marcus"] = reviewer_prompt
-        debate_value = review_debate(prompts, scenario, diff, run_dir / "qwen-review-debate.json")
-        metadata["review_debate"] = debate_value
+        debate_value = optional_review_debate(
+            prompts, scenario, diff, run_dir / "qwen-review-debate.json", metadata)
     remaining = BUDGET.record_if_changed({
             "run_id": run_id, "persona": persona, "scenario": scenario_id,
             "worker": plan_value["worker"],
