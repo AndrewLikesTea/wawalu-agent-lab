@@ -106,10 +106,18 @@ test("no developer note leaks into the copy a visitor reads", async () => {
     // A raw tag inside a comment ends it early in the browser and paints the
     // rest of the note, plus its closing marker, as body text. Keep notes plain.
     for (const [comment] of html.matchAll(/<!--[\s\S]*?-->/g)) {
+      const body = comment.slice(4, -3);
       assert.doesNotMatch(
-        comment.slice(4, -3),
+        body,
         /<\/?[a-zA-Z]/,
         `${file} has tag markup inside a comment: ${comment.slice(0, 70)}…`,
+      );
+      // A double hyphen inside the body is the other way these notes have
+      // leaked: it reads as the start of a closing marker. Use an em dash.
+      assert.doesNotMatch(
+        body,
+        /--/,
+        `${file} has a double hyphen inside a comment: ${comment.slice(0, 70)}…`,
       );
     }
     assert.equal(
@@ -117,7 +125,13 @@ test("no developer note leaks into the copy a visitor reads", async () => {
       (html.match(/-->/g) ?? []).length,
       `${file} has an unbalanced comment`,
     );
-    assert.doesNotMatch(parseHtml(html).body.textContent, /-->/, `${file} paints a comment marker`);
+    const text = parseHtml(html).body.textContent;
+    assert.doesNotMatch(text, /-->/, `${file} paints a comment marker`);
+    // The notes themselves, by their own words: a visitor may never read an
+    // instruction written for whoever edits these two pages, or a source path.
+    assert.doesNotMatch(text, /src\/[a-z-]+\.html/, `${file} paints a source path`);
+    assert.doesNotMatch(text, /They are literals on both pages/, `${file} paints an editing note`);
+    assert.doesNotMatch(text, /was deliberately removed because/, `${file} paints an editing note`);
   }
 });
 
