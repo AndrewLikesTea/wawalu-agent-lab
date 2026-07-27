@@ -48,6 +48,15 @@ import {
   applyTrustVerdict, diagnosticFor, EXAMPLE_DATASET_PROVENANCE, focusStageHeading, importStage,
   metricBasis, userDatasetProvenance,
 } from "/local-import-flow.js";
+// A leader's own graded sample. The rubric and the eligibility tier are both
+// upstream and unchanged here; `graded-sample-figures.js` only decides which of
+// the three states the three panels are in, and `graded-sample-view.js` paints
+// them. The one adapter this page adds is the routing below: a selected file
+// that the query-sample validator accepts is a sample, not a provider export.
+import { classifyQuerySample, parseQuerySample } from "/query-sample-contract.js";
+import { scorePromptLiteracy } from "/prompt-literacy-scoring.js";
+import { gradedSampleFigures, querySampleEligibility } from "/graded-sample-figures.js";
+import { applyGradedSample, clearGradedSample } from "/graded-sample-view.js";
 import { loadExampleDatasetInputs } from "/example-dataset.js";
 import { EXAMPLE_QUERY_SAMPLE_FILE, exampleQuerySampleText } from "/query-sample-example.js";
 import { leadingFinding } from "/finops-leading-finding.js";
@@ -69,6 +78,11 @@ import { browserOrgUnitLabelStorage as labelStorage } from "/org-unit-labels.js"
 const DATA_URL = "/evolution-demo-data.json";
 const EVALUATION_URL = "/finops-evaluation-fixtures.json";
 const MODEL_OVERSPEND_URL = "/model-overspend-finding-fixture.json";
+// Repainting the bundled headline and mix, from the last analysis that loaded.
+// "Return to example data" has to put the example figures back into the same
+// slots a graded sample borrowed, and re-running the two renderers is the only
+// way to do that without a second copy of them.
+let repaintBundledAnalysis = () => {};
 const CATEGORY_VARS = {
   highValue: "--cat-high-value",
   overProvisioned: "--cat-over-provisioned",
@@ -142,6 +156,10 @@ function mountLocalFinopsImport() {
   // so the step can be re-entered without re-selecting the file. All of it lives
   // in this closure for as long as the tab does and no longer.
   const imports = [];
+  // Query samples, kept apart from the provider/HRIS pair above: they answer a
+  // different question and are graded by a different module. Same lifetime as
+  // everything else here — this closure, and no longer.
+  const samples = [];
   let queue = [];
   let review = null;
   let result = null;
@@ -282,6 +300,43 @@ function mountLocalFinopsImport() {
     rows: imports.reduce((sum, entry) => sum + entry.rows, 0),
     shapes: imports.map((entry) => entry.state?.shapeLabel ?? null),
   });
+  // The three panels above the import, once the reader has a sample of their
+  // own. Nothing is computed here: the rubric scores, `grade-eligibility.js`
+  // decides the tier and the one action, and the model below only assembles
+  // what they returned. A sample graded against the bundled example totals
+  // would be a claim about the wrong organization, so the example path skips it.
+  const gradedModel = () => {
+    if (!samples.length || exampleActive) return null;
+    const classified = samples.map((entry) => classifyQuerySample(entry.parsed));
+    const records = classified.flatMap((entry) => entry.records);
+    const scored = scorePromptLiteracy(records);
+    return gradedSampleFigures({
+      scored,
+      eligibility: querySampleEligibility({
+        orgUnitIds: records.map((record) => record.orgUnitId),
+        departments: result?.rankedDepartments ?? [],
+        totalUsd: result?.spendUsd ?? null,
+      }),
+      recordCounts: {
+        total: records.length + classified.reduce((sum, entry) => sum + entry.unclassified.length, 0),
+        unclassified: classified.reduce((sum, entry) => sum + entry.unclassified.length, 0),
+      },
+      files: samples.map((entry) => entry.fileName),
+      spendUsd: result?.spendUsd ?? null,
+      recoverableUsd: result?.recoverableUsd ?? null,
+      period: result?.period ?? null,
+      cohort: result?.benchmark ?? null,
+    });
+  };
+  const paintGradedSample = () => {
+    const model = gradedModel();
+    if (!model) return null;
+    // The same rule the bundled surfaces have always followed: a local import
+    // hides the example analysis. The graded view then re-opens exactly the two
+    // panels it has the reader's own figures for, and no others.
+    setSampleVisibility(false);
+    return applyGradedSample(document, model);
+  };
   const renderResult = (next, { example = false, inputs = loaded } = {}) => {
     result = next;
     exampleActive = example;
@@ -383,6 +438,7 @@ function mountLocalFinopsImport() {
     syncStage({ hasResult: true });
     focusStageHeading(document, "read");
     void paintModelOverspend(example);
+    paintGradedSample();
   };
   // Fetched once and reused, like the evaluation fixtures above it. A fixture
   // that cannot be read leaves the panel hidden rather than half-painted: this
@@ -425,6 +481,7 @@ function mountLocalFinopsImport() {
     imports.length = 0;
     queue = [];
     review = null;
+    samples.length = 0;
     closeMappingReview(document);
     if (remap) remap.hidden = true;
     result = null;
@@ -456,6 +513,11 @@ function mountLocalFinopsImport() {
     // the org-unit labels this browser was holding — they are the only thing on
     // this page that outlives a reload, so "start over" has to include them.
     clearModelOverspendFinding(document, { storage: labelStorage() });
+    // The graded panels hand their slots back with everything else, so the
+    // example badge, the example mix and the bundled KPI figures are exactly
+    // what a visitor who imports nothing has always seen.
+    clearGradedSample(document);
+    repaintBundledAnalysis();
     showMetricBasis({ mode: "example" });
     setText("finops-intro",
       "Every prompt is scored for intent, efficiency, and model fit, then attributed to the org chart. "
@@ -584,8 +646,14 @@ function mountLocalFinopsImport() {
       const missing = loaded.providers.length ? "HRIS mapping" : "provider export";
       showTransientBasis("partial");
       syncStage({ focus: true });
+      // A query sample with no billing beside it has no spend denominator, so
+      // eligibility withholds the grade and says why. That is a state worth
+      // showing, and it is the one the reader is now in.
+      const graded = paintGradedSample();
       announce("ready", `${total} compatible file${total === 1 ? "" : "s"} ready.`,
-        `Add the ${missing}; example analysis remains visible.`);
+        graded?.message
+          ? `${graded.message.label}. ${graded.nextAction.text}`
+          : `Add the ${missing}; example analysis remains visible.`);
       return;
     }
     renderResult(normalizeLocalFinopsHistory({
@@ -599,6 +667,16 @@ function mountLocalFinopsImport() {
     while (queue.length) {
       const file = queue.shift();
       total = file.total;
+      // What a file *is* comes from its bytes, not its name. The query-sample
+      // validator is the only thing that accepts a query sample, so asking it
+      // first is the whole of the routing: a provider export or roster carries
+      // none of the required fields and is refused here, then read below
+      // exactly as before. Nothing about the provider path changes.
+      const sample = parseQuerySample(file.text);
+      if (sample.ok) {
+        samples.push({ fileName: file.fileName, parsed: sample });
+        continue;
+      }
       // A delimited file is never analyzed on sight: it goes through the review
       // step, and the rest of the selection waits behind it.
       if (isDelimitedFileName(file.fileName)) {
@@ -1153,9 +1231,12 @@ async function init() {
     const departments = Array.isArray(data.departments) ? data.departments : [];
     const totals = summarize(departments);
     renderFinancePortfolio(data);
-    renderHeadline(data.organization ?? {}, totals, gradeEligibility(departments));
+    repaintBundledAnalysis = () => {
+      renderHeadline(data.organization ?? {}, totals, gradeEligibility(departments));
+      renderMix(totals);
+    };
+    repaintBundledAnalysis();
     renderDecisionSurface(data, departments);
-    renderMix(totals);
     renderRedaction(data.redactionSamples);
 
     setLoadState("ready", "Bundled analysis ready",
