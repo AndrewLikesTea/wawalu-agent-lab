@@ -144,7 +144,10 @@ test("detail page uses semantic landmarks and safe DOM rendering", async () => {
   assert.match(component, /role", state === "error" \? "alert" : "status"/);
   assert.match(component, /el\("table"/);
   assert.doesNotMatch(`${component}\n${page}`, /innerHTML/);
-  assert.match(page, /renderDecisionDetailState\(container, "loading"\)/);
+  // Resolution is synchronous, so the page must never enter a loading branch:
+  // that branch is exactly how a visitor got stranded on "Loading decision".
+  // The static loading state in decision.html stays as the pre-script paint.
+  assert.doesNotMatch(page, /renderDecisionDetailState\(container, "loading"\)/);
   assert.match(page, /renderDecisionDetailState\(container, "error"\)/);
   assert.match(html, /href="\/">← Back to Decisions<\/a>/);
   assert.match(css, /@media\(max-width:760px\)/);

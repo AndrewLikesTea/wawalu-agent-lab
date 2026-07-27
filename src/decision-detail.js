@@ -2,6 +2,7 @@
 // above the DOM layer so selection rules can be verified independently.
 
 import { createShareControl } from "./share-link.js";
+import { EXAMPLE_LABEL } from "./seed-records.js";
 import { indexSupersessions } from "./supersede.js";
 
 export const MAX_COMPARISON_SELECTION = 2;
@@ -235,6 +236,9 @@ export function renderDecisionDetail(container, decision, options = {}) {
   const header = el("header", "decision-detail-header");
   const heading = el("div", "detail-heading");
   heading.append(el("p", "eyebrow", "Engineering decision"), el("h1", undefined, decision.title));
+  // The list row says this too, but a reader who pasted the URL never saw the
+  // list. Same badge, same words, in the record's own header.
+  if (options.example === true) heading.append(el("span", "badge badge-example", EXAMPLE_LABEL));
   if (options.shareable) {
     const share = createShareControl({ type: "decision", id: decision.id });
     if (share) heading.append(share);

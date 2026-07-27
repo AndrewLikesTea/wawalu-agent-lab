@@ -22,7 +22,9 @@ const settle = () => new Promise((resolve) => setTimeout(resolve, 5));
 
 async function boot() {
   const harness = createHistoryHarness(demo);
-  await initDecisionLog(harness.root, harness.storage, { announceDelay: 0 });
+  // The example records reach the page as a seed now, not a fetch, so this
+  // fixture is handed over the same way the real one is.
+  await initDecisionLog(harness.root, harness.storage, { announceDelay: 0, seed: demo });
   return harness;
 }
 

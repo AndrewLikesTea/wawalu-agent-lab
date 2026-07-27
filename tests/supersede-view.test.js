@@ -19,7 +19,6 @@ import { loadPage, tabSequence, pressTab, textOf } from "./support/browser.js";
 installDocument();
 
 const DECISIONS_PAGE = new URL("../src/index.html", import.meta.url);
-const DEMO_ROUTE = "/releases-demo-data.json";
 const NO_DEMO_DATA = { decisions: [], releases: [] };
 
 const decision = (id, title, month, supersedes) => ({
@@ -184,11 +183,11 @@ async function openHistory(t, { decisions = CHAIN, search = "" } = {}) {
       [STORAGE_KEY]: JSON.stringify(decisions),
       [RELEASE_STORAGE_KEY]: JSON.stringify([]),
     },
-    routes: { [DEMO_ROUTE]: NO_DEMO_DATA },
     location: { search },
   });
   t.after(() => page.restore());
   await initDecisionLog(page.document, page.storage, {
+    seed: NO_DEMO_DATA,
     location: { pathname: "/", search, hash: "" },
     history: { replaceState: (state, title, url) => replaced.push(url) },
   });

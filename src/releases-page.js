@@ -2,8 +2,8 @@
 // releases-data.js (shared with the detail view); this layer only binds the
 // composed data to the DOM so releases.js stays reusable and unit-testable.
 
-import { focusRelease, mountReleaseList, renderReleaseListState } from "/releases.js";
-import { loadReleaseData } from "/releases-data.js";
+import { focusRelease, mountReleaseList, renderReleaseListState } from "./releases.js";
+import { loadReleaseData } from "./releases-data.js";
 
 async function init() {
   const container = document.querySelector("#release-list");
