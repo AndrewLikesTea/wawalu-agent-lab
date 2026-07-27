@@ -315,7 +315,10 @@ test("seeded images pass validation, ship as assets, and describe themselves", a
   }
 });
 
-test("every global social destination link uses the Social Profile label", async () => {
+// The feed used to be "Social Profile" in the nav, which sat next to "Profile"
+// and read as the same destination twice. It is "Social" everywhere now; the
+// full ordered link set is pinned in tests/site-nav.test.js.
+test("every global social destination link uses the Social label", async () => {
   const pages = [
     "index.html",
     "decision.html",
@@ -331,8 +334,8 @@ test("every global social destination link uses the Social Profile label", async
     const html = await readFile(new URL(`../src/${page}`, import.meta.url), "utf8");
     assert.match(
       html,
-      /<a class="nav-social"(?: aria-current="page")? href="\/social\.html">Social Profile<\/a>/,
-      `${page} must use the Social Profile navigation label`,
+      /<a class="nav-social"(?: aria-current="page")? href="\/social\.html">Social<\/a>/,
+      `${page} must use the Social navigation label`,
     );
   }
 });
