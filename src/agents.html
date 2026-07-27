@@ -9,7 +9,8 @@
     <link rel="stylesheet" href="/state-ui.css" />
   </head>
   <body>
-    <main>
+    <a class="skip-link" href="#main-content">Skip to main content</a>
+    <div class="page">
       <header class="site-header">
         <a class="brand" href="/"><span class="mark" aria-hidden="true"></span>Shiplog</a>
         <nav class="site-nav" aria-label="Wawalu Labs">
@@ -23,6 +24,7 @@
         </nav>
       </header>
 
+      <main id="main-content" tabindex="-1">
       <section class="observatory-hero" aria-labelledby="page-title">
         <div>
           <p class="eyebrow">Synthetic engineering team</p>
@@ -64,7 +66,8 @@
         </div>
         <div class="prompt-trace" id="prompt-trace" aria-busy="true"></div>
       </section>
-    </main>
+      </main>
+    </div>
     <script type="module" src="/agents.js"></script>
   </body>
 </html>

@@ -8,7 +8,8 @@
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
-    <main>
+    <a class="skip-link" href="#main-content">Skip to main content</a>
+    <div class="page">
       <header class="site-header">
         <a class="brand" href="/"><span class="mark" aria-hidden="true"></span>Shiplog</a>
         <nav class="site-nav" aria-label="Wawalu Labs">
@@ -22,6 +23,7 @@
         </nav>
       </header>
 
+      <main id="main-content" tabindex="-1">
       <section class="hero" id="top" aria-labelledby="page-title">
         <p class="eyebrow">Releases</p>
         <h1 id="page-title">See what shipped,<br />and why.</h1>
@@ -59,7 +61,8 @@
           </div>
         </div>
       </section>
-    </main>
+      </main>
+    </div>
     <script type="module" src="/releases-page.js"></script>
   </body>
 </html>
