@@ -1450,6 +1450,57 @@ class StakeholderLoopTests(unittest.TestCase):
         posted = [call.args[0] for call in journal.emit.call_args_list]
         self.assertEqual(posted.count("stakeholder_review_posted"), 1)
 
+    def test_cadence_is_claimed_before_the_slow_review_runs(self):
+        """A tick that starts while a review is still running must not fire a second one.
+
+        The review itself takes tens of seconds, so a second tick — or a leftover
+        daemon after a restart — asks 'is this stakeholder due?' before the review in
+        flight has finished. Claiming the slot up front is what keeps a day's worth of
+        stakeholder feedback from landing in one burst at the day rollover.
+        """
+        config = {"issue_label": "agent-ready", "stakeholder_reviews": [
+            {"persona": "sales", "role": "sales", "lens": "sellability",
+             "assign_to": ["frontend"], "max_daily": 4, "min_interval_seconds": 14400},
+        ]}
+        review = {"feedback": "f", "tasks": []}
+        journal = mock.Mock()
+        with tempfile.TemporaryDirectory() as tmp:
+            with mock.patch.object(autonomous, "AUTONOMY", pathlib.Path(tmp) / "autonomy"), \
+                 mock.patch.object(autonomous, "github", return_value=[]), \
+                 mock.patch.object(autonomous, "delivered_work_context", return_value=[]), \
+                 mock.patch.object(autonomous, "snapshot_live_site", return_value=None), \
+                 mock.patch.object(autonomous, "load_runtime_env", return_value={}), \
+                 mock.patch.object(autonomous, "stakeholder_prompt", return_value="You are Sasha"), \
+                 mock.patch.object(autonomous, "stakeholder_review", return_value=review) as reviewer:
+                state = autonomous.State(pathlib.Path(tmp) / "state.json")
+                now = autonomous.utc_now()
+                for tick in range(3):  # ticks 90s apart, well inside the four-hour cadence
+                    autonomous.post_stakeholder_reviews(
+                        "token", config, state, journal,
+                        now + dt.timedelta(seconds=90 * tick))
+        self.assertEqual(reviewer.call_count, 1)
+
+    def test_a_failed_review_gives_its_daily_slot_back(self):
+        config = {"issue_label": "agent-ready", "stakeholder_reviews": [
+            {"persona": "sales", "role": "sales", "lens": "sellability",
+             "assign_to": ["frontend"], "max_daily": 2, "min_interval_seconds": 0},
+        ]}
+        with tempfile.TemporaryDirectory() as tmp:
+            with mock.patch.object(autonomous, "AUTONOMY", pathlib.Path(tmp) / "autonomy"), \
+                 mock.patch.object(autonomous, "github", return_value=[]), \
+                 mock.patch.object(autonomous, "delivered_work_context", return_value=[]), \
+                 mock.patch.object(autonomous, "snapshot_live_site", return_value=None), \
+                 mock.patch.object(autonomous, "load_runtime_env", return_value={}), \
+                 mock.patch.object(autonomous, "stakeholder_prompt", return_value="You are Sasha"), \
+                 mock.patch.object(autonomous, "stakeholder_review",
+                                   side_effect=RuntimeError("qwen down")):
+                state = autonomous.State(pathlib.Path(tmp) / "state.json")
+                autonomous.post_stakeholder_reviews(
+                    "token", config, state, journal := mock.Mock(), autonomous.utc_now())
+                self.assertEqual(state.value["stakeholder_reviews"]["sales"]["count"], 0)
+        self.assertIn("stakeholder_review_failed",
+                      [call.args[0] for call in journal.emit.call_args_list])
+
     def test_review_failure_is_journaled_not_fatal(self):
         journal = mock.Mock()
         with tempfile.TemporaryDirectory() as tmp:
