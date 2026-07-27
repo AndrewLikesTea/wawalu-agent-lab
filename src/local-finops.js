@@ -5,6 +5,10 @@
 // manifest, and returns a short-lived projection for the page and downloads.
 
 import { analyzeModelRouting, evaluateDownRoutingCandidate } from "./down-routing-candidates.js";
+import {
+  PREVIOUS_PROVIDER_USAGE_SCHEMA_VERSION, PROVIDER_USAGE_SCHEMA_VERSION,
+  SUPPORTED_PROVIDER_USAGE_SCHEMA_VERSIONS, USAGE_DETAIL_KEYS, usageDetailProblem,
+} from "./provider-usage-record.js";
 
 export const LOCAL_KINDS = Object.freeze({
   provider: "wawalu.integration.provider-usage-billing",
@@ -145,9 +149,26 @@ function validateSnapshot(document, kind) {
   }
 }
 
-function validateProviderRecord(record, index) {
-  exactKeys(record, PROVIDER_RECORD_KEYS, `provider records[${index}]`);
+/**
+ * Validate one provider aggregate at the version its envelope declares.
+ *
+ * The v1.1 fields are additive: at 1.0 they are undeclared and rejected exactly
+ * as any other unknown field is, so a 1.0 document means today what it meant
+ * yesterday. At 1.1 all five are required and each may be `null`, which is the
+ * contract's one spelling of "the export does not report this".
+ */
+function validateProviderRecord(record, index, schemaVersion) {
+  const allowed = schemaVersion === PROVIDER_USAGE_SCHEMA_VERSION
+    ? [...PROVIDER_RECORD_KEYS, ...USAGE_DETAIL_KEYS] : PROVIDER_RECORD_KEYS;
+  exactKeys(record, allowed, `provider records[${index}]`);
   required(record, PROVIDER_RECORD_KEYS, `provider records[${index}]`);
+  const detail = usageDetailProblem(record, schemaVersion);
+  if (detail) {
+    // The field name, never the cell: a malformed model string is located for
+    // the reader in their own file, not echoed back out of it.
+    fail(detail.code, `provider records[${index}].${detail.field} is not valid at `
+      + `schema version ${schemaVersion}.`);
+  }
   if (!OPAQUE_ID_PATTERN.test(record.aggregate_id)
     || !OPAQUE_ID_PATTERN.test(record.org_unit_id)
     || !Number.isInteger(record.revision) || record.revision < 0
@@ -218,7 +239,13 @@ export function parseLocalFinopsFile(text, fileName = "local.json", mediaType = 
   }
   exactKeys(document, ENVELOPE_KEYS, "document");
   required(document, ENVELOPE_KEYS, "document");
-  if (document.schema_version !== "1.0" || !Object.values(LOCAL_KINDS).includes(document.kind)) {
+  // The provider contract accepts every version it has ever shipped; a stored
+  // 1.0 export imports under 1.1 unchanged. The HRIS contract has not moved.
+  const versions = document.kind === LOCAL_KINDS.provider
+    ? SUPPORTED_PROVIDER_USAGE_SCHEMA_VERSIONS
+    : [PREVIOUS_PROVIDER_USAGE_SCHEMA_VERSION];
+  if (!Object.values(LOCAL_KINDS).includes(document.kind)
+    || !versions.includes(document.schema_version)) {
     fail("unsupported_contract", "The JSON is not a supported v1 provider or HRIS contract envelope.");
   }
   if (!UUID_PATTERN.test(document.export_id)) fail("invalid_value", "document.export_id must be a UUID.");
@@ -226,7 +253,8 @@ export function parseLocalFinopsFile(text, fileName = "local.json", mediaType = 
   validatePrivacy(document, document.kind);
   validateSnapshot(document, document.kind);
   document.records.forEach(document.kind === LOCAL_KINDS.provider
-    ? validateProviderRecord : validateHrisRecord);
+    ? (record, index) => validateProviderRecord(record, index, document.schema_version)
+    : validateHrisRecord);
   if (document.kind === LOCAL_KINDS.provider) {
     const outside = document.records.find((record) =>
       record.usage_date < document.snapshot.period_start

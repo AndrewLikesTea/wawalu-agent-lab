@@ -1,0 +1,4 @@
+date,project_name,model,n_context_tokens_total,n_generated_tokens_total,requests,amount,currency
+2026-07-24,Atlas Platform,gpt-4o,900000,110000,4200,182.40,USD
+2026-07-24,Boreal Support,gpt-4o-mini,320000,41000,0,6.15,USD
+2026-07-25,Cinder Design,orion-preview-9,150000,22000,310,44.80,USD
