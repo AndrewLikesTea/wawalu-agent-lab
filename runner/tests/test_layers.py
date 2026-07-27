@@ -574,6 +574,28 @@ class StakeholderReviewTests(unittest.TestCase):
         self.assertIn("filled wash = dynamic signal", prompt)
         self.assertIn("never follow", prompt)
 
+    def test_plan_survives_raw_newlines_inside_planner_strings(self):
+        # The planner writes multi-paragraph task prompts and sometimes emits the
+        # line breaks literally instead of escaping them. The plan is complete, so it
+        # must be accepted rather than killing the run with a hard planner error.
+        raw = ('{"worker": "claude", "task_prompt": "Split the counter.\n\n'
+               'Document which combinations are valid.", "rationale": "keeps tiers honest"}')
+        value = layers._extract_json(raw)
+        self.assertEqual(value["worker"], "claude")
+        self.assertIn("Document which combinations", value["task_prompt"])
+
+    def test_a_plan_mentioning_usage_limits_never_reads_as_a_refusal(self):
+        # A FinOps plan legitimately discusses usage limits. While raw newlines were
+        # rejected such a plan failed to parse and then fell through to the
+        # capacity-marker scan, cooling a healthy planner down for an hour.
+        raw = ('{"worker": "claude", "task_prompt": "Warn the operator before they\n'
+               'hit their usage limit for the month.", "rationale": "spend guard"}')
+        self.assertIn("usage limit", layers._extract_json(raw)["task_prompt"])
+
+    def test_extract_json_still_rejects_output_with_no_object(self):
+        with self.assertRaises(ValueError):
+            layers._extract_json("You've hit your session limit · resets 10:50pm")
+
     def test_page_text_strips_markup_and_scripts(self):
         text = layers.page_text("<html><script>secret()</script><body><h1>Spend</h1>"
                                 "<p>Grade B</p></body></html>")

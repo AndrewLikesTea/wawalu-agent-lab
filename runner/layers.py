@@ -96,14 +96,22 @@ DIRECTIVE_PLAN_SCHEMA = {
 
 
 def _extract_json(raw: str) -> dict[str, Any]:
+    # strict=False tolerates literal newlines and tabs inside strings. A planner
+    # routinely writes a multi-paragraph task_prompt and emits the line breaks raw
+    # rather than as \n, which strict JSON rejects as a control character. That is a
+    # transcription slip in an otherwise complete plan, not an unusable answer, and
+    # rejecting it costs us twice: the run dies with a hard planner error, and the
+    # unparsed text then falls through to the capacity-marker scan below, where a
+    # FinOps plan discussing "usage limits" reads as the provider refusing us and
+    # earns a healthy planner an hour-long cooldown.
     raw = raw.strip()
     try:
-        value = json.loads(raw)
+        value = json.loads(raw, strict=False)
     except json.JSONDecodeError:
         start, end = raw.find("{"), raw.rfind("}")
         if start < 0 or end <= start:
             raise ValueError("Qwen did not return a JSON object")
-        value = json.loads(raw[start:end + 1])
+        value = json.loads(raw[start:end + 1], strict=False)
     if not isinstance(value, dict):
         raise ValueError("Qwen output must be a JSON object")
     return value
