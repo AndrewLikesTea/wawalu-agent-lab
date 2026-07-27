@@ -12,15 +12,19 @@
 // decision module's load-time side effects. The seam to unify them later is a
 // small shared module; that abstraction is not yet earned by two call sites.
 
+import { DECISION_STATUSES, canonicalDecisionStatus } from "./decision-status.js";
 import { createShareControl } from "./share-link.js";
 import { EXAMPLE_LABEL } from "./seed-records.js";
 
 export const RELEASE_STORAGE_KEY = "shiplog.releases.v1";
 export const RELEASE_STATUSES = ["planned", "completed", "cancelled"];
 
-// Mirrors STATUSES in app.js. Kept local (see the module note above); the order
-// here is the order breakdown counts are reported in.
-export const RELEASE_DECISION_STATUSES = ["pending", "approved", "proposed", "accepted", "superseded"];
+// Decision status is a different vocabulary from release status above: a
+// release is planned, completed, or cancelled, and never accepted or
+// superseded. The two lists stay apart. The decision words come from the shared
+// module (see the module note: three call sites earned it); the order here is
+// the order breakdown counts are reported in.
+export const RELEASE_DECISION_STATUSES = DECISION_STATUSES;
 
 // URL builders are the single seam between views. They are pure and unit-tested
 // so the routing shape lives in one place: the list links to a release detail
@@ -104,7 +108,8 @@ export function resolveRelease(release, decisions) {
   };
   for (const status of RELEASE_DECISION_STATUSES) counts[status] = 0;
   for (const decision of linked) {
-    if (counts[decision.status] !== undefined) counts[decision.status] += 1;
+    const status = canonicalDecisionStatus(decision.status);
+    if (counts[status] !== undefined) counts[status] += 1;
   }
 
   return { ...release, decisions: linked, missingIds, associations, counts };

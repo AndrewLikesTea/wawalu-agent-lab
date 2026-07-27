@@ -34,10 +34,14 @@ test("defaults to newest-first ordering with no filters", () => {
 });
 
 test("filters by status", () => {
-  assert.deepEqual(ids(selectDecisions(sample, { status: "accepted" })), ["alpha", "middle"]);
   assert.deepEqual(selectDecisions(sample, { status: "proposed" }).length, 1);
-  assert.deepEqual(ids(selectDecisions(sample, { status: "approved" })), ["approve"]);
   assert.deepEqual(ids(selectDecisions(sample, { status: "pending" })), ["pending"]);
+  // "approved" is retired from every control but a browser can still hold a
+  // record the old form wrote, so it is read as accepted — and the record is
+  // returned by the accepted filter rather than stranded behind a word no
+  // control offers any more.
+  assert.deepEqual(ids(selectDecisions(sample, { status: "accepted" })), ["approve", "alpha", "middle"]);
+  assert.deepEqual(ids(selectDecisions(sample, { status: "approved" })), ["approve", "alpha", "middle"]);
 });
 
 test("searches title, context, and alternatives case-insensitively", () => {
@@ -193,7 +197,7 @@ test("decision cards are rendered as the single semantic detail link", async () 
     source.indexOf('appendTextElement(detailLink, "h3"') < source.indexOf('meta.className = "decision-meta"'),
     "the decision title precedes its metadata in DOM reading order",
   );
-  assert.match(source, /appendLabelledValue\(meta, "Status", decision\.status/);
+  assert.match(source, /appendLabelledValue\(meta, "Status", status/);
   assert.doesNotMatch(source, /article\.tabIndex\s*=/);
 });
 
@@ -241,7 +245,11 @@ test("decision list exposes semantic loading, empty, and error states", async ()
   assert.match(page, /id="context-hint">The problem, constraints, and reasoning\.<\/span>/);
   assert.match(page, /id="alternatives-hint">Other options considered and why they were not chosen\.<\/span>/);
   assert.match(page, /id="owner-hint">The person responsible for the decision\.<\/span>/);
-  assert.match(page, /id="status-hint">The decision's current stage\.<\/span>/);
+  // The form's two statuses, and the sentence that names the two it cannot set
+  // — the filter offers all four, so the gap is stated rather than discovered.
+  assert.match(page, /<option value="pending">Pending<\/option>\s*<option value="accepted">Accepted<\/option>/);
+  assert.match(page, /id="status-hint">Set Pending or Accepted\. Records can also read Proposed or Superseded; this form does not set those\.<\/span>/);
+  assert.match(page, /id="supersedes-hint">The decision this one replaces, if any\. That decision is marked Superseded by this one, and Current only hides it\.<\/span>/);
   assert.match(source, /panel\.setAttribute\("role", state === "error" \? "alert" : "status"\)/);
   assert.match(source, /container\.setAttribute\("aria-busy", String\(state === "loading"\)\)/);
   assert.match(source, /\["Loading decisions", "Loading all decisions…"\]/);

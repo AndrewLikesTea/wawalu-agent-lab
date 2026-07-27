@@ -180,11 +180,14 @@
 
             <div class="field">
               <label for="status">Status</label>
+              <!-- Two of the four statuses. The form cannot set Proposed or
+                   Superseded, and the hint says so rather than letting a
+                   visitor discover it from a filter that offers both. -->
               <select id="status" name="status" required aria-describedby="status-hint">
                 <option value="pending">Pending</option>
-                <option value="approved">Approved</option>
+                <option value="accepted">Accepted</option>
               </select>
-              <span class="hint" id="status-hint">The decision's current stage.</span>
+              <span class="hint" id="status-hint">Set Pending or Accepted. Records can also read Proposed or Superseded; this form does not set those.</span>
             </div>
 
             <div class="field field-wide">
@@ -192,7 +195,7 @@
               <select id="supersedes" name="supersedes" aria-describedby="supersedes-hint supersedes-error">
                 <option value="">None</option>
               </select>
-              <span class="hint" id="supersedes-hint">The decision this one replaces, if any.</span>
+              <span class="hint" id="supersedes-hint">The decision this one replaces, if any. That decision is marked Superseded by this one, and Current only hides it.</span>
               <p class="field-error" id="supersedes-error" role="alert" hidden></p>
             </div>
 
@@ -244,11 +247,13 @@
             </fieldset>
             <div class="filter">
               <label for="filter-status">Decision status:</label>
+              <!-- The four statuses a record can actually carry, in lifecycle
+                   order, matching the glossary below. Every word here is
+                   defined there; no other status word appears in the UI. -->
               <select id="filter-status" aria-describedby="filter-status-hint">
                 <option value="all">all</option>
-                <option value="approved">Approved</option>
-                <option value="pending">Pending</option>
                 <option value="proposed">Proposed</option>
+                <option value="pending">Pending</option>
                 <option value="accepted">Accepted</option>
                 <option value="superseded">Superseded</option>
               </select>
@@ -273,6 +278,17 @@
             </div>
             <button class="clear-filters" id="clear-decision-filters" type="button">Clear filters</button>
           </div>
+          <!-- One line per status the filter offers, in the same order and the
+               same words. "Current only" is defined here too because it is the
+               one control that hides records: it works off the Replaces link,
+               not off the Superseded status, and those are not the same set. -->
+          <dl class="status-glossary" aria-label="What each decision status means">
+            <div><dt>Proposed</dt><dd>Someone wrote it up. The team has not committed to it.</dd></div>
+            <div><dt>Pending</dt><dd>Under review. Waiting on the owner to call it.</dd></div>
+            <div><dt>Accepted</dt><dd>The team committed to it. Build against this one.</dd></div>
+            <div><dt>Superseded</dt><dd>A later decision replaced it. It stays in the log as history.</dd></div>
+            <div><dt>Current only</dt><dd>Hides every decision that another decision names under Replaces, whatever its status.</dd></div>
+          </dl>
           <p class="hint decision-filter-hint" id="decision-filter-hint">Search updates as you type. Use ↑ and ↓ to move between records, and Home and End to jump. Press Enter to open details.</p>
           <p class="notice" id="storage-notice" role="status" hidden></p>
           <!-- One stable, debounced live region carries the result count. The

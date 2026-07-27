@@ -56,8 +56,11 @@ test("filtering by record type narrows the list", () => {
 });
 
 test("filtering by decision status narrows the list and implies decisions", () => {
-  assert.deepEqual(ids(selectHistory(records, { status: "approved" })), ["queue"]);
-  assert.deepEqual(ids(selectHistory(records, { status: "accepted" })), ["flags"]);
+  // "queue" is stored under the retired "approved". It reads as accepted, so
+  // the accepted filter returns it and the legacy value resolves to the same
+  // set rather than to a status no record can carry.
+  assert.deepEqual(ids(selectHistory(records, { status: "accepted" })), ["flags", "queue"]);
+  assert.deepEqual(ids(selectHistory(records, { status: "approved" })), ["flags", "queue"]);
   // A status can only describe a decision, so releases drop out even though the
   // type filter is still "all records".
   assert.deepEqual(ids(selectHistory(records, { status: "pending", type: "all" })), ["cache"]);
@@ -67,8 +70,8 @@ test("filtering by decision status narrows the list and implies decisions", () =
 });
 
 test("type and status compose, including the contradictory combination", () => {
-  assert.deepEqual(ids(selectHistory(records, { type: "decision", status: "approved" })), ["queue"]);
-  assert.deepEqual(selectHistory(records, { type: "release", status: "approved" }), []);
+  assert.deepEqual(ids(selectHistory(records, { type: "decision", status: "accepted" })), ["flags", "queue"]);
+  assert.deepEqual(selectHistory(records, { type: "release", status: "accepted" }), []);
 });
 
 test("filters and search AND together without resetting one another", () => {
@@ -190,7 +193,7 @@ test("a filtered row keeps its full record context and its open affordance", () 
   assert.match(card.textContent, /Status: completed/);
   assert.match(card.textContent, /The durable queue shipped with a read cache\./);
   assert.match(card.textContent, /Linked decisions/);
-  assert.match(card.textContent, /2 decisions · 1 pending, 1 approved/);
+  assert.match(card.textContent, /2 decisions · 1 pending, 1 accepted/);
   assert.match(card.textContent, /Owner Kai/);
   assert.match(card.textContent, /View release details/);
   assert.equal(card.getAttribute("aria-labelledby"), "release-title-0");
@@ -199,7 +202,7 @@ test("a filtered row keeps its full record context and its open affordance", () 
   const decisionCard = byClass(render({ type: "decision", query: "durable" }).container, "decision-card")[0];
   assert.equal(decisionCard.href, "/decision.html?id=queue");
   assert.match(decisionCard.textContent, /Type: Decision/);
-  assert.match(decisionCard.textContent, /Status: approved/);
+  assert.match(decisionCard.textContent, /Status: accepted/);
   assert.match(decisionCard.textContent, /Retries are required/);
   assert.match(decisionCard.textContent, /Alternatives.*Poll the database/s);
   assert.match(decisionCard.textContent, /Owner Kai/);
