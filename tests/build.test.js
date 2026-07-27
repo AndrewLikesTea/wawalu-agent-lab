@@ -4,6 +4,7 @@ import { cp, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { createManifest, verifyArtifact } from "../scripts/verify-build.mjs";
+import { parseHtml, pressEnter, pressTab } from "./support/browser.js";
 
 test("product has a health endpoint and accessible title", async () => {
   assert.equal((await readFile(new URL("../src/healthz", import.meta.url), "utf8")).trim(), "ok");
@@ -30,6 +31,48 @@ test("homepage explains the decision-to-release value and links to live examples
   assert.match(html, /data-conversion-slot="hero"/);
   assert.match(html, /href="\/decision\.html\?id=demo-queue"/);
   assert.match(html, /href="\/release\.html\?id=demo-r-1-3-0"/);
+});
+
+test("the hero names both capabilities and quotes AI FinOps without contradicting it", async () => {
+  const [html, finops] = await Promise.all([
+    readFile(new URL("../src/index.html", import.meta.url), "utf8"),
+    readFile(new URL("../src/evolution.html", import.meta.url), "utf8"),
+  ]);
+  const hero = html.slice(html.indexOf('<section class="hero"'), html.indexOf('<section class="product-story"'));
+
+  // Both capabilities, in the hero, in the surface's own name — not a synonym.
+  assert.match(hero, /score your own provider export in AI FinOps/);
+  assert.match(hero, /Your files do not leave this tab\./);
+  assert.doesNotMatch(html, /cost analyzer|spend tool/i);
+
+  // The demo stays the primary call to action; AI FinOps is the secondary one,
+  // a real focusable anchor whose name names its destination.
+  assert.match(hero, /<a class="button-link" href="\/decision\.html\?id=demo-queue">Explore the live demo/);
+  assert.match(hero, /<a class="secondary-button" href="\/evolution\.html">Score your provider export in AI FinOps<\/a>/);
+  assert.ok(hero.indexOf('class="button-link"') < hero.indexOf('class="secondary-button"'));
+
+  // Every quoted figure is the AI FinOps page's own, and the qualifier that
+  // governs them shares their block.
+  const proof = hero.slice(hero.indexOf('<div class="hero-proof">'));
+  for (const figure of ["$7,430", "$5,200 / month", "High · 760-query scored sample"]) {
+    assert.ok(proof.includes(figure), `hero must quote ${figure}`);
+    assert.ok(finops.includes(figure), `AI FinOps must still publish ${figure}`);
+  }
+  assert.match(proof, /Bundled synthetic sample data/);
+  assert.match(proof, /not live analysis, customer data, or realized savings/);
+});
+
+test("the AI FinOps call to action is reachable by Tab alone and opens on Enter", async () => {
+  const document = parseHtml(await readFile(new URL("../src/index.html", import.meta.url), "utf8"));
+  const secondary = document.querySelector('a[href="/evolution.html"].secondary-button');
+
+  // From the top of the page, with nothing but Tab: the demo comes first, the
+  // AI FinOps link is the very next stop, and Enter navigates there.
+  let reached = null;
+  for (let press = 0; press < 20 && reached !== secondary; press += 1) reached = pressTab(document);
+  assert.equal(reached, secondary, "the AI FinOps link must sit in the natural tab order");
+  pressEnter(document);
+  assert.deepEqual(document.navigations, ["/evolution.html"]);
 });
 
 test("security headers ship with the site", async () => {
