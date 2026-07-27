@@ -94,8 +94,14 @@ export function validateDecision(record, path) {
       optional: true,
     }),
     checkString(record.owner, `${path}.owner`, { max: MAX_OWNER_LENGTH }),
+    checkString(record.supersedes, `${path}.supersedes`, { optional: true }),
     checkIsoDate(record.createdAt, `${path}.createdAt`),
   );
+  // Only the forward direction is stored, so this is the only supersede field a
+  // file may carry, and it may never point at its own record.
+  if (typeof record.supersedes === "string" && record.supersedes.trim() === record.id) {
+    errors.push(`${path}.supersedes: a decision cannot supersede itself`);
+  }
   if (!STATUSES.includes(record.status)) {
     errors.push(`${path}.status: expected one of ${STATUSES.join(", ")}, got ${show(record.status)}`);
   }
@@ -148,6 +154,7 @@ function unusable(message) {
     releases: [],
     rejected: [rejection("file", null, null, message)],
     droppedAssociations: [],
+    droppedSupersedes: [],
   };
 }
 
@@ -217,6 +224,24 @@ export function parseImport(text, options = {}) {
     ...decisions.map((decision) => decision.id),
   ]);
 
+  // Same rule as a release→decision link, applied to the supersede link: it
+  // survives when its target will exist after the import, and is dropped here
+  // rather than written as a dangling reference. The record itself is kept —
+  // losing a decision because its predecessor is missing would be worse than
+  // losing the link.
+  const droppedSupersedes = [];
+  decisions.forEach((decision, index) => {
+    const target = typeof decision.supersedes === "string" ? decision.supersedes.trim() : "";
+    if (!target || available.has(target)) return;
+    delete decision.supersedes;
+    droppedSupersedes.push({
+      decisionId: decision.id,
+      decisionIndex: index,
+      supersedesId: target,
+      message: `decisions[${index}].supersedes: dropped link to unknown decision ${JSON.stringify(target)}`,
+    });
+  });
+
   const releases = [];
   raw.releases.forEach((record, index) => {
     const path = `releases[${index}]`;
@@ -251,6 +276,7 @@ export function parseImport(text, options = {}) {
     releases,
     rejected,
     droppedAssociations,
+    droppedSupersedes,
   };
 }
 
@@ -383,6 +409,7 @@ function detailItems(plan) {
   return [
     ...plan.parsed.rejected.map((entry) => entry.message),
     ...plan.parsed.droppedAssociations.map((entry) => entry.message),
+    ...(plan.parsed.droppedSupersedes ?? []).map((entry) => entry.message),
   ];
 }
 

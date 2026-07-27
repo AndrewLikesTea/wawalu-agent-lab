@@ -133,6 +133,15 @@
               <span class="hint" id="status-hint">The decision's current stage.</span>
             </div>
 
+            <div class="field field-wide">
+              <label for="supersedes">Replaces <span class="label-optional">(optional)</span></label>
+              <select id="supersedes" name="supersedes" aria-describedby="supersedes-hint supersedes-error">
+                <option value="">None</option>
+              </select>
+              <span class="hint" id="supersedes-hint">The decision this one replaces, if any.</span>
+              <p class="field-error" id="supersedes-error" role="alert" hidden></p>
+            </div>
+
             <button type="submit">Record decision</button>
             <button class="recorder-exit" id="exit-decision-recorder" type="button">Back to decision history</button>
           </form>
@@ -144,7 +153,12 @@
               <p class="eyebrow">Decisions and releases</p>
               <h2 id="decisions-title" tabindex="-1">All records</h2>
             </div>
-            <span class="count" id="decision-count">0 records</span>
+            <div class="list-heading-counts">
+              <span class="count" id="decision-count">0 records</span>
+              <!-- States the active "current only" filter and what it removed.
+                   Empty while the filter is off. -->
+              <span class="count supersede-summary" id="history-supersede-summary"></span>
+            </div>
           </div>
           <p class="hint sample-disclosure">Includes representative example records to demonstrate Shiplog. They are not customer or internal operational data.</p>
           <div class="filters" role="search" aria-label="Search and filter the history">
@@ -194,6 +208,9 @@
                 <option value="title">Title (A–Z)</option>
                 <option value="owner">Owner (A–Z)</option>
               </select>
+            </div>
+            <div class="filter">
+              <button class="filter-toggle" id="filter-current-only" type="button" aria-pressed="false">Current only</button>
             </div>
             <button class="clear-filters" id="clear-decision-filters" type="button">Clear filters</button>
           </div>
