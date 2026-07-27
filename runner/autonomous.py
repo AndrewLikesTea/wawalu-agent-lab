@@ -1480,11 +1480,19 @@ def record_run_outcome(exit_code: int, issue: dict[str, Any], number: int, perso
     elif exit_code in CAPACITY_WORKERS:
         exhausted = CAPACITY_WORKERS[exit_code]
         alternate = "claude" if exhausted == "codex" else "codex"
+        # The long capacity backoff is for the case where there is nowhere to go: both
+        # providers dark. When the alternate is awake, waiting it out is pure dead time
+        # — the next attempt already carries worker_override, so it will not re-pick the
+        # exhausted provider. Retry on the ordinary cooldown instead. This still burns no
+        # attempt and still holds the exhausted provider out via record_worker_capacity.
+        alternate_ready = state.worker_available(alternate)
         with state.mutate():
             record = state.value["issues"].setdefault(str(number), {})
             failures = int(record.get("capacity_failures", 0)) + 1
             delay = min(int(config.get("capacity_retry_seconds", 900)) * (2 ** (failures - 1)),
                         int(config.get("capacity_retry_max_seconds", 18000)))
+            if alternate_ready:
+                delay = min(delay, int(config.get("retry_cooldown_seconds", 300)))
             record.update({"status": "retry", "attempts": int(record.get("attempts", 1)) - 1,
                            "capacity_failures": failures, "worker_override": alternate,
                            "retry_at": (utc_now() + dt.timedelta(seconds=delay)).isoformat()})
@@ -1493,7 +1501,7 @@ def record_run_outcome(exit_code: int, issue: dict[str, Any], number: int, perso
                 maximum_seconds=int(config.get("capacity_retry_max_seconds", 18000)))
         journal.emit("run_capacity_deferred", issue=number, persona=persona, exhausted_worker=exhausted,
                      next_worker=alternate, delay_seconds=delay, worker_cooldown_seconds=cooldown,
-                     failures=failures)
+                     failures=failures, alternate_ready=alternate_ready)
         tell("comment", lambda: comment(token, number, "capacity deferred",
              f"{exhausted.title()} reported temporary account capacity exhaustion. This did not consume "
              f"an implementation attempt; Sam will retry with {alternate.title()} after the backoff."))
