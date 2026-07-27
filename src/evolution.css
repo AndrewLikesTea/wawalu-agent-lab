@@ -96,6 +96,26 @@
 .sample-badge[data-mode="local"] { border-color:var(--import-accent); background:var(--import-wash); color:var(--import-ink); }
 .sample-marker { display:flex; align-items:baseline; gap:8px; grid-column:1/-1; margin:0 0 4px; border:1px solid var(--state-warn-line); border-left:5px solid var(--state-warn-line); border-radius:9px; padding:10px 13px; background:var(--state-warn-wash); color:var(--state-warn-ink); font-size:12px; line-height:1.5; }
 .sample-marker-shape { flex:none; font-weight:750; }
+/* What one provider export answers, before a byte is selected. Three sentences
+   in the heading block that already exists — no panel, no border, no expander:
+   it is read on the way to the file picker, not opened. */
+.pre-upload-disclosure { display:grid; gap:5px; margin:12px 0 0; padding:0; list-style:none; color:var(--ink-muted); font-size:12px; line-height:1.5; }
+.pre-upload-statement { padding-left:15px; text-indent:-15px; }
+.pre-upload-statement::before { content:"· "; font-weight:750; }
+/* The below-floor state: what is shown *instead of* a savings figure. Dashed,
+   like every other withheld number on this page, and carrying the word
+   "withheld" in its own text so the tint is never the signal. */
+.local-attribution-fallback { display:grid; gap:7px; margin-top:12px; border:1px solid var(--state-warn-line); border-style:dashed; border-radius:9px; padding:13px 15px; background:var(--state-warn-wash); color:var(--state-warn-ink); font-size:12px; line-height:1.5; }
+.local-attribution-fallback[hidden] { display:none; }
+.local-attribution-fallback p { margin:0; }
+.attribution-fallback-headline { font-weight:750; }
+.attribution-fallback-facts { display:grid; gap:4px; margin:0; padding-left:17px; }
+/* The confidence word beside the recoverable figure, and the unattributed share
+   a degraded finding carries verbatim. It sits inside the impact block so the
+   qualifier cannot be lifted off the number it qualifies. */
+.local-attribution-note { margin:0; color:var(--state-warn-ink); font:700 11px/1.5 ui-monospace,monospace; }
+.local-attribution-note[hidden] { display:none; }
+.local-attribution-note[data-state="suppressed"] { color:var(--state-error-ink); }
 .privacy-boundary { display:grid; gap:3px; margin:22px 0; border:1px solid #b9cec4; border-left:5px solid #315f50; border-radius:10px; padding:14px 16px; background:#eef6f2; font-size:13px; line-height:1.5; }
 .privacy-boundary span { color:#496056; }
 .local-import-controls { display:flex; justify-content:space-between; align-items:end; gap:20px; }
