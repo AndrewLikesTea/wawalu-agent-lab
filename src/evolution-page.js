@@ -49,6 +49,7 @@ import {
   metricBasis, userDatasetProvenance,
 } from "/local-import-flow.js";
 import { loadExampleDatasetInputs } from "/example-dataset.js";
+import { EXAMPLE_QUERY_SAMPLE_FILE, exampleQuerySampleText } from "/query-sample-example.js";
 import { leadingFinding } from "/finops-leading-finding.js";
 import { trustVerdict } from "/finops-trust-verdict.js";
 // The per-model overspend finding and its progressively disclosed evidence.
@@ -712,6 +713,15 @@ function mountLocalFinopsImport() {
     input.focus?.();
   });
   document.getElementById("local-file-discard")?.addEventListener("click", reset);
+  // The query-sample template, generated from the same module the contract's
+  // tests validate and handed to the same local blob download every other
+  // artifact on this page uses. Nothing is uploaded, and nothing is imported:
+  // this contract has no consumer here yet, so the file leaves the tab and the
+  // reader's gateway owner fills it in.
+  document.getElementById("download-query-sample-example")?.addEventListener("click", () => {
+    downloadLocalExport(exampleQuerySampleText(),
+      EXAMPLE_QUERY_SAMPLE_FILE.mediaType, EXAMPLE_QUERY_SAMPLE_FILE.fileName);
+  });
   document.getElementById("export-local-json")?.addEventListener("click", () => {
     if (result) downloadLocalExport(
       localFinopsJsonExport(result, { exampleDataset: exampleActive }),

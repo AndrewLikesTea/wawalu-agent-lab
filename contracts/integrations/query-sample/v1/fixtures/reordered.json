@@ -1,0 +1,23 @@
+[
+  {
+    "schema_version": "1.0",
+    "kind": "wawalu.integration.query-sample",
+    "export_id": "40000000-0000-4000-8000-000000000006",
+    "snapshot": { "source_instance_id": "psn_gateway_demo_000001", "sequence": 12, "generated_at": "2026-07-26T12:00:00Z", "bucket_granularity": "day", "completeness": "complete", "omitted_record_count": 0, "issues": [] },
+    "privacy": { "classification_site": "browser-tab", "prompt_text_retained": false, "direct_identifiers_included": false },
+    "records": [
+      { "org_unit_id": "psn_unit_demo_00000002", "query_date": "2026-07-26", "model_raw": "acme-sonnet-1", "input_tokens": 500, "output_tokens": 300, "category": "highValue" },
+      { "org_unit_id": "psn_unit_demo_00000002", "query_date": "2026-07-24", "model_raw": "acme-haiku-1", "input_tokens": 90, "output_tokens": 30, "category": "outOfScope" }
+    ]
+  },
+  {
+    "schema_version": "1.0",
+    "kind": "wawalu.integration.query-sample",
+    "export_id": "40000000-0000-4000-8000-000000000005",
+    "snapshot": { "source_instance_id": "psn_gateway_demo_000001", "sequence": 11, "generated_at": "2026-07-26T11:00:00Z", "bucket_granularity": "day", "completeness": "complete", "omitted_record_count": 0, "issues": [] },
+    "privacy": { "classification_site": "browser-tab", "prompt_text_retained": false, "direct_identifiers_included": false },
+    "records": [
+      { "org_unit_id": "psn_unit_demo_00000002", "query_date": "2026-07-25", "model_raw": "acme-opus-1", "input_tokens": 400, "output_tokens": 250, "category": "overProvisioned" }
+    ]
+  }
+]
