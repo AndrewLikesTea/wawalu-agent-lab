@@ -24,6 +24,18 @@
 // and no result field ever carries a substring of it. See `query-sample.js` for
 // the type-level half of the same guarantee.
 
+// SCOPE, AND THE MODULE THAT OWNS THE REST OF IT. This module grades one short
+// gateway-log excerpt into one rubric category, and that is all it does. A
+// director's *own* prompts are a different input — full length, several turns,
+// with code and pasted material in them and not always in English — and they
+// are graded by `prompt-prose-classification.js`, which produces three
+// dimension scores and a letter rather than a category vote. The two answer to
+// the same rubric and share this file's vocabulary (`UNCLASSIFIED_CATEGORY`,
+// `CATEGORY_PRECEDENCE`, which it imports from here), but they do not share an
+// input shape. Merging them would mean counting a vote designed for one
+// sentence over four thousand characters, which is the exact failure the prose
+// classifier exists to fix.
+
 import { PROMPT_LITERACY_RUBRIC } from "./prompt-literacy-scoring.js";
 import { classifyModelTier } from "./provider-usage-record.js";
 
