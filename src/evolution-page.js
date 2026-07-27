@@ -74,6 +74,10 @@ import {
 // display labels a leader gives their own opaque org-unit identifiers. The
 // store is reached through that module, so this file persists nothing itself.
 import { browserOrgUnitLabelStorage as labelStorage } from "/org-unit-labels.js";
+// The contact affordance beside the result. It is mounted here and given no
+// access to anything above: it reads its own form fields and nothing else, so
+// the "only what you type is sent" claim beside it holds by construction.
+import { initFinopsContact } from "/finops-contact.js";
 
 const DATA_URL = "/evolution-demo-data.json";
 const EVALUATION_URL = "/finops-evaluation-fixtures.json";
@@ -1165,6 +1169,7 @@ async function renderEvaluationDemo() {
 async function init() {
   if (!document.getElementById("department-priority")) return;
   mountLocalFinopsImport();
+  initFinopsContact(document);
   const gateway = createStaticGateway();
   const refreshGateway = document.getElementById("integration-gateway-refresh");
   gateway.subscribe(({ status, inspection, metadata }) => {

@@ -669,7 +669,41 @@
 .graded-provenance { display:flex; flex-wrap:wrap; align-items:baseline; gap:8px; grid-column:1/-1; margin:0 0 4px; border:1px solid var(--import-line); border-left:5px solid var(--import-accent); border-radius:9px; padding:10px 13px; color:var(--import-ink); font-size:12px; line-height:1.5; }
 .mix-basis { margin:0 0 10px; color:var(--ink-muted); font-size:12px; line-height:1.55; }
 
+/* Contact affordance beside the result.
+   It reuses the panel card and the import panel's ink so it reads as part of
+   this tab rather than a marketing insert, and it is laid out as a column: the
+   disclosed form grows downward and never overlays the decision brief above. */
+.finops-contact { display:grid; gap:18px; justify-items:start; }
+.finops-contact-copy h2 { margin:7px 0 0; font-size:26px; letter-spacing:-.03em; }
+.finops-contact-copy>p:last-child { max-width:640px; margin:12px 0 0; color:var(--ink-muted); line-height:1.55; }
+.finops-contact-trigger { border:1px solid var(--import-accent); border-radius:10px; padding:11px 17px; background:var(--import-accent); color:#fff; font:650 14px/1.4 inherit; cursor:pointer; }
+.finops-contact-trigger:hover { background:var(--import-ink); }
+.finops-contact-panel { display:grid; gap:14px; width:100%; max-width:640px; border:1px solid var(--import-line); border-radius:13px; padding:18px; background:var(--import-wash); }
+.finops-contact-panel[hidden] { display:none; }
+.finops-contact-form { display:grid; gap:12px; }
+.finops-contact-field { display:grid; gap:7px; }
+.finops-contact-field label { font-size:14px; font-weight:700; color:var(--import-ink); }
+.finops-contact-field input { min-height:46px; border:1px solid var(--import-line); border-radius:9px; padding:0 12px; background:#fff; font:inherit; }
+.finops-contact .field-error { margin:0; border:1px solid var(--state-error-line); border-left:5px solid var(--state-error-line); border-radius:9px; padding:11px 13px; background:var(--state-error-wash); color:var(--state-error-ink); font-size:12px; line-height:1.5; font-weight:700; }
+.finops-contact .field-error[hidden] { display:none; }
+.finops-contact-note { margin:0; color:var(--import-ink); font-size:12px; line-height:1.55; }
+.finops-contact-actions { display:flex; flex-wrap:wrap; gap:10px; }
+.finops-contact-actions button { min-height:44px; border:1px solid var(--import-accent); border-radius:9px; padding:0 16px; background:var(--import-accent); color:#fff; font:650 13px/1.4 inherit; cursor:pointer; }
+.finops-contact-actions button[type="button"] { background:#fff; color:var(--import-ink); }
+.finops-contact-actions button[aria-disabled="true"] { background:#777771; border-color:#777771; cursor:wait; }
+/* Outcome and recovery are text, never a tint: the state word carries the
+   meaning and the color only reinforces it. */
+.finops-contact-status { margin:0; min-height:1.5em; color:var(--import-ink); font-size:13px; font-weight:700; line-height:1.5; }
+.finops-contact-form[data-state="error"]+.finops-contact-status { color:var(--state-error-ink); }
+.finops-contact-recovery { margin:0; border-left:2px solid var(--state-error-line); padding-left:11px; color:var(--import-ink); font-size:12px; line-height:1.5; }
+.finops-contact-recovery[hidden] { display:none; }
+.finops-contact button:focus-visible,.finops-contact input:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+
 @media(max-width:640px) {
+  .finops-contact { padding:18px; }
+  .finops-contact-trigger { width:100%; }
+  .finops-contact-actions button { flex:1 1 auto; }
+
   /* The table keeps its shape and scrolls inside its own labelled, focusable
      box rather than pushing the page sideways. */
   .model-overspend { padding:18px; }

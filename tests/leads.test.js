@@ -7,7 +7,7 @@ import {
   handleLeadRequest,
   normalizeEmail,
 } from "../src/leads.js";
-import { initLeadCapture, resolveFailure } from "../src/lead-capture.js";
+import { initLeadCapture, looksLikeEmail, resolveFailure } from "../src/lead-capture.js";
 import { onRequest as leadsOnRequest } from "../functions/api/leads.js";
 import { createTestD1 } from "./support/d1-sqlite.js";
 
@@ -80,7 +80,12 @@ test("homepage ships the labelled lead form and its deployment adapter", async (
   assert.match(html, /aria-live="polite"/);
   assert.match(html, /We’ll only use your email.*No spam.*Unsubscribe anytime/);
   assert.match(html, /id="lead-capture-recovery" hidden>[^<]*resubmit then/);
-  assert.match(html, /aria-describedby="lead-capture-note lead-capture-recovery lead-capture-status"/);
+  // The recovery paragraph is hidden *and* unreferenced at rest. A hidden node
+  // named by aria-describedby is still part of the accessible description, so
+  // shipping the id in the markup read "your email is still in the field above"
+  // to anyone who focused the field before submitting anything.
+  assert.match(html, /aria-describedby="lead-capture-note lead-capture-status"/);
+  assert.doesNotMatch(html, /aria-describedby="[^"]*lead-capture-recovery/);
   assert.match(adapter, /createD1LeadStore/);
   assert.match(migration, /CREATE TABLE IF NOT EXISTS leads/);
 });
@@ -98,10 +103,13 @@ function leadFormHarness() {
   const email = {
     value: "Mina@Example.com",
     valid: true,
-    attributes: {},
+    // Seeded with what src/index.html now ships: the note and the live status,
+    // and deliberately not the recovery paragraph.
+    attributes: { "aria-describedby": "lead-capture-note lead-capture-status" },
     addEventListener(type, listener) { emailListeners[type] = listener; },
     checkValidity() { return this.valid; },
     focus() { this.focused = true; },
+    getAttribute(name) { return this.attributes[name] ?? null; },
     setAttribute(name, value) { this.attributes[name] = value; },
     removeAttribute(name) { delete this.attributes[name]; },
   };
@@ -194,6 +202,46 @@ test("client makes delivery-unavailable recovery explicit without claiming captu
   assert.equal(harness.form.dataset.state, undefined);
   assert.equal(harness.status.textContent, "");
   assert.equal(harness.recovery.hidden, true);
+});
+
+test("recovery copy is described to the field only after a submission has failed", async () => {
+  const harness = leadFormHarness();
+  const described = () => harness.email.attributes["aria-describedby"];
+  initLeadCapture(harness.root, async () => jsonResponse({
+    error: { code: "storage_unavailable", message: "unavailable" },
+  }, 503));
+
+  // First paint: no failure has happened, so nothing about failure is rendered
+  // or described. This is the state a visitor meets the form in.
+  assert.equal(harness.recovery.hidden, true);
+  assert.doesNotMatch(described(), /lead-capture-recovery/);
+
+  await harness.listeners.submit({ preventDefault() {} });
+  assert.equal(harness.recovery.hidden, false);
+  assert.match(described(), /lead-capture-recovery/,
+    "once the recovery block is visible the field must actually point at it");
+  // The note and the live status are still described; the fix adds and removes
+  // one id rather than rewriting the description.
+  assert.match(described(), /lead-capture-note/);
+  assert.match(described(), /lead-capture-status/);
+
+  harness.emailListeners.input();
+  assert.equal(harness.recovery.hidden, true);
+  assert.doesNotMatch(described(), /lead-capture-recovery/,
+    "editing the field retracts the failure copy from the description too");
+});
+
+test("the browser shape check and the endpoint agree on what is malformed", () => {
+  const cases = [
+    "mina@example.com", "Mina+Notes@Example.COM", "  spaced@example.com  ",
+    "", "   ", "mina", "mina @example.com", "mina@example", "@example.com",
+    `a@${"x".repeat(250)}.com`,
+  ];
+  for (const value of cases) {
+    assert.equal(looksLikeEmail(value), normalizeEmail(value) !== null,
+      `the form and the endpoint disagree about "${value}"; one of them would `
+      + "accept input the other rejects with a 422");
+  }
 });
 
 test("client never renders a message string supplied by the server or an intermediary", async () => {
