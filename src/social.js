@@ -358,7 +358,7 @@ function renderSkeleton(container, count = 3) {
   container.append(list);
 }
 
-const DEFAULT_EMPTY_MESSAGE = "Share the first update to start the feed.";
+const DEFAULT_EMPTY_MESSAGE = "Write the first post to start the feed.";
 
 // `state` separates "we have nothing yet because we are still fetching" from
 // "we have nothing because there is nothing" and from "we have nothing because
@@ -393,7 +393,7 @@ export function renderPosts(container, posts, options = {}) {
         label: "Feed status",
         value: "No posts yet.",
         description: emptyMessage,
-        action: { label: "Write an update", href: "#post-body" },
+        action: { label: "Write a post", href: "#post-body" },
       });
       panel.classList.add("empty-state");
     }
@@ -484,7 +484,7 @@ export function mountSocialFeed(root, options = {}) {
     if (!submit) return;
     submit.disabled = submitting;
     submit.setAttribute("aria-busy", String(submitting));
-    if (submitLabel) submitLabel.textContent = submitting ? "Publishing…" : "Post update";
+    if (submitLabel) submitLabel.textContent = submitting ? "Publishing…" : "Publish post";
   };
 
   // Arrow/Home/End move focus between cards; delegated so it survives re-renders.
