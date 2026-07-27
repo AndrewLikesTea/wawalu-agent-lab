@@ -80,7 +80,7 @@ const NEW_DECISION = {
   context: "Background work was lost on deploys; move to an at-least-once queue.",
   alternatives: "Database polling and in-process retries.",
   owner: "Tess",
-  status: "approved",
+  status: "accepted",
 };
 
 async function openHistory(t, { decisions = [], releases = [], demo = NO_DEMO_DATA } = {}) {
@@ -227,7 +227,7 @@ test("a recorded release appears in the history with the decision it is linked t
   assert.equal(metaValue(card, "Status"), "completed", "the release row shows the wrong status");
   assert.equal(
     textOf(card.querySelector(".release-linked")),
-    "Linked decisions1 decision · 1 approved",
+    "Linked decisions1 decision · 1 accepted",
     "the release row no longer states the decisions it is linked to",
   );
   assert.equal(countText(page), "2 records", "the history count does not include both record kinds");
@@ -258,8 +258,10 @@ test("filtering by decision status narrows the history and is unavailable for re
     releases: [SEEDED_RELEASE],
   });
 
-  chooseOption(page, "#filter-status", "approved");
-  assert.deepEqual(rowTitles(page), [SEEDED_DECISION.title], "the approved status filter shows the wrong records");
+  // SEEDED_DECISION is stored under the retired "approved" and is reached by
+  // the accepted filter, which is the only word for that state now.
+  chooseOption(page, "#filter-status", "accepted");
+  assert.deepEqual(rowTitles(page), [SEEDED_DECISION.title], "the accepted status filter shows the wrong records");
   assert.equal(countText(page), "1 of 3 records", "the status-filtered count is wrong");
 
   chooseOption(page, "#filter-status", "pending");
@@ -401,8 +403,8 @@ test("the whole flow — record, filter, export — works with the keyboard alon
   tabTo(page, "#owner", "the decision owner field");
   typeText(document, NEW_DECISION.owner);
   tabTo(page, "#status", "the decision status control");
-  pressKey(document, "ArrowDown"); // pending -> approved
-  assert.equal(document.activeElement.value, "approved", "the status control cannot be changed with the arrow keys");
+  pressKey(document, "ArrowDown"); // pending -> accepted
+  assert.equal(document.activeElement.value, "accepted", "the status control cannot be changed with the arrow keys");
   const submit = document.querySelector("#decision-form").querySelector('button[type="submit"]');
   tabTo(page, submit, "the record-decision button");
   pressEnter(document);
@@ -429,7 +431,11 @@ test("the whole flow — record, filter, export — works with the keyboard alon
   pressKey(document, "ArrowUp");
   assert.equal(document.activeElement.id, "record-type-all", "the All records option is not reachable by arrow keys");
   tabTo(page, "#filter-status", "the decision status filter");
-  pressKey(document, "ArrowDown"); // all -> approved
+  // all -> Proposed -> Pending -> Accepted: the filter's four statuses in
+  // lifecycle order, with no Approved among them any more.
+  pressKey(document, "ArrowDown");
+  pressKey(document, "ArrowDown");
+  pressKey(document, "ArrowDown");
   assert.deepEqual(
     rowTitles(page).toSorted(),
     [NEW_DECISION.title, SEEDED_DECISION.title].toSorted(),

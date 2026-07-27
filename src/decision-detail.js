@@ -2,6 +2,7 @@
 // above the DOM layer so selection rules can be verified independently.
 
 import { createShareControl } from "./share-link.js";
+import { canonicalDecisionStatus } from "./decision-status.js";
 import { EXAMPLE_LABEL } from "./seed-records.js";
 import { indexSupersessions } from "./supersede.js";
 
@@ -246,7 +247,10 @@ export function renderDecisionDetail(container, decision, options = {}) {
   header.append(heading);
   const meta = el("dl", "detail-meta decision-detail-meta");
   const created = new Intl.DateTimeFormat(undefined, { dateStyle: "long" }).format(new Date(decision.createdAt));
-  for (const [label, value, className] of [["Status", decision.status, `badge badge-${decision.status}`], ["Owner", decision.owner], ["Recorded", created]]) {
+  // The detail page shows the same word the list row does, so the legacy
+  // "approved" is read as "accepted" here too.
+  const statusWord = canonicalDecisionStatus(decision.status);
+  for (const [label, value, className] of [["Status", statusWord, `badge badge-${statusWord}`], ["Owner", decision.owner], ["Recorded", created]]) {
     const row = el("div", "detail-meta-row"); row.append(el("dt", "detail-meta-label", label), el("dd", `detail-meta-value ${className ?? ""}`, value)); meta.append(row);
   }
   header.append(meta); view.append(header);
