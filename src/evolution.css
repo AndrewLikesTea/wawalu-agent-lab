@@ -40,7 +40,15 @@
 
 /* Hero number: the "are we wasting money" answer, readable in one glance. */
 .score-card { display:grid; gap:6px; border:1px solid var(--panel-border); border-radius:16px; padding:22px; background:rgba(255,255,255,.72); box-shadow:0 14px 40px rgba(38,38,31,.04); }
-.score-grade { margin:6px 0 0; font-size:66px; line-height:.9; letter-spacing:-.05em; font-weight:750; }
+/* The glyph, the word that qualifies it, and the word the tint stands for are
+   one flex group. Nothing here can be cropped away from the letter. */
+.score-grade { display:flex; align-items:baseline; flex-wrap:wrap; gap:0 10px; margin:6px 0 0; font-size:66px; line-height:.9; letter-spacing:-.05em; font-weight:750; }
+.score-qualifier { flex:none; color:var(--ink-muted); font:750 10px/1.4 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; overflow-wrap:anywhere; }
+.score-card[data-grade-state="provisional"] .score-qualifier,
+.score-card[data-grade-state="not_gradeable"] .score-qualifier { color:var(--state-warn-ink); }
+/* Band word + shape: what the tint on the letter above actually means. */
+.score-band { display:flex; align-items:baseline; gap:7px; margin:8px 0 0; color:var(--ink-muted); font:700 11px/1.5 ui-monospace,monospace; overflow-wrap:anywhere; }
+.score-band-shape { flex:none; font-weight:750; }
 .score-card[data-band="good"] .score-grade { color:#17845c; }
 .score-card[data-band="watch"] .score-grade { color:#8a6d0a; }
 .score-card[data-band="poor"] .score-grade { color:#a5322f; }
@@ -50,9 +58,10 @@
 .score-coverage { margin:6px 0 0; font-size:13px; font-weight:650; }
 .score-action { margin:2px 0 0; font-size:13px; color:var(--ink-muted); }
 .score-peer { margin:2px 0 0; color:var(--ink-muted); font:600 11px/1.5 ui-monospace,monospace; }
-/* A provisional letter is never shown bare: the mark travels with the glyph so
-   the caveat cannot be cropped away from the grade it qualifies. */
-.score-card[data-grade-state="provisional"] .score-grade::after { content:"*"; font-size:.5em; vertical-align:super; }
+/* A provisional letter is never shown bare. The caveat used to be a generated
+   asterisk — a mark with no accessible text and no meaning in a screenshot. It
+   is now the word in `.score-qualifier`, inside the same flex group as the
+   glyph, so the qualifier survives cropping *and* is read aloud. */
 
 .proof-point { display:grid; grid-template-columns:minmax(0,1.15fr) minmax(360px,1fr); gap:20px 32px; margin:0 0 24px; border:1px solid #8ead9d; border-left:6px solid #315f50; border-radius:16px; padding:clamp(22px,4vw,32px); background:linear-gradient(145deg,#f1f8f4,#fff 62%); box-shadow:0 14px 40px rgba(38,38,31,.04); }
 .proof-point-copy h2 { max-width:650px; margin:7px 0 10px; font-size:clamp(22px,3vw,30px); line-height:1.2; }
@@ -632,6 +641,74 @@
 .model-overspend-rename-help { flex-basis:100%; color:var(--ink-muted); font-size:11px; line-height:1.45; }
 .model-overspend-live { margin:0; font-size:12px; line-height:1.5; color:var(--import-ink); }
 
+/* --- Imported prompt-literacy grade -------------------------------------- */
+/* Reading order is the visual order: the letter, then the three facts that
+   qualify it, then the one action. Every band ships a letter and a number, every
+   confidence tier a shape and a word, every cohort row a direction shape and a
+   signed delta — the tint is the last channel, never the only one.
+   No rule below truncates: the coverage figure and the next action wrap, and
+   nothing on this panel uses text-overflow, ellipsis, or nowrap. */
+.literacy-grade { display:grid; gap:14px; margin:0 0 18px; border:1px solid var(--import-line); border-left:5px solid var(--import-accent); border-radius:12px; padding:20px; background:#fff; }
+.literacy-grade h4 { margin:4px 0 0; font-size:18px; line-height:1.3; overflow-wrap:anywhere; }
+.literacy-grade h4:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.literacy-grade h5 { margin:0; font-size:13px; line-height:1.4; }
+/* Loading and empty are the same surface in a held state: dashed edge, warn
+   wash, and a sentence where the letter would be. Error takes the error wash. */
+.literacy-grade[data-state="loading"],.literacy-grade[data-state="empty"] { border-color:var(--state-warn-line); border-left-color:var(--state-warn-line); border-style:dashed; border-left-style:solid; background:var(--state-warn-wash); }
+.literacy-grade[data-state="error"] { border-color:var(--state-error-line); border-left-color:var(--state-error-line); background:var(--state-error-wash); }
+.literacy-grade-placeholder { margin:0; color:var(--state-warn-ink); font-size:14px; line-height:1.55; overflow-wrap:anywhere; }
+.literacy-grade[data-state="error"] .literacy-grade-placeholder { color:var(--state-error-ink); }
+
+.literacy-grade-block { display:grid; grid-template-columns:auto minmax(0,1fr); gap:12px 22px; align-items:start; border:1px solid var(--panel-border); border-radius:10px; padding:16px; background:#fff; }
+.literacy-grade-letter { display:grid; justify-items:center; gap:7px; margin:0; min-width:0; font-size:52px; line-height:.95; letter-spacing:-.04em; font-weight:750; }
+.literacy-grade-letter[data-band="good"] { color:#17603a; }
+.literacy-grade-letter[data-band="watch"] { color:#72520a; }
+.literacy-grade-letter[data-band="poor"] { color:#8a2b2b; }
+.literacy-grade-letter[data-band="review"] { color:var(--state-warn-ink); }
+/* Filled wash = dynamic signal (design-system/claude-design/review-08-foundations):
+   whether this letter may be acted on is a live state, so the qualifier is a
+   washed chip rather than a neutral outline. */
+.literacy-grade-qualifier { display:block; color:var(--ink-muted); font:750 10px/1.4 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; overflow-wrap:anywhere; }
+.literacy-grade[data-grade-state="provisional"] .literacy-grade-qualifier,
+.literacy-grade[data-grade-state="withheld"] .literacy-grade-qualifier,
+.literacy-grade[data-grade-state="ungraded"] .literacy-grade-qualifier { border:1px solid var(--state-warn-line); border-radius:99px; padding:3px 9px; background:var(--state-warn-wash); color:var(--state-warn-ink); }
+.literacy-grade-facts { display:grid; gap:11px; margin:0; min-width:0; }
+.literacy-grade-facts div { min-width:0; }
+.literacy-grade-facts dt { color:var(--ink-muted); font:700 9px/1.4 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; }
+.literacy-grade-facts dd { margin:3px 0 0; font-size:14px; font-weight:650; line-height:1.45; overflow-wrap:anywhere; }
+.literacy-grade-shape { font-weight:750; }
+.literacy-grade-rule { margin:11px 0 0; color:var(--ink-muted); font-size:12px; line-height:1.5; overflow-wrap:anywhere; }
+
+.literacy-grade-next { border-top:1px solid var(--panel-border); padding-top:13px; }
+.literacy-grade-action { margin:4px 0 0; font-size:14px; font-weight:700; line-height:1.5; overflow-wrap:anywhere; }
+.literacy-grade-action[data-available="false"] { color:var(--state-warn-ink); }
+
+.literacy-cohort { display:grid; gap:11px; }
+.literacy-cohort-method { margin:0; color:var(--ink-muted); font-size:12px; line-height:1.5; overflow-wrap:anywhere; }
+.literacy-cohort-list,.literacy-ungraded-list { display:grid; gap:10px; margin:0; padding:0; list-style:none; }
+.literacy-cohort-row,.literacy-ungraded-row { display:grid; gap:7px; min-width:0; border:1px solid var(--panel-border); border-radius:10px; padding:12px 14px; background:#fff; }
+.literacy-cohort-head { display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:8px 14px; }
+.literacy-cohort-name { margin:0; min-width:0; font-size:14px; font-weight:750; line-height:1.35; overflow-wrap:anywhere; }
+.literacy-cohort-delta { display:flex; align-items:baseline; gap:7px; margin:0; font-size:13px; font-weight:650; line-height:1.45; overflow-wrap:anywhere; }
+.literacy-cohort-shape { flex:none; font-weight:750; }
+.literacy-cohort-row[data-position="above"] .literacy-cohort-shape { color:#17603a; }
+.literacy-cohort-row[data-position="below"] .literacy-cohort-shape { color:#8a2b2b; }
+.literacy-cohort-row[data-position="at"] .literacy-cohort-shape { color:var(--ink-muted); }
+/* Decoration with a length. Every number it draws is already text above it, so
+   it is hidden from the accessibility tree; the fills still clear 3:1 on the
+   track so the bar is legible on its own. */
+.literacy-cohort-bar { height:8px; border:1px solid var(--panel-border); border-radius:99px; background:#f3f1eb; overflow:hidden; }
+.literacy-cohort-bar span { display:block; height:100%; }
+.literacy-cohort-bar span[data-band="good"] { background:#17603a; }
+.literacy-cohort-bar span[data-band="watch"] { background:#72520a; }
+.literacy-cohort-bar span[data-band="poor"] { background:#8a2b2b; }
+.literacy-cohort-bar span[data-band="review"] { background:var(--ink-muted); }
+.literacy-cohort-coverage,.literacy-ungraded-reason { margin:0; color:var(--ink-muted); font-size:12px; line-height:1.5; overflow-wrap:anywhere; }
+.literacy-ungraded-toggle { justify-self:start; max-width:100%; min-height:40px; border:1px solid var(--import-line); border-radius:8px; padding:9px 13px; background:#fff; color:var(--import-ink); font:750 12px/1.4 ui-monospace,monospace; text-align:left; cursor:pointer; }
+.literacy-ungraded-toggle:hover { background:var(--import-wash); }
+.literacy-ungraded-toggle:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.literacy-grade-live { margin:0; color:var(--import-ink); font-size:12px; line-height:1.5; overflow-wrap:anywhere; }
+
 @media(max-width:640px) {
   /* The table keeps its shape and scrolls inside its own labelled, focusable
      box rather than pushing the page sideways. */
@@ -639,4 +716,13 @@
   .model-overspend-metric-value { font-size:23px; }
   .model-overspend-table { min-width:34rem; }
   .model-overspend-evidence-toggle { width:100%; }
+  /* Narrow reflow, not narrow type: the block stacks and the letter shrinks one
+     step, but the coverage figure and the next action keep their reading size
+     and wrap. They are the last two things allowed to move and are never
+     clipped. */
+  .literacy-grade { padding:16px; }
+  .literacy-grade-block { grid-template-columns:1fr; padding:14px; }
+  .literacy-grade-letter { justify-items:start; font-size:44px; }
+  .literacy-cohort-head { align-items:flex-start; flex-direction:column; }
+  .literacy-ungraded-toggle { width:100%; }
 }

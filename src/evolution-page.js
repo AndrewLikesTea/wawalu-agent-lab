@@ -61,6 +61,9 @@ import { trustVerdict } from "/finops-trust-verdict.js";
 import {
   clearModelOverspendFinding, renderModelOverspendFinding,
 } from "/model-overspend-finding-view.js";
+// The imported prompt-literacy grade. Presentation only: it reads the analysis
+// envelope's own `literacy` state and Noor's eligibility verdict inside it.
+import { clearLiteracyGrade, renderLiteracyGrade } from "/literacy-grade-view.js";
 // The one thing this page writes down, and it is not analysis state: the
 // display labels a leader gives their own opaque org-unit identifiers. The
 // store is reached through that module, so this file persists nothing itself.
@@ -82,6 +85,15 @@ function band(score) {
   if (score >= 65) return "watch";
   return "poor";
 }
+
+/** The word and the shape each band ships, so tint is never the only channel. */
+const BAND_WORD = Object.freeze({
+  good: "Good · working as intended",
+  watch: "Watch · coaching range",
+  poor: "Poor · intervention needed",
+  review: "Needs review · not presented as reliable",
+});
+const BAND_SHAPE = Object.freeze({ good: "●", watch: "◐", poor: "▲", review: "◇" });
 
 function element(tag, className, text) {
   const node = document.createElement(tag);
@@ -333,6 +345,12 @@ function mountLocalFinopsImport() {
     // The landing surface. It is drawn from the same envelope for example data
     // and for a real import; there is no example-only branch below this line.
     applyLeadingFinding(document, leadingFinding(next));
+    // The grade, its coverage, its confidence, and the one department to act on.
+    // An import with no query sample draws the empty state rather than a letter
+    // nobody's prompts earned.
+    renderLiteracyGrade(document, next.literacy?.available
+      ? { status: "ready", literacy: next.literacy, example }
+      : { status: "empty", example });
     setText("local-department", next.topDepartment?.name ?? "Unavailable");
     setText("local-confidence-label", `${resultPlausible ? next.confidence : "Withheld"} confidence`);
     setText("local-action", resultPlausible ? next.action : "Review imported totals before selecting a department action.");
@@ -456,6 +474,7 @@ function mountLocalFinopsImport() {
     // the org-unit labels this browser was holding — they are the only thing on
     // this page that outlives a reload, so "start over" has to include them.
     clearModelOverspendFinding(document, { storage: labelStorage() });
+    clearLiteracyGrade(document);
     showMetricBasis({ mode: "example" });
     setText("finops-intro",
       "Every prompt is scored for intent, efficiency, and model fit, then attributed to the org chart. "
@@ -792,7 +811,16 @@ function renderHeadline(organization, totals, eligibility) {
     card.dataset.coverageTier = eligibility.tier;
     card.dataset.gradeState = eligibility.state;
   }
-  setText("score-grade", gradeVisible ? totals.grade : "!");
+  setText("score-grade-letter", gradeVisible ? totals.grade : "!");
+  // The band tint used to be the only thing separating a good letter from a poor
+  // one. It now ships a shape and a word beside it, so the distinction survives
+  // greyscale, a screenshot, and a reader who cannot separate the hues.
+  const bandKey = gradeVisible ? band(totals.score) : "review";
+  setText("score-band-shape", BAND_SHAPE[bandKey]);
+  setText("score-band-label", BAND_WORD[bandKey]);
+  // The qualifier travels with the glyph rather than sitting in a footnote.
+  setText("score-qualifier", !gradeVisible ? "Grade withheld"
+    : eligibility.provisional ? "Provisional grade" : "Confident grade");
   setText("score-value", gradeVisible
     ? `${totals.score} / 100 · grade ${totals.grade}`
     : trust.score.plausible ? eligibility.label : "Needs review · score unavailable");

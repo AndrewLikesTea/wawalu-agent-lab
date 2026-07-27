@@ -32,7 +32,11 @@
         </div>
         <div class="score-card" id="score-card" data-sample-analysis aria-labelledby="score-card-title">
           <p class="eyebrow" id="score-card-title">AI literacy</p>
-          <p class="score-grade" id="score-grade" aria-hidden="true">–</p>
+          <!-- The letter and the two words that qualify it are one group: the
+               band word says what the tint means, and the qualifier says whether
+               the letter may be acted on. Neither can be cropped off the glyph. -->
+          <p class="score-grade" id="score-grade"><span class="visually-hidden">Grade </span><span id="score-grade-letter">–</span><span class="score-qualifier" id="score-qualifier">Loading</span></p>
+          <p class="score-band" id="score-band"><span class="score-band-shape" id="score-band-shape" aria-hidden="true">◇</span> <span id="score-band-label">Loading band…</span></p>
           <p class="score-value" id="score-value">Loading score…</p>
           <p class="score-coverage" id="score-coverage">Loading sampled-spend coverage…</p>
           <p class="score-action" id="score-action" data-available="false">Loading next action…</p>
@@ -223,6 +227,34 @@
               <p class="local-lead-action" id="local-lead-action" data-available="false">—</p>
             </div>
             <p class="dataset-provenance" id="dataset-provenance-finding" data-dataset-provenance data-dataset="user" role="note" aria-label="Data provenance" hidden></p>
+          </article>
+          <!-- The imported prompt-literacy grade. Authored empty and painted by
+               literacy-grade-view.js out of `result.literacy`: the letter, its
+               qualifier, the coverage figure, the confidence tier, and the one
+               department to act on are all read off Rowan's analysis and Noor's
+               eligibility verdict — none of them is recomputed here. The h4/h5
+               pair nests under the section's own h3 with no level skipped. -->
+          <article class="literacy-grade" id="literacy-grade" data-analysis-surface data-dataset="user"
+                   data-state="empty" data-grade-state="none" data-band="review"
+                   aria-labelledby="literacy-grade-question" aria-busy="false" hidden>
+            <p class="eyebrow">Prompt literacy</p>
+            <h4 id="literacy-grade-question" tabindex="-1">How well is this organization prompting?</h4>
+            <div class="literacy-grade-summary" id="literacy-grade-summary"></div>
+            <!-- Terminal element of the block: whatever the letter turned out to
+                 be, this is the sentence the reader leaves with. -->
+            <div class="literacy-grade-next">
+              <p class="eyebrow">Prioritized next action</p>
+              <p class="literacy-grade-action" id="literacy-grade-action" data-available="false">—</p>
+            </div>
+            <section class="literacy-cohort" id="literacy-cohort" data-state="unavailable" aria-labelledby="literacy-cohort-title" hidden>
+              <h5 id="literacy-cohort-title">Departments against the cohort median</h5>
+              <p class="literacy-cohort-method" id="literacy-cohort-method">Cohort comparison unavailable.</p>
+              <div id="literacy-cohort-body"></div>
+              <button class="literacy-ungraded-toggle" id="literacy-ungraded-toggle" type="button" aria-expanded="false" aria-controls="literacy-ungraded-panel" hidden>Show departments with no grade</button>
+              <div class="literacy-ungraded-panel" id="literacy-ungraded-panel" hidden></div>
+            </section>
+            <p class="dataset-provenance" id="dataset-provenance-literacy" data-dataset-provenance data-dataset="user" role="note" aria-label="Data provenance" hidden></p>
+            <p class="literacy-grade-live" id="literacy-grade-live" role="status" aria-live="polite"></p>
           </article>
           <!-- Per-model overspend, model-overspend-finding/1.0.0. Authored empty:
                the question, the number, the action, confidence, provenance, and
