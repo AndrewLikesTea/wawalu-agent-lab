@@ -477,6 +477,12 @@ test("clearing example data leaves no residue in state, storage, or the URL", as
     assert.doesNotMatch(source, /localStorage|sessionStorage|document\.cookie|pushState|replaceState/,
       `${module} must not persist analysis state`);
   }
+  // The one thing this page does write down is a leader's own display labels for
+  // opaque org-unit identifiers — no number, no result, nothing that could put a
+  // finding back on screen — and this same clearing action empties them, so
+  // "clear" still means one thing here.
+  const pageSource = await readFile(new URL("../src/evolution-page.js", import.meta.url), "utf8");
+  assert.match(pageSource, /clearModelOverspendFinding\(document, \{ storage: labelStorage\(\) \}\)/);
   // And the markup ships no example numbers of its own to fall back on.
   const html = await readFile(PAGE, "utf8");
   assert.doesNotMatch(html, /atlas0|39200|154500/);

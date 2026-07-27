@@ -214,6 +214,20 @@
             </div>
             <p class="dataset-provenance" id="dataset-provenance-finding" data-dataset-provenance data-dataset="user" role="note" aria-label="Data provenance" hidden></p>
           </article>
+          <!-- Per-model overspend, model-overspend-finding/1.0.0. Authored empty:
+               the question, the number, the action, confidence, provenance, and
+               the disclosed evidence table are all painted by
+               model-overspend-finding-view.js out of the finding payload. The
+               per-model rows are deliberately not in this markup — the contract
+               marks them progressive disclosure, so they exist only once a
+               reader opens them. -->
+          <article class="model-overspend" id="model-overspend" data-analysis-surface data-dataset="user" data-status="unavailable" data-expanded="false" aria-labelledby="model-overspend-question" hidden>
+            <p class="eyebrow">Per-model overspend</p>
+            <h4 id="model-overspend-question" tabindex="-1">—</h4>
+            <div id="model-overspend-body"></div>
+            <p class="dataset-provenance" id="dataset-provenance-overspend" data-dataset-provenance data-dataset="user" role="note" aria-label="Data provenance" hidden></p>
+            <p class="model-overspend-live" id="model-overspend-live" role="status" aria-live="polite"></p>
+          </article>
           <article class="local-finding" aria-labelledby="local-action" aria-describedby="local-metric-detail">
             <header class="local-finding-lead">
               <div>
