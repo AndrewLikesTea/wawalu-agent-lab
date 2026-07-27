@@ -69,6 +69,13 @@ import {
 import {
   applyAttributionNote, applyPreUploadDisclosure, applySuppressedSavings,
 } from "/finops-attribution-view.js";
+// One confidence treatment for the KPI row, the spend mix, the findings list,
+// and the recoverable figure, plus the single ranked upgrade action. Both
+// modules read the policy above; neither decides a threshold of its own.
+import { coverageChangeAnnouncement, coverageModel } from "/attribution-confidence.js";
+import {
+  announceCoverageChange, applyCoverageTreatment,
+} from "/attribution-confidence-view.js";
 import { trustVerdict } from "/finops-trust-verdict.js";
 // The per-model overspend finding and its progressively disclosed evidence.
 // The panel is fed the bundled synthetic finding while the example dataset is
@@ -176,6 +183,10 @@ function mountLocalFinopsImport() {
   let queue = [];
   let review = null;
   let result = null;
+  // The coverage the reader was last shown, so a recalculation can say what
+  // moved. Null before the first analysis, which is what keeps the polite region
+  // silent on initial load.
+  let coverageState = null;
   // One offloader for the life of the page. It builds its worker lazily, retires
   // it for good if the browser cannot load a module worker, and builds a fresh
   // one after a cancel — so a cancelled import leaves nothing to clean up here.
@@ -360,24 +371,50 @@ function mountLocalFinopsImport() {
     if (!inputState) {
       applyAttributionNote(document, null);
       applySuppressedSavings(document, null);
+      applyCoverageTreatment(document, null);
+      coverageState = null;
       return null;
     }
+    const measured = share?.share ?? null;
     const classification = classifyFinding(
-      FINDING_CATEGORIES.RECOVERABLE_SAVINGS, inputState, share?.share ?? null,
+      FINDING_CATEGORIES.RECOVERABLE_SAVINGS, inputState, measured,
     );
     applyAttributionNote(document, classification);
+    const items = providerLineItems();
+    // The same measured share the note above carries, spoken identically on the
+    // KPI row, the spend mix, and the findings list. `knownGroups` is left null
+    // on purpose: this page resolves every non-empty grouping value the export
+    // carries, so restricting the known set here would invent a gap the analysis
+    // does not actually have.
+    applyCoverageTreatment(document, coverageModel({
+      inputState, share: measured, lineItems: items, knownGroups: null,
+    }));
+    // Announced only when something moved. Focus is not taken here: a rendered
+    // result already ends on `focusStageHeading(document, "read")`, which lands
+    // on the same result heading, and two moves for one change is one too many.
+    const nextState = { inputState, share: measured };
+    announceCoverageChange(document,
+      coverageChangeAnnouncement({ previous: coverageState, next: nextState }),
+      { moveFocus: false });
+    coverageState = nextState;
     if (classification.confidence !== CONFIDENCE.SUPPRESSED) {
       applySuppressedSavings(document, null);
       return classification;
     }
-    const items = providerLineItems();
     applySuppressedSavings(document, suppressedSavingsFallback({
       inputState,
-      share: share?.share ?? null,
+      share: measured,
       lineItems: items,
       totalCost: share?.totalCost ?? null,
       concentration: largestConcentrationLine(items),
-    }), { formatMoney: moneyText });
+    }), {
+      formatMoney: moneyText,
+      // The fallback's own "what would raise confidence" sentence is the per
+      // missing-input messaging this issue collapses. The ranked upgrade action
+      // above says the same thing once, with the file named and the coverage it
+      // would buy, so the second copy is withheld rather than repeated.
+      includeRaiseSentence: false,
+    });
     return classification;
   };
   // What the reader's own result is labelled with, everywhere the example

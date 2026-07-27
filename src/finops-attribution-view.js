@@ -61,9 +61,16 @@ export function applyPreUploadDisclosure(doc) {
  * @param {object} doc the document.
  * @param {object|null} fallback a `suppressedSavingsFallback` model, or null to
  *   clear the region and hand the slot back to the ranked figure.
- * @param {{formatMoney?: (value: number) => string}} [options]
+ * @param {{formatMoney?: (value: number) => string,
+ *          includeRaiseSentence?: boolean}} [options] pass
+ *   `includeRaiseSentence: false` when the page already shows the one ranked
+ *   upgrade action; the model's raise sentence is the same guidance without the
+ *   file named or the coverage it would buy, and saying it twice is the
+ *   per-missing-input messaging this surface exists to avoid.
  */
-export function applySuppressedSavings(doc, fallback, { formatMoney = String } = {}) {
+export function applySuppressedSavings(doc, fallback, {
+  formatMoney = String, includeRaiseSentence = true,
+} = {}) {
   const region = byId(doc, FALLBACK_ID);
   if (!region) return null;
   if (!fallback) {
@@ -83,8 +90,10 @@ export function applySuppressedSavings(doc, fallback, { formatMoney = String } =
         + `${formatMoney(model.concentration.cost)}.`
       : "Largest concentration line: none — no cost row in this file carries a "
         + "provider or service line."),
-    element(doc, "li", "attribution-fallback-raise", model.raiseConfidence),
   ];
+  if (includeRaiseSentence) {
+    items.push(element(doc, "li", "attribution-fallback-raise", model.raiseConfidence));
+  }
   region.replaceChildren(
     element(doc, "p", "attribution-fallback-headline", model.headline),
     element(doc, "p", "attribution-fallback-why", model.explanation),
