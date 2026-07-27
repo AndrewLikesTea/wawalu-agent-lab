@@ -1373,6 +1373,35 @@ class AutonomousTests(IsolatedDiffBudget):
             self.assertEqual(record["attempts"], 1)
             self.assertTrue(label.call_args.kwargs["keep_ready"])
 
+    def test_provider_overload_defers_without_consuming_an_attempt(self):
+        """A 529 wave is the provider's outage, not a defect in the work.
+
+        With one provider capped, charging an attempt would walk every issue an
+        outage touched to agent-blocked within max_attempts runs.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            state.value["issues"]["297"] = {"status": "running", "attempts": 2}
+            events = pathlib.Path(tmp) / "events.jsonl"
+            journal = autonomous.Journal(events)
+            issue = {"number": 297, "title": "Recoverable spend", "body": "",
+                     "labels": [{"name": "agent-ready"}, {"name": "agent-running"}]}
+            with mock.patch.object(autonomous, "comment"), \
+                 mock.patch.object(autonomous, "replace_state_label") as label:
+                autonomous.record_run_outcome(
+                    autonomous.PROVIDER_OVERLOAD_EXIT_CODE, issue, 297, "backend", {},
+                    {**self.config(), "issue_label": "agent-ready", "max_attempts": 2,
+                     "retry_cooldown_seconds": 300},
+                    state, journal, "token")
+            emitted = [json.loads(line)["event"] for line in events.read_text().splitlines()]
+            self.assertIn("run_provider_overload_deferred", emitted)
+            self.assertNotIn("run_failed", emitted)
+            record = state.value["issues"]["297"]
+            self.assertEqual(record["status"], "retry")
+            self.assertEqual(record["attempts"], 1)
+            self.assertNotIn("worker_override", record)
+            self.assertTrue(label.call_args.kwargs["keep_ready"])
+
     def test_tick_stops_starting_runs_when_the_daily_diff_rail_is_spent(self):
         config = {**self.config(), "enabled": True, "issue_label": "agent-ready",
                   "working_hours": {"start": 0, "end": 24}, "daily_diff_limit": 3}

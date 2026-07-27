@@ -39,6 +39,10 @@ class PlannerCapacityExhausted(RuntimeError):
 
 WORKERS = {"codex", "claude"}
 CAPACITY_EXIT_CODES = {"codex": 75, "claude": 76}
+# A provider's own servers falling over is neither our quota running out nor a defect
+# in the work, so it gets its own signal: distinct from the capacity codes (75/76) and
+# from orchestrator.DIFF_BUDGET_EXIT_CODE (77).
+PROVIDER_OVERLOAD_EXIT_CODE = 78
 # Local planner draws are cheap next to the paid consultation whose idea they decompose,
 # so spend a few rather than lose that idea to one unlucky sample.
 DIRECTIVE_PLAN_DRAWS = 4
@@ -554,6 +558,10 @@ def run_worker(worker: str, prompt: str, worktree: pathlib.Path, run_dir: pathli
                                    stderr=subprocess.STDOUT).returncode
     if exit_code and is_capacity_limited(log_path):
         return CAPACITY_EXIT_CODES[worker]
+    # Capacity is checked first: a 429 is the provider turning us away for quota, which
+    # belongs on the capacity path with its cooldown and its switch to the other worker.
+    if exit_code and is_provider_overloaded(log_path):
+        return PROVIDER_OVERLOAD_EXIT_CODE
     return exit_code
 
 
@@ -596,6 +604,39 @@ def is_capacity_limited(log_path: pathlib.Path) -> bool:
         if not isinstance(record, dict):
             continue
         if _record_reports_capacity(record):
+            return True
+    return False
+
+
+def is_provider_overloaded(log_path: pathlib.Path) -> bool:
+    """Recognize the provider's own servers failing (529 overloaded, 503, 500).
+
+    Deliberately narrower than is_capacity_limited: only the terminal `result`
+    record's numeric `api_error_status` counts. That field is the CLI reporting the
+    status its OWN request died on, so no amount of product text, tool output, or
+    source code quoting "529" or "overloaded" can forge it. Anything below 500 is
+    the request being refused rather than the server breaking, and 429-style
+    refusals are already the capacity path's business.
+    """
+    try:
+        text = log_path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return False
+    for line in text.splitlines():
+        line = line.strip()
+        if not line.startswith("{"):
+            continue
+        try:
+            record = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(record, dict) or record.get("type") != "result":
+            continue
+        try:
+            status = int(record.get("api_error_status"))
+        except (TypeError, ValueError):
+            continue
+        if status >= 500:
             return True
     return False
 
