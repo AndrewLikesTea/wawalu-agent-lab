@@ -1,0 +1,18 @@
+{
+  "note": "Department a grades. Department b is sampled but every row is either ambiguous, signal-free, or on a model the billing export never bills. Department c is never sampled at all and must still appear.",
+  "rows": [
+    {"department": "psn_unit_a", "model": "gpt-4o", "timestamp": "2026-07-01T09:00:00Z", "excerpt": "Context: the billing service returns 500s. Constraints: must not change the schema. Acceptance criteria: a passing test."},
+    {"department": "psn_unit_a", "model": "gpt-4o", "timestamp": "2026-07-01T09:05:00Z", "excerpt": "Background: nightly export. Requirements: idempotent reruns. Expected output: a diff."},
+    {"department": "psn_unit_a", "model": "gpt-4o", "timestamp": "2026-07-01T09:10:00Z", "excerpt": "Given the following trace, do not use a retry loop. Definition of done: a 409."},
+    {"department": "psn_unit_a", "model": "gpt-4o", "timestamp": "2026-07-01T09:15:00Z", "excerpt": "Context: migration is slow. Constraints: limited to one lock. Success looks like a fast apply."},
+    {"department": "psn_unit_a", "model": "gpt-4o", "timestamp": "2026-07-01T09:20:00Z", "excerpt": "Here is the failing test. Requirements: keep the signature. Expected output: the minimal patch."},
+    {"department": "psn_unit_a", "model": "gpt-4o", "timestamp": "2026-07-01T09:25:00Z", "excerpt": "what is the status of the deploy"},
+    {"department": "psn_unit_a", "model": "gpt-5-nowhere", "timestamp": "2026-07-01T09:30:00Z", "excerpt": "Context: unbilled model. Constraints: must not ship. Acceptance criteria: none."},
+    {"department": "psn_unit_b", "model": "claude-sonnet-4", "timestamp": "2026-07-01T10:00:00Z", "excerpt": "try again with the birthday poem"},
+    {"department": "psn_unit_b", "model": "claude-sonnet-4", "timestamp": "2026-07-01T10:05:00Z", "excerpt": "what is the status of the deploy"},
+    {"department": "psn_unit_b", "model": "claude-sonnet-4", "timestamp": "2026-07-01T10:10:00Z", "excerpt": "still not working, try again"},
+    {"department": "psn_unit_zzz", "model": "gpt-4o", "timestamp": "2026-07-01T12:00:00Z", "excerpt": "Context: a department the roster does not carry. Requirements: none. Expected output: a counted miss."},
+    {"department": "  ", "model": "gpt-4o", "timestamp": "2026-07-01T12:05:00Z", "excerpt": "blank department"},
+    {"department": "psn_unit_a", "model": "gpt-4o", "timestamp": "not-a-date", "excerpt": "unparseable timestamp"}
+  ]
+}
