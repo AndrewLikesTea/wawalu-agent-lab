@@ -13,7 +13,9 @@
 //      contract fields and the position of a file in the selection; record
 //      identifiers, export IDs, and file names are replaced before display.
 
-import { ORG_MAPPING_REQUIREMENT_STATUS } from "./finops-attribution-policy.js";
+import {
+  ORG_MAPPING_REQUIREMENT_STATUS, OPTIONAL_UPGRADES,
+} from "./finops-attribution-policy.js";
 import { importLimitsSentence } from "./import-limits.js";
 
 /** The stages the shipped flow already walks. Naming them does not add one. */
@@ -79,30 +81,54 @@ export function stageProgress(stageId) {
  * `optional` rather than `missing`: nothing about it blocks the analysis, and
  * the only thing it adds is a department name over units a leader already has.
  */
-export function mappingRequirements({ providers = 0, hris = false } = {}) {
+export function mappingRequirements({
+  providers = 0, hris = false, samples = 0, upgrades = null,
+} = {}) {
+  // The concrete gain each optional input buys. The standing sentence is the
+  // policy's; once a share has actually been measured, the matching entry from
+  // `rankedCoverageUpgrades` replaces it with the reader's own projected
+  // coverage. Neither is authored here.
+  const measuredGain = (id) => (upgrades?.all ?? []).find((entry) => entry.id === id)?.text ?? null;
+  const optional = (definition, ready, readyStatus, gainId) => Object.freeze({
+    id: definition.id,
+    name: definition.name,
+    control: "local-finops-files",
+    required: false,
+    // Required versus optional is a word, not a tint and not an inference from
+    // the state value. It is what the accessible name carries.
+    kindLabel: "Optional",
+    state: ready ? "ready" : "optional",
+    shape: ready ? "✓" : "+",
+    status: ready ? readyStatus : definition.status,
+    gain: measuredGain(gainId) ?? definition.gain,
+  });
   return [
     Object.freeze({
       id: "provider",
       name: "Provider period export",
       control: "local-finops-files",
       required: true,
+      kindLabel: "Required",
       state: providers > 0 ? "ready" : "missing",
       shape: providers > 0 ? "✓" : "○",
       status: providers > 0
         ? `${providers} period${providers === 1 ? "" : "s"} ready`
         : "not selected",
+      gain: "",
     }),
-    Object.freeze({
-      id: "hris",
-      name: "Department names (optional)",
-      control: "local-finops-files",
-      required: false,
-      state: hris ? "ready" : "optional",
-      shape: hris ? "✓" : "–",
-      status: hris
-        ? "1 mapping ready"
-        : `${ORG_MAPPING_REQUIREMENT_STATUS}; your export's own grouping is used`,
-    }),
+    optional(
+      Object.freeze({
+        ...OPTIONAL_UPGRADES.ORG_MAPPING,
+        // The row keeps the id the rest of this flow addresses it by; the gain
+        // and the status word are still the policy's.
+        id: "hris",
+        name: "Department names (optional)",
+        status: `${ORG_MAPPING_REQUIREMENT_STATUS}; your export's own grouping is used`,
+      }),
+      hris, "1 mapping ready", OPTIONAL_UPGRADES.ORG_MAPPING.id,
+    ),
+    optional(OPTIONAL_UPGRADES.QUERY_SAMPLE, samples > 0,
+      `${samples} sample${samples === 1 ? "" : "s"} ready`, OPTIONAL_UPGRADES.QUERY_SAMPLE.id),
   ];
 }
 
@@ -288,13 +314,26 @@ export function applyRequirements(doc, counts, { onJump } = {}) {
     const item = doc.createElement("li");
     item.className = "mapping-requirement";
     item.dataset.state = requirement.state;
+    item.dataset.kind = requirement.required ? "required" : "optional";
     const shape = textNode(doc, "span", "requirement-shape", requirement.shape);
     shape.setAttribute("aria-hidden", "true");
+    // Required and optional are told apart by a word and a shape before they are
+    // told apart by a tint, and the word is in the row's own accessible name so
+    // a screen reader hears "Optional" without reaching the visual grouping.
+    item.setAttribute("aria-label",
+      `${requirement.kindLabel}: ${requirement.name}. ${requirement.status}.`
+      + (requirement.gain ? ` ${requirement.gain}` : ""));
     item.append(
       shape,
+      textNode(doc, "span", "requirement-kind", requirement.kindLabel),
       textNode(doc, "span", "requirement-name", requirement.name),
       textNode(doc, "span", "requirement-status", requirement.status),
     );
+    // An optional row is only worth offering if it says what it buys. The
+    // sentence is the policy's, or the projected coverage the confidence model
+    // computed from the reader's own file — never a phrase written here.
+    if (requirement.gain)
+      item.append(textNode(doc, "span", "requirement-gain", requirement.gain));
     if (requirement.state === "missing") {
       const jump = doc.createElement("button");
       jump.setAttribute("type", "button");

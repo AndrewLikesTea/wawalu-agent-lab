@@ -18,7 +18,7 @@
 // mechanism for the same job.
 
 import { CONFIDENCE } from "./finops-attribution-policy.js";
-import { confidenceTreatment, SURFACES } from "./attribution-confidence.js";
+import { confidenceTreatment, coveragePercentText, SURFACES } from "./attribution-confidence.js";
 
 /** Region that carries `data-confidence`, and the coverage node inside it. */
 const SURFACE_NODES = Object.freeze({
@@ -39,6 +39,10 @@ const UPGRADE_MORE_ID = "coverage-upgrade-more";
 const UPGRADE_REST_ID = "coverage-upgrade-rest";
 /** The control an upgrade sends the reader to. One step, one target. */
 const IMPORT_CONTROL_ID = "local-finops-files";
+/** The attributed/unattributed pair, beside the headline figure it qualifies. */
+const SPLIT_ID = "local-attribution-split";
+/** What moved on the last recalculation, kept until the next one replaces it. */
+const CHANGE_ID = "local-result-change";
 
 const byId = (doc, id) => (doc?.getElementById ? doc.getElementById(id) : null);
 
@@ -168,6 +172,94 @@ export function applyCoverageTreatment(doc, model) {
   }
   applyCoverageUpgrade(doc, model?.upgrade ?? null);
   return model ?? null;
+}
+
+/**
+ * The attributed share and the unattributed bucket, beside the headline figure.
+ *
+ * A partially attributed result is a real result over the attributed part, and
+ * the way to make it read that way is to put both halves next to the number in
+ * document order — not to caption the number with a warning. Both halves carry
+ * their money and their share, so 68% never has to be taken on trust.
+ *
+ * @param {object} doc the document.
+ * @param {object|null} split a `coverageSplit` result, or null to clear.
+ * @param {{formatMoney?: (value: number) => string}} [options]
+ */
+export function applyAttributionSplit(doc, split, { formatMoney = String } = {}) {
+  const region = byId(doc, SPLIT_ID);
+  if (!region) return null;
+  if (!split || !(split.total > 0)) {
+    region.replaceChildren();
+    region.hidden = true;
+    region.dataset.state = "unmeasured";
+    return null;
+  }
+  const attributedShare = split.attributed / split.total;
+  const unattributed = Math.max(0, split.total - split.attributed);
+  const parts = [
+    { id: "attributed", term: "Attributed", cost: split.attributed, share: attributedShare },
+    { id: "unattributed", term: "Not attributed", cost: unattributed, share: 1 - attributedShare },
+  ];
+  region.dataset.state = unattributed > 0 ? "partial" : "complete";
+  // `dt`/`dd` straight into the grouping div the markup already declares: the
+  // region sits inside the finding's own definition list, so the two halves are
+  // name/value pairs there rather than a second list nested in it. The shape
+  // lives inside the term because only `dt` and `dd` belong here.
+  region.replaceChildren(...parts.flatMap((part) => {
+    const shape = element(doc, "span", "attribution-split-shape",
+      part.id === "attributed" ? "◤" : "◇");
+    shape.setAttribute("aria-hidden", "true");
+    const term = element(doc, "dt", "attribution-split-term");
+    term.dataset.part = part.id;
+    term.append(shape, element(doc, "span", "attribution-split-term-text", part.term));
+    // Share and money together: the percentage says how much of the result this
+    // is, the amount says what it is worth, and neither alone is enough to
+    // decide whether the headline can be acted on.
+    const value = element(doc, "dd", "attribution-split-value",
+      `${coveragePercentText(part.share)} · ${formatMoney(part.cost)}`);
+    value.dataset.part = part.id;
+    return [term, value];
+  }));
+  region.hidden = false;
+  return Object.freeze({ attributedShare, attributed: split.attributed, unattributed });
+}
+
+/**
+ * What moved when the reader added a file, kept on the page rather than spoken
+ * and gone. Each row names the figure it is about and both of its values, so the
+ * summary can be re-read after the live region has been forgotten.
+ *
+ * @param {object} doc the document.
+ * @param {object|null} summary a `coverageChangeSummary` result, or null to clear.
+ */
+export function applyChangeSummary(doc, summary) {
+  const region = byId(doc, CHANGE_ID);
+  if (!region) return null;
+  if (!summary || !summary.items.length) {
+    region.replaceChildren();
+    region.hidden = true;
+    region.dataset.state = "none";
+    return null;
+  }
+  region.dataset.state = "changed";
+  const list = element(doc, "ul", "result-change-list");
+  list.setAttribute("aria-label", "Figures that moved");
+  list.replaceChildren(...summary.items.map((item) => {
+    const row = element(doc, "li", "result-change-item");
+    row.dataset.figure = item.id;
+    row.append(
+      element(doc, "span", "result-change-label", item.label),
+      element(doc, "span", "result-change-move", `${item.from} → ${item.to}`),
+    );
+    return row;
+  }));
+  region.replaceChildren(
+    element(doc, "p", "result-change-headline", summary.headline),
+    list,
+  );
+  region.hidden = false;
+  return summary;
 }
 
 /** The polite region. Same shape as the other announcers on this page. */

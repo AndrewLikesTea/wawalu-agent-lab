@@ -192,6 +192,63 @@ export const RAISE_CONFIDENCE_SENTENCE = Object.freeze({
 export const ORG_MAPPING_REQUIREMENT_STATUS = "optional — sharpens attribution";
 
 /**
+ * The optional inputs, and the concrete gain each one buys. Written here rather
+ * than in the requirements component for the same reason the status word above
+ * is: the panel that offers an upgrade and the policy that decides what the
+ * upgrade changes must not be able to disagree about it.
+ *
+ * `gain` is the standing sentence. A surface that has a measured share replaces
+ * it with the projected coverage `rankedCoverageUpgrades` computes from the
+ * reader's own file — the same claim, with their number in it.
+ */
+export const OPTIONAL_UPGRADES = Object.freeze({
+  ORG_MAPPING: Object.freeze({
+    id: "org_mapping",
+    name: "Org mapping",
+    status: ORG_MAPPING_REQUIREMENT_STATUS,
+    gain: "Renames the grouping values your export already carries into the units "
+      + "your org uses, and lets a finding name a team rather than a column value.",
+  }),
+  QUERY_SAMPLE: Object.freeze({
+    id: "query_sample",
+    name: "Query sample",
+    status: "optional — sharpens what the spend bought",
+    gain: "Grades what the spend was actually asking for, so the mix is read by "
+      + "intent rather than by model line alone.",
+  }),
+});
+
+/**
+ * Whether an analysis may run at all, decided by the same state machine that
+ * classifies findings. A recognized provider export on its own is eligible: the
+ * grouping column and the org mapping are precision upgrades above, and neither
+ * is a gate. Nothing else in the product is allowed to hold a second opinion.
+ *
+ * The reason travels with the verdict so a disabled control can name the policy
+ * state that disabled it instead of a string authored beside the button.
+ *
+ * @returns {{eligible: boolean, inputState: string|null, reason: string}}
+ */
+export function analysisEligibility(input = {}) {
+  const inputState = providerExportInputState(input);
+  if (!inputState) {
+    return Object.freeze({
+      eligible: false,
+      inputState: null,
+      reason: "No recognized provider export is loaded, so there is no spend to analyze. "
+        + PRE_UPLOAD_DISCLOSURE.question,
+    });
+  }
+  return Object.freeze({
+    eligible: true,
+    inputState,
+    reason: inputState === INPUT_STATES.PROVIDER_ONLY
+      ? "A provider export on its own is enough to analyze. " + PRE_UPLOAD_DISCLOSURE.limit
+      : `A provider export on its own is enough to analyze. ${RAISE_CONFIDENCE_SENTENCE[inputState]}`,
+  });
+}
+
+/**
  * What the page states **before** a single byte is selected. Three statements:
  * the question one export answers, the material metric it produces, and the one
  * action it will name. Not a section, not a panel — three sentences, and the

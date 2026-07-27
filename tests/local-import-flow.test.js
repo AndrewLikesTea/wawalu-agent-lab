@@ -101,7 +101,7 @@ test("each unresolved requirement carries the jump to the control that fixes it"
   // grouping column, so an absent org file is a choice with no jump to offer.
   applyRequirements(doc, { providers: 2, hris: false });
   const optional = doc.querySelectorAll("li").filter((row) => row.className === "mapping-requirement");
-  assert.deepEqual(optional.map((row) => row.dataset.state), ["ready", "optional"]);
+  assert.deepEqual(optional.map((row) => row.dataset.state), ["ready", "optional", "optional"]);
   assert.match(normalized(optional[0]), /Provider period export\s*2 periods ready/);
   // The row reads as an enhancement, not an unresolved input: "optional —
   // sharpens attribution", the wording finops-attribution-policy.js publishes.
@@ -109,10 +109,11 @@ test("each unresolved requirement carries the jump to the control that fixes it"
     /Department names \(optional\)\s*optional — sharpens attribution/);
   assert.equal(optional[1].querySelector("button"), null,
     "an optional input must not be offered as something to resolve");
+  assert.equal(optional[2].querySelector("button"), null);
 
   applyRequirements(doc, { providers: 0, hris: true });
   const rows = doc.querySelectorAll("li").filter((row) => row.className === "mapping-requirement");
-  assert.deepEqual(rows.map((row) => row.dataset.state), ["missing", "ready"]);
+  assert.deepEqual(rows.map((row) => row.dataset.state), ["missing", "ready", "optional"]);
   assert.equal(rows[1].querySelector("button"), null);
 
   const jump = rows[0].querySelector("button");
@@ -123,11 +124,11 @@ test("each unresolved requirement carries the jump to the control that fixes it"
 
   assert.deepEqual(
     mappingRequirements({ providers: 0, hris: false }).map((row) => row.state),
-    ["missing", "optional"],
+    ["missing", "optional", "optional"],
   );
   assert.deepEqual(
     mappingRequirements({ providers: 0, hris: false }).map((row) => row.required),
-    [true, false],
+    [true, false, false],
   );
 });
 

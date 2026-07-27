@@ -165,11 +165,17 @@ test("a leader imports the example provider export and reaches a decision they c
   try {
     await t.test("step 1 · the idle panel asks for the one file it needs", () => {
       assert.match(shownText(document, "import-stages"), /Step 1Select exportsnow/);
-      // One required input, one optional enrichment. The org mapping is not
-      // offered as something to add, because the export groups itself.
-      assert.equal(shownText(document, "mapping-requirements"),
-        "○Provider period exportnot selectedAdd it–Department names (optional)"
-        + "optional — sharpens attribution; your export's own grouping is used");
+      // One required input, two optional precision upgrades. Each row says
+      // whether it is required in a word, and each optional row says what it
+      // buys. Neither optional row is offered as something to add, because the
+      // export groups itself and the analysis runs without them.
+      const requirements = shownText(document, "mapping-requirements");
+      assert.match(requirements,
+        /^○RequiredProvider period exportnot selectedAdd it/);
+      assert.match(requirements, /\+OptionalDepartment names \(optional\)/);
+      assert.match(requirements,
+        /optional — sharpens attribution; your export's own grouping is used/);
+      assert.match(requirements, /\+OptionalQuery sample/);
       assert.equal(byId(document, "local-results").hidden, true,
         "no result may be on screen before a file is selected");
     });

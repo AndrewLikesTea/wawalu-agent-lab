@@ -63,8 +63,8 @@ import { leadingFinding } from "/finops-leading-finding.js";
 // The published attribution policy: three input states, one classification table,
 // two thresholds. Nothing on this page decides any of that for itself.
 import {
-  attributedSpendShare, attributionShareFromTotals, classifyFinding, CONFIDENCE, FINDING_CATEGORIES,
-  largestConcentrationLine, providerExportInputState, suppressedSavingsFallback,
+  analysisEligibility, attributedSpendShare, attributionShareFromTotals, classifyFinding, CONFIDENCE,
+  FINDING_CATEGORIES, largestConcentrationLine, providerExportInputState, suppressedSavingsFallback,
 } from "/finops-attribution-policy.js";
 import {
   applyAttributionNote, applyPreUploadDisclosure, applySuppressedSavings,
@@ -72,9 +72,11 @@ import {
 // One confidence treatment for the KPI row, the spend mix, the findings list,
 // and the recoverable figure, plus the single ranked upgrade action. Both
 // modules read the policy above; neither decides a threshold of its own.
-import { coverageChangeAnnouncement, coverageModel } from "/attribution-confidence.js";
 import {
-  announceCoverageChange, applyCoverageTreatment,
+  coverageChangeAnnouncement, coverageChangeSummary, coverageModel,
+} from "/attribution-confidence.js";
+import {
+  announceCoverageChange, applyAttributionSplit, applyChangeSummary, applyCoverageTreatment,
 } from "/attribution-confidence-view.js";
 import { trustVerdict } from "/finops-trust-verdict.js";
 // The per-model overspend finding and its progressively disclosed evidence.
@@ -226,6 +228,13 @@ function mountLocalFinopsImport() {
   // where the flow is, and what is still missing. Both repaint together so they
   // can never disagree, and focus only moves when the stage actually changed.
   let stage = "select";
+  // The last ranked upgrade set, so a requirement row can state the coverage the
+  // reader's own file would actually gain rather than the standing sentence.
+  let coverageUpgrades = null;
+  const syncRequirements = () => applyRequirements(document, {
+    providers: loaded.providers.length, hris: Boolean(loaded.hris),
+    samples: samples.length, upgrades: coverageUpgrades,
+  });
   const syncStage = ({ hasResult = false, focus = false } = {}) => {
     const next = importStage({
       providers: loaded.providers.length, hris: Boolean(loaded.hris), hasResult,
@@ -234,9 +243,7 @@ function mountLocalFinopsImport() {
     const changed = next !== stage;
     stage = next;
     applyStage(document, stage);
-    applyRequirements(document, {
-      providers: loaded.providers.length, hris: Boolean(loaded.hris),
-    });
+    syncRequirements();
     if (changed && focus) focusStageHeading(document, stage);
     return changed;
   };
@@ -252,8 +259,13 @@ function mountLocalFinopsImport() {
   // them: a partial or failed selection changes nothing about what the visible
   // result is, and swapping the label would leave example figures under a
   // non-example word.
-  const showTransientBasis = (mode) =>
-    showMetricBasis({ mode: exampleActive ? "example-dataset" : mode });
+  // A result the reader already has is not relabelled by what happened to the
+  // *next* file. "Import failed" under a real, surviving figure would describe
+  // the number as absent while it is on screen; the error owns the field it came
+  // from, and the standing basis keeps describing the number it is under.
+  const showTransientBasis = (mode) => (result && !exampleActive
+    ? null
+    : showMetricBasis({ mode: exampleActive ? "example-dataset" : mode }));
   const departmentFacts = (department) => {
     const trend = department.trendAvailable
       ? `${department.spendChangePercent > 0 ? "↑ Increase " : department.spendChangePercent < 0 ? "↓ Decrease " : "→ No change "}`
@@ -372,6 +384,8 @@ function mountLocalFinopsImport() {
       applyAttributionNote(document, null);
       applySuppressedSavings(document, null);
       applyCoverageTreatment(document, null);
+      applyAttributionSplit(document, null);
+      applyChangeSummary(document, null);
       coverageState = null;
       return null;
     }
@@ -386,9 +400,22 @@ function mountLocalFinopsImport() {
     // on purpose: this page resolves every non-empty grouping value the export
     // carries, so restricting the known set here would invent a gap the analysis
     // does not actually have.
-    applyCoverageTreatment(document, coverageModel({
+    const model = coverageModel({
       inputState, share: measured, lineItems: items, knownGroups: null,
-    }));
+    });
+    applyCoverageTreatment(document, model);
+    // Both halves of the money, beside the number they qualify — built from the
+    // *same* two totals the classification above read, not from a second count
+    // of the same rows. A split measured a different way would print "100%
+    // attributed" beside a coverage line that says 0%.
+    applyAttributionSplit(document,
+      share?.defined ? { total: share.totalCost, attributed: share.attributedCost } : null,
+      { formatMoney: moneyText });
+    // The requirement rows now carry the projected coverage this reader's own
+    // file would gain, so the optional upgrades stop being a standing sentence
+    // and start being a number they can weigh.
+    coverageUpgrades = model?.upgrade ?? null;
+    syncRequirements();
     // Announced only when something moved. Focus is not taken here: a rendered
     // result already ends on `focusStageHeading(document, "read")`, which lands
     // on the same result heading, and two moves for one change is one too many.
@@ -396,6 +423,10 @@ function mountLocalFinopsImport() {
     announceCoverageChange(document,
       coverageChangeAnnouncement({ previous: coverageState, next: nextState }),
       { moveFocus: false });
+    // The same movement, kept on the page. A live region is spoken once; a
+    // reader who added a file and looked away is owed the figures that moved.
+    applyChangeSummary(document,
+      coverageChangeSummary({ previous: coverageState, next: nextState }));
     coverageState = nextState;
     if (classification.confidence !== CONFIDENCE.SUPPRESSED) {
       applySuppressedSavings(document, null);
@@ -632,6 +663,12 @@ function mountLocalFinopsImport() {
     if (remap) remap.hidden = true;
     result = null;
     exampleActive = false;
+    coverageUpgrades = null;
+    // The attribution pair and the "what changed" summary go with the result
+    // they described. A stale split beside a cleared figure is a claim about a
+    // file that is no longer loaded.
+    applyAttributionSplit(document, null);
+    applyChangeSummary(document, null);
     input.value = "";
     resultsNode.hidden = true;
     clear.hidden = true;
@@ -788,11 +825,17 @@ function mountLocalFinopsImport() {
 
   const finishSelection = (total) => {
     rebuildLoaded();
-    // The two-file precondition is gone: a provider export on its own is a
-    // complete run, grouped by the attribution key the export already carries.
-    // Only the file that carries the spend still blocks.
-    if (!loaded.providers.length) {
-      const missing = "provider export";
+    // The one gate, and it is the policy's. `analysisEligibility` reads the same
+    // three input states that classify every finding, so a provider export on
+    // its own is a complete run and only genuinely ineligible input — no file,
+    // or nothing the parser recognized as an export — is refused. The refusal
+    // sentence travels on the verdict; nothing here writes one.
+    const eligibility = analysisEligibility({
+      hasProviderExport: loaded.providers.length > 0,
+      hasGroupingColumn: hasGroupingColumn(),
+      hasOrgMapping: Boolean(loaded.hris),
+    });
+    if (!eligibility.eligible) {
       showTransientBasis("partial");
       syncStage({ focus: true });
       // A provider export whose rows carry no grouping value at all is the
@@ -808,7 +851,7 @@ function mountLocalFinopsImport() {
       announce("ready", `${total} compatible file${total === 1 ? "" : "s"} ready.`,
         graded?.message
           ? `${graded.message.label}. ${graded.nextAction.text}`
-          : `Add the ${missing}; example analysis remains visible.`);
+          : `${eligibility.reason} Example analysis remains visible.`);
       return;
     }
     renderResult(normalizeLocalFinopsHistory({
@@ -924,6 +967,15 @@ function mountLocalFinopsImport() {
   // Both recoveries live at the control. "Choose files again" reopens the same
   // picker; "Discard this selection" drops what was accepted so a half-loaded
   // pair cannot silently outlive the error that interrupted it.
+  // Sharpening a result from the result itself. It opens the same picker the
+  // panel above uses; the selection already in hand is untouched, so the
+  // provider export is never re-requested and the brief below stays mounted
+  // while the added file is read.
+  document.getElementById("add-optional-file")?.addEventListener("click", () => {
+    applyFieldDiagnostic(document, null);
+    input.focus?.();
+    input.click?.();
+  });
   document.getElementById("local-file-repick")?.addEventListener("click", () => {
     applyFieldDiagnostic(document, null);
     input.focus?.();
@@ -976,6 +1028,8 @@ function mountLocalFinopsImport() {
   // What one provider export will answer, said before a byte is selected.
   applyPreUploadDisclosure(document);
   applySuppressedSavings(document, null);
+  applyAttributionSplit(document, null);
+  applyChangeSummary(document, null);
   applyImportProgress(document, null);
   showMetricBasis({ mode: "example" });
   syncStage();
