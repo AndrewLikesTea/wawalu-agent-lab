@@ -390,6 +390,82 @@ test("the six delivery-state fixtures match the sibling contracts' conventions",
   assert.ok(reordered[0].snapshot.sequence > reordered[1].snapshot.sequence);
 });
 
+// --- the key space the department column is stated in -----------------------
+
+// A reader with a provider export and a query sample but no HRIS file has no
+// pseudonym to key by. `groupingUnit` is the unit their bill is grouped by, read
+// off Anya's detection result and passed in; it is never inferred from a cell.
+
+test("with no grouping unit declared, the department column is a pseudonym and only a pseudonym", () => {
+  const parsed = parseQuerySample(csv([
+    ["atlas-prod", "2026-06-15", "acme-sonnet-1", "1200", "800", "", "highValue"],
+  ]));
+  assert.equal(parsed.ok, false);
+  assert.equal(parsed.problem.code, QUERY_SAMPLE_CODES.NO_USABLE_ROWS);
+  assert.equal(parsed.problem.issues[0].code, QUERY_SAMPLE_CODES.INVALID_DEPARTMENT_KEY);
+});
+
+test("with a grouping unit declared, the department column is that unit and only that unit", () => {
+  const parsed = parseQuerySample(csv([
+    ["atlas-prod", "2026-06-15", "acme-sonnet-1", "1200", "800", "", "highValue"],
+  ]), { groupingUnit: "project" });
+  assert.equal(parsed.ok, true);
+  assert.equal(parsed.keySpace, "provider_unit");
+  assert.equal(parsed.groupingUnit, "project");
+  assert.equal(parsed.records[0].orgUnitId, "atlas-prod");
+  // Declared, the pseudonym is not a second accepted shape: the key space is
+  // decided once for the file, so a row is never matched against both patterns.
+  const both = parseQuerySample(csv([GOOD_ROW]), { groupingUnit: "project" });
+  assert.equal(both.ok, true);
+  assert.equal(both.keySpace, "provider_unit");
+  assert.equal(both.records[0].orgUnitId, UNIT);
+});
+
+test("a provider unit key is still a bounded identifier, so prompt text cannot ride in on it", () => {
+  const smuggled = "Context: the billing service returns 500s under load, and the retry budget is gone";
+  const parsed = parseQuerySample(csv([
+    [smuggled, "2026-06-15", "acme-sonnet-1", "1200", "800", "", "highValue"],
+  ], { delimiter: "\t" }), { groupingUnit: "project" });
+  assert.equal(parsed.ok, false);
+  assert.equal(parsed.problem.issues[0].code, QUERY_SAMPLE_CODES.INVALID_DEPARTMENT_KEY);
+  // The refusal names the column and the unit, never the cell it refused.
+  assert.doesNotMatch(parsed.problem.issues[0].message, /billing service|retry budget/);
+  assert.match(parsed.problem.issues[0].message, /project/);
+});
+
+test("the key space survives the redaction boundary and the omitted default is the pseudonym", () => {
+  const parsed = parseQuerySample(csv([
+    ["atlas-prod", "2026-06-15", "acme-sonnet-1", "1200", "800", "", "highValue"],
+  ]), { groupingUnit: "workspace" });
+  const classified = classifyQuerySample(parsed);
+  assert.equal(classified.keySpace, "provider_unit");
+  assert.equal(classified.groupingUnit, "workspace");
+  assert.deepEqual(Object.keys(classified.records[0]), CLASSIFIED_RECORD_KEYS);
+
+  const pseudonymous = classifyQuerySample(parseQuerySample(csv([GOOD_ROW])));
+  assert.equal(pseudonymous.keySpace, "org_pseudonym");
+  assert.equal(pseudonymous.groupingUnit, null);
+});
+
+test("the same sample scores identically keyed by provider unit or by pseudonym", () => {
+  // The equivalence guarantee at the ingest layer: only the join key differs, so
+  // the rubric must not be able to tell the two files apart.
+  const rows = [
+    ["2026-06-15", "acme-sonnet-1", "1200", "800", "", "highValue"],
+    ["2026-06-15", "acme-sonnet-1", "900", "400", "", "overProvisioned"],
+    ["2026-06-16", "acme-haiku-1", "300", "100", "", "outOfScope"],
+  ];
+  const byUnit = classifyQuerySample(parseQuerySample(
+    csv(rows.map((row) => ["atlas-prod", ...row])), { groupingUnit: "project" },
+  ));
+  const byPseudonym = classifyQuerySample(parseQuerySample(
+    csv(rows.map((row) => [UNIT, ...row])),
+  ));
+  assert.deepEqual(scorePromptLiteracy(byUnit.records), scorePromptLiteracy(byPseudonym.records));
+  assert.equal(scorePromptLiteracy(byUnit.records).grade,
+    scorePromptLiteracy(byPseudonym.records).grade);
+});
+
 test("the required field list is exactly what a grade needs, and no more", () => {
   assert.deepEqual([...REQUIRED_QUERY_SAMPLE_FIELDS], [
     "org_unit_id", "query_date", "model_raw", "input_tokens", "output_tokens",

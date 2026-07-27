@@ -6,7 +6,7 @@
 
 import { analyzeModelRouting, evaluateDownRoutingCandidate } from "./down-routing-candidates.js";
 import { RUBRIC_VERSION_ID } from "./prompt-literacy-scoring.js";
-import { analyzeQueryLiteracy, NOT_GRADEABLE_COPY } from "./query-literacy.js";
+import { analyzeQueryLiteracy, missingInputNotice, NOT_GRADEABLE_COPY } from "./query-literacy.js";
 import {
   PREVIOUS_PROVIDER_USAGE_SCHEMA_VERSION, PROVIDER_USAGE_SCHEMA_VERSION,
   SUPPORTED_PROVIDER_USAGE_SCHEMA_VERSIONS, USAGE_DETAIL_KEYS, usageDetailProblem,
@@ -500,6 +500,11 @@ function departmentPerformanceFor(entry, available) {
       score: null,
       reasonCode: "no_query_sample",
       reason: "The provider billing contract contains no scored query-category sample.",
+      // The same fact as a *named input plus the one action that supplies it*,
+      // so a surface can print something a reader can act on instead of a
+      // statement about a contract they did not write. The score stays null;
+      // naming the gap is not a step toward inventing a number for it.
+      missingInput: missingInputNotice("noSample"),
       rubricVersion: RUBRIC_VERSION_ID,
       coverage: null,
       confidenceTier: null,
@@ -512,6 +517,9 @@ function departmentPerformanceFor(entry, available) {
     subscores: entry.subscores,
     reasonCode: entry.reason,
     reason: entry.gradeable ? null : NOT_GRADEABLE_COPY[entry.reason],
+    // Present and null on the graded path, so a consumer reads one key rather
+    // than testing whether the key exists.
+    missingInput: null,
     rubricVersion: entry.rubricVersion,
     coverage: entry.coverage,
     // Noor's tier, carried whole rather than restated: the surface reads

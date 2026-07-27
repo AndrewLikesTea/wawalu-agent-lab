@@ -128,9 +128,13 @@ export function detectDialect(table, profiles = DIALECT_PROFILES) {
     headerRowIndex: table?.headerRowIndex ?? null,
     candidates: Object.freeze(scores.map((score) => Object.freeze({ ...score }))),
   };
+  // An unidentified table is grouped by nothing this layer can name. It is a
+  // stated absence, not an omitted key: a consumer that joins on the grouping
+  // unit reads `null` and says so, rather than reading `undefined` and guessing.
   const unidentified = (reason) => Object.freeze({
     ...base, status: "unidentified", profileId: null, profile: null,
-    version: null, kind: null, confidence: scores[0]?.confidence ?? 0, mapping: [], reason,
+    version: null, kind: null, groupingUnit: null,
+    confidence: scores[0]?.confidence ?? 0, mapping: [], reason,
   });
 
   if (!scores.length) return unidentified("no profile's required columns are all present");
@@ -149,6 +153,9 @@ export function detectDialect(table, profiles = DIALECT_PROFILES) {
     profile,
     version: profile.version,
     kind: profile.kind,
+    // The provider-native unit this export is grouped by, republished off the
+    // matched profile so a consumer never maps a profile id back to a unit.
+    groupingUnit: profile.groupingUnit,
     confidence: scores[0].confidence,
     mapping: planMapping(profile, columns),
     reason: scores[0].reason,

@@ -61,6 +61,24 @@ export const NORMALIZED_FIELDS = Object.freeze({
   ]),
 });
 
+/**
+ * The provider-native unit an export is grouped by, as a closed vocabulary.
+ *
+ * A `usage` profile declares exactly one; a `roster` profile declares none,
+ * because a roster is not billed and groups nothing. This is a *declaration*,
+ * not an inference: which unit a vendor bills by is a property of the export
+ * format, so reading it off a header at runtime would make a downstream join
+ * key depend on how one column happened to be spelled.
+ *
+ * `owner_id` carries this unit's value in every usage profile. The pair
+ * (`groupingUnit`, `owner_id`) is therefore the whole answer to "what is this
+ * export grouped by, and which column says so" — see `detectDialect`, which
+ * republishes it so a consumer never re-derives it from a profile id.
+ */
+export const PROVIDER_GROUPING_UNITS = Object.freeze([
+  "project", "workspace", "account", "resource_group", "api_key", "tag",
+]);
+
 /** Normalized fields a record may omit. Everything else must be produced. */
 export const OPTIONAL_NORMALIZED_FIELDS = Object.freeze({
   usage: Object.freeze([]),
@@ -164,6 +182,8 @@ export const DIALECT_PROFILES = Object.freeze([
     id: "openai-usage-export",
     label: "OpenAI organization usage export",
     kind: "usage",
+    // One row per project per day; `project` is the column that says so.
+    groupingUnit: "project",
     version: 1,
     changelog: Object.freeze([
       Object.freeze({ version: 1, note: "Initial mapping: per-project daily usage with context tokens and amount." }),
@@ -187,6 +207,8 @@ export const DIALECT_PROFILES = Object.freeze([
     id: "anthropic-usage-export",
     label: "Anthropic Console usage export",
     kind: "usage",
+    // Console usage is grouped by workspace; `workspace` is the column naming it.
+    groupingUnit: "workspace",
     version: 1,
     changelog: Object.freeze([
       Object.freeze({ version: 1, note: "Initial mapping: per-workspace daily usage with input tokens and cost." }),
@@ -210,6 +232,8 @@ export const DIALECT_PROFILES = Object.freeze([
     id: "aws-cost-and-usage-report",
     label: "AWS Cost and Usage Report",
     kind: "usage",
+    // CUR line items are attributed to the usage account that incurred them.
+    groupingUnit: "account",
     version: 1,
     changelog: Object.freeze([
       Object.freeze({ version: 1, note: "Initial mapping: CUR line items, unblended cost, usage account as owner." }),
@@ -235,6 +259,8 @@ export const DIALECT_PROFILES = Object.freeze([
     id: "azure-cost-management-export",
     label: "Azure Cost Management export",
     kind: "usage",
+    // The cost export attributes each line to the resource group that owns it.
+    groupingUnit: "resource_group",
     version: 1,
     changelog: Object.freeze([
       Object.freeze({ version: 1, note: "Initial mapping: amortized cost export, M/D/YYYY dates, resource group as owner." }),
@@ -261,6 +287,8 @@ export const DIALECT_PROFILES = Object.freeze([
     id: "google-cloud-billing-export",
     label: "Google Cloud billing export",
     kind: "usage",
+    // Billing export rows are grouped by the project that ran the workload.
+    groupingUnit: "project",
     version: 1,
     changelog: Object.freeze([
       Object.freeze({ version: 1, note: "Initial mapping: BigQuery billing export columns, per-row usage unit." }),
@@ -289,6 +317,8 @@ export const DIALECT_PROFILES = Object.freeze([
     id: "generic-hris-roster",
     label: "Generic HRIS worker roster",
     kind: "roster",
+    // A roster is not billed, so it groups no spend and declares no unit.
+    groupingUnit: null,
     version: 1,
     changelog: Object.freeze([
       Object.freeze({ version: 1, note: "Initial mapping: worker id, work email, name, manager, department, status." }),
@@ -348,6 +378,17 @@ export function assertProfileRegistry(profiles = DIALECT_PROFILES) {
     seen.add(profile.id);
     if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(profile.id)) throw new Error(`${where}: id is not a slug`);
     if (!NORMALIZED_FIELDS[profile.kind]) throw new Error(`${where}: unknown kind ${profile.kind}`);
+    // A usage profile must say what it is grouped by, and a roster must say it
+    // is grouped by nothing. Either is a declaration; neither may be absent,
+    // because a downstream join that resolved `undefined` would silently fall
+    // back to whatever key space it was already using.
+    if (profile.kind === "usage") {
+      if (!PROVIDER_GROUPING_UNITS.includes(profile.groupingUnit)) {
+        throw new Error(`${where}: groupingUnit must be one of ${PROVIDER_GROUPING_UNITS.join(", ")}`);
+      }
+    } else if (profile.groupingUnit !== null) {
+      throw new Error(`${where}: a ${profile.kind} profile must declare groupingUnit: null`);
+    }
     if (!Number.isInteger(profile.version) || profile.version < 1) {
       throw new Error(`${where}: version must be an integer >= 1`);
     }
