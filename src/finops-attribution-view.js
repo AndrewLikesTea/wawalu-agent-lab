@@ -19,10 +19,12 @@
 //      and this module renders only what it carries.
 
 import {
-  CONFIDENCE, PRE_UPLOAD_STATEMENTS, suppressedSavingsFallback,
+  CONFIDENCE, PRE_UPLOAD_STATEMENTS, suppressedSavingsFallback, toWholePercent,
+  unattributedShare,
 } from "./finops-attribution-policy.js";
 
 const DISCLOSURE_ID = "pre-upload-disclosure";
+const CONTEXT_ID = "local-attribution-context";
 const FALLBACK_ID = "local-attribution-fallback";
 const NOTE_ID = "local-attribution-note";
 const RECOVERABLE_ID = "local-recoverable";
@@ -96,6 +98,50 @@ export function applySuppressedSavings(doc, fallback, { formatMoney = String } =
     })(),
   );
   region.hidden = false;
+  return model;
+}
+
+/**
+ * How much of the spend the headline figure covers, beside the headline figure.
+ *
+ * Two facts, always together and always in the same order: the attributed share
+ * and the unattributed bucket, each as money and as a whole percent. This is
+ * first-class context for the number above it — a savings figure over 60% of
+ * the spend and one over 99% are different claims — so it is rendered on every
+ * result rather than disclosed on request.
+ *
+ * The share is the one `attributionShareFromTotals` measured; nothing is summed
+ * a second time here.
+ *
+ * @param {object} doc the document.
+ * @param {{share: number|null, attributedCost: number, totalCost: number}|null} share
+ * @param {{formatMoney?: (value: number) => string}} [options]
+ */
+export function applyAttributionContext(doc, share, { formatMoney = String } = {}) {
+  const node = byId(doc, CONTEXT_ID);
+  if (!node) return null;
+  const percent = toWholePercent(share?.share ?? null);
+  if (!share || percent === null) {
+    node.replaceChildren();
+    node.hidden = true;
+    node.dataset.state = "unknown";
+    return null;
+  }
+  const total = Number(share.totalCost ?? 0);
+  const attributed = Number(share.attributedCost ?? 0);
+  const unattributedPercent = toWholePercent(unattributedShare(share.share));
+  const model = Object.freeze({
+    attributed, total, unattributed: Math.max(0, total - attributed),
+    percent, unattributedPercent,
+  });
+  node.dataset.state = "measured";
+  node.hidden = false;
+  node.replaceChildren(
+    element(doc, "span", "attribution-context-attributed",
+      `Attributed: ${formatMoney(model.attributed)} of ${formatMoney(model.total)} (${percent}%)`),
+    element(doc, "span", "attribution-context-unattributed",
+      `Unattributed: ${formatMoney(model.unattributed)} (${unattributedPercent}%)`),
+  );
   return model;
 }
 

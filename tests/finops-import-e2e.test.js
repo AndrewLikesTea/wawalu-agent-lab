@@ -165,11 +165,20 @@ test("a leader imports the example provider export and reaches a decision they c
   try {
     await t.test("step 1 · the idle panel asks for the one file it needs", () => {
       assert.match(shownText(document, "import-stages"), /Step 1Select exportsnow/);
-      // One required input, one optional enrichment. The org mapping is not
-      // offered as something to add, because the export groups itself.
-      assert.equal(shownText(document, "mapping-requirements"),
-        "○Provider period exportnot selectedAdd it–Department names (optional)"
-        + "optional — sharpens attribution; your export's own grouping is used");
+      // One required input and two optional precision upgrades. The optional
+      // rows are not offered as something to resolve — the export groups itself
+      // — and each says what adding it would buy.
+      const rows = document.querySelectorAll("li")
+        .filter((row) => row.className === "mapping-requirement");
+      assert.deepEqual(rows.map((row) => row.dataset.required), ["true", "false", "false"]);
+      assert.deepEqual(rows.map((row) => textOf(row.querySelector(".requirement-kind"))),
+        ["Required", "Optional", "Optional"]);
+      assert.match(textOf(rows[0]), /Provider period export\s*not selected/);
+      assert.match(textOf(rows[1]), /optional — sharpens attribution; your export's own grouping is used/);
+      assert.match(textOf(rows[1]), /lifts a team claim from degraded to full confidence/);
+      assert.match(textOf(rows[2]), /optional — adds prompt-quality grades/);
+      assert.equal(rows.slice(1).filter((row) => row.querySelector("button")).length, 0,
+        "an optional input must never be offered as a blocker to resolve");
       assert.equal(byId(document, "local-results").hidden, true,
         "no result may be on screen before a file is selected");
     });

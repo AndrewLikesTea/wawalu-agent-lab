@@ -21,7 +21,8 @@ import {
   renderFinopsEvaluationPanel, renderFinopsEvaluationUnavailable,
 } from "/finops-evaluation-view.js";
 import {
-  localFinopsJsonExport, localFinopsMeetingSummary, normalizeLocalFinopsHistory,
+  localFinopsJsonExport, localFinopsMeetingSummary, nativeGroupingRoster,
+  normalizeLocalFinopsHistory,
 } from "/local-finops.js";
 // One entry point for a selected file: `.json` keeps the reviewed JSON path
 // untouched, `.csv`/`.tsv`/`.txt` route through the delimited normalizer. Both
@@ -45,8 +46,8 @@ import { gradeEligibility } from "/grade-eligibility.js";
 import {
   announce as announceStage, applyDatasetProvenance, applyFieldDiagnostic, applyImportLimits,
   applyImportProgress, applyLeadingFinding, applyMetricBasis, applyRequirements, applyStage,
-  applyTrustVerdict, diagnosticFor, EXAMPLE_DATASET_PROVENANCE, focusStageHeading, importStage,
-  metricBasis, userDatasetProvenance,
+  applyTrustVerdict, applyUpgradePanel, diagnosticFor, EXAMPLE_DATASET_PROVENANCE,
+  focusStageHeading, importStage, metricBasis, upgradeDelta, userDatasetProvenance,
 } from "/local-import-flow.js";
 // A leader's own graded sample. The rubric and the eligibility tier are both
 // upstream and unchanged here; `graded-sample-figures.js` only decides which of
@@ -64,10 +65,10 @@ import { leadingFinding } from "/finops-leading-finding.js";
 // two thresholds. Nothing on this page decides any of that for itself.
 import {
   attributedSpendShare, attributionShareFromTotals, classifyFinding, CONFIDENCE, FINDING_CATEGORIES,
-  largestConcentrationLine, providerExportInputState, suppressedSavingsFallback,
+  largestConcentrationLine, providerExportInputState, suppressedSavingsFallback, toWholePercent,
 } from "/finops-attribution-policy.js";
 import {
-  applyAttributionNote, applyPreUploadDisclosure, applySuppressedSavings,
+  applyAttributionContext, applyAttributionNote, applyPreUploadDisclosure, applySuppressedSavings,
 } from "/finops-attribution-view.js";
 import { trustVerdict } from "/finops-trust-verdict.js";
 // The per-model overspend finding and its progressively disclosed evidence.
@@ -176,6 +177,18 @@ function mountLocalFinopsImport() {
   let queue = [];
   let review = null;
   let result = null;
+  // The measured attribution share behind the result on screen. It is kept so
+  // the delta below compares the same figure the reader was shown, rather than
+  // re-measuring it and reporting a movement nobody saw.
+  let lastShare = null;
+  // ---------------------------------------------------------------------
+  // The one state object for an in-place precision upgrade. Everything the
+  // results view says about an optional file — whether one is being read, which
+  // file it was, what moved, what failed — is a function of this and nothing
+  // else. There is deliberately no second flag anywhere that says whether an
+  // optional file has been applied.
+  // ---------------------------------------------------------------------
+  let upgrade = { state: "idle", fileName: null, delta: null, error: null, before: null };
   // One offloader for the life of the page. It builds its worker lazily, retires
   // it for good if the browser cannot load a module worker, and builds a fresh
   // one after a cancel — so a cancelled import leaves nothing to clean up here.
@@ -224,7 +237,7 @@ function mountLocalFinopsImport() {
     stage = next;
     applyStage(document, stage);
     applyRequirements(document, {
-      providers: loaded.providers.length, hris: Boolean(loaded.hris),
+      providers: loaded.providers.length, hris: Boolean(loaded.hris), sample: samples.length > 0,
     });
     if (changed && focus) focusStageHeading(document, stage);
     return changed;
@@ -243,6 +256,19 @@ function mountLocalFinopsImport() {
   // non-example word.
   const showTransientBasis = (mode) =>
     showMetricBasis({ mode: exampleActive ? "example-dataset" : mode });
+  // The four figures an optional file can move, read off the result on screen.
+  // Nothing is computed here that the analysis did not already publish.
+  const currentFigures = () => (result ? {
+    recoverableUsd: result.recoverableUsd,
+    spendUsd: result.spendUsd,
+    attributedPercent: toWholePercent(lastShare?.share ?? null),
+    namedUnits: result.rankedDepartments.length,
+  } : null);
+  // The results view is a pure render of `upgrade`. The control is offered only
+  // where it means something: on the reader's own result, never on the example.
+  const paintUpgrade = () => applyUpgradePanel(document, upgrade, {
+    available: Boolean(result) && !exampleActive,
+  });
   const departmentFacts = (department) => {
     const trend = department.trendAvailable
       ? `${department.spendChangePercent > 0 ? "↑ Increase " : department.spendChangePercent < 0 ? "↓ Decrease " : "→ No change "}`
@@ -406,7 +432,7 @@ function mountLocalFinopsImport() {
     setSampleVisibility(false);
     return applyGradedSample(document, model);
   };
-  const renderResult = (next, { example = false, inputs = loaded } = {}) => {
+  const renderResult = (next, { example = false, inputs = loaded, origin = "select" } = {}) => {
     result = next;
     exampleActive = example;
     resultsNode.setAttribute("aria-busy", "false");
@@ -449,9 +475,14 @@ function mountLocalFinopsImport() {
     // it. The verdict reads the parsed rows and roster the import already holds,
     // plus the export ids reconciliation quarantined; it keeps no state of its
     // own and does not re-parse anything.
+    // With no org mapping the roster is the export's own grouping column, so the
+    // verdict counts the money against exactly the units the analysis attributed
+    // it to. Deriving it in two places would be two definitions of "attributed";
+    // this is the same call `normalizeLocalFinopsHistory` makes.
+    const roster = inputs.hris ?? nativeGroupingRoster(inputs.providers ?? []);
     const verdict = trustVerdict({
       providers: inputs.providers ?? [],
-      hris: inputs.hris ?? null,
+      hris: roster,
       quarantinedExportIds: next.validation?.quarantinedExportIds ?? [],
     });
     applyTrustVerdict(document, verdict);
@@ -459,10 +490,15 @@ function mountLocalFinopsImport() {
     // above may claim. The verdict has already summed both sides of that ratio;
     // summing them again here is how two numbers on one screen start
     // disagreeing, so the share is assembled from its totals.
-    const attribution = applyAttributionPolicy(attributionShareFromTotals({
+    const share = attributionShareFromTotals({
       attributedCost: (verdict.headline?.attributedMinor ?? 0) / 100,
       totalCost: (verdict.headline?.totalMinor ?? 0) / 100,
-    }));
+    });
+    lastShare = share;
+    const attribution = applyAttributionPolicy(share);
+    // How much of the spend this finding covers, beside the finding's own
+    // number rather than a scroll away from it.
+    applyAttributionContext(document, share, { formatMoney: moneyText });
     // Below the floor the figure itself is withheld. A dollar amount with a
     // caveat under it is the same unsupported claim with an asterisk on it.
     if (attribution?.confidence === CONFIDENCE.SUPPRESSED) {
@@ -526,7 +562,25 @@ function mountLocalFinopsImport() {
     // screen reader reads the brief's title rather than a nameless region. A
     // re-import redraws the same stage, and the reader is still owed the move.
     syncStage({ hasResult: true });
-    focusStageHeading(document, "read");
+    // An in-place upgrade never moves the reader. They are already inside this
+    // brief; taking focus back to its heading would throw away their place and
+    // the scroll position that goes with it.
+    if (origin !== "upgrade") focusStageHeading(document, "read");
+    // What the added file moved, tied to the file that moved it. The comparison
+    // is against the figures captured before the re-run, so it describes the
+    // change the reader is looking at rather than the state of the world.
+    if (upgrade.state === "reading") {
+      upgrade = {
+        ...upgrade,
+        state: "applied",
+        error: null,
+        delta: upgradeDelta({
+          before: upgrade.before, after: currentFigures(),
+          fileName: upgrade.fileName, formatMoney: moneyText,
+        }),
+      };
+    }
+    paintUpgrade();
     void paintModelOverspend(example);
     paintGradedSample();
   };
@@ -575,6 +629,12 @@ function mountLocalFinopsImport() {
     closeMappingReview(document);
     if (remap) remap.hidden = true;
     result = null;
+    lastShare = null;
+    // The upgrade goes with the result it belonged to: a delta about figures
+    // that are no longer on screen is a sentence about nothing.
+    upgrade = { state: "idle", fileName: null, delta: null, error: null, before: null };
+    paintUpgrade();
+    applyAttributionContext(document, null);
     exampleActive = false;
     input.value = "";
     resultsNode.hidden = true;
@@ -644,6 +704,16 @@ function mountLocalFinopsImport() {
     const diagnostic = diagnosticFor({
       code: error?.code, message: error?.message, ordinal: file.ordinal, total: file.total,
     });
+    // An optional file added from the results view fails *at that control*. The
+    // result the reader is already reading survives untouched: nothing is
+    // cleared, no focus is taken, and the message is announced politely from
+    // the upgrade panel's own region rather than as a page-level alert.
+    if (upgrade.state === "reading") {
+      upgrade = { ...upgrade, state: "error", error: diagnostic, delta: null };
+      paintUpgrade();
+      syncStage({ hasResult: Boolean(result) });
+      return;
+    }
     applyFieldDiagnostic(document, diagnostic);
     showTransientBasis("failed");
     syncStage();
@@ -671,8 +741,25 @@ function mountLocalFinopsImport() {
       paintReview();
     },
     onConfirm: () => confirmReview(),
-    onCancel: () => reset(),
+    onCancel: () => cancelReview(),
   });
+
+  /**
+   * Cancelling the mapping step drops the file being reviewed. Where that file
+   * was an optional upgrade added from the results view, that is *all* it drops:
+   * the brief the reader was reading is not theirs to lose by declining a
+   * mapping for a file they added on top of it.
+   */
+  const cancelReview = () => {
+    if (upgrade.state !== "reading") {
+      reset();
+      return;
+    }
+    closeReview();
+    upgrade = { state: "idle", fileName: null, delta: null, error: null, before: null };
+    paintUpgrade();
+    syncStage({ hasResult: Boolean(result) });
+  };
 
   const openReview = (file, entry = null) => {
     const reading = readDelimitedText(file.text);
@@ -732,10 +819,15 @@ function mountLocalFinopsImport() {
 
   const finishSelection = (total) => {
     rebuildLoaded();
-    if (!loaded.providers.length || !loaded.hris) {
-      const missing = loaded.providers.length ? "HRIS mapping" : "provider export";
+    // One valid provider export is a complete analysis. The org mapping and the
+    // query sample are precision upgrades, so neither one gates this branch;
+    // what still stops here is a selection with no usable provider export in it.
+    if (!loaded.providers.length) {
+      const missing = "provider export";
       showTransientBasis("partial");
-      syncStage({ focus: true });
+      // An upgrade never moves focus; this branch is only reachable from the
+      // main picker, but saying so here keeps the two entry points honest.
+      syncStage({ focus: upgrade.state !== "reading" });
       // A provider export whose rows carry no grouping value at all is the
       // PROVIDER_ONLY state: it can still answer where the money is concentrated,
       // and it must say so rather than leaving the reader at a dead end. The
@@ -754,8 +846,10 @@ function mountLocalFinopsImport() {
     }
     renderResult(normalizeLocalFinopsHistory({
       providers: loaded.providers,
-      hris: loaded.hris,
-    }));
+      // Absent is a supported input, not a missing one: the analysis derives the
+      // roster from the export's own grouping column when no mapping is given.
+      hris: loaded.hris ?? null,
+    }), { origin: upgrade.state === "reading" ? "upgrade" : "select" });
   };
 
   const processQueue = async () => {
@@ -799,12 +893,16 @@ function mountLocalFinopsImport() {
     finishSelection(total || imports.length);
   };
 
-  input.addEventListener("change", async () => {
-    const files = [...input.files];
-    if (!files.length) return;
+  /**
+   * One selection, from either entry point. The main picker and the results
+   * view's upgrade control run exactly the same reading, validation, and
+   * analysis; what differs is only where a failure is reported and whether the
+   * reader is moved, and both of those are decided by the upgrade state.
+   */
+  const readSelection = async (files) => {
     stateNode.setAttribute("aria-busy", "true");
     resultsNode.setAttribute("aria-busy", "true");
-    applyFieldDiagnostic(document, null);
+    if (upgrade.state !== "reading") applyFieldDiagnostic(document, null);
     announce("loading", "Reading files in this tab…",
       "Parsing and validation are running locally; no file contents are being transferred.");
     try {
@@ -832,6 +930,48 @@ function mountLocalFinopsImport() {
       stateNode.setAttribute("aria-busy", "false");
       resultsNode.setAttribute("aria-busy", "false");
       input.value = "";
+    }
+  };
+
+  input.addEventListener("change", async () => {
+    const files = [...input.files];
+    if (!files.length) return;
+    await readSelection(files);
+  });
+
+  // The in-place upgrade. It is the same reading path as the picker above, with
+  // one difference the reader can feel: the result they are looking at is not
+  // touched. The provider export is already in `imports`, so nothing re-reads,
+  // re-requests, or re-uploads it — the added file joins the analysis and the
+  // brief is recomputed from what this tab already holds.
+  const upgradeInput = document.getElementById("local-upgrade-file");
+  upgradeInput?.addEventListener("change", async () => {
+    const files = [...upgradeInput.files];
+    if (!files.length) return;
+    if (!result || exampleActive) return;
+    upgrade = {
+      state: "reading",
+      fileName: files.map((file) => file.name).join(", "),
+      delta: null,
+      error: null,
+      // Captured before the re-run, so the delta describes the movement the
+      // reader is about to see rather than the state after it.
+      before: currentFigures(),
+    };
+    paintUpgrade();
+    try {
+      await readSelection(files);
+    } finally {
+      // A file input does not fire `change` for an unchanged value, so clearing
+      // it is what lets the same corrected file be chosen again.
+      upgradeInput.value = "";
+      // A run that neither applied nor failed — a cancelled parse, a delimited
+      // file waiting in the mapping step — must not leave the panel claiming to
+      // be working. The result is untouched either way.
+      if (upgrade.state === "reading") {
+        upgrade = { ...upgrade, state: review ? "reading" : "idle" };
+        paintUpgrade();
+      }
     }
   });
   // Back into the step from a rendered result, with the file already in hand and
@@ -879,6 +1019,12 @@ function mountLocalFinopsImport() {
     queue = [];
     applyImportProgress(document, null);
     closeReview();
+    // A cancelled upgrade returns the panel to idle rather than leaving it
+    // claiming to be reading a file nobody is parsing any more.
+    if (upgrade.state === "reading") {
+      upgrade = { state: "idle", fileName: null, delta: null, error: null, before: null };
+      paintUpgrade();
+    }
     applyFieldDiagnostic(document, null);
     input.value = "";
     syncStage();
@@ -917,6 +1063,8 @@ function mountLocalFinopsImport() {
   // What one provider export will answer, said before a byte is selected.
   applyPreUploadDisclosure(document);
   applySuppressedSavings(document, null);
+  applyAttributionContext(document, null);
+  paintUpgrade();
   applyImportProgress(document, null);
   showMetricBasis({ mode: "example" });
   syncStage();

@@ -192,6 +192,49 @@ export const RAISE_CONFIDENCE_SENTENCE = Object.freeze({
 export const ORG_MAPPING_REQUIREMENT_STATUS = "optional — sharpens attribution";
 
 /**
+ * The same line for the query sample. It buys a different precision — prompt
+ * quality over the spend already in the file — and it is written beside the org
+ * mapping's so the two optional inputs cannot be described in two registers.
+ */
+export const QUERY_SAMPLE_REQUIREMENT_STATUS = "optional — adds prompt-quality grades";
+
+/**
+ * The optional inputs, and the concrete precision each one buys.
+ *
+ * The requirements panel renders this table rather than authoring its own copy:
+ * "optional" and the gain sentence are policy statements, not view prose, and a
+ * component that spelled them out again is how the page would start promising a
+ * precision the classification table does not deliver. `from`/`to` name the
+ * input-state transition the file causes, so a surface can say what changes
+ * without re-deriving the table above.
+ */
+export const OPTIONAL_INPUT_UPGRADES = Object.freeze([
+  Object.freeze({
+    id: "hris",
+    name: "Org mapping",
+    status: ORG_MAPPING_REQUIREMENT_STATUS,
+    gain: "Renames your export's own grouping values to department names and lifts a team "
+      + "claim from degraded to full confidence.",
+    from: INPUT_STATES.PROVIDER_PLUS_GROUPING,
+    to: INPUT_STATES.PROVIDER_PLUS_ORG_MAPPING,
+  }),
+  Object.freeze({
+    id: "sample",
+    name: "Query sample",
+    status: QUERY_SAMPLE_REQUIREMENT_STATUS,
+    gain: "Grades prompt quality against the spend already in the file. Without one, no "
+      + "prompt-quality claim is made at all.",
+    from: null,
+    to: null,
+  }),
+]);
+
+/** One optional upgrade by id, or null. Consumers read the table, never a copy. */
+export function optionalInputUpgrade(id) {
+  return OPTIONAL_INPUT_UPGRADES.find((upgrade) => upgrade.id === id) ?? null;
+}
+
+/**
  * What the page states **before** a single byte is selected. Three statements:
  * the question one export answers, the material metric it produces, and the one
  * action it will name. Not a section, not a panel — three sentences, and the

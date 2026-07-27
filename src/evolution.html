@@ -263,6 +263,12 @@
               <div class="local-impact">
                 <dt>Quantified impact</dt>
                 <dd id="local-recoverable" data-real="false" data-confidence="FULL_CONFIDENCE">—</dd>
+                <!-- How much of the spend the figure above actually covers, in
+                     the same line of sight as the figure: attributed share and
+                     the unattributed bucket, both as money and as a percentage.
+                     Painted from the measured share by finops-attribution-view.js
+                     — this is a slot, never wording. -->
+                <dd class="local-attribution-context" id="local-attribution-context" data-state="unknown" hidden></dd>
                 <!-- The confidence word and, when the finding is degraded, the
                      unattributed share it must carry verbatim. Painted from the
                      classification, so the qualifier cannot be lifted off the
@@ -286,6 +292,29 @@
               <p class="local-redaction-note">Only column headers, one sample value per column in the mapping step, declared contract fields, and aggregate totals are read into this page. No other cell value or record identifier is rendered, announced, or written to an export, and your file name appears only as the provenance label on your own result.</p>
             </details>
           </article>
+          <!-- The in-place precision upgrade. It adds an optional file to the
+               analysis already on screen: the provider export stays loaded, the
+               brief above is never blanked or re-requested, and what moved is
+               listed underneath. Everything here is painted from one state
+               object by local-import-flow.js — these are slots, never wording,
+               and there is no second source of truth for whether an optional
+               file has been applied. -->
+          <section class="local-upgrade" id="local-upgrade" data-state="idle" aria-labelledby="local-upgrade-title" hidden>
+            <p class="eyebrow">Optional precision upgrade</p>
+            <h4 id="local-upgrade-title">Sharpen this result without uploading anything again.</h4>
+            <p class="local-upgrade-status" id="local-upgrade-status"></p>
+            <div class="local-upgrade-field">
+              <label for="local-upgrade-file">Add an org mapping or a query sample</label>
+              <input id="local-upgrade-file" type="file" accept=".json,.csv,.tsv,.txt,application/json,text/csv,text/tab-separated-values,text/plain" multiple aria-describedby="local-upgrade-help" aria-invalid="false" />
+              <p id="local-upgrade-help">A v1 JSON envelope or a CSV/TSV org roster or query sample. The provider export you already selected stays loaded and is not read again.</p>
+              <p class="field-error" id="local-upgrade-error" hidden></p>
+            </div>
+            <ol class="local-upgrade-changes" id="local-upgrade-changes" aria-label="Figures that moved after the added file" hidden></ol>
+            <p class="local-upgrade-privacy" id="local-upgrade-privacy" role="note" aria-label="Local processing privacy boundary"></p>
+            <!-- Polite and atomic: the update is announced without interrupting,
+                 without moving focus, and without re-reading the whole brief. -->
+            <p class="local-upgrade-live" id="local-upgrade-live" role="status" aria-live="polite" aria-atomic="true"></p>
+          </section>
           <div class="local-state-grid" aria-label="Supporting trend and benchmark evidence">
             <article id="local-trend-state" aria-labelledby="local-trend-title" aria-describedby="local-trend-why">
               <p class="eyebrow">Material trend</p>

@@ -13,7 +13,7 @@
 //      contract fields and the position of a file in the selection; record
 //      identifiers, export IDs, and file names are replaced before display.
 
-import { ORG_MAPPING_REQUIREMENT_STATUS } from "./finops-attribution-policy.js";
+import { optionalInputUpgrade } from "./finops-attribution-policy.js";
 import { importLimitsSentence } from "./import-limits.js";
 
 /** The stages the shipped flow already walks. Naming them does not add one. */
@@ -79,30 +79,42 @@ export function stageProgress(stageId) {
  * `optional` rather than `missing`: nothing about it blocks the analysis, and
  * the only thing it adds is a department name over units a leader already has.
  */
-export function mappingRequirements({ providers = 0, hris = false } = {}) {
+export function mappingRequirements({ providers = 0, hris = false, sample = false } = {}) {
+  /** One optional row, from the policy's own table. No copy is authored here. */
+  const optional = (id, name, ready, readyStatus, pendingSuffix) => {
+    const upgrade = optionalInputUpgrade(id);
+    return Object.freeze({
+      id,
+      name,
+      control: "local-finops-files",
+      required: false,
+      /** The word the row shows beside the name; never a tint on its own. */
+      kind: "Optional",
+      state: ready ? "ready" : "optional",
+      shape: ready ? "✓" : "–",
+      status: ready ? readyStatus : `${upgrade.status}${pendingSuffix}`,
+      /** What adding it buys, verbatim from `OPTIONAL_INPUT_UPGRADES`. */
+      gain: upgrade.gain,
+    });
+  };
   return [
     Object.freeze({
       id: "provider",
       name: "Provider period export",
       control: "local-finops-files",
       required: true,
+      kind: "Required",
       state: providers > 0 ? "ready" : "missing",
       shape: providers > 0 ? "✓" : "○",
       status: providers > 0
         ? `${providers} period${providers === 1 ? "" : "s"} ready`
         : "not selected",
+      gain: null,
     }),
-    Object.freeze({
-      id: "hris",
-      name: "Department names (optional)",
-      control: "local-finops-files",
-      required: false,
-      state: hris ? "ready" : "optional",
-      shape: hris ? "✓" : "–",
-      status: hris
-        ? "1 mapping ready"
-        : `${ORG_MAPPING_REQUIREMENT_STATUS}; your export's own grouping is used`,
-    }),
+    optional("hris", "Department names (optional)", hris,
+      "1 mapping ready", "; your export's own grouping is used"),
+    optional("sample", "Query sample (optional)", sample,
+      "1 sample ready", "; spend is analyzed without one"),
   ];
 }
 
@@ -279,7 +291,14 @@ export function applyStage(doc, stageId) {
   return steps;
 }
 
-/** Paint the requirement rows; each unresolved row carries its own jump. */
+/**
+ * Paint the requirement rows; each unresolved row carries its own jump.
+ *
+ * Required and optional are told apart three ways, none of them a tint: the
+ * word ("Required" / "Optional"), the shape, and `data-required` for the
+ * stylesheet. An optional row additionally states the precision it buys, so
+ * "optional" is never a shrug — it is a named trade the reader can decline.
+ */
 export function applyRequirements(doc, counts, { onJump } = {}) {
   const list = byId(doc, "mapping-requirements");
   const rows = mappingRequirements(counts);
@@ -288,13 +307,19 @@ export function applyRequirements(doc, counts, { onJump } = {}) {
     const item = doc.createElement("li");
     item.className = "mapping-requirement";
     item.dataset.state = requirement.state;
+    item.dataset.required = String(requirement.required);
     const shape = textNode(doc, "span", "requirement-shape", requirement.shape);
     shape.setAttribute("aria-hidden", "true");
     item.append(
       shape,
+      textNode(doc, "span", "requirement-kind", requirement.kind),
       textNode(doc, "span", "requirement-name", requirement.name),
       textNode(doc, "span", "requirement-status", requirement.status),
     );
+    // The gain is the reason the row exists at all, so it is on the row rather
+    // than behind a disclosure a reader has to know to open.
+    if (requirement.gain)
+      item.append(textNode(doc, "span", "requirement-gain", requirement.gain));
     if (requirement.state === "missing") {
       const jump = doc.createElement("button");
       jump.setAttribute("type", "button");
@@ -670,6 +695,169 @@ export function applyImportLimits(doc) {
   const sentence = importLimitsSentence();
   if (help) help.textContent = sentence;
   return sentence;
+}
+
+// --- in-place precision upgrades -------------------------------------------
+// Adding an optional file from the results view is not a second import flow.
+// It is the same analysis re-run over inputs the tab already holds, plus one
+// extra: the figures that moved. The reader keeps the result they are reading,
+// and the provider export is never asked for again.
+
+/**
+ * The figures an optional file can move. Nothing here is a new metric: each id
+ * is read off the result the analysis already published, and the label is what
+ * the surface already calls it.
+ */
+export const UPGRADE_FIGURES = Object.freeze([
+  Object.freeze({ id: "recoverableUsd", label: "Recoverable scenario", format: "money" }),
+  Object.freeze({ id: "spendUsd", label: "Attributed spend", format: "money" }),
+  Object.freeze({ id: "attributedPercent", label: "Attributed share", format: "percent" }),
+  Object.freeze({ id: "namedUnits", label: "Named units", format: "count" }),
+]);
+
+const DIRECTION_TEXT = Object.freeze({
+  up: { word: "up", shape: "↑" },
+  down: { word: "down", shape: "↓" },
+  same: { word: "unchanged", shape: "→" },
+});
+
+/**
+ * What changed, tied to the file that changed it.
+ *
+ * `before` and `after` are the same four numbers taken either side of the
+ * re-run. A figure that is absent on one side is reported as unchanged rather
+ * than as a movement from nothing, because "it appeared" is not a direction.
+ *
+ * @param {{before: object, after: object, fileName: string,
+ *          formatMoney?: (value: number) => string}} input
+ */
+export function upgradeDelta({
+  before = null, after = null, fileName = "", formatMoney = (value) => `${value.toFixed(2)} USD`,
+} = {}) {
+  const show = (figure, value) => {
+    if (!Number.isFinite(value)) return "—";
+    if (figure.format === "money") return formatMoney(value);
+    if (figure.format === "percent") return `${value}%`;
+    return String(value);
+  };
+  const changes = UPGRADE_FIGURES.map((figure) => {
+    const from = Number(before?.[figure.id]);
+    const to = Number(after?.[figure.id]);
+    const comparable = Number.isFinite(from) && Number.isFinite(to);
+    const direction = !comparable || from === to ? "same" : to > from ? "up" : "down";
+    return Object.freeze({
+      id: figure.id,
+      label: figure.label,
+      before: show(figure, from),
+      after: show(figure, to),
+      direction,
+      word: DIRECTION_TEXT[direction].word,
+      shape: DIRECTION_TEXT[direction].shape,
+      text: `${figure.label}: ${show(figure, from)} → ${show(figure, to)} (${DIRECTION_TEXT[direction].word})`,
+    });
+  });
+  const moved = changes.filter((change) => change.direction !== "same");
+  return Object.freeze({
+    fileName: String(fileName ?? ""),
+    changes: Object.freeze(changes),
+    moved: Object.freeze(moved),
+    summary: moved.length
+      ? `${fileName} applied. ${moved.length} figure${moved.length === 1 ? "" : "s"} moved: `
+        + `${moved.map((change) => change.text).join("; ")}. The result you were reading is still here.`
+      : `${fileName} applied. No figure moved; the result you were reading is unchanged.`,
+  });
+}
+
+/**
+ * The one sentence the results view makes about where an in-place upgrade
+ * routes bytes. It is stated on every state of the upgrade control — idle,
+ * working, applied, and failed — because a reader adding a second file is
+ * being asked the same question they were asked about the first one.
+ */
+export const UPGRADE_PRIVACY_STATEMENT =
+  "Your file stays in this tab: this reads it in the browser, re-runs the same local "
+  + "analysis, and uploads, stores, and transfers nothing.";
+
+const UPGRADE_STATE_TEXT = Object.freeze({
+  idle: "Add an org mapping or a query sample to sharpen this result. Your provider export "
+    + "stays loaded; you will not be asked for it again.",
+  reading: "Reading the added file in this tab… the result below is unchanged while it runs.",
+  applied: "Applied. The figures below were recomputed from the files already in this tab.",
+  error: "That file was not applied. The result below is exactly as it was.",
+});
+
+/**
+ * Paint the upgrade control from one state object, and nothing else.
+ *
+ * The view holds no state of its own: `{state, fileName, delta, error}` is the
+ * whole truth about whether an optional file has been applied, and every node
+ * below is a function of it. A failed upgrade paints the diagnostic at the
+ * control that produced it and leaves every result node untouched.
+ */
+export function applyUpgradePanel(doc, upgrade = { state: "idle" }, { available = true } = {}) {
+  const section = byId(doc, "local-upgrade");
+  if (!section) return null;
+  const state = upgrade?.state ?? "idle";
+  section.hidden = !available;
+  section.dataset.state = state;
+  const status = byId(doc, "local-upgrade-status");
+  if (status) status.textContent = UPGRADE_STATE_TEXT[state] ?? UPGRADE_STATE_TEXT.idle;
+  const privacy = byId(doc, "local-upgrade-privacy");
+  if (privacy) privacy.textContent = UPGRADE_PRIVACY_STATEMENT;
+
+  const control = byId(doc, "local-upgrade-file");
+  const errorNode = byId(doc, "local-upgrade-error");
+  if (control) {
+    control.setAttribute("aria-invalid", String(state === "error"));
+    control.setAttribute("aria-describedby",
+      state === "error" ? "local-upgrade-help local-upgrade-error" : "local-upgrade-help");
+    control.disabled = state === "reading";
+  }
+  if (errorNode) {
+    errorNode.hidden = state !== "error";
+    errorNode.replaceChildren();
+    if (state === "error" && upgrade.error) {
+      errorNode.append(
+        textNode(doc, "strong", "field-error-label", "Not applied"),
+        textNode(doc, "span", "field-error-text", redactDiagnostic(upgrade.error.text)),
+        textNode(doc, "span", "field-error-recovery", upgrade.error.recovery),
+      );
+    }
+  }
+
+  const changes = byId(doc, "local-upgrade-changes");
+  if (changes) {
+    changes.hidden = state !== "applied" || !upgrade.delta;
+    changes.replaceChildren(...(state === "applied" && upgrade.delta
+      ? upgrade.delta.changes.map((change) => {
+        const item = doc.createElement("li");
+        item.className = "local-upgrade-change";
+        item.dataset.direction = change.direction;
+        const shape = textNode(doc, "span", "upgrade-change-shape", change.shape);
+        shape.setAttribute("aria-hidden", "true");
+        item.append(
+          shape,
+          textNode(doc, "span", "upgrade-change-label", change.label),
+          textNode(doc, "span", "upgrade-change-value", `${change.before} → ${change.after}`),
+          textNode(doc, "span", "upgrade-change-direction", change.word),
+        );
+        return item;
+      })
+      : []));
+  }
+
+  // Polite, never assertive: the reader did not lose their place, so nothing
+  // here interrupts them. Focus and scroll are deliberately untouched.
+  const live = byId(doc, "local-upgrade-live");
+  if (live) {
+    live.textContent = state === "applied" && upgrade.delta
+      ? `${upgrade.delta.summary} ${UPGRADE_PRIVACY_STATEMENT}`
+      : state === "error" && upgrade.error
+        ? `${upgrade.fileName ? `${upgrade.fileName}: ` : ""}${redactDiagnostic(upgrade.error.text)} `
+          + `${upgrade.error.recovery} The result already on screen was not replaced.`
+        : "";
+  }
+  return upgrade;
 }
 
 /** Move focus to the stage a reader has just been moved into. */

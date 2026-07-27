@@ -313,6 +313,82 @@ function money(minor) {
   return Math.round(minor) / 100;
 }
 
+/**
+ * The export id the derived roster carries. It is a literal rather than a
+ * generated identifier so a consumer can tell an org mapping the reader
+ * supplied from the one this module derived, on the artifact as well as on
+ * screen.
+ */
+export const NATIVE_GROUPING_ROSTER_EXPORT_ID = "derived:native-grouping";
+
+/**
+ * A roster derived from the provider export's own grouping column.
+ *
+ * The join below needs a set of units it may attribute spend to. An org mapping
+ * supplies one; a provider export that carries a grouping column already
+ * contains one, under the export's own labels — which is exactly what
+ * `native-grouping.js` binds into `org_unit_id`. Deriving it here is what makes
+ * an org mapping a precision upgrade rather than a gate: with no mapping the
+ * money lands on the export's own units, and adding a mapping later renames
+ * them.
+ *
+ * Every distinct non-empty grouping value becomes one active unit. Nothing is
+ * invented: a row with no grouping value produces no unit, so it stays
+ * unattributed and is counted as such rather than being folded into a default.
+ * The units are `unit_type: "group"`, never `"department"` — the export can say
+ * which group the money is on, and it cannot vouch that the group is a
+ * department, so the label a reader sees says "Active unit".
+ */
+export function nativeGroupingRoster(providers = []) {
+  const list = Array.isArray(providers) ? providers : [providers];
+  const units = new Map();
+  let periodStart = null;
+  let periodEnd = null;
+  for (const provider of list) {
+    const document = provider?.document ?? provider;
+    const snapshot = document?.snapshot ?? null;
+    if (snapshot?.period_start && (!periodStart || snapshot.period_start < periodStart))
+      periodStart = snapshot.period_start;
+    if (snapshot?.period_end && (!periodEnd || snapshot.period_end > periodEnd))
+      periodEnd = snapshot.period_end;
+    for (const record of document?.records ?? []) {
+      const unitId = String(record?.org_unit_id ?? "").trim();
+      if (!unitId || units.has(unitId)) continue;
+      units.set(unitId, Object.freeze({
+        unit_id: unitId,
+        revision: 1,
+        operation: "upsert",
+        effective_at: `${snapshot?.period_start ?? "1970-01-01"}T00:00:00Z`,
+        parent_unit_id: null,
+        unit_type: "group",
+        active: true,
+      }));
+    }
+  }
+  return Object.freeze({
+    document: Object.freeze({
+      schema_version: "1.0.0",
+      kind: LOCAL_KINDS.hris,
+      export_id: NATIVE_GROUPING_ROSTER_EXPORT_ID,
+      snapshot: Object.freeze({
+        period_start: periodStart ?? "1970-01-01",
+        period_end: periodEnd ?? "1970-01-01",
+        // Derived, not partial: every unit the export names is present, because
+        // the export is where they came from. Calling it partial would raise a
+        // completeness warning about a file nobody supplied.
+        completeness: "complete",
+        issues: Object.freeze([]),
+        source_instance_id: NATIVE_GROUPING_ROSTER_EXPORT_ID,
+        generated_at: null,
+      }),
+      privacy: Object.freeze({ contains_direct_identifiers: false }),
+      records: Object.freeze([...units.values()]),
+    }),
+    /** How the page tells a derived roster from an imported one. */
+    derived: true,
+  });
+}
+
 function periodMetadata(provider) {
   const document = provider.document ?? provider;
   const start = Date.parse(`${document.snapshot.period_start}T00:00:00Z`);
@@ -334,7 +410,11 @@ function periodMetadata(provider) {
 }
 
 export function normalizeLocalFinops({ provider, hris }) {
-  if (!provider || !hris) fail("incomplete_pair", "Add one provider export and one HRIS mapping.");
+  if (!provider) fail("incomplete_pair", "Add one provider export.");
+  // No org mapping is not a missing input: the export's own grouping column is
+  // the roster, derived above. What is still rejected is a provider export that
+  // is malformed or unrecognized, which never reaches this line.
+  if (!hris) hris = nativeGroupingRoster([provider]);
   const providerDoc = provider.document ?? provider;
   const hrisDoc = hris.document ?? hris;
   if (providerDoc.kind !== LOCAL_KINDS.provider || hrisDoc.kind !== LOCAL_KINDS.hris) {
@@ -446,7 +526,17 @@ export function normalizeLocalFinops({ provider, hris }) {
     modelRouting,
     literacy,
     confidence,
-    provenance: `Browser-local projection of provider export ${providerDoc.export_id} and HRIS export ${hrisDoc.export_id}.`,
+    // Which grouping the money landed on, said on the result itself so a view
+    // never has to infer it from the presence of a file.
+    orgMapping: Object.freeze({
+      applied: !hris.derived,
+      source: hris.derived ? "native_grouping" : "org_mapping",
+      exportId: hrisDoc.export_id,
+    }),
+    provenance: hris.derived
+      ? `Browser-local projection of provider export ${providerDoc.export_id}, grouped by the `
+        + "export's own grouping column. No org mapping was supplied."
+      : `Browser-local projection of provider export ${providerDoc.export_id} and HRIS export ${hrisDoc.export_id}.`,
     action: top && top.recoverableUsd > 0
       ? `Pilot lower-cost routing for text-generation in ${top.name}; cap the pilot at ${money(top.recoverableUsd * 100).toFixed(2)} USD and verify against a like-for-like period.`
       : "Resolve data-quality gaps before selecting a cost action.",
@@ -578,8 +668,12 @@ function deterministicSourceGroup(entries) {
  */
 export function normalizeLocalFinopsHistory({ providers = [], hris }) {
   const list = Array.isArray(providers) ? providers : [providers];
-  if (!hris || list.length === 0)
-    fail("incomplete_pair", "Add at least one provider export and one HRIS mapping.");
+  if (list.length === 0)
+    fail("incomplete_pair", "Add at least one provider export.");
+  // One provider export is a complete analysis. Where no org mapping was
+  // supplied the roster is derived from the export's own grouping column, so
+  // the optional file is a precision upgrade and never a gate.
+  const roster = hris ?? nativeGroupingRoster(list);
 
   const candidates = list.map(periodMetadata).sort((left, right) =>
     left.start - right.start || left.end - right.end
@@ -646,7 +740,7 @@ export function normalizeLocalFinopsHistory({ providers = [], hris }) {
     exportId: document.export_id,
     generatedAt: document.snapshot.generated_at,
     completeness: document.snapshot.completeness,
-    result: normalizeLocalFinops({ provider: { document, modelUsage, querySample }, hris }),
+    result: normalizeLocalFinops({ provider: { document, modelUsage, querySample }, hris: roster }),
   }));
   const current = periods.at(-1);
   const previous = periods.at(-2) ?? null;
@@ -793,7 +887,10 @@ export function normalizeLocalFinopsHistory({ providers = [], hris }) {
         processing: "browser_local_ephemeral",
         providerSourceInstanceId: acceptedSource,
         acceptedProviderExportIds: Object.freeze(periods.map((entry) => entry.exportId)),
-        hrisExportId: hris.document?.export_id ?? hris.export_id,
+        hrisExportId: roster.document?.export_id ?? roster.export_id,
+        // Whether that roster was a file the reader supplied or the export's own
+        // grouping column, carried into the artifact as well as onto the screen.
+        orgMappingSource: roster.derived ? "native_grouping" : "org_mapping",
         reconciliationVersion: "local-finops-history/1.0.0",
       }),
       confidence: Object.freeze({

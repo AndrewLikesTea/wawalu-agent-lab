@@ -332,3 +332,34 @@ test("local findings draw loading, empty, error, and implausible-value states", 
   assert.match(styles, /\.local-result-notice\[data-state="error"\]/);
   assert.doesNotMatch(script, /localStorage|sessionStorage|indexedDB/);
 });
+
+test("one provider export analyzes on its own, grouped by the column it already carries", async () => {
+  const { provider, hris } = await validPair();
+  // No org mapping at all: the analysis must still produce a result, grouped by
+  // the export's own `org_unit_id` values, because the mapping is a precision
+  // upgrade rather than a gate.
+  const alone = normalizeLocalFinopsHistory({ providers: [provider] });
+  assert.ok(alone.spendUsd > 0, "spend must be attributed to the export's own grouping values");
+  assert.ok(alone.rankedDepartments.length > 0);
+  assert.equal(alone.orgMapping.applied, false);
+  assert.equal(alone.orgMapping.source, "native_grouping");
+  assert.equal(alone.decisionInputs.provenance.orgMappingSource, "native_grouping");
+  assert.match(alone.provenance, /grouped by the export's own grouping column/);
+  // Nothing is renamed on the strength of a file nobody supplied: the units are
+  // groups the export named, not departments an org chart vouched for.
+  assert.ok(alone.rankedDepartments.every((unit) => unit.name.startsWith("Active unit ")));
+  // The derived roster must not raise a completeness warning about a file the
+  // reader never selected.
+  assert.equal(alone.warnings.some((warning) => /partial/.test(warning)), false);
+
+  // Adding the mapping is an upgrade over that result, not a different product.
+  const upgraded = normalizeLocalFinopsHistory({ providers: [provider], hris });
+  assert.equal(upgraded.orgMapping.applied, true);
+  assert.equal(upgraded.orgMapping.source, "org_mapping");
+
+  // A provider export is still required, and file validation is unchanged.
+  assert.throws(() => normalizeLocalFinopsHistory({ providers: [] }),
+    (error) => error.code === "incomplete_pair");
+  assert.throws(() => normalizeLocalFinops({ provider: null }),
+    (error) => error.code === "incomplete_pair");
+});

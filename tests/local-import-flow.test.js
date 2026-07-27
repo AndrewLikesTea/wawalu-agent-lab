@@ -14,10 +14,11 @@ import test from "node:test";
 import { parseHtml, tabSequence, textOf } from "./support/browser.js";
 import {
   announce, applyDatasetProvenance, applyFieldDiagnostic, applyLeadingFinding, applyMetricBasis,
-  applyRequirements, applyStage, applyTrustVerdict, diagnosticFor, EXAMPLE_DATASET_PROVENANCE,
-  focusStageHeading, IMPORT_STAGES, importStage, mappingRequirements, metricBasis,
-  redactDiagnostic, stageProgress,
+  applyRequirements, applyStage, applyTrustVerdict, applyUpgradePanel, diagnosticFor,
+  EXAMPLE_DATASET_PROVENANCE, focusStageHeading, IMPORT_STAGES, importStage, mappingRequirements,
+  metricBasis, redactDiagnostic, stageProgress, upgradeDelta,
 } from "../src/local-import-flow.js";
+import { OPTIONAL_INPUT_UPGRADES } from "../src/finops-attribution-policy.js";
 import { trustVerdict } from "../src/finops-trust-verdict.js";
 
 const PAGE = new URL("../src/evolution.html", import.meta.url);
@@ -101,7 +102,8 @@ test("each unresolved requirement carries the jump to the control that fixes it"
   // grouping column, so an absent org file is a choice with no jump to offer.
   applyRequirements(doc, { providers: 2, hris: false });
   const optional = doc.querySelectorAll("li").filter((row) => row.className === "mapping-requirement");
-  assert.deepEqual(optional.map((row) => row.dataset.state), ["ready", "optional"]);
+  // Three rows now: one required input and two optional precision upgrades.
+  assert.deepEqual(optional.map((row) => row.dataset.state), ["ready", "optional", "optional"]);
   assert.match(normalized(optional[0]), /Provider period export\s*2 periods ready/);
   // The row reads as an enhancement, not an unresolved input: "optional —
   // sharpens attribution", the wording finops-attribution-policy.js publishes.
@@ -112,7 +114,7 @@ test("each unresolved requirement carries the jump to the control that fixes it"
 
   applyRequirements(doc, { providers: 0, hris: true });
   const rows = doc.querySelectorAll("li").filter((row) => row.className === "mapping-requirement");
-  assert.deepEqual(rows.map((row) => row.dataset.state), ["missing", "ready"]);
+  assert.deepEqual(rows.map((row) => row.dataset.state), ["missing", "ready", "optional"]);
   assert.equal(rows[1].querySelector("button"), null);
 
   const jump = rows[0].querySelector("button");
@@ -123,12 +125,115 @@ test("each unresolved requirement carries the jump to the control that fixes it"
 
   assert.deepEqual(
     mappingRequirements({ providers: 0, hris: false }).map((row) => row.state),
-    ["missing", "optional"],
+    ["missing", "optional", "optional"],
   );
   assert.deepEqual(
     mappingRequirements({ providers: 0, hris: false }).map((row) => row.required),
-    [true, false],
+    [true, false, false],
   );
+});
+
+test("the requirements panel marks the optional inputs optional and states what each buys", async () => {
+  const doc = await page();
+  applyRequirements(doc, { providers: 1, hris: false, sample: false });
+  const rows = doc.querySelectorAll("li").filter((row) => row.className === "mapping-requirement");
+  assert.equal(rows.length, 3);
+  // Required versus optional is carried by a word and an attribute, so the
+  // distinction survives a monochrome screenshot and a screen reader alike.
+  assert.deepEqual(rows.map((row) => row.dataset.required), ["true", "false", "false"]);
+  assert.deepEqual(rows.map((row) => textOf(row.querySelector(".requirement-kind"))),
+    ["Required", "Optional", "Optional"]);
+  // Neither optional row may borrow the treatment a missing required input uses.
+  assert.equal(rows.filter((row) => row.dataset.state === "missing").length, 0);
+  assert.equal(rows.filter((row) => row.querySelector("button")).length, 0,
+    "with the required export present, nothing is offered as something to resolve");
+
+  // The gain is the policy's own sentence, not prose authored in the component.
+  const [orgUpgrade, sampleUpgrade] = OPTIONAL_INPUT_UPGRADES;
+  assert.equal(textOf(rows[1].querySelector(".requirement-gain")), orgUpgrade.gain);
+  assert.equal(textOf(rows[2].querySelector(".requirement-gain")), sampleUpgrade.gain);
+  assert.match(textOf(rows[2]), /Query sample \(optional\)\s*optional — adds prompt-quality grades/);
+
+  // A supplied optional input reads as ready, and still as optional.
+  applyRequirements(doc, { providers: 1, hris: true, sample: true });
+  const ready = doc.querySelectorAll("li").filter((row) => row.className === "mapping-requirement");
+  assert.deepEqual(ready.map((row) => row.dataset.state), ["ready", "ready", "ready"]);
+  assert.deepEqual(ready.map((row) => row.dataset.required), ["true", "false", "false"]);
+});
+
+// --- the in-place precision upgrade ---------------------------------------
+
+test("the delta names which figures moved, in which direction, and against which file", () => {
+  const delta = upgradeDelta({
+    before: { recoverableUsd: 100, spendUsd: 500, attributedPercent: 60, namedUnits: 2 },
+    after: { recoverableUsd: 120, spendUsd: 480, attributedPercent: 60, namedUnits: 3 },
+    fileName: "org-roster.csv",
+    formatMoney: (value) => `${value.toFixed(2)} USD`,
+  });
+  assert.equal(delta.fileName, "org-roster.csv");
+  assert.deepEqual(delta.changes.map((change) => change.direction),
+    ["up", "down", "same", "up"]);
+  // Direction ships as a word as well as a glyph; the arrow is decoration.
+  assert.deepEqual(delta.changes.map((change) => change.word),
+    ["up", "down", "unchanged", "up"]);
+  assert.equal(delta.changes[0].text, "Recoverable scenario: 100.00 USD → 120.00 USD (up)");
+  assert.equal(delta.moved.length, 3);
+  assert.match(delta.summary, /^org-roster\.csv applied\. 3 figures moved/);
+
+  const flat = upgradeDelta({
+    before: { recoverableUsd: 100 }, after: { recoverableUsd: 100 }, fileName: "sample.json",
+  });
+  assert.equal(flat.moved.length, 0);
+  assert.match(flat.summary, /No figure moved; the result you were reading is unchanged\./);
+});
+
+test("an applied upgrade announces politely, and a failed one leaves the result alone", async () => {
+  const doc = await page();
+  const control = doc.getElementById("local-upgrade-file");
+  const live = doc.getElementById("local-upgrade-live");
+
+  applyUpgradePanel(doc, { state: "idle" }, { available: false });
+  assert.equal(doc.getElementById("local-upgrade").hidden, true,
+    "the upgrade control is offered only where there is a result to upgrade");
+
+  // Every state carries the privacy statement, and the live region is polite.
+  assert.equal(live.getAttribute("aria-live"), "polite");
+  applyUpgradePanel(doc, { state: "reading", fileName: "org-roster.csv" });
+  assert.equal(doc.getElementById("local-upgrade").hidden, false);
+  assert.equal(control.disabled, true, "the control is not re-entrant while it reads");
+  assert.match(textOf(doc.getElementById("local-upgrade-privacy")), /Your file stays in this tab/);
+  assert.equal(textOf(live), "", "a read in progress is not an outcome to announce");
+
+  const delta = upgradeDelta({
+    before: { recoverableUsd: 100, spendUsd: 500, attributedPercent: 60, namedUnits: 2 },
+    after: { recoverableUsd: 140, spendUsd: 500, attributedPercent: 82, namedUnits: 2 },
+    fileName: "org-roster.csv",
+  });
+  applyUpgradePanel(doc, { state: "applied", fileName: "org-roster.csv", delta });
+  assert.equal(control.disabled, false);
+  assert.equal(control.getAttribute("aria-invalid"), "false");
+  const changes = doc.getElementById("local-upgrade-changes");
+  assert.equal(changes.hidden, false);
+  assert.equal(changes.children.length, 4);
+  assert.match(textOf(changes), /Recoverable scenario/);
+  assert.match(textOf(live), /org-roster\.csv applied\. 2 figures moved/);
+  assert.match(textOf(live), /Your file stays in this tab/);
+
+  // The failure path: the diagnostic lands on the upgrade control itself, the
+  // announcement stays polite, and nothing about the result is cleared here.
+  applyUpgradePanel(doc, {
+    state: "error", fileName: "broken.csv",
+    error: diagnosticFor({ code: "empty_file", message: "the selection has no rows.", ordinal: 1, total: 1 }),
+  });
+  assert.equal(control.getAttribute("aria-invalid"), "true");
+  assert.equal(control.getAttribute("aria-describedby"), "local-upgrade-help local-upgrade-error");
+  const errorNode = doc.getElementById("local-upgrade-error");
+  assert.equal(errorNode.hidden, false);
+  assert.match(textOf(errorNode), /Not applied/);
+  assert.match(textOf(errorNode), /re-export the period and select it again/);
+  assert.equal(doc.getElementById("local-upgrade-changes").hidden, true);
+  assert.match(textOf(live), /The result already on screen was not replaced\./);
+  assert.match(textOf(doc.getElementById("local-upgrade-privacy")), /Your file stays in this tab/);
 });
 
 // --- the metric is never ambiguous ----------------------------------------

@@ -116,6 +116,35 @@
 .local-attribution-note { margin:0; color:var(--state-warn-ink); font:700 11px/1.5 ui-monospace,monospace; }
 .local-attribution-note[hidden] { display:none; }
 .local-attribution-note[data-state="suppressed"] { color:var(--state-error-ink); }
+/* Attribution context, beside the headline figure it qualifies. Two facts, wrapped
+   rather than truncated, so a narrow screen keeps both whole. */
+.local-attribution-context { display:flex; flex-wrap:wrap; gap:4px 14px; margin:0; color:var(--import-ink); font:700 12px/1.5 ui-monospace,monospace; overflow-wrap:anywhere; }
+.local-attribution-context[hidden] { display:none; }
+.local-attribution-context .attribution-context-unattributed { color:var(--ink-muted); }
+/* The in-place upgrade. Its own block inside the brief, never a modal and never
+   a second disclosure pattern: the control, what changed, and the privacy line
+   are all in flow beneath the finding they belong to. */
+.local-upgrade { display:grid; gap:10px; margin:18px 0 0; border:1px solid var(--import-line); border-radius:12px; padding:16px; background:#fff; }
+.local-upgrade[hidden] { display:none; }
+.local-upgrade h4 { margin:0; font-size:16px; }
+.local-upgrade .local-upgrade-status { margin:0; color:var(--ink-muted); font-size:13px; line-height:1.5; }
+.local-upgrade[data-state="reading"] .local-upgrade-status { color:var(--import-ink); font-weight:700; }
+.local-upgrade[data-state="error"] { border-color:var(--state-error-line); }
+.local-upgrade-field { display:grid; gap:6px; }
+.local-upgrade-field label { font-size:13px; font-weight:750; }
+.local-upgrade-field input { max-width:100%; min-height:44px; border:1px solid #aaa79d; border-radius:9px; padding:8px; background:#fff; }
+.local-upgrade-field p { margin:0; color:var(--ink-muted); font-size:11px; line-height:1.5; }
+.local-upgrade-changes { display:grid; gap:6px; margin:0; padding:0; list-style:none; }
+.local-upgrade-changes[hidden] { display:none; }
+.local-upgrade-change { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 10px; border-left:4px solid var(--import-line); padding:2px 0 2px 10px; font-size:13px; overflow-wrap:anywhere; }
+.local-upgrade-change[data-direction="up"] { border-left-color:var(--import-accent); }
+.local-upgrade-change[data-direction="down"] { border-left-color:var(--state-warn-line); }
+.local-upgrade-change .upgrade-change-label { font-weight:750; }
+.local-upgrade-change .upgrade-change-value,.local-upgrade-change .upgrade-change-direction { color:var(--ink-muted); font:700 12px/1.5 ui-monospace,monospace; }
+.local-upgrade-privacy { margin:0; border-left:4px solid #315f50; padding-left:10px; color:#496056; font-size:12px; line-height:1.5; }
+.local-upgrade-live:empty { display:none; }
+.local-upgrade-live { margin:0; color:var(--import-ink); font-size:12px; line-height:1.5; }
+.local-upgrade input:focus-visible,.local-upgrade button:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
 .privacy-boundary { display:grid; gap:3px; margin:22px 0; border:1px solid #b9cec4; border-left:5px solid #315f50; border-radius:10px; padding:14px 16px; background:#eef6f2; font-size:13px; line-height:1.5; }
 .privacy-boundary span { color:#496056; }
 .local-import-controls { display:flex; justify-content:space-between; align-items:end; gap:20px; }
@@ -125,10 +154,13 @@
 .local-import-controls p { margin:0; color:var(--ink-muted); font-size:11px; line-height:1.5; }
 .local-import button { min-height:42px; border:1px solid #7f9c8c; border-radius:8px; padding:9px 13px; background:#fff; color:#244c3c; font-weight:750; cursor:pointer; }
 .local-import button:hover { background:#edf5f1; }
-/* The one entry action for a visitor with no export in hand; filled so it reads
-   as the primary offer beside the file picker, not a second-tier control. */
-.local-import button.local-example-action { border-color:var(--import-accent); background:var(--import-accent); color:#fff; }
-.local-import button.local-example-action:hover { background:var(--import-ink); }
+/* The one entry action for a visitor with no export in hand — and deliberately
+   secondary to it. Analyzing the reader's own file is the primary offer, so
+   this is a quiet, underlined control rather than a filled button competing
+   with the picker beside it. De-emphasized, never hidden: it keeps the panel's
+   44px target, its place in the tab order, and the shared focus ring. */
+.local-import button.local-example-action { border-color:transparent; background:none; color:var(--import-ink); font-weight:700; text-decoration:underline; text-underline-offset:3px; }
+.local-import button.local-example-action:hover { border-color:var(--import-line); background:#edf5f1; }
 /* The shared focus token, not the accent blue this panel used to hard-code.
    #2a78d6 measured 4.02:1 against the panel wash where var(--focus-ring)
    measures 6.04:1, and one focus ring per site is one thing to learn. */
@@ -198,6 +230,13 @@
 .mapping-requirement .requirement-shape { flex:none; font-weight:750; }
 .mapping-requirement .requirement-name { min-width:0; flex:1 1 180px; font-size:13px; font-weight:750; overflow-wrap:anywhere; }
 .mapping-requirement .requirement-status { color:var(--ink-muted); font:700 10px/1.4 ui-monospace,monospace; }
+/* Required and optional are told apart by the word, the shape, and the border
+   style — never by tint alone, and an optional row never borrows the dashed
+   warning edge a missing required input uses. */
+.mapping-requirement .requirement-kind { flex:none; border:1px solid var(--import-line); border-radius:999px; padding:2px 8px; color:var(--ink-muted); font:700 10px/1.5 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; }
+.mapping-requirement[data-required="true"] .requirement-kind { border-color:var(--import-ink); color:var(--import-ink); }
+.mapping-requirement[data-required="false"] { border-style:dotted; }
+.mapping-requirement .requirement-gain { flex:1 1 100%; color:var(--ink-muted); font-size:12px; line-height:1.5; }
 .mapping-requirement[data-state="ready"] { border-color:var(--import-accent); background:var(--import-wash); }
 .mapping-requirement[data-state="ready"] .requirement-status { color:var(--import-ink); }
 .mapping-requirement[data-state="missing"] { border-color:var(--state-warn-line); border-style:dashed; background:var(--state-warn-wash); }
