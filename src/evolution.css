@@ -71,9 +71,17 @@
 .kpi { border:1px solid var(--panel-border); border-radius:14px; padding:20px; background:rgba(255,255,255,.68); }
 .kpi-alert { border-color:#e6c3c2; background:#fdf5f4; }
 .kpi-label { margin:0; color:var(--ink-muted); font:700 10px/1.4 ui-monospace,monospace; letter-spacing:.09em; text-transform:uppercase; }
-.kpi-value { margin:12px 0 0; font-size:32px; font-weight:750; letter-spacing:-.035em; }
+.kpi-value { margin:12px 0 0; font-size:32px; font-weight:750; letter-spacing:-.035em; overflow-wrap:anywhere; }
 .kpi-alert .kpi-value { color:#a5322f; }
-.kpi-note { margin:8px 0 0; color:var(--ink-muted); font-size:12px; line-height:1.5; }
+.kpi-note { margin:8px 0 0; color:var(--ink-muted); font-size:12px; line-height:1.5; overflow-wrap:anywhere; }
+/* A card the import could not fill. The dashed edge is the shape channel, the
+   "unmeasured" chip is the word, and the value drops out of the 32px numeral
+   size so it stops reading as a measurement at a glance. */
+.kpi[data-available="false"] { border-style:dashed; border-color:var(--state-warn-line); background:var(--state-warn-wash); }
+.kpi-flag { display:inline-flex; align-items:baseline; gap:6px; width:fit-content; margin:10px 0 0; border:1px solid var(--state-warn-line); border-radius:99px; padding:3px 9px; background:#fff; color:var(--state-warn-ink); font:700 11px/1.4 ui-monospace,monospace; }
+.kpi-flag[hidden] { display:none; }
+.kpi-flag-shape { flex:none; font-weight:750; }
+.kpi[data-available="false"] .kpi-value { margin-top:6px; font-size:17px; letter-spacing:0; color:var(--state-warn-ink); }
 
 .finops-panel { margin-top:24px; border:1px solid var(--panel-border); border-radius:18px; padding:30px; background:rgba(255,255,255,.68); box-shadow:0 14px 40px rgba(38,38,31,.04); }
 .local-import { border-color:#9eb9aa; background:linear-gradient(145deg,#f7fbf8,#fff 55%); }
@@ -633,40 +641,63 @@
 .model-overspend-live { margin:0; font-size:12px; line-height:1.5; color:var(--import-ink); }
 
 /* --- the reader's own graded sample ---------------------------------------
-   A provisional grade is told four ways and only one of them is colour: the
-   word "Provisional grade" beside the letter, a shape before that word, a
-   dashed outline, and a diagonal hatch across the figure. Print the page in
-   greyscale and three of the four survive. */
+   A provisional grade is told five ways and only one of them is colour: the
+   word "Provisional grade" beside the letter, the same word again in a chip
+   inside the grade block, a shape before both, a dashed border on the block and
+   the figure, and a diagonal hatch across the figure. Print the page in
+   greyscale and four of the five survive. Opacity is deliberately not one of
+   them: a faded grade reads as de-emphasised, not as uncertain, and it costs
+   contrast the figure cannot spare.
+
+   Grade, coverage and confidence share one bordered block so a skimmer cannot
+   lift the letter out of its qualifier — the qualifier is inside the frame, not
+   a stat floating beside it.
+
+   The two chips are filled washes rather than outlines because both report a
+   live signal about the sample just imported, which is the "filled wash =
+   dynamic signal, outline = static classification" rule from the Claude Design
+   Foundations card; "unmeasured" is set in the lowercase-mono status voice the
+   same card asks the product to keep. */
 .graded-sample { display:grid; gap:14px; border:1px solid var(--import-line); border-radius:14px; padding:22px; background:#fff; }
 .graded-sample #graded-sample-body { display:grid; gap:14px; }
-.graded-headline { display:grid; gap:4px; }
+.graded-headline { display:grid; gap:4px; border:1px solid var(--import-accent); border-left-width:5px; border-radius:12px; padding:14px 16px; background:var(--import-wash); }
+.graded-headline[data-grade-status="provisional"] { border:2px dashed var(--state-warn-line); border-left-width:5px; border-left-style:solid; background:var(--state-warn-wash); }
+.graded-figure { display:flex; flex-wrap:wrap; align-items:center; gap:10px 16px; }
 .graded-letter { margin:0; font-size:62px; line-height:.9; letter-spacing:-.05em; font-weight:750; color:var(--import-ink); }
-.graded-letter[data-grade-status="provisional"] { color:#6d5510; outline:3px dashed currentColor; outline-offset:4px; width:max-content; padding:2px 10px; background:repeating-linear-gradient(135deg,transparent 0 5px,rgba(0,0,0,.14) 5px 10px); }
-.graded-grade-line { display:flex; align-items:baseline; gap:8px; margin:8px 0 0; font-size:15px; font-weight:700; }
+.graded-letter[data-grade-status="provisional"] { color:var(--state-warn-ink); outline:3px dashed currentColor; outline-offset:4px; width:max-content; padding:2px 10px; background:repeating-linear-gradient(135deg,transparent 0 5px,rgba(0,0,0,.14) 5px 10px); }
+.graded-status-chip { display:inline-flex; align-items:baseline; gap:7px; margin:0; border:1px solid var(--import-accent); border-radius:99px; padding:5px 11px; background:#fff; color:var(--import-ink); font:700 12px/1.4 ui-monospace,monospace; overflow-wrap:anywhere; }
+.graded-status-chip[data-grade-status="provisional"] { border:2px dashed var(--state-warn-line); color:var(--state-warn-ink); }
+.graded-grade-line { display:flex; align-items:baseline; gap:8px; margin:8px 0 0; font-size:15px; font-weight:700; overflow-wrap:anywhere; }
 .graded-shape { flex:none; font-weight:750; }
 .graded-coverage { display:flex; flex-wrap:wrap; align-items:baseline; gap:10px; margin:0; }
-.graded-coverage-value { font:750 14px/1.4 ui-monospace,monospace; }
+.graded-coverage-value { font:750 14px/1.4 ui-monospace,monospace; overflow-wrap:anywhere; }
 .graded-coverage-label { color:var(--ink-muted); font-size:13px; }
-.graded-coverage-rule,.graded-not-gradeable-rule,.graded-not-gradeable-unscored { margin:0; color:var(--ink-muted); font-size:12px; line-height:1.55; }
-.graded-not-gradeable-label { margin:0; font-size:16px; font-weight:750; }
-.graded-action { border-left:4px solid var(--import-accent); padding:2px 0 2px 12px; }
-.graded-action-text { margin:0; font-size:14px; line-height:1.55; font-weight:650; }
-.graded-cohort-answer { margin:0; font-size:14px; font-weight:650; }
-.graded-cohort-reason { margin:0; color:var(--ink-muted); font-size:12px; line-height:1.55; }
+.graded-coverage-rule,.graded-not-gradeable-rule,.graded-not-gradeable-unscored { margin:0; color:var(--ink-muted); font-size:12px; line-height:1.55; overflow-wrap:anywhere; }
+.graded-not-gradeable-label { margin:0; font-size:16px; font-weight:750; overflow-wrap:anywhere; }
+.graded-action { border-left:5px solid var(--import-accent); padding:2px 0 2px 12px; }
+.graded-action[data-available="false"] { border-left-style:dashed; border-left-color:var(--state-warn-line); }
+.graded-action-text { display:flex; gap:8px; margin:0; font-size:14px; line-height:1.55; font-weight:650; overflow-wrap:anywhere; }
+.graded-cohort { border-left:5px solid var(--import-accent); padding:2px 0 2px 12px; }
+.graded-cohort[data-available="false"] { border-left-style:dashed; border-left-color:var(--state-warn-line); }
+.graded-cohort-answer { display:flex; gap:8px; margin:0; font-size:14px; font-weight:650; overflow-wrap:anywhere; }
+.graded-cohort-reason { margin:0; color:var(--ink-muted); font-size:12px; line-height:1.55; overflow-wrap:anywhere; }
 .graded-disclosure { display:grid; gap:10px; }
-.graded-disclosure-toggle { justify-self:start; border:1px solid var(--import-line); border-radius:9px; padding:7px 13px; background:#fff; color:var(--import-ink); font:650 12px/1.4 ui-monospace,monospace; cursor:pointer; }
+/* The toggle's own edge is the only thing that says "control", so it is drawn
+   in the accent (6.5:1 on the panel) rather than --import-line, which is 2.1:1
+   against white and misses the 3:1 non-text floor. */
+.graded-disclosure-toggle { justify-self:start; border:1px solid var(--import-accent); border-radius:9px; padding:7px 13px; background:#fff; color:var(--import-ink); font:650 12px/1.4 ui-monospace,monospace; text-align:left; cursor:pointer; }
 .graded-disclosure-toggle:focus-visible { outline:3px solid var(--import-accent); outline-offset:2px; }
 .graded-disclosure-panel { display:grid; gap:12px; border:1px solid var(--import-line); border-radius:11px; padding:14px; }
-.graded-axes { display:grid; grid-template-columns:auto auto; gap:4px 14px; margin:0; justify-content:start; font-size:13px; }
-.graded-axes dt { color:var(--ink-muted); }
+.graded-axes { display:grid; grid-template-columns:minmax(0,auto) auto; gap:4px 14px; margin:0; justify-content:start; font-size:13px; }
+.graded-axes dt { color:var(--ink-muted); overflow-wrap:anywhere; }
 .graded-axes dd { margin:0; font:700 13px/1.5 ui-monospace,monospace; }
 .graded-categories { display:grid; gap:6px; margin:0; padding:0; list-style:none; }
 .graded-category { display:flex; flex-wrap:wrap; gap:4px 12px; border-top:1px solid var(--import-line); padding-top:6px; font-size:12px; }
-.graded-category-label { font-weight:700; }
+.graded-category-label { font-weight:700; overflow-wrap:anywhere; }
 .graded-category-share,.graded-category-score,.graded-category-records { font:650 12px/1.5 ui-monospace,monospace; color:var(--ink-muted); }
 .graded-unclassified { margin:0; font-size:12px; line-height:1.55; }
 .graded-sample-live { margin:0; font-size:12px; color:var(--ink-muted); }
-.graded-provenance { display:flex; flex-wrap:wrap; align-items:baseline; gap:8px; grid-column:1/-1; margin:0 0 4px; border:1px solid var(--import-line); border-left:5px solid var(--import-accent); border-radius:9px; padding:10px 13px; color:var(--import-ink); font-size:12px; line-height:1.5; }
+.graded-provenance { display:flex; flex-wrap:wrap; align-items:baseline; gap:8px; grid-column:1/-1; margin:0 0 4px; border:1px solid var(--import-line); border-left:5px solid var(--import-accent); border-radius:9px; padding:10px 13px; color:var(--import-ink); font-size:12px; line-height:1.5; overflow-wrap:anywhere; }
 .mix-basis { margin:0 0 10px; color:var(--ink-muted); font-size:12px; line-height:1.55; }
 
 /* Contact affordance beside the result.
@@ -707,9 +738,18 @@
   /* The table keeps its shape and scrolls inside its own labelled, focusable
      box rather than pushing the page sideways. */
   .model-overspend { padding:18px; }
+  /* 320px: the coverage figure and the prioritized next action are the payload
+     and neither may be cut, so everything decorative gives way first — the
+     letter shrinks, the axis list stacks instead of holding two auto columns
+     wide enough to push the page sideways, and every long word breaks rather
+     than overflowing. Nothing here truncates; there is no ellipsis on this
+     surface by design. */
   .graded-sample { padding:18px; }
+  .graded-headline { padding:12px 13px; }
   .graded-letter { font-size:46px; }
   .graded-disclosure-toggle { width:100%; }
+  .graded-axes { grid-template-columns:minmax(0,1fr); gap:2px; }
+  .graded-axes dd { margin-bottom:6px; }
   .model-overspend-metric-value { font-size:23px; }
   .model-overspend-table { min-width:34rem; }
   .model-overspend-evidence-toggle { width:100%; }

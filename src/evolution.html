@@ -366,9 +366,13 @@
            the one next action are all painted by graded-sample-view.js out of
            the rubric and eligibility results; these are slots, never wording. -->
       <section class="graded-sample" id="graded-sample" data-state="example" data-expanded="false" aria-labelledby="graded-sample-title" hidden>
-        <p class="eyebrow" id="graded-sample-title">Your graded sample</p>
+        <!-- A heading, not an eyebrow paragraph: this section is a sibling of the
+             page's other h2 panels, and the grade, cohort and next action inside
+             it head themselves h3. A reader listing headings reaches their own
+             grade without skipping a level. -->
+        <h2 class="eyebrow" id="graded-sample-title">Your graded sample</h2>
         <div id="graded-sample-body"></div>
-        <p class="graded-sample-live" id="graded-sample-live" role="status" aria-live="polite"></p>
+        <p class="graded-sample-live" id="graded-sample-live" role="status" aria-live="polite" aria-atomic="true"></p>
       </section>
 
       <section class="kpi-row" id="kpi-row" data-sample-analysis aria-label="Headline metrics">
@@ -380,23 +384,31 @@
              reader's own: their file names and the rubric version they were
              graded against. Authored empty and hidden. -->
         <p class="graded-provenance" id="graded-provenance" role="note" aria-label="Data provenance" hidden></p>
+        <!-- Each card carries an "unmeasured" marker, authored hidden. A card the
+             import could not fill says so in a word and a shape as well as in a
+             dashed edge, so the state survives a monochrome screenshot and does
+             not read as a figure someone measured. -->
         <article class="kpi" id="kpi-spend">
           <p class="kpi-label">AI spend · period</p>
+          <p class="kpi-flag" id="kpi-spend-flag" hidden><span class="kpi-flag-shape" aria-hidden="true">◇</span> unmeasured</p>
           <p class="kpi-value" id="kpi-spend-value">–</p>
           <p class="kpi-note" id="kpi-spend-note">Across all providers</p>
         </article>
         <article class="kpi kpi-alert" id="kpi-recoverable">
           <p class="kpi-label">Recoverable spend</p>
+          <p class="kpi-flag" id="kpi-recoverable-flag" hidden><span class="kpi-flag-shape" aria-hidden="true">◇</span> unmeasured</p>
           <p class="kpi-value" id="kpi-recoverable-value">–</p>
           <p class="kpi-note" id="kpi-recoverable-note">Down-routing, training, and leakage</p>
         </article>
         <article class="kpi" id="kpi-productive">
           <p class="kpi-label">High-value share</p>
+          <p class="kpi-flag" id="kpi-productive-flag" hidden><span class="kpi-flag-shape" aria-hidden="true">◇</span> unmeasured</p>
           <p class="kpi-value" id="kpi-productive-value">–</p>
           <p class="kpi-note" id="kpi-productive-note">Of scored spend</p>
         </article>
         <article class="kpi" id="kpi-peer">
           <p class="kpi-label">Peer position</p>
+          <p class="kpi-flag" id="kpi-peer-flag" hidden><span class="kpi-flag-shape" aria-hidden="true">◇</span> unmeasured</p>
           <p class="kpi-value" id="kpi-peer-value">–</p>
           <p class="kpi-note" id="kpi-peer-note">Anonymized industry cohort</p>
         </article>
