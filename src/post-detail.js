@@ -12,6 +12,7 @@
 // Relative, not root-absolute: this module is imported by `node --test` as well
 // as by the browser, and only a relative specifier resolves in both.
 import { authorInitials, captionFor, countLabel, profileHref } from "./profile.js";
+import { pageTitle, recordTitle } from "./page-title.js";
 
 export function findPostById(posts, id) {
   const wanted = String(id ?? "").trim();
@@ -218,8 +219,9 @@ export function postPageHeading(post) {
 }
 
 // Same shape as the decision detail's title — the record, then the surface the
-// nav names, then the product.
+// nav names, then the product. src/post.html ships titled "Post · Social ·
+// Shiplog", which is what a reader sees until this runs.
 export function postDetailTitle(post, state = "ready") {
-  if (post?.author) return `Post by ${post.author} · Social · Shiplog`;
-  return state === "error" ? "Post unavailable · Shiplog" : "Post not found · Shiplog";
+  if (post?.author) return recordTitle(`Post by ${post.author}`, { surface: "Social", fallback: "Post" });
+  return state === "error" ? pageTitle("Post unavailable") : pageTitle("Post not found");
 }

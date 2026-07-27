@@ -136,7 +136,7 @@ test("detail page uses semantic landmarks and safe DOM rendering", async () => {
   const [html, component, page, css] = await Promise.all([
     read("decision.html"), read("decision-detail.js"), read("decision-page.js"), read("styles.css"),
   ]);
-  assert.match(html, /<title>Decisions · Shiplog<\/title>/);
+  assert.match(html, /<title>Decision · Shiplog<\/title>/);
   assert.match(html, /id="decision-detail"/);
   assert.match(html, /aria-label="Decision detail"/);
   assert.match(component, /aria-live/);

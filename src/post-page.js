@@ -33,8 +33,8 @@ async function init() {
   const back = document.querySelector("#post-back");
   if (back && requestedAuthor) {
     back.href = profileHref(requestedAuthor);
-    back.textContent = `← Back to ${requestedAuthor}'s profile`;
-    back.setAttribute("aria-label", `Back to ${requestedAuthor}'s profile`);
+    back.textContent = `← ${requestedAuthor}'s profile`;
+    back.setAttribute("aria-label", `${requestedAuthor}'s profile`);
   }
 
   const heading = document.querySelector("#page-title");
@@ -77,8 +77,8 @@ async function init() {
     document.title = postDetailTitle(post, state);
     if (back && post) {
       back.href = profileHref(post.author);
-      back.textContent = `← Back to ${post.author}'s profile`;
-      back.setAttribute("aria-label", `Back to ${post.author}'s profile`);
+      back.textContent = `← ${post.author}'s profile`;
+      back.setAttribute("aria-label", `${post.author}'s profile`);
     }
     document.documentElement.dataset.shiplogPostDetail = "ready";
   };
