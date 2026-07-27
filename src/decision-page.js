@@ -5,6 +5,7 @@ import {
   renderDecisionDetailState,
 } from "/decision-detail.js";
 import { loadReleaseData } from "/releases-data.js";
+import { dedupeById } from "/demo-data.js";
 
 export async function loadDecisionDetail(id, storage, options = {}) {
   const loadData = options.loadData ?? loadReleaseData;
@@ -23,9 +24,13 @@ export async function loadDecisionDetail(id, storage, options = {}) {
   const linkedReleases = decision
     ? releases.filter((release) => Array.isArray(release.decisionIds) && release.decisionIds.includes(decision.id))
     : [];
+  // The supersede link is derived, so the view needs the surrounding log, not
+  // just this record. Seeds win on id, matching how the decision itself resolves.
+  const related = dedupeById([...detailSeeds, ...decisions]);
   return {
     state: decisionDetailState({ id, decision, unavailable: unavailable && !decision }),
     decision,
+    decisions: related,
     linkedReleases,
     shareable: publicDecisionIds.has(id) || detailSeeds.some((seed) => seed.id === id),
   };
@@ -43,6 +48,7 @@ export async function initDecisionDetail(options = {}) {
     if (result.state === "available") {
       renderDecisionDetail(container, result.decision, {
         id,
+        decisions: result.decisions,
         linkedReleases: result.linkedReleases,
         shareable: result.shareable,
       });

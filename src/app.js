@@ -1,6 +1,13 @@
 import { dedupeById, fetchDemoData } from "./demo-data.js";
 import { initLeadCapture } from "./lead-capture.js";
 import {
+  SUPERSEDE_ERRORS,
+  formatSupersedeSummary,
+  indexSupersessions,
+  normalizeSupersedes,
+  validateSupersedes,
+} from "./supersede.js";
+import {
   indexById,
   loadReleases,
   mountReleaseList,
@@ -67,6 +74,10 @@ function isDecision(value) {
     && typeof value.owner === "string" && value.owner.trim() !== ""
     && value.owner.length <= MAX_OWNER_LENGTH
     && STATUSES.includes(value.status)
+    // The supersede link is optional, but a stored self-reference is not a
+    // decision we will render: it would claim to replace itself.
+    && (value.supersedes === undefined
+      || (typeof value.supersedes === "string" && normalizeSupersedes(value.supersedes) !== value.id))
     && typeof value.createdAt === "string"
     && !Number.isNaN(Date.parse(value.createdAt));
 }
@@ -100,8 +111,16 @@ export function createDecision(values, options = {}) {
     throw new TypeError("A decision field exceeds its maximum length.");
   }
 
-  return {
-    id: options.id ?? globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`,
+  const id = options.id ?? globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
+  const supersedes = normalizeSupersedes(values.supersedes);
+  // The link is checked against the decisions that exist right now, so a self
+  // reference or a deleted target is refused here instead of being written and
+  // discovered later as a dangling reference. The caller surfaces the message.
+  const supersedesError = validateSupersedes(supersedes, { id, decisions: options.decisions ?? [] });
+  if (supersedesError) throw new TypeError(supersedesError);
+
+  const decision = {
+    id,
     title,
     context,
     alternatives,
@@ -109,6 +128,10 @@ export function createDecision(values, options = {}) {
     status,
     createdAt: options.createdAt ?? new Date().toISOString(),
   };
+  // Only written when there is a link: an absent field and an empty string are
+  // the same state, and one of them is not worth storing on every record.
+  if (supersedes) decision.supersedes = supersedes;
+  return decision;
 }
 
 // Distinct owners, case-insensitively sorted, for populating the owner filter.
@@ -125,6 +148,9 @@ export const RECORD_TYPES = ["all", "decision", "release"];
 
 export function toHistoryRecords(decisions = [], releases = []) {
   const byId = indexById(decisions);
+  // Derived once per composition rather than per row, and only here: rows carry
+  // the answer, they never re-derive it.
+  const { supersededBy } = indexSupersessions(decisions);
   return [
     ...decisions.map((decision) => ({
       type: "decision",
@@ -133,6 +159,7 @@ export function toHistoryRecords(decisions = [], releases = []) {
       owner: decision.owner,
       createdAt: decision.createdAt,
       status: decision.status,
+      superseded: supersededBy.has(decision.id),
       searchable: [decision.title, decision.context, decision.alternatives],
       decision,
     })),
@@ -151,6 +178,7 @@ export function toHistoryRecords(decisions = [], releases = []) {
           releaseDescription(release),
           ...resolved.decisions.map((decision) => decision.title),
         ],
+        superseded: false,
         release: resolved,
       };
     }),
@@ -174,6 +202,9 @@ export function selectHistory(records, view = {}) {
   const compare = (SORTS[sort] ?? SORTS[DEFAULT_SORT]).compare;
   return records
     .filter((record) => {
+      // "Current only" removes exactly the decisions another decision replaced.
+      // A release is never superseded, so it is never removed by this filter.
+      if (view.currentOnly === true && record.superseded === true) return false;
       if (type !== "all" && record.type !== type) return false;
       if (status !== "all" && (record.type !== "decision" || record.status !== status)) return false;
       if (owner !== "all" && record.owner !== owner) return false;
@@ -181,6 +212,40 @@ export function selectHistory(records, view = {}) {
         .some((value) => typeof value === "string" && value.toLocaleLowerCase().includes(query));
     })
     .sort(compare);
+}
+
+// The "current only" filter is the one filter whose state has to survive a
+// reload, because a link to a filtered history is worth sharing. It rides in the
+// query string the pages already read with URLSearchParams, so nothing new has
+// to be persisted and an absent parameter is simply the default (off).
+export const CURRENT_ONLY_PARAM = "current";
+export const CURRENT_ONLY_VALUE = "only";
+
+export function readCurrentOnly(search = "") {
+  try {
+    return new URLSearchParams(search).get(CURRENT_ONLY_PARAM) === CURRENT_ONLY_VALUE;
+  } catch {
+    return false;
+  }
+}
+
+// Rewrites only this parameter and leaves every other one in place, so the
+// history filters never clobber an unrelated query string.
+export function currentOnlySearch(search = "", currentOnly = false) {
+  const params = new URLSearchParams(search);
+  if (currentOnly) params.set(CURRENT_ONLY_PARAM, CURRENT_ONLY_VALUE);
+  else params.delete(CURRENT_ONLY_PARAM);
+  const query = params.toString();
+  return query ? `?${query}` : "";
+}
+
+// States the active filter and what it removed. Empty while the filter is off:
+// there is nothing hidden to account for.
+export function supersedeFilterSummary(records, view = {}) {
+  if (view.currentOnly !== true) return "";
+  const current = selectHistory(records, view).length;
+  const total = selectHistory(records, { ...view, currentOnly: false }).length;
+  return formatSupersedeSummary(current, total - current);
 }
 
 // Decision-only view derivation, expressed through the shared history selector
@@ -519,6 +584,17 @@ function syncOwnerOptions(select, records) {
   select.value = current === "all" || owners.includes(current) ? current : "all";
 }
 
+// The recorder offers the decisions that exist right now as supersede targets,
+// so the ordinary path cannot produce a self reference (a new decision has no id
+// yet) or a dangling one. A selection that has since disappeared is still
+// checked on submit — the log can change in another tab between the two.
+function syncSupersedesOptions(select, decisions) {
+  const current = select.value || "";
+  select.replaceChildren(new Option("None", ""));
+  for (const decision of decisions) select.append(new Option(decision.title, decision.id));
+  select.value = decisions.some((decision) => decision.id === current) ? current : "";
+}
+
 export async function initDecisionLog(root = document, storage = localStorage, options = {}) {
   initLeadCapture(root);
   const form = root.querySelector("#decision-form");
@@ -533,6 +609,12 @@ export async function initDecisionLog(root = document, storage = localStorage, o
   const exitRecorder = root.querySelector("#exit-decision-recorder");
   const typeFilter = [...(root.querySelectorAll?.('input[name="record-type"]') ?? [])];
   const statusHint = root.querySelector("#filter-status-hint");
+  const currentOnly = root.querySelector("#filter-current-only");
+  const supersedeSummary = root.querySelector("#history-supersede-summary");
+  const supersedesField = root.querySelector("#supersedes");
+  const supersedesError = root.querySelector("#supersedes-error");
+  const locationRef = options.location ?? globalThis.window?.location;
+  const historyRef = options.history ?? globalThis.window?.history;
   const announce = createCountAnnouncer(root.querySelector("#history-announcement"), {
     delay: options.announceDelay,
   });
@@ -550,6 +632,40 @@ export async function initDecisionLog(root = document, storage = localStorage, o
     status: "all",
     owner: "all",
     sort: DEFAULT_SORT,
+    // Restored from the query string, so a reloaded or shared link opens with
+    // the same filter the user left on.
+    currentOnly: readCurrentOnly(locationRef?.search ?? ""),
+  };
+
+  // The query string this page owns, tracked locally because replaceState does
+  // not report back through the same object in every environment.
+  let queryString = locationRef?.search ?? "";
+  const syncUrl = () => {
+    queryString = currentOnlySearch(queryString, view.currentOnly);
+    const target = `${locationRef?.pathname ?? ""}${queryString}${locationRef?.hash ?? ""}`;
+    if (target) historyRef?.replaceState?.(null, "", target);
+  };
+
+  const showSupersedesError = (message) => {
+    if (supersedesError) {
+      supersedesError.textContent = message;
+      supersedesError.hidden = false;
+    }
+    supersedesField?.setAttribute?.("aria-invalid", "true");
+    supersedesField?.focus?.();
+  };
+
+  const clearSupersedesError = () => {
+    if (supersedesError) {
+      supersedesError.textContent = "";
+      supersedesError.hidden = true;
+    }
+    supersedesField?.setAttribute?.("aria-invalid", "false");
+  };
+
+  const syncCurrentOnlyControl = () => {
+    if (!currentOnly) return;
+    currentOnly.setAttribute?.("aria-pressed", String(view.currentOnly));
   };
 
   const STATUS_HINT = "Applies to decisions. Choosing a status shows decision records only.";
@@ -572,6 +688,7 @@ export async function initDecisionLog(root = document, storage = localStorage, o
 
   const render = () => {
     const visible = renderHistory(list, count, records, view);
+    if (supersedeSummary) supersedeSummary.textContent = supersedeFilterSummary(records, view);
     announce(historyCountMessage(visible, records.length));
   };
 
@@ -580,6 +697,7 @@ export async function initDecisionLog(root = document, storage = localStorage, o
   const refresh = () => {
     records = toHistoryRecords(decisions, releases);
     if (ownerFilter) syncOwnerOptions(ownerFilter, records);
+    if (supersedesField) syncSupersedesOptions(supersedesField, decisions);
     view.owner = ownerFilter?.value ?? view.owner;
     render();
   };
@@ -588,6 +706,7 @@ export async function initDecisionLog(root = document, storage = localStorage, o
   decisions = dedupeById([...recordedDecisions, ...demo.decisions]);
   releases = dedupeById([...loadReleases(storage), ...demo.releases]);
   syncStatusAvailability();
+  syncCurrentOnlyControl();
   refresh();
   if (demo.unavailable && decisions.length === 0) renderDecisionState(list, "error");
   focusLinkedDecision(root);
@@ -631,6 +750,14 @@ export async function initDecisionLog(root = document, storage = localStorage, o
     view.query = search.value;
     render();
   });
+  // A pressed toggle, not a checkbox: one control with one visible state, whose
+  // pressed-ness is what both the header summary and the query string report.
+  currentOnly?.addEventListener("click", () => {
+    view.currentOnly = !view.currentOnly;
+    syncCurrentOnlyControl();
+    syncUrl();
+    render();
+  });
 
   // One reset path, shared by the toolbar control and the empty state's single
   // primary action, so "reset" always means the same thing. Focus lands on the
@@ -641,6 +768,9 @@ export async function initDecisionLog(root = document, storage = localStorage, o
     view.status = "all";
     view.owner = "all";
     view.sort = DEFAULT_SORT;
+    view.currentOnly = false;
+    syncCurrentOnlyControl();
+    syncUrl();
     if (search) search.value = "";
     for (const radio of typeFilter) radio.checked = radio.value === "all";
     if (statusFilter) statusFilter.value = "all";
@@ -669,7 +799,19 @@ export async function initDecisionLog(root = document, storage = localStorage, o
     event.preventDefault();
     if (!form.reportValidity()) return;
 
-    const decision = createDecision(Object.fromEntries(new FormData(form)));
+    let decision;
+    try {
+      decision = createDecision(Object.fromEntries(new FormData(form)), { decisions });
+    } catch (error) {
+      // A rejected supersede link is the one failure the native form validity
+      // cannot express, so it is reported inline against the field that caused
+      // it and nothing is written. Any other failure is still a programming
+      // error and keeps its existing behaviour.
+      if (!Object.values(SUPERSEDE_ERRORS).includes(error.message)) throw error;
+      showSupersedesError(error.message);
+      return;
+    }
+    clearSupersedesError();
     recordedDecisions = [decision, ...recordedDecisions];
     decisions = dedupeById([decision, ...decisions]);
     try {

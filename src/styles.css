@@ -470,4 +470,25 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
   .profile-toolbar .filter{flex:1 1 auto;width:100%}
   .detail-stats{gap:14px}
 }
+/* Supersede link, three views of one relationship.
+   The banner is the loud one: it states where this decision now stands and
+   carries the jump to its successor. The disclosure is deliberately quiet —
+   replacing an earlier decision is background, not an alert. Both titles wrap
+   rather than truncate, so a long successor title stays readable at a narrow
+   width instead of ending in an ellipsis. */
+.supersede-banner { padding:14px 16px; border:1px solid #d9c69a; border-left-width:4px; border-radius:6px; background:#fdf7e8; }
+.supersede-banner-text { margin:0; color:#5b4a20; font-size:15px; line-height:1.55; overflow-wrap:anywhere; }
+.supersede-banner .supersede-link { color:#1f5fa8; font-weight:700; }
+.supersede-disclosure { padding:10px 0; border-bottom:1px solid #dedcd5; }
+.supersede-disclosure-summary { color:#5f5f59; font-size:13px; cursor:pointer; overflow-wrap:anywhere; }
+.supersede-disclosure-body { margin:8px 0 0; }
+.supersede-disclosure-body .supersede-link { color:#1f5fa8; font-size:14px; overflow-wrap:anywhere; }
+.list-heading-counts { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 12px; }
+/* The shared .count rule pins one line; this one is a sentence and may wrap
+   rather than push the heading wider than a narrow viewport. */
+.supersede-summary { white-space:normal; }
+.supersede-summary:empty { display:none; }
+.filter-toggle { align-self:end; min-height:41px; margin:0; padding:0 14px; background:transparent; color:#1f70c1; border:1px solid #9cb9d4; }
+.filter-toggle[aria-pressed="true"] { background:#1f70c1; color:#fff; border-color:#1f70c1; }
+.field-error { margin:0; color:#8c2f28; font-size:12px; line-height:1.45; }
 @media(prefers-reduced-motion:reduce) { html{scroll-behavior:auto}.release-chevron{transition:none}.list-state-loading h3::before,.post-media[data-state="loading"],.profile-media[data-state="loading"],.detail-media[data-state="loading"],.skeleton-media,.skeleton-line{animation:none}.profile-tile{transition:none}.profile-tile:hover{transform:none} }

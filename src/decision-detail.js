@@ -2,6 +2,7 @@
 // above the DOM layer so selection rules can be verified independently.
 
 import { createShareControl } from "./share-link.js";
+import { indexSupersessions } from "./supersede.js";
 
 export const MAX_COMPARISON_SELECTION = 2;
 
@@ -176,6 +177,51 @@ function renderComparison(alternatives) {
   return section;
 }
 
+const decisionHref = (id) => `/decision.html?id=${encodeURIComponent(id)}`;
+const longDate = (value) => new Intl.DateTimeFormat(undefined, { dateStyle: "long" }).format(new Date(value));
+
+// Titles reach the DOM as text nodes, never as markup: the same rule the rest of
+// this renderer follows, so a title carrying a script tag or an onerror payload
+// renders as the characters the author typed.
+function decisionLink(target) {
+  const link = el("a", "supersede-link", target.title);
+  link.href = decisionHref(target.id);
+  return link;
+}
+
+// One banner, above the recorded context and alternatives, announcing the state
+// this decision is now in. It is the only place that state is stated on this
+// page — the successor is reachable from the link inside it.
+export function renderSupersededBanner(successor) {
+  const banner = el("section", "supersede-banner");
+  banner.setAttribute("role", "status");
+  banner.setAttribute("aria-labelledby", "supersede-banner-text");
+  const line = el("p", "supersede-banner-text");
+  line.id = "supersede-banner-text";
+  line.append(document.createTextNode("Superseded by "), decisionLink(successor));
+  const on = el("time", "supersede-banner-date", longDate(successor.createdAt));
+  on.dateTime = successor.createdAt;
+  line.append(document.createTextNode(" on "), on);
+  banner.append(line);
+  return banner;
+}
+
+// The other side of the same link is quieter by design: replacing an earlier
+// decision is background, not an alert, so it opens closed and carries no status
+// role. aria-expanded is kept in step with the native open state.
+export function renderReplacesDisclosure(predecessor) {
+  const disclosure = el("details", "supersede-disclosure");
+  const summary = el("summary", "supersede-disclosure-summary", `Replaces ${predecessor.title}`);
+  summary.setAttribute("aria-expanded", "false");
+  disclosure.addEventListener("toggle", () => {
+    summary.setAttribute("aria-expanded", String(disclosure.open === true));
+  });
+  const body = el("p", "supersede-disclosure-body");
+  body.append(decisionLink(predecessor));
+  disclosure.append(summary, body);
+  return disclosure;
+}
+
 export function renderDecisionDetail(container, decision, options = {}) {
   container.replaceChildren(renderBackLink());
   if (!decision) {
@@ -200,6 +246,18 @@ export function renderDecisionDetail(container, decision, options = {}) {
     const row = el("div", "detail-meta-row"); row.append(el("dt", "detail-meta-label", label), el("dd", `detail-meta-value ${className ?? ""}`, value)); meta.append(row);
   }
   header.append(meta); view.append(header);
+
+  // Both directions of the supersede link are derived from the surrounding log
+  // (options.decisions), never read off this record: only `supersedes` is
+  // stored, and it points the other way.
+  const { supersededBy, replaces } = indexSupersessions(
+    Array.isArray(options.decisions) ? options.decisions : [decision],
+  );
+  const successor = supersededBy.get(decision.id) ?? null;
+  const predecessor = replaces.get(decision.id) ?? null;
+  if (successor) view.append(renderSupersededBanner(successor));
+  if (predecessor) view.append(renderReplacesDisclosure(predecessor));
+
   const linkedReleases = Array.isArray(options.linkedReleases) ? options.linkedReleases : [];
   const relationship = el("section", "proof-relationship");
   relationship.setAttribute("aria-labelledby", "linked-releases-title");
