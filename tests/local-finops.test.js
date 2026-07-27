@@ -66,12 +66,23 @@ test("normalization joins exact active units and produces a bounded ranked actio
   const result = normalizeLocalFinops(pair);
 
   assert.equal(result.spendUsd, 12.34);
-  assert.equal(result.recoverableUsd, 2.47);
+  // 420,000 tokens for 1,234 minor is round(1234 × 1e6 ÷ 420000) = 2,938 minor per
+  // million, above the 2,000 premium floor. The same tokens at the 1,500 reference
+  // rate cost round(420000 × 1500 ÷ 1e6) = 630 minor, so 1,234 − 630 = 6.04 USD.
+  assert.equal(result.recoverableUsd, 6.04);
+  // The export carries no requests row, so call shape was never checked.
+  assert.equal(result.topDepartment.downRouting.decisionCode, "candidate_unverified_call_shape");
+  assert.deepEqual(
+    result.topDepartment.downRouting.confidence.reasons.map((reason) => reason.code),
+    ["missing_request_counts"],
+  );
   assert.equal(result.topDepartment.id, "psn_unit_demo_00000002");
   assert.equal(result.topDepartment.name, "Department …000002");
   assert.equal(result.confidence, "Low");
   assert.match(result.action, /Pilot lower-cost routing/);
-  assert.match(result.assumptions.join(" "), /20%/);
+  assert.match(result.assumptions.join(" "), /premium-tier floor.*standard-tier reference rate/is);
+  assert.doesNotMatch(result.assumptions.join(" "), /20%/,
+    "the flat routing share must not reappear in what a reader is asked to accept");
   assert.match(result.limits.join(" "), /No benchmark.*No trend.*No prompt-quality/s);
   assert.equal(result.quality.joinedRecords, 1);
   assert.equal(result.quality.quarantinedRecords, 0);
@@ -243,12 +254,12 @@ test("browser-local analysis exposes Noor's full longitudinal decision contract"
 test("exports contain decision results, provenance, quality, limits, and privacy context", async () => {
   const result = normalizeLocalFinops(await validPair());
   const json = JSON.parse(localFinopsJsonExport(result));
-  assert.equal(json.results.recoverableUsd, 2.47);
+  assert.equal(json.results.recoverableUsd, 6.04);
   assert.deepEqual(json.results.quality.warnings, result.warnings);
   assert.match(json.results.provenance, /Browser-local projection/);
 
   const summary = localFinopsMeetingSummary(result);
-  assert.match(summary, /Recoverable scenario: 2\.47 USD/);
+  assert.match(summary, /Recoverable scenario: 6\.04 USD/);
   assert.match(summary, /Confidence: Low/);
   assert.match(summary, /Data quality:/);
   assert.match(summary, /Limits: No benchmark/);

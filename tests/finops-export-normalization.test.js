@@ -135,7 +135,14 @@ test("valid fixtures normalize into the scoring model's input, with provenance a
   // Provenance traces the scored figure back to the record it came from.
   assert.equal(fixture.provenance.unitId, "psn_unit_demo_00000002");
   assert.equal(fixture.provenance.observedSpendUsd, 12.34);
-  assert.equal(fixture.provenance.recoverableScenarioUsd, 2.47);
+  // Same rows, same arithmetic as the local projection: 1,234 minor over 420,000
+  // tokens is above the premium floor, repriced at the reference rate to 630 minor.
+  assert.equal(fixture.provenance.recoverableScenarioUsd, 6.04);
+  // The scored figure carries the rule that produced it, not a bare share.
+  assert.equal(fixture.provenance.downRouting.recoverableUsd, 6.04);
+  assert.equal(fixture.provenance.downRouting.ruleVersion, "down-routing-candidate/1.0.0");
+  assert.ok(fixture.provenance.downRouting.workedExample.length > 0,
+    "an executive-facing figure must arrive with the arithmetic behind it");
   assert.deepEqual(fixture.provenance.providerRecords.map((record) => [
     record.recordId, record.revision, record.amountMinor, record.exportId, record.file,
   ]), [[
