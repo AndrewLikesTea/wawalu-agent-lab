@@ -13,6 +13,7 @@
 // small shared module; that abstraction is not yet earned by two call sites.
 
 import { createShareControl } from "./share-link.js";
+import { EXAMPLE_LABEL } from "./seed-records.js";
 
 export const RELEASE_STORAGE_KEY = "shiplog.releases.v1";
 export const RELEASE_STATUSES = ["planned", "completed", "cancelled"];
@@ -562,6 +563,8 @@ export function renderReleaseDetail(container, resolved, options = {}) {
   const heading = el("div", "detail-heading");
   heading.append(el("p", "eyebrow", `Release · ${resolved.version}`));
   heading.append(el("h1", "detail-version", releaseTitle(resolved)));
+  // Same disclosure the list row carries, for a reader who arrived by URL.
+  if (options.example === true) heading.append(el("span", "badge badge-example", EXAMPLE_LABEL));
   if (options.shareable) {
     const share = createShareControl({ type: "release", id: resolved.id });
     if (share) heading.append(share);

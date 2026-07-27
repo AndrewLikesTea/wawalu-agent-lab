@@ -1,20 +1,7 @@
-// One source for representative product data across the decision and release
-// views. The records are examples, not customer or Wawalu operational data.
-export async function fetchDemoData() {
-  try {
-    const response = await fetch("/releases-demo-data.json", { cache: "no-store" });
-    if (!response.ok) return { decisions: [], releases: [], unavailable: true };
-    const data = await response.json();
-    return {
-      decisions: Array.isArray(data.decisions) ? data.decisions : [],
-      releases: Array.isArray(data.releases) ? data.releases : [],
-      unavailable: false,
-    };
-  } catch {
-    return { decisions: [], releases: [], unavailable: true };
-  }
-}
-
+// Composition helper shared by every view that merges the visitor's records
+// with the representative examples. The examples themselves live in
+// seed-records.js as module constants; nothing is fetched here any more, so a
+// list or detail view can be resolved during the first render.
 export function dedupeById(items) {
   const seen = new Set();
   return items.filter((item) => {

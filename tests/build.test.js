@@ -47,8 +47,11 @@ test("the hero names both capabilities and quotes AI FinOps without contradictin
   assert.doesNotMatch(html, /cost analyzer|spend tool/i);
 
   // The demo stays the primary call to action; AI FinOps is the secondary one,
-  // a real focusable anchor whose name names its destination.
-  assert.match(hero, /<a class="button-link" href="\/decision\.html\?id=demo-queue">Explore the live demo/);
+  // a real focusable anchor whose name names its destination. The demo link
+  // lands on the populated record list, not on the one sample decision the
+  // story card already links — the log is what "the live demo" means.
+  assert.match(hero, /<a class="button-link" href="#record-history">Explore the live demo/);
+  assert.match(html, /<section class="workspace" id="record-history"/);
   assert.match(hero, /<a class="secondary-button" href="\/evolution\.html">Score your provider export in AI FinOps<\/a>/);
   assert.ok(hero.indexOf('class="button-link"') < hero.indexOf('class="secondary-button"'));
 
