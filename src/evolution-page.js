@@ -48,9 +48,23 @@ import {
 import { loadExampleDatasetInputs } from "/example-dataset.js";
 import { leadingFinding } from "/finops-leading-finding.js";
 import { trustVerdict } from "/finops-trust-verdict.js";
+// The per-model overspend finding and its progressively disclosed evidence.
+// The panel is fed the bundled synthetic finding while the example dataset is
+// on screen: `model-overspend-finding/1.0.0` has no producer in this repository
+// yet (the import path carries neither a model identifier nor a request count —
+// see docs/model-overspend-finding-contract.md), so an imported file cannot
+// honestly fill it and the panel stays hidden for one.
+import {
+  clearModelOverspendFinding, renderModelOverspendFinding,
+} from "/model-overspend-finding-view.js";
+// The one thing this page writes down, and it is not analysis state: the
+// display labels a leader gives their own opaque org-unit identifiers. The
+// store is reached through that module, so this file persists nothing itself.
+import { browserOrgUnitLabelStorage as labelStorage } from "/org-unit-labels.js";
 
 const DATA_URL = "/evolution-demo-data.json";
 const EVALUATION_URL = "/finops-evaluation-fixtures.json";
+const MODEL_OVERSPEND_URL = "/model-overspend-finding-fixture.json";
 const CATEGORY_VARS = {
   highValue: "--cat-high-value",
   overProvisioned: "--cat-over-provisioned",
@@ -364,6 +378,34 @@ function mountLocalFinopsImport() {
     // re-import redraws the same stage, and the reader is still owed the move.
     syncStage({ hasResult: true });
     focusStageHeading(document, "read");
+    void paintModelOverspend(example);
+  };
+  // Fetched once and reused, like the evaluation fixtures above it. A fixture
+  // that cannot be read leaves the panel hidden rather than half-painted: this
+  // finding's whole point is that a withheld number is a sentence, and an empty
+  // panel is not one.
+  let overspendFinding = null;
+  const paintModelOverspend = async (example) => {
+    const section = document.getElementById("model-overspend");
+    if (!example) {
+      // A leader's own import cannot feed this contract yet. Hiding the panel
+      // keeps their labels — those are cleared only by the reset control.
+      if (section) section.hidden = true;
+      return null;
+    }
+    try {
+      if (!overspendFinding) {
+        const response = await fetch(MODEL_OVERSPEND_URL, {
+          cache: "no-store", headers: { accept: "application/json" },
+        });
+        if (!response.ok) throw new Error(`Overspend fixture returned ${response.status}`);
+        overspendFinding = (await response.json()).finding;
+      }
+      return renderModelOverspendFinding(document, overspendFinding, { storage: labelStorage() });
+    } catch {
+      if (section) section.hidden = true;
+      return null;
+    }
   };
   const reset = () => {
     const wasExample = exampleActive;
@@ -406,6 +448,10 @@ function mountLocalFinopsImport() {
       for (const id of ["local-lead-question", "local-lead-metric", "local-lead-driver", "local-lead-action"])
         setText(id, "—");
     }
+    // The one reset. The per-model panel goes with everything else, and so do
+    // the org-unit labels this browser was holding — they are the only thing on
+    // this page that outlives a reload, so "start over" has to include them.
+    clearModelOverspendFinding(document, { storage: labelStorage() });
     showMetricBasis({ mode: "example" });
     setText("finops-intro",
       "Every prompt is scored for intent, efficiency, and model fit, then attributed to the org chart. "
