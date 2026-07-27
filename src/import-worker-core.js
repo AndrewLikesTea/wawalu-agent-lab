@@ -19,8 +19,29 @@
 // No network, no storage, no DOM. The worker holds the file text for exactly as
 // long as one parse takes and drops it before it posts the result.
 
+import { analyzeConversationExportText } from "./conversation-literacy.js";
 import { describeProblem, parseLocalImportFile } from "./finops-tabular-import.js";
 import { checkFileSizeCeiling, MAX_IMPORT_BYTES } from "./import-limits.js";
+
+/**
+ * The kinds of work one import session can run. Both arrive as file text over
+ * the same chunked transfer, are cancelled the same way, and fail the same way —
+ * the only thing a kind selects is which synchronous function reads the text at
+ * the end. A second worker, a second protocol, or a second cancellation rule
+ * would be three more things to keep in agreement with this one.
+ */
+export const IMPORT_KINDS = Object.freeze({
+  usage: "usage",
+  conversationLiteracy: "conversation-literacy",
+});
+
+/** The reader for each kind. Same signature, same failure contract. */
+const READERS = Object.freeze({
+  [IMPORT_KINDS.usage]: (text, job) =>
+    parseLocalImportFile(text, job.fileName, job.mediaType, job.options),
+  [IMPORT_KINDS.conversationLiteracy]: (text, job) =>
+    analyzeConversationExportText(text, job.options),
+});
 
 /** The wire protocol. Both directions, named once. */
 export const IMPORT_MESSAGES = Object.freeze({
@@ -84,6 +105,9 @@ export function createImportWorkerSession(post, { now = () => Date.now() } = {})
   const begin = (message) => {
     job = {
       jobId: message.jobId,
+      // An unknown kind is the usage import, which is what every message that
+      // predates this field is. Nothing branches on the kind again after here.
+      kind: READERS[message.kind] ? message.kind : IMPORT_KINDS.usage,
       fileName: message.fileName ?? "local.json",
       mediaType: message.mediaType ?? "",
       options: message.options ?? {},
@@ -129,7 +153,7 @@ export function createImportWorkerSession(post, { now = () => Date.now() } = {})
     emitProgress("parse", current.total, current.total, { force: true });
     let value;
     try {
-      value = parseLocalImportFile(text, current.fileName, current.mediaType, current.options);
+      value = READERS[current.kind](text, current);
     } catch (error) {
       job = null;
       post(failurePayload(current.jobId, error));

@@ -183,8 +183,11 @@ export function createImportOffloader({
   /**
    * Run one import.
    *
-   * @param {{text: string, fileName?: string, mediaType?: string,
+   * @param {{text: string, kind?: string, fileName?: string, mediaType?: string,
    *   byteSize?: number, options?: object, sync: () => object}} job
+   *   `kind` selects the reader at the far end (`IMPORT_KINDS`); omitted, it is
+   *   the usage import. `sync` must run the same reader on the same text, since
+   *   it is what a browser without workers gets.
    * @param {{onProgress?: (progress: object) => void}} [hooks]
    */
   const run = async (job, { onProgress } = {}) => {
@@ -232,6 +235,9 @@ export function createImportOffloader({
     active.postMessage({
       type: IMPORT_MESSAGES.begin,
       jobId,
+      // Which reader runs at the far end. Absent means the usage import, so a
+      // caller written before this field behaves exactly as it did.
+      kind: job.kind,
       fileName: job.fileName,
       mediaType: job.mediaType,
       options: job.options ?? {},
