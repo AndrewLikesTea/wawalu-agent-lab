@@ -1,6 +1,7 @@
 """Synthetic team layers: Codex/Claude plan and review; workers execute changes."""
 from __future__ import annotations
 
+import datetime as dt
 import json
 import os
 import pathlib
@@ -724,6 +725,49 @@ def is_budget_exhausted(log_path: pathlib.Path) -> bool:
         if str(record.get("subtype", "")).startswith("error_max_budget"):
             return True
     return False
+
+
+# "resets 8:50am" — providers state exactly when the quota comes back. Honouring it
+# turns a blind exponential cooldown into a wait that ends when the provider does.
+RESET_PROSE = re.compile(r"reset[s]?\s+(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*([ap]\.?m\.?)", re.IGNORECASE)
+
+
+def parse_capacity_reset(text: str, now: dt.datetime | None = None) -> dt.datetime | None:
+    """Read the provider's stated reset time out of its refusal, as an aware UTC moment.
+
+    The prose carries a clock time with no date, so it is anchored to the local day
+    and rolled forward when that time has already passed. Returns None when the
+    refusal says nothing about when it ends, which is the common case.
+    """
+    match = RESET_PROSE.search(text or "")
+    if not match:
+        return None
+    hour, minute, meridiem = int(match.group(1)), int(match.group(2) or 0), match.group(3).lower()
+    if not 1 <= hour <= 12 or minute > 59:
+        return None
+    hour = hour % 12 + (12 if meridiem.startswith("p") else 0)
+    now = (now or dt.datetime.now(dt.UTC)).astimezone()
+    reset = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+    if reset <= now:
+        reset += dt.timedelta(days=1)
+    return reset.astimezone(dt.UTC)
+
+
+def capacity_reset_at(log_paths, now: dt.datetime | None = None) -> dt.datetime | None:
+    """The earliest stated reset time across a run's transcripts, if any states one."""
+    stated = []
+    for path in log_paths:
+        try:
+            text = pathlib.Path(path).read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        for line in text.splitlines():
+            if not _has_capacity_marker(line):
+                continue
+            moment = parse_capacity_reset(line, now)
+            if moment:
+                stated.append(moment)
+    return min(stated) if stated else None
 
 
 def _has_capacity_marker(text: str) -> bool:
