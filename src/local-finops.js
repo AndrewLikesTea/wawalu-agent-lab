@@ -6,6 +6,7 @@
 
 import { analyzeModelRouting, evaluateDownRoutingCandidate } from "./down-routing-candidates.js";
 import { RUBRIC_VERSION_ID } from "./prompt-literacy-scoring.js";
+import { analyzeQueryLiteracy, NOT_GRADEABLE_COPY } from "./query-literacy.js";
 import {
   PREVIOUS_PROVIDER_USAGE_SCHEMA_VERSION, PROVIDER_USAGE_SCHEMA_VERSION,
   SUPPORTED_PROVIDER_USAGE_SCHEMA_VERSIONS, USAGE_DETAIL_KEYS, usageDetailProblem,
@@ -321,6 +322,10 @@ function periodMetadata(provider) {
     // Carried, not recomputed: the per-model rows belong to the parsed file, so
     // a multi-period history scores each period from its own import.
     modelUsage: provider.modelUsage ?? null,
+    // Same rule for the query sample: it belongs to the period whose queries it
+    // sampled, and it is already classified and excerpt-free by the time it
+    // arrives here. This module never sees prompt text.
+    querySample: provider.querySample ?? null,
     start,
     end,
     days: Number.isFinite(start) && Number.isFinite(end)
@@ -418,6 +423,16 @@ export function normalizeLocalFinops({ provider, hris }) {
     modelUsage: (provider.modelUsage ?? []).filter((row) => active.has(row.orgUnitId)),
     unitIds: ranked.map((item) => item.id),
   });
+  // Prompt-literacy grades for the reader's own departments. The sample arrives
+  // already classified — `query-sample.js` discards every excerpt inside the
+  // tab — so what is joined here is a category, a model, and a department id.
+  const literacy = analyzeQueryLiteracy({
+    sample: provider.querySample ?? null,
+    providerRecords: aggregates.filter((record) => active.has(record.org_unit_id)),
+    departments: ranked.map((item) => ({
+      id: item.id, name: item.name, spendUsd: item.spendUsd,
+    })),
+  });
   const top = ranked[0] ?? null;
   const confidence = warnings.length || !top || top.records < 2 ? "Low" : "Medium";
   return Object.freeze({
@@ -429,6 +444,7 @@ export function normalizeLocalFinops({ provider, hris }) {
     rankedDepartments: ranked,
     topDepartment: top,
     modelRouting,
+    literacy,
     confidence,
     provenance: `Browser-local projection of provider export ${providerDoc.export_id} and HRIS export ${hrisDoc.export_id}.`,
     action: top && top.recoverableUsd > 0
@@ -446,7 +462,10 @@ export function normalizeLocalFinops({ provider, hris }) {
     limits: [
       "No benchmark is calculated: the imported contracts contain no compatible peer cohort.",
       "No trend is calculated: a single provider period cannot establish a like-for-like change.",
-      "No prompt-quality claim is made: provider content and direct identifiers are excluded.",
+      literacy.available
+        ? `Prompt-quality grades come from an imported query sample of ${literacy.sample.total} `
+          + "queries classified in this tab; the excerpts were discarded and never left the browser."
+        : "No prompt-quality claim is made: provider content and direct identifiers are excluded.",
     ],
     evidence: top ? [
       `${top.records} deduplicated provider aggregate${top.records === 1 ? "" : "s"} joined to ${top.id}.`,
@@ -462,6 +481,42 @@ export function normalizeLocalFinops({ provider, hris }) {
       quarantine: Object.freeze(quarantine),
       warnings,
     },
+  });
+}
+
+/**
+ * One department's published performance object.
+ *
+ * With no imported query sample the answer is the one this build always gave,
+ * under the same wording, so a consumer that never imports a sample sees no
+ * change. With a sample it is the graded result — or a *named* refusal carrying
+ * both the machine-readable code and the copy that belongs to it. There is no
+ * third state where a department silently disappears or grades zero.
+ */
+function departmentPerformanceFor(entry, available) {
+  if (!available || !entry) {
+    return Object.freeze({
+      eligible: false,
+      score: null,
+      reasonCode: "no_query_sample",
+      reason: "The provider billing contract contains no scored query-category sample.",
+      rubricVersion: RUBRIC_VERSION_ID,
+      coverage: null,
+      confidenceTier: null,
+    });
+  }
+  return Object.freeze({
+    eligible: entry.gradeable,
+    score: entry.score,
+    grade: entry.grade,
+    subscores: entry.subscores,
+    reasonCode: entry.reason,
+    reason: entry.gradeable ? null : NOT_GRADEABLE_COPY[entry.reason],
+    rubricVersion: entry.rubricVersion,
+    coverage: entry.coverage,
+    // Noor's tier, carried whole rather than restated: the surface reads
+    // `showGrade` off it and never re-derives the decision.
+    confidenceTier: entry.confidence,
   });
 }
 
@@ -576,14 +631,14 @@ export function normalizeLocalFinopsHistory({ providers = [], hris }) {
   if (!ordered.length)
     fail("incompatible_periods", "No unique provider period remains after reconciliation.");
 
-  const periods = ordered.map(({ document, modelUsage, ...metadata }) => ({
+  const periods = ordered.map(({ document, modelUsage, querySample, ...metadata }) => ({
     ...metadata,
     periodStart: document.snapshot.period_start,
     periodEnd: document.snapshot.period_end,
     exportId: document.export_id,
     generatedAt: document.snapshot.generated_at,
     completeness: document.snapshot.completeness,
-    result: normalizeLocalFinops({ provider: { document, modelUsage }, hris }),
+    result: normalizeLocalFinops({ provider: { document, modelUsage, querySample }, hris }),
   }));
   const current = periods.at(-1);
   const previous = periods.at(-2) ?? null;
@@ -615,6 +670,11 @@ export function normalizeLocalFinopsHistory({ providers = [], hris }) {
     { currentPeriod: current.result.period },
   ));
 
+  // The literacy analysis belongs to the current period: it grades the queries
+  // that period sampled, against the billing rows that period billed.
+  const literacy = current.result.literacy;
+  const literacyById = new Map(literacy.departments
+    .map((department) => [department.departmentId, department]));
   const priorById = new Map(previous?.result.rankedDepartments
     .map((department) => [department.id, department]) ?? []);
   const departments = current.result.rankedDepartments.map((department) => {
@@ -675,11 +735,19 @@ export function normalizeLocalFinopsHistory({ providers = [], hris }) {
         completeness: entry.completeness,
       }))),
     }),
+    // The benchmark is the current period's, because a cohort is a comparison
+    // between departments in one import, not between periods. When no query
+    // sample was imported this is byte-for-byte the previous answer, under the
+    // same `no_compatible_cohort` code a consumer already branches on.
     benchmark: Object.freeze({
-      state: "unavailable",
-      eligible: false,
-      reasonCode: "no_compatible_cohort",
-      message: "Unavailable: the imported contracts contain no compatible peer cohort or benchmark methodology.",
+      state: literacy.benchmark.state,
+      eligible: literacy.benchmark.eligible,
+      reasonCode: literacy.benchmark.reasonCode,
+      message: literacy.benchmark.message,
+      methodology: literacy.benchmark.methodology,
+      rubricVersion: literacy.benchmark.rubricVersion,
+      cohort: literacy.benchmark.cohort,
+      comparisons: literacy.benchmark.comparisons,
     }),
     decisionInputs: Object.freeze({
       trends: Object.freeze({
@@ -702,17 +770,16 @@ export function normalizeLocalFinopsHistory({ providers = [], hris }) {
           rank: index + 1,
           observedSpendUsd: department.spendUsd,
           recoverableScenarioUsd: department.recoverableUsd,
-          performance: Object.freeze({
-            eligible: false,
-            score: null,
-            reason: "The provider billing contract contains no scored query-category sample.",
-            rubricVersion: RUBRIC_VERSION_ID,
-          }),
+          performance: departmentPerformanceFor(
+            literacyById.get(department.id), literacy.available,
+          ),
         }))),
       benchmarkEligibility: Object.freeze({
-        eligible: false,
-        reasonCode: "no_compatible_cohort",
-        reason: "The imported contracts contain no peer cohort scored with the same rubric.",
+        eligible: literacy.benchmark.eligible,
+        reasonCode: literacy.benchmark.reasonCode,
+        reason: literacy.available
+          ? literacy.benchmark.message
+          : "The imported contracts contain no peer cohort scored with the same rubric.",
       }),
       provenance: Object.freeze({
         processing: "browser_local_ephemeral",

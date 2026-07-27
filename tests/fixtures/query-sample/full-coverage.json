@@ -1,0 +1,23 @@
+{
+  "note": "Every row parses, classifies above the floor, and names a (department, model) pair the billing fixture bills. Three departments, so a cohort exists.",
+  "rows": [
+    {"department": "psn_unit_a", "model": "gpt-4o", "timestamp": "2026-07-01T09:00:00Z", "excerpt": "Context: the billing service returns 500s under load. Constraints: must not change the schema. Acceptance criteria: a passing regression test."},
+    {"department": "psn_unit_a", "model": "gpt-4o", "timestamp": "2026-07-01T09:05:00Z", "excerpt": "Background: nightly export job. Requirements: idempotent reruns. Expected output: a diff of changed rows."},
+    {"department": "psn_unit_a", "model": "gpt-4o", "timestamp": "2026-07-01T09:10:00Z", "excerpt": "Given the following stack trace, do not use a retry loop. Definition of done: the handler returns 409."},
+    {"department": "psn_unit_a", "model": "gpt-4o", "timestamp": "2026-07-01T09:15:00Z", "excerpt": "Context: migration 0007 is slow. Constraints: limited to one lock. Success looks like a sub-second apply."},
+    {"department": "psn_unit_a", "model": "gpt-4o", "timestamp": "2026-07-01T09:20:00Z", "excerpt": "Here is the failing test. Requirements: keep the public signature. Expected output: the minimal patch."},
+    {"department": "psn_unit_a", "model": "gpt-4o", "timestamp": "2026-07-01T09:25:00Z", "excerpt": "rename this variable to invoiceTotal"},
+    {"department": "psn_unit_b", "model": "claude-sonnet-4", "timestamp": "2026-07-01T10:00:00Z", "excerpt": "still not working, try again"},
+    {"department": "psn_unit_b", "model": "claude-sonnet-4", "timestamp": "2026-07-01T10:05:00Z", "excerpt": "no, i meant the staging cluster"},
+    {"department": "psn_unit_b", "model": "claude-sonnet-4", "timestamp": "2026-07-01T10:10:00Z", "excerpt": "you said that already, wrong answer"},
+    {"department": "psn_unit_b", "model": "claude-sonnet-4", "timestamp": "2026-07-01T10:15:00Z", "excerpt": "one more time, this still doesnt compile"},
+    {"department": "psn_unit_b", "model": "claude-sonnet-4", "timestamp": "2026-07-01T10:20:00Z", "excerpt": "as i said, the token expires early"},
+    {"department": "psn_unit_b", "model": "claude-sonnet-4", "timestamp": "2026-07-01T10:25:00Z", "excerpt": "Context: retry budget exhausted. Constraints: must not exceed three attempts. Acceptance criteria: a bounded backoff."},
+    {"department": "psn_unit_c", "model": "gpt-4o-mini", "timestamp": "2026-07-01T11:00:00Z", "excerpt": "give me a recipe for a birthday dinner"},
+    {"department": "psn_unit_c", "model": "gpt-4o-mini", "timestamp": "2026-07-01T11:05:00Z", "excerpt": "write me a poem about the sprint"},
+    {"department": "psn_unit_c", "model": "gpt-4o-mini", "timestamp": "2026-07-01T11:10:00Z", "excerpt": "movie recommendation for tonight"},
+    {"department": "psn_unit_c", "model": "gpt-4o-mini", "timestamp": "2026-07-01T11:15:00Z", "excerpt": "fantasy football waiver advice"},
+    {"department": "psn_unit_c", "model": "gpt-4o-mini", "timestamp": "2026-07-01T11:20:00Z", "excerpt": "vacation policy horoscope joke"},
+    {"department": "psn_unit_c", "model": "gpt-4o-mini", "timestamp": "2026-07-01T11:25:00Z", "excerpt": "Context: on-call rota. Requirements: two engineers per shift. Expected output: a table."}
+  ]
+}

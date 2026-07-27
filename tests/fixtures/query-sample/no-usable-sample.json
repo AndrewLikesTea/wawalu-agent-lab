@@ -1,0 +1,15 @@
+{
+  "note": "Rows arrived, and not one of them can be graded. Every rejection code is represented, plus rows that parse and then fail to classify. No department may grade off this file and none may be omitted from the answer.",
+  "rows": [
+    {"department": "psn_unit_a", "model": "gpt-4o", "timestamp": "2026-07-01T09:00:00Z", "excerpt": "what is the status of the deploy"},
+    {"department": "psn_unit_a", "model": "gpt-4o", "timestamp": "2026-07-01T09:05:00Z", "excerpt": "try again with the birthday poem"},
+    {"department": "psn_unit_b", "model": "claude-sonnet-4", "timestamp": "2026-07-01T10:00:00Z", "excerpt": "please advise"},
+    {"department": "", "model": "gpt-4o", "timestamp": "2026-07-01T09:00:00Z", "excerpt": "missing department"},
+    {"department": "psn_unit_a", "model": "   ", "timestamp": "2026-07-01T09:00:00Z", "excerpt": "missing model"},
+    {"department": "psn_unit_a", "model": "gpt-4o", "timestamp": "yesterday", "excerpt": "invalid timestamp"},
+    {"department": "psn_unit_a", "model": "gpt-4o", "timestamp": "2026-07-01T09:00:00Z", "excerpt": ""},
+    {"department": "psn_unit_a", "model": "gpt-4o", "timestamp": "2026-07-01T09:00:00Z"},
+    ["not", "an", "object"],
+    null
+  ]
+}
