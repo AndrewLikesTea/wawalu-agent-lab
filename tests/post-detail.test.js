@@ -130,14 +130,14 @@ test("a failed load says what happened once, offers a retry, and leaks no error 
   assert.equal(retried, 1, "a failed load offers a retry");
 });
 
-test("an id-less visit is told what the page needs and is sent to the feed", () => {
+test("an id-less visit is told what the page needs, and the standing exits carry the feed", () => {
   const container = createElement("div");
   renderPostDetail(container, null, { id: "" });
   assert.equal(first(container, "empty-title").textContent, "Choose a post");
   assert.match(container.textContent, /No post was specified\. Open one from Social\./);
-  const back = first(container, "empty-action-secondary");
-  assert.equal(back.textContent, "Return to Social");
-  assert.equal(back.href, "/social.html");
+  // The page's standing exits already name Social, so the panel does not add a
+  // second, differently-worded link to the same place.
+  assert.equal(byClass(container, "empty-action-secondary").length, 0);
 });
 
 test("the loading state names what is loading in one sentence", () => {
@@ -165,17 +165,33 @@ test("the document title names the post, the feed, and the product", () => {
   assert.equal(postDetailTitle(null, "error"), "Post unavailable · Shiplog");
 });
 
-test("the visible back control is the page's first focusable element and names Profile", async () => {
+test("the post page's exits sit after the site frame, and each names where it goes", async () => {
   const html = await readFile(new URL("../src/post.html", import.meta.url), "utf8");
-  const firstAnchor = html.indexOf("<a ");
-  const back = html.indexOf('id="post-back"');
-  assert.ok(firstAnchor >= 0 && back > firstAnchor, "the first anchor is the back control");
-  assert.match(html.slice(firstAnchor, back + 160), /class="detail-back detail-page-back"[\s\S]*aria-label="Profile"/);
-  assert.match(html, /← Profile<\/a>/, "the link names the page it goes to");
-  // A shared link is the common way into this page, and its reader has never
-  // seen a profile. The control names where it goes, not where they came from.
-  assert.doesNotMatch(html.slice(firstAnchor, back + 200), /Back to/, "the link must not assert an origin");
-  assert.ok(back < html.indexOf('class="brand"'), "back precedes brand and navigation in DOM order");
+
+  // The order this page used to get wrong: its back link came before the
+  // wordmark, so the one page-specific control on the site preceded the site
+  // frame. src/decision.html puts "← Back to Decisions" inside the content
+  // region, after the header, and this page now matches it.
+  const brand = html.indexOf('class="brand"');
+  const nav = html.indexOf('<nav class="site-nav"');
+  const feed = html.indexOf('id="post-back-feed"');
+  const profile = html.indexOf('id="post-back"');
+  const content = html.indexOf('id="post-detail"');
+  assert.ok(brand < nav, "the wordmark precedes the nav");
+  assert.ok(nav < feed, "the nav precedes the exits");
+  assert.ok(feed < profile, "the feed exit precedes the profile exit");
+  assert.ok(profile < content, "the exits precede the post content");
+
+  // Destination in the visible text, not smuggled into an aria-label.
+  assert.match(html, /<a class="detail-back detail-page-back" id="post-back-feed" href="\/social\.html">← Back to Social<\/a>/);
+  assert.match(html, /<a class="detail-back detail-page-back" id="post-back" href="\/profile\.html">← Back to Profile<\/a>/);
+  const exits = html.match(/<p class="detail-page-exits">[\s\S]*?<\/p>/)[0];
+  assert.doesNotMatch(exits, /aria-label/, "an exit must not depend on aria-label to name its destination");
+
+  // The arrow-plus-"Back to <destination>" convention comes from the decision
+  // page; this page is not allowed to invent a second phrasing for the same job.
+  const decision = await readFile(new URL("../src/decision.html", import.meta.url), "utf8");
+  assert.match(decision, /class="detail-back" href="\/">← Back to Decisions<\/a>/);
 });
 
 /* ------------------------- the page's standing frame ---------------------- */
@@ -233,10 +249,12 @@ test("the standing sentence outlives every state the panel renders", () => {
   }
 });
 
-test("exactly one back link renders on the post page, in every state", async () => {
+test("exactly two standing exits render on the post page, in every state", async () => {
   const html = await postPageHtml();
-  assert.equal([...html.matchAll(/id="post-back"/g)].length, 1, "one standing back link in the markup");
-  assert.equal([...html.matchAll(/class="detail-back detail-page-back"/g)].length, 1);
+  // One per destination the page can honestly claim, each written once.
+  assert.equal([...html.matchAll(/id="post-back"/g)].length, 1, "one standing profile exit in the markup");
+  assert.equal([...html.matchAll(/id="post-back-feed"/g)].length, 1, "one standing feed exit in the markup");
+  assert.equal([...html.matchAll(/class="detail-back detail-page-back"/g)].length, 2);
 
   for (const [name, value, options] of PANEL_STATES) {
     const container = createElement("div");
@@ -248,21 +266,19 @@ test("exactly one back link renders on the post page, in every state", async () 
   }
 });
 
-test("only an id-less visit offers a second destination, and it is the feed", () => {
+test("no panel state renders its own way out; the standing exits own that job", () => {
   for (const [name, value, options] of PANEL_STATES) {
     const container = createElement("div");
     renderPostDetail(container, value, options);
-    const secondary = byClass(container, "empty-action-secondary");
-    if (name !== "id-less") {
-      assert.equal(secondary.length, 0, `the ${name} state should offer no secondary way out`);
-      continue;
-    }
-    // No id means no post and no profile to return to, so this state points at
-    // the feed — a different destination from the standing back link, not a
-    // second name for it.
-    assert.equal(secondary.length, 1);
-    assert.equal(secondary[0].textContent, "Return to Social");
-    assert.equal(secondary[0].href, "/social.html");
+    assert.equal(
+      byClass(container, "empty-action-secondary").length,
+      0,
+      `the ${name} state restates one of the standing exits`,
+    );
+    // Retry is the one action a state still owns, because no standing link can
+    // re-run a failed fetch.
+    const buttons = tags(container, "BUTTON");
+    assert.equal(buttons.length, name === "error" ? 1 : 0, `the ${name} state renders unexpected controls`);
   }
 });
 

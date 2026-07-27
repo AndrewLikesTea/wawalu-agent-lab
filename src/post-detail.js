@@ -31,20 +31,11 @@ function formatDateTime(iso) {
   return new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(iso));
 }
 
-// The page already carries one standing back link to the profile this post was
-// opened from (#post-back in src/post.html), so no state renders a second
-// control to that same destination — two links, two labels, one place is how a
-// reader loses track of where "back" is.
-//
-// The one exception is a visit with no id at all: there is no post and no
-// profile to return to, so that state points at the feed instead. It is called
-// "Social" here because that is the name the site navigation gives it.
-function feedReturn() {
-  const feed = el("a", "empty-action empty-action-secondary", "Return to Social");
-  feed.href = "/social.html";
-  feed.setAttribute("aria-label", "Return to Social");
-  return feed;
-}
+// The page carries two standing exits — Social and Profile — in src/post.html,
+// so no state renders a control to either destination. Two links, two labels,
+// one place is how a reader loses track of where "back" is. The id-less state
+// used to add its own "Return to Social"; the standing feed exit now covers it
+// in every state, including that one.
 
 // One title and one sentence per state, in the same shape the decision detail
 // uses: a category label, a heading that names the state, then a single line
@@ -88,7 +79,6 @@ function labelledState(state, action) {
   // A state offers the one action it owns — retrying a failed load, or opening
   // the feed when no post was asked for. The way back is the standing link.
   if (action) node.append(action);
-  if (state === "empty") node.append(feedReturn());
   return node;
 }
 
