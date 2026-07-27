@@ -30,6 +30,8 @@ import {
   ABSENT, PROVIDER_USAGE_SCHEMA_VERSION, UNRECOGNIZED_TIER,
   carryableModelString, classifyModelTier, usageDetail,
 } from "./provider-usage-record.js";
+import { modelPseudonym, orgUnitPseudonym, unitDigest, unitKey } from "./unit-pseudonym.js";
+import { NO_NATIVE_GROUPING, detectNativeGrouping } from "./native-grouping.js";
 
 export { MAX_DELIMITED_BYTES, MAX_DELIMITED_ROWS };
 
@@ -373,42 +375,15 @@ export function detectShape(header) {
 }
 
 // --- pseudonyms ------------------------------------------------------------
+//
+// The digest and the two label pseudonyms live in `unit-pseudonym.js` so the
+// native-grouping layer reuses this exact path rather than growing a second
+// one. Rule 3 of this module is unchanged: no cell value survives
+// normalization, and an org-unit or model label is a cell value.
 
-/**
- * A non-cryptographic fingerprint (two interleaved FNV-1a style 32-bit lanes),
- * matching the one `finops-export-normalization.js` already uses. It exists to
- * turn a readable org-unit label into a stable opaque key inside this tab. It is
- * not a security control, and nothing derived from it leaves the browser.
- */
-function digestOf(text) {
-  let low = 0x811c9dc5;
-  let high = 0x9e3779b9;
-  for (let index = 0; index < text.length; index += 1) {
-    const code = text.charCodeAt(index);
-    low = Math.imul(low ^ code, 0x01000193) >>> 0;
-    high = Math.imul(high ^ (code + index), 0x85ebca6b) >>> 0;
-  }
-  return `${low.toString(16).padStart(8, "0")}${high.toString(16).padStart(8, "0")}`;
-}
-
-/** Case- and spacing-insensitive, so a roster and a usage export join. */
-function unitKey(label) {
-  return String(label ?? "").trim().toLowerCase().replace(/\s+/g, " ");
-}
-
-function unitId(label) {
-  return `psn_unit_${digestOf(unitKey(label))}`;
-}
-
-/**
- * A model identifier becomes a pseudonym on the same terms an org-unit label
- * does. Rule 3 of this module is that no cell value survives normalization, and
- * a model name is a cell value; the per-model analysis needs stable identity,
- * not the vendor's string, so it gets identity and nothing else.
- */
-function modelId(label) {
-  return `psn_model_${digestOf(unitKey(label))}`;
-}
+const digestOf = unitDigest;
+const unitId = orgUnitPseudonym;
+const modelId = modelPseudonym;
 
 function exportId(seed) {
   const hex = `${digestOf(seed)}${digestOf(`${seed}:tail`)}`;
@@ -485,6 +460,10 @@ function failure(problems, extra = {}) {
     ok: false, shape: null, parsed: null, columns: Object.freeze([]),
     rowCount: 0, acceptedRows: 0, skippedRows: 0, unrecognizedModelRows: 0,
     dateFormats: Object.freeze({}), totals: null,
+    // Present on a failed read too: "this file could not be used" and "this is
+    // how the file was grouped" are separate answers, and the review step needs
+    // the second one to explain what the export already carried.
+    nativeGrouping: NO_NATIVE_GROUPING,
     problems: Object.freeze(problems), ...extra,
   });
 }
@@ -835,6 +814,22 @@ export function bindingFromMapping(mapping, header) {
 }
 
 /**
+ * Rebind `orgUnit` to the column the dialect layer says this export is natively
+ * grouped by. Everything else about the shape is untouched, so normalization,
+ * pseudonymization, and the contract validator are the detected path unchanged.
+ */
+function nativeGroupingBinding(binding, nativeGrouping) {
+  return {
+    ...binding,
+    bound: { ...binding.bound, orgUnit: nativeGrouping.column.index },
+    missing: binding.missing.filter((field) => field !== "orgUnit"),
+    matched: binding.matched + 1,
+    recognized: binding.missing.every((field) => field === "orgUnit"),
+    orgUnitOrigin: "native_grouping",
+  };
+}
+
+/**
  * Read one delimited provider export or roster and normalize it into a v1
  * envelope.
  *
@@ -851,16 +846,33 @@ export function parseDelimitedFinopsFile(text, fileName = "export.csv", options 
   // A reviewed mapping wins over detection: the reader has already been shown
   // what every column became and has corrected it, so re-guessing here would
   // discard the one answer that is not a guess.
-  const binding = options.mapping
+  let binding = options.mapping
     ? bindingFromMapping(options.mapping, reading.header)
     : detectShape(reading.header);
   const columns = Object.freeze([...reading.header]);
+
+  // What the export already says about how it is grouped, read off the dialect
+  // profiles rather than this module's own alias lists. It is carried out on
+  // every result — success or failure — because the review step wants to explain
+  // the grouping even when something else about the file is wrong.
+  const nativeGrouping = detectNativeGrouping({
+    columns: reading.header, rows: reading.rows.map((record) => record.values),
+  });
+  // A shape whose `orgUnit` aliases missed is not an unattributable file. If the
+  // dialect layer recognized a native grouping column, bind it: the reader's
+  // export was always grouped, this module simply had not been told the header.
+  // A reviewed mapping is never overridden — the reader has already answered.
+  if (!options.mapping && binding.missing.includes("orgUnit")
+    && nativeGrouping.status === "native") {
+    binding = nativeGroupingBinding(binding, nativeGrouping);
+  }
+
   if (!binding.recognized) {
     if (binding.matched === 0) {
       return failure([makeProblem(TABULAR_CODES.UNSUPPORTED_FORMAT, {
         row: reading.headerRow,
         detail: "the header row matches no recognized provider export or roster",
-      })], { columns });
+      })], { columns, nativeGrouping });
     }
     return failure(binding.missing.map((field) => makeProblem(
       TABULAR_CODES.MISSING_REQUIRED_COLUMN,
@@ -868,7 +880,7 @@ export function parseDelimitedFinopsFile(text, fileName = "export.csv", options 
         row: reading.headerRow, column: field, shape: binding.shape.id,
         expected: Object.freeze([...binding.shape.columns[field].aliases]),
       },
-    )), { columns, shape: binding.shape.id });
+    )), { columns, shape: binding.shape.id, nativeGrouping });
   }
 
   const settings = {
@@ -883,7 +895,9 @@ export function parseDelimitedFinopsFile(text, fileName = "export.csv", options 
     problems.push(makeProblem(TABULAR_CODES.NO_USABLE_ROWS, {
       observed: normalized.accepted, expected: 1,
     }));
-    return failure(problems, { columns, shape: binding.shape.id, rowCount: reading.rows.length });
+    return failure(problems, {
+      columns, shape: binding.shape.id, rowCount: reading.rows.length, nativeGrouping,
+    });
   }
 
   let parsed;
@@ -911,7 +925,9 @@ export function parseDelimitedFinopsFile(text, fileName = "export.csv", options 
     });
   } catch (error) {
     problems.push(makeProblem(TABULAR_CODES.CONTRACT_REJECTED, { reason: error?.code ?? "unknown" }));
-    return failure(problems, { columns, shape: binding.shape.id, rowCount: reading.rows.length });
+    return failure(problems, {
+      columns, shape: binding.shape.id, rowCount: reading.rows.length, nativeGrouping,
+    });
   }
 
   const totalMinor = binding.shape.kind === "provider"
@@ -933,6 +949,13 @@ export function parseDelimitedFinopsFile(text, fileName = "export.csv", options 
     skippedRows: reading.rows.length - normalized.accepted,
     unrecognizedModelRows: normalized.unrecognizedModelRows ?? 0,
     dateFormats: Object.freeze({ ...normalized.dateFormats }),
+    // The versioned grouping contract, republished verbatim. Rowan's attribution
+    // and Mina's review step read it from here rather than re-deriving it.
+    nativeGrouping,
+    // Which answer supplied the org-unit column: this module's own shape
+    // aliases, the reader's reviewed mapping, or the export's native grouping.
+    orgUnitOrigin: binding.orgUnitOrigin
+      ?? (options.mapping ? "reviewed_mapping" : "shape_alias"),
     totals: Object.freeze({
       records: normalized.records.length,
       amountMinor: totalMinor,

@@ -97,14 +97,22 @@ test("a rejected file is diagnosed at the control, not in a page banner", async 
 
 test("each unresolved requirement carries the jump to the control that fixes it", async () => {
   const doc = await page();
+  // The org mapping is optional enrichment: a provider export carries its own
+  // grouping column, so an absent org file is a choice with no jump to offer.
   applyRequirements(doc, { providers: 2, hris: false });
-  const rows = doc.querySelectorAll("li").filter((row) => row.className === "mapping-requirement");
-  assert.deepEqual(rows.map((row) => row.dataset.state), ["ready", "missing"]);
-  assert.match(normalized(rows[0]), /Provider period export\s*2 periods ready/);
-  assert.match(normalized(rows[1]), /HRIS org mapping\s*not selected/);
-  assert.equal(rows[0].querySelector("button"), null);
+  const optional = doc.querySelectorAll("li").filter((row) => row.className === "mapping-requirement");
+  assert.deepEqual(optional.map((row) => row.dataset.state), ["ready", "optional"]);
+  assert.match(normalized(optional[0]), /Provider period export\s*2 periods ready/);
+  assert.match(normalized(optional[1]), /Department names \(optional\)\s*not selected/);
+  assert.equal(optional[1].querySelector("button"), null,
+    "an optional input must not be offered as something to resolve");
 
-  const jump = rows[1].querySelector("button");
+  applyRequirements(doc, { providers: 0, hris: true });
+  const rows = doc.querySelectorAll("li").filter((row) => row.className === "mapping-requirement");
+  assert.deepEqual(rows.map((row) => row.dataset.state), ["missing", "ready"]);
+  assert.equal(rows[1].querySelector("button"), null);
+
+  const jump = rows[0].querySelector("button");
   assert.equal(jump.getAttribute("type"), "button");
   assert.match(jump.getAttribute("aria-label"), /moves focus to the file chooser/);
   jump.click();
@@ -112,7 +120,11 @@ test("each unresolved requirement carries the jump to the control that fixes it"
 
   assert.deepEqual(
     mappingRequirements({ providers: 0, hris: false }).map((row) => row.state),
-    ["missing", "missing"],
+    ["missing", "optional"],
+  );
+  assert.deepEqual(
+    mappingRequirements({ providers: 0, hris: false }).map((row) => row.required),
+    [true, false],
   );
 });
 
@@ -123,7 +135,11 @@ test("every non-real headline condition is stated in words beside the number", (
   assert.equal(metricBasis({ mode: "example" }).real, false);
   assert.equal(metricBasis({ mode: "failed" }).label, "Import failed");
   assert.equal(metricBasis({ mode: "partial", providers: 1, hris: false }).label, "Incomplete mapping");
-  assert.match(metricBasis({ mode: "partial", providers: 1, hris: false }).detail, /HRIS org mapping/);
+  // A missing org file is never named as the thing still unresolved: it is not
+  // required, and pointing at it would be telling the reader to fix nothing.
+  assert.doesNotMatch(metricBasis({ mode: "partial", providers: 1, hris: false }).detail, /org mapping/i);
+  assert.match(metricBasis({ mode: "partial", providers: 0, hris: true }).detail,
+    /Provider period export/);
   assert.equal(metricBasis({ mode: "local", plausible: false }).label, "Needs review");
   assert.equal(metricBasis({ mode: "local", departments: 0 }).label, "No rows matched");
   const real = metricBasis({ mode: "local", departments: 3, joinedRecords: 12 });
@@ -240,7 +256,9 @@ test("the import surface is keyboard-complete and in reading order", async () =>
 
   const doc = await page();
   applyStage(doc, "check");
-  applyRequirements(doc, { providers: 1, hris: false });
+  // Providers is the only genuinely required input, so it is the one that can
+  // still be unresolved and therefore the one that offers a jump.
+  applyRequirements(doc, { providers: 0, hris: true });
   applyFieldDiagnostic(doc, diagnosticFor({ code: "invalid_json", message: "The file is not valid JSON." }));
   doc.getElementById("local-results").hidden = false;
   doc.getElementById("clear-local-analysis").hidden = false;

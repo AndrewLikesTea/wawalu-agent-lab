@@ -79,6 +79,56 @@ export const PROVIDER_GROUPING_UNITS = Object.freeze([
   "project", "workspace", "account", "resource_group", "api_key", "tag",
 ]);
 
+/**
+ * THE PRECEDENCE ORDER. One ranked list, used by every dialect, so a tie is
+ * resolved identically whatever the vendor and whatever order the columns
+ * happen to appear in the file. Index 0 wins.
+ *
+ * The criterion is *the most specific attribution unit a finance lead would
+ * recognize as "a team's spend"* — specific and recognizable, not merely
+ * specific. That is why this is not simply "narrowest first":
+ *
+ *   1. tag             A cost-allocation tag is the only unit on this list the
+ *                      customer authored *for chargeback*. If a `CostCenter`
+ *                      tag is on the rows, finance has already decided that is
+ *                      the attribution key, and no inference beats a decision.
+ *   2. project         The project a team owns, and the default team boundary
+ *                      in every AI provider console. Named by humans, stable.
+ *   3. workspace       The same tier of meaning as `project` under a different
+ *                      vendor's spelling; ranked below it only so the order is
+ *                      total, since no shipped dialect carries both.
+ *   4. resource_group  A team-shaped grouping, but an infrastructure artifact:
+ *                      one team often owns several, and platform groups are
+ *                      shared. Below a project, above a key.
+ *   5. api_key         Narrower than a project and yet *less* recognizable: a
+ *                      key alias names an application or a service, keys rotate,
+ *                      and plenty of them are unnamed. Specificity alone does
+ *                      not make `sk-prod-billing-svc` a team.
+ *   6. account         Linked or usage account. Coarsest: frequently one per
+ *                      company, so it attributes everything to one unit and
+ *                      answers nothing. Last resort, never a tie-break winner.
+ *
+ * Column order in the file is irrelevant by construction: candidates are
+ * matched by name and then sorted by this list, never by position.
+ */
+export const GROUPING_UNIT_PRECEDENCE = Object.freeze([
+  "tag", "project", "workspace", "resource_group", "api_key", "account",
+]);
+
+/**
+ * One candidate grouping column, declared on a profile.
+ *
+ *   unit     Which member of `PROVIDER_GROUPING_UNITS` this column carries.
+ *   source   The vendor's own header spelling.
+ *   aliases  Other headers that mean the same unit. Case, separator style, and
+ *            camelCase are folded by `normalizeColumnName`, so only genuinely
+ *            different *names* are listed here — `ResourceGroup`,
+ *            `resource_group` and `RESOURCE GROUP` are one entry, not three.
+ */
+const groupingCandidate = (unit, source, aliases = []) => Object.freeze({
+  unit, source, aliases: Object.freeze(aliases),
+});
+
 /** Normalized fields a record may omit. Everything else must be produced. */
 export const OPTIONAL_NORMALIZED_FIELDS = Object.freeze({
   usage: Object.freeze([]),
@@ -184,6 +234,11 @@ export const DIALECT_PROFILES = Object.freeze([
     kind: "usage",
     // One row per project per day; `project` is the column that says so.
     groupingUnit: "project",
+    groupingCandidates: Object.freeze([
+      groupingCandidate("project", "project", ["project_name", "project_id"]),
+      groupingCandidate("api_key", "api_key_name", ["api_key_id", "api_key", "key_name"]),
+    ]),
+    groupingPrecedence: null,
     version: 1,
     changelog: Object.freeze([
       Object.freeze({ version: 1, note: "Initial mapping: per-project daily usage with context tokens and amount." }),
@@ -209,6 +264,11 @@ export const DIALECT_PROFILES = Object.freeze([
     kind: "usage",
     // Console usage is grouped by workspace; `workspace` is the column naming it.
     groupingUnit: "workspace",
+    groupingCandidates: Object.freeze([
+      groupingCandidate("workspace", "workspace", ["workspace_name", "workspace_id"]),
+      groupingCandidate("api_key", "api_key", ["api_key_name", "key_alias", "api_key_id"]),
+    ]),
+    groupingPrecedence: null,
     version: 1,
     changelog: Object.freeze([
       Object.freeze({ version: 1, note: "Initial mapping: per-workspace daily usage with input tokens and cost." }),
@@ -234,6 +294,19 @@ export const DIALECT_PROFILES = Object.freeze([
     kind: "usage",
     // CUR line items are attributed to the usage account that incurred them.
     groupingUnit: "account",
+    // A CUR carries the linked account on every row, so `account` is always
+    // available — which is exactly why it is ranked last. A cost-allocation tag
+    // is the thing a CUR is usually *read* by.
+    groupingCandidates: Object.freeze([
+      groupingCandidate("tag", "resourceTags/user:CostCenter", [
+        "resourceTags/user:Team", "resourceTags/user:Project",
+        "resource_tags_user_cost_centre",
+      ]),
+      groupingCandidate("account", "line_item_usage_account_id", [
+        "line_item_usage_account_name",
+      ]),
+    ]),
+    groupingPrecedence: null,
     version: 1,
     changelog: Object.freeze([
       Object.freeze({ version: 1, note: "Initial mapping: CUR line items, unblended cost, usage account as owner." }),
@@ -261,6 +334,12 @@ export const DIALECT_PROFILES = Object.freeze([
     kind: "usage",
     // The cost export attributes each line to the resource group that owns it.
     groupingUnit: "resource_group",
+    groupingCandidates: Object.freeze([
+      groupingCandidate("tag", "CostCenter", ["Tags/CostCenter"]),
+      groupingCandidate("resource_group", "ResourceGroup", ["ResourceGroupName"]),
+      groupingCandidate("account", "SubscriptionId", ["SubscriptionGuid", "SubscriptionName"]),
+    ]),
+    groupingPrecedence: null,
     version: 1,
     changelog: Object.freeze([
       Object.freeze({ version: 1, note: "Initial mapping: amortized cost export, M/D/YYYY dates, resource group as owner." }),
@@ -289,6 +368,12 @@ export const DIALECT_PROFILES = Object.freeze([
     kind: "usage",
     // Billing export rows are grouped by the project that ran the workload.
     groupingUnit: "project",
+    groupingCandidates: Object.freeze([
+      groupingCandidate("tag", "labels.team", ["labels.cost_center", "project.labels.team"]),
+      groupingCandidate("project", "project.id", ["project.name", "project.number"]),
+      groupingCandidate("account", "billing_account_id", []),
+    ]),
+    groupingPrecedence: null,
     version: 1,
     changelog: Object.freeze([
       Object.freeze({ version: 1, note: "Initial mapping: BigQuery billing export columns, per-row usage unit." }),
@@ -317,8 +402,12 @@ export const DIALECT_PROFILES = Object.freeze([
     id: "generic-hris-roster",
     label: "Generic HRIS worker roster",
     kind: "roster",
-    // A roster is not billed, so it groups no spend and declares no unit.
+    // A roster is not billed, so it groups no spend and declares no unit. It is
+    // the *enrichment* side of the contract: it maps a grouping unit to a
+    // department, and carries no candidate of its own.
     groupingUnit: null,
+    groupingCandidates: Object.freeze([]),
+    groupingPrecedence: null,
     version: 1,
     changelog: Object.freeze([
       Object.freeze({ version: 1, note: "Initial mapping: worker id, work email, name, manager, department, status." }),
@@ -354,6 +443,28 @@ export function columnNames(entry) {
 }
 
 /**
+ * The precedence list this profile resolves ties with: its own declared
+ * override, or the global order. A profile may override only where the dialect's
+ * semantics genuinely differ, and the override is declared *here*, in the
+ * profile, so the detector stays free of per-vendor branches.
+ */
+export function groupingPrecedenceFor(profile) {
+  return profile?.groupingPrecedence ?? GROUPING_UNIT_PRECEDENCE;
+}
+
+/**
+ * A profile's candidate grouping columns, sorted by its precedence list and
+ * annotated with the rank. Sorting happens here, on the declared data, so the
+ * detector never has to know the order and column position never enters into it.
+ */
+export function rankedGroupingCandidates(profile) {
+  const order = groupingPrecedenceFor(profile);
+  return Object.freeze([...(profile?.groupingCandidates ?? [])]
+    .map((candidate) => Object.freeze({ ...candidate, rank: order.indexOf(candidate.unit) }))
+    .sort((left, right) => left.rank - right.rank));
+}
+
+/**
  * The detection signals a profile contributes, derived from `columns` so the
  * match data and the mapping data are physically the same data.
  */
@@ -367,10 +478,68 @@ export function matchSignals(profile) {
 }
 
 /**
+ * The grouping half of the registry self-check, split out only for length.
+ *
+ * A candidate list that names an unknown unit, ranks the same unit twice, or
+ * claims one header for two units is a silent mis-attribution waiting to happen,
+ * so it is a registry error rather than a runtime surprise.
+ */
+function assertGroupingCandidates(profile, where) {
+  const candidates = profile.groupingCandidates;
+  if (!Array.isArray(candidates)) throw new Error(`${where}: groupingCandidates must be an array`);
+  if (profile.kind !== "usage") {
+    if (candidates.length) throw new Error(`${where}: a ${profile.kind} profile groups nothing`);
+    if (profile.groupingPrecedence !== null) {
+      throw new Error(`${where}: a ${profile.kind} profile must declare groupingPrecedence: null`);
+    }
+    return;
+  }
+  if (!candidates.length) throw new Error(`${where}: a usage profile needs a grouping candidate`);
+  const order = groupingPrecedenceFor(profile);
+  if (profile.groupingPrecedence !== null) {
+    const ranked = new Set(profile.groupingPrecedence);
+    if (ranked.size !== profile.groupingPrecedence.length
+      || profile.groupingPrecedence.some((unit) => !PROVIDER_GROUPING_UNITS.includes(unit))) {
+      throw new Error(`${where}: groupingPrecedence must rank known units, each at most once`);
+    }
+  }
+  const units = new Set();
+  const headers = new Set();
+  for (const candidate of candidates) {
+    if (!PROVIDER_GROUPING_UNITS.includes(candidate.unit)) {
+      throw new Error(`${where}: grouping candidate unit ${candidate.unit} is not a known unit`);
+    }
+    if (units.has(candidate.unit)) {
+      throw new Error(`${where}: two grouping candidates claim the unit ${candidate.unit}`);
+    }
+    units.add(candidate.unit);
+    if (!order.includes(candidate.unit)) {
+      throw new Error(`${where}: grouping candidate ${candidate.unit} is unranked`);
+    }
+    for (const name of columnNames(candidate)) {
+      if (!name) throw new Error(`${where}: grouping candidate ${candidate.unit} has a blank header`);
+      if (headers.has(name)) {
+        throw new Error(`${where}: grouping header ${name} is claimed twice`);
+      }
+      headers.add(name);
+    }
+  }
+  if (!units.has(profile.groupingUnit)) {
+    throw new Error(`${where}: declared groupingUnit ${profile.groupingUnit} has no candidate column`);
+  }
+}
+
+/**
  * Registry self-check. Run by the suite so a malformed or drifting profile
  * fails at the registry rather than at some vendor's file months later.
  */
 export function assertProfileRegistry(profiles = DIALECT_PROFILES) {
+  // The one ordering must rank every unit exactly once, or two dialects could
+  // resolve the same pair of candidates differently.
+  if (GROUPING_UNIT_PRECEDENCE.length !== PROVIDER_GROUPING_UNITS.length
+    || PROVIDER_GROUPING_UNITS.some((unit) => !GROUPING_UNIT_PRECEDENCE.includes(unit))) {
+    throw new Error("GROUPING_UNIT_PRECEDENCE must rank every provider grouping unit exactly once");
+  }
   const seen = new Set();
   for (const profile of profiles) {
     const where = `profile ${profile.id}`;
@@ -389,6 +558,7 @@ export function assertProfileRegistry(profiles = DIALECT_PROFILES) {
     } else if (profile.groupingUnit !== null) {
       throw new Error(`${where}: a ${profile.kind} profile must declare groupingUnit: null`);
     }
+    assertGroupingCandidates(profile, where);
     if (!Number.isInteger(profile.version) || profile.version < 1) {
       throw new Error(`${where}: version must be an integer >= 1`);
     }

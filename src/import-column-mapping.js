@@ -15,6 +15,7 @@
 //      columns on every read, so an edit can never leave a stale verdict behind.
 
 import { detectShape } from "./finops-tabular-import.js";
+import { GROUPING_STATUS, detectNativeGrouping } from "./native-grouping.js";
 
 /** The target that says, in the reader's words, "this column becomes nothing". */
 export const IGNORED_TARGET = "ignored";
@@ -139,13 +140,22 @@ const targetLabel = (kind, field) => field === IGNORED_TARGET
  * testable without a parser, and the default keeps the page call to one line.
  * When nothing was recognized, every column arrives unset and the step is still
  * completable by hand — an undetected file is a starting point, not a dead end.
+ *
+ * `nativeGrouping` is the versioned grouping contract from `native-grouping.js`.
+ * It is stored whole on the state so the review surface can show its work — the
+ * chosen column, why it beat the others, and which candidates were rejected and
+ * for what reason — and it proposes the `orgUnit` target when the shape's own
+ * aliases missed the column the export was already grouped by.
  */
 export function createColumnMapping({
-  reading, fileName = "export.csv", detection = null,
+  reading, fileName = "export.csv", detection = null, nativeGrouping = null,
 } = {}) {
   const header = [...(reading?.header ?? [])];
   const rows = reading?.rows ?? [];
   const detected = detection ?? detectShape(header);
+  const grouping = nativeGrouping ?? detectNativeGrouping({
+    columns: header, rows: rows.map((row) => row?.values ?? []),
+  });
   const recognized = Boolean(detected?.recognized);
   const kind = recognized ? detected.shape.kind : "provider";
   const bound = recognized ? detected.bound : {};
@@ -154,9 +164,19 @@ export function createColumnMapping({
   for (const [field, index] of Object.entries(bound)) {
     if (known.has(field) && !claimed.has(index)) claimed.set(index, field);
   }
+  // The export's own grouping column fills `orgUnit` when nothing else claimed
+  // it. It is recorded as `native` rather than `detected`, because the reader is
+  // owed the difference between "your file says so" and "we guessed".
+  const nativeIndex = kind === "provider" && grouping.status === GROUPING_STATUS.native
+    ? grouping.column.index : null;
+  const nativeClaimed = nativeIndex !== null
+    && !claimed.has(nativeIndex)
+    && ![...claimed.values()].includes("orgUnit");
+  if (nativeClaimed) claimed.set(nativeIndex, "orgUnit");
   const ragged = rows.filter((row) => (row?.values?.length ?? 0) !== header.length).length;
 
   return freezeState({
+    nativeGrouping: grouping,
     fileName: String(fileName ?? ""),
     kind,
     kindOrigin: recognized ? "detected" : "unset",
@@ -171,7 +191,9 @@ export function createColumnMapping({
       label: headerLabel(text, index),
       blankHeader: String(text ?? "").trim() === "",
       target: claimed.get(index) ?? IGNORED_TARGET,
-      origin: claimed.has(index) ? "detected" : "unset",
+      origin: nativeClaimed && index === nativeIndex
+        ? "native"
+        : claimed.has(index) ? "detected" : "unset",
       sample: sampleFor(rows, index, rows.length > 0),
     })),
   });
@@ -310,7 +332,8 @@ export function columnIssue(state, index, issues = mappingIssues(state)) {
 /** A one-line answer to "where is this step", for the status region and caption. */
 export function mappingSummary(state, issues = mappingIssues(state)) {
   const mapped = state.columns.filter((column) => column.target !== IGNORED_TARGET).length;
-  const detected = state.columns.filter((column) => column.origin === "detected").length;
+  const detected = state.columns
+    .filter((column) => column.origin === "detected" || column.origin === "native").length;
   const source = state.shapeLabel
     ? `Recognized as ${state.shapeLabel}; ${detected} of ${state.columns.length} columns were proposed for you.`
     : "No known export shape matched this file, so nothing was proposed. Map the columns you need.";
@@ -318,7 +341,32 @@ export function mappingSummary(state, issues = mappingIssues(state)) {
     ? `${mapped} of ${state.columns.length} columns are mapped. Ready to run the analysis.`
     : `${mapped} of ${state.columns.length} columns are mapped. `
       + `${issues.blockers.length} thing${issues.blockers.length === 1 ? "" : "s"} must be resolved first.`;
-  return Object.freeze({ source, outcome, mapped, detected, text: `${source} ${outcome}` });
+  return Object.freeze({
+    source, outcome, mapped, detected,
+    grouping: groupingSentence(state.nativeGrouping),
+    text: `${source} ${outcome}`,
+  });
+}
+
+/**
+ * The grouping step's own sentence, composed from the contract's machine-
+ * readable fields rather than from a prose blob: what the export is grouped by,
+ * why that column won, and — where they exist — the candidates that lost and
+ * their reason. No org file is mentioned, because none is required.
+ */
+export function groupingSentence(grouping) {
+  if (!grouping || grouping.status === "unidentified") return "";
+  if (grouping.status !== "native") {
+    return `${grouping.text} No org file is needed to proceed; one would only add department names.`;
+  }
+  const rejected = grouping.candidates.filter((candidate) => candidate.status === "rejected"
+    && candidate.header !== null);
+  const shown = rejected.map((candidate) => candidate.text).join(" ");
+  const unassigned = grouping.rows.ungrouped
+    ? ` ${grouping.rows.ungrouped} row${grouping.rows.ungrouped === 1 ? "" : "s"} carry no `
+      + "value in it and are counted separately rather than pooled into an invented unit."
+    : "";
+  return `${grouping.text} ${grouping.precedence.text}${shown ? ` ${shown}` : ""}${unassigned}`;
 }
 
 export const mappingTargetLabel = targetLabel;

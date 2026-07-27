@@ -66,6 +66,13 @@ export function stageProgress(stageId) {
  * One row per input the mapping needs. `control` is the id of the control that
  * resolves the row, so a summary entry can move focus to it rather than leaving
  * the reader to hunt for the field the message is about.
+ *
+ * The org mapping is **optional enrichment**, not a requirement. A provider
+ * export carries its own grouping column — project, workspace, key alias, cost
+ * tag — and `native-grouping.js` reads it, so a drop with no org file succeeds
+ * and attributes spend under the export's own labels. The row therefore reports
+ * `optional` rather than `missing`: nothing about it blocks the analysis, and
+ * the only thing it adds is a department name over units a leader already has.
  */
 export function mappingRequirements({ providers = 0, hris = false } = {}) {
   return [
@@ -73,6 +80,7 @@ export function mappingRequirements({ providers = 0, hris = false } = {}) {
       id: "provider",
       name: "Provider period export",
       control: "local-finops-files",
+      required: true,
       state: providers > 0 ? "ready" : "missing",
       shape: providers > 0 ? "✓" : "○",
       status: providers > 0
@@ -81,11 +89,14 @@ export function mappingRequirements({ providers = 0, hris = false } = {}) {
     }),
     Object.freeze({
       id: "hris",
-      name: "HRIS org mapping",
+      name: "Department names (optional)",
       control: "local-finops-files",
-      state: hris ? "ready" : "missing",
-      shape: hris ? "✓" : "○",
-      status: hris ? "1 mapping ready" : "not selected",
+      required: false,
+      state: hris ? "ready" : "optional",
+      shape: hris ? "✓" : "–",
+      status: hris
+        ? "1 mapping ready"
+        : "not selected — your export's own grouping is used",
     }),
   ];
 }
@@ -132,12 +143,17 @@ export function metricBasis({
     });
   }
   if (mode === "partial") {
+    // Only genuinely required inputs are listed. An absent org mapping is not
+    // "unresolved" — it is a choice with no consequence for whether a number
+    // exists, so naming it here would be telling the reader to fix nothing.
     const missing = mappingRequirements({ providers, hris })
       .filter((requirement) => requirement.state === "missing")
       .map((requirement) => requirement.name);
     return Object.freeze({
       label: "Incomplete mapping", real: false,
-      detail: `Still unresolved: ${missing.join(" and ")}. No number is computed yet.`,
+      detail: missing.length
+        ? `Still unresolved: ${missing.join(" and ")}. No number is computed yet.`
+        : "No number is computed yet.",
     });
   }
   if (!plausible) {
