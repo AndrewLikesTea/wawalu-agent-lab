@@ -20,11 +20,11 @@ test("empty state gives a named value, guidance, and action", () => {
     state: "empty",
     label: "Feed status",
     value: "No posts yet.",
-    description: "Share the first update to start the feed.",
-    action: { label: "Write an update", href: "#post-body" },
+    description: "Write the first post to start the feed.",
+    action: { label: "Write a post", href: "#post-body" },
   });
 
-  assert.match(panel.textContent, /Feed status:.*No posts yet.*Share the first update.*Write an update/);
+  assert.match(panel.textContent, /Feed status:.*No posts yet.*Write the first post.*Write a post/);
   assert.equal(tags(panel, "A")[0].href, "#post-body");
 });
 

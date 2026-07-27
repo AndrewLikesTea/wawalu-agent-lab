@@ -200,8 +200,11 @@ test("the post page's exits sit after the site frame, and each names where it go
 // the whole point of the sentence is that it is standing copy: a reader who
 // arrived from a shared link has to be told what Social is before, during, and
 // after the post load — including when the post never arrives.
+// It is also the single Social definition, repeated word-for-word on the home
+// page card and the Social page intro — one sentence, one vocabulary, wherever
+// a visitor first meets Social.
 const STANDING_SENTENCE =
-  "This is one post from Social, the team’s feed of short notes about the decisions and releases logged in Shiplog.";
+  "Social is a shared demo feed of short posts about the work the team ships, each with an optional image.";
 
 // Every state the panel can be in, named the way a reader would name it.
 const PANEL_STATES = [
@@ -243,9 +246,9 @@ test("the standing sentence outlives every state the panel renders", () => {
 
     renderPostDetail(container, value, options);
 
-    assert.match(main.textContent, /This is one post from Social/, `the sentence is gone in the ${name} state`);
+    assert.match(main.textContent, /Social is a shared demo feed/, `the sentence is gone in the ${name} state`);
     // The panel keeps its own copy exactly as shipped and never restates this.
-    assert.doesNotMatch(container.textContent, /This is one post from Social/, `the ${name} panel restates the sentence`);
+    assert.doesNotMatch(container.textContent, /Social is a shared demo feed/, `the ${name} panel restates the sentence`);
   }
 });
 
