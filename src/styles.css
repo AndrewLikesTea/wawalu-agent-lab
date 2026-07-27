@@ -3,7 +3,23 @@
 img,svg,video,canvas { max-width:100%; height:auto; }
 html { scroll-behavior:smooth; }
 body { margin:0; min-height:100vh; background:radial-gradient(circle at 84% 0,#d6e6fa 0,transparent 30%),#f3f1eb; }
-main { width:min(1180px,calc(100% - 40px)); margin:auto; padding:24px 0 80px; }
+main,.page { width:min(1180px,calc(100% - 40px)); margin:auto; padding:24px 0 80px; }
+/* A page that carries a skip link wraps its whole frame in .page so that <main>
+   can be the content region alone — header and nav sit outside it, which is the
+   only arrangement in which "skip to main content" actually skips anything. The
+   inner landmark is a plain block; .page holds the measure and the padding.
+   Pages not yet converted still match the bare `main` rule above. */
+.page>main { width:auto; margin:0; padding:0; }
+/* The landmark is focusable only as the skip link's destination, so a mouse
+   click must not leave a ring parked on the whole page. */
+.page>main:focus { outline:none; }
+.page>main:focus-visible { outline:3px solid var(--focus-ring); outline-offset:4px; }
+/* Offscreen, not hidden: it stays in the accessibility tree and in tab order,
+   which display:none, visibility:hidden, and tabindex="-1" all destroy. Same
+   technique the Paint editor's skip link already uses. Colours and type are the
+   .button-link tokens — #fff on #171713 is 17.9:1. */
+.skip-link { position:fixed; z-index:30; top:8px; left:8px; display:inline-flex; align-items:center; min-height:48px; border-radius:9px; padding:0 17px; background:#171713; color:#fff; font-size:14px; font-weight:750; text-decoration:none; transform:translateY(-200%); }
+.skip-link:focus { transform:translateY(0); outline:3px solid var(--focus-ring); outline-offset:2px; }
 .site-header { display:flex; align-items:center; justify-content:space-between; padding-bottom:18px; border-bottom:1px solid #cfcdc5; color:#62625d; font:650 12px/1 ui-monospace,monospace; letter-spacing:.05em; text-transform:uppercase; }
 .brand { display:flex; align-items:center; gap:10px; color:#171713; text-decoration:none; }
 .site-nav { display:flex; align-items:center; justify-content:flex-end; gap:6px; min-width:0; }
@@ -436,6 +452,9 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
    that exists to show it whole, not cropped to a grid cell. */
 .detail-back { color:#1f5fa8; font:650 13px/1.4 ui-monospace,monospace; }
 .detail-page-back { margin:0 0 18px; min-height:44px; }
+/* The post page's two exits — the feed and the profile — read as one row, and
+   wrap to a column rather than shrinking below a 44px target on a phone. */
+.detail-page-exits { display:flex; flex-wrap:wrap; gap:0 24px; margin:0; }
 .detail-post { display:flex; flex-direction:column; min-width:0; max-width:720px; margin:auto; }
 .detail-figure { display:flex; flex-direction:column; min-width:0; margin:6px 0 0; }
 .detail-media { position:relative; overflow:hidden; display:grid; place-items:center; min-width:0; min-height:180px; border-radius:12px; background:#eeece5; }
@@ -453,7 +472,7 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .detail-state-message { max-width:720px; margin:auto; }
 .detail-state-message .detail-skeleton { margin-top:28px; text-align:left; }
 @media(max-width:800px) { .workspace{grid-template-columns:1fr}.form-panel{position:static}.hero{padding-bottom:52px}.lead-capture{grid-template-columns:1fr}.product-story-intro{grid-template-columns:1fr}.product-story-intro .eyebrow{grid-column:auto}.story-flow{grid-template-columns:1fr}.story-connector{min-height:62px}.story-connector::before{top:10px;bottom:10px;left:50%;right:auto;width:1px;height:auto}.story-connector::after{right:auto;bottom:9px;width:7px;height:7px;border-top:0;border-right:1px solid #8eacc8;border-bottom:1px solid #8eacc8;transform:rotate(45deg)}.story-connector span{writing-mode:horizontal-tb} }
-@media(max-width:520px) { main{width:calc(100% - 24px);padding-top:18px}.site-header{align-items:flex-start;flex-direction:column;gap:14px}.site-nav{justify-content:flex-start;width:100%;overflow-x:auto;padding:2px 2px 8px;scrollbar-width:thin}.site-nav a{flex:none;min-height:44px;display:inline-flex;align-items:center}.form-panel,.list-panel{padding:21px}.hero{padding-top:48px}.hero h1{font-size:clamp(38px,13vw,56px)}form{grid-template-columns:1fr}.field{grid-column:1/-1}.list-heading{align-items:start;flex-direction:column;gap:10px}.filters,.social-toolbar{align-items:stretch;flex-direction:column;gap:14px}.filter{flex:1 1 auto;width:100%;min-width:0}.clear-filters{width:100%;justify-content:center} }
+@media(max-width:520px) { main,.page{width:calc(100% - 24px);padding-top:18px}.site-header{align-items:flex-start;flex-direction:column;gap:14px}.site-nav{justify-content:flex-start;width:100%;overflow-x:auto;padding:2px 2px 8px;scrollbar-width:thin}.site-nav a{flex:none;min-height:44px;display:inline-flex;align-items:center}.form-panel,.list-panel{padding:21px}.hero{padding-top:48px}.hero h1{font-size:clamp(38px,13vw,56px)}form{grid-template-columns:1fr}.field{grid-column:1/-1}.list-heading{align-items:start;flex-direction:column;gap:10px}.filters,.social-toolbar{align-items:stretch;flex-direction:column;gap:14px}.filter{flex:1 1 auto;width:100%;min-width:0}.clear-filters{width:100%;justify-content:center} }
 @media(max-width:520px) { .release-filters{align-items:stretch;flex-direction:column}.release-search-filter{flex:1 1 auto} }
 @media(max-width:520px) { .release-toggle{align-items:flex-start;padding:16px}.release-info{align-items:flex-start;flex-direction:column}.release-chevron{margin-top:5px}.detail-heading{align-items:stretch;flex-direction:column}.share-control{align-items:stretch;flex-direction:column}.share-button{width:100%}.share-status{max-width:none}.detail-decision{align-items:flex-start}.detail-decision-owner{width:100%;padding-left:0}.detail-meta{display:grid;grid-template-columns:1fr;gap:14px}.detail-decision-alternatives{align-items:flex-start;flex-direction:column;gap:3px} }
 @media(max-width:760px) { .alternative-grid{grid-template-columns:1fr}.decision-section-heading{align-items:stretch;flex-direction:column}.comparison-controls{align-items:stretch;flex-direction:column}.comparison-status{max-width:none;text-align:left}.comparison-toggle{width:100%}.decision-context{grid-template-columns:1fr;gap:10px} }

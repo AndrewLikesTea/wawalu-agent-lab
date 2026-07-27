@@ -30,12 +30,16 @@ async function init() {
   const params = new URLSearchParams(window.location.search);
   const id = params.get("id") ?? "";
   const requestedAuthor = (params.get("author") ?? "").trim();
+  // The standing exit points at Profile generally until an author is known, then
+  // at that author's own profile. The visible text carries the destination on
+  // its own, so there is no aria-label saying something the eye cannot read.
   const back = document.querySelector("#post-back");
-  if (back && requestedAuthor) {
-    back.href = profileHref(requestedAuthor);
-    back.textContent = `← ${requestedAuthor}'s profile`;
-    back.setAttribute("aria-label", `${requestedAuthor}'s profile`);
-  }
+  const nameProfileExit = (author) => {
+    if (!back || !author) return;
+    back.href = profileHref(author);
+    back.textContent = `← Back to ${author}'s profile`;
+  };
+  nameProfileExit(requestedAuthor);
 
   const heading = document.querySelector("#page-title");
   const nameHeading = (post) => {
@@ -75,11 +79,7 @@ async function init() {
     });
     nameHeading(post);
     document.title = postDetailTitle(post, state);
-    if (back && post) {
-      back.href = profileHref(post.author);
-      back.textContent = `← ${post.author}'s profile`;
-      back.setAttribute("aria-label", `${post.author}'s profile`);
-    }
+    if (post) nameProfileExit(post.author);
     document.documentElement.dataset.shiplogPostDetail = "ready";
   };
 
