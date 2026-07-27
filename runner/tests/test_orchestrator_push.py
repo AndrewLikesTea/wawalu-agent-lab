@@ -103,3 +103,17 @@ class OptionalReviewDebateTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class BudgetExhaustedWorktreeTests(unittest.TestCase):
+    """A worker stopped by our own spend cap must not have its work thrown away."""
+
+    def test_a_worktree_the_worker_changed_is_recognized_as_work(self):
+        with mock.patch.object(orchestrator, "output",
+                               return_value=" M src/provider-usage.js\n?? tests/fixtures/anthropic.csv"):
+            self.assertTrue(orchestrator.worker_left_work(WORKTREE))
+
+    def test_an_untouched_worktree_is_not_work(self):
+        """A capped session that produced nothing is a plain failure, cap or no cap."""
+        with mock.patch.object(orchestrator, "output", return_value=""):
+            self.assertFalse(orchestrator.worker_left_work(WORKTREE))

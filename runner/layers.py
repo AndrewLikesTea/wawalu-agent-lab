@@ -43,6 +43,13 @@ CAPACITY_EXIT_CODES = {"codex": 75, "claude": 76}
 # in the work, so it gets its own signal: distinct from the capacity codes (75/76) and
 # from orchestrator.DIFF_BUDGET_EXIT_CODE (77).
 PROVIDER_OVERLOAD_EXIT_CODE = 78
+# Our own --max-budget-usd cap firing is not a defect in the work. A worker routinely
+# finishes, writes its delivery request, and only then crosses the cap on its closing
+# turn; failing that run discards a complete, check-passing worktree and pays the same
+# cap again on every retry. Its own code lets the orchestrator hand the worktree to the
+# gates — npm run check, the policy check, the reviewer — which are what actually judge
+# whether a budget-truncated diff is fit to ship.
+BUDGET_EXHAUSTED_EXIT_CODE = 79
 # Local planner draws are cheap next to the paid consultation whose idea they decompose,
 # so spend a few rather than lose that idea to one unlucky sample.
 DIRECTIVE_PLAN_DRAWS = 4
@@ -562,6 +569,11 @@ def run_worker(worker: str, prompt: str, worktree: pathlib.Path, run_dir: pathli
     # belongs on the capacity path with its cooldown and its switch to the other worker.
     if exit_code and is_provider_overloaded(log_path):
         return PROVIDER_OVERLOAD_EXIT_CODE
+    # Checked last: capacity and overload are the provider refusing us and must keep
+    # their cooldown and worker-switch paths. This is our own cap, and it says nothing
+    # about whether the work in the worktree is any good.
+    if exit_code and is_budget_exhausted(log_path):
+        return BUDGET_EXHAUSTED_EXIT_CODE
     return exit_code
 
 
@@ -637,6 +649,31 @@ def is_provider_overloaded(log_path: pathlib.Path) -> bool:
         except (TypeError, ValueError):
             continue
         if status >= 500:
+            return True
+    return False
+
+
+def is_budget_exhausted(log_path: pathlib.Path) -> bool:
+    """Report whether the session ended because our own --max-budget-usd cap fired.
+
+    The Claude CLI names this case exactly, as a result record with subtype
+    error_max_budget_usd, so it never has to be guessed at from prose.
+    """
+    try:
+        text = log_path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return False
+    for line in text.splitlines():
+        line = line.strip()
+        if not line.startswith("{"):
+            continue
+        try:
+            record = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(record, dict) or record.get("type") != "result":
+            continue
+        if str(record.get("subtype", "")).startswith("error_max_budget"):
             return True
     return False
 
