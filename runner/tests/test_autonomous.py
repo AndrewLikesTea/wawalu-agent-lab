@@ -1295,6 +1295,57 @@ class AutonomousTests(IsolatedDiffBudget):
             self.assertEqual(state.value["issues"]["60"]["status"], "retry")
             self.assertEqual(state.value["issues"]["60"]["worker_override"], "codex")
 
+    def test_capacity_backoff_is_short_while_the_alternate_provider_is_awake(self):
+        """One dark provider is not a reason to idle: the long backoff is for both dark.
+
+        With a live alternate the retry already routes around the exhausted provider,
+        so an hour-long wait buys nothing and costs the team an hour of throughput.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            state.value["issues"]["60"] = {"status": "running", "attempts": 3,
+                                           "capacity_failures": 6}
+            journal = autonomous.Journal(pathlib.Path(tmp) / "events.jsonl")
+            issue = {"number": 60, "title": "Share button", "body": "",
+                     "labels": [{"name": "agent-ready"}]}
+            config = {**self.config(), "issue_label": "agent-ready",
+                      "capacity_retry_seconds": 900, "capacity_retry_max_seconds": 3600,
+                      "retry_cooldown_seconds": 300}
+            with mock.patch.object(autonomous, "comment"), \
+                 mock.patch.object(autonomous, "replace_state_label"):
+                # Exit 75 is codex; claude has no cooldown recorded, so it is awake.
+                autonomous.record_run_outcome(75, issue, 60, "frontend", {}, config,
+                                              state, journal, "token")
+            record = state.value["issues"]["60"]
+            self.assertEqual(record["worker_override"], "claude")
+            wait = (dt.datetime.fromisoformat(record["retry_at"])
+                    - autonomous.utc_now()).total_seconds()
+            self.assertLessEqual(wait, 300)
+            # The exhausted provider is still held out, and no attempt was consumed.
+            self.assertFalse(state.worker_available("codex"))
+            self.assertEqual(record["attempts"], 2)
+
+    def test_capacity_backoff_stays_long_when_both_providers_are_dark(self):
+        """Nowhere to go: keep the exponential backoff rather than hammering a wall."""
+        with tempfile.TemporaryDirectory() as tmp:
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            state.value["issues"]["60"] = {"status": "running", "attempts": 3,
+                                           "capacity_failures": 6}
+            state.record_worker_capacity("claude", 900, maximum_seconds=3600)
+            journal = autonomous.Journal(pathlib.Path(tmp) / "events.jsonl")
+            issue = {"number": 60, "title": "Share button", "body": "",
+                     "labels": [{"name": "agent-ready"}]}
+            config = {**self.config(), "issue_label": "agent-ready",
+                      "capacity_retry_seconds": 900, "capacity_retry_max_seconds": 3600,
+                      "retry_cooldown_seconds": 300}
+            with mock.patch.object(autonomous, "comment"), \
+                 mock.patch.object(autonomous, "replace_state_label"):
+                autonomous.record_run_outcome(75, issue, 60, "frontend", {}, config,
+                                              state, journal, "token")
+            wait = (dt.datetime.fromisoformat(state.value["issues"]["60"]["retry_at"])
+                    - autonomous.utc_now()).total_seconds()
+            self.assertGreater(wait, 300)
+
     def test_spent_diff_budget_defers_without_consuming_an_attempt(self):
         """A spent daily rail is not a defect: it must not march issues to agent-blocked.
 
