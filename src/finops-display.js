@@ -11,13 +11,26 @@ const LIMITS = Object.freeze({
   percentile: [0, 100],
 });
 
+/**
+ * The words this layer has always used for "show it as a fact", "withhold it",
+ * and "show it, marked incomplete". They are named here so any other module
+ * deciding whether a figure may be shown reuses the reader's existing
+ * vocabulary instead of coining a synonym for the same state.
+ */
+export const TRUST_LABEL = Object.freeze({
+  available: "Available",
+  needsReview: "Needs review",
+  // Already on the page as the leading words of every partial finding status.
+  partial: "Partial result",
+});
+
 export function metricState(value, kind, { integer = false } = {}) {
   const limits = LIMITS[kind];
   const plausible = Boolean(limits) && Number.isFinite(value)
     && value >= limits[0] && value <= limits[1]
     && (!integer || Number.isInteger(value));
   return { plausible, value: plausible ? value : null,
-    label: plausible ? "Available" : "Needs review" };
+    label: plausible ? TRUST_LABEL.available : TRUST_LABEL.needsReview };
 }
 
 export function headlineTrust(totals, organization = {}) {

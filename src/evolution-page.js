@@ -39,6 +39,9 @@ import {
   closeMappingReview, focusMappingReview, renderMappingReview,
 } from "/import-mapping-view.js";
 import { headlineTrust } from "/finops-display.js";
+// Whether the letter may be shown at all is decided before it is drawn: the
+// score card is a roll-up of only the departments the rubric actually scored.
+import { gradeEligibility } from "/grade-eligibility.js";
 import {
   announce as announceStage, applyDatasetProvenance, applyFieldDiagnostic, applyImportLimits,
   applyImportProgress, applyLeadingFinding, applyMetricBasis, applyRequirements, applyStage,
@@ -761,8 +764,12 @@ function renderFinancePortfolio(data) {
   }
 }
 
-function renderHeadline(organization, totals) {
+function renderHeadline(organization, totals, eligibility) {
   const trust = headlineTrust(totals, organization);
+  // Two independent gates on one letter, and both must pass. `headlineTrust`
+  // asks whether the number is inside the supported range; eligibility asks
+  // whether enough of the money was scored for the number to mean anything.
+  const gradeVisible = trust.score.plausible && eligibility.showGrade;
   const providers = Array.isArray(organization?.providers) ? organization.providers.join(", ") : "";
   setText("finops-provenance",
     `${organization?.name ?? "Organization"} · ${organization?.period ?? "current period"} · `
@@ -770,12 +777,23 @@ function renderHeadline(organization, totals) {
 
   const card = document.getElementById("score-card");
   if (card) {
-    card.dataset.band = trust.score.plausible ? band(totals.score) : "review";
-    card.dataset.metricState = trust.score.plausible ? "available" : "needs-review";
+    card.dataset.band = gradeVisible ? band(totals.score) : "review";
+    card.dataset.metricState = gradeVisible ? "available" : "needs-review";
+    card.dataset.coverageTier = eligibility.tier;
+    card.dataset.gradeState = eligibility.state;
   }
-  setText("score-grade", trust.score.plausible ? totals.grade : "!");
-  setText("score-value", trust.score.plausible
-    ? `${totals.score} / 100 · grade ${totals.grade}` : "Needs review · score unavailable");
+  setText("score-grade", gradeVisible ? totals.grade : "!");
+  setText("score-value", gradeVisible
+    ? `${totals.score} / 100 · grade ${totals.grade}`
+    : trust.score.plausible ? eligibility.label : "Needs review · score unavailable");
+  // Coverage and the one action are the only words this card gains, and both
+  // come from the eligibility model; nothing here writes a sentence of its own.
+  setText("score-coverage", eligibility.coverage === null
+    ? eligibility.label
+    : `${formatPercent(eligibility.coverage, { digits: 1 })} of spend scored · ${eligibility.label}`);
+  setText("score-action", eligibility.nextAction.text);
+  const action = document.getElementById("score-action");
+  if (action) action.dataset.available = String(eligibility.nextAction.available);
   setText("score-peer", trust.score.plausible
     ? `${totals.scoreExplanation.version} · ${totals.scoreExplanation.rule} ${totals.scoreExplanation.arithmetic}`
     : "The calculated score fell outside the supported 0–100 range and is not presented as reliable.");
@@ -1098,6 +1116,12 @@ async function init() {
       if (hasRenderedAnalysis) return;
       setText("finops-provenance", "Demo data unavailable — the executive view will populate once the feed returns.");
       setText("score-value", "Score unavailable");
+      // A failed load has no spend denominator, which is the same honest state
+      // as an import with none: the coverage line says so rather than sitting
+      // on its loading copy under a card that has already given up.
+      const noData = gradeEligibility([]);
+      setText("score-coverage", noData.label);
+      setText("score-action", noData.nextAction.text);
       setText("score-peer", "No metric is inferred from a failed load.");
       for (const id of ["kpi-spend-value", "kpi-recoverable-value", "kpi-productive-value", "kpi-peer-value"])
         setText(id, "Unavailable");
@@ -1119,7 +1143,7 @@ async function init() {
     const departments = Array.isArray(data.departments) ? data.departments : [];
     const totals = summarize(departments);
     renderFinancePortfolio(data);
-    renderHeadline(data.organization ?? {}, totals);
+    renderHeadline(data.organization ?? {}, totals, gradeEligibility(departments));
     renderDecisionSurface(data, departments);
     renderMix(totals);
     renderRedaction(data.redactionSamples);
