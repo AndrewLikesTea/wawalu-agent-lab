@@ -26,12 +26,19 @@ import {
 // One entry point for a selected file: `.json` keeps the reviewed JSON path
 // untouched, `.csv`/`.tsv`/`.txt` route through the delimited normalizer. Both
 // return the same parsed v1 envelope, so nothing below this line changes.
-import { parseLocalImportFile } from "/finops-tabular-import.js";
+import { isDelimitedFileName, parseLocalImportFile } from "/finops-tabular-import.js";
+import { readDelimitedText } from "/delimited-text.js";
+// The column-review step. The model owns what every column became; the view
+// owns the surface; this layer owns only when the step opens and closes.
+import { createColumnMapping, mappingBinding, setColumnTarget, setMappingKind } from "/import-column-mapping.js";
+import {
+  closeMappingReview, focusMappingReview, renderMappingReview,
+} from "/import-mapping-view.js";
 import { headlineTrust } from "/finops-display.js";
 import {
   announce as announceStage, applyDatasetProvenance, applyFieldDiagnostic, applyLeadingFinding,
   applyMetricBasis, applyRequirements, applyStage, applyTrustVerdict, diagnosticFor,
-  EXAMPLE_DATASET_PROVENANCE, focusStageHeading, importStage, metricBasis,
+  EXAMPLE_DATASET_PROVENANCE, focusStageHeading, importStage, metricBasis, userDatasetProvenance,
 } from "/local-import-flow.js";
 import { loadExampleDatasetInputs } from "/example-dataset.js";
 import { leadingFinding } from "/finops-leading-finding.js";
@@ -105,7 +112,15 @@ function mountLocalFinopsImport() {
   const stateNode = document.getElementById("local-import-state");
   const resultsNode = document.getElementById("local-results");
   const clear = document.getElementById("clear-local-analysis");
+  const remap = document.getElementById("remap-local-import");
   const loaded = { providers: [] };
+  // Every accepted input, in selection order. A JSON envelope is parsed on
+  // sight; a delimited file keeps its text and the mapping the reader confirmed,
+  // so the step can be re-entered without re-selecting the file. All of it lives
+  // in this closure for as long as the tab does and no longer.
+  const imports = [];
+  let queue = [];
+  let review = null;
   let result = null;
   // One flag decides everything the reader is told about where these numbers
   // came from: the badge, the metric basis, every provenance note, and the two
@@ -129,6 +144,7 @@ function mountLocalFinopsImport() {
   const syncStage = ({ hasResult = false, focus = false } = {}) => {
     const next = importStage({
       providers: loaded.providers.length, hris: Boolean(loaded.hris), hasResult,
+      reviewing: Boolean(review),
     });
     const changed = next !== stage;
     stage = next;
@@ -215,11 +231,20 @@ function mountLocalFinopsImport() {
       list?.append(element("li", "evidence-empty",
         "No department findings. No active HRIS unit matched a provider aggregate."));
   };
+  // What the reader's own result is labelled with, everywhere the example
+  // caption used to sit: their file names, the rows that were read, and the
+  // shape each delimited file was read as.
+  const importProvenance = () => userDatasetProvenance({
+    files: imports.map((entry) => entry.fileName),
+    rows: imports.reduce((sum, entry) => sum + entry.rows, 0),
+    shapes: imports.map((entry) => entry.state?.shapeLabel ?? null),
+  });
   const renderResult = (next, { example = false, inputs = loaded } = {}) => {
     result = next;
     exampleActive = example;
     resultsNode.setAttribute("aria-busy", "false");
-    applyDatasetProvenance(document, example);
+    applyDatasetProvenance(document, example, example ? null : importProvenance());
+    if (remap) remap.hidden = example || !imports.some((entry) => entry.source === "delimited");
     setMode(example ? "example-dataset" : "local", example ? "Example data" : "Local import");
     setText("finops-intro", example
       ? `${EXAMPLE_DATASET_PROVENANCE.detail} It walks the same translator and analysis an `
@@ -319,6 +344,14 @@ function mountLocalFinopsImport() {
     const wasExample = exampleActive;
     loaded.providers.length = 0;
     delete loaded.hris;
+    // Abandoning is total: the queued files, the retained delimited text, and
+    // the mapping choices go with the result. Nothing was written down, so a
+    // fresh import afterwards starts from the file picker with no residue.
+    imports.length = 0;
+    queue = [];
+    review = null;
+    closeMappingReview(document);
+    if (remap) remap.hidden = true;
     result = null;
     exampleActive = false;
     input.value = "";
@@ -358,6 +391,147 @@ function mountLocalFinopsImport() {
     syncStage({ focus: true });
   };
 
+  // Every input that survived to this point, folded back into the two the
+  // analysis takes. Rebuilding rather than mutating in place means a re-mapped
+  // file replaces its own earlier reading and nothing accumulates.
+  const rebuildLoaded = () => {
+    loaded.providers.length = 0;
+    delete loaded.hris;
+    for (const entry of imports) {
+      if (entry.parsed.type === "provider") loaded.providers.push(entry.parsed);
+      else loaded.hris = entry.parsed;
+    }
+  };
+
+  // The diagnostic belongs to the control that produced it: the input goes
+  // aria-invalid, the message is described-by it, and the recovery sits beside
+  // it. The failing file is named by its position in the selection — never by
+  // file name, path, or any value read out of it.
+  const failFile = (error, file) => {
+    queue = [];
+    const diagnostic = diagnosticFor({
+      code: error?.code, message: error?.message, ordinal: file.ordinal, total: file.total,
+    });
+    applyFieldDiagnostic(document, diagnostic);
+    showTransientBasis("failed");
+    syncStage();
+    announce("error", "This file was not analyzed.",
+      `${diagnostic.text} ${diagnostic.recovery} Existing analysis was not replaced.`);
+    input.focus?.();
+  };
+
+  const closeReview = () => {
+    review = null;
+    closeMappingReview(document);
+  };
+
+  // --- step 2: check the mapping --------------------------------------------
+  // The step owns no state of its own. Every correction produces a new mapping
+  // state, the surface is repainted from it, and the analysis is only ever run
+  // from a binding the model agreed to produce.
+  const paintReview = () => renderMappingReview(document, review.state, {
+    onTarget: (index, target) => {
+      review.state = setColumnTarget(review.state, index, target);
+      paintReview();
+    },
+    onKind: (kind) => {
+      review.state = setMappingKind(review.state, kind);
+      paintReview();
+    },
+    onConfirm: () => confirmReview(),
+    onCancel: () => reset(),
+  });
+
+  const openReview = (file, entry = null) => {
+    const reading = readDelimitedText(file.text);
+    if (!reading.ok) {
+      failFile({ code: reading.problem.code, message: reading.problem.code }, file);
+      return false;
+    }
+    review = {
+      file,
+      entry,
+      // Re-entering keeps the reader's own choices. Resetting to the detected
+      // proposal would silently undo the correction they came back to change.
+      state: entry?.state ?? createColumnMapping({ reading, fileName: file.fileName }),
+    };
+    paintReview();
+    // Reviewing is the "check the mapping" stage the indicator already names, so
+    // the step arrives with the flow's own step 2 marked current.
+    syncStage();
+    focusMappingReview(document);
+    announce("ready", "Check the column mapping.",
+      "Every column in the selected file is listed with what it becomes and one value from it. "
+      + "Nothing is computed until you confirm.");
+    return true;
+  };
+
+  const confirmReview = () => {
+    const binding = mappingBinding(review?.state);
+    // The confirm control is disabled while a blocker stands; this is the second
+    // lock, so a stale click can never reach the parser with a half-mapping.
+    if (!binding) return;
+    const { file, entry, state } = review;
+    let parsed;
+    try {
+      parsed = parseLocalImportFile(file.text, file.fileName, file.mediaType, { mapping: binding });
+    } catch (error) {
+      closeReview();
+      failFile(error, file);
+      return;
+    }
+    const stored = entry ?? { source: "delimited", fileName: file.fileName, mediaType: file.mediaType, text: file.text };
+    stored.state = state;
+    stored.parsed = parsed;
+    stored.rows = state.dataRowCount;
+    if (!entry) imports.push(stored);
+    closeReview();
+    processQueue();
+  };
+
+  const finishSelection = (total) => {
+    rebuildLoaded();
+    if (!loaded.providers.length || !loaded.hris) {
+      const missing = loaded.providers.length ? "HRIS mapping" : "provider export";
+      showTransientBasis("partial");
+      syncStage({ focus: true });
+      announce("ready", `${total} compatible file${total === 1 ? "" : "s"} ready.`,
+        `Add the ${missing}; example analysis remains visible.`);
+      return;
+    }
+    renderResult(normalizeLocalFinopsHistory({
+      providers: loaded.providers,
+      hris: loaded.hris,
+    }));
+  };
+
+  const processQueue = () => {
+    let total = imports.length + queue.length;
+    while (queue.length) {
+      const file = queue.shift();
+      total = file.total;
+      // A delimited file is never analyzed on sight: it goes through the review
+      // step, and the rest of the selection waits behind it.
+      if (isDelimitedFileName(file.fileName)) {
+        // Whether the reader is now reviewing it or it failed to read at all,
+        // this selection stops here: the step, or the diagnostic, owns the flow.
+        openReview(file);
+        return;
+      }
+      try {
+        const parsed = parseLocalImportFile(file.text, file.fileName, file.mediaType);
+        imports.push({
+          source: "json", fileName: file.fileName, parsed, state: null,
+          rows: parsed.document?.records?.length ?? 0,
+        });
+      } catch (error) {
+        failFile(error, file);
+        return;
+      }
+    }
+    finishSelection(total || imports.length);
+  };
+
   input.addEventListener("change", async () => {
     const files = [...input.files];
     if (!files.length) return;
@@ -366,49 +540,31 @@ function mountLocalFinopsImport() {
     applyFieldDiagnostic(document, null);
     announce("loading", "Reading files in this tab…",
       "Parsing and validation are running locally; no file contents are being transferred.");
-    let ordinal = 0;
     try {
-      for (const file of files) {
-        ordinal += 1;
-        // `file.text()` is the local Blob text API. Nothing here transfers,
-        // stores, or persists the bytes; the parsed projection lives in this
-        // closure for as long as the tab does and no longer.
-        const parsed = parseLocalImportFile(await file.text(), file.name, file.type);
-        if (parsed.type === "provider")
-          loaded.providers.push(parsed);
-        else loaded.hris = parsed;
-      }
-      if (!loaded.providers.length || !loaded.hris) {
-        const missing = loaded.providers.length ? "HRIS mapping" : "provider export";
-        showTransientBasis("partial");
-        syncStage({ focus: true });
-        announce("ready", `${files.length} compatible file${files.length === 1 ? "" : "s"} ready.`,
-          `Add the ${missing}; example analysis remains visible.`);
-        return;
-      }
-      renderResult(normalizeLocalFinopsHistory({
-        providers: loaded.providers,
-        hris: loaded.hris,
-      }));
-    } catch (error) {
-      // The diagnostic belongs to the control that produced it: the input goes
-      // aria-invalid, the message is described-by it, and the recovery sits
-      // beside it. The failing file is named by its position in the selection —
-      // never by file name, path, or any value read out of it.
-      const diagnostic = diagnosticFor({
-        code: error?.code, message: error?.message, ordinal, total: files.length,
-      });
-      applyFieldDiagnostic(document, diagnostic);
-      showTransientBasis("failed");
-      syncStage();
-      announce("error", "This file was not analyzed.",
-        `${diagnostic.text} ${diagnostic.recovery} Existing analysis was not replaced.`);
-      input.focus?.();
+      // `file.text()` is the local Blob text API. Nothing here transfers,
+      // stores, or persists the bytes; the text lives in this closure for as
+      // long as the tab does and no longer.
+      queue = await Promise.all(files.map(async (file, index) => ({
+        fileName: file.name, mediaType: file.type, text: await file.text(),
+        ordinal: index + 1, total: files.length,
+      })));
+      processQueue();
     } finally {
       stateNode.setAttribute("aria-busy", "false");
       resultsNode.setAttribute("aria-busy", "false");
       input.value = "";
     }
+  });
+  // Back into the step from a rendered result, with the file already in hand and
+  // the reader's own choices intact — no second trip through the file picker.
+  remap?.addEventListener("click", () => {
+    const entry = [...imports].reverse().find((candidate) => candidate.source === "delimited");
+    if (!entry) return;
+    applyFieldDiagnostic(document, null);
+    openReview({
+      fileName: entry.fileName, mediaType: entry.mediaType, text: entry.text,
+      ordinal: 1, total: 1,
+    }, entry);
   });
   clear?.addEventListener("click", reset);
   // One click, one computed finding. Translating the bundled export and running

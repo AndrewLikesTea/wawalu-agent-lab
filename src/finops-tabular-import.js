@@ -664,6 +664,55 @@ function normalizeRosterRows(binding, reading, problems, options) {
 }
 
 /**
+ * The canonical fields a reviewed mapping may bind, and which of them the
+ * normalizer cannot proceed without. It mirrors the required flags declared on
+ * the shapes above; the review step reads the same table so the step and the
+ * parser can never disagree about what "required" means.
+ */
+const MANUAL_FIELDS = Object.freeze({
+  provider: Object.freeze({
+    date: true, orgUnit: true, model: true, amount: true,
+    currency: false, inputTokens: false, outputTokens: false, quantity: false,
+    provider: false, status: false,
+  }),
+  hris: Object.freeze({ orgUnit: true, parent: false, unitType: false, active: false }),
+});
+
+/**
+ * Build a binding from a reviewed column mapping instead of from detection.
+ *
+ * The shape is synthesized rather than looked up, so a hand-mapped file never
+ * has to pretend to be a vendor's export and nothing is added to `SHAPES` that
+ * detection would then have to rank. Everything downstream — normalization,
+ * grouping, the contract validator — is the auto-detected path unchanged.
+ */
+export function bindingFromMapping(mapping, header) {
+  const kind = mapping?.kind === "hris" ? "hris" : "provider";
+  const declared = MANUAL_FIELDS[kind];
+  const bound = {};
+  let matched = 0;
+  for (const [field, index] of Object.entries(mapping?.bound ?? {})) {
+    if (!Object.hasOwn(declared, field)) continue;
+    if (!Number.isInteger(index) || index < 0 || index >= header.length) continue;
+    bound[field] = index;
+    matched += 1;
+  }
+  const missing = Object.keys(declared).filter((field) => declared[field] && bound[field] === undefined);
+  const columns = Object.fromEntries(Object.entries(declared).map(([field, required]) => [
+    field, { aliases: Object.freeze([]), required },
+  ]));
+  return {
+    shape: Object.freeze({
+      id: mapping?.shapeId ?? `reviewed_${kind}`,
+      label: "Reviewed column mapping",
+      kind, provider: mapping?.provider ?? "other",
+      columns: Object.freeze(columns),
+    }),
+    bound, missing, matched, recognized: missing.length === 0,
+  };
+}
+
+/**
  * Read one delimited provider export or roster and normalize it into a v1
  * envelope.
  *
@@ -677,7 +726,12 @@ export function parseDelimitedFinopsFile(text, fileName = "export.csv", options 
   const reading = readDelimitedText(text, options);
   if (!reading.ok) return failure([makeProblem(reading.problem.code, reading.problem)]);
 
-  const binding = detectShape(reading.header);
+  // A reviewed mapping wins over detection: the reader has already been shown
+  // what every column became and has corrected it, so re-guessing here would
+  // discard the one answer that is not a guess.
+  const binding = options.mapping
+    ? bindingFromMapping(options.mapping, reading.header)
+    : detectShape(reading.header);
   const columns = Object.freeze([...reading.header]);
   if (!binding.recognized) {
     if (binding.matched === 0) {
@@ -762,6 +816,12 @@ function extensionOf(fileName) {
   return dot < 0 ? "" : name.slice(dot);
 }
 
+/** Does this file name route through the delimited path? The column-review step
+ * asks before it decides whether a file needs reviewing at all. */
+export function isDelimitedFileName(fileName) {
+  return ACCEPTED_DELIMITED_EXTENSIONS.includes(extensionOf(fileName));
+}
+
 function reject(code, message, detail = {}) {
   const error = new TypeError(message);
   error.code = code;
@@ -778,7 +838,7 @@ function reject(code, message, detail = {}) {
  * list, so the existing diagnostic surface keeps working while a later task can
  * render the located problems.
  */
-export function parseLocalImportFile(text, fileName = "local.json", mediaType = "") {
+export function parseLocalImportFile(text, fileName = "local.json", mediaType = "", options = {}) {
   const extension = extensionOf(fileName);
   if (extension === ACCEPTED_LOCAL_FILE.extension) {
     return parseLocalFinopsFile(text, fileName, mediaType);
@@ -791,7 +851,7 @@ export function parseLocalImportFile(text, fileName = "local.json", mediaType = 
     reject(TABULAR_CODES.UNSUPPORTED_FORMAT,
       `The file media type “${mediaType}” is not a declared delimited-text type.`);
   }
-  const result = parseDelimitedFinopsFile(text, fileName, {});
+  const result = parseDelimitedFinopsFile(text, fileName, options);
   if (!result.ok) {
     const blocking = result.problems[0];
     reject(blocking.code, describeProblem(blocking), { problems: result.problems });

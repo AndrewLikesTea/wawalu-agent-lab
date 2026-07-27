@@ -215,8 +215,14 @@ test("the redaction promise is stated where the numbers are read, not in a foote
   const boundary = html.indexOf('class="privacy-boundary"');
   assert.ok(boundary > 0 && boundary < html.indexOf('id="local-finops-files"'),
     "the boundary must precede the control that starts the import");
-  assert.match(html, /Column headers and totals are shown; source rows and cell values are never rendered/);
-  assert.match(html, /No cell value, record identifier, or file name is rendered, announced, or written to an export/);
+  // The promise moved with the product, deliberately: the column-review step
+  // shows one sample value per column, because a reader cannot check what their
+  // column became without seeing what is in it, and their own file name labels
+  // their own result. Everything else the boundary said still holds, and the
+  // limit is still stated at the control rather than in a footer.
+  assert.match(html, /Column headers, one sample value per column while you check the mapping, and totals are shown; no other cell value is ever rendered/);
+  assert.match(html, /No other cell value or record identifier is rendered, announced, or written to an export/);
+  assert.match(html, /your file name appears only as the provenance label on your own result/);
 
   // Detailed provenance recedes into disclosure; the promise itself does not.
   const doc = await page();

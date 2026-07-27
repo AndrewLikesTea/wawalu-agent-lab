@@ -114,6 +114,50 @@
 .import-stage[data-state="complete"] { border-color:var(--import-line); background:var(--import-wash); }
 .import-stage[data-state="remaining"] { border-style:dashed; }
 
+/* Step 2 — the column review. The table is the reader's own file, so nothing in
+   it is decoration: header, target, where the proposal came from, and one real
+   value. Every state ships a word; the tint is the fourth signal, never first. */
+.import-mapping { margin:18px 0; border:1px solid var(--import-accent); border-radius:12px; padding:18px; background:#fff; }
+.import-mapping-heading h3 { margin:4px 0 6px; font-size:19px; }
+.import-mapping-file { font:700 12px/1.5 ui-monospace,monospace; overflow-wrap:anywhere; }
+.import-mapping-summary,.import-mapping-file-line { margin:0 0 8px; color:var(--ink-muted); font-size:13px; }
+.import-mapping-summary span { display:block; }
+.import-mapping-summary .import-mapping-outcome { color:var(--import-ink); font-weight:700; }
+.import-mapping-kind { display:flex; align-items:baseline; flex-wrap:wrap; gap:10px; margin:12px 0; }
+.import-mapping-kind label { font-weight:750; }
+.import-mapping-kind select { min-height:44px; border:1px solid var(--import-line); border-radius:9px; padding:8px 10px; background:#fff; font:inherit; }
+.import-mapping-kind p { flex:1 1 240px; margin:0; color:var(--ink-muted); font-size:12px; }
+.import-mapping-issues { margin:12px 0; border:1px solid var(--import-line); border-radius:10px; padding:12px 14px; background:var(--import-wash); }
+.import-mapping-issues[data-tone="blocker"] { border-color:#a8321f; background:#fdf2f0; }
+.import-mapping-issue-heading { margin:0 0 8px; font-size:13px; }
+.import-mapping-issue-list { display:grid; gap:10px; margin:0; padding:0; list-style:none; }
+.import-mapping-issue { display:grid; grid-template-columns:18px 1fr; gap:2px 8px; }
+.import-mapping-issue .issue-shape { grid-row:1/3; font-weight:750; }
+.import-mapping-issue .issue-consequence { color:var(--ink-muted); font-size:13px; }
+.import-mapping-scroll { overflow-x:auto; }
+.import-mapping-table { width:100%; border-collapse:collapse; text-align:left; }
+.import-mapping-table caption { padding-bottom:8px; color:var(--ink-muted); font-size:12px; text-align:left; }
+.import-mapping-table th,.import-mapping-table td { border-bottom:1px solid var(--import-line); padding:10px 12px 10px 0; vertical-align:top; }
+.import-mapping-table thead th { color:var(--ink-muted); font:700 10px/1.4 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; }
+.import-mapping-column { min-width:150px; }
+.import-mapping-column-index { display:block; color:var(--ink-muted); font:700 10px/1.4 ui-monospace,monospace; }
+.import-mapping-column-name { display:block; font-weight:750; overflow-wrap:anywhere; }
+.import-mapping-column-note { display:block; color:var(--ink-muted); font-size:12px; }
+.import-mapping-select { width:100%; min-height:44px; border:1px solid var(--import-line); border-radius:9px; padding:8px 10px; background:#fff; font:inherit; }
+.import-mapping-select[aria-invalid="true"] { border-color:#a8321f; box-shadow:inset 3px 0 #a8321f; }
+.import-mapping-message { margin:6px 0 0; color:#8f2b1a; font-size:12px; font-weight:700; }
+.import-mapping-origin-word { font:700 11px/1.4 ui-monospace,monospace; white-space:nowrap; }
+.import-mapping-row[data-origin="unset"] .import-mapping-origin-word { color:var(--ink-muted); }
+.import-mapping-sample { max-width:280px; }
+.import-mapping-sample-value { overflow-wrap:anywhere; }
+.import-mapping-sample-note,.import-mapping-sample-empty { display:block; color:var(--ink-muted); font-size:12px; }
+.import-mapping-status { margin:12px 0 0; color:var(--import-ink); font-size:13px; font-weight:700; }
+.import-mapping-actions { display:flex; flex-wrap:wrap; gap:10px; margin-top:14px; }
+.import-mapping-actions button { min-height:44px; border:1px solid var(--import-line); border-radius:9px; padding:10px 16px; background:#fff; font:inherit; font-weight:750; }
+.import-mapping-actions #import-mapping-confirm { border-color:var(--import-accent); background:var(--import-accent); color:#fff; }
+.import-mapping-actions button[disabled] { border-color:var(--import-line); background:var(--import-wash); color:var(--ink-muted); cursor:not-allowed; }
+.import-mapping select:focus-visible,.import-mapping button:focus-visible,.import-mapping h3:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+
 /* Requirement rows — the mapping summary. Each unresolved row carries the jump
    that moves focus to the control which resolves it. */
 .mapping-requirements { display:grid; gap:8px; margin:16px 0 0; padding:0; list-style:none; }
@@ -467,6 +511,15 @@
   .proof-point-boundary { align-items:start; flex-direction:column; }
   .local-import-heading,.local-import-controls,.local-result-heading { align-items:stretch; flex-direction:column; }
   .import-stage { flex:1 1 100%; }
+  /* No horizontal scroll on a phone: each column becomes its own card, with the
+     four fixed labels drawn from data-label so the row stays readable. */
+  .import-mapping-table,.import-mapping-table tbody,.import-mapping-table tr,.import-mapping-table td,.import-mapping-table th { display:block; }
+  .import-mapping-table thead { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
+  .import-mapping-row { margin-bottom:14px; border:1px solid var(--import-line); border-radius:10px; padding:12px; }
+  .import-mapping-table th,.import-mapping-table td { border-bottom:0; padding:6px 0; }
+  .import-mapping-table td[data-label]::before { display:block; color:var(--ink-muted); content:attr(data-label); font:700 10px/1.6 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; }
+  .import-mapping-sample { max-width:none; }
+  .import-mapping-actions button { width:100%; }
   .mapping-requirement .requirement-status { margin-left:auto; }
   .field-recovery { display:grid; }
   .sample-badge { width:fit-content; }

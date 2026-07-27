@@ -26,8 +26,16 @@ const STAGE_STATE_TEXT = Object.freeze({
   remaining: { status: "next", shape: "○" },
 });
 
-/** Which stage the surface is in, from what has actually been loaded. */
-export function importStage({ providers = 0, hris = false, hasResult = false } = {}) {
+/**
+ * Which stage the surface is in, from what has actually been loaded. Reviewing a
+ * column mapping *is* the check stage — it is the one place the reader is shown
+ * what their columns became — so it names the stage even before a file has
+ * finished parsing into a loaded input.
+ */
+export function importStage({
+  providers = 0, hris = false, hasResult = false, reviewing = false,
+} = {}) {
+  if (reviewing) return "check";
   if (hasResult) return "read";
   if (providers > 0 || hris) return "check";
   return "select";
@@ -320,15 +328,27 @@ export function applyFieldDiagnostic(doc, diagnostic) {
  * `data-dataset-provenance` note or it is a defect. Nothing here is per-view
  * copy — one string, one flag, applied everywhere at once.
  */
-export function applyDatasetProvenance(doc, exampleActive) {
+export function applyDatasetProvenance(doc, exampleActive, userProvenance = null) {
   const dataset = exampleActive ? "example" : "user";
   for (const surface of doc.querySelectorAll?.("[data-analysis-surface]") ?? [])
     surface.dataset.dataset = dataset;
   for (const note of doc.querySelectorAll?.("[data-dataset-provenance]") ?? []) {
     note.dataset.dataset = dataset;
-    note.hidden = !exampleActive;
+    note.hidden = !exampleActive && !userProvenance;
     if (!exampleActive) {
       note.replaceChildren();
+      // The reader's own numbers carry the reader's own provenance, on every
+      // surface the example caption used to occupy. One state, one label, no
+      // figure left captioned "Example data" once the example is gone.
+      if (userProvenance) {
+        const shape = textNode(doc, "span", "provenance-shape", "▣");
+        shape.setAttribute("aria-hidden", "true");
+        note.append(
+          shape,
+          textNode(doc, "strong", "provenance-label", userProvenance.label),
+          textNode(doc, "span", "provenance-detail", userProvenance.detail),
+        );
+      }
       continue;
     }
     const shape = textNode(doc, "span", "provenance-shape", "◇");
@@ -340,7 +360,33 @@ export function applyDatasetProvenance(doc, exampleActive) {
       textNode(doc, "span", "provenance-swap", EXAMPLE_DATASET_PROVENANCE.swap),
     );
   }
-  return exampleActive ? EXAMPLE_DATASET_PROVENANCE : null;
+  return exampleActive ? EXAMPLE_DATASET_PROVENANCE : userProvenance;
+}
+
+/**
+ * The provenance label for the reader's own import: their file names, the rows
+ * that were read, and — when one was recognized — the export shape they were
+ * read as. It is built here, once, for the same reason the example label is:
+ * two wordings on two surfaces would drift.
+ *
+ * File names are the reader's own and appear only on their own result. They are
+ * written as text nodes; nothing here interpolates them into markup, and the
+ * redaction that governs *diagnostics* is unchanged — a parser message still
+ * names a file by its position in the selection, never by name.
+ */
+export function userDatasetProvenance({ files = [], rows = 0, shapes = [] } = {}) {
+  const names = files.filter(Boolean);
+  if (!names.length) return null;
+  const shapeText = shapes.filter(Boolean).length
+    ? ` Read as ${[...new Set(shapes.filter(Boolean))].join(" and ")}.`
+    : "";
+  return Object.freeze({
+    label: `Your data — ${names.join(", ")}`,
+    detail: `${rows} row${rows === 1 ? "" : "s"} read in this tab and mapped by you.${shapeText}`
+      + " Nothing was uploaded or stored.",
+    files: Object.freeze([...names]),
+    rows,
+  });
 }
 
 /**
