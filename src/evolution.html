@@ -200,6 +200,19 @@
             </div>
           </div>
           <p class="dataset-provenance" id="dataset-provenance-results" data-dataset-provenance data-dataset="user" role="note" aria-label="Data provenance" hidden></p>
+          <!-- Sharpening a result happens where the result is. The button opens
+               the same picker the panel above uses and adds to the selection
+               already in hand: nothing is re-requested, and the brief below is
+               never unmounted while the new file is read. -->
+          <div class="local-result-upgrade" id="local-result-upgrade">
+            <button class="local-result-add" id="add-optional-file" type="button" aria-describedby="add-optional-file-note">Add an org mapping or query sample</button>
+            <p class="local-result-add-note" id="add-optional-file-note">Optional. Your provider export is not re-requested and this result stays on screen while the file is read — it is parsed in this tab and never uploaded.</p>
+          </div>
+          <!-- What moved on the last recalculation, kept until the next one
+               replaces it. Deliberately not a live region: the polite
+               announcement above is spoken once, and this is what a reader who
+               missed it can still come back and read. -->
+          <div class="local-result-change" id="local-result-change" data-state="none" role="note" aria-label="What changed when the last file was added" hidden></div>
           <!-- Spoken only when coverage actually recalculates. The state it
                announces is also readable in the coverage lines themselves, so a
                reader who missed the announcement can still find it. -->
@@ -301,6 +314,13 @@
                 <dd id="local-recoverable" data-real="false" data-confidence="FULL_CONFIDENCE">—</dd>
                 <dd class="metric-basis"><span class="metric-basis-label" id="local-metric-label" data-real="false">Example data</span> <span class="metric-basis-detail" id="local-metric-detail">Bundled synthetic sample — not your import and not realized savings.</span></dd>
               </div>
+              <!-- Both halves of the money, beside the number they qualify and
+                   inside the same definition list, so the pair cannot be
+                   reflowed away from the figure at a narrow width. Authored
+                   empty and hidden: the shares, the amounts and the shapes are
+                   all painted by attribution-confidence-view.js from the split
+                   the policy's own arithmetic produced. -->
+              <div class="local-attribution-split" id="local-attribution-split" data-state="unmeasured" role="group" aria-label="How much of this spend is attributed" hidden></div>
               <div><dt>Department</dt><dd id="local-department">—</dd></div>
               <div><dt>Benchmark</dt><dd id="local-benchmark-summary">Unavailable</dd></div>
             </dl>

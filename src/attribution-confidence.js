@@ -30,7 +30,7 @@
 import {
   attributedSpendShare, classifyFinding, classifyFindings, CONFIDENCE,
   FINDING_CATEGORIES, INPUT_STATES, RAISE_CONFIDENCE_SENTENCE,
-  ATTRIBUTION_RANKED_FINDING_FLOOR, toWholePercent,
+  ATTRIBUTION_RANKED_FINDING_FLOOR, toWholePercent, unattributedShare,
 } from "./finops-attribution-policy.js";
 
 /** Bump when a state's word, shape, or the upgrade ranking's basis changes. */
@@ -375,6 +375,58 @@ export function coverageChangeAnnouncement({ previous = null, next = null } = {}
     return `${head} ${movement.downgraded} ${plural(movement.downgraded)} no longer read at full confidence.`;
   }
   return head;
+}
+
+/**
+ * The same movement as a **persistent** summary rather than a spoken sentence.
+ *
+ * A live region is read once and is then gone; a reader who adds a file and
+ * looks away has no way back to what moved. This returns the figures that
+ * actually changed, each tied to the figure it is about, so the result can carry
+ * them until the next recalculation replaces them.
+ *
+ * Null when nothing moved, which is what keeps the summary off a first render
+ * and off an unrelated repaint.
+ *
+ * @returns {{headline: string, spoken: string, items: Array<{id: string,
+ *            label: string, from: string, to: string}>}|null}
+ */
+export function coverageChangeSummary({ previous = null, next = null } = {}) {
+  const spoken = coverageChangeAnnouncement({ previous, next });
+  if (!spoken) return null;
+  const before = coveragePercentText(previous.share);
+  const after = coveragePercentText(next.share);
+  const movement = confidenceMovement(previous, next);
+  const items = [];
+  if (before !== after) {
+    items.push(Object.freeze({
+      id: "attributed_share", label: "Attributed share", from: before, to: after,
+    }));
+    items.push(Object.freeze({
+      id: "unattributed_share",
+      label: "Unattributed share",
+      from: coveragePercentText(unattributedShare(previous.share)),
+      to: coveragePercentText(unattributedShare(next.share)),
+    }));
+  }
+  if (previous.inputState !== next.inputState) {
+    items.push(Object.freeze({
+      id: "input_state", label: "Inputs", from: previous.inputState, to: next.inputState,
+    }));
+  }
+  if (movement.upgraded || movement.downgraded) {
+    items.push(Object.freeze({
+      id: "findings",
+      label: movement.upgraded ? "Findings newly at full confidence" : "Findings no longer at full confidence",
+      from: "0",
+      to: String(movement.upgraded || movement.downgraded),
+    }));
+  }
+  return Object.freeze({
+    headline: "What changed when you added that file",
+    spoken,
+    items: Object.freeze(items),
+  });
 }
 
 /**
