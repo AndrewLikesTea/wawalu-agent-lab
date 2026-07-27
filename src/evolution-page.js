@@ -56,6 +56,7 @@ import {
 import { classifyQuerySample, parseQuerySample } from "/query-sample-contract.js";
 import { scorePromptLiteracy } from "/prompt-literacy-scoring.js";
 import { gradedSampleFigures, querySampleEligibility } from "/graded-sample-figures.js";
+import { promptGradingEligibility, promptGradingSignals } from "/prompt-grading-eligibility.js";
 import { applyGradedSample, clearGradedSample } from "/graded-sample-view.js";
 import { loadExampleDatasetInputs } from "/example-dataset.js";
 import { EXAMPLE_QUERY_SAMPLE_FILE, exampleQuerySampleText } from "/query-sample-example.js";
@@ -464,8 +465,19 @@ function mountLocalFinopsImport() {
   // decides the tier and the one action, and the model below only assembles
   // what they returned. A sample graded against the bundled example totals
   // would be a claim about the wrong organization, so the example path skips it.
+  //
+  // Whether the page is looking at the bundled sample or at the reader's own
+  // corpus is one question with one answer, and `prompt-grading-eligibility.js`
+  // owns it. This surface reads `hasOwnImport` rather than counting files, so
+  // the comparison exists once; the same verdict carries the state, the named
+  // gaps, and the one next action for the headline that reads it next.
+  const promptGrading = () => promptGradingEligibility(promptGradingSignals(
+    exampleActive ? [] : samples.map((entry) => ({
+      parsed: entry.parsed, classified: classifyQuerySample(entry.parsed),
+    })),
+  ));
   const gradedModel = () => {
-    if (!samples.length || exampleActive) return null;
+    if (!promptGrading().hasOwnImport) return null;
     const classified = samples.map((entry) => classifyQuerySample(entry.parsed));
     const records = classified.flatMap((entry) => entry.records);
     const scored = scorePromptLiteracy(records);
