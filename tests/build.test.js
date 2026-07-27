@@ -16,7 +16,15 @@ test("product has a health endpoint and accessible title", async () => {
   assert.match(html, /<label for="context">Context<\/label>/);
   assert.match(html, /<label for="owner">Owner<\/label>/);
   assert.match(html, /<label for="status">Status<\/label>/);
-  assert.match(html, /<label for="filter-status">Decision status:<\/label>\s*<select id="filter-status" aria-describedby="filter-status-hint">\s*<option value="all">all<\/option>/);
+  assert.match(html, /<label for="filter-status">Decision status:<\/label>/);
+  // One decision-status vocabulary: the filter offers exactly these four words,
+  // in lifecycle order, and the glossary below it defines every one of them
+  // plus what "Current only" hides.
+  assert.match(html, /<select id="filter-status" aria-describedby="filter-status-hint">\s*<option value="all">all<\/option>\s*<option value="proposed">Proposed<\/option>\s*<option value="pending">Pending<\/option>\s*<option value="accepted">Accepted<\/option>\s*<option value="superseded">Superseded<\/option>\s*<\/select>/);
+  assert.doesNotMatch(html, /<option value="approved">/);
+  for (const term of ["Proposed", "Pending", "Accepted", "Superseded", "Current only"]) {
+    assert.match(html, new RegExp(`<dt>${term}</dt><dd>[^<]+</dd>`), `the status glossary does not define ${term}`);
+  }
   assert.match(html, /<legend>Record type<\/legend>\s*<div class="filter-options">/);
   assert.match(html, /<label for="filter-owner">Filter by owner:<\/label>\s*<select id="filter-owner">\s*<option value="all">all<\/option>/);
 });

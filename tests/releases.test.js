@@ -46,8 +46,11 @@ test("release summaries count the current decision workflow statuses", () => {
   ];
   const resolved = resolveRelease(release, current);
   assert.equal(resolved.counts.pending, 1);
-  assert.equal(resolved.counts.approved, 1);
-  assert.equal(statusSummaryText(resolved), "2 decisions · 1 pending, 1 approved");
+  // The record stored under the retired "approved" is counted and reported as
+  // accepted, so a release breakdown never shows a word the filter dropped.
+  assert.equal(resolved.counts.accepted, 1);
+  assert.equal(resolved.counts.approved, undefined);
+  assert.equal(statusSummaryText(resolved), "2 decisions · 1 pending, 1 accepted");
 });
 
 const releases = [

@@ -57,7 +57,7 @@ test("public proof pages expose required content, relationships, and announced c
     read("release-page.js"),
   ]);
   assert.match(decision, /Linked releases/);
-  assert.match(decision, /\["Status", decision\.status/);
+  assert.match(decision, /\["Status", statusWord/);
   assert.match(decision, /\["Owner", decision\.owner/);
   assert.match(release, /renderMetaRow\("Status"/);
   assert.match(release, /renderMetaRow\("Owner"/);

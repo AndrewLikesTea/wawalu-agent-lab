@@ -1,3 +1,4 @@
+import { STORED_DECISION_STATUSES, canonicalDecisionStatus } from "./decision-status.js";
 import { dedupeById } from "./demo-data.js";
 import { initLeadCapture } from "./lead-capture.js";
 import { EXAMPLE_LABEL, SEED_DECISIONS, SEED_RELEASES } from "./seed-records.js";
@@ -23,9 +24,10 @@ import {
 } from "./releases.js";
 
 export const STORAGE_KEY = "shiplog.decisions.v1";
-// The current workflow uses pending/approved. The original three values remain
-// readable so existing local logs and demo/release associations are not lost.
-export const STATUSES = ["pending", "approved", "proposed", "accepted", "superseded"];
+// Every value a stored or imported record may carry. The words a visitor reads
+// are DECISION_STATUSES; "approved" survives here only so an existing local log
+// and its release associations are not lost, and it renders as "accepted".
+export const STATUSES = STORED_DECISION_STATUSES;
 
 // Sort strategies keyed by the value emitted by the sort <select>. Each entry is
 // a pure comparator so the ordering stays testable without a DOM. Ties fall back
@@ -163,7 +165,9 @@ export function toHistoryRecords(decisions = [], releases = [], options = {}) {
       title: decision.title,
       owner: decision.owner,
       createdAt: decision.createdAt,
-      status: decision.status,
+      // The word the row shows and the filter compares against, which is the
+      // stored value except for the legacy "approved" (read as "accepted").
+      status: canonicalDecisionStatus(decision.status),
       superseded: supersededBy.has(decision.id),
       searchable: [decision.title, decision.context, decision.alternatives],
       decision,
@@ -209,7 +213,7 @@ export function toHistoryRecords(decisions = [], releases = [], options = {}) {
 export function selectHistory(records, view = {}) {
   const { owner = "all", sort = DEFAULT_SORT } = view;
   const type = RECORD_TYPES.includes(view.type) ? view.type : "all";
-  const status = STATUSES.includes(view.status) ? view.status : "all";
+  const status = STATUSES.includes(view.status) ? canonicalDecisionStatus(view.status) : "all";
   const query = typeof view.query === "string" ? view.query.trim().toLocaleLowerCase() : "";
   const compare = (SORTS[sort] ?? SORTS[DEFAULT_SORT]).compare;
   return records
@@ -464,7 +468,10 @@ function renderDecisionRow(decision, index, example = false) {
   // The record type is stated as text, not signalled by card colour alone, so
   // the mixed stream stays legible in a filtered result.
   appendLabelledValue(meta, "Type", "Decision", "badge badge-type badge-type-decision");
-  appendLabelledValue(meta, "Status", decision.status, `badge badge-${decision.status}`);
+  // The row renders from the stored record, so the legacy "approved" is folded
+  // onto the word the filter and the glossary use before it reaches the badge.
+  const status = canonicalDecisionStatus(decision.status);
+  appendLabelledValue(meta, "Status", status, `badge badge-${status}`);
   appendExampleBadge(meta, example);
   appendRecordedDate(meta, decision.createdAt, "Recorded:");
   const summary = document.createElement("div");

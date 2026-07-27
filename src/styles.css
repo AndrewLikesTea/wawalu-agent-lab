@@ -104,6 +104,13 @@ button:hover { background:#1f70c1; }
 .filter-option label { text-transform:none; letter-spacing:0; font:600 13px/1.3 system-ui,sans-serif; color:#3a3a36; cursor:pointer; }
 .decision-search-filter { flex:1 0 100%; }
 .decision-filter-hint { margin:-8px 0 18px; }
+/* The status glossary sits under the filter controls it explains. One row per
+   term, term and definition on the same line, so it reads as a legend rather
+   than as documentation. */
+.status-glossary { display:grid; gap:4px 0; margin:0 0 14px; color:#6a6a65; font-size:12px; line-height:1.45; }
+.status-glossary div { display:flex; flex-wrap:wrap; gap:0 6px; }
+.status-glossary dt { flex:0 0 auto; font-weight:700; color:#3a3a36; }
+.status-glossary dd { flex:1 1 220px; margin:0; }
 .clear-filters { grid-column:auto; align-self:end; flex:0 0 auto; min-height:41px; margin:0; padding:0 14px; background:transparent; color:#1f70c1; border:1px solid #9cb9d4; }
 .clear-filters:hover { background:#eef4fb; color:#174f84; }
 .decision-list { display:grid; gap:14px; margin:0; padding:0; list-style:none; }
@@ -125,7 +132,7 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .badge-accepted { background:#dcefdc; color:#205d2b; }
 .badge-superseded { background:#e8e6e2; color:#5c5b56; }
 .badge-pending { background:#fff0c7; color:#72520a; }
-.badge-approved { background:#dcefdc; color:#205d2b; }
+/* No .badge-approved: a stored "approved" record renders as Accepted. */
 /* Record type is stated in text inside the badge, so the colour is decoration
    rather than the signal. */
 /* Example records are read-through demo data, never the visitor's own. The
