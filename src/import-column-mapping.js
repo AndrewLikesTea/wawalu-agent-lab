@@ -14,6 +14,9 @@
 //      unmapped, and which fields two columns both claim, are computed from the
 //      columns on every read, so an edit can never leave a stale verdict behind.
 
+import {
+  CONVERSATION_DIALECT_PROFILES, columnNames, neverRenderColumns, normalizeColumnName,
+} from "./dialect-profiles.js";
 import { detectShape } from "./finops-tabular-import.js";
 import { GROUPING_STATUS, detectNativeGrouping } from "./native-grouping.js";
 
@@ -120,6 +123,27 @@ function sampleFor(rows, index, hasRows) {
   });
 }
 
+/**
+ * The header spellings the conversation-export contract marks never-render,
+ * read off the profiles rather than listed here — see
+ * `docs/conversation-export-import-contract.md`.
+ *
+ * This step is the one place in the flow that shows a reader a cell of their own
+ * file, and a reader may well drop an assistant conversation export into the
+ * picker even though nothing here imports one yet. When they do, the column is
+ * still listed, still mappable, and still theirs to correct; the *sample* is
+ * withheld, because "no prompt text is ever rendered" has to hold on the manual
+ * path too or it is not a rule.
+ */
+const NEVER_RENDER_HEADERS = new Set(CONVERSATION_DIALECT_PROFILES
+  .flatMap((profile) => neverRenderColumns(profile))
+  .flatMap((entry) => columnNames(entry)));
+
+const WITHHELD_SAMPLE = Object.freeze({
+  available: false, value: "", display: "", truncated: false,
+  note: "Prompt text is never shown. This column is measured, not read.",
+});
+
 /** A blank header is still a column; it is named by its position instead. */
 function headerLabel(header, index) {
   const text = String(header ?? "").trim();
@@ -194,7 +218,9 @@ export function createColumnMapping({
       origin: nativeClaimed && index === nativeIndex
         ? "native"
         : claimed.has(index) ? "detected" : "unset",
-      sample: sampleFor(rows, index, rows.length > 0),
+      sample: NEVER_RENDER_HEADERS.has(normalizeColumnName(text))
+        ? WITHHELD_SAMPLE
+        : sampleFor(rows, index, rows.length > 0),
     })),
   });
 }
