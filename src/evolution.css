@@ -47,7 +47,12 @@
 .score-card[data-band="review"] { border-style:dashed; background:#fbf5e8; }
 .score-card[data-band="review"] .score-grade { color:#6d5510; }
 .score-value { margin:8px 0 0; font-size:15px; font-weight:650; }
+.score-coverage { margin:6px 0 0; font-size:13px; font-weight:650; }
+.score-action { margin:2px 0 0; font-size:13px; color:var(--ink-muted); }
 .score-peer { margin:2px 0 0; color:var(--ink-muted); font:600 11px/1.5 ui-monospace,monospace; }
+/* A provisional letter is never shown bare: the mark travels with the glyph so
+   the caveat cannot be cropped away from the grade it qualifies. */
+.score-card[data-grade-state="provisional"] .score-grade::after { content:"*"; font-size:.5em; vertical-align:super; }
 
 .proof-point { display:grid; grid-template-columns:minmax(0,1.15fr) minmax(360px,1fr); gap:20px 32px; margin:0 0 24px; border:1px solid #8ead9d; border-left:6px solid #315f50; border-radius:16px; padding:clamp(22px,4vw,32px); background:linear-gradient(145deg,#f1f8f4,#fff 62%); box-shadow:0 14px 40px rgba(38,38,31,.04); }
 .proof-point-copy h2 { max-width:650px; margin:7px 0 10px; font-size:clamp(22px,3vw,30px); line-height:1.2; }
