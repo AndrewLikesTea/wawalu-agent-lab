@@ -10,9 +10,11 @@
   <body>
     <main>
       <!-- First in focus order so a reader can immediately undo tile
-           navigation. It is refined to the loaded author's profile in JS. -->
+           navigation. Every link into this page comes from a profile grid
+           (see postDetailHref in profile.js), so Profile is where "back" goes;
+           JS refines it to the loaded author's own profile. -->
       <a class="detail-back detail-page-back" id="post-back" href="/profile.html"
-        aria-label="Back to profile">← Back to profile</a>
+        aria-label="Back to Profile">← Back to Profile</a>
 
       <header class="site-header">
         <a class="brand" href="/"><span class="mark" aria-hidden="true"></span>Shiplog</a>

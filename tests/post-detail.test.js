@@ -8,7 +8,7 @@ import { byClass, createElement, first, ids, installDocument, tags } from "./sup
 
 installDocument();
 
-const { findPostById, postDetailTitle, renderPostDetail } = await import("../src/post-detail.js");
+const { findPostById, postDetailTitle, postPageHeading, renderPostDetail } = await import("../src/post-detail.js");
 
 const post = {
   id: "p-image",
@@ -101,52 +101,82 @@ test("a dead image keeps its description rather than dropping it", () => {
   assert.equal(returnLink.getAttribute("aria-label"), "Return to Mina Okafor's profile");
 });
 
-test("not-found and unavailable states are labelled and return to a profile", () => {
+test("a missing post is named in plain language, with no id or code echoed back", () => {
   const missing = createElement("div");
   renderPostDetail(missing, null, { id: "p-gone", author: "Mina" });
-  assert.equal(first(missing, "empty-title").textContent, "That post is not here.");
-  assert.match(missing.textContent, /may have been removed/);
+  assert.equal(first(missing, "detail-state-label").textContent, "Post status");
+  assert.equal(first(missing, "empty-title").textContent, "Post not found");
+  assert.match(missing.textContent, /This post may have been removed, or the link may be incomplete\./);
   assert.equal(missing.firstChild.getAttribute("role"), "status");
   assert.ok(ids(missing).includes(missing.firstChild.getAttribute("aria-labelledby")));
   assert.equal(first(missing, "empty-action-secondary").href, "/profile.html?author=Mina");
+  // The reader is told the post is gone, not shown the string they typed.
+  assert.doesNotMatch(missing.textContent, /p-gone|404|null|undefined/);
+});
 
+test("a failed load says what happened once, offers a retry, and leaks no error text", () => {
   const failed = createElement("div");
   let retried = 0;
   renderPostDetail(failed, null, { state: "error", id: "p-gone", author: "Mina", onRetry: () => { retried += 1; } });
-  assert.equal(first(failed, "empty-title").textContent, "This post is temporarily unavailable.");
+  assert.equal(first(failed, "detail-state-label").textContent, "Error");
+  assert.equal(first(failed, "empty-title").textContent, "Post couldn’t be loaded");
+  assert.match(failed.textContent, /We couldn’t reach Social, so this post didn’t load\./);
   assert.equal(failed.firstChild.getAttribute("role"), "alert");
   assert.equal(first(failed, "empty-action-secondary").href, "/profile.html?author=Mina");
+  assert.doesNotMatch(failed.textContent, /p-gone|\b[45]\d\d\b|Error:|fetch|TypeError/);
+  // Retry is the action this state offers; the way back sits behind it.
+  assert.match(failed.textContent, /Try again[\s\S]*Return to profile/);
   tags(failed, "BUTTON")[0].dispatch("click");
   assert.equal(retried, 1, "a failed load offers a retry");
 });
 
-test("an id-less visit is told what the page needs", () => {
+test("an id-less visit is told what the page needs and is sent to the feed", () => {
   const container = createElement("div");
   renderPostDetail(container, null, { id: "" });
-  assert.match(container.textContent, /needs a post to show/);
+  assert.equal(first(container, "empty-title").textContent, "Choose a post");
+  assert.match(container.textContent, /No post was specified\. Open one from Social\./);
+  const back = first(container, "empty-action-secondary");
+  assert.equal(back.textContent, "Return to Social");
+  assert.equal(back.href, "/social.html");
 });
 
-test("the loading state is labelled, busy, and has profile recovery", () => {
+test("the loading state names what is loading in one sentence", () => {
   const container = createElement("div");
   renderPostDetail(container, null, { state: "loading", id: "p-image", author: "Mina" });
   assert.equal(container.getAttribute("aria-busy"), "true");
+  assert.equal(first(container, "detail-state-label").textContent, "Post status");
   assert.equal(first(container, "empty-title").textContent, "Loading post");
+  assert.match(container.textContent, /We’re finding this post and its author\./);
   assert.equal(container.firstChild.getAttribute("role"), "status");
   assert.ok(ids(container).includes(container.firstChild.getAttribute("aria-labelledby")));
   assert.equal(first(container, "empty-action-secondary").href, "/profile.html?author=Mina");
   assert.equal(first(container, "detail-skeleton").getAttribute("aria-hidden"), "true");
 });
 
-test("the document title names the post or says it is missing", () => {
-  assert.match(postDetailTitle(post), /^Mina Okafor · .+ · Shiplog$/);
-  assert.equal(postDetailTitle(null), "Post not found · Shiplog");
+test("the loaded page is headed by the post's author, not the bare word Post", () => {
+  assert.equal(postPageHeading(post), "Post by Mina Okafor");
+  assert.equal(postPageHeading(null), "Post");
+  assert.equal(postPageHeading({ ...post, author: "" }), "Post");
 });
 
-test("the visible back-to-profile control is the page's first focusable element", async () => {
+test("the document title names the post, the feed, and the product", () => {
+  assert.equal(postDetailTitle(post), "Post by Mina Okafor · Social · Shiplog");
+  assert.equal(postDetailTitle(null), "Post not found · Shiplog");
+  assert.equal(postDetailTitle(null, "error"), "Post unavailable · Shiplog");
+});
+
+test("the visible back control is the page's first focusable element and names Profile", async () => {
   const html = await readFile(new URL("../src/post.html", import.meta.url), "utf8");
   const firstAnchor = html.indexOf("<a ");
   const back = html.indexOf('id="post-back"');
   assert.ok(firstAnchor >= 0 && back > firstAnchor, "the first anchor is the back control");
-  assert.match(html.slice(firstAnchor, back + 120), /class="detail-back detail-page-back"[\s\S]*aria-label="Back to profile"/);
+  assert.match(html.slice(firstAnchor, back + 160), /class="detail-back detail-page-back"[\s\S]*aria-label="Back to Profile"/);
+  assert.match(html, /← Back to Profile<\/a>/, "the back link names the page it returns to");
   assert.ok(back < html.indexOf('class="brand"'), "back precedes brand and navigation in DOM order");
+});
+
+test("the post page's nav lists Profile once", async () => {
+  const html = await readFile(new URL("../src/post.html", import.meta.url), "utf8");
+  const nav = html.match(/<nav class="site-nav"[\s\S]*?<\/nav>/)[0];
+  assert.equal([...nav.matchAll(/>Profile</g)].length, 1, "Profile appears twice in the post page nav");
 });
