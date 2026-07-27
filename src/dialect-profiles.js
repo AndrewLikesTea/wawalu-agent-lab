@@ -59,7 +59,34 @@ export const NORMALIZED_FIELDS = Object.freeze({
   roster: Object.freeze([
     "person_id", "email", "full_name", "manager_id", "department", "status",
   ]),
+  // An AI-assistant conversation or audit export. `prompt_signals` is the whole
+  // of what a prompt body becomes: counts, never text. There is deliberately no
+  // field in this vocabulary a raw message body could land in, so "never render
+  // the prompt" is a property of the schema rather than a rule downstream code
+  // is trusted to remember.
+  conversation: Object.freeze([
+    "conversation_id", "actor_id", "department", "occurred_at", "prompt_signals",
+  ]),
 });
+
+/**
+ * The contract-level sensitivity flag. One name, used consistently: a column
+ * carrying `sensitivity: NEVER_RENDER` may never have its cell value written to
+ * a DOM node, an export payload, a storage entry, or a message. Downstream code
+ * reads this flag; it never hardcodes a field name.
+ */
+export const NEVER_RENDER = "never-render";
+
+/**
+ * Coercions that answer *about* a cell without returning it. A never-render
+ * column must declare one of these, and only a never-render column may — that
+ * pairing is checked in `assertProfileRegistry`, so a profile cannot mark a
+ * column sensitive and then map it through a coercion that hands the text back.
+ */
+export const DERIVING_COERCIONS = Object.freeze(["promptSignals"]);
+
+/** The bucket a conversation row lands in when no department column exists. */
+export const UNGROUPED_DEPARTMENT = "(ungrouped)";
 
 /**
  * The provider-native unit an export is grouped by, as a closed vocabulary.
@@ -133,6 +160,10 @@ const groupingCandidate = (unit, source, aliases = []) => Object.freeze({
 export const OPTIONAL_NORMALIZED_FIELDS = Object.freeze({
   usage: Object.freeze([]),
   roster: Object.freeze(["manager_id"]),
+  // `department` is optional by contract: an export without it still imports,
+  // and every row lands in `UNGROUPED_DEPARTMENT` instead. Each conversation
+  // profile declares that as a `whenAbsent` default, so the degradation is data.
+  conversation: Object.freeze(["department"]),
 });
 
 /**
@@ -206,6 +237,38 @@ export const COERCIONS = Object.freeze({
     if (!/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/.test(value)) throw new RangeError("is not an email address");
     return value;
   },
+  /**
+   * A point in time, not a day: a conversation export timestamps turns, and two
+   * turns on one day are two events. Accepts ISO 8601 with or without a clock
+   * and with or without a zone (absent means UTC, stated rather than guessed),
+   * and normalizes to `YYYY-MM-DDTHH:MM:SSZ` so ordering is lexicographic.
+   * Nothing else parses: a vendor format we have not declared is a malformed
+   * row, never a date this layer invents from a lenient `Date` constructor.
+   */
+  instant(raw) {
+    const value = String(raw ?? "").trim();
+    const match = /^(\d{4}-\d{2}-\d{2})(?:[T ](\d{2}:\d{2}(?::\d{2})?(?:\.\d+)?)\s*(Z|[+-]\d{2}:?\d{2})?)?$/
+      .exec(value);
+    if (!match) throw new RangeError("is not an ISO 8601 timestamp");
+    const [, day, clock = "00:00:00", zone = "Z"] = match;
+    const parsed = new Date(`${day}T${clock.length === 5 ? `${clock}:00` : clock}${zone === "Z" ? "Z" : zone}`);
+    if (Number.isNaN(parsed.getTime())) throw new RangeError("is not a real date and time");
+    return `${parsed.toISOString().slice(0, 19)}Z`;
+  },
+  /**
+   * The only thing a prompt body is ever turned into. Returns counts and never
+   * the text, so a never-render column has nothing to leak even if a caller
+   * forgets what it is holding. `token_estimate` is a declared four-characters-
+   * per-token approximation, not a tokenizer: it sizes a conversation, and the
+   * contract says so rather than implying a provider's own count.
+   */
+  promptSignals(raw) {
+    const value = String(raw ?? "");
+    const chars = value.trim().length;
+    return Object.freeze({
+      chars, token_estimate: Math.ceil(chars / 4), empty: chars === 0,
+    });
+  },
   accountState(raw) {
     const key = normalizeColumnName(raw);
     const value = STATUS_SYNONYMS[key];
@@ -221,6 +284,9 @@ const column = (source, field, coerce, options = {}) => Object.freeze({
   coerce,
   required: options.required !== false,
   whenAbsent: options.whenAbsent ? Object.freeze(options.whenAbsent) : null,
+  // null for every column that carries no contract-level handling rule, which
+  // is every column of every usage and roster profile.
+  sensitivity: options.sensitivity ?? null,
 });
 
 /** A column that only votes in detection: never emitted, never coerced. */
@@ -430,7 +496,161 @@ export const DIALECT_PROFILES = Object.freeze([
   }),
 ]);
 
-const BY_ID = new Map(DIALECT_PROFILES.map((profile) => [profile.id, profile]));
+/**
+ * A conversation column carrying a prompt body. One helper, one flag name, so
+ * every consumer asks the schema which column is sensitive instead of matching
+ * a header spelling of its own.
+ */
+const promptColumn = (source, aliases = []) =>
+  column(source, "prompt_signals", "promptSignals", { aliases, sensitivity: NEVER_RENDER });
+
+/** The optional department column, with the ungrouped degradation declared. */
+const departmentColumn = (source, aliases = []) => column(source, "department", "string", {
+  aliases, required: false, whenAbsent: { mode: "default", value: UNGROUPED_DEPARTMENT },
+});
+
+/**
+ * AI-assistant conversation and audit exports.
+ *
+ * They are a separate registry, not extra entries in `DIALECT_PROFILES`, for one
+ * reason that is a contract statement rather than a filing convenience: the
+ * vendor fixtures behind `DIALECT_PROFILES` are asserted to carry no
+ * content-bearing column at all, and a conversation export is *defined* by
+ * carrying one. Mixing the two would retire that guarantee for the billing
+ * dialects, which still deserve it. Detection is the same code either way —
+ * `detectDialect` takes the registry as an argument, and `ALL_DIALECT_PROFILES`
+ * is the union a surface that accepts both hands it — so nothing about how a
+ * usage or roster file is recognized changes by adding these.
+ *
+ * TIE-BREAKING. No two conversation profiles share a required column name, and
+ * each names the others' identifier columns in `match.forbidden`, so a file
+ * shaped like two vendors at once is excluded from both rather than resolved by
+ * declaration order. Where that is not enough, `detectDialect`'s existing rule
+ * still applies unchanged: an exact confidence tie is `unidentified`, and an
+ * unidentified file falls through to manual mapping.
+ */
+export const CONVERSATION_DIALECT_PROFILES = Object.freeze([
+  Object.freeze({
+    id: "chatgpt-enterprise-conversation-export",
+    label: "ChatGPT Enterprise conversation export",
+    kind: "conversation",
+    groupingUnit: null,
+    groupingCandidates: Object.freeze([]),
+    groupingPrecedence: null,
+    version: 1,
+    changelog: Object.freeze([
+      Object.freeze({ version: 1, note: "Initial mapping: admin conversation export, one row per message." }),
+    ]),
+    constants: Object.freeze({}),
+    match: Object.freeze({
+      minColumns: 5,
+      forbidden: Object.freeze(["conversation_uuid", "interaction_id", "event_id"]),
+    }),
+    columns: Object.freeze([
+      column("conversation_id", "conversation_id", "string", { aliases: ["thread_id"] }),
+      column("user_email", "actor_id", "emailAddress", { aliases: ["member_email"] }),
+      column("created_at", "occurred_at", "instant", { aliases: ["message_created_at"] }),
+      promptColumn("message_text", ["message_content"]),
+      departmentColumn("department", ["workspace_group"]),
+      signal("role"),
+      signal("model"),
+    ]),
+  }),
+  Object.freeze({
+    id: "claude-enterprise-conversation-export",
+    label: "Claude Enterprise conversation export",
+    kind: "conversation",
+    groupingUnit: null,
+    groupingCandidates: Object.freeze([]),
+    groupingPrecedence: null,
+    version: 1,
+    changelog: Object.freeze([
+      Object.freeze({ version: 1, note: "Initial mapping: organization conversation export, one row per human turn." }),
+    ]),
+    constants: Object.freeze({}),
+    match: Object.freeze({
+      minColumns: 5,
+      forbidden: Object.freeze(["conversation_id", "interaction_id", "event_id"]),
+    }),
+    columns: Object.freeze([
+      column("conversation_uuid", "conversation_id", "string", { aliases: ["chat_uuid"] }),
+      column("account_email", "actor_id", "emailAddress", { aliases: ["member_email"] }),
+      column("started_at", "occurred_at", "instant", { aliases: ["turn_started_at"] }),
+      promptColumn("prompt_text", ["human_message"]),
+      departmentColumn("organization_group", ["group"]),
+      signal("sender"),
+      signal("model_slug"),
+    ]),
+  }),
+  Object.freeze({
+    id: "copilot-conversation-export",
+    label: "Copilot interaction export",
+    kind: "conversation",
+    groupingUnit: null,
+    groupingCandidates: Object.freeze([]),
+    groupingPrecedence: null,
+    version: 1,
+    changelog: Object.freeze([
+      Object.freeze({ version: 1, note: "Initial mapping: assistant interaction export, one row per interaction." }),
+    ]),
+    constants: Object.freeze({}),
+    match: Object.freeze({
+      minColumns: 5,
+      forbidden: Object.freeze(["conversation_id", "conversation_uuid", "event_id"]),
+    }),
+    columns: Object.freeze([
+      column("interaction_id", "conversation_id", "string", { aliases: ["turn_id"] }),
+      column("user_principal_name", "actor_id", "emailAddress", { aliases: ["upn"] }),
+      column("interaction_time", "occurred_at", "instant", { aliases: ["interaction_timestamp"] }),
+      promptColumn("prompt_body", ["user_prompt"]),
+      departmentColumn("cost_center", ["group_name"]),
+      signal("app_host"),
+      signal("client_type"),
+    ]),
+  }),
+  Object.freeze({
+    id: "workspace-audit-conversation-export",
+    label: "Workspace assistant audit export",
+    kind: "conversation",
+    groupingUnit: null,
+    groupingCandidates: Object.freeze([]),
+    groupingPrecedence: null,
+    version: 1,
+    changelog: Object.freeze([
+      Object.freeze({ version: 1, note: "Initial mapping: workspace audit log of assistant events." }),
+    ]),
+    constants: Object.freeze({}),
+    match: Object.freeze({
+      minColumns: 5,
+      forbidden: Object.freeze(["conversation_id", "conversation_uuid", "interaction_id"]),
+    }),
+    columns: Object.freeze([
+      column("event_id", "conversation_id", "string", { aliases: ["record_id"] }),
+      column("actor_email", "actor_id", "emailAddress", { aliases: ["actor_user"] }),
+      column("event_time", "occurred_at", "instant", { aliases: ["event_timestamp"] }),
+      promptColumn("prompt_content", ["query_text"]),
+      departmentColumn("org_unit_path", ["organizational_unit"]),
+      signal("event_name"),
+      signal("application"),
+    ]),
+  }),
+]);
+
+/**
+ * Every profile a surface that accepts both families detects against. The order
+ * is billing dialects first, unchanged, then conversation dialects — but order
+ * decides nothing: `detectDialect` scores every profile and refuses a tie.
+ */
+export const ALL_DIALECT_PROFILES = Object.freeze([
+  ...DIALECT_PROFILES, ...CONVERSATION_DIALECT_PROFILES,
+]);
+
+/** The never-render column of a profile, or null. Read the flag, not the name. */
+export function neverRenderColumns(profile) {
+  return (profile?.columns ?? []).filter((entry) => entry.sensitivity === NEVER_RENDER);
+}
+
+const BY_ID = new Map(ALL_DIALECT_PROFILES.map((profile) => [profile.id, profile]));
 
 /** The profile with this id, or undefined. Ids are stable and never reused. */
 export function profileById(id) {
@@ -579,6 +799,19 @@ export function assertProfileRegistry(profiles = DIALECT_PROFILES) {
         names.add(name);
       }
       if (!COERCIONS[entry.coerce]) throw new Error(`${where}: unknown coercion ${entry.coerce}`);
+      // The never-render pairing, both ways. A sensitive column must be mapped
+      // through a coercion that cannot return its text, and a coercion that
+      // exists only to avoid returning text may not be used anywhere else —
+      // otherwise a later edit could quietly turn either half into decoration.
+      if (entry.sensitivity !== null && entry.sensitivity !== NEVER_RENDER) {
+        throw new Error(`${where}: unknown sensitivity ${entry.sensitivity} on ${entry.source}`);
+      }
+      if (entry.sensitivity === NEVER_RENDER && !DERIVING_COERCIONS.includes(entry.coerce)) {
+        throw new Error(`${where}: never-render column ${entry.source} must use a deriving coercion`);
+      }
+      if (DERIVING_COERCIONS.includes(entry.coerce) && entry.sensitivity !== NEVER_RENDER) {
+        throw new Error(`${where}: ${entry.source} uses a deriving coercion without the never-render flag`);
+      }
       if (entry.field === null) continue;
       if (!allowed.includes(entry.field)) {
         throw new Error(`${where}: ${entry.field} is not a ${profile.kind} field`);
@@ -595,6 +828,12 @@ export function assertProfileRegistry(profiles = DIALECT_PROFILES) {
     }
     const { required } = matchSignals(profile);
     if (!required.length) throw new Error(`${where}: has no required match signal`);
+    // A conversation export exists to carry prompt bodies. Exactly one column
+    // may say so — two would mean two rules to enforce, and none would mean the
+    // profile is reading something else.
+    if (profile.kind === "conversation" && neverRenderColumns(profile).length !== 1) {
+      throw new Error(`${where}: a conversation profile needs exactly one never-render column`);
+    }
   }
   return profiles;
 }

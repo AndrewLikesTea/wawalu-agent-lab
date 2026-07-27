@@ -16,7 +16,13 @@ separate security and deployment decision.
 - Template: `src/query-sample-example.js` → `example-query-sample.csv`
 - Tests: `tests/query-sample-contract.test.js`
 
-It is a sibling of the [privacy-preserving integration
+Its nearer sibling is the [conversation-export import
+contract](conversation-export-import-contract.md), which reads AI-assistant
+conversation and audit exports. Where this contract accepts a short excerpt and
+discards it after classification, that one never lets a prompt body out of the
+parser at all.
+
+It is also a sibling of the [privacy-preserving integration
 contracts](privacy-preserving-integration-contracts.md); everything that
 document says about transport, quarantine, pseudonym construction, retention,
 and out-of-scope data applies here unchanged.

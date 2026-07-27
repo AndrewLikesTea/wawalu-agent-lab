@@ -1,0 +1,5 @@
+interaction_id,user_principal_name,cost_center,interaction_time,app_host,client_type,prompt_body
+conv-4821,rowan.ash@example.invalid,Atlas Platform,2026-06-15T09:12:04Z,documents,web,summarize the incident review notes into five bullets for the ops readout
+conv-4822,juno.vale@example.invalid,Boreal Support,2026-06-15T11:40:19Z,documents,web,draft a friendly reply explaining the refund window to a waiting customer
+conv-4823,rowan.ash@example.invalid,Atlas Platform,2026-06-16T08:55:41Z,documents,web,rewrite this migration checklist so each step names its rollback
+conv-4824,wren.holt@example.invalid,Cinder Research,2026-06-16T15:02:58Z,documents,web,list three questions to ask before we approve another evaluation run

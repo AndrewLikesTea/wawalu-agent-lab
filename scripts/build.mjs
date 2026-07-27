@@ -14,7 +14,7 @@ try {
   await cp(resolve(root, "src"), staging, { recursive: true });
   // Ship the reviewed schemas, compatibility metadata, and synthetic fixtures.
   // No integration credential, transport, or live customer/provider data exists.
-  for (const integration of ["hris-org", "provider-usage-billing", "query-sample"]) {
+  for (const integration of ["hris-org", "provider-usage-billing", "query-sample", "conversation-export"]) {
     await cp(
       resolve(root, "contracts", "integrations", integration, "v1"),
       resolve(staging, "contracts", "integrations", integration, "v1"),
@@ -25,6 +25,12 @@ try {
     resolve(root, "contracts", "integrations", "browser-compatibility"),
     resolve(staging, "contracts", "integrations", "browser-compatibility"),
     { recursive: true },
+  );
+  // The import surface links the contract it consumes, so the contract has to
+  // be reachable from the deployed origin rather than only from the repository.
+  await cp(
+    resolve(root, "docs", "conversation-export-import-contract.md"),
+    resolve(staging, "docs", "conversation-export-import-contract.md"),
   );
   await createManifest(staging);
   await verifyArtifact(staging);
