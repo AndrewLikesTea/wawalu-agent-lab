@@ -1775,22 +1775,21 @@ def tick(config: dict[str, Any], state: State, journal: Journal, token: str | No
     # A run thread may have recorded a submission since this tick began.
     state.reload()
     active = runs.active()
+    # Consultation is asked BEFORE the ready queue is picked from, not after it comes
+    # up empty. Stakeholder reviews file a steady trickle of legitimate work, so the
+    # queue is essentially never empty and gating the next round behind "nothing else
+    # to do" left directive evolution to fire only on the accident of every persona
+    # being PR-rate-limited at once. The round is self-gating anyway: it only fires
+    # once the current program's issues are all closed, so asking every tick costs
+    # nothing until there is genuinely a new program to write. Skipped when this tick
+    # already planned a directive backlog, to keep it at one paid planning run a tick.
+    if not generated and config.get("consult_after_directive_mvp", False):
+        generated = consult_every_directive(token, config, journal, state=state)
     issue = choose_issue(generated, state, config, utc_now(), active) if generated else None
     # A rate-limited persona on one directive must not stall every other directive:
     # fall through to the shared ready queue instead of returning early.
     if issue is None:
         issue = choose_issue(issues, state, config, utc_now(), active)
-    # Consultation comes BEFORE the rate-limit return. A trickle of stakeholder-filed
-    # work keeps the ready queue non-empty indefinitely, and gating the next round
-    # behind an empty queue froze directive evolution for hours while the team chewed
-    # filler. The round is self-gating anyway: it only fires once the current
-    # program's issues are all closed, so asking every tick costs nothing.
-    if issue is None and config.get("consult_after_directive_mvp", False):
-        generated = consult_every_directive(token, config, journal, state=state)
-        if generated:
-            issue = choose_issue(generated, state, config, utc_now(), active)
-            if issue is None:
-                return "persona-pr-rate-limit"
     if issue is None and (issues or pending):
         return "queued-personas-rate-limited"
     if issue is None and config.get("generate_when_idle", False):

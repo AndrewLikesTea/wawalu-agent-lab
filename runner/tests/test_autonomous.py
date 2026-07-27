@@ -1754,6 +1754,35 @@ class ParallelRunTests(IsolatedDiffBudget):
         self.assertEqual(third, "executed")
         self.assertEqual(after, "executed")
 
+    def test_the_next_consultation_is_asked_even_when_filler_work_is_queued(self):
+        """A non-empty ready queue must not postpone the next directive round.
+
+        Stakeholder reviews file a steady trickle of legitimate work, so the queue is
+        essentially never empty. Asking for the next round only after it drained left
+        product direction to advance on the accident of every persona being
+        rate-limited at once. The round is self-gating, so asking every tick is free.
+        """
+        queue = [self.issue(51, "backend")]
+        fresh = [self.issue(52, "frontend")]
+        with tempfile.TemporaryDirectory() as tmp, \
+             self.daemon(tmp, max_concurrent=1) as config, \
+             mock.patch.object(autonomous, "list_ready_issues", return_value=queue), \
+             mock.patch.object(autonomous, "consult_every_directive",
+                               return_value=fresh) as consult:
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            runs = autonomous.RunRegistry()
+            with self.held_runs() as gate:
+                result = autonomous.tick({**config, "consult_after_directive_mvp": True},
+                                         state, mock.Mock(), runs=runs)
+                started = runs.active()
+                gate.set()
+                runs.join(20)
+
+        self.assertEqual(result, "executed")
+        consult.assert_called_once()
+        # The freshly consulted program is what runs, not the queued filler.
+        self.assertEqual(started, {52: "frontend"})
+
 
 if __name__ == "__main__":
     unittest.main()
