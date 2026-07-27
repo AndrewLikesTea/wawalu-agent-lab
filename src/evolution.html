@@ -88,6 +88,9 @@
             <label for="local-finops-files">Provider period(s) + HRIS mapping</label>
             <input id="local-finops-files" type="file" accept=".json,.csv,.tsv,.txt,application/json,text/csv,text/tab-separated-values,text/plain" multiple aria-describedby="local-file-help" aria-invalid="false" />
             <p id="local-file-help">Choose files together or add them in batches. A v1 JSON envelope or a provider CSV/TSV export works; provider periods must use the same source, and all processing and state stay in this tab.</p>
+            <!-- The ceiling sentence is painted from the one place the numbers
+                 are defined (import-limits.js). No number is written here. -->
+            <p class="local-file-limits" id="local-file-limits"></p>
             <p class="field-error" id="local-file-error" hidden></p>
             <div class="field-recovery" id="local-file-recovery" hidden>
               <button class="field-recovery-action" id="local-file-repick" type="button">Choose files again</button>
@@ -142,6 +145,18 @@
             <button id="import-mapping-cancel" type="button">Cancel this import</button>
           </div>
         </section>
+        <!-- A large export is parsed in a worker, so this region reports a real
+             fraction and the cancel below actually stops the work. Where no
+             worker is available the same region says the parse is running on the
+             page thread and shows an indeterminate bar rather than a made-up
+             percentage. -->
+        <div class="local-import-progress" id="local-import-progress" hidden>
+          <p class="local-import-progress-line">
+            <progress id="local-import-progress-bar" max="100"></progress>
+            <span id="local-import-progress-text"></span>
+          </p>
+          <button id="local-import-cancel" type="button">Cancel this import</button>
+        </div>
         <div class="local-import-state" id="local-import-state" role="status" aria-live="polite">
           <strong>Ready for local files.</strong>
           <span>The bundled example analysis remains visible until both compatible exports are ready.</span>
