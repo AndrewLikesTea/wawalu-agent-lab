@@ -30,20 +30,19 @@ function formatDateTime(iso) {
   return new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(iso));
 }
 
-// Recovery is offered to the nearest place the post came from: the author's
-// profile when the link carried one, and otherwise the feed itself. The feed is
-// called "Social" here because that is the name the site navigation gives it.
-function postReturn(author) {
-  if (!author) {
-    const feed = el("a", "empty-action empty-action-secondary", "Return to Social");
-    feed.href = "/social.html";
-    feed.setAttribute("aria-label", "Return to Social");
-    return feed;
-  }
-  const link = el("a", "empty-action empty-action-secondary", "Return to profile");
-  link.href = profileHref(author);
-  link.setAttribute("aria-label", `Return to ${author}'s profile`);
-  return link;
+// The page already carries one standing back link to the profile this post was
+// opened from (#post-back in src/post.html), so no state renders a second
+// control to that same destination — two links, two labels, one place is how a
+// reader loses track of where "back" is.
+//
+// The one exception is a visit with no id at all: there is no post and no
+// profile to return to, so that state points at the feed instead. It is called
+// "Social" here because that is the name the site navigation gives it.
+function feedReturn() {
+  const feed = el("a", "empty-action empty-action-secondary", "Return to Social");
+  feed.href = "/social.html";
+  feed.setAttribute("aria-label", "Return to Social");
+  return feed;
 }
 
 // One title and one sentence per state, in the same shape the decision detail
@@ -77,7 +76,7 @@ const POST_STATE_COPY = {
   },
 };
 
-function labelledState(state, author, action) {
+function labelledState(state, action) {
   const copy = POST_STATE_COPY[state] ?? POST_STATE_COPY.error;
   const node = el("div", `empty-state detail-state-message ${copy.className}`);
   const heading = el("h2", "empty-title", copy.title);
@@ -85,14 +84,14 @@ function labelledState(state, author, action) {
   node.setAttribute("role", state === "error" ? "alert" : "status");
   node.setAttribute("aria-labelledby", heading.id);
   node.append(el("p", "detail-state-label", copy.label), heading, el("p", undefined, copy.description));
-  // The state's own action comes first; the standing way back is the fallback
-  // behind it.
+  // A state offers the one action it owns — retrying a failed load, or opening
+  // the feed when no post was asked for. The way back is the standing link.
   if (action) node.append(action);
-  node.append(postReturn(author));
+  if (state === "empty") node.append(feedReturn());
   return node;
 }
 
-function renderMedia(image, author, caption) {
+function renderMedia(image, caption) {
   const frame = el("div", "detail-media");
   frame.dataset.state = "loading";
 
@@ -110,7 +109,8 @@ function renderMedia(image, author, caption) {
   }
 
   // On the detail view the image is the point, so its failure note keeps the
-  // description rather than discarding it with the element.
+  // description rather than discarding it with the element. It offers no way
+  // out: the post itself still reads, and the standing back link is above it.
   const fallback = el("div", "detail-media-fallback");
   const fallbackTitle = el("h2", "detail-media-fallback-title", "Image unavailable");
   fallbackTitle.id = "post-image-unavailable-title";
@@ -119,7 +119,6 @@ function renderMedia(image, author, caption) {
   fallback.append(
     fallbackTitle,
     el("p", undefined, `The post image could not be displayed. Description: ${img.alt}`),
-    postReturn(author),
   );
   fallback.hidden = true;
 
@@ -136,19 +135,19 @@ function renderMedia(image, author, caption) {
   return frame;
 }
 
-function renderMissing(container, id, author) {
-  container.append(labelledState(id ? "not-found" : "empty", author));
+function renderMissing(container, id) {
+  container.append(labelledState(id ? "not-found" : "empty"));
 }
 
-function renderFailed(container, onRetry, author) {
+function renderFailed(container, onRetry) {
   const retry = el("button", "empty-action", "Try again");
   retry.type = "button";
   if (onRetry) retry.addEventListener("click", onRetry);
-  container.append(labelledState("error", author, retry));
+  container.append(labelledState("error", retry));
 }
 
-function renderLoading(container, author) {
-  const loading = labelledState("loading", author);
+function renderLoading(container) {
+  const loading = labelledState("loading");
   const skeleton = el("div", "detail-skeleton");
   skeleton.setAttribute("aria-hidden", "true");
   skeleton.append(el("div", "skeleton-line skeleton-line-short"), el("div", "skeleton-media"), el("div", "skeleton-line"));
@@ -157,14 +156,14 @@ function renderLoading(container, author) {
 }
 
 export function renderPostDetail(container, post, options = {}) {
-  const { state = "ready", id = "", author: profileAuthor = "" } = options;
+  const { state = "ready", id = "" } = options;
   container.replaceChildren();
   container.setAttribute("aria-busy", state === "loading" ? "true" : "false");
 
   if (!post) {
-    if (state === "loading") renderLoading(container, profileAuthor);
-    else if (state === "error") renderFailed(container, options.onRetry, profileAuthor);
-    else renderMissing(container, id, profileAuthor);
+    if (state === "loading") renderLoading(container);
+    else if (state === "error") renderFailed(container, options.onRetry);
+    else renderMissing(container, id);
     return;
   }
 
@@ -188,7 +187,7 @@ export function renderPostDetail(container, post, options = {}) {
   const caption = captionFor(post);
   if (post.image) {
     const figure = el("figure", "detail-figure");
-    figure.append(renderMedia(post.image, post.author, caption));
+    figure.append(renderMedia(post.image, caption));
     const figcaption = el("figcaption", "detail-caption", caption);
     figcaption.id = "detail-caption";
     figure.append(figcaption);

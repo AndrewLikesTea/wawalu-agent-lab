@@ -12,7 +12,10 @@
       <!-- First in focus order so a reader can immediately undo tile
            navigation. Every link into this page comes from a profile grid
            (see postDetailHref in profile.js), so Profile is where "back" goes;
-           JS refines it to the loaded author's own profile. -->
+           JS refines it to the loaded author's own profile.
+
+           This is the page's only back link. The state panel below never
+           repeats it — see the note above feedReturn() in post-detail.js. -->
       <a class="detail-back detail-page-back" id="post-back" href="/profile.html"
         aria-label="Back to Profile">← Back to Profile</a>
 
@@ -32,6 +35,11 @@
       <section class="hero hero-post" id="top" aria-labelledby="page-title">
         <p class="eyebrow">Social · post</p>
         <h1 id="page-title">Post</h1>
+        <!-- Standing copy: it sits in the frame, not in #post-detail, so a
+             visitor who arrived from a shared link is told what Social is
+             while the post is still loading — and still if it never arrives.
+             The heading above it is rewritten by JS; this sentence is not. -->
+        <p>This is one post from Social, the team’s feed of short notes about the decisions and releases logged in Shiplog.</p>
       </section>
 
       <section class="workspace profile-workspace" aria-label="Post">
