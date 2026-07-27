@@ -1,0 +1,75 @@
+{
+  "fixtureId": "mixed-signal",
+  "rubricVersion": "1.0.0",
+  "label": "Strong on one axis, weak on another: well-formed requests routed to the wrong model. Intent 89 against model fit 65 is the separation the other two fixtures cannot show, and the over-provisioned rows carry two thirds of the tokens while costing only 3.5 points of composite — the exact exposure rubric 1.0.0 declines to weight.",
+  "expectedValuesAreHandAuthored": "Composite = (6x10000 + 3x5500 + 1x3500) / (100 x 10) = 80. Intent = (6x100 + 3x80 + 1x50) / 10 = 89. Efficiency = (6x100 + 3x50 + 1x0) / 10 = 75. Model fit = (6x100 + 3x0 + 1x50) / 10 = 65. Change any axis weight and this fixture moves even when the other two do not.",
+  "records": [
+    {"queryId": "mx-01", "category": "highValue", "model": "acme-sonnet-1", "inputTokens": 900, "outputTokens": 600},
+    {"queryId": "mx-02", "category": "highValue", "model": "acme-sonnet-1", "inputTokens": 900, "outputTokens": 600},
+    {"queryId": "mx-03", "category": "highValue", "model": "acme-sonnet-1", "inputTokens": 900, "outputTokens": 600},
+    {"queryId": "mx-04", "category": "highValue", "model": "acme-sonnet-1", "inputTokens": 900, "outputTokens": 600},
+    {"queryId": "mx-05", "category": "highValue", "model": "acme-sonnet-1", "inputTokens": 900, "outputTokens": 600},
+    {"queryId": "mx-06", "category": "highValue", "model": "acme-sonnet-1", "inputTokens": 900, "outputTokens": 600},
+    {"queryId": "mx-07", "category": "overProvisioned", "model": "acme-opus-1", "inputTokens": 4000, "outputTokens": 2500},
+    {"queryId": "mx-08", "category": "overProvisioned", "model": "acme-opus-1", "inputTokens": 4000, "outputTokens": 2500},
+    {"queryId": "mx-09", "category": "overProvisioned", "model": "acme-opus-1", "inputTokens": 4000, "outputTokens": 2500},
+    {"queryId": "mx-10", "category": "inefficient", "model": "acme-opus-1", "inputTokens": 500, "outputTokens": 400}
+  ],
+  "expected": {
+    "rubricVersion": "1.0.0",
+    "rubricVersionId": "literacy-mix/1.0.0",
+    "scored": true,
+    "reason": null,
+    "records": {"total": 10, "scored": 10, "unclassified": 0},
+    "subscores": {"intent": 89, "efficiency": 75, "modelFit": 65},
+    "composite": 80,
+    "grade": "B",
+    "categories": [
+      {
+        "key": "highValue",
+        "label": "High-value",
+        "records": 6,
+        "share": 0.6,
+        "subscores": {"intent": 100, "efficiency": 100, "modelFit": 100},
+        "categoryScore": 100,
+        "contribution": 60,
+        "tokens": {"input": 5400, "output": 3600},
+        "models": ["acme-sonnet-1"]
+      },
+      {
+        "key": "overProvisioned",
+        "label": "Over-provisioned",
+        "records": 3,
+        "share": 0.3,
+        "subscores": {"intent": 80, "efficiency": 50, "modelFit": 0},
+        "categoryScore": 55,
+        "contribution": 16.5,
+        "tokens": {"input": 12000, "output": 7500},
+        "models": ["acme-opus-1"]
+      },
+      {
+        "key": "inefficient",
+        "label": "Inefficient",
+        "records": 1,
+        "share": 0.1,
+        "subscores": {"intent": 50, "efficiency": 0, "modelFit": 50},
+        "categoryScore": 35,
+        "contribution": 3.5,
+        "tokens": {"input": 500, "output": 400},
+        "models": ["acme-opus-1"]
+      },
+      {
+        "key": "outOfScope",
+        "label": "Out-of-scope",
+        "records": 0,
+        "share": 0,
+        "subscores": {"intent": 0, "efficiency": 0, "modelFit": 0},
+        "categoryScore": 0,
+        "contribution": 0,
+        "tokens": {"input": 0, "output": 0},
+        "models": []
+      }
+    ],
+    "tokens": {"input": 17900, "output": 11500}
+  }
+}

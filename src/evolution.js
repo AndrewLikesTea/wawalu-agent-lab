@@ -9,6 +9,15 @@
 // no customer content, credential, or PII can reach the browser. `redactForScoring`
 // documents the redaction contract the future gateway must satisfy before a
 // prompt is shown to any judge model.
+//
+// The grading numbers themselves are not written here. Every category weight and
+// grade cutoff comes from `prompt-literacy-rubric.json` through the scoring
+// module, so the rubric a director disputes has exactly one definition and each
+// number in it carries a stated assumption.
+
+import {
+  RUBRIC_VERSION_ID, categoryScoreWeight, letterGradeForScore,
+} from "./prompt-literacy-scoring.js";
 
 /** The four query classes from the product brief, in cost-severity order. */
 export const QUERY_CATEGORIES = [
@@ -19,8 +28,9 @@ export const QUERY_CATEGORIES = [
     systemAction: "Counted as productive spend; raises the team literacy score.",
     // Fraction of this slice's spend that is realistically recoverable.
     recoverableShare: 0,
-    // Credit toward the literacy score, 0–100.
-    scoreWeight: 100,
+    // Credit toward the literacy score, 0–100, derived from the rubric's three
+    // axis credits. Read the assumption beside each credit in the rubric file.
+    scoreWeight: categoryScoreWeight("highValue"),
     tone: "good",
   },
   {
@@ -30,7 +40,7 @@ export const QUERY_CATEGORIES = [
     // Down-routing recovers most, not all, of the slice: a cheaper model still bills.
     systemAction: "Candidate for automated down-routing to a cheaper model.",
     recoverableShare: 0.7,
-    scoreWeight: 55,
+    scoreWeight: categoryScoreWeight("overProvisioned"),
     tone: "warn",
   },
   {
@@ -40,7 +50,7 @@ export const QUERY_CATEGORIES = [
     // Training compresses the retry chain; it does not remove the underlying task.
     systemAction: "Surfaced as a training gap for that team.",
     recoverableShare: 0.4,
-    scoreWeight: 35,
+    scoreWeight: categoryScoreWeight("inefficient"),
     tone: "warn",
   },
   {
@@ -49,13 +59,12 @@ export const QUERY_CATEGORIES = [
     description: "Non-business queries: hobbies, personal errands, nonsense.",
     systemAction: "Tagged as cost leakage and excluded from productivity metrics.",
     recoverableShare: 1,
-    scoreWeight: 0,
+    scoreWeight: categoryScoreWeight("outOfScope"),
     tone: "bad",
   },
 ];
 
 const CATEGORY_KEYS = QUERY_CATEGORIES.map((category) => category.key);
-const GRADES = [[90, "A"], [80, "B"], [70, "C"], [60, "D"]];
 
 function toFiniteNumber(value) {
   const number = Number(value);
@@ -106,7 +115,7 @@ export function departmentPerformance(department = {}) {
     return {
       available: false, score: null, uncertaintyPoints: null,
       reason: department.sampling?.reason || "No eligible scored sample for this period.",
-      rubricVersion: "literacy-mix/1.0.0",
+      rubricVersion: RUBRIC_VERSION_ID,
     };
   }
   const shares = normalizeMix(department.mix);
@@ -121,7 +130,7 @@ export function departmentPerformance(department = {}) {
     score: Math.round(mean),
     uncertaintyPoints: Math.round(1.96 * Math.sqrt(variance / sampledQueries) * 10) / 10,
     reason: null,
-    rubricVersion: "literacy-mix/1.0.0",
+    rubricVersion: RUBRIC_VERSION_ID,
   };
 }
 
@@ -262,7 +271,7 @@ export function explainLiteracyScore(mix) {
     contribution: shares[category.key] * category.scoreWeight,
   }));
   return {
-    version: "literacy-mix/1.0.0",
+    version: RUBRIC_VERSION_ID,
     terms,
     arithmetic: `${terms.map((term) => `${(term.share * 100).toFixed(1)}%×${term.weight}`).join(" + ")} = ${terms.reduce((sum, term) => sum + term.contribution, 0).toFixed(1)}; rounded to nearest integer`,
   };
@@ -270,8 +279,7 @@ export function explainLiteracyScore(mix) {
 
 /** Letter grade for a 0–100 score, so the headline reads in one glance. */
 export function letterGrade(score) {
-  const value = Number.isFinite(Number(score)) ? Number(score) : 0;
-  return GRADES.find(([floor]) => value >= floor)?.[1] ?? "F";
+  return letterGradeForScore(score);
 }
 
 /** Spend attributable to one category, in whole dollars. */
@@ -377,7 +385,7 @@ export function summarize(departments = []) {
     spendUsd, recoverableUsd, queries, headcount, score,
     grade: letterGrade(score),
     scoreExplanation: {
-      version: "literacy-mix/1.0.0",
+      version: RUBRIC_VERSION_ID,
       rule: "Organization score = sum(department score × department spend) ÷ total spend; nearest integer.",
       arithmetic: spendUsd === 0
         ? "No spend: score = 0."

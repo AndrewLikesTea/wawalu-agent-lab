@@ -1,0 +1,76 @@
+{
+  "fixtureId": "low-literacy",
+  "rubricVersion": "1.0.0",
+  "label": "Four in ten queries are over-provisioned and a fifth is leakage; one record arrives with a category this rubric does not recognise.",
+  "expectedValuesAreHandAuthored": "Composite = (2x10000 + 4x5500 + 2x3500 + 2x0) / (100 x 10) = 49. Intent = (2x100 + 4x80 + 2x50) / 10 = 62. Efficiency = (2x100 + 4x50) / 10 = 40. Model fit = (2x100 + 2x50) / 10 = 30. The eleventh record is excluded from every denominator and reported as unclassified.",
+  "records": [
+    {"queryId": "lo-01", "category": "highValue", "model": "acme-sonnet-1", "inputTokens": 1000, "outputTokens": 700},
+    {"queryId": "lo-02", "category": "highValue", "model": "acme-sonnet-1", "inputTokens": 1000, "outputTokens": 700},
+    {"queryId": "lo-03", "category": "overProvisioned", "model": "acme-opus-1", "inputTokens": 120, "outputTokens": 60},
+    {"queryId": "lo-04", "category": "overProvisioned", "model": "acme-opus-1", "inputTokens": 120, "outputTokens": 60},
+    {"queryId": "lo-05", "category": "overProvisioned", "model": "acme-opus-1", "inputTokens": 120, "outputTokens": 60},
+    {"queryId": "lo-06", "category": "overProvisioned", "model": "acme-opus-1", "inputTokens": 120, "outputTokens": 60},
+    {"queryId": "lo-07", "category": "inefficient", "model": "acme-sonnet-1", "inputTokens": 300, "outputTokens": 200},
+    {"queryId": "lo-08", "category": "inefficient", "model": "acme-sonnet-1", "inputTokens": 300, "outputTokens": 200},
+    {"queryId": "lo-09", "category": "outOfScope", "model": "acme-haiku-1", "inputTokens": 80, "outputTokens": 50},
+    {"queryId": "lo-10", "category": "outOfScope", "model": "acme-haiku-1", "inputTokens": 80, "outputTokens": 50},
+    {"queryId": "lo-11", "category": "needsHumanReview", "model": "acme-haiku-1", "inputTokens": 500, "outputTokens": 400}
+  ],
+  "expected": {
+    "rubricVersion": "1.0.0",
+    "rubricVersionId": "literacy-mix/1.0.0",
+    "scored": true,
+    "reason": null,
+    "records": {"total": 11, "scored": 10, "unclassified": 1},
+    "subscores": {"intent": 62, "efficiency": 40, "modelFit": 30},
+    "composite": 49,
+    "grade": "F",
+    "categories": [
+      {
+        "key": "highValue",
+        "label": "High-value",
+        "records": 2,
+        "share": 0.2,
+        "subscores": {"intent": 100, "efficiency": 100, "modelFit": 100},
+        "categoryScore": 100,
+        "contribution": 20,
+        "tokens": {"input": 2000, "output": 1400},
+        "models": ["acme-sonnet-1"]
+      },
+      {
+        "key": "overProvisioned",
+        "label": "Over-provisioned",
+        "records": 4,
+        "share": 0.4,
+        "subscores": {"intent": 80, "efficiency": 50, "modelFit": 0},
+        "categoryScore": 55,
+        "contribution": 22,
+        "tokens": {"input": 480, "output": 240},
+        "models": ["acme-opus-1"]
+      },
+      {
+        "key": "inefficient",
+        "label": "Inefficient",
+        "records": 2,
+        "share": 0.2,
+        "subscores": {"intent": 50, "efficiency": 0, "modelFit": 50},
+        "categoryScore": 35,
+        "contribution": 7,
+        "tokens": {"input": 600, "output": 400},
+        "models": ["acme-sonnet-1"]
+      },
+      {
+        "key": "outOfScope",
+        "label": "Out-of-scope",
+        "records": 2,
+        "share": 0.2,
+        "subscores": {"intent": 0, "efficiency": 0, "modelFit": 0},
+        "categoryScore": 0,
+        "contribution": 0,
+        "tokens": {"input": 160, "output": 100},
+        "models": ["acme-haiku-1"]
+      }
+    ],
+    "tokens": {"input": 3240, "output": 2140}
+  }
+}
