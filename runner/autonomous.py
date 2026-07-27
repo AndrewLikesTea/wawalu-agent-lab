@@ -1560,17 +1560,41 @@ def list_open_issue_titles(token: str) -> list[str]:
     return [str(item.get("title", "")) for item in issues if "pull_request" not in item]
 
 
-def stakeholder_ledger_entry(state: State, persona: str, day: str) -> dict[str, Any]:
-    """This stakeholder's ledger entry for today, rolled over inside the state lock.
+def claim_stakeholder_slot(state: State, persona: str, day: str, max_daily: int,
+                           min_interval_seconds: int, now: dt.datetime) -> bool:
+    """Take this stakeholder's next review slot, or report that it is not due yet.
 
-    Returned as a copy: the rate-limit decision that follows is made outside the
-    lock, and the live entry may be replaced by any other writer in the meantime.
+    Rolling the day over, testing the cadence and stamping the claim all happen
+    inside one lock, because a review is slow: the Qwen call and the snapshot take
+    tens of seconds, and a decision made before that work and recorded after it
+    leaves a window where the next tick — or a second daemon left over from a
+    restart — reads a cadence that the review in flight has not written yet. Both
+    then fire, and a stakeholder burns its whole day's feedback in a few minutes
+    instead of spreading it across the day the owner asked for.
     """
     with state.mutate():
         record = state.value.setdefault("stakeholder_reviews", {}).setdefault(persona, {})
         if record.get("day") != day:
             record.update({"day": day, "count": 0})
-        return dict(record)
+        if int(record.get("count", 0)) >= max_daily:
+            return False
+        last = record.get("last_at")
+        if last and (now - dt.datetime.fromisoformat(last)).total_seconds() < min_interval_seconds:
+            return False
+        record["count"] = int(record.get("count", 0)) + 1
+        record["last_at"] = now.isoformat()
+        return True
+
+
+def release_stakeholder_slot(state: State, persona: str) -> None:
+    """Give back the daily slot a claimed review never used.
+
+    The cadence stamp stays: a review that just failed should not be retried on the
+    next tick, but it should not cost the stakeholder one of its few daily voices.
+    """
+    with state.mutate():
+        record = state.value.setdefault("stakeholder_reviews", {}).setdefault(persona, {})
+        record["count"] = max(0, int(record.get("count", 0)) - 1)
 
 
 def post_stakeholder_reviews(token: str, config: dict[str, Any], state: State,
@@ -1592,12 +1616,8 @@ def post_stakeholder_reviews(token: str, config: dict[str, Any], state: State,
         allowed = [name for name in review.get("assign_to", []) if name in PERSONAS]
         if not allowed or persona not in {**PERSONA_NAMES, **STAKEHOLDER_NAMES}:
             continue
-        record = stakeholder_ledger_entry(state, persona, day)
-        if record["count"] >= int(review.get("max_daily", 2)):
-            continue
-        last = record.get("last_at")
-        if last and (now - dt.datetime.fromisoformat(last)).total_seconds() < int(
-                review.get("min_interval_seconds", 14400)):
+        if not claim_stakeholder_slot(state, persona, day, int(review.get("max_daily", 2)),
+                                      int(review.get("min_interval_seconds", 14400)), now):
             continue
         if delivered is None:  # one fetch shared by every due stakeholder this tick
             delivered = delivered_work_context(token)
@@ -1618,6 +1638,7 @@ def post_stakeholder_reviews(token: str, config: dict[str, Any], state: State,
                 pages, delivered, open_titles, allowed, run_dir / "review.json",
                 reference=design_reference() if persona == "design" else "")
         except Exception as error:
+            release_stakeholder_slot(state, persona)
             journal.emit("stakeholder_review_failed", persona=persona,
                          error=type(error).__name__, detail=str(error)[:300])
             continue
@@ -1635,10 +1656,6 @@ def post_stakeholder_reviews(token: str, config: dict[str, Any], state: State,
                 "labels": [config["issue_label"], f"persona:{task['persona']}"]})
             created.append(int(issue["number"]))
             open_titles.append(task["title"])  # a later stakeholder must not duplicate it
-        with state.mutate():
-            entry = state.value.setdefault("stakeholder_reviews", {}).setdefault(persona, {})
-            entry["count"] = int(entry.get("count", 0)) + 1
-            entry["last_at"] = now.isoformat()
         journal.emit("stakeholder_review_posted", persona=persona,
                      tasks=len(created), issues=created)
 
