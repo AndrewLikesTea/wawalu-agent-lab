@@ -143,6 +143,49 @@ export const RUBRIC_SIGNALS = Object.freeze([
   }),
 ]);
 
+/**
+ * THE LENGTH BANDS. A prompt's character count, already on the parsed record as
+ * `prompt_chars`, reported as one of five named bands and never as a figure a
+ * reader could work backwards from.
+ *
+ * The cuts are about what a prompt of that size can structurally hold, read off
+ * the rubric's own intent axis rather than picked for roundness: under ~120
+ * characters is one line, which has room for an instruction and nothing else;
+ * ~480 is a paragraph, enough for an instruction plus its context; ~1600 is a
+ * briefed prompt carrying context, constraints and acceptance criteria at once.
+ * `empty` is its own band because a row with no prompt body is a fact about the
+ * export, not a very short prompt.
+ *
+ * Bands, not counts, because a character count is a fingerprint: an exact
+ * length plus a timestamp narrows a prompt to one conversation, and this
+ * surface promises the opposite.
+ */
+export const PROMPT_LENGTH_BANDS = Object.freeze([
+  Object.freeze({ key: "empty", label: "no prompt body", ceiling: 0 }),
+  Object.freeze({ key: "one_line", label: "under 120 characters", ceiling: 120 }),
+  Object.freeze({ key: "paragraph", label: "120 to 480 characters", ceiling: 480 }),
+  Object.freeze({ key: "briefed", label: "480 to 1,600 characters", ceiling: 1600 }),
+  Object.freeze({ key: "long_form", label: "1,600 characters and over", ceiling: null }),
+]);
+
+/** The band one record's character count falls in. Never returns undefined. */
+export function lengthBandFor(chars) {
+  const count = Number.isFinite(chars) && chars > 0 ? chars : 0;
+  return PROMPT_LENGTH_BANDS.find((band) => band.ceiling === null || count <= band.ceiling)
+    ?? PROMPT_LENGTH_BANDS[PROMPT_LENGTH_BANDS.length - 1];
+}
+
+/**
+ * How many distinct structural signatures a department reports.
+ *
+ * A signature is a shape, not a prompt, so a department with forty thousand
+ * prompts still has at most a few dozen of them — but a panel that listed every
+ * one would bury the finding, and one that silently cut the list would claim
+ * completeness it does not have. Eight rows, and the count that was left out
+ * travels with them so the truncation is stated rather than hidden.
+ */
+export const MAX_SKETCH_SIGNATURES = 8;
+
 const AXIS_KEYS = new Set(PROMPT_LITERACY_RUBRIC.axes.map((axis) => axis.key));
 const CATEGORY_KEYS = new Set(PROMPT_LITERACY_RUBRIC.categories.map((category) => category.key));
 for (const signal of RUBRIC_SIGNALS) {
@@ -269,12 +312,92 @@ function signalsFor(counts, classified) {
     .sort((left, right) => right.impact - left.impact || left.key.localeCompare(right.key));
 }
 
+/** Which weakness signal a rubric category answers to, or none. */
+const SIGNAL_BY_CATEGORY = new Map(RUBRIC_SIGNALS.map((signal) => [signal.category, signal]));
+
+/**
+ * THE STRUCTURAL SKETCHES. What an individual prompt is allowed to become on a
+ * reading surface: a length band, the rubric category it was classified into,
+ * the model tier the export named, and the signal that fired. Four values, every
+ * one of them either a count-derived band or a key from a table in this
+ * repository. There is no fifth field, and none of the four can be read back
+ * toward a sentence somebody typed.
+ *
+ * Identical shapes are one row with a count rather than N rows, which is both
+ * the only form that survives a forty-thousand-prompt department and one more
+ * step away from a single identifiable prompt.
+ *
+ * Only signal-bearing categories are sketched: these are the prompts the grade
+ * is an accusation about, and a high-value prompt is evidence for nothing a
+ * reader is being asked to act on. The whole classified mix is in
+ * `distribution` below, so nothing is hidden by that choice.
+ */
+function sketchesFor(bucket) {
+  const rows = [...bucket.sketches.values()]
+    .sort((left, right) => right.count - left.count || left.key.localeCompare(right.key));
+  const represented = rows.reduce((sum, row) => sum + row.count, 0);
+  const shown = rows.slice(0, MAX_SKETCH_SIGNATURES);
+  return Object.freeze({
+    represented,
+    signatureCount: rows.length,
+    shownCount: shown.length,
+    shownPrompts: shown.reduce((sum, row) => sum + row.count, 0),
+    signatures: Object.freeze(shown.map((row) => Object.freeze({
+      key: row.key,
+      count: row.count,
+      share: bucket.classified > 0 ? roundShare(row.count / bucket.classified) : 0,
+      lengthBand: row.band.key,
+      lengthBandLabel: row.band.label,
+      intentClass: row.category,
+      intentClassLabel: categoryLabel(row.category),
+      // Null is "the export named no model on this row", which is not the same
+      // fact as `unrecognized` — a model was named and no tier rule matched it.
+      modelTier: row.modelTier,
+      signal: row.signal.key,
+      signalLabel: row.signal.label,
+    }))),
+  });
+}
+
+/**
+ * The score distribution: every rubric category, its count, and the score the
+ * rubric already publishes for it. Read from `categoryScoreWeight`, so the bars
+ * a reader compares are the same numbers the composite was built from and not a
+ * second scale drawn beside it.
+ */
+function distributionFor(bucket) {
+  return Object.freeze(PROMPT_LITERACY_RUBRIC.categories.map((category) => {
+    const count = bucket.categories.get(category.key) ?? 0;
+    return Object.freeze({
+      key: category.key,
+      label: category.label,
+      count,
+      share: bucket.classified > 0 ? roundShare(count / bucket.classified) : 0,
+      scorePoints: categoryScoreWeight(category.key),
+    });
+  }));
+}
+
+const CATEGORY_LABELS = new Map(
+  PROMPT_LITERACY_RUBRIC.categories.map((category) => [category.key, category.label]),
+);
+
+function categoryLabel(key) {
+  return CATEGORY_LABELS.get(key) ?? key;
+}
+
 /** A whole-number percentage, from the counts, computed in exactly one place. */
 function percentText(numerator, denominator) {
   return `${denominator > 0 ? Math.round((numerator / denominator) * 100) : 0}%`;
 }
 
-function ungraded(department, source, prompts, reason) {
+/**
+ * An ungraded department still has evidence, and withholding it is what makes a
+ * below-floor department look like a failure rather than a gap: the reader
+ * cannot see how far off the floor it is, or what the prompts it does have look
+ * like. The letter is withheld; the counts are not.
+ */
+function ungraded(department, source, prompts, reason, evidence) {
   return Object.freeze({
     department,
     attribution: source,
@@ -291,6 +414,8 @@ function ungraded(department, source, prompts, reason) {
     signals: Object.freeze([]),
     driver: null,
     impact: 0,
+    distribution: evidence.distribution,
+    sketches: evidence.sketches,
     rubricVersion: null,
   });
 }
@@ -326,6 +451,10 @@ export function aggregateConversationLiteracy({
       confidenceSum: 0,
       categories: new Map(),
       scorable: [],
+      // Signature -> count. Built here because this loop is the only place a
+      // record and its classification are side by side; nothing downstream is
+      // handed a record at all.
+      sketches: new Map(),
     };
     bucket.sources.add(source);
     bucket.total += 1;
@@ -337,6 +466,16 @@ export function aggregateConversationLiteracy({
       // Handed to the rubric with a category and nothing else: a conversation
       // export carries no token counts, and apportioning some would be synthesis.
       bucket.scorable.push({ category: classification.category });
+      const signal = SIGNAL_BY_CATEGORY.get(classification.category);
+      if (signal) {
+        const band = lengthBandFor(record.prompt_empty ? 0 : record.prompt_chars);
+        const modelTier = typeof classification.modelTier === "string" ? classification.modelTier : null;
+        const key = `${band.key}|${classification.category}|${modelTier ?? "unnamed"}`;
+        const entry = bucket.sketches.get(key)
+          ?? { key, band, category: classification.category, modelTier, signal, count: 0 };
+        entry.count += 1;
+        bucket.sketches.set(key, entry);
+      }
     }
     buckets.set(department, bucket);
   });
@@ -387,22 +526,26 @@ function departmentResult(bucket, minimumPrompts) {
   // Every source that named a record in this bucket, so a reader disputing a
   // department can see whether the file said so or the roster did.
   const attribution = Object.freeze([...bucket.sources].sort());
+  const evidence = {
+    distribution: distributionFor(bucket),
+    sketches: sketchesFor(bucket),
+  };
 
   if (bucket.department === UNATTRIBUTED_DEPARTMENT) {
     return ungraded(bucket.department, attribution, prompts,
-      CONVERSATION_NOT_GRADEABLE_REASONS.unattributedRecords);
+      CONVERSATION_NOT_GRADEABLE_REASONS.unattributedRecords, evidence);
   }
   if (bucket.total === 0) {
     return ungraded(bucket.department, attribution, prompts,
-      CONVERSATION_NOT_GRADEABLE_REASONS.noSampledQueries);
+      CONVERSATION_NOT_GRADEABLE_REASONS.noSampledQueries, evidence);
   }
   if (bucket.classified === 0) {
     return ungraded(bucket.department, attribution, prompts,
-      CONVERSATION_NOT_GRADEABLE_REASONS.noClassifiedQueries);
+      CONVERSATION_NOT_GRADEABLE_REASONS.noClassifiedQueries, evidence);
   }
   if (bucket.classified < minimumPrompts) {
     return ungraded(bucket.department, attribution, prompts,
-      CONVERSATION_NOT_GRADEABLE_REASONS.insufficientJoinedSample);
+      CONVERSATION_NOT_GRADEABLE_REASONS.insufficientJoinedSample, evidence);
   }
 
   const scored = scorePromptLiteracy(bucket.scorable);
@@ -426,6 +569,10 @@ function departmentResult(bucket, minimumPrompts) {
     signals: Object.freeze(signals),
     driver,
     impact: roundImpact(signals.reduce((sum, signal) => sum + signal.impact, 0)),
+    // The audit trail behind the letter: the whole classified mix, and the
+    // structural shapes of the prompts the weakness is made of.
+    distribution: evidence.distribution,
+    sketches: evidence.sketches,
     rubricVersion: scored.rubricVersionId,
   });
 }
@@ -553,6 +700,27 @@ export function conversationLiteracyPayload(result) {
       impact: department.impact,
       driver: department.driver ? signalPayload(department.driver) : null,
       signals: department.signals.map(signalPayload),
+      distribution: department.distribution.map((row) => ({
+        key: row.key, label: row.label, count: row.count,
+        share: row.share, score_points: row.scorePoints,
+      })),
+      // Four keys and a count per row, all of them from a table above. Written
+      // out field by field for the same reason every other row here is: an
+      // internal field added to a signature later cannot ride out with it.
+      sketches: {
+        represented: department.sketches.represented,
+        signature_count: department.sketches.signatureCount,
+        shown_count: department.sketches.shownCount,
+        shown_prompts: department.sketches.shownPrompts,
+        signatures: department.sketches.signatures.map((row) => ({
+          count: row.count,
+          share: row.share,
+          length_band: row.lengthBand,
+          intent_class: row.intentClass,
+          model_tier: row.modelTier,
+          signal: row.signal,
+        })),
+      },
     })),
   };
 }

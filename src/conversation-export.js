@@ -33,6 +33,7 @@ import {
   COERCIONS, CONVERSATION_DIALECT_PROFILES, NEVER_RENDER, UNGROUPED_DEPARTMENT,
   columnNames, neverRenderColumns, normalizeColumnName,
 } from "./dialect-profiles.js";
+import { MODEL_TIERS, classifyModelTier } from "./provider-usage-record.js";
 
 /** Bumped when the shape below changes, independently of a profile version. */
 export const CONVERSATION_CONTRACT_VERSION = "1.0";
@@ -50,12 +51,21 @@ export const CONVERSATION_RECORD_KEYS = Object.freeze([
 
 /**
  * The keys one classification entry may carry. A category key, two numbers, a
- * closed reason code, and rule ids — every one of them a value this repository
- * authored, none of them derived from a cell. The same allowlist discipline the
- * records get, for the one other thing a prompt body is allowed to become.
+ * closed reason code, rule ids, and the model tier — every one of them a value
+ * this repository authored, none of them derived from a cell. The same
+ * allowlist discipline the records get, for the one other thing a prompt body
+ * is allowed to become.
+ *
+ * `modelTier` is a `MODEL_TIERS` member or null, never the vendor's model
+ * string: the raw SKU is a cell and the tier is this repository's vocabulary.
+ * It is derived here rather than asked of the caller's classifier for the same
+ * reason every other key is rebuilt — a classifier is caller-supplied code, and
+ * the parse decides what leaves it. Null means the export named no model at
+ * all, which is a different fact from `unrecognized` (a model was named and it
+ * matches no tier rule), and a reader auditing a routing claim needs both.
  */
 export const CONVERSATION_CLASSIFICATION_KEYS = Object.freeze([
-  "category", "classified", "confidence", "reason", "matchedRuleIds",
+  "category", "classified", "confidence", "reason", "matchedRuleIds", "modelTier",
 ]);
 
 /** Row-level skip codes. Downstream switches on the code, never the message. */
@@ -275,6 +285,8 @@ function classificationOf(classify, promptCell, model) {
       (Array.isArray(answer?.matchedRuleIds) ? answer.matchedRuleIds : [])
         .filter((id) => typeof id === "string"),
     ),
+    modelTier: typeof model === "string" && model.trim() !== ""
+      ? classifyModelTier(model) : null,
   });
 }
 
@@ -314,6 +326,9 @@ export function assertClassificationsClean(classifications, vocabulary = {}) {
     }
     if (ruleIds && entry.matchedRuleIds.some((id) => !ruleIds.has(id))) {
       throw new Error("classification names a rule id outside the declared vocabulary");
+    }
+    if (entry.modelTier !== null && !MODEL_TIERS.includes(entry.modelTier)) {
+      throw new Error("classification names a model tier outside the declared vocabulary");
     }
   }
   return true;

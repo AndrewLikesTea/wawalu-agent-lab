@@ -461,6 +461,19 @@
         <p class="graded-sample-live" id="graded-sample-live" role="status" aria-live="polite" aria-atomic="true"></p>
       </section>
 
+      <!-- The evidence behind one department's grade. Authored empty and hidden,
+           like the graded sample above it: a visitor with nothing imported never
+           meets this section, and every string inside it is painted by
+           department-evidence-view.js out of the per-department result and the
+           eligibility verdict. These are slots, never wording — including the
+           redaction promise, which is authored once in department-evidence.js so
+           the panel and its tests cannot hold two versions of it. -->
+      <section class="department-evidence" id="department-evidence" data-state="empty" data-expanded="false" aria-labelledby="department-evidence-title" hidden>
+        <h2 class="eyebrow" id="department-evidence-title">Evidence behind this grade</h2>
+        <div id="department-evidence-body"></div>
+        <p class="department-evidence-live" id="department-evidence-live" role="status" aria-live="polite" aria-atomic="true"></p>
+      </section>
+
       <section class="kpi-row" id="kpi-row" data-sample-analysis aria-label="Headline metrics">
         <!-- These four numbers only ever show the bundled sample: a local import
              hides them. Say so beside them rather than leaving a reader to infer
