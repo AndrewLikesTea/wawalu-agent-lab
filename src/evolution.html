@@ -200,6 +200,10 @@
             </div>
           </div>
           <p class="dataset-provenance" id="dataset-provenance-results" data-dataset-provenance data-dataset="user" role="note" aria-label="Data provenance" hidden></p>
+          <!-- Spoken only when coverage actually recalculates. The state it
+               announces is also readable in the coverage lines themselves, so a
+               reader who missed the announcement can still find it. -->
+          <p class="visually-hidden" id="coverage-live" role="status" aria-live="polite" aria-atomic="true"></p>
           <!-- Before any finding is worth reading, the reader has to know
                whether the number under it is trustworthy. Three questions, in
                this order: can I trust it, what is wrong and what is it worth,
@@ -212,6 +216,21 @@
                  both row counts sit with it so a leader can check the ratio. -->
             <p class="local-trust-inputs" id="local-trust-inputs">—</p>
             <p class="local-trust-answer" id="local-trust-answer">—</p>
+            <!-- One upgrade, not an alert per missing input. The action names the
+                 single file that would move coverage the most and the coverage it
+                 would buy; everything else that could still be supplied sits in
+                 the closed disclosure under it. Authored empty: the sentence, the
+                 ranking, and the projected percentage are all computed by
+                 attribution-confidence.js from the policy's own arithmetic. -->
+            <div class="coverage-upgrade" id="coverage-upgrade" data-state="none" hidden>
+              <p class="eyebrow">Raise coverage — highest gain first</p>
+              <p class="coverage-upgrade-action" id="coverage-upgrade-action"></p>
+              <button class="coverage-upgrade-jump" id="coverage-upgrade-jump" type="button">Open the import step</button>
+              <details class="coverage-upgrade-more" id="coverage-upgrade-more" hidden>
+                <summary>Other inputs that sharpen this result</summary>
+                <ul class="coverage-upgrade-rest" id="coverage-upgrade-rest"></ul>
+              </details>
+            </div>
             <section class="local-trust-findings-section" id="local-trust-findings-section" aria-labelledby="local-trust-findings-title" hidden>
               <p class="eyebrow" id="local-trust-findings-title">What is unattributed, ranked by money</p>
               <ol class="local-trust-findings" id="local-trust-findings" aria-label="Unattributed spend by category, highest impact first"></ol>
@@ -260,14 +279,26 @@
               <span class="local-finding-status" id="local-confidence"><span class="status-shape" aria-hidden="true">◆</span> <span id="local-confidence-label">Confidence unavailable</span></span>
             </header>
             <dl class="local-finding-facts" aria-label="Finding decision facts">
-              <div class="local-impact">
-                <dt>Quantified impact</dt>
-                <dd id="local-recoverable" data-real="false" data-confidence="FULL_CONFIDENCE">—</dd>
+              <!-- Coverage before the number, in the DOM and not with `order`: a
+                   screen reader and a Tab key both read this sequence, so "covers
+                   68% of spend, partial confidence" has to be authored ahead of
+                   the figure rather than painted above it. It is its own
+                   name-value group spanning the row, because it qualifies the
+                   whole finding rather than the impact cell alone. The figure
+                   still dominates visually — by type scale and weight, which is
+                   where dominance belongs. -->
+              <div class="local-impact-coverage">
+                <dt>Attribution coverage</dt>
+                <dd class="coverage-lead" id="local-impact-coverage" data-confidence="" hidden></dd>
                 <!-- The confidence word and, when the finding is degraded, the
                      unattributed share it must carry verbatim. Painted from the
                      classification, so the qualifier cannot be lifted off the
                      number it qualifies. -->
                 <dd class="local-attribution-note" id="local-attribution-note" data-state="unknown" hidden></dd>
+              </div>
+              <div class="local-impact">
+                <dt>Quantified impact</dt>
+                <dd id="local-recoverable" data-real="false" data-confidence="FULL_CONFIDENCE">—</dd>
                 <dd class="metric-basis"><span class="metric-basis-label" id="local-metric-label" data-real="false">Example data</span> <span class="metric-basis-detail" id="local-metric-detail">Bundled synthetic sample — not your import and not realized savings.</span></dd>
               </div>
               <div><dt>Department</dt><dd id="local-department">—</dd></div>
@@ -298,12 +329,13 @@
               <p id="local-benchmark-why"></p>
             </article>
           </div>
-          <section class="local-department-evidence" aria-labelledby="local-departments-title">
+          <section class="local-department-evidence" id="local-department-evidence" aria-labelledby="local-departments-title">
             <div>
               <p class="eyebrow">Progressive disclosure</p>
               <h4 id="local-departments-title">Department evidence</h4>
               <p>Expand a department finding to inspect impact, trend, confidence, and provenance in that order.</p>
             </div>
+            <p class="coverage-lead" id="local-departments-coverage" data-confidence="" hidden></p>
             <ol id="local-department-list" class="local-department-list" aria-label="Departments ordered by recoverable scenario"></ol>
           </section>
           <div class="local-disclosures">
@@ -415,6 +447,9 @@
         <article class="kpi kpi-alert" id="kpi-recoverable">
           <p class="kpi-label">Recoverable spend</p>
           <p class="kpi-flag" id="kpi-recoverable-flag" hidden><span class="kpi-flag-shape" aria-hidden="true">◇</span> unmeasured</p>
+          <!-- Authored before the numeral, so how much of the money this covers
+               is read before what it is worth. -->
+          <p class="coverage-lead" id="kpi-recoverable-coverage" data-confidence="" hidden></p>
           <p class="kpi-value" id="kpi-recoverable-value">–</p>
           <p class="kpi-note" id="kpi-recoverable-note">Down-routing, training, and leakage</p>
         </article>
@@ -576,6 +611,7 @@
              cost, so the bar it draws is a query mix and has to say so. Authored
              empty and hidden; the bundled sample below is a spend mix. -->
         <p class="mix-basis" id="mix-basis" hidden></p>
+        <p class="coverage-lead" id="mix-coverage" data-confidence="" hidden></p>
         <div class="mix-bar" id="mix-bar" role="img" aria-labelledby="mix-title" aria-describedby="mix-summary"></div>
         <p class="visually-hidden" id="mix-summary">Loading spend mix…</p>
         <ul class="mix-legend" id="mix-legend"></ul>
