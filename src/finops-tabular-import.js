@@ -26,6 +26,10 @@ import {
 } from "./delimited-text.js";
 import { ACCEPTED_LOCAL_FILE, LOCAL_KINDS, parseLocalFinopsFile } from "./local-finops.js";
 import { recognizeIdentifier } from "./model-overspend-finding.js";
+import {
+  ABSENT, PROVIDER_USAGE_SCHEMA_VERSION, UNRECOGNIZED_TIER,
+  carryableModelString, classifyModelTier, usageDetail,
+} from "./provider-usage-record.js";
 
 export { MAX_DELIMITED_BYTES, MAX_DELIMITED_ROWS };
 
@@ -211,9 +215,12 @@ const STATUS_COLUMN = Object.freeze({
 // and for the minimum-volume threshold the down-routing rule applies. Absent,
 // the per-model analysis reports `calls: null` and lowers its confidence tier;
 // it never substitutes a zero or a row count.
+// The spellings below are the ones this repository supports, not a claim about
+// what any one console emits: where a vendor's exact header is uncertain the
+// variants are declared here rather than guessed into a single name.
 const REQUESTS_COLUMN = Object.freeze({
   aliases: ["requests", "request count", "requests total", "n requests", "api requests",
-    "calls", "call count"],
+    "calls", "call count", "num model requests", "num requests", "model requests"],
   required: false,
 });
 
@@ -476,7 +483,7 @@ function makeProblem(code, { row = null, column = null, columnIndex = null, ...r
 function failure(problems, extra = {}) {
   return Object.freeze({
     ok: false, shape: null, parsed: null, columns: Object.freeze([]),
-    rowCount: 0, acceptedRows: 0, skippedRows: 0,
+    rowCount: 0, acceptedRows: 0, skippedRows: 0, unrecognizedModelRows: 0,
     dateFormats: Object.freeze({}), totals: null,
     problems: Object.freeze(problems), ...extra,
   });
@@ -505,6 +512,15 @@ function normalizeProviderRows(shape, binding, reading, problems, options) {
   // beyond the accumulator a new (unit, model) pair creates once.
   const modelGroups = new Map();
   let accepted = 0;
+  // Rows whose model string matched no declared tier rule. Counted per source
+  // row, carried out on the result, and never silently coerced into a tier.
+  let unrecognizedModelRows = 0;
+  // Which of the v1.1 count columns this file has at all. A column the export
+  // does not carry makes the field *absent* on every record it produces; a
+  // column it does carry makes a genuine zero a zero.
+  const hasInput = binding.bound.inputTokens !== undefined;
+  const hasOutput = binding.bound.outputTokens !== undefined;
+  const hasRequests = binding.bound.requests !== undefined;
 
   for (const record of rows) {
     if (record.values.length !== header.length) {
@@ -579,14 +595,32 @@ function normalizeProviderRows(shape, binding, reading, problems, options) {
     // Group to the aggregation the contract declares — one row per day, org unit,
     // provider, and service category — so `privacy.aggregation` is true by
     // construction rather than by assertion.
+    // Tier is decided per source row, from that row's own string, so the count
+    // of unrecognized rows is a count of rows and not of folded aggregates.
+    const carriedModel = carryableModelString(model);
+    if (classifyModelTier(model) === UNRECOGNIZED_TIER) unrecognizedModelRows += 1;
     const key = `${resolved.date}|${unitKey(label)}|${provider}|${category}`;
     const group = groups.get(key) ?? {
       usage_date: resolved.date, org_unit_id: unitId(label), provider,
       service_category: category, amountMinor: 0, quantity: 0,
       unit: tokenColumns ? "tokens" : "provider-units", status: "final",
+      // Model identity survives folding only while the folded rows agree. Two
+      // models in one aggregate make it absent, never whichever came first:
+      // the contract's grain is coarser than the model, and a picked winner
+      // would read as a fact about spend that no row supports.
+      modelRaw: carriedModel, modelMixed: false,
+      inputTotal: 0, outputTotal: 0, requestTotal: 0, requestsBroken: false,
     };
     group.amountMinor += money.amountMinor;
     group.quantity += tokenColumns ? input.quantity + output.quantity : bulk.quantity;
+    group.inputTotal += input.quantity;
+    group.outputTotal += output.quantity;
+    if (requests.broken) group.requestsBroken = true;
+    else group.requestTotal += requests.quantity;
+    if (group.modelRaw !== carriedModel) {
+      group.modelMixed = true;
+      group.modelRaw = ABSENT;
+    }
     if (status === "estimated") group.status = "estimated";
     groups.set(key, group);
 
@@ -637,12 +671,25 @@ function normalizeProviderRows(shape, binding, reading, problems, options) {
       service_category: group.service_category,
       usage: { quantity: group.quantity, unit: group.unit },
       cost: { amount_minor: group.amountMinor, currency: ANALYSIS_CURRENCY, status: group.status },
+      // The v1.1 detail. A column this export does not carry is absent here —
+      // not zero — and a combined-token export (`quantity` only, above) leaves
+      // the split absent rather than inventing one.
+      ...usageDetail({
+        model: group.modelRaw,
+        requestCount: hasRequests && !group.requestsBroken
+          && Number.isInteger(group.requestTotal) ? group.requestTotal : ABSENT,
+        inputTokens: hasInput ? group.inputTotal : ABSENT,
+        outputTokens: hasOutput ? group.outputTotal : ABSENT,
+      }),
     }));
   if (!records.length) return { records: null, accepted, dateFormats };
 
   const dates = records.map((record) => record.usage_date).sort();
   const document = {
-    schema_version: "1.0",
+    // A delimited import always produces the current provider contract. The
+    // reader's own file is the only thing that decides whether the fields it
+    // added carry a value or carry absence.
+    schema_version: PROVIDER_USAGE_SCHEMA_VERSION,
     kind: LOCAL_KINDS.provider,
     export_id: exportId(`${shape.id}|${dates[0]}|${dates.at(-1)}|${records.length}|${options.seed}`),
     snapshot: {
@@ -674,7 +721,7 @@ function normalizeProviderRows(shape, binding, reading, problems, options) {
     }))
     .sort((left, right) => left.orgUnitId.localeCompare(right.orgUnitId)
       || String(left.model).localeCompare(String(right.model)));
-  return { records, document, accepted, dateFormats, modelUsage };
+  return { records, document, accepted, dateFormats, modelUsage, unrecognizedModelRows };
 }
 
 function normalizeRosterRows(binding, reading, problems, options) {
@@ -857,6 +904,10 @@ export function parseDelimitedFinopsFile(text, fileName = "export.csv", options 
       // `unknown_model_tier` rather than scoring as zero.
       ...(normalized.modelUsage?.length
         ? { modelUsage: Object.freeze(normalized.modelUsage) } : {}),
+      // Rows whose model string matched no declared tier rule. Carried on the
+      // parse result so a later screen can say how much of the file this build
+      // could not name, instead of the number vanishing into `unrecognized`.
+      unrecognizedModelRows: normalized.unrecognizedModelRows ?? 0,
     });
   } catch (error) {
     problems.push(makeProblem(TABULAR_CODES.CONTRACT_REJECTED, { reason: error?.code ?? "unknown" }));
@@ -880,6 +931,7 @@ export function parseDelimitedFinopsFile(text, fileName = "export.csv", options 
     rowCount: reading.rows.length,
     acceptedRows: normalized.accepted,
     skippedRows: reading.rows.length - normalized.accepted,
+    unrecognizedModelRows: normalized.unrecognizedModelRows ?? 0,
     dateFormats: Object.freeze({ ...normalized.dateFormats }),
     totals: Object.freeze({
       records: normalized.records.length,

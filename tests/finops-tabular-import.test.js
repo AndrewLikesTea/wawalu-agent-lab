@@ -15,6 +15,7 @@ import {
   toMinorUnits,
 } from "../src/finops-tabular-import.js";
 import { LOCAL_KINDS, normalizeLocalFinopsHistory, localFinopsMeetingSummary } from "../src/local-finops.js";
+import { PROVIDER_USAGE_SCHEMA_VERSION } from "../src/provider-usage-record.js";
 import { trustVerdict } from "../src/finops-trust-verdict.js";
 import { leadingFinding } from "../src/finops-leading-finding.js";
 
@@ -29,7 +30,7 @@ function parse(text, fileName) {
   return parseDelimitedFinopsFile(text, fileName, { generatedAt: GENERATED_AT });
 }
 
-test("a well-formed provider export normalizes into the v1 provider envelope", async () => {
+test("a well-formed provider export normalizes into the current provider envelope", async () => {
   const result = parse(await fixture("openai-usage.csv"), "openai-usage.csv");
   assert.equal(result.ok, true);
   assert.equal(result.shape, "openai_usage");
@@ -40,7 +41,7 @@ test("a well-formed provider export normalizes into the v1 provider envelope", a
   const { document } = result.parsed;
   assert.equal(result.parsed.type, "provider");
   assert.equal(document.kind, LOCAL_KINDS.provider);
-  assert.equal(document.schema_version, "1.0");
+  assert.equal(document.schema_version, PROVIDER_USAGE_SCHEMA_VERSION);
   assert.equal(document.snapshot.source_instance_id, DELIMITED_SOURCE_INSTANCE_ID);
   assert.equal(document.snapshot.period_start, "2026-07-24");
   // Half-open: the last usage day plus one.
@@ -58,16 +59,24 @@ test("a well-formed provider export normalizes into the v1 provider envelope", a
   assert.ok(document.records.every((record) => record.usage.unit === "tokens"));
   assert.ok(document.records.every((record) => record.provider === "openai"));
 
-  // Only headers and aggregate totals survive. No org-unit label, model name, or
-  // other cell value may appear anywhere in the returned value.
+  // Headers, aggregate totals, and — since provider-usage-billing v1.1 — the
+  // model identifier, which is a declared contract field rather than a cell
+  // value the normalizer happened to keep. Nothing else survives: no org-unit
+  // label, no free text, no other column's contents.
   assert.deepEqual(result.columns, [
     "date", "project_name", "model", "n_context_tokens_total",
     "n_generated_tokens_total", "amount", "currency",
   ]);
   const serialized = JSON.stringify(result);
-  for (const leaked of ["Atlas", "Boreal", "Cinder", "gpt-4o", "dall-e"]) {
+  for (const leaked of ["Atlas", "Boreal", "Cinder"]) {
     assert.equal(serialized.includes(leaked), false, `${leaked} must not survive normalization`);
   }
+  const models = document.records.map((record) => record.model_raw).sort();
+  assert.deepEqual(models, ["dall-e-3", "gpt-4o", "gpt-4o-mini", "text-embedding-3-large"]);
+  assert.deepEqual(
+    document.records.map((record) => record.model_tier).sort(),
+    ["economy", "premium", "unrecognized", "unrecognized"],
+  );
 });
 
 test("a missing required column is reported by code and coordinate", async () => {

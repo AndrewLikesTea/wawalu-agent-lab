@@ -1,0 +1,4 @@
+date,workspace,model,input_tokens,output_tokens,cost_usd,currency
+2026-07-24,Atlas Platform,claude-opus-4,1450000,210000,318.60,USD
+2026-07-24,Boreal Support,claude-sonnet-4,880000,96000,42.75,USD
+2026-07-25,Cinder Design,claude-haiku-3-5,410000,38000,4.90,USD
