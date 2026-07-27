@@ -25,6 +25,7 @@ import {
   DELIMITED_CODES, MAX_DELIMITED_BYTES, MAX_DELIMITED_ROWS, readDelimitedText,
 } from "./delimited-text.js";
 import { ACCEPTED_LOCAL_FILE, LOCAL_KINDS, parseLocalFinopsFile } from "./local-finops.js";
+import { recognizeIdentifier } from "./model-overspend-finding.js";
 
 export { MAX_DELIMITED_BYTES, MAX_DELIMITED_ROWS };
 
@@ -205,6 +206,16 @@ const PROVIDER_COLUMN = Object.freeze({
 const STATUS_COLUMN = Object.freeze({
   aliases: ["status", "cost status", "billing status", "invoice status"], required: false,
 });
+// Call counts. Optional on every shape, because plenty of exports omit them —
+// but where one exists it is the only honest denominator for tokens per call
+// and for the minimum-volume threshold the down-routing rule applies. Absent,
+// the per-model analysis reports `calls: null` and lowers its confidence tier;
+// it never substitutes a zero or a row count.
+const REQUESTS_COLUMN = Object.freeze({
+  aliases: ["requests", "request count", "requests total", "n requests", "api requests",
+    "calls", "call count"],
+  required: false,
+});
 
 /**
  * One entry per recognized export shape. Adding a provider means adding a row
@@ -235,6 +246,7 @@ export const SHAPES = Object.freeze([
           "completion tokens"],
         required: false,
       },
+      requests: REQUESTS_COLUMN,
       provider: PROVIDER_COLUMN,
       status: STATUS_COLUMN,
     }),
@@ -257,6 +269,7 @@ export const SHAPES = Object.freeze([
       currency: { aliases: ["currency", "currency code"], required: false },
       inputTokens: { aliases: ["input tokens", "uncached input tokens"], required: false },
       outputTokens: { aliases: ["output tokens"], required: false },
+      requests: REQUESTS_COLUMN,
       provider: PROVIDER_COLUMN,
       status: STATUS_COLUMN,
     }),
@@ -295,6 +308,7 @@ export const SHAPES = Object.freeze([
         aliases: ["lineitem usageamount", "line item usage amount", "usage amount", "tokens"],
         required: false,
       },
+      requests: REQUESTS_COLUMN,
       provider: PROVIDER_COLUMN,
       status: STATUS_COLUMN,
     }),
@@ -377,6 +391,16 @@ function unitKey(label) {
 
 function unitId(label) {
   return `psn_unit_${digestOf(unitKey(label))}`;
+}
+
+/**
+ * A model identifier becomes a pseudonym on the same terms an org-unit label
+ * does. Rule 3 of this module is that no cell value survives normalization, and
+ * a model name is a cell value; the per-model analysis needs stable identity,
+ * not the vendor's string, so it gets identity and nothing else.
+ */
+function modelId(label) {
+  return `psn_model_${digestOf(unitKey(label))}`;
 }
 
 function exportId(seed) {
@@ -473,6 +497,13 @@ function normalizeProviderRows(shape, binding, reading, problems, options) {
   const columnName = (field) => header[binding.bound[field]] ?? field;
   const dateFormats = {};
   const groups = new Map();
+  // Per-model usage, folded in the same pass as the contract aggregates. The
+  // v1 envelope has no model field and is not gaining one here; this travels
+  // beside the document as analysis input, so the model dimension the reader's
+  // own file carries is not thrown away before the routing rule can use it.
+  // One Map lookup and four adds per accepted row, no allocation in the loop
+  // beyond the accumulator a new (unit, model) pair creates once.
+  const modelGroups = new Map();
   let accepted = 0;
 
   for (const record of rows) {
@@ -531,6 +562,15 @@ function normalizeProviderRows(shape, binding, reading, problems, options) {
     }
     const tokenColumns = binding.bound.inputTokens !== undefined
       || binding.bound.outputTokens !== undefined;
+    // A malformed count in the optional requests column never costs the reader
+    // the row: the spend still totals, and the model's call count becomes
+    // unknown, which the routing rule already has a status for.
+    const requests = binding.bound.requests === undefined
+      ? { counted: false, quantity: 0, broken: false }
+      : (() => {
+        const parsed = parseQuantity(cell(record.values, "requests"));
+        return { counted: parsed.ok, quantity: parsed.quantity ?? 0, broken: !parsed.ok };
+      })();
     const model = cell(record.values, "model");
     const provider = mapProvider(cell(record.values, "provider"), shape.provider);
     const category = mapServiceCategory(model);
@@ -549,6 +589,35 @@ function normalizeProviderRows(shape, binding, reading, problems, options) {
     group.quantity += tokenColumns ? input.quantity + output.quantity : bulk.quantity;
     if (status === "estimated") group.status = "estimated";
     groups.set(key, group);
+
+    // Model identity, folded per (org unit, model). The label is recognized
+    // structurally — never matched against a vendor catalogue and never echoed
+    // raw — so an unrecognized or placeholder value becomes `null` and its
+    // spend is reported as unattributed rather than guessed at.
+    if (category === "text-generation") {
+      const recognized = recognizeIdentifier(model);
+      const modelKey = `${unitKey(label)}|${recognized.label ?? ""}`;
+      const modelGroup = modelGroups.get(modelKey) ?? {
+        orgUnitId: unitId(label),
+        model: recognized.recognized ? modelId(recognized.label) : null,
+        provider,
+        inputTokens: 0, outputTokens: 0, tokens: 0, requests: null,
+        spendMinor: 0, estimated: false, sourceRows: 0, requestsBroken: false,
+      };
+      modelGroup.spendMinor += money.amountMinor;
+      if (tokenColumns) {
+        modelGroup.inputTokens += input.quantity;
+        modelGroup.outputTokens += output.quantity;
+        modelGroup.tokens += input.quantity + output.quantity;
+      }
+      if (requests.broken) modelGroup.requestsBroken = true;
+      else if (requests.counted) {
+        modelGroup.requests = (modelGroup.requests ?? 0) + requests.quantity;
+      }
+      if (status === "estimated") modelGroup.estimated = true;
+      modelGroup.sourceRows += 1;
+      modelGroups.set(modelKey, modelGroup);
+    }
     dateFormats[resolved.format] = (dateFormats[resolved.format] ?? 0) + 1;
     accepted += 1;
   }
@@ -599,7 +668,13 @@ function normalizeProviderRows(shape, binding, reading, problems, options) {
     records,
   };
   problems.push(makeProblem(TABULAR_CODES.GROUP_SIZE_ASSUMED, { severity: "info" }));
-  return { records, document, accepted, dateFormats };
+  const modelUsage = [...modelGroups.values()]
+    .map(({ requestsBroken, ...group }) => Object.freeze({
+      ...group, requests: requestsBroken ? null : group.requests,
+    }))
+    .sort((left, right) => left.orgUnitId.localeCompare(right.orgUnitId)
+      || String(left.model).localeCompare(String(right.model)));
+  return { records, document, accepted, dateFormats, modelUsage };
 }
 
 function normalizeRosterRows(binding, reading, problems, options) {
@@ -673,7 +748,7 @@ const MANUAL_FIELDS = Object.freeze({
   provider: Object.freeze({
     date: true, orgUnit: true, model: true, amount: true,
     currency: false, inputTokens: false, outputTokens: false, quantity: false,
-    provider: false, status: false,
+    requests: false, provider: false, status: false,
   }),
   hris: Object.freeze({ orgUnit: true, parent: false, unitType: false, active: false }),
 });
@@ -772,7 +847,17 @@ export function parseDelimitedFinopsFile(text, fileName = "export.csv", options 
     const validated = parseLocalFinopsFile(
       JSON.stringify(normalized.document), "normalized-delimited-import.json", "application/json",
     );
-    parsed = Object.freeze({ type: validated.type, fileName, document: validated.document });
+    parsed = Object.freeze({
+      type: validated.type,
+      fileName,
+      document: validated.document,
+      // Analysis input, not contract content: the per-model rows the envelope
+      // cannot carry. Absent for a roster and for an uploaded JSON envelope,
+      // which is exactly the case the routing rule reports as
+      // `unknown_model_tier` rather than scoring as zero.
+      ...(normalized.modelUsage?.length
+        ? { modelUsage: Object.freeze(normalized.modelUsage) } : {}),
+    });
   } catch (error) {
     problems.push(makeProblem(TABULAR_CODES.CONTRACT_REJECTED, { reason: error?.code ?? "unknown" }));
     return failure(problems, { columns, shape: binding.shape.id, rowCount: reading.rows.length });

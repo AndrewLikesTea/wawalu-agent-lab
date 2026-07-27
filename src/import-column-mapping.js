@@ -60,6 +60,8 @@ export const MAPPING_TARGETS = Object.freeze({
       "Output volume counts as zero. Spend, trend, and the department finding are unaffected."),
     target("quantity", "Usage quantity", false,
       "Usage volume counts as zero, so per-unit figures are unavailable. Spend still totals."),
+    target("requests", "Request or call count", false,
+      "Calls per model are unknown, so tokens per call cannot be checked and the per-model routing figure is published at a lower confidence tier."),
     target("provider", "Provider name", false,
       "Every row is attributed to one provider, so a mixed export cannot be split by vendor."),
     target("status", "Cost status", false,
