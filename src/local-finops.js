@@ -4,7 +4,7 @@
 // accepts parsed JSON values, keeps only fields declared by Anya's compatibility
 // manifest, and returns a short-lived projection for the page and downloads.
 
-import { evaluateDownRoutingCandidate } from "./down-routing-candidates.js";
+import { analyzeModelRouting, evaluateDownRoutingCandidate } from "./down-routing-candidates.js";
 
 export const LOCAL_KINDS = Object.freeze({
   provider: "wawalu.integration.provider-usage-billing",
@@ -289,6 +289,9 @@ function periodMetadata(provider) {
   const end = Date.parse(`${document.snapshot.period_end}T00:00:00Z`);
   return {
     document,
+    // Carried, not recomputed: the per-model rows belong to the parsed file, so
+    // a multi-period history scores each period from its own import.
+    modelUsage: provider.modelUsage ?? null,
     start,
     end,
     days: Number.isFinite(start) && Number.isFinite(end)
@@ -377,6 +380,15 @@ export function normalizeLocalFinops({ provider, hris }) {
   const estimatedCosts = ranked.reduce((sum, item) => sum + item.estimatedCosts, 0);
   if (estimatedCosts) warnings.push(`${estimatedCosts} cost record${estimatedCosts === 1 ? " is" : "s are"} estimated, not final.`);
   if (!ranked.length) warnings.push("No provider records joined to an active HRIS unit.");
+  // Per-model exposure, over the rows that carry a model identifier. This is a
+  // separate published figure from the blended `recoverableUsd` above, and it
+  // separates "nothing to recover" from "we could not look": a unit with no
+  // model dimension in its export is not scored zero into the ranking, it goes
+  // to `insufficientData` with a reason code.
+  const modelRouting = analyzeModelRouting({
+    modelUsage: (provider.modelUsage ?? []).filter((row) => active.has(row.orgUnitId)),
+    unitIds: ranked.map((item) => item.id),
+  });
   const top = ranked[0] ?? null;
   const confidence = warnings.length || !top || top.records < 2 ? "Low" : "Medium";
   return Object.freeze({
@@ -387,6 +399,7 @@ export function normalizeLocalFinops({ provider, hris }) {
     recoverableUsd,
     rankedDepartments: ranked,
     topDepartment: top,
+    modelRouting,
     confidence,
     provenance: `Browser-local projection of provider export ${providerDoc.export_id} and HRIS export ${hrisDoc.export_id}.`,
     action: top && top.recoverableUsd > 0
@@ -534,14 +547,14 @@ export function normalizeLocalFinopsHistory({ providers = [], hris }) {
   if (!ordered.length)
     fail("incompatible_periods", "No unique provider period remains after reconciliation.");
 
-  const periods = ordered.map(({ document, ...metadata }) => ({
+  const periods = ordered.map(({ document, modelUsage, ...metadata }) => ({
     ...metadata,
     periodStart: document.snapshot.period_start,
     periodEnd: document.snapshot.period_end,
     exportId: document.export_id,
     generatedAt: document.snapshot.generated_at,
     completeness: document.snapshot.completeness,
-    result: normalizeLocalFinops({ provider: document, hris }),
+    result: normalizeLocalFinops({ provider: { document, modelUsage }, hris }),
   }));
   const current = periods.at(-1);
   const previous = periods.at(-2) ?? null;
