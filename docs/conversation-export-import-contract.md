@@ -69,8 +69,9 @@ Per row, in each profile:
 | `occurred_at` | yes | `instant` | ISO 8601, with or without a clock, with or without a zone (absent means UTC). Normalized to `YYYY-MM-DDTHH:MM:SSZ`. |
 | `department` | no | `string` | Vendor group, cost centre, or org unit. See the degradation rule below. |
 | `prompt_signals` | yes | `promptSignals` | The prompt/message body column. **Never rendered.** See below. |
+| `model` | no | `string` | The model that answered the turn, where the export names one. Omitted — never defaulted — when it does not. Read by the prompt classifier for its model-tier rules; not a record key, so it is never exported per row. |
 
-Each profile additionally declares signal-only columns (role/sender, model,
+Each profile additionally declares signal-only columns (role/sender,
 application) that vote in detection and are never emitted.
 
 **The profile version field.** Every profile carries `version` (integer, from 1)

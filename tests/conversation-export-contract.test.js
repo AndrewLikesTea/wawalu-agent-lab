@@ -109,13 +109,21 @@ test("the conversation profiles are a consistent registry beside the billing one
     assert.equal(sensitive[0].sensitivity, NEVER_RENDER);
     assert.equal(sensitive[0].coerce, "promptSignals");
     assert.equal(sensitive[0].field, "prompt_signals");
-    // Every profile declares the five contract fields, department optional.
+    // Every profile declares the four required contract fields; department and
+    // model are optional and degrade in opposite, declared directions.
     const fields = profile.columns.filter((entry) => entry.field).map((entry) => entry.field);
-    assert.deepEqual([...fields].sort(),
+    assert.deepEqual([...fields].sort().filter((field) => field !== "model"),
       ["actor_id", "conversation_id", "department", "occurred_at", "prompt_signals"]);
     const department = profile.columns.find((entry) => entry.field === "department");
     assert.equal(department.required, false);
     assert.deepEqual(department.whenAbsent, { mode: "default", value: UNGROUPED_DEPARTMENT });
+    const model = profile.columns.find((entry) => entry.field === "model");
+    if (model) {
+      assert.equal(model.required, false);
+      // Omitted, never defaulted: there is no honest stand-in for a model name.
+      assert.deepEqual(model.whenAbsent, { mode: "omit" });
+      assert.equal(model.sensitivity, null, "a model identifier is the rubric's one carryable string");
+    }
   }
 });
 

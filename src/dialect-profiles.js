@@ -64,8 +64,13 @@ export const NORMALIZED_FIELDS = Object.freeze({
   // field in this vocabulary a raw message body could land in, so "never render
   // the prompt" is a property of the schema rather than a rule downstream code
   // is trusted to remember.
+  // `model` is the one string-valued passthrough the rubric's `redaction` block
+  // already sanctions, and it is declared here rather than sniffed downstream:
+  // which column names the model is a property of the export format, so a
+  // consumer that matched a header spelling of its own would decide a rubric
+  // signal by accident.
   conversation: Object.freeze([
-    "conversation_id", "actor_id", "department", "occurred_at", "prompt_signals",
+    "conversation_id", "actor_id", "department", "occurred_at", "prompt_signals", "model",
   ]),
 });
 
@@ -163,7 +168,10 @@ export const OPTIONAL_NORMALIZED_FIELDS = Object.freeze({
   // `department` is optional by contract: an export without it still imports,
   // and every row lands in `UNGROUPED_DEPARTMENT` instead. Each conversation
   // profile declares that as a `whenAbsent` default, so the degradation is data.
-  conversation: Object.freeze(["department"]),
+  // `model` is optional for the same reason in the other direction: an audit log
+  // that never names a model still imports, and the rules that need a model tier
+  // abstain rather than guessing one.
+  conversation: Object.freeze(["department", "model"]),
 });
 
 /**
@@ -510,6 +518,15 @@ const departmentColumn = (source, aliases = []) => column(source, "department", 
 });
 
 /**
+ * The column naming the model that answered a turn. Omitted rather than
+ * defaulted when absent: there is no honest stand-in for "which model ran this",
+ * and a rule that needs a tier abstains on an unknown one already.
+ */
+const modelColumn = (source, aliases = []) => column(source, "model", "string", {
+  aliases, required: false, whenAbsent: { mode: "omit" },
+});
+
+/**
  * AI-assistant conversation and audit exports.
  *
  * They are a separate registry, not extra entries in `DIALECT_PROFILES`, for one
@@ -553,7 +570,7 @@ export const CONVERSATION_DIALECT_PROFILES = Object.freeze([
       promptColumn("message_text", ["message_content"]),
       departmentColumn("department", ["workspace_group"]),
       signal("role"),
-      signal("model"),
+      modelColumn("model"),
     ]),
   }),
   Object.freeze({
@@ -579,7 +596,7 @@ export const CONVERSATION_DIALECT_PROFILES = Object.freeze([
       promptColumn("prompt_text", ["human_message"]),
       departmentColumn("organization_group", ["group"]),
       signal("sender"),
-      signal("model_slug"),
+      modelColumn("model_slug"),
     ]),
   }),
   Object.freeze({
