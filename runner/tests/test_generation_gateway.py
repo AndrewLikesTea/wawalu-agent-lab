@@ -135,6 +135,32 @@ class GenerationGatewayTests(unittest.TestCase):
             # Both providers are now known to be dry, so neither is asked first again.
             self.assertEqual(sorted(layers._planner_capacity), ["claude", "codex"])
 
+    def test_a_nonzero_exit_stating_a_weekly_limit_is_capacity_not_a_defect(self):
+        """Both planners refusing by exit code must defer, not fail the issue.
+
+        On 2026-07-27 issues 338/339/341 failed with exit 1 and burned attempts:
+        codex said "usage limit" (recognized) but claude's last words were "You've
+        hit your weekly limit", which matched no marker, so `refused` was short one
+        provider and the capacity type was never raised.
+        """
+        layers._planner_capacity.clear()
+        self.addCleanup(layers._planner_capacity.clear)
+        with tempfile.TemporaryDirectory() as tmp:
+            output = pathlib.Path(tmp) / "output.json"
+
+            def result(command, *_args, **_kwargs):
+                if command[0] == "codex":
+                    return mock.Mock(returncode=1, stdout="",
+                                     stderr="ERROR: You've hit your usage limit.")
+                return mock.Mock(returncode=1, stdout="", stderr=(
+                    "You've hit your weekly limit · resets Jul 29 at 12am "
+                    "(America/Los_Angeles)"))
+
+            with mock.patch.object(layers.subprocess, "run", side_effect=result):
+                with self.assertRaises(layers.PlannerCapacityExhausted):
+                    layers.qwen_json("prompt", output, {"type": "object"})
+            self.assertEqual(sorted(layers._planner_capacity), ["claude", "codex"])
+
     def test_planner_json_that_merely_mentions_a_quota_is_not_capacity(self):
         """The product is a FinOps tool, so plan text legitimately says "usage limit"."""
         layers._planner_capacity.clear()
