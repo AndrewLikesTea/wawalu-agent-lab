@@ -24,6 +24,9 @@ import {
 
 const ORIGIN_WORD = Object.freeze({
   detected: "Auto-detected",
+  // Distinct from "auto-detected" on purpose: this column was not guessed from
+  // an alias list, it is the column the export itself is grouped by.
+  native: "From your export's own grouping",
   chosen: "Your choice",
   unset: "Not detected",
 });
@@ -117,6 +120,12 @@ export function renderMappingReview(doc, state, {
   if (summaryNode) {
     summaryNode.replaceChildren(
       textNode(doc, "span", "import-mapping-source", summary.source),
+      // The grouping sentence sits between the shape and the outcome because it
+      // answers the question the reader actually has — "how will my spend be
+      // split up?" — and it is omitted rather than emptied when there is nothing
+      // to say, so an empty element never occupies the line.
+      ...(summary.grouping
+        ? [textNode(doc, "span", "import-mapping-grouping", summary.grouping)] : []),
       textNode(doc, "span", "import-mapping-outcome", summary.outcome),
     );
   }

@@ -163,10 +163,13 @@ test("a leader imports the example provider export and reaches a decision they c
   const page = await openFinopsTab();
   const { document } = page;
   try {
-    await t.test("step 1 · the idle panel asks for the two files it needs", () => {
+    await t.test("step 1 · the idle panel asks for the one file it needs", () => {
       assert.match(shownText(document, "import-stages"), /Step 1Select exportsnow/);
+      // One required input, one optional enrichment. The org mapping is not
+      // offered as something to add, because the export groups itself.
       assert.equal(shownText(document, "mapping-requirements"),
-        "○Provider period exportnot selectedAdd it○HRIS org mappingnot selectedAdd it");
+        "○Provider period exportnot selectedAdd it–Department names (optional)"
+        + "not selected — your export's own grouping is used");
       assert.equal(byId(document, "local-results").hidden, true,
         "no result may be on screen before a file is selected");
     });

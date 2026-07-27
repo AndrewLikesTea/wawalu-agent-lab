@@ -130,6 +130,13 @@ deletion.
 
 ## HRIS organizational structure
 
+> **Optional as of the native grouping contract.** A provider export carries its
+> own grouping column — project, workspace, key alias, cost tag, linked account —
+> and `docs/native-grouping-contract.md` specifies how it is recognized. The HRIS
+> integration below is strictly optional enrichment mapping a grouping unit to a
+> department name. A drop with no org file succeeds.
+
+
 Schema: [`contracts/integrations/hris-org/v1/schema.json`](../contracts/integrations/hris-org/v1/schema.json)
 
 ```mermaid
