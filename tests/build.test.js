@@ -4,6 +4,7 @@ import { cp, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { createManifest, verifyArtifact } from "../scripts/verify-build.mjs";
+import { SITE_NAV } from "../src/site-nav.js";
 import { parseHtml, pressEnter, pressTab } from "./support/browser.js";
 
 test("product has a health endpoint and accessible title", async () => {
@@ -24,7 +25,7 @@ test("homepage explains the decision-to-release value and links to live examples
   const html = await readFile(new URL("../src/index.html", import.meta.url), "utf8");
 
   assert.match(html, /Know why it shipped\./);
-  assert.match(html, /record decisions and track the releases/);
+  assert.match(html, /records decisions, tracks the releases they shape/);
   assert.match(html, /id="decision-to-release"/);
   assert.match(html, /Keep reasoning with the work/);
   assert.match(html, /data-proof-point="decision-to-release"/);
@@ -60,6 +61,64 @@ test("the hero names both capabilities and quotes AI FinOps without contradictin
   }
   assert.match(proof, /Bundled synthetic sample data/);
   assert.match(proof, /not live analysis, customer data, or realized savings/);
+});
+
+test("the home page names every nav destination and says what each one does", async () => {
+  const html = await readFile(new URL("../src/index.html", import.meta.url), "utf8");
+  const document = parseHtml(html);
+  const guide = document.querySelector(".site-guide");
+  assert.ok(guide, "the home page must carry the destination list");
+
+  // The list reads near the hero, not at the foot of the page.
+  assert.ok(
+    html.indexOf('class="site-guide"') < html.indexOf('class="product-story"'),
+    "the destination list must sit above the decision-to-release story",
+  );
+
+  const entries = guide.querySelectorAll("li");
+  assert.equal(entries.length, SITE_NAV.length);
+  entries.forEach((entry, index) => {
+    const { href, label } = SITE_NAV[index];
+    const link = entry.querySelector("a");
+    // One name per destination: the list calls it exactly what the nav calls it
+    // and sends the reader to exactly where the nav does.
+    assert.equal(link.textContent, label, `entry ${index + 1} must be named "${label}"`);
+    assert.equal(link.getAttribute("href"), href, `"${label}" must link to ${href}`);
+
+    const sentence = entry.textContent.slice(label.length).trim();
+    assert.ok(sentence.length > 0, `"${label}" needs a sentence`);
+    assert.ok(
+      sentence.split(/\s+/).length <= 20,
+      `"${label}" runs to ${sentence.split(/\s+/).length} words`,
+    );
+    assert.doesNotMatch(sentence, /powerful|seamless|unlock|leverage/i, `"${label}" uses filler`);
+  });
+
+  // The hero may not claim a count it does not then list.
+  const hero = html.slice(html.indexOf('<section class="hero"'), html.indexOf('class="site-guide"'));
+  assert.doesNotMatch(hero, /Shiplog does (one|two|three|four|five|six|seven|\d+) things?/i);
+});
+
+test("no developer note leaks into the copy a visitor reads", async () => {
+  for (const file of ["index.html", "evolution.html"]) {
+    const html = await readFile(new URL(`../src/${file}`, import.meta.url), "utf8");
+
+    // A raw tag inside a comment ends it early in the browser and paints the
+    // rest of the note, plus its closing marker, as body text. Keep notes plain.
+    for (const [comment] of html.matchAll(/<!--[\s\S]*?-->/g)) {
+      assert.doesNotMatch(
+        comment.slice(4, -3),
+        /<\/?[a-zA-Z]/,
+        `${file} has tag markup inside a comment: ${comment.slice(0, 70)}…`,
+      );
+    }
+    assert.equal(
+      (html.match(/<!--/g) ?? []).length,
+      (html.match(/-->/g) ?? []).length,
+      `${file} has an unbalanced comment`,
+    );
+    assert.doesNotMatch(parseHtml(html).body.textContent, /-->/, `${file} paints a comment marker`);
+  }
 });
 
 test("the AI FinOps call to action is reachable by Tab alone and opens on Enter", async () => {
