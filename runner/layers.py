@@ -106,6 +106,37 @@ DIRECTIVE_PLAN_SCHEMA = {
 }
 
 
+def _close_unterminated(raw: str) -> str | None:
+    """Append the closing brackets a plan stopped one character short of writing.
+
+    Deliberately narrow: repairs only output whose every token is complete and
+    whose only defect is missing closers, so a plan cut off mid-sentence (still
+    inside a string) is left to fail rather than silently completed with a
+    truncated acceptance criterion. Returns None when there is nothing safe to do.
+    """
+    stack: list[str] = []
+    in_string = False
+    escaped = False
+    for character in raw:
+        if in_string:
+            if escaped:
+                escaped = False
+            elif character == "\\":
+                escaped = True
+            elif character == '"':
+                in_string = False
+            continue
+        if character == '"':
+            in_string = True
+        elif character in "[{":
+            stack.append(character)
+        elif character in "]}" and stack:
+            stack.pop()
+    if in_string or not stack:
+        return None
+    return raw + "".join("]" if opener == "[" else "}" for opener in reversed(stack))
+
+
 def _extract_json(raw: str) -> dict[str, Any]:
     # strict=False tolerates literal newlines and tabs inside strings. A planner
     # routinely writes a multi-paragraph task_prompt and emits the line breaks raw
@@ -116,16 +147,33 @@ def _extract_json(raw: str) -> dict[str, Any]:
     # FinOps plan discussing "usage limits" reads as the provider refusing us and
     # earns a healthy planner an hour-long cooldown.
     raw = raw.strip()
-    try:
-        value = json.loads(raw, strict=False)
-    except json.JSONDecodeError:
-        start, end = raw.find("{"), raw.rfind("}")
-        if start < 0 or end <= start:
-            raise ValueError("Qwen did not return a JSON object")
-        value = json.loads(raw[start:end + 1], strict=False)
-    if not isinstance(value, dict):
-        raise ValueError("Qwen output must be a JSON object")
-    return value
+    start, end = raw.find("{"), raw.rfind("}")
+    candidates = [raw]
+    if start >= 0 and end > start:
+        candidates.append(raw[start:end + 1])
+    if start >= 0:
+        # Observed repeatedly on 2026-07-27: a stakeholder review came back as a
+        # complete, balanced plan that simply never wrote its outermost "}". Every
+        # field was present and the paid call had already been spent, yet the whole
+        # draw was discarded over one absent character, so design filed no reviews
+        # that day. Closing what the planner left open costs nothing: the repaired
+        # object still passes the same schema and completeness checks as any other.
+        repaired = _close_unterminated(raw[start:])
+        if repaired is not None:
+            candidates.append(repaired)
+    failure: json.JSONDecodeError | None = None
+    for candidate in candidates:
+        try:
+            value = json.loads(candidate, strict=False)
+        except json.JSONDecodeError as error:
+            failure = error
+            continue
+        if not isinstance(value, dict):
+            raise ValueError("Qwen output must be a JSON object")
+        return value
+    if failure is None or start < 0:
+        raise ValueError("Qwen did not return a JSON object")
+    raise failure
 
 
 # A planner provider that has told us it is out of quota stays out of first
