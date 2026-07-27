@@ -84,6 +84,13 @@ class TextNode {
   }
 }
 
+// A fragment inserts its children, not itself — the one piece of fragment
+// behaviour a page depends on. Without it, `append(fragment)` would nest a node
+// no browser ever renders and every assertion below it would read the wrong tree.
+function expandFragments(nodes) {
+  return nodes.flatMap((node) => (node?.nodeType === 11 ? node.children.splice(0) : [node]));
+}
+
 class Element {
   constructor(tagName, ownerDocument) {
     this.nodeType = 1;
@@ -127,6 +134,13 @@ class Element {
     return this._dataset;
   }
 
+  // No layout and no cascade: this records what a page set, so a test can read
+  // back a width or a flex share, and claims nothing about what it would render.
+  get style() {
+    this._style ??= { setProperty(name, value) { this[name] = String(value); } };
+    return this._style;
+  }
+
   get hidden() { return this.hasAttribute("hidden"); }
   set hidden(value) { if (value) this.setAttribute("hidden", ""); else this.removeAttribute("hidden"); }
   get disabled() { return this.hasAttribute("disabled"); }
@@ -160,7 +174,7 @@ class Element {
   get childElements() { return this.children.filter((child) => child.nodeType === 1); }
 
   append(...nodes) {
-    for (const node of nodes) {
+    for (const node of expandFragments(nodes)) {
       const child = typeof node === "string" ? new TextNode(node, this.ownerDocument) : node;
       child.remove?.();
       child.parentNode = this;
@@ -169,7 +183,7 @@ class Element {
   }
 
   prepend(...nodes) {
-    for (const node of [...nodes].reverse()) {
+    for (const node of [...expandFragments(nodes)].reverse()) {
       const child = typeof node === "string" ? new TextNode(node, this.ownerDocument) : node;
       child.remove?.();
       child.parentNode = this;
@@ -342,6 +356,12 @@ class ShiplogDocument extends Element {
 
   createElement(tagName) { return new Element(tagName, this); }
   createTextNode(text) { return new TextNode(text, this); }
+
+  createDocumentFragment() {
+    const fragment = new Element("#document-fragment", this);
+    fragment.nodeType = 11;
+    return fragment;
+  }
 
   get documentElement() { return this.childElements.find((child) => child.tagName === "HTML") ?? null; }
   get body() { return this.querySelector("body"); }

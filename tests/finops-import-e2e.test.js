@@ -1,0 +1,435 @@
+// End-to-end regression for the leader's import-to-decision path.
+//
+// Every test here drives the shipped AI FinOps tab — the real markup from
+// src/evolution.html, booted by the real page entry (src/evolution-page.js) —
+// and asserts only on what a leader can see: the mapping step's own summary and
+// blockers, the trust verdict's coverage line, the decision brief's numbers, and
+// the file the export button hands back. Nothing between the file selection and
+// the saved decision record is stubbed: the real delimited reader, the real
+// dialect detection, the real column mapping, the real join, the real coverage
+// metric, and the real export all run.
+//
+// The one thing the harness supplies is the browser's own File API — a headless
+// DOM cannot open an OS file picker — so a selection is the `{ name, type,
+// text() }` shape the page reads, carrying the bytes of a checked-in export.
+//
+// Determinism: no network beyond the two bundled fixtures the page fetches, no
+// clock thresholds, no sleeps. Every wait is on state the page itself produces.
+
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import { DomEvent, loadPage, pressEnter, pressKey, pressTab, tabSequence, textOf } from "./support/browser.js";
+import { importPageModule, waitFor } from "./support/page-module.js";
+
+const PAGE = new URL("../src/evolution.html", import.meta.url);
+
+// The two fixtures the page fetches for the surfaces above the import panel.
+// They are the bundled demo seed, not this suite's subject; serving them keeps
+// the page in the state a visitor actually meets the import panel in.
+const DEMO_DATA = JSON.parse(await readFile(new URL("../src/evolution-demo-data.json", import.meta.url), "utf8"));
+const EVALUATION_FIXTURES = JSON.parse(
+  await readFile(new URL("../src/finops-evaluation-fixtures.json", import.meta.url), "utf8"));
+
+// The subject: the example provider export and org roster shipped with the
+// dialect contracts. These are the files a leader is meant to be handed as a
+// worked example, and this suite imports their bytes unmodified.
+const EXAMPLE_EXPORTS = new URL("../contracts/integrations/tabular-dialects/v1/fixtures/", import.meta.url);
+const PROVIDER_EXPORT = await readFile(new URL("openai-usage-export.csv", EXAMPLE_EXPORTS), "utf8");
+const ORG_ROSTER = await readFile(new URL("generic-hris-roster.csv", EXAMPLE_EXPORTS), "utf8");
+
+// ---------------------------------------------------------------------------
+// What the fixture is worth, derived from its own bytes.
+// ---------------------------------------------------------------------------
+//
+// openai-usage-export.csv holds three cost rows, one per project:
+//
+//   atlas-platform    412.75
+//   boreal-support     31.40
+//   cinder-research   102.05
+//                    -------
+//   total             546.20
+//
+// generic-hris-roster.csv holds one row per person, whose `department` column is
+// the org unit the money has to land on: "Atlas Platform", "Boreal Support",
+// "Cinder Research".
+//
+// Coverage is defined in src/finops-trust-verdict.js: attributed spend over
+// total spend, dollar-weighted, where a row is attributed when its org unit
+// resolves to exactly one confirmed roster entry. The join key is the label
+// trimmed, lower-cased, and whitespace-collapsed (`unitKey` in
+// src/finops-tabular-import.js) — punctuation is not normalized, so
+// `atlas-platform` and `atlas platform` are two different org units.
+//
+// Hence the two expectations below, and the reason this suite carries two
+// happy-path fixtures rather than one.
+const TOTAL_SPEND = "546.20 USD";
+
+// (1) The example export and the example roster exactly as shipped: nothing
+// joins, so no dollar of the 546.20 is attributed.
+const AS_SHIPPED = Object.freeze({
+  coverage: "0.0%",
+  inputs: `0.00 USD attributed of ${TOTAL_SPEND} total · 0 of 3 rows`,
+});
+
+// (2) The same shipped export with one edit — the two project labels spelled the
+// way the roster spells them — which is what a leader whose own export happens
+// to agree with their own roster would upload. Then Atlas (412.75) and Boreal
+// (31.40) attribute and Cinder (102.05) does not:
+//   attributed  412.75 + 31.40 = 444.15
+//   coverage    444.15 / 546.20 = 81.3164…% → 81.3% at one decimal place
+const JOINABLE = Object.freeze({
+  coverage: "81.3%",
+  inputs: `444.15 USD attributed of ${TOTAL_SPEND} total · 2 of 3 rows`,
+  attributedSpendUsd: 444.15,
+  topDepartment: "Atlas Platform",
+});
+
+/** The shipped export with two project labels respelled to match the roster. */
+const JOINABLE_EXPORT = PROVIDER_EXPORT
+  .replace(/atlas-platform/g, "Atlas Platform")
+  .replace(/boreal-support/g, "Boreal Support");
+
+/** The shipped export with its required cost column removed, header and all. */
+const NO_AMOUNT_EXPORT = PROVIDER_EXPORT.split("\n")
+  .map((line) => (line.trim() === "" ? line : dropColumn(line, 5)))
+  .join("\n");
+
+function dropColumn(line, index) {
+  const cells = line.split(",");
+  cells.splice(index, 1);
+  return cells.join(",");
+}
+
+const PROVIDER_FILE = "openai-usage-export.csv";
+const ROSTER_FILE = "generic-hris-roster.csv";
+
+/** Load the tab and boot its real entry module, exactly as the page tag does. */
+async function openFinopsTab() {
+  const page = await loadPage(PAGE, {
+    routes: {
+      "/evolution-demo-data.json": DEMO_DATA,
+      "/finops-evaluation-fixtures.json": EVALUATION_FIXTURES,
+    },
+  });
+  await importPageModule("/evolution-page.js");
+  const { document } = page;
+  // The page is "open" once every one of its own asynchronous surfaces has
+  // settled — not after a delay. Leaving one in flight would let it run on into
+  // the next test, which is how a suite gets its first flaky failure.
+  await waitFor(() => document.documentElement.dataset.shiplogEvolution === "ready",
+    "the bundled analysis to finish rendering");
+  await waitFor(() => textOf(document.getElementById("integration-contract-provenance"))
+    .startsWith("Gateway completed"), "the static contract gateway to settle");
+  await waitFor(() => document.getElementById("finops-evaluation-result")
+    .getAttribute("aria-busy") === "false", "the evaluation panel to settle");
+  return page;
+}
+
+/**
+ * Hand the file input a selection. This is the browser's File API and nothing
+ * else: name, media type, and a text() promise over the real bytes.
+ */
+function chooseFiles(document, files) {
+  const input = document.getElementById("local-finops-files");
+  input.files = files.map(({ name, text }) => ({
+    name, type: "text/csv", text: async () => text,
+  }));
+  input.dispatchEvent(new DomEvent("change", { bubbles: true }));
+}
+
+const byId = (document, id) => document.getElementById(id);
+const shownText = (document, id) => textOf(byId(document, id));
+
+/** Wait for the mapping step to be open on a named file. */
+function reviewOpens(document, fileName) {
+  return waitFor(() => !byId(document, "import-mapping").hidden
+    && shownText(document, "import-mapping-file") === fileName,
+  `the column-mapping step to open on ${fileName}`);
+}
+
+/** Tab from wherever focus is until a control is reached; no mouse involved. */
+function tabTo(document, id) {
+  const stops = tabSequence(document).length;
+  for (let step = 0; step <= stops; step += 1) {
+    const focused = pressTab(document);
+    if (focused?.id === id) return focused;
+  }
+  assert.fail(`"${id}" is not reachable by Tab from ${document.activeElement?.id || "the current focus"}; `
+    + `a keyboard user cannot complete this step. Tab stops: ${stops}.`);
+}
+
+test("a leader imports the example provider export and reaches a decision they can export", async (t) => {
+  const page = await openFinopsTab();
+  const { document } = page;
+  try {
+    await t.test("step 1 · the idle panel asks for the two files it needs", () => {
+      assert.match(shownText(document, "import-stages"), /Step 1Select exportsnow/);
+      assert.equal(shownText(document, "mapping-requirements"),
+        "○Provider period exportnot selectedAdd it○HRIS org mappingnot selectedAdd it");
+      assert.equal(byId(document, "local-results").hidden, true,
+        "no result may be on screen before a file is selected");
+    });
+
+    await t.test("step 2 · the provider export is recognized and every column is shown", async () => {
+      chooseFiles(document, [
+        { name: PROVIDER_FILE, text: JOINABLE_EXPORT },
+        { name: ROSTER_FILE, text: ORG_ROSTER },
+      ]);
+      await reviewOpens(document, PROVIDER_FILE);
+      assert.match(shownText(document, "import-mapping-summary"),
+        /Recognized as OpenAI usage export/);
+      assert.equal(shownText(document, "import-mapping-caption"),
+        "7 columns in file order, with one real value from your own data. 3 data rows were read.");
+      assert.equal(byId(document, "import-mapping-rows").children.length, 7,
+        "every column of the leader's own file must be listed, not only the mapped ones");
+      assert.equal(shownText(document, "import-mapping-status"),
+        "6 of 7 columns are mapped. Ready to run the analysis.");
+      assert.equal(byId(document, "import-mapping-blockers").hidden, true,
+        "a recognized export must not be blocked");
+      assert.equal(byId(document, "import-mapping-confirm").disabled, false);
+    });
+
+    await t.test("step 2 · the correction preview shows what one column became, with a real value", () => {
+      const row = byId(document, "import-mapping-rows").children
+        .find((entry) => textOf(entry).includes("project"));
+      assert.ok(row, "the provider export's org-unit column must appear in the preview");
+      assert.equal(row.querySelector("select").value, "orgUnit",
+        "the project column must be proposed as the org unit the money lands on");
+      assert.match(textOf(row), /Auto-detected/);
+      assert.match(textOf(row), /Atlas Platform/,
+        "the preview must show one real value out of the leader's own file");
+    });
+
+    await t.test("step 3 · confirming both mappings produces the coverage metric", async () => {
+      byId(document, "import-mapping-confirm").click();
+      await reviewOpens(document, ROSTER_FILE);
+      assert.match(shownText(document, "import-mapping-summary"), /Recognized as Org roster/);
+      byId(document, "import-mapping-confirm").click();
+      await waitFor(() => !byId(document, "local-results").hidden, "the decision brief to appear");
+
+      assert.equal(shownText(document, "local-trust-coverage"), JOINABLE.coverage,
+        "the coverage headline must equal the fixture's attributed share of its own spend");
+      assert.equal(shownText(document, "local-trust-inputs"), JOINABLE.inputs,
+        "attributed spend, total spend, and both row counts must ship with the percentage");
+      assert.match(shownText(document, "local-trust-answer"), /^81\.3% of 546\.20 USD is attributed/);
+      assert.equal(byId(document, "local-trust-coverage").dataset.available, "true");
+    });
+
+    await t.test("step 3 · the decision brief names the department the money is on", () => {
+      // Pinned as it ships, and it is a finding rather than a target: a leader
+      // whose roster says "Atlas Platform" is shown "Department …8e16aa",
+      // because the delimited translator hashes the label into an opaque unit id
+      // and no readable name survives the import. The number is right; the row
+      // it is on is unreadable. Change this expectation only with the fix.
+      assert.match(shownText(document, "local-department"), /^Department …[0-9a-f]{6}$/);
+      assert.equal(shownText(document, "local-metric-label"), "Local import",
+        "the leader's own number must not still be captioned as example data");
+      assert.equal(byId(document, "local-recoverable").dataset.real, "true");
+      assert.match(shownText(document, "dataset-provenance-results"),
+        /Your data — openai-usage-export\.csv, generic-hris-roster\.csv/);
+      assert.match(shownText(document, "import-stages"), /Step 3Read the resultnow/);
+    });
+
+    await t.test("step 4 · the decision record the leader exports carries the same numbers", () => {
+      byId(document, "export-local-json").click();
+      assert.equal(page.downloads.length, 1, "the export button must hand back exactly one file");
+      const [download] = page.downloads;
+      assert.equal(download.filename, "local-finops-results.json");
+      const record = JSON.parse(download.text);
+      assert.equal(record.dataset, "user");
+      assert.equal(record.results.spendUsd, JOINABLE.attributedSpendUsd,
+        "the saved record's spend must equal the attributed spend the page showed");
+      assert.match(record.results.topDepartment.name, /^Department …[0-9a-f]{6}$/);
+      assert.equal(record.results.period, "2026-06-05 to 2026-06-07");
+    });
+  } finally {
+    page.restore();
+  }
+});
+
+test("the same path completes on the keyboard alone, all the way to the saved record", async (t) => {
+  const page = await openFinopsTab();
+  const { document } = page;
+  try {
+    // The file picker itself is the operating system's, not the page's; from the
+    // moment the selection lands, nothing below calls click().
+    chooseFiles(document, [
+      { name: PROVIDER_FILE, text: JOINABLE_EXPORT },
+      { name: ROSTER_FILE, text: ORG_ROSTER },
+    ]);
+
+    await t.test("the mapping step announces itself and hands focus to its heading", async () => {
+      await reviewOpens(document, PROVIDER_FILE);
+      assert.equal(document.activeElement?.id, "import-mapping-title",
+        "entering the step must move focus into it, not leave it on the file input behind");
+      assert.equal(shownText(document, "local-import-state"),
+        "Check the column mapping.Every column in the selected file is listed with what it becomes "
+        + "and one value from it. Nothing is computed until you confirm.");
+    });
+
+    await t.test("both mappings are confirmed with Tab and Enter", async () => {
+      tabTo(document, "import-mapping-confirm");
+      pressEnter(document);
+      await reviewOpens(document, ROSTER_FILE);
+      tabTo(document, "import-mapping-confirm");
+      pressEnter(document);
+      await waitFor(() => !byId(document, "local-results").hidden,
+        "the decision brief to appear after a keyboard confirmation");
+    });
+
+    await t.test("the keyboard traversal produced the same coverage metric", () => {
+      assert.equal(shownText(document, "local-trust-coverage"), JOINABLE.coverage);
+      assert.equal(shownText(document, "local-trust-inputs"), JOINABLE.inputs);
+      assert.equal(document.activeElement?.id, "local-results-title",
+        "the result stage must take focus so a keyboard user is told where they are");
+    });
+
+    await t.test("the decision record is saved from the keyboard too", () => {
+      tabTo(document, "export-local-json");
+      pressEnter(document);
+      assert.equal(page.downloads.length, 1,
+        "Enter on the export control must produce the decision record");
+      assert.equal(JSON.parse(page.downloads[0].text).results.spendUsd, JOINABLE.attributedSpendUsd);
+    });
+  } finally {
+    page.restore();
+  }
+});
+
+test("the example export and the example roster, exactly as shipped, attribute nothing", async (t) => {
+  // A defect regression, not a happy path. The two files a leader is handed as a
+  // worked example use different spellings for the same org unit, so the import
+  // succeeds and the decision brief arrives empty. If the fixtures or the join
+  // are ever fixed, this test fails and is the record of what changed.
+  const page = await openFinopsTab();
+  const { document } = page;
+  try {
+    chooseFiles(document, [
+      { name: PROVIDER_FILE, text: PROVIDER_EXPORT },
+      { name: ROSTER_FILE, text: ORG_ROSTER },
+    ]);
+
+    await t.test("both files are recognized and neither is blocked", async () => {
+      await reviewOpens(document, PROVIDER_FILE);
+      assert.equal(byId(document, "import-mapping-confirm").disabled, false);
+      byId(document, "import-mapping-confirm").click();
+      await reviewOpens(document, ROSTER_FILE);
+      assert.equal(byId(document, "import-mapping-confirm").disabled, false);
+      byId(document, "import-mapping-confirm").click();
+      await waitFor(() => !byId(document, "local-results").hidden, "the decision brief to appear");
+    });
+
+    await t.test("every dollar in the example export is unattributed", () => {
+      assert.equal(shownText(document, "local-trust-coverage"), AS_SHIPPED.coverage);
+      assert.equal(shownText(document, "local-trust-inputs"), AS_SHIPPED.inputs);
+      assert.match(shownText(document, "local-trust-findings"), /Unresolved rows/,
+        "the unattributed spend must be reported as a ranked finding, not left silent");
+    });
+
+    await t.test("the brief says plainly that there is no finding to act on", () => {
+      assert.equal(byId(document, "local-result-notice").hidden, false);
+      assert.equal(shownText(document, "local-result-notice"),
+        "No department finding available. No provider aggregate joined an active HRIS unit. "
+        + "Resolve the mapping gaps before choosing an action.");
+      assert.equal(shownText(document, "local-metric-label"), "No rows matched");
+      assert.equal(byId(document, "local-recoverable").dataset.real, "false",
+        "a zero built on nothing must not be presented as a real number");
+    });
+  } finally {
+    page.restore();
+  }
+});
+
+test("a malformed export cannot be pushed past the mapping guard", async (t) => {
+  // Derived from the shipped example by deleting its required cost column — the
+  // export a leader produces when they trim a spreadsheet before uploading it.
+  const page = await openFinopsTab();
+  const { document } = page;
+  try {
+    chooseFiles(document, [
+      { name: PROVIDER_FILE, text: NO_AMOUNT_EXPORT },
+      { name: ROSTER_FILE, text: ORG_ROSTER },
+    ]);
+
+    await t.test("the step names the missing column as a blocker", async () => {
+      await reviewOpens(document, PROVIDER_FILE);
+      const blockers = byId(document, "import-mapping-blockers");
+      assert.equal(blockers.hidden, false, "a missing required column must raise a visible blocker");
+      assert.match(textOf(blockers), /Resolve before the analysis can run/);
+      assert.match(textOf(blockers), /Cost/i);
+      assert.equal(byId(document, "import-mapping-warnings").dataset.count !== undefined, true);
+    });
+
+    await t.test("the confirm control is disabled and Enter on it computes nothing", async () => {
+      const confirm = byId(document, "import-mapping-confirm");
+      assert.equal(confirm.disabled, true, "the guard is the disabled confirm control");
+      confirm.focus();
+      pressEnter(document);
+      confirm.click();
+      // Nothing to wait on but the absence of a transition, so the assertion is
+      // made against the state the guard is required to hold: still in the step.
+      assert.equal(byId(document, "import-mapping").hidden, false,
+        "a blocked mapping must keep the leader in the step");
+      assert.equal(byId(document, "local-results").hidden, true,
+        "a blocked mapping must not produce a decision brief");
+      assert.equal(page.downloads.length, 0, "no decision record may be produced from a blocked import");
+    });
+  } finally {
+    page.restore();
+  }
+});
+
+test("un-mapping a required column in the wizard re-blocks the import", async (t) => {
+  // The partially-mapped state a leader can reach through the shipped UI: a
+  // recognized export whose cost column they set back to "Ignore this column".
+  const page = await openFinopsTab();
+  const { document } = page;
+  try {
+    chooseFiles(document, [
+      { name: PROVIDER_FILE, text: JOINABLE_EXPORT },
+      { name: ROSTER_FILE, text: ORG_ROSTER },
+    ]);
+    await reviewOpens(document, PROVIDER_FILE);
+
+    await t.test("the amount column starts mapped and confirmable", () => {
+      assert.equal(byId(document, "import-mapping-confirm").disabled, false);
+      assert.equal(byId(document, "import-mapping-target-5").value, "amount");
+    });
+
+    await t.test("choosing 'Ignore this column' on the cost column blocks the analysis", () => {
+      const select = byId(document, "import-mapping-target-5");
+      select.focus();
+      // Up-arrow on the closed select is how a keyboard user changes it; the
+      // first option is the explicit ignore, so this walks the choice back.
+      while (select.value !== "ignored") pressKey(document, "ArrowUp");
+      assert.equal(byId(document, "import-mapping-blockers").hidden, false);
+      assert.equal(byId(document, "import-mapping-confirm").disabled, true,
+        "removing a required mapping must re-arm the guard");
+      assert.match(shownText(document, "import-mapping-blockers"), /Cost/i,
+        "the blocker must name the column the leader just un-mapped");
+      assert.equal(shownText(document, "import-mapping-status"),
+        "5 of 7 columns are mapped. 1 thing must be resolved first.");
+    });
+
+    await t.test("the blocked import produces neither a brief nor a record", () => {
+      byId(document, "import-mapping-confirm").click();
+      assert.equal(byId(document, "local-results").hidden, true);
+      assert.equal(page.downloads.length, 0);
+    });
+
+    await t.test("restoring the mapping lets the same import through", async () => {
+      const select = byId(document, "import-mapping-target-5");
+      select.focus();
+      while (select.value !== "amount") pressKey(document, "ArrowDown");
+      assert.equal(byId(document, "import-mapping-confirm").disabled, false);
+      byId(document, "import-mapping-confirm").click();
+      await reviewOpens(document, ROSTER_FILE);
+      byId(document, "import-mapping-confirm").click();
+      await waitFor(() => !byId(document, "local-results").hidden, "the decision brief to appear");
+      assert.equal(shownText(document, "local-trust-coverage"), JOINABLE.coverage);
+    });
+  } finally {
+    page.restore();
+  }
+});
