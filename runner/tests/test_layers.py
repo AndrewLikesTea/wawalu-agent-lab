@@ -83,6 +83,32 @@ class LayerTests(unittest.TestCase):
             {"type": "result", "is_error": True, "api_error_status": 429,
              "result": "too many requests"})))
 
+    def _budget_verdict(self, *lines: str) -> bool:
+        with tempfile.TemporaryDirectory() as tmp:
+            log = pathlib.Path(tmp) / "worker.jsonl"
+            log.write_text("\n".join(lines), encoding="utf-8")
+            return layers.is_budget_exhausted(log)
+
+    def test_our_own_spend_cap_gets_its_own_signal(self):
+        """The CLI names this case, so it never has to be guessed at from prose."""
+        capped = json.dumps({"type": "result", "subtype": "error_max_budget_usd",
+                             "is_error": True, "terminal_reason": "budget_exhausted",
+                             "errors": ["Reached maximum budget ($8)"]})
+        self.assertTrue(self._budget_verdict(capped))
+        self.assertEqual(layers.BUDGET_EXHAUSTED_EXIT_CODE, 79)
+        self.assertNotIn(layers.BUDGET_EXHAUSTED_EXIT_CODE,
+                         set(layers.CAPACITY_EXIT_CODES.values())
+                         | {layers.PROVIDER_OVERLOAD_EXIT_CODE})
+
+    def test_budget_detection_ignores_prose_and_ordinary_failures(self):
+        """A FinOps product writing about budgets must not be read as our cap firing."""
+        product_text = json.dumps({"type": "assistant", "message": {"content": [
+            {"type": "text", "text": "error_max_budget_usd is the subtype we look for"}]}})
+        self.assertFalse(self._budget_verdict(product_text))
+        self.assertFalse(self._budget_verdict("tests failed: assertion error"))
+        self.assertFalse(self._budget_verdict(json.dumps(
+            {"type": "result", "subtype": "success", "is_error": False})))
+
     def test_owner_directive_is_prioritized_in_manager_prompt(self):
         with mock.patch.object(layers, "qwen_json", return_value={
             "persona": "frontend", "title": "Improve filters", "outcome": "Faster browsing",

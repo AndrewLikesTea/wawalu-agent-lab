@@ -16,7 +16,8 @@ import uuid
 from runner.github_app import installation_token, reviewer_token
 from runner.budget import DiffBudget, DiffBudgetExhausted
 from runner.delivery import DELIVERY_REQUEST, consume_merge_request, enable_auto_merge
-from runner.layers import (CAPACITY_EXIT_CODES, plan, PlannerCapacityExhausted, review, review_debate,
+from runner.layers import (BUDGET_EXHAUSTED_EXIT_CODE, CAPACITY_EXIT_CODES, CLAUDE_BUDGET_USD, plan,
+                           PlannerCapacityExhausted, review, review_debate,
                            run_aside, run_worker, WORKERS)
 from runner.simulation import (choose_distraction, choose_peer_reviewer, happens, load_behaviors,
                                personality_context, retry_salt)
@@ -58,6 +59,15 @@ def run(command: list[str], cwd: pathlib.Path = ROOT, **kwargs):
 
 def output(command: list[str], cwd: pathlib.Path = ROOT, **kwargs) -> str:
     return subprocess.check_output(command, cwd=cwd, text=True, **kwargs).strip()
+
+
+def worker_left_work(worktree: pathlib.Path) -> bool:
+    """Report whether the worker changed anything at all in its worktree.
+
+    Untracked files count: workers are told to leave the work uncommitted, and a run
+    whose whole contribution is new files is as real as one that edited existing ones.
+    """
+    return bool(output(["git", "status", "--porcelain"], cwd=worktree))
 
 
 def push_branch(branch: str, worktree: pathlib.Path, env: dict[str, str]) -> None:
@@ -352,6 +362,15 @@ Do not invoke GitHub yourself and do not request delivery for another branch.
                 "distraction": bool(distraction), "first_pass_tendency": first_pass_tendency,
                 "scenario": scenario_id, "worker": plan_value["worker"], "branch": branch,
                 "worktree": str(worktree), "exit_code": exit_code}
+    if exit_code == BUDGET_EXHAUSTED_EXIT_CODE and worker_left_work(worktree):
+        # The spend cap stopped the session, not a verdict on the diff. Carrying on
+        # costs nothing extra from that worker and the gates below decide the outcome:
+        # a half-finished change fails npm run check, the policy check, or the reviewer,
+        # while a finished one ships instead of being thrown away and paid for again.
+        print(f"worker hit its ${CLAUDE_BUDGET_USD['worker']} cap with work in the "
+              f"worktree; letting the gates judge it")
+        metadata["budget_exhausted"] = True
+        exit_code = 0
     (run_dir / "metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")
     if exit_code:
         return exit_code
