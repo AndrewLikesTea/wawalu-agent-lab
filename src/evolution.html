@@ -103,6 +103,14 @@
                hand, one click, a computed finding. No chooser, no wizard, no
                confirm step — a second dataset would be a second product. -->
           <button class="local-example-action" id="try-example-dataset" type="button">Try it with example data</button>
+          <!-- The query-sample contract has no producer in this repository yet:
+               nothing here reads a sample, so this button ships the template a
+               gateway owner fills in, not an import path. It downloads the
+               example file the contract's own validator accepts — see
+               docs/query-sample-import-contract.md. Deliberately not a
+               `.local-example-action`: there is still exactly one way into the
+               example dataset, and this is a download, not a second entry. -->
+          <button id="download-query-sample-example" type="button">Download the query-sample template</button>
           <button id="remap-local-import" type="button" hidden>Change column mapping</button>
           <button id="clear-local-analysis" type="button" hidden>Return to example data</button>
         </div>

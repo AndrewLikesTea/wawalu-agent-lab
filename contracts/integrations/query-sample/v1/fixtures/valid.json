@@ -1,0 +1,12 @@
+{
+  "schema_version": "1.0",
+  "kind": "wawalu.integration.query-sample",
+  "export_id": "40000000-0000-4000-8000-000000000001",
+  "snapshot": { "source_instance_id": "psn_gateway_demo_000001", "sequence": 7, "generated_at": "2026-07-25T12:00:00Z", "bucket_granularity": "day", "completeness": "complete", "omitted_record_count": 0, "issues": [] },
+  "privacy": { "classification_site": "browser-tab", "prompt_text_retained": false, "direct_identifiers_included": false },
+  "records": [
+    { "org_unit_id": "psn_unit_demo_00000002", "query_date": "2026-07-24", "model_raw": "acme-sonnet-1", "input_tokens": 900, "output_tokens": 600, "category": "highValue" },
+    { "org_unit_id": "psn_unit_demo_00000002", "query_date": "2026-07-24", "model_raw": "acme-opus-1", "input_tokens": 120, "output_tokens": 40, "prompt_excerpt": "rename this variable for me" },
+    { "org_unit_id": "psn_unit_demo_00000002", "query_date": "2026-07-25", "model_raw": "acme-haiku-1", "input_tokens": 300, "output_tokens": 220, "category": "inefficient" }
+  ]
+}
