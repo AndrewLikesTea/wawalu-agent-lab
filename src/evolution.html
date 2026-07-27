@@ -73,7 +73,7 @@
         </div>
         <div class="privacy-boundary" role="note" aria-label="Local processing privacy boundary">
           <strong>Your files do not leave this tab.</strong>
-          <span>No upload · no credentials · no network transfer · no browser storage · results disappear on refresh. Column headers and totals are shown; source rows and cell values are never rendered, announced, or exported.</span>
+          <span>No upload · no credentials · no network transfer · no browser storage · results disappear on refresh. Column headers, one sample value per column while you check the mapping, and totals are shown; no other cell value is ever rendered, announced, or exported.</span>
         </div>
         <!-- The three stages this flow already walked, now said out loud. The
              list is authored empty and painted by local-import-flow.js so the
@@ -98,9 +98,50 @@
                hand, one click, a computed finding. No chooser, no wizard, no
                confirm step — a second dataset would be a second product. -->
           <button class="local-example-action" id="try-example-dataset" type="button">Try it with example data</button>
+          <button id="remap-local-import" type="button" hidden>Change column mapping</button>
           <button id="clear-local-analysis" type="button" hidden>Return to example data</button>
         </div>
         <ul class="mapping-requirements" id="mapping-requirements" aria-label="Required inputs and what is still unresolved"></ul>
+
+        <!-- Step 2 of the flow, said out loud: before a single number is
+             computed, the reader sees every column of their own file, what it
+             became, and one real value from it. The table body, the target
+             selects, and both issue lists are painted by import-mapping-view.js
+             from one mapping state; these are slots, never wording. -->
+        <section class="import-mapping" id="import-mapping" aria-labelledby="import-mapping-title" hidden>
+          <div class="import-mapping-heading">
+            <p class="eyebrow">Step 2 · check the mapping</p>
+            <h3 id="import-mapping-title" tabindex="-1">Check what each of your columns became.</h3>
+            <p class="import-mapping-file-line">Reviewing <span id="import-mapping-file" class="import-mapping-file"></span></p>
+            <p id="import-mapping-summary" class="import-mapping-summary"></p>
+          </div>
+          <div class="import-mapping-kind">
+            <label for="import-mapping-kind-select">This file is</label>
+            <select id="import-mapping-kind-select" aria-describedby="import-mapping-kind-note"></select>
+            <p id="import-mapping-kind-note"></p>
+          </div>
+          <div class="import-mapping-issues" id="import-mapping-blockers" data-tone="blocker" hidden></div>
+          <div class="import-mapping-issues" id="import-mapping-warnings" data-tone="warning" hidden></div>
+          <div class="import-mapping-scroll">
+            <table class="import-mapping-table">
+              <caption id="import-mapping-caption"></caption>
+              <thead>
+                <tr>
+                  <th scope="col">Your column</th>
+                  <th scope="col">Becomes</th>
+                  <th scope="col">Proposal</th>
+                  <th scope="col">Sample from your file</th>
+                </tr>
+              </thead>
+              <tbody id="import-mapping-rows"></tbody>
+            </table>
+          </div>
+          <p class="import-mapping-status" id="import-mapping-status" role="status" aria-live="polite"></p>
+          <div class="import-mapping-actions">
+            <button id="import-mapping-confirm" type="button">Run the analysis with this mapping</button>
+            <button id="import-mapping-cancel" type="button">Cancel this import</button>
+          </div>
+        </section>
         <div class="local-import-state" id="local-import-state" role="status" aria-live="polite">
           <strong>Ready for local files.</strong>
           <span>The bundled example analysis remains visible until both compatible exports are ready.</span>
@@ -185,7 +226,7 @@
             <details class="local-provenance-detail">
               <summary>Data provenance and redaction</summary>
               <p id="local-provenance">Waiting for an imported result.</p>
-              <p class="local-redaction-note">Only column headers, declared contract fields, and aggregate totals are read into this page. No cell value, record identifier, or file name is rendered, announced, or written to an export.</p>
+              <p class="local-redaction-note">Only column headers, one sample value per column in the mapping step, declared contract fields, and aggregate totals are read into this page. No other cell value or record identifier is rendered, announced, or written to an export, and your file name appears only as the provenance label on your own result.</p>
             </details>
           </article>
           <div class="local-state-grid" aria-label="Supporting trend and benchmark evidence">
