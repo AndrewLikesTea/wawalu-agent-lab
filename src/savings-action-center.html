@@ -55,6 +55,16 @@
           <p>Checking the action, measurement, and adjudication records…</p>
         </section>
       </div>
+
+      <section class="sac-reconciliation" aria-labelledby="rec-title">
+        <h2 id="rec-title">Recorded decisions this import settles</h2>
+        <div id="sac-reconciliation"></div>
+        <div class="sac-reconcile-controls">
+          <button id="sac-reconcile-save" type="button" disabled>Save these outcomes to my decision log</button>
+          <p class="sac-reconcile-note">Saving keeps only the derived comparison — the status, the two amounts, the variance, the confidence, and the source designation — on the decisions already in this browser. No imported rows, briefing text, or file names are stored.</p>
+        </div>
+        <p class="sac-reconcile-status" id="sac-reconcile-status" role="status" aria-live="polite"></p>
+      </section>
       </main>
     </div>
     <footer class="site-footer" id="site-footer" aria-labelledby="site-footer-title">

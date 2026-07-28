@@ -7,6 +7,14 @@ import {
   renderSavingsActionCenter,
   renderSavingsActionCenterError,
 } from "/savings-action-center-view.js";
+import { loadDecisions } from "/app.js";
+import { loadReleases } from "/releases.js";
+import {
+  persistReconciliations, reconcileImportedAnalysis,
+} from "/decision-reconciliation.js";
+import {
+  persistedStatusText, renderDecisionReconciliation,
+} from "/decision-reconciliation-view.js";
 
 const root = document.getElementById("savings-action-center");
 const notices = document.getElementById("sac-notices");
@@ -14,6 +22,14 @@ const fileInput = document.getElementById("sac-file");
 const exportButton = document.getElementById("sac-export");
 const clearButton = document.getElementById("sac-clear");
 const status = document.getElementById("sac-evidence-status");
+const reconciliationRoot = document.getElementById("sac-reconciliation");
+const saveButton = document.getElementById("sac-reconcile-save");
+const saveStatus = document.getElementById("sac-reconcile-status");
+
+// The reconciliation the months currently open produce. Recomputed on every
+// read of the file input, so the panel and the save control can never describe a
+// selection that is no longer on screen.
+let reconciliation = null;
 
 // The opened evidence, held only for as long as the tab is open. Nothing here is
 // written to storage: a briefing is the visitor's own spend, and this page has
@@ -35,10 +51,37 @@ function say(message) {
   status.textContent = message;
 }
 
+/**
+ * Reconcile the recorded decisions against whatever is open, and paint it.
+ *
+ * This runs on every read rather than behind its own control: the reader has
+ * already asked the one question this page exists for by opening a month, and
+ * making them press a second button to find out which of their own recorded
+ * commitments that month settles would be asking it twice. The pass is pure and
+ * writes nothing — persistence is the separate, explicit control below.
+ *
+ * `reconciledAt` is read from the clock here, at the edge, and passed in, so the
+ * model itself stays testable without one.
+ */
+function renderReconciliation() {
+  if (!reconciliationRoot) return;
+  reconciliation = reconcileImportedAnalysis({
+    decisions: loadDecisions(globalThis.localStorage),
+    releases: loadReleases(globalThis.localStorage),
+    entries: opened,
+    reconciledAt: new Date().toISOString(),
+  });
+  reconciliationRoot.replaceChildren(renderDecisionReconciliation(reconciliation));
+  // Nothing to save when nothing was reconciled; the control says so by being
+  // unavailable rather than by failing after it is pressed.
+  if (saveButton) saveButton.disabled = reconciliation.rows.length === 0;
+}
+
 function renderClaim() {
   const importing = opened.length > 0;
   exportButton.disabled = !importing;
   clearButton.disabled = !importing;
+  renderReconciliation();
   if (importing) {
     paint(renderSavingsActionCenter(importedSavingsClaim(opened)));
     return;
@@ -106,8 +149,21 @@ clearButton?.addEventListener("click", () => {
   opened = [];
   paintNotices([]);
   renderClaim();
+  if (saveStatus) saveStatus.textContent = "";
   say("Imported evidence cleared. The demonstration month is shown again.");
   fileInput?.focus();
+});
+
+// Persisting is its own explicit press. The reconciliation is derived from the
+// visitor's own records, but writing it amends decisions they authored, and this
+// product does not amend a stored record because a file was opened.
+saveButton?.addEventListener("click", () => {
+  if (!reconciliation) return;
+  const result = persistReconciliations(globalThis.localStorage, reconciliation);
+  if (saveStatus) saveStatus.textContent = persistedStatusText(result);
+  // Repaint from storage so the panel shows what was actually kept rather than
+  // what was offered.
+  renderReconciliation();
 });
 
 try {
