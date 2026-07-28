@@ -1,0 +1,325 @@
+{
+  "schemaVersion": "briefing-verification-fixtures/1.0.0",
+  "source": "hand-authored synthetic briefing payloads; no provider export, no stored prompt, no provider call",
+  "note": "DRIFT TRIPWIRES. Every figure in `expected` was derived by hand from the operands in the same fixture's `payload` and is asserted exactly. A failure here means the scoring or scenario arithmetic moved, not that the fixture is stale. Do not edit a number to make a test pass: re-derive it by hand from the payload, change it in one commit on its own, and say in that commit why the arithmetic was allowed to move. The payloads are the shape `buildBriefing` writes; `tests/finops-briefing-verification.test.js` also runs the real export path over the bundled example dataset, so a payload shape that drifts away from the writer fails there.",
+  "fixtures": [
+    {
+      "id": "full-coverage",
+      "note": "All spend attributed, coverage 0.95, current rubric. Must reproduce exactly.",
+      "expected": {
+        "verdict": "reproduced_exactly",
+        "rubricVersion": "down-routing-candidate/1.0.0",
+        "recoverableSpendUsd": 3100,
+        "recoverableShareOfAnalyzedSpend": 0.155,
+        "coverageRatio": 0.95,
+        "grade": "high",
+        "attributedShareOfSpend": 1,
+        "fullyAttributed": true,
+        "perDepartmentRecoverableUsd": [2500, 600, 0]
+      },
+      "payload": {
+        "briefingContractVersion": "finops-briefing/1.0.0",
+        "briefing": {
+          "coverage": {
+            "recordsAnalyzed": 760,
+            "recordsTotal": 800,
+            "coverageRatio": 0.95,
+            "confidence": "high",
+            "missingInputs": []
+          }
+        },
+        "figures": {
+          "attributedShare": {
+            "value": 1,
+            "unit": "ratio",
+            "inputs": {
+              "attributedSpendUsd": 20000,
+              "unattributedSpendUsd": 0,
+              "unattributedRecoverableUsd": 0
+            }
+          },
+          "recoverableSpend": {
+            "value": 3100,
+            "unit": "USD",
+            "inputs": { "recoverableShareOfAnalyzedSpend": 0.155 }
+          }
+        },
+        "results": {
+          "schemaVersion": "local-finops/1.0.0",
+          "period": "2026-06-01 to 2026-07-01",
+          "spendUsd": 20000,
+          "recoverableUsd": 3100,
+          "quality": {
+            "providerCompleteness": "complete",
+            "hrisCompleteness": "complete",
+            "joinedRecords": 760,
+            "quarantinedRecords": 40
+          },
+          "rankedDepartments": [
+            {
+              "id": "unit-a",
+              "rank": 1,
+              "spendUsd": 12000,
+              "recoverableUsd": 2500,
+              "downRouting": {
+                "ruleVersion": "down-routing-candidate/1.0.0",
+                "flagged": true,
+                "decisionCode": "candidate_verified_call_shape",
+                "candidateSpendUsd": 4000,
+                "candidateTokens": 100000000,
+                "referenceMinorPerMillionTokens": 1500,
+                "observedMinorPerMillionTokens": 4000,
+                "recoverableUsd": 2500
+              }
+            },
+            {
+              "id": "unit-b",
+              "rank": 2,
+              "spendUsd": 5000,
+              "recoverableUsd": 600,
+              "downRouting": {
+                "ruleVersion": "down-routing-candidate/1.0.0",
+                "flagged": true,
+                "decisionCode": "candidate_verified_call_shape",
+                "candidateSpendUsd": 1200,
+                "candidateTokens": 40000000,
+                "referenceMinorPerMillionTokens": 1500,
+                "observedMinorPerMillionTokens": 3000,
+                "recoverableUsd": 600
+              }
+            },
+            {
+              "id": "unit-c",
+              "rank": 3,
+              "spendUsd": 3000,
+              "recoverableUsd": 0,
+              "downRouting": {
+                "ruleVersion": "down-routing-candidate/1.0.0",
+                "flagged": false,
+                "decisionCode": "below_premium_price_floor",
+                "candidateSpendUsd": 300,
+                "candidateTokens": 30000000,
+                "referenceMinorPerMillionTokens": 1500,
+                "observedMinorPerMillionTokens": 1000,
+                "recoverableUsd": 0
+              }
+            }
+          ]
+        },
+        "scenario": {
+          "ruleVersion": "down-routing-candidate/1.0.0",
+          "parameters": [
+            {
+              "name": "premium_tier_floor_minor_per_million_tokens",
+              "unit": "currency_minor_per_million_tokens",
+              "value": 2000,
+              "assumption": "Premium-tier floor: at or above this observed price the unit is assumed to be buying a premium text tier. NO SOURCE."
+            },
+            {
+              "name": "standard_tier_reference_minor_per_million_tokens",
+              "unit": "currency_minor_per_million_tokens",
+              "value": 1500,
+              "assumption": "Standard-tier reference price: what the cheaper tier is assumed to charge for the same tokens. NO SOURCE."
+            },
+            {
+              "name": "short_call_max_tokens_per_call",
+              "unit": "tokens_per_call",
+              "value": 2000,
+              "assumption": "Short-call ceiling: a text call at or below this is assumed servable by the cheaper tier at equal quality. NO SOURCE."
+            },
+            {
+              "name": "min_candidate_requests",
+              "unit": "requests",
+              "value": 1000,
+              "assumption": "Minimum request volume: below this the saving is assumed smaller than the engineering cost of changing routing. NO SOURCE."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "partial-attribution",
+      "note": "70% of analyzed spend attributed, coverage 0.60. Reproduces exactly, and must say on the view that it is partial.",
+      "expected": {
+        "verdict": "reproduced_exactly",
+        "rubricVersion": "down-routing-candidate/1.0.0",
+        "recoverableSpendUsd": 1882.5,
+        "recoverableShareOfAnalyzedSpend": 0.209167,
+        "coverageRatio": 0.6,
+        "grade": "moderate",
+        "attributedShareOfSpend": 0.7,
+        "fullyAttributed": false,
+        "perDepartmentRecoverableUsd": [1562.5, 320]
+      },
+      "payload": {
+        "briefingContractVersion": "finops-briefing/1.0.0",
+        "briefing": {
+          "coverage": {
+            "recordsAnalyzed": 420,
+            "recordsTotal": 700,
+            "coverageRatio": 0.6,
+            "confidence": "moderate",
+            "missingInputs": []
+          }
+        },
+        "figures": {
+          "attributedShare": {
+            "value": 0.7,
+            "unit": "ratio",
+            "inputs": {
+              "attributedSpendUsd": 6300,
+              "unattributedSpendUsd": 2700,
+              "unattributedRecoverableUsd": 410
+            }
+          },
+          "recoverableSpend": {
+            "value": 1882.5,
+            "unit": "USD",
+            "inputs": { "recoverableShareOfAnalyzedSpend": 0.209167 }
+          }
+        },
+        "results": {
+          "schemaVersion": "local-finops/1.0.0",
+          "period": "2026-06-01 to 2026-07-01",
+          "spendUsd": 9000,
+          "recoverableUsd": 1882.5,
+          "quality": {
+            "providerCompleteness": "partial",
+            "hrisCompleteness": null,
+            "joinedRecords": 420,
+            "quarantinedRecords": 280
+          },
+          "rankedDepartments": [
+            {
+              "id": "unit-d",
+              "rank": 1,
+              "spendUsd": 4200,
+              "recoverableUsd": 1562.5,
+              "downRouting": {
+                "ruleVersion": "down-routing-candidate/1.0.0",
+                "flagged": true,
+                "decisionCode": "candidate_verified_call_shape",
+                "candidateSpendUsd": 2500,
+                "candidateTokens": 62500000,
+                "referenceMinorPerMillionTokens": 1500,
+                "observedMinorPerMillionTokens": 4000,
+                "recoverableUsd": 1562.5
+              }
+            },
+            {
+              "id": "unit-e",
+              "rank": 2,
+              "spendUsd": 2100,
+              "recoverableUsd": 320,
+              "downRouting": {
+                "ruleVersion": "down-routing-candidate/1.0.0",
+                "flagged": true,
+                "decisionCode": "candidate_unverified_call_shape",
+                "candidateSpendUsd": 800,
+                "candidateTokens": 32000000,
+                "referenceMinorPerMillionTokens": 1500,
+                "observedMinorPerMillionTokens": 2500,
+                "recoverableUsd": 320
+              }
+            }
+          ]
+        },
+        "scenario": {
+          "ruleVersion": "down-routing-candidate/1.0.0",
+          "parameters": [
+            {
+              "name": "standard_tier_reference_minor_per_million_tokens",
+              "unit": "currency_minor_per_million_tokens",
+              "value": 1500,
+              "assumption": "Standard-tier reference price: what the cheaper tier is assumed to charge for the same tokens. NO SOURCE."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "older-rubric-version",
+      "note": "Internally consistent, but scored under down-routing-candidate/0.9.0 at a 1800 minor reference price. Must resolve to rubric version drift even though every figure recomputes.",
+      "expected": {
+        "verdict": "rubric_version_drift",
+        "rubricVersion": "down-routing-candidate/0.9.0",
+        "recoverableSpendUsd": 2750,
+        "recoverableShareOfAnalyzedSpend": 0.183333,
+        "coverageRatio": 1,
+        "grade": "high",
+        "attributedShareOfSpend": 1,
+        "fullyAttributed": true,
+        "perDepartmentRecoverableUsd": [2750]
+      },
+      "payload": {
+        "briefingContractVersion": "finops-briefing/1.0.0",
+        "briefing": {
+          "coverage": {
+            "recordsAnalyzed": 300,
+            "recordsTotal": 300,
+            "coverageRatio": 1,
+            "confidence": "high",
+            "missingInputs": []
+          }
+        },
+        "figures": {
+          "attributedShare": {
+            "value": 1,
+            "unit": "ratio",
+            "inputs": {
+              "attributedSpendUsd": 15000,
+              "unattributedSpendUsd": 0,
+              "unattributedRecoverableUsd": 0
+            }
+          },
+          "recoverableSpend": {
+            "value": 2750,
+            "unit": "USD",
+            "inputs": { "recoverableShareOfAnalyzedSpend": 0.183333 }
+          }
+        },
+        "results": {
+          "schemaVersion": "local-finops/1.0.0",
+          "period": "2026-05-01 to 2026-06-01",
+          "spendUsd": 15000,
+          "recoverableUsd": 2750,
+          "quality": {
+            "providerCompleteness": "complete",
+            "hrisCompleteness": "complete",
+            "joinedRecords": 300,
+            "quarantinedRecords": 0
+          },
+          "rankedDepartments": [
+            {
+              "id": "unit-f",
+              "rank": 1,
+              "spendUsd": 15000,
+              "recoverableUsd": 2750,
+              "downRouting": {
+                "ruleVersion": "down-routing-candidate/0.9.0",
+                "flagged": true,
+                "decisionCode": "candidate_verified_call_shape",
+                "candidateSpendUsd": 5000,
+                "candidateTokens": 125000000,
+                "referenceMinorPerMillionTokens": 1800,
+                "observedMinorPerMillionTokens": 4000,
+                "recoverableUsd": 2750
+              }
+            }
+          ]
+        },
+        "scenario": {
+          "ruleVersion": "down-routing-candidate/0.9.0",
+          "parameters": [
+            {
+              "name": "standard_tier_reference_minor_per_million_tokens",
+              "unit": "currency_minor_per_million_tokens",
+              "value": 1800,
+              "assumption": "Standard-tier reference price as version 0.9.0 stated it. NO SOURCE."
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

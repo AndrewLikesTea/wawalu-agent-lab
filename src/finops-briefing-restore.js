@@ -39,6 +39,7 @@ import {
   BRIEFING_CONFIDENCE, CONTRACT_VERSION, buildFinopsBriefing, validateBriefing,
 } from "./finops-briefing-contract.js";
 import { DOWN_ROUTING_RULE_VERSION } from "./down-routing-candidates.js";
+import { verifyBriefingMath } from "./finops-briefing-verification.js";
 
 /**
  * Ceilings, checked before the file is parsed. A briefing is aggregates: a few
@@ -301,6 +302,11 @@ export function parseSavedBriefing(text, { byteSize = null } = {}) {
       recoverableUsd: recoverable.value,
       rubricVersion: savedRubricVersion(results),
       briefing,
+      // The check-the-math model, computed from the file that was just read and
+      // from nothing else. It rides on `saved` so a reopened briefing reaches
+      // the same view a freshly generated one does, through the same function —
+      // the reader does not get a verification of its own.
+      verification: verifyBriefingMath(raw),
     }),
   });
 }

@@ -130,6 +130,52 @@ export function coverageRatio(recordsAnalyzed, recordsTotal) {
   return recordsAnalyzed / recordsTotal;
 }
 
+/**
+ * The assumption behind each coverage threshold, as data rather than as a
+ * comment, so a surface that shows the grade can also show why the line sits
+ * where it does. The numbers themselves stay in COVERAGE_THRESHOLDS — this list
+ * reads them, so a threshold and its stated reason cannot drift apart.
+ *
+ * Nothing here changes a slot's meaning, an enum value, or a threshold, so
+ * CONTRACT_VERSION does not move: this is the existing rule, written down.
+ */
+export const COVERAGE_GRADE_ASSUMPTIONS = Object.freeze([
+  Object.freeze({
+    name: "high_coverage_ratio",
+    value: COVERAGE_THRESHOLDS.high,
+    unit: "ratio",
+    assumption: "0.90 of the record set, AND every required input present. NO SOURCE — it is a "
+      + "stated policy line, not a measured error rate. `high` is the only grade that also "
+      + "requires complete inputs because a briefing can cover 95% of the records and still be "
+      + "missing the figure that sizes the action, and calling that high would be a claim about "
+      + "the wrong thing.",
+  }),
+  Object.freeze({
+    name: "moderate_coverage_ratio",
+    value: COVERAGE_THRESHOLDS.moderate,
+    unit: "ratio",
+    assumption: "0.60 of the record set. NO SOURCE. It is the point below which a reader is "
+      + "assumed to be looking at a minority of their own records, so the figure is reported as "
+      + "indicative rather than as a total.",
+  }),
+  Object.freeze({
+    name: "low_coverage_ratio",
+    value: COVERAGE_THRESHOLDS.low,
+    unit: "ratio",
+    assumption: "Any coverage above zero grades `low` rather than `insufficient`. A briefing that "
+      + "analyzed one record analyzed something, and saying so is more useful than refusing to "
+      + "grade it.",
+  }),
+  Object.freeze({
+    name: "zero_denominator_rule",
+    value: 0,
+    unit: "ratio",
+    assumption: "0/0 is defined as 0, not 1 and not null. Defining it as 1 would let an import "
+      + "that joined nothing claim full coverage; defining it as null would push the decision onto "
+      + "every consumer.",
+  }),
+]);
+
 export function confidenceFor(ratio, missingInputs = []) {
   if (!(ratio > COVERAGE_THRESHOLDS.low)) return BRIEFING_CONFIDENCE.insufficient;
   if (ratio >= COVERAGE_THRESHOLDS.high && missingInputs.length === 0) {
@@ -495,6 +541,24 @@ function absence(reason) {
   return Object.freeze({ reason, statement: ABSENCE_STATEMENT[reason] });
 }
 
+/**
+ * Which of REQUIRED_INPUTS the envelope does not carry.
+ *
+ * Exported because the grade is `confidenceFor(ratio, missingInputs)` and a
+ * surface that re-derives the grade has to re-derive this list too. A second
+ * copy of these four predicates would be a second opinion about whether a
+ * briefing is complete, which is exactly the fork this module exists to prevent.
+ */
+export function missingRequiredInputs(result) {
+  const quality = result?.quality ?? {};
+  return REQUIRED_INPUTS.filter((input) => {
+    if (input === "analyzed_spend_usd") return !Number.isFinite(Number(result?.spendUsd));
+    if (input === "recoverable_scenario_usd") return !Number.isFinite(Number(result?.recoverableUsd));
+    if (input === "ranked_departments") return !(result?.rankedDepartments?.length > 0);
+    return !quality.providerCompleteness;
+  });
+}
+
 function coverageOf(result) {
   const quality = result?.quality ?? {};
   const analyzed = Number(quality.joinedRecords);
@@ -505,12 +569,7 @@ function coverageOf(result) {
   // set aside. It is the same set the JSON export ships, so a reader comparing
   // the two is comparing the same denominator.
   const recordsTotal = recordsAnalyzed + recordsExcluded;
-  const missingInputs = REQUIRED_INPUTS.filter((input) => {
-    if (input === "analyzed_spend_usd") return !Number.isFinite(Number(result?.spendUsd));
-    if (input === "recoverable_scenario_usd") return !Number.isFinite(Number(result?.recoverableUsd));
-    if (input === "ranked_departments") return !(result?.rankedDepartments?.length > 0);
-    return !quality.providerCompleteness;
-  });
+  const missingInputs = missingRequiredInputs(result);
   const ratio = coverageRatio(recordsAnalyzed, recordsTotal);
   return Object.freeze({
     recordsAnalyzed,

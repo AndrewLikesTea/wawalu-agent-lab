@@ -316,6 +316,11 @@
                  to recompute — an arithmetic line with nothing above it is not
                  evidence of anything. -->
             <p class="local-lead-arithmetic" id="local-lead-arithmetic" hidden></p>
+            <!-- Check the math. Painted from finops-briefing-verification.js,
+                 which re-derives the figure and the grade from the operands the
+                 briefing itself states and says whether they reproduce. The
+                 same region is drawn under a reopened briefing below. -->
+            <div class="briefing-verification-slot" id="local-lead-verification" hidden></div>
             <div class="local-lead-next">
               <p class="eyebrow">Prioritized next action</p>
               <p class="local-lead-action" id="local-lead-action" data-available="false">—</p>
@@ -455,6 +460,10 @@
           <p class="restored-briefing-coverage" id="restored-briefing-coverage"></p>
           <p class="restored-briefing-arithmetic" id="restored-briefing-arithmetic" hidden></p>
           <p class="restored-briefing-action" id="restored-briefing-action"></p>
+          <!-- The same check-the-math region as the live briefing, drawn from
+               the reopened file's own figures. A director who was sent a saved
+               briefing can redo its arithmetic without regenerating it. -->
+          <div class="briefing-verification-slot" id="restored-briefing-verification" hidden></div>
           <!-- Shown only when there is a current analysis to compare against,
                and carrying the reason in words when the two cannot be compared.
                Direction is in the sentence; the data-direction attribute is for

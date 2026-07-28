@@ -83,6 +83,8 @@ import { buildFinopsBriefing } from "/finops-briefing-contract.js";
 // same contract above, and compares against the analysis on screen only where
 // the two are actually comparable.
 import { briefingDelta, parseSavedBriefing } from "/finops-briefing-restore.js";
+import { verifyAnalysisMath } from "/finops-briefing-verification.js";
+import { applyBriefingVerification } from "/finops-briefing-verification-view.js";
 // The published attribution policy: three input states, one classification table,
 // two thresholds. Nothing on this page decides any of that for itself.
 import {
@@ -672,6 +674,15 @@ function mountLocalFinopsImport() {
       attributionWithheld: attribution?.confidence === CONFIDENCE.SUPPRESSED,
     });
     applyBriefing(document, currentBriefing);
+    // Check the math, on the freshly generated briefing. It selects the same
+    // payload the export button would write and re-derives from that, so the
+    // live surface and a reopened file reach one view through one function.
+    applyBriefingVerification(document, "local-lead-verification",
+      verifyAnalysisMath(next, {
+        dataset: exampleActive ? "example" : "user",
+        attributionWithheld: attribution?.confidence === CONFIDENCE.SUPPRESSED,
+      }),
+      { headingId: "local-lead-verification-title" });
     // A restored briefing on screen gains — or loses — its delta line the
     // moment the live analysis changes underneath it. Repainting here is what
     // stops a delta from outliving the analysis it was computed against.

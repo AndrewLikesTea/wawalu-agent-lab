@@ -21,6 +21,7 @@ import { importLimitsSentence } from "./import-limits.js";
 // reader that produced the briefing, not here, so the dates in them are the
 // file's own and this layer cannot invent a third wording for them.
 import { capturedPeriodLine, EXAMPLE_DATASET_LINE } from "./finops-briefing-restore.js";
+import { applyBriefingVerification } from "./finops-briefing-verification-view.js";
 
 /** The stages the shipped flow already walks. Naming them does not add one. */
 export const IMPORT_STAGES = Object.freeze([
@@ -600,6 +601,7 @@ export function applyRestoredBriefing(doc, model) {
       write(id, "");
       show(id, false);
     }
+    applyBriefingVerification(doc, "restored-briefing-verification", null);
     return null;
   }
 
@@ -625,6 +627,10 @@ export function applyRestoredBriefing(doc, model) {
   show("restored-briefing-arithmetic", Boolean(lines.arithmetic));
   write("restored-briefing-action", lines.action);
   show("restored-briefing-action", true);
+  // The reader computed this when it read the file; nothing is recomputed here
+  // and nothing is looked up from the analysis on screen.
+  applyBriefingVerification(doc, "restored-briefing-verification", saved.verification,
+    { headingId: "restored-briefing-verification-title" });
   // The delta is absent, not empty, when there is nothing on screen to compare
   // against: an empty line under a restored briefing reads as "no change".
   write("restored-briefing-delta", delta?.text ?? "");
