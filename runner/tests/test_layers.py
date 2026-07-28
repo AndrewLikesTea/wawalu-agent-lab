@@ -686,6 +686,20 @@ class StakeholderReviewTests(unittest.TestCase):
                                 "<p>Grade B</p></body></html>")
         self.assertEqual(text, "Spend Grade B")
 
+    def test_a_diff_carrying_nul_bytes_still_reaches_the_planner(self):
+        # A binary fixture in the diff used to raise ValueError inside subprocess
+        # and fail a run whose work had already passed the product check.
+        diff = "diff --git a/logo.png b/logo.png\n+\x00\x00PNG\x00payload\n"
+        self.assertEqual(layers.argv_safe(diff).count("\0"), 0)
+        self.assertIn("PNGpayload", layers.argv_safe(diff))
+        with tempfile.TemporaryDirectory() as tmp:
+            output = pathlib.Path(tmp) / "plan.json"
+            with mock.patch.object(layers.subprocess, "run") as spawn:
+                spawn.return_value = mock.Mock(returncode=0, stdout='{"ok": true}', stderr="")
+                output.write_text('{"ok": true}', encoding="utf-8")
+                layers.qwen_json(diff, output, {"type": "object"})
+            self.assertNotIn("\0", spawn.call_args.args[0][-1])
+
 
 if __name__ == "__main__":
     unittest.main()
