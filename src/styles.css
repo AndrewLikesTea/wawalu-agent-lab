@@ -258,6 +258,8 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .detail-decision-title { font-size:16px; font-weight:650; letter-spacing:-.01em; overflow-wrap:anywhere; }
 .detail-decision-alternatives { display:flex; align-items:baseline; gap:8px; color:#555550; font-size:13px; line-height:1.45; white-space:pre-wrap; overflow-wrap:anywhere; }
 .detail-decision-alternatives-label { flex:none; color:#777771; font:700 9px/1.4 ui-monospace,monospace; letter-spacing:.08em; text-transform:uppercase; }
+.detail-decision-identifier { display:flex; align-items:baseline; gap:8px; color:#62625d; font:600 12px/1.4 ui-monospace,monospace; overflow-wrap:anywhere; }
+.detail-decision-identifier-label { flex:none; color:#777771; font:700 9px/1.4 ui-monospace,monospace; letter-spacing:.08em; text-transform:uppercase; }
 .detail-decision-owner { display:inline-flex; align-items:baseline; gap:7px; color:#777771; font:600 12px/1.4 ui-monospace,monospace; }
 .detail-decision-owner-label { font:700 9px/1.4 ui-monospace,monospace; letter-spacing:.08em; text-transform:uppercase; }
 .detail-decision-arrow { flex:none; color:#1f70c1; font-size:16px; }
@@ -624,4 +626,34 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 /* Narrow: the band keeps the page's own gutter, and every control goes full
    width rather than wrapping into a sliver. */
 @media(max-width:520px) { .site-footer-inner{width:calc(100% - 24px);padding:24px 0 32px}.site-footer-trigger{width:100%}.site-footer-panel{padding:15px}.site-footer-actions button{flex:1 1 auto} }
+/* Release recorder. The decision picker is a native checkbox group: the visual
+   work here is only making a long list scannable and scrollable inside the form
+   panel, never replacing a control. Each option keeps a 44px-tall hit area that
+   includes its label, and the list caps its height so the submit button stays
+   reachable however many decisions exist. */
+.release-workspace { margin-top:24px; }
+.release-record-status { min-height:1.45em; margin:14px 0 0; font-weight:700; }
+.release-record-status:empty { min-height:0; }
+.decision-picker-field { min-width:0; margin:0; border:0; padding:0; }
+.decision-picker-field legend { padding:0; font-size:14px; font-weight:700; }
+.decision-picker-field .hint { margin:7px 0 0; }
+.decision-picker-summary { margin:8px 0 0; color:#3a3a36; font:650 12px/1.45 ui-monospace,monospace; }
+.decision-picker { margin-top:10px; max-height:290px; overflow-y:auto; overscroll-behavior:contain; border:1px solid #d9d7d0; border-radius:11px; background:#fff; }
+.decision-picker-options { display:grid; gap:1px; margin:0; padding:0; list-style:none; background:#ebe9e3; }
+.decision-picker-option { display:grid; grid-template-columns:auto minmax(0,1fr); align-items:baseline; gap:4px 11px; padding:11px 13px; background:#fff; }
+.decision-picker-option:hover { background:#faf9f5; }
+.decision-picker-check { width:auto; min-width:17px; min-height:17px; margin:0; padding:0; accent-color:#1f70c1; }
+.decision-picker-check:focus-visible { outline:3px solid var(--focus-ring); outline-offset:2px; }
+.decision-picker-label { display:block; min-height:22px; font-size:14px; line-height:1.4; overflow-wrap:anywhere; cursor:pointer; }
+.decision-picker-meta { display:flex; align-items:center; flex-wrap:wrap; gap:7px 12px; grid-column:2; color:#62625d; font:600 11px/1.4 ui-monospace,monospace; }
+.decision-picker-meta-label { margin-right:5px; color:#777771; font:700 9px/1.4 ui-monospace,monospace; letter-spacing:.08em; text-transform:uppercase; }
+.decision-picker-identifier code { overflow-wrap:anywhere; }
+.decision-picker-empty { padding:22px 18px; color:#5f5f59; text-align:center; }
+.decision-picker-empty p { margin:7px 0 0; font-size:13px; line-height:1.55; }
+.decision-picker-empty-title { margin:0; color:#282824; font-size:15px; font-weight:700; }
+.decision-picker-empty-action { display:inline-flex; align-items:center; min-height:44px; margin-top:14px; border:1px solid #9cb9d4; border-radius:9px; padding:0 15px; color:#1f5fa8; font-size:13px; font-weight:750; text-decoration:none; }
+.decision-picker-empty-action:hover { background:#eef4fb; }
+/* Phone: the metadata row stops competing with the title for width, and the
+   picker gives up its scroll cap so the page scrolls as one column. */
+@media(max-width:520px) { .decision-picker{max-height:none}.decision-picker-meta{gap:6px 10px} }
 @media(prefers-reduced-motion:reduce) { html{scroll-behavior:auto}.release-chevron{transition:none}.list-state-loading h3::before,.detail-loading-dot,.post-media[data-state="loading"],.profile-media[data-state="loading"],.detail-media[data-state="loading"],.skeleton-media,.skeleton-line{animation:none}.profile-tile{transition:none}.profile-tile:hover{transform:none}.site-footer-panel{animation:none} }

@@ -483,6 +483,13 @@ function renderDetailDecision(decision) {
   link.href = decisionDetailHref(decision.id);
   link.append(el("span", `badge badge-${decision.status}`, decision.status));
   summary.append(el("span", "detail-decision-title", decision.title));
+  // The identifier travels with the title so a linked decision can be matched
+  // to an export, an import error, or a missing-reference row above it — those
+  // name the decision by id, and two decisions may share a title.
+  const identifier = el("span", "detail-decision-identifier");
+  identifier.append(el("span", "detail-decision-identifier-label", "ID"));
+  identifier.append(el("code", undefined, decision.id));
+  summary.append(identifier);
   const alternativeText = typeof decision.alternatives === "string" && decision.alternatives.trim() !== ""
     ? decision.alternatives
     : "No alternatives recorded.";
@@ -585,9 +592,11 @@ export function renderReleaseDetail(container, resolved, options = {}) {
   meta.append(renderMetaRow("Status", el("span", `badge badge-release-${releaseStatus(resolved)}`, releaseStatus(resolved))));
   header.append(meta);
 
-  if (typeof resolved.notes === "string" && resolved.notes.trim() !== "") {
-    header.append(el("p", "detail-notes", resolved.notes));
-  }
+  // Description first, notes as the fallback (releaseDescription's rule), so a
+  // release recorded through the form — which writes `description` and never
+  // the older `notes` — shows its copy here the way an imported record does.
+  const summary = releaseDescription(resolved);
+  if (summary.trim() !== "") header.append(el("p", "detail-notes", summary));
 
   article.append(header);
   article.append(renderDetailDecisions(resolved));
