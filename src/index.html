@@ -27,33 +27,37 @@
 
       <main id="main-content" tabindex="-1">
       <section class="hero" id="top" aria-labelledby="page-title">
-        <p class="eyebrow">Decision and release history for engineering teams</p>
+        <p class="eyebrow">Decision and release log for engineering teams</p>
         <h1 id="page-title">Know why it shipped.<br />Decide what’s next.</h1>
-        <p>Shiplog records decisions, tracks the releases they shape, and lets you score your own provider export in AI FinOps. Your files do not leave this tab. Social is a shared demo feed of short posts about the work the team ships, each with an optional image.</p>
+        <p>Shiplog records decisions, tracks the releases they shape, and keeps the link between them. A teammate who arrives six months late opens the release and reads the reasoning behind it, instead of reconstructing it from chat history.</p>
         <div class="hero-actions" data-conversion-slot="hero">
-          <a class="button-link" href="#record-history">Explore the live demo <span aria-hidden="true">→</span></a>
-          <a class="secondary-button" href="/evolution.html">Score your provider export in AI FinOps</a>
-          <a class="secondary-button" href="/social.html">Read and post on Social</a>
-          <a class="text-link" href="#decision-to-release">See how it works</a>
+          <a class="button-link" href="#record-history">Explore the decision and release log <span aria-hidden="true">→</span></a>
+          <a class="text-link" href="#decision-to-release">See how a decision reaches a release</a>
         </div>
-        <!-- These three figures are the AI FinOps proof point, quoted verbatim
-             from the proof-point-facts description list in src/evolution.html.
-             They are literals on both pages, so the two must be edited together
-             — a visitor who reads the home page and then the tab must not find
-             two different numbers. The synthetic-sample qualifier is that
-             page's wording too, and stays inside this block: the figures may
-             never appear without it.
-             Keep raw tag markup out of this note. Spelling the list out as a
-             literal element ended the comment early and painted the rest of
-             this paragraph, and its closing marker, as visitor copy. -->
+        <!-- The proof point quotes the sample decision and the release that
+             carried it from seed-records.js, so the hero, the story cards
+             below, and the record list all describe the same two records.
+             Change the seed and change these words with it. The
+             synthetic-data line is part of this block and stays inside
+             it: the records may never appear without it.
+             Keep raw tag markup and double hyphens out of this note. Either
+             one ends the comment early and paints the rest of the paragraph,
+             and its closing marker, as visitor copy. -->
         <div class="hero-proof">
-          <p class="eyebrow">What AI FinOps scored in the bundled sample</p>
+          <p class="eyebrow">One recorded decision, and the release that shipped it</p>
           <dl class="hero-proof-facts">
-            <div><dt>Monthly baseline</dt><dd>$7,430</dd></div>
-            <div><dt>Projected savings</dt><dd>$5,200 / month</dd></div>
-            <div><dt>Confidence</dt><dd>High · 760-query scored sample</dd></div>
+            <div><dt>Decision</dt><dd>Adopt a durable job queue · Accepted</dd></div>
+            <div><dt>Shipped in</dt><dd>Release v1.3.0 · Completed</dd></div>
+            <div><dt>Owner</dt><dd>Kai</dd></div>
           </dl>
-          <p class="hero-proof-boundary"><strong>Bundled synthetic sample data</strong> <span>This is an illustrative recommendation—not live analysis, customer data, or realized savings.</span></p>
+          <p class="hero-proof-boundary"><strong>Representative synthetic records</strong> <span>These invented records demonstrate Shiplog. They are not customer or internal operational data.</span></p>
+        </div>
+        <!-- AI FinOps is a different surface, so it is labelled as one and gets
+             a secondary button rather than a second primary one. -->
+        <div class="hero-aside">
+          <p class="eyebrow">Also on this site · separate demo</p>
+          <p>AI FinOps is a spend demo, not part of the log: score your own provider export in AI FinOps for intent, efficiency, and model fit. Your files do not leave this tab.</p>
+          <a class="secondary-button" href="/evolution.html">Score your provider export in AI FinOps</a>
         </div>
       </section>
 

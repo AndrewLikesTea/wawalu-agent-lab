@@ -4,6 +4,12 @@ import { cp, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { createManifest, verifyArtifact } from "../scripts/verify-build.mjs";
+import {
+  SAMPLE_DECISION_ID,
+  SAMPLE_RELEASE_ID,
+  SEED_DECISIONS,
+  SEED_RELEASES,
+} from "../src/seed-records.js";
 import { SITE_NAV } from "../src/site-nav.js";
 import { parseHtml, pressEnter, pressTab } from "./support/browser.js";
 
@@ -43,36 +49,92 @@ test("homepage explains the decision-to-release value and links to live examples
   assert.match(html, /href="\/release\.html\?id=demo-r-1-3-0"/);
 });
 
-test("the hero names both capabilities and quotes AI FinOps without contradicting it", async () => {
-  const [html, finops] = await Promise.all([
-    readFile(new URL("../src/index.html", import.meta.url), "utf8"),
-    readFile(new URL("../src/evolution.html", import.meta.url), "utf8"),
-  ]);
-  const hero = html.slice(html.indexOf('<section class="hero"'), html.indexOf('<section class="product-story"'));
+// The hero is everything before the destination list.
+const heroOf = (html) =>
+  html.slice(html.indexOf('<section class="hero"'), html.indexOf('<section class="site-guide"'));
+
+test("the hero leads with the log and keeps AI FinOps as a labelled secondary path", async () => {
+  const html = await readFile(new URL("../src/index.html", import.meta.url), "utf8");
+  const hero = heroOf(html);
+
+  // What Shiplog is, in the words the title and the nav already use, before any
+  // adjacent demo is named.
+  assert.match(hero, /Decision and release log for engineering teams/);
+  assert.ok(
+    hero.indexOf("records decisions, tracks the releases they shape") < hero.indexOf("AI FinOps"),
+    "the hero must say what Shiplog is before it names AI FinOps",
+  );
 
   // Both capabilities, in the hero, in the surface's own name — not a synonym.
   assert.match(hero, /score your own provider export in AI FinOps/);
   assert.match(hero, /Your files do not leave this tab\./);
   assert.doesNotMatch(html, /cost analyzer|spend tool/i);
 
-  // The demo stays the primary call to action; AI FinOps is the secondary one,
-  // a real focusable anchor whose name names its destination. The demo link
-  // lands on the populated record list, not on the one sample decision the
-  // story card already links — the log is what "the live demo" means.
-  assert.match(hero, /<a class="button-link" href="#record-history">Explore the live demo/);
+  // Exactly one primary button, and it names the log it opens. It lands on the
+  // populated record list, not on the one sample decision the story card
+  // already links — the log is what the demo means.
+  assert.equal((hero.match(/class="button-link"/g) ?? []).length, 1,
+    "the hero must carry exactly one primary call to action");
+  assert.match(hero, /<a class="button-link" href="#record-history">Explore the decision and release log/);
   assert.match(html, /<section class="workspace" id="record-history"/);
-  assert.match(hero, /<a class="secondary-button" href="\/evolution\.html">Score your provider export in AI FinOps<\/a>/);
-  assert.ok(hero.indexOf('class="button-link"') < hero.indexOf('class="secondary-button"'));
 
-  // Every quoted figure is the AI FinOps page's own, and the qualifier that
-  // governs them shares their block.
-  const proof = hero.slice(hero.indexOf('<div class="hero-proof">'));
+  // AI FinOps is the one secondary call to action: a real focusable anchor
+  // whose name names its destination, under a label that says it is separate.
+  assert.equal((hero.match(/class="secondary-button"/g) ?? []).length, 1,
+    "the hero must carry exactly one secondary call to action");
+  const aside = hero.slice(hero.indexOf('<div class="hero-aside">'));
+  assert.match(aside, /Also on this site · separate demo/);
+  assert.match(aside, /<a class="secondary-button" href="\/evolution\.html">Score your provider export in AI FinOps<\/a>/);
+  assert.ok(hero.indexOf('class="button-link"') < hero.indexOf('class="secondary-button"'));
+});
+
+test("the hero's proof point ties a recorded decision to the release that shipped it", async () => {
+  const [html, finops] = await Promise.all([
+    readFile(new URL("../src/index.html", import.meta.url), "utf8"),
+    readFile(new URL("../src/evolution.html", import.meta.url), "utf8"),
+  ]);
+  const hero = heroOf(html);
+  const proof = hero.slice(hero.indexOf('<div class="hero-proof">'), hero.indexOf('<div class="hero-aside">'));
+  const proofDocument = parseHtml(proof);
+  const facts = proofDocument.querySelector(".hero-proof-facts")
+    .querySelectorAll("dd")
+    .map(({ textContent }) => textContent);
+
+  // Resolve by stable ids, never array position: fixture exports may be
+  // reordered without changing which pair the homepage promises to show.
+  const decision = SEED_DECISIONS.find(({ id }) => id === SAMPLE_DECISION_ID);
+  const release = SEED_RELEASES.find(({ id }) => id === SAMPLE_RELEASE_ID);
+  assert.ok(decision, "the homepage decision fixture must exist");
+  assert.ok(release, "the homepage release fixture must exist");
+  assert.ok(
+    release.decisionIds.includes(decision.id),
+    "the homepage release fixture must link to the homepage decision fixture",
+  );
+
+  // Pin every displayed value to that resolved pair. A renamed, partial, or
+  // stale fixture now fails the build instead of leaving plausible old copy.
+  assert.deepEqual(facts, [
+    `${decision.title} · ${decision.status[0].toUpperCase()}${decision.status.slice(1)}`,
+    `Release ${release.version} · ${release.status[0].toUpperCase()}${release.status.slice(1)}`,
+    decision.owner,
+  ]);
+  assert.equal(release.owner, decision.owner,
+    "the single displayed owner must apply to both proof records");
+
+  // Said in the same words the record list uses, in the same block as the
+  // records themselves.
+  assert.match(proof, /Representative synthetic records/);
+  assert.match(proof, /invented records demonstrate Shiplog/);
+  assert.match(proof, /not customer or internal operational data/);
+
+  // No money in the hero: a savings figure quoted next to the product story
+  // reads as savings a team has already banked. It belongs to AI FinOps, and
+  // AI FinOps still publishes it under its own qualifier.
+  assert.doesNotMatch(hero, /\$\d/);
+  assert.doesNotMatch(hero, /realized savings|saved \$|per month/i);
   for (const figure of ["$7,430", "$5,200 / month", "High · 760-query scored sample"]) {
-    assert.ok(proof.includes(figure), `hero must quote ${figure}`);
     assert.ok(finops.includes(figure), `AI FinOps must still publish ${figure}`);
   }
-  assert.match(proof, /Bundled synthetic sample data/);
-  assert.match(proof, /not live analysis, customer data, or realized savings/);
 });
 
 test("the home page names every nav destination and says what each one does", async () => {
@@ -152,7 +214,8 @@ test("the AI FinOps call to action is reachable by Tab alone and opens on Enter"
   const secondary = document.querySelector('a[href="/evolution.html"].secondary-button');
 
   // From the top of the page, with nothing but Tab: the demo comes first, the
-  // AI FinOps link is the very next stop, and Enter navigates there.
+  // AI FinOps link is a stop in the natural order, and Enter navigates there.
+  // Being secondary means reading as secondary, not being unreachable.
   let reached = null;
   for (let press = 0; press < 20 && reached !== secondary; press += 1) reached = pressTab(document);
   assert.equal(reached, secondary, "the AI FinOps link must sit in the natural tab order");
