@@ -27,8 +27,17 @@ import {
   loadDecisions,
   saveDecisions,
 } from "./app.js";
+import {
+  COMMITMENT_METADATA_FIELD,
+  commitmentMetadataErrors,
+} from "./finops-commitment-decision.js";
 import { RELEASE_STORAGE_KEY, loadReleases, saveReleases } from "./releases.js";
 import { SHIPLOG_EXPORT_SCHEMA, SHIPLOG_EXPORT_VERSION } from "./shiplog-export.js";
+
+// One decision field is optional and validated on its own terms: the
+// `finopsCommitment` block a decision recorded from an approved FinOps
+// commitment carries (see finops-commitment-decision.js). A record without it
+// is a record from before it existed and imports unchanged.
 
 // Everything createShiplogExport writes. Anything else in the file is reported
 // and ignored rather than silently carried into storage.
@@ -155,6 +164,7 @@ function unusable(message) {
     rejected: [rejection("file", null, null, message)],
     droppedAssociations: [],
     droppedSupersedes: [],
+    droppedCommitments: [],
   };
 }
 
@@ -242,6 +252,45 @@ export function parseImport(text, options = {}) {
     });
   });
 
+  // The FinOps commitment block is optional, so a decision recorded before it
+  // existed — or typed into the record form — is imported exactly as it always
+  // was. When a file does carry one it is checked against the same rule that
+  // wrote it, and a block that fails is dropped while its decision is kept: the
+  // same trade the supersede link above makes. An unreadable money claim is
+  // worth losing; the decision's own title, context, and owner are not.
+  //
+  // `options.existingCommitmentLinks` are the [commitmentId, decisionId] pairs
+  // already in the store. They enforce the writer's invariant across the file
+  // boundary too: one commitment links to at most one decision, so a block
+  // naming a commitment some *other* decision already carries is dropped rather
+  // than restored as a second link. The same decision arriving again — a
+  // re-imported export — is not a second link and keeps its block.
+  const droppedCommitments = [];
+  const linkedCommitments = new Map(options.existingCommitmentLinks ?? []);
+  decisions.forEach((decision, index) => {
+    if (!(COMMITMENT_METADATA_FIELD in decision)) return;
+    const path = `decisions[${index}].${COMMITMENT_METADATA_FIELD}`;
+    const metadata = decision[COMMITMENT_METADATA_FIELD];
+    const errors = commitmentMetadataErrors(metadata, path);
+    const commitmentId = typeof metadata?.commitmentId === "string" ? metadata.commitmentId : null;
+    const linkedTo = commitmentId === null ? undefined : linkedCommitments.get(commitmentId);
+    if (errors.length === 0 && linkedTo !== undefined && linkedTo !== decision.id) {
+      errors.push(`${path}.commitmentId: ${JSON.stringify(commitmentId)} is already linked to decision ${JSON.stringify(linkedTo)}`);
+    }
+    if (errors.length === 0) {
+      linkedCommitments.set(commitmentId, decision.id);
+      return;
+    }
+    delete decision[COMMITMENT_METADATA_FIELD];
+    droppedCommitments.push({
+      decisionId: decision.id,
+      decisionIndex: index,
+      commitmentId,
+      errors,
+      message: `${path}: dropped FinOps commitment metadata (${errors[0]})`,
+    });
+  });
+
   const releases = [];
   raw.releases.forEach((record, index) => {
     const path = `releases[${index}]`;
@@ -277,6 +326,7 @@ export function parseImport(text, options = {}) {
     rejected,
     droppedAssociations,
     droppedSupersedes,
+    droppedCommitments,
   };
 }
 
@@ -317,6 +367,7 @@ export function mergeImport(parsed, existing = {}) {
       duplicateReleases: releases.duplicates.length,
       rejected: (parsed.rejected ?? []).length,
       droppedAssociations: (parsed.droppedAssociations ?? []).length,
+      droppedCommitments: (parsed.droppedCommitments ?? []).length,
       restorable: decisions.added.length + releases.added.length,
     },
   };
@@ -333,6 +384,9 @@ export function prepareShiplogImport(storage, text) {
   };
   const parsed = parseImport(text, {
     existingDecisionIds: existing.decisions.map((decision) => decision.id),
+    existingCommitmentLinks: existing.decisions
+      .filter((decision) => typeof decision[COMMITMENT_METADATA_FIELD]?.commitmentId === "string")
+      .map((decision) => [decision[COMMITMENT_METADATA_FIELD].commitmentId, decision.id]),
   });
   if (!parsed.ok) return { ok: false, parsed, merged: null };
   return { ok: true, parsed, merged: mergeImport(parsed, existing) };
@@ -410,6 +464,7 @@ function detailItems(plan) {
     ...plan.parsed.rejected.map((entry) => entry.message),
     ...plan.parsed.droppedAssociations.map((entry) => entry.message),
     ...(plan.parsed.droppedSupersedes ?? []).map((entry) => entry.message),
+    ...(plan.parsed.droppedCommitments ?? []).map((entry) => entry.message),
   ];
 }
 
