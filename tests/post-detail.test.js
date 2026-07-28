@@ -208,6 +208,9 @@ test("a missing post is named in plain language, with no id or code echoed back"
   assert.equal(first(missing, "detail-state-label").textContent, "Unavailable");
   assert.equal(first(missing, "empty-title").textContent, "This post is unavailable");
   assert.match(missing.textContent, /It may have been removed, or the link may be incomplete\./);
+  // And it points at the surface the post came from, so the reader is not left
+  // holding a dead link with nowhere named to go next.
+  assert.match(missing.textContent, /Browse Social to find another post\./);
   assert.equal(missing.firstChild.getAttribute("role"), "status");
   assert.ok(ids(missing).includes(missing.firstChild.getAttribute("aria-labelledby")));
   assert.equal(byClass(missing, "empty-action-secondary").length, 0, "the standing back link is not repeated here");
@@ -221,7 +224,7 @@ test("a failed load says what happened once, offers a retry, and leaks no error 
   renderPostDetail(failed, null, { state: "error", id: "p-gone", author: "Mina", onRetry: () => { retried += 1; } });
   assert.equal(first(failed, "detail-state-label").textContent, "Error");
   assert.equal(first(failed, "empty-title").textContent, "Post couldn’t be loaded");
-  assert.match(failed.textContent, /We couldn’t reach Social, so this post didn’t load\./);
+  assert.match(failed.textContent, /We couldn’t reach Social, so this post didn’t load\. Try again in a moment\./);
   assert.equal(failed.firstChild.getAttribute("role"), "alert");
   assert.doesNotMatch(failed.textContent, /p-gone|\b[45]\d\d\b|Error:|fetch|TypeError/);
   // Retry is the only action this state offers; the way back is the page's
@@ -251,7 +254,7 @@ test("the loading state is one labelled line in the post's region, not a banner"
   assert.equal(container.children.length, 1, "the wait is a single line, not a stack of furniture");
   const status = first(container, "detail-loading");
   assert.equal(status.getAttribute("role"), "status");
-  assert.equal(status.textContent.replace(/\s+/g, " ").trim(), "Loading this post…");
+  assert.equal(status.textContent.replace(/\s+/g, " ").trim(), "Loading this post from Social…");
 
   // Concise: no heading of its own, no state banner, and no placeholder block
   // pretending to be an image the post may not even have.
@@ -271,10 +274,12 @@ test("the loading state is one labelled line in the post's region, not a banner"
 // A permalink is the one page a visitor can land on with no context, so its h1
 // says what the page holds — a post — and who wrote it. The bare display name
 // used to read as that person's profile, which is a different page here.
+// And with no author to name, it says which surface the page belongs to rather
+// than the bare word "Post", which tells a first-time visitor nothing.
 test("the loaded page is headed by the post and its author, not by the bare name", () => {
   assert.equal(postPageHeading(post), "Post by Mina Okafor");
-  assert.equal(postPageHeading(null), "Post");
-  assert.equal(postPageHeading({ ...post, author: "" }), "Post");
+  assert.equal(postPageHeading(null), "Post from Social");
+  assert.equal(postPageHeading({ ...post, author: "" }), "Post from Social");
   assert.equal(postPageHeading({ ...post, author: "  Mina Okafor  " }), "Post by Mina Okafor");
 });
 
@@ -459,7 +464,7 @@ test("loading, not found and failed each say a different thing, in words", () =>
     first(missing, "empty-title").textContent,
     first(failed, "empty-title").textContent,
   ];
-  assert.deepEqual(titles, ["Loading this post…", "This post is unavailable", "Post couldn’t be loaded"]);
+  assert.deepEqual(titles, ["Loading this post from Social…", "This post is unavailable", "Post couldn’t be loaded"]);
   assert.equal(new Set(titles).size, 3, "two states share a title");
 
   // The difference has to survive with colour, icons and badges removed, so it
