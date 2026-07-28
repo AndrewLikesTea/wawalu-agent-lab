@@ -301,7 +301,7 @@ function renderDetailLink(release) {
   return link;
 }
 
-function renderReleaseItem(release, index, expanded = false) {
+function renderReleaseItem(release, index, expanded = false, example = false) {
   const item = el("li", "release-item");
   // Render-local ids keep arbitrary stored release ids out of ARIA IDREFs.
   const toggleId = `release-toggle-${index}`;
@@ -317,6 +317,10 @@ function renderReleaseItem(release, index, expanded = false) {
 
   const info = el("span", "release-info");
   info.append(el("span", "release-version", releaseTitle(release)));
+  // Inside the toggle, so the label is part of the row's accessible name: a
+  // screen reader hears that this release is invented before it hears its
+  // status or the decisions it carried, rather than after or not at all.
+  if (example) info.append(el("span", "badge badge-example", EXAMPLE_LABEL));
   info.append(labelledValue("Status", releaseStatus(release), `badge badge-release-${releaseStatus(release)}`));
   const time = el("time", "date", formatDate(release.createdAt));
   time.dateTime = release.createdAt;
@@ -354,8 +358,14 @@ export function renderReleaseList(container, resolvedReleases, options = {}) {
 
   const list = el("ol", "release-list");
   const expandedIds = new Set(options.expandedIds ?? []);
+  // Which of these rows are the shipped examples rather than the visitor's own
+  // records. Absent by default, so a caller that has no such distinction to
+  // draw renders exactly what it did before.
+  const exampleIds = options.exampleIds instanceof Set
+    ? options.exampleIds
+    : new Set(options.exampleIds ?? []);
   resolvedReleases.forEach((release, index) => {
-    list.append(renderReleaseItem(release, index, expandedIds.has(release.id)));
+    list.append(renderReleaseItem(release, index, expandedIds.has(release.id), exampleIds.has(release.id)));
   });
   container.append(list);
 }
@@ -419,7 +429,11 @@ export function mountReleaseList(container, data = {}) {
     state = createReleaseListState(current.releases ?? [], state.expandedIds);
     const shown = filterReleases(current.releases ?? [], current.decisions ?? [], filters);
     const filtered = (filters.status !== undefined && filters.status !== "all") || Boolean(filters.query?.trim());
-    renderReleaseList(container, shown, { filtered, expandedIds: state.expandedIds });
+    renderReleaseList(container, shown, {
+      filtered,
+      expandedIds: state.expandedIds,
+      exampleIds: current.exampleIds,
+    });
     return shown;
   };
 

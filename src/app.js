@@ -1,7 +1,7 @@
 import { STORED_DECISION_STATUSES, canonicalDecisionStatus } from "./decision-status.js";
 import { dedupeById } from "./demo-data.js";
 import { initLeadCapture } from "./lead-capture.js";
-import { EXAMPLE_LABEL, SEED_DECISIONS, SEED_RELEASES } from "./seed-records.js";
+import { EXAMPLE_LABEL, SAMPLE_RELEASE_ID, SEED_DECISIONS, SEED_RELEASES } from "./seed-records.js";
 import {
   SUPERSEDE_ERRORS,
   formatSupersedeSummary,
@@ -658,6 +658,10 @@ export async function initDecisionLog(root = document, storage = localStorage, o
   let decisions = [];
   let releases = [];
   let records = [];
+  // The seed ids this visitor has not taken over, recomputed by refresh(). Held
+  // here because the sample release panel below needs the same answer the rows
+  // are badged from, rather than re-deriving it.
+  let exampleIds = new Set();
 
   // Single source of truth for the view. Controls write into it, the render
   // function reads from it; nothing re-reads filter state out of the DOM.
@@ -739,7 +743,7 @@ export async function initDecisionLog(root = document, storage = localStorage, o
     decisions = dedupeById([...recordedDecisions, ...seedDecisions]);
     releases = dedupeById([...recordedReleases, ...seedReleases]);
     const recordedIds = new Set([...recordedDecisions, ...recordedReleases].map(({ id }) => id));
-    const exampleIds = new Set([...seedDecisions, ...seedReleases]
+    exampleIds = new Set([...seedDecisions, ...seedReleases]
       .map(({ id }) => id)
       .filter((id) => !recordedIds.has(id)));
     records = toHistoryRecords(decisions, releases, { exampleIds });
@@ -758,15 +762,32 @@ export async function initDecisionLog(root = document, storage = localStorage, o
   refresh();
   focusLinkedDecision(root);
 
+  // The "Representative release" panel. It used to feature releases[0], which is
+  // whatever sorts first in the composed log — the newest planned example for a
+  // cold visitor, and the visitor's own most recent release once they record
+  // one. Both are wrong here: the panel's heading, its hint, and the story card
+  // above it all name the one release that carried the sample decision, and a
+  // visitor's own record must never be presented as an invented example.
+  //
+  // So it features that release by id, and falls back to another example only if
+  // the seed no longer carries it. Every candidate is filtered through the
+  // example ids, so this panel can only ever show example data.
   const releaseList = root.querySelector("#sample-release-list");
-  if (releaseList && releases.length > 0) {
-    const featuredReleases = releases.slice(0, 1);
-    mountReleaseList(releaseList, {
-      releases: featuredReleases,
-      decisions,
-    }).render({ releases: featuredReleases, decisions });
-  } else if (releaseList) {
-    renderReleaseListState(releaseList, "empty", { singular: true });
+  if (releaseList) {
+    const exampleReleases = releases.filter(({ id }) => exampleIds.has(id));
+    const featuredReleases = exampleReleases
+      .filter(({ id }) => id === SAMPLE_RELEASE_ID)
+      .concat(exampleReleases)
+      .slice(0, 1);
+    if (featuredReleases.length > 0) {
+      mountReleaseList(releaseList, {
+        releases: featuredReleases,
+        decisions,
+        exampleIds,
+      }).render({ releases: featuredReleases, decisions, exampleIds });
+    } else {
+      renderReleaseListState(releaseList, "empty", { singular: true });
+    }
   }
 
   // Changing a filter/sort only re-renders; owner options are stable until the
