@@ -835,6 +835,20 @@
           <p class="kpi-flag" id="kpi-peer-flag" hidden><span class="kpi-flag-shape" aria-hidden="true">◇</span> unmeasured</p>
           <p class="kpi-value" id="kpi-peer-value">–</p>
           <p class="kpi-note" id="kpi-peer-note">Published synthetic peer cohort</p>
+          <!-- What qualifies the numeral above, authored empty and hidden and
+               filled only from a comparison that published all of it. Read in
+               this order on purpose: how like this organization the cohort is
+               and how much weight the comparison carries, who the comparator
+               was, and how far this import sits from that cohort's median. A
+               percentile without them is a rank a reader cannot audit. -->
+          <p class="kpi-trust" id="kpi-peer-trust" hidden></p>
+          <p class="kpi-segment" id="kpi-peer-segment" hidden></p>
+          <p class="kpi-delta" id="kpi-peer-delta" hidden></p>
+          <!-- The input a reader would have to supply, on the states where there
+               is no position. Never a rank, never a cohort: an unavailable peer
+               card names what is missing and claims nothing about where this
+               organization would land. -->
+          <p class="kpi-needed" id="kpi-peer-needed" hidden></p>
           <!-- The one prioritized peer finding. Hidden until an import produces
                one: the panel is the bundled sample's until then, and the action
                below is only ever the reader's own comparison's. The heading is
@@ -846,6 +860,27 @@
             <p class="kpi-finding-action" id="kpi-peer-action"></p>
             <p class="kpi-finding-evidence" id="kpi-peer-evidence"></p>
           </div>
+          <!-- The cohort this rank is a rank inside of, dated and versioned, and
+               above the disclosure rather than inside it: a reader quoting the
+               percentile into a briefing must meet the snapshot it came from
+               without opening anything. -->
+          <p class="kpi-cohort-version" id="kpi-peer-provenance" hidden></p>
+          <!-- Method and supporting metrics, one keystroke away. A native
+               details/summary: the keyboard operation and the expanded state are
+               the element's own, so there is no aria-expanded to keep in step
+               and no key handler to get wrong. Both lists are painted from the
+               comparison; the summary says what it reveals. -->
+          <details class="kpi-disclosure" id="kpi-peer-detail" hidden>
+            <summary class="kpi-disclosure-summary">How this comparison was made, and the metrics behind it</summary>
+            <div id="kpi-peer-supporting-block" hidden>
+              <p class="kpi-disclosure-heading">Supporting metrics</p>
+              <ul class="kpi-disclosure-list" id="kpi-peer-supporting"></ul>
+            </div>
+            <div id="kpi-peer-method-block" hidden>
+              <p class="kpi-disclosure-heading">Method and cohort</p>
+              <ul class="kpi-disclosure-list" id="kpi-peer-method"></ul>
+            </div>
+          </details>
         </article>
       </section>
       </details>

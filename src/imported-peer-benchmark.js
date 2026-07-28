@@ -22,10 +22,13 @@
 // them is how two numbers on one screen disagree.
 
 import {
-  evaluatePeerBenchmark, PEER_ACTION_CANDIDATES, PEER_COHORT_PROVENANCE, PEER_UNAVAILABLE_REASON,
+  evaluatePeerBenchmark, METRIC_DIRECTION, PEER_ACTION_CANDIDATES, PEER_COHORT_PROVENANCE,
+  PEER_UNAVAILABLE_REASON,
 } from "./peer-cohort-contract.js";
 import { formatPercent, formatUsd } from "./evolution.js";
 
+// Unchanged by #433 on purpose: this issue added presentation helpers below and
+// moved no number, so the stamp every briefing carries must not advance.
 export const IMPORTED_PEER_BENCHMARK_VERSION = "imported-peer-benchmark/1.1.0";
 
 const finite = (value) => (Number.isFinite(value) ? value : null);
@@ -150,6 +153,56 @@ const valueText = (metricId, value) => {
   const format = METRIC_VALUE_TEXT[metricId];
   return format ? format(value) : String(value);
 };
+
+/**
+ * One comparison value, in the unit its metric declares.
+ *
+ * Exported so a surface printing a supporting metric prints it in the same unit
+ * as the gap sentence above it. A percentile card that renders a share as
+ * "0.16" beside a gap sentence reading "16.0%" is two readings of one number.
+ */
+export function peerMetricValueText(metricId, value) {
+  if (!Number.isFinite(value)) return "";
+  return valueText(metricId, value);
+}
+
+/**
+ * The distance between this import and its cohort median, on one comparison.
+ *
+ * Nothing is re-measured: both operands are the contract's own published,
+ * already-rounded figures for the same metric, and the direction word is the
+ * metric's declared direction rather than a guess from the sign. It exists
+ * because "62nd percentile" answers where an organization sits and not whether
+ * the distance is worth a meeting — the delta is what makes the position
+ * decisive rather than merely true.
+ *
+ * @returns null when the comparison published no value to subtract, so a caller
+ *   omits the line rather than printing a zero it cannot distinguish from being
+ *   level with the median.
+ */
+export function peerMetricDelta(comparison = null) {
+  if (!comparison?.available) return null;
+  const value = finite(comparison.value);
+  const median = finite(comparison.cohortMedian);
+  if (value === null || median === null) return null;
+  const raw = value - median;
+  // Both operands are already rounded to the metric's declared precision, so the
+  // only thing this trims is float noise from the subtraction itself.
+  const size = Number(Math.abs(raw).toFixed(4));
+  const higherIsBetter = comparison.direction === METRIC_DIRECTION.higherIsBetter;
+  const ahead = raw === 0 ? null : raw > 0 === higherIsBetter;
+  const sizeText = valueText(comparison.metricId, size);
+  const medianText = valueText(comparison.metricId, median);
+  return Object.freeze({
+    metricId: comparison.metricId,
+    size,
+    /** True ahead of the median, false behind it, null exactly on it. */
+    ahead,
+    text: ahead === null
+      ? `Level with the cohort median of ${medianText}`
+      : `${sizeText} ${ahead ? "ahead of" : "behind"} the cohort median of ${medianText}`,
+  });
+}
 
 /**
  * The import's own savings evidence behind the peer finding.

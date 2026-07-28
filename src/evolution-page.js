@@ -1098,7 +1098,15 @@ function mountLocalFinopsImport() {
     // mix, written into the executive slots before the contract decides which of
     // them may be read. The example path is left alone: it is the bundled seed's
     // own analysis and `repaintBundledAnalysis` already owns those slots.
-    if (!example) {
+    // …and on the example path the reader's own slots are handed back first.
+    // The bundled painter owns the four KPI values and the peer percentile among
+    // them, but it never wrote the qualifiers beside that percentile — the
+    // comparability, the comparator segment, the cohort version and the one
+    // prioritized action are only ever an import's. Without this, a visitor who
+    // imported and then opened the example dataset read the bundled seed's rank
+    // under their own cohort's snapshot.
+    if (example) clearImportedExecutive(document);
+    else {
       syncImportedFigures({
         analysis: next,
         plausible: resultPlausible,

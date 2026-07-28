@@ -45,8 +45,10 @@
 import { QUERY_CATEGORIES, formatCount, formatPercent, formatUsd } from "./evolution.js";
 import { CORPUS_NOT_GRADEABLE } from "./imported-corpus-grade.js";
 import { MIN_SCORED_PROMPTS, PANELS_BY_ID, panelState } from "./finops-panel-contract.js";
+import { HEADLINE_METRIC_ID, METRIC_DIRECTION, MIN_COHORT_MEMBERS } from "./peer-cohort-contract.js";
+import { peerMetricDelta, peerMetricValueText } from "./imported-peer-benchmark.js";
 
-export const IMPORTED_EXECUTIVE_VIEW_VERSION = "imported-executive-view/1.2.0";
+export const IMPORTED_EXECUTIVE_VIEW_VERSION = "imported-executive-view/1.3.0";
 
 /** The panels whose figures this module writes, named once. */
 export const VALUE_PANEL = Object.freeze({
@@ -88,6 +90,17 @@ export const PROVENANCE_GAP = Object.freeze({
 export const DISPLAY_REFUSAL = Object.freeze({
   outsideRange: "totals_outside_supported_range",
   noFigure: "no_figure_published_by_analysis",
+  /**
+   * A benchmark that says `available: true` and does not carry the facts a
+   * position is only readable with — a percentile, a quartile, a named cohort,
+   * a comparability label and a confidence label.
+   *
+   * Held as a refusal rather than a crash, and rather than a partly drawn card:
+   * a rank printed without the cohort it is a rank inside of is the exact claim
+   * this panel must never make, and a model shape can go wrong in a build a
+   * reader is already looking at.
+   */
+  unqualifiedPeer: "peer_result_not_qualified",
 });
 
 /** The unit one source record is counted in, per panel. */
@@ -341,26 +354,14 @@ function nextConfidenceAction(grade) {
  */
 function peerCard(peer, { scored, period, attributedShare }) {
   if (!peer) {
-    return Object.freeze({
-      key: "peer",
-      available: false,
-      value: UNMEASURED,
+    return unavailablePeerCard({
       note: PEER_NOTE,
-      provenance: null,
-      finding: null,
       unavailable: requirementGap(VALUE_PANEL.peer, "peerCohortRecords"),
     });
   }
   if (!peer.available) {
-    return Object.freeze({
-      key: "peer",
-      available: false,
-      value: UNMEASURED,
+    return unavailablePeerCard({
       note: peer.unavailable.need,
-      provenance: null,
-      // A refused comparison has no gap to state and no action to take. The
-      // reason and what to supply are already on the card's note.
-      finding: null,
       unavailable: Object.freeze({
         panel: VALUE_PANEL.peer,
         reason: peer.unavailable.reason,
@@ -370,18 +371,208 @@ function peerCard(peer, { scored, period, attributedShare }) {
       }),
     });
   }
+  if (!qualifiesAsComparable(peer)) {
+    return unavailablePeerCard({
+      note: UNQUALIFIED_PEER_NOTE,
+      unavailable: displayGap(VALUE_PANEL.peer, DISPLAY_REFUSAL.unqualifiedPeer,
+        UNQUALIFIED_PEER_NOTE),
+    });
+  }
   return Object.freeze({
     key: "peer",
     available: true,
     value: `${peer.headline.percentile}th`,
-    note: `${peer.headline.quartileLabel} of ${peer.cohort.label} · ${peer.comparabilityLabel} · `
-      + `${peer.confidenceLabel} · ${formatCount(peer.cohort.memberCount)} published synthetic peers`,
+    // The placement, and only the placement: which quarter of which cohort. The
+    // labels that qualify it and the version that dates it are their own lines,
+    // because five facts in one muted note is five facts nobody reads.
+    note: `${peer.headline.quartileLabel} of ${peer.cohort.label}`,
+    trust: peerTrust(peer),
+    segment: peerSegment(peer),
+    cohortVersion: peerCohortVersion(peer),
+    delta: peerMetricDelta(peer.headline),
+    supporting: peerSupportingMetrics(peer),
+    method: peerMethodNotes(peer),
+    needed: null,
     provenance: valueProvenance({
       sourceRecords: scored, unit: SOURCE_UNIT.scoredQuery, period, attributedShare,
     }),
     finding: peerFindingCopy(peer),
     unavailable: null,
   });
+}
+
+/**
+ * A peer card with no position on it.
+ *
+ * Every field a comparable card fills is null or empty here rather than absent,
+ * so the painter takes the same set of nodes down in every unavailable state and
+ * no half of a previous comparison can survive under a refusal. `needed` is the
+ * one addition: what a reader would have to supply, named, because "not in this
+ * import" without a next input is a dead end rather than an honest state.
+ */
+function unavailablePeerCard({ note, unavailable }) {
+  return Object.freeze({
+    key: "peer",
+    available: false,
+    value: UNMEASURED,
+    note,
+    trust: null,
+    segment: null,
+    cohortVersion: null,
+    delta: null,
+    supporting: Object.freeze([]),
+    method: Object.freeze([]),
+    needed: unavailable.needLabel
+      ? `Needed for a peer position: ${unavailable.needLabel}` : null,
+    provenance: null,
+    // A refused comparison has no gap to state and no action to take. The
+    // reason and what to supply are already on the card's note.
+    finding: null,
+    unavailable,
+  });
+}
+
+const UNQUALIFIED_PEER_NOTE = "This comparison did not publish the percentile, cohort and "
+  + "confidence a peer position is only readable with, so no rank is shown for this import.";
+
+/**
+ * Whether the benchmark explicitly qualified this import as comparable.
+ *
+ * Not a type check for its own sake. Each field below is one a reader needs in
+ * order to read the numeral truthfully — the rank, the quarter it falls in, the
+ * group it is a rank inside of, how like this organization that group is, and
+ * how much weight the comparison carries. A result missing any of them can still
+ * be honestly reported; it just cannot be reported as a position.
+ */
+function qualifiesAsComparable(peer) {
+  const text = (value) => typeof value === "string" && value.trim() !== "";
+  return Number.isFinite(peer.headline?.percentile)
+    && text(peer.headline?.quartileLabel)
+    && text(peer.cohort?.label)
+    && text(peer.cohort?.segmentLabel)
+    && Number.isFinite(peer.cohort?.memberCount) && peer.cohort.memberCount > 0
+    && text(peer.comparabilityLabel)
+    && text(peer.confidenceLabel)
+    && text(peer.provenance?.version);
+}
+
+/**
+ * How like this organization the cohort is, and how much weight that carries.
+ *
+ * Both labels are the contract's. They are lifted out of the note and onto their
+ * own line with their raw codes beside them, so the qualifier is read with the
+ * numeral rather than found later — and so the styling that distinguishes a
+ * broad match from a close one keys off a value rather than off a substring.
+ */
+function peerTrust(peer) {
+  return Object.freeze({
+    comparability: peer.comparability,
+    comparabilityLabel: peer.comparabilityLabel,
+    confidence: peer.confidence,
+    confidenceLabel: peer.confidenceLabel,
+    text: `${peer.comparabilityLabel} · ${peer.confidenceLabel}`,
+  });
+}
+
+/** Who this import was compared against, in the cohort's own segment words. */
+function peerSegment(peer) {
+  const units = peer.segment?.orgUnits;
+  const industry = peer.segment?.industry;
+  return Object.freeze({
+    text: `Compared against ${formatCount(peer.cohort.memberCount)} published synthetic peers · `
+      + `${peer.cohort.segmentLabel}`,
+    // Why that cohort and not another, from the two inputs that selected it.
+    // Org units are attributed units and never headcount, and the definition
+    // travels with the figure rather than living only in the method notes.
+    basis: Number.isFinite(units)
+      ? `Selected by this import's ${formatCount(units)} attributed org unit`
+        + `${units === 1 ? "" : "s"}`
+        + (industry ? ` and its declared industry (${industry}).` : ", with no industry declared.")
+      : "Selected by this import's own segment inputs.",
+  });
+}
+
+/** The published reference data behind the rank, dated and versioned. */
+function peerCohortVersion(peer) {
+  return Object.freeze({
+    version: peer.provenance.version,
+    snapshotDate: peer.provenance.snapshotDate ?? null,
+    rubricVersion: peer.provenance.rubricVersion ?? null,
+    cohortId: peer.cohort.cohortId ?? null,
+    text: [
+      peer.provenance.version,
+      peer.provenance.snapshotDate ? `snapshot ${peer.provenance.snapshotDate}` : null,
+      peer.provenance.rubricVersion ? `rubric ${peer.provenance.rubricVersion}` : null,
+      peer.cohort.cohortId ? `cohort ${peer.cohort.cohortId}` : null,
+    ].filter(Boolean).join(" · "),
+  });
+}
+
+/** The words for a metric's declared direction, so "behind" is never inferred. */
+const DIRECTION_TEXT = Object.freeze({
+  [METRIC_DIRECTION.higherIsBetter]: "higher is better",
+  [METRIC_DIRECTION.lowerIsBetter]: "lower is better",
+});
+
+/**
+ * Every comparison except the one the card leads with.
+ *
+ * Support, and disclosed as support: a metric this cohort could not compare is
+ * listed with the contract's own reason rather than dropped, because a supporting
+ * list that silently shortens reads as a cohort that had less to say.
+ */
+function peerSupportingMetrics(peer) {
+  const comparisons = Array.isArray(peer.comparisons) ? peer.comparisons : [];
+  return Object.freeze(comparisons
+    .filter((entry) => entry.metricId !== HEADLINE_METRIC_ID)
+    .map((entry) => {
+      if (!entry.available) {
+        return Object.freeze({
+          id: entry.metricId,
+          label: entry.label,
+          available: false,
+          text: entry.unavailable?.need ?? "This metric was not compared for this import.",
+        });
+      }
+      const delta = peerMetricDelta(entry);
+      return Object.freeze({
+        id: entry.metricId,
+        label: entry.label,
+        available: true,
+        text: [
+          peerMetricValueText(entry.metricId, entry.value),
+          `${entry.percentile}th percentile`,
+          entry.quartileLabel,
+          delta?.text,
+          DIRECTION_TEXT[entry.direction],
+        ].filter(Boolean).join(" · "),
+      });
+    }));
+}
+
+/**
+ * How the comparison was made, from what the contract published about itself.
+ *
+ * Each line is assembled out of values the result carries — the metric
+ * definitions, the member floor, the cohort's own rubric — rather than restating
+ * the method prose that already sits under "Comparable-peer method and
+ * eligibility" on the comparison card. Two hand-written copies of one method are
+ * two things to keep in step, and only one of them would be kept.
+ */
+function peerMethodNotes(peer) {
+  const notes = [peerSegment(peer).basis];
+  notes.push(`Organization size is counted in attributed org units, never in employees: no `
+    + `contract this product imports carries a headcount.`);
+  const headline = Array.isArray(peer.comparisons)
+    ? peer.comparisons.find((entry) => entry.metricId === HEADLINE_METRIC_ID) : null;
+  if (headline?.definition) {
+    notes.push(`${headline.label} — ${headline.definition} (${DIRECTION_TEXT[headline.direction]}).`);
+  }
+  notes.push(`Every metric is ranked over at least ${formatCount(MIN_COHORT_MEMBERS)} published `
+    + `cohort values; this comparison used ${formatCount(peer.cohort.memberCount)}, graded under `
+    + `${peer.cohort.rubricVersion ?? peer.provenance.rubricVersion}.`);
+  notes.push(peer.provenance.statement);
+  return Object.freeze(notes.filter(Boolean));
 }
 
 /**
@@ -590,6 +781,78 @@ const PEER_FINDING_SLOTS = Object.freeze([
 ]);
 
 /**
+ * The lines that qualify a peer position, written above the fold.
+ *
+ * Each is hidden AND emptied when the card has nothing to put in it, for the
+ * same reason the finding block is: a cohort version left standing under "Not in
+ * this import" dates a comparison that was never made.
+ */
+const PEER_QUALIFIER_SLOTS = Object.freeze([
+  ["kpi-peer-segment", (card) => card?.segment?.text ?? ""],
+  ["kpi-peer-delta", (card) => card?.delta?.text ?? ""],
+  ["kpi-peer-provenance", (card) => card?.cohortVersion?.text ?? ""],
+  ["kpi-peer-needed", (card) => card?.needed ?? ""],
+]);
+
+/** One list item, written with textContent. No markup string is assembled. */
+function listItem(doc, className, text) {
+  const item = doc.createElement("li");
+  item.className = className;
+  item.textContent = text;
+  return item;
+}
+
+function fillList(doc, id, entries, className) {
+  const list = byId(doc, id);
+  if (!list) return null;
+  list.replaceChildren(...entries.map((entry) => listItem(doc, className, entry.text ?? entry)));
+  return list;
+}
+
+/**
+ * The comparability, the comparator, the delta, the cohort version — and the
+ * disclosure holding the method and the supporting metrics.
+ *
+ * The disclosure is a native `details`/`summary`: its keyboard operation and its
+ * expanded state are the element's own, so there is no `aria-expanded` to keep
+ * in step and no key handler to get wrong. It is taken down as a whole when
+ * there is no comparison, because an empty "how this was made" under a card that
+ * made nothing is an affordance that answers a question nobody was told about.
+ */
+function applyPeerComparison(doc, card) {
+  const trust = byId(doc, "kpi-peer-trust");
+  if (trust) {
+    trust.hidden = !card?.trust;
+    trust.textContent = card?.trust?.text ?? "";
+    setData(trust, "comparability", card?.trust?.comparability ?? null);
+    setData(trust, "confidence", card?.trust?.confidence ?? null);
+  }
+  for (const [id, read] of PEER_QUALIFIER_SLOTS) {
+    const node = byId(doc, id);
+    if (!node) continue;
+    const text = read(card);
+    node.textContent = text;
+    node.hidden = text === "";
+  }
+  const supporting = card?.supporting ?? [];
+  const method = card?.method ?? [];
+  const detail = byId(doc, "kpi-peer-detail");
+  if (detail) {
+    detail.hidden = supporting.length === 0 && method.length === 0;
+    // A card that lost its comparison must not keep the previous import's
+    // disclosure open under the next one's refusal.
+    if (detail.hidden) detail.removeAttribute("open");
+  }
+  fillList(doc, "kpi-peer-supporting", supporting, "kpi-disclosure-item");
+  const supportingBlock = byId(doc, "kpi-peer-supporting-block");
+  if (supportingBlock) supportingBlock.hidden = supporting.length === 0;
+  fillList(doc, "kpi-peer-method", method.map((text) => ({ text })), "kpi-disclosure-item");
+  const methodBlock = byId(doc, "kpi-peer-method-block");
+  if (methodBlock) methodBlock.hidden = method.length === 0;
+  return card;
+}
+
+/**
  * Write the peer finding under the percentile, or take it down.
  *
  * The block is hidden as a whole rather than emptied in place: three blank
@@ -651,7 +914,9 @@ export function applyImportedExecutive(doc, figures, { band = () => "review" } =
     // a card the import could not fill still reads as unfilled in monochrome.
     show(doc, `${slot}-flag`, !kpi.available);
   }
-  applyPeerFinding(doc, figures.kpis.find((kpi) => kpi.key === "peer") ?? null);
+  const peerCardFigures = figures.kpis.find((kpi) => kpi.key === "peer") ?? null;
+  applyPeerComparison(doc, peerCardFigures);
+  applyPeerFinding(doc, peerCardFigures);
   // The bundled-sample caption above the row is no longer true of these four
   // numbers. The reader's own provenance line beside it was already painted by
   // the graded surface; leaving both up says the row is two things at once.
@@ -665,7 +930,9 @@ export function applyImportedExecutive(doc, figures, { band = () => "review" } =
 export function clearImportedExecutive(doc) {
   show(doc, "headline-basis", true);
   // The finding was computed from the import's own cohort placement and its own
-  // recoverable total. Neither is true of the bundled sample, so it goes with it.
+  // recoverable total. Neither is true of the bundled sample, so it goes with it
+  // — and so do the qualifiers, the delta and the cohort version that dated it.
+  applyPeerComparison(doc, null);
   applyPeerFinding(doc, null);
   const row = byId(doc, "kpi-row");
   if (row) row.dataset.source = "sample";
