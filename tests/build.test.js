@@ -183,3 +183,17 @@ test("build manifest is reproducible and detects artifact mutation", async (t) =
   await writeFile(resolve(directory, "social.js"), "tampered\n");
   await assert.rejects(verifyArtifact(directory), /does not match build manifest/);
 });
+
+test("artifact verification rejects an executive page without its panel status module", async (t) => {
+  const directory = await mkdtemp(resolve(tmpdir(), "shiplog-executive-artifact-test-"));
+  t.after(async () => (await import("node:fs/promises")).rm(directory, { recursive: true, force: true }));
+  await cp(new URL("../src", import.meta.url), directory, { recursive: true });
+
+  await (await import("node:fs/promises")).rm(resolve(directory, "panel-status-view.js"));
+  await createManifest(directory);
+
+  await assert.rejects(
+    verifyArtifact(directory),
+    /missing required UI asset: panel-status-view\.js/,
+  );
+});

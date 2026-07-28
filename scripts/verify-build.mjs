@@ -42,15 +42,19 @@ export async function verifyArtifact(root) {
   const health = await readFile(resolve(root, "healthz"), "utf8");
   if (health.trim() !== "ok") throw new Error("healthz must return exactly ok");
 
-  // Every page ships with the module it loads: a half-published pair is a blank
-  // panel in production, which the manifest alone would happily attest to.
+  // Every guarded page ships with the modules that make it usable: a
+  // half-published set is a blank panel in production, which the manifest alone
+  // would happily attest to. Keep newly introduced entry dependencies here so
+  // a build-rule change fails before Pages receives an incomplete artifact.
   const required = new Set([
     "social.html", "social-page.js", "social.js", "social-demo-data.json", "social-identity.js",
     "profile.html", "profile-page.js", "profile.js",
     "post.html", "post-page.js", "post-detail.js",
+    "evolution.html", "evolution-page.js", "evolution.css",
+    "finops-panel-contract.js", "finops-panel-contract-view.js", "panel-status-view.js",
   ]);
   const paths = new Set(actual.map(({ path }) => path));
-  for (const path of required) if (!paths.has(path)) throw new Error(`missing social UI asset: ${path}`);
+  for (const path of required) if (!paths.has(path)) throw new Error(`missing required UI asset: ${path}`);
 
   const headers = await readFile(resolve(root, "_headers"), "utf8");
   if (!headers.includes("default-src 'none'") || !headers.includes("Permissions-Policy: camera=(), geolocation=(), microphone=()")) {
