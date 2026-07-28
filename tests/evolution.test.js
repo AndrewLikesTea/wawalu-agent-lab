@@ -217,12 +217,12 @@ test("the AI FinOps page exposes labelled loading and keyboard-native recovery",
   assert.match(styles, /\.sample-badge[^}]*background:transparent/);
 });
 
-test("the AI FinOps proof point is immediate, explicit, and linked to its evidence", async () => {
+test("the AI FinOps proof point is supporting, explicit, and linked to its evidence", async () => {
   const [page, script, styles] = await Promise.all([
     read("src/evolution.html"), read("src/evolution-page.js"), read("src/evolution.css"),
   ]);
   const proofPoint = page.slice(page.indexOf('<article class="proof-point"'),
-    page.indexOf('<section class="local-import'));
+    page.indexOf('<section class="finops-headline"'));
 
   assert.match(proofPoint, /aria-labelledby="proof-point-title"/);
   assert.match(proofPoint, /Monthly baseline[\s\S]*\$7,430/);
@@ -234,10 +234,17 @@ test("the AI FinOps proof point is immediate, explicit, and linked to its eviden
   assert.match(proofPoint, /href="#recommendation-evidence"/);
   assert.match(page, /id="recommendation-evidence"[\s\S]*aria-labelledby="evaluation-title"/);
 
-  // The useful example is authored in HTML before any organization or portfolio
-  // request starts, and therefore cannot be erased by either async failure path.
+  // The useful example is authored in HTML rather than painted, and therefore
+  // cannot be erased by either async failure path.
   assert.doesNotMatch(script, /proof-point/);
-  assert.ok(page.indexOf('<article class="proof-point"') < page.indexOf('id="finops-load-state"'));
+  // It is illustrative demonstration data, so it is no longer allowed to sit in
+  // the reader's first step. The import panel — the one thing this page asks a
+  // visitor to do — comes first, and the invented recommendation reads after it
+  // as the supporting example it always was.
+  assert.ok(page.indexOf('<section class="local-import') < page.indexOf('<article class="proof-point"'),
+    "the illustrative proof point must follow the import panel, not precede it");
+  assert.ok(page.indexOf('<article class="proof-point"') < page.indexOf('<section class="finops-headline"'),
+    "the proof point stays above the supporting executive panels it introduces");
   assert.match(styles, /@media\(max-width:640px\)[\s\S]*\.proof-point-facts\s*\{\s*grid-template-columns:1fr/);
 });
 

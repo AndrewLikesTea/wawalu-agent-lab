@@ -90,34 +90,6 @@
         </details>
       </section>
 
-      <article class="proof-point" data-basis="illustrative" aria-labelledby="proof-point-title">
-        <!-- Written above the figures, not under them: a leader reads what kind
-             of number this is before they read the number. The view sharpens the
-             wording once their own — smaller — import is on screen. -->
-        <p class="proof-point-illustrative" id="proof-point-illustrative" role="note" data-basis="illustrative">
-          <strong>Illustrative figures · invented sample</strong>
-          <span>These four numbers are hand-written demonstration data, not live analysis, customer data, or realized savings.</span>
-        </p>
-        <div class="proof-point-copy">
-          <p class="eyebrow">Example recommendation</p>
-          <h2 id="proof-point-title">Route short, low-context requests to the standard model.</h2>
-          <p>Use a bounded gateway rule while leaving high-value prompts unchanged.</p>
-        </div>
-        <dl class="proof-point-facts">
-          <div><dt>Monthly baseline</dt><dd>$7,430</dd></div>
-          <div><dt>Projected savings</dt><dd>$5,200 / month</dd></div>
-          <div><dt>Accountable role</dt><dd>Core Services platform director</dd></div>
-          <div><dt>Confidence</dt><dd>High · 760-query scored sample</dd></div>
-        </dl>
-        <div class="proof-point-boundary" role="note" aria-label="Example data provenance">
-          <strong>Bundled synthetic sample data</strong>
-          <span>This is an illustrative recommendation—not live analysis, customer data, or realized savings.</span>
-        </div>
-        <a class="secondary-button proof-point-link" href="#recommendation-evidence">
-          Inspect rubric and evidence <span aria-hidden="true">↓</span>
-        </a>
-      </article>
-
       <section class="local-import finops-panel" aria-labelledby="local-import-title">
         <div class="local-import-heading">
           <div class="section-heading">
@@ -167,8 +139,20 @@
           </div>
           <!-- The one exit from the unsatisfiable file picker: no export in
                hand, one click, a computed finding. No chooser, no wizard, no
-               confirm step — a second dataset would be a second product. -->
-          <button class="local-example-action" id="try-example-dataset" type="button">Try it with example data</button>
+               confirm step — a second dataset would be a second product.
+               It stays in the open beside the picker rather than behind the
+               disclosure below, because "I have no export" is a first step a
+               visitor genuinely takes, and because a synthetic path a reader
+               cannot see is a synthetic path they cannot recognize as one. -->
+          <button class="local-example-action" id="try-example-dataset" type="button">Try it with example data <span class="local-example-basis">· invented sample, not your spend</span></button>
+          <!-- Everything below is a second way to start, and a page that offers
+               four of them beside the picker has no first step at all. They keep
+               their ids, their handlers, and their copy; they lose only their
+               claim on the reader's first decision. A reader who wants a
+               template or a saved briefing opens one disclosure to find all
+               three, and a deep link into any of them opens it for them. -->
+          <details class="import-alternatives" id="import-alternatives">
+            <summary>Other ways to start — templates, example exports, and a saved briefing</summary>
           <!-- The query-sample contract has no producer in this repository yet:
                nothing here reads a sample, so this button ships the template a
                gateway owner fills in, not an import path. It downloads the
@@ -206,6 +190,7 @@
                  reason again comes back to. -->
             <p class="field-error" id="restored-briefing-error" tabindex="-1" hidden></p>
           </div>
+          </details>
           <button id="remap-local-import" type="button" hidden>Change column mapping</button>
           <button id="clear-local-analysis" type="button" hidden>Return to example data</button>
         </div>
@@ -686,6 +671,34 @@
         <button id="finops-data-retry" type="button" hidden>Retry bundled analysis</button>
       </section>
 
+      <article class="proof-point" data-basis="illustrative" aria-labelledby="proof-point-title">
+        <!-- Written above the figures, not under them: a leader reads what kind
+             of number this is before they read the number. The view sharpens the
+             wording once their own — smaller — import is on screen. -->
+        <p class="proof-point-illustrative" id="proof-point-illustrative" role="note" data-basis="illustrative">
+          <strong>Illustrative figures · invented sample</strong>
+          <span>These four numbers are hand-written demonstration data, not live analysis, customer data, or realized savings.</span>
+        </p>
+        <div class="proof-point-copy">
+          <p class="eyebrow">Example recommendation</p>
+          <h2 id="proof-point-title">Route short, low-context requests to the standard model.</h2>
+          <p>Use a bounded gateway rule while leaving high-value prompts unchanged.</p>
+        </div>
+        <dl class="proof-point-facts">
+          <div><dt>Monthly baseline</dt><dd>$7,430</dd></div>
+          <div><dt>Projected savings</dt><dd>$5,200 / month</dd></div>
+          <div><dt>Accountable role</dt><dd>Core Services platform director</dd></div>
+          <div><dt>Confidence</dt><dd>High · 760-query scored sample</dd></div>
+        </dl>
+        <div class="proof-point-boundary" role="note" aria-label="Example data provenance">
+          <strong>Bundled synthetic sample data</strong>
+          <span>This is an illustrative recommendation—not live analysis, customer data, or realized savings.</span>
+        </div>
+        <a class="secondary-button proof-point-link" href="#recommendation-evidence">
+          Inspect rubric and evidence <span aria-hidden="true">↓</span>
+        </a>
+      </article>
+
       <!-- The headline surface. Four panels on this page resolve their source
            independently — this one, the KPI row below, and the two comparison
            cards after it — and every one of them reads the same view-model in
@@ -724,6 +737,8 @@
         <button class="secondary-button" id="finops-return-to-sample" type="button" hidden>Show the bundled example data in all four panels</button>
       </section>
 
+      <details class="support-disclosure" id="disclosure-grade-comparisons">
+        <summary class="support-disclosure-summary"><span class="support-disclosure-step" data-role="step">Supporting panel</span> <span class="support-disclosure-question" data-role="question">How does this grade compare — against a cohort, and against the team that needs coaching?</span></summary>
       <section class="finops-comparison" aria-label="Grade comparisons">
         <article class="finops-comparison-card" id="cohort-comparison" data-source="sample" aria-labelledby="cohort-comparison-title" aria-describedby="cohort-comparison-basis">
           <h3 id="cohort-comparison-title">Cohort comparison</h3>
@@ -738,6 +753,7 @@
           <p class="graded-provenance" id="coaching-card-provenance" role="note" aria-label="Coaching provenance" hidden></p>
         </article>
       </section>
+      </details>
 
       <!-- The reader's own graded sample. Authored empty and hidden: a visitor
            who imports nothing never sees this section, and the example surface
@@ -768,6 +784,8 @@
         <p class="department-evidence-live" id="department-evidence-live" role="status" aria-live="polite" aria-atomic="true"></p>
       </section>
 
+      <details class="support-disclosure" id="disclosure-spend-and-recovery" data-panel-id="spend-and-recovery">
+        <summary class="support-disclosure-summary"><span class="support-disclosure-step" data-role="step">Supporting panel</span> <span class="support-disclosure-question" data-role="question">What did we spend this period, and how much of it is recoverable?</span></summary>
       <section class="kpi-row" id="kpi-row" data-source="sample" aria-label="Headline metrics" aria-describedby="headline-basis">
         <!-- These numbers show the bundled sample until an import can fill them.
              Say so beside them rather than leaving a reader to infer it from a
@@ -811,68 +829,10 @@
           <p class="kpi-note" id="kpi-peer-note">Anonymized industry cohort</p>
         </article>
       </section>
+      </details>
 
-      <section class="finops-panel portfolio-panel" id="savings-portfolio-panel" aria-labelledby="portfolio-title">
-        <div class="portfolio-intro">
-          <div class="section-heading">
-            <p class="eyebrow">Finance leader action portfolio</p>
-            <h2 id="portfolio-title">Turn projected savings into verified results.</h2>
-            <p>One prioritized action per department, with lifecycle and evidence kept explicit.</p>
-            <p><a class="secondary-button" href="/savings-action-center.html">Open monthly Savings Action Center</a></p>
-          </div>
-          <div class="portfolio-filters" role="group" id="portfolio-filters" aria-label="Portfolio filters">
-            <div class="filter">
-              <label for="portfolio-department">Department</label>
-              <!-- Departments are refilled from the action plan on load so this list
-                   cannot go stale and dead-end the filter. -->
-              <select id="portfolio-department">
-                <option value="all">All departments</option>
-              </select>
-            </div>
-            <div class="filter">
-              <label for="portfolio-state">Lifecycle state</label>
-              <select id="portfolio-state">
-                <option value="all">All states</option>
-                <option value="planned">Planned</option>
-                <option value="in_progress">In progress</option>
-                <option value="completed">Completed</option>
-                <option value="verified">Verified</option>
-              </select>
-            </div>
-          </div>
-        </div>
-        <div class="portfolio-summary" id="portfolio-summary" role="group" aria-label="Savings portfolio summary">
-          <div data-kind="projected"><span>Projected savings</span><strong id="portfolio-projected">—</strong></div>
-          <div data-kind="completed"><span>Completed savings (includes verified)</span><strong id="portfolio-completed">—</strong></div>
-          <div data-kind="verified"><span>Verified savings</span><strong id="portfolio-verified">—</strong></div>
-        </div>
-        <!-- The count is the only live region: it announces the result of a filter
-             change without re-reading every card, which the list would do. -->
-        <p class="portfolio-count" id="portfolio-count" role="status">Loading actions…</p>
-        <ol class="portfolio-list" id="portfolio-list" aria-label="Prioritized savings actions" aria-busy="true">
-          <li class="portfolio-message" data-state="loading" role="status">
-            <h3>Loading action portfolio</h3>
-            <p>Savings targets and realized results will appear when the action lifecycle is ready.</p>
-          </li>
-        </ol>
-      </section>
-
-      <section class="finops-panel" id="recommendation-evidence" aria-labelledby="evaluation-title">
-        <div class="section-heading">
-          <p class="eyebrow">Defensible evaluation · static fixture</p>
-          <h2 id="evaluation-title">Inspect how a recommendation earns its score.</h2>
-          <p>Every point maps to a labelled criterion, evidence statement, and documented weight assumption. Unsafe content cannot be averaged into approval.</p>
-        </div>
-        <p class="decision-provenance">Bundled synthetic fixture · deterministic rubric · no stored prompts, credentials, customer data, or live provider calls.</p>
-        <!-- Deliberately not aria-live: the panel populates once on load with
-             several full breakdowns, and announcing all of them would bury the
-             page. aria-busy covers the loading state, and the failure notice
-             carries role="alert" so only the surprising outcome interrupts. -->
-        <div id="finops-evaluation-result" aria-busy="true">
-          <p>Loading inspectable fixture scores…</p>
-        </div>
-      </section>
-
+      <details class="support-disclosure" id="disclosure-department-priority" data-panel-id="department-priority">
+        <summary class="support-disclosure-summary"><span class="support-disclosure-step" data-role="step">Supporting panel</span> <span class="support-disclosure-question" data-role="question">Which department needs help first, and how is it trending?</span></summary>
       <section class="finops-panel decision-panel" id="department-decision-panel" aria-labelledby="department-title">
         <!-- The visible "Rank by" control (a label bound to a department-sort
              select) was deliberately removed because intervention priority is
@@ -948,7 +908,10 @@
           </article>
         </div>
       </section>
+      </details>
 
+      <details class="support-disclosure" id="disclosure-spend-mix" data-panel-id="spend-mix">
+        <summary class="support-disclosure-summary"><span class="support-disclosure-step" data-role="step">Supporting panel</span> <span class="support-disclosure-question" data-role="question">Where does the money go — what was the spend actually asked to do?</span></summary>
       <section class="finops-panel" id="spend-mix-panel" aria-labelledby="mix-title">
         <div class="section-heading">
           <p class="eyebrow">Quality engine</p>
@@ -964,6 +927,74 @@
         <p class="visually-hidden" id="mix-summary">Loading spend mix…</p>
         <ul class="mix-legend" id="mix-legend"></ul>
       </section>
+      </details>
+
+      <details class="support-disclosure" id="disclosure-savings-portfolio" data-panel-id="savings-portfolio">
+        <summary class="support-disclosure-summary"><span class="support-disclosure-step" data-role="step">Supporting panel</span> <span class="support-disclosure-question" data-role="question">Are projected savings turning into verified savings?</span></summary>
+      <section class="finops-panel portfolio-panel" id="savings-portfolio-panel" aria-labelledby="portfolio-title">
+        <div class="portfolio-intro">
+          <div class="section-heading">
+            <p class="eyebrow">Finance leader action portfolio</p>
+            <h2 id="portfolio-title">Turn projected savings into verified results.</h2>
+            <p>One prioritized action per department, with lifecycle and evidence kept explicit.</p>
+            <p><a class="secondary-button" href="/savings-action-center.html">Open monthly Savings Action Center</a></p>
+          </div>
+          <div class="portfolio-filters" role="group" id="portfolio-filters" aria-label="Portfolio filters">
+            <div class="filter">
+              <label for="portfolio-department">Department</label>
+              <!-- Departments are refilled from the action plan on load so this list
+                   cannot go stale and dead-end the filter. -->
+              <select id="portfolio-department">
+                <option value="all">All departments</option>
+              </select>
+            </div>
+            <div class="filter">
+              <label for="portfolio-state">Lifecycle state</label>
+              <select id="portfolio-state">
+                <option value="all">All states</option>
+                <option value="planned">Planned</option>
+                <option value="in_progress">In progress</option>
+                <option value="completed">Completed</option>
+                <option value="verified">Verified</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="portfolio-summary" id="portfolio-summary" role="group" aria-label="Savings portfolio summary">
+          <div data-kind="projected"><span>Projected savings</span><strong id="portfolio-projected">—</strong></div>
+          <div data-kind="completed"><span>Completed savings (includes verified)</span><strong id="portfolio-completed">—</strong></div>
+          <div data-kind="verified"><span>Verified savings</span><strong id="portfolio-verified">—</strong></div>
+        </div>
+        <!-- The count is the only live region: it announces the result of a filter
+             change without re-reading every card, which the list would do. -->
+        <p class="portfolio-count" id="portfolio-count" role="status">Loading actions…</p>
+        <ol class="portfolio-list" id="portfolio-list" aria-label="Prioritized savings actions" aria-busy="true">
+          <li class="portfolio-message" data-state="loading" role="status">
+            <h3>Loading action portfolio</h3>
+            <p>Savings targets and realized results will appear when the action lifecycle is ready.</p>
+          </li>
+        </ol>
+      </section>
+      </details>
+
+      <details class="support-disclosure" id="disclosure-recommendation-evidence" data-panel-id="recommendation-evidence">
+        <summary class="support-disclosure-summary"><span class="support-disclosure-step" data-role="step">Supporting panel</span> <span class="support-disclosure-question" data-role="question">How did a recommendation earn the score it was given?</span></summary>
+      <section class="finops-panel" id="recommendation-evidence" aria-labelledby="evaluation-title">
+        <div class="section-heading">
+          <p class="eyebrow">Defensible evaluation · static fixture</p>
+          <h2 id="evaluation-title">Inspect how a recommendation earns its score.</h2>
+          <p>Every point maps to a labelled criterion, evidence statement, and documented weight assumption. Unsafe content cannot be averaged into approval.</p>
+        </div>
+        <p class="decision-provenance">Bundled synthetic fixture · deterministic rubric · no stored prompts, credentials, customer data, or live provider calls.</p>
+        <!-- Deliberately not aria-live: the panel populates once on load with
+             several full breakdowns, and announcing all of them would bury the
+             page. aria-busy covers the loading state, and the failure notice
+             carries role="alert" so only the surprising outcome interrupts. -->
+        <div id="finops-evaluation-result" aria-busy="true">
+          <p>Loading inspectable fixture scores…</p>
+        </div>
+      </section>
+      </details>
 
       <section class="finops-panel" aria-labelledby="privacy-title">
         <div class="section-heading">

@@ -30,6 +30,10 @@ import {
 // hands it already-computed figures and paints what comes back.
 import { composeGuidedResult } from "/finops-guided-result.js";
 import { applyDisclosureRoles, applyGuidedResult } from "/finops-guided-result-view.js";
+// Supporting panels live behind disclosures, and the index above links straight
+// into them. Without this a copied `#recommendation-evidence` lands a reader at
+// the top of the page with the evidence still collapsed.
+import { installDeepLinkDisclosure } from "/deep-link-disclosure.js";
 import { PANEL_STATUS } from "/panel-status-view.js";
 import { formatIntegrationProvenance } from "/integration-contracts.js";
 import { createStaticGateway } from "/static-gateway.js";
@@ -2026,6 +2030,10 @@ async function renderEvaluationDemo() {
 
 async function init() {
   if (!document.getElementById("department-priority")) return;
+  // First, before any panel is painted: a fragment already in the address bar
+  // has to open its way out of the disclosures it points into, and the handlers
+  // that keep doing so have to be attached before the reader can click one.
+  installDeepLinkDisclosure(document, window);
   mountLocalFinopsImport();
   initFinopsContact(document);
   const gateway = createStaticGateway();

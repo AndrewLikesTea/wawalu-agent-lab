@@ -106,6 +106,31 @@
 .guided-result-support>summary { border-radius:7px; padding:6px 8px; cursor:pointer; font-weight:600; }
 .guided-result-support>summary:hover { background:var(--import-wash); }
 .guided-result-support-note { margin:10px 0; max-width:70ch; color:var(--ink-muted); font-size:13px; line-height:1.55; }
+
+/* Supporting panels, each behind its own disclosure.
+   Benchmark, department, spend mix, savings, and recommendation evidence are
+   the questions a leader opens to check the guided finding — not the ones they
+   should have to scroll past to reach it. Each block ships closed, in the rank
+   order the contract declares and the guided index publishes, so the page has
+   one reading order rather than two.
+
+   The summary is the whole interactive surface: 44px tall, a real focus ring,
+   and a step and a question in text. State is never carried by the triangle
+   alone — the step word, the question, and the border weight all change. */
+.support-disclosure { margin:22px 0; border:1px solid var(--panel-border); border-radius:12px; background:#fff; }
+.support-disclosure>summary { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 10px; min-height:44px; border-radius:11px; padding:11px 16px; cursor:pointer; }
+.support-disclosure>summary:hover { background:#faf9f5; }
+.support-disclosure>summary:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.support-disclosure[open] { border-color:#b3b0a6; }
+.support-disclosure[open]>summary { border-bottom:1px solid var(--panel-border); border-radius:11px 11px 0 0; }
+/* A panel the contract cannot answer stays listed and stays openable: the
+   question exists, and hiding it would tell a leader that it does not. */
+.support-disclosure[data-disclosure-permitted="false"]>summary { color:var(--ink-muted); }
+.support-disclosure-step { color:var(--ink-muted); font:750 11px/1.5 ui-monospace,monospace; letter-spacing:.04em; text-transform:uppercase; }
+.support-disclosure-question { font-size:14px; font-weight:700; }
+/* The panels inside already carry their own padding and heading; the wrapper
+   only has to stop them re-drawing a second border inside this one. */
+.support-disclosure>section { margin:0; border:0; border-radius:0 0 11px 11px; }
 .guided-result-disclosures { margin:0; padding-left:22px; display:grid; gap:10px; }
 .guided-disclosure-question { display:block; font-weight:600; }
 .guided-disclosure-note { display:block; color:var(--ink-muted); font-size:13px; line-height:1.5; }
@@ -249,7 +274,11 @@
 .coverage-upgrade-jump:focus-visible,.coverage-upgrade-more summary:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
 .privacy-boundary { display:grid; gap:3px; margin:22px 0; border:1px solid #b9cec4; border-left:5px solid #315f50; border-radius:10px; padding:14px 16px; background:#eef6f2; font-size:13px; line-height:1.5; }
 .privacy-boundary span { color:#496056; }
-.local-import-controls { display:flex; justify-content:space-between; align-items:end; gap:20px; }
+/* Wraps, because the row now holds one picker, one clearly-synthetic exit, and
+   one full-width disclosure holding every other way to start. Without the wrap
+   the disclosure would be squeezed into a column beside the picker and stop
+   reading as the container it is. */
+.local-import-controls { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:end; gap:20px; }
 .local-import-controls>div { display:grid; gap:7px; }
 .local-import-controls label { font-size:13px; font-weight:750; }
 .local-import-controls input { max-width:100%; min-height:44px; border:1px solid #aaa79d; border-radius:9px; padding:8px; background:#fff; }
@@ -268,6 +297,21 @@
    #2a78d6 measured 4.02:1 against the panel wash where var(--focus-ring)
    measures 6.04:1, and one focus ring per site is one thing to learn. */
 .local-import button:focus-visible,.local-import input:focus-visible,.local-import summary:focus-visible,.local-disclosures summary:focus-visible,.local-results h3:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+/* The synthetic path names itself in the control, not only in a note beside it:
+   a reader who tabs to this button hears what the data is before they press it. */
+.local-example-basis { font-weight:600; }
+
+/* Every other way to start, behind one disclosure.
+   The reader's own export is the page's first step, so the template downloads,
+   the example conversation exports, and the saved-briefing reopen live here
+   instead of competing with the picker. They keep their full width once open —
+   this is a container, not a compact menu — and the summary is a real target at
+   44px so it is operable by touch and by switch. */
+.import-alternatives { flex-basis:100%; margin-top:6px; border-top:1px solid var(--import-line); padding-top:12px; }
+.import-alternatives>summary { display:flex; align-items:center; min-height:44px; border-radius:8px; padding:6px 8px; color:var(--import-ink); font-size:13px; font-weight:750; cursor:pointer; }
+.import-alternatives>summary:hover { background:var(--import-wash); }
+.import-alternatives[open]>summary { margin-bottom:12px; }
+.import-alternatives>*:not(summary) { margin-top:14px; }
 
 /* Stage indicator — position, name, and word for every step. Colour is the
    fourth signal, never the first. */
