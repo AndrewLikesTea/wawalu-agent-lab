@@ -29,9 +29,25 @@
       <main id="main-content" tabindex="-1">
       <section class="sac-hero" aria-labelledby="page-title">
         <p class="eyebrow">Monthly Savings Action Center</p>
-        <h1 id="page-title">One finding.<br />One decision.</h1>
-        <p>Start with the monthly savings exception that most needs a finance leader’s attention. Supporting evidence stays close, not in the way.</p>
+        <h1 id="page-title">Did the savings<br />actually show up?</h1>
+        <p>Open the briefings you exported from AI FinOps — the month you committed in, then the months after it. The page compares what was projected against what was realized, and says plainly when it does not yet have enough evidence to answer.</p>
       </section>
+
+      <section class="sac-evidence" aria-labelledby="sac-evidence-title">
+        <h2 id="sac-evidence-title">Your own months</h2>
+        <p id="sac-evidence-note">Files are read in this tab. Nothing is uploaded, stored, or sent anywhere, and closing the tab discards them. Opening the same month twice counts it once.</p>
+        <div class="sac-evidence-controls">
+          <div class="sac-field">
+            <label for="sac-file">Open saved briefings, or an evidence file exported here</label>
+            <input id="sac-file" type="file" accept="application/json,.json" multiple aria-describedby="sac-evidence-note" />
+          </div>
+          <button id="sac-export" type="button" disabled>Export this evidence</button>
+          <button id="sac-clear" type="button" disabled>Clear and show the demonstration</button>
+        </div>
+        <p class="sac-evidence-status" id="sac-evidence-status" role="status" aria-live="polite"></p>
+      </section>
+
+      <div id="sac-notices"></div>
 
       <div id="savings-action-center" aria-live="polite" aria-busy="true">
         <section class="sac-state" role="status">

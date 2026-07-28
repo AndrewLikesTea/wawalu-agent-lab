@@ -21,9 +21,18 @@ import {
   VERIFICATION_VERDICT,
   VERIFICATION_VERDICT_RULE,
   VERIFICATION_VERDICT_STATEMENT,
+  SUSTAINED_IGNORE_REASON,
+  SUSTAINED_METRIC_RULES,
+  SUSTAINED_UNAVAILABLE_REASON,
+  SUSTAINED_VERDICT,
+  SUSTAINED_VERIFICATION_QUESTION,
+  SUSTAINED_VERIFICATION_VERSION,
+  VERIFIED_MONTH_MINIMUM,
   nextCalendarMonth,
+  sustainedLines,
   verificationLines,
   verifyCommitment,
+  verifySustainedCommitment,
 } from "../src/commitment-verification.js";
 import { COMMITMENT_STATUS, deriveBriefingCommitment } from "../src/finops-briefing-commitment.js";
 import { SAVINGS_COMMITMENT_VERSION } from "../src/savings-commitment.js";
@@ -425,4 +434,186 @@ test("a stated verdict is painted with its figures and its caveat, never bare", 
   assert.match(lines.detail, /-90\.00 USD variance \(40% of plan\)/);
   assert.match(lines.detail, /2026-06 baseline against 2026-07 observed/);
   assert.equal(lines.caveat, VERIFICATION_METRIC_RULES.realizedCost.assumption);
+});
+
+// ---------------------------------------------------------------------------
+// More than one month: the same month twice is still one month.
+//
+// The blocker these tests exist for: a naive count reads two copies of one
+// observed period as two months of evidence, and two months is exactly what a
+// verified verdict needs. Opening one file twice is ordinary, so the arithmetic
+// has to be the thing that refuses, not the visitor's care.
+// ---------------------------------------------------------------------------
+
+/** A later month at a chosen spend, in the shape the visitor's import publishes. */
+function laterMonth(period, spendMinor) {
+  const [year, month] = period.split("-").map(Number);
+  const next = month === 12 ? `${year + 1}-01` : `${year}-${String(month + 1).padStart(2, "0")}`;
+  return monthEnvelope({
+    modelUsage: [usageRow({ spendMinor })],
+    period: `${period}-01 to ${next}-01`,
+    generatedAt: `${next}-02T09:15:00.000Z`,
+  });
+}
+
+test("two consecutive observed months that beat the plan verify the saving", () => {
+  const result = verifySustainedCommitment(commitmentFrom(referenceBaseline), [
+    laterMonth("2026-07", 12_000), laterMonth("2026-08", 10_000),
+  ]);
+  assert.equal(result.status, VERIFICATION_STATUS.ok);
+  assert.equal(result.verdict, SUSTAINED_VERDICT.verified);
+  assert.equal(result.monthsCounted, 2);
+  assert.deepEqual(result.months.map((month) => month.observedPeriod), ["2026-07", "2026-08"]);
+  // 18,000 + 20,000 realized against 15,000 x 2 projected.
+  assert.equal(result.totals.realizedSavingsMinor, 38_000);
+  assert.equal(result.totals.expectedSavingsMinor, 30_000);
+  assert.equal(result.totals.varianceMinor, 8_000);
+  assert.equal(result.totals.attainmentPercent, 127);
+  assert.deepEqual(result.duplicatePeriods, []);
+  assert.deepEqual(result.ignored, []);
+});
+
+test("two copies of one observed month cannot produce a verified verdict", () => {
+  const block = commitmentFrom(referenceBaseline);
+  const july = () => laterMonth("2026-07", 12_000);
+  const result = verifySustainedCommitment(block, [july(), july()]);
+
+  assert.equal(result.status, VERIFICATION_STATUS.unavailable);
+  assert.equal(result.verdict, null, "a duplicated month must not be scored as a verdict");
+  assert.equal(result.reason, SUSTAINED_UNAVAILABLE_REASON.insufficientEvidence);
+  assert.equal(result.monthsCounted, 1, "the same month twice is one month of evidence");
+  assert.equal(result.monthsRequired, VERIFIED_MONTH_MINIMUM);
+  assert.deepEqual(result.duplicatePeriods, [{ period: "2026-07", copies: 2, agreed: true }]);
+  // The month that was read is still carried, so the surface can show the
+  // provisional figure without the result claiming to be one.
+  assert.equal(result.totals.realizedSavingsMinor, 18_000);
+  assert.equal(result.totals.expectedSavingsMinor, 15_000);
+
+  // Four copies are not four months either.
+  const four = verifySustainedCommitment(block, [july(), july(), july(), july()]);
+  assert.equal(four.monthsCounted, 1);
+  assert.equal(four.verdict, null);
+  assert.equal(four.duplicatePeriods[0].copies, 4);
+
+  // The same month re-exported by a later run differs in its written instant but
+  // describes the same spend, and is still one month.
+  const restated = verifySustainedCommitment(block, [
+    july(), monthEnvelope({
+      modelUsage: [usageRow({ spendMinor: 12_000 })],
+      period: "2026-07-01 to 2026-08-01",
+      generatedAt: "2026-08-09T11:00:00.000Z",
+    }),
+  ]);
+  assert.equal(restated.monthsCounted, 1);
+  assert.equal(restated.verdict, null);
+});
+
+test("copies of one month that disagree about the figure count as no month at all", () => {
+  const result = verifySustainedCommitment(commitmentFrom(referenceBaseline), [
+    laterMonth("2026-07", 12_000), laterMonth("2026-07", 24_000), laterMonth("2026-08", 10_000),
+  ]);
+  assert.equal(result.status, VERIFICATION_STATUS.unavailable);
+  assert.equal(result.reason, SUSTAINED_UNAVAILABLE_REASON.insufficientEvidence);
+  assert.equal(result.monthsCounted, 0, "a contradicted month is not evidence for either figure");
+  assert.equal(result.totals, null);
+  const conflict = result.ignored.find((entry) => entry.period === "2026-07");
+  assert.equal(conflict.reason, SUSTAINED_IGNORE_REASON.conflictingDuplicate);
+  assert.equal(conflict.copies, 2);
+  assert.deepEqual(result.duplicatePeriods, [{ period: "2026-07", copies: 2, agreed: false }]);
+  // August was read, but the run never started, so it is not counted either.
+  assert.equal(result.ignored.find((entry) => entry.period === "2026-08").reason,
+    SUSTAINED_IGNORE_REASON.periodNotInSequence);
+});
+
+test("a gap in the run stops the count instead of skipping the missing month", () => {
+  const result = verifySustainedCommitment(commitmentFrom(referenceBaseline), [
+    laterMonth("2026-07", 12_000), laterMonth("2026-09", 10_000),
+  ]);
+  assert.equal(result.monthsCounted, 1);
+  assert.equal(result.reason, SUSTAINED_UNAVAILABLE_REASON.insufficientEvidence);
+  assert.equal(result.ignored.find((entry) => entry.period === "2026-09").reason,
+    SUSTAINED_IGNORE_REASON.periodNotInSequence);
+});
+
+test("the order the months arrive in never changes the sustained result", () => {
+  const block = commitmentFrom(referenceBaseline);
+  const months = [
+    laterMonth("2026-07", 12_000), laterMonth("2026-08", 24_000), laterMonth("2026-07", 12_000),
+  ];
+  assert.deepEqual(
+    verifySustainedCommitment(block, months),
+    verifySustainedCommitment(block, [...months].reverse()),
+  );
+});
+
+test("a month that misses the plan is reported, never rounded into the verdict", () => {
+  const block = commitmentFrom(referenceBaseline);
+  const mixed = verifySustainedCommitment(block, [
+    laterMonth("2026-07", 12_000), laterMonth("2026-08", 24_000),
+  ]);
+  assert.equal(mixed.verdict, SUSTAINED_VERDICT.partiallyRealized);
+  assert.equal(mixed.totals.attainmentPercent, 80);
+
+  const missed = verifySustainedCommitment(block, [
+    laterMonth("2026-07", 24_000), laterMonth("2026-08", 36_000),
+  ]);
+  assert.equal(missed.verdict, SUSTAINED_VERDICT.notRealized);
+  assert.equal(missed.totals.realizedSavingsMinor, 0);
+});
+
+test("an unreadable window and a missing commitment each name themselves", () => {
+  const block = commitmentFrom(referenceBaseline);
+  const unreadable = verifySustainedCommitment(block, [
+    monthEnvelope({ period: "2026-07-01 to 2026-07-15", generatedAt: "2026-07-16T09:00:00.000Z" }),
+  ]);
+  assert.equal(unreadable.ignored[0].reason, SUSTAINED_IGNORE_REASON.periodUnreadable);
+  assert.equal(verifySustainedCommitment(null, []).reason,
+    SUSTAINED_UNAVAILABLE_REASON.noCommitment);
+  assert.equal(verifySustainedCommitment(block, []).reason,
+    SUSTAINED_UNAVAILABLE_REASON.noObservation);
+  for (const state of [unreadable, verifySustainedCommitment(block, [])]) {
+    assert.ok(state.statement.length > 40, "an unavailable state without a sentence is a blank box");
+  }
+});
+
+test("the sustained lines carry the question, one metric, and the caveat", () => {
+  const block = commitmentFrom(referenceBaseline);
+  const verified = sustainedLines(verifySustainedCommitment(block, [
+    laterMonth("2026-07", 12_000), laterMonth("2026-08", 10_000),
+  ]));
+  assert.match(verified.question, /projected .*actually show up/i);
+  assert.match(verified.headline, /^Verified/);
+  assert.match(verified.metric.label, /2 observed months/);
+  assert.equal(verified.metric.value, "380.00 USD");
+  assert.match(verified.metric.comparison, /against 300\.00 USD projected \(127% of plan\)/);
+  assert.equal(verified.caveat, VERIFICATION_METRIC_RULES.realizedCost.assumption);
+
+  const provisional = sustainedLines(
+    verifySustainedCommitment(block, [laterMonth("2026-07", 12_000)]),
+  );
+  assert.match(provisional.headline, /Fewer distinct months/);
+  assert.match(provisional.metric.label, /1 observed month\b/);
+  assert.match(provisional.detail, /1 of 2 months needed/);
+  assert.equal(sustainedLines(verifySustainedCommitment(null, [])).metric, null);
+});
+
+test("the contract doc names the sustained codes and the rules behind them", async () => {
+  const doc = await readFile(new URL("../docs/savings-commitment-verification.md", import.meta.url),
+    "utf8");
+  assert.ok(doc.includes(SUSTAINED_VERIFICATION_VERSION));
+  assert.ok(doc.includes(SUSTAINED_VERIFICATION_QUESTION));
+  const codes = [
+    ...Object.values(SUSTAINED_VERDICT),
+    ...Object.values(SUSTAINED_UNAVAILABLE_REASON),
+    ...Object.values(SUSTAINED_IGNORE_REASON),
+    ...Object.keys(SUSTAINED_METRIC_RULES),
+  ];
+  for (const code of codes) {
+    assert.ok(doc.includes(`\`${code}\``),
+      `docs/savings-commitment-verification.md does not document ${code}`);
+  }
+  for (const [name, entry] of Object.entries(SUSTAINED_METRIC_RULES)) {
+    assert.ok(entry.rule.length > 40, `${name} has no stated rule`);
+    assert.ok(entry.assumption.length > 60, `${name} states no assumption`);
+  }
 });

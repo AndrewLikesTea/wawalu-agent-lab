@@ -76,6 +76,43 @@ An unavailable result carries `verdict`, `projected`, `realized`, and `variance`
 as `null` and an empty `evidence` list, so no figure can be read out of a state
 that has none — including any figure belonging to one of the colliding rows.
 
+## More than one month
+
+`savings-commitment-verification-series/1.0.0`
+
+**Question:** *Did the savings we projected actually show up in the months we measured?*
+
+`verifySustainedCommitment` checks one commitment against every later month the
+visitor supplied. It is built from the per-month check above and adds no new
+arithmetic about a month — only rules about which months count.
+
+| Rule | What it says | Assumption |
+| --- | --- | --- |
+| `deduplication` | Observations are keyed by their own calendar month before anything is counted. Repeats of one month that agree on the realized figure count once; repeats that disagree count as no month at all. | The same month supplied twice is one month of evidence, not two. Counting copies would let opening one file twice turn a single anecdote into a verified saving. |
+| `consecutiveMonths` | Counted months are the unbroken run starting at the month directly after the baseline. A gap, an unverifiable month, or a conflicting duplicate ends the run. | A run with a hole in it is not evidence that the saving held through the hole. |
+| `sustainedTotals` | `realizedSavingsMinor` is the sum over counted months; `expectedSavingsMinor` is the commitment's projected monthly saving times `monthsCounted`. Every counted month is compared against the same baseline. | The baseline is the commitment's own and is never re-derived, so each month carries the same upper-bound caveat the per-month `realizedCost` rule states. |
+| `verdictFloor` | A verdict needs at least two distinct counted months. Below that the result is `insufficient_evidence` and the months read are carried as provisional. | One month can be a holiday, a stalled batch, or a migration that was reverted. |
+
+| Sustained verdict | Boundary |
+| --- | --- |
+| `verified` | Every counted month is `achieved`. |
+| `partially_realized` | At least one counted month is `achieved` and at least one is not. |
+| `not_realized` | No counted month is `achieved`. |
+
+| Unavailable reason | When |
+| --- | --- |
+| `no_commitment` | Nothing has been committed to yet. |
+| `commitment_not_verifiable` | The commitment carries no baseline, route, and projected saving to compare against. |
+| `no_observation` | No later month was supplied. |
+| `insufficient_evidence` | Fewer than `monthsRequired` distinct months were counted. |
+
+Observations that were read but not counted are carried on `ignored`, each with
+the reason it was set aside: `observation_period_unreadable`,
+`conflicting_duplicate_observation`, `period_not_in_sequence`, or
+`month_not_verifiable` (which carries the per-month reason on `monthReason`).
+Repeated months are also reported on `duplicatePeriods` with their copy count, so
+a surface can say plainly that a month was opened twice and counted once.
+
 ## Labelled fixtures
 
 `tests/fixtures/commitment-verification/paired-periods.js` carries one labelled
