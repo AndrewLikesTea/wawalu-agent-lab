@@ -10,7 +10,7 @@ import {
   parseImport,
   prepareShiplogImport,
 } from "../src/shiplog-import.js";
-import { createShiplogExport } from "../src/shiplog-export.js";
+import { buildShiplogExport, createShiplogExport } from "../src/shiplog-export.js";
 import { STORAGE_KEY, loadDecisions, renderDecisions } from "../src/app.js";
 import { RELEASE_STORAGE_KEY, loadReleases } from "../src/releases.js";
 import { byClass, installDocument, walk } from "./support/dom.js";
@@ -319,23 +319,32 @@ test("export, clear, import, re-export returns the same record set", () => {
   assert.deepEqual(restored.releases[0].decisionIds, original.releases[0].decisionIds);
 });
 
-// The one documented divergence from byte-identical round tripping: rule 2 says
-// a link with no decision behind it is dropped rather than restored dangling,
-// so a file that already carried one comes back without it. Pinned here so the
-// tradeoff cannot regress silently in either direction.
+// The one documented divergence from byte-identical round tripping: a link with
+// no decision behind it is dropped rather than restored dangling, so a store
+// that already carried one comes back without it. Both sides now hold that
+// rule — the exporter drops the link on the way out (link integrity: every id
+// in the file resolves inside the file), so by the time the importer sees the
+// file there is nothing dangling left for rule 2 to drop. Pinned here so the
+// tradeoff cannot regress silently at either end.
 test("a pre-existing dangling link does not survive the round trip, by design", () => {
   const source = memoryStorage({
     [STORAGE_KEY]: JSON.stringify([decisionA]),
     [RELEASE_STORAGE_KEY]: JSON.stringify([{ ...releaseA, decisionIds: ["d-queue", "d-never-existed"] }]),
   });
-  const file = JSON.stringify(createShiplogExport(source, { generatedAt: GENERATED_AT }));
+  const exported = buildShiplogExport(source, { generatedAt: GENERATED_AT });
+  assert.deepEqual(exported.payload.releases[0].decisionIds, ["d-queue"]);
+  assert.deepEqual(exported.unresolvedLinks, [
+    { releaseId: releaseA.id, decisionId: "d-never-existed", position: 1 },
+  ]);
+  const file = JSON.stringify(exported.payload);
 
   const cleared = memoryStorage();
   const plan = prepareShiplogImport(cleared, file);
   commitShiplogImport(cleared, plan);
 
   assert.deepEqual(loadReleases(cleared)[0].decisionIds, ["d-queue"]);
-  assert.equal(plan.merged.summary.droppedAssociations, 1);
+  assert.equal(plan.merged.summary.droppedAssociations, 0,
+    "the export already resolved the link, so the importer has nothing to drop");
 });
 
 // --------------------------------------------------------------------------

@@ -31,7 +31,7 @@
 // dialog cannot say how many records are about to go, and it cannot be read by
 // the live region that reports what happened afterwards.
 
-import { createShiplogExport, downloadShiplogExport } from "./shiplog-export.js";
+import { buildShiplogExport, downloadShiplogExport, unresolvedLinkSentence } from "./shiplog-export.js";
 import { commitShiplogImport, formatImportSummary, prepareShiplogImport } from "./shiplog-import.js";
 import {
   OUTCOME, RETENTION, WORKSPACE_STATE, eraseWorkspace, noteExport, readWorkspace, setRetention,
@@ -223,10 +223,13 @@ export function initLocalWorkspace(root, storage, options = {}) {
 
   function runExport() {
     try {
-      const payload = createShiplogExport(storage, { generatedAt: now().toISOString() });
-      download(payload);
+      const report = buildShiplogExport(storage, { generatedAt: now().toISOString() });
+      download(report.payload);
       noteExport(storage, { now: now() });
-      settle(OUTCOME.exported, { tone: "good" });
+      // A backup that quietly holds fewer links than the store is not a backup
+      // the reader can check, so the same sentence the export panel uses is
+      // appended here when the file had to leave one out.
+      settle([OUTCOME.exported, unresolvedLinkSentence(report)].filter(Boolean).join(" "), { tone: "good" });
     } catch {
       settle(OUTCOME.export_failed, { tone: "bad" });
     }

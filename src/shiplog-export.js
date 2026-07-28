@@ -1,29 +1,90 @@
+// Download the decisions and releases this browser holds as one JSON file.
+//
+// The file's contract lives in shiplog-export-schema.js and is enforced here on
+// the way out, not described after the fact:
+//
+//   * Only local Shiplog records. The two stores are read through
+//     loadDecisions/loadReleases, so nothing else in localStorage — and no
+//     example record, which is a module constant the page composes in and never
+//     stores — can reach the file.
+//   * Only declared fields. Every record is rebuilt from the schema's field
+//     list, so a key left on a record by another module or a hand-edited store
+//     stays in the browser.
+//   * Only resolvable links. A release's `decisionIds` are filtered to the
+//     decisions this file actually carries; a link to a decision the browser no
+//     longer holds is reported, not written as a dangling reference. This is the
+//     same trade shiplog-import.js already makes on the way in, so
+//     export -> import -> export is a fixed point.
+//
+// `buildShiplogExport` returns the payload together with what it had to leave
+// out; `createShiplogExport` is the payload alone, for the callers that only
+// want the file.
+
 import { loadDecisions } from "./app.js";
 import { loadReleases } from "./releases.js";
+import {
+  EXPORT_DECISION_FIELDS,
+  EXPORT_RELEASE_FIELDS,
+  SHIPLOG_EXPORT_SCHEMA,
+  SHIPLOG_EXPORT_VERSION,
+  normalizeExportRecord,
+  undeclaredExportFields,
+} from "./shiplog-export-schema.js";
 
-export const SHIPLOG_EXPORT_SCHEMA = "shiplog-history";
-// Still 1, deliberately. A decision recorded from an approved FinOps commitment
-// carries one extra optional field — `finopsCommitment`, see
-// finops-commitment-decision.js — and the envelope around it is unchanged. The
-// addition is compatible in both directions: a file written before it exists is
-// a file whose decisions simply have no such field, and a reader that predates
-// it carries the field through untouched. Bumping the number would have made
-// every older export unreadable to buy nothing.
-export const SHIPLOG_EXPORT_VERSION = 1;
+export { SHIPLOG_EXPORT_SCHEMA, SHIPLOG_EXPORT_VERSION };
 
-export function createShiplogExport(storage, options = {}) {
+/**
+ * Build the export payload and the report of what did not go into it.
+ *
+ * @returns `{ payload, unresolvedLinks, droppedFields }`, where
+ *   `unresolvedLinks` is `{ releaseId, decisionId, position }` per release link
+ *   that named a decision this browser no longer holds, and `droppedFields` is
+ *   `{ collection, id, field }` per undeclared key left behind.
+ */
+export function buildShiplogExport(storage, options = {}) {
   const generatedAt = options.generatedAt ?? new Date().toISOString();
   if (Number.isNaN(Date.parse(generatedAt))) {
     throw new TypeError("Export generatedAt must be an ISO date.");
   }
 
-  return {
-    schema: SHIPLOG_EXPORT_SCHEMA,
-    version: SHIPLOG_EXPORT_VERSION,
-    generatedAt,
-    decisions: structuredClone(loadDecisions(storage)),
-    releases: structuredClone(loadReleases(storage)),
+  const droppedFields = [];
+  const collect = (collection, record, fields) => {
+    for (const field of undeclaredExportFields(record, fields)) {
+      droppedFields.push({ collection, id: record.id, field });
+    }
+    return normalizeExportRecord(record, fields);
   };
+
+  const decisions = loadDecisions(storage)
+    .map((decision) => collect("decisions", decision, EXPORT_DECISION_FIELDS));
+  const known = new Set(decisions.map((decision) => decision.id));
+
+  const unresolvedLinks = [];
+  const releases = loadReleases(storage).map((stored) => {
+    const release = collect("releases", stored, EXPORT_RELEASE_FIELDS);
+    release.decisionIds = release.decisionIds.filter((decisionId, position) => {
+      if (known.has(decisionId)) return true;
+      unresolvedLinks.push({ releaseId: release.id, decisionId, position });
+      return false;
+    });
+    return release;
+  });
+
+  return {
+    payload: {
+      schema: SHIPLOG_EXPORT_SCHEMA,
+      version: SHIPLOG_EXPORT_VERSION,
+      generatedAt,
+      decisions,
+      releases,
+    },
+    unresolvedLinks,
+    droppedFields,
+  };
+}
+
+export function createShiplogExport(storage, options = {}) {
+  return buildShiplogExport(storage, options).payload;
 }
 
 export function shiplogExportCounts(storage) {
@@ -37,6 +98,33 @@ export function formatShiplogExportCounts({ decisions, releases }) {
   const decisionLabel = decisions === 1 ? "decision" : "decisions";
   const releaseLabel = releases === 1 ? "release" : "releases";
   return `Ready to export ${decisions} ${decisionLabel} and ${releases} ${releaseLabel} stored in this browser.`;
+}
+
+export const EXPORT_STATUS = Object.freeze({
+  exported: "Shiplog history exported.",
+  failed: "Shiplog history could not be exported. Your browser data was not changed.",
+});
+
+/**
+ * The sentence a download adds when it had to leave a link out, or "".
+ *
+ * A dropped link is stated rather than swallowed: the visitor's file is smaller
+ * than their store in a way they did not ask for, and the count is the only
+ * place they would find that out. Split from the status line above because the
+ * two download surfaces — this panel and the workspace backup — open with
+ * different sentences and end with the same one.
+ */
+export function unresolvedLinkSentence({ unresolvedLinks = [] } = {}) {
+  const count = unresolvedLinks.length;
+  if (count === 0) return "";
+  return count === 1
+    ? "1 release link to a decision this browser no longer holds was left out."
+    : `${count} release links to decisions this browser no longer holds were left out.`;
+}
+
+/** What the export panel's status line says after a successful download. */
+export function describeShiplogExport(report) {
+  return [EXPORT_STATUS.exported, unresolvedLinkSentence(report)].filter(Boolean).join(" ");
 }
 
 export function downloadShiplogExport(payload, options = {}) {
@@ -62,15 +150,13 @@ export function initShiplogExport(root, storage, options = {}) {
   counts.textContent = formatShiplogExportCounts(shiplogExportCounts(storage));
   button.addEventListener("click", () => {
     try {
-      const payload = createShiplogExport(storage, {
+      const report = buildShiplogExport(storage, {
         generatedAt: options.now?.().toISOString(),
       });
-      (options.download ?? downloadShiplogExport)(payload);
-      if (status) status.textContent = "Shiplog history exported.";
+      (options.download ?? downloadShiplogExport)(report.payload);
+      if (status) status.textContent = describeShiplogExport(report);
     } catch {
-      if (status) {
-        status.textContent = "Shiplog history could not be exported. Your browser data was not changed.";
-      }
+      if (status) status.textContent = EXPORT_STATUS.failed;
     }
   });
 }
