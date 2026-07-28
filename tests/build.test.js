@@ -275,3 +275,17 @@ test("artifact verification rejects an executive page without its panel status m
     /missing required UI asset: panel-status-view\.js/,
   );
 });
+
+test("artifact verification rejects an imported briefing without its peer benchmark module", async (t) => {
+  const directory = await mkdtemp(resolve(tmpdir(), "shiplog-peer-artifact-test-"));
+  t.after(async () => (await import("node:fs/promises")).rm(directory, { recursive: true, force: true }));
+  await cp(new URL("../src", import.meta.url), directory, { recursive: true });
+
+  await (await import("node:fs/promises")).rm(resolve(directory, "imported-peer-benchmark.js"));
+  await createManifest(directory);
+
+  await assert.rejects(
+    verifyArtifact(directory),
+    /missing required UI asset: imported-peer-benchmark\.js/,
+  );
+});

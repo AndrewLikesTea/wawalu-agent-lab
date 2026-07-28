@@ -162,7 +162,12 @@ test("the peer KPI card publishes the import's percentile and its provenance", (
   }).find((entry) => entry.key === "peer");
   assert.equal(card.available, true);
   assert.equal(card.value, `${peer.headline.percentile}th`);
-  assert.match(card.note, /published synthetic peers/);
+  // The note is the placement and only the placement. Since #433 the cohort's
+  // size, the two trust labels and the snapshot version are their own lines
+  // rather than four more clauses in one muted sentence; each is asserted where
+  // it now lives in `imported-peer-position.test.js`.
+  assert.match(card.note, /quartile of/);
+  assert.match(card.segment.text, /published synthetic peers/);
   assert.equal(card.unavailable, null);
   assert.equal(card.provenance.sourceRecords, 240);
 });

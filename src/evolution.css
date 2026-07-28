@@ -94,6 +94,28 @@
 .kpi-finding-action { margin:6px 0 0; font-size:13px; font-weight:650; line-height:1.5; overflow-wrap:anywhere; }
 .kpi-finding[data-peer-standing="behind_cohort"] .kpi-finding-action { color:var(--state-warn-ink); }
 .kpi-finding-evidence { margin:6px 0 0; color:var(--ink-muted); font-size:12px; line-height:1.5; overflow-wrap:anywhere; }
+/* What qualifies a peer position, between the numeral and the next step. The
+   distinction lives in the words — "Close match" against "Broad match", "High"
+   against "Low confidence" — so the chip's border and weight reinforce a
+   difference a reader can already read, including in monochrome. */
+.kpi-trust { display:inline-flex; flex-wrap:wrap; gap:2px 8px; width:fit-content; max-width:100%; margin:10px 0 0; border:1px solid var(--ink-muted); border-radius:99px; padding:3px 10px; background:#fff; font:700 11px/1.45 ui-monospace,monospace; overflow-wrap:anywhere; }
+.kpi-trust[data-comparability="broad"] { border-style:dashed; }
+.kpi-segment { margin:8px 0 0; color:var(--ink-muted); font-size:12px; line-height:1.5; overflow-wrap:anywhere; }
+/* The distance from the median. Weighted like the action it argues for, because
+   "62nd percentile" is where an organization sits and this is whether the gap is
+   worth a meeting. */
+.kpi-delta { margin:6px 0 0; font-size:13px; font-weight:650; line-height:1.5; overflow-wrap:anywhere; }
+.kpi-needed { border-left:3px solid var(--state-warn-line); margin:10px 0 0; padding:0 0 0 11px; color:var(--state-warn-ink); font-size:12px; line-height:1.5; overflow-wrap:anywhere; }
+.kpi-cohort-version { margin:10px 0 0; color:var(--ink-muted); font:600 11px/1.5 ui-monospace,monospace; overflow-wrap:anywhere; }
+.kpi-trust[hidden],.kpi-segment[hidden],.kpi-delta[hidden],.kpi-needed[hidden],
+.kpi-cohort-version[hidden],.kpi-disclosure[hidden] { display:none; }
+/* Method and supporting metrics, one keystroke away and native. */
+.kpi-disclosure { margin:12px 0 0; border-top:1px solid var(--panel-border); padding-top:10px; }
+.kpi-disclosure-summary { cursor:pointer; color:var(--ink-muted); font:700 10px/1.5 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; }
+.kpi-disclosure>summary:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.kpi-disclosure-heading { margin:12px 0 0; color:var(--ink-muted); font:700 10px/1.4 ui-monospace,monospace; letter-spacing:.09em; text-transform:uppercase; }
+.kpi-disclosure-list { margin:6px 0 0; padding-left:18px; }
+.kpi-disclosure-item { margin:5px 0 0; font-size:12px; line-height:1.55; overflow-wrap:anywhere; }
 
 .finops-panel { margin-top:24px; border:1px solid var(--panel-border); border-radius:18px; padding:30px; background:rgba(255,255,255,.68); box-shadow:0 14px 40px rgba(38,38,31,.04); }
 
@@ -1405,9 +1427,19 @@
   .local-lead-detail::details-content,
   .local-provenance-detail::details-content,
   .panel-status-detail::details-content,
+  .kpi-disclosure::details-content,
   .local-disclosures details::details-content { content-visibility:visible; block-size:auto; }
   .local-lead-detail>*,.local-provenance-detail>*,.panel-status-detail>*,
-  .local-disclosures details>* { display:revert; }
+  .kpi-disclosure>*,.local-disclosures details>* { display:revert; }
+  /* The peer method and its supporting metrics print with the position they
+     qualify: a briefing that carries a percentile and drops the cohort it was
+     measured in is the claim this panel exists not to make. */
+  .kpi-disclosure>summary {
+    display:block; padding:0; list-style:none; color:#171713;
+    font:700 10px/1.6 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase;
+  }
+  .kpi-disclosure>summary::marker { content:""; }
+  .kpi-disclosure>summary::-webkit-details-marker { display:none; }
   /* A panel's state and its provenance travel with the panel onto paper. A
      printed briefing whose figures lost the count, period, coverage, and
      confidence behind them is a claim again — and one whose status chip was

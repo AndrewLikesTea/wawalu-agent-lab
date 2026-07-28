@@ -52,6 +52,11 @@ export async function verifyArtifact(root) {
     "post.html", "post-page.js", "post-detail.js",
     "evolution.html", "evolution-page.js", "evolution.css",
     "finops-panel-contract.js", "finops-panel-contract-view.js", "panel-status-view.js",
+    // The imported briefing's peer position is evaluated and qualified across
+    // these three modules. If any one is absent, the browser rejects the entry
+    // module before painting the unavailable state, so this must fail before a
+    // Pages deployment rather than becoming a client-side blank panel.
+    "imported-executive-view.js", "imported-peer-benchmark.js", "peer-cohort-contract.js",
   ]);
   const paths = new Set(actual.map(({ path }) => path));
   for (const path of required) if (!paths.has(path)) throw new Error(`missing required UI asset: ${path}`);
