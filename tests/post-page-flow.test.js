@@ -103,7 +103,9 @@ test("an unknown id is named as a missing post, with the feed still the way out"
   const page = await openPostPage("?id=p-gone", seedOnly([SEED_POST]));
   try {
     assert.match(textOf(page.panel), /This post is unavailable/);
-    assert.match(textOf(page.panel), /It may have been removed, or the link may be incomplete\./);
+    assert.match(textOf(page.panel), /It may have been removed, or the link may be incomplete\. Browse Social to find another post\./);
+    // No post, no author: the h1 names the page rather than standing as "Post".
+    assert.equal(textOf(page.document.querySelector("#page-title")), "Post from Social");
     assert.doesNotMatch(textOf(page.panel), /couldn’t be loaded|Try again/);
     assert.equal(page.panel.querySelector(".detail-state-message").getAttribute("role"), "status");
     assert.equal(page.document.title, "Post unavailable · Shiplog");
@@ -146,7 +148,7 @@ test("a failed lookup says the load failed, and its retry re-runs the fetch and 
   });
   try {
     assert.match(textOf(page.panel), /Post couldn’t be loaded/);
-    assert.match(textOf(page.panel), /We couldn’t reach Social, so this post didn’t load\./);
+    assert.match(textOf(page.panel), /We couldn’t reach Social, so this post didn’t load\. Try again in a moment\./);
     // A failure, not an absence: the missing state's words must not appear here.
     assert.doesNotMatch(textOf(page.panel), /not found|may have been removed/i);
     assertOneExit(page, SOCIAL, "failed");
@@ -199,7 +201,10 @@ test("the loading state is one announced line in the post's region, and takes no
     assert.equal(panel.getAttribute("aria-busy"), "true");
     assert.equal(state.getAttribute("role"), "status", "the state is announced without stealing focus");
     assert.equal(page.document.activeElement, null, "nothing may take focus on load");
-    assert.equal(textOf(state), "Loading this post…");
+    assert.equal(textOf(state), "Loading this post from Social…");
+    // Nothing is named yet, so the h1 names the page — the same words a reader
+    // sees in the shipped markup before any script runs.
+    assert.equal(textOf(page.document.querySelector("#page-title")), "Post from Social");
     // A wait, not a second page: no state banner, no heading of its own, and no
     // placeholder block standing in for an image this post may not have.
     assert.equal(panel.querySelectorAll(".detail-state-message").length, 0);
