@@ -82,6 +82,18 @@
 .kpi-flag[hidden] { display:none; }
 .kpi-flag-shape { flex:none; font-weight:750; }
 .kpi[data-available="false"] .kpi-value { margin-top:6px; font-size:17px; letter-spacing:0; color:var(--state-warn-ink); }
+/* The one prioritized peer finding, under the percentile it follows from. The
+   rule on the leading edge is the shape channel, so an import that is behind its
+   cohort still reads as a call to act in monochrome and at 200% zoom, where the
+   only other signal would be a colour nobody can see. */
+.kpi-finding { border-left:3px solid var(--ink-muted); margin:12px 0 0; padding:2px 0 2px 11px; }
+.kpi-finding[hidden] { display:none; }
+.kpi-finding[data-peer-standing="behind_cohort"] { border-left-color:var(--state-warn-line); }
+.kpi-finding-heading { margin:0; color:var(--ink-muted); font:700 10px/1.4 ui-monospace,monospace; letter-spacing:.09em; text-transform:uppercase; }
+.kpi-finding-gap { margin:6px 0 0; font-size:12px; line-height:1.5; overflow-wrap:anywhere; }
+.kpi-finding-action { margin:6px 0 0; font-size:13px; font-weight:650; line-height:1.5; overflow-wrap:anywhere; }
+.kpi-finding[data-peer-standing="behind_cohort"] .kpi-finding-action { color:var(--state-warn-ink); }
+.kpi-finding-evidence { margin:6px 0 0; color:var(--ink-muted); font-size:12px; line-height:1.5; overflow-wrap:anywhere; }
 
 .finops-panel { margin-top:24px; border:1px solid var(--panel-border); border-radius:18px; padding:30px; background:rgba(255,255,255,.68); box-shadow:0 14px 40px rgba(38,38,31,.04); }
 
