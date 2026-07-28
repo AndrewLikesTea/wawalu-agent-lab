@@ -2,9 +2,16 @@
 //
 // WHAT THIS READS
 // ---------------
-// Exactly the artifact `localFinopsJsonExport` writes, and nothing else:
+// Exactly the artifact the export button writes, and nothing else:
 //
 //   { exportedAt, dataset, briefingContractVersion, datasetNotice?, results }
+//
+// Those five keys are the whole of what this reader looks at. Since #386 the
+// writer is `briefingFile` in finops-briefing-export.js, which keeps all five
+// and adds `briefing`, `figures`, and `scenario` beside them for a reader that
+// wants the figures without rebuilding them. This one still rebuilds, because
+// re-selecting from `results` is what makes a restored briefing unable to say
+// something the live page would not have said.
 //
 // There is no second schema here. `results` is the analysis envelope the page
 // already computes, and the three above-the-fold slots are re-selected from it

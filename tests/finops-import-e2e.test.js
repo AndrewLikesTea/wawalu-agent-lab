@@ -21,6 +21,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { DomEvent, loadPage, pressEnter, pressKey, pressTab, tabSequence, textOf } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
+import { BRIEFING_FILE_VERSION } from "../src/finops-briefing-export.js";
 
 const PAGE = new URL("../src/evolution.html", import.meta.url);
 
@@ -244,9 +245,13 @@ test("a leader imports the example provider export and reaches a decision they c
       byId(document, "export-local-json").click();
       assert.equal(page.downloads.length, 1, "the export button must hand back exactly one file");
       const [download] = page.downloads;
-      assert.equal(download.filename, "local-finops-results.json");
+      assert.equal(download.filename, "local-finops-briefing.json");
       const record = JSON.parse(download.text);
       assert.equal(record.dataset, "user");
+      // The briefing the page showed travels in the file, not just the envelope
+      // it was selected from.
+      assert.equal(record.briefingFileVersion, BRIEFING_FILE_VERSION);
+      assert.equal(record.figures.recoverableSpend.value, record.results.recoverableUsd);
       assert.equal(record.results.spendUsd, JOINABLE.attributedSpendUsd,
         "the saved record's spend must equal the attributed spend the page showed");
       assert.match(record.results.topDepartment.name, /^Department …[0-9a-f]{6}$/);
@@ -452,7 +457,7 @@ test("un-mapping a required column in the wizard re-blocks the import", async (t
 // ---------------------------------------------------------------------------
 
 /** Hand the reopen control a file, through the same File API a picker uses. */
-function chooseBriefing(document, text, { name = "local-finops-results.json", size } = {}) {
+function chooseBriefing(document, text, { name = "local-finops-briefing.json", size } = {}) {
   const input = byId(document, "reopen-briefing-file");
   input.files = [{
     name, type: "application/json", size: size ?? text.length, text: async () => text,
