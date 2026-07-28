@@ -1,8 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { cp, mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { cp, mkdtemp, readdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { resolve } from "node:path";
+import { relative, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { createManifest, verifyArtifact } from "../scripts/verify-build.mjs";
 import {
   SAMPLE_DECISION_ID,
@@ -174,8 +175,22 @@ test("the home page names every nav destination and says what each one does", as
 });
 
 test("no developer note leaks into the copy a visitor reads", async () => {
-  for (const file of ["index.html", "evolution.html"]) {
-    const html = await readFile(new URL(`../src/${file}`, import.meta.url), "utf8");
+  // Every shipped page, not a hand-kept list: the note that leaked onto the
+  // Agent observatory was written long after the two pages this guard first
+  // covered, so a new page has to inherit the rule rather than opt into it.
+  const entries = await readdir(new URL("../src/", import.meta.url), {
+    withFileTypes: true,
+    recursive: true,
+  });
+  const pages = entries.filter((entry) => entry.isFile() && entry.name.endsWith(".html"));
+  assert.ok(pages.length > 2, "the page sweep found no pages to check");
+
+  for (const page of pages) {
+    const path = resolve(page.parentPath, page.name);
+    // Named by route-relative path so a failure on /paint/ is not read as one
+    // on the home page.
+    const file = relative(fileURLToPath(new URL("../src/", import.meta.url)), path);
+    const html = await readFile(path, "utf8");
 
     // A raw tag inside a comment ends it early in the browser and paints the
     // rest of the note, plus its closing marker, as body text. Keep notes plain.
@@ -202,7 +217,7 @@ test("no developer note leaks into the copy a visitor reads", async () => {
     const text = parseHtml(html).body.textContent;
     assert.doesNotMatch(text, /-->/, `${file} paints a comment marker`);
     // The notes themselves, by their own words: a visitor may never read an
-    // instruction written for whoever edits these two pages, or a source path.
+    // instruction written for whoever edits a page, or a source path.
     assert.doesNotMatch(text, /src\/[a-z-]+\.html/, `${file} paints a source path`);
     assert.doesNotMatch(text, /They are literals on both pages/, `${file} paints an editing note`);
     assert.doesNotMatch(text, /was deliberately removed because/, `${file} paints an editing note`);
