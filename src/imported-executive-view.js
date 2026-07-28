@@ -46,7 +46,7 @@ import { QUERY_CATEGORIES, formatCount, formatPercent, formatUsd } from "./evolu
 import { CORPUS_NOT_GRADEABLE } from "./imported-corpus-grade.js";
 import { MIN_SCORED_PROMPTS, PANELS_BY_ID, panelState } from "./finops-panel-contract.js";
 
-export const IMPORTED_EXECUTIVE_VIEW_VERSION = "imported-executive-view/1.1.0";
+export const IMPORTED_EXECUTIVE_VIEW_VERSION = "imported-executive-view/1.2.0";
 
 /** The panels whose figures this module writes, named once. */
 export const VALUE_PANEL = Object.freeze({
@@ -347,6 +347,7 @@ function peerCard(peer, { scored, period, attributedShare }) {
       value: UNMEASURED,
       note: PEER_NOTE,
       provenance: null,
+      finding: null,
       unavailable: requirementGap(VALUE_PANEL.peer, "peerCohortRecords"),
     });
   }
@@ -357,6 +358,9 @@ function peerCard(peer, { scored, period, attributedShare }) {
       value: UNMEASURED,
       note: peer.unavailable.need,
       provenance: null,
+      // A refused comparison has no gap to state and no action to take. The
+      // reason and what to supply are already on the card's note.
+      finding: null,
       unavailable: Object.freeze({
         panel: VALUE_PANEL.peer,
         reason: peer.unavailable.reason,
@@ -375,7 +379,42 @@ function peerCard(peer, { scored, period, attributedShare }) {
     provenance: valueProvenance({
       sourceRecords: scored, unit: SOURCE_UNIT.scoredQuery, period, attributedShare,
     }),
+    finding: peerFindingCopy(peer),
     unavailable: null,
+  });
+}
+
+/**
+ * The peer finding, as the three lines the card shows under the percentile.
+ *
+ * WHY THIS EXISTS. The benchmark has always selected one action and published it
+ * on the result; nothing rendered it, so a leader whose import was behind its
+ * cohort read a percentile, a quartile and a cohort name — and no next step.
+ * The gap answered "where are we" and the panel then stopped one sentence short
+ * of "so what do we do", which is the only sentence a briefing is read for.
+ *
+ * Nothing below is authored here. The gap sentence, the action and the evidence
+ * are the finding's own strings; this function decides which of them appear on a
+ * card and in what order, and nothing else. A finding that is unavailable — no
+ * benchmark, a refused one, or one with no comparable metric — returns null, and
+ * the card's note already carries that refusal in the contract's own words.
+ */
+function peerFindingCopy(peer) {
+  const finding = peer?.finding ?? null;
+  if (!finding?.available) return null;
+  const evidence = [`Accountable: ${finding.action.accountableRole}`, finding.evidenceText]
+    .filter(Boolean).join(" · ");
+  return Object.freeze({
+    standing: finding.standing,
+    behind: finding.behind,
+    // Always present on an available finding: the action's own metric is one of
+    // the comparisons the action was selected from.
+    gap: finding.gap?.text ?? "",
+    action: finding.action.text,
+    // The role that owns the step, then the import's own money behind it — never
+    // the cohort's, which is published reference data and not evidence about the
+    // reader's file.
+    evidence,
   });
 }
 
@@ -545,6 +584,32 @@ export function importedExecutiveFigures(grade, analysis = {}) {
   });
 }
 
+/** The three nodes the peer finding is written into, cleared as a set. */
+const PEER_FINDING_SLOTS = Object.freeze([
+  ["kpi-peer-gap", "gap"], ["kpi-peer-action", "action"], ["kpi-peer-evidence", "evidence"],
+]);
+
+/**
+ * Write the peer finding under the percentile, or take it down.
+ *
+ * The block is hidden as a whole rather than emptied in place: three blank
+ * paragraphs under a heading that promises a next step read as a step that
+ * failed to load. Its text is cleared too, so a stale action from a previous
+ * import cannot be read out of the DOM by anything that ignores `hidden`.
+ *
+ * @returns the finding that was written, or null when there was none.
+ */
+function applyPeerFinding(doc, card) {
+  const finding = card?.finding ?? null;
+  const block = byId(doc, "kpi-peer-finding");
+  if (block) {
+    block.hidden = !finding;
+    setData(block, "peerStanding", finding?.standing ?? null);
+  }
+  for (const [id, key] of PEER_FINDING_SLOTS) setText(doc, id, finding ? finding[key] : "");
+  return finding;
+}
+
 /**
  * Write the hero card and the KPI row.
  *
@@ -586,6 +651,7 @@ export function applyImportedExecutive(doc, figures, { band = () => "review" } =
     // a card the import could not fill still reads as unfilled in monochrome.
     show(doc, `${slot}-flag`, !kpi.available);
   }
+  applyPeerFinding(doc, figures.kpis.find((kpi) => kpi.key === "peer") ?? null);
   // The bundled-sample caption above the row is no longer true of these four
   // numbers. The reader's own provenance line beside it was already painted by
   // the graded surface; leaving both up says the row is two things at once.
@@ -598,6 +664,9 @@ export function applyImportedExecutive(doc, figures, { band = () => "review" } =
 /** Hand the row's caption back when the page returns to the bundled sample. */
 export function clearImportedExecutive(doc) {
   show(doc, "headline-basis", true);
+  // The finding was computed from the import's own cohort placement and its own
+  // recoverable total. Neither is true of the bundled sample, so it goes with it.
+  applyPeerFinding(doc, null);
   const row = byId(doc, "kpi-row");
   if (row) row.dataset.source = "sample";
   const card = byId(doc, "score-card");

@@ -138,6 +138,29 @@ high-value share because it is already denominated in dollars on this period's
 invoice. A benchmark that is unavailable publishes **no** action — a suggestion
 with no measurement under it is not an action.
 
+## The imported finding, and where the action is rendered
+
+`imported-peer-benchmark.js` joins the selected action to the import it was
+computed from and publishes it as `result.finding`:
+
+| Field | What it holds |
+| --- | --- |
+| `standing` | `behind_cohort` or `at_or_above_cohort`, from the action's id |
+| `gap` | the comparison **the action names** — value, cohort median, quartile, and the contract's own distance-to-median phrase |
+| `action` | the contract's action, repeated verbatim: text, gap, accountable role |
+| `evidence` | the import's own savings figures, repeated: recoverable total, largest recoverable unit, and the analysis's own next step |
+
+The gap is reported against the action's metric, not against the headline: a
+`capture_recoverable_gap` action states recoverable share, so the sentence and
+the next step name one measurement.
+
+The finding is **rendered**, not merely returned. `applyImportedExecutive`
+writes it into `#kpi-peer-finding` under the percentile — gap, action, and
+accountable role plus evidence. A comparison that recommends one thing in a
+result object and shows nothing on screen is the defect this contract's
+consumer is tested against; the block is hidden and its text cleared whenever
+there is no available finding, so no stale action survives a cleared import.
+
 ## Deliberate omissions
 
 - No cohort built from visitor data. A cohort a reader's import can move is a
