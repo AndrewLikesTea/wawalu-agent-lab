@@ -1,0 +1,49 @@
+{
+  "fixtureId": "at-threshold-corpus",
+  "label": "Exactly the declared floor: 25 scored prompts, graded, at the lowest named confidence.",
+  "boundary": "This is the boundary case. The floor is read with >=, so 25 grades and 24 does not; see below-threshold-corpus.json for the record on the other side of the same line.",
+  "authoredAgainst": {
+    "rubricVersion": "1.0.0",
+    "eligibilityFloor": 25,
+    "classifiedShareFloor": 0.6,
+    "axisWeightPercent": {"intent": 50, "efficiency": 30, "modelFit": 20},
+    "categoryScoreWeight": {"highValue": 100, "overProvisioned": 55, "inefficient": 35, "outOfScope": 0},
+    "confidenceFloorMultiple": {"high": 4, "moderate": 2, "low": 1},
+    "why": "Every expected value below was derived by hand from exactly these numbers. If one of them changes, this file is wrong until a person re-derives it — that is the whole reason the numbers are copied here rather than read from the modules."
+  },
+  "expectedValuesAreHandAuthored": "Composite = (15x100 + 5x55 + 5x35) / 25 = (1500 + 275 + 175) / 25 = 78, which is a C (>= 70). Intent = (15x100 + 5x80 + 5x50) / 25 = 86. Efficiency = (15x100 + 5x50 + 5x0) / 25 = 70. Model fit = (15x100 + 5x0 + 5x50) / 25 = 70. Recomposed: (50x86 + 30x70 + 20x70) / 100 = 78. Confidence = 25 scored / 25 floor = 1.00x, which clears the low tier and no other. Nothing here was produced by calling the module.",
+  "corpus": [
+    {"category": "highValue", "records": 15},
+    {"category": "overProvisioned", "records": 5},
+    {"category": "inefficient", "records": 5}
+  ],
+  "expected": {
+    "version": "imported-corpus-grade/1.0.0",
+    "rubricVersionId": "literacy-mix/1.0.0",
+    "gradeable": true,
+    "grade": "C",
+    "composite": 78,
+    "reason": null,
+    "confidence": {
+      "level": "low",
+      "label": "Low confidence",
+      "basis": {
+        "scoredRecords": 25,
+        "minScoredRecords": 25,
+        "floorMultiple": 1,
+        "arithmetic": "25 scored records / 25 declared floor = 1.00x",
+        "classifiedShare": 1,
+        "classifiedShareFloor": 0.6,
+        "downgradedForClassifiedShare": false
+      }
+    },
+    "records": {"source": 25, "scored": 25, "unclassified": 0, "classifiedShare": 1},
+    "eligibility": {"minScoredRecords": 25, "comparison": ">=", "observed": 25, "met": true},
+    "score": {
+      "composite": 78,
+      "grade": "C",
+      "subscores": {"intent": 86, "efficiency": 70, "modelFit": 70},
+      "records": {"total": 25, "scored": 25, "unclassified": 0}
+    }
+  }
+}
