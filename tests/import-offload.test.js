@@ -15,7 +15,8 @@ import {
 } from "../src/import-offload.js";
 import { createImportWorkerSession, IMPORT_MESSAGES } from "../src/import-worker-core.js";
 import {
-  IMPORT_LIMITS, MAX_IMPORT_BYTES, MAX_IMPORT_ROWS, importLimitsSentence,
+  checkFileSelectionCeiling, IMPORT_LIMITS, MAX_IMPORT_BYTES, MAX_IMPORT_FILES,
+  MAX_IMPORT_ROWS, MAX_IMPORT_SELECTION_BYTES, importLimitsSentence, safeDisplayFileName,
 } from "../src/import-limits.js";
 import { parseLocalImportFile } from "../src/finops-tabular-import.js";
 import { MAX_DELIMITED_BYTES, MAX_DELIMITED_ROWS } from "../src/delimited-text.js";
@@ -283,6 +284,31 @@ test("the size ceiling is refused before any work starts, naming limit and obser
   assert.equal(checkImportCeiling(Number.NaN), null);
 });
 
+test("one picker selection is bounded before its files are decoded", () => {
+  const tooMany = Array.from({ length: MAX_IMPORT_FILES + 1 }, () => ({ size: 1 }));
+  assert.equal(checkFileSelectionCeiling(tooMany).code, "too_many_files");
+
+  const tooLarge = [
+    { size: MAX_IMPORT_BYTES },
+    { size: MAX_IMPORT_BYTES },
+    { size: 1 },
+  ];
+  assert.equal(checkFileSelectionCeiling(tooLarge).code, "selection_too_large");
+  assert.equal(checkFileSelectionCeiling([
+    { size: MAX_IMPORT_BYTES },
+    { size: MAX_IMPORT_SELECTION_BYTES - MAX_IMPORT_BYTES },
+  ]), null, "the aggregate ceiling is inclusive");
+});
+
+test("displayed filenames cannot reorder or hide their extension", () => {
+  const shown = safeDisplayFileName("quarterly\u202Efdp.csv\u0000");
+  assert.equal(shown, "quarterly\uFFFDfdp.csv\uFFFD");
+  assert.doesNotMatch(shown,
+    /[\u0000-\u001f\u007f-\u009f\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/u);
+  assert.equal(safeDisplayFileName("\u202E"), "\uFFFD");
+  assert.equal(safeDisplayFileName("usage.csv"), "usage.csv");
+});
+
 test("the row ceiling fails the import whole and surfaces no partial total", async () => {
   const header = "date,project_name,model,amount,currency";
   const rows = Array.from({ length: MAX_IMPORT_ROWS },
@@ -311,7 +337,12 @@ test("the row ceiling fails the import whole and surfaces no partial total", asy
 test("the ceilings are defined once and the copy is rendered from them", () => {
   assert.equal(MAX_IMPORT_BYTES, MAX_DELIMITED_BYTES);
   assert.equal(MAX_IMPORT_ROWS, MAX_DELIMITED_ROWS);
-  assert.deepEqual(IMPORT_LIMITS, { maxBytes: MAX_IMPORT_BYTES, maxRows: MAX_IMPORT_ROWS });
+  assert.deepEqual(IMPORT_LIMITS, {
+    maxBytes: MAX_IMPORT_BYTES,
+    maxRows: MAX_IMPORT_ROWS,
+    maxFiles: MAX_IMPORT_FILES,
+    maxSelectionBytes: MAX_IMPORT_SELECTION_BYTES,
+  });
   const sentence = importLimitsSentence();
   assert.match(sentence, /8 MB/);
   assert.match(sentence, /50,000 rows/);
