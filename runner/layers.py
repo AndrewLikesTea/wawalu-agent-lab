@@ -200,6 +200,17 @@ def planner_order(workers: list[str], now: float | None = None) -> list[str]:
     return sorted(workers, key=lambda worker: _planner_capacity.get(worker, 0.0) > moment)
 
 
+def argv_safe(text: str) -> str:
+    """Return text that can survive being handed to a CLI as one argument.
+
+    A diff that touches a binary fixture carries NUL bytes, and a NUL cannot
+    live in an argv string: subprocess raises ValueError before the planner is
+    ever reached, which fails an otherwise finished run at the review step.
+    Dropping the bytes costs the planner nothing it could have read anyway.
+    """
+    return text.replace("\0", "")
+
+
 def qwen_json(prompt: str, output_path: pathlib.Path,
               schema: dict[str, Any]) -> dict[str, Any]:
     """Return structured planning output from a frontier planner.
@@ -209,6 +220,7 @@ def qwen_json(prompt: str, output_path: pathlib.Path,
     Claude is the capacity fallback; both are asked to return exactly the same
     JSON schema that the validation layer already enforces.
     """
+    prompt = argv_safe(prompt)
     planner_prompt = f"""You are the planning and review layer for a synthetic engineering team.
 Return only one JSON object that conforms exactly to this JSON Schema. Do not use
 Markdown fences, explanations, shell commands, or tools.
@@ -584,6 +596,7 @@ def prepare_claude_settings(run_dir: pathlib.Path, token: str,
 
 def run_worker(worker: str, prompt: str, worktree: pathlib.Path, run_dir: pathlib.Path,
                persona: str, token: str, ingest_endpoint: str, log_label: str = "") -> int:
+    prompt = argv_safe(prompt)
     env = os.environ.copy()
     env.update({"WAWALU_SIMULATION": "1", "WAWALU_SIMULATION_PERSONA": persona})
     if worker == "codex":
@@ -997,6 +1010,7 @@ Owner directive:
 Product charter:
 {product}
 """
+    prompt = argv_safe(prompt)
     env = os.environ.copy()
     env.update({"WAWALU_SIMULATION": "1", "WAWALU_SIMULATION_PERSONA": "manager"})
     output_path = run_dir / f"{worker}-next-ideas.txt"
