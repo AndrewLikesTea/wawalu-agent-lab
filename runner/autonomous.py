@@ -774,6 +774,7 @@ def ensure_labels(token: str, ready_label: str) -> None:
         ready_label: ("2f81f7", "Queued for the autonomous synthetic team"),
         "agent-running": ("d4a72c", "A synthetic worker is executing this issue"),
         "agent-blocked": ("d73a4a", "Autonomous execution needs attention"),
+        "needs-human": ("a2185c", "Cumulative worker sessions exhausted; needs a human to split the work"),
         "persona:backend": ("6f42c1", "Assigned to Rowan"),
         "persona:frontend": ("9b59b6", "Assigned to Mina"),
         "persona:infrastructure": ("596b31", "Assigned to Ellis"),
@@ -1128,6 +1129,7 @@ def requeue_conflicted_pull(pull: dict[str, Any], token: str, config: dict[str, 
         conflicts = int(record.get("conflict_requeues", 0)) + 1
         exhausted = conflicts > int(config.get("max_conflict_requeues", 2))
         record["conflict_requeues"] = conflicts
+        record["total_runs"] = int(record.get("total_runs", record.get("attempts", 0)))
         record.update({"status": "blocked", "blocked_at": utc_now().isoformat()} if exhausted else
                       {"status": "requeued", "requeued_at": utc_now().isoformat(), "attempts": 0})
     if exhausted:
@@ -1142,6 +1144,8 @@ def requeue_conflicted_pull(pull: dict[str, Any], token: str, config: dict[str, 
             f"Pull request #{pull_number} conflicted with `main` after other work merged, so it "
             "was closed. This issue returns to the queue for a fresh implementation on current `main`.")
     journal.emit("pr_conflict_requeued", pull=pull_number, issue=issue_number, branch=branch)
+    journal.emit("requeue", issue=issue_number, reason="pr_conflict", pull=pull_number,
+                 conflict_requeues=conflicts)
     return True
 
 
@@ -1295,6 +1299,7 @@ def choose_issue(issues: list[dict[str, Any]], state: State, config: dict[str, A
                  now: dt.datetime, active: dict[int, str] | None = None) -> dict[str, Any] | None:
     cooldown = int(config["retry_cooldown_seconds"])
     max_attempts = int(config["max_attempts"])
+    max_total_runs = int(config.get("max_total_runs", 6))
     open_numbers = {int(issue["number"]) for issue in issues}
     active = active or {}
     busy_personas = set(active.values())
@@ -1322,6 +1327,11 @@ def choose_issue(issues: list[dict[str, Any]], state: State, config: dict[str, A
         if record.get("status") in {"submitted", "blocked"}:
             continue
         if int(record.get("attempts", 0)) >= max_attempts:
+            continue
+        # max_attempts bounds one record; a requeue resets it, so an issue that keeps
+        # earning rejections can be recycled indefinitely. This ceiling is cumulative
+        # and no requeue clears it: past it the issue needs a human to split it up.
+        if int(record.get("total_runs", record.get("attempts", 0))) >= max_total_runs:
             continue
         retry_at = record.get("retry_at")
         if retry_at and dt.datetime.fromisoformat(retry_at) > now:
@@ -1425,8 +1435,14 @@ def execute_issue(issue: dict[str, Any], config: dict[str, Any], state: State,
     with state.mutate():
         record = state.value["issues"].setdefault(str(number), {})
         attempt = int(record.get("attempts", 0)) + 1
+        # attempts is per-record and any requeue resets it to zero; total_runs is the
+        # cumulative count of paid worker sessions this issue has ever consumed and
+        # survives every reset. Seed it from attempts so records written before this
+        # counter existed do not start over at one.
+        total_runs = int(record.get("total_runs", record.get("attempts", 0))) + 1
         record.update({"status": "running", "persona": persona,
                        "attempts": attempt,
+                       "total_runs": total_runs,
                        "started_at": utc_now().isoformat()})
         prior_rejection = str(record.get("review_feedback") or "")
         state.record_run()
@@ -1461,7 +1477,14 @@ def execute_issue(issue: dict[str, Any], config: dict[str, Any], state: State,
     worktree = ROOT / ".agent" / "worktrees" / f"{persona}-{scenario_slug}"
     replace_state_label(token, issue, config["issue_label"], "agent-running", keep_ready=True)
     comment(token, number, "planning", f"Sam assigned this issue to **{persona}**. Qwen is preparing the implementation handoff.")
-    journal.emit("run_started", issue=number, persona=persona)
+    if total_runs > attempt:
+        # The attempt counter is behind the cumulative count, so something reset this
+        # record — the conflict requeue below, or an operator editing state.json by
+        # hand. Either way the reset itself never reached the journal, which is how an
+        # issue silently burned six paid sessions under a max_attempts of three. Say so.
+        journal.emit("requeue", issue=number, persona=persona, attempts=attempt,
+                     total_runs=total_runs, detected_at="run_start")
+    journal.emit("run_started", issue=number, persona=persona, attempts=attempt, total_runs=total_runs)
     command = [sys.executable, "-m", "runner.orchestrator", "run", persona,
                str(scenario_path.relative_to(ROOT)), "--push", "--worker", requested_worker]
     exit_code = run_worker_process(
@@ -1592,6 +1615,7 @@ def record_run_outcome(exit_code: int, issue: dict[str, Any], number: int, perso
         # whole queue by exhausting max_attempts on every issue it touches.
         with state.mutate():
             record = state.value["issues"].setdefault(str(number), {})
+            record["total_runs"] = max(int(record.get("total_runs", 1)) - 1, 0)
             record.update({"status": "retry", "attempts": max(int(record.get("attempts", 1)) - 1, 0),
                            "retry_at": (utc_now() + dt.timedelta(
                                seconds=int(config.get("retry_cooldown_seconds", 60)))).isoformat()})
@@ -1606,6 +1630,7 @@ def record_run_outcome(exit_code: int, issue: dict[str, Any], number: int, perso
         # outage is transient and switching providers does not help, so retry plainly.
         with state.mutate():
             record = state.value["issues"].setdefault(str(number), {})
+            record["total_runs"] = max(int(record.get("total_runs", 1)) - 1, 0)
             record.update({"status": "retry", "attempts": max(int(record.get("attempts", 1)) - 1, 0),
                            "retry_at": (utc_now() + dt.timedelta(
                                seconds=int(config.get("retry_cooldown_seconds", 60)))).isoformat()})
@@ -1631,6 +1656,7 @@ def record_run_outcome(exit_code: int, issue: dict[str, Any], number: int, perso
                         int(config.get("capacity_retry_max_seconds", 18000)))
             if alternate_ready:
                 delay = min(delay, int(config.get("retry_cooldown_seconds", 300)))
+            record["total_runs"] = max(int(record.get("total_runs", 1)) - 1, 0)
             record.update({"status": "retry", "attempts": int(record.get("attempts", 1)) - 1,
                            "capacity_failures": failures, "worker_override": alternate,
                            "retry_at": (utc_now() + dt.timedelta(seconds=delay)).isoformat()})
@@ -1660,15 +1686,28 @@ def record_run_outcome(exit_code: int, issue: dict[str, Any], number: int, perso
         with state.mutate():
             record = state.value["issues"].setdefault(str(number), {})
             attempts = int(record.get("attempts", 1))
-            blocked = attempts >= int(config["max_attempts"])
+            total_runs = int(record.get("total_runs", attempts))
+            exhausted_sessions = total_runs >= int(config.get("max_total_runs", 6))
+            blocked = attempts >= int(config["max_attempts"]) or exhausted_sessions
             record["status"] = "blocked" if blocked else "retry"
             if rejection:
                 record["review_feedback"] = rejection
             if not blocked:
                 record["retry_at"] = (utc_now() + dt.timedelta(seconds=int(config["retry_cooldown_seconds"]))).isoformat()
         journal.emit("run_failed", issue=number, persona=persona, exit_code=exit_code, attempts=attempts,
-                     carried_review_feedback=bool(rejection))
-        if blocked:
+                     total_runs=total_runs, carried_review_feedback=bool(rejection),
+                     sessions_exhausted=exhausted_sessions)
+        if exhausted_sessions:
+            # Requeuing past this point buys nothing: the issue has already been handed
+            # to a worker more times than any single record is allowed, and each pass
+            # spends a paid session. It is not a flaky run, it is a task that needs
+            # splitting, so it stops here and says so rather than recycling again.
+            tell("comment", lambda: comment(token, number, "needs human",
+                 f"This issue has consumed {total_runs} worker sessions across requeues "
+                 f"(cumulative limit {int(config.get('max_total_runs', 6))}). Sam will not retry "
+                 f"it again — it likely needs to be split into smaller issues. Exit code: `{exit_code}`."))
+            tell("label", lambda: replace_state_label(token, issue, config["issue_label"], "needs-human", keep_ready=False))
+        elif blocked:
             tell("comment", lambda: comment(token, number, "blocked", f"The run failed {attempts} times and needs human attention. Exit code: `{exit_code}`."))
             tell("label", lambda: replace_state_label(token, issue, config["issue_label"], "agent-blocked", keep_ready=False))
         else:
