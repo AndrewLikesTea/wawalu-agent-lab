@@ -110,6 +110,8 @@ import { gradeImportedCorpus } from "/imported-corpus-grade.js";
 import {
   applyImportedExecutive, clearImportedExecutive, importedExecutiveFigures,
 } from "/imported-executive-view.js";
+import { importedPeerBenchmark } from "/imported-peer-benchmark.js";
+import { PEER_COHORT_PROVENANCE } from "/peer-cohort-contract.js";
 import {
   FINOPS_IMPORT_STATUS, finopsProvenanceModel, promptImportFacts,
 } from "/finops-provenance-model.js";
@@ -696,6 +698,13 @@ function mountLocalFinopsImport() {
       attributedShare,
       scoredPrompts: verdict.classifiedPrompts,
       gradedDepartments: verdict.departmentsCovered,
+      // The published cohort this import selected, if any. The panel and the KPI
+      // card read the same evaluation, so one cannot publish a percentile while
+      // the other says no cohort applies.
+      peerCohortRecords: (() => {
+        const peer = importedPeer();
+        return peer.available ? peer.cohort.memberCount : 0;
+      })(),
     });
   };
   const executivePanelFacts = () => {
@@ -778,6 +787,7 @@ function mountLocalFinopsImport() {
         ? { fileName: provenance.files.join(", "), rows: provenance.rows } : null,
       coaching: verdict.nextAction?.kind === "coach_department" && verdict.nextAction.department
         ? { department: verdict.nextAction.department, score: verdict.nextAction.score } : null,
+      peer: provenance && result ? importedPeer() : null,
     }), { onReturnToSample: () => reset() });
   };
   const gradedModel = () => {
@@ -826,6 +836,17 @@ function mountLocalFinopsImport() {
    * numbers under the reader's own provenance line, which is the mislabelling
    * this wiring exists to end.
    */
+  /**
+   * This import's own peer comparison.
+   *
+   * Both inputs are the reader's own — the graded corpus and the local analysis
+   * — and the cohort is published reference data. The bundled seed's
+   * organization block and its hand-authored percentile are not read here, on
+   * either side.
+   */
+  const importedPeer = (analysis = result) => importedPeerBenchmark({
+    grade: importedCorpus(), analysis,
+  });
   const syncImportedFigures = ({ analysis = null, plausible = true, withheld = false, gradedMix = false } = {}) => {
     const figures = importedExecutiveFigures(importedCorpus(), {
       spendUsd: analysis?.spendUsd ?? null,
@@ -841,6 +862,10 @@ function mountLocalFinopsImport() {
       // the bundled seed's facts, which is what `examplePanelFacts` would give.
       facts: analysis ? importedRowFacts() : null,
       attributedShare: analysis ? attributedFraction : null,
+      // Evaluated from this import against the published cohorts. Null when
+      // there is no analysis to derive a segment from, so the card says no
+      // comparison was evaluated rather than inventing a refusal for one.
+      peer: analysis ? importedPeer(analysis) : null,
     });
     applyImportedExecutive(document, figures, { band });
     // One painter per state. The graded surface has already drawn its own mix
@@ -1749,8 +1774,13 @@ function renderHeadline(organization, totals, eligibility, departments = []) {
   // a reader scanning the four cards never has to ask if two words differ.
   setText("kpi-peer-value", trust.percentile.plausible
     ? `${organization.peerPercentile}th` : KPI_NEEDS_REVIEW);
+  // The cohort behind the bundled percentile is published synthetic reference
+  // data, and the note says so beside the figure rather than only in a method
+  // disclosure a reader has to open. One vocabulary with the imported card,
+  // which states the same provenance from the same contract.
   setText("kpi-peer-note", trust.percentile.plausible
     ? `${quartileLabel(organization.peerPercentile)} · ${organization?.peerCohort ?? "peer cohort"}`
+      + ` · ${PEER_COHORT_PROVENANCE.label}`
     : "Needs review · percentile must be between 0 and 100");
 }
 
@@ -1908,7 +1938,8 @@ function renderDecisionDetail(department, data) {
   setText("benchmark-method",
     `${benchmark.name ?? "Benchmark unavailable"} · ${benchmark.organizationCount ?? "–"} synthetic organizations · `
     + `${benchmark.segment ?? "segment unavailable"} · snapshot ${benchmark.snapshotDate ?? "unavailable"} · `
-    + `${benchmark.rubricVersion ?? "rubric unavailable"} · ${benchmark.provenance ?? provenance.label ?? "provenance unavailable"}`);
+    + `${benchmark.rubricVersion ?? "rubric unavailable"} · ${benchmark.provenance ?? provenance.label ?? "provenance unavailable"}`
+    + ` · ${PEER_COHORT_PROVENANCE.version} · ${PEER_COHORT_PROVENANCE.statement}`);
 
   const list = document.getElementById("department-evidence");
   list?.replaceChildren();

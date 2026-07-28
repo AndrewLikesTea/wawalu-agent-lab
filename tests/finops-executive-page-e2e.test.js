@@ -208,8 +208,11 @@ test("an import lands on the whole executive page, survives a replacement, and c
       assert.equal(states["spend-and-recovery"], "available");
       assert.equal(states["spend-mix"], "available");
       assert.equal(states["department-priority"], "available");
-      // The three an import genuinely cannot answer stay on the page and say so.
-      assert.equal(states["peer-benchmark"], "unavailable");
+      // This import attributes org units and carries a graded sample, so a
+      // published synthetic cohort applies to it and the comparison is the
+      // import's own. The cohort is reference data; the position in it is not.
+      assert.equal(states["peer-benchmark"], "available");
+      // The two an import genuinely cannot answer stay on the page and say so.
       assert.equal(states["savings-portfolio"], "unavailable");
       assert.equal(states["recommendation-evidence"], "unavailable");
     });
@@ -231,9 +234,24 @@ test("an import lands on the whole executive page, survives a replacement, and c
       const kpis = shownText(document, "kpi-row");
       assert.doesNotMatch(kpis, /178,760/, "the bundled spend total must not survive an import");
       assert.match(kpis, /\$446|\$444|\$546/, "the KPI row must show the imported spend total");
-      assert.equal(byId(document, "kpi-peer").dataset.available, "false",
-        "no import can produce a peer cohort, and the card must say so");
-      assert.equal(byId(document, "kpi-peer-flag").hidden, false);
+      assert.equal(byId(document, "kpi-peer").dataset.available, "true",
+        "a published cohort applies to this import, so the card must publish its position");
+      assert.equal(byId(document, "kpi-peer-flag").hidden, true);
+      assert.match(shownText(document, "kpi-peer"), /published synthetic peers/,
+        "the peer card must say the cohort behind it is published synthetic reference data");
+      assert.doesNotMatch(shownText(document, "kpi-peer"), /Enterprise SaaS/,
+        "the bundled seed's own cohort label must not survive an import");
+      assert.match(shownText(document, "cohort-comparison"), /percentile/,
+        "the inspectable comparison surface must agree with the imported KPI");
+      assert.match(shownText(document, "cohort-comparison-provenance"),
+        /finops-peer-cohort\/1\.0\.0/,
+        "the comparison surface must expose the published contract version");
+      assert.doesNotMatch(shownText(document, "cohort-comparison"), /stays the bundled cohort/,
+        "the legacy bundled-only explanation must not contradict the imported benchmark");
+      const method = shownText(document, "peer-benchmark-method");
+      assert.match(method, /half of ties/);
+      assert.match(method, /close for industry plus size, broad for size only/);
+      assert.match(method, /single prioritized action/);
 
       assert.equal(byId(document, "spend-mix-panel").hidden, false);
       assert.equal(byId(document, "mix-legend").children.length, 4,

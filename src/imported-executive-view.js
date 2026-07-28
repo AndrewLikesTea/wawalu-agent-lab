@@ -194,8 +194,11 @@ export const CORPUS_REFUSAL_COPY = Object.freeze({
 /** The words a KPI card carries when this import cannot fill it. */
 const UNMEASURED = "Not in this import";
 
-const PEER_NOTE = "No anonymized peer cohort can be built from your own files, and none ships for "
-  + "imported data.";
+// The note under the peer card when no benchmark was evaluated at all — the
+// caller handed no result over. A benchmark that WAS evaluated and refused says
+// so in its own words, from the peer-cohort contract, so a reader is never told
+// a generic sentence about a specific refusal.
+const PEER_NOTE = "No peer comparison was evaluated for this import.";
 
 const NO_PROVIDER_NOTE = "No provider period export in this import, so no spend total was computed.";
 
@@ -324,6 +327,59 @@ function nextConfidenceAction(grade) {
 }
 
 /**
+ * The peer card, from this import's own benchmark against a published cohort.
+ *
+ * The percentile, the quartile, the cohort and both labels are the peer-cohort
+ * contract's and are repeated here; nothing is re-ranked. A refused benchmark
+ * prints the contract's own reason, so the card and the panel beneath it cannot
+ * refuse for two different reasons.
+ *
+ * The provenance under a published percentile is the import's own scored-query
+ * count — the cohort's member count is a property of the published reference
+ * data, not evidence about the reader's file, and putting it in the provenance
+ * slot would read as "42 of your records".
+ */
+function peerCard(peer, { scored, period, attributedShare }) {
+  if (!peer) {
+    return Object.freeze({
+      key: "peer",
+      available: false,
+      value: UNMEASURED,
+      note: PEER_NOTE,
+      provenance: null,
+      unavailable: requirementGap(VALUE_PANEL.peer, "peerCohortRecords"),
+    });
+  }
+  if (!peer.available) {
+    return Object.freeze({
+      key: "peer",
+      available: false,
+      value: UNMEASURED,
+      note: peer.unavailable.need,
+      provenance: null,
+      unavailable: Object.freeze({
+        panel: VALUE_PANEL.peer,
+        reason: peer.unavailable.reason,
+        needLabel: peer.unavailable.needLabel,
+        need: peer.unavailable.need,
+        detail: peer.unavailable.detail ?? null,
+      }),
+    });
+  }
+  return Object.freeze({
+    key: "peer",
+    available: true,
+    value: `${peer.headline.percentile}th`,
+    note: `${peer.headline.quartileLabel} of ${peer.cohort.label} · ${peer.comparabilityLabel} · `
+      + `${peer.confidenceLabel} · ${formatCount(peer.cohort.memberCount)} published synthetic peers`,
+    provenance: valueProvenance({
+      sourceRecords: scored, unit: SOURCE_UNIT.scoredQuery, period, attributedShare,
+    }),
+    unavailable: null,
+  });
+}
+
+/**
  * The four KPI cards.
  *
  * Spend and recoverable are the analysis's own figures and are repeated, never
@@ -334,7 +390,7 @@ function nextConfidenceAction(grade) {
 export function importedKpiFigures(grade, {
   spendUsd = null, recoverableUsd = null, departments = 0, period = null,
   plausible = true, recoverableWithheld = false, withheldReason = "",
-  facts = null, attributedShare = null,
+  facts = null, attributedShare = null, peer = null,
 } = {}) {
   const spend = finite(spendUsd);
   const recoverable = finite(recoverableUsd);
@@ -422,16 +478,7 @@ export function importedKpiFigures(grade, {
       provenance: highValueGap ? null : corpusProvenance,
       unavailable: highValueGap,
     }),
-    // Never available for an import, and it says the same thing the panel's own
-    // sentence says: this one is not a step the reader can complete.
-    Object.freeze({
-      key: "peer",
-      available: false,
-      value: UNMEASURED,
-      note: PEER_NOTE,
-      provenance: null,
-      unavailable: requirementGap(VALUE_PANEL.peer, "peerCohortRecords"),
-    }),
+    peerCard(peer, { scored, period, attributedShare }),
   ]);
 }
 
