@@ -442,3 +442,203 @@ test("un-mapping a required column in the wizard re-blocks the import", async (t
     page.restore();
   }
 });
+
+// ---------------------------------------------------------------------------
+// Reopening a saved briefing (issue #388).
+//
+// The round trip is real on both ends: the file fed back into the reopen
+// control is the one the Export JSON button just handed out, produced by the
+// shipped export path from a genuine import. Nothing between the two is stubbed.
+// ---------------------------------------------------------------------------
+
+/** Hand the reopen control a file, through the same File API a picker uses. */
+function chooseBriefing(document, text, { name = "local-finops-results.json", size } = {}) {
+  const input = byId(document, "reopen-briefing-file");
+  input.files = [{
+    name, type: "application/json", size: size ?? text.length, text: async () => text,
+  }];
+  input.dispatchEvent(new DomEvent("change", { bubbles: true }));
+}
+
+/** Drive the shipped import all the way to a decision brief. */
+async function importJoinableExport(document) {
+  chooseFiles(document, [
+    { name: PROVIDER_FILE, text: JOINABLE_EXPORT },
+    { name: ROSTER_FILE, text: ORG_ROSTER },
+  ]);
+  await reviewOpens(document, PROVIDER_FILE);
+  byId(document, "import-mapping-confirm").click();
+  await reviewOpens(document, ROSTER_FILE);
+  byId(document, "import-mapping-confirm").click();
+  await waitFor(() => !byId(document, "local-results").hidden, "the decision brief to appear");
+}
+
+test("a leader reopens the briefing they exported and reads it beside the current analysis", async (t) => {
+  const page = await openFinopsTab();
+  const { document } = page;
+  try {
+    await importJoinableExport(document);
+    byId(document, "export-local-json").click();
+    const exported = page.downloads.at(-1).text;
+
+    await t.test("the exported file reopens read-only and says so", async () => {
+      chooseBriefing(document, exported);
+      await waitFor(() => !byId(document, "restored-briefing").hidden,
+        "the restored briefing region to appear");
+
+      const region = byId(document, "restored-briefing");
+      assert.equal(region.getAttribute("role"), "region");
+      assert.match(shownText(document, "restored-briefing-title"), /Restored briefing \(read-only\)/);
+      assert.match(textOf(region), /Reopened from a file · not the current analysis/);
+      // The window it observed is the file's own period, not today.
+      assert.match(shownText(document, "restored-briefing-captured"),
+        /^Observation window 2026-06-05 to 2026-06-07 · written \d{4}-\d{2}-\d{2} · /);
+      assert.match(shownText(document, "restored-briefing-coverage"), /confidence|coverage/i);
+      // It is not the live slot, and the live slot is untouched by it.
+      assert.notEqual(region, byId(document, "local-lead-finding"));
+      assert.equal(byId(document, "local-lead-finding").hidden, false,
+        "the imported result must still be on screen underneath its own heading");
+    });
+
+    await t.test("the load is announced politely and focus lands on the restored heading", () => {
+      assert.match(shownText(document, "local-import-state"), /Saved briefing reopened\./);
+      assert.equal(shownText(document, "local-import-alert"), "",
+        "a successful load must not speak from the assertive region as well");
+      assert.equal(document.activeElement?.id, "restored-briefing-title");
+    });
+
+    await t.test("the delta against the identical analysis reports no change, in words", () => {
+      const delta = byId(document, "restored-briefing-delta");
+      assert.equal(delta.hidden, false, "both a restored briefing and an analysis are present");
+      assert.equal(delta.dataset.comparable, "true");
+      assert.match(textOf(delta), /Observed spend unchanged at 444\.15 USD\./);
+      assert.match(textOf(delta), /Confidence grade unchanged at/);
+    });
+
+    await t.test("closing it takes the region away and returns focus to the control", () => {
+      byId(document, "restored-briefing-close").click();
+      assert.equal(byId(document, "restored-briefing").hidden, true);
+      assert.equal(document.activeElement?.id, "reopen-briefing-file");
+      assert.match(shownText(document, "local-import-state"), /Restored briefing closed\./);
+    });
+  } finally {
+    page.restore();
+  }
+});
+
+test("a malformed briefing is refused in one calm sentence and leaves nothing behind", async (t) => {
+  const page = await openFinopsTab();
+  const { document } = page;
+  try {
+    await importJoinableExport(document);
+    const before = shownText(document, "local-lead-metric");
+
+    await t.test("the reason names the fault and no markup reaches the page", async () => {
+      chooseBriefing(document, JSON.stringify({
+        exportedAt: "2026-07-01T00:00:00.000Z",
+        dataset: "user",
+        briefingContractVersion: "finops-briefing/1.0.0",
+        results: { note: "<img src=x onerror=\"globalThis.pwned=1\" data-payload=\"1\">" },
+      }));
+      await waitFor(() => !byId(document, "restored-briefing-error").hidden,
+        "the rejection sentence to appear");
+
+      const error = byId(document, "restored-briefing-error");
+      assert.match(textOf(error), /contains markup or a scheme URL/);
+      assert.doesNotMatch(textOf(error), /Error|at Object|undefined/);
+      assert.equal(byId(document, "reopen-briefing-file").getAttribute("aria-invalid"), "true");
+      assert.equal(globalThis.pwned, undefined);
+      assert.equal(document.querySelectorAll("img").filter((node) => node.hasAttribute("data-payload")).length, 0,
+        "nothing out of the file may become an element");
+    });
+
+    await t.test("no half-restored region is left on screen and the analysis is untouched", () => {
+      assert.equal(byId(document, "restored-briefing").hidden, true);
+      assert.equal(byId(document, "restored-briefing-metric").textContent, "");
+      assert.equal(shownText(document, "local-lead-metric"), before,
+        "a rejected file must not change a single figure in the live analysis");
+      assert.match(shownText(document, "local-import-alert"), /That briefing was not opened\./);
+      assert.equal(document.activeElement?.id, "restored-briefing-error",
+        "focus lands on the sentence that says what to do next, as the Shiplog importer does");
+    });
+  } finally {
+    page.restore();
+  }
+});
+
+test("reopening a briefing reaches no network and writes to no storage", async (t) => {
+  const page = await openFinopsTab();
+  const { document } = page;
+  const requests = [];
+  const writes = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url, ...rest) => {
+    requests.push(String(url));
+    return realFetch(url, ...rest);
+  };
+  const realSetItem = globalThis.localStorage.setItem;
+  globalThis.localStorage.setItem = (key, value) => {
+    writes.push(key);
+    return realSetItem.call(globalThis.localStorage, key, value);
+  };
+  try {
+    await importJoinableExport(document);
+    byId(document, "export-local-json").click();
+    const exported = page.downloads.at(-1).text;
+    requests.length = 0;
+    writes.length = 0;
+
+    await t.test("a successful load touches neither", async () => {
+      chooseBriefing(document, exported);
+      await waitFor(() => !byId(document, "restored-briefing").hidden, "the restored briefing");
+      assert.deepEqual(requests, [], `a load must not fetch; it requested ${requests.join(", ")}`);
+      assert.deepEqual(writes, [], `a load must not persist; it wrote ${writes.join(", ")}`);
+    });
+
+    await t.test("a rejected load touches neither", async () => {
+      chooseBriefing(document, "{ truncated");
+      await waitFor(() => !byId(document, "restored-briefing-error").hidden, "the rejection sentence");
+      assert.deepEqual(requests, []);
+      assert.deepEqual(writes, []);
+    });
+  } finally {
+    globalThis.fetch = realFetch;
+    globalThis.localStorage.setItem = realSetItem;
+    page.restore();
+  }
+});
+
+test("the reopen control and the restored region are operable on the keyboard alone", async (t) => {
+  const page = await openFinopsTab();
+  const { document } = page;
+  try {
+    await importJoinableExport(document);
+    byId(document, "export-local-json").click();
+    const exported = page.downloads.at(-1).text;
+
+    await t.test("the control is reachable by Tab and carries a real label", () => {
+      const input = tabTo(document, "reopen-briefing-file");
+      assert.equal(input.getAttribute("type"), "file");
+      const label = document.querySelectorAll("label")
+        .find((node) => node.getAttribute("for") === "reopen-briefing-file");
+      assert.equal(textOf(label), "Reopen a saved briefing");
+      assert.equal(input.getAttribute("placeholder"), null,
+        "the control is labelled programmatically, never by placeholder text");
+    });
+
+    await t.test("the restored region is discoverable by its accessible name", async () => {
+      chooseBriefing(document, exported);
+      await waitFor(() => !byId(document, "restored-briefing").hidden, "the restored briefing");
+      const region = byId(document, "restored-briefing");
+      const name = textOf(byId(document, region.getAttribute("aria-labelledby")));
+      assert.match(name, /Restored/, "the region's accessible name must say it is restored");
+      // And its own control is on the Tab path once it is open.
+      const close = tabTo(document, "restored-briefing-close");
+      assert.equal(close.id, "restored-briefing-close");
+      pressEnter(document);
+      assert.equal(byId(document, "restored-briefing").hidden, true);
+    });
+  } finally {
+    page.restore();
+  }
+});

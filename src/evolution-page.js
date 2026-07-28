@@ -44,9 +44,9 @@ import { headlineTrust } from "/finops-display.js";
 import { gradeEligibility } from "/grade-eligibility.js";
 import {
   announce as announceStage, applyDatasetProvenance, applyFieldDiagnostic, applyImportLimits,
-  applyBriefing, applyImportProgress, applyMetricBasis, applyRequirements, applyStage,
-  applyTrustVerdict, diagnosticFor, EXAMPLE_DATASET_PROVENANCE, focusStageHeading, importStage,
-  metricBasis, userDatasetProvenance,
+  applyBriefing, applyImportProgress, applyMetricBasis, applyRequirements, applyRestoreRejection,
+  applyRestoredBriefing, applyStage, applyTrustVerdict, diagnosticFor, EXAMPLE_DATASET_PROVENANCE,
+  focusStageHeading, importStage, metricBasis, userDatasetProvenance,
 } from "/local-import-flow.js";
 // A leader's own graded sample. The rubric and the eligibility tier are both
 // upstream and unchanged here; `graded-sample-figures.js` only decides which of
@@ -76,6 +76,11 @@ import {
 // decide them for themselves. The month-over-month arithmetic still lives in
 // finops-leading-finding.js; the contract reads it rather than repeating it.
 import { buildFinopsBriefing } from "/finops-briefing-contract.js";
+// Reopening a briefing this page previously wrote. It consumes the artifact the
+// Export JSON button produces and nothing else, re-selects the slots through the
+// same contract above, and compares against the analysis on screen only where
+// the two are actually comparable.
+import { briefingDelta, parseSavedBriefing } from "/finops-briefing-restore.js";
 // The published attribution policy: three input states, one classification table,
 // two thresholds. Nothing on this page decides any of that for itself.
 import {
@@ -201,6 +206,14 @@ function mountLocalFinopsImport() {
   let queue = [];
   let review = null;
   let result = null;
+  // The briefing the live analysis last produced, kept so a restored briefing
+  // can be compared against exactly what is on screen rather than against a
+  // second selection made from the same envelope.
+  let currentBriefing = null;
+  // A briefing reopened from a file. Same lifetime as everything else in this
+  // closure: this tab, and no longer. Nothing about it is written to storage,
+  // the URL, or the network.
+  let restored = null;
   // The coverage the reader was last shown, so a recalculation can say what
   // moved. Null before the first analysis, which is what keeps the polite region
   // silent on initial load.
@@ -239,6 +252,23 @@ function mountLocalFinopsImport() {
   const announce = (state, title, copy) => announceStage(document, {
     severity: state === "error" ? "assertive" : "polite", state, title, copy,
   });
+
+  /**
+   * Repaint the restored briefing against whatever is on screen right now.
+   *
+   * Called after every analysis change as well as after a load, because the
+   * delta is a statement about a pair: the moment either side moves, the line
+   * either changes or has to disappear. With no restored briefing this clears
+   * the region, which is also how a rejected file leaves nothing behind.
+   */
+  function syncRestored() {
+    applyRestoredBriefing(document, restored && {
+      saved: restored,
+      delta: briefingDelta(restored, result
+        ? { dataset: exampleActive ? "example" : "user", result, briefing: currentBriefing }
+        : null),
+    });
+  }
 
   // The stage indicator and the requirement rows are the same fact told twice:
   // where the flow is, and what is still missing. Both repaint together so they
@@ -636,9 +666,14 @@ function mountLocalFinopsImport() {
     // The attribution decision made three lines up is handed to the contract
     // rather than re-derived by it: a figure this page withheld must not
     // reappear in the briefing built from the same analysis.
-    applyBriefing(document, buildFinopsBriefing(next, {
+    currentBriefing = buildFinopsBriefing(next, {
       attributionWithheld: attribution?.confidence === CONFIDENCE.SUPPRESSED,
-    }));
+    });
+    applyBriefing(document, currentBriefing);
+    // A restored briefing on screen gains — or loses — its delta line the
+    // moment the live analysis changes underneath it. Repainting here is what
+    // stops a delta from outliving the analysis it was computed against.
+    syncRestored();
     setText("local-department", next.topDepartment?.name ?? "Unavailable");
     // A withheld figure cannot carry the analysis's own confidence word beside
     // it: the attribution policy has already decided the number is not shown, so
@@ -746,8 +781,13 @@ function mountLocalFinopsImport() {
     closeMappingReview(document);
     if (remap) remap.hidden = true;
     result = null;
+    currentBriefing = null;
     exampleActive = false;
     coverageUpgrades = null;
+    // The restored briefing survives a clear — it is a file the visitor opened,
+    // not a product of the analysis — but its delta cannot: there is no longer
+    // anything on screen to compare it against.
+    syncRestored();
     // The attribution pair and the "what changed" summary go with the result
     // they described. A stale split beside a cleared figure is a claim about a
     // file that is no longer loaded.
@@ -1132,6 +1172,58 @@ function mountLocalFinopsImport() {
       "text/plain",
       exampleActive ? "example-finops-meeting-summary.txt" : "local-finops-meeting-summary.txt");
   });
+  // The reopen side of that same JSON file. It reads the selected file in this
+  // tab through the File API — no fetch, no XHR — parses it with the reader in
+  // finops-briefing-restore.js, and either paints a read-only region below the
+  // imported result or says in one calm sentence why it did not. Nothing is
+  // written to storage or the URL on either path, and the region is cleared
+  // before every attempt so a rejection can never leave half a briefing behind.
+  const reopenInput = document.getElementById("reopen-briefing-file");
+  reopenInput?.addEventListener("change", async () => {
+    const file = reopenInput.files?.[0];
+    restored = null;
+    applyRestoreRejection(document, null);
+    syncRestored();
+    if (!file) return;
+    // Size is checked against the ceiling before the bytes are read, so an
+    // oversized file is refused rather than pulled into memory to be refused.
+    let outcome = parseSavedBriefing(null, { byteSize: file.size });
+    if (outcome.code !== "file_too_large") {
+      let text = null;
+      try {
+        text = await file.text();
+      } catch {
+        text = null;
+      }
+      outcome = parseSavedBriefing(text, { byteSize: file.size });
+    }
+    // The picker is cleared either way, so choosing the same file twice is a
+    // second attempt rather than a silent no-op.
+    reopenInput.value = "";
+    if (!outcome.ok) {
+      applyRestoreRejection(document, outcome);
+      announce("error", "That briefing was not opened.", outcome.message);
+      // Same move the Shiplog importer makes: focus lands on the sentence that
+      // says what to do next, not past it.
+      document.getElementById("restored-briefing-error")?.focus?.({ preventScroll: true });
+      return;
+    }
+    restored = outcome.saved;
+    syncRestored();
+    announce("ready", "Saved briefing reopened.",
+      `It is shown read-only below the imported result and observes ${outcome.saved.period.label}. `
+      + "It was read in this tab, nothing was uploaded, and nothing on this page was replaced.");
+    document.getElementById("restored-briefing-title")?.focus?.({ preventScroll: true });
+  });
+  document.getElementById("restored-briefing-close")?.addEventListener("click", () => {
+    restored = null;
+    applyRestoreRejection(document, null);
+    syncRestored();
+    announce("ready", "Restored briefing closed.",
+      "The reopened file was discarded. Nothing about the imported result changed.");
+    reopenInput?.focus?.({ preventScroll: true });
+  });
+
   // Cold load: draw the first stage and the unresolved requirements before any
   // interaction, so the idle surface is a state rather than a blank.
   applyFieldDiagnostic(document, null);
