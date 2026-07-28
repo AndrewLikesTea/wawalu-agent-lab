@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="See exactly what Shiplog keeps in this browser, how sure the page is about it, and the one thing to do next." />
+    <title>Local workspace · Shiplog</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/local-workspace.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to main content</a>
+    <div class="page">
+      <header class="site-header">
+        <a class="brand" href="/"><span class="mark" aria-hidden="true"></span>Shiplog</a>
+        <nav class="site-nav" aria-label="Wawalu Labs">
+          <a aria-current="page" href="/">Decisions</a>
+          <span class="nav-group">
+            <a class="nav-social" href="/social.html">Social</a>
+            <a class="nav-profile" href="/profile.html">People</a>
+          </span>
+          <a href="/releases.html">Releases</a>
+          <a href="/paint/">Paint</a>
+          <a class="nav-evolution" href="/evolution.html">AI FinOps</a>
+          <a href="/agents.html">Agent observatory</a>
+        </nav>
+      </header>
+
+      <main id="main-content" tabindex="-1">
+      <section class="ws-hero" aria-labelledby="page-title">
+        <p class="eyebrow">Local workspace</p>
+        <h1 id="page-title">What this browser<br />is keeping</h1>
+        <p>Every decision and release you record lives in this browser and nowhere else. This page says what is there, how sure it is about that, and the one thing worth doing next.</p>
+      </section>
+
+      <!-- The boundary is static markup on purpose. A privacy claim that appears
+           only once a script succeeds is a claim a visitor cannot rely on, so
+           this paragraph is true before any module runs and stays true if none
+           ever does. -->
+      <section class="ws-boundary" aria-labelledby="ws-boundary-title">
+        <h2 id="ws-boundary-title">Everything below stays in this browser.</h2>
+        <p id="ws-boundary-body">Shiplog has no account and keeps no server-side copy. The decisions and releases you record are held in this browser's local storage, on this device, under the two keys named in “Where these numbers come from”. Nothing on this page is uploaded, and no cookie, analytics call, or telemetry reads it. Clearing this browser's site data — or erasing below — removes the records, and no copy survives anywhere else.</p>
+      </section>
+
+      <!-- One stable live region for every outcome. It carries the same sentence
+           the visible notice shows, so nothing is announced to one reader and
+           withheld from the other. -->
+      <p class="visually-hidden" id="ws-announcement" role="status" aria-live="polite"></p>
+
+      <div id="ws-panel" aria-busy="true">
+        <section class="ws-status" id="ws-status" aria-labelledby="ws-status-title">
+          <h2 id="ws-status-title">What is retained</h2>
+          <p class="ws-summary" id="ws-summary">Reading this browser's stored records…</p>
+          <dl class="ws-facts" id="ws-facts">
+            <div class="ws-fact"><dt>Storage</dt><dd>Not read yet</dd></div>
+            <div class="ws-fact"><dt>Retained</dt><dd>Counting…</dd></div>
+            <div class="ws-fact"><dt>Confidence</dt><dd>Not read yet</dd></div>
+          </dl>
+        </section>
+
+        <div id="ws-next">
+          <section class="ws-next-card" aria-labelledby="ws-next-loading-title" role="status">
+            <p class="eyebrow">Do this next</p>
+            <h2 class="ws-next-title" id="ws-next-loading-title">Reading this browser</h2>
+            <p class="ws-next-why">Counting the decisions and releases stored here, and checking whether every one of them can still be read. This page will name one thing to do as soon as it knows.</p>
+          </section>
+        </div>
+      </div>
+
+      <p class="ws-outcome" id="ws-outcome" role="status" aria-live="polite" hidden></p>
+
+      <section class="ws-controls" aria-labelledby="ws-controls-title">
+        <h2 id="ws-controls-title">What you can do</h2>
+
+        <div class="ws-control">
+          <h3 id="ws-retention-title">Keeping records</h3>
+          <p class="ws-control-note" id="ws-retention-note">Checking whether this browser is set to keep records…</p>
+          <button id="ws-retention" type="button" aria-pressed="true" aria-describedby="ws-retention-note">Stop keeping new records in this browser</button>
+        </div>
+
+        <div class="ws-control">
+          <h3 id="ws-export-title">Backup</h3>
+          <p class="ws-control-note" id="ws-export-note">Downloads one JSON file holding every decision and release stored here. The file is written in this browser; it is not uploaded anywhere.</p>
+          <button id="ws-export" type="button" aria-describedby="ws-export-note" disabled>Download JSON backup</button>
+        </div>
+
+        <div class="ws-control">
+          <h3 id="ws-restore-title">Restore</h3>
+          <p class="ws-control-note" id="ws-restore-note">Choose a backup this page wrote. It is read in this browser only, and nothing is stored until you confirm the summary.</p>
+          <label class="ws-file" for="ws-restore-file">Choose JSON backup
+            <input id="ws-restore-file" type="file" accept=".json,application/json" aria-describedby="ws-restore-note" />
+          </label>
+          <div class="ws-restore-plan" id="ws-restore-plan" role="group" aria-labelledby="ws-restore-title" hidden>
+            <p class="ws-restore-headline" id="ws-restore-headline" tabindex="-1"></p>
+            <div class="ws-restore-actions">
+              <button id="ws-restore-commit" type="button">Restore records</button>
+              <button id="ws-restore-cancel" class="secondary-button" type="button">Cancel</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Erase is two steps, and the second one counts what it will take. The
+             confirmation is a named region rather than window.confirm: a native
+             dialog cannot say how many records are about to go, and its answer
+             cannot be reported through the live region above. -->
+        <div class="ws-control ws-control-danger">
+          <h3 id="ws-erase-title">Erase</h3>
+          <p class="ws-control-note" id="ws-erase-note">Removes every Shiplog record from this browser. There is no other copy, and this cannot be undone from here.</p>
+          <button id="ws-erase" type="button" class="ws-danger-button" aria-describedby="ws-erase-note" aria-expanded="false" aria-controls="ws-confirm" disabled>Erase local records</button>
+          <div class="ws-confirm" id="ws-confirm" role="group" aria-labelledby="ws-confirm-title" hidden>
+            <h4 class="ws-confirm-title" id="ws-confirm-title" tabindex="-1">Erase these records?</h4>
+            <p class="ws-confirm-warning" id="ws-confirm-warning"></p>
+            <div class="ws-confirm-actions">
+              <button id="ws-confirm-yes" type="button" class="ws-danger-button" aria-describedby="ws-confirm-warning">Erase</button>
+              <button id="ws-confirm-no" type="button" class="secondary-button">Cancel</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Provenance is progressive disclosure: it answers "can I check this?",
+           and only "what should I do?" belongs above the fold. -->
+      <details class="ws-provenance">
+        <summary>Where these numbers come from</summary>
+        <dl class="ws-facts" id="ws-provenance-list">
+          <div class="ws-fact"><dt>Sources</dt><dd>Read once this page has finished checking this browser's storage.</dd></div>
+        </dl>
+      </details>
+      </main>
+    </div>
+    <footer class="site-footer" id="site-footer" aria-labelledby="site-footer-title">
+      <div class="site-footer-inner">
+        <h2 class="site-footer-title" id="site-footer-title">About Shiplog</h2>
+        <p class="site-footer-identity">Shiplog is a demonstration engineering decision and release log, built and operated by Wawalu at labs.wawalu.org.</p>
+        <button class="site-footer-trigger" id="site-footer-open" type="button" aria-expanded="false" aria-controls="site-footer-panel">
+          Talk to us about Shiplog
+        </button>
+        <div class="site-footer-panel" id="site-footer-panel" hidden>
+          <form id="site-footer-form" class="site-footer-form" novalidate>
+            <div class="site-footer-field">
+              <label for="site-footer-email">Work email</label>
+              <!-- Only the note is named here. The inline error and the recovery
+                   paragraph are added to this description by site-footer.js when
+                   they exist, because a hidden element referenced by
+                   aria-describedby is still part of the accessible description
+                   and would otherwise be read on first focus. -->
+              <input id="site-footer-email" name="email" type="email" maxlength="254" inputmode="email" autocomplete="email" placeholder="you@company.com" required aria-describedby="site-footer-note" />
+            </div>
+            <p class="site-footer-error" id="site-footer-error" hidden></p>
+            <p class="site-footer-note" id="site-footer-note">Submitting requests a follow-up conversation about Shiplog. This form sends one thing: the work email address you type. Nothing else on this page — nothing you have read, filtered, imported, or exported — is read, attached, or transmitted, and the address goes to the Wawalu team that operates Shiplog.</p>
+            <div class="site-footer-actions">
+              <button type="submit">Request a follow-up</button>
+              <button id="site-footer-dismiss" type="button">Close</button>
+            </div>
+          </form>
+          <p class="site-footer-status" id="site-footer-status" role="status" aria-live="polite"></p>
+          <p class="site-footer-recovery" id="site-footer-recovery" hidden>Your email address is still in the field above, so you can request a follow-up again. Nothing else on this page changed.</p>
+        </div>
+      </div>
+    </footer>
+    <script type="module" src="/local-workspace-page.js"></script>
+    <script type="module" src="/site-footer-page.js"></script>
+  </body>
+</html>

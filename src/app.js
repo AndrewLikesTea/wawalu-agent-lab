@@ -1,6 +1,7 @@
 import { STORED_DECISION_STATUSES, canonicalDecisionStatus } from "./decision-status.js";
 import { dedupeById } from "./demo-data.js";
 import { initLeadCapture } from "./lead-capture.js";
+import { retentionDeclined, retentionRefusal } from "./local-retention.js";
 import { EXAMPLE_LABEL, SAMPLE_RELEASE_ID, SEED_DECISIONS, SEED_RELEASES } from "./seed-records.js";
 import {
   SUPERSEDE_ERRORS,
@@ -94,7 +95,17 @@ export function loadDecisions(storage) {
   }
 }
 
+/**
+ * Write the decision store, unless this browser has been told not to keep one.
+ *
+ * The refusal is an explicit choice made on /workspace.html and nowhere else: a
+ * browser with no stored choice keeps retaining, exactly as it did before that
+ * page existed. The thrown error is the same shape a full or disabled store
+ * already produces, so every existing caller's failure path carries it — the
+ * decision stays on screen for this session and the notice says it was not kept.
+ */
 export function saveDecisions(storage, decisions) {
+  if (retentionDeclined(storage)) throw retentionRefusal();
   storage.setItem(STORAGE_KEY, JSON.stringify(decisions));
 }
 
@@ -887,8 +898,14 @@ export async function initDecisionLog(root = document, storage = localStorage, o
     try {
       saveDecisions(storage, recordedDecisions);
       notice.hidden = true;
-    } catch {
-      notice.textContent = "This decision is visible for now, but could not be saved in this browser.";
+    } catch (error) {
+      // Two different failures, told apart because the recovery differs: a full
+      // or disabled store is something to work around, a declined retention
+      // choice is something to change on the workspace page.
+      notice.textContent = error?.code === "retention_declined"
+        ? "This decision is visible for now. This browser is set not to keep Shiplog records, so it "
+          + "was not saved — change that on the local workspace page."
+        : "This decision is visible for now, but could not be saved in this browser.";
       notice.hidden = false;
     }
     refresh();

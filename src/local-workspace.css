@@ -1,0 +1,102 @@
+/* Local workspace surface.
+   Composed from the tokens styles.css already ships — the same inks (#171713,
+   #5f5f59), the same accent (#1f70c1), the same focus ring (var(--focus-ring)),
+   the same card radii and the notice palettes already used for success (#285f35
+   on #edf7ef), caution (#644a0b on #fff0c7) and error (#6e302c on #fbf3f1).
+   No new hue is introduced, and no colour carries meaning alone: every chip
+   states its meaning in words and the tone only reinforces it. */
+
+.ws-hero { max-width:820px; padding:clamp(48px,8vw,86px) 0 34px; }
+.ws-hero h1 { margin:14px 0 20px; font-size:clamp(38px,6.4vw,70px); line-height:.98; letter-spacing:-.05em; }
+.ws-hero>p:not(.eyebrow) { max-width:660px; margin:0; color:#555550; font-size:18px; line-height:1.6; }
+
+/* The boundary reads as a quotation of the product's own promise: one rule down
+   its leading edge, the same device the home page's proof block uses. */
+.ws-boundary { max-width:820px; margin:0 0 28px; border:1px solid #b9cec4; border-left:5px solid #315f50; border-radius:12px; padding:16px 18px; background:#eef6f2; }
+.ws-boundary h2 { margin:0 0 8px; color:#245643; font-size:16px; line-height:1.35; }
+.ws-boundary p { margin:0; color:#3f4c46; font-size:13.5px; line-height:1.6; }
+
+.ws-status,.ws-controls,.ws-next-card { border:1px solid #d2d8dc; border-radius:14px; padding:22px; background:#fff; }
+.ws-status { margin-bottom:18px; }
+.ws-status h2,.ws-controls h2 { margin:0 0 12px; font-size:21px; line-height:1.2; letter-spacing:-.02em; }
+.ws-summary { margin:0 0 16px; color:#3f3f3a; font-size:16px; font-weight:700; line-height:1.5; }
+
+/* auto-fit collapses the three facts onto one column on a narrow screen without
+   a breakpoint of its own — the same technique .hero-proof-facts uses. */
+.ws-facts { display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:14px 26px; margin:0; }
+.ws-fact { min-width:0; }
+.ws-fact dt { color:#5f5f59; font:750 10px/1.4 ui-monospace,monospace; letter-spacing:.07em; text-transform:uppercase; }
+.ws-fact dd { display:flex; flex-wrap:wrap; align-items:center; gap:6px 8px; margin:6px 0 0; color:#3f3f3a; font-size:13px; line-height:1.5; overflow-wrap:anywhere; }
+.ws-count { font-size:14px; font-weight:750; }
+.ws-fact-detail { flex-basis:100%; color:#5f5f59; font-size:12px; line-height:1.5; }
+
+/* Chips. Storage is a live signal and takes a filled wash; confidence is a
+   static classification and takes an outline — the silhouette rule from the
+   Claude Design foundations card. The word inside is the message either way. */
+.ws-chip { display:inline-block; border-radius:6px; padding:3px 9px; font:750 11px/1.5 ui-monospace,monospace; }
+.ws-chip-storage[data-tone="on"] { border:1px solid #b7d8bd; background:#e7f3ea; color:#245c33; }
+.ws-chip-storage[data-tone="quiet"] { border:1px solid #cfcdc5; background:#f1efe9; color:#4f4f49; }
+.ws-chip-storage[data-tone="off"] { border:1px solid #c6c4bc; background:#e8e6df; color:#454540; }
+.ws-chip-storage[data-tone="warn"] { border:1px solid #e0c67e; background:#fff0c7; color:#5c430a; }
+.ws-chip-storage[data-tone="blocked"] { border:1px solid #d6b9b5; background:#fbf3f1; color:#6e302c; }
+.ws-chip-confidence { background:transparent; }
+.ws-chip-confidence[data-tone="verified"] { border:1px solid #7f9c86; color:#245c33; }
+.ws-chip-confidence[data-tone="partial"] { border:1px solid #b39a55; color:#5c430a; }
+.ws-chip-confidence[data-tone="unknown"] { border:1px solid #b58b86; color:#6e302c; }
+
+/* The one prioritized action. It is the only block on the page with a filled
+   heading weight and a solid button, so nothing competes with it. */
+.ws-next-card { margin-bottom:22px; border-color:#b9cde1; background:linear-gradient(135deg,rgba(255,255,255,.96),rgba(226,239,251,.8)); }
+.ws-next-title { margin:6px 0 8px; font-size:24px; line-height:1.2; letter-spacing:-.03em; }
+.ws-next-title:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.ws-next-why { max-width:640px; margin:0 0 18px; color:#4c4c47; font-size:14px; line-height:1.6; }
+.ws-next-action { display:inline-flex; align-items:center; justify-content:center; min-height:48px; border:1px solid #171713; border-radius:9px; padding:0 18px; background:#171713; color:#fff; font-size:14px; font-weight:750; text-decoration:none; cursor:pointer; transition:background .15s ease; }
+.ws-next-action:hover { background:#1f70c1; border-color:#1f70c1; }
+
+.ws-outcome { max-width:820px; margin:0 0 22px; border:1px solid #cfcdc5; border-radius:9px; padding:11px 13px; background:#fff; color:#3f3f3a; font-size:13.5px; line-height:1.5; }
+.ws-outcome[data-tone="good"] { border-color:#b7d8bd; background:#edf7ef; color:#285f35; }
+.ws-outcome[data-tone="bad"] { border-color:#d6b9b5; background:#fbf3f1; color:#6e302c; }
+
+.ws-controls { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:20px; }
+.ws-controls h2 { grid-column:1/-1; }
+.ws-control { display:flex; flex-direction:column; align-items:flex-start; gap:9px; min-width:0; padding-top:14px; border-top:1px solid #ebe9e3; }
+.ws-control h3 { margin:0; color:#5f5f59; font:750 10px/1.4 ui-monospace,monospace; letter-spacing:.07em; text-transform:uppercase; }
+.ws-control-note { margin:0; color:#5f5f59; font-size:12.5px; line-height:1.55; }
+.ws-control button,.ws-file { display:inline-flex; align-items:center; justify-content:center; min-height:44px; margin-top:auto; border:1px solid #171713; border-radius:9px; padding:0 15px; background:#fff; color:#171713; font:750 13px/1 inherit; cursor:pointer; transition:background .15s ease; }
+.ws-control button:hover:not(:disabled),.ws-file:hover { background:#e9f1f8; }
+.ws-control button:disabled { border-color:#c6c4bc; color:#6a6a65; cursor:not-allowed; }
+.ws-control .secondary-button { border-color:#8d8b84; }
+.ws-file { position:relative; overflow:hidden; }
+.ws-file input { position:absolute; inset:0; width:100%; height:100%; opacity:0; cursor:pointer; }
+.ws-file:focus-within { outline:3px solid var(--focus-ring); outline-offset:2px; }
+
+.ws-control-danger { border-top-color:#e2c9c5; }
+.ws-danger-button { border-color:#8c3a34!important; color:#6e302c!important; }
+.ws-danger-button:hover:not(:disabled) { background:#fbf3f1!important; }
+.ws-danger-button:disabled { border-color:#c6c4bc!important; color:#6a6a65!important; }
+
+.ws-confirm,.ws-restore-plan { width:100%; margin-top:4px; border:1px solid #d6b9b5; border-radius:10px; padding:13px; background:#fbf3f1; }
+.ws-restore-plan { border-color:#b9cde1; background:#f2f7fc; }
+.ws-confirm-title { margin:0 0 6px; color:#6e302c; font-size:14px; line-height:1.35; }
+.ws-confirm-title:focus-visible,.ws-restore-headline:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.ws-confirm-warning { margin:0 0 12px; color:#5c2b28; font-size:12.5px; line-height:1.55; }
+.ws-restore-headline { margin:0 0 12px; color:#2c4257; font-size:13px; line-height:1.55; }
+.ws-confirm-actions,.ws-restore-actions { display:flex; flex-wrap:wrap; gap:9px; }
+
+.ws-provenance { max-width:900px; margin:22px 0 0; border:1px solid #d9d7cf; border-radius:12px; padding:14px 16px; background:#faf9f5; }
+.ws-provenance summary { color:#3f3f3a; font-size:13.5px; font-weight:750; cursor:pointer; }
+.ws-provenance summary:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.ws-provenance .ws-facts { margin-top:14px; }
+
+.ws-status button:focus-visible,.ws-controls button:focus-visible,.ws-next-action:focus-visible,.ws-file input:focus-visible { outline:3px solid var(--focus-ring); outline-offset:2px; }
+
+@media(max-width:640px) {
+  .ws-control button,.ws-file,.ws-next-action { width:100%; }
+}
+
+/* The only motion here is the button wash. A reader who has asked for less gets
+   the same colours with no transition — nothing on this page conveys anything
+   through movement, so there is nothing else to disable. */
+@media(prefers-reduced-motion:reduce) {
+  .ws-next-action,.ws-control button,.ws-file { transition:none; }
+}

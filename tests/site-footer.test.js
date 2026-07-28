@@ -28,7 +28,7 @@ import { importPageModule, waitFor } from "./support/page-module.js";
 // tests/site-nav.test.js: if a page carries the site navigation it is a page of
 // the site, and a page of the site carries the footer.
 const PAGES = [
-  "index.html", "decision.html", "social.html", "post.html", "profile.html", "releases.html",
+  "index.html", "decision.html", "workspace.html", "social.html", "post.html", "profile.html", "releases.html",
   "release.html", "evolution.html", "savings-action-center.html", "savings-commitment.html",
   "agents.html", "agent-trace.html",
 ];
