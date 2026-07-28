@@ -11,8 +11,31 @@
 
 // Relative, not root-absolute: this module is imported by `node --test` as well
 // as by the browser, and only a relative specifier resolves in both.
-import { authorInitials, captionFor, countLabel, profileHref } from "./profile.js";
+import { captionFor, countLabel, profileHref } from "./profile.js";
 import { pageTitle, recordTitle } from "./page-title.js";
+
+// Where "back" goes, read the way src/paint/paint.js reads the same thing: an
+// explicit `from` written by the link that sent the reader here. One exit, named
+// for one destination — the page used to ship two stacked back links, which left
+// a reader to guess which one undid their last step.
+//
+// Anything we did not write is not provenance: no parameter, a parameter naming
+// somewhere else, or an author string longer than a display name can be all fall
+// back to the feed, which is where a shared link is honestly from.
+export const DEFAULT_POST_RETURN = { href: "/social.html", label: "← Back to Social" };
+const MAX_RETURN_AUTHOR_LENGTH = 60;
+
+export function postReturnContext(search = "") {
+  const params = new URLSearchParams(String(search).replace(/^\?/, ""));
+  if (params.get("from") !== "profile") return DEFAULT_POST_RETURN;
+  const author = (params.get("author") ?? "").trim();
+  // The visitor did come from a profile, so the exit says so either way; only the
+  // destination narrows to one author's profile when the name is usable.
+  return {
+    href: author && author.length <= MAX_RETURN_AUTHOR_LENGTH ? profileHref(author) : "/profile.html",
+    label: "← Back to Profile",
+  };
+}
 
 export function findPostById(posts, id) {
   const wanted = String(id ?? "").trim();
@@ -31,11 +54,10 @@ function formatDateTime(iso) {
   return new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(iso));
 }
 
-// The page carries two standing exits — Social and Profile — in src/post.html,
-// so no state renders a control to either destination. Two links, two labels,
-// one place is how a reader loses track of where "back" is. The id-less state
-// used to add its own "Return to Social"; the standing feed exit now covers it
-// in every state, including that one.
+// The page carries exactly one standing exit, in src/post.html, named by
+// postReturnContext above. No state renders a second way back: the id-less state
+// used to add its own "Return to Social", and the standing exit now covers it in
+// every state, including that one.
 
 // One title and one sentence per state, in the same shape the decision detail
 // uses: a category label, a heading that names the state, then a single line
@@ -82,6 +104,23 @@ function labelledState(state, action) {
   return node;
 }
 
+// The image's accessible name, in one place, with one precedence:
+//
+//   1. what the poster wrote about the image, when they wrote anything;
+//   2. otherwise the visible caption, which is the most useful true sentence
+//      about the image this page has;
+//   3. otherwise nothing — an empty alt, which marks the image decorative and
+//      leaves it out of the accessibility tree rather than announcing "image"
+//      or reading a filename aloud.
+//
+// Never a placeholder. A screen reader that says "image" has told the reader the
+// one thing they already knew.
+export function postImageAlt(image, caption) {
+  const supplied = typeof image?.alt === "string" ? image.alt.trim() : "";
+  if (supplied) return supplied;
+  return String(caption ?? "").trim();
+}
+
 function renderMedia(image, caption) {
   const frame = el("div", "detail-media");
   frame.dataset.state = "loading";
@@ -89,10 +128,7 @@ function renderMedia(image, caption) {
   const img = document.createElement("img");
   img.className = "detail-image";
   img.src = image.src;
-  // A detail image is content, not decoration. The API normally supplies its
-  // own description; older seed data can omit one, in which case the visible
-  // caption is the most useful truthful fallback.
-  img.alt = image.alt || caption;
+  img.alt = postImageAlt(image, caption);
   img.decoding = "async";
   if (image.width && image.height) {
     img.width = image.width;
@@ -109,7 +145,9 @@ function renderMedia(image, caption) {
   fallback.setAttribute("aria-labelledby", fallbackTitle.id);
   fallback.append(
     fallbackTitle,
-    el("p", undefined, `The post image could not be displayed. Description: ${img.alt}`),
+    el("p", undefined, img.alt
+      ? `The post image could not be displayed. Description: ${img.alt}`
+      : "The post image could not be displayed, and the post carries no description of it."),
   );
   fallback.hidden = true;
 
@@ -160,33 +198,35 @@ export function renderPostDetail(container, post, options = {}) {
 
   const article = el("article", "detail-post");
 
-  const header = el("header", "post-head");
-  const avatar = el("span", "post-avatar", authorInitials(post.author));
-  avatar.setAttribute("aria-hidden", "true");
-  const byline = el("div", "post-byline");
-  // The byline links back to the profile the reader most likely arrived from,
-  // which also makes the detail page reachable-from and returnable-to on its own.
-  const author = el("a", "post-author", post.author);
-  author.href = profileHref(post.author);
-  author.id = "detail-author";
-  const time = el("time", "post-date", formatDateTime(post.createdAt));
+  // Reading order, top to bottom: who posted (the page's h1, written by
+  // post-page.js into the hero above this panel), when, the image, the caption.
+  // The author is not repeated as a link here — the one exit above already
+  // leads to the profile when the reader came from one, and a second link
+  // between the exit and the image would put an unasked-for stop in the way of
+  // a keyboard reader heading for the picture.
+  const time = el("time", "post-date detail-date", formatDateTime(post.createdAt));
   time.dateTime = post.createdAt;
-  byline.append(author, time);
-  header.append(avatar, byline);
-  article.append(header);
+  article.append(time);
 
   const caption = captionFor(post);
   if (post.image) {
+    // figure/figcaption, so the caption is the image's caption to a screen
+    // reader and not merely the paragraph that happens to sit under it.
     const figure = el("figure", "detail-figure");
     figure.append(renderMedia(post.image, caption));
-    const figcaption = el("figcaption", "detail-caption", caption);
-    figcaption.id = "detail-caption";
-    figure.append(figcaption);
+    // An empty figcaption would announce a caption that is not there. A post
+    // with neither caption nor body cannot come out of the normalizers, but the
+    // renderer is handed plain objects and must not invent text either way.
+    if (caption) {
+      const figcaption = el("figcaption", "detail-caption", caption);
+      figcaption.id = "detail-caption";
+      figure.append(figcaption);
+    }
     article.append(figure);
     // A dedicated caption does not replace the post body, so show the body too
     // when they differ — otherwise the detail view would hide text the feed shows.
     if (post.caption && post.body && post.body !== post.caption) article.append(el("p", "detail-body", post.body));
-  } else {
+  } else if (caption) {
     const body = el("p", "detail-body", caption);
     body.id = "detail-caption";
     article.append(body);
@@ -197,15 +237,17 @@ export function renderPostDetail(container, post, options = {}) {
   stats.append(el("span", "detail-stat", countLabel(post.comments ?? 0, "comment")));
   article.append(stats);
 
-  article.setAttribute("aria-labelledby", "detail-author detail-caption");
+  if (caption) article.setAttribute("aria-labelledby", "detail-caption");
   container.append(article);
 }
 
 // The page heading names the post the way a reader would: by who wrote it. The
-// post record carries no title of its own, so the author is the only durable
-// name it has — the date and caption sit in the article underneath.
+// post record carries no title of its own, so the poster's display name is the
+// only durable name it has, and the "Social · post" eyebrow above it says what
+// kind of thing is being named — the same eyebrow-then-h1 shape the decision
+// detail uses. The date and caption sit in the article underneath.
 export function postPageHeading(post) {
-  return post?.author ? `Post by ${post.author}` : "Post";
+  return post?.author?.trim() ? post.author.trim() : "Post";
 }
 
 // Same shape as the decision detail's title — the record, then the surface the

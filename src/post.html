@@ -24,23 +24,26 @@
       </header>
 
       <main id="main-content" tabindex="-1">
-      <!-- The exits sit inside the content region, after the site header and
-           nav, the way src/decision.html places "← Back to Decisions". They used
+      <!-- The exit sits inside the content region, after the site header and
+           nav, the way src/decision.html places "← Back to Decisions". It used
            to come first in the document, ahead of the wordmark, which put a
            page-specific control before the site frame on this page and nowhere
            else — that is the ordering bug this markup fixes.
 
-           Two exits, because this page has two honest origins: the feed the
-           post lives in, and the profile that collects the rest of the author's
-           posts (see postDetailHref in profile.js). JS refines the second to the
-           loaded author's own profile. Each names its destination in its visible
-           text — no aria-label carrying a word the eye cannot read.
+           One exit, not two. The page has two honest origins — the feed the post
+           lives in, and the profile that collects the rest of the author's posts
+           — but a reader has only one "back", so the link names the origin they
+           actually came from. The feed is what ships in the markup, because a
+           pasted or shared link is from the feed as far as anyone can tell;
+           post-page.js renames this same element to "← Back to Profile" when the
+           URL carries the ?from=profile that profile.js writes into its tiles.
+           Its visible text carries the destination — no aria-label holding a
+           word the eye cannot read.
 
-           These are the page's only such links. The state panel below never
-           repeats them — see the note above labelledState() in post-detail.js. -->
+           This is the page's only such link. The state panel below never repeats
+           it — see the note above labelledState() in post-detail.js. -->
       <p class="detail-page-exits">
-        <a class="detail-back detail-page-back" id="post-back-feed" href="/social.html">← Back to Social</a>
-        <a class="detail-back detail-page-back" id="post-back" href="/profile.html">← Back to Profile</a>
+        <a class="detail-back detail-page-back" id="post-back" href="/social.html">← Back to Social</a>
       </p>
 
       <section class="hero hero-post" id="top" aria-labelledby="page-title">

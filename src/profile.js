@@ -154,10 +154,16 @@ export function captionFor(post) {
   return post?.caption?.trim() || post?.body?.trim() || "";
 }
 
-export function postDetailHref(id, author = "") {
+// `from` is provenance, written by the surface that links to the post so the
+// detail page can offer one back link that names where the reader actually came
+// from. Same parameter, same value, same defaulting rule as profilePaintHref
+// below and src/paint/paint.js: only "profile" means anything, and a link that
+// omits it gets the feed's exit.
+export function postDetailHref(id, author = "", from = "") {
   const params = new URLSearchParams({ id: String(id ?? "") });
   const name = String(author ?? "").trim();
   if (name) params.set("author", name);
+  if (from) params.set("from", String(from));
   return `/post.html?${params}`;
 }
 
@@ -286,7 +292,7 @@ function renderTileMedia(image) {
 function renderTile(post, index) {
   const item = el("li", "profile-cell");
   const link = el("a", "profile-tile");
-  link.href = postDetailHref(post.id, post.author);
+  link.href = postDetailHref(post.id, post.author, "profile");
   link.dataset.postId = post.id;
 
   const figure = el("figure", "profile-figure");
