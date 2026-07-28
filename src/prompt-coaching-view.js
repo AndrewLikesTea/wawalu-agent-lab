@@ -158,6 +158,7 @@ function paint(doc, section) {
     answerBlock(doc, result),
     benchmarkBlock(doc, result),
     improvementBlock(doc, result.improvement),
+    recommendationBlock(doc, result.recommendation),
     disclosure(doc, section, result),
   );
   markField(doc, false);
@@ -227,6 +228,38 @@ function improvementBlock(doc, improvement) {
     block.append(element(doc, "p", "prompt-coaching-improvement-worth",
       `${improvement.axis} axis · worth about ${Math.round(improvement.points)} `
       + `point${Math.round(improvement.points) === 1 ? "" : "s"} of the 0–100 composite`));
+  }
+  return block;
+}
+
+/**
+ * The routing answer. Rendered for every graded result including the two that
+ * recommend nothing, because "no model-fit signal fired" is an answer to the
+ * question a reader came with and a missing block is not.
+ *
+ * Nothing is composed here. The title and the sentence are the contract's,
+ * which is where the rule that a routing claim may only restate a fired signal
+ * is stated and tested; a surface that reworded them would be the second place
+ * that rule could be broken.
+ */
+function recommendationBlock(doc, recommendation) {
+  const block = element(doc, "div", "prompt-coaching-recommendation");
+  block.dataset.state = recommendation.state;
+  block.dataset.direction = recommendation.direction;
+  block.dataset.evidenced = String(recommendation.evidenced);
+  const title = element(doc, "p", "prompt-coaching-recommendation-title");
+  title.append(shapeSpan(doc, recommendation.evidenced ? "▲" : "◇"),
+    element(doc, "span", "prompt-coaching-recommendation-words", recommendation.title));
+  block.append(
+    element(doc, "h3", "eyebrow", "Model tier"),
+    title,
+    element(doc, "p", "prompt-coaching-recommendation-text", recommendation.text),
+  );
+  // The signal id, printed rather than translated, for the same reason the turn
+  // reason codes are: a reader disputing a routing recommendation quotes it.
+  if (recommendation.evidenced) {
+    block.append(element(doc, "p", "prompt-coaching-recommendation-basis",
+      `Evidence: ${recommendation.signalId} on turn ${recommendation.turn + 1}`));
   }
   return block;
 }

@@ -176,6 +176,47 @@ guard is a ceiling on the corpus's unclassified rate, asserted in
   one ordinary prose turn takes the rate to 0.067, and dropping the non-English
   fixtures — the regression this exists for — passes 0.1 immediately.
 
+## What a routing recommendation may say
+
+`src/prompt-coaching.js` turns the three model-fit signals above into one tier
+recommendation for a pasted prompt. It is an adapter, not a second rubric: it
+reads the signal the classifier fired and restates it. The rule, enforced in
+`tests/prompt-coaching-fixtures.test.js`:
+
+| State | Fires when | Recommends |
+| --- | --- | --- |
+| `route_down` | `model-fit-trivial-on-premium` fired | one step down the ladder |
+| `route_up` | `model-fit-substantive-on-economy` fired | one step up the ladder |
+| `fit_evidenced` | `model-fit-substantive-on-premium` fired | no change |
+| `no_routing_evidence` | a tier was named and no model-fit signal fired | nothing |
+| `no_tier_stated` | no tier was named | nothing |
+
+Ties are read largest-absolute-weight first, which is also worst-reading-first.
+
+**The ladder is `premium → standard → economy`, and a recommendation moves one
+step.** The rubric evidences a *direction*, never a destination: no signal here
+compares two tiers on anything. One step is the smallest move that stops the
+fired signal reading the turn at all, because both routing debits are gated on
+one specific tier. Naming "the cheapest tier that would do" instead would be a
+claim about model capability, and this repository holds no evidence about model
+capability.
+
+**What routing copy may not say.** The model-fit axis observes two things: the
+tier the reader named, and how much prose or pasted code the turn carried.
+Nothing in this repository measures the answer a model gave, whether a follow-up
+turn happened, or what anything cost — so no routing claim may assert measured
+quality loss, a re-prompt, a saving, or any other outcome. An earlier draft of
+the route-up guidance said the mismatch "costs quality rather than money, and
+the cost lands on you in re-prompts"; that clause had no signal behind it and
+was removed. Every route-changing recommendation now carries
+`ROUTING_CLAIM_LIMIT` verbatim, and a lexical test fails the build if outcome
+vocabulary reappears in routing copy.
+
+Note the asymmetry with the weight rationale in the table above, which *does*
+reason about quality and money. That sentence justifies why −25 sits below −60;
+it is an argument for a weight, made once, in the open. It is not a measurement,
+and it is never shown to a reader as a finding about their prompt.
+
 ## Privacy
 
 Classification runs on derived signals, in the tab, with no network call, no

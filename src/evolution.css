@@ -1450,6 +1450,11 @@
   background:#fff; white-space:pre-wrap; overflow-wrap:anywhere; font:400 13px/1.6 ui-monospace,monospace;
 }
 .prompt-coaching-improvement-worth { margin:6px 0 0; color:var(--ink-muted); font:650 12px/1.5 ui-monospace,monospace; }
+.prompt-coaching-recommendation { border-left:5px solid var(--import-line); padding:2px 0 2px 12px; }
+.prompt-coaching-recommendation[data-evidenced="false"] { border-left-style:dotted; }
+.prompt-coaching-recommendation-title { display:flex; gap:8px; margin:0; font-size:15px; font-weight:700; line-height:1.5; overflow-wrap:anywhere; }
+.prompt-coaching-recommendation-text { margin:6px 0 0; max-width:70ch; font-size:13px; line-height:1.6; overflow-wrap:anywhere; }
+.prompt-coaching-recommendation-basis { margin:6px 0 0; color:var(--ink-muted); font:650 12px/1.5 ui-monospace,monospace; overflow-wrap:anywhere; }
 .prompt-coaching-recovery { border-left:5px dashed var(--state-warn-line); padding:2px 0 2px 12px; color:var(--state-warn-ink); }
 .prompt-coaching-recovery-title { display:flex; gap:8px; margin:0; font-size:15px; font-weight:750; line-height:1.5; overflow-wrap:anywhere; }
 .prompt-coaching-recovery-guidance { margin:6px 0 0; max-width:70ch; color:inherit; font-size:13px; line-height:1.6; overflow-wrap:anywhere; }
