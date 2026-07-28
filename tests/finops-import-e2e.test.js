@@ -241,6 +241,26 @@ test("a leader imports the example provider export and reaches a decision they c
       assert.match(shownText(document, "import-stages"), /Step 3Read the resultnow/);
     });
 
+    await t.test("step 3b · the leader can check the math on the figure they were just shown", () => {
+      // The region is painted from the same payload the export button writes, so
+      // this is the on-screen half of the assertion step 4 makes about the file.
+      const region = byId(document, "local-lead-derivation");
+      assert.equal(byId(document, "local-lead-derivation-detail").hidden, false,
+        "the disclosure must be available once there is a briefing to check");
+      assert.equal(region.hidden, false);
+      assert.equal(region.dataset.verdict, "reproduced",
+        "a briefing this build just computed must re-derive against this build's own rubric");
+      const text = textOf(region);
+      assert.match(text, /Reproduced\./);
+      assert.match(text, /Recoverable spend, re-added from the ranked departments/);
+      assert.match(text, /Confidence grade the coverage ratio earns/);
+      // Screen-reader legible: the outcome of each step is in words, and the
+      // rubric that produced the figure is named on the page rather than only in
+      // the file.
+      assert.match(text, /matches the briefing/);
+      assert.match(text, /Routing rubric down-routing-candidate\/1\.0\.0/);
+    });
+
     await t.test("step 4 · the decision record the leader exports carries the same numbers", () => {
       byId(document, "export-local-json").click();
       assert.equal(page.downloads.length, 1, "the export button must hand back exactly one file");

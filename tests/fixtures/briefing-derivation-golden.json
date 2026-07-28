@@ -1,0 +1,86 @@
+{
+  "note": [
+    "Labelled golden fixtures for the 'check the math' derivation.",
+    "Each scenario states the analysis aggregates a briefing is built from and the exact",
+    "figures the derivation must recover from that briefing. The analysis spec is aggregates",
+    "only — record counts, per-department money, and attribution totals. There is no prompt,",
+    "no conversation, no query sample and no free text here, because a briefing carries none",
+    "and a fixture that carried one would be testing a payload the product cannot produce.",
+    "Every expected number below is stated to the cent or to six decimal places, which is the",
+    "precision the briefing file stores. A change that moves any of them fails this fixture",
+    "with a named-field diff rather than a whole-object dump."
+  ],
+  "derivationVersion": "finops-briefing-derivation/1.0.0",
+  "scenarios": [
+    {
+      "id": "full-coverage",
+      "label": "Every record analyzed and every analyzed dollar attributed.",
+      "analysis": {
+        "joinedRecords": 120,
+        "quarantinedRecords": 0,
+        "attributedSpend": 24000,
+        "unattributedSpend": 0,
+        "departments": [
+          { "id": "atlas0", "spendUsd": 16000, "recoverableUsd": 3200, "previousSpendUsd": 12000 },
+          { "id": "borealis1", "spendUsd": 8000, "recoverableUsd": 1050, "previousSpendUsd": 7600 }
+        ]
+      },
+      "expected": {
+        "verdict": "reproduced",
+        "reproducible": true,
+        "grade": "high",
+        "recoverableStatedUsd": 4250,
+        "recoverableComputedUsd": 4250,
+        "analyzedSpendUsd": 24000,
+        "attributedShare": 1,
+        "recoverableShareOfAnalyzedSpend": 0.177083,
+        "complete": true,
+        "steps": [
+          { "id": "records_total", "computed": 120, "stated": 120, "status": "reproduced" },
+          { "id": "coverage_ratio", "computed": 1, "stated": 1, "status": "reproduced" },
+          { "id": "grade", "computed": "high", "stated": "high", "status": "reproduced" },
+          { "id": "recoverable_sum", "computed": 4250, "stated": 4250, "status": "reproduced" },
+          { "id": "recoverable_share", "computed": 0.177083, "stated": 0.177083, "status": "reproduced" },
+          { "id": "headline_metric", "computed": 4250, "stated": 4250, "status": "reproduced" },
+          { "id": "attributed_share", "computed": 1, "stated": 1, "status": "reproduced" },
+          { "id": "completeness", "computed": "true", "stated": "true", "status": "reproduced" }
+        ]
+      }
+    },
+    {
+      "id": "partial-attribution",
+      "label": "A fifth of the records set aside and a fifth of the analyzed spend unattributed.",
+      "analysis": {
+        "joinedRecords": 96,
+        "quarantinedRecords": 24,
+        "attributedSpend": 19200,
+        "unattributedSpend": 4800,
+        "departments": [
+          { "id": "atlas0", "spendUsd": 16000, "recoverableUsd": 3200, "previousSpendUsd": 12000 },
+          { "id": "borealis1", "spendUsd": 8000, "recoverableUsd": 1050, "previousSpendUsd": 7600 }
+        ]
+      },
+      "expected": {
+        "verdict": "reproduced",
+        "reproducible": true,
+        "grade": "moderate",
+        "recoverableStatedUsd": 4250,
+        "recoverableComputedUsd": 4250,
+        "analyzedSpendUsd": 24000,
+        "attributedShare": 0.8,
+        "recoverableShareOfAnalyzedSpend": 0.177083,
+        "complete": false,
+        "steps": [
+          { "id": "records_total", "computed": 120, "stated": 120, "status": "reproduced" },
+          { "id": "coverage_ratio", "computed": 0.8, "stated": 0.8, "status": "reproduced" },
+          { "id": "grade", "computed": "moderate", "stated": "moderate", "status": "reproduced" },
+          { "id": "recoverable_sum", "computed": 4250, "stated": 4250, "status": "reproduced" },
+          { "id": "recoverable_share", "computed": 0.177083, "stated": 0.177083, "status": "reproduced" },
+          { "id": "headline_metric", "computed": 4250, "stated": 4250, "status": "reproduced" },
+          { "id": "attributed_share", "computed": 0.8, "stated": 0.8, "status": "reproduced" },
+          { "id": "completeness", "computed": "false", "stated": "false", "status": "reproduced" }
+        ]
+      }
+    }
+  ]
+}

@@ -24,7 +24,11 @@ import { localFinopsMeetingSummary, normalizeLocalFinopsHistory } from "/local-f
 // The download itself. Every figure decision is inside `briefingFile`; the only
 // thing this layer contributes is the clock, because the generator is pure and
 // will not read one.
-import { briefingFile } from "/finops-briefing-export.js";
+import { briefingFile, buildBriefing } from "/finops-briefing-export.js";
+// "Check the math" reads the briefing payload — never the analysis envelope and
+// never the imported file — so the derivation on screen is a check of exactly
+// the artifact a leader forwards.
+import { briefingDerivation } from "/finops-briefing-derivation.js";
 // One entry point for a selected file: `.json` keeps the reviewed JSON path
 // untouched, `.csv`/`.tsv`/`.txt` route through the delimited normalizer. Both
 // return the same parsed v1 envelope, so nothing below this line changes.
@@ -668,10 +672,23 @@ function mountLocalFinopsImport() {
     // The attribution decision made three lines up is handed to the contract
     // rather than re-derived by it: a figure this page withheld must not
     // reappear in the briefing built from the same analysis.
-    currentBriefing = buildFinopsBriefing(next, {
-      attributionWithheld: attribution?.confidence === CONFIDENCE.SUPPRESSED,
-    });
-    applyBriefing(document, currentBriefing);
+    const attributionWithheld = attribution?.confidence === CONFIDENCE.SUPPRESSED;
+    currentBriefing = buildFinopsBriefing(next, { attributionWithheld });
+    // The derivation is taken from the same payload the export button writes, so
+    // the arithmetic a director checks on screen is byte-for-byte the arithmetic
+    // in the file they were sent. `buildBriefing` refuses to build a payload that
+    // would carry forbidden content; if it refuses, the briefing still paints and
+    // the check is simply absent rather than half-shown.
+    let derivation = null;
+    try {
+      derivation = briefingDerivation(buildBriefing(next, {
+        dataset: exampleActive ? "example" : "user",
+        attributionWithheld,
+      }));
+    } catch {
+      derivation = null;
+    }
+    applyBriefing(document, currentBriefing, derivation);
     // A restored briefing on screen gains — or loses — its delta line the
     // moment the live analysis changes underneath it. Repainting here is what
     // stops a delta from outliving the analysis it was computed against.

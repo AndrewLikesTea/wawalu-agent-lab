@@ -21,6 +21,7 @@ import { importLimitsSentence } from "./import-limits.js";
 // reader that produced the briefing, not here, so the dates in them are the
 // file's own and this layer cannot invent a third wording for them.
 import { capturedPeriodLine, EXAMPLE_DATASET_LINE } from "./finops-briefing-restore.js";
+import { renderBriefingDerivation } from "./finops-briefing-derivation-view.js";
 
 /** The stages the shipped flow already walks. Naming them does not add one. */
 export const IMPORT_STAGES = Object.freeze([
@@ -590,7 +591,7 @@ export function briefingLines(briefing) {
  * where the contract says a slot is absent it renders the contract's own
  * statement of why rather than a zero, a dash, or an estimate.
  */
-export function applyBriefing(doc, briefing) {
+export function applyBriefing(doc, briefing, derivation = null) {
   const section = byId(doc, "local-lead-finding");
   if (!section) return briefing;
   const { materialMetric, rankedAction } = briefing;
@@ -648,6 +649,11 @@ export function applyBriefing(doc, briefing) {
   // it ran, on screen and on paper.
   write("local-lead-rubric", lines.rubric);
   write("local-lead-provenance", lines.provenance);
+  // Check the math, when the caller has one to show. It is optional rather than
+  // required: a surface that can paint the briefing but not the derivation shows
+  // the briefing, and the disclosure that would open onto nothing stays away.
+  renderBriefingDerivation(doc, "local-lead-derivation", derivation);
+  show("local-lead-derivation-detail", Boolean(derivation));
   return briefing;
 }
 
@@ -709,10 +715,15 @@ export function applyBriefingState(doc, state, message = BRIEFING_STATE_MESSAGE[
     const node = byId(doc, id);
     if (node) node.dataset.available = String(available);
   }
-  for (const id of ["local-lead-arithmetic", "local-lead-arithmetic-detail", "local-lead-role"]) {
+  for (const id of ["local-lead-arithmetic", "local-lead-arithmetic-detail", "local-lead-role",
+    "local-lead-derivation-detail"]) {
     const node = byId(doc, id);
     if (node) node.hidden = true;
   }
+  // A derivation belongs to one briefing. Leaving the previous one painted
+  // through a loading or error state would offer a reader a re-derivation of a
+  // figure that is no longer on screen.
+  renderBriefingDerivation(doc, "local-lead-derivation", null);
   return state;
 }
 
@@ -757,6 +768,8 @@ export function applyRestoredBriefing(doc, model) {
       write(id, "");
       show(id, false);
     }
+    renderBriefingDerivation(doc, "restored-briefing-derivation", null);
+    show("restored-briefing-derivation-detail", false);
     return null;
   }
 
@@ -793,6 +806,10 @@ export function applyRestoredBriefing(doc, model) {
     deltaNode.dataset.comparable = String(Boolean(delta?.comparable));
     deltaNode.dataset.direction = delta?.comparable ? delta.spend.direction : "none";
   }
+  // The derivation travels on the parsed file rather than being recomputed here,
+  // so what a reader checks is what the reader was shown.
+  renderBriefingDerivation(doc, "restored-briefing-derivation", saved.derivation ?? null);
+  show("restored-briefing-derivation-detail", Boolean(saved.derivation));
   return model;
 }
 

@@ -499,7 +499,11 @@ test("the disclosure controls are native, labelled with what they reveal, and fo
   const { document } = await openPage();
   const region = byId(document, "local-lead-finding");
   const summaries = region.querySelectorAll("summary");
-  assert.equal(summaries.length, 2);
+  // Three: how the figure was calculated, the method notes, and — since #389 —
+  // the check that re-derives the figure and the grade from the briefing's own
+  // operands. The count is pinned rather than loose so a fourth disclosure has
+  // to be argued for here before it lands on the briefing.
+  assert.equal(summaries.length, 3);
   for (const summary of summaries) {
     // Native <summary> inside <details>: keyboard operation with Enter and
     // Space, and the expanded/collapsed state, are the element's own. Nothing
@@ -509,7 +513,7 @@ test("the disclosure controls are native, labelled with what they reveal, and fo
     const label = textOf(summary);
     assert.ok(label.length > 12, `"${label}" is too short to say what it reveals`);
     assert.doesNotMatch(label, /^(more|details|show|expand|…|▸|›)$/i);
-    assert.match(label, /calculated|Method notes/);
+    assert.match(label, /calculated|Method notes|Check the math/);
   }
   // A visible ring, from the site's existing focus token.
   assert.match(declared(".local-lead-detail>summary:focus-visible", "outline"), /var\(--focus-ring\)/);
