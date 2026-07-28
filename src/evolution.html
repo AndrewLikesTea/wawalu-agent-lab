@@ -806,8 +806,11 @@
             <div class="detail-heading">
               <div>
                 <p class="eyebrow">Selected department</p>
-                <h3 id="detail-name">Loading…</h3>
-                <p id="detail-sample">Loading sampling status…</p>
+                <!-- The authored copy is DEPARTMENT_DETAIL_STATE.loading from
+                     briefing-strings.js, so the first paint and the markup a
+                     reader gets before any script runs say the same thing. -->
+                <h3 id="detail-name">Reading the bundled sample…</h3>
+                <p id="detail-sample">No department is selected until the bundled sample has been read.</p>
               </div>
               <p class="detail-score" id="detail-score">–</p>
             </div>

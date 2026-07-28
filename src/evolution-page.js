@@ -59,6 +59,16 @@ import { headlineTrust } from "/finops-display.js";
 // Whether the letter may be shown at all is decided before it is drawn: the
 // score card is a roll-up of only the departments the rubric actually scored.
 import { gradeEligibility } from "/grade-eligibility.js";
+// No panel on this page writes its own "nothing here" sentence. Every empty,
+// partial-coverage and failed-load string is authored in one module, so a
+// reader meets one vocabulary for absence instead of one per branch.
+import {
+  ACTION_UNAVAILABLE_FIELD, ACTION_UNAVAILABLE_REASON, applyDepartmentDetailState,
+  BUNDLED_LOAD_STATE, DEPARTMENT_LIST_MESSAGE, EVALUATION_BUNDLE_UNAVAILABLE,
+  EVIDENCE_LIST_MESSAGE, HEADLINE_BUNDLE_UNAVAILABLE, IMPORTED_BRIEFING_EMPTY,
+  KPI_NEEDS_REVIEW, KPI_NOT_LOADED, NO_COMPARABLE_PERIOD, NOT_GRADED,
+  sampledCoverageLine,
+} from "/briefing-strings.js";
 import {
   announce as announceStage, applyDatasetProvenance, applyFieldDiagnostic, applyImportLimits,
   applyBriefing, applyBriefingState, applyImportProgress, applyMetricBasis, applyRequirements, applyRestoreRejection,
@@ -767,7 +777,7 @@ function mountLocalFinopsImport() {
     // moment the live analysis changes underneath it. Repainting here is what
     // stops a delta from outliving the analysis it was computed against.
     syncRestored();
-    setText("local-department", next.topDepartment?.name ?? "Unavailable");
+    setText("local-department", next.topDepartment?.name ?? IMPORTED_BRIEFING_EMPTY.department);
     // A withheld figure cannot carry the analysis's own confidence word beside
     // it: the attribution policy has already decided the number is not shown, so
     // the label says withheld rather than contradicting the slot next to it.
@@ -792,8 +802,8 @@ function mountLocalFinopsImport() {
       : trend.state === "available"
         ? "The preceding organization period has no positive spend, so percentage change is undefined."
         : trend.message);
-    setText("local-benchmark-answer", "Unavailable benchmark");
-    setText("local-benchmark-summary", "Unavailable · no compatible cohort");
+    setText("local-benchmark-answer", IMPORTED_BRIEFING_EMPTY.benchmarkAnswer);
+    setText("local-benchmark-summary", IMPORTED_BRIEFING_EMPTY.benchmarkSummary);
     setText("local-benchmark-why", next.benchmark.message);
     fillTextList("local-periods", trend.periods.map((period) =>
       `${period.period} · ${period.spendUsd.toFixed(2)} USD observed · `
@@ -1386,7 +1396,26 @@ function renderFinancePortfolio(data) {
   }
 }
 
-function renderHeadline(organization, totals, eligibility) {
+/**
+ * The departments the rubric did not score, largest unscored spend first.
+ *
+ * The coverage line names them, so the order has to be the order that matters
+ * to the reader: the team with the most unscored money is the one whose absence
+ * moves the grade most, and it is named before a rounding-error department is.
+ */
+function ungradedDepartmentNames(departments) {
+  return (Array.isArray(departments) ? departments : [])
+    .filter((department) => !departmentPerformance(department).available)
+    .map((department) => ({
+      name: String(department?.name ?? department?.id ?? "").trim(),
+      spendUsd: summarize([department]).spendUsd,
+    }))
+    .filter((entry) => entry.name)
+    .sort((left, right) => right.spendUsd - left.spendUsd || left.name.localeCompare(right.name))
+    .map((entry) => entry.name);
+}
+
+function renderHeadline(organization, totals, eligibility, departments = []) {
   const trust = headlineTrust(totals, organization);
   // Two independent gates on one letter, and both must pass. `headlineTrust`
   // asks whether the number is inside the supported range; eligibility asks
@@ -1408,11 +1437,16 @@ function renderHeadline(organization, totals, eligibility) {
   setText("score-value", gradeVisible
     ? `${totals.score} / 100 · grade ${totals.grade}`
     : trust.score.plausible ? eligibility.label : "Needs review · score unavailable");
-  // Coverage and the one action are the only words this card gains, and both
-  // come from the eligibility model; nothing here writes a sentence of its own.
-  setText("score-coverage", eligibility.coverage === null
-    ? eligibility.label
-    : `${formatPercent(eligibility.coverage, { digits: 1 })} of spend scored · ${eligibility.label}`);
+  // Coverage and the one action are the only words this card gains. The tier
+  // label and the action come from the eligibility model, the sentence that
+  // names the ungraded departments comes from `briefing-strings.js`, and
+  // nothing here writes a sentence of its own.
+  setText("score-coverage", sampledCoverageLine({
+    coverageText: eligibility.coverage === null
+      ? "" : formatPercent(eligibility.coverage, { digits: 1 }),
+    label: eligibility.label,
+    ungradedNames: ungradedDepartmentNames(departments),
+  }));
   setText("score-action", eligibility.nextAction.text);
   const action = document.getElementById("score-action");
   if (action) action.dataset.available = String(eligibility.nextAction.available);
@@ -1438,7 +1472,11 @@ function renderHeadline(organization, totals, eligibility) {
     trust.spend.plausible && trust.highValue.plausible
       ? `${formatUsd(Math.round(totals.spendUsd * totals.mix.highValue))} of scored spend was high-value`
       : "Unavailable until spend and share pass review");
-  setText("kpi-peer-value", trust.percentile.plausible ? `${organization.peerPercentile}th` : "Unavailable");
+  // "Needs review", like every other KPI value that failed its check — the note
+  // beneath it already says the same words, and one vocabulary per state means
+  // a reader scanning the four cards never has to ask if two words differ.
+  setText("kpi-peer-value", trust.percentile.plausible
+    ? `${organization.peerPercentile}th` : KPI_NEEDS_REVIEW);
   setText("kpi-peer-note", trust.percentile.plausible
     ? `${quartileLabel(organization.peerPercentile)} · ${organization?.peerCohort ?? "peer cohort"}`
     : "Needs review · percentile must be between 0 and 100");
@@ -1506,17 +1544,17 @@ function renderUnavailableAction(reason) {
     actionSurface.dataset.status = "unavailable";
     actionSurface.setAttribute("aria-busy", "false");
   }
-  setText("action-status", "Result unavailable");
-  setText("action-title", "No prioritized intervention available");
+  setText("action-status", ACTION_UNAVAILABLE_FIELD.status);
+  setText("action-title", ACTION_UNAVAILABLE_FIELD.title);
   setText("action-rationale", reason);
-  setText("action-impact", "Unavailable");
-  setText("action-confidence", "Unavailable");
-  setText("action-owner", "Unassigned");
-  setText("action-provenance", "Bundled static fixture · no live fallback");
-  setText("action-baseline", "Unavailable");
-  setText("action-target", "Unavailable");
-  setText("action-estimate", "Unavailable");
-  setText("action-realized", "Not available");
+  setText("action-impact", ACTION_UNAVAILABLE_FIELD.impact);
+  setText("action-confidence", ACTION_UNAVAILABLE_FIELD.confidence);
+  setText("action-owner", ACTION_UNAVAILABLE_FIELD.owner);
+  setText("action-provenance", ACTION_UNAVAILABLE_FIELD.provenance);
+  setText("action-baseline", ACTION_UNAVAILABLE_FIELD.baseline);
+  setText("action-target", ACTION_UNAVAILABLE_FIELD.target);
+  setText("action-estimate", ACTION_UNAVAILABLE_FIELD.estimate);
+  setText("action-realized", ACTION_UNAVAILABLE_FIELD.realized);
   setText("action-diagnosis", reason);
 }
 
@@ -1529,7 +1567,7 @@ function renderDecisionDetail(department, data) {
   const action = actionPlanFor(department);
 
   setText("detail-name", department.name ?? "Unnamed department");
-  setText("detail-score", performance.available ? `${performance.score}/100` : "Unavailable");
+  setText("detail-score", performance.available ? `${performance.score}/100` : NOT_GRADED);
   setText("detail-sample", performance.available
     ? `${performance.rubricVersion} · ${sampling.sampledQueries} sampled queries · through ${sampling.sampledThrough} (${sampling.freshnessLabel}) · 95% sampling uncertainty ±${performance.uncertaintyPoints} points · ${provenance.label}`
     : `${performance.rubricVersion} · Sampling unavailable: ${performance.reason} · ${provenance.label}`);
@@ -1565,9 +1603,10 @@ function renderDecisionDetail(department, data) {
       : "Unavailable. The equal-period comparison is incomplete.");
   const trendList = document.getElementById("trend-comparison");
   trendList?.replaceChildren(
-    definitionTerm("Cost", trend.costAvailable ? signed(trend.costChangePercent, "%") : "Unavailable"),
+    definitionTerm("Cost", trend.costAvailable
+      ? signed(trend.costChangePercent, "%") : NO_COMPARABLE_PERIOD),
     definitionTerm("Performance", trend.performanceAvailable
-      ? signed(trend.performanceChangePoints, " points") : "Unavailable"),
+      ? signed(trend.performanceChangePoints, " points") : NO_COMPARABLE_PERIOD),
     definitionTerm("Periods", trend.period && trend.comparisonPeriod
       ? `${trend.period} vs ${trend.comparisonPeriod} · ${trend.equalLengthDays}-day periods`
       : "Equal-period dates unavailable"),
@@ -1586,13 +1625,12 @@ function renderDecisionDetail(department, data) {
   list?.replaceChildren();
   if (!performance.available) {
     list?.append(element("li", "evidence-empty",
-      `No evidence conclusion: ${performance.reason}`));
+      EVIDENCE_LIST_MESSAGE.ungraded(performance.reason)));
     return;
   }
   const evidence = evidenceForDepartment(data.evidence, department.id);
   if (!evidence.length) {
-    list?.append(element("li", "evidence-empty",
-      "No scored evidence was retained for this department in the bundled sample."));
+    list?.append(element("li", "evidence-empty", EVIDENCE_LIST_MESSAGE.noneRetained));
     return;
   }
   for (const record of evidence) {
@@ -1616,11 +1654,9 @@ function renderDecisionSurface(data, departments) {
   list?.replaceChildren();
   const ranked = rankDepartmentsForHelp(departments);
   if (!ranked.length) {
-    list?.append(element("li", "evidence-empty", "No departments are present in this bundled period."));
-    setText("detail-name", "No department result");
-    setText("detail-score", "Unavailable");
-    setText("detail-sample", "The bundled period contains no department records.");
-    renderUnavailableAction("No department records are available in this bundled period.");
+    list?.append(element("li", "evidence-empty", DEPARTMENT_LIST_MESSAGE.noDepartments));
+    applyDepartmentDetailState(document, "noDepartments");
+    renderUnavailableAction(ACTION_UNAVAILABLE_REASON.noDepartments);
     return;
   }
   ranked.forEach((department, index) => {
@@ -1698,9 +1734,7 @@ async function renderEvaluationDemo() {
   } catch {
     bundledEvaluationRecords = 0;
     syncExecutivePanels();
-    target.replaceChildren(renderFinopsEvaluationUnavailable(
-      "The bundled evaluation fixtures are unavailable. "
-      + "No score was produced, and no live provider or customer record was contacted."));
+    target.replaceChildren(renderFinopsEvaluationUnavailable(EVALUATION_BUNDLE_UNAVAILABLE));
   }
   target.setAttribute("aria-busy", "false");
 }
@@ -1735,8 +1769,7 @@ async function init() {
   let hasRenderedAnalysis = false;
 
   async function loadAndRender() {
-    setLoadState("loading", "Loading bundled analysis…",
-      "Previously rendered content stays visible while the synthetic fixture is refreshed.");
+    setLoadState("loading", BUNDLED_LOAD_STATE.loading.title, BUNDLED_LOAD_STATE.loading.detail);
     // Only on a first load. A refresh over panels that already hold figures must
     // not blank their state back to "reading": the copy above says the previous
     // analysis stays visible, and a status chip that contradicts it is worse
@@ -1746,34 +1779,30 @@ async function init() {
     try {
       data = await loadData();
     } catch {
-      setLoadState("error", "Bundled analysis unavailable",
-        hasRenderedAnalysis
-          ? "The refresh failed. The last successful synthetic analysis remains visible; retry when ready."
-          : "The synthetic fixture could not be loaded. Local import and inspectable evaluation remain available.");
+      const failure = hasRenderedAnalysis
+        ? BUNDLED_LOAD_STATE.refreshFailure : BUNDLED_LOAD_STATE.firstFailure;
+      setLoadState("error", failure.title, failure.detail);
       if (hasRenderedAnalysis) return;
-      setText("finops-provenance", "Demo data unavailable — the executive view will populate once the feed returns.");
-      setText("score-value", "Score unavailable");
+      setText("finops-provenance", HEADLINE_BUNDLE_UNAVAILABLE.provenance);
+      setText("score-value", HEADLINE_BUNDLE_UNAVAILABLE.score);
       // A failed load has no spend denominator, which is the same honest state
       // as an import with none: the coverage line says so rather than sitting
       // on its loading copy under a card that has already given up.
       const noData = gradeEligibility([]);
       setText("score-coverage", noData.label);
       setText("score-action", noData.nextAction.text);
-      setText("score-peer", "No metric is inferred from a failed load.");
+      setText("score-peer", HEADLINE_BUNDLE_UNAVAILABLE.peer);
       for (const id of ["kpi-spend-value", "kpi-recoverable-value", "kpi-productive-value", "kpi-peer-value"])
-        setText(id, "Unavailable");
+        setText(id, KPI_NOT_LOADED);
       const portfolioList = document.getElementById("portfolio-list");
       portfolioList?.setAttribute("aria-busy", "false");
-      portfolioList?.replaceChildren(renderPortfolioUnavailable(
-        "The bundled analysis could not be loaded. Retry to restore the action portfolio."));
-      setText("portfolio-count", "Portfolio unavailable");
+      portfolioList?.replaceChildren(
+        renderPortfolioUnavailable(HEADLINE_BUNDLE_UNAVAILABLE.portfolioReason));
+      setText("portfolio-count", HEADLINE_BUNDLE_UNAVAILABLE.portfolioCount);
       const list = document.getElementById("department-priority");
-      list?.replaceChildren(element("li", "evidence-empty",
-        "Bundled demo data could not be loaded. No live fallback was attempted."));
-      setText("detail-name", "Demo result unavailable");
-      setText("detail-score", "Unavailable");
-      setText("detail-sample", "The bundled static fixture could not be read.");
-      renderUnavailableAction("The bundled static fixture could not be read. No live analysis was attempted.");
+      list?.replaceChildren(element("li", "evidence-empty", DEPARTMENT_LIST_MESSAGE.bundleUnavailable));
+      applyDepartmentDetailState(document, "bundleUnavailable");
+      renderUnavailableAction(ACTION_UNAVAILABLE_REASON.bundleUnavailable);
       // A seed that never arrived supplies nothing, so every panel it would
       // have answered says which input is missing rather than sitting on a
       // loading line under a heading that promises a figure.
@@ -1792,7 +1821,7 @@ async function init() {
     bundledSeed = data;
     renderFinancePortfolio(data);
     repaintBundledAnalysis = () => {
-      renderHeadline(data.organization ?? {}, totals, gradeEligibility(departments));
+      renderHeadline(data.organization ?? {}, totals, gradeEligibility(departments), departments);
       renderMix(totals);
     };
     repaintBundledAnalysis();

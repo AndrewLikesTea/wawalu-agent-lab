@@ -17,6 +17,9 @@ import {
   ORG_MAPPING_REQUIREMENT_STATUS, OPTIONAL_UPGRADES,
 } from "./finops-attribution-policy.js";
 import { importLimitsSentence } from "./import-limits.js";
+// Every sentence a briefing or evidence panel says when it has no figure is
+// authored in one module, so "nothing yet" reads the same on every surface.
+import { BRIEFING_CONFIDENCE_LABEL, BRIEFING_STATE_MESSAGE } from "./briefing-strings.js";
 // The two authored sentences a reopened briefing needs. They live with the
 // reader that produced the briefing, not here, so the dates in them are the
 // file's own and this layer cannot invent a third wording for them.
@@ -672,13 +675,7 @@ export function applyBriefing(doc, briefing, derivation = null) {
  * @param message the sentence to state. Callers own the copy; this layer owns
  *   the structure, exactly as `applyBriefing` owns no wording of its own.
  */
-export const BRIEFING_STATE_MESSAGE = Object.freeze({
-  loading: "Computing this briefing from the records in this tab…",
-  empty: "No briefing yet. Import a provider export above, or open the example data, "
-    + "and the question, the figure that answers it, and the prioritized action appear here.",
-  error: "This briefing could not be computed from the imported records. "
-    + "Nothing was uploaded. Check the column mapping above and analyze again.",
-});
+export { BRIEFING_STATE_MESSAGE };
 
 export function applyBriefingState(doc, state, message = BRIEFING_STATE_MESSAGE[state]) {
   const section = byId(doc, "local-lead-finding");
@@ -699,7 +696,7 @@ export function applyBriefingState(doc, state, message = BRIEFING_STATE_MESSAGE[
   // cannot show a stale figure.
   write("local-lead-metric", "—");
   write("local-lead-grade-value", "—");
-  write("local-lead-grade-label", state === "error" ? "Confidence unavailable" : "Confidence pending");
+  write("local-lead-grade-label", BRIEFING_CONFIDENCE_LABEL[state] ?? BRIEFING_CONFIDENCE_LABEL.loading);
   write("local-lead-grade-shape", "◇");
   write("local-lead-coverage", "—");
   write("local-lead-arithmetic", "");
