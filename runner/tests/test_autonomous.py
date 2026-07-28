@@ -1875,5 +1875,77 @@ class ParallelRunTests(IsolatedDiffBudget):
         self.assertEqual(started, {52: "frontend"})
 
 
+class SyncMainTests(unittest.TestCase):
+    """sync_main against a real git checkout, since its whole job is git behaviour."""
+
+    def setUp(self):
+        super().setUp()
+        directory = tempfile.TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        root = pathlib.Path(directory.name)
+        self.origin = root / "origin"
+        self.checkout = root / "checkout"
+        self.git("init", "--bare", "--initial-branch=main", str(self.origin), cwd=root)
+        self.git("clone", str(self.origin), str(self.checkout), cwd=root)
+        self.git("config", "user.email", "test@example.com")
+        self.git("config", "user.name", "Test")
+        self.commit("first")
+        self.git("push", "origin", "main")
+        self.addCleanup(setattr, autonomous, "PRODUCT_ROOT", autonomous.PRODUCT_ROOT)
+        autonomous.PRODUCT_ROOT = self.checkout
+        self.events = []
+
+    def git(self, *args, cwd=None):
+        subprocess.run(["git", *args], cwd=cwd or self.checkout, check=True, capture_output=True)
+
+    def commit(self, name):
+        (self.checkout / name).write_text(name, encoding="utf-8")
+        self.git("add", name)
+        self.git("commit", "-m", name)
+
+    def head(self, ref):
+        return subprocess.check_output(["git", "rev-parse", ref], cwd=self.checkout, text=True).strip()
+
+    @property
+    def journal(self):
+        emitter = mock.Mock()
+        emitter.emit.side_effect = lambda event, **fields: self.events.append((event, fields))
+        return emitter
+
+    def push_upstream_commit(self, name):
+        """Advance origin/main out from under the checkout, as a merged PR does."""
+        self.commit(name)
+        self.git("push", "origin", "main")
+        self.git("reset", "--hard", "HEAD~1")
+
+    def test_fast_forwards_when_the_checkout_is_merely_behind(self):
+        self.push_upstream_commit("second")
+        sync_journal = self.journal
+        autonomous.sync_main(sync_journal)
+        self.assertEqual(self.head("main"), self.head("origin/main"))
+        self.assertEqual(self.events, [])
+
+    def test_resets_a_diverged_checkout_instead_of_failing_every_tick(self):
+        self.push_upstream_commit("upstream")
+        self.commit("stray")
+        stray = self.head("main")
+        autonomous.sync_main(self.journal)
+        self.assertEqual(self.head("main"), self.head("origin/main"))
+        self.assertEqual(self.events, [("main_reset_to_origin", {"dropped_commits": 1})])
+        # The dropped commit is recoverable, not destroyed.
+        self.assertIn(stray[:7], subprocess.check_output(
+            ["git", "reflog"], cwd=self.checkout, text=True))
+
+    def test_refuses_to_reset_over_uncommitted_work(self):
+        self.push_upstream_commit("upstream")
+        self.commit("stray")
+        (self.checkout / "scratch").write_text("unsaved", encoding="utf-8")
+        self.git("add", "scratch")
+        with self.assertRaises(RuntimeError):
+            autonomous.sync_main(self.journal)
+        self.assertEqual((self.checkout / "scratch").read_text(encoding="utf-8"), "unsaved")
+        self.assertEqual(self.events, [])
+
+
 if __name__ == "__main__":
     unittest.main()

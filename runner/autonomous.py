@@ -1329,13 +1329,32 @@ def choose_issue(issues: list[dict[str, Any]], state: State, config: dict[str, A
     return None
 
 
-def sync_main() -> None:
+def sync_main(journal: Journal | None = None) -> None:
     branch = subprocess.check_output(["git", "branch", "--show-current"], cwd=PRODUCT_ROOT, text=True).strip()
     if branch != "main":
         raise RuntimeError(f"autonomous checkout must be on main, found {branch!r}")
     with checkout_lock():
         subprocess.run(["git", "fetch", "origin", "main", "--prune"], cwd=PRODUCT_ROOT, check=True)
-        subprocess.run(["git", "merge", "--ff-only", "origin/main"], cwd=PRODUCT_ROOT, check=True)
+        forwarded = subprocess.run(["git", "merge", "--ff-only", "origin/main"], cwd=PRODUCT_ROOT,
+                                   text=True, capture_output=True)
+        if forwarded.returncode == 0:
+            return
+        # The root checkout is a read-only mirror of origin/main: every run works in its own
+        # worktree and main is push-protected, so a commit sitting here and nowhere else is a
+        # stray (a hand-applied fix, an aborted merge), never work still owed a PR. Left in
+        # place it fails the fast-forward on every later tick too, which is how one stray
+        # commit cost ten minutes of dead ticks on 2026-07-28. Reset onto origin instead --
+        # the reflog still holds whatever is dropped -- but never over a dirty tree, where the
+        # uncommitted change may be the only copy.
+        dirty = subprocess.check_output(["git", "status", "--porcelain"], cwd=PRODUCT_ROOT, text=True).strip()
+        if dirty:
+            raise RuntimeError("main cannot fast-forward onto origin/main and the checkout is "
+                               f"dirty; resolve by hand: {forwarded.stderr.strip()}")
+        dropped = subprocess.check_output(["git", "rev-list", "--count", "origin/main..main"],
+                                          cwd=PRODUCT_ROOT, text=True).strip()
+        subprocess.run(["git", "reset", "--hard", "origin/main"], cwd=PRODUCT_ROOT, check=True)
+    if journal is not None:
+        journal.emit("main_reset_to_origin", dropped_commits=int(dropped))
 
 
 def cleanup_worktree(path: pathlib.Path, branch: str, journal: Journal) -> None:
@@ -1802,7 +1821,7 @@ def tick(config: dict[str, Any], state: State, journal: Journal, token: str | No
             sweep_outstanding_prs(token or installation_token(), config, state, journal)
         return "outside-working-hours"
     token = token or installation_token()
-    sync_main()
+    sync_main(journal)
     ensure_labels(token, config["issue_label"])
     if config.get("review_owner_prs", True):
         sweep_outstanding_prs(token, config, state, journal)
