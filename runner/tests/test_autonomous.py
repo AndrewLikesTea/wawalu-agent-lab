@@ -1336,6 +1336,56 @@ class AutonomousTests(IsolatedDiffBudget):
             self.assertEqual(state.value["issues"]["60"]["status"], "retry")
             self.assertEqual(state.value["issues"]["60"]["worker_override"], "codex")
 
+    def test_rejection_feedback_is_carried_onto_the_issue_record(self):
+        """A rejected attempt must hand its blocking note to the next one.
+
+        Issues 396 and 399 each burned successive paid sessions earning the same
+        rejection twice, because the retry replanned from the issue body alone and
+        never learned what the reviewer had asked for.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            state.value["issues"]["60"] = {"status": "running", "attempts": 1}
+            journal = autonomous.Journal(pathlib.Path(tmp) / "events.jsonl")
+            issue = {"number": 60, "title": "Share button", "body": "",
+                     "labels": [{"name": "agent-ready"}]}
+            with mock.patch.object(autonomous, "latest_run_review", return_value="Panels are not wired."), \
+                 mock.patch.object(autonomous, "comment"), \
+                 mock.patch.object(autonomous, "replace_state_label"):
+                autonomous.record_run_outcome(
+                    orchestrator.REVIEW_REJECTED_EXIT_CODE, issue, 60, "frontend", {},
+                    {**self.config(), "issue_label": "agent-ready"}, state, journal, "token")
+            self.assertEqual(state.value["issues"]["60"]["review_feedback"], "Panels are not wired.")
+
+    def test_only_a_rejection_records_review_feedback(self):
+        """A crash or a capacity defer says nothing about the work — nothing to carry."""
+        with tempfile.TemporaryDirectory() as tmp:
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            state.value["issues"]["60"] = {"status": "running", "attempts": 1}
+            journal = autonomous.Journal(pathlib.Path(tmp) / "events.jsonl")
+            issue = {"number": 60, "title": "Share button", "body": "",
+                     "labels": [{"name": "agent-ready"}]}
+            with mock.patch.object(autonomous, "latest_run_review", return_value="stale note"), \
+                 mock.patch.object(autonomous, "comment"), \
+                 mock.patch.object(autonomous, "replace_state_label"):
+                autonomous.record_run_outcome(
+                    1, issue, 60, "frontend", {}, {**self.config(), "issue_label": "agent-ready"},
+                    state, journal, "token")
+            self.assertNotIn("review_feedback", state.value["issues"]["60"])
+
+    def test_latest_run_review_ignores_an_approved_verdict(self):
+        """Only a withheld approval carries advice; an approval must not leak forward."""
+        with tempfile.TemporaryDirectory() as tmp:
+            run_dir = pathlib.Path(tmp) / ".agent" / "runs" / "sim_1"
+            run_dir.mkdir(parents=True)
+            (run_dir / "review.json").write_text(
+                json.dumps({"approved": True, "feedback": "nit: rename x", "summary": "ok"}))
+            with mock.patch.object(autonomous, "ROOT", pathlib.Path(tmp)):
+                self.assertEqual(autonomous.latest_run_review(), "")
+                (run_dir / "review.json").write_text(
+                    json.dumps({"approved": False, "feedback": "Panels are not wired.", "summary": "s"}))
+                self.assertEqual(autonomous.latest_run_review(), "Panels are not wired.")
+
     def test_capacity_backoff_is_short_while_the_alternate_provider_is_awake(self):
         """One dark provider is not a reason to idle: the long backoff is for both dark.
 
