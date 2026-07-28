@@ -20,9 +20,11 @@ import { mountFinancePortfolio, renderPortfolioUnavailable } from "/finance-port
 import {
   renderFinopsEvaluationPanel, renderFinopsEvaluationUnavailable,
 } from "/finops-evaluation-view.js";
-import {
-  localFinopsJsonExport, localFinopsMeetingSummary, normalizeLocalFinopsHistory,
-} from "/local-finops.js";
+import { localFinopsMeetingSummary, normalizeLocalFinopsHistory } from "/local-finops.js";
+// The download itself. Every figure decision is inside `briefingFile`; the only
+// thing this layer contributes is the clock, because the generator is pure and
+// will not read one.
+import { briefingFile } from "/finops-briefing-export.js";
 // One entry point for a selected file: `.json` keeps the reviewed JSON path
 // untouched, `.csv`/`.tsv`/`.txt` route through the delimited normalizer. Both
 // return the same parsed v1 envelope, so nothing below this line changes.
@@ -1160,11 +1162,18 @@ function mountLocalFinopsImport() {
       ?? CONVERSATION_EXAMPLE_FILES[0];
     downloadLocalExport(conversationExampleText(chosen.dialectId), chosen.mediaType, chosen.fileName);
   });
+  // The briefing file, not the raw envelope it used to be. `briefingFile` is
+  // pure — it has no clock — so the one ambient value the file records is passed
+  // in from here, and everything else in the artifact is a function of the
+  // analysis alone. Two clicks on one result therefore differ in exactly one
+  // field, and two page loads of the same import produce the same bytes.
   document.getElementById("export-local-json")?.addEventListener("click", () => {
-    if (result) downloadLocalExport(
-      localFinopsJsonExport(result, { exampleDataset: exampleActive }),
-      "application/json",
-      exampleActive ? "example-finops-results.json" : "local-finops-results.json");
+    if (!result) return;
+    const file = briefingFile(result, {
+      dataset: exampleActive ? "example" : "user",
+      exportedAt: new Date().toISOString(),
+    });
+    downloadLocalExport(file.text, file.mediaType, file.fileName);
   });
   document.getElementById("export-local-summary")?.addEventListener("click", () => {
     if (result) downloadLocalExport(

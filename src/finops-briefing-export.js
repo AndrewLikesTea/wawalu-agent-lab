@@ -1,0 +1,542 @@
+// The briefing file a finished analysis is downloaded as.
+//
+// WHAT THIS REPLACES
+// ------------------
+// The download used to be `JSON.stringify(wholeEnvelope)`: a raw dump whose
+// contents were whatever the analysis happened to hold that day, whose bytes
+// changed between two clicks on the same result (the envelope carries a
+// `generatedAt`, and the wrapper stamped a fresh `exportedAt`), and which
+// shipped the quarantine rows — actual provider records — inside `quality`.
+//
+// This module writes a *selected* file instead. Three properties are the point:
+//
+//   1. SELF-CONTAINED. Every headline figure travels with the operands it was
+//      computed from, so a reader can re-derive the number instead of trusting
+//      it. A formula string is not an operand and never stands in for one.
+//   2. DETERMINISTIC. Same analysis in, same bytes out — across two clicks and
+//      across two page loads. Nothing here reads a clock, a URL, storage, or a
+//      random source, and `serializeBriefing` sorts every key.
+//   3. ALLOWLISTED. `results` is projected field by field. A field this module
+//      does not name cannot reach the file, so a new key on the envelope is
+//      absent by default rather than leaked by default. That is the opposite of
+//      the blocklist the raw dump implied, and it is why the quarantine rows,
+//      the query sample, and the per-model detail are simply not here.
+//
+// PURITY IS A SIGNATURE CONSTRAINT, NOT A CONVENTION
+// --------------------------------------------------
+// `buildBriefing(analysis, { dataset, exportedAt })` reads nothing ambient. The
+// one value a briefing file needs that is not in the analysis — when it was
+// written — is an argument. The caller holds the clock; this module does not.
+// Omit it and the file is still valid, but the #392 reader will refuse to
+// reopen it, because a briefing that cannot say when it was written cannot be
+// shown as a past briefing.
+//
+// THE FILE SHAPE IS THE READER'S
+// ------------------------------
+// `finops-briefing-restore.js` (#392) already reads
+// `{ exportedAt, dataset, briefingContractVersion, datasetNotice?, results }`
+// and rebuilds the above-the-fold slots by calling `buildFinopsBriefing` on
+// `results`. This file keeps all five keys and adds `briefing`, `figures`, and
+// `scenario` alongside them. The projection below is therefore not free: it has
+// to carry every field `buildFinopsBriefing` and `leadingFinding` read, or a
+// reopened briefing would say something different from the one that was saved.
+// `tests/finops-briefing-export.test.js` asserts exactly that equality.
+
+import {
+  buildFinopsBriefing,
+  CONTRACT_VERSION,
+  COVERAGE_THRESHOLDS,
+  FORBIDDEN_FIELD_PATTERN,
+  FORBIDDEN_VALUE_PATTERNS,
+  MAX_STRING_LENGTH,
+  validateBriefing,
+} from "./finops-briefing-contract.js";
+import {
+  DOWN_ROUTING_ASSUMPTIONS,
+  DOWN_ROUTING_CONSTANTS,
+  DOWN_ROUTING_RULE_VERSION,
+} from "./down-routing-candidates.js";
+
+/**
+ * The file's own version, separate from the briefing contract's. The contract
+ * governs the three above-the-fold slots; this governs the envelope around them
+ * — `figures`, `scenario`, and the shape of the `results` projection. Bump it
+ * when one of those changes meaning, and leave `CONTRACT_VERSION` to Noor.
+ */
+export const BRIEFING_FILE_VERSION = "finops-briefing-file/1.0.0";
+
+export const BRIEFING_FILE_NAME = Object.freeze({
+  user: "local-finops-briefing.json",
+  example: "example-finops-briefing.json",
+});
+
+export const BRIEFING_FILE_MEDIA_TYPE = "application/json";
+
+/**
+ * Carried verbatim from the writer this replaces, so an example-data briefing
+ * says the same thing it always said, in the same words, in a file whose whole
+ * point is that its figures are reproducible.
+ */
+export const EXAMPLE_DATASET_NOTICE =
+  "EXAMPLE DATA — computed from a bundled synthetic provider export and org roster. "
+  + "Not your data and not a report about any real organization.";
+
+/**
+ * WHEN A HEADLINE FIGURE MAY READ AS COMPLETE.
+ *
+ * A figure is `complete: true` only when *both* hold:
+ *
+ *   * the briefing contract graded coverage `high` — which is its own rule:
+ *     analyzed/total records >= COVERAGE_THRESHOLDS.high (0.90) **and** no
+ *     required input missing; and
+ *   * the attributed share of analyzed spend is 1 — every dollar the figure was
+ *     summed over sits in a department the rubric could score.
+ *
+ * Either one short and the figure is `complete: false` with a `qualifier` that
+ * names both fractions. The second condition is the one that matters for this
+ * file: record coverage can be 100% while a fifth of the spend sits in the
+ * unattributed bucket, and a figure summed over four-fifths of the money that
+ * presents itself as a total is a wrong number wearing a right one's clothes.
+ *
+ * The rule is deliberately stricter than the contract's `high` grade rather
+ * than a second opinion about it: this module never re-grades coverage, it
+ * reads `briefing.coverage.confidence` and adds the attribution condition.
+ */
+export const COMPLETE_REQUIRES_FULL_ATTRIBUTION = true;
+
+/** Attribution shares are compared at cent-scale; float noise is not a gap. */
+const ATTRIBUTION_EPSILON = 1e-9;
+
+/**
+ * Ratios are the only values this module rounds, and they round here, once, to
+ * six places. Money is carried exactly as the analysis computed it — re-rounding
+ * a total that was already rounded to cents is how a re-derived figure ends up a
+ * cent away from the headline it was supposed to reproduce.
+ */
+function roundRatio(value) {
+  return Number.isFinite(value) ? Math.round(value * 1e6) / 1e6 : 0;
+}
+
+function finite(value, fallback = null) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
+}
+
+/** A fixed one-decimal percent, so a qualifier's bytes are stable. */
+function percentText(ratio) {
+  return `${(roundRatio(ratio) * 100).toFixed(1)}%`;
+}
+
+// ---------------------------------------------------------------------------
+// The `results` projection. Allowlist, field by field.
+// ---------------------------------------------------------------------------
+
+/**
+ * One department, reduced to the aggregates a figure is re-derived from.
+ *
+ * `downRouting` keeps its rule version (the #392 reader reads the *file's* rule
+ * version off this field, not off today's build) and its numeric operands, and
+ * drops `decisionReason`, `unitLabel`, and the confidence object's reason prose.
+ * A decision code is a fact about the rule; the sentence explaining it is a
+ * rendering, and it is authored on the page from the same code.
+ */
+function projectDepartment(department, rank) {
+  const routing = department?.downRouting ?? null;
+  return {
+    downRouting: routing
+      ? {
+        candidateSpendUsd: finite(routing.candidateSpendUsd),
+        candidateTokens: finite(routing.candidateTokens),
+        confidenceLevel: routing.confidence?.level ?? null,
+        decisionCode: routing.decisionCode ?? null,
+        flagged: Boolean(routing.flagged),
+        observedMinorPerMillionTokens: finite(routing.observedMinorPerMillionTokens),
+        recoverableUsd: finite(routing.recoverableUsd, 0),
+        referenceMinorPerMillionTokens: finite(routing.referenceMinorPerMillionTokens),
+        requests: finite(routing.requests),
+        routableSpendUsd: finite(routing.routableSpendUsd),
+        ruleVersion: routing.ruleVersion ?? null,
+        tokensPerCall: finite(routing.tokensPerCall),
+      }
+      : null,
+    id: department?.id ?? null,
+    name: department?.name ?? null,
+    previousSpendUsd: finite(department?.previousSpendUsd),
+    // The rank the analysis published, carried as a field rather than implied by
+    // array position, so the ordering survives a consumer that re-sorts.
+    rank,
+    records: finite(department?.records, 0),
+    recoverableUsd: finite(department?.recoverableUsd, 0),
+    spendChangePercent: finite(department?.spendChangePercent),
+    spendChangeUsd: finite(department?.spendChangeUsd),
+    spendUsd: finite(department?.spendUsd, 0),
+    trendAvailable: Boolean(department?.trendAvailable),
+  };
+}
+
+/**
+ * Ranked departments in the analysis's own order, then sorted by that order
+ * explicitly.
+ *
+ * The rank is assigned from the envelope's array position — that array *is* the
+ * ranking, and re-ranking it here would fork the analysis. The sort is therefore
+ * a no-op today, and that is the point: it makes the file's order a stated
+ * property of the `rank` field rather than an inherited accident, with `id`
+ * ascending as the tiebreak so two entries at one rank can never swap.
+ */
+function projectDepartments(result) {
+  const ranked = Array.isArray(result?.rankedDepartments) ? result.rankedDepartments : [];
+  return ranked
+    .map((department, index) => projectDepartment(department, index + 1))
+    .sort((left, right) => left.rank - right.rank
+      || String(left.id).localeCompare(String(right.id)));
+}
+
+function projectHistory(result) {
+  const history = result?.history;
+  if (!history || typeof history !== "object") return null;
+  const periods = Array.isArray(history.periods) ? history.periods : [];
+  return {
+    currentPeriod: history.currentPeriod ?? null,
+    message: history.message ?? null,
+    organizationSpendChangePercent: finite(history.organizationSpendChangePercent),
+    organizationTrendAvailable: Boolean(history.organizationTrendAvailable),
+    periodCount: finite(history.periodCount, periods.length),
+    // Order is the analysis's chronological order and `leadingFinding` reads the
+    // last two entries positionally, so this list is carried as given and never
+    // re-sorted. Sorting it by period string would be the same order today and a
+    // silent reinterpretation the day a period label changes shape.
+    periods: periods.map((entry) => ({
+      completeness: entry?.completeness ?? null,
+      period: entry?.period ?? null,
+      recoverableUsd: finite(entry?.recoverableUsd, 0),
+      spendUsd: finite(entry?.spendUsd, 0),
+    })),
+    previousPeriod: history.previousPeriod ?? null,
+    state: history.state ?? null,
+  };
+}
+
+/**
+ * The analysis, reduced to what the briefing states and what the #392 reader
+ * needs to rebuild it. Everything else — the quarantine rows, the query sample,
+ * the literacy grades, the per-model routing detail, the free-text provenance
+ * and warnings — is absent because it is not named here.
+ */
+function projectResults(result, departments) {
+  const quality = result?.quality ?? {};
+  return {
+    action: typeof result?.action === "string" ? result.action : "",
+    confidence: result?.confidence ?? null,
+    history: projectHistory(result),
+    period: result?.period ?? null,
+    quality: {
+      hrisCompleteness: quality.hrisCompleteness ?? null,
+      // Integers, because the reader type-checks them as integers and because a
+      // fractional record count is not a thing.
+      joinedRecords: Math.max(0, Math.trunc(finite(quality.joinedRecords, 0))),
+      providerCompleteness: quality.providerCompleteness ?? null,
+      quarantinedRecords: Math.max(0, Math.trunc(finite(quality.quarantinedRecords, 0))),
+    },
+    rankedDepartments: departments,
+    recoverableUsd: finite(result?.recoverableUsd, 0),
+    schemaVersion: result?.schemaVersion ?? null,
+    spendUsd: finite(result?.spendUsd, 0),
+    topDepartment: departments.length ? departments[0] : null,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// The figures, each with its operands.
+// ---------------------------------------------------------------------------
+
+/**
+ * The scenario's numeric parameters, as named fields, beside the assumption
+ * text that says what each one asserts and that it has no source.
+ *
+ * The parameters and the assumptions both come from `down-routing-candidates.js`
+ * — a briefing that restated either would be a second rate card. The pairing is
+ * declared here by index rather than inferred, so reordering the assumption list
+ * upstream fails a test instead of silently re-labelling a threshold.
+ */
+const SCENARIO_PARAMETERS = Object.freeze([
+  Object.freeze({
+    assumptionIndex: 0,
+    name: "premium_tier_floor_minor_per_million_tokens",
+    unit: "currency_minor_per_million_tokens",
+    value: DOWN_ROUTING_CONSTANTS.PREMIUM_TIER_MIN_MINOR_PER_MILLION_TOKENS,
+  }),
+  Object.freeze({
+    assumptionIndex: 1,
+    name: "standard_tier_reference_minor_per_million_tokens",
+    unit: "currency_minor_per_million_tokens",
+    value: DOWN_ROUTING_CONSTANTS.STANDARD_TIER_REFERENCE_MINOR_PER_MILLION_TOKENS,
+  }),
+  Object.freeze({
+    assumptionIndex: 2,
+    name: "short_call_max_tokens_per_call",
+    unit: "tokens_per_call",
+    value: DOWN_ROUTING_CONSTANTS.SHORT_CALL_MAX_TOKENS_PER_CALL,
+  }),
+  Object.freeze({
+    assumptionIndex: 3,
+    name: "min_candidate_requests",
+    unit: "requests",
+    value: DOWN_ROUTING_CONSTANTS.MIN_CANDIDATE_REQUESTS,
+  }),
+]);
+
+function scenarioBlock() {
+  return {
+    parameters: SCENARIO_PARAMETERS.map((parameter) => ({
+      assumption: DOWN_ROUTING_ASSUMPTIONS[parameter.assumptionIndex] ?? null,
+      name: parameter.name,
+      unit: parameter.unit,
+      value: parameter.value,
+    })),
+    // The substitution and scope assumptions, which qualify the figure without
+    // carrying a threshold of their own.
+    qualifications: DOWN_ROUTING_ASSUMPTIONS.slice(SCENARIO_PARAMETERS.length),
+    ruleVersion: DOWN_ROUTING_RULE_VERSION,
+  };
+}
+
+/**
+ * Attributed spend versus total, as amounts and as counts.
+ *
+ * Both denominators are carried because they answer different questions and can
+ * disagree: `attributedSpendUsd / (attributed + unattributed)` is how much of
+ * the *money* the rubric could score, and `analyzedRecords / totalRecords` is
+ * how much of the *record set* was analyzed at all.
+ */
+function attributedShareFigure(result, coverage) {
+  const rankedRecoverable = result?.attribution?.rankedRecoverable ?? null;
+  const attributed = finite(rankedRecoverable?.coverage?.attributedSpend, 0);
+  const unattributed = finite(rankedRecoverable?.coverage?.unattributedSpend, 0);
+  const total = attributed + unattributed;
+  return {
+    inputs: {
+      analyzedRecords: coverage.recordsAnalyzed,
+      attributedSpendUsd: attributed,
+      attributionFloor: finite(rankedRecoverable?.threshold?.reason?.floor),
+      attributionVersion: result?.attribution?.version ?? null,
+      excludedRecords: Math.max(0, coverage.recordsTotal - coverage.recordsAnalyzed),
+      totalRecords: coverage.recordsTotal,
+      totalSpendUsd: total,
+      unattributedRecoverableUsd: finite(rankedRecoverable?.unattributedRecoverableUsd, 0),
+      unattributedSpendUsd: unattributed,
+    },
+    unit: "ratio",
+    // attributedSpendUsd ÷ (attributedSpendUsd + unattributedSpendUsd), with a
+    // non-positive denominator defined as 0 — the same zero-denominator rule the
+    // briefing contract applies to record coverage.
+    value: total > 0 ? roundRatio(attributed / total) : 0,
+  };
+}
+
+/**
+ * Recoverable spend, with the per-department amounts it is the sum of.
+ *
+ * `value` is the analysis's own total, not a re-summation: this file reports the
+ * figure the page showed. The operands are beside it so a reader can add them up
+ * and see that they agree.
+ */
+function recoverableSpendFigure(result, departments) {
+  const analyzedSpendUsd = finite(result?.spendUsd, 0);
+  const recoverableUsd = finite(result?.recoverableUsd, 0);
+  return {
+    inputs: {
+      analyzedSpendUsd,
+      perDepartmentRecoverableUsd: departments.map((department) => ({
+        id: department.id,
+        rank: department.rank,
+        recoverableUsd: department.recoverableUsd,
+        spendUsd: department.spendUsd,
+      })),
+      rankedDepartmentCount: departments.length,
+      // recoverableScenarioUsd ÷ analyzedSpendUsd. Carried as a field because the
+      // page states it as a percentage and a reader should not have to guess
+      // which of the two spend totals it was taken against.
+      recoverableShareOfAnalyzedSpend: analyzedSpendUsd > 0
+        ? roundRatio(recoverableUsd / analyzedSpendUsd) : 0,
+    },
+    unit: "USD",
+    value: recoverableUsd,
+  };
+}
+
+/**
+ * The completeness marker every figure carries. See
+ * COMPLETE_REQUIRES_FULL_ATTRIBUTION above for the rule.
+ */
+function completenessOf(coverage, attributedShare) {
+  const fullyAttributed = attributedShare >= 1 - ATTRIBUTION_EPSILON;
+  const complete = coverage.confidence === "high" && fullyAttributed;
+  return {
+    attributedShare,
+    complete,
+    confidence: coverage.confidence,
+    coverageRatio: coverage.coverageRatio,
+    coverageThresholdForComplete: COVERAGE_THRESHOLDS.high,
+    qualifier: complete
+      ? null
+      : `Partial: this figure was computed over ${percentText(coverage.coverageRatio)} of the analyzed `
+        + `records and ${percentText(attributedShare)} of the analyzed spend. It is not a complete total.`,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Forbidden content, checked over the whole file rather than the briefing alone.
+// ---------------------------------------------------------------------------
+
+function normalizeKey(key) {
+  return String(key).toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+/**
+ * The contract's own rules — its field pattern, its value patterns, its length
+ * ceiling — applied to the entire payload. `validateBriefing` walks the briefing
+ * object; a briefing *file* also carries `results`, `figures`, and `scenario`,
+ * and those are exactly where a leak would arrive.
+ *
+ * Total: it returns violations and never throws, so a caller can report them.
+ */
+export function scanBriefingPayload(payload) {
+  const violations = [];
+  const stack = [{ value: payload, path: "" }];
+  while (stack.length) {
+    const { value, path } = stack.pop();
+    if (Array.isArray(value)) {
+      value.forEach((item, index) => stack.push({ value: item, path: `${path}[${index}]` }));
+      continue;
+    }
+    if (value && typeof value === "object") {
+      for (const [key, child] of Object.entries(value)) {
+        const here = path ? `${path}.${key}` : key;
+        if (FORBIDDEN_FIELD_PATTERN.test(normalizeKey(key))) {
+          violations.push({ path: here, code: "forbidden_field", detail: key });
+        }
+        stack.push({ value: child, path: here });
+      }
+      continue;
+    }
+    if (typeof value !== "string") continue;
+    if (value.length > MAX_STRING_LENGTH) {
+      violations.push({ path, code: "free_form_text", detail: `${value.length} characters` });
+    }
+    for (const { code, pattern } of FORBIDDEN_VALUE_PATTERNS) {
+      if (pattern.test(value)) violations.push({ path, code, detail: code });
+    }
+  }
+  return Object.freeze({ valid: violations.length === 0, violations: Object.freeze(violations) });
+}
+
+/** Thrown rather than written. A file that would carry a leak is not written. */
+export class BriefingContentError extends Error {
+  constructor(violations) {
+    super(`Briefing withheld: ${violations.length} forbidden-content violation(s).`);
+    this.name = "BriefingContentError";
+    this.violations = violations;
+  }
+}
+
+/** Contract validity and forbidden content in one answer, for callers and tests. */
+export function validateBriefingPayload(payload) {
+  const contract = validateBriefing(payload?.briefing);
+  const content = scanBriefingPayload(payload);
+  const violations = [
+    ...contract.violations.map((violation) => ({ ...violation, path: `briefing.${violation.path}` })),
+    ...content.violations,
+  ];
+  return Object.freeze({ valid: violations.length === 0, violations: Object.freeze(violations) });
+}
+
+// ---------------------------------------------------------------------------
+// The generator.
+// ---------------------------------------------------------------------------
+
+/**
+ * Build the briefing payload for a finished analysis.
+ *
+ * Pure: no DOM, no fetch, no storage, no clock, no randomness. Two calls on the
+ * same envelope return equal payloads, in this process and in the next one.
+ *
+ * @param analysis an envelope from `normalizeLocalFinops` or
+ *   `normalizeLocalFinopsHistory`, or null when nothing has been analyzed.
+ * @param options.dataset "user" or "example"; anything else reads as "user",
+ *   because a file that cannot prove it is example data must not claim to be.
+ * @param options.exportedAt an ISO-8601 timestamp *supplied by the caller*. This
+ *   module has no clock. Omit it and the key is absent from the payload — the
+ *   file stays valid and deterministic, and the #392 reader will decline to
+ *   reopen it for want of a written date.
+ * @param options.attributionWithheld passed through to the contract, which
+ *   honours the page's decision to suppress the money figure rather than
+ *   re-deriving it.
+ * @throws {BriefingContentError} when the payload would carry forbidden content.
+ *   Refusing to write beats writing a leak, and a silent redaction would leave a
+ *   file that looks whole.
+ */
+export function buildBriefing(analysis, { dataset, exportedAt, attributionWithheld = false } = {}) {
+  const result = analysis && typeof analysis === "object" ? analysis : null;
+  const briefing = buildFinopsBriefing(result, { attributionWithheld });
+  const departments = projectDepartments(result);
+  const attributedShare = attributedShareFigure(result, briefing.coverage);
+  const completeness = completenessOf(briefing.coverage, attributedShare.value);
+  const recoverableSpend = recoverableSpendFigure(result, departments);
+
+  const payload = {
+    // The contract's three slots, selected by the contract and copied here
+    // whole. This module never re-decides one of them.
+    briefing,
+    briefingContractVersion: CONTRACT_VERSION,
+    briefingFileVersion: BRIEFING_FILE_VERSION,
+    dataset: dataset === "example" ? "example" : "user",
+    ...(dataset === "example" ? { datasetNotice: EXAMPLE_DATASET_NOTICE } : {}),
+    ...(typeof exportedAt === "string" && exportedAt ? { exportedAt } : {}),
+    figures: {
+      attributedShare: { ...attributedShare, completeness },
+      recoverableSpend: { ...recoverableSpend, completeness },
+    },
+    // No new provenance key: the contract already carries the client-side
+    // statement at `briefing.provenance`, and a second copy under a second name
+    // is the fork this whole seam exists to prevent.
+    results: projectResults(result, departments),
+    scenario: scenarioBlock(),
+  };
+
+  const content = scanBriefingPayload(payload);
+  if (!content.valid) throw new BriefingContentError(content.violations);
+  return payload;
+}
+
+/**
+ * Serialize a payload to bytes that depend only on its values.
+ *
+ * The replacer rebuilds every object with its keys in sorted order, so two
+ * payloads that differ only in insertion order serialize identically. Arrays
+ * keep their order — the collections in this file are ordered by `projectDepartments`
+ * and by the analysis's own chronology, both of which are stated properties, not
+ * incidental ones.
+ */
+export function serializeBriefing(payload) {
+  return `${JSON.stringify(payload, (key, value) => {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return value;
+    const sorted = {};
+    for (const name of Object.keys(value).sort()) sorted[name] = value[name];
+    return sorted;
+  }, 2)}\n`;
+}
+
+/**
+ * The one call the export button makes: envelope in, `{ fileName, mediaType,
+ * text }` out. The component holds the clock and the download mechanism; every
+ * figure decision is above this line.
+ */
+export function briefingFile(analysis, options = {}) {
+  const payload = buildBriefing(analysis, options);
+  return Object.freeze({
+    fileName: BRIEFING_FILE_NAME[payload.dataset],
+    mediaType: BRIEFING_FILE_MEDIA_TYPE,
+    text: serializeBriefing(payload),
+  });
+}
