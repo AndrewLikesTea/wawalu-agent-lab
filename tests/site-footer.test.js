@@ -70,8 +70,9 @@ test("every page that carries a site nav is covered by the table", async () => {
 });
 
 test("the footer is a contentinfo landmark with an accessible name, after the content in document order", async () => {
-  // A detail page and a list page, so this is not asserted on one layout: the
-  // .page-wrapped frame and the bare-<main> frame both put the footer last.
+  // A detail page and a list page, so this is not asserted on one layout. Every
+  // page now uses the .page-wrapped frame — issue 378 converted the last of the
+  // bare-<main> ones — and the footer stays outside it, scoped to the document.
   for (const file of ["index.html", "post.html", "social.html", "agents.html"]) {
     const html = await read(file);
     const page = await loadPage(pageUrl(file));

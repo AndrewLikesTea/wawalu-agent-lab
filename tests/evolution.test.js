@@ -175,7 +175,10 @@ test("the AI FinOps tab ships from every page and keeps the demo boundary", asyn
   ]);
   assert.match(home, /href="\/evolution\.html"/);
   assert.match(page, /<title>AI FinOps · Shiplog<\/title>/);
-  assert.match(page, /<main>/);
+  // The content region, not the whole document: the header and nav sit outside
+  // it so the skip link has somewhere worth skipping to. tests/page-skip-link.js
+  // owns the rest of that contract.
+  assert.match(page, /<main id="main-content" tabindex="-1">/);
   assert.match(page, /aria-current="page" href="\/evolution\.html"/);
   // Intervention priority is metric-defined, so there is no "Rank by" control
   // to assert. This used to match a label that only existed inside a developer

@@ -8,7 +8,9 @@ main,.page { width:min(1180px,calc(100% - 40px)); margin:auto; padding:24px 0 80
    can be the content region alone — header and nav sit outside it, which is the
    only arrangement in which "skip to main content" actually skips anything. The
    inner landmark is a plain block; .page holds the measure and the padding.
-   Pages not yet converted still match the bare `main` rule above. */
+   Every page this stylesheet serves is converted (issue 378 took the last two,
+   AI FinOps and the Savings Action Center). The bare `main` rule above is the
+   fallback a new page gets before it is wrapped, not a frame anything ships. */
 .page>main { width:auto; margin:0; padding:0; }
 /* The landmark is focusable only as the skip link's destination, so a mouse
    click must not leave a ring parked on the whole page. */
