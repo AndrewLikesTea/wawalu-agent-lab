@@ -9,6 +9,10 @@ import {
   coverageOf, coverageThreshold, isUnattributed, UNATTRIBUTED_KEY, UNATTRIBUTED_UNIT,
 } from "./attribution-units.js";
 import { analyzeModelRouting, evaluateDownRoutingCandidate } from "./down-routing-candidates.js";
+// The version of the briefing contract this build's above-the-fold surface was
+// selected by. Imported, never re-typed: a consumer that copies the string is a
+// consumer that can fall behind it silently.
+import { CONTRACT_VERSION as BRIEFING_CONTRACT_VERSION } from "./finops-briefing-contract.js";
 import { RUBRIC_VERSION_ID } from "./prompt-literacy-scoring.js";
 import { analyzeQueryLiteracy, missingInputNotice, NOT_GRADEABLE_COPY } from "./query-literacy.js";
 import {
@@ -961,10 +965,17 @@ const EXAMPLE_DATASET_NOTICE =
   "EXAMPLE DATA — computed from a bundled synthetic provider export and org roster. "
   + "Not your data and not a report about any real organization.";
 
+// Every artifact records the briefing-contract version it was built against.
+// The export does not select the above-the-fold slots for itself — the contract
+// does, on the page — but an artifact that cannot say which version of that
+// contract produced the surface it was taken from is an artifact nobody can
+// reproduce. Recording the version is the seam; forking the selection is what
+// it is here to prevent.
 export function localFinopsJsonExport(result, { exampleDataset = false } = {}) {
   return JSON.stringify({
     exportedAt: new Date().toISOString(),
     dataset: exampleDataset ? "example" : "user",
+    briefingContractVersion: BRIEFING_CONTRACT_VERSION,
     ...(exampleDataset ? { datasetNotice: EXAMPLE_DATASET_NOTICE } : {}),
     results: result,
   }, null, 2);
@@ -975,6 +986,7 @@ export function localFinopsMeetingSummary(result, { exampleDataset = false } = {
   return [
     ...(exampleDataset ? [EXAMPLE_DATASET_NOTICE] : []),
     "LOCAL FINOPS MEETING SUMMARY",
+    `Briefing contract: ${BRIEFING_CONTRACT_VERSION}`,
     `Period: ${result.period}`,
     `Observed spend: ${result.spendUsd.toFixed(2)} USD`,
     `Recoverable scenario: ${result.recoverableUsd.toFixed(2)} USD`,

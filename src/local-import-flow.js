@@ -452,27 +452,88 @@ export function userDatasetProvenance({ files = [], rows = 0, shapes = [] } = {}
 }
 
 /**
- * Paint the leading finding: the question, the one number that answers it, the
- * driver behind that number, and the prioritized action. Every string comes from
- * the finding model, which reads the analysis envelope; this layer chooses no
- * words of its own beyond the static field labels in the markup.
+ * How this layer renders a briefing's figure. The contract emits
+ * `{ value, unit }` and deliberately does no formatting, so the two-decimal USD
+ * convention the rest of this page uses is applied here and only here.
  */
-export function applyLeadingFinding(doc, finding) {
+function metricText(metric) {
+  const amount = `${metric.value.toFixed(2)} ${metric.unit}`;
+  const signed = metric.value > 0 ? `+${amount}` : metric.value < 0
+    ? `−${Math.abs(metric.value).toFixed(2)} ${metric.unit}` : amount;
+  const period = `${metric.period.start.slice(0, 10)} to ${metric.period.end.slice(0, 10)}`;
+  // The signed form is only meaningful for a change; a stock figure is not
+  // "+5200 USD", it is 5200 USD.
+  const figure = metric.candidate === "spend_change" ? signed : amount;
+  return `${figure} · ${metric.label} · ${period}`;
+}
+
+const CONFIDENCE_WORD = Object.freeze({
+  high: "High confidence",
+  moderate: "Moderate confidence",
+  low: "Low confidence",
+  insufficient: "Insufficient coverage",
+});
+
+function coverageText(coverage) {
+  const share = coverage.recordsTotal === 0
+    ? "no records to cover"
+    : `${(coverage.coverageRatio * 100).toFixed(1)}% of records`;
+  const missing = coverage.missingInputs.length
+    ? ` Missing input${coverage.missingInputs.length === 1 ? "" : "s"}: ${coverage.missingInputs.join(", ")}.`
+    : "";
+  return `${CONFIDENCE_WORD[coverage.confidence]} · ${share} `
+    + `(${coverage.recordsAnalyzed} analyzed of ${coverage.recordsTotal}).${missing}`;
+}
+
+function arithmeticText(arithmetic) {
+  return `${arithmetic.operation}. `
+    + arithmetic.inputs.map((input) => `${input.name} = ${input.value}`).join("; ") + ".";
+}
+
+/**
+ * Paint the briefing: the one question, the one figure that answers it, how
+ * that figure was computed, and the rank-1 action with the role accountable for
+ * it — in that order.
+ *
+ * Every slot comes from `buildFinopsBriefing`. This layer decides no figure, no
+ * question, and no action of its own; it formats what the contract selected, and
+ * where the contract says a slot is absent it renders the contract's own
+ * statement of why rather than a zero, a dash, or an estimate.
+ */
+export function applyBriefing(doc, briefing) {
   const section = byId(doc, "local-lead-finding");
-  if (!section) return finding;
-  section.dataset.state = finding.available ? "available" : "unavailable";
+  if (!section) return briefing;
+  const { materialMetric, rankedAction } = briefing;
+  section.dataset.state = materialMetric ? "available" : "unavailable";
+  // The version this surface rendered, on the surface itself: a reviewer
+  // comparing the page against an export is comparing two stated versions.
+  section.dataset.contractVersion = briefing.contractVersion;
   section.hidden = false;
   const write = (id, text) => {
     const node = byId(doc, id);
     if (node) node.textContent = text;
   };
-  write("local-lead-question", finding.question);
-  write("local-lead-metric", finding.metric);
-  write("local-lead-driver", finding.driverSentence);
-  write("local-lead-action", finding.action.text);
+  write("local-lead-question", briefing.headlineQuestion);
+  write("local-lead-metric", materialMetric
+    ? metricText(materialMetric)
+    : briefing.absent.materialMetric.statement);
+  const metricNode = byId(doc, "local-lead-metric");
+  if (metricNode) metricNode.dataset.available = String(Boolean(materialMetric));
+  // Coverage is stated in every state, including the states with no figure in
+  // them. A low-coverage briefing that hides its coverage is the one dishonest
+  // shape this surface can take.
+  write("local-lead-coverage", coverageText(briefing.coverage));
+  write("local-lead-arithmetic", materialMetric
+    ? arithmeticText(briefing.arithmeticInputs)
+    : "");
+  const arithmetic = byId(doc, "local-lead-arithmetic");
+  if (arithmetic) arithmetic.hidden = !materialMetric;
+  write("local-lead-action", rankedAction
+    ? `${rankedAction.action} Accountable role: ${rankedAction.accountableRole}.`
+    : briefing.absent.rankedAction.statement);
   const action = byId(doc, "local-lead-action");
-  if (action) action.dataset.available = String(finding.action.available);
-  return finding;
+  if (action) action.dataset.available = String(Boolean(rankedAction));
+  return briefing;
 }
 
 /**
