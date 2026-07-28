@@ -1389,6 +1389,98 @@
 .derivation-step-expression { margin:2px 0; color:#3f3f3a; font:400 12px/1.6 ui-monospace,monospace; }
 .derivation-step-result { margin:0; font-size:13px; }
 
+/* --- Coach one prompt -----------------------------------------------------
+   No new hue, no new type size, no new radius. The panel frame is
+   `.finops-panel`'s, the answer/benchmark block reuses the import-flow accent
+   the graded sample already uses for "this is yours", the refusal reuses the
+   warn role every recoverable import error is drawn in, and the disclosure
+   toggle is the graded sample's control, restyled by nothing.
+
+   Three states are distinguished without relying on tint: the result block
+   carries a shape glyph and a word beside every signal, the refusal swaps a
+   solid left edge for a dashed one, and the field itself is marked invalid. */
+.prompt-coaching { display:grid; gap:16px; }
+.prompt-coaching-form { display:grid; gap:14px; max-width:70ch; }
+.prompt-coaching-field { display:grid; gap:6px; }
+.prompt-coaching-field label { font:700 13px/1.4 inherit; }
+.prompt-coaching-field textarea {
+  width:100%; box-sizing:border-box; min-height:11rem; resize:vertical;
+  border:1px solid var(--import-line); border-radius:10px; padding:11px 12px;
+  background:#fff; color:inherit; font:400 14px/1.6 ui-monospace,monospace;
+}
+.prompt-coaching-field textarea[aria-invalid="true"] { border:2px solid var(--state-warn-line); background:var(--state-warn-wash); }
+.prompt-coaching-field select {
+  justify-self:start; min-height:44px; max-width:100%;
+  border:1px solid var(--import-line); border-radius:9px; padding:9px 11px;
+  background:#fff; color:inherit; font:600 13px/1.4 inherit;
+}
+.prompt-coaching-field textarea:focus-visible,.prompt-coaching-field select:focus-visible,
+.prompt-coaching-actions button:focus-visible,.prompt-coaching-disclosure-toggle:focus-visible {
+  outline:3px solid var(--import-accent); outline-offset:2px;
+}
+.prompt-coaching-hint { margin:0; color:var(--ink-muted); font-size:12px; line-height:1.55; }
+.prompt-coaching-actions { display:flex; flex-wrap:wrap; gap:10px; }
+.prompt-coaching-actions button {
+  min-height:44px; border-radius:9px; padding:10px 16px;
+  font:700 13px/1.4 inherit; cursor:pointer;
+}
+#prompt-coaching-grade { border:1px solid var(--import-accent); background:var(--import-accent); color:#fff; }
+#prompt-coaching-clear { border:1px solid var(--import-line); background:#fff; color:var(--import-ink); }
+.prompt-coaching-live { margin:0; color:var(--ink-muted); font-size:12px; }
+.prompt-coaching-result { display:grid; gap:14px; }
+.prompt-coaching-answer { display:flex; gap:8px; margin:0; font-size:17px; font-weight:750; line-height:1.45; overflow-wrap:anywhere; }
+.prompt-coaching-shape { flex:none; font-weight:750; }
+.prompt-coaching-benchmark {
+  display:grid; gap:8px; border:1px solid var(--import-accent); border-left-width:5px;
+  border-radius:12px; padding:14px 16px; background:var(--import-wash);
+}
+.prompt-coaching-figure { display:flex; flex-wrap:wrap; align-items:center; gap:8px 16px; }
+.prompt-coaching-letter { margin:0; font-size:52px; line-height:.9; letter-spacing:-.05em; font-weight:750; color:var(--import-ink); }
+.prompt-coaching-benchmark-text { margin:0; font:750 14px/1.5 ui-monospace,monospace; overflow-wrap:anywhere; }
+.prompt-coaching-basis { display:grid; gap:3px; margin:0; color:var(--ink-muted); font-size:12px; line-height:1.55; overflow-wrap:anywhere; }
+.prompt-coaching-basis-label { color:var(--import-ink); font:700 12px/1.5 ui-monospace,monospace; }
+.prompt-coaching-improvement { border-left:5px solid var(--import-accent); padding:2px 0 2px 12px; }
+.prompt-coaching-improvement[data-available="false"] { border-left-style:dashed; border-left-color:var(--state-warn-line); }
+.prompt-coaching-improvement-title { display:flex; gap:8px; margin:0; font-size:15px; font-weight:700; line-height:1.5; overflow-wrap:anywhere; }
+.prompt-coaching-improvement-guidance { margin:6px 0 0; max-width:70ch; font-size:13px; line-height:1.6; overflow-wrap:anywhere; }
+.prompt-coaching-rewrite { display:grid; gap:5px; margin-top:10px; max-width:70ch; }
+.prompt-coaching-rewrite-label { margin:0; color:var(--import-ink); font:700 12px/1.5 ui-monospace,monospace; }
+.prompt-coaching-rewrite-text {
+  margin:0; border:1px solid var(--import-line); border-radius:9px; padding:10px 12px;
+  background:#fff; white-space:pre-wrap; overflow-wrap:anywhere; font:400 13px/1.6 ui-monospace,monospace;
+}
+.prompt-coaching-improvement-worth { margin:6px 0 0; color:var(--ink-muted); font:650 12px/1.5 ui-monospace,monospace; }
+.prompt-coaching-recovery { border-left:5px dashed var(--state-warn-line); padding:2px 0 2px 12px; color:var(--state-warn-ink); }
+.prompt-coaching-recovery-title { display:flex; gap:8px; margin:0; font-size:15px; font-weight:750; line-height:1.5; overflow-wrap:anywhere; }
+.prompt-coaching-recovery-guidance { margin:6px 0 0; max-width:70ch; color:inherit; font-size:13px; line-height:1.6; overflow-wrap:anywhere; }
+.prompt-coaching-recovery-observed { margin:6px 0 0; font:650 12px/1.5 ui-monospace,monospace; }
+.prompt-coaching-disclosure { display:grid; gap:10px; }
+.prompt-coaching-disclosure-toggle {
+  justify-self:start; border:1px solid var(--import-accent); border-radius:9px; padding:7px 13px;
+  background:#fff; color:var(--import-ink); font:650 12px/1.4 ui-monospace,monospace;
+  text-align:left; cursor:pointer;
+}
+.prompt-coaching-disclosure-panel { display:grid; gap:10px; border:1px solid var(--import-line); border-radius:11px; padding:14px; }
+.prompt-coaching-axes { display:grid; grid-template-columns:minmax(0,auto) auto; gap:4px 14px; margin:0; justify-content:start; font-size:13px; }
+.prompt-coaching-axes dt { color:var(--ink-muted); overflow-wrap:anywhere; }
+.prompt-coaching-axes dd { margin:0; font:700 13px/1.5 ui-monospace,monospace; }
+.prompt-coaching-turns,.prompt-coaching-runners-up { display:grid; gap:6px; margin:0; padding:0; list-style:none; }
+.prompt-coaching-turn,.prompt-coaching-runners-up li { display:flex; flex-wrap:wrap; gap:4px 12px; border-top:1px solid var(--import-line); padding-top:6px; font-size:12px; }
+.prompt-coaching-turn-index,.prompt-coaching-runner-title { font-weight:700; overflow-wrap:anywhere; }
+.prompt-coaching-turn-role,.prompt-coaching-turn-prose,.prompt-coaching-turn-scored,
+.prompt-coaching-turn-codes,.prompt-coaching-runner-points {
+  font:650 12px/1.5 ui-monospace,monospace; color:var(--ink-muted); overflow-wrap:anywhere;
+}
+.prompt-coaching-turn[data-scored="false"] { border-top-style:dashed; }
+.prompt-coaching-rubric-version { margin:0; color:var(--ink-muted); font:400 11px/1.6 ui-monospace,monospace; overflow-wrap:anywhere; }
+
+@media (max-width:640px) {
+  .prompt-coaching-letter { font-size:40px; }
+  .prompt-coaching-actions button,.prompt-coaching-disclosure-toggle { width:100%; }
+  .prompt-coaching-axes { grid-template-columns:minmax(0,1fr); gap:2px; }
+  .prompt-coaching-axes dd { margin-bottom:6px; }
+}
+
 @media print {
   [data-panel-role="support"] { display:block !important; }
   /* A briefing is printed from a page whose frame is viewport-sized. Anything
