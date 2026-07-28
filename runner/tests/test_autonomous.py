@@ -1336,6 +1336,63 @@ class AutonomousTests(IsolatedDiffBudget):
             self.assertEqual(state.value["issues"]["60"]["status"], "retry")
             self.assertEqual(state.value["issues"]["60"]["worker_override"], "codex")
 
+    def test_cumulative_sessions_stop_an_endlessly_requeued_issue(self):
+        """A requeue resets attempts, so max_attempts alone cannot bound paid sessions.
+
+        Issue 461 consumed six worker sessions because a hand requeue zeroed its
+        attempt counter twice under a max_attempts of three. total_runs survives the
+        reset, so the queue stops handing the issue out once the cumulative ceiling
+        is reached, whatever attempts says.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            now = dt.datetime(2026, 7, 14, 16, 0, tzinfo=dt.UTC)
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            config = {**self.config(), "max_total_runs": 6}
+            issue = {"number": 61, "labels": [{"name": "persona:frontend"}]}
+            state.value["issues"]["61"] = {"status": "retry", "attempts": 0, "total_runs": 5}
+            self.assertEqual(autonomous.choose_issue([issue], state, config, now)["number"], 61)
+            state.value["issues"]["61"]["total_runs"] = 6
+            self.assertIsNone(autonomous.choose_issue([issue], state, config, now))
+
+    def test_exhausted_cumulative_sessions_mark_the_issue_needs_human(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            state.value["issues"]["60"] = {"status": "running", "attempts": 1, "total_runs": 6}
+            events = pathlib.Path(tmp) / "events.jsonl"
+            journal = autonomous.Journal(events)
+            issue = {"number": 60, "title": "Share button", "body": "",
+                     "labels": [{"name": "agent-ready"}]}
+            labels = []
+            with mock.patch.object(autonomous, "comment"), \
+                 mock.patch.object(autonomous, "replace_state_label",
+                                   side_effect=lambda *a, **k: labels.append(a[3])):
+                autonomous.record_run_outcome(
+                    orchestrator.REVIEW_REJECTED_EXIT_CODE, issue, 60, "frontend", {},
+                    {**self.config(), "issue_label": "agent-ready", "max_total_runs": 6},
+                    state, journal, "token")
+            self.assertEqual(state.value["issues"]["60"]["status"], "blocked")
+            self.assertEqual(labels, ["needs-human"])
+            failure = [json.loads(line) for line in events.read_text().splitlines()
+                       if json.loads(line)["event"] == "run_failed"][0]
+            self.assertTrue(failure["sessions_exhausted"])
+            self.assertEqual(failure["total_runs"], 6)
+
+    def test_deferred_runs_do_not_spend_a_cumulative_session(self):
+        """The diff rail and provider outages cost no paid session, so they cost no total_run."""
+        with tempfile.TemporaryDirectory() as tmp:
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            state.value["issues"]["60"] = {"status": "running", "attempts": 2, "total_runs": 2}
+            journal = autonomous.Journal(pathlib.Path(tmp) / "events.jsonl")
+            issue = {"number": 60, "title": "Share button", "body": "",
+                     "labels": [{"name": "agent-ready"}]}
+            with mock.patch.object(autonomous, "comment"), \
+                 mock.patch.object(autonomous, "replace_state_label"):
+                autonomous.record_run_outcome(
+                    autonomous.DIFF_BUDGET_EXIT_CODE, issue, 60, "frontend", {},
+                    {**self.config(), "issue_label": "agent-ready"}, state, journal, "token")
+            self.assertEqual(state.value["issues"]["60"]["total_runs"], 1)
+            self.assertEqual(state.value["issues"]["60"]["attempts"], 1)
+
     def test_rejection_feedback_is_carried_onto_the_issue_record(self):
         """A rejected attempt must hand its blocking note to the next one.
 
