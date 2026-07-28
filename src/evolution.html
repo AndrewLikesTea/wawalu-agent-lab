@@ -273,14 +273,32 @@
             </div>
             <p class="dataset-provenance" id="dataset-provenance-trust" data-dataset-provenance data-dataset="user" role="note" aria-label="Data provenance" hidden></p>
           </article>
-          <!-- The landing surface. One question, one number that answers it, the
-               driver behind that number, and the prioritized action — all read
-               out of the analysis envelope, none of it authored prose. -->
+          <!-- The landing surface, and the only place on this page that decides
+               the three slots above the fold. Every string in it is painted by
+               applyBriefing() out of finops-briefing-contract.js: the question
+               this analysis type answers, the one figure that answers it, how
+               that figure was computed, and the rank-1 action with the role
+               accountable for it. Question, figure, action — in that order in
+               the DOM, so a screen reader and a Tab key both meet them in it.
+
+               There is deliberately no slot for a second figure. Two numbers
+               here would make the reader decide which one matters, and deciding
+               that is the contract's job; it already did it. Where the contract
+               says a slot is absent, the paragraph carries the contract's own
+               statement of why rather than a zero, a dash, or an estimate. -->
           <article class="local-lead-finding" id="local-lead-finding" data-analysis-surface data-dataset="user" data-state="unavailable" aria-labelledby="local-lead-question" hidden>
             <p class="eyebrow">The question this answers</p>
             <h4 id="local-lead-question">—</h4>
-            <p class="local-lead-metric" id="local-lead-metric">—</p>
-            <p class="local-lead-driver" id="local-lead-driver">—</p>
+            <p class="local-lead-metric" id="local-lead-metric" data-available="false">—</p>
+            <!-- Coverage is painted in every state, including the states with no
+                 figure in them: a low-coverage briefing states its coverage
+                 rather than hiding it. -->
+            <p class="local-lead-coverage" id="local-lead-coverage">—</p>
+            <!-- The named inputs and the operation behind the figure, so a
+                 reader can recompute it by hand. Hidden when there is no figure
+                 to recompute — an arithmetic line with nothing above it is not
+                 evidence of anything. -->
+            <p class="local-lead-arithmetic" id="local-lead-arithmetic" hidden></p>
             <div class="local-lead-next">
               <p class="eyebrow">Prioritized next action</p>
               <p class="local-lead-action" id="local-lead-action" data-available="false">—</p>

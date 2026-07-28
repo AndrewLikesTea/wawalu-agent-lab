@@ -44,7 +44,7 @@ import { headlineTrust } from "/finops-display.js";
 import { gradeEligibility } from "/grade-eligibility.js";
 import {
   announce as announceStage, applyDatasetProvenance, applyFieldDiagnostic, applyImportLimits,
-  applyImportProgress, applyLeadingFinding, applyMetricBasis, applyRequirements, applyStage,
+  applyBriefing, applyImportProgress, applyMetricBasis, applyRequirements, applyStage,
   applyTrustVerdict, diagnosticFor, EXAMPLE_DATASET_PROVENANCE, focusStageHeading, importStage,
   metricBasis, userDatasetProvenance,
 } from "/local-import-flow.js";
@@ -70,7 +70,12 @@ import { EXAMPLE_QUERY_SAMPLE_FILE, exampleQuerySampleText } from "/query-sample
 import {
   CONVERSATION_EXAMPLE_FILES, conversationExampleText,
 } from "/conversation-export-example.js";
-import { leadingFinding } from "/finops-leading-finding.js";
+// The versioned briefing contract. The three slots above the fold — the
+// question, the one figure, and the rank-1 action — are selected there and only
+// there, so this page, the JSON export, and anything downstream cannot each
+// decide them for themselves. The month-over-month arithmetic still lives in
+// finops-leading-finding.js; the contract reads it rather than repeating it.
+import { buildFinopsBriefing } from "/finops-briefing-contract.js";
 // The published attribution policy: three input states, one classification table,
 // two thresholds. Nothing on this page decides any of that for itself.
 import {
@@ -628,7 +633,12 @@ function mountLocalFinopsImport() {
     }
     // The landing surface. It is drawn from the same envelope for example data
     // and for a real import; there is no example-only branch below this line.
-    applyLeadingFinding(document, leadingFinding(next));
+    // The attribution decision made three lines up is handed to the contract
+    // rather than re-derived by it: a figure this page withheld must not
+    // reappear in the briefing built from the same analysis.
+    applyBriefing(document, buildFinopsBriefing(next, {
+      attributionWithheld: attribution?.confidence === CONFIDENCE.SUPPRESSED,
+    }));
     setText("local-department", next.topDepartment?.name ?? "Unavailable");
     // A withheld figure cannot carry the analysis's own confidence word beside
     // it: the attribution policy has already decided the number is not shown, so
@@ -763,8 +773,11 @@ function mountLocalFinopsImport() {
     if (lead) {
       lead.hidden = true;
       lead.dataset.state = "unavailable";
-      for (const id of ["local-lead-question", "local-lead-metric", "local-lead-driver", "local-lead-action"])
+      for (const id of ["local-lead-question", "local-lead-metric", "local-lead-coverage", "local-lead-action"])
         setText(id, "—");
+      setText("local-lead-arithmetic", "");
+      const arithmetic = document.getElementById("local-lead-arithmetic");
+      if (arithmetic) arithmetic.hidden = true;
     }
     // The one reset. The per-model panel goes with everything else, and so do
     // the org-unit labels this browser was holding — they are the only thing on

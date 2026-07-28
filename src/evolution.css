@@ -404,7 +404,8 @@
 .local-lead-finding { margin-top:20px; border:1px solid #9eb9aa; border-top:5px solid #315f50; border-radius:12px; padding:clamp(18px,3vw,24px); background:#fff; }
 .local-lead-finding h4 { max-width:760px; margin:6px 0 0; font-size:clamp(21px,3.2vw,29px); line-height:1.2; letter-spacing:-.025em; }
 .local-lead-metric { margin:14px 0 0; color:#8a2b2b; font-size:clamp(22px,3.4vw,30px); font-weight:750; letter-spacing:-.025em; line-height:1.2; overflow-wrap:anywhere; }
-.local-lead-driver { margin:8px 0 0; font-size:14px; line-height:1.5; }
+.local-lead-coverage { margin:8px 0 0; font-size:14px; line-height:1.5; font-weight:650; }
+.local-lead-arithmetic { margin:6px 0 0; font-size:13px; line-height:1.5; color:#41544b; overflow-wrap:anywhere; }
 .local-lead-next { margin-top:18px; padding-top:16px; border-top:1px solid #d8e2dc; }
 .local-lead-action { margin:5px 0 0; font-size:14px; font-weight:700; line-height:1.5; }
 .local-lead-action[data-available="false"] { color:var(--state-warn-ink); font-weight:400; }

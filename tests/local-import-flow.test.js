@@ -13,11 +13,12 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { parseHtml, tabSequence, textOf } from "./support/browser.js";
 import {
-  announce, applyDatasetProvenance, applyFieldDiagnostic, applyLeadingFinding, applyMetricBasis,
+  announce, applyBriefing, applyDatasetProvenance, applyFieldDiagnostic, applyMetricBasis,
   applyRequirements, applyStage, applyTrustVerdict, diagnosticFor, EXAMPLE_DATASET_PROVENANCE,
   focusStageHeading, IMPORT_STAGES, importStage, mappingRequirements, metricBasis,
   redactDiagnostic, stageProgress,
 } from "../src/local-import-flow.js";
+import { BRIEFING_FIXTURE } from "../src/finops-briefing-contract.js";
 import { trustVerdict } from "../src/finops-trust-verdict.js";
 
 const PAGE = new URL("../src/evolution.html", import.meta.url);
@@ -469,15 +470,11 @@ test("every surface that renders analysis numbers carries the one provenance lab
 test("clearing example data leaves no residue in state, storage, or the URL", async () => {
   const doc = await page();
   applyDatasetProvenance(doc, true);
-  applyLeadingFinding(doc, {
-    available: true, question: "Why did spend rise in June 2026?",
-    metric: "+39200.00 USD (+34%) versus May 2026",
-    driverSentence: "Department …atlas0 contributed +34500.00 USD.",
-    action: { available: true, text: "Pilot lower-cost routing." },
-  });
+  applyBriefing(doc, BRIEFING_FIXTURE);
   const finding = doc.getElementById("local-lead-finding");
   assert.equal(finding.hidden, false);
-  assert.match(normalized(doc.getElementById("local-lead-question")), /June 2026/);
+  assert.equal(normalized(doc.getElementById("local-lead-question")),
+    BRIEFING_FIXTURE.headlineQuestion);
 
   // The one clearing action returns every labelled surface to a fresh state.
   applyDatasetProvenance(doc, false);
