@@ -32,7 +32,71 @@
         <p>Every release in reverse chronological order, with the decisions it carried. Expand a release to review each linked decision and its status.</p>
       </section>
 
-      <section class="list-panel release-panel-wrap" aria-labelledby="releases-title">
+      <section class="workspace release-workspace" id="record-release" aria-label="Release log">
+        <div class="form-panel" aria-labelledby="release-form-title">
+          <div class="section-heading">
+            <p class="eyebrow">New record</p>
+            <h2 id="release-form-title">Record a release</h2>
+          </div>
+
+          <p class="notice" id="release-storage-notice" role="alert" hidden></p>
+
+          <form id="release-form">
+            <div class="field">
+              <label for="release-version">Version</label>
+              <input id="release-version" name="version" type="text" maxlength="40" required autocomplete="off" aria-describedby="release-version-hint" />
+              <span class="hint" id="release-version-hint">The version or tag that shipped, such as v1.4.0.</span>
+            </div>
+
+            <div class="field">
+              <label for="release-owner">Owner</label>
+              <input id="release-owner" name="owner" type="text" maxlength="80" required autocomplete="name" aria-describedby="release-owner-hint" />
+              <span class="hint" id="release-owner-hint">The person accountable for this release.</span>
+            </div>
+
+            <div class="field">
+              <label for="release-title">Title <span class="label-optional">(optional)</span></label>
+              <input id="release-title" name="title" type="text" maxlength="120" autocomplete="off" aria-describedby="release-title-hint" />
+              <span class="hint" id="release-title-hint">A short name for the release. Defaults to the version.</span>
+            </div>
+
+            <div class="field">
+              <label for="release-form-status">Status</label>
+              <select id="release-form-status" name="status" required aria-describedby="release-form-status-hint">
+                <option value="completed">Completed</option>
+                <option value="planned">Planned</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+              <span class="hint" id="release-form-status-hint">A release is planned, completed, or cancelled.</span>
+            </div>
+
+            <div class="field field-wide">
+              <label for="release-description">Description <span class="label-optional">(optional)</span></label>
+              <textarea id="release-description" name="description" rows="4" maxlength="1000" aria-describedby="release-description-hint"></textarea>
+              <span class="hint" id="release-description-hint">What shipped, in a sentence or two.</span>
+            </div>
+
+            <!-- The multi-select is a native checkbox group: every option is a
+                 real form control, so linking a decision needs no custom key
+                 handling and each option's name, state, and metadata are
+                 announced by the platform. The options are rendered by
+                 release-form.js from the decisions that exist right now. -->
+            <fieldset class="field field-wide decision-picker-field">
+              <legend>Link decisions to this release <span class="label-optional">(optional)</span></legend>
+              <p class="hint" id="release-decisions-hint">Tick every decision this release carried. Tab moves through the list; Space links or unlinks the decision in focus.</p>
+              <p class="decision-picker-summary" id="release-decisions-summary" role="status" aria-live="polite">No decisions linked yet.</p>
+              <div class="decision-picker" id="release-decisions"></div>
+            </fieldset>
+
+            <p class="field-error" id="release-form-error" role="alert" hidden></p>
+
+            <button type="submit">Record release</button>
+          </form>
+
+          <p class="hint release-record-status" id="release-record-status" role="status" aria-live="polite"></p>
+        </div>
+
+      <div class="list-panel" aria-labelledby="releases-title">
         <div class="section-heading list-heading">
           <div>
             <p class="eyebrow">Shipping history</p>
@@ -62,6 +126,7 @@
             <p>Building your shipping history…</p>
           </div>
         </div>
+      </div>
       </section>
       </main>
     </div>
