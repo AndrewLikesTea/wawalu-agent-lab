@@ -29,7 +29,8 @@ from runner.layers import (CAPACITY_EXIT_CODES, PROVIDER_OVERLOAD_EXIT_CODE, WOR
                            ConsultantCapacityExhausted, capacity_reset_at,
                            consult_next_steps, propose_directive_plan, propose_task,
                            review_pull_request, snapshot_live_site, stakeholder_review)
-from runner.orchestrator import (BUDGET, DIFF_BUDGET_EXIT_CODE, PRODUCT_ROOT, REPOSITORY,
+from runner.orchestrator import (BUDGET, DIFF_BUDGET_EXIT_CODE, POLICY_REJECTED_EXIT_CODE,
+                                 POLICY_REJECTION_FILE, PRODUCT_ROOT, REPOSITORY,
                                  REVIEW_REJECTED_EXIT_CODE, checkout_lock, load_personas, load_runtime_env, safe_slug)
 from runner.simulation import choose_collaborator, load_behaviors
 from scripts.check_reviewer_approval import REVIEWER_LOGINS, approved_current_head
@@ -1442,7 +1443,7 @@ def execute_issue(issue: dict[str, Any], config: dict[str, Any], state: State,
         # handoff, so feedback parked in a field it never opens changes nothing.
         scenario["outcome"] = (
             f"{scenario['outcome']}\n\n"
-            f"A previous attempt at this issue was REJECTED in review. Marcus's blocking "
+            f"A previous attempt at this issue was REJECTED before it could ship. The blocking "
             f"feedback was:\n\n{prior_rejection}\n\n"
             f"Address that gap explicitly in this attempt; re-submitting the same shape of "
             f"change will be rejected again.")
@@ -1535,6 +1536,35 @@ def latest_run_review() -> str:
     return str(verdict.get("feedback") or verdict.get("summary") or "").strip()
 
 
+def latest_run_policy_rejection() -> str:
+    """Why the policy gate discarded the run that just finished, phrased for the retry.
+
+    An oversized change is thrown away whole, so the next attempt has to plan a smaller
+    one. Without this the persona replans from the same issue body, rebuilds a change of
+    the same size, and loses another paid session to the same ceiling — which is exactly
+    how issue #448 spent a full run to fail by ten lines.
+    """
+    runs = ROOT / ".agent" / "runs"
+    try:
+        newest = max((path for path in runs.iterdir() if path.is_dir()),
+                     key=lambda path: path.stat().st_mtime, default=None)
+    except OSError:
+        return ""
+    if newest is None:
+        return ""
+    try:
+        reasons = (newest / POLICY_REJECTION_FILE).read_text(encoding="utf-8").strip()
+    except OSError:
+        return ""
+    if not reasons:
+        return ""
+    return (f"The automated policy gate discarded the previous attempt before review, so none of "
+            f"that work shipped:\n\n{reasons}\n\n"
+            f"Plan this attempt to fit inside the stated limits: deliver the smallest change that "
+            f"satisfies the issue, and leave optional polish, extra fixtures, and adjacent cleanups "
+            f"out rather than exceeding the ceiling again.")
+
+
 def record_run_outcome(exit_code: int, issue: dict[str, Any], number: int, persona: str,
                        scenario: dict[str, Any], config: dict[str, Any], state: State,
                        journal: Journal, token: str) -> None:
@@ -1621,7 +1651,12 @@ def record_run_outcome(exit_code: int, issue: dict[str, Any], number: int, perso
         # Carry Marcus's blocking note onto the record so the next attempt starts from
         # what he asked for; without it the retry replans from the issue body and hands
         # him the same gap again, spending a full paid session per repeat.
-        rejection = latest_run_review() if exit_code == REVIEW_REJECTED_EXIT_CODE else ""
+        if exit_code == REVIEW_REJECTED_EXIT_CODE:
+            rejection = latest_run_review()
+        elif exit_code == POLICY_REJECTED_EXIT_CODE:
+            rejection = latest_run_policy_rejection()
+        else:
+            rejection = ""
         with state.mutate():
             record = state.value["issues"].setdefault(str(number), {})
             attempts = int(record.get("attempts", 1))
