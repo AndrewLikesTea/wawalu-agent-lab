@@ -42,6 +42,30 @@
         <p id="ws-boundary-body">Shiplog has no account and keeps no server-side copy. The decisions and releases you record are held in this browser's local storage, on this device, under the two keys named in “Where these numbers come from”. Nothing on this page is uploaded, and no cookie, analytics call, or telemetry reads it. Clearing this browser's site data — or erasing below — removes the records, and no copy survives anywhere else.</p>
       </section>
 
+      <section class="ws-finops-preview" id="finops-workspace-preview" aria-labelledby="finops-preview-title">
+        <p class="eyebrow">Opt-in preview · <span id="finops-contract-version">finops-workspace/1.0.0</span></p>
+        <h2 id="finops-preview-title">Before you choose, inspect what FinOps would remember</h2>
+        <p>This is synthetic example data, rendered from the same versioned contract a future
+          persistence adapter must consume. Previewing it grants no consent and writes nothing.
+          Retaining these derived monthly figures would let you compare a later import with this
+          period and keep a commitment tied to the numbers that sized it.</p>
+        <details>
+          <summary>Inspect every retained field and sample value</summary>
+          <pre id="finops-preview-json" tabindex="0">Loading the synthetic contract preview…</pre>
+        </details>
+        <h3>Never stored</h3>
+        <ul id="finops-never-stored">
+          <li>Credentials, prompts, raw imports, and network-transfer data are prohibited.</li>
+        </ul>
+        <h3>How complete erasure works</h3>
+        <p id="finops-erase-copy">Complete FinOps erasure removes both FinOps local-storage keys
+          and verifies that both are empty. It leaves Shiplog decisions, releases, and downloaded
+          files alone.</p>
+        <p class="ws-finops-limit"><strong>Local means this browser only.</strong> There is no
+          account, sync, server copy, or network transfer. Another browser profile and a file you
+          downloaded are outside this page's reach.</p>
+      </section>
+
       <!-- One stable live region for every outcome. It carries the same sentence
            the visible notice shows, so nothing is announced to one reader and
            withheld from the other. -->
