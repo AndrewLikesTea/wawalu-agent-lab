@@ -76,6 +76,21 @@ function applyActionControl(doc, action) {
   } : null;
 }
 
+/**
+ * The two phrases every empty slot is written from.
+ *
+ * `NOT_AVAILABLE` opens each one, so a reader learns the words once and
+ * recognizes them in whichever slot is empty; the sentence after it names what
+ * is missing. No slot falls back to a dash — a dash sits where a figure goes
+ * and so reads as one, and it cannot tell "this could not be measured" apart
+ * from "you have not chosen files yet".
+ *
+ * `CHOOSE_FILES` names the same two files the import panel's own label and
+ * intro name, so the page asks for one thing in one way.
+ */
+const NOT_AVAILABLE = "Not available yet";
+const CHOOSE_FILES = "Choose one provider period export and one HRIS mapping below";
+
 /** The one word beside the composition that says how far it may be taken. */
 export const READINESS_LABEL = Object.freeze({
   [TRUST_STATE.verified]: "Decision-ready · your import, attribution above the floor",
@@ -92,12 +107,14 @@ const money = (value) => `${value.toFixed(2)} USD`;
  * publish it.
  */
 function benchmarkText(benchmark) {
-  if (!benchmark) return { value: "—", detail: "No benchmark was composed." };
+  if (!benchmark) {
+    return { value: NOT_AVAILABLE, detail: `${CHOOSE_FILES} to see this benchmark.` };
+  }
   if (!benchmark.available) {
     return {
-      value: "Not graded",
-      detail: `${benchmark.scoredRecords} of the ${benchmark.floor} scored records this benchmark `
-        + `needs are in this dataset · ${benchmark.unavailable.need}`,
+      value: NOT_AVAILABLE,
+      detail: `This dataset has ${benchmark.scoredRecords} of the ${benchmark.floor} scored records `
+        + `this benchmark needs · ${benchmark.unavailable.need}`,
     };
   }
   return {
@@ -110,8 +127,10 @@ function benchmarkText(benchmark) {
 
 /** The trust line. The percentage never ships without its floor beside it. */
 function trustText(trust) {
-  if (!trust) return "No trust verdict was composed.";
-  if (trust.coveragePercent === null) return trust.answer ?? "No coverage percentage exists.";
+  if (!trust) return `${NOT_AVAILABLE}. No import has been checked, so no figure above is a basis for a decision.`;
+  if (trust.coveragePercent === null) {
+    return trust.answer ?? `${NOT_AVAILABLE}. This import has no attribution coverage percentage to report.`;
+  }
   return `${trust.coveragePercent}% of ${money(trust.totalUsd ?? 0)} is attributed to a confirmed `
     + `org unit · published floor ${Math.round(trust.coverageFloor * 100)}%`;
 }
@@ -136,7 +155,7 @@ export function applyGuidedResult(doc, result) {
   setText(doc, "guided-result-finding", result.primaryFinding);
 
   const readiness = setText(doc, "guided-result-readiness",
-    READINESS_LABEL[result.trust?.state] ?? "Not decision-ready");
+    READINESS_LABEL[result.trust?.state] ?? "Not decision-ready · no findings yet");
   setData(readiness, "ready", String(result.decisionReady));
 
   const benchmark = benchmarkText(result.benchmark);
@@ -151,7 +170,10 @@ export function applyGuidedResult(doc, result) {
 
   const action = result.action;
   const actionNode = setText(doc, "guided-result-action",
-    action?.available ? action.text : action?.unavailable?.need ?? "No action is prioritized.");
+    action?.available
+      ? action.text
+      : action?.unavailable?.need
+        ?? `${NOT_AVAILABLE}. No step can be prioritized until a result is on screen.`);
   setData(actionNode, "actionId", action?.available ? action.id : null);
   setData(actionNode, "actionRank", action?.available ? action.rank : null);
   setData(actionNode, "actionable", String(Boolean(action?.available && action.actionable)));

@@ -72,7 +72,7 @@ test("the post reads in one order: who, when, the image, then its caption", () =
   // The poster's name is the page's h1, written into the hero above this panel
   // (src/post-page.js), so the article opens with the timestamp. What must hold
   // here is the rest of the sequence, and that the caption belongs to the image.
-  assert.equal(postPageHeading(post), "Mina Okafor");
+  assert.equal(postPageHeading(post), "Post by Mina Okafor");
 
   const time = tags(article, "TIME")[0];
   assert.equal(time.textContent.length > 0, true, "the timestamp needs human-readable text");
@@ -268,11 +268,21 @@ test("the loading state is one labelled line in the post's region, not a banner"
   assert.equal(byClass(container, "empty-action-secondary").length, 0, "the standing back link is not repeated here");
 });
 
-test("the loaded page is headed by the poster's display name, not the bare word Post", () => {
-  assert.equal(postPageHeading(post), "Mina Okafor");
+// A permalink is the one page a visitor can land on with no context, so its h1
+// says what the page holds — a post — and who wrote it. The bare display name
+// used to read as that person's profile, which is a different page here.
+test("the loaded page is headed by the post and its author, not by the bare name", () => {
+  assert.equal(postPageHeading(post), "Post by Mina Okafor");
   assert.equal(postPageHeading(null), "Post");
   assert.equal(postPageHeading({ ...post, author: "" }), "Post");
-  assert.equal(postPageHeading({ ...post, author: "  Mina Okafor  " }), "Mina Okafor");
+  assert.equal(postPageHeading({ ...post, author: "  Mina Okafor  " }), "Post by Mina Okafor");
+});
+
+// The heading and the tab name the same thing, so a visitor scanning open tabs
+// and a visitor reading the page are not told two different names for one post.
+test("the permalink heading matches the phrase in the document title", () => {
+  assert.ok(postDetailTitle(post).startsWith(`${postPageHeading(post)} ·`),
+    "the tab title opens with the same phrase the h1 shows");
 });
 
 test("the document title names the post, the feed, and the product", () => {

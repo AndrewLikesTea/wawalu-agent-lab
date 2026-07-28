@@ -490,9 +490,9 @@ export function composeAction({ basis, trust, decisionReady, verdict, analysis, 
   // Rank 4 — the only action a synthetic page may prioritize.
   if (basis === RESULT_BASIS.synthetic) {
     return action(CANDIDATE_BY_ID.import_own_export, {
-      text: "Import one provider period export in the panel below. Every figure on this page is "
-        + "bundled sample data until you do, so no action here is a recommendation about your "
-        + "organization.",
+      text: "Choose one provider period export and one HRIS mapping in the panel below. Until you "
+        + "do, every figure on this page is bundled sample data, so nothing here is a "
+        + "recommendation about your organization.",
       actionable: true,
       control: "local-finops-files",
       detail: "Files are parsed in this browser tab. Nothing is uploaded, stored, or transmitted.",
@@ -582,15 +582,17 @@ function unavailableResult() {
     basis: null,
     decisionReady: false,
     question: PRIMARY_QUESTION,
-    primaryFinding: "No analysis is on screen, so there is nothing to act on yet.",
+    primaryFinding: "Findings are not available yet. Choose one provider period export and one "
+      + "HRIS mapping below to see what to do next.",
     benchmark: null,
     action: null,
     trust: null,
     disclosures: Object.freeze([]),
     unavailable: Object.freeze({
       reason: GUIDED_UNAVAILABLE_REASON.noResult,
-      needLabel: "Provider period export",
-      need: "Select one provider period export, or open the bundled example, to compose a result.",
+      needLabel: "Provider period export and HRIS mapping",
+      need: "Choose one provider period export and one HRIS mapping below, or open the bundled "
+        + "example.",
     }),
   });
 }

@@ -287,11 +287,15 @@ export function renderPostDetail(container, post, options = {}) {
 
 // The page heading names the post the way a reader would: by who wrote it. The
 // post record carries no title of its own, so the poster's display name is the
-// only durable name it has, and the "Social · post" eyebrow above it says what
-// kind of thing is being named — the same eyebrow-then-h1 shape the decision
-// detail uses. The date and caption sit in the article underneath.
+// only durable name it has. It is written as "Post by <author>" rather than as
+// the bare name, because a permalink is the one place a visitor arrives with no
+// context: an h1 holding only a person's name reads as that person's profile,
+// which is a different page in this product. It is also the exact phrase
+// postDetailTitle() puts in the tab, so the heading and the tab name the same
+// thing. The date and caption sit in the article underneath.
 export function postPageHeading(post) {
-  return post?.author?.trim() ? post.author.trim() : "Post";
+  const author = post?.author?.trim();
+  return author ? `Post by ${author}` : "Post";
 }
 
 // Same shape as the decision detail's title — the record, then the surface the
