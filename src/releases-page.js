@@ -103,7 +103,7 @@ export function initReleasesPage(root = document, storage = localStorage, option
     if (count) count.textContent = "Unavailable";
     return;
   }
-  const { decisions, unavailable } = data;
+  const { decisions, unavailable, exampleReleaseIds } = data;
   let releases = data.releases;
   if (unavailable && releases.length === 0) {
     renderReleaseListState(container, "error");
@@ -111,10 +111,13 @@ export function initReleasesPage(root = document, storage = localStorage, option
     return;
   }
 
-  const view = mountReleaseList(container, { releases, decisions });
+  // The same example ids the decisions history badges its rows from, so a
+  // shipped example says so here too and a release the visitor recorded (or
+  // imported over a seed id) never carries the label.
+  const view = mountReleaseList(container, { releases, decisions, exampleIds: exampleReleaseIds });
   const update = () => {
     const filters = { query: search?.value ?? "", status: statusFilter?.value ?? "all" };
-    const shown = view.render({ releases, decisions }, filters);
+    const shown = view.render({ releases, decisions, exampleIds: exampleReleaseIds }, filters);
     if (count) count.textContent = `${shown.length} of ${releases.length} ${releases.length === 1 ? "release" : "releases"}`;
   };
   search?.addEventListener("input", update);
