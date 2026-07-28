@@ -68,7 +68,7 @@ test("a post that loads is headed by its author and reads name, time, image, cap
   const page = await openPostPage("?id=p-image", seedOnly([SEED_POST]));
   try {
     const { document } = page;
-    assert.equal(textOf(document.querySelector("#page-title")), "Mina Okafor");
+    assert.equal(textOf(document.querySelector("#page-title")), "Post by Mina Okafor");
     assert.equal(document.title, "Post by Mina Okafor · Social · Shiplog");
 
     const article = page.panel.querySelector("article");
@@ -93,7 +93,7 @@ test("arriving from a profile turns the one exit into the profile's, and nothing
     assertOneExit(page, PROFILE, "from a profile");
     // The provenance came from the URL, not from the post, so it is the same
     // exit whether or not the post itself loaded.
-    assert.equal(textOf(page.document.querySelector("#page-title")), "Mina Okafor");
+    assert.equal(textOf(page.document.querySelector("#page-title")), "Post by Mina Okafor");
   } finally {
     page.restore();
   }
@@ -138,7 +138,7 @@ test("a failed lookup says the load failed, and its retry re-runs the fetch and 
     await waitFor(page.settled, "the retry finished");
 
     assert.ok(page.requests.length > before, "the retry must actually re-run the fetch");
-    assert.equal(textOf(page.document.querySelector("#page-title")), "Mina Okafor");
+    assert.equal(textOf(page.document.querySelector("#page-title")), "Post by Mina Okafor");
     assert.equal(textOf(page.panel.querySelector("figcaption")), "The middle card, ringed.");
     assert.doesNotMatch(textOf(page.panel), /couldn’t be loaded/);
     assertOneExit(page, SOCIAL, "recovered");

@@ -562,6 +562,93 @@ test("a contract-named action exposes an operable control and disclosure state",
 });
 
 // ---------------------------------------------------------------------------
+// The words in the slots. A visitor reads this section before they read any
+// number in it, so what an empty slot says is as much a result as a figure is.
+// ---------------------------------------------------------------------------
+
+const SLOT_IDS = ["guided-result-benchmark", "guided-result-trust", "guided-result-action"];
+
+/** A value that tells a reader nothing: a dash, or a word torn off a label. */
+const PLACEHOLDER = /^(—|-|–|required|one|n\/a)$/i;
+
+test("an empty slot says findings are not available yet, never a bare dash", () => {
+  const document = parseHtml(VIEW_DOM);
+  // The composition with neither an import nor a bundled seed: every slot is
+  // null, which is the one state where the view supplies the words itself.
+  const result = composeGuidedResult({});
+  applyGuidedResult(document, result);
+
+  for (const id of SLOT_IDS) {
+    const text = textOf(document.getElementById(id));
+    assert.doesNotMatch(text, PLACEHOLDER, `${id} must not render a placeholder as its value`);
+    assert.match(text, /[Nn]ot available yet/, `${id} must say it is not available yet`);
+  }
+  // And the missing input is named where the reader can act on it, rather than
+  // left to be inferred from an empty benchmark.
+  assert.match(textOf(document.getElementById("guided-result-benchmark-detail")),
+    /provider period export and one HRIS mapping/);
+  assert.match(textOf(document.getElementById("guided-result-finding")),
+    /Findings are not available yet/);
+  assert.match(textOf(document.getElementById("guided-result-readiness")), /Not decision-ready/);
+});
+
+test("an ungradeable benchmark says it is not available and names what the dataset lacks", () => {
+  const document = parseHtml(VIEW_DOM);
+  applyGuidedResult(document, composeGuidedResult({
+    imported: {
+      grade: grade({ gradeable: false, scored: 0 }), analysis: null,
+      verdict: unavailableVerdict(), facts: {},
+    },
+  }));
+  const value = textOf(document.getElementById("guided-result-benchmark"));
+  assert.doesNotMatch(value, PLACEHOLDER);
+  assert.match(value, /Not available yet/);
+  assert.match(textOf(document.getElementById("guided-result-benchmark-detail")),
+    /scored records this benchmark needs/);
+});
+
+test("before any file is chosen the action names both required files and the CTA", () => {
+  const document = parseHtml(VIEW_DOM);
+  applyGuidedResult(document, composeGuidedResult({
+    bundled: { grade: grade(), analysis: analysisEnvelope(), facts: COMPLETE_FACTS },
+  }));
+  const action = textOf(document.getElementById("guided-result-action"));
+  assert.match(action, /Choose one provider period export and one HRIS mapping/);
+  // The sentence sends the visitor to the picker, and the control it names is
+  // the picker — so the words and the button cannot point at different things.
+  assert.match(action, /in the panel below/);
+  assert.equal(document.getElementById("guided-result-action-control").dataset.target,
+    "local-finops-files");
+});
+
+test("the authored markup ships progress copy and no placeholder slot values", async () => {
+  const document = parseHtml(await readFile(new URL("../src/evolution.html", import.meta.url), "utf8"));
+
+  // What a visitor sees while the composition is still being worked out. It has
+  // to describe their wait, not this module's internals.
+  const finding = textOf(document.getElementById("guided-result-finding"));
+  assert.match(finding, /^Loading /);
+  assert.doesNotMatch(finding, /Composing/);
+
+  for (const id of SLOT_IDS) {
+    assert.doesNotMatch(textOf(document.getElementById(id)), PLACEHOLDER,
+      `${id} ships a placeholder a visitor could read as a result`);
+  }
+  // The slot labels name one concept each. "required" and "one" are properties
+  // of the contract, not answers, and they used to hang off the label where they
+  // read as the value beside them.
+  for (const label of document.querySelectorAll(".guided-result-label")) {
+    assert.doesNotMatch(textOf(label), /—/, `"${textOf(label)}" carries a dangling qualifier`);
+  }
+
+  // The standing promise about the reader's files, said before they choose one.
+  // No rewording above may quietly cost them it.
+  const boundary = textOf(document.querySelector(".privacy-boundary"));
+  assert.match(boundary, /Your files do not leave this tab\./);
+  assert.match(boundary, /No upload/);
+});
+
+// ---------------------------------------------------------------------------
 // The shipped page. The wiring, not the contract: the composition has to reach
 // the real document through the real entry module, on the bundled first paint a
 // visitor actually meets.
@@ -593,7 +680,10 @@ test("the live demo composes a guided result on first paint, marked not decision
   assert.equal(document.getElementById("guided-result-action").dataset.actionId, "import_own_export");
   assert.equal(document.getElementById("guided-result-action-control").hidden, false);
   assert.equal(root.dataset.supportExpanded, "false");
-  assert.ok(textOf(document.getElementById("guided-result-finding")).length > 0);
+  // The first paint a visitor meets names the two files that would replace the
+  // bundled sample with their own, and points at the picker below.
+  assert.match(textOf(document.getElementById("guided-result-finding")),
+    /Choose one provider period export and one HRIS mapping in the panel below/);
 
   // Every executive panel on the shipped page is stamped with the role the
   // contract gave it, and only one of them is primary.
