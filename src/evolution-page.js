@@ -277,6 +277,11 @@ function mountLocalFinopsImport() {
   // contract reads the same ratio the coverage headline printed rather than
   // summing the same two totals a second time.
   let attributedShare = 0;
+  // The same ratio, kept undefined rather than zeroed when no spend was read.
+  // The panel contract wants a counted fact and reads an absent one as 0; a
+  // provenance block must not, because "0% of the dollars resolved to an org
+  // unit" is a measurement and "there were no dollars" is not.
+  let attributedFraction = null;
   // One offloader for the life of the page. It builds its worker lazily, retires
   // it for good if the browser cannot load a module worker, and builds a fresh
   // one after a cancel — so a cancelled import leaves nothing to clean up here.
@@ -616,17 +621,18 @@ function mountLocalFinopsImport() {
    * prompt-grading verdict's, and the provider rows are counted inside the
    * contract out of the same parsed envelopes the analysis read.
    */
+  const importedRowFacts = () => {
+    const verdict = promptGrading();
+    return importedPanelFacts({
+      providers: loaded.providers,
+      result,
+      attributedShare,
+      scoredPrompts: verdict.classifiedPrompts,
+      gradedDepartments: verdict.departmentsCovered,
+    });
+  };
   const executivePanelFacts = () => {
-    if (result && !exampleActive) {
-      const verdict = promptGrading();
-      return importedPanelFacts({
-        providers: loaded.providers,
-        result,
-        attributedShare,
-        scoredPrompts: verdict.classifiedPrompts,
-        gradedDepartments: verdict.departmentsCovered,
-      });
-    }
+    if (result && !exampleActive) return importedRowFacts();
     return examplePanelFacts(bundledSeed, {
       evaluationRecords: bundledEvaluationRecords,
       // One row is enough to make the per-model question answerable, and the
@@ -716,24 +722,25 @@ function mountLocalFinopsImport() {
       period: analysis?.period ?? null,
       plausible,
       recoverableWithheld: withheld,
+      // Both are the reader's own, and both are absent rather than zero when
+      // there is no analysis to read them off: the money cards' provenance is
+      // counted from the parsed provider envelopes, and the fraction is the one
+      // the trust verdict measured a few lines above. Neither may fall back to
+      // the bundled seed's facts, which is what `examplePanelFacts` would give.
+      facts: analysis ? importedRowFacts() : null,
+      attributedShare: analysis ? attributedFraction : null,
     });
     applyImportedExecutive(document, figures, { band });
     // One painter per state. The graded surface has already drawn its own mix
     // into these nodes; drawing a second one over it would be the same chart
-    // twice with two different captions.
+    // twice with two different captions. What must not survive underneath an
+    // unavailable mix is the bundled sample's chart, so the empty shares are
+    // painted with the refusal's own caption and basis.
     if (!gradedMix) {
-      if (figures.mix) {
-        renderMix({ mix: figures.mix.shares, spendUsd: analysis?.spendUsd ?? 0 },
-          { captionFor: figures.mix.captionFor, basis: figures.mix.basis });
-      } else {
-        // Nothing scored. The panel contract already marks this panel
-        // unavailable and names the file that would answer it; what must not
-        // survive underneath is the bundled sample's chart.
-        renderMix({ mix: {}, spendUsd: 0 }, {
-          captionFor: () => "0 of 0 scored queries",
-          basis: "No query in this import carried a category the rubric scores, so there is no mix to draw.",
-        });
-      }
+      renderMix({
+        mix: figures.mix.available ? figures.mix.shares : {},
+        spendUsd: figures.mix.available ? (analysis?.spendUsd ?? 0) : 0,
+      }, { captionFor: figures.mix.captionFor, basis: figures.mix.basis });
     }
     return figures;
   };
@@ -805,6 +812,7 @@ function mountLocalFinopsImport() {
     // Held for the panel contract, which decides whether a department may be
     // ranked at all from the same ratio this line prints.
     attributedShare = share?.share ?? 0;
+    attributedFraction = share?.defined ? share.share : null;
     const attribution = applyAttributionPolicy(share);
     // Below the floor the figure itself is withheld. A dollar amount with a
     // caveat under it is the same unsupported claim with an asterisk on it.
@@ -983,6 +991,7 @@ function mountLocalFinopsImport() {
     clear.hidden = true;
     clear.textContent = "Return to example data";
     attributedShare = 0;
+    attributedFraction = null;
     setMode("example", "Example data");
     applyFieldDiagnostic(document, null);
     // Nothing survives the clear: the example result, its provenance labels, and

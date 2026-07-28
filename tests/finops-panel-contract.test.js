@@ -16,8 +16,9 @@ import { readFile } from "node:fs/promises";
 import { DomEvent, loadPage, textOf } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 import {
-  EXECUTIVE_PANELS, MIN_ATTRIBUTED_SHARE, MIN_SCORED_PROMPTS, PANEL_FACTS,
-  examplePanelFacts, importedPanelFacts, panelFacts, panelState, panelStates,
+  EXECUTIVE_PANELS, MIN_ATTRIBUTED_SHARE, MIN_SCORED_PROMPTS, PANEL_CONTRACT_VERSION, PANEL_FACTS,
+  PANEL_UNAVAILABLE_REASON, examplePanelFacts, importedPanelFacts, panelFacts,
+  panelState, panelStates,
 } from "../src/finops-panel-contract.js";
 import { PROMPT_GRADING_THRESHOLDS } from "../src/prompt-grading-eligibility.js";
 import { ATTRIBUTION_RANKED_FINDING_FLOOR } from "../src/finops-attribution-policy.js";
@@ -44,6 +45,33 @@ test("every declared panel names one question, one element, and inputs that exis
       assert.ok(entry.need.length > 40, `${panel.id}/${entry.fact} must say what to do next`);
     }
   }
+});
+
+test("every declared input carries the stable code a caller refuses with", () => {
+  assert.equal(PANEL_CONTRACT_VERSION, "executive-panel-contract/1.1.0",
+    "adding reason codes to the exported state is a contract-shape change");
+  const codes = new Set(Object.values(PANEL_UNAVAILABLE_REASON));
+  assert.equal(codes.size, Object.keys(PANEL_FACTS).length,
+    "one code per fact, none shared: a shared code cannot say which input is missing");
+  for (const fact of Object.keys(PANEL_FACTS)) {
+    assert.ok(PANEL_UNAVAILABLE_REASON[fact], `${fact} may be required and has no reason code`);
+  }
+  for (const panel of EXECUTIVE_PANELS) {
+    for (const entry of panel.requirements) {
+      assert.equal(entry.reason, PANEL_UNAVAILABLE_REASON[entry.fact],
+        `${panel.id}/${entry.fact} must refuse with the declared code`);
+    }
+  }
+  // The code is on the state and on the sentence, so a card, a log line, and an
+  // exported briefing all name one gap the same way.
+  const nothing = panelStates({});
+  for (const state of nothing) {
+    assert.equal(state.reason, state.blocking.reason);
+    assert.equal(state.message.reason, state.blocking.reason);
+  }
+  const answered = panelState(EXECUTIVE_PANELS.find((entry) => entry.id === "high-value-share"),
+    { scoredPrompts: MIN_SCORED_PROMPTS });
+  assert.equal(answered.reason, null, "an answerable panel has nothing to refuse with");
 });
 
 test("thresholds are the published ones, not a second opinion", () => {
