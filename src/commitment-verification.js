@@ -372,8 +372,16 @@ function observationRecordId(period, departmentId, modelId) {
  *   `normalizeLocalFinops` — or null when no later month has been imported.
  * @param options.attributionWithheld true when the attribution policy already
  *   suppressed the observed month's money figure on screen.
+ * @param options.expectedPeriod the calendar month this observation is required
+ *   to be, when the caller is checking a run of months rather than one pair.
+ *   Omitted, it is the month directly after the baseline, which is the pairing
+ *   rule. A caller cannot use it to relax the rule for a single pair: the
+ *   sustained check below derives every expected month from the same baseline,
+ *   so a month still cannot be scored against a window it did not observe.
  */
-export function verifyCommitment(commitmentInput, observation, { attributionWithheld = false } = {}) {
+export function verifyCommitment(
+  commitmentInput, observation, { attributionWithheld = false, expectedPeriod = null } = {},
+) {
   const commitment = readCommitment(commitmentInput);
   if (!commitment) return unavailable(VERIFICATION_UNAVAILABLE_REASON.noCommitment);
   const plan = verifiableCommitment(commitment);
@@ -395,10 +403,11 @@ export function verifyCommitment(commitmentInput, observation, { attributionWith
   if (!observedPeriod) {
     return unavailable(VERIFICATION_UNAVAILABLE_REASON.observationPeriodUnreadable, identity);
   }
-  const expectedPeriod = nextCalendarMonth(plan.baselinePeriod);
-  if (observedPeriod !== expectedPeriod) {
+  const wantedPeriod = PERIOD.test(String(expectedPeriod ?? ""))
+    ? expectedPeriod : nextCalendarMonth(plan.baselinePeriod);
+  if (observedPeriod !== wantedPeriod) {
     return unavailable(VERIFICATION_UNAVAILABLE_REASON.observationPeriodNotPaired,
-      { ...identity, observedPeriod, expectedPeriod });
+      { ...identity, observedPeriod, expectedPeriod: wantedPeriod });
   }
 
   const units = matchOne(observedUnits(observation), (unit) => unit?.unitId, plan.departmentId);
@@ -515,6 +524,325 @@ export function verifyCommitment(commitmentInput, observation, { attributionWith
   });
 }
 
+/* --------------------------- more than one month --------------------------- */
+
+// ONE MONTH IS AN ANECDOTE
+// -----------------------
+// A single paired month can be a holiday, a stalled batch job, or a migration
+// that ran for three weeks and was reverted. Calling that "verified" is the
+// claim a director is most entitled to reject, so a verified verdict here needs
+// an unbroken run of observed months, each one paired against the same baseline.
+//
+// THE SAME MONTH TWICE IS STILL ONE MONTH
+// ---------------------------------------
+// The visitor supplies these observations by opening files, so opening one file
+// twice — or opening a file and its own renamed copy — is ordinary, and the
+// naive count would read it as two months of evidence. Every observation is
+// therefore keyed by its own calendar month before anything is counted. Repeats
+// that agree collapse to the one month they describe; repeats that disagree name
+// no month at all, because there is no principled way to choose between two
+// files claiming different spend for the same period.
+
+export const SUSTAINED_VERIFICATION_VERSION = "savings-commitment-verification-series/1.0.0";
+
+/** The question a projected-versus-realized surface leads with. */
+export const SUSTAINED_VERIFICATION_QUESTION =
+  "Did the savings we projected actually show up in the months we measured?";
+
+/**
+ * How many distinct observed months a verified verdict needs. Stated as data
+ * because it is a policy, not an implementation detail: one month is an
+ * anecdote, and the floor is the first thing a reader should be able to check.
+ */
+export const VERIFIED_MONTH_MINIMUM = 2;
+
+export const SUSTAINED_VERDICT = Object.freeze({
+  verified: "verified",
+  partiallyRealized: "partially_realized",
+  notRealized: "not_realized",
+});
+
+export const SUSTAINED_VERDICT_STATEMENT = Object.freeze({
+  [SUSTAINED_VERDICT.verified]:
+    "Verified: every counted month met or beat the projected monthly saving on the committed route.",
+  [SUSTAINED_VERDICT.partiallyRealized]:
+    "Partially realized: some counted months met the projection and some fell short of it, so the "
+    + "saving is not yet a repeatable one.",
+  [SUSTAINED_VERDICT.notRealized]:
+    "Not realized: no counted month met the projected monthly saving on the committed route.",
+});
+
+export const SUSTAINED_UNAVAILABLE_REASON = Object.freeze({
+  noCommitment: "no_commitment",
+  commitmentNotVerifiable: "commitment_not_verifiable",
+  noObservation: "no_observation",
+  insufficientEvidence: "insufficient_evidence",
+});
+
+export const SUSTAINED_UNAVAILABLE_STATEMENT = Object.freeze({
+  [SUSTAINED_UNAVAILABLE_REASON.noCommitment]:
+    VERIFICATION_UNAVAILABLE_STATEMENT[VERIFICATION_UNAVAILABLE_REASON.noCommitment],
+  [SUSTAINED_UNAVAILABLE_REASON.commitmentNotVerifiable]:
+    VERIFICATION_UNAVAILABLE_STATEMENT[VERIFICATION_UNAVAILABLE_REASON.commitmentNotVerifiable],
+  [SUSTAINED_UNAVAILABLE_REASON.noObservation]:
+    VERIFICATION_UNAVAILABLE_STATEMENT[VERIFICATION_UNAVAILABLE_REASON.noObservation],
+  [SUSTAINED_UNAVAILABLE_REASON.insufficientEvidence]:
+    "Fewer distinct months have been observed than a verified saving needs, so what has been read so "
+    + "far is reported as provisional rather than as a result. Import the next consecutive month.",
+});
+
+/** Why an observation the visitor supplied was not counted as a month. */
+export const SUSTAINED_IGNORE_REASON = Object.freeze({
+  periodUnreadable: "observation_period_unreadable",
+  conflictingDuplicate: "conflicting_duplicate_observation",
+  periodNotInSequence: "period_not_in_sequence",
+  monthNotVerifiable: "month_not_verifiable",
+});
+
+export const SUSTAINED_IGNORE_STATEMENT = Object.freeze({
+  [SUSTAINED_IGNORE_REASON.periodUnreadable]:
+    "This import observes a window that is not one calendar month, so it names no month to count.",
+  [SUSTAINED_IGNORE_REASON.conflictingDuplicate]:
+    "This month was imported more than once and the copies disagree about what the committed route "
+    + "cost, so none of them is counted. Reopen the month from one file.",
+  [SUSTAINED_IGNORE_REASON.periodNotInSequence]:
+    "This month is not part of an unbroken run of months following the baseline, so the run stops "
+    + "before it. Import the months in between to extend the run.",
+  [SUSTAINED_IGNORE_REASON.monthNotVerifiable]:
+    "This month was read but produced no verdict of its own, so the run stops here.",
+});
+
+/**
+ * The two rules this layer adds on top of the per-month check, with the
+ * assumption behind each one, in the same shape as `VERIFICATION_METRIC_RULES`.
+ */
+export const SUSTAINED_METRIC_RULES = Object.freeze({
+  deduplication: Object.freeze({
+    rule: "Observations are keyed by their own calendar month before anything is counted. Repeats of "
+      + "one month that agree on the realized figure count once; repeats that disagree count as no "
+      + "month at all and are reported as conflicting_duplicate_observation.",
+    assumption:
+      "The same month supplied twice is one month of evidence, not two. Counting copies would let "
+      + "opening one file twice turn a single anecdote into a verified saving, which is the one "
+      + "arithmetic error this whole layer exists to prevent.",
+  }),
+  consecutiveMonths: Object.freeze({
+    rule: "Counted months are the unbroken run starting at the month directly after the baseline. A "
+      + "gap, an unverifiable month, or a conflicting duplicate ends the run, and later months are "
+      + "reported as period_not_in_sequence rather than counted.",
+    assumption:
+      "A run with a hole in it is not evidence that the saving held through the hole. Skipping the "
+      + "missing month would credit the commitment for a period nobody measured.",
+  }),
+  sustainedTotals: Object.freeze({
+    rule: "realizedSavingsMinor is the sum over counted months, and expectedSavingsMinor is the "
+      + "commitment's projected monthly saving multiplied by monthsCounted. Every counted month is "
+      + "compared against the same baseline month the commitment was priced in.",
+    assumption:
+      "The baseline is the commitment's own and is never re-derived from a later import, so the "
+      + "totals answer 'how much of the committed route's cost stayed away', month after month. Each "
+      + "month therefore carries the same UPPER BOUND caveat the per-month rule states.",
+  }),
+  verdictFloor: Object.freeze({
+    rule: `A verdict needs at least ${VERIFIED_MONTH_MINIMUM} distinct counted months. Below that the `
+      + "result is unavailable with reason insufficient_evidence, and the months read so far are "
+      + "carried as provisional rather than scored.",
+    assumption:
+      "One month can be a holiday, a stalled batch, or a migration that was reverted. A floor stated "
+      + "as data is a policy a reader can dispute; a floor of one is a claim they cannot check.",
+  }),
+});
+
+/**
+ * What makes two copies of one month the same observation.
+ *
+ * Compared on the outcome rather than on the file: two exports of the same month
+ * written by different runs differ in their timestamps and their row order but
+ * describe the same spend, and refusing those would make ordinary re-exports
+ * look like a contradiction. What must not differ is the figure a verdict would
+ * be computed from.
+ */
+function outcomeFingerprint(result) {
+  return result.status === VERIFICATION_STATUS.ok
+    ? `ok:${result.realized.monthlyCostMinor}`
+    : `unavailable:${result.reason}`;
+}
+
+function ignoredEntry(period, reason, copies = 1, monthReason = null) {
+  return {
+    period,
+    copies,
+    reason,
+    monthReason,
+    statement: SUSTAINED_IGNORE_STATEMENT[reason],
+  };
+}
+
+function sustainedResult(fields) {
+  return deepFreeze({
+    schemaVersion: SUSTAINED_VERIFICATION_VERSION,
+    monthVerificationVersion: COMMITMENT_VERIFICATION_VERSION,
+    contractVersion: SAVINGS_COMMITMENT_VERSION,
+    question: SUSTAINED_VERIFICATION_QUESTION,
+    status: VERIFICATION_STATUS.unavailable,
+    verdict: null,
+    verdictStatement: null,
+    reason: null,
+    statement: null,
+    commitmentId: null,
+    departmentId: null,
+    baselinePeriod: null,
+    monthsRequired: VERIFIED_MONTH_MINIMUM,
+    monthsCounted: 0,
+    months: [],
+    duplicatePeriods: [],
+    ignored: [],
+    totals: null,
+    assumptions: SUSTAINED_METRIC_RULES,
+    monthAssumptions: VERIFICATION_METRIC_RULES,
+    ...fields,
+    ...(fields.reason ? { statement: SUSTAINED_UNAVAILABLE_STATEMENT[fields.reason] } : {}),
+  });
+}
+
+/**
+ * Check one commitment against every later month the visitor supplied.
+ *
+ * Pure and total, like the per-month check it is built from: no DOM, no fetch,
+ * no storage, no clock, no randomness, and it never throws. The observations may
+ * arrive in any order and may repeat; the result does not depend on either.
+ *
+ * @param commitmentInput a built preview, a briefing commitment block, or a bare
+ *   commitment, exactly as `verifyCommitment` accepts.
+ * @param observations analysis envelopes for later months, in any order.
+ */
+export function verifySustainedCommitment(
+  commitmentInput, observations, { attributionWithheld = false } = {},
+) {
+  const commitment = readCommitment(commitmentInput);
+  if (!commitment) {
+    return sustainedResult({ reason: SUSTAINED_UNAVAILABLE_REASON.noCommitment });
+  }
+  const plan = verifiableCommitment(commitment);
+  if (!plan) {
+    return sustainedResult({ reason: SUSTAINED_UNAVAILABLE_REASON.commitmentNotVerifiable });
+  }
+  const identity = {
+    commitmentId: plan.commitmentId,
+    departmentId: plan.departmentId,
+    baselinePeriod: plan.baselinePeriod,
+  };
+  const supplied = (Array.isArray(observations) ? observations : [observations])
+    .filter((entry) => entry && typeof entry === "object");
+  if (!supplied.length) {
+    return sustainedResult({ ...identity, reason: SUSTAINED_UNAVAILABLE_REASON.noObservation });
+  }
+
+  // 1. Key every observation by the month it observes. This is the whole
+  //    deduplication step, and it happens before anything is counted.
+  const byPeriod = new Map();
+  const ignored = [];
+  for (const observation of supplied) {
+    const period = calendarMonth(observation.period);
+    if (!period) {
+      ignored.push(ignoredEntry(null, SUSTAINED_IGNORE_REASON.periodUnreadable));
+      continue;
+    }
+    if (!byPeriod.has(period)) byPeriod.set(period, []);
+    byPeriod.get(period).push(observation);
+  }
+
+  // 2. Collapse the copies of each month to the one outcome they agree on, or to
+  //    no outcome at all when they disagree.
+  const months = new Map();
+  const duplicatePeriods = [];
+  for (const [period, copies] of [...byPeriod.entries()].sort()) {
+    const outcomes = new Map();
+    for (const copy of copies) {
+      const result = verifyCommitment(commitment, copy, {
+        attributionWithheld, expectedPeriod: period,
+      });
+      outcomes.set(outcomeFingerprint(result), result);
+    }
+    if (copies.length > 1) {
+      duplicatePeriods.push({ period, copies: copies.length, agreed: outcomes.size === 1 });
+    }
+    if (outcomes.size > 1) {
+      ignored.push(ignoredEntry(period, SUSTAINED_IGNORE_REASON.conflictingDuplicate, copies.length));
+      continue;
+    }
+    months.set(period, { result: [...outcomes.values()][0], copies: copies.length });
+  }
+
+  // 3. Count the unbroken run from the month after the baseline. Everything the
+  //    run does not reach is reported with the reason it was not reached.
+  const counted = [];
+  let cursor = nextCalendarMonth(plan.baselinePeriod);
+  while (months.has(cursor)) {
+    const entry = months.get(cursor);
+    if (entry.result.status !== VERIFICATION_STATUS.ok) {
+      ignored.push(ignoredEntry(cursor, SUSTAINED_IGNORE_REASON.monthNotVerifiable,
+        entry.copies, entry.result.reason));
+      break;
+    }
+    counted.push(entry.result);
+    months.delete(cursor);
+    cursor = nextCalendarMonth(cursor);
+  }
+  for (const [period, entry] of months) {
+    if (ignored.some((item) => item.period === period)) continue;
+    ignored.push(ignoredEntry(period, SUSTAINED_IGNORE_REASON.periodNotInSequence, entry.copies));
+  }
+  ignored.sort((left, right) => String(left.period).localeCompare(String(right.period)));
+
+  const monthsCounted = counted.length;
+  const realizedMinor = counted.reduce(
+    (total, month) => total + month.realized.monthlySavingsMinor, 0,
+  );
+  const expectedMinor = plan.projectedSavingsMinor * monthsCounted;
+  const totals = monthsCounted === 0 ? null : {
+    monthsCounted,
+    projectedMonthlySavingsMinor: plan.projectedSavingsMinor,
+    projectedMonthlySavingsUsd: usd(plan.projectedSavingsMinor),
+    expectedSavingsMinor: expectedMinor,
+    expectedSavingsUsd: usd(expectedMinor),
+    realizedSavingsMinor: realizedMinor,
+    realizedSavingsUsd: usd(realizedMinor),
+    varianceMinor: realizedMinor - expectedMinor,
+    varianceUsd: usd(realizedMinor - expectedMinor),
+    attainmentPercent: Math.round((realizedMinor * 100) / expectedMinor),
+    currency: "USD",
+    unit: "usd_minor",
+    formula: `${realizedMinor} realized - ${plan.projectedSavingsMinor} projected x ${monthsCounted} `
+      + `month${monthsCounted === 1 ? "" : "s"} = ${realizedMinor - expectedMinor} minor units.`,
+  };
+
+  const base = {
+    ...identity,
+    monthsCounted,
+    months: counted,
+    duplicatePeriods,
+    ignored,
+    totals,
+  };
+  if (monthsCounted < VERIFIED_MONTH_MINIMUM) {
+    return sustainedResult({ ...base, reason: SUSTAINED_UNAVAILABLE_REASON.insufficientEvidence });
+  }
+
+  const achieved = counted.filter(
+    (month) => month.verdict === VERIFICATION_VERDICT.achieved,
+  ).length;
+  const verdict = achieved === monthsCounted
+    ? SUSTAINED_VERDICT.verified
+    : achieved > 0 ? SUSTAINED_VERDICT.partiallyRealized : SUSTAINED_VERDICT.notRealized;
+  return sustainedResult({
+    ...base,
+    status: VERIFICATION_STATUS.ok,
+    verdict,
+    verdictStatement: SUSTAINED_VERDICT_STATEMENT[verdict],
+  });
+}
+
 /* ------------------------------ what a surface says ------------------------ */
 
 /**
@@ -544,6 +872,40 @@ export function verificationLines(result) {
     detail: `${result.departmentId} · ${realized} USD realized against ${projected} USD projected · `
       + `${variance} USD variance (${result.variance.attainmentPercent}% of plan) · `
       + `${result.baselinePeriod} baseline against ${result.observedPeriod} observed.`,
+    caveat: VERIFICATION_METRIC_RULES.realizedCost.assumption,
+  });
+}
+
+/**
+ * The sustained check as the lines a view paints, in the order it paints them.
+ *
+ * Like `verificationLines`, every state produces every key, so the insufficient
+ * and unavailable states render through the same path as a verdict. `metric` is
+ * the one figure the surface leads with and is present whenever a month was
+ * counted at all — including under `insufficient_evidence`, where it is the
+ * provisional figure the headline is careful not to call a result.
+ */
+export function sustainedLines(result) {
+  const question = result?.question ?? SUSTAINED_VERIFICATION_QUESTION;
+  const totals = result?.totals ?? null;
+  const months = result?.monthsCounted ?? 0;
+  const metric = totals ? {
+    label: `Realized savings across ${months} observed month${months === 1 ? "" : "s"}`,
+    value: `${totals.realizedSavingsUsd.toFixed(2)} USD`,
+    comparison: `against ${totals.expectedSavingsUsd.toFixed(2)} USD projected `
+      + `(${totals.attainmentPercent}% of plan)`,
+  } : null;
+  return Object.freeze({
+    question,
+    headline: result?.status === VERIFICATION_STATUS.ok
+      ? result.verdictStatement
+      : result?.statement ?? SUSTAINED_UNAVAILABLE_STATEMENT.no_commitment,
+    metric: metric ? Object.freeze(metric) : null,
+    detail: totals
+      ? `${result.departmentId} · ${result.baselinePeriod} baseline · `
+        + `${months} of ${result.monthsRequired} month${result.monthsRequired === 1 ? "" : "s"} `
+        + `needed for a verified saving.`
+      : null,
     caveat: VERIFICATION_METRIC_RULES.realizedCost.assumption,
   });
 }
