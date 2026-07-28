@@ -1,0 +1,154 @@
+{
+  "schemaVersion": "savings-commitment-input/1.0.0",
+  "note": "Synthetic imported analysis. No customer, provider account, or live integration is represented here, and nothing in this file is read from or written to storage.",
+  "source": {
+    "sourceId": "syn-finops-analysis-2026-06",
+    "importedAt": "2026-07-08T14:20:00Z",
+    "analysisPeriod": "2026-06",
+    "designation": "fixture",
+    "currency": "USD",
+    "unit": "usd_minor",
+    "recordIds": [
+      "syn-rec-support-triage-frontier",
+      "syn-rec-support-triage-mid",
+      "syn-rec-batch-summaries-frontier",
+      "syn-rec-batch-summaries-mid",
+      "syn-rec-code-review-frontier",
+      "syn-rec-code-review-mid"
+    ]
+  },
+  "candidates": [
+    {
+      "candidateId": "syn-commit-support-triage",
+      "recordIds": ["syn-rec-support-triage-frontier", "syn-rec-support-triage-mid"],
+      "workloadScope": {
+        "workloadId": "syn-workload-support-triage",
+        "description": "first-pass support ticket triage",
+        "period": "2026-06"
+      },
+      "department": {
+        "departmentId": "syn-dept-customer-operations",
+        "name": "Synthetic Customer Operations"
+      },
+      "accountableOwner": { "role": "Synthetic Director of Customer Operations" },
+      "routing": {
+        "workloadId": "syn-workload-support-triage",
+        "currentRoute": { "modelId": "syn-model-frontier-a" },
+        "proposedRoute": { "modelId": "syn-model-mid-b" },
+        "rationale": "This department already ran the mid tier for a fifth of the same triage traffic in the analysed month at an equivalent resolution rate, so the routing change is evidenced by its own traffic rather than by a vendor claim.",
+        "evidence": [
+          {
+            "recordId": "syn-rec-support-triage-frontier",
+            "statement": "84,000 triage requests on the frontier tier in 2026-06."
+          },
+          {
+            "recordId": "syn-rec-support-triage-mid",
+            "statement": "21,000 triage requests already on the mid tier in the same department and month."
+          }
+        ]
+      },
+      "baseline": {
+        "monthlyCostMinor": 4820000,
+        "workloadId": "syn-workload-support-triage",
+        "period": "2026-06"
+      },
+      "projected": {
+        "monthlyCostMinor": 1690000,
+        "workloadId": "syn-workload-support-triage",
+        "period": "2026-06"
+      },
+      "confidence": {
+        "percent": 72,
+        "basis": "Two months of comparable volume, one of them partly observed; the mid tier's rate is drawn from this department's own traffic."
+      }
+    },
+    {
+      "candidateId": "syn-commit-batch-summaries",
+      "recordIds": ["syn-rec-batch-summaries-frontier", "syn-rec-batch-summaries-mid"],
+      "workloadScope": {
+        "workloadId": "syn-workload-batch-summaries",
+        "description": "overnight batch summarisation",
+        "period": "2026-06"
+      },
+      "department": {
+        "departmentId": "syn-dept-data-platform",
+        "name": "Synthetic Data Platform"
+      },
+      "accountableOwner": { "role": "Synthetic Head of Data Platform" },
+      "routing": {
+        "workloadId": "syn-workload-batch-summaries",
+        "currentRoute": { "modelId": "syn-model-frontier-a" },
+        "proposedRoute": { "modelId": "syn-model-mid-b" },
+        "rationale": "Batch summarisation runs unattended overnight and has no latency floor, and the same department ran the mid tier for the retry queue in the analysed month.",
+        "evidence": [
+          {
+            "recordId": "syn-rec-batch-summaries-frontier",
+            "statement": "31,500 batch requests on the frontier tier in 2026-06."
+          },
+          {
+            "recordId": "syn-rec-batch-summaries-mid",
+            "statement": "9,200 retry-queue requests already on the mid tier in the same department and month."
+          }
+        ]
+      },
+      "baseline": {
+        "monthlyCostMinor": 1975000,
+        "workloadId": "syn-workload-batch-summaries",
+        "period": "2026-06"
+      },
+      "projected": {
+        "monthlyCostMinor": 890000,
+        "workloadId": "syn-workload-batch-summaries",
+        "period": "2026-06"
+      },
+      "confidence": {
+        "percent": 81,
+        "basis": "Three fully observed months of stable batch volume with no partial-month proration."
+      }
+    },
+    {
+      "candidateId": "syn-commit-code-review",
+      "recordIds": ["syn-rec-code-review-frontier", "syn-rec-code-review-mid"],
+      "workloadScope": {
+        "workloadId": "syn-workload-code-review",
+        "description": "inline code review assistance",
+        "period": "2026-06"
+      },
+      "department": {
+        "departmentId": "syn-dept-engineering",
+        "name": "Synthetic Engineering"
+      },
+      "accountableOwner": { "role": "Synthetic VP of Engineering" },
+      "routing": {
+        "workloadId": "syn-workload-code-review",
+        "currentRoute": { "modelId": "syn-model-mid-b" },
+        "proposedRoute": { "modelId": "syn-model-small-c" },
+        "rationale": "Kept in the analysis because the volume is large, but the small tier's observed rate in this department is no lower once its retry traffic is counted.",
+        "evidence": [
+          {
+            "recordId": "syn-rec-code-review-mid",
+            "statement": "47,000 review requests on the mid tier in 2026-06."
+          },
+          {
+            "recordId": "syn-rec-code-review-frontier",
+            "statement": "12,400 escalated review requests on the frontier tier in the same month."
+          }
+        ]
+      },
+      "baseline": {
+        "monthlyCostMinor": 1240000,
+        "workloadId": "syn-workload-code-review",
+        "period": "2026-06"
+      },
+      "projected": {
+        "monthlyCostMinor": 1240000,
+        "workloadId": "syn-workload-code-review",
+        "period": "2026-06"
+      },
+      "confidence": {
+        "percent": 44,
+        "basis": "One partly observed month, and the small tier's rate is pooled across two departments."
+      }
+    }
+  ]
+}
