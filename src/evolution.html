@@ -647,6 +647,47 @@
         </section>
       </section>
 
+      <!-- Coach one prompt. The panel above grades an imported corpus against the
+           org chart; this one grades the text in the box against the same rubric
+           and answers a different question — the one a reader arrives with before
+           they have any file to import. It shares no state with the import: no
+           seed, no workspace, no selection, no storage. src/prompt-coaching.js
+           composes the answer, src/prompt-coaching-view.js draws it, and
+           src/prompt-coaching-page.js is the whole of the wiring. -->
+      <section class="prompt-coaching finops-panel" id="prompt-coaching" data-state="idle" data-expanded="false" aria-labelledby="prompt-coaching-question">
+        <div class="section-heading">
+          <p class="eyebrow">Coach one prompt · browser only</p>
+          <h2 id="prompt-coaching-question">Would a model answer this prompt well?</h2>
+          <p>Paste a prompt, or the few turns around it, and grade it against the same rubric this page grades an imported corpus with. The text stays in this tab: nothing is uploaded, stored, or attached to your organization&rsquo;s grade.</p>
+        </div>
+        <form class="prompt-coaching-form" id="prompt-coaching-form" novalidate>
+          <div class="prompt-coaching-field">
+            <label for="prompt-coaching-input">Your prompt or short conversation</label>
+            <!-- The hint is rewritten on load from the contract's own limits, so
+                 the numbers under the field cannot drift from the numbers the
+                 contract enforces. The static text is the pre-script fallback. -->
+            <textarea id="prompt-coaching-input" name="prompt" rows="8" spellcheck="false" aria-describedby="prompt-coaching-hint"></textarea>
+            <p class="prompt-coaching-hint" id="prompt-coaching-hint">Label turns &ldquo;User:&rdquo; and &ldquo;Assistant:&rdquo; to grade an exchange, or paste one prompt on its own.</p>
+          </div>
+          <div class="prompt-coaching-field prompt-coaching-field-model">
+            <label for="prompt-coaching-model">Model you used</label>
+            <select id="prompt-coaching-model" name="modelTier">
+              <option value="">Not specified</option>
+              <option value="premium">Premium or frontier</option>
+              <option value="standard">Standard</option>
+              <option value="economy">Economy or small</option>
+            </select>
+            <p class="prompt-coaching-hint">Model fit is one of three axes. Left unspecified, it abstains rather than assuming a tier.</p>
+          </div>
+          <div class="prompt-coaching-actions">
+            <button type="submit" id="prompt-coaching-grade">Grade this prompt</button>
+            <button type="button" id="prompt-coaching-clear">Clear</button>
+          </div>
+        </form>
+        <p class="prompt-coaching-live" id="prompt-coaching-live" role="status" aria-live="polite" aria-atomic="true"></p>
+        <div class="prompt-coaching-result" id="prompt-coaching-result" hidden></div>
+      </section>
+
       <!-- Immediately below the result region and outside it: the decision brief
            above is never swapped, covered, or unmounted by anything in here.
            The section is always present because a result always is — the
@@ -1122,6 +1163,7 @@
       </div>
     </footer>
     <script type="module" src="/evolution-page.js"></script>
+    <script type="module" src="/prompt-coaching-page.js"></script>
     <script type="module" src="/site-footer-page.js"></script>
   </body>
 </html>
