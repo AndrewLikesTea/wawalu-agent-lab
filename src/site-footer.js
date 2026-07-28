@@ -21,14 +21,17 @@
 //      form in place. There is no focus trap to escape and nothing overlays the
 //      page they were reading.
 //
-// The submission itself is not new work. It is the same transport, the same
-// validation, and the same failure-to-copy mapping the home page's newsletter
-// form and the AI FinOps contact form already share, imported from
-// lead-capture.js. Only the wording is this file's own — see the note on
-// CAPTURED about what it is willing to promise.
+// The submission itself is not new work. It is the same transport and the same
+// validation the home page's field-note form and the AI FinOps contact form
+// already share, imported from lead-capture.js. What it asks for is not the same
+// though, so it reads its validation and failure wording from CONTACT_COPY
+// rather than the field-note set: the home page carries both forms, and a
+// visitor who mistypes an address has to be told which one they were using.
+// The promise it makes once an address lands is still its own — see the note on
+// CAPTURED about what it is willing to say.
 
 import {
-  describeWith, emailFieldError, looksLikeEmail, postLeadEmail, SubmissionError, UNCONFIRMED_COPY,
+  CONTACT_COPY, describeWith, emailFieldError, looksLikeEmail, postLeadEmail, SubmissionError,
 } from "./lead-capture.js";
 
 const ERROR_ID = "site-footer-error";
@@ -43,6 +46,15 @@ const RECOVERY_ID = "site-footer-recovery";
  */
 export const IDENTITY = "Shiplog is a demonstration engineering decision and release log, "
   + "built and operated by Wawalu at labs.wawalu.org.";
+
+/**
+ * What submitting does, before the note about what it sends. The home page also
+ * carries a work-email field that subscribes you to field notes, and the two are
+ * a few hundred pixels apart; a visitor should never have to guess which one
+ * they are typing into. The trigger above says who you are talking to, this says
+ * what pressing the button asks for.
+ */
+export const PURPOSE = "Submitting requests a follow-up conversation about Shiplog.";
 
 /**
  * The privacy claim, in the same register as the AI FinOps form's: it names the
@@ -63,12 +75,12 @@ export const PRIVACY = "This form sends one thing: the work email address you ty
 // says what is actually true — the address is recorded, a person is the one who
 // reads it, and no machine is about to reply — rather than a response time this
 // demo would break.
-const CAPTURED = "Sent — your email address, and nothing else. It is recorded for the Wawalu team, "
-  + "and a person replies by email; nothing here answers automatically.";
+const CAPTURED = "Follow-up requested — we sent your email address, and nothing else. It is recorded "
+  + "for the Wawalu team, and a person replies by email; nothing here answers automatically.";
 const ALREADY_CAPTURED = "That address is already on our list, so nothing new was recorded. The "
-  + "Wawalu team can still reach you at it.";
+  + "Wawalu team has your follow-up request and can reach you there.";
 
-const SUBMITTING = "Sending your email address…";
+const SUBMITTING = "Requesting a follow-up — sending your email address…";
 
 /**
  * The footer as it appears in every page's source. `indent` is the indentation
@@ -96,14 +108,14 @@ export function siteFooterMarkup(indent = "    ") {
     '          <input id="site-footer-email" name="email" type="email" maxlength="254" inputmode="email" autocomplete="email" placeholder="you@company.com" required aria-describedby="site-footer-note" />',
     "        </div>",
     `        <p class="site-footer-error" id="site-footer-error" hidden></p>`,
-    `        <p class="site-footer-note" id="site-footer-note">${PRIVACY}</p>`,
+    `        <p class="site-footer-note" id="site-footer-note">${PURPOSE} ${PRIVACY}</p>`,
     '        <div class="site-footer-actions">',
-    '          <button type="submit">Send my email</button>',
+    '          <button type="submit">Request a follow-up</button>',
     '          <button id="site-footer-dismiss" type="button">Close</button>',
     "        </div>",
     "      </form>",
     '      <p class="site-footer-status" id="site-footer-status" role="status" aria-live="polite"></p>',
-    '      <p class="site-footer-recovery" id="site-footer-recovery" hidden>Your email address is still in the field above, so you can send it again. Nothing else on this page changed.</p>',
+    '      <p class="site-footer-recovery" id="site-footer-recovery" hidden>Your email address is still in the field above, so you can request a follow-up again. Nothing else on this page changed.</p>',
     "    </div>",
     "  </div>",
     "</footer>",
@@ -185,7 +197,7 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
-    const invalid = emailFieldError(email.value, looksLikeEmail(email.value));
+    const invalid = emailFieldError(email.value, looksLikeEmail(email.value), CONTACT_COPY);
     if (invalid) {
       // Whatever was typed stays; the field is never cleared to "help".
       form.dataset.state = "invalid";
@@ -206,14 +218,14 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
     status.textContent = SUBMITTING;
 
     try {
-      const body = await postLeadEmail(request, email.value);
+      const body = await postLeadEmail(request, email.value, CONTACT_COPY);
       form.dataset.state = "success";
       status.textContent = body?.subscribed === false ? ALREADY_CAPTURED : CAPTURED;
     } catch (error) {
       // Copy this repository owns, never a string an intermediary supplied, and
       // never a claim that the address was lost when that is not known.
       form.dataset.state = "error";
-      status.textContent = error instanceof SubmissionError ? error.message : UNCONFIRMED_COPY;
+      status.textContent = error instanceof SubmissionError ? error.message : CONTACT_COPY.unconfirmed;
       // Every failure here is retryable in place, so the paragraph that says so
       // appears on all of them — the same rule the AI FinOps form follows.
       setRecoveryVisible(true);

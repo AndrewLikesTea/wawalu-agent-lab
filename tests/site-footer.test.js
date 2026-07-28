@@ -20,7 +20,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
-import { IDENTITY, PRIVACY, siteFooterMarkup } from "../src/site-footer.js";
+import { IDENTITY, PRIVACY, PURPOSE, siteFooterMarkup } from "../src/site-footer.js";
 import { loadPage, pressEnter, pressKey, pressTab, tabSequence, textOf, typeText } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 
@@ -120,6 +120,29 @@ test("the footer says who runs Shiplog and where, and claims nothing it cannot s
       /customers?\b/i, /\bclients?\b/i, /trusted by/i, /\bfunding\b/i, /\brevenue\b/i,
       /teams like yours/i, /\d+\s*%/, /\$\s*\d/, /\b\d[\d,]{2,}\b/,
     ]) assert.doesNotMatch(identity, claim, `the footer must not make this claim: ${claim}`);
+  } finally {
+    page.restore();
+  }
+});
+
+test("the footer form says what submitting asks for, on the page that carries both work-email forms", async () => {
+  const page = await loadPage(pageUrl("index.html"));
+  const { document } = page;
+  try {
+    const note = textOf(byId(document, "site-footer-note"));
+    assert.match(note, /^Submitting requests a follow-up conversation about Shiplog\./,
+      "the purpose comes before the note about what is sent");
+    assert.ok(note.includes(PRIVACY), "the purpose must not have displaced the privacy claim");
+    assert.equal(note, `${PURPOSE} ${PRIVACY}`);
+
+    // The control the visitor presses says the same thing the note does.
+    const submit = byId(document, "site-footer-panel").querySelector('button[type="submit"]');
+    assert.equal(textOf(submit), "Request a follow-up");
+
+    // And nothing in this form reads as the field-note sign-up a few sections up.
+    const footer = textOf(byId(document, "site-footer"));
+    assert.doesNotMatch(footer, /field note|subscrib/i,
+      "the contact form must never describe itself as a subscription");
   } finally {
     page.restore();
   }
@@ -272,7 +295,7 @@ test("a submission goes through the shared capture path, and the confirmation sa
 
     assert.equal(byId(document, "site-footer-form").dataset.state, "success");
     const confirmation = shownText(document, "site-footer-status");
-    assert.match(confirmation, /^Sent — your email address, and nothing else\./);
+    assert.match(confirmation, /^Follow-up requested — we sent your email address, and nothing else\./);
     assert.match(confirmation, /recorded for the Wawalu team/, "the confirmation must say what happens next");
     // Nothing promised that this demo does not do.
     assert.doesNotMatch(confirmation, /business days?|within \d|hours?\b/i);
@@ -295,7 +318,7 @@ test("the privacy sentence beside the field is what the request body actually do
   const { document } = page;
   const calls = interceptLeads(() => jsonReply({ subscribed: true }));
   try {
-    assert.equal(shownText(document, "site-footer-note"), PRIVACY);
+    assert.equal(shownText(document, "site-footer-note"), `${PURPOSE} ${PRIVACY}`);
     assert.match(PRIVACY, /sends one thing: the work email address you type/);
 
     byId(document, "site-footer-open").click();
@@ -324,7 +347,7 @@ test("an obviously invalid address is diagnosed at the field and never reaches t
 
     submitEmail(document, "");
     assert.equal(calls.length, 0, "an empty address must not reach the network");
-    assert.equal(shownText(document, "site-footer-error"), "Enter your work email.");
+    assert.equal(shownText(document, "site-footer-error"), "Enter your work email to request a follow-up conversation.");
     assert.equal(byId(document, "site-footer-error").hidden, false);
     assert.equal(field.getAttribute("aria-invalid"), "true");
     assert.match(describedBy(document), /site-footer-error/,
@@ -335,7 +358,7 @@ test("an obviously invalid address is diagnosed at the field and never reaches t
 
     submitEmail(document, "director at example");
     assert.equal(calls.length, 0, "a malformed address must not reach the network");
-    assert.equal(shownText(document, "site-footer-error"), "Enter a valid work email address.");
+    assert.equal(shownText(document, "site-footer-error"), "Enter a valid work email address to request a follow-up conversation.");
     assert.equal(field.value, "director at example", "the field must keep what the visitor typed");
 
     // Editing retracts the diagnostic and its association.
@@ -370,10 +393,10 @@ test("a failed submission keeps the typed address, says it can be retried, and t
     assert.equal(field.value, TYPED_EMAIL, "a failed submission must not clear the address the visitor typed");
     assert.equal(byId(document, "site-footer-recovery").hidden, false);
     assert.match(describedBy(document), /site-footer-recovery/);
-    assert.match(textOf(byId(document, "site-footer-recovery")), /still in the field above, so you can send it again/);
+    assert.match(textOf(byId(document, "site-footer-recovery")), /still in the field above, so you can request a follow-up again/);
     // Copy this repository owns — never the string the response supplied.
     assert.equal(shownText(document, "site-footer-status"),
-      "Your email wasn’t saved because sign-up is temporarily offline.");
+      "We didn’t get your request because follow-up requests are temporarily offline.");
     assert.doesNotMatch(shownText(document, "site-footer-status"), /unreviewed upstream text/);
     // The control is usable again, without a reload.
     assert.equal(submit.disabled, false);
@@ -387,7 +410,7 @@ test("a failed submission keeps the typed address, says it can be retried, and t
       "the retry to succeed");
     assert.equal(calls.length, 2, "the retry must make its own request");
     assert.deepEqual(JSON.parse(calls[1].options.body), { email: TYPED_EMAIL });
-    assert.match(shownText(document, "site-footer-status"), /^Sent — your email address, and nothing else\./);
+    assert.match(shownText(document, "site-footer-status"), /^Follow-up requested — we sent your email address, and nothing else\./);
   } finally {
     page.restore();
   }
@@ -407,7 +430,7 @@ test("the pending state is announced, not merely spun", async () => {
     const submit = byId(document, "site-footer-panel").querySelector('button[type="submit"]');
     assert.equal(submit.disabled, true, "the submit control must be unusable while a request is in flight");
     assert.equal(submit.getAttribute("aria-disabled"), "true");
-    assert.equal(shownText(document, "site-footer-status"), "Sending your email address…",
+    assert.equal(shownText(document, "site-footer-status"), "Requesting a follow-up — sending your email address…",
       "the pending state must be in the live region, not only in the button");
 
     release();

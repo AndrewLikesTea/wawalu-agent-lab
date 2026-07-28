@@ -362,7 +362,7 @@ test("an empty or malformed address is diagnosed at the field, and keeps what wa
 
     submitEmail(document, "");
     assert.equal(calls.length, 0, "an empty address must not reach the network");
-    assert.equal(shownText(document, "finops-contact-error"), "Enter your work email.");
+    assert.equal(shownText(document, "finops-contact-error"), "Enter your work email to request a follow-up conversation.");
     assert.equal(byId(document, "finops-contact-error").hidden, false);
     assert.equal(field.getAttribute("aria-invalid"), "true");
     assert.match(describedBy(document), /finops-contact-error/,
@@ -373,7 +373,7 @@ test("an empty or malformed address is diagnosed at the field, and keeps what wa
 
     submitEmail(document, "director at example");
     assert.equal(calls.length, 0, "a malformed address must not reach the network");
-    assert.equal(shownText(document, "finops-contact-error"), "Enter a valid work email address.");
+    assert.equal(shownText(document, "finops-contact-error"), "Enter a valid work email address to request a follow-up conversation.");
     assert.equal(field.value, "director at example", "the field must keep what the visitor typed");
 
     // Editing retracts the diagnostic and its association.
@@ -408,7 +408,7 @@ test("a failed submission shows recovery copy for the first time and keeps the a
       "a failed submission must not clear the address the visitor typed");
     // Copy this repository owns — never the string the response supplied.
     assert.equal(shownText(document, "finops-contact-status"),
-      "Your email wasn’t saved because sign-up is temporarily offline.");
+      "We didn’t get your request because follow-up requests are temporarily offline.");
     assert.doesNotMatch(shownText(document, "finops-contact-status"), /unreviewed upstream text/);
     // The control is usable again.
     assert.equal(byId(document, "finops-contact-panel").querySelector('button[type="submit"]').disabled, false);

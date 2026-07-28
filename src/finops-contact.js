@@ -22,10 +22,13 @@
 //      a hidden node named by aria-describedby is still read aloud.
 //
 // The transport, the validation, and the failure-to-copy mapping are the home
-// page's; only the wording and the disclosure behaviour are new here.
+// page's. This form asks for the same thing the site footer's does — a person,
+// getting back to you — so it reads from the same CONTACT_COPY set rather than
+// wording a rejection its own way. What it does own is the promise it makes once
+// the address lands, which is more specific than the footer's.
 
 import {
-  describeWith, emailFieldError, looksLikeEmail, postLeadEmail, SubmissionError, UNCONFIRMED_COPY,
+  CONTACT_COPY, describeWith, emailFieldError, looksLikeEmail, postLeadEmail, SubmissionError,
 } from "./lead-capture.js";
 
 const ERROR_ID = "finops-contact-error";
@@ -105,7 +108,7 @@ export function initFinopsContact(root = document, request = (...args) => global
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
-    const invalid = emailFieldError(email.value, looksLikeEmail(email.value));
+    const invalid = emailFieldError(email.value, looksLikeEmail(email.value), CONTACT_COPY);
     if (invalid) {
       // Whatever was typed stays; the field is never cleared to "help".
       form.dataset.state = "invalid";
@@ -124,14 +127,14 @@ export function initFinopsContact(root = document, request = (...args) => global
     status.textContent = SUBMITTING;
 
     try {
-      const body = await postLeadEmail(request, email.value);
+      const body = await postLeadEmail(request, email.value, CONTACT_COPY);
       form.dataset.state = "success";
       status.textContent = body?.subscribed === false ? ALREADY_CAPTURED : CAPTURED;
     } catch (error) {
       // Copy this repository owns, never a string an intermediary supplied, and
       // never a claim that the address was lost when that is not known.
       form.dataset.state = "error";
-      status.textContent = error instanceof SubmissionError ? error.message : UNCONFIRMED_COPY;
+      status.textContent = error instanceof SubmissionError ? error.message : CONTACT_COPY.unconfirmed;
       setRecoveryVisible(true);
     } finally {
       submit.disabled = false;

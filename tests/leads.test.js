@@ -7,7 +7,9 @@ import {
   handleLeadRequest,
   normalizeEmail,
 } from "../src/leads.js";
-import { initLeadCapture, looksLikeEmail, resolveFailure } from "../src/lead-capture.js";
+import {
+  CONTACT_COPY, FIELD_NOTE_COPY, initLeadCapture, looksLikeEmail, resolveFailure,
+} from "../src/lead-capture.js";
 import { onRequest as leadsOnRequest } from "../functions/api/leads.js";
 import { createTestD1 } from "./support/d1-sqlite.js";
 
@@ -23,6 +25,21 @@ function request(body, options = {}) {
     body: body === undefined ? undefined : (options.raw ? body : JSON.stringify(body)),
   });
 }
+
+test("the home page's field-note form says what submitting does, in the surface a visitor reads", async () => {
+  const html = await readFile(new URL("../src/index.html", import.meta.url), "utf8");
+  const section = html.slice(html.indexOf('<section class="lead-capture"'), html.indexOf("</section>", html.indexOf('<section class="lead-capture"')));
+
+  // The note beside the field, the label on the control that submits it, and the
+  // paragraph a visitor is left with after an outage. All three now name the one
+  // thing this form does, so none of them can be read as the footer's.
+  assert.match(section, /Submitting subscribes you to field notes\./);
+  assert.match(section, /<button type="submit">Subscribe to field notes/);
+  assert.match(section, /resubmit then to subscribe/);
+  // "Product notes" was a second name for the thing the heading, the button, and
+  // the confirmation all call a field note. One concept, one name.
+  assert.doesNotMatch(section, /product notes/i);
+});
 
 test("normalizes valid email addresses and rejects unsafe or malformed input", () => {
   assert.equal(normalizeEmail("  Mina+Notes@Example.COM "), "mina+notes@example.com");
@@ -78,7 +95,7 @@ test("homepage ships the labelled lead form and its deployment adapter", async (
   assert.match(html, /<h2 id="lead-capture-title">See how teams make better decisions<\/h2>/);
   assert.match(html, /<label for="lead-email">Work email<\/label>/);
   assert.match(html, /aria-live="polite"/);
-  assert.match(html, /We’ll only use your email.*No spam.*Unsubscribe anytime/);
+  assert.match(html, /Submitting subscribes you to field notes\..*No spam\. Unsubscribe anytime/);
   assert.match(html, /id="lead-capture-recovery" hidden>[^<]*resubmit then/);
   // The recovery paragraph is hidden *and* unreferenced at rest. A hidden node
   // named by aria-describedby is still part of the accessible description, so
@@ -155,7 +172,7 @@ test("client submits once, announces success, and restores the control", async (
   assert.equal(harness.form.dataset.state, "success");
   assert.equal(
     harness.status.textContent,
-    "You’re on the list for the next concise field note about durable engineering decisions.",
+    "You’re subscribed. The next field note about durable engineering decisions goes to that address.",
   );
   assert.equal(harness.email.value, "");
   assert.equal(harness.button.disabled, false);
@@ -171,14 +188,14 @@ test("client validates empty and invalid work email inline without losing input"
 
   harness.email.value = "";
   await harness.listeners.submit({ preventDefault() {} });
-  assert.equal(harness.status.textContent, "Enter your work email.");
+  assert.equal(harness.status.textContent, "Enter your work email to subscribe to field notes.");
   assert.equal(harness.email.attributes["aria-invalid"], "true");
   assert.equal(harness.email.focused, true);
 
   harness.email.value = "Mina at Example";
   harness.email.valid = false;
   await harness.listeners.submit({ preventDefault() {} });
-  assert.equal(harness.status.textContent, "Enter a valid work email address.");
+  assert.equal(harness.status.textContent, "Enter a valid work email address to subscribe to field notes.");
   assert.equal(harness.email.value, "Mina at Example");
   assert.equal(requests, 0);
 });
@@ -193,11 +210,11 @@ test("client makes delivery-unavailable recovery explicit without claiming captu
   assert.equal(harness.form.dataset.state, "error");
   assert.equal(
     harness.status.textContent,
-    "Your email wasn’t saved because sign-up is temporarily offline.",
+    "You’re not subscribed because sign-up is temporarily offline.",
   );
   assert.equal(harness.recovery.hidden, false, "a bare retry repeats the same 503, so show the recovery block");
   assert.equal(harness.email.value, "Mina@Example.com");
-  assert.doesNotMatch(harness.status.textContent, /you’re on|you’re already|success/i);
+  assert.doesNotMatch(harness.status.textContent, /you’re subscribed|already subscribed|success/i);
   harness.emailListeners.input();
   assert.equal(harness.form.dataset.state, undefined);
   assert.equal(harness.status.textContent, "");
@@ -253,12 +270,12 @@ test("client never renders a message string supplied by the server or an interme
   await harness.listeners.submit({ preventDefault() {} });
 
   assert.equal(harness.form.dataset.state, "error");
-  assert.equal(harness.status.textContent, "Your email wasn’t saved. Please try again.");
-  assert.doesNotMatch(harness.status.textContent, /evil\.example|subscribed/i);
+  assert.equal(harness.status.textContent, "You’re not subscribed — something went wrong at our end. Please try again.");
+  assert.doesNotMatch(harness.status.textContent, /evil\.example|you’re subscribed/i);
 });
 
 test("client reports unreachable and unrecognized failures as unconfirmed, not as loss", async () => {
-  const unconfirmed = "We couldn’t reach sign-up, so we can’t confirm your email was saved. Please try again in a few minutes.";
+  const unconfirmed = "We couldn’t reach sign-up, so we can’t confirm whether you’re subscribed. Please try again in a few minutes.";
 
   // fetch rejected: the request may already have reached the origin and committed.
   const offline = leadFormHarness();
@@ -278,13 +295,13 @@ test("client reports unreachable and unrecognized failures as unconfirmed, not a
   }));
   await gateway.listeners.submit({ preventDefault() {} });
   assert.equal(gateway.status.textContent, unconfirmed);
-  assert.doesNotMatch(gateway.status.textContent, /wasn’t saved|Bad Gateway/);
+  assert.doesNotMatch(gateway.status.textContent, /not subscribed|Bad Gateway/);
 
   // 429 has no application code but is emitted before the origin, so it is a known non-capture.
   const limited = leadFormHarness();
   initLeadCapture(limited.root, async () => jsonResponse({}, 429));
   await limited.listeners.submit({ preventDefault() {} });
-  assert.match(limited.status.textContent, /Too many attempts, so your email wasn’t saved/);
+  assert.match(limited.status.textContent, /You’re not subscribed — too many attempts/);
   assert.equal(limited.recovery.hidden, true, "waiting and retrying is already the recovery for a rate limit");
 });
 
@@ -345,7 +362,7 @@ test("the endpoint still returns every response the published contract documents
 test("the client has owned copy for every documented error code and no phantom codes", () => {
   const documented = CONTRACT.errors.map((entry) => entry.code);
   for (const code of documented) {
-    const resolved = resolveFailure({ status: 500 }, { error: { code, message: "unreviewed upstream text" } });
+    const resolved = resolveFailure({ status: 500 }, { error: { code, message: "unreviewed upstream text" } }, FIELD_NOTE_COPY);
     assert.equal(resolved.reason, code, `${code} is documented but the client does not recognize it`);
     assert.ok(resolved.message, `${code} has no copy the page owns`);
     assert.doesNotMatch(resolved.message, /unreviewed upstream text/);
@@ -359,7 +376,41 @@ test("the client has owned copy for every documented error code and no phantom c
     true,
     "the 429 branch in the client must stay documented as intermediary-originated",
   );
-  assert.equal(resolveFailure({ status: 429 }, null).reason, "rate_limited");
-  assert.equal(resolveFailure({ status: 502 }, null).reason, "unconfirmed");
-  assert.equal(resolveFailure({ status: 500 }, { error: { code: "invented_later" } }).reason, "unconfirmed");
+  assert.equal(resolveFailure({ status: 429 }, null, FIELD_NOTE_COPY).reason, "rate_limited");
+  assert.equal(resolveFailure({ status: 502 }, null, FIELD_NOTE_COPY).reason, "unconfirmed");
+  assert.equal(resolveFailure({ status: 500 }, { error: { code: "invented_later" } }, FIELD_NOTE_COPY).reason, "unconfirmed");
+});
+
+test("the two work-email forms never describe a failure in the same words", () => {
+  // The home page carries both of these within a scroll of each other. A visitor
+  // who mistypes an address, or meets an outage, has to be able to tell from the
+  // sentence alone which of the two they were using — that is the whole defect
+  // issue 451 reported, and it is one shared string away from coming back.
+  const codes = [...CONTRACT.errors.map((entry) => entry.code), "invented_later"];
+  for (const code of codes) {
+    const body = { error: { code } };
+    const subscribing = resolveFailure({ status: 500 }, body, FIELD_NOTE_COPY).message;
+    const contacting = resolveFailure({ status: 500 }, body, CONTACT_COPY).message;
+    assert.notEqual(subscribing, contacting, `${code} reads identically in both forms`);
+  }
+
+  for (const [copy, purpose] of [[FIELD_NOTE_COPY, /subscribe to field notes\.$/], [CONTACT_COPY, /request a follow-up conversation\.$/]]) {
+    // Both halves of the inline validation, not just the malformed one: an empty
+    // field is the state a visitor meets most often.
+    assert.match(copy.emptyEmail, purpose);
+    assert.match(copy.invalidEmail, purpose);
+  }
+
+  // Every failure a visitor can read still names what did or did not happen, so
+  // no state degrades to a bare "something went wrong".
+  for (const copy of [FIELD_NOTE_COPY, CONTACT_COPY]) {
+    const purpose = copy === FIELD_NOTE_COPY ? /subscrib/i : /request/i;
+    for (const message of [...Object.values(copy.rejected), copy.rateLimited, copy.unconfirmed]) {
+      assert.match(message, purpose, `"${message}" does not say which form it belongs to`);
+      // A next step, not just a diagnosis. The two outage messages hand off to
+      // the recovery paragraph in the markup instead of repeating "try again".
+      assert.match(message, /again|Reload|temporarily offline/,
+        `"${message}" leaves the visitor without a next step`);
+    }
+  }
 });
