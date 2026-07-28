@@ -447,6 +447,59 @@
         <button id="finops-data-retry" type="button" hidden>Retry bundled analysis</button>
       </section>
 
+      <!-- The headline surface. Four panels on this page resolve their source
+           independently — this one, the KPI row below, and the two comparison
+           cards after it — and every one of them reads the same view-model in
+           finops-provenance-model.js. A panel still showing bundled figures
+           keeps the example badge it has always shipped; a panel the reader's
+           own import fed hides that badge and names their file instead.
+
+           The copy below is the model's `sample_only` state, authored so a
+           visitor meets a coherent headline before any script runs and so the
+           surface does not jump when one does. A test pins these strings against
+           the model, which is what keeps the two from drifting apart. -->
+      <section class="finops-headline" id="finops-headline" data-status="ready" data-state="sample_only" data-source="sample" aria-labelledby="finops-headline-question" aria-describedby="finops-headline-basis">
+        <p class="eyebrow">Your grade</p>
+        <!-- One question, and it is the heading: a reader listing headings meets
+             the thing this surface answers, not a styled sentence. -->
+        <h2 class="finops-headline-question" id="finops-headline-question" tabindex="-1">Is this grade yours?</h2>
+        <!-- Exactly one metric and exactly one next action, in every state. A
+             second figure here is the surface this page keeps rebuilding away
+             from, so there is no slot for one. -->
+        <p class="finops-headline-metric" data-role="metric">
+          <span class="finops-metric-label" id="finops-headline-metric-label">Prompts of yours behind this grade</span>
+          <span class="finops-metric-value" id="finops-headline-metric-value">0 imported · 25 needed in one department</span>
+        </p>
+        <p class="finops-headline-action" data-role="action"><span class="finops-action-shape" aria-hidden="true">▶</span> <span id="finops-headline-action">Import a prompt export to grade your own departments. Until then every panel on this page is the bundled example.</span></p>
+        <!-- The badge, verbatim as every sample-fed panel carries it, and the
+             line that replaces it once this panel is the reader's. Never both:
+             whichever one describes the panel is the one it is described-by. -->
+        <p class="sample-marker" id="finops-headline-basis"><span class="sample-marker-shape" aria-hidden="true">◇</span> Example data — bundled synthetic sample, replaced by your figures only after a local import.</p>
+        <p class="graded-provenance" id="finops-headline-provenance" role="note" aria-label="Grade provenance" hidden></p>
+        <!-- Reserved: a file being read and a file that failed both write here,
+             so neither one moves a panel below it. -->
+        <p class="finops-headline-status" id="finops-headline-status" data-status="ready"></p>
+        <p class="finops-headline-live" id="finops-headline-live" role="status" aria-live="polite" aria-atomic="true"></p>
+        <!-- The labelled way back. Hidden while every panel is already the
+             sample, because there would be nothing to return from. -->
+        <button class="secondary-button" id="finops-return-to-sample" type="button" hidden>Show the bundled example data in all four panels</button>
+      </section>
+
+      <section class="finops-comparison" aria-label="Grade comparisons">
+        <article class="finops-comparison-card" id="cohort-comparison" data-source="sample" aria-labelledby="cohort-comparison-title" aria-describedby="cohort-comparison-basis">
+          <h3 id="cohort-comparison-title">Cohort comparison</h3>
+          <p class="finops-comparison-answer" id="cohort-comparison-answer">A local import carries no peer organizations, so the comparison stays the bundled cohort's.</p>
+          <p class="sample-marker" id="cohort-comparison-basis"><span class="sample-marker-shape" aria-hidden="true">◇</span> Example data — bundled synthetic sample, replaced by your figures only after a local import.</p>
+          <p class="graded-provenance" id="cohort-comparison-provenance" role="note" aria-label="Cohort provenance" hidden></p>
+        </article>
+        <article class="finops-comparison-card" id="coaching-card" data-source="sample" aria-labelledby="coaching-card-title" aria-describedby="coaching-card-basis">
+          <h3 id="coaching-card-title">Which team needs coaching</h3>
+          <p class="finops-comparison-answer" id="coaching-card-answer">The bundled example's lowest-scoring team, drawn from synthetic prompts.</p>
+          <p class="sample-marker" id="coaching-card-basis"><span class="sample-marker-shape" aria-hidden="true">◇</span> Example data — bundled synthetic sample, replaced by your figures only after a local import.</p>
+          <p class="graded-provenance" id="coaching-card-provenance" role="note" aria-label="Coaching provenance" hidden></p>
+        </article>
+      </section>
+
       <!-- The reader's own graded sample. Authored empty and hidden: a visitor
            who imports nothing never sees this section, and the example surface
            below is untouched until there is a grade to put in its place. The
@@ -476,7 +529,7 @@
         <p class="department-evidence-live" id="department-evidence-live" role="status" aria-live="polite" aria-atomic="true"></p>
       </section>
 
-      <section class="kpi-row" id="kpi-row" data-sample-analysis aria-label="Headline metrics">
+      <section class="kpi-row" id="kpi-row" data-sample-analysis data-source="sample" aria-label="Headline metrics" aria-describedby="headline-basis">
         <!-- These four numbers only ever show the bundled sample: a local import
              hides them. Say so beside them rather than leaving a reader to infer
              it from a chip further up the page. -->
