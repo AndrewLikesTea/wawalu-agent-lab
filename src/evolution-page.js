@@ -13,6 +13,16 @@ import {
   letterGrade, literacyScore, quartileLabel, rankDepartmentsForHelp,
   recoverableSpendUsd, redactForScoring, summarize,
 } from "/evolution.js";
+// Which executive panel may show a figure, and what a panel that may not says
+// instead. One declared question, one declared input list, and one threshold per
+// input live there; this page holds no opinion about panel visibility beyond
+// counting the facts the contract reads.
+import {
+  examplePanelFacts, importedPanelFacts, panelStates,
+} from "/finops-panel-contract.js";
+import {
+  applyPanelContract, applyProofPointBasis,
+} from "/finops-panel-contract-view.js";
 import { formatIntegrationProvenance } from "/integration-contracts.js";
 import { createStaticGateway } from "/static-gateway.js";
 import { createFinancePortfolio } from "/finance-portfolio.js";
@@ -178,9 +188,27 @@ function fillTextList(id, values, emptyText) {
   for (const value of items) list.append(element("li", undefined, value));
 }
 
-function setSampleVisibility(visible) {
-  document.querySelectorAll("[data-sample-analysis]")
-    .forEach((node) => { node.hidden = !visible; });
+// What the bundled seed and the two bundled fixtures actually contain, so the
+// contract counts them rather than trusting that they loaded. Before they
+// arrive everything they would supply is genuinely zero, which is a state the
+// contract already has a sentence for.
+let bundledSeed = null;
+let bundledEvaluationRecords = 0;
+// The import closure owns the imported half of the facts, so it publishes the
+// repaint the same way the bundled analysis does. Assigned in
+// `mountLocalFinopsImport`; a no-op until then.
+let syncExecutivePanels = () => {};
+
+/**
+ * Repaint every declared panel from one fact record.
+ *
+ * This is the only function on the page that decides whether an executive panel
+ * shows figures, and it decides nothing itself: `panelStates` is pure and the
+ * view only paints what it returns.
+ */
+function applyPanelFacts(facts, { imported = false } = {}) {
+  applyProofPointBasis(document, { imported });
+  return applyPanelContract(document, panelStates(facts));
 }
 
 function downloadLocalExport(content, type, fileName) {
@@ -224,6 +252,10 @@ function mountLocalFinopsImport() {
   // moved. Null before the first analysis, which is what keeps the polite region
   // silent on initial load.
   let coverageState = null;
+  // The attributed share the trust verdict last measured, kept so the panel
+  // contract reads the same ratio the coverage headline printed rather than
+  // summing the same two totals a second time.
+  let attributedShare = 0;
   // One offloader for the life of the page. It builds its worker lazily, retires
   // it for good if the browser cannot load a module worker, and builds a fresh
   // one after a cancel — so a cancelled import leaves nothing to clean up here.
@@ -550,6 +582,44 @@ function mountLocalFinopsImport() {
     promptGradingSignals(entries), { departmentScores: departmentScores(entries) },
   );
   /**
+   * The facts every executive panel is decided from.
+   *
+   * Two sources, never mixed. A leader's own import governs its own panels: the
+   * bundled seed can no longer answer for them, so nothing it holds is counted
+   * once their file is on screen. That is the whole reason a panel goes
+   * unavailable rather than quietly continuing to show synthetic figures under
+   * an imported heading.
+   *
+   * Nothing is measured here that some other module has already measured: the
+   * attributed share is the trust verdict's, the two prompt counts are the
+   * prompt-grading verdict's, and the provider rows are counted inside the
+   * contract out of the same parsed envelopes the analysis read.
+   */
+  const executivePanelFacts = () => {
+    if (result && !exampleActive) {
+      const verdict = promptGrading();
+      return importedPanelFacts({
+        providers: loaded.providers,
+        result,
+        attributedShare,
+        scoredPrompts: verdict.classifiedPrompts,
+        gradedDepartments: verdict.departmentsCovered,
+      });
+    }
+    return examplePanelFacts(bundledSeed, {
+      evaluationRecords: bundledEvaluationRecords,
+      // One row is enough to make the per-model question answerable, and the
+      // bundled finding is either read or it is not. A fixture that failed to
+      // load is counted as absent, so the panel says so instead of standing
+      // open and empty.
+      modelFindingRows: overspendFinding ? 1 : 0,
+    });
+  };
+  const syncPanels = () => applyPanelFacts(executivePanelFacts(), {
+    imported: Boolean(result) && !exampleActive,
+  });
+  syncExecutivePanels = syncPanels;
+  /**
    * The one place four panels learn whose numbers they are showing.
    *
    * Every input below is a count, a file name, or an already-decided verdict:
@@ -597,10 +667,9 @@ function mountLocalFinopsImport() {
   const paintGradedSample = () => {
     const model = gradedModel();
     if (!model) return null;
-    // The same rule the bundled surfaces have always followed: a local import
-    // hides the example analysis. The graded view then re-opens exactly the two
-    // panels it has the reader's own figures for, and no others.
-    setSampleVisibility(false);
+    // The graded view fills exactly the panels it has the reader's own figures
+    // for. Which panels those are is the contract's decision, applied after this
+    // call in `renderResult`; nothing is hidden here.
     return applyGradedSample(document, model);
   };
   const renderResult = (next, { example = false, inputs = loaded } = {}) => {
@@ -656,10 +725,14 @@ function mountLocalFinopsImport() {
     // above may claim. The verdict has already summed both sides of that ratio;
     // summing them again here is how two numbers on one screen start
     // disagreeing, so the share is assembled from its totals.
-    const attribution = applyAttributionPolicy(attributionShareFromTotals({
+    const share = attributionShareFromTotals({
       attributedCost: (verdict.headline?.attributedMinor ?? 0) / 100,
       totalCost: (verdict.headline?.totalMinor ?? 0) / 100,
-    }));
+    });
+    // Held for the panel contract, which decides whether a department may be
+    // ranked at all from the same ratio this line prints.
+    attributedShare = share?.share ?? 0;
+    const attribution = applyAttributionPolicy(share);
     // Below the floor the figure itself is withheld. A dollar amount with a
     // caveat under it is the same unsupported claim with an asterisk on it.
     if (attribution?.confidence === CONFIDENCE.SUPPRESSED) {
@@ -731,7 +804,6 @@ function mountLocalFinopsImport() {
     fillTextList("local-warnings", next.warnings, "No declared data-quality warnings.");
     fillTextList("local-limits", next.limits, "No declared limits.");
     fillTextList("local-evidence", next.evidence, "No recommendation evidence.");
-    setSampleVisibility(false);
     resultsNode.hidden = false;
     clear.hidden = false;
     clear.textContent = example ? "Clear example data" : "Return to example data";
@@ -747,25 +819,31 @@ function mountLocalFinopsImport() {
     // re-import redraws the same stage, and the reader is still owed the move.
     syncStage({ hasResult: true });
     focusStageHeading(document, "read");
-    void paintModelOverspend(example);
+    void paintModelOverspend(example).then(syncPanels);
     paintGradedSample();
+    // After the graded view, and after every slot above it: the panels a leader
+    // may read are decided once, from the contract, out of what this import
+    // actually contains. Nothing before this line hides an executive panel.
+    syncPanels();
     // Last, so the four panels are labelled from the result that is actually on
     // screen. Focus is not taken here: `focusStageHeading` above already moved
     // it to the brief's own heading, and two moves for one import is one too
     // many.
     paintPanelProvenance();
   };
-  // Fetched once and reused, like the evaluation fixtures above it. A fixture
-  // that cannot be read leaves the panel hidden rather than half-painted: this
-  // finding's whole point is that a withheld number is a sentence, and an empty
-  // panel is not one.
+  // Fetched once and reused, like the evaluation fixtures above it. It is also
+  // the fact the contract reads for this panel: held means the bundled finding
+  // is on hand, null means the per-model question has no rows behind it and the
+  // panel says which two fields would supply them.
   let overspendFinding = null;
   const paintModelOverspend = async (example) => {
-    const section = document.getElementById("model-overspend");
     if (!example) {
-      // A leader's own import cannot feed this contract yet. Hiding the panel
-      // keeps their labels — those are cleared only by the reset control.
-      if (section) section.hidden = true;
+      // A leader's own import carries neither `usage.model_raw` nor
+      // `usage.request_count` on this path, so the panel has nothing to draw.
+      // It is not hidden: the contract leaves it on the page and names the two
+      // fields that would fill it. Their org-unit labels are untouched — those
+      // are cleared only by the reset control.
+      overspendFinding = null;
       return null;
     }
     try {
@@ -778,7 +856,10 @@ function mountLocalFinopsImport() {
       }
       return renderModelOverspendFinding(document, overspendFinding, { storage: labelStorage() });
     } catch {
-      if (section) section.hidden = true;
+      // A fixture that cannot be read is an input this page does not have, so
+      // it is counted as absent and the contract writes the sentence. An empty
+      // panel is not a sentence.
+      overspendFinding = null;
       return null;
     }
   };
@@ -816,7 +897,7 @@ function mountLocalFinopsImport() {
     resultsNode.hidden = true;
     clear.hidden = true;
     clear.textContent = "Return to example data";
-    setSampleVisibility(true);
+    attributedShare = 0;
     setMode("example", "Example data");
     applyFieldDiagnostic(document, null);
     // Nothing survives the clear: the example result, its provenance labels, and
@@ -850,6 +931,11 @@ function mountLocalFinopsImport() {
     // produces exactly this, because nothing here was ever written down.
     clearFinopsProvenance(document);
     repaintBundledAnalysis();
+    // The bundled seed answers for the panels again, so they are re-decided from
+    // it rather than restored by a flag. A visitor who imports nothing and a
+    // visitor who imported and cleared see the same page because they are
+    // reading the same fact record.
+    syncPanels();
     showMetricBasis({ mode: "example" });
     setText("finops-intro",
       "Every prompt is scored for intent, efficiency, and model fit, then attributed to the org chart. "
@@ -1600,8 +1686,17 @@ async function renderEvaluationDemo() {
     if (!response.ok) throw new Error(`Evaluation fixture returned ${response.status}`);
     // Every bundled fixture renders, including the rejected one: the gate is
     // only defensible if a reviewer can read the score it overrode.
-    target.replaceChildren(renderFinopsEvaluationPanel(await response.json()));
+    const fixtures = await response.json();
+    // What the panel is decided from as well as what it draws: a fixture set
+    // that loaded is the input this question needs, and one that did not is an
+    // input the page does not have.
+    bundledEvaluationRecords = Array.isArray(fixtures) ? fixtures.length
+      : Array.isArray(fixtures?.evaluations) ? fixtures.evaluations.length : 1;
+    target.replaceChildren(renderFinopsEvaluationPanel(fixtures));
+    syncExecutivePanels();
   } catch {
+    bundledEvaluationRecords = 0;
+    syncExecutivePanels();
     target.replaceChildren(renderFinopsEvaluationUnavailable(
       "The bundled evaluation fixtures are unavailable. "
       + "No score was produced, and no live provider or customer record was contacted."));
@@ -1673,11 +1768,17 @@ async function init() {
       setText("detail-score", "Unavailable");
       setText("detail-sample", "The bundled static fixture could not be read.");
       renderUnavailableAction("The bundled static fixture could not be read. No live analysis was attempted.");
+      // A seed that never arrived supplies nothing, so every panel it would
+      // have answered says which input is missing rather than sitting on a
+      // loading line under a heading that promises a figure.
+      bundledSeed = null;
+      syncExecutivePanels();
       return;
     }
 
     const departments = Array.isArray(data.departments) ? data.departments : [];
     const totals = summarize(departments);
+    bundledSeed = data;
     renderFinancePortfolio(data);
     repaintBundledAnalysis = () => {
       renderHeadline(data.organization ?? {}, totals, gradeEligibility(departments));
@@ -1689,6 +1790,9 @@ async function init() {
 
     setLoadState("ready", "Bundled analysis ready",
       "Synthetic headline metrics, decisions, and action portfolio are available.");
+    // The seed is loaded, so the panels are re-decided from what it actually
+    // contains. This is also the first paint of the contract on a fresh visit.
+    syncExecutivePanels();
     hasRenderedAnalysis = true;
     document.documentElement.dataset.shiplogEvolution = "ready";
   }

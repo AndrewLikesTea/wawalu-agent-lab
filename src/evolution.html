@@ -32,7 +32,12 @@
           <p id="finops-intro">Every prompt is scored for intent, efficiency, and model fit, then attributed to the org chart. One number tells you whether the spend is working; the rows below tell you where it is not.</p>
           <p class="finops-provenance" id="finops-provenance">Loading organization…</p>
         </div>
-        <div class="score-card" id="score-card" data-sample-analysis aria-labelledby="score-card-title">
+        <!-- Every panel below is declared in src/finops-panel-contract.js: one
+             executive question, the exact inputs that answer it, and the
+             sentence shown when they are missing. The page does not decide
+             panel visibility; the contract does, and a declared panel is never
+             removed from this document. -->
+        <div class="score-card" id="score-card" aria-labelledby="score-card-title">
           <p class="eyebrow" id="score-card-title">AI literacy</p>
           <p class="score-grade" id="score-grade" aria-hidden="true">–</p>
           <p class="score-value" id="score-value">Loading score…</p>
@@ -42,7 +47,14 @@
         </div>
       </section>
 
-      <article class="proof-point" aria-labelledby="proof-point-title">
+      <article class="proof-point" data-basis="illustrative" aria-labelledby="proof-point-title">
+        <!-- Written above the figures, not under them: a leader reads what kind
+             of number this is before they read the number. The view sharpens the
+             wording once their own — smaller — import is on screen. -->
+        <p class="proof-point-illustrative" id="proof-point-illustrative" role="note" data-basis="illustrative">
+          <strong>Illustrative figures · invented sample</strong>
+          <span>These four numbers are hand-written demonstration data, not live analysis, customer data, or realized savings.</span>
+        </p>
         <div class="proof-point-copy">
           <p class="eyebrow">Example recommendation</p>
           <h2 id="proof-point-title">Route short, low-context requests to the standard model.</h2>
@@ -667,10 +679,12 @@
         <p class="department-evidence-live" id="department-evidence-live" role="status" aria-live="polite" aria-atomic="true"></p>
       </section>
 
-      <section class="kpi-row" id="kpi-row" data-sample-analysis data-source="sample" aria-label="Headline metrics" aria-describedby="headline-basis">
-        <!-- These four numbers only ever show the bundled sample: a local import
-             hides them. Say so beside them rather than leaving a reader to infer
-             it from a chip further up the page. -->
+      <section class="kpi-row" id="kpi-row" data-source="sample" aria-label="Headline metrics" aria-describedby="headline-basis">
+        <!-- These numbers show the bundled sample until an import can fill them.
+             Say so beside them rather than leaving a reader to infer it from a
+             chip further up the page. The two cards that need a query sample
+             rather than an invoice are their own contract panels, so each can
+             say which of the two files it is waiting for. -->
         <p class="sample-marker" id="headline-basis"><span class="sample-marker-shape" aria-hidden="true">◇</span> Example data — bundled synthetic sample, replaced by your figures only after a local import.</p>
         <!-- What replaces the badge above once these four numbers are the
              reader's own: their file names and the rubric version they were
@@ -709,7 +723,7 @@
         </article>
       </section>
 
-      <section class="finops-panel portfolio-panel" data-sample-analysis aria-labelledby="portfolio-title">
+      <section class="finops-panel portfolio-panel" id="savings-portfolio-panel" aria-labelledby="portfolio-title">
         <div class="portfolio-intro">
           <div class="section-heading">
             <p class="eyebrow">Finance leader action portfolio</p>
@@ -717,7 +731,7 @@
             <p>One prioritized action per department, with lifecycle and evidence kept explicit.</p>
             <p><a class="secondary-button" href="/savings-action-center.html">Open monthly Savings Action Center</a></p>
           </div>
-          <div class="portfolio-filters" role="group" aria-label="Portfolio filters">
+          <div class="portfolio-filters" role="group" id="portfolio-filters" aria-label="Portfolio filters">
             <div class="filter">
               <label for="portfolio-department">Department</label>
               <!-- Departments are refilled from the action plan on load so this list
@@ -738,7 +752,7 @@
             </div>
           </div>
         </div>
-        <div class="portfolio-summary" role="group" aria-label="Savings portfolio summary">
+        <div class="portfolio-summary" id="portfolio-summary" role="group" aria-label="Savings portfolio summary">
           <div data-kind="projected"><span>Projected savings</span><strong id="portfolio-projected">—</strong></div>
           <div data-kind="completed"><span>Completed savings (includes verified)</span><strong id="portfolio-completed">—</strong></div>
           <div data-kind="verified"><span>Verified savings</span><strong id="portfolio-verified">—</strong></div>
@@ -754,7 +768,7 @@
         </ol>
       </section>
 
-      <section class="finops-panel" id="recommendation-evidence" data-sample-analysis aria-labelledby="evaluation-title">
+      <section class="finops-panel" id="recommendation-evidence" aria-labelledby="evaluation-title">
         <div class="section-heading">
           <p class="eyebrow">Defensible evaluation · static fixture</p>
           <h2 id="evaluation-title">Inspect how a recommendation earns its score.</h2>
@@ -770,7 +784,7 @@
         </div>
       </section>
 
-      <section class="finops-panel decision-panel" data-sample-analysis aria-labelledby="department-title">
+      <section class="finops-panel decision-panel" id="department-decision-panel" aria-labelledby="department-title">
         <!-- The visible "Rank by" control (a label bound to a department-sort
              select) was deliberately removed because intervention priority is
              metric-defined. Written without raw tag markup on purpose: spelling
@@ -783,7 +797,7 @@
           <p>Lowest eligible performance score first. Unavailable samples are not scored or ranked as poor performance.</p>
         </div>
         <p class="decision-provenance" id="decision-provenance">Loading sample provenance…</p>
-        <div class="decision-layout">
+        <div class="decision-layout" id="decision-layout">
           <ol class="department-priority" id="department-priority" aria-label="Departments ordered by need">
             <li>Loading departments…</li>
           </ol>
@@ -843,7 +857,7 @@
         </div>
       </section>
 
-      <section class="finops-panel" id="spend-mix-panel" data-sample-analysis aria-labelledby="mix-title">
+      <section class="finops-panel" id="spend-mix-panel" aria-labelledby="mix-title">
         <div class="section-heading">
           <p class="eyebrow">Quality engine</p>
           <h2 id="mix-title">Where the money goes</h2>
