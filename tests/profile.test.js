@@ -327,11 +327,17 @@ test("the profile and post pages are wired, labelled, and reachable", async () =
 });
 
 test("the header shows who this is and what the counts mean", () => {
-  const elements = { avatar: createElement("span"), name: createElement("span"), summary: createElement("p") };
+  const elements = {
+    avatar: createElement("span"),
+    name: createElement("span"),
+    roleName: createElement("span"),
+    summary: createElement("p"),
+  };
   renderProfileHeader(elements, "Mina Okafor", { total: 3, withImages: 2, likes: 6, latest: "2026-07-15T09:00:00.000Z" });
   assert.equal(elements.avatar.textContent, "MO");
   assert.equal(elements.avatar.getAttribute("aria-hidden"), "true", "the avatar is decoration beside the name");
   assert.equal(elements.name.textContent, "Mina Okafor");
+  assert.equal(elements.roleName.textContent, "Mina Okafor", "the demo-persona framing follows the selected name");
   assert.match(elements.summary.textContent, /^2 image posts · 3 posts in total · last posted /);
 });
 

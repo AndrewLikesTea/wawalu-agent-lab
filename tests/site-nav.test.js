@@ -19,7 +19,7 @@ const PAGES = [
   { file: "decision.html", current: "/", title: "Decision · Shiplog" },
   { file: "social.html", current: "/social.html", title: "Social · Shiplog" },
   { file: "post.html", current: "/social.html", title: "Post · Social · Shiplog" },
-  { file: "profile.html", current: "/profile.html", title: "Profile · Shiplog" },
+  { file: "profile.html", current: "/profile.html", title: "People · Shiplog" },
   { file: "releases.html", current: "/releases.html", title: "Releases · Shiplog" },
   { file: "release.html", current: "/releases.html", title: "Release · Shiplog" },
   { file: "evolution.html", current: "/evolution.html", title: "AI FinOps · Shiplog" },
@@ -144,11 +144,11 @@ test("every page that ships a <title> is one of the pages this table pins", asyn
   }
 });
 
-// Two names in a flat row read as two products. Profile is Social filtered to
-// one display name's image posts, and presenting it as an equal peer is what
-// made a reader ask which of the two was "the feed". The pair is now nested,
-// and Profile still reaches from anywhere in one click.
-test("Profile is presented as a view of Social, not as a competing destination", async () => {
+// Two names in a flat row read as two products. The profile destination is
+// Social filtered to one display name's image posts, and presenting it as an
+// equal peer is what made a reader ask which of the two was "the feed". The pair
+// is now nested, and the profile still reaches from anywhere in one click.
+test("the profile destination is presented as a view of Social, not as a competing destination", async () => {
   assert.equal(navParentOf("/profile.html"), "/social.html");
   assert.equal(navParentOf("/social.html"), null, "Social is a surface of its own");
   assert.equal(navParentOf("/releases.html"), null);
@@ -158,10 +158,10 @@ test("Profile is presented as a view of Social, not as a competing destination",
     const group = nav.match(/<span class="nav-group">([\s\S]*?)<\/span>/);
     assert.ok(group, `${file} must nest the Social pair rather than listing two peers`);
     assert.match(group[1], /href="\/social\.html"/, `${file}: Social heads its own group`);
-    assert.match(group[1], /class="nav-profile"[^>]*href="\/profile\.html"/, `${file}: Profile sits inside it`);
+    assert.match(group[1], /class="nav-profile"[^>]*href="\/profile\.html"/, `${file}: the profile link sits inside it`);
     // Nesting must not cost reach: it is still one ordinary link, in the list,
     // named the same thing everywhere.
-    assert.match(nav, />Profile</, `${file}: Profile must still be linked from the nav`);
+    assert.match(nav, />People</, `${file}: People must still be linked from the nav`);
   }
 
   // The subordination is carried by position, size, and a turn mark — never by
@@ -169,20 +169,49 @@ test("Profile is presented as a view of Social, not as a competing destination",
   for (const sheet of ["styles.css", "agents.css"]) {
     const css = await readFile(new URL(`../src/${sheet}`, import.meta.url), "utf8");
     assert.match(css, /\.nav-group \{/, `${sheet} must style the group`);
-    assert.match(css, /\.nav-group \.nav-profile \{ font-size:\.92em; \}/, `${sheet} must render Profile one size down`);
-    assert.match(css, /\.nav-group \.nav-profile::before \{ content:"\\21B3"/, `${sheet} must mark Profile as a view`);
+    assert.match(css, /\.nav-group \.nav-profile \{ font-size:\.92em; \}/, `${sheet} must render the profile link one size down`);
+    assert.match(css, /\.nav-group \.nav-profile::before \{ content:"\\21B3"/, `${sheet} must mark the profile link as a view`);
   }
 });
 
-test("the Profile page says in words that it is Social filtered to one name", async () => {
+// This demo has no accounts. A nav item called "Profile" promised every visitor
+// a page about themselves, and the home page then had to spend a sentence taking
+// the promise back. The stable replacement remains true as the selected person
+// changes.
+test("the nav names people, and never promises the visitor a personal profile", async () => {
+  const link = SITE_NAV.find((entry) => entry.href === "/profile.html");
+  assert.equal(link.label, "People", "the destination names people rather than the visitor's account");
+  assert.ok(link.label.length <= "Profile".length, "the replacement must not consume more mobile-nav width");
+
+  for (const { file } of PAGES) {
+    const nav = navMarkup(await readFile(pageUrl(file), "utf8"), file);
+    assert.doesNotMatch(nav, />Profile</, `${file} still offers the visitor a "Profile"`);
+  }
+
+  // The home page's destination list is the same name, doing the same job, so it
+  // no longer needs a sentence undoing the label.
+  const home = await readFile(pageUrl("index.html"), "utf8");
+  const entry = home.match(/<li><a href="\/profile\.html">([\s\S]*?)<\/li>/);
+  assert.ok(entry, "the destination list must still name this page");
+  assert.match(entry[1], /^People<\/a>/, "the list calls it what the nav calls it");
+  assert.doesNotMatch(entry[1], /not your account/, "a truthful label needs no correction");
+  assert.match(entry[1], /demo persona/, "the list says what kind of people this destination contains");
+});
+
+test("the profile page identifies the selected name as a demo persona", async () => {
   const html = await readFile(pageUrl("profile.html"), "utf8");
   const role = html.match(/<p class="profile-role">([\s\S]*?)<\/p>/);
   assert.ok(role, "the profile page must state its role near its heading");
-  assert.match(role[1], /<span class="profile-role-chip">Filtered view<\/span>/);
-  assert.match(role[1], /narrowed to one name's image posts/);
-  assert.match(role[1], /not a second feed/);
+  assert.match(role[1], /<span class="profile-role-chip">Demo persona<\/span>/);
+  assert.match(role[1], /<span id="profile-role-name">Ari<\/span> is a demo persona/);
+  assert.match(role[1], /not a signed-in user/);
+  assert.match(role[1], /shows that person's image posts only/);
   // Subordinate, not trapped: the way back to the whole feed is right there.
   assert.match(role[1], /href="\/social\.html"/);
+
+  // A reader who clicked "People" arrives at a heading that names the selected
+  // person, and the same view says that person is a demo persona.
+  assert.match(html, /<h1 id="page-title"><span id="profile-name">Ari<\/span><\/h1>/);
 });
 
 test("the feed has one name: no page still says Team feed in its nav, eyebrow, or title", async () => {

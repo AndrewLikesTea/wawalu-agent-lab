@@ -457,8 +457,8 @@ test("a 1,000-character caption and an extreme image stay inside the page's colu
   assert.match(rule(".detail-media"), /overflow:hidden/);
 });
 
-test("the post page's nav lists Profile once", async () => {
+test("the post page's nav lists the profile destination once", async () => {
   const html = await readFile(new URL("../src/post.html", import.meta.url), "utf8");
   const nav = html.match(/<nav class="site-nav"[\s\S]*?<\/nav>/)[0];
-  assert.equal([...nav.matchAll(/>Profile</g)].length, 1, "Profile appears twice in the post page nav");
+  assert.equal([...nav.matchAll(/>People</g)].length, 1, "People appears twice in the post page nav");
 });

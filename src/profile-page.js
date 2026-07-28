@@ -37,8 +37,10 @@ async function fetchSeedPosts() {
   }
 }
 
-function updateTitle(author) {
-  document.title = recordTitle(author, { surface: "Profile" });
+// The heading answers whose posts are selected. The tab retains the stable
+// destination name so it agrees with the global navigation for every persona.
+function updateTitle() {
+  document.title = recordTitle("People");
 }
 
 async function init() {

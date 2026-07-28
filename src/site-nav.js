@@ -16,16 +16,21 @@
 // prompt trace) are not peers of these surfaces and stay out of this list; they
 // are linked from the page body that owns them.
 
-// Profile is not a peer of Social: it is Social narrowed to the image posts of
-// one display name. `group` marks the pair, and `subordinate` marks the member
-// that reads as a view of the other, so the markup can nest the two and the
-// stylesheet can render the second one step in rather than beside it. Both stay
-// ordinary links in the ordinary tab order — this changes what the pair looks
-// like, never what a reader can reach.
+// The profile destination is not a peer of Social: it is Social narrowed to the
+// image posts of one display name. `group` marks the pair, and `subordinate`
+// marks the member that reads as a view of the other, so the markup can nest the
+// two and the stylesheet can render the second one step in rather than beside
+// it. Both stay ordinary links in the ordinary tab order — this changes what the
+// pair looks like, never what a reader can reach.
+//
+// That destination is "People", not "Profile". This demo has no accounts,
+// and a nav item called Profile promises every visitor a page about themselves.
+// The stable label also remains true when a deep link or the picker selects a
+// persona other than the default, Ari.
 export const SITE_NAV = [
   { href: "/", label: "Decisions" },
   { href: "/social.html", label: "Social", className: "nav-social", group: "social" },
-  { href: "/profile.html", label: "Profile", className: "nav-profile", group: "social", subordinate: true },
+  { href: "/profile.html", label: "People", className: "nav-profile", group: "social", subordinate: true },
   { href: "/releases.html", label: "Releases" },
   { href: "/paint/", label: "Paint" },
   { href: "/evolution.html", label: "AI FinOps", className: "nav-evolution" },

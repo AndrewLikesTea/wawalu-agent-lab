@@ -395,6 +395,7 @@ export function renderProfileHeader(elements, author, summary) {
     elements.avatar.setAttribute("aria-hidden", "true");
   }
   if (elements.name) elements.name.textContent = author;
+  if (elements.roleName) elements.roleName.textContent = author;
   if (elements.summary) elements.summary.textContent = profileSummaryText(summary);
 }
 
@@ -410,6 +411,7 @@ export function mountProfile(root, options = {}) {
   const elements = {
     avatar: root.querySelector("#profile-avatar"),
     name: root.querySelector("#profile-name"),
+    roleName: root.querySelector("#profile-role-name"),
     summary: root.querySelector("#profile-summary"),
     status: root.querySelector("#profile-status"),
     announcer: root.querySelector("#profile-announcer"),
