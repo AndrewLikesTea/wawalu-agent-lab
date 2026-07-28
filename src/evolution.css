@@ -84,6 +84,37 @@
 .kpi[data-available="false"] .kpi-value { margin-top:6px; font-size:17px; letter-spacing:0; color:var(--state-warn-ink); }
 
 .finops-panel { margin-top:24px; border:1px solid var(--panel-border); border-radius:18px; padding:30px; background:rgba(255,255,255,.68); box-shadow:0 14px 40px rgba(38,38,31,.04); }
+
+/* The guided result. Read before every panel below it, so it carries the only
+   heavy rule on the page; the readiness note is a word and a border, never a
+   colour alone, so it survives monochrome and a screen reader alike. */
+.guided-result { margin-top:24px; border-left:6px solid #315f50; }
+.guided-result[data-decision-ready="false"] { border-left-color:#8a6a2f; }
+.guided-result h2 { margin:6px 0 10px; font-size:clamp(24px,3.4vw,32px); line-height:1.15; }
+.guided-result-finding { margin:0 0 12px; max-width:70ch; font-size:17px; line-height:1.55; color:var(--ink); }
+.guided-result-readiness { margin:0 0 20px; padding:8px 12px; border:1px dashed #8a6a2f; border-radius:10px; font:600 13px/1.45 inherit; color:#6d5322; }
+.guided-result-readiness[data-ready="true"] { border-style:solid; border-color:#315f50; color:#255043; }
+.guided-result-slots { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr)); gap:18px; }
+.guided-result-slot { border-top:1px solid var(--panel-border); padding-top:12px; }
+.guided-result-label { margin:0 0 6px; color:#65717d; font:700 11px/1.4 ui-monospace,monospace; letter-spacing:.11em; text-transform:uppercase; }
+.guided-result-figure { margin:0; font-size:16px; line-height:1.5; }
+.guided-result-figure[data-available="false"], .guided-result-figure[data-satisfied="false"] { color:var(--state-warn-ink); }
+.guided-result-detail { margin:6px 0 0; color:var(--ink-muted); font-size:13px; line-height:1.5; }
+.guided-result-action-control { min-height:44px; margin-top:12px; border:1px solid #315f50; border-radius:8px; padding:9px 14px; background:#315f50; color:#fff; font:700 13px/1.4 inherit; cursor:pointer; }
+.guided-result-action-control:focus-visible,.guided-result-support>summary:focus-visible,.guided-disclosure-question:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.guided-result-support { margin-top:20px; border-top:1px solid var(--panel-border); padding-top:14px; }
+.guided-result-support>summary { border-radius:7px; padding:6px 8px; cursor:pointer; font-weight:600; }
+.guided-result-support>summary:hover { background:var(--import-wash); }
+.guided-result-support-note { margin:10px 0; max-width:70ch; color:var(--ink-muted); font-size:13px; line-height:1.55; }
+.guided-result-disclosures { margin:0; padding-left:22px; display:grid; gap:10px; }
+.guided-disclosure-question { display:block; font-weight:600; }
+.guided-disclosure-note { display:block; color:var(--ink-muted); font-size:13px; line-height:1.5; }
+.guided-disclosure[data-permitted="false"] .guided-disclosure-note { color:var(--state-warn-ink); }
+/* Support means disclosed, not merely labelled. The elements keep their
+   established DOM positions and state, but leave both the visual and
+   accessibility trees until the native disclosure is opened. */
+#guided-result[data-support-expanded="false"]~[data-panel-role="support"],
+#guided-result[data-support-expanded="false"]~* [data-panel-role="support"] { display:none; }
 .local-import { border-color:#9eb9aa; background:linear-gradient(145deg,#f7fbf8,#fff 55%); }
 .local-import-heading,.local-result-heading { display:flex; align-items:start; justify-content:space-between; gap:24px; }
 /* Static classifications are outlined; dynamic status chips use filled washes. */
@@ -1253,6 +1284,7 @@
 .derivation-step-result { margin:0; font-size:13px; }
 
 @media print {
+  [data-panel-role="support"] { display:block !important; }
   /* A briefing is printed from a page whose frame is viewport-sized. Anything
      that clips, scrolls sideways, or sticks has no meaning on paper. */
   .local-results,.local-import,.local-lead-finding,.restored-briefing {

@@ -18,11 +18,18 @@ import {
 // input live there; this page holds no opinion about panel visibility beyond
 // counting the facts the contract reads.
 import {
-  examplePanelFacts, importedPanelFacts, panelStates,
+  MIN_SCORED_PROMPTS, examplePanelFacts, importedPanelFacts, panelStates,
 } from "/finops-panel-contract.js";
 import {
   applyPanelContract, applyPanelLifecycle, applyProofPointBasis,
 } from "/finops-panel-contract-view.js";
+// The guided-result composition. One leadership question, one grade-backed
+// benchmark, one prioritized action, the required trust verdict, and the
+// ordered list of panels a leader may open to check it. The contract selects
+// all five and enforces that an import outranks the bundled seed; this page
+// hands it already-computed figures and paints what comes back.
+import { composeGuidedResult } from "/finops-guided-result.js";
+import { applyDisclosureRoles, applyGuidedResult } from "/finops-guided-result-view.js";
 import { PANEL_STATUS } from "/panel-status-view.js";
 import { formatIntegrationProvenance } from "/integration-contracts.js";
 import { createStaticGateway } from "/static-gateway.js";
@@ -243,6 +250,45 @@ function applyPanelFacts(facts, { imported = false } = {}) {
   return applyPanelContract(document, panelStates(facts));
 }
 
+/**
+ * The bundled seed's own literacy roll-up, in the shape the guided-result
+ * contract reads a grade in.
+ *
+ * This is not a second scoring pass. `summarize` already publishes the
+ * spend-weighted composite and its letter, and the scored-record count is the
+ * seed's own declared sampling; both are repeated here. What is added is the
+ * eligibility envelope the contract needs in order to decide whether the letter
+ * may be published at all, and the floor it is decided against is the hero
+ * panel's published one rather than a number invented here.
+ *
+ * No confidence level is claimed. The composition already stamps this basis
+ * synthetic, and a named confidence over invented records would be a second,
+ * softer claim about the same thing.
+ */
+function bundledBenchmarkGrade(seed) {
+  const departments = Array.isArray(seed?.departments) ? seed.departments : [];
+  const scored = departments.reduce((sum, department) => sum + (
+    department?.sampling?.status === "available"
+      && Number.isFinite(department.sampling.sampledQueries)
+      ? department.sampling.sampledQueries : 0), 0);
+  const totals = summarize(departments);
+  const gradeable = departments.length > 0 && scored >= MIN_SCORED_PROMPTS;
+  return {
+    version: "bundled-seed-grade/1.0.0",
+    rubricVersionId: totals.scoreExplanation.version,
+    gradeable,
+    grade: gradeable ? totals.grade : null,
+    composite: gradeable ? totals.score : null,
+    reason: gradeable ? null : "scored_records_below_eligibility_floor",
+    reasonRule: gradeable ? null
+      : `The bundled seed declares fewer than ${MIN_SCORED_PROMPTS} sampled queries, which is the `
+        + "floor the hero grade panel publishes.",
+    confidence: { level: null, basis: { arithmetic: totals.scoreExplanation.rule } },
+    records: { source: scored, scored, unclassified: 0 },
+    eligibility: { minScoredRecords: MIN_SCORED_PROMPTS, observed: scored, met: gradeable },
+  };
+}
+
 function downloadLocalExport(content, type, fileName) {
   const url = URL.createObjectURL(new Blob([content], { type }));
   const link = document.createElement("a");
@@ -317,6 +363,11 @@ function mountLocalFinopsImport() {
   // came from: the badge, the metric basis, every provenance note, and the two
   // download artifacts. Nothing else in this file gets to have an opinion.
   let exampleActive = false;
+  // The last trust verdict this page computed, held for the guided-result
+  // composition. It is the verdict `renderResult` already built from the parsed
+  // rows and roster; recomputing it here would be a second reading of the same
+  // files and a second chance for two coverage figures to disagree.
+  let lastVerdict = null;
   const MAX_DISPLAY_USD = 1_000_000_000_000;
   const plausibleUsd = (value) => Number.isFinite(value) && value >= 0 && value <= MAX_DISPLAY_USD;
   const moneyText = (value) => plausibleUsd(value) ? `${value.toFixed(2)} USD` : "Needs review · value withheld";
@@ -653,9 +704,54 @@ function mountLocalFinopsImport() {
       modelFindingRows: overspendFinding ? 1 : 0,
     });
   };
-  const syncPanels = () => applyPanelFacts(executivePanelFacts(), {
-    imported: Boolean(result) && !exampleActive,
-  });
+  /**
+   * The two sides the guided-result contract chooses between.
+   *
+   * A leader's own import is handed over as `imported` and the bundled seed is
+   * not passed at all — the contract enforces precedence on its side too, but
+   * building one side per state is what makes it impossible for a synthetic
+   * figure to be sitting in scope when an import is on screen.
+   *
+   * On the bundled side `analysis` is the example dataset's envelope when the
+   * visitor opened it and null otherwise, so a first paint composes a benchmark
+   * and the one action a page showing invented numbers may honestly prioritize.
+   */
+  const guidedInputs = () => {
+    if (result && !exampleActive) {
+      return {
+        imported: {
+          grade: importedCorpus(),
+          analysis: result,
+          verdict: lastVerdict,
+          facts: importedRowFacts(),
+        },
+      };
+    }
+    return {
+      bundled: {
+        grade: bundledBenchmarkGrade(bundledSeed),
+        analysis: exampleActive ? result : null,
+        facts: executivePanelFacts(),
+      },
+    };
+  };
+  const syncGuidedResult = () => {
+    const composed = composeGuidedResult(guidedInputs());
+    // The demotion is written onto the panels themselves, so "support, not
+    // primary" is a fact on one element rather than a claim in a document.
+    applyDisclosureRoles(document, composed.disclosures);
+    return applyGuidedResult(document, composed);
+  };
+  const syncPanels = () => {
+    const painted = applyPanelFacts(executivePanelFacts(), {
+      imported: Boolean(result) && !exampleActive,
+    });
+    // After the panels, never before: the composition names which of them are
+    // permitted as support, and it must read the states the contract just
+    // decided rather than the ones from the previous paint.
+    syncGuidedResult();
+    return painted;
+  };
   syncExecutivePanels = syncPanels;
   /**
    * The one place four panels learn whose numbers they are showing.
@@ -815,6 +911,11 @@ function mountLocalFinopsImport() {
       quarantinedExportIds: next.validation?.quarantinedExportIds ?? [],
     });
     applyTrustVerdict(document, verdict);
+    // Held for the guided-result composition, which requires a trust verdict
+    // and will not publish a decision-ready result without one. The example
+    // dataset's verdict is deliberately not held: a synthetic dataset cannot
+    // earn one, and the composition refuses it on that side anyway.
+    lastVerdict = example ? null : verdict;
     // How much of this spend is attributed decides what the recoverable figure
     // above may claim. The verdict has already summed both sides of that ratio;
     // summing them again here is how two numbers on one screen start
@@ -1022,6 +1123,10 @@ function mountLocalFinopsImport() {
     result = null;
     currentBriefing = null;
     exampleActive = false;
+    // The reader's own coverage figure goes with the reader's own analysis. A
+    // verdict outliving the import it was measured from is the mislabelling the
+    // clear exists to prevent, in the other direction.
+    lastVerdict = null;
     coverageUpgrades = null;
     // The restored briefing survives a clear — it is a file the visitor opened,
     // not a product of the analysis — but its delta cannot: there is no longer
