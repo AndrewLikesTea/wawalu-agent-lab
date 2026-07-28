@@ -29,7 +29,8 @@ import { importPageModule, waitFor } from "./support/page-module.js";
 // the site, and a page of the site carries the footer.
 const PAGES = [
   "index.html", "decision.html", "social.html", "post.html", "profile.html", "releases.html",
-  "release.html", "evolution.html", "savings-action-center.html", "agents.html", "agent-trace.html",
+  "release.html", "evolution.html", "savings-action-center.html", "savings-commitment.html",
+  "agents.html", "agent-trace.html",
 ];
 
 const pageUrl = (file) => new URL(`../src/${file}`, import.meta.url);
