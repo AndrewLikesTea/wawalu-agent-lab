@@ -16,10 +16,16 @@
 // prompt trace) are not peers of these surfaces and stay out of this list; they
 // are linked from the page body that owns them.
 
+// Profile is not a peer of Social: it is Social narrowed to the image posts of
+// one display name. `group` marks the pair, and `subordinate` marks the member
+// that reads as a view of the other, so the markup can nest the two and the
+// stylesheet can render the second one step in rather than beside it. Both stay
+// ordinary links in the ordinary tab order — this changes what the pair looks
+// like, never what a reader can reach.
 export const SITE_NAV = [
   { href: "/", label: "Decisions" },
-  { href: "/social.html", label: "Social", className: "nav-social" },
-  { href: "/profile.html", label: "Profile" },
+  { href: "/social.html", label: "Social", className: "nav-social", group: "social" },
+  { href: "/profile.html", label: "Profile", className: "nav-profile", group: "social", subordinate: true },
   { href: "/releases.html", label: "Releases" },
   { href: "/paint/", label: "Paint" },
   { href: "/evolution.html", label: "AI FinOps", className: "nav-evolution" },
@@ -28,21 +34,42 @@ export const SITE_NAV = [
 
 export const SITE_NAV_LABELS = SITE_NAV.map((link) => link.label);
 
+// The surface a subordinate destination is a view of, or null for a peer.
+export function navParentOf(href) {
+  const link = SITE_NAV.find((entry) => entry.href === href);
+  if (!link?.subordinate) return null;
+  return SITE_NAV.find((entry) => entry.group === link.group && !entry.subordinate)?.href ?? null;
+}
+
 // `current` is the href of the surface the reader is on. Detail pages pass the
 // surface they belong to — a release detail is still "Releases" — which is how
 // the existing pages already mark themselves.
 export function siteNavMarkup(current = null, indent = "        ") {
-  const links = SITE_NAV.map(({ href, label, className }) => {
+  const anchor = ({ href, label, className }, depth) => {
     const attributes = [
       className ? `class="${className}"` : null,
       href === current ? 'aria-current="page"' : null,
       `href="${href}"`,
     ].filter(Boolean).join(" ");
-    return `${indent}  <a ${attributes}>${label}</a>`;
-  });
+    return `${indent}${"  ".repeat(depth)}<a ${attributes}>${label}</a>`;
+  };
+
+  const lines = [];
+  for (let index = 0; index < SITE_NAV.length; index += 1) {
+    const link = SITE_NAV[index];
+    if (link.subordinate) continue;
+    const children = SITE_NAV.filter((entry) => entry.group && entry.group === link.group && entry.subordinate);
+    if (!children.length) {
+      lines.push(anchor(link, 1));
+      continue;
+    }
+    lines.push(`${indent}  <span class="nav-group">`);
+    lines.push(anchor(link, 2), ...children.map((child) => anchor(child, 2)));
+    lines.push(`${indent}  </span>`);
+  }
   return [
     `${indent}<nav class="site-nav" aria-label="Wawalu Labs">`,
-    ...links,
+    ...lines,
     `${indent}</nav>`,
   ].join("\n");
 }

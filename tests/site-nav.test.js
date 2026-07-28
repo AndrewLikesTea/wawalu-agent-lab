@@ -8,7 +8,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
-import { SITE_NAV, SITE_NAV_LABELS, siteNavMarkup } from "../src/site-nav.js";
+import { SITE_NAV, SITE_NAV_LABELS, navParentOf, siteNavMarkup } from "../src/site-nav.js";
 
 // `current` is the surface the page belongs to, not always its own URL: a
 // release detail is still "Releases", a single post is still "Social".
@@ -142,6 +142,47 @@ test("every page that ships a <title> is one of the pages this table pins", asyn
     assert.equal(owner, undefined, `${path} and ${owner} both render the title "${title}"`);
     titles.set(title, path);
   }
+});
+
+// Two names in a flat row read as two products. Profile is Social filtered to
+// one display name's image posts, and presenting it as an equal peer is what
+// made a reader ask which of the two was "the feed". The pair is now nested,
+// and Profile still reaches from anywhere in one click.
+test("Profile is presented as a view of Social, not as a competing destination", async () => {
+  assert.equal(navParentOf("/profile.html"), "/social.html");
+  assert.equal(navParentOf("/social.html"), null, "Social is a surface of its own");
+  assert.equal(navParentOf("/releases.html"), null);
+
+  for (const { file } of PAGES) {
+    const nav = navMarkup(await readFile(pageUrl(file), "utf8"), file);
+    const group = nav.match(/<span class="nav-group">([\s\S]*?)<\/span>/);
+    assert.ok(group, `${file} must nest the Social pair rather than listing two peers`);
+    assert.match(group[1], /href="\/social\.html"/, `${file}: Social heads its own group`);
+    assert.match(group[1], /class="nav-profile"[^>]*href="\/profile\.html"/, `${file}: Profile sits inside it`);
+    // Nesting must not cost reach: it is still one ordinary link, in the list,
+    // named the same thing everywhere.
+    assert.match(nav, />Profile</, `${file}: Profile must still be linked from the nav`);
+  }
+
+  // The subordination is carried by position, size, and a turn mark — never by
+  // colour on its own, and never by removing the link.
+  for (const sheet of ["styles.css", "agents.css"]) {
+    const css = await readFile(new URL(`../src/${sheet}`, import.meta.url), "utf8");
+    assert.match(css, /\.nav-group \{/, `${sheet} must style the group`);
+    assert.match(css, /\.nav-group \.nav-profile \{ font-size:\.92em; \}/, `${sheet} must render Profile one size down`);
+    assert.match(css, /\.nav-group \.nav-profile::before \{ content:"\\21B3"/, `${sheet} must mark Profile as a view`);
+  }
+});
+
+test("the Profile page says in words that it is Social filtered to one name", async () => {
+  const html = await readFile(pageUrl("profile.html"), "utf8");
+  const role = html.match(/<p class="profile-role">([\s\S]*?)<\/p>/);
+  assert.ok(role, "the profile page must state its role near its heading");
+  assert.match(role[1], /<span class="profile-role-chip">Filtered view<\/span>/);
+  assert.match(role[1], /narrowed to one name's image posts/);
+  assert.match(role[1], /not a second feed/);
+  // Subordinate, not trapped: the way back to the whole feed is right there.
+  assert.match(role[1], /href="\/social\.html"/);
 });
 
 test("the feed has one name: no page still says Team feed in its nav, eyebrow, or title", async () => {

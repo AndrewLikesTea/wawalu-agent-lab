@@ -13,6 +13,10 @@ export function element(properties = {}) {
     value: "",
     textContent: "",
     attributes: {},
+    // Focus is state here, not behaviour: a test can ask which control the
+    // editor moved the reader to after an action.
+    focus() { node.focused = true; },
+    focused: false,
     addEventListener(type, listener) {
       const handlers = listeners.get(type) ?? [];
       handlers.push(listener);
@@ -150,6 +154,17 @@ export function createPaintHarness({ createImageBitmap, exportBlob } = {}) {
     ["#layer-opacity-value", element({ textContent: "100%" })],
     ["#blend-mode", element({ value: "normal" })],
     ["#layer-visibility", element({ attributes: { "aria-pressed": "true" } })],
+    // The route out of the editor: the publish control, the transient status
+    // line, and the handoff card the editor reveals once an image exists.
+    ["#publish-button", element()],
+    ["#publish-status", element({ textContent: "" })],
+    ["#paint-handoff", element({ hidden: true })],
+    ["#paint-handoff-chip-label", element()],
+    ["#paint-handoff-title", element()],
+    ["#paint-handoff-detail", element()],
+    ["#paint-handoff-action-label", element()],
+    ["#paint-handoff-link", element({ href: "" })],
+    ["#paint-handoff-dismiss", element()],
   ]);
   const tools = ["select", "crop", "brush", "rectangle"].map((tool) =>
     element({ dataset: { tool }, className: tool === "brush" ? "is-active" : "" }));

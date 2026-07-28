@@ -13,6 +13,7 @@ import {
   takePaintHandoff,
   validatePublishImage,
 } from "/publishing-media.js";
+import { paintHandoffIntent, renderPaintArrival } from "/paint-handoff.js";
 
 const REFRESH_INTERVAL = 10_000;
 
@@ -149,8 +150,16 @@ function mountMediaComposer(root) {
   });
   remove.addEventListener("click", () => clear({ focus: true }));
 
+  // Arrival from Paint. The panel explains the handoff whether or not an image
+  // came with it, because the honest answer differs: an exported file is still
+  // only on the device and the visitor attaches it, while a prepared drawing is
+  // in this draft and still unpublished. When there is an image to describe the
+  // alt field keeps focus — that is the field the visitor has to fill — and
+  // otherwise focus lands on the explanation.
+  const arrival = renderPaintArrival(root.querySelector("#paint-arrival"), paintHandoffIntent(globalThis.location?.search));
   const paint = takePaintHandoff(globalThis.sessionStorage);
   if (paint) show(paint);
+  else arrival?.focus?.();
 
   return {
     get() {

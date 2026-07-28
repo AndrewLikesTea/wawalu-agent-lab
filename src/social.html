@@ -15,8 +15,10 @@
         <a class="brand" href="/"><span class="mark" aria-hidden="true"></span>Shiplog</a>
         <nav class="site-nav" aria-label="Wawalu Labs">
           <a href="/">Decisions</a>
-          <a class="nav-social" aria-current="page" href="/social.html">Social</a>
-          <a href="/profile.html">Profile</a>
+          <span class="nav-group">
+            <a class="nav-social" aria-current="page" href="/social.html">Social</a>
+            <a class="nav-profile" href="/profile.html">Profile</a>
+          </span>
           <a href="/releases.html">Releases</a>
           <a href="/paint/">Paint</a>
           <a class="nav-evolution" href="/evolution.html">AI FinOps</a>
@@ -37,6 +39,13 @@
             <p class="eyebrow">New post</p>
             <h2>Write a post</h2>
           </div>
+
+          <!-- Filled by src/paint-handoff.js when the visitor arrives from the
+               Paint handoff, and empty otherwise. It says what did and did not
+               happen to the image — Paint uploads nothing — and names the one
+               next step. It is focusable so the arrival can put the reader on
+               the explanation rather than in the middle of the form. -->
+          <div class="paint-arrival" id="paint-arrival" role="status" tabindex="-1" hidden></div>
 
           <form id="post-form" aria-describedby="post-form-hint">
             <p class="hint" id="post-form-hint">Write the caption. Add an image if you want one — a post with an image also appears on your profile.</p>
