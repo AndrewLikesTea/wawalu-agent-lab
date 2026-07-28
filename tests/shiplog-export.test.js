@@ -2,12 +2,21 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import {
+  EXPORT_STATUS,
   SHIPLOG_EXPORT_SCHEMA,
   SHIPLOG_EXPORT_VERSION,
+  buildShiplogExport,
   createShiplogExport,
+  describeShiplogExport,
+  downloadShiplogExport,
   formatShiplogExportCounts,
   initShiplogExport,
+  unresolvedLinkSentence,
 } from "../src/shiplog-export.js";
+import {
+  linkIntegrityViolations,
+  shiplogExportViolations,
+} from "../src/shiplog-export-schema.js";
 import { STORAGE_KEY } from "../src/app.js";
 import { RELEASE_STORAGE_KEY } from "../src/releases.js";
 
@@ -35,6 +44,48 @@ function populatedStorage(extra = {}) {
   });
 }
 
+// A log big enough to have shape: three decisions, three releases, one decision
+// shipped in two releases, one release naming none, and one link to a decision
+// this browser no longer holds.
+const LINKED_DECISIONS = [
+  {
+    id: "link-d-cache", title: "Cache the read path", context: "Read latency spikes",
+    alternatives: "Query tuning alone", owner: "Ari", status: "accepted",
+    createdAt: "2026-02-01T09:00:00.000Z",
+  },
+  {
+    id: "link-d-flags", title: "Introduce feature flags", context: "Decouple deploy from release",
+    alternatives: "Long-lived branches", owner: "Priya", status: "proposed",
+    createdAt: "2026-02-02T09:00:00.000Z", supersedes: "link-d-cache",
+  },
+  {
+    id: "link-d-tokens", title: "Rotate to short-lived tokens", context: "Static keys never expire",
+    alternatives: "Manual rotation", owner: "Rowan", status: "accepted",
+    createdAt: "2026-02-03T09:00:00.000Z",
+  },
+];
+const LINKED_RELEASES = [
+  {
+    id: "link-r-1-4-0", version: "v1.4.0", title: "Latency", description: "The read cache shipped.",
+    owner: "Ari", status: "completed", createdAt: "2026-02-04T09:00:00.000Z",
+    decisionIds: ["link-d-cache", "link-d-flags"],
+  },
+  {
+    id: "link-r-1-5-0", version: "v1.5.0", owner: "Priya", status: "planned",
+    createdAt: "2026-02-05T09:00:00.000Z",
+    decisionIds: ["link-d-cache", "link-d-tokens", "link-d-erased"],
+  },
+  {
+    id: "link-r-1-6-0", version: "v1.6.0", owner: "Jules", status: "planned",
+    createdAt: "2026-02-06T09:00:00.000Z", decisionIds: [],
+  },
+];
+
+const linkedStorage = () => storage({
+  [STORAGE_KEY]: JSON.stringify(LINKED_DECISIONS),
+  [RELEASE_STORAGE_KEY]: JSON.stringify(LINKED_RELEASES),
+});
+
 test("populated browser export has an explicit portable contract and only Shiplog history", () => {
   const payload = createShiplogExport(populatedStorage({
     "shiplog.social.author": "Customer Name",
@@ -46,28 +97,157 @@ test("populated browser export has an explicit portable contract and only Shiplo
     version: SHIPLOG_EXPORT_VERSION,
     generatedAt: GENERATED_AT,
     decisions: [decision],
-    releases: [release],
+    // The second id named a decision this browser does not hold, so it is not
+    // written into the file: see the link integrity tests below.
+    releases: [{ ...release, decisionIds: ["d-queue"] }],
   });
   assert.equal(JSON.parse(JSON.stringify(payload)).generatedAt, GENERATED_AT);
   assert.equal(payload["unrelated.state"], undefined);
+  assert.deepEqual(shiplogExportViolations(payload), []);
 });
 
 test("empty browser history exports an explicitly empty valid record", () => {
-  assert.deepEqual(createShiplogExport(storage(), { generatedAt: GENERATED_AT }), {
+  const payload = createShiplogExport(storage(), { generatedAt: GENERATED_AT });
+  assert.deepEqual(payload, {
     schema: SHIPLOG_EXPORT_SCHEMA,
     version: SHIPLOG_EXPORT_VERSION,
     generatedAt: GENERATED_AT,
     decisions: [],
     releases: [],
   });
+  // An empty log is a valid export, not a degenerate one: the envelope is whole
+  // and both collections are present and empty rather than absent.
+  assert.deepEqual(shiplogExportViolations(payload), []);
+  assert.deepEqual(JSON.parse(JSON.stringify(payload)), payload);
 });
 
-test("release decision associations preserve their order and dangling ids", () => {
-  const payload = createShiplogExport(populatedStorage(), { generatedAt: GENERATED_AT });
-  assert.deepEqual(payload.releases[0].decisionIds, [
-    "d-queue",
-    "d-preserved-but-missing",
+test("an empty log downloads a parseable file that says it holds nothing", async () => {
+  const { text } = await capture(storage());
+  const parsed = JSON.parse(text);
+  assert.deepEqual(parsed.decisions, []);
+  assert.deepEqual(parsed.releases, []);
+  assert.deepEqual(shiplogExportViolations(parsed), []);
+});
+
+test("many decisions and releases export with every association intact", () => {
+  const { payload, unresolvedLinks } = buildShiplogExport(linkedStorage(), { generatedAt: GENERATED_AT });
+
+  assert.deepEqual(payload.decisions.map(({ id }) => id), LINKED_DECISIONS.map(({ id }) => id));
+  assert.deepEqual(
+    payload.releases.map(({ id, decisionIds }) => [id, decisionIds]),
+    [
+      ["link-r-1-4-0", ["link-d-cache", "link-d-flags"]],
+      // Order is the order the release recorded, with only the unresolvable id
+      // removed — the surviving links do not shift or re-sort.
+      ["link-r-1-5-0", ["link-d-cache", "link-d-tokens"]],
+      ["link-r-1-6-0", []],
+    ],
+  );
+  // One decision carried by two releases stays one exported record.
+  assert.equal(payload.decisions.filter(({ id }) => id === "link-d-cache").length, 1);
+  assert.equal(payload.decisions[1].supersedes, "link-d-cache", "the supersede link survives the export");
+  assert.deepEqual(unresolvedLinks, [
+    { releaseId: "link-r-1-5-0", decisionId: "link-d-erased", position: 2 },
   ]);
+  assert.deepEqual(shiplogExportViolations(payload), []);
+});
+
+test("every exported release link resolves to an exported decision", () => {
+  const { payload } = buildShiplogExport(linkedStorage(), { generatedAt: GENERATED_AT });
+  const exportedIds = new Set(payload.decisions.map(({ id }) => id));
+  const dangling = payload.releases.flatMap((exported) => exported.decisionIds
+    .filter((id) => !exportedIds.has(id))
+    .map((id) => `${exported.id} -> ${id}`));
+
+  assert.deepEqual(dangling, [], "the file claims an association it cannot resolve");
+  assert.deepEqual(linkIntegrityViolations(payload), []);
+});
+
+test("the shipped integrity check names a link that does not resolve", () => {
+  const { payload } = buildShiplogExport(linkedStorage(), { generatedAt: GENERATED_AT });
+  const mutated = structuredClone(payload);
+  mutated.releases[0].decisionIds.push("link-d-erased");
+
+  assert.deepEqual(linkIntegrityViolations(mutated), [
+    'export.releases[0].decisionIds[2]: "link-d-erased" does not resolve to a decision in this export',
+  ]);
+  assert.ok(shiplogExportViolations(mutated).length > 0);
+});
+
+test("a record's undeclared keys stay in the browser", () => {
+  const payload = createShiplogExport(storage({
+    [STORAGE_KEY]: JSON.stringify([{
+      ...decision,
+      sessionCookie: "sid=abc123",
+      customerEmail: "someone@example.com",
+      telemetry: { views: 12 },
+      note: "<img src=x onerror=alert(1)>",
+    }]),
+    [RELEASE_STORAGE_KEY]: JSON.stringify([{ ...release, decisionIds: ["d-queue"], authToken: "t-1" }]),
+  }), { generatedAt: GENERATED_AT });
+
+  assert.deepEqual(payload.decisions, [decision]);
+  assert.deepEqual(Object.keys(payload.releases[0]).toSorted(),
+    ["createdAt", "decisionIds", "id", "title", "version"]);
+  assert.deepEqual(shiplogExportViolations(payload), []);
+});
+
+test("the export report names the fields it refused to carry", () => {
+  const { droppedFields } = buildShiplogExport(storage({
+    [STORAGE_KEY]: JSON.stringify([{ ...decision, sessionCookie: "sid=abc123" }]),
+  }), { generatedAt: GENERATED_AT });
+
+  assert.deepEqual(droppedFields, [
+    { collection: "decisions", id: "d-queue", field: "sessionCookie" },
+  ]);
+});
+
+test("a non-ISO generatedAt is refused rather than written into the file", () => {
+  assert.throws(
+    () => createShiplogExport(storage(), { generatedAt: "yesterday" }),
+    /must be an ISO date/,
+  );
+});
+
+// --------------------------------------------------------------------------
+// Download behaviour
+// --------------------------------------------------------------------------
+
+// The browser seam the download actually uses: a Blob handed to
+// createObjectURL and an anchor with a download attribute that is clicked. The
+// bytes the browser would receive are read back out of the Blob, so these tests
+// assert on the file rather than on the object that produced it.
+async function capture(store, options = {}) {
+  const clicks = [];
+  const revoked = [];
+  let blob = null;
+  const documentRef = {
+    createElement() {
+      const link = { click() { clicks.push({ href: link.href, download: link.download }); } };
+      return link;
+    },
+  };
+  const urlApi = {
+    createObjectURL(value) { blob = value; return "blob:shiplog-export"; },
+    revokeObjectURL(href) { revoked.push(href); },
+  };
+  const payload = createShiplogExport(store, { generatedAt: options.generatedAt ?? GENERATED_AT });
+  downloadShiplogExport(payload, { document: documentRef, urlApi });
+  return { payload, blob, clicks, revoked, text: await blob.text() };
+}
+
+test("the download hands the browser one JSON file named for the export date", async () => {
+  const { payload, blob, clicks, revoked, text } = await capture(linkedStorage());
+
+  assert.equal(clicks.length, 1);
+  assert.deepEqual(clicks[0], { href: "blob:shiplog-export", download: "shiplog-history-2026-07-26.json" });
+  assert.equal(blob.type, "application/json");
+  assert.deepEqual(revoked, ["blob:shiplog-export"], "the object URL is released after the click");
+  assert.ok(text.endsWith("\n"), "the file ends with a newline");
+  const parsed = JSON.parse(text);
+  assert.deepEqual(parsed, payload, "the bytes the browser receives are the payload");
+  assert.deepEqual(shiplogExportViolations(parsed), [],
+    "the downloaded file is a valid export on its own terms");
 });
 
 test("export UI shows local counts before download and downloads one record", () => {
@@ -93,8 +273,44 @@ test("export UI shows local counts before download and downloads one record", ()
   assert.equal(downloads.length, 0, "counts are visible before the user starts the download");
   listeners.click();
   assert.equal(downloads.length, 1);
-  assert.deepEqual(downloads[0].releases[0].decisionIds, release.decisionIds);
-  assert.equal(status.textContent, "Shiplog history exported.");
+  assert.deepEqual(downloads[0].releases[0].decisionIds, ["d-queue"]);
+  assert.equal(
+    status.textContent,
+    "Shiplog history exported. 1 release link to a decision this browser no longer holds was left out.",
+  );
+});
+
+test("a clean export says so, and a failed one says the browser was not changed", () => {
+  const listeners = {};
+  const status = { textContent: "" };
+  const elements = {
+    "#export-shiplog": { addEventListener(type, listener) { listeners[type] = listener; } },
+    "#export-shiplog-counts": { textContent: "" },
+    "#export-shiplog-status": status,
+  };
+  const root = { querySelector(selector) { return elements[selector] ?? null; } };
+
+  initShiplogExport(root, storage({
+    [STORAGE_KEY]: JSON.stringify([decision]),
+    [RELEASE_STORAGE_KEY]: JSON.stringify([{ ...release, decisionIds: ["d-queue"] }]),
+  }), { now: () => new Date(GENERATED_AT), download() {} });
+  listeners.click();
+  assert.equal(status.textContent, EXPORT_STATUS.exported);
+
+  initShiplogExport(root, populatedStorage(), {
+    now: () => new Date(GENERATED_AT),
+    download() { throw new Error("the browser refused the download"); },
+  });
+  listeners.click();
+  assert.equal(status.textContent, EXPORT_STATUS.failed);
+});
+
+test("the dropped-link sentence is singular, plural, or absent", () => {
+  assert.equal(unresolvedLinkSentence({ unresolvedLinks: [] }), "");
+  assert.equal(unresolvedLinkSentence({}), "");
+  assert.equal(describeShiplogExport({ unresolvedLinks: [] }), EXPORT_STATUS.exported);
+  assert.match(describeShiplogExport({ unresolvedLinks: [{}] }), /1 release link .* was left out\.$/);
+  assert.match(describeShiplogExport({ unresolvedLinks: [{}, {}] }), /2 release links .* were left out\.$/);
 });
 
 test("count copy uses explicit zero and plural labels", () => {
