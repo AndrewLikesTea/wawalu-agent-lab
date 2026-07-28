@@ -1,0 +1,48 @@
+{
+  "fixtureId": "gradeable-corpus",
+  "label": "A hundred scored prompts, four times the declared floor: a graded corpus at high confidence.",
+  "authoredAgainst": {
+    "rubricVersion": "1.0.0",
+    "eligibilityFloor": 25,
+    "classifiedShareFloor": 0.6,
+    "axisWeightPercent": {"intent": 50, "efficiency": 30, "modelFit": 20},
+    "categoryScoreWeight": {"highValue": 100, "overProvisioned": 55, "inefficient": 35, "outOfScope": 0},
+    "confidenceFloorMultiple": {"high": 4, "moderate": 2, "low": 1},
+    "why": "Every expected value below was derived by hand from exactly these numbers. If one of them changes, this file is wrong until a person re-derives it — that is the whole reason the numbers are copied here rather than read from the modules."
+  },
+  "expectedValuesAreHandAuthored": "Composite = (72x100 + 18x55 + 10x35) / 100 = (7200 + 990 + 350) / 100 = 85.4, reported to 0 decimals as 85, which is a B (>= 80). Intent = (72x100 + 18x80 + 10x50) / 100 = 91.4. Efficiency = (72x100 + 18x50 + 10x0) / 100 = 81. Model fit = (72x100 + 18x0 + 10x50) / 100 = 77. Recomposed: (50x91.4 + 30x81 + 20x77) / 100 = 85.4. Confidence = 100 scored / 25 floor = 4.00x, which clears the high tier; the classified share is 1, so nothing is downgraded. Nothing here was produced by calling the module.",
+  "corpus": [
+    {"category": "highValue", "records": 72},
+    {"category": "overProvisioned", "records": 18},
+    {"category": "inefficient", "records": 10}
+  ],
+  "expected": {
+    "version": "imported-corpus-grade/1.0.0",
+    "rubricVersionId": "literacy-mix/1.0.0",
+    "gradeable": true,
+    "grade": "B",
+    "composite": 85,
+    "reason": null,
+    "confidence": {
+      "level": "high",
+      "label": "High confidence",
+      "basis": {
+        "scoredRecords": 100,
+        "minScoredRecords": 25,
+        "floorMultiple": 4,
+        "arithmetic": "100 scored records / 25 declared floor = 4.00x",
+        "classifiedShare": 1,
+        "classifiedShareFloor": 0.6,
+        "downgradedForClassifiedShare": false
+      }
+    },
+    "records": {"source": 100, "scored": 100, "unclassified": 0, "classifiedShare": 1},
+    "eligibility": {"minScoredRecords": 25, "comparison": ">=", "observed": 100, "met": true},
+    "score": {
+      "composite": 85,
+      "grade": "B",
+      "subscores": {"intent": 91.4, "efficiency": 81, "modelFit": 77},
+      "records": {"total": 100, "scored": 100, "unclassified": 0}
+    }
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "fixtureId": "below-threshold-corpus",
+  "label": "One record short of the floor: 24 scored prompts, no grade, a named reason instead.",
+  "boundary": "The other side of the same line as at-threshold-corpus.json. The rubric would happily return a composite of 92 for these 24 records; this module refuses to publish it, and says which floor it fell under.",
+  "authoredAgainst": {
+    "rubricVersion": "1.0.0",
+    "eligibilityFloor": 25,
+    "classifiedShareFloor": 0.6,
+    "axisWeightPercent": {"intent": 50, "efficiency": 30, "modelFit": 20},
+    "categoryScoreWeight": {"highValue": 100, "overProvisioned": 55, "inefficient": 35, "outOfScope": 0},
+    "confidenceFloorMultiple": {"high": 4, "moderate": 2, "low": 1},
+    "why": "Every expected value below was derived by hand from exactly these numbers. If one of them changes, this file is wrong until a person re-derives it — that is the whole reason the numbers are copied here rather than read from the modules."
+  },
+  "expectedValuesAreHandAuthored": "24 records carry a category the rubric published (20 high-value, 4 over-provisioned) and 3 carry one it does not, so 27 records were handed in and 24 scored. 24 < 25, so no grade, no composite, and confidence is the named 'none' rather than a number. Classified share = 24 / 27 = 0.888888..., reported to 4 decimals as 0.8889 — above the 0.6 floor, which is why the reason names the record count and nothing else. For the record, the composite this corpus would have scored is (20x100 + 4x55) / 24 = 92; it is not published anywhere in the result. Nothing here was produced by calling the module.",
+  "corpus": [
+    {"category": "highValue", "records": 20},
+    {"category": "overProvisioned", "records": 4},
+    {"category": "needsHumanReview", "records": 3}
+  ],
+  "expected": {
+    "version": "imported-corpus-grade/1.0.0",
+    "rubricVersionId": "literacy-mix/1.0.0",
+    "gradeable": false,
+    "grade": null,
+    "composite": null,
+    "reason": "scored_records_below_eligibility_floor",
+    "confidence": {"level": "none", "label": "Not gradeable"},
+    "records": {"source": 27, "scored": 24, "unclassified": 3, "classifiedShare": 0.8889},
+    "eligibility": {"minScoredRecords": 25, "comparison": ">=", "observed": 24, "met": false},
+    "score": null
+  }
+}
