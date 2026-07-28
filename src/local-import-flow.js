@@ -461,6 +461,84 @@ export function userDatasetProvenance({ files = [], rows = 0, shapes = [] } = {}
   });
 }
 
+// ---------------------------------------------------------------------------
+// The supporting rail's shared disclosures.
+//
+// Five native `details` sit below the department ranking, and until now every
+// one of them looked identical whether it held twelve rows, zero rows, or had
+// never been analyzed at all. A reader had to open five controls to learn that
+// four were empty, and a collapsed disclosure over nothing is a control that
+// lies about what pressing it will do.
+//
+// So each one states its own count *in its summary*, which is to say inside the
+// control's accessible name. The state travels three ways — the word, the count,
+// and a dashed edge — and never as a tint alone.
+// ---------------------------------------------------------------------------
+
+/**
+ * The three states a shared disclosure can be in. `unavailable` is deliberately
+ * distinct from `empty`: before an analysis exists the count is not zero, it is
+ * unknown, and printing "0 rows" over an unanalyzed list is a claim the page has
+ * no basis for.
+ */
+export const DISCLOSURE_STATE = Object.freeze({
+  filled: "filled",
+  empty: "empty",
+  unavailable: "unavailable",
+});
+
+/**
+ * Which count slot belongs to which disclosure, and the noun each one counts.
+ * Data rather than five call sites, so a sixth disclosure declares itself here
+ * instead of inventing its own wording.
+ */
+export const SUPPORTING_DISCLOSURES = Object.freeze([
+  Object.freeze({ key: "periods", detailId: "local-periods-detail", countId: "local-periods-count", noun: "period" }),
+  Object.freeze({ key: "assumptions", detailId: "local-assumptions-detail", countId: "local-assumptions-count", noun: "assumption" }),
+  Object.freeze({ key: "warnings", detailId: "local-warnings-detail", countId: "local-warning-count", noun: "warning" }),
+  Object.freeze({ key: "limits", detailId: "local-limits-detail", countId: "local-limits-count", noun: "limit" }),
+  Object.freeze({ key: "evidence", detailId: "local-evidence-detail", countId: "local-evidence-count", noun: "evidence item" }),
+]);
+
+/**
+ * The sentence fragment a summary ends in, for one count.
+ *
+ * @param count a non-negative integer, or null/undefined for "not analyzed".
+ * @returns `{ state, text }` — the state enum and the words that carry it.
+ */
+export function disclosureCount(count, noun = "item") {
+  if (!Number.isFinite(count) || count < 0) {
+    return Object.freeze({ state: DISCLOSURE_STATE.unavailable, text: "not analyzed" });
+  }
+  const rounded = Math.trunc(count);
+  if (rounded === 0) return Object.freeze({ state: DISCLOSURE_STATE.empty, text: "none" });
+  return Object.freeze({
+    state: DISCLOSURE_STATE.filled,
+    text: `${rounded} ${noun}${rounded === 1 ? "" : "s"}`,
+  });
+}
+
+/**
+ * Paint every shared disclosure's state and count.
+ *
+ * @param counts `{ periods, assumptions, warnings, limits, evidence }`. A key
+ *   that is absent or not a number paints `unavailable` rather than zero.
+ * @returns the states that were painted, keyed the same way, so a caller can
+ *   assert on what it asked for rather than on the DOM it got.
+ */
+export function applySupportingDisclosures(doc, counts = {}) {
+  const painted = {};
+  for (const { key, detailId, countId, noun } of SUPPORTING_DISCLOSURES) {
+    const { state, text } = disclosureCount(counts[key], noun);
+    painted[key] = state;
+    const detail = doc?.getElementById?.(detailId);
+    if (detail) detail.dataset.state = state;
+    const slot = doc?.getElementById?.(countId);
+    if (slot) slot.textContent = text;
+  }
+  return Object.freeze(painted);
+}
+
 /**
  * How this layer renders a briefing's figure. The contract emits
  * `{ value, unit }` and deliberately does no formatting, so the two-decimal USD
