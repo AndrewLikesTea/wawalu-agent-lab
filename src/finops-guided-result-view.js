@@ -220,8 +220,35 @@ export function applyDisclosureRoles(doc, disclosures) {
     node.dataset.disclosureRank = String(entry.rank);
     node.dataset.disclosurePermitted = String(entry.permitted);
     touched.push(node);
+    const wrapper = applyDisclosureStep(node, entry, disclosures.length);
+    if (wrapper) touched.push(wrapper);
   }
   return touched;
+}
+
+/**
+ * Number the disclosure a panel sits inside, from the contract rather than from
+ * the page.
+ *
+ * The document already carries these panels in declared rank order, and the
+ * summary already carries the question. What it cannot know without being told
+ * is which step of the sequence it is, because the ranks are the contract's to
+ * decide. Writing the step here is what keeps the reading order the reader sees
+ * and the opening order the index publishes from ever disagreeing — and the
+ * authored fallback in the markup stays sensible when no script runs.
+ */
+function applyDisclosureStep(panel, entry, total) {
+  const wrapper = panel.closest?.("details.support-disclosure");
+  // Three declared panels are cards inside a fourth panel's disclosure. They
+  // are ranked in their own right, but the block they share belongs to the
+  // panel that owns it, so only that panel numbers it. Without this the KPI
+  // block would end up wearing the rank of the last card inside it.
+  if (!wrapper || wrapper.dataset.panelId !== entry.panelId) return null;
+  wrapper.dataset.disclosureRank = String(entry.rank);
+  wrapper.dataset.disclosurePermitted = String(entry.permitted);
+  const step = wrapper.querySelector?.(".support-disclosure-step");
+  if (step) step.textContent = `Step ${entry.rank} of ${total}`;
+  return wrapper;
 }
 
 /** The panel id the contract permits as primary content, re-exported for callers. */
