@@ -204,9 +204,11 @@ export const EXECUTIVE_PANELS = Object.freeze([
       + "of at least one comparable organization.",
     figures: Object.freeze(["kpi-peer-value", "kpi-peer-note"]),
     requirements: Object.freeze([
-      requirement("peerCohortRecords", 1, FILE, "Anonymized peer cohort",
-        "No peer cohort can be built from your own files, and this product ships none for imported data. "
-        + "This comparison stays unavailable for an import; it is not a missing step you can complete."),
+      requirement("peerCohortRecords", 1, FILE, "A published peer cohort that applies to you",
+        "No published synthetic peer cohort applies to this organization. The cohorts are "
+        + "reference data shipped with this product — they are never built from your files and "
+        + "never contain them — so what is missing is a segment input that selects one. The "
+        + "card names which."),
     ]),
   },
   {
@@ -372,7 +374,7 @@ const has = (value) => value !== null && value !== undefined && value !== "";
  */
 export function importedPanelFacts({
   providers = [], result = null, attributedShare = 0,
-  scoredPrompts = 0, gradedDepartments = 0,
+  scoredPrompts = 0, gradedDepartments = 0, peerCohortRecords = 0,
 } = {}) {
   const rows = providers.flatMap((envelope) => records(envelope));
   return panelFacts({
@@ -385,12 +387,15 @@ export function importedPanelFacts({
     rankedDepartments: result?.rankedDepartments?.length ?? 0,
     scoredPrompts,
     gradedDepartments,
-    // An import carries none of these three, and saying so in the fact record
+    // An import carries neither of these two, and saying so in the fact record
     // rather than in a branch is what keeps the panels' unavailable sentences
     // honest instead of absent.
     actionOutcomeRecords: 0,
     evaluationRecords: 0,
-    peerCohortRecords: 0,
+    // Not zero by construction any more. An import still builds no cohort of its
+    // own — the count is the PUBLISHED cohort that applies to this import, and
+    // it is 0 when the import's segment inputs select none.
+    peerCohortRecords,
   });
 }
 

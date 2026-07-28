@@ -98,10 +98,8 @@ export const SAMPLE_REASON = Object.freeze({
 });
 
 /**
- * The cohort panel can never be the reader's, and that is a property of the
- * product rather than of any one import: a local, in-tab analysis has no peer
- * organizations in it to compare against. Stated here so the surface does not
- * have to re-derive "there is no user cohort" from an absence.
+ * An import never supplies peer organizations. When no published reference
+ * comparison was evaluated, this remains the honest fallback.
  */
 export const NO_USER_COHORT_REASON =
   "A local import carries no peer organizations, so the comparison stays the bundled cohort's.";
@@ -151,6 +149,28 @@ function userPanel(panel, { fileName, count }) {
     fileName,
     count,
     unit,
+    reason: null,
+  });
+}
+
+/**
+ * Provenance for a comparison whose subject is the visitor's import and whose
+ * distribution is published reference data. Cohort members did not come from
+ * the visitor's file, so this must not reuse `userPanel`'s wording.
+ */
+function importedPeerPanel(peer, fileName) {
+  return Object.freeze({
+    panel: FINOPS_PANEL.cohort,
+    source: "user",
+    word: USER_WORD,
+    shape: USER_SHAPE,
+    label: `${USER_WORD} versus ${peer.provenance.label.toLowerCase()}`,
+    detail: `${peer.cohort.memberCount} fixed cohort members · ${peer.provenance.version} · `
+      + `${peer.provenance.snapshotDate}. Your import is compared against this reference; `
+      + "it never joins or changes it.",
+    fileName,
+    count: peer.cohort.memberCount,
+    unit: PANEL_UNIT.cohort,
     reason: null,
   });
 }
@@ -333,6 +353,8 @@ export function promptImportFacts(entries = [], contractFields = []) {
  *   or null while the KPI row is still the bundled sample's.
  * @param input.coaching `{ department, score }` when the reader's own prompts
  *   name a team to coach, or null.
+ * @param input.peer an evaluated published-reference peer result for this
+ *   import, or null. This model displays it; it never computes or re-ranks it.
  */
 export function finopsProvenanceModel({
   status = FINOPS_IMPORT_STATUS.ready,
@@ -340,6 +362,7 @@ export function finopsProvenanceModel({
   promptFacts = null,
   usage = null,
   coaching = null,
+  peer = null,
 } = {}) {
   const settled = status === FINOPS_IMPORT_STATUS.ready;
   const transientReason = status === FINOPS_IMPORT_STATUS.failed
@@ -360,11 +383,11 @@ export function finopsProvenanceModel({
     ? userPanel(FINOPS_PANEL.kpis, { fileName: usage.fileName, count: usage.rows ?? 0 })
     : samplePanel(FINOPS_PANEL.kpis,
       settled ? SAMPLE_REASON.noImport : transientReason);
-  // Never the reader's, and not because this import fell short. The reason code
-  // differs so a reader is not told to import more of something that would not
-  // change it.
-  const cohortPanel = samplePanel(FINOPS_PANEL.cohort,
-    settled ? SAMPLE_REASON.noUserCohort : transientReason);
+  const ownPeer = settled && peer?.available === true && Boolean(usage?.fileName);
+  const cohortPanel = ownPeer
+    ? importedPeerPanel(peer, usage.fileName)
+    : samplePanel(FINOPS_PANEL.cohort,
+      settled ? SAMPLE_REASON.noUserCohort : transientReason);
   const ownCoaching = ownGrade && Boolean(coaching?.department);
   const coachingPanel = ownCoaching
     ? userPanel(FINOPS_PANEL.coaching,
@@ -386,7 +409,12 @@ export function finopsProvenanceModel({
     headline,
     panels,
     anyUserPanel,
-    cohortAnswer: NO_USER_COHORT_REASON,
+    cohortAnswer: ownPeer
+      ? `${peer.headline.percentile}th percentile · ${peer.headline.quartileLabel} of `
+        + `${peer.cohort.label} · ${peer.comparabilityLabel} · ${peer.confidenceLabel}`
+      : peer && !peer.available
+        ? peer.unavailable.need
+        : NO_USER_COHORT_REASON,
     coachingAnswer: ownCoaching
       ? `${coaching.department} first — the lowest-scoring department in your own prompts.`
       : COACHING_SAMPLE_ANSWER,

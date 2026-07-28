@@ -117,7 +117,7 @@ test("a withheld recoverable figure is not shown, and says which decision withhe
   assert.equal(recoverable.note, "Attribution is below the published floor.");
 });
 
-test("the high-value card is the corpus's own share, and the peer card is never an import's", () => {
+test("the high-value card is the corpus's own share, and the peer card needs a benchmark", () => {
   const kpis = importedKpiFigures(GRADED, { spendUsd: 444.15, recoverableUsd: 96.4, departments: 2 });
   const productive = kpis.find((kpi) => kpi.key === "productive");
   assert.equal(productive.available, true);
@@ -125,8 +125,11 @@ test("the high-value card is the corpus's own share, and the peer card is never 
   assert.match(productive.note, new RegExp(`${MIN_SCORED_PROMPTS * 4 * 0.6} of ${MIN_SCORED_PROMPTS * 4} scored queries`));
 
   const peer = kpis.find((kpi) => kpi.key === "peer");
-  assert.equal(peer.available, false, "no peer cohort can be built from a leader's own files");
-  assert.match(peer.note, /No anonymized peer cohort/);
+  // No benchmark was handed over, which is a different statement from one that
+  // was evaluated and refused. `imported-peer-benchmark.test.js` owns the
+  // evaluated cases; this one pins that an absent evaluation is not filled in.
+  assert.equal(peer.available, false, "no peer benchmark was evaluated for this call");
+  assert.match(peer.note, /No peer comparison was evaluated/);
 
   const unscored = importedKpiFigures(NOTHING, { spendUsd: 444.15 });
   assert.equal(unscored.find((kpi) => kpi.key === "productive").available, false);

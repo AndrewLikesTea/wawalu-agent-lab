@@ -745,6 +745,14 @@
           <p class="finops-comparison-answer" id="cohort-comparison-answer">A local import carries no peer organizations, so the comparison stays the bundled cohort's.</p>
           <p class="sample-marker" id="cohort-comparison-basis"><span class="sample-marker-shape" aria-hidden="true">◇</span> Example data — bundled synthetic sample, replaced by your figures only after a local import.</p>
           <p class="graded-provenance" id="cohort-comparison-provenance" role="note" aria-label="Cohort provenance" hidden></p>
+          <details class="local-provenance-detail" id="peer-benchmark-method">
+            <summary>Comparable-peer method and eligibility</summary>
+            <p><strong>Published contract:</strong> <code>finops-peer-cohort/1.0.0</code>, synthetic reference snapshot 2026-06-30. It contains no customer data and is not derived from, added to, or changed by a visitor's import.</p>
+            <p><strong>Eligibility:</strong> attributed org-unit count selects one inclusive size band; a declared supported industry selects the more specific industry-and-size cohort. The literacy score must use <code>literacy-mix/1.0.0</code>, and each metric needs at least 8 fixed cohort values.</p>
+            <p><strong>Metrics:</strong> literacy score (higher is better), high-value share of scored prompts (higher is better), and recoverable share of observed USD (lower is better). Supporting metrics may be unavailable without suppressing a comparable literacy score.</p>
+            <p><strong>Ranking:</strong> values are rounded to their declared precision before comparison. Percentile is the share strictly beaten plus half of ties, rounded to a whole number. Quartiles begin at the 25th, 50th, and 75th percentiles.</p>
+            <p><strong>Trust labels and one action:</strong> comparability is close for industry plus size, broad for size only, or none. Confidence follows cohort specificity and member count. The single prioritized action is: close a bottom-quartile literacy gap; otherwise close a below-median recoverable-share gap; otherwise raise below-median high-value share; otherwise hold position.</p>
+          </details>
         </article>
         <article class="finops-comparison-card" id="coaching-card" data-source="sample" aria-labelledby="coaching-card-title" aria-describedby="coaching-card-basis">
           <h3 id="coaching-card-title">Which team needs coaching</h3>
@@ -826,7 +834,7 @@
           <p class="kpi-label">Peer position</p>
           <p class="kpi-flag" id="kpi-peer-flag" hidden><span class="kpi-flag-shape" aria-hidden="true">◇</span> unmeasured</p>
           <p class="kpi-value" id="kpi-peer-value">–</p>
-          <p class="kpi-note" id="kpi-peer-note">Anonymized industry cohort</p>
+          <p class="kpi-note" id="kpi-peer-note">Published synthetic peer cohort</p>
         </article>
       </section>
       </details>
