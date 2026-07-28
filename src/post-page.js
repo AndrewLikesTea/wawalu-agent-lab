@@ -5,8 +5,8 @@
 // means nothing to the reader. The id shape therefore decides which source is
 // asked first, and the seed is still consulted when the API has no answer.
 
-import { normalizeProfileApiPosts, normalizeSeedPosts, profileHref } from "/profile.js";
-import { findPostById, postDetailTitle, postPageHeading, renderPostDetail } from "/post-detail.js";
+import { normalizeProfileApiPosts, normalizeSeedPosts } from "/profile.js";
+import { findPostById, postDetailTitle, postPageHeading, postReturnContext, renderPostDetail } from "/post-detail.js";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -30,16 +30,16 @@ async function init() {
   const params = new URLSearchParams(window.location.search);
   const id = params.get("id") ?? "";
   const requestedAuthor = (params.get("author") ?? "").trim();
-  // The standing exit points at Profile generally until an author is known, then
-  // at that author's own profile. The visible text carries the destination on
-  // its own, so there is no aria-label saying something the eye cannot read.
+  // One exit, named once, before anything is fetched — so it reads the same in
+  // the loading, loaded, missing and failed states, and never changes under a
+  // reader mid-visit. Provenance comes from the URL the visitor arrived on, not
+  // from the post: what they came from does not change with what loads.
   const back = document.querySelector("#post-back");
-  const nameProfileExit = (author) => {
-    if (!back || !author) return;
-    back.href = profileHref(author);
-    back.textContent = `← Back to ${author}'s profile`;
-  };
-  nameProfileExit(requestedAuthor);
+  if (back) {
+    const exit = postReturnContext(window.location.search);
+    back.href = exit.href;
+    back.textContent = exit.label;
+  }
 
   const heading = document.querySelector("#page-title");
   const nameHeading = (post) => {
@@ -48,7 +48,10 @@ async function init() {
 
   const load = async () => {
     // The heading only names a post once there is one. Until then it names the
-    // page, and the panel below carries the state.
+    // page, and the panel below carries the state. The marker goes back to
+    // "loading" on every attempt, including a retry, so anything watching the
+    // page (a test, a smoke check) sees the second fetch as its own load.
+    document.documentElement.dataset.shiplogPostDetail = "loading";
     nameHeading(null);
     renderPostDetail(container, null, { state: "loading", id, author: requestedAuthor });
     let post = null;
@@ -79,7 +82,6 @@ async function init() {
     });
     nameHeading(post);
     document.title = postDetailTitle(post, state);
-    if (post) nameProfileExit(post.author);
     document.documentElement.dataset.shiplogPostDetail = "ready";
   };
 

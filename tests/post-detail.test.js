@@ -8,7 +8,15 @@ import { byClass, createElement, first, ids, installDocument, tags } from "./sup
 
 installDocument();
 
-const { findPostById, postDetailTitle, postPageHeading, renderPostDetail } = await import("../src/post-detail.js");
+const {
+  DEFAULT_POST_RETURN,
+  findPostById,
+  postDetailTitle,
+  postImageAlt,
+  postPageHeading,
+  postReturnContext,
+  renderPostDetail,
+} = await import("../src/post-detail.js");
 
 const post = {
   id: "p-image",
@@ -48,22 +56,80 @@ test("the detail view shows the image whole, with its caption and counts", () =>
   // A dedicated caption does not replace the body, so both are shown.
   assert.equal(first(article, "detail-body").textContent, "Focus rings landed everywhere.");
 
-  const author = first(article, "post-author");
-  assert.equal(author.tagName, "A");
-  assert.equal(author.href, "/profile.html?author=Mina%20Okafor");
-  assert.equal(first(article, "post-avatar").getAttribute("aria-hidden"), "true");
-
   assert.match(first(article, "detail-stats").textContent, /3 likes.*1 comment/);
 
-  const label = article.getAttribute("aria-labelledby").split(" ");
-  assert.equal(label.length, 2);
-  for (const id of label) assert.ok(ids(article).includes(id), `${id} must resolve inside the article`);
+  // The caption names the article, and the id it names resolves inside it.
+  const label = article.getAttribute("aria-labelledby");
+  assert.equal(label, "detail-caption");
+  assert.ok(ids(article).includes(label), `${label} must resolve inside the article`);
+});
+
+test("the post reads in one order: who, when, the image, then its caption", () => {
+  const container = createElement("div");
+  renderPostDetail(container, post);
+  const article = first(container, "detail-post");
+
+  // The poster's name is the page's h1, written into the hero above this panel
+  // (src/post-page.js), so the article opens with the timestamp. What must hold
+  // here is the rest of the sequence, and that the caption belongs to the image.
+  assert.equal(postPageHeading(post), "Mina Okafor");
+
+  const time = tags(article, "TIME")[0];
+  assert.equal(time.textContent.length > 0, true, "the timestamp needs human-readable text");
+  assert.equal(time.dateTime, "2026-07-14T09:00:00.000Z", "and a machine-readable datetime");
+
+  const sequence = article.children.map((child) => child.tagName);
+  assert.deepEqual(sequence.slice(0, 2), ["TIME", "FIGURE"], "the timestamp precedes the image");
+
+  const figure = tags(article, "FIGURE")[0];
+  assert.deepEqual(
+    figure.children.map((child) => child.tagName),
+    ["DIV", "FIGCAPTION"],
+    "the caption is the image's figcaption, and follows it",
+  );
+  assert.ok(tags(figure, "IMG").length === 1, "the image sits inside the figure");
+
+  // The author is named once, by the page heading. A second link to the same
+  // profile would sit between the exit and the image in the tab order.
+  assert.equal(byClass(article, "post-author").length, 0);
+});
+
+/* --------------------- the image's accessible name ------------------------ */
+
+// Three branches, one precedence, asserted at the function and through a render.
+test("the image is named by the poster's alt text when there is any", () => {
+  assert.equal(postImageAlt({ alt: "A card wrapped in a blue focus ring" }, "The middle card, ringed."), "A card wrapped in a blue focus ring");
+  const container = createElement("div");
+  renderPostDetail(container, post);
+  assert.equal(tags(container, "IMG")[0].alt, "A card wrapped in a blue focus ring");
 });
 
 test("an image without source alt uses the visible caption as its description", () => {
+  assert.equal(postImageAlt({ alt: "   " }, "The middle card, ringed."), "The middle card, ringed.");
   const container = createElement("div");
   renderPostDetail(container, { ...post, image: { ...post.image, alt: "" } });
   assert.equal(tags(container, "IMG")[0].alt, "The middle card, ringed.");
+});
+
+test("an image with neither alt nor caption is marked decorative, not labelled 'image'", () => {
+  assert.equal(postImageAlt({ alt: "" }, ""), "");
+  const container = createElement("div");
+  renderPostDetail(container, { ...post, body: "", caption: null, image: { ...post.image, alt: "" } });
+
+  const img = tags(container, "IMG")[0];
+  assert.equal(img.alt, "", "alt must be exactly empty, so the image leaves the accessibility tree");
+  // Not a placeholder, and never the filename: both are worse than silence.
+  assert.doesNotMatch(String(img.alt), /image|photo|picture|focus-ring|svg/i);
+  // Nor does an empty figcaption appear, announcing a caption that is not there.
+  assert.equal(tags(container, "FIGCAPTION").length, 0);
+  assert.equal(first(container, "detail-post").getAttribute("aria-labelledby"), null);
+});
+
+test("a dead image with no description says so rather than reading an empty one", () => {
+  const container = createElement("div");
+  renderPostDetail(container, { ...post, body: "", caption: null, image: { ...post.image, alt: "" } });
+  tags(container, "IMG")[0].dispatch("error");
+  assert.match(first(container, "detail-media-fallback").textContent, /carries no description of it/);
 });
 
 test("a post with no separate caption shows its body once", () => {
@@ -153,10 +219,11 @@ test("the loading state names what is loading in one sentence", () => {
   assert.equal(first(container, "detail-skeleton").getAttribute("aria-hidden"), "true");
 });
 
-test("the loaded page is headed by the post's author, not the bare word Post", () => {
-  assert.equal(postPageHeading(post), "Post by Mina Okafor");
+test("the loaded page is headed by the poster's display name, not the bare word Post", () => {
+  assert.equal(postPageHeading(post), "Mina Okafor");
   assert.equal(postPageHeading(null), "Post");
   assert.equal(postPageHeading({ ...post, author: "" }), "Post");
+  assert.equal(postPageHeading({ ...post, author: "  Mina Okafor  " }), "Mina Okafor");
 });
 
 test("the document title names the post, the feed, and the product", () => {
@@ -165,7 +232,7 @@ test("the document title names the post, the feed, and the product", () => {
   assert.equal(postDetailTitle(null, "error"), "Post unavailable · Shiplog");
 });
 
-test("the post page's exits sit after the site frame, and each names where it goes", async () => {
+test("the post page's exit sits after the site frame, and names where it goes", async () => {
   const html = await readFile(new URL("../src/post.html", import.meta.url), "utf8");
 
   // The order this page used to get wrong: its back link came before the
@@ -174,17 +241,17 @@ test("the post page's exits sit after the site frame, and each names where it go
   // region, after the header, and this page now matches it.
   const brand = html.indexOf('class="brand"');
   const nav = html.indexOf('<nav class="site-nav"');
-  const feed = html.indexOf('id="post-back-feed"');
-  const profile = html.indexOf('id="post-back"');
+  const exit = html.indexOf('id="post-back"');
   const content = html.indexOf('id="post-detail"');
   assert.ok(brand < nav, "the wordmark precedes the nav");
-  assert.ok(nav < feed, "the nav precedes the exits");
-  assert.ok(feed < profile, "the feed exit precedes the profile exit");
-  assert.ok(profile < content, "the exits precede the post content");
+  assert.ok(nav < exit, "the nav precedes the exit");
+  assert.ok(exit < content, "the exit precedes the post content");
 
-  // Destination in the visible text, not smuggled into an aria-label.
-  assert.match(html, /<a class="detail-back detail-page-back" id="post-back-feed" href="\/social\.html">← Back to Social<\/a>/);
-  assert.match(html, /<a class="detail-back detail-page-back" id="post-back" href="\/profile\.html">← Back to Profile<\/a>/);
+  // Destination in the visible text, not smuggled into an aria-label. The feed
+  // is what ships, because a link with no provenance came from the feed as far
+  // as this page can honestly tell.
+  assert.match(html, /<a class="detail-back detail-page-back" id="post-back" href="\/social\.html">← Back to Social<\/a>/);
+  assert.equal(html.includes("post-back-feed"), false, "the second, stacked exit is gone");
   const exits = html.match(/<p class="detail-page-exits">[\s\S]*?<\/p>/)[0];
   assert.doesNotMatch(exits, /aria-label/, "an exit must not depend on aria-label to name its destination");
 
@@ -192,6 +259,31 @@ test("the post page's exits sit after the site frame, and each names where it go
   // page; this page is not allowed to invent a second phrasing for the same job.
   const decision = await readFile(new URL("../src/decision.html", import.meta.url), "utf8");
   assert.match(decision, /class="detail-back" href="\/">← Back to Decisions<\/a>/);
+});
+
+/* ---------------------------- where "back" goes --------------------------- */
+
+test("provenance decides the one exit, and anything unknown means the feed", () => {
+  assert.deepEqual(postReturnContext("?id=p-image&from=profile&author=Mina%20Okafor"), {
+    href: "/profile.html?author=Mina%20Okafor",
+    label: "← Back to Profile",
+  });
+  // Came from a profile, but with no usable name: still the profile, generally.
+  assert.deepEqual(postReturnContext("?id=p-image&from=profile"), {
+    href: "/profile.html",
+    label: "← Back to Profile",
+  });
+  assert.equal(postReturnContext(`?from=profile&author=${"n".repeat(61)}`).href, "/profile.html");
+
+  // No provenance, a provenance naming somewhere this page does not know, and a
+  // value shaped like an injection all land on the same honest default.
+  for (const search of ["", "?id=p-image", "?id=p-image&from=", "?from=social", "?from=PROFILE", "?from=javascript:alert(1)"]) {
+    assert.deepEqual(postReturnContext(search), DEFAULT_POST_RETURN, `"${search}" must fall back to the feed`);
+  }
+  assert.deepEqual(DEFAULT_POST_RETURN, { href: "/social.html", label: "← Back to Social" });
+
+  // The label reads the same in both directions and says only what it does.
+  for (const search of ["?from=profile", ""]) assert.match(postReturnContext(search).label, /^← Back to (Profile|Social)$/);
 });
 
 /* ------------------------- the page's standing frame ---------------------- */
@@ -252,20 +344,22 @@ test("the standing sentence outlives every state the panel renders", () => {
   }
 });
 
-test("exactly two standing exits render on the post page, in every state", async () => {
+test("exactly one standing exit renders on the post page, in every state", async () => {
   const html = await postPageHtml();
-  // One per destination the page can honestly claim, each written once.
-  assert.equal([...html.matchAll(/id="post-back"/g)].length, 1, "one standing profile exit in the markup");
-  assert.equal([...html.matchAll(/id="post-back-feed"/g)].length, 1, "one standing feed exit in the markup");
-  assert.equal([...html.matchAll(/class="detail-back detail-page-back"/g)].length, 2);
+  assert.equal([...html.matchAll(/id="post-back"/g)].length, 1, "one standing exit in the markup");
+  assert.equal([...html.matchAll(/class="detail-back detail-page-back"/g)].length, 1, "and only one");
+  assert.equal([...html.matchAll(/<a [^>]*>← Back to /g)].length, 1, "one back label ships, not two stacked ones");
 
+  // No state may add a second one, whatever it renders: the count above is the
+  // whole page's count only if the panel contributes nothing to it.
   for (const [name, value, options] of PANEL_STATES) {
     const container = createElement("div");
     renderPostDetail(container, value, options);
-    const repeated = tags(container, "A")
-      .filter((link) => link.classes.includes("empty-action-secondary"))
-      .filter((link) => String(link.href ?? "").startsWith("/profile.html"));
-    assert.equal(repeated.length, 0, `the ${name} state repeats the standing back link`);
+    const backish = tags(container, "A").filter((link) => /Back to|Return to/.test(link.textContent));
+    assert.equal(backish.length, 0, `the ${name} state renders its own back link`);
+    const toExits = tags(container, "A")
+      .filter((link) => ["/social.html", "/profile.html"].some((href) => String(link.href ?? "").startsWith(href)));
+    assert.equal(toExits.length, 0, `the ${name} state links to an exit destination itself`);
   }
 });
 
@@ -283,6 +377,84 @@ test("no panel state renders its own way out; the standing exits own that job", 
     const buttons = tags(container, "BUTTON");
     assert.equal(buttons.length, name === "error" ? 1 : 0, `the ${name} state renders unexpected controls`);
   }
+});
+
+/* --------------- states a reader can tell apart with colour off ----------- */
+
+test("loading, not found and failed each say a different thing, in words", () => {
+  const render = (value, options) => {
+    const container = createElement("div");
+    renderPostDetail(container, value, options);
+    return container;
+  };
+  const loading = render(null, { state: "loading", id: "p-gone" });
+  const missing = render(null, { state: "ready", id: "p-gone" });
+  const failed = render(null, { state: "error", id: "p-gone", onRetry: () => {} });
+
+  const title = (container) => first(container, "empty-title").textContent;
+  const titles = [title(loading), title(missing), title(failed)];
+  assert.deepEqual(titles, ["Loading post", "Post not found", "Post couldn’t be loaded"]);
+  assert.equal(new Set(titles).size, 3, "two states share a title");
+
+  // The difference has to survive with colour, icons and badges removed, so it
+  // is asserted on the words themselves — no class name is read here.
+  const words = (container) => new Set(container.textContent.toLowerCase().match(/[a-z’']+/g));
+  const missingWords = words(missing);
+  const failedWords = words(failed);
+  const only = (a, b) => [...a].filter((word) => !b.has(word));
+  assert.ok(only(missingWords, failedWords).includes("removed"), "the missing state must say the post is gone");
+  assert.ok(only(failedWords, missingWords).some((word) => ["couldn’t", "reach"].includes(word)),
+    "the failed state must describe a failure, not an absence");
+
+  // And in the other direction: neither state may be readable as the other.
+  assert.doesNotMatch(missing.textContent, /couldn’t|failed|unavailable|try again/i);
+  assert.doesNotMatch(failed.textContent, /removed|incomplete|may have been/i);
+});
+
+/* ------------------------- extremes stay in the page ---------------------- */
+
+// No viewport-level harness exists in this repo — `node --test` parses markup
+// and CSS text, it does not lay anything out — so the assertion is that the
+// constraining rules are applied to the elements that carry the extreme
+// content. A real 390px overflow check would need a browser runner.
+test("a 1,000-character caption and an extreme image stay inside the page's column", async () => {
+  const caption = "shipped ".repeat(120) + "x".repeat(200); // >1,000 chars, incl. one unbreakable run
+  assert.ok(caption.length > 1000);
+
+  for (const image of [
+    { src: "/media/focus-ring.svg", alt: "", width: 320, height: 9000 },
+    { src: "/media/focus-ring.svg", alt: "", width: 9000, height: 320 },
+  ]) {
+    const container = createElement("div");
+    renderPostDetail(container, { ...post, caption, image });
+
+    // No inline width, height or style may be written from post data: the cap
+    // belongs to the stylesheet, where one rule covers every post.
+    const img = tags(container, "IMG")[0];
+    assert.equal(img.classes.includes("detail-image"), true);
+    assert.equal(img.getAttribute("style"), null);
+    assert.equal(first(container, "detail-post").classes.includes("detail-post"), true);
+    assert.equal(first(container, "detail-caption").classes.includes("detail-caption"), true);
+  }
+
+  const css = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
+  const rule = (selector) => css.match(new RegExp(`^\\${selector} \\{([^}]*)\\}`, "m"))?.[1] ?? "";
+
+  // The image: bounded both ways, with width and height left to the browser so
+  // the aspect ratio survives either cap.
+  const image = rule(".detail-image");
+  assert.match(image, /max-width:100%/, "a wide image must not exceed its column");
+  assert.match(image, /max-height:/, "a tall image needs a height cap");
+  assert.match(image, /width:auto/, "a fixed width would distort the capped image");
+  assert.match(image, /height:auto/);
+  assert.doesNotMatch(image, /min-width|[^-]width:\s*\d/, "nothing may force the image wider than the column");
+
+  // The caption: a 1,000-character run with no spaces wraps rather than pushing
+  // a horizontal scrollbar onto a 390px phone.
+  assert.match(rule(".detail-caption"), /overflow-wrap:anywhere/);
+  // And the column itself is the page's existing container, not a new max-width.
+  assert.match(rule(".detail-post"), /min-width:0/);
+  assert.match(rule(".detail-media"), /overflow:hidden/);
 });
 
 test("the post page's nav lists Profile once", async () => {

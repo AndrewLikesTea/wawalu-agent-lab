@@ -180,61 +180,79 @@ test("the main landmark rings for keyboard focus only, never for a mouse click",
 
 /* --------------------------- the post page's order ------------------------ */
 
-test("the post page's tab order is skip link, then the nav, then the exits", async () => {
+test("the post page's tab order is skip link, then the nav, then the one exit", async () => {
   const document = await load("post.html");
   const sequence = tabSequence(document);
 
   assert.deepEqual(
-    sequence.slice(0, 11).map((stop) => textOf(stop)),
+    sequence.slice(0, 10).map((stop) => textOf(stop)),
     [
       SKIP_TEXT,
       "Shiplog",
       ...SITE_NAV.map((link) => link.label),
       "← Back to Social",
-      "← Back to Profile",
     ],
     "the post page's tab order changed",
   );
 
-  // Walked as keystrokes, not read off the list: eleven presses from page load.
-  const walked = Array.from({ length: 11 }, () => textOf(pressTab(document)));
-  assert.deepEqual(walked, sequence.slice(0, 11).map((stop) => textOf(stop)));
+  // Walked as keystrokes, not read off the list: ten presses from page load.
+  const walked = Array.from({ length: 10 }, () => textOf(pressTab(document)));
+  assert.deepEqual(walked, sequence.slice(0, 10).map((stop) => textOf(stop)));
+
+  // After the exit, the next stop a keyboard reader reaches is the footer form's
+  // trigger. Nothing the shipped post markup contains sits between them: the
+  // image and the caption are rendered by post-detail.js and carry no links of
+  // their own (a caption is text, never markup — PRODUCT.md), so the order the
+  // review asked for — exit, image link, caption links, footer — holds with its
+  // middle two steps empty.
+  const afterExit = sequence.slice(10).map((stop) => textOf(stop));
+  assert.equal(afterExit[0], "Talk to us about Shiplog");
+  assert.ok(
+    sequence.slice(10).every((stop) => stop.closest("#site-footer")),
+    "a control on the post page sits between the exit and the footer",
+  );
 });
 
-test("the post page's exits read after the site header, in the document, not in CSS", async () => {
+test("the post page's exit reads after the site header, in the document, not in CSS", async () => {
   const document = await load("post.html");
   const landmark = document.querySelector("#main-content");
-  for (const id of ["post-back-feed", "post-back"]) {
-    const exit = document.querySelector(`#${id}`);
-    assert.ok(exit.closest("#main-content"), `#${id} must sit inside the content region`);
-    assert.equal(exit.closest(".site-header"), null, `#${id} must not sit in the site header`);
-  }
-  // Document order inside the landmark: exits, then the heading, then the panel.
-  const order = landmark.querySelectorAll("#post-back-feed,#post-back,#page-title,#post-detail")
-    .map((node) => node.id);
-  assert.deepEqual(order, ["post-back-feed", "post-back", "page-title", "post-detail"]);
+  const exit = document.querySelector("#post-back");
+  assert.ok(exit.closest("#main-content"), "the exit must sit inside the content region");
+  assert.equal(exit.closest(".site-header"), null, "the exit must not sit in the site header");
+
+  // Document order inside the landmark: the exit, then the heading, then the panel.
+  const order = landmark.querySelectorAll("#post-back,#page-title,#post-detail").map((node) => node.id);
+  assert.deepEqual(order, ["post-back", "page-title", "post-detail"]);
 
   // No CSS trick may stand in for that order — reading order is the point.
   const css = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
   const exitRule = css.match(/^\.detail-page-exits \{([^}]*)\}/m)[1];
-  assert.doesNotMatch(exitRule, /row-reverse|order:\s*-?\d|position:\s*absolute/, "the exits must not be re-sequenced visually");
+  assert.doesNotMatch(exitRule, /row-reverse|order:\s*-?\d|position:\s*absolute/, "the exit must not be re-sequenced visually");
   const html = await read("post.html");
   assert.doesNotMatch(html.match(/<p class="detail-page-exits">[\s\S]*?<\/p>/)[0], /style=/);
 });
 
-test("the post page names both destinations it can honestly claim", async () => {
+test("the post page ships exactly one exit, naming its destination in its own text", async () => {
   const document = await load("post.html");
-  const exits = document.querySelectorAll("#post-back-feed,#post-back");
-  assert.deepEqual(
-    exits.map((exit) => [exit.href, textOf(exit)]),
-    [["/social.html", "← Back to Social"], ["/profile.html", "← Back to Profile"]],
-    "each exit must name its destination in its own visible text",
-  );
+  const exits = document.querySelector("#main-content").querySelectorAll(".detail-back");
+  assert.equal(exits.length, 1, "two stacked back links is the bug this replaced");
+  assert.deepEqual([exits[0].href, textOf(exits[0])], ["/social.html", "← Back to Social"]);
+
   // The visible text carries the destination, so no aria-label may hold a word
   // the eye cannot read.
-  for (const exit of exits) assert.equal(exit.getAttribute("aria-label"), null);
+  assert.equal(exits[0].getAttribute("aria-label"), null);
 
   // /social.html is the feed route the rest of the site uses — the nav's Social
   // entry — rather than a path guessed for this page.
   assert.equal(exits[0].href, SITE_NAV.find((link) => link.label === "Social").href);
+});
+
+test("every interactive control on the post page inherits the site's focus ring", async () => {
+  const css = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
+  // The exit, the retry button and any link a caption or image grows all pick up
+  // one of these rules; none of them restyles :focus-visible for itself.
+  assert.match(css, /^\.detail-back:focus-visible \{ outline:3px solid var\(--focus-ring\)/m);
+  assert.match(css, /:focus-visible[^{]*\{[^}]*outline:3px solid var\(--focus-ring\)/);
+  const postCss = css.match(/^\.detail-(image|caption|post|media|date)[^{]*\{[^}]*\}/gm) ?? [];
+  for (const rule of postCss) assert.doesNotMatch(rule, /outline/, `${rule.split("{")[0].trim()} must not restyle the ring`);
 });

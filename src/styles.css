@@ -463,13 +463,18 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
    that exists to show it whole, not cropped to a grid cell. */
 .detail-back { color:#1f5fa8; font:650 13px/1.4 ui-monospace,monospace; }
 .detail-page-back { margin:0 0 18px; min-height:44px; }
-/* The post page's two exits — the feed and the profile — read as one row, and
-   wrap to a column rather than shrinking below a 44px target on a phone. */
+/* The post page's single exit. Still a flex row so it keeps its 44px target and
+   wraps rather than shrinking on a phone. */
 .detail-page-exits { display:flex; flex-wrap:wrap; gap:0 24px; margin:0; }
 .detail-post { display:flex; flex-direction:column; min-width:0; max-width:720px; margin:auto; }
+.detail-date { display:block; margin:0 0 2px; color:#62625d; font:650 13px/1.45 ui-monospace,monospace; }
 .detail-figure { display:flex; flex-direction:column; min-width:0; margin:6px 0 0; }
 .detail-media { position:relative; overflow:hidden; display:grid; place-items:center; min-width:0; min-height:180px; border-radius:12px; background:#eeece5; }
-.detail-image { display:block; width:100%; max-width:100%; height:auto; }
+/* Both caps at once, and no fixed width: a very wide image is bounded by the
+   column (max-width), a very tall one by the viewport (max-height), and because
+   width and height stay auto the browser keeps the aspect ratio in either case.
+   Nothing here can push the page wider than the container it sits in. */
+.detail-image { display:block; max-width:100%; max-height:min(70vh,620px); width:auto; height:auto; }
 .detail-media[data-state="loading"] { background:linear-gradient(100deg,#eeece5 30%,#f7f6f2 50%,#eeece5 70%) #eeece5; background-size:220% 100%; animation:shiplog-shimmer 1.4s linear infinite; }
 .detail-media[data-state="error"] { background:#f8f1ef; box-shadow:inset 0 0 0 1px #dcc2be; }
 .detail-media-fallback { width:100%; margin:0; padding:24px 16px; color:#555550; text-align:center; }
