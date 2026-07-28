@@ -201,7 +201,13 @@ const PERIOD_STRING = /^(\d{4})-(\d{2})-(\d{2}) to (\d{4})-(\d{2})-(\d{2})$/;
  */
 const DISPLAY_NAME = /^[A-Za-z0-9][A-Za-z0-9 .,'()&/-]{0,119}$/;
 
-function canonical(value, max = MAX_ID_LENGTH) {
+/**
+ * Exported because a downstream check has to reduce a *later* import's own
+ * identifiers the same way this derivation reduced the committed one. Two
+ * canonicalizations that disagree by a character would silently stop a
+ * commitment from ever matching its own department again.
+ */
+export function canonical(value, max = MAX_ID_LENGTH) {
   const slug = String(value ?? "").trim().toLowerCase()
     .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
   return slug && slug.length <= max && CANONICAL_ID.test(slug) ? slug : null;
