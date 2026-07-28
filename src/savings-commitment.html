@@ -30,7 +30,21 @@
       <section class="commit-hero" aria-labelledby="page-title">
         <p class="eyebrow">Savings Commitment</p>
         <h1 id="page-title">What should we<br />commit to now?</h1>
-        <p>One proposed commitment, derived only from a locally imported analysis: who owns it, what routing changes, what it is worth against which baseline, and how sure the analysis is. Nothing is saved, sent, or acted on from this page.</p>
+        <p>One proposed commitment, derived only from a locally imported analysis: who owns it, what routing changes, what it is worth against which baseline, and how sure the analysis is. Recording it writes one decision to this browser’s own Shiplog log; nothing is uploaded or sent.</p>
+      </section>
+
+      <section class="commit-handoff" aria-labelledby="commit-handoff-title">
+        <h2 id="commit-handoff-title">Decide on your own analysis</h2>
+        <!-- The AI FinOps page keeps nothing in browser storage, so the handoff
+             between the two surfaces is the briefing file the visitor exported
+             themselves. It is read in this tab and never uploaded. -->
+        <p id="commit-file-note">Open the briefing JSON the AI FinOps page exported. It is read in this tab only: no upload, no credentials, no network transfer. Without one, the bundled example analysis below is shown instead.</p>
+        <div class="commit-handoff-controls">
+          <label for="commit-file">Open an exported briefing</label>
+          <input id="commit-file" type="file" accept=".json,application/json" aria-describedby="commit-file-note" />
+        </div>
+        <p id="commit-handoff-status" role="status" aria-live="polite">Reading the bundled example analysis…</p>
+        <div id="commit-notices"></div>
       </section>
 
       <div id="savings-commitment" aria-live="polite" aria-busy="true">

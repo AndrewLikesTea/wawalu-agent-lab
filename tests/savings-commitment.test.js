@@ -264,7 +264,12 @@ test("output validation catches a payload edited after it was built", () => {
 test("the preview answers the six questions in the order a leader asks them", () => {
   const view = renderSavingsCommitment(buildSavingsCommitment(analysis()));
 
+  // The card leads with the decision as a question, then answers it in one
+  // sentence. Both are assembled from the same three fields, so they cannot
+  // describe two different changes.
   assert.match(tags(view, "H2")[0].textContent,
+    /^Should Synthetic Customer Operations move first-pass support ticket triage from syn-model-frontier-a to syn-model-mid-b\?$/);
+  assert.match(byClass(view, "commit-answer")[0].textContent,
     /Route first-pass support ticket triage from syn-model-frontier-a to syn-model-mid-b, saving \$31,300\.00 a month against a \$48,200\.00 2026-06 baseline\./);
   assert.match(byClass(view, "commit-kicker")[0].textContent,
     /Proposed commitment 1 of 1 · What should we commit to now\?/);
@@ -288,8 +293,13 @@ test("the preview answers the six questions in the order a leader asks them", ()
 test("provenance and the set-aside candidates are progressively disclosed, not headline", () => {
   const view = renderSavingsCommitment(buildSavingsCommitment(analysis()));
   const details = tags(view, "DETAILS");
-  assert.equal(details.length, 1);
-  assert.match(tags(view, "SUMMARY")[0].textContent, /Inspect provenance and what was set aside/);
+  assert.equal(details.length, 2);
+  assert.deepEqual(tags(view, "SUMMARY").map((node) => node.textContent),
+    ["Inspect confidence and the supporting calculation",
+      "Inspect provenance and what was set aside"]);
+  // The supporting calculation is disclosed, not headline: the metrics list a
+  // leader checks the number against lives inside the first disclosure.
+  assert.ok(byClass(details[0], "commit-metrics").length === 1);
 
   const body = byClass(view, "commit-provenance-body")[0];
   assert.match(body.textContent, /syn-finops-analysis-2026-06/);
@@ -303,14 +313,32 @@ test("provenance and the set-aside candidates are progressively disclosed, not h
   assert.doesNotMatch(byClass(view, "commit-header")[0].textContent, /syn-rec-/);
 });
 
-test("the preview states what it does not do, so the missing button is not a bug", () => {
+test("exactly one prioritized action is offered, and it states its own boundary", () => {
   const view = renderSavingsCommitment(buildSavingsCommitment(analysis()));
   const note = byClass(view, "commit-boundaries")[0];
-  assert.match(note.textContent, /Nothing here is saved, sent, or acted on/);
+  assert.match(note.textContent, /Recording writes one decision to this browser's own Shiplog log/);
   assert.match(note.textContent, /no credential, no prompt text, no customer record/);
-  // No control offers to commit: the downstream action is not built.
-  assert.equal(tags(view, "BUTTON").length, 0);
-  assert.equal(tags(view, "FORM").length, 0);
+
+  // One control, named as the decision it records — not a menu of five things
+  // to maybe do, which is the surface this product keeps rebuilding away from.
+  const buttons = tags(view, "BUTTON");
+  assert.equal(buttons.length, 1);
+  assert.equal(buttons[0].textContent, "Record this decision");
+  assert.equal(buttons[0].getAttribute("type"), "button");
+
+  // The owner is a labelled field, prefilled with the role the analysis names.
+  const input = tags(view, "INPUT")[0];
+  assert.equal(input.id, "commit-record-owner");
+  assert.equal(input.value, "Synthetic Director of Customer Operations");
+  assert.equal(input.getAttribute("maxlength"), "80");
+  const label = tags(byClass(view, "commit-record")[0], "LABEL")[0];
+  assert.equal(label.getAttribute("for"), "commit-record-owner");
+  assert.equal(input.getAttribute("aria-describedby"), "commit-record-note");
+
+  // The benchmark is above the action, and the action above the working.
+  const order = tags(view, "SECTION").map((node) => node.className);
+  assert.ok(order.indexOf("commit-benchmark") < order.indexOf("commit-record"));
+  assert.match(byClass(view, "commit-benchmark-figure")[0].textContent, /^\$31,300\.00 a month$/);
 });
 
 test("an analysis with nothing to commit to renders a sentence, not an empty panel", () => {
@@ -349,8 +377,12 @@ test("the browser boundary reads one same-origin fixture and persists nothing", 
 });
 
 test("no storage, clock, or off-origin request exists in the contract or its view", async () => {
+  // The contract, its render layer, and the handoff reader stay pure. The page
+  // entry is the one file that may hold the decision log and the approval
+  // instant, because recording is a durable local write and this is the only
+  // layer that owns one — see the separate check below for what it may not do.
   for (const file of ["savings-commitment.js", "savings-commitment-view.js",
-    "savings-commitment-page.js"]) {
+    "commitment-handoff.js"]) {
     const source = await readFile(new URL(`../src/${file}`, import.meta.url), "utf8");
     // Comments describe these; code must not use them. Strip comments first.
     const code = source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
@@ -359,6 +391,15 @@ test("no storage, clock, or off-origin request exists in the contract or its vie
       assert.doesNotMatch(code, forbidden, `${file} reaches for ${forbidden}`);
     }
   }
+
+  const page = (await readFile(new URL("../src/savings-commitment-page.js", import.meta.url), "utf8"))
+    .replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  // The decision log is the only store it touches: no session copy of a
+  // visitor's briefing, no cookie, no off-origin request.
+  for (const forbidden of [/sessionStorage/, /indexedDB/, /document\.cookie/, /https?:\/\//]) {
+    assert.doesNotMatch(page, forbidden, `the page entry reaches for ${forbidden}`);
+  }
+  assert.match(page, /recordCommitmentDecision\(globalThis\.localStorage/);
 });
 
 test("the shipped fixture is synthetic and carries no credential or contact detail", async () => {

@@ -23,8 +23,47 @@
 .commit-routing h3 { margin:0 0 10px; color:var(--commit-ink); font-size:20px; letter-spacing:-.02em; }
 .commit-route { margin:0 0 10px; color:var(--commit-ink); font:800 clamp(17px,2vw,24px)/1.3 ui-monospace,monospace; overflow-wrap:anywhere; }
 .commit-rationale { max-width:66ch; margin:0; color:#4d4d47; line-height:1.55; }
-.commit-provenance summary { padding:20px 36px; color:var(--commit-ink); font-weight:800; cursor:pointer; }
-.commit-provenance summary:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.commit-answer { max-width:64ch; margin:14px 0 0; color:#4d4d47; font-size:16px; line-height:1.55; }
+.commit-origin { font-weight:600; }
+.commit-benchmark { padding:26px 36px; background:var(--commit-mint); border-top:1px solid var(--commit-line); }
+.commit-benchmark h3 { margin:0; color:#22634f; font:750 10px/1.4 ui-monospace,monospace; letter-spacing:.07em; text-transform:uppercase; }
+.commit-benchmark-figure { margin:8px 0 6px; color:var(--commit-ink); font-size:clamp(30px,5vw,52px); font-weight:800; letter-spacing:-.04em; }
+.commit-benchmark-basis { max-width:62ch; margin:0; color:#3f544f; font-size:14px; line-height:1.55; }
+.commit-record { padding:28px 36px; border-top:1px solid var(--commit-line); }
+.commit-record h3 { margin:0 0 8px; color:var(--commit-ink); font-size:20px; letter-spacing:-.02em; }
+.commit-record-note { max-width:66ch; margin:0 0 16px; color:#4d4d47; font-size:14px; line-height:1.55; }
+.commit-record-field { display:flex; flex-wrap:wrap; gap:6px 14px; align-items:baseline; margin:0 0 16px; }
+.commit-record-field label { color:#71716a; font:750 10px/1.4 ui-monospace,monospace; letter-spacing:.07em; text-transform:uppercase; }
+.commit-record-field input { min-width:0; flex:1 1 240px; padding:11px 13px; border:1px solid #bdbbb3; border-radius:10px; background:#fff; color:var(--commit-ink); font:600 15px/1.3 inherit; }
+.commit-record-field input:focus-visible,.commit-record-button:focus-visible,#commit-file:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.commit-record-button { padding:13px 22px; border:0; border-radius:99px; background:var(--commit-teal); color:#fff; font-size:15px; font-weight:800; cursor:pointer; }
+.commit-record-button[disabled] { background:#8fa8a4; cursor:default; }
+.commit-record-error { margin:16px 0 0; padding:14px 16px; border-left:4px solid #a8332a; background:#fdf1ef; color:#7c241d; line-height:1.55; }
+.commit-recorded { margin:20px 0 0; padding:20px 22px; border:1px solid #9fd3c4; border-radius:14px; background:var(--commit-mint); }
+.commit-recorded:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.commit-recorded h3 { margin:0 0 8px; color:#17513f; font-size:19px; }
+.commit-recorded-summary { max-width:64ch; margin:0 0 12px; color:#2b4d45; line-height:1.55; }
+.commit-recorded-link { display:inline-block; margin:0 0 16px; color:#0a5f52; font-weight:800; }
+.commit-next-title { margin:0 0 8px; color:#17513f; font-size:14px; }
+.commit-next-steps { margin:0; padding-left:20px; color:#2b4d45; line-height:1.6; }
+.commit-next-steps li + li { margin-top:8px; }
+.commit-next-label { font-weight:800; }
+.commit-handoff { max-width:760px; margin:0 0 26px; padding:22px 24px; border:1px solid #cfcdc5; border-radius:16px; background:#fbfaf6; }
+.commit-handoff h2 { margin:0 0 8px; color:var(--commit-ink); font-size:19px; letter-spacing:-.02em; }
+.commit-handoff p { max-width:66ch; margin:0 0 14px; color:#4d4d47; font-size:14px; line-height:1.55; }
+.commit-handoff-controls { display:flex; flex-wrap:wrap; gap:8px 14px; align-items:center; margin:0 0 12px; }
+.commit-handoff-controls label { color:#71716a; font:750 10px/1.4 ui-monospace,monospace; letter-spacing:.07em; text-transform:uppercase; }
+#commit-handoff-status { margin:0; color:#3f544f; font-weight:650; }
+.commit-rejections { margin:16px 0 0; padding:16px 18px; border-left:4px solid #b4762a; background:#fdf6ea; }
+.commit-rejections-title { margin:0 0 8px; color:#7c521d; font-size:15px; }
+.commit-rejection-list { margin:0; padding-left:20px; color:#5c4a2c; line-height:1.6; }
+.commit-rejection-file { font-weight:800; overflow-wrap:anywhere; }
+.commit-rejections-note { margin:10px 0 0; color:#5c4a2c; font-size:13px; }
+.commit-basis summary,.commit-provenance summary { padding:20px 36px; color:var(--commit-ink); font-weight:800; cursor:pointer; }
+.commit-basis summary:focus-visible,.commit-provenance summary:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.commit-basis { border-top:1px solid var(--commit-line); }
+.commit-basis-body { padding:0 0 8px; border-top:1px solid #e4e2db; }
+.commit-basis-note { margin:16px 36px 22px; max-width:66ch; color:#4d4d47; font-size:13px; line-height:1.55; }
 .commit-provenance-body { padding:0 36px 30px; border-top:1px solid #e4e2db; }
 .commit-context { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:18px 30px; margin:24px 0; }
 .commit-context .commit-fact { padding:0; border-right:0; }
@@ -37,6 +76,11 @@
 .commit-boundaries p { max-width:70ch; margin:0; color:#4d4d47; line-height:1.6; }
 @media (max-width:640px) {
   .commit-fact { border-right:0; border-bottom:1px solid var(--commit-line); }
-  .commit-header,.commit-routing,.commit-boundaries,.commit-provenance-body { padding-inline:22px; }
-  .commit-provenance summary { padding-inline:22px; }
+  .commit-header,.commit-routing,.commit-boundaries,.commit-provenance-body,
+  .commit-benchmark,.commit-record { padding-inline:22px; }
+  .commit-basis summary,.commit-provenance summary { padding-inline:22px; }
+  .commit-basis-note { margin-inline:22px; }
+  .commit-record-field { display:block; }
+  .commit-record-field input { width:100%; margin-top:6px; }
+  .commit-record-button { width:100%; }
 }
