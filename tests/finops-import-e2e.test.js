@@ -22,6 +22,9 @@ import { readFile } from "node:fs/promises";
 import { DomEvent, loadPage, pressEnter, pressKey, pressTab, tabSequence, textOf } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 import { BRIEFING_FILE_VERSION } from "../src/finops-briefing-export.js";
+import {
+  FINOPS_WORKSPACE_KEY, FINOPS_WORKSPACE_VERSION,
+} from "../src/finops-workspace-contract.js";
 
 const PAGE = new URL("../src/evolution.html", import.meta.url);
 
@@ -106,8 +109,9 @@ const PROVIDER_FILE = "openai-usage-export.csv";
 const ROSTER_FILE = "generic-hris-roster.csv";
 
 /** Load the tab and boot its real entry module, exactly as the page tag does. */
-async function openFinopsTab() {
+async function openFinopsTab(storage = {}) {
   const page = await loadPage(PAGE, {
+    storage,
     routes: {
       "/evolution-demo-data.json": DEMO_DATA,
       "/finops-evaluation-fixtures.json": EVALUATION_FIXTURES,
@@ -126,6 +130,20 @@ async function openFinopsTab() {
     .getAttribute("aria-busy") === "false", "the evaluation panel to settle");
   return page;
 }
+
+const consentSeed = (state) => ({
+  [FINOPS_WORKSPACE_KEY]: JSON.stringify({
+    schemaVersion: FINOPS_WORKSPACE_VERSION,
+    consent: {
+      state,
+      decidedAt: "2026-07-28T09:00:00.000Z",
+      grantedAgainst: state === "granted" ? FINOPS_WORKSPACE_VERSION : null,
+    },
+    periods: [],
+    commitments: [],
+    meta: { lastWriteAt: "2026-07-28T09:00:00.000Z" },
+  }),
+});
 
 /**
  * Hand the file input a selection. This is the browser's File API and nothing
@@ -525,6 +543,40 @@ async function importJoinableExport(document) {
   byId(document, "import-mapping-confirm").click();
   await waitFor(() => !byId(document, "local-results").hidden, "the decision brief to appear");
 }
+
+test("an opted-in import adds its canonical derived briefing to the local workspace", async () => {
+  const page = await openFinopsTab(consentSeed("granted"));
+  try {
+    await importJoinableExport(page.document);
+
+    const retained = JSON.parse(page.storage.getItem(FINOPS_WORKSPACE_KEY));
+    assert.equal(retained.consent.state, "granted");
+    assert.equal(retained.periods.length, 1);
+    assert.equal(retained.periods[0].dataset, "user");
+    assert.equal(retained.periods[0].period, "2026-06");
+    assert.equal(retained.periods[0].briefingContractVersion, "finops-briefing/1.0.0");
+    assert.equal(retained.periods[0].materialMetricId, "recoverable_scenario");
+    assert.equal(retained.periods[0].materialMetricMinor, 39822);
+    assert.equal("provenance" in retained.periods[0], false,
+      "the persisted record must be the allowlisted projection, not the briefing envelope");
+  } finally {
+    page.restore();
+  }
+});
+
+test("declining storage preserves the import flow without retaining derived figures", async () => {
+  const page = await openFinopsTab(consentSeed("declined"));
+  const before = page.storage.getItem(FINOPS_WORKSPACE_KEY);
+  try {
+    await importJoinableExport(page.document);
+
+    assert.equal(page.storage.getItem(FINOPS_WORKSPACE_KEY), before);
+    assert.equal(byId(page.document, "local-results").hidden, false);
+    assert.equal(shownText(page.document, "local-trust-coverage"), JOINABLE.coverage);
+  } finally {
+    page.restore();
+  }
+});
 
 test("a leader reopens the briefing they exported and reads it beside the current analysis", async (t) => {
   const page = await openFinopsTab();

@@ -42,30 +42,6 @@
         <p id="ws-boundary-body">Shiplog has no account and keeps no server-side copy. The decisions and releases you record are held in this browser's local storage, on this device, under the two keys named in “Where these numbers come from”. Nothing on this page is uploaded, and no cookie, analytics call, or telemetry reads it. Clearing this browser's site data — or erasing below — removes the records, and no copy survives anywhere else.</p>
       </section>
 
-      <section class="ws-finops-preview" id="finops-workspace-preview" aria-labelledby="finops-preview-title">
-        <p class="eyebrow">Opt-in preview · <span id="finops-contract-version">finops-workspace/1.0.0</span></p>
-        <h2 id="finops-preview-title">Before you choose, inspect what FinOps would remember</h2>
-        <p>This is synthetic example data, rendered from the same versioned contract a future
-          persistence adapter must consume. Previewing it grants no consent and writes nothing.
-          Retaining these derived monthly figures would let you compare a later import with this
-          period and keep a commitment tied to the numbers that sized it.</p>
-        <details>
-          <summary>Inspect every retained field and sample value</summary>
-          <pre id="finops-preview-json" tabindex="0">Loading the synthetic contract preview…</pre>
-        </details>
-        <h3>Never stored</h3>
-        <ul id="finops-never-stored">
-          <li>Credentials, prompts, raw imports, and network-transfer data are prohibited.</li>
-        </ul>
-        <h3>How complete erasure works</h3>
-        <p id="finops-erase-copy">Complete FinOps erasure removes both FinOps local-storage keys
-          and verifies that both are empty. It leaves Shiplog decisions, releases, and downloaded
-          files alone.</p>
-        <p class="ws-finops-limit"><strong>Local means this browser only.</strong> There is no
-          account, sync, server copy, or network transfer. Another browser profile and a file you
-          downloaded are outside this page's reach.</p>
-      </section>
-
       <!-- One stable live region for every outcome. It carries the same sentence
            the visible notice shows, so nothing is announced to one reader and
            withheld from the other. -->
@@ -150,6 +126,131 @@
           <div class="ws-fact"><dt>Sources</dt><dd>Read once this page has finished checking this browser's storage.</dd></div>
         </dl>
       </details>
+
+      <!-- AI FinOps is a separate question with a separate answer: Shiplog
+           records are kept by default because the store predates its control,
+           and FinOps figures are kept only after an explicit yes. The two live
+           on one page because a visitor asking "what does this browser hold?"
+           should not have to know that distinction to get a complete answer.
+
+           The explanatory copy, the contract preview, and the never-stored list
+           below are static markup. A claim about what a page would keep has to
+           be true before any script runs, or a reader cannot rely on it while
+           deciding. -->
+      <section class="ws-finops-preview" id="finops-workspace-preview" aria-labelledby="finops-preview-title">
+        <p class="eyebrow">AI FinOps · <span id="finops-contract-version">finops-workspace/1.0.0</span></p>
+        <h2 id="finops-preview-title">What AI FinOps would remember here</h2>
+        <p>The AI FinOps page analyses provider exports you open, in that tab, and forgets them when
+          you close it. This browser can keep the <em>derived</em> monthly figures instead — spend,
+          coverage, confidence, and the one material number — so a later import has something to be
+          compared with. It keeps nothing until you say so, and nothing it keeps is uploaded.</p>
+        <p>Inspect the whole retained shape first, as synthetic example data rendered from the same
+          versioned contract any persistence adapter must consume. Previewing it grants no consent
+          and writes nothing; only the choice below does.</p>
+        <details>
+          <summary>Inspect every retained field and sample value</summary>
+          <pre id="finops-preview-json" tabindex="0">Loading the synthetic contract preview…</pre>
+        </details>
+        <h3>Never stored</h3>
+        <ul id="finops-never-stored">
+          <li>Credentials, prompts, raw imports, and network-transfer data are prohibited.</li>
+        </ul>
+        <h3>How complete erasure works</h3>
+        <p id="finops-erase-copy">Complete FinOps erasure removes both FinOps local-storage keys
+          and verifies that both are empty. It leaves Shiplog decisions, releases, and downloaded
+          files alone.</p>
+        <p class="ws-finops-limit"><strong>Local means this browser only.</strong> There is no
+          account, sync, server copy, or network transfer. Another browser profile and a file you
+          downloaded are outside this page's reach.</p>
+
+        <p class="visually-hidden" id="fw-announcement" role="status" aria-live="polite"></p>
+
+        <div id="fw-panel" aria-busy="true">
+          <div class="ws-status fw-status" id="fw-status" aria-labelledby="fw-status-title">
+            <h3 id="fw-status-title">What FinOps is keeping</h3>
+            <p class="ws-summary" id="fw-summary">Reading this browser's two FinOps keys…</p>
+            <dl class="ws-facts" id="fw-facts">
+              <div class="ws-fact"><dt>FinOps storage</dt><dd>Not read yet</dd></div>
+              <div class="ws-fact"><dt>Kept here</dt><dd>Counting…</dd></div>
+              <div class="ws-fact"><dt>Confidence</dt><dd>Not read yet</dd></div>
+            </dl>
+          </div>
+
+          <!-- One benchmark, one confidence, one period. A second headline figure
+               would make the reader decide which one matters, and deciding that
+               is this briefing's whole job. -->
+          <section class="fw-briefing" id="fw-briefing" aria-labelledby="fw-briefing-title" data-available="false" hidden>
+            <h3 id="fw-briefing-title">The briefing this browser can rebuild</h3>
+            <p class="fw-benchmark-figure" id="fw-benchmark-figure" data-available="false"></p>
+            <p class="fw-benchmark-label" id="fw-benchmark-label"></p>
+            <p class="fw-benchmark-detail" id="fw-benchmark-detail"></p>
+            <p class="fw-briefing-period" id="fw-briefing-period"></p>
+          </section>
+
+          <div id="fw-next">
+            <section class="ws-next-card" aria-labelledby="fw-next-loading-title" role="status">
+              <p class="eyebrow">Do this next</p>
+              <h3 class="ws-next-title" id="fw-next-loading-title">Reading this browser</h3>
+              <p class="ws-next-why">Checking whether FinOps has been asked to remember anything here, and what it holds if it has. This page will name one thing to do as soon as it knows.</p>
+            </section>
+          </div>
+
+          <details class="ws-provenance fw-disclosure" id="fw-evidence" hidden>
+            <summary id="fw-evidence-summary">Check the retained periods behind this figure</summary>
+            <ul class="fw-records" id="fw-evidence-list"></ul>
+          </details>
+
+          <details class="ws-provenance fw-disclosure" id="fw-provenance" hidden>
+            <summary id="fw-provenance-summary">Where every figure above comes from</summary>
+            <dl class="ws-facts" id="fw-provenance-list"></dl>
+          </details>
+        </div>
+
+        <p class="ws-outcome" id="fw-outcome" role="status" aria-live="polite" hidden></p>
+
+        <div class="ws-controls fw-controls" role="group" aria-labelledby="fw-controls-title">
+          <h3 id="fw-controls-title">What you can do</h3>
+
+          <div class="ws-control" id="fw-consent">
+            <h4 id="fw-consent-title">Remembering</h4>
+            <p class="ws-control-note" id="fw-consent-note">Checking whether this browser has been asked…</p>
+            <div class="fw-choice">
+              <button id="fw-grant" type="button" aria-pressed="false" aria-describedby="fw-consent-note">Remember these figures in this browser</button>
+              <button id="fw-decline" type="button" class="secondary-button" aria-pressed="false" aria-describedby="fw-consent-note">Keep using files only</button>
+            </div>
+          </div>
+
+          <div class="ws-control">
+            <h4 id="fw-export-title">Download</h4>
+            <p class="ws-control-note" id="fw-export-note">Downloads one JSON file holding every FinOps figure, label, and choice this browser is keeping — everything the forget action removes. The file is written in this browser; it is not uploaded anywhere.</p>
+            <button id="fw-export" type="button" aria-describedby="fw-export-note" disabled>Download FinOps JSON</button>
+          </div>
+
+          <!-- Forgetting is two steps, and the second one counts what it will
+               take. The confirmation is a named region rather than
+               window.confirm: a native dialog cannot say how many periods are
+               about to go, and its answer cannot be reported through the live
+               region above. -->
+          <div class="ws-control ws-control-danger">
+            <h4 id="fw-forget-title">Forget everything</h4>
+            <p class="ws-control-note" id="fw-forget-note">Removes both FinOps keys from this browser and reads them back to check they are empty. Your Shiplog decisions and releases are left alone, and so is any file you already downloaded.</p>
+            <button id="fw-forget" type="button" class="ws-danger-button" aria-describedby="fw-forget-note" aria-expanded="false" aria-controls="fw-confirm" disabled>Forget FinOps figures</button>
+            <div class="ws-confirm" id="fw-confirm" role="group" aria-labelledby="fw-confirm-title" hidden>
+              <h5 class="ws-confirm-title" id="fw-confirm-title" tabindex="-1">Forget everything FinOps kept?</h5>
+              <p class="ws-confirm-warning" id="fw-confirm-warning"></p>
+              <div class="ws-confirm-actions">
+                <button id="fw-confirm-yes" type="button" class="ws-danger-button" aria-describedby="fw-confirm-warning">Forget</button>
+                <button id="fw-confirm-no" type="button" class="secondary-button">Cancel</button>
+              </div>
+            </div>
+          </div>
+
+          <details class="ws-provenance fw-disclosure fw-records-review">
+            <summary id="fw-records-summary">Review what this browser is keeping</summary>
+            <ul class="fw-records" id="fw-records-list"></ul>
+          </details>
+        </div>
+      </section>
       </main>
     </div>
     <footer class="site-footer" id="site-footer" aria-labelledby="site-footer-title">

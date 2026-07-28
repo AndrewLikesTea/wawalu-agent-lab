@@ -47,6 +47,12 @@ import { localFinopsMeetingSummary, normalizeLocalFinopsHistory } from "/local-f
 // thing this layer contributes is the clock, because the generator is pure and
 // will not read one.
 import { briefingFile, buildBriefing } from "/finops-briefing-export.js";
+// The opt-in workspace consumes the canonical briefing and analysis only after
+// both have been composed. This page does not know the storage shape or consent
+// rules; the adapter owns projection, refusal, and the write/no-write decision.
+import {
+  browserFinopsWorkspaceStorage, retainDerivedPeriod,
+} from "/finops-workspace.js";
 // "Check the math" reads the briefing payload — never the analysis envelope and
 // never the imported file — so the derivation on screen is a check of exactly
 // the artifact a leader forwards.
@@ -990,6 +996,19 @@ function mountLocalFinopsImport() {
     // as before. The page no longer builds one of its own beside the other three
     // disclosures — that was how the leading finding drifted from them.
     currentBriefing = guided.finding.briefing;
+    // Example data remains ephemeral even when retention is enabled: retaining
+    // it would make a later real import appear to have a historical baseline.
+    // For a reader's own import, the workspace adapter checks consent and
+    // projects only allowlisted aggregates. A refusal is intentionally silent
+    // here—the analysis remains usable and the workspace surface is the single
+    // place that reports what this browser retained.
+    if (!example) {
+      retainDerivedPeriod(browserFinopsWorkspaceStorage(), {
+        briefing: currentBriefing,
+        analysis: next,
+        dataset: "user",
+      });
+    }
     // The derivation is taken from the same payload the export button writes, so
     // the arithmetic a director checks on screen is byte-for-byte the arithmetic
     // in the file they were sent. `buildBriefing` refuses to build a payload that
