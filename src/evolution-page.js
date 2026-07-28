@@ -23,6 +23,14 @@ import {
 import {
   applyPanelContract, applyProofPointBasis,
 } from "/finops-panel-contract-view.js";
+// The two surfaces that used to keep answering from the bundled seed after an
+// import landed. The contract decides whether they may show a figure; these two
+// decide *whose* figure it is, and neither hides anything.
+import { gradeImportedCorpus } from "/imported-corpus-grade.js";
+import {
+  applyImportedHeroGrade, clearImportedHeroGrade, importedHeroGrade,
+} from "/imported-hero-grade-view.js";
+import { importedDecisionData } from "/imported-department-decisions.js";
 import { formatIntegrationProvenance } from "/integration-contracts.js";
 import { createStaticGateway } from "/static-gateway.js";
 import { createFinancePortfolio } from "/finance-portfolio.js";
@@ -664,6 +672,23 @@ function mountLocalFinopsImport() {
       cohort: result?.benchmark ?? null,
     });
   };
+  /**
+   * The visitor's own corpus, graded.
+   *
+   * Every parsed query-sample row is handed over, not just the classified ones,
+   * so `records.source` is the file's own row count and the classified share
+   * the confidence tier reads is measured against it. The grade module applies
+   * its own redaction allowlist to each row before anything is scored.
+   */
+  const importedCorpusGrade = () => gradeImportedCorpus(
+    samples.flatMap((entry) => entry.parsed?.records ?? []));
+  /**
+   * Fill the hero card from that corpus. It fills; it never reveals — the panel
+   * contract below decides whether a reader sees these four slots, from the
+   * same counts this grade was computed over.
+   */
+  const paintImportedHero = () => applyImportedHeroGrade(document,
+    importedHeroGrade(importedCorpusGrade(), { files: samples.map((entry) => entry.fileName) }));
   const paintGradedSample = () => {
     const model = gradedModel();
     if (!model) return null;
@@ -799,6 +824,28 @@ function mountLocalFinopsImport() {
       + `${period.recoverableUsd.toFixed(2)} USD scenario · ${period.completeness} export · ${period.exportId}`),
     "No provider periods available.");
     renderDepartments(next);
+    // The executive drill-down above the import panel, repointed at whoever's
+    // analysis is on screen. The same renderer draws both — an import gets the
+    // bundled surface's headings, disclosure semantics and accessible names,
+    // not a second view of its own — and the adapter refuses to invent a score,
+    // a prior-period grade, or a peer cohort an import cannot carry.
+    if (example) {
+      clearImportedHeroGrade(document);
+      repaintBundledAnalysis();
+    } else {
+      paintImportedHero();
+      // Query samples are sibling imports, not fields on the provider
+      // envelope. Hand their classified, excerpt-free records to the decision
+      // adapter explicitly so the hero and each department answer from the
+      // same sample instead of the hero grading it while the drill-down claims
+      // no sample was supplied.
+      const queryRecords = classifiedSamples()
+        .flatMap((entry) => entry.classified.records);
+      const decisions = importedDecisionData(next, {
+        queryRecords, hasQuerySample: samples.length > 0,
+      });
+      renderDecisionSurface(decisions, decisions.departments);
+    }
     setText("local-warning-count", `(${next.warnings.length})`);
     fillTextList("local-assumptions", next.assumptions, "No mapping assumptions.");
     fillTextList("local-warnings", next.warnings, "No declared data-quality warnings.");
@@ -1572,11 +1619,17 @@ function renderDecisionDetail(department, data) {
       : "Equal-period dates unavailable"),
   );
 
-  setText("benchmark-answer", comparison.available
+  // A cohort that does not exist cannot report a rubric mismatch. When the
+  // caller states its own comparator sentence — which is what an import does,
+  // because no peer cohort can be built from a leader's own files — that
+  // sentence is used verbatim rather than reworded here.
+  setText("benchmark-answer", data.benchmarkNotice?.answer ?? (comparison.available
     ? `${signed(comparison.deltaPoints, " points")} versus the cohort median of ${data.benchmark.medianScore}.`
-    : `Unavailable. ${comparison.reason}`);
+    : `Unavailable. ${comparison.reason}`));
   const benchmark = data.benchmark ?? {};
-  setText("benchmark-method",
+  if (data.benchmarkNotice) {
+    setText("benchmark-method", data.benchmarkNotice.method);
+  } else setText("benchmark-method",
     `${benchmark.name ?? "Benchmark unavailable"} · ${benchmark.organizationCount ?? "–"} synthetic organizations · `
     + `${benchmark.segment ?? "segment unavailable"} · snapshot ${benchmark.snapshotDate ?? "unavailable"} · `
     + `${benchmark.rubricVersion ?? "rubric unavailable"} · ${benchmark.provenance ?? provenance.label ?? "provenance unavailable"}`);
@@ -1781,11 +1834,15 @@ async function init() {
     bundledSeed = data;
     renderFinancePortfolio(data);
     repaintBundledAnalysis = () => {
+      clearImportedHeroGrade(document);
       renderHeadline(data.organization ?? {}, totals, gradeEligibility(departments));
       renderMix(totals);
+      // The drill-down comes back with the headline it belongs to. Leaving it
+      // out is how a cleared import left one leader's departments ranked under
+      // a restored bundled hero — a page in two states at once.
+      renderDecisionSurface(data, departments);
     };
     repaintBundledAnalysis();
-    renderDecisionSurface(data, departments);
     renderRedaction(data.redactionSamples);
 
     setLoadState("ready", "Bundled analysis ready",

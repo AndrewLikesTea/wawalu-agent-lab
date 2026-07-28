@@ -339,8 +339,14 @@ test("extremes · 100% and 0% coverage are both drawn, and neither is drawn as t
   applyGradedSample(none, model(0, 1000));
   assert.equal(none.querySelector(".graded-letter"), null, "0% coverage must not produce a letter");
   assert.equal(none.querySelector(".graded-coverage"), null);
-  assert.equal(byId(none, "kpi-row").hidden, true, "a half-filled KPI row would read as graded");
-  assert.equal(byId(none, "spend-mix-panel").hidden, true);
+  // Both panels stay mounted and this module writes no figure into either. What
+  // a reader may see is the panel contract's call, made from the same counts;
+  // unmounting them here would leave two questions off the page with no
+  // sentence naming the input that would answer them.
+  assert.equal(byId(none, "kpi-row").hidden, false);
+  assert.equal(byId(none, "spend-mix-panel").hidden, false);
+  assert.equal(byId(none, "mix-bar").children.length, 0,
+    "a half-filled mix would read as graded");
   assert.match(textOf(byId(none, "graded-sample-body")), /insufficient coverage/);
   assert.match(textOf(byId(none, "graded-sample-live")), /Example data replaced by your import\./);
 

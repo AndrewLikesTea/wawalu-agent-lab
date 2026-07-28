@@ -17,8 +17,11 @@
 //      not in a footnote. They share one bordered block with the letter, so a
 //      skimmer cannot lift the letter out of its qualifier: the border style
 //      itself differs (solid / dashed), which survives a monochrome screenshot.
-//   3. **A sample that cannot be graded publishes no figure.** The KPI row, the
-//      mix and the cohort statement are hidden outright rather than drawn empty.
+//   3. **A sample that cannot be graded publishes no figure.** This module
+//      writes none — and it does not hide the KPI row or the mix to say so
+//      either. `finops-panel-contract.js` owns whether a panel may show a
+//      figure and writes the sentence that stands in for one; a panel that
+//      simply disappeared told a leader nothing about what to bring next.
 //   4. **The example surface is left alone until there is something to replace
 //      it with.** A visitor who imports nothing never reaches this module.
 
@@ -27,8 +30,6 @@ const BODY_ID = "graded-sample-body";
 const LIVE_ID = "graded-sample-live";
 const PROVENANCE_ID = "graded-provenance";
 const BADGE_ID = "headline-basis";
-const KPI_ROW_ID = "kpi-row";
-const MIX_PANEL_ID = "spend-mix-panel";
 const TOGGLE_ID = "graded-subscores-toggle";
 const PANEL_ID = "graded-subscores-panel";
 
@@ -151,10 +152,12 @@ function paint(doc, section) {
   if (model.state === "not_gradeable") {
     delete section.dataset.gradeStatus;
     body.replaceChildren(...notGradeable(doc, model));
-    // No figure is published, so nothing is un-hidden. A half-filled KPI row is
-    // worse than none: the reader would read four numbers as graded.
-    show(doc, KPI_ROW_ID, false);
-    show(doc, MIX_PANEL_ID, false);
+    // No figure is published here — but this module does not take the KPI row
+    // and the mix off the page to say so. `finops-panel-contract.js` decides
+    // which panels may show a figure and paints the sentence that replaces one,
+    // from the same counts this grade was refused on. Hiding them here as well
+    // would race that decision and leave a leader with two panels that vanished
+    // and no sentence saying what would bring them back.
     paintProvenance(doc, model.provenance);
     announce(doc, `${REPLACED} ${model.message.label}. ${model.nextAction.text}`);
     return;
@@ -170,8 +173,9 @@ function paint(doc, section) {
   paintProvenance(doc, model.provenance);
   paintKpis(doc, model);
   paintMix(doc, model.mix);
-  show(doc, KPI_ROW_ID, true);
-  show(doc, MIX_PANEL_ID, true);
+  // Filled, not revealed. Both panels stay mounted in every state and the
+  // contract owns their visibility; un-hiding them here would also undo the
+  // contract on every disclosure toggle, since this function repaints then.
   // Grade, confidence and coverage in one sentence: "updated" would tell a
   // screen-reader user that something moved and nothing about whether to act.
   announce(doc,

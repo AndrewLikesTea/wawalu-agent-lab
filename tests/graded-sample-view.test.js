@@ -164,8 +164,13 @@ test("state B · the honest message and one next action, and no grade figure at 
   assert.equal(document.querySelector(".graded-letter"), null);
   assert.equal(document.querySelector(".graded-grade-line"), null);
   assert.equal(document.querySelector(".graded-coverage"), null);
-  assert.equal(byId(document, "kpi-row").hidden, true);
-  assert.equal(byId(document, "spend-mix-panel").hidden, true);
+  // The two panels stay mounted. This module publishes no figure into them —
+  // the mix bar is still empty — but taking them off the page is not its call:
+  // `finops-panel-contract.js` decides what a leader may read and writes the
+  // sentence naming the input that would fill it. A panel that vanished is a
+  // question a leader can no longer see, let alone answer.
+  assert.equal(byId(document, "kpi-row").hidden, false);
+  assert.equal(byId(document, "spend-mix-panel").hidden, false);
   assert.equal(byId(document, "mix-bar").children.length, 0);
 });
 
