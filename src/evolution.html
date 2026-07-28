@@ -371,6 +371,15 @@
                 <summary>Method notes and what bounds this briefing</summary>
                 <p class="local-lead-method" id="local-lead-method">—</p>
               </details>
+              <!-- Check the math. Every figure above, recomputed from the
+                   operands this briefing carries, with the verdict first. The
+                   container ships empty and is filled by
+                   finops-briefing-derivation-view.js; it stays in the DOM in
+                   every state so the print stylesheet can open it. -->
+              <details class="local-lead-detail" id="local-lead-derivation-detail" hidden>
+                <summary>Check the math: re-derive this figure and this grade</summary>
+                <div class="briefing-derivation" id="local-lead-derivation" hidden></div>
+              </details>
             </div>
             <!-- Persistent, small, and never behind a disclosure: a briefing a
                  leader forwards has to say where it came from and which rubric
@@ -519,6 +528,13 @@
                Direction is in the sentence; the data-direction attribute is for
                the stylesheet and is never the only signal. -->
           <p class="restored-briefing-delta" id="restored-briefing-delta" data-comparable="false" data-direction="none" hidden></p>
+          <!-- The same check the live briefing offers, on the figures that came
+               out of the file. A briefing written under an older rubric says so
+               here, in a verdict rather than in an asterisk. -->
+          <details class="restored-briefing-detail" id="restored-briefing-derivation-detail" hidden>
+            <summary>Check the math: re-derive this saved figure and grade</summary>
+            <div class="briefing-derivation" id="restored-briefing-derivation" hidden></div>
+          </details>
           <button class="restored-briefing-close" id="restored-briefing-close" type="button">Close this restored briefing</button>
         </section>
       </section>

@@ -1121,6 +1121,35 @@
    panel-head step for the question, the 22px lower bound of the metric's own
    clamp) instead of inventing a print-only size.
    --------------------------------------------------------------------------- */
+
+/* --- check the math -------------------------------------------------------
+   The verdict first, the steps as a numbered list, and the outcome of each step
+   carried by its own words. `data-status` drives a leading glyph and a rule
+   colour; neither is ever the only channel, because the step's last sentence
+   already says whether it matched. */
+.briefing-derivation { margin-top:12px; display:grid; gap:10px; }
+.derivation-intro,.derivation-versions { color:#3f3f3a; font:400 12px/1.6 ui-monospace,monospace; }
+.derivation-verdict {
+  margin:0; padding:8px 10px; border-left:4px solid #767670; background:#f4f4f0;
+  font:600 13px/1.55 inherit;
+}
+.derivation-verdict[data-verdict="reproduced"] { border-left-color:#2f6b3f; }
+.derivation-verdict[data-verdict="arithmetic_mismatch"] { border-left-color:#8a2f22; }
+.derivation-verdict[data-verdict="rubric_superseded"],
+.derivation-verdict[data-verdict="rubric_unknown"],
+.derivation-verdict[data-verdict="contract_mismatch"] { border-left-color:#8a6a1f; }
+.derivation-inputs,.derivation-weight-list { margin:0; display:grid; grid-template-columns:auto 1fr; gap:2px 12px; }
+.derivation-inputs dt,.derivation-weight-list dt { font:600 12px/1.6 ui-monospace,monospace; }
+.derivation-inputs dd,.derivation-weight-list dd { margin:0; font-size:13px; }
+.derivation-steps { margin:0; padding-left:20px; display:grid; gap:10px; }
+.derivation-step { break-inside:avoid; }
+.derivation-step-label { margin:0; font-weight:600; }
+.derivation-step-label::before { content:"? "; font-family:ui-monospace,monospace; }
+.derivation-step[data-status="reproduced"] .derivation-step-label::before { content:"= "; color:#2f6b3f; }
+.derivation-step[data-status="mismatch"] .derivation-step-label::before { content:"\2260 "; color:#8a2f22; }
+.derivation-step-expression { margin:2px 0; color:#3f3f3a; font:400 12px/1.6 ui-monospace,monospace; }
+.derivation-step-result { margin:0; font-size:13px; }
+
 @media print {
   /* A briefing is printed from a page whose frame is viewport-sized. Anything
      that clips, scrolls sideways, or sticks has no meaning on paper. */
@@ -1172,4 +1201,11 @@
      rather than being cropped to fit: no row is split, and nothing is clipped. */
   .local-lead-finding { orphans:3; widows:3; }
   .local-department-evidence,.local-department-list>li { break-inside:avoid; }
+  /* The check prints open beside the figure it defends: a forwarded briefing
+     whose arithmetic sits behind a control the reader cannot press is a claim
+     again. Same rule the method notes already follow. */
+  #local-lead-derivation-detail:not([hidden])>*,
+  #restored-briefing-derivation-detail:not([hidden])>* { display:block; }
+  .derivation-verdict { background:#fff; border-left-width:3px; }
+  .derivation-step { orphans:2; widows:2; }
 }

@@ -39,6 +39,7 @@ import {
   BRIEFING_CONFIDENCE, CONTRACT_VERSION, buildFinopsBriefing, validateBriefing,
 } from "./finops-briefing-contract.js";
 import { DOWN_ROUTING_RULE_VERSION } from "./down-routing-candidates.js";
+import { briefingDerivation } from "./finops-briefing-derivation.js";
 
 /**
  * Ceilings, checked before the file is parsed. A briefing is aggregates: a few
@@ -301,6 +302,17 @@ export function parseSavedBriefing(text, { byteSize = null } = {}) {
       recoverableUsd: recoverable.value,
       rubricVersion: savedRubricVersion(results),
       briefing,
+      // "Check the math" for a briefing that arrived as a file, computed here so
+      // a reopened briefing is re-derivable on exactly the terms a fresh one is.
+      //
+      // The briefing handed to the derivation is the *rebuilt* one, not the
+      // file's own `briefing` block: the rebuilt object is what this page shows,
+      // and checking the arithmetic of an object the reader is not being shown
+      // would be an audit of the wrong thing. Everything else — the record
+      // counts, the per-department amounts, the attributed share, and the rubric
+      // version stamped at analysis time — is the file's, which is what makes
+      // this a check of the file rather than of this build.
+      derivation: briefingDerivation({ ...raw, briefing }),
     }),
   });
 }
