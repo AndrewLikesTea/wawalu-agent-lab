@@ -505,10 +505,28 @@
 .local-finding-facts dt { color:var(--ink-muted); font:700 9px/1.4 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; }
 .local-finding-facts dd { margin:5px 0 0; font-size:13px; font-weight:700; line-height:1.45; overflow-wrap:anywhere; }
 .local-finding-facts #local-recoverable { color:#8a2b2b; font-size:24px; letter-spacing:-.025em; }
+/* THE SUPPORTING RAIL. Everything here is subordinate to the trust verdict and
+   the leading finding above it, and the treatment says so before a word is read:
+   a hairline rule instead of a card edge, no fill of its own, and a label that
+   names it as supporting. It introduces no colour, type step or spacing value
+   that was not already on this page. */
+.local-secondary-evidence { margin-top:24px; padding-top:16px; border-top:1px solid var(--panel-border); }
+.local-secondary-evidence>.eyebrow { color:var(--ink-muted); }
+/* The rail's provenance note leads it rather than trailing it — see the markup
+   comment. Kept at the same weight as every other copy of this note, because a
+   quieter "Example data" on the block a reader skims fastest is the one place it
+   must not be quieter. */
+.local-secondary-evidence>.dataset-provenance { margin-top:10px; }
 .local-state-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-top:12px; }
 .local-state-grid article { border:1px solid #d4ddd8; border-left:5px solid #315f50; border-radius:10px; padding:16px; background:#fff; }
 .local-state-grid article[data-state="missing"] { border-left-color:#9b791c; background:#fffaf0; }
 .local-state-grid article[data-state="incompatible"] { border-left-color:#a5322f; background:#fdf5f4; }
+/* The benchmark card writes `available`/`unavailable`, which had no rule at all:
+   a cohort the analysis could not establish was drawn exactly like one it could.
+   Warn, not error — an absent benchmark is a bound on the claim, not a file this
+   page failed to read. The shape and the answer word carry it either way. */
+.local-state-grid article[data-state="unavailable"] { border-left-color:#9b791c; background:#fffaf0; }
+.local-state-grid article[data-state="unavailable"] h4 { color:var(--state-warn-ink); }
 .local-state-grid h4 { margin:6px 0; font-size:18px; }
 .local-state-grid p:last-child { margin:0; color:var(--ink-muted); font-size:12px; line-height:1.5; }
 .local-department-evidence { margin-top:12px; border:1px solid #d4ddd8; border-radius:11px; padding:18px; background:#fff; }
@@ -532,6 +550,16 @@
 .local-disclosures { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin-top:12px; }
 .local-disclosures details { border:1px solid #d8d6cf; border-radius:9px; padding:13px; background:#fff; }
 .local-disclosures summary { cursor:pointer; font-size:12px; font-weight:750; }
+/* The count is the state, in the same mono caption role the rest of this page
+   uses for a measured quantity. Three states, and colour is the last channel of
+   the three: the word ("none", "not analyzed", "12 warnings") is first, the
+   dashed edge second — the same "not filled in yet" grammar the waiting cards on
+   this page already use — and only then the muted ink. */
+.disclosure-count { color:var(--ink-muted); font:700 11px/1.4 ui-monospace,monospace; }
+.local-disclosures details[data-state="filled"] .disclosure-count { color:var(--import-ink); }
+.local-disclosures details[data-state="empty"],
+.local-disclosures details[data-state="unavailable"] { border-style:dashed; background:#fcfcfa; }
+.local-disclosures details[data-state="unavailable"] .disclosure-count { color:var(--state-warn-ink); }
 .local-disclosures ul { margin:12px 0 0; padding-left:20px; font-size:12px; line-height:1.55; }
 /* The executive panel contract (src/finops-panel-contract.js). A declared panel
    is never removed: when its inputs are absent the figures go and this sentence
@@ -1255,9 +1283,17 @@
 @media print {
   /* A briefing is printed from a page whose frame is viewport-sized. Anything
      that clips, scrolls sideways, or sticks has no meaning on paper. */
-  .local-results,.local-import,.local-lead-finding,.restored-briefing {
+  .local-results,.local-import,.local-lead-finding,.local-trust,.restored-briefing {
     position:static; overflow:visible; max-height:none;
   }
+  /* The trust verdict is the first thing a reader is owed and it had no print
+     rule at all, so the percentage could land on one sheet and the sentence that
+     bounds it on the next. Coverage, its operands and the answer are one reading;
+     `break-after: avoid` binds each line to the one under it, which is how three
+     siblings stay together without a wrapper the screen does not need. */
+  .local-trust { break-inside:auto; border-color:#767670; background:#fff; }
+  .local-trust-coverage,.local-trust-inputs { break-inside:avoid; break-after:avoid; }
+  .local-trust-answer,.local-trust-next,.local-trust-finding { break-inside:avoid; }
   .local-lead-finding {
     border:1px solid #767670; border-top-width:3px; background:#fff; box-shadow:none;
   }
@@ -1318,12 +1354,43 @@
      something the reader failed to press. */
   .local-lead-finding button,.restored-briefing button,.local-results button,
   .coverage-upgrade-jump,.local-trust-jump,.restored-briefing-close { display:none; }
+  /* …with one exception, and it was a defect rather than a decision: the
+     department ranking and the unattributed findings put their *content* — the
+     rank, the name and the money — inside the control that expands them. The
+     blanket rule above dropped the row and the collapsed panel under it, so a
+     printed brief showed the ranking as a column of empty boxes.
+
+     On paper the control is not a control, so it prints as the row heading it
+     was standing in for: the chevron goes, the press affordance goes, and every
+     panel is opened, because a disclosure whose control cannot be pressed has to
+     arrive already open. The selectors are two classes deep to out-specify
+     `.local-results button` rather than to shout. */
+  .local-results .local-department-choice,.local-results .local-trust-choice {
+    display:flex; background:none; box-shadow:none; cursor:auto;
+  }
+  .local-department-chevron { display:none; }
+  .local-department-detail[hidden],.local-trust-detail[hidden] { display:block; }
   /* Persistent on paper, at the smallest step of the mono caption role. */
   .local-lead-basis,.local-lead-provenance { display:block; color:#3f3f3a; font-size:10px; }
   /* A briefing whose department ranking overflows one sheet breaks cleanly
      rather than being cropped to fit: no row is split, and nothing is clipped. */
   .local-lead-finding { orphans:3; widows:3; }
   .local-department-evidence,.local-department-list>li { break-inside:avoid; }
+  /* The supporting rail keeps its rank on paper. It cannot be reordered ahead of
+     the finding — it is authored after it — but it can be told apart from it:
+     the label that names it as supporting prints, the rail starts on a fresh
+     sheet rather than sharing one with the decisive figure, and its provenance
+     travels with it, so an example rail is never read as the reader's own. */
+  .local-secondary-evidence { break-before:page; border-top:1px solid #767670; }
+  .local-secondary-evidence>.eyebrow { display:block; color:#171713; }
+  .dataset-provenance { break-inside:avoid; background:#fff; border-color:#767670; border-left-color:#171713; color:#171713; }
+  .local-state-grid>article,.local-disclosures>details { break-inside:avoid; background:#fff; }
+  /* An empty or unanalyzed disclosure keeps its dashed edge on paper: the count
+     word says it, and the one shape channel that survives a mono press says it
+     again. */
+  .local-disclosures details[data-state="empty"],
+  .local-disclosures details[data-state="unavailable"] { border:1px dashed #767670; }
+  .disclosure-count { color:#171713; }
   /* The check prints open beside the figure it defends: a forwarded briefing
      whose arithmetic sits behind a control the reader cannot press is a claim
      again. Same rule the method notes already follow. */

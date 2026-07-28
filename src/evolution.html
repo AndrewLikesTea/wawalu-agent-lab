@@ -472,49 +472,95 @@
               <p class="local-redaction-note">Only column headers, one sample value per column in the mapping step, declared contract fields, and aggregate totals are read into this page. No other cell value or record identifier is rendered, announced, or written to an export, and your file name appears only as the provenance label on your own result.</p>
             </details>
           </article>
-          <div class="local-state-grid" aria-label="Supporting trend and benchmark evidence">
-            <article id="local-trend-state" aria-labelledby="local-trend-title" aria-describedby="local-trend-why">
-              <p class="eyebrow">Material trend</p>
-              <h4 id="local-trend-title"><span id="local-trend-shape" aria-hidden="true">—</span> <span id="local-trend-answer">History not yet analyzed</span></h4>
-              <p id="local-trend-why"></p>
-            </article>
-            <article id="local-benchmark-state" aria-labelledby="local-benchmark-title" aria-describedby="local-benchmark-why">
-              <p class="eyebrow">Benchmark</p>
-              <h4 id="local-benchmark-title"><span aria-hidden="true">◇</span> <span id="local-benchmark-answer">Unavailable</span></h4>
-              <p id="local-benchmark-why"></p>
-            </article>
-          </div>
-          <section class="local-department-evidence" id="local-department-evidence" aria-labelledby="local-departments-title">
-            <div>
-              <p class="eyebrow">Progressive disclosure</p>
-              <h4 id="local-departments-title">Department evidence</h4>
-              <p>Expand a department finding to inspect impact, trend, confidence, and provenance in that order.</p>
+          <!-- THE SUPPORTING RAIL. Everything below the trust verdict and the
+               leading finding: trend, benchmark, the department ranking, and the
+               five shared disclosures. It is one region rather than four loose
+               siblings for three reasons.
+
+               1. Provenance. These blocks render envelope numbers, so they are
+                  an analysis surface and owe the reader the same one label the
+                  brief above them carries. The note sits *first* here, unlike on
+                  the surfaces above: those lead with a question a reader came for
+                  and caption it afterwards, while this rail has no headline of
+                  its own — so "these are example figures" has to be read before
+                  the figures, not after them.
+               2. Rank. Naming it as supporting, in words, is what stops a reader
+                  from meeting a benchmark card and the decisive finding as peers.
+               3. Print. One region is one thing to keep behind the primary
+                  finding on paper, rather than four rules that can drift apart.
+
+               No content moved into it: the DOM order of every block below is the
+               order it already shipped in. -->
+          <section class="local-secondary-evidence" id="local-secondary-evidence" data-analysis-surface data-dataset="user" aria-labelledby="local-secondary-evidence-title">
+            <p class="eyebrow" id="local-secondary-evidence-title">Supporting evidence · read after the finding above</p>
+            <p class="dataset-provenance" id="dataset-provenance-secondary" data-dataset-provenance data-dataset="user" role="note" aria-label="Data provenance" hidden></p>
+            <div class="local-state-grid" aria-label="Supporting trend and benchmark evidence">
+              <article id="local-trend-state" aria-labelledby="local-trend-title" aria-describedby="local-trend-why" data-state="missing">
+                <p class="eyebrow">Material trend</p>
+                <h4 id="local-trend-title"><span id="local-trend-shape" aria-hidden="true">—</span> <span id="local-trend-answer">History not yet analyzed</span></h4>
+                <p id="local-trend-why"></p>
+              </article>
+              <!-- The benchmark's shape is painted from its own state, exactly as
+                   the trend card's already was. It shipped as a hard-coded ◇ that
+                   said "unavailable" over an available cohort, which made the one
+                   non-colour channel on this card wrong in the state that matters. -->
+              <article id="local-benchmark-state" aria-labelledby="local-benchmark-title" aria-describedby="local-benchmark-why" data-state="unavailable">
+                <p class="eyebrow">Benchmark</p>
+                <h4 id="local-benchmark-title"><span id="local-benchmark-shape" aria-hidden="true">◇</span> <span id="local-benchmark-answer">Unavailable</span></h4>
+                <p id="local-benchmark-why"></p>
+              </article>
             </div>
-            <p class="coverage-lead" id="local-departments-coverage" data-confidence="" hidden></p>
-            <ol id="local-department-list" class="local-department-list" aria-label="Departments ordered by recoverable scenario"></ol>
+            <section class="local-department-evidence" id="local-department-evidence" aria-labelledby="local-departments-title">
+              <div>
+                <p class="eyebrow">Progressive disclosure</p>
+                <h4 id="local-departments-title">Department evidence</h4>
+                <p>Expand a department finding to inspect impact, trend, confidence, and provenance in that order.</p>
+              </div>
+              <p class="coverage-lead" id="local-departments-coverage" data-confidence="" hidden></p>
+              <ol id="local-department-list" class="local-department-list" aria-label="Departments ordered by recoverable scenario"></ol>
+            </section>
+            <!-- The five shared disclosures. Native `details`, so expanded and
+                 collapsed are the element's own state — keyboard operable, and
+                 announced without an attribute anyone has to keep in sync.
+
+                 Each summary now ends in a count painted by
+                 `applySupportingDisclosures`. It is inside the `summary`, so it
+                 is part of the control's accessible name: "Data-quality warnings,
+                 none" is read and heard before the control is pressed. Three
+                 states are told apart, and never by the tint alone — the word is
+                 the signal and the dashed edge only repeats it:
+
+                   filled       n rows are behind this control
+                   empty        the analysis ran and produced none
+                   unavailable  nothing has been analyzed, so the count is not
+                                zero — it is unknown, and a "0" here would be a
+                                claim the page cannot make.
+
+                 A control that opens onto nothing is a control that lies, so the
+                 count says so before it is pressed rather than after. -->
+            <div class="local-disclosures" id="local-disclosures">
+              <details data-state="unavailable" id="local-periods-detail">
+                <summary>Period-level detail: <span class="disclosure-count" id="local-periods-count">not analyzed</span></summary>
+                <ol id="local-periods"></ol>
+              </details>
+              <details data-state="unavailable" id="local-assumptions-detail">
+                <summary>Mapping assumptions: <span class="disclosure-count" id="local-assumptions-count">not analyzed</span></summary>
+                <ul id="local-assumptions"></ul>
+              </details>
+              <details data-state="unavailable" id="local-warnings-detail">
+                <summary>Data-quality warnings: <span class="disclosure-count" id="local-warning-count">not analyzed</span></summary>
+                <ul id="local-warnings"></ul>
+              </details>
+              <details data-state="unavailable" id="local-limits-detail">
+                <summary>Benchmark and trend limits: <span class="disclosure-count" id="local-limits-count">not analyzed</span></summary>
+                <ul id="local-limits"></ul>
+              </details>
+              <details data-state="unavailable" id="local-evidence-detail">
+                <summary>Recommendation evidence: <span class="disclosure-count" id="local-evidence-count">not analyzed</span></summary>
+                <ul id="local-evidence"></ul>
+              </details>
+            </div>
           </section>
-          <div class="local-disclosures">
-            <details>
-              <summary>Period-level detail</summary>
-              <ol id="local-periods"></ol>
-            </details>
-            <details>
-              <summary>Mapping assumptions</summary>
-              <ul id="local-assumptions"></ul>
-            </details>
-            <details>
-              <summary>Data-quality warnings <span id="local-warning-count"></span></summary>
-              <ul id="local-warnings"></ul>
-            </details>
-            <details>
-              <summary>Benchmark and trend limits</summary>
-              <ul id="local-limits"></ul>
-            </details>
-            <details>
-              <summary>Recommendation evidence</summary>
-              <ul id="local-evidence"></ul>
-            </details>
-          </div>
         </section>
         <!-- A briefing reopened from a file. A sibling of the imported result,
              never a slot inside it: a visitor who comes back next quarter must

@@ -73,7 +73,8 @@ import {
 import {
   announce as announceStage, applyDatasetProvenance, applyFieldDiagnostic, applyImportLimits,
   applyBriefing, applyBriefingState, applyImportProgress, applyMetricBasis, applyRequirements, applyRestoreRejection,
-  applyRestoredBriefing, applyStage, applyTrustVerdict, diagnosticFor, EXAMPLE_DATASET_PROVENANCE,
+  applyRestoredBriefing, applyStage, applySupportingDisclosures, applyTrustVerdict, diagnosticFor,
+  EXAMPLE_DATASET_PROVENANCE,
   focusStageHeading, importStage, metricBasis, userDatasetProvenance,
 } from "/local-import-flow.js";
 // A leader's own graded sample. The rubric and the eligibility tier are both
@@ -915,6 +916,12 @@ function mountLocalFinopsImport() {
       benchmarkState.dataset.state = guided.benchmark.available ? "available" : "unavailable";
       benchmarkState.dataset.source = guided.benchmark.provenance.source;
     }
+    // The shape is the non-colour channel this card was missing: it shipped as a
+    // hard-coded ◇ that read "unavailable" over a cohort that was available, so
+    // the one signal a greyscale reader had was the wrong one. ◆ / ◇ is the same
+    // filled-versus-outline grammar the confidence chips on this page use, and
+    // the answer line beside it says the state in words either way.
+    setText("local-benchmark-shape", guided.benchmark.available ? "◆" : "◇");
     setText("local-benchmark-answer", guided.benchmark.answer);
     setText("local-benchmark-summary", guided.benchmark.summary);
     setText("local-benchmark-why", guided.benchmark.why);
@@ -923,7 +930,6 @@ function mountLocalFinopsImport() {
       + `${period.recoverableUsd.toFixed(2)} USD scenario · ${period.completeness} export · ${period.exportId}`),
     "No provider periods available.");
     renderDepartments(next);
-    setText("local-warning-count", `(${next.warnings.length})`);
     fillTextList("local-assumptions", next.assumptions, "No mapping assumptions.");
     fillTextList("local-warnings", next.warnings, "No declared data-quality warnings.");
     fillTextList("local-limits", next.limits, "No declared limits.");
@@ -931,6 +937,16 @@ function mountLocalFinopsImport() {
     // because both are read off the one disclosure state rather than off the
     // envelope twice.
     fillTextList("local-evidence", guided.evidence.items, guided.evidence.emptyText);
+    // …and every one of those five controls now says what is behind it before it
+    // is pressed. The counts are the lengths just painted, not a second read of
+    // the envelope, so a summary cannot claim a row the list does not hold.
+    applySupportingDisclosures(document, {
+      periods: trend.periods.length,
+      assumptions: next.assumptions.length,
+      warnings: next.warnings.length,
+      limits: next.limits.length,
+      evidence: guided.evidence.items.length,
+    });
     resultsNode.hidden = false;
     clear.hidden = false;
     clear.textContent = example ? "Clear example data" : "Return to example data";
@@ -1044,6 +1060,11 @@ function mountLocalFinopsImport() {
     // the finding are all discarded together. Nothing was ever written to
     // storage or the URL, so a reload is already a fresh visit.
     applyDatasetProvenance(document, false);
+    // The supporting rail hands its counts back too. Passing nothing repaints
+    // every summary as "not analyzed", which is the truth after a clear — a
+    // stale "12 warnings" over an emptied list is a count for a file that is no
+    // longer loaded, and a "0" would be a claim nothing has measured.
+    applySupportingDisclosures(document, {});
     const trust = document.getElementById("local-trust");
     if (trust) {
       trust.hidden = true;

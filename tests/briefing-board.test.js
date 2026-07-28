@@ -20,8 +20,13 @@ import { loadPage, textOf } from "./support/browser.js";
 import {
   applyBriefing,
   applyBriefingState,
+  applyDatasetProvenance,
+  applySupportingDisclosures,
   BRIEFING_STATE_MESSAGE,
   briefingLines,
+  disclosureCount,
+  DISCLOSURE_STATE,
+  SUPPORTING_DISCLOSURES,
 } from "../src/local-import-flow.js";
 import {
   ABSENCE_REASON,
@@ -523,6 +528,154 @@ test("the disclosure controls are native, labelled with what they reveal, and fo
     assert.ok(["-1", "0"].includes(node.getAttribute("tabindex")),
       "a positive tabindex would reorder the keyboard path away from the DOM");
   }
+});
+
+// --- F. the supporting rail -------------------------------------------------
+//
+// Everything below the trust verdict and the leading finding: trend, benchmark,
+// the department ranking, and the five shared disclosures. It is secondary
+// material, and these cover the three ways that has to be true — it reads after
+// the finding, it says what is behind each of its controls before one is
+// pressed, and it carries the same provenance label the brief above it does.
+
+test("the supporting rail reads after the decisive finding, on screen and on paper", () => {
+  const at = (id) => {
+    const index = html.indexOf(`id="${id}"`);
+    assert.ok(index > 0, `${id} is missing from the authored markup`);
+    return index;
+  };
+  // DOM order is the reading order, the tab order and the print order at once.
+  assert.ok(at("local-trust") < at("local-lead-finding"),
+    "the trust verdict must be met before the figure it bounds");
+  assert.ok(at("local-lead-finding") < at("local-secondary-evidence"),
+    "supporting evidence is authored ahead of the finding it supports");
+  for (const id of ["local-trend-state", "local-benchmark-state", "local-department-evidence",
+    "local-disclosures"]) {
+    assert.ok(at("local-secondary-evidence") < at(id), `${id} escaped the supporting rail`);
+  }
+  // The rail is named as supporting in words, not only set in a quieter style.
+  assert.match(html, /id="local-secondary-evidence-title">Supporting evidence/);
+  assert.match(html, /id="local-secondary-evidence"[^>]*aria-labelledby="local-secondary-evidence-title"/);
+
+  // On paper it cannot be reordered ahead of the finding — it is authored after
+  // it — but it must be separable from it, and the trust verdict must survive
+  // pagination rather than losing its answer to the next sheet.
+  assert.match(PRINT, /\.local-secondary-evidence[^{]*\{[^}]*break-before\s*:\s*page/);
+  assert.match(PRINT, /\.local-trust-coverage,\.local-trust-inputs[^{]*\{[^}]*break-after\s*:\s*avoid/);
+  assert.match(PRINT, /\.local-results,[^{]*\.local-trust,[^{]*\{[^}]*overflow\s*:\s*visible/);
+});
+
+test("a printed ranking is rows, not a column of empty boxes", () => {
+  // The regression this pins: the department rows and the unattributed findings
+  // put their rank, name and money *inside* the control that expands them, and
+  // the blanket "no dead buttons on paper" rule dropped the row with the control.
+  assert.match(PRINT, /\.local-results \.local-department-choice,\.local-results \.local-trust-choice[^{]*\{[^}]*display\s*:\s*flex/);
+  // …and the panels those controls open arrive already open, because a reader
+  // holding a sheet of paper cannot press anything.
+  assert.match(PRINT, /\.local-department-detail\[hidden\],\.local-trust-detail\[hidden\][^{]*\{[^}]*display\s*:\s*block/);
+  // The affordance itself still goes: a chevron on paper is an instruction the
+  // reader cannot follow.
+  assert.match(PRINT, /\.local-department-chevron[^{]*\{[^}]*display\s*:\s*none/);
+  // The blanket rule is still there — this is an exception to it, not its repeal.
+  assert.match(PRINT, /\.local-results button[\s\S]{0,120}\{[^}]*display\s*:\s*none/);
+});
+
+test("every shared disclosure says what is behind it before it is pressed", async () => {
+  const { document } = await openPage();
+  const details = [...byId(document, "local-disclosures").querySelectorAll("details")];
+  assert.equal(details.length, SUPPORTING_DISCLOSURES.length);
+
+  // Before anything is analyzed: not zero, which would be a measurement, but
+  // "not analyzed", which is the truth.
+  applySupportingDisclosures(document, {});
+  for (const detail of details) {
+    assert.equal(detail.dataset.state, DISCLOSURE_STATE.unavailable);
+    // Native <details>: keyboard operation and the expanded/collapsed state are
+    // the element's own, so there is no aria-expanded here to fall out of sync.
+    assert.equal(detail.tagName, "DETAILS");
+    assert.equal(detail.hasAttribute("open"), false);
+    const summary = detail.querySelector("summary");
+    // The count sits inside the summary, so it is part of the control's
+    // accessible name: a reader hears it before deciding whether to open it.
+    assert.match(textOf(summary), /not analyzed$/);
+    assert.ok(textOf(summary).replace(/not analyzed$/, "").trim().length > 12,
+      `"${textOf(summary)}" does not say what it reveals`);
+  }
+
+  const painted = applySupportingDisclosures(document, {
+    periods: 2, assumptions: 0, warnings: 12, limits: 1, evidence: 4,
+  });
+  assert.deepEqual(painted, {
+    periods: DISCLOSURE_STATE.filled,
+    assumptions: DISCLOSURE_STATE.empty,
+    warnings: DISCLOSURE_STATE.filled,
+    limits: DISCLOSURE_STATE.filled,
+    evidence: DISCLOSURE_STATE.filled,
+  });
+  assert.equal(textOf(byId(document, "local-periods-count")), "2 periods");
+  assert.equal(textOf(byId(document, "local-warning-count")), "12 warnings");
+  // Singular is singular. A "1 limits" in an executive artifact is a tell that
+  // nobody read the surface they shipped.
+  assert.equal(textOf(byId(document, "local-limits-count")), "1 limit");
+  assert.equal(textOf(byId(document, "local-assumptions-count")), "none");
+  assert.equal(byId(document, "local-assumptions-detail").dataset.state, DISCLOSURE_STATE.empty);
+
+  // The three states are separable without colour: the word differs in all
+  // three, and the two that hold nothing carry a dashed edge as well.
+  assert.equal(disclosureCount(0, "warning").text, "none");
+  assert.equal(disclosureCount(null, "warning").text, "not analyzed");
+  assert.equal(disclosureCount(3, "warning").text, "3 warnings");
+  for (const state of ["empty", "unavailable"]) {
+    assert.match(css, new RegExp(
+      `\\.local-disclosures details\\[data-state="${state}"\\][^{]*\\{[^}]*border-style\\s*:\\s*dashed`),
+    `the ${state} disclosure is told apart by tint alone`);
+  }
+  // A negative or non-numeric count is unknown, never a measurement.
+  assert.equal(disclosureCount(-1).state, DISCLOSURE_STATE.unavailable);
+  assert.equal(disclosureCount(Number.NaN).state, DISCLOSURE_STATE.unavailable);
+  assert.equal(disclosureCount("4").state, DISCLOSURE_STATE.unavailable);
+});
+
+test("the benchmark card's one non-colour channel tells its two states apart", async () => {
+  const script = await readFile(new URL("../src/evolution-page.js", import.meta.url), "utf8");
+  // It shipped as a hard-coded ◇ that read "unavailable" over an established
+  // cohort. The shape is now painted from the same state the card is.
+  assert.match(html, /id="local-benchmark-shape" aria-hidden="true"/);
+  assert.match(script, /setText\("local-benchmark-shape", guided\.benchmark\.available \? "◆" : "◇"\)/);
+  // …and the state the card writes is a state the stylesheet draws. `available`
+  // and `unavailable` had no rule at all, so a bounded claim looked exactly like
+  // an established one.
+  assert.match(script, /benchmarkState\.dataset\.state = guided\.benchmark\.available \? "available" : "unavailable"/);
+  assert.ok(declared('.local-state-grid article[data-state="unavailable"]', "border-left-color"),
+    "the benchmark's unavailable state is written by the page and drawn by nothing");
+  // The glyph is decoration over a word: the answer line says the state too.
+  const { document } = await openPage();
+  assert.equal(byId(document, "local-benchmark-shape").getAttribute("aria-hidden"), "true");
+  assert.ok(textOf(byId(document, "local-benchmark-answer")).length > 0);
+});
+
+test("the supporting rail carries the same provenance label the brief above it does", async () => {
+  const { document } = await openPage();
+  const rail = byId(document, "local-secondary-evidence");
+  assert.equal(rail.getAttribute("data-analysis-surface"), "");
+  const note = rail.querySelector("[data-dataset-provenance]");
+  assert.ok(note, "the rail renders envelope numbers with no provenance slot");
+  // The note leads the rail rather than trailing it: this block has no headline
+  // of its own, so "these are example figures" has to be read before the
+  // figures. Everywhere above, the question comes first and the caption after.
+  assert.ok(html.indexOf('id="dataset-provenance-secondary"')
+    < html.indexOf('class="local-state-grid"'),
+  "the example caption is read after the example numbers");
+
+  const state = applyDatasetProvenance(document, true);
+  assert.equal(rail.dataset.dataset, "example");
+  assert.equal(note.hidden, false);
+  assert.match(textOf(note), new RegExp(state.label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+
+  applyDatasetProvenance(document, false);
+  assert.equal(rail.dataset.dataset, "user");
+  assert.equal(note.hidden, true, "an unlabelled rail would read as the visitor's own numbers");
+  assert.equal(textOf(note), "");
 });
 
 test("the painter writes text, never markup, into every slot it owns", async () => {
