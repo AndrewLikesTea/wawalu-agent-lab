@@ -56,6 +56,7 @@ import {
   DOWN_ROUTING_CONSTANTS,
   DOWN_ROUTING_RULE_VERSION,
 } from "./down-routing-candidates.js";
+import { deriveBriefingCommitment } from "./finops-briefing-commitment.js";
 
 /**
  * The file's own version, separate from the briefing contract's. The contract
@@ -501,6 +502,14 @@ export function buildBriefing(analysis, { dataset, exportedAt, attributionWithhe
     // statement at `briefing.provenance`, and a second copy under a second name
     // is the fork this whole seam exists to prevent.
     results: projectResults(result, departments),
+    // The one commitment this analysis supports, or a stated reason it supports
+    // none. It sits beside `results` rather than inside it because it is not a
+    // projection of the analysis: it is Noor's savings-commitment contract
+    // applied to the analysis, and it carries its own contract version. The
+    // `results` projection deliberately does not carry the per-model routing
+    // detail this is derived from, so a reader that reopens the file reads the
+    // commitment rather than rebuilding it — which is what makes it portable.
+    savingsCommitment: deriveBriefingCommitment(result, { dataset, attributionWithheld }),
     scenario: scenarioBlock(),
   };
 

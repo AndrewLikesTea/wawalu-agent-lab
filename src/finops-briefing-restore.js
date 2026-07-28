@@ -40,6 +40,7 @@ import {
 } from "./finops-briefing-contract.js";
 import { DOWN_ROUTING_RULE_VERSION } from "./down-routing-candidates.js";
 import { briefingDerivation } from "./finops-briefing-derivation.js";
+import { readSavedCommitment } from "./finops-briefing-commitment.js";
 
 /**
  * Ceilings, checked before the file is parsed. A briefing is aggregates: a few
@@ -313,6 +314,13 @@ export function parseSavedBriefing(text, { byteSize = null } = {}) {
       // version stamped at analysis time — is the file's, which is what makes
       // this a check of the file rather than of this build.
       derivation: briefingDerivation({ ...raw, briefing }),
+      // The commitment is read out of the file rather than rebuilt, because the
+      // `results` projection carries no per-model routing detail to rebuild it
+      // from. That makes it the one block here this page did not recompute, so
+      // it goes through the commitment contract's own validator on the way in
+      // and arrives as an explicit `unavailable` state when it does not hold —
+      // including for every briefing written before this block existed.
+      savingsCommitment: readSavedCommitment(raw),
     }),
   });
 }
