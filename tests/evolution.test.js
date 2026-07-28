@@ -202,13 +202,17 @@ test("the AI FinOps tab ships from every page and keeps the demo boundary", asyn
 });
 
 test("the AI FinOps page exposes labelled loading and keyboard-native recovery", async () => {
-  const [page, script, styles] = await Promise.all([
-    read("src/evolution.html"), read("src/evolution-page.js"), read("src/evolution.css"),
+  const [page, script, strings, styles] = await Promise.all([
+    read("src/evolution.html"), read("src/evolution-page.js"),
+    read("src/briefing-strings.js"), read("src/evolution.css"),
   ]);
   assert.match(page, /id="finops-load-state" role="status" aria-live="polite"/);
   assert.match(page, /<button id="finops-data-retry" type="button" hidden>/);
-  assert.match(script, /The last successful synthetic analysis remains visible/);
-  assert.match(script, /No metric is inferred from a failed load/);
+  assert.match(strings, /The last successful synthetic analysis remains visible/);
+  // What every panel says after that failure is authored in briefing-strings.js,
+  // and it names the retry control by the label the button above actually ships.
+  assert.match(strings, /No score is inferred from a sample that did not load/);
+  assert.match(strings, /Retry bundled analysis/);
   assert.match(styles, /\.finops-load-state button:focus-visible/);
   assert.match(styles, /\.sample-badge[^}]*background:transparent/);
 });

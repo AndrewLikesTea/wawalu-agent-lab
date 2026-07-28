@@ -102,9 +102,10 @@ test("unavailable sampling is not converted into poor performance or a benchmark
 });
 
 test("the bundled decision surface explains empty evidence and unavailable sampling", async () => {
-  const [page, script, fixtureText] = await Promise.all([
+  const [page, script, strings, fixtureText] = await Promise.all([
     readFile(new URL("../src/evolution.html", import.meta.url), "utf8"),
     readFile(new URL("../src/evolution-page.js", import.meta.url), "utf8"),
+    readFile(new URL("../src/briefing-strings.js", import.meta.url), "utf8"),
     readFile(new URL("../src/evolution-demo-data.json", import.meta.url), "utf8"),
   ]);
   const fixture = JSON.parse(fixtureText);
@@ -116,8 +117,11 @@ test("the bundled decision surface explains empty evidence and unavailable sampl
     < page.indexOf("Is cost/performance worsening?"));
   assert.ok(page.indexOf("Is cost/performance worsening?")
     < page.indexOf("How does it compare with the benchmark?"));
-  assert.match(script, /No scored evidence was retained/);
-  assert.match(script, /No evidence conclusion/);
+  // The two empty-evidence sentences live in briefing-strings.js, with every
+  // other state string this page paints; the page module only chooses between
+  // them. `briefing-strings.test.js` covers what they say.
+  assert.match(strings, /retains no per-query evidence rows/);
+  assert.match(strings, /no scored evidence to show/);
   assert.match(script, /Not yet simulated/);
   assert.ok(fixture.departments.some((item) => item.sampling.status === "unavailable"));
   assert.ok(fixture.departments.some((item) =>
