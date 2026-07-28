@@ -92,6 +92,25 @@ The cohort median beside the percentile is the middle value; for an even member
 count it is the mean of the two middle values, rounded once to the metric's
 precision.
 
+## Partial, stale, malformed, and reordered data
+
+The cohort snapshot is immutable, repository-published reference data rather
+than a live feed. Its version and snapshot date identify its meaning; the
+consumer does not read a clock or silently replace it from a network response.
+
+| Condition | Contract behavior |
+| --- | --- |
+| Partial organization import | A missing headline `literacy_score` refuses the benchmark with `no_comparable_peer_metric`. A missing supporting value leaves the benchmark available but marks only that metric unavailable with `no_organization_metric_value`. Missing is never coerced to zero. |
+| Stale or incompatible scoring input | A literacy score produced under a different rubric version is refused with `peer_rubric_version_mismatch`; it is never rescaled. The cohort snapshot date is provenance, not a freshness timeout, because the versioned snapshot is intentionally fixed until publication changes it. |
+| Malformed organization value | A non-finite or out-of-domain metric is unavailable with `no_organization_metric_value`. An invalid or absent segment refuses selection; no percentile, quartile, ordinal, or action is published. |
+| Reordered inputs or reference members | Result order and arrival order have no meaning. Cohort selection uses specificity then `cohortId`; percentile and median operate on value sets; the drift digest canonicalizes cohorts by `cohortId` and members by `memberId`. Reordering alone changes neither a result nor the published-content digest. |
+
+Malformed published reference data is a build-time defect, not a recoverable
+visitor state: load-time invariants and contract tests require unique cohort
+ids, declared metric fields, valid selectors, and the member floor before this
+snapshot can ship. Deployment never fetches replacement cohort data and needs no
+enterprise credential.
+
 ## Comparability and confidence
 
 `comparability` describes the cohort, not the data quality:
@@ -160,6 +179,41 @@ accountable role plus evidence. A comparison that recommends one thing in a
 result object and shows nothing on screen is the defect this contract's
 consumer is tested against; the block is hidden and its text cleared whenever
 there is no available finding, so no stale action survives a cleared import.
+
+## Reproducibility, and the assumption behind each weight
+
+Every figure here will be disputed by the director whose organization it grades,
+so each one is reproducible from stated inputs under stated rules. The contract
+carries no free coefficients, but it does carry six choices that move a reader's
+number. Each is listed with the assumption it rests on; a weight nobody can
+question is a weight nobody can defend.
+
+| Choice | Assumption it rests on |
+| --- | --- |
+| `literacy_score` is the headline, and without it there is no benchmark | The question is about how well the organization uses the tool; the two spend metrics describe the invoice that follows. Placing an ungraded import on spend alone would rank the consequence and hide the cause. |
+| Ties count as one half (mid-rank) | An organization equal to every member of its cohort is average by construction and must read 50. The neighbouring conventions report 0 or 100 for it. |
+| Round to the metric's precision **before** comparing | A tie should be a fact about the business, not about float representation. Rounding afterwards lets `0.199990000001` beat `0.19999`. |
+| `recoverable_share` is lower-is-better | A large recoverable share is avoidable spend still sitting on the invoice. Direction is declared per metric because inverting it would reverse a ranking silently. |
+| Action ranks 1–4, literacy triggering at percentile < 25 and both spend metrics at < 50 | Bottom-quartile literacy is the only finding that says the work itself is the problem, so it outranks both spend findings — and it fires only in the bottom quartile because "below the median" is not on its own a reason to change how an organization writes prompts. Recoverable share outranks the query mix because it is already denominated in dollars on this period's invoice. |
+| Member floor 8, confident count 12 | Below eight members a percentile is a rank wearing a distribution's clothes, so such a cohort is not published; below twelve it is published and labelled low confidence. Both numbers are editorial. Every cohort shipped today publishes twelve, so no reader currently sees a low-confidence comparison. |
+
+Three suites hold this up, over labelled synthetic fixtures in
+`tests/support/peer-fixtures.js` — comparable, non-comparable, missing-segment,
+boundary-percentile and tied-score imports, with hand-derived expectations:
+
+- `tests/peer-cohort-contract.test.js` — the rules, unit by unit.
+- `tests/peer-benchmark-reproducibility.test.js` — each labelled case reproduces
+  its documented percentile, quartile, median and action; the contract seam and
+  the import seam agree; an independently written reference reproduces every
+  placement; and unavailable or broad-match results keep their provenance while
+  carrying no placement value and no ordinal a reader could take for a rank.
+- `tests/peer-benchmark-drift.test.js` — the published cohort (as a digest over
+  every member value), the scoring rules, and prioritized-action selection are
+  pinned as literals. A failure there means the reference data or an editorial
+  rule changed and the version stamped on every exported briefing must change
+  with it.
+
+No fixture in any of them is live, customer, tenant or provider data.
 
 ## Deliberate omissions
 
