@@ -48,10 +48,11 @@ import {
   PROMPT_LITERACY_RUBRIC, letterGradeForScore,
 } from "./prompt-literacy-scoring.js";
 import {
-  CONVERSATION_REASON_CODES, PROSE_SIGNALS, SIGNAL_ASSUMPTIONS, TURN_REASON_CODES,
+  CONVERSATION_REASON_CODES, DIMENSION_BASELINES, PROSE_SIGNALS, SIGNAL_ASSUMPTIONS,
+  SUBSTANTIVE_PROSE_UNITS, TRIVIAL_PROSE_UNITS, TURN_REASON_CODES,
   classifyConversation,
 } from "./prompt-prose-classification.js";
-import { classifyModelTier } from "./provider-usage-record.js";
+import { MODEL_TIERS, UNRECOGNIZED_TIER, classifyModelTier } from "./provider-usage-record.js";
 import { PROMPT_GRADING_THRESHOLDS } from "./prompt-grading-eligibility.js";
 import { TRUST_LABEL } from "./finops-display.js";
 
@@ -154,9 +155,28 @@ export const COACHING_ANSWER = Object.freeze({
   A: "Yes. This prompt says what it needs.",
   B: "Yes, with one thing left implicit.",
   C: "Probably — but it leaves the model a choice to make.",
-  D: "Not reliably. Expect to re-prompt.",
-  F: "No. As written, the answer is a guess.",
+  D: "Not reliably. Too much of the ask is left for the model to choose.",
+  F: "No. As written, this states almost nothing the rubric asks a request for.",
 });
+
+/**
+ * THE SENTENCE THAT BOUNDS EVERY ROUTING CLAIM.
+ *
+ * Appended verbatim to every piece of copy that tells a reader to change model
+ * tiers, rather than reworded per surface, so a director who disputes it has
+ * disputed all of them and there is no second, softer version of it.
+ *
+ * ASSUMPTION: a routing recommendation is the one coaching claim that costs a
+ * reader money to act on, so it is the one that will be disputed first, and a
+ * single unbacked clause beside it invalidates the backed part along with
+ * itself. The model-fit axis observes exactly two things — the tier the reader
+ * named and how much prose or pasted code a turn carried — so those two things
+ * are the whole of what may be said. Nothing in this repository measures the
+ * answer a model gave, whether a follow-up turn happened, or what anything
+ * cost, and therefore nothing here may claim any of the three.
+ */
+export const ROUTING_CLAIM_LIMIT = "This workflow reads the text you pasted and the tier "
+  + "you named. It measures no answer, no follow-up turn, and no spend, and claims none.";
 
 /**
  * The tier a reader picks, expressed as an identifier the shared model
@@ -338,8 +358,19 @@ export const IMPROVEMENT_COPY = Object.freeze({
   }),
   "model-fit-substantive-on-economy": Object.freeze({
     fix: Object.freeze({
-      title: "This much work is under-provisioned.",
-      guidance: "A substantial request on an economy model costs quality rather than money, and the cost lands on you in re-prompts. Move this one up a tier.",
+      // ROUTE-UP GUIDANCE, DELIBERATELY NARROW. An earlier draft of this entry
+      // said the mismatch "costs quality rather than money, and the cost lands
+      // on you in re-prompts". Nothing in this repository measures answer
+      // quality, a re-prompt caused by a tier, or a dollar, so that sentence was
+      // an outcome claim with no signal behind it — the kind of number a
+      // director is right to throw out along with everything beside it. What the
+      // rubric actually observed is one boolean: a turn at or above the
+      // substantive-work threshold on a tier the reader named as economy. This
+      // copy states that and stops.
+      title: "Route this request up a tier.",
+      guidance: "You named an economy model, and this request is at or above the rubric's "
+        + "substantive-work threshold in prose length or pasted code. That is the whole of "
+        + `what fired the signal. ${ROUTING_CLAIM_LIMIT}`,
     }),
   }),
   "model-fit-substantive-on-premium": Object.freeze({
@@ -566,6 +597,217 @@ function composeBasis(scoredTurns) {
 }
 
 // ---------------------------------------------------------------------------
+// The one routing recommendation
+// ---------------------------------------------------------------------------
+//
+// WHAT MAY BE SAID ABOUT ROUTING, AND WHAT MAY NOT.
+//
+// The model-fit axis observes exactly two things: the tier the reader named
+// beside the box, and how much prose or pasted code a turn carried. From those
+// two it fires one of three signals. Everything this block says is a restatement
+// of one of those signals plus the constants it fired against; nothing here
+// measures the answer a model gave, whether a follow-up turn happened, or what
+// anything cost, and therefore nothing here may claim any of the three.
+//
+// That is not a stylistic preference. A routing recommendation is the one
+// coaching claim that costs a reader money to act on, so it is the one a
+// director will dispute first, and a single unbacked clause beside it
+// ("...and the cost lands on you in re-prompts") invalidates the backed part
+// along with itself. The rule enforced in tests is: every sentence rendered here
+// traces to a signal id, a rubric constant, or the tier the reader typed.
+
+/** The routing decision each model-fit signal is evidence for. */
+const MODEL_FIT_SIGNAL = Object.freeze({
+  routeDown: "model-fit-trivial-on-premium",
+  routeUp: "model-fit-substantive-on-economy",
+  fitEvidenced: "model-fit-substantive-on-premium",
+});
+
+/** Stable wire states. A surface switches on these, never on a sentence. */
+export const RECOMMENDATION_STATE = Object.freeze({
+  noTierStated: "no_tier_stated",
+  routeDown: "route_down",
+  routeUp: "route_up",
+  fitEvidenced: "fit_evidenced",
+  noEvidence: "no_routing_evidence",
+});
+
+/**
+ * The tiers this workflow can move between, strongest first.
+ *
+ * ASSUMPTION: the rubric evidences a *direction*, never a destination — no
+ * signal here compares two tiers on anything. So a recommendation names the
+ * adjacent tier, which is the smallest move that stops the fired signal reading
+ * this turn at all (both routing debits are gated on one specific tier). Naming
+ * the adjacent tier rather than "the cheapest one that would do" is the whole
+ * of the restraint: the second is a claim about model capability, and this
+ * repository holds no evidence about model capability.
+ */
+export const RECOMMENDATION_TIER_LADDER = Object.freeze(
+  MODEL_TIERS.filter((tier) => tier !== UNRECOGNIZED_TIER),
+);
+
+// The billing contract's vocabulary already lists its tiers strongest first,
+// and this ladder is that list minus the member that is not a tier. Read rather
+// than restated, so a tier added there cannot leave a stale ladder here — but
+// asserted too, because reading a list in the right order is a property of that
+// list and not of this line.
+if (RECOMMENDATION_TIER_LADDER.join(">") !== "premium>standard>economy") {
+  throw new RangeError("prompt coaching: the model tier ladder is not strongest-first");
+}
+
+/**
+ * Which routing reading is reported when more than one fires across turns.
+ *
+ * ASSUMPTION: largest absolute weight first, which is also worst-reading-first
+ * — the same habit `deriveTurnCategory` uses, so an ambiguous conversation is
+ * never described as the better of its readings. Ordered from the signal table
+ * rather than by hand, so a weight change reorders this and cannot leave a
+ * stale precedence behind.
+ */
+const MODEL_FIT_AXIS = PROSE_SIGNALS
+  .find((signal) => signal.id === MODEL_FIT_SIGNAL.routeUp).dimension;
+const MODEL_FIT_TABLE = PROSE_SIGNALS.filter((signal) => signal.dimension === MODEL_FIT_AXIS);
+// `step` is an offset into RECOMMENDATION_TIER_LADDER, which runs strongest
+// first: routing *down* a tier moves one place later in it, routing up moves one
+// place earlier. `direction` is declared beside it rather than derived from its
+// sign, because the two read in opposite directions and a reader checking this
+// table should not have to hold that in their head.
+const ROUTING_PRECEDENCE = Object.freeze([
+  {
+    state: RECOMMENDATION_STATE.routeDown, id: MODEL_FIT_SIGNAL.routeDown,
+    step: 1, direction: "down",
+  },
+  {
+    state: RECOMMENDATION_STATE.routeUp, id: MODEL_FIT_SIGNAL.routeUp,
+    step: -1, direction: "up",
+  },
+  {
+    state: RECOMMENDATION_STATE.fitEvidenced, id: MODEL_FIT_SIGNAL.fitEvidenced,
+    step: 0, direction: "none",
+  },
+].sort((left, right) => Math.abs(weightOf(right.id)) - Math.abs(weightOf(left.id))));
+
+function weightOf(id) {
+  return MODEL_FIT_TABLE.find((signal) => signal.id === id)?.weight ?? 0;
+}
+
+for (const entry of ROUTING_PRECEDENCE) {
+  if (!weightOf(entry.id)) {
+    throw new RangeError(`prompt coaching: ${entry.id} is not a model-fit signal`);
+  }
+}
+
+/** The tier a step moves to, or the same tier when the step is zero. */
+function tierAfterStep(tier, step) {
+  const at = RECOMMENDATION_TIER_LADDER.indexOf(tier);
+  if (at < 0) return null;
+  return RECOMMENDATION_TIER_LADDER[Math.min(
+    RECOMMENDATION_TIER_LADDER.length - 1, Math.max(0, at + step),
+  )] ?? null;
+}
+
+/** "a premium model" / "an economy model". The tier names are a closed set. */
+const article = (tier) => (/^[aeiou]/.test(tier) ? "an" : "a");
+
+function firedRecommendation(entry, tier, turn, fired) {
+  const to = tierAfterStep(tier, entry.step);
+  const points = Math.abs(fired.contribution);
+  const copy = entry.state === RECOMMENDATION_STATE.routeDown
+    ? {
+      title: `Route this one down to ${to}.`,
+      text: `You named ${article(tier)} ${tier} model, and this request is at or below the rubric's `
+        + `mechanical-errand threshold of ${TRIVIAL_PROSE_UNITS} prose units with a `
+        + `mechanical-edit phrasing in it. That fired ${entry.id}, which took ${points} `
+        + `points off the ${AXIS_LABEL.get(MODEL_FIT_AXIS)} axis. ${to} is the smallest `
+        + `move that stops the signal reading this turn. ${ROUTING_CLAIM_LIMIT}`,
+    }
+    : entry.state === RECOMMENDATION_STATE.routeUp
+      ? {
+        title: `Route this one up to ${to}.`,
+        text: `You named ${article(tier)} ${tier} model, and this request is at or above the rubric's `
+          + `substantive-work threshold of ${SUBSTANTIVE_PROSE_UNITS} prose units, or the `
+          + `pasted-code equivalent. That fired ${entry.id}, which took ${points} points `
+          + `off the ${AXIS_LABEL.get(MODEL_FIT_AXIS)} axis. ${to} is the smallest move `
+          + `that stops the signal reading this turn. ${ROUTING_CLAIM_LIMIT}`,
+      }
+      : {
+        title: `Keep this one on ${tier}.`,
+        text: `You named ${article(tier)} ${tier} model, and this request is at or above the rubric's `
+          + `substantive-work threshold of ${SUBSTANTIVE_PROSE_UNITS} prose units. That `
+          + `fired ${entry.id}, the one routing credit the rubric awards, worth `
+          + `${points} points on the ${AXIS_LABEL.get(MODEL_FIT_AXIS)} axis. No routing `
+          + "change is evidenced.",
+      };
+  return Object.freeze({
+    state: entry.state,
+    from: tier,
+    to,
+    direction: entry.direction,
+    evidenced: true,
+    signalId: entry.id,
+    assumptionKey: fired.assumptionKey,
+    turn: turn.index,
+    points: roundTo(points, CONTRIBUTION_DECIMALS),
+    ...copy,
+  });
+}
+
+function abstained(state, tier) {
+  return Object.freeze({
+    state,
+    from: state === RECOMMENDATION_STATE.noTierStated ? null : tier,
+    to: null,
+    direction: "none",
+    evidenced: false,
+    signalId: null,
+    assumptionKey: null,
+    turn: null,
+    points: 0,
+    ...(state === RECOMMENDATION_STATE.noTierStated
+      ? {
+        title: "No tier was named, so none is recommended.",
+        text: "The model-fit signals read the tier you name beside the box. Without one "
+          + "they abstain rather than assume, so this grade carries no routing "
+          + "recommendation and the model-fit axis kept its baseline of "
+          + `${DIMENSION_BASELINES.modelFit}.`,
+      }
+      : {
+        title: "No routing change is evidenced.",
+        text: `You named ${article(tier)} ${tier} model and no model-fit signal fired on this text, so `
+          + `the ${AXIS_LABEL.get(MODEL_FIT_AXIS)} axis kept its baseline of `
+          + `${DIMENSION_BASELINES.modelFit}. This workflow names a tier only when a `
+          + "model-fit signal fired, never on the shape of a request alone.",
+      }),
+  });
+}
+
+/**
+ * The routing recommendation for one classified conversation.
+ *
+ * @param {object} reasons the classifier's reasons payload. Read, never
+ *   recomputed: the fired signal and its contribution are the classifier's.
+ * @param {string} tier the tier the reader named, already classified through
+ *   `classifyModelTier`. Anything outside the ladder abstains.
+ * @returns {object} frozen. Always present on a graded result, always carrying
+ *   a state, and carrying a `signalId` exactly when `evidenced` is true.
+ */
+export function composeRecommendation(reasons, tier) {
+  if (!RECOMMENDATION_TIER_LADDER.includes(tier)) {
+    return abstained(RECOMMENDATION_STATE.noTierStated, tier);
+  }
+  const turns = (reasons?.turns ?? []).filter((turn) => turn?.scored);
+  for (const entry of ROUTING_PRECEDENCE) {
+    for (const turn of turns) {
+      const fired = turn.dimensions[MODEL_FIT_AXIS].signals
+        .find((signal) => signal.id === entry.id);
+      if (fired) return firedRecommendation(entry, tier, turn, fired);
+    }
+  }
+  return abstained(RECOMMENDATION_STATE.noEvidence, tier);
+}
+
+// ---------------------------------------------------------------------------
 // The result
 // ---------------------------------------------------------------------------
 
@@ -579,6 +821,7 @@ function refusal(reason, detail = {}) {
     answer: null,
     benchmark: null,
     improvement: null,
+    recommendation: null,
     basis: null,
     recovery: COACHING_RECOVERY[reason],
     observed: Object.freeze({ ...detail }),
@@ -654,6 +897,8 @@ export function gradeMyPrompt({ text, modelTier = null } = {}) {
   const ranked = rankImprovements(graded.reasons);
   const scoredTurns = (graded.reasons?.turns ?? []).filter((turn) => turn.scored);
   const benchmark = composeBenchmark(graded.composite);
+  const tier = classifyModelTier(model);
+  const recommendation = composeRecommendation(graded.reasons, tier);
   return Object.freeze({
     version: PROMPT_COACHING_VERSION,
     rubricVersionId: graded.rubricVersionId,
@@ -668,12 +913,19 @@ export function gradeMyPrompt({ text, modelTier = null } = {}) {
     improvement: ranked[0]
       ? Object.freeze({ available: true, ...ranked[0] })
       : NOTHING_TO_IMPROVE,
+    /**
+     * The routing answer, separate from the rewrite answer because they are
+     * acted on by different people: a reader rewrites the prompt, a platform
+     * owner moves the tier. Always present, and abstaining out loud when no
+     * model-fit signal fired.
+     */
+    recommendation,
     basis: composeBasis(scoredTurns.length),
     observed: Object.freeze({
       turns: turns.length,
       scoredTurns: scoredTurns.length,
       labelled,
-      modelTier: classifyModelTier(model),
+      modelTier: tier,
     }),
     /**
      * Progressive disclosure. Everything a reader needs to dispute the letter,
@@ -692,9 +944,16 @@ export function gradeMyPrompt({ text, modelTier = null } = {}) {
       }))),
       category: graded.category,
       improvements: ranked,
-      assumptions: Object.freeze(Object.fromEntries(ranked
-        .map((entry) => [entry.assumptionKey, SIGNAL_ASSUMPTIONS[entry.assumptionKey]])
-        .filter(([, sentence]) => Boolean(sentence)))),
+      // Every assumption behind a claim this result displays, keyed so a reader
+      // disputing one can quote the key. The routing recommendation's is in
+      // here too when it fired: a tier recommendation with no stated assumption
+      // behind it is the shape of claim this workflow refuses to make.
+      assumptions: Object.freeze(Object.fromEntries([
+        ...ranked.map((entry) => entry.assumptionKey),
+        recommendation.assumptionKey,
+      ]
+        .filter((key) => Boolean(key && SIGNAL_ASSUMPTIONS[key]))
+        .map((key) => [key, SIGNAL_ASSUMPTIONS[key]]))),
       turns: composeTurnDetail(graded.reasons),
       unreadableCodes: Object.freeze([TURN_REASON_CODES.languageUncertain,
         TURN_REASON_CODES.languageMixed]),

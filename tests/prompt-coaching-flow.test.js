@@ -267,6 +267,51 @@ test("clearing empties the field, hides the result, and hands focus back", async
   }
 });
 
+test("a graded prompt with no tier named says so instead of recommending one", async () => {
+  const page = await openCoachingPage();
+  try {
+    const { document } = page;
+    gradeText(document, WEAK_PROMPT);
+    const block = byId(document, "prompt-coaching-result")
+      .querySelector(".prompt-coaching-recommendation");
+    assert.ok(block, "a graded result must answer the routing question, even to decline");
+    assert.equal(block.dataset.state, "no_tier_stated");
+    assert.equal(block.dataset.evidenced, "false");
+    assert.equal(block.querySelector(".prompt-coaching-recommendation-basis"), null,
+      "an abstention cites no signal, because none fired");
+    assert.match(textOf(block), /abstain rather than assume/);
+  } finally {
+    page.restore();
+  }
+});
+
+test("a mechanical errand on premium recommends one step down and cites the signal", async () => {
+  const page = await openCoachingPage();
+  try {
+    const { document } = page;
+    byId(document, "prompt-coaching-model").value = "premium";
+    gradeText(document, "rename the variable foo to bar and fix the typo in the header");
+
+    const block = byId(document, "prompt-coaching-result")
+      .querySelector(".prompt-coaching-recommendation");
+    assert.equal(block.dataset.state, "route_down");
+    assert.equal(block.dataset.direction, "down");
+    assert.equal(textOf(block.querySelector(".prompt-coaching-recommendation-words")),
+      "Route this one down to standard.");
+    // The signal id is printed verbatim: a reader disputing a routing claim
+    // quotes it, and a prettified sentence is not quotable.
+    assert.equal(textOf(block.querySelector(".prompt-coaching-recommendation-basis")),
+      "Evidence: model-fit-trivial-on-premium on turn 1");
+    // And the claim stops at what the rubric observed.
+    const text = textOf(block.querySelector(".prompt-coaching-recommendation-text"));
+    assert.match(text, /measures no answer, no follow-up turn, and no spend/);
+    assert.equal(/re-?prompt|quality|savings?/i.test(text.replace(/measures no [^.]+\./, "")),
+      false, text);
+  } finally {
+    page.restore();
+  }
+});
+
 test("the model select offers a stated-nothing default and does not require a choice", async () => {
   const page = await openCoachingPage();
   try {
