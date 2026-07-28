@@ -30,7 +30,10 @@
 import { PROMPT_GRADING_THRESHOLDS } from "./prompt-grading-eligibility.js";
 import { ATTRIBUTION_RANKED_FINDING_FLOOR } from "./finops-attribution-policy.js";
 
-export const PANEL_CONTRACT_VERSION = "executive-panel-contract/1.0.0";
+// 1.1 adds the stable machine-readable unavailable reason to requirements,
+// panel states, and messages. Keep this honest: exported consumers need to be
+// able to distinguish the old sentence-only shape during rollback and replay.
+export const PANEL_CONTRACT_VERSION = "executive-panel-contract/1.1.0";
 
 /**
  * The minimum scored prompts behind any grade-shaped claim.
@@ -81,14 +84,49 @@ const FILE = "file";
 const FIELD = "field";
 
 /**
+ * The stable code a caller reports when one declared input is what stopped a
+ * figure from being published.
+ *
+ * One code per fact, because the fact IS the reason: a panel is unanswerable
+ * because a counted input is absent or under its threshold, and there is no
+ * other way for a panel to be unanswerable. A consumer that has to explain a
+ * refusal — a KPI card, a log line, an exported briefing — quotes one of these
+ * rather than inventing a sentence, so the same gap is named the same way
+ * everywhere it surfaces.
+ *
+ * These are wire values. Reword the `need` sentences freely; changing a code
+ * here is a contract version bump.
+ */
+export const PANEL_UNAVAILABLE_REASON = Object.freeze({
+  providerPeriodFiles: "no_provider_period_export",
+  costedRows: "no_cost_amount_field",
+  orgUnitRows: "no_org_unit_field",
+  modelIdentifiedRows: "no_model_identifier_field",
+  requestCountedRows: "no_request_count_field",
+  attributedShare: "attributed_share_below_floor",
+  rankedDepartments: "no_department_joined",
+  scoredPrompts: "scored_prompts_below_floor",
+  gradedDepartments: "no_graded_department",
+  actionOutcomeRecords: "no_action_outcome_records",
+  evaluationRecords: "no_evaluation_records",
+  peerCohortRecords: "no_peer_cohort",
+});
+
+/**
  * One declared input.
  *
  * `label` names the thing a leader has to produce. `need` is the sentence they
  * are shown when it is the highest-priority one missing, and it names exactly
  * one file or one field — never a list, because a list is not a next step.
+ * `reason` is the machine-readable form of the same statement.
+ *
+ * A requirement naming a fact with no declared reason throws at module load
+ * rather than shipping a panel that can refuse without saying why.
  */
 function requirement(fact, atLeast, kind, label, need) {
-  return Object.freeze({ fact, atLeast, kind, label, need });
+  const reason = PANEL_UNAVAILABLE_REASON[fact];
+  if (!reason) throw new Error(`panel contract: no declared unavailable reason for fact "${fact}"`);
+  return Object.freeze({ fact, atLeast, kind, label, need, reason });
 }
 
 const PROVIDER_FILE = requirement("providerPeriodFiles", 1, FILE,
@@ -275,6 +313,8 @@ export function panelState(panel, rawFacts = {}) {
     available: missing.length === 0,
     missing,
     blocking,
+    /** The blocking input's stable code, or null when the panel is answerable. */
+    reason: blocking?.reason ?? null,
     remaining: Math.max(0, missing.length - 1),
     message: blocking ? unavailableMessage(panel, blocking, missing.length) : null,
   });
@@ -293,6 +333,7 @@ export function unavailableMessage(panel, blocking, missingCount = 1) {
   return {
     headline: "Not answerable from your import yet",
     question: panel.question,
+    reason: blocking.reason,
     needLabel: blocking.label,
     needKind: blocking.kind,
     need: blocking.need,
