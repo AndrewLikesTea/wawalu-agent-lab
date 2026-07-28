@@ -5,9 +5,22 @@
 // out of the accompanying design document. The workspace page consumes the same
 // sample and allowlists, making the pre-consent explanation inspectable today.
 
-export const FINOPS_WORKSPACE_VERSION = "finops-workspace/1.0.0";
+export const FINOPS_WORKSPACE_VERSION = "finops-workspace/1.1.0";
 export const FINOPS_WORKSPACE_KEY = "shiplog.finops.workspace.v1";
 export const FINOPS_LABELS_KEY = "shiplog.finops.orgUnitLabels";
+
+/**
+ * Every document version this build can read, oldest first. A store written by
+ * one of them is migrated forward on read (see `finops-workspace-migrations.js`);
+ * a store written by anything else is refused rather than reinterpreted, because
+ * a reader that guesses at an unknown version is a reader that silently drops
+ * fields it does not understand.
+ */
+export const FINOPS_WORKSPACE_VERSION_1_0_0 = "finops-workspace/1.0.0";
+export const FINOPS_SUPPORTED_WORKSPACE_VERSIONS = Object.freeze([
+  FINOPS_WORKSPACE_VERSION_1_0_0,
+  FINOPS_WORKSPACE_VERSION,
+]);
 
 export const FINOPS_WORKSPACE_FIELDS = Object.freeze([
   "schemaVersion", "consent", "periods", "commitments", "meta",
@@ -31,6 +44,31 @@ export const FINOPS_COMMITMENT_ENVELOPE_FIELDS = Object.freeze([
   "schemaVersion", "commitmentId", "claim", "confidence", "provenance",
   "recommendedAction", "recordedAt", "status", "decisionId", "periodId",
 ]);
+
+/** The sub-objects of a retained commitment, each closed the same way. */
+export const FINOPS_COMMITMENT_CLAIM_FIELDS = Object.freeze([
+  "baselineMonthlyCostMinor", "projectedMonthlyCostMinor", "monthlySavingsMinor",
+  "currency", "unit", "period",
+]);
+
+export const FINOPS_COMMITMENT_CONFIDENCE_FIELDS = Object.freeze(["percent", "band"]);
+
+/**
+ * Deliberately narrower than the decision block's provenance: `sourceId`,
+ * `importedAt`, and `recordIds` are dropped at the door. Source-row identifiers
+ * are a prohibited class below, and a count answers "how much evidence" without
+ * naming a single row of anyone's file.
+ */
+export const FINOPS_COMMITMENT_PROVENANCE_FIELDS = Object.freeze([
+  "designation", "analysisPeriod", "recordCount",
+]);
+
+export const FINOPS_COMMITMENT_ACTION_FIELDS = Object.freeze([
+  "workloadId", "departmentId", "fromModelId", "toModelId",
+]);
+
+/** What a retained commitment can say about itself. `recorded` has no decision. */
+export const FINOPS_COMMITMENT_STATUSES = Object.freeze(["recorded", "decision_linked"]);
 
 export const FINOPS_PROHIBITED_CLASSES = Object.freeze([
   {
@@ -93,11 +131,8 @@ export const SAMPLE_FINOPS_WORKSPACE = Object.freeze({
     }),
     confidence: Object.freeze({ percent: 78, band: "high" }),
     provenance: Object.freeze({
-      sourceId: "example-dataset",
       designation: "demo",
-      importedAt: "2026-07-02T09:12:00Z",
       analysisPeriod: "2026-06",
-      recordIds: Object.freeze(["rec-0f21", "rec-0f22"]),
       recordCount: 2,
     }),
     recommendedAction: Object.freeze({

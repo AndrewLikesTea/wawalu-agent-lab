@@ -53,6 +53,12 @@ import { briefingFile, buildBriefing } from "/finops-briefing-export.js";
 import {
   browserFinopsWorkspaceStorage, retainDerivedPeriod,
 } from "/finops-workspace.js";
+// The read half of the same opt-in store. A visitor who granted retention and
+// comes back later gets their last derived period, the movement between the
+// retained months, and the commitments approved against them without opening a
+// file. Without consent this returns nothing and the region stays hidden.
+import { restoreFinopsWorkspace } from "/finops-workspace-restore.js";
+import { applyWorkspaceRestore } from "/finops-workspace-restore-view.js";
 // "Check the math" reads the briefing payload — never the analysis envelope and
 // never the imported file — so the derivation on screen is a check of exactly
 // the artifact a leader forwards.
@@ -309,6 +315,22 @@ function downloadLocalExport(content, type, fileName) {
   link.download = fileName;
   link.click();
   URL.revokeObjectURL(url);
+}
+
+/**
+ * Repaint the "what this browser remembered" region from the opt-in store.
+ *
+ * Called on cold load and again after every retention write, so the region a
+ * returning visitor reads is never one import behind. Storage is the only input
+ * and a refusal is silent here: the workspace page is the single surface that
+ * reports what this browser did or did not keep.
+ */
+function syncWorkspaceRestore() {
+  try {
+    applyWorkspaceRestore(document, restoreFinopsWorkspace(browserFinopsWorkspaceStorage()));
+  } catch {
+    applyWorkspaceRestore(document, null);
+  }
 }
 
 function mountLocalFinopsImport() {
@@ -1008,6 +1030,9 @@ function mountLocalFinopsImport() {
         analysis: next,
         dataset: "user",
       });
+      // Read straight back, so the restored region reflects the write that just
+      // happened rather than the state this tab loaded with.
+      syncWorkspaceRestore();
     }
     // The derivation is taken from the same payload the export button writes, so
     // the arithmetic a director checks on screen is byte-for-byte the arithmetic
@@ -1675,6 +1700,10 @@ function mountLocalFinopsImport() {
   // interaction, so the idle surface is a state rather than a blank.
   applyFieldDiagnostic(document, null);
   applyDatasetProvenance(document, false);
+  // What an earlier visit left in this browser, before anything is imported. It
+  // is the whole point of the opt-in store: a returning visitor reads their last
+  // derived period without re-uploading the export it came from.
+  syncWorkspaceRestore();
   // The enforced ceilings, painted from the one place they are defined.
   applyImportLimits(document);
   // What one provider export will answer, said before a byte is selected.

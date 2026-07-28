@@ -1,9 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { commitmentMetadataErrors } from "../src/finops-commitment-decision.js";
+import { validateRetainedCommitment } from "../src/finops-workspace.js";
 import {
   FINOPS_COMMITMENT_ENVELOPE_FIELDS,
+  FINOPS_COMMITMENT_PROVENANCE_FIELDS,
   FINOPS_CONSENT_FIELDS,
   FINOPS_LABELS_KEY,
   FINOPS_META_FIELDS,
@@ -20,10 +21,6 @@ import { importPageModule, waitFor } from "./support/page-module.js";
 
 const PAGE = new URL("../src/workspace.html", import.meta.url);
 
-function metadataOf(commitment) {
-  const { recordedAt, status, decisionId, periodId, ...metadata } = commitment;
-  return metadata;
-}
 
 test("the normative preview is a valid, closed contract fixture", () => {
   assert.equal(SAMPLE_FINOPS_WORKSPACE.schemaVersion, FINOPS_WORKSPACE_VERSION);
@@ -38,7 +35,15 @@ test("the normative preview is a valid, closed contract fixture", () => {
 
   const commitment = SAMPLE_FINOPS_WORKSPACE.commitments[0];
   assert.ok(Object.keys(commitment).every((key) => FINOPS_COMMITMENT_ENVELOPE_FIELDS.includes(key)));
-  assert.deepEqual(commitmentMetadataErrors(metadataOf(commitment)), []);
+  // Graded against the store's own validator, not the decision block's: a
+  // retained commitment carries a deliberately narrower provenance than the
+  // Shiplog decision it was recorded as, because source-row identifiers are a
+  // prohibited class here and are what the 1.0.0 → 1.1.0 migration removes.
+  assert.deepEqual(validateRetainedCommitment(commitment).errors, []);
+  assert.deepEqual(
+    Object.keys(commitment.provenance).sort(),
+    [...FINOPS_COMMITMENT_PROVENANCE_FIELDS].sort(),
+  );
 
   assert.deepEqual(JSON.parse(serializeFinopsWorkspacePreview()), SAMPLE_FINOPS_WORKSPACE);
 });
