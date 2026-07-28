@@ -14,8 +14,16 @@
 import { loadSavingsCommitment } from "/savings-commitment.js";
 import { readCommitmentHandoffs } from "/commitment-handoff.js";
 import {
-  CommitmentDecisionError, recordCommitmentDecision,
+  COMMITMENT_METADATA_FIELD, CommitmentDecisionError, recordCommitmentDecision,
 } from "/finops-commitment-decision.js";
+// The opt-in FinOps workspace. Approving a commitment writes it here too, so a
+// later visit can say which commitments this browser has already recorded
+// without the visitor reopening the briefing they were derived from. Without a
+// granted consent the adapter writes nothing and reads back nothing; the
+// decision log above is unaffected either way.
+import {
+  browserFinopsWorkspaceStorage, readRetainedCommitments, retainApprovedCommitment,
+} from "/finops-workspace.js";
 import {
   RECORD_BUTTON_ID,
   RECORD_OWNER_ID,
@@ -61,17 +69,75 @@ function renderCurrent() {
   root.querySelector(`#${RECORD_BUTTON_ID}`)?.addEventListener("click", record);
 }
 
+/**
+ * Keep the approved commitment in the opt-in FinOps workspace beside the
+ * decision it became.
+ *
+ * The approver's name is deliberately not handed over: the decision log records
+ * who approved it, and the workspace's own contract forbids a person's name.
+ * Never throws — a workspace refusal must not lose a decision that was recorded.
+ */
+function retainApproval(decision, approvedAt) {
+  try {
+    return retainApprovedCommitment(browserFinopsWorkspaceStorage(), {
+      metadata: decision?.[COMMITMENT_METADATA_FIELD],
+      decisionId: decision?.id ?? null,
+      approvedAt,
+    });
+  } catch {
+    return null;
+  }
+}
+
+const usd = (minor) => `${(Math.round(Number(minor)) / 100).toLocaleString("en-US", {
+  minimumFractionDigits: 2, maximumFractionDigits: 2,
+})} USD`;
+
+/**
+ * Say what this browser already recorded, from the workspace store alone.
+ *
+ * This is the return-visit half of the write above: no file is reopened, no
+ * request is made, and the line is absent — not empty — when retention was
+ * never granted or nothing is kept.
+ */
+function paintRetained() {
+  const line = document.getElementById("commit-retained");
+  if (!line) return [];
+  let retained = [];
+  try {
+    retained = readRetainedCommitments(browserFinopsWorkspaceStorage());
+  } catch {
+    retained = [];
+  }
+  if (retained.length === 0) {
+    line.textContent = "";
+    line.hidden = true;
+    return retained;
+  }
+  const newest = retained.at(-1);
+  line.textContent = `This browser has already recorded ${retained.length} `
+    + `commitment${retained.length === 1 ? "" : "s"}, kept here because you opted in. The most `
+    + `recent is ${newest.commitmentId} — ${usd(newest.claim.monthlySavingsMinor)} a month for `
+    + `${newest.claim.period}, approved on ${String(newest.recordedAt).slice(0, 10)}. It was read `
+    + "from this browser's storage; no file was reopened and nothing was uploaded.";
+  line.hidden = false;
+  return retained;
+}
+
 function record() {
   const outcome = root.querySelector("#commit-record-outcome");
   const owner = root.querySelector(`#${RECORD_OWNER_ID}`);
   try {
+    // The approval instant is this page's; the modules below it read no clock,
+    // which is what lets the same commitment produce the same record in a test.
+    const approvedAt = new Date().toISOString();
     const result = recordCommitmentDecision(globalThis.localStorage, {
       preview: current.preview,
       approvedBy: String(owner?.value ?? "").trim(),
-      // The approval instant is this page's; the modules below it read no clock,
-      // which is what lets the same commitment produce the same record in a test.
-      approvedAt: new Date().toISOString(),
+      approvedAt,
     });
+    retainApproval(result.decision, result.decision?.createdAt ?? approvedAt);
+    paintRetained();
     outcome.replaceChildren(renderRecordConfirmation(result));
     root.querySelector(`#${RECORD_BUTTON_ID}`)?.setAttribute("disabled", "disabled");
     say(result.created
@@ -132,4 +198,5 @@ try {
   });
   say("The bundled example analysis could not be read. Open an exported briefing to continue.");
 }
+paintRetained();
 renderCurrent();

@@ -623,6 +623,28 @@
           </details>
           <button class="restored-briefing-close" id="restored-briefing-close" type="button">Close this restored briefing</button>
         </section>
+
+        <!-- What this browser kept from earlier visits, if the visitor opted in.
+             It is not the live analysis and never replaces it: it is the last
+             derived period, the movement between the retained months, and the
+             commitments approved against them, read back out of local storage
+             without reopening a file. Hidden outright when retention was never
+             granted, so a visitor who declined sees no trace of it.
+
+             Every slot below is painted through textContent by
+             applyWorkspaceRestore(). -->
+        <section class="restored-briefing" id="workspace-restore" role="region" aria-labelledby="workspace-restore-title" data-state="empty" hidden>
+          <p class="eyebrow">Restored from this browser · not the current analysis</p>
+          <h3 id="workspace-restore-title" tabindex="-1">What this browser remembered</h3>
+          <p class="restored-briefing-metric" id="workspace-restore-summary"></p>
+          <p class="restored-briefing-coverage" id="workspace-restore-trend" hidden></p>
+          <p class="restored-briefing-action" id="workspace-restore-reconciliation"></p>
+          <ul class="restored-briefing-commitments" id="workspace-restore-commitments" hidden></ul>
+          <details class="restored-briefing-detail" id="workspace-restore-detail">
+            <summary>Where these restored figures come from</summary>
+            <dl class="restored-briefing-provenance" id="workspace-restore-provenance"></dl>
+          </details>
+        </section>
       </section>
 
       <!-- Immediately below the result region and outside it: the decision brief

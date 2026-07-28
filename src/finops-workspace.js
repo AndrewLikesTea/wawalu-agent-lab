@@ -52,9 +52,12 @@ import {
   FORBIDDEN_FIELD_PATTERN, FORBIDDEN_VALUE_PATTERNS, MAX_STRING_LENGTH,
 } from "./finops-briefing-contract.js";
 import {
-  FINOPS_COMMITMENT_ENVELOPE_FIELDS, FINOPS_LABELS_KEY, FINOPS_PERIOD_FIELDS,
-  FINOPS_WORKSPACE_KEY, FINOPS_WORKSPACE_VERSION,
+  FINOPS_COMMITMENT_ACTION_FIELDS, FINOPS_COMMITMENT_CLAIM_FIELDS,
+  FINOPS_COMMITMENT_CONFIDENCE_FIELDS, FINOPS_COMMITMENT_ENVELOPE_FIELDS,
+  FINOPS_COMMITMENT_PROVENANCE_FIELDS, FINOPS_COMMITMENT_STATUSES, FINOPS_LABELS_KEY,
+  FINOPS_PERIOD_FIELDS, FINOPS_WORKSPACE_KEY, FINOPS_WORKSPACE_VERSION,
 } from "./finops-workspace-contract.js";
+import { MIGRATION_STATUS, migrateFinopsWorkspace } from "./finops-workspace-migrations.js";
 import { ORG_UNIT_LABEL_STORAGE_KEY, readOrgUnitLabels } from "./org-unit-labels.js";
 
 /** The three answers a visitor can have given. `not_asked` is not `declined`. */
@@ -69,6 +72,9 @@ export const FINOPS_STATE = Object.freeze({
   loading: "loading",
   unavailable: "unavailable",
   unreadable: "unreadable",
+  // A document this build is too old to read. Not the same as unreadable: the
+  // text is a workspace, it is simply a newer one, and nothing here rewrites it.
+  unsupported: "unsupported",
   notAsked: "not_asked",
   declined: "declined",
   empty: "empty",
@@ -80,6 +86,13 @@ export const FINOPS_FILE_VERSION = "finops-workspace-file/1.0.0";
 
 /** The most months this browser keeps. Older ones fall off the front. */
 export const MAX_RETAINED_PERIODS = 24;
+
+/**
+ * The most approved commitments this browser keeps. A bound, not a policy: the
+ * oldest by `recordedAt` fall off first, and the Shiplog decision each one was
+ * recorded as is untouched — that log, not this store, is the durable record.
+ */
+export const MAX_RETAINED_COMMITMENTS = 50;
 
 /**
  * The browser capability for page wiring. Keeping the ambient lookup here
@@ -113,6 +126,10 @@ export const FINOPS_OUTCOME = Object.freeze({
   retained: "retained",
   not_granted: "This browser has not been asked to remember FinOps figures, so nothing was "
     + "written.",
+  invalid_record: "That record did not match the shape this workspace stores, so nothing was "
+    + "written and what is already kept was not changed.",
+  unsupported_document: "This browser holds a FinOps workspace written by a newer version of this "
+    + "page. It was left exactly as it is, and nothing was read from it or written to it.",
   refused_content: "That analysis was not retained: it carried a field this workspace is not "
     + "allowed to keep.",
 });
@@ -197,55 +214,189 @@ function pick(entry, fields) {
   return kept;
 }
 
-function readEntries(value, fields, requiredKey) {
-  if (!Array.isArray(value)) return [];
-  const seen = new Set();
-  return value
-    .filter((entry) => entry && typeof entry === "object" && !Array.isArray(entry))
-    .map((entry) => pick(entry, fields))
-    .filter((entry) => typeof entry[requiredKey] === "string" && entry[requiredKey].length > 0)
-    // A store written twice for one period is one period, and the later write
-    // wins: the alternative is a trend computed over the same month twice.
-    .filter((entry) => (seen.has(entry[requiredKey]) ? false : seen.add(entry[requiredKey])));
+/* ------------------------------ record validity ---------------------------- */
+
+const COMMITMENT_RECORD_VERSION = "shiplog-finops-commitment/1.0.0";
+const MONTH = /^\d{4}-\d{2}$/;
+const ID = /^[a-z0-9][a-z0-9_-]{0,63}$/i;
+/** `dataset:YYYY-MM`, the only key a retained period is ever filed under. */
+const PERIOD_ID = /^[a-z0-9][a-z0-9_-]{0,31}:\d{4}-\d{2}$/i;
+
+const isId = (value) => typeof value === "string" && ID.test(value);
+const isMinor = (value) => Number.isFinite(value) && Number.isInteger(value);
+const isMinorOrNull = (value) => value === null || value === undefined || isMinor(value);
+const isCount = (value) => Number.isInteger(value) && value >= 0;
+
+/**
+ * Is this entry a period this build stores?
+ *
+ * Written as a predicate over the *stored* record rather than over the analysis
+ * it came from: the two are checked in different places for a reason, and a
+ * store that trusted the writer would be a store that a hand-edited key could
+ * put an arbitrary number into.
+ *
+ * @returns `{ ok, errors }`. Never throws.
+ */
+export function validateRetainedPeriod(entry) {
+  const errors = [];
+  if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+    return { ok: false, errors: ["period: expected an object"] };
+  }
+  if (typeof entry.periodId !== "string" || !PERIOD_ID.test(entry.periodId)) {
+    errors.push("period.periodId: expected a dataset-qualified id");
+  }
+  if (!MONTH.test(String(entry.period ?? ""))) errors.push("period.period: expected YYYY-MM");
+  if (typeof entry.dataset !== "string" || entry.dataset === "") {
+    errors.push("period.dataset: expected a name");
+  }
+  if (!isoOrNull(entry.derivedAt)) errors.push("period.derivedAt: expected an instant");
+  for (const field of ["analyzedSpendMinor", "attributedSpendMinor", "recoverableScenarioMinor",
+    "materialMetricMinor"]) {
+    if (!isMinorOrNull(entry[field])) errors.push(`period.${field}: expected whole minor units or null`);
+  }
+  for (const field of ["recordsTotal", "recordsAnalyzed", "coverageRatioPpm"]) {
+    if (!isCount(entry[field])) errors.push(`period.${field}: expected a whole count`);
+  }
+  if (!Object.values(BRIEFING_CONFIDENCE).includes(entry.confidence)) {
+    errors.push("period.confidence: expected a briefing confidence grade");
+  }
+  if (entry.missingInputs !== undefined
+    && !(Array.isArray(entry.missingInputs) && entry.missingInputs.every((i) => typeof i === "string"))) {
+    errors.push("period.missingInputs: expected a list of input names");
+  }
+  return { ok: errors.length === 0, errors };
+}
+
+/** Is this entry a commitment this build stores? Same contract, same refusal. */
+export function validateRetainedCommitment(entry) {
+  const errors = [];
+  if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+    return { ok: false, errors: ["commitment: expected an object"] };
+  }
+  if (entry.schemaVersion !== COMMITMENT_RECORD_VERSION) {
+    errors.push(`commitment.schemaVersion: expected ${COMMITMENT_RECORD_VERSION}`);
+  }
+  if (!isId(entry.commitmentId)) errors.push("commitment.commitmentId: expected an id");
+  const claim = entry.claim;
+  if (!claim || typeof claim !== "object" || Array.isArray(claim)) {
+    errors.push("commitment.claim: expected an object");
+  } else {
+    for (const field of ["baselineMonthlyCostMinor", "projectedMonthlyCostMinor",
+      "monthlySavingsMinor"]) {
+      if (!isMinor(claim[field])) errors.push(`commitment.claim.${field}: expected whole minor units`);
+    }
+    if (claim.currency !== "USD") errors.push("commitment.claim.currency: expected USD");
+    if (!MONTH.test(String(claim.period ?? ""))) errors.push("commitment.claim.period: expected YYYY-MM");
+  }
+  const confidence = entry.confidence;
+  if (!confidence || typeof confidence !== "object"
+    || !Number.isFinite(confidence.percent) || confidence.percent < 0 || confidence.percent > 100
+    || typeof confidence.band !== "string") {
+    errors.push("commitment.confidence: expected a percent and a band");
+  }
+  const action = entry.recommendedAction;
+  if (!action || typeof action !== "object"
+    || !FINOPS_COMMITMENT_ACTION_FIELDS.every((field) => isId(action[field]))) {
+    errors.push("commitment.recommendedAction: expected four route identifiers");
+  }
+  const provenance = entry.provenance;
+  if (!provenance || typeof provenance !== "object" || !isCount(provenance.recordCount)) {
+    errors.push("commitment.provenance: expected a record count");
+  } else if (Object.keys(provenance).some((key) => !FINOPS_COMMITMENT_PROVENANCE_FIELDS.includes(key))) {
+    // The 1.0.0 → 1.1.0 migration strips these; an entry that still carries one
+    // was written past the migration and is refused rather than trimmed.
+    errors.push("commitment.provenance: carries a field this store does not keep");
+  }
+  if (!isoOrNull(entry.recordedAt)) errors.push("commitment.recordedAt: expected an instant");
+  if (!FINOPS_COMMITMENT_STATUSES.includes(entry.status)) {
+    errors.push(`commitment.status: expected one of ${FINOPS_COMMITMENT_STATUSES.join(", ")}`);
+  }
+  return { ok: errors.length === 0, errors };
 }
 
 /**
- * Read the stored document.
+ * Read one list of records: allowlist the fields, validate what remains, drop
+ * what fails, and keep the later of two writes for the same id.
  *
- * @returns `{ access, document, characters }`. `access` is `ok`, `unavailable`
- *   (the browser refused the key), `absent` (nothing written yet), or
- *   `unreadable` (text that is not this contract's document). Those are four
- *   different answers, and a page that collapses them into "empty" is lying
- *   about at least two of them.
+ * @returns `{ entries, dropped }`. `dropped` is what the status surface reports;
+ *   a store that silently swallowed a bad entry would leave a reader counting
+ *   records that are not there.
+ */
+function readEntries(value, fields, requiredKey, validate) {
+  if (!Array.isArray(value)) return { entries: [], dropped: 0 };
+  const byId = new Map();
+  let dropped = 0;
+  for (const raw of value) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+      dropped += 1;
+      continue;
+    }
+    const entry = pick(raw, fields);
+    const id = entry[requiredKey];
+    if (typeof id !== "string" || id.length === 0 || !validate(entry).ok) {
+      dropped += 1;
+      continue;
+    }
+    // A store written twice for one period is one period, and the later write
+    // wins: the alternative is a trend computed over the same month twice.
+    byId.set(id, entry);
+  }
+  return { entries: [...byId.values()], dropped };
+}
+
+const absent = (access, characters) => Object.freeze({
+  access, document: EMPTY_DOCUMENT, characters, dropped: 0, migratedFrom: null,
+});
+
+/**
+ * Read the stored document, migrating it forward and validating every record.
+ *
+ * @returns `{ access, document, characters, dropped, migratedFrom }`. `access`
+ *   is `ok`, `unavailable` (the browser refused the key), `absent` (nothing
+ *   written yet), `unreadable` (text that is not a workspace document), or
+ *   `unsupported` (a workspace document from a version this build does not
+ *   know). Those are five different answers, and a page that collapses them
+ *   into "empty" is lying about at least three of them.
+ *
+ *   `dropped` counts entries that parsed but did not satisfy their record
+ *   contract; `migratedFrom` names the version the stored text was written at
+ *   when a migration ran. Nothing here writes: a migrated document is
+ *   materialized by the next ordinary write, so a read of a store this build
+ *   cannot fully honour still leaves the visitor's own text intact.
  */
 export function readFinopsDocument(storage) {
   const { access, raw } = readRaw(storage);
-  if (access === "unavailable") {
-    return Object.freeze({ access, document: EMPTY_DOCUMENT, characters: 0 });
-  }
-  if (raw === null) {
-    return Object.freeze({ access: "absent", document: EMPTY_DOCUMENT, characters: 0 });
-  }
+  if (access === "unavailable") return absent(access, 0);
+  if (raw === null) return absent("absent", 0);
 
   let parsed;
   try {
     parsed = JSON.parse(raw);
   } catch {
-    return Object.freeze({ access: "unreadable", document: EMPTY_DOCUMENT, characters: raw.length });
+    return absent("unreadable", raw.length);
   }
-  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)
-    || parsed.schemaVersion !== FINOPS_WORKSPACE_VERSION) {
-    return Object.freeze({ access: "unreadable", document: EMPTY_DOCUMENT, characters: raw.length });
-  }
+  const migration = migrateFinopsWorkspace(parsed);
+  if (migration.status === MIGRATION_STATUS.malformed) return absent("unreadable", raw.length);
+  if (migration.status === MIGRATION_STATUS.unsupported) return absent("unsupported", raw.length);
+  const upgraded = migration.document;
 
-  const consent = parsed.consent && typeof parsed.consent === "object" ? parsed.consent : {};
+  const consent = upgraded.consent && typeof upgraded.consent === "object" ? upgraded.consent : {};
   const state = Object.values(FINOPS_CONSENT).includes(consent.state)
     ? consent.state : FINOPS_CONSENT.notAsked;
-  const periods = readEntries(parsed.periods, FINOPS_PERIOD_FIELDS, "periodId")
+  const periods = readEntries(
+    upgraded.periods, FINOPS_PERIOD_FIELDS, "periodId", validateRetainedPeriod,
+  );
+  const commitments = readEntries(
+    upgraded.commitments, FINOPS_COMMITMENT_ENVELOPE_FIELDS, "commitmentId",
+    validateRetainedCommitment,
+  );
+  const ordered = periods.entries
     .sort((left, right) => String(left.period).localeCompare(String(right.period)));
   return Object.freeze({
     access: "ok",
     characters: raw.length,
+    dropped: periods.dropped + commitments.dropped,
+    migratedFrom: migration.status === MIGRATION_STATUS.migrated ? migration.from : null,
     document: Object.freeze({
       schemaVersion: FINOPS_WORKSPACE_VERSION,
       consent: Object.freeze({
@@ -253,12 +404,11 @@ export function readFinopsDocument(storage) {
         decidedAt: isoOrNull(consent.decidedAt),
         grantedAgainst: typeof consent.grantedAgainst === "string" ? consent.grantedAgainst : null,
       }),
-      periods: Object.freeze(periods.map((period) => Object.freeze(period))),
-      commitments: Object.freeze(
-        readEntries(parsed.commitments, FINOPS_COMMITMENT_ENVELOPE_FIELDS, "commitmentId")
-          .map((commitment) => Object.freeze(commitment)),
-      ),
-      meta: Object.freeze({ lastWriteAt: isoOrNull(parsed.meta?.lastWriteAt) }),
+      periods: Object.freeze(ordered.map((period) => Object.freeze(period))),
+      commitments: Object.freeze(commitments.entries
+        .sort((left, right) => String(left.recordedAt).localeCompare(String(right.recordedAt)))
+        .map((commitment) => Object.freeze(commitment))),
+      meta: Object.freeze({ lastWriteAt: isoOrNull(upgraded.meta?.lastWriteAt) }),
     }),
   });
 }
@@ -303,6 +453,13 @@ export function setFinopsConsent(storage, state, { now = new Date() } = {}) {
   if (access === "unavailable") {
     return Object.freeze({
       ok: false, code: "choice_not_saved", message: FINOPS_OUTCOME.choice_not_saved,
+    });
+  }
+  // A newer document is never overwritten by an older build, not even to record
+  // a choice: the visitor's answer is worth less than the data it would destroy.
+  if (access === "unsupported") {
+    return Object.freeze({
+      ok: false, code: "unsupported_document", message: FINOPS_OUTCOME.unsupported_document,
     });
   }
   const declining = target === FINOPS_CONSENT.declined;
@@ -417,6 +574,13 @@ export function retainFinopsPeriod(storage, period, { now = new Date() } = {}) {
     return Object.freeze({ ok: false, code: "not_projected", message: FINOPS_OUTCOME.not_granted });
   }
   const record = pick(period, FINOPS_PERIOD_FIELDS);
+  const check = validateRetainedPeriod(record);
+  if (!check.ok) {
+    return Object.freeze({
+      ok: false, code: "invalid_record", message: FINOPS_OUTCOME.invalid_record,
+      errors: Object.freeze(check.errors),
+    });
+  }
   const scan = scanRetainedContent(record, "period");
   if (!scan.ok) {
     return Object.freeze({
@@ -444,6 +608,116 @@ export function retainDerivedPeriod(storage, input, { now = new Date() } = {}) {
     return Object.freeze({ ok: false, code: "not_projected", message: FINOPS_OUTCOME.not_granted });
   }
   return retainFinopsPeriod(storage, period, { now });
+}
+
+/* ------------------------------- commitments ------------------------------- */
+
+/**
+ * Project an approved commitment into the contract's envelope.
+ *
+ * The input is the `finopsCommitment` block a recorded decision already carries
+ * (`shiplog-finops-commitment/1.0.0`), so nothing is recomputed here either.
+ * Provenance is narrowed on the way in: `sourceId`, `importedAt`, and the
+ * `recordIds` of the rows the claim was summed over are source identifiers, and
+ * this store does not keep those. A count survives, because "two rows" is
+ * evidence and "rec-0f21" is a row of someone's file.
+ *
+ * @returns the envelope, or null when the block cannot be keyed or dated.
+ */
+export function projectRetainedCommitment({
+  metadata, decisionId = null, periodId = null, approvedAt = null,
+} = {}) {
+  if (!metadata || typeof metadata !== "object" || typeof metadata.commitmentId !== "string") {
+    return null;
+  }
+  const recordedAt = isoOrNull(approvedAt);
+  if (!recordedAt) return null;
+  const month = MONTH.test(String(metadata.claim?.period ?? ""))
+    ? metadata.claim.period : null;
+  return Object.freeze({
+    schemaVersion: COMMITMENT_RECORD_VERSION,
+    commitmentId: metadata.commitmentId,
+    claim: Object.freeze(pick(metadata.claim ?? {}, FINOPS_COMMITMENT_CLAIM_FIELDS)),
+    confidence: Object.freeze(pick(metadata.confidence ?? {}, FINOPS_COMMITMENT_CONFIDENCE_FIELDS)),
+    provenance: Object.freeze(pick(metadata.provenance ?? {}, FINOPS_COMMITMENT_PROVENANCE_FIELDS)),
+    recommendedAction: Object.freeze(
+      pick(metadata.recommendedAction ?? {}, FINOPS_COMMITMENT_ACTION_FIELDS),
+    ),
+    recordedAt,
+    status: decisionId ? "decision_linked" : "recorded",
+    decisionId,
+    // The period the claim is about, so a later read can put a commitment beside
+    // the retained month it was sized from without re-opening a file.
+    periodId: typeof periodId === "string" && periodId !== ""
+      ? periodId : (month ? `user:${month}` : null),
+  });
+}
+
+/**
+ * Retain one approved commitment.
+ *
+ * Same three gates as a period, in the same order: consent, record contract,
+ * forbidden content. Re-approving a commitment already in the store replaces
+ * that entry rather than adding a second one — the commitment id is the key,
+ * exactly as it is in the decision log.
+ */
+export function retainFinopsCommitment(storage, commitment, { now = new Date() } = {}) {
+  const { access, document } = readFinopsDocument(storage);
+  if (access === "unavailable" || access === "unsupported"
+    || document.consent.state !== FINOPS_CONSENT.granted) {
+    return Object.freeze({ ok: false, code: "not_granted", message: FINOPS_OUTCOME.not_granted });
+  }
+  if (!commitment || typeof commitment !== "object") {
+    return Object.freeze({
+      ok: false, code: "invalid_record", message: FINOPS_OUTCOME.invalid_record,
+      errors: Object.freeze(["commitment: expected an object"]),
+    });
+  }
+  const record = pick(commitment, FINOPS_COMMITMENT_ENVELOPE_FIELDS);
+  const check = validateRetainedCommitment(record);
+  if (!check.ok) {
+    return Object.freeze({
+      ok: false, code: "invalid_record", message: FINOPS_OUTCOME.invalid_record,
+      errors: Object.freeze(check.errors),
+    });
+  }
+  const scan = scanRetainedContent(record, "commitment");
+  if (!scan.ok) {
+    return Object.freeze({
+      ok: false, code: "refused_content", message: FINOPS_OUTCOME.refused_content,
+      violations: scan.violations,
+    });
+  }
+  const commitments = [
+    ...document.commitments.filter((entry) => entry.commitmentId !== record.commitmentId),
+    record,
+  ]
+    .sort((left, right) => String(left.recordedAt).localeCompare(String(right.recordedAt)))
+    .slice(-MAX_RETAINED_COMMITMENTS);
+
+  const saved = writeDocument(storage, { ...document, commitments }, { now });
+  return saved
+    ? Object.freeze({ ok: true, code: "retained", message: FINOPS_OUTCOME.retained, record })
+    : Object.freeze({ ok: false, code: "not_saved", message: FINOPS_OUTCOME.choice_not_saved });
+}
+
+/** Project and retain an approved commitment in one call, for a page wiring. */
+export function retainApprovedCommitment(storage, input, { now = new Date() } = {}) {
+  const commitment = projectRetainedCommitment(input);
+  if (!commitment) {
+    return Object.freeze({
+      ok: false, code: "invalid_record", message: FINOPS_OUTCOME.invalid_record,
+      errors: Object.freeze(["commitment: expected an approved commitment block and instant"]),
+    });
+  }
+  return retainFinopsCommitment(storage, commitment, { now });
+}
+
+/** The commitments this browser kept, oldest first. Empty without consent. */
+export function readRetainedCommitments(storage) {
+  const { access, document } = readFinopsDocument(storage);
+  if (access === "unavailable" || document.consent.state !== FINOPS_CONSENT.granted) return [];
+  return document.commitments;
 }
 
 /* -------------------------------- forgetting ------------------------------- */
@@ -523,6 +797,7 @@ function stateChip(state) {
   switch (state) {
     case FINOPS_STATE.unavailable: return { label: "Storage unavailable", tone: "blocked" };
     case FINOPS_STATE.unreadable: return { label: "Stored text unreadable", tone: "warn" };
+    case FINOPS_STATE.unsupported: return { label: "Written by a newer version", tone: "warn" };
     case FINOPS_STATE.declined: return { label: "Not remembering", tone: "off" };
     case FINOPS_STATE.notAsked: return { label: "Not asked yet", tone: "quiet" };
     case FINOPS_STATE.empty: return { label: "Remembering · nothing kept", tone: "quiet" };
@@ -644,6 +919,18 @@ function nextAction({ state, briefing }) {
       kind: "forget",
     };
   }
+  if (state === FINOPS_STATE.unsupported) {
+    return {
+      code: "update_page",
+      headline: "This browser holds a newer FinOps workspace",
+      why: "The document stored here was written by a later version of this page than the one you "
+        + "are running. It has been left exactly as it is — nothing was read from it, and nothing "
+        + "will be written over it. Reload this page to pick up the newer version; forgetting is "
+        + "still offered below, and it is the only thing here that would remove those figures.",
+      label: "Check this browser again",
+      kind: "recheck",
+    };
+  }
   if (state === FINOPS_STATE.notAsked) {
     return {
       code: "choose",
@@ -725,12 +1012,13 @@ function nextAction({ state, briefing }) {
  *   can produce arrives as a state with words attached.
  */
 export function readFinopsWorkspace(storage, { now = new Date() } = {}) {
-  const { access, document, characters } = readFinopsDocument(storage);
+  const { access, document, characters, dropped, migratedFrom } = readFinopsDocument(storage);
   const labels = access === "unavailable" ? {} : readOrgUnitLabels(storage);
   const labelCount = Object.keys(labels).length;
 
   let state;
   if (access === "unavailable") state = FINOPS_STATE.unavailable;
+  else if (access === "unsupported") state = FINOPS_STATE.unsupported;
   else if (access === "unreadable") state = FINOPS_STATE.unreadable;
   else if (document.consent.state === FINOPS_CONSENT.notAsked) state = FINOPS_STATE.notAsked;
   else if (document.consent.state === FINOPS_CONSENT.declined) state = FINOPS_STATE.declined;
@@ -744,6 +1032,7 @@ export function readFinopsWorkspace(storage, { now = new Date() } = {}) {
       "This browser did not let the page read its local storage, so what FinOps has kept here is unknown.",
     [FINOPS_STATE.unreadable]:
       "Text is stored under the FinOps key that this build cannot read as a workspace document.",
+    [FINOPS_STATE.unsupported]: FINOPS_OUTCOME.unsupported_document,
     [FINOPS_STATE.notAsked]:
       "Nothing FinOps-related is stored in this browser, and nothing will be until you choose.",
     [FINOPS_STATE.declined]:
@@ -801,14 +1090,21 @@ export function readFinopsWorkspace(storage, { now = new Date() } = {}) {
       commitments: document.commitments.length,
       labels: labelCount,
       characters,
+      // Entries that were stored but did not satisfy their record contract. A
+      // count of them is the difference between "nothing is kept" and "this
+      // page refused to show you something that is in there".
+      dropped,
     }),
+    // The version the stored text was written at, when this read migrated it
+    // forward. Null when the store was already current.
+    migratedFrom,
     records: Object.freeze(records),
     canExport: state === FINOPS_STATE.retaining || (state !== FINOPS_STATE.unavailable && labelCount > 0),
     // Forget is offered whenever there is something to forget: unreadable text,
     // a recorded choice, retained figures, or labels. Offering it over a store
     // that holds nothing would promise a change it cannot make.
     canForget: access !== "unavailable"
-      && (access === "unreadable" || labelCount > 0
+      && (access === "unreadable" || access === "unsupported" || labelCount > 0
         || document.consent.state !== FINOPS_CONSENT.notAsked),
     nextAction: Object.freeze(nextAction({ state, briefing })),
   });

@@ -44,6 +44,10 @@
           <input id="commit-file" type="file" accept=".json,application/json" aria-describedby="commit-file-note" />
         </div>
         <p id="commit-handoff-status" role="status" aria-live="polite">Reading the bundled example analysis…</p>
+        <!-- Approved commitments this browser already kept, read back from the
+             opt-in FinOps workspace. Hidden unless retention was granted and
+             something is stored: painted through textContent only. -->
+        <p id="commit-retained" class="commit-retained" hidden></p>
         <div id="commit-notices"></div>
       </section>
 
