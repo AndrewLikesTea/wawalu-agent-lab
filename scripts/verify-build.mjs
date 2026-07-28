@@ -64,6 +64,11 @@ export async function verifyArtifact(root) {
     "prompt-coaching-page.js", "prompt-coaching.js", "prompt-coaching-view.js",
     "prompt-coaching-contract.js", "prompt-coaching-contract-view.js",
     "prompt-literacy-rubric.json",
+    // The result-presentation primitives and the specimen that reviews them.
+    // The entry imports the specimen view, so a missing one of these is a
+    // rejected entry module and a coaching panel that never comes to life.
+    "coaching-result-presentation.js", "coaching-result-view.js",
+    "coaching-specimen.js", "coaching-specimen-view.js",
   ]);
   const paths = new Set(actual.map(({ path }) => path));
   for (const path of required) if (!paths.has(path)) throw new Error(`missing required UI asset: ${path}`);

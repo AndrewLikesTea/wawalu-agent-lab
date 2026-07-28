@@ -19,12 +19,16 @@
 import { gradeMyPrompt } from "./prompt-coaching.js";
 import { INPUT_HINT, applyPromptCoaching, clearPromptCoaching } from "./prompt-coaching-view.js";
 import { applyCoachingPreview } from "./prompt-coaching-contract-view.js";
+import { applyCoachingSpecimen } from "./coaching-specimen-view.js";
 
 export function initPromptCoaching(doc = globalThis.document) {
   // The preview is painted before the form is wired, and independently of it:
   // a reader deciding whether to type anything into the box needs the boundary
   // and the worked example whether or not the form ever comes to life.
   applyCoachingPreview(doc);
+  // The specimen likewise: it is a review surface over bundled samples and
+  // reads nothing a visitor types, so it renders whether or not the form does.
+  applyCoachingSpecimen(doc);
 
   const form = doc?.getElementById?.("prompt-coaching-form");
   if (!form) return null;
