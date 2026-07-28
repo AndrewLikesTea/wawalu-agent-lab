@@ -40,10 +40,13 @@
       </section>
 
       <section class="observatory-grid" aria-label="Agent activity">
-        <aside class="team-panel">
+        <aside class="team-panel" aria-labelledby="persona-title">
           <div class="section-heading">
             <p class="eyebrow">On the floor</p>
-            <h2>Personas</h2>
+            <!-- The no-activity state links here, so the heading is a focus
+                 target: an in-page link to a plain <ol> moves the reading
+                 position for sighted users only. -->
+            <h2 id="persona-title" tabindex="-1">Personas</h2>
           </div>
           <ol class="persona-list" id="persona-list" aria-busy="true"></ol>
           <p class="privacy-note"><strong>Demo boundary</strong> Persona profiles, prompt traces, and fallback activity are synthetic representative examples. When available, recent activity comes only from public GitHub events. This observatory does not access customer data, private repositories, hidden instructions, credentials, or private identities.</p>
@@ -51,10 +54,24 @@
 
         <section class="activity-panel" aria-labelledby="activity-title">
           <div class="activity-heading">
-            <div><p class="eyebrow">Repository signal</p><h2 id="activity-title">Recent activity</h2></div>
+            <p class="eyebrow">Repository signal</p><h2 id="activity-title">Recent activity</h2>
+          </div>
+          <!-- Status comes straight after the panel heading, before the control
+               and before the list, so the first thing anyone reads after
+               "Recent activity" is which of loading / no activity / failed
+               request they are looking at. agents.js replaces the inner block;
+               the markup below is the loading state it starts in. -->
+          <div class="activity-state" id="activity-status" data-state="loading" role="status" aria-live="polite">
+            <span class="activity-state-icon" data-shape="loading" aria-hidden="true"></span>
+            <div class="activity-state-copy">
+              <p class="activity-state-chip">Loading</p>
+              <h3 class="activity-state-title">Loading recent activity</h3>
+              <p class="activity-state-detail">Requesting public repository activity from GitHub. Until it answers, the steps below are a synthetic example rather than live events.</p>
+            </div>
+          </div>
+          <div class="activity-actions">
             <button class="observatory-refresh" id="refresh-activity" type="button">Refresh</button>
           </div>
-          <p class="activity-status" id="activity-status" role="status" aria-live="polite">Loading recent activity…</p>
           <ol class="activity-list" id="activity-list" aria-label="Representative synthetic activity" aria-busy="true"></ol>
         </section>
       </section>

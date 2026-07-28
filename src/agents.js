@@ -286,17 +286,105 @@ export function renderRepresentativeActivity(list, { reason = "loading" } = {}) 
   }
 }
 
+// A request in flight, a feed that answered with nothing, and a request that
+// failed are three different facts about the world, and a reader who cannot tell
+// them apart cannot tell whether to wait, to look elsewhere, or to retry. So
+// each state owns a distinct heading, its own explanatory sentence, and its own
+// outline shape. Colour never carries the difference on its own: the chip word,
+// the heading, and the icon geometry each say which state this is.
+export const ACTIVITY_STATES = Object.freeze({
+  loading: Object.freeze({
+    shape: "loading",
+    chip: "Loading",
+    title: "Loading recent activity",
+    detail: "Requesting public repository activity from GitHub. Until it answers, the steps below are a synthetic example rather than live events.",
+    keptDetail: "Checking for newer public repository activity. The events below are from the last successful update.",
+    action: "Refresh",
+  }),
+  live: Object.freeze({
+    shape: "live",
+    chip: "Live",
+    title: "Live public activity",
+    detail: "Public repository events are shown below. This list refreshes every 90 seconds.",
+    action: "Refresh",
+  }),
+  empty: Object.freeze({
+    shape: "empty",
+    chip: "No activity",
+    title: "No recent public activity",
+    detail: "No recent public activity is available. The public feed answered and carried no events this observatory recognises — nothing failed, and nothing is hidden. The steps below are a synthetic example of the work this feed shows.",
+    links: Object.freeze([
+      Object.freeze({ label: "Meet the demo personas", href: "#persona-title" }),
+      Object.freeze({ label: "Read the published prompt trace", href: "/agent-trace.html" }),
+    ]),
+    action: "Check for new activity",
+  }),
+  error: Object.freeze({
+    shape: "error",
+    chip: "Request failed",
+    title: "Public activity could not be loaded",
+    detail: "The request for public repository activity failed, so nothing below is live. The steps shown are a synthetic example, and the rest of this page is unaffected.",
+    keptDetail: "The request for public repository activity failed. The events below are from the last successful update, and the rest of this page is unaffected.",
+    action: "Retry public activity",
+  }),
+});
+
+function liveDetail(count) {
+  return `${count} recent public ${count === 1 ? "event" : "events"} from the lab repositories. This list refreshes every 90 seconds.`;
+}
+
+// The status block sits immediately after the panel heading, so this is the
+// first thing read after "Recent activity". The refresh control is a real
+// button outside the block: it keeps its listener across re-renders and stays
+// operable with Enter and Space without a key handler of its own.
+export function renderActivityState(root, state, { count = 0, keptEvents = false } = {}) {
+  const name = state in ACTIVITY_STATES ? state : "loading";
+  const copy = ACTIVITY_STATES[name];
+  const control = root.querySelector("#refresh-activity");
+  if (control) {
+    control.textContent = copy.action;
+    control.dataset.state = name;
+  }
+  const container = root.querySelector("#activity-status");
+  if (!container) return null;
+  container.dataset.state = name;
+  const icon = document.createElement("span");
+  icon.className = "activity-state-icon";
+  icon.dataset.shape = copy.shape;
+  icon.setAttribute("aria-hidden", "true");
+  const body = document.createElement("div");
+  body.className = "activity-state-copy";
+  appendText(body, "p", "activity-state-chip", copy.chip);
+  appendText(body, "h3", "activity-state-title", copy.title);
+  appendText(body, "p", "activity-state-detail", name === "live"
+    ? liveDetail(count)
+    : (keptEvents && copy.keptDetail) || copy.detail);
+  // Nothing recent to read is not a dead end: point at the two published things
+  // that are always there — the persona profiles and the full prompt trace.
+  if (copy.links) {
+    const links = document.createElement("ul");
+    links.className = "activity-state-links";
+    for (const link of copy.links) {
+      const row = document.createElement("li");
+      const anchor = appendText(row, "a", "", link.label);
+      anchor.href = link.href;
+      links.append(row);
+    }
+    body.append(links);
+  }
+  container.replaceChildren(icon, body);
+  return container;
+}
+
 export async function loadActivity(root = document, fetcher = fetch) {
   const list = root.querySelector("#activity-list");
-  const status = root.querySelector("#activity-status");
   const signal = root.querySelector(".signal-card");
   const label = root.querySelector("#connection-label");
   const updated = root.querySelector("#last-updated");
-  status.textContent = "Refreshing public repository activity…";
   const hasLiveEvents = Boolean(list.querySelector?.(".activity-item:not(.activity-item-representative)"));
+  renderActivityState(root, "loading", { keptEvents: hasLiveEvents });
   if (!hasLiveEvents) {
     renderRepresentativeActivity(list, { reason: "loading" });
-    status.textContent = "Loading public repository activity · showing representative synthetic activity";
     label.textContent = "Representative preview";
     updated.textContent = "Public request in progress";
   }
@@ -313,29 +401,30 @@ export async function loadActivity(root = document, fetcher = fetch) {
     const count = renderEvents(list, events);
     if (count) {
       list.setAttribute("aria-label", "Recent public repository events");
-      status.textContent = `${count} relevant events · refreshes every 90 seconds`;
+      renderActivityState(root, "live", { count });
       label.textContent = "Live signal";
     } else {
       renderRepresentativeActivity(list, { reason: "empty" });
-      status.textContent = "No relevant public events yet · showing representative synthetic activity";
+      renderActivityState(root, "empty");
       label.textContent = "Representative preview";
     }
     signal.dataset.connected = "true";
     updated.textContent = `Updated ${new Intl.DateTimeFormat(undefined, { timeStyle: "short" }).format(new Date())}`;
-    const refresh = root.querySelector("#refresh-activity");
-    if (refresh) refresh.textContent = "Refresh";
   } catch {
-    status.textContent = "Public activity is temporarily unavailable. Existing product data is unaffected.";
+    renderActivityState(root, "error", { keptEvents: hasLiveEvents });
     signal.dataset.connected = "false";
     label.textContent = "Connection status: paused";
     updated.textContent = "Last request: failed";
-    if (!hasLiveEvents) {
-      renderRepresentativeActivity(list, { reason: "unavailable" });
-      status.textContent = "Public repository activity is unavailable · showing representative synthetic activity";
-      const retry = root.querySelector("#refresh-activity");
-      if (retry) retry.textContent = "Retry public activity";
-    }
+    if (!hasLiveEvents) renderRepresentativeActivity(list, { reason: "unavailable" });
   }
+}
+
+// Retry runs the same load the page runs on mount and on its timer: one data
+// path, so a retried request cannot reach a different state than a first one.
+export function wireActivityControls(root = document, fetcher) {
+  const refresh = () => loadActivity(root, fetcher ?? fetch);
+  root.querySelector("#refresh-activity")?.addEventListener("click", refresh);
+  return refresh;
 }
 
 function promptBlock(label, value) {
@@ -393,8 +482,7 @@ export async function loadDemoData(root = document, fetcher = fetch) {
 }
 
 if (typeof document !== "undefined" && document.querySelector("#activity-list")) {
-  const refresh = () => loadActivity();
-  document.querySelector("#refresh-activity")?.addEventListener("click", refresh);
+  const refresh = wireActivityControls();
   renderState(document.querySelector("#persona-list"), { state: "loading", item: true, title: "Loading demo personas for planning and review" });
   renderState(document.querySelector("#prompt-trace"), { state: "loading", title: "Loading published prompt trace…" });
   refresh();
