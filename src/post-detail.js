@@ -83,14 +83,20 @@ const POST_STATE_COPY = {
     tone: "missing",
     label: "Unavailable",
     title: "This post is unavailable",
-    description: "It may have been removed, or the link may be incomplete.",
+    // Second sentence names the way on: this state is the one place a reader can
+    // land with nothing to read, and "browse Social" is true whichever route the
+    // page is offering them — the standing exit when they came from the feed,
+    // the feed link feedAction() adds when they came from a profile.
+    description: "It may have been removed, or the link may be incomplete. Browse Social to find another post.",
   },
   error: {
     className: "empty-state-error detail-state-unavailable",
     tone: "error",
     label: "Error",
     title: "Post couldn’t be loaded",
-    description: "We couldn’t reach Social, so this post didn’t load.",
+    // Points at the retry button this state ships, and says the wait is worth
+    // it: nothing here suggests the post is gone, because it probably is not.
+    description: "We couldn’t reach Social, so this post didn’t load. Try again in a moment.",
   },
 };
 
@@ -214,7 +220,7 @@ function renderLoading(container) {
   status.setAttribute("role", "status");
   const dot = el("span", "detail-loading-dot");
   dot.setAttribute("aria-hidden", "true");
-  status.append(dot, el("span", "detail-loading-text", "Loading this post…"));
+  status.append(dot, el("span", "detail-loading-text", "Loading this post from Social…"));
   container.append(status);
 }
 
@@ -293,9 +299,15 @@ export function renderPostDetail(container, post, options = {}) {
 // which is a different page in this product. It is also the exact phrase
 // postDetailTitle() puts in the tab, so the heading and the tab name the same
 // thing. The date and caption sit in the article underneath.
+//
+// With no author to name — while the lookup is still running, and afterwards if
+// it found nothing — the heading names the page instead of standing as the bare
+// word "Post", which says only what a reader can already see. "Post from Social"
+// says which surface this one post came out of, which is the thing a visitor
+// arriving on a pasted link does not know yet.
 export function postPageHeading(post) {
   const author = post?.author?.trim();
-  return author ? `Post by ${author}` : "Post";
+  return author ? `Post by ${author}` : "Post from Social";
 }
 
 // Same shape as the decision detail's title — the record, then the surface the
