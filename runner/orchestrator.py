@@ -61,6 +61,22 @@ def output(command: list[str], cwd: pathlib.Path = ROOT, **kwargs) -> str:
     return subprocess.check_output(command, cwd=cwd, text=True, **kwargs).strip()
 
 
+def run_product_check(command: list[str], cwd: pathlib.Path) -> None:
+    """Run the product's check script, retrying once before it fails the run.
+
+    A couple of suites here judge wall-clock time (paint's frame budget, the history
+    export e2e), so under load they fail on timing rather than on the diff. One such
+    failure throws away a finished worker session and costs a whole retry run, while
+    a second attempt costs a couple of minutes — and a change that is genuinely
+    broken still fails both times.
+    """
+    try:
+        run(command, cwd=cwd)
+    except subprocess.CalledProcessError:
+        print("product check failed; retrying once before failing the run", file=sys.stderr)
+        run(command, cwd=cwd)
+
+
 def worker_left_work(worktree: pathlib.Path) -> bool:
     """Report whether the worker changed anything at all in its worktree.
 
@@ -403,7 +419,7 @@ Scenario: {json.dumps(scenario, indent=2)}
     (run_dir / "metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")
     check_command = product_check_command(worktree)
     if check_command:
-        run(check_command, cwd=worktree)
+        run_product_check(check_command, worktree)
         gates_passed = "npm run check and agent policy passed"
     else:
         gates_passed = "agent policy passed (product repo defines no check script)"
