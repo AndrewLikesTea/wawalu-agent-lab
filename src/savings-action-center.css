@@ -70,6 +70,48 @@
   .sac-calculation { grid-template-columns:1fr; }
   .sac-details summary,.sac-details-body { padding-inline:24px; }
 }
+/* ---------------------------------------------------------------------------
+   The reconciliation panel.
+
+   Status travels four ways before it travels as colour: the word, the glyph,
+   the left-edge border STYLE (solid / double / dashed / dotted), and the
+   `data-status` attribute a test asserts on. A greyscale print and a monochrome
+   screen both keep the distinction.
+   --------------------------------------------------------------------------- */
+.sac-reconciliation { margin-top:28px; padding:28px 36px; border:1px solid #e4e2db; background:#fff; }
+.sac-reconciliation > h2 { margin-top:0; font-size:20px; }
+.rec-question { margin:0 0 6px; font-weight:800; }
+.rec-summary { margin:0 0 18px; max-width:74ch; color:#55554f; font-size:14px; line-height:1.55; }
+.rec-rows { margin:0; padding:0; list-style:none; }
+.rec-row { margin-bottom:16px; padding:16px 18px; border:1px solid #e4e2db; border-left-width:6px; }
+.rec-row[data-shape="solid"] { border-left-style:solid; border-left-color:#3f7d54; }
+.rec-row[data-shape="double"] { border-left-style:double; border-left-color:#b1533f; }
+.rec-row[data-shape="dashed"] { border-left-style:dashed; border-left-color:#8a8a82; }
+.rec-row[data-shape="dotted"] { border-left-style:dotted; border-left-color:#6d6fa8; }
+.rec-row-header { display:flex; flex-wrap:wrap; gap:10px; align-items:baseline; }
+.rec-glyph { font:800 14px/1 ui-monospace,monospace; }
+.rec-status { font:800 11px/1.4 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; }
+.rec-title { font-weight:800; }
+.rec-statement { margin:8px 0; max-width:74ch; font-size:14px; line-height:1.55; }
+.rec-figures { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px 24px; margin:12px 0; }
+.rec-figures[data-available="false"] { grid-template-columns:1fr; }
+.rec-fact dt { font:800 10px/1.4 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; color:#55554f; }
+.rec-fact dd { margin:2px 0 0; font-size:15px; }
+.rec-confidence,.rec-provenance,.rec-next { margin:6px 0; max-width:74ch; color:#55554f; font-size:13px; line-height:1.55; }
+.rec-evidence summary { font-weight:700; font-size:13px; cursor:pointer; }
+.rec-gaps { margin:6px 0 0; padding-left:20px; font-size:13px; line-height:1.55; }
+.rec-rules summary { font-weight:800; font-size:14px; cursor:pointer; }
+.rec-rule-list { margin:10px 0 0; }
+.rec-rule dt { font:800 10px/1.4 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; }
+.rec-rule dd { margin:2px 0 12px; max-width:74ch; font-size:13px; line-height:1.55; }
+.rec-rule-assumption { color:#55554f; }
+.rec-rules-version { color:#777771; font:650 10px/1.5 ui-monospace,monospace; }
+.sac-reconcile-controls { display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin-top:18px; }
+.sac-reconcile-note,.sac-reconcile-status { max-width:74ch; color:#55554f; font-size:13px; line-height:1.55; }
+@media (max-width:760px) {
+  .sac-reconciliation { padding:20px 24px; }
+  .rec-figures { grid-template-columns:1fr; }
+}
 @media (prefers-reduced-motion:no-preference) {
   .sac-details[open] .sac-details-body { animation:sac-reveal .18s ease-out; }
 }
