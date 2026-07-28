@@ -196,6 +196,21 @@ class Element {
     }
   }
 
+  // Standard DOM placement, needed by any view that has to land a node in a
+  // specific slot rather than at one end. A null reference appends, which is
+  // what the browser does; a reference that is not a child throws there, and
+  // appending here instead of throwing would hide the mistake.
+  insertBefore(node, reference) {
+    if (!reference) { this.append(node); return node; }
+    const index = this.children.indexOf(reference);
+    if (index === -1) throw new Error("insertBefore: the reference node is not a child of this node");
+    const child = typeof node === "string" ? new TextNode(node, this.ownerDocument) : node;
+    child.remove?.();
+    child.parentNode = this;
+    this.children.splice(this.children.indexOf(reference), 0, child);
+    return node;
+  }
+
   replaceChildren(...nodes) {
     for (const child of this.children) child.parentNode = null;
     this.children = [];
