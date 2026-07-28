@@ -985,9 +985,13 @@ def consult_after_directive_mvp(token: str, config: dict[str, Any], journal: Jou
             except ConsultantCapacityExhausted:
                 attempted.add(worker)
                 if state is not None:
+                    # Same clamp the run path applies: a consultation refusal states its own
+                    # reset time, and a blind exponential hold that outlives it locks the
+                    # provider out of BOTH consultations and runs long after it recovered.
                     state.record_worker_capacity(
                         worker, int(config.get("capacity_retry_seconds", 900)),
-                        maximum_seconds=int(config.get("capacity_retry_max_seconds", 18000)))
+                        maximum_seconds=int(config.get("capacity_retry_max_seconds", 18000)),
+                        reset_at=capacity_reset_at(sorted(run_dir.glob("*.jsonl"))))
                 other = "claude" if worker == "codex" else "codex"
                 if other in attempted or (state is not None and not state.worker_available(other)):
                     journal.emit("consultation_capacity_deferred", worker=worker, round=round_number)
