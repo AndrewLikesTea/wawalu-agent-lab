@@ -1,3 +1,4 @@
+import base64
 import pathlib
 import subprocess
 import unittest
@@ -18,26 +19,40 @@ class PushBranchTests(unittest.TestCase):
     def test_clean_push_needs_no_force(self):
         with mock.patch.object(orchestrator.subprocess, "run",
                                return_value=completed(["git", "push"], 0)) as spawn:
-            orchestrator.push_branch(BRANCH, WORKTREE, {})
+            token = orchestrator.push_branch(BRANCH, WORKTREE, lambda: "first-token")
         self.assertEqual(spawn.call_count, 1)
         self.assertNotIn("--force-with-lease", " ".join(spawn.call_args[0][0]))
+        self.assertEqual(token, "first-token")
 
     def test_branch_left_by_an_earlier_attempt_is_replaced_under_lease(self):
         with mock.patch.object(orchestrator.subprocess, "run",
                                return_value=completed(["git", "push"], 1)), \
              mock.patch.object(orchestrator, "output", return_value=f"deadbeef\trefs/heads/{BRANCH}"), \
              mock.patch.object(orchestrator, "run") as forced:
-            orchestrator.push_branch(BRANCH, WORKTREE, {})
+            orchestrator.push_branch(BRANCH, WORKTREE, lambda: "first-token")
         self.assertIn(f"--force-with-lease={BRANCH}:deadbeef", forced.call_args[0][0])
 
-    def test_push_failure_with_no_remote_branch_still_fails_the_run(self):
+    def test_a_refused_token_is_replaced_before_the_run_is_given_up(self):
+        """GitHub sometimes denies write to a token it just minted; one retry saves the session."""
+        tokens = iter(["refused-token", "fresh-token"])
         with mock.patch.object(orchestrator.subprocess, "run",
                                return_value=completed(["git", "push"], 1)), \
              mock.patch.object(orchestrator, "output", return_value=""), \
-             mock.patch.object(orchestrator, "run") as forced:
+             mock.patch.object(orchestrator, "run") as retried:
+            token = orchestrator.push_branch(BRANCH, WORKTREE, lambda: next(tokens))
+        self.assertEqual(token, "fresh-token")
+        self.assertNotIn("--force-with-lease", " ".join(retried.call_args[0][0]))
+        self.assertIn("fresh-token",
+                      base64.b64decode(retried.call_args[1]["env"]["GIT_CONFIG_VALUE_0"].split()[-1]).decode())
+
+    def test_push_failure_a_fresh_token_cannot_explain_still_fails_the_run(self):
+        with mock.patch.object(orchestrator.subprocess, "run",
+                               return_value=completed(["git", "push"], 1)), \
+             mock.patch.object(orchestrator, "output", return_value=""), \
+             mock.patch.object(orchestrator, "run",
+                               side_effect=subprocess.CalledProcessError(128, ["git", "push"])):
             with self.assertRaisesRegex(RuntimeError, "no remote branch"):
-                orchestrator.push_branch(BRANCH, WORKTREE, {})
-        forced.assert_not_called()
+                orchestrator.push_branch(BRANCH, WORKTREE, lambda: "token")
 
 
 class CreatePullRequestTests(unittest.TestCase):
