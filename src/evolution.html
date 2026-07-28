@@ -651,9 +651,14 @@
            org chart; this one grades the text in the box against the same rubric
            and answers a different question — the one a reader arrives with before
            they have any file to import. It shares no state with the import: no
-           seed, no workspace, no selection, no storage. src/prompt-coaching.js
-           composes the answer, src/prompt-coaching-view.js draws it, and
-           src/prompt-coaching-page.js is the whole of the wiring. -->
+           seed, no workspace, no selection, no storage.
+
+           The analysis runs in the browser from bundled static client-side
+           code — the grading modules, the reading surface, the page entry and
+           the rubric JSON shipped beside them. No request is sent for coaching
+           and no persistence is implemented. The preview at the foot of this
+           section renders that boundary from the same contract module the
+           workflow runs on, so the claim can be checked rather than believed. -->
       <section class="prompt-coaching finops-panel" id="prompt-coaching" data-state="idle" data-expanded="false" aria-labelledby="prompt-coaching-question">
         <div class="section-heading">
           <p class="eyebrow">Coach one prompt · browser only</p>
@@ -686,6 +691,21 @@
         </form>
         <p class="prompt-coaching-live" id="prompt-coaching-live" role="status" aria-live="polite" aria-atomic="true"></p>
         <div class="prompt-coaching-result" id="prompt-coaching-result" hidden></div>
+
+        <!-- Before you paste: what this reads, what it returns, and what it
+             never does. The two sentences below are static because a claim
+             about privacy that only appears once a script succeeds is a claim a
+             visitor cannot rely on. Everything inside the disclosure is
+             rendered from src/prompt-coaching-contract.js, which is the module
+             the workflow itself runs on — a claim in there that stopped being
+             true would stop being true for the grading as well. -->
+        <details class="prompt-coaching-preview" id="prompt-coaching-preview">
+          <summary id="prompt-coaching-preview-summary">What this reads, what it returns, and what stays out</summary>
+          <p class="prompt-coaching-preview-static">Coaching is computed in this browser from bundled static client-side code. No request is sent for coaching, no persistence is implemented, and no credential, customer record, or live integration is read.</p>
+          <div class="prompt-coaching-preview-body" id="prompt-coaching-preview-body">
+            <p class="prompt-coaching-preview-lead">The worked example, the field list, and the four states this workflow can return are rendered here from the coaching contract when the page&rsquo;s scripts load.</p>
+          </div>
+        </details>
       </section>
 
       <!-- Immediately below the result region and outside it: the decision brief

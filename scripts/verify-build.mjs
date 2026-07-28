@@ -57,6 +57,13 @@ export async function verifyArtifact(root) {
     // module before painting the unavailable state, so this must fail before a
     // Pages deployment rather than becoming a client-side blank panel.
     "imported-executive-view.js", "imported-peer-benchmark.js", "peer-cohort-contract.js",
+    // The coaching workflow's entry and everything it imports. The contract and
+    // its preview are listed too: the entry imports them, so an artifact missing
+    // either one is an entry the browser refuses and a coaching panel that never
+    // comes to life — including the boundary a reader consults before pasting.
+    "prompt-coaching-page.js", "prompt-coaching.js", "prompt-coaching-view.js",
+    "prompt-coaching-contract.js", "prompt-coaching-contract-view.js",
+    "prompt-literacy-rubric.json",
   ]);
   const paths = new Set(actual.map(({ path }) => path));
   for (const path of required) if (!paths.has(path)) throw new Error(`missing required UI asset: ${path}`);

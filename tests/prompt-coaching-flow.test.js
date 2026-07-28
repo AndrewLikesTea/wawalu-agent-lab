@@ -19,6 +19,11 @@ import { fileURLToPath } from "node:url";
 import { loadPage, pressEnter, pressTab, tabSequence, textOf, typeText } from "./support/browser.js";
 import { importPageModule } from "./support/page-module.js";
 import { COACHING_INPUT_LIMITS } from "../src/prompt-coaching.js";
+import {
+  COACHING_LOCAL_ONLY_BOUNDARY, COACHING_OUTCOME_STATES, COACHING_SESSION_VERSION,
+  PREVIEW_SAMPLE_ID, RESULT_FIELD_MEANINGS, SESSION_FIELDS, buildSampleCoachingSession,
+  coachingSample, validateCoachingSession,
+} from "../src/prompt-coaching-contract.js";
 
 const PAGE = fileURLToPath(new URL("../src/evolution.html", import.meta.url));
 
@@ -125,6 +130,24 @@ test("pasting a weak prompt returns an answer, one benchmark, and one move", asy
     assert.ok(textOf(live).startsWith(textOf(answer)), textOf(live));
     assert.match(textOf(live), /Do this first:/);
   } finally {
+    page.restore();
+  }
+});
+
+test("hostile prompt markup is treated as text and never creates executable DOM", async () => {
+  const page = await openCoachingPage();
+  try {
+    const { document } = page;
+    const hostile = '<img src=x onerror="globalThis.pwned=true"><script>globalThis.pwned=true</script>';
+    gradeText(document, hostile);
+
+    assert.equal(byId(document, "prompt-coaching-input").value, hostile,
+      "the textarea preserves what the reader typed without parsing it as markup");
+    assert.equal(byId(document, "prompt-coaching-result").querySelector("script"), null);
+    assert.equal(byId(document, "prompt-coaching-result").querySelector("img"), null);
+    assert.equal(globalThis.pwned, undefined);
+  } finally {
+    delete globalThis.pwned;
     page.restore();
   }
 });
@@ -323,6 +346,114 @@ test("the model select offers a stated-nothing default and does not require a ch
     assert.equal(select.value, "", "no tier is assumed on a reader's behalf");
     gradeText(document, WEAK_PROMPT);
     assert.equal(byId(document, "prompt-coaching").dataset.state, "graded");
+  } finally {
+    page.restore();
+  }
+});
+
+// ---------------------------------------------------------------------------
+// The pre-paste preview
+// ---------------------------------------------------------------------------
+//
+// The question this surface answers is asked before a reader types anything:
+// "what does this read, what do I get back, and what does it do with my text?"
+// So every assertion below runs on a page where nothing has been pasted.
+
+test("the boundary is stated in the markup, before any script runs", async () => {
+  const page = await loadPage(PAGE);
+  try {
+    const { document } = page;
+    const preview = byId(document, "prompt-coaching-preview");
+    assert.ok(preview, "the preview must ship in the page markup");
+    const claim = textOf(preview.querySelector(".prompt-coaching-preview-static"));
+    assert.match(claim, /bundled static client-side code/);
+    assert.match(claim, /No request is sent for coaching/);
+    assert.match(claim, /no persistence is implemented/);
+    // A privacy claim a reader can only see once JavaScript succeeds is a claim
+    // they cannot rely on, so this one does not wait for the entry module. And
+    // it says how the analysis runs rather than how many files a build emits:
+    // a file count is not checkable from the page and answers nothing.
+    assert.equal(/\b(one|two|three|four|\d+)\s+(static\s+)?(files?|scripts?|modules?)\b/i
+      .test(textOf(preview)), false, "a file count is not a verifiable claim");
+  } finally {
+    page.restore();
+  }
+});
+
+test("the preview shows the text it analyzed and what it measured about it", async () => {
+  const page = await openCoachingPage();
+  try {
+    const { document } = page;
+    const block = byId(document, "prompt-coaching-preview-body")
+      .querySelector('[data-block="analyzed"]');
+    const sample = coachingSample(PREVIEW_SAMPLE_ID);
+    assert.equal(block.querySelector(".prompt-coaching-preview-sample").textContent, sample.text,
+      "the analyzed text is shown in full, not described");
+    const terms = block.querySelectorAll("dt").map((node) => textOf(node));
+    const values = block.querySelectorAll("dd").map((node) => textOf(node));
+    assert.deepEqual(terms, ["Source", "Characters read", "Turns read",
+      "Role labels found", "Turns the rubric scored", "Model tier named"]);
+    assert.equal(values[0], "bundled_sample");
+    assert.equal(values[1], String(sample.text.length));
+  } finally {
+    page.restore();
+  }
+});
+
+test("the preview names every result field and shows the session a client receives", async () => {
+  const page = await openCoachingPage();
+  try {
+    const { document } = page;
+    const body = byId(document, "prompt-coaching-preview-body");
+    assert.equal(body.dataset.contractVersion, COACHING_SESSION_VERSION);
+    const block = body.querySelector('[data-block="result"]');
+    const fields = block.querySelector(".prompt-coaching-preview-fields")
+      .querySelectorAll("dt").map((node) => textOf(node));
+    assert.deepEqual(fields, RESULT_FIELD_MEANINGS.map((entry) => entry.field));
+
+    // The JSON is the session, not a transcription of one: parsing it and
+    // checking it against the contract is the assertion that this page cannot
+    // display a shape a consumer would be refused.
+    const json = JSON.parse(block.querySelector(".prompt-coaching-preview-json").textContent);
+    assert.equal(json.schemaVersion, COACHING_SESSION_VERSION);
+    assert.deepEqual(Object.keys(json).sort(), [...SESSION_FIELDS].sort());
+    assert.equal(validateCoachingSession(buildSampleCoachingSession(PREVIEW_SAMPLE_ID)).valid, true);
+  } finally {
+    page.restore();
+  }
+});
+
+test("the preview demonstrates every state, including the three that refuse", async () => {
+  const page = await openCoachingPage();
+  try {
+    const { document } = page;
+    const items = byId(document, "prompt-coaching-preview-body")
+      .querySelector('[data-block="states"]').querySelectorAll("li");
+    assert.deepEqual(items.map((item) => item.dataset.outcome),
+      COACHING_OUTCOME_STATES.map((state) => state.outcome));
+    for (const item of items) {
+      assert.ok(textOf(item.querySelector(".prompt-coaching-preview-state-meaning")).length,
+        `${item.dataset.outcome} says nothing about itself`);
+      assert.ok(item.querySelectorAll(".prompt-coaching-preview-state-sample").length,
+        `${item.dataset.outcome} is claimed but not demonstrated`);
+    }
+  } finally {
+    page.restore();
+  }
+});
+
+test("the preview pairs every excluded class with the way to check it", async () => {
+  const page = await openCoachingPage();
+  try {
+    const { document } = page;
+    const items = byId(document, "prompt-coaching-preview-body")
+      .querySelector('[data-block="boundary"]').querySelectorAll("li");
+    assert.deepEqual(items.map((item) => item.dataset.boundary),
+      COACHING_LOCAL_ONLY_BOUNDARY.map((entry) => entry.id));
+    for (const item of items) {
+      assert.match(textOf(item.querySelector(".prompt-coaching-preview-boundary-verify")),
+        /^How to check: /);
+    }
   } finally {
     page.restore();
   }
