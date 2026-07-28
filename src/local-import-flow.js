@@ -495,6 +495,60 @@ function arithmeticText(arithmetic) {
 }
 
 /**
+ * A shape per confidence level, so the grade survives a mono printer, a
+ * greyscale screenshot, and a reader who cannot tell the four tints apart. It is
+ * `aria-hidden`: the word beside it is what a screen reader reads.
+ */
+const CONFIDENCE_SHAPE = Object.freeze({
+  high: "◆",
+  moderate: "◈",
+  low: "◇",
+  insufficient: "×",
+});
+
+/**
+ * The graded slot, as the contract actually emits it.
+ *
+ * The briefing contract has no letter grade — `coverage.confidence` is the one
+ * graded value it computes, so that is what this surface grades. The three
+ * channels are returned together and are painted together: the word is the
+ * label, the ratio is the value, and the glyph is the shape. Colour is a fourth
+ * channel layered on top of those, never a replacement for one.
+ */
+function gradeOf(coverage) {
+  return {
+    level: coverage.confidence,
+    label: CONFIDENCE_WORD[coverage.confidence],
+    shape: CONFIDENCE_SHAPE[coverage.confidence],
+    value: coverage.recordsTotal === 0
+      ? "no records to cover"
+      : `${(coverage.coverageRatio * 100).toFixed(1)}% coverage`,
+  };
+}
+
+/**
+ * What bounds this briefing, in one paragraph behind the method disclosure.
+ *
+ * Every sentence is either the contract's own or a statement of a contract
+ * value; this layer authors no method of its own. The missing-input list is
+ * named as aggregates, which is the only form the contract carries them in.
+ */
+function methodText(briefing) {
+  const parts = [`Selected by briefing contract ${briefing.contractVersion}`
+    + `${briefing.analysisSchemaVersion ? ` from analysis ${briefing.analysisSchemaVersion}` : ""}.`];
+  const missing = briefing.coverage.missingInputs;
+  parts.push(missing.length
+    ? `Inputs this briefing did not have: ${missing.join(", ")}. `
+      + "Confidence is bounded by that, not by the arithmetic above it."
+    : "Every required input was present, so confidence is bounded only by record coverage.");
+  for (const slot of ["materialMetric", "rankedAction"]) {
+    const absent = briefing.absent?.[slot];
+    if (absent) parts.push(absent.statement);
+  }
+  return parts.join(" ");
+}
+
+/**
  * The four sentences a briefing renders to, authored in exactly one place.
  *
  * The live surface and a briefing reopened from a file are the same contract
@@ -510,11 +564,19 @@ export function briefingLines(briefing) {
   return {
     question: briefing.headlineQuestion,
     metric: materialMetric ? metricText(materialMetric) : briefing.absent.materialMetric.statement,
+    grade: gradeOf(briefing.coverage),
     coverage: coverageText(briefing.coverage),
     arithmetic: materialMetric ? arithmeticText(briefing.arithmeticInputs) : null,
     action: rankedAction
       ? `${rankedAction.action} Accountable role: ${rankedAction.accountableRole}.`
       : briefing.absent.rankedAction.statement,
+    // The role on its own line as well as inside the action sentence: the
+    // sentence is what a screen reader hears in context, the line is what a
+    // leader's eye lands on when scanning for who owns this.
+    role: rankedAction ? `Accountable role: ${rankedAction.accountableRole}` : null,
+    method: methodText(briefing),
+    rubric: `Rubric ${briefing.rubricVersion} · briefing contract ${briefing.contractVersion}`,
+    provenance: briefing.provenance.text,
   };
 }
 
@@ -542,10 +604,27 @@ export function applyBriefing(doc, briefing) {
     const node = byId(doc, id);
     if (node) node.textContent = text;
   };
+  const show = (id, visible) => {
+    const node = byId(doc, id);
+    if (node) node.hidden = !visible;
+  };
+  // A painted briefing is not loading, empty, or failed; the state line goes.
+  write("local-lead-status", "");
+  show("local-lead-status", false);
   write("local-lead-question", lines.question);
   write("local-lead-metric", lines.metric);
   const metricNode = byId(doc, "local-lead-metric");
   if (metricNode) metricNode.dataset.available = String(Boolean(materialMetric));
+  // The grade, in three channels at once. `data-confidence` on both the chip
+  // and its paragraph is for the stylesheet and is never the only place the
+  // level can be read — the word and the ratio beside it say the same thing.
+  write("local-lead-grade-shape", lines.grade.shape);
+  write("local-lead-grade-label", lines.grade.label);
+  write("local-lead-grade-value", lines.grade.value);
+  for (const id of ["local-lead-grade", "local-lead-grade-chip"]) {
+    const node = byId(doc, id);
+    if (node) node.dataset.confidence = lines.grade.level;
+  }
   // Coverage is stated in every state, including the states with no figure in
   // them. A low-coverage briefing that hides its coverage is the one dishonest
   // shape this surface can take.
@@ -553,10 +632,88 @@ export function applyBriefing(doc, briefing) {
   write("local-lead-arithmetic", lines.arithmetic ?? "");
   const arithmetic = byId(doc, "local-lead-arithmetic");
   if (arithmetic) arithmetic.hidden = !materialMetric;
+  // The disclosure itself goes with its content: a summary that opens onto
+  // nothing is a control that lies about having something behind it.
+  show("local-lead-arithmetic-detail", Boolean(materialMetric));
+  write("local-lead-method", lines.method);
   write("local-lead-action", lines.action);
   const action = byId(doc, "local-lead-action");
   if (action) action.dataset.available = String(Boolean(rankedAction));
+  write("local-lead-role", lines.role ?? "");
+  const role = byId(doc, "local-lead-role");
+  if (role) role.dataset.available = String(Boolean(rankedAction));
+  show("local-lead-role", Boolean(rankedAction));
+  // Rubric and provenance are painted in every state and are never disclosed
+  // behind anything: a forwarded briefing has to say what graded it and where
+  // it ran, on screen and on paper.
+  write("local-lead-rubric", lines.rubric);
+  write("local-lead-provenance", lines.provenance);
   return briefing;
+}
+
+/**
+ * The three states a briefing has before it has an answer: loading, nothing to
+ * show yet, and generation failed.
+ *
+ * The surface is not swapped for a panel. The same article stays, keeps its
+ * heading and its rubric line, and the slots it cannot fill yet are emptied and
+ * marked through `data-state` — the stylesheet draws the loading skeleton over
+ * the real slots, so the layout a reader sees while waiting is the shape of the
+ * layout they get. `local-lead-status` carries the sentence, and for empty and
+ * error it also carries the recovery path.
+ *
+ * @param state one of "loading", "empty", "error".
+ * @param message the sentence to state. Callers own the copy; this layer owns
+ *   the structure, exactly as `applyBriefing` owns no wording of its own.
+ */
+export const BRIEFING_STATE_MESSAGE = Object.freeze({
+  loading: "Computing this briefing from the records in this tab…",
+  empty: "No briefing yet. Import a provider export above, or open the example data, "
+    + "and the question, the figure that answers it, and the prioritized action appear here.",
+  error: "This briefing could not be computed from the imported records. "
+    + "Nothing was uploaded. Check the column mapping above and analyze again.",
+});
+
+export function applyBriefingState(doc, state, message = BRIEFING_STATE_MESSAGE[state]) {
+  const section = byId(doc, "local-lead-finding");
+  if (!section || !BRIEFING_STATE_MESSAGE[state]) return null;
+  section.hidden = false;
+  section.dataset.state = state;
+  const write = (id, text) => {
+    const node = byId(doc, id);
+    if (node) node.textContent = text;
+  };
+  const status = byId(doc, "local-lead-status");
+  if (status) {
+    status.textContent = message;
+    status.hidden = false;
+  }
+  // The slots are emptied rather than removed. Nothing is unmounted, so the
+  // skeleton occupies the space the answer will, and a print of a loading page
+  // cannot show a stale figure.
+  write("local-lead-metric", "—");
+  write("local-lead-grade-value", "—");
+  write("local-lead-grade-label", state === "error" ? "Confidence unavailable" : "Confidence pending");
+  write("local-lead-grade-shape", "◇");
+  write("local-lead-coverage", "—");
+  write("local-lead-arithmetic", "");
+  write("local-lead-action", "—");
+  write("local-lead-role", "");
+  write("local-lead-method", "—");
+  for (const id of ["local-lead-grade", "local-lead-grade-chip"]) {
+    const node = byId(doc, id);
+    if (node) node.dataset.confidence = "";
+  }
+  for (const [id, available] of [["local-lead-metric", false], ["local-lead-action", false],
+    ["local-lead-role", false]]) {
+    const node = byId(doc, id);
+    if (node) node.dataset.available = String(available);
+  }
+  for (const id of ["local-lead-arithmetic", "local-lead-arithmetic-detail", "local-lead-role"]) {
+    const node = byId(doc, id);
+    if (node) node.hidden = true;
+  }
+  return state;
 }
 
 // --- a briefing reopened from a file ---------------------------------------

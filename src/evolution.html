@@ -305,21 +305,80 @@
                statement of why rather than a zero, a dash, or an estimate. -->
           <article class="local-lead-finding" id="local-lead-finding" data-analysis-surface data-dataset="user" data-state="unavailable" aria-labelledby="local-lead-question" hidden>
             <p class="eyebrow">The question this answers</p>
-            <h4 id="local-lead-question">—</h4>
-            <p class="local-lead-metric" id="local-lead-metric" data-available="false">—</p>
-            <!-- Coverage is painted in every state, including the states with no
-                 figure in them: a low-coverage briefing states its coverage
-                 rather than hiding it. -->
-            <p class="local-lead-coverage" id="local-lead-coverage">—</p>
-            <!-- The named inputs and the operation behind the figure, so a
-                 reader can recompute it by hand. Hidden when there is no figure
-                 to recompute — an arithmetic line with nothing above it is not
-                 evidence of anything. -->
-            <p class="local-lead-arithmetic" id="local-lead-arithmetic" hidden></p>
-            <div class="local-lead-next">
+            <!-- The question is the headline of this surface, so it carries the
+                 largest display step on the page after the hero. It stays an h4
+                 because it is the fourth level of *this page's* outline (h1 page
+                 title › h2 import section › h3 decision brief › this); a second
+                 h1 here would break the page's one-h1 contract. Size is the
+                 hierarchy signal; the heading level is the document structure,
+                 and the two are allowed to disagree. -->
+            <h4 class="local-lead-question" id="local-lead-question">—</h4>
+            <!-- One state line for loading, empty, and error. It sits above the
+                 answer block rather than replacing it, so the shape of the
+                 surface never changes between "waiting" and "answered". -->
+            <p class="local-lead-status" id="local-lead-status" role="status" hidden></p>
+            <!-- THE ANSWER BLOCK. The figure, the confidence grade, and the
+                 coverage the grade was computed from are one container and one
+                 accessible group — not three siblings that happen to sit near
+                 each other. There is no viewport width, no paint order, and no
+                 page break at which the grade appears without the confidence
+                 and coverage that bound it, because they are not separable
+                 elements. `break-inside: avoid` on this block is the print half
+                 of the same rule. -->
+            <div class="local-lead-answer" id="local-lead-answer" role="group" aria-labelledby="local-lead-answer-title">
+              <p class="eyebrow" id="local-lead-answer-title">The answer, and how far it reaches</p>
+              <p class="local-lead-metric" id="local-lead-metric" data-available="false">—</p>
+              <!-- The briefing contract has no letter grade; the graded slot it
+                   does emit is `coverage.confidence`, so that is what is graded
+                   here. The chip is never the only channel: a shape glyph, the
+                   confidence word, and the coverage ratio as a number all travel
+                   with it, so a mono printer, a colour-blind reader, and a
+                   greyscale screenshot each still get the grade. -->
+              <p class="local-lead-grade" id="local-lead-grade" data-confidence="">
+                <span class="local-lead-grade-chip" id="local-lead-grade-chip" data-confidence="">
+                  <span class="local-lead-grade-shape" id="local-lead-grade-shape" aria-hidden="true">◇</span>
+                  <span class="local-lead-grade-label" id="local-lead-grade-label">Confidence unavailable</span>
+                </span>
+                <span class="local-lead-grade-value" id="local-lead-grade-value">—</span>
+              </p>
+              <!-- Coverage is painted in every state, including the states with no
+                   figure in them: a low-coverage briefing states its coverage
+                   rather than hiding it. -->
+              <p class="local-lead-coverage" id="local-lead-coverage">—</p>
+            </div>
+            <div class="local-lead-next" id="local-lead-next">
               <p class="eyebrow">Prioritized next action</p>
               <p class="local-lead-action" id="local-lead-action" data-available="false">—</p>
+              <!-- A role, never a person. Beside the action it owns, because an
+                   action with no named owner is a wish. -->
+              <p class="local-lead-role" id="local-lead-role" data-available="false" hidden></p>
             </div>
+            <!-- Supporting detail, behind native disclosure. Every summary is
+                 labelled with what it reveals; none of them is a bare chevron,
+                 and none of them is "More". The content stays in the DOM whether
+                 the disclosure is open or shut, which is what lets the print
+                 stylesheet open all of it without a script. -->
+            <div class="local-lead-support" id="local-lead-support">
+              <details class="local-lead-detail" id="local-lead-arithmetic-detail" hidden>
+                <summary>How this figure was calculated</summary>
+                <!-- The named inputs and the operation behind the figure, so a
+                     reader can recompute it by hand. Hidden when there is no
+                     figure to recompute — an arithmetic line with nothing above
+                     it is not evidence of anything. -->
+                <p class="local-lead-arithmetic" id="local-lead-arithmetic" hidden></p>
+              </details>
+              <details class="local-lead-detail" id="local-lead-method-detail">
+                <summary>Method notes and what bounds this briefing</summary>
+                <p class="local-lead-method" id="local-lead-method">—</p>
+              </details>
+            </div>
+            <!-- Persistent, small, and never behind a disclosure: a briefing a
+                 leader forwards has to say where it came from and which rubric
+                 graded it, on the page and on the printed sheet. -->
+            <p class="local-lead-basis" id="local-lead-basis">
+              <span class="local-lead-rubric" id="local-lead-rubric">—</span>
+            </p>
+            <p class="local-lead-provenance" id="local-lead-provenance">—</p>
             <p class="dataset-provenance" id="dataset-provenance-finding" data-dataset-provenance data-dataset="user" role="note" aria-label="Data provenance" hidden></p>
           </article>
           <!-- Per-model overspend, model-overspend-finding/1.0.0. Authored empty:
