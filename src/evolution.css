@@ -1479,9 +1479,47 @@
 .prompt-coaching-turn[data-scored="false"] { border-top-style:dashed; }
 .prompt-coaching-rubric-version { margin:0; color:var(--ink-muted); font:400 11px/1.6 ui-monospace,monospace; overflow-wrap:anywhere; }
 
+/* The pre-paste preview. Quieter than the result it sits under: it is read once,
+   before anything is typed, and never competes with an answer. */
+.prompt-coaching-preview { border:1px solid var(--import-line); border-radius:11px; padding:12px 14px; }
+.prompt-coaching-preview > summary { font:650 13px/1.5 inherit; cursor:pointer; }
+.prompt-coaching-preview > summary:focus-visible { outline:2px solid var(--import-accent); outline-offset:3px; }
+.prompt-coaching-preview-static { margin:10px 0 0; max-width:70ch; color:var(--ink-muted); font-size:12px; line-height:1.6; }
+.prompt-coaching-preview-body { display:grid; gap:18px; margin-top:14px; }
+.prompt-coaching-preview-block { display:grid; gap:8px; }
+.prompt-coaching-preview-lead,.prompt-coaching-preview-note { margin:0; max-width:70ch; font-size:13px; line-height:1.6; overflow-wrap:anywhere; }
+.prompt-coaching-preview-note { color:var(--ink-muted); font-size:12px; }
+.prompt-coaching-preview-sample,.prompt-coaching-preview-json {
+  margin:0; border:1px solid var(--import-line); border-radius:9px; padding:10px;
+  max-height:280px; overflow:auto; font:400 12px/1.6 ui-monospace,monospace;
+  white-space:pre-wrap; overflow-wrap:anywhere;
+}
+.prompt-coaching-preview-measures,.prompt-coaching-preview-fields {
+  display:grid; grid-template-columns:minmax(0,auto) minmax(0,1fr); gap:4px 14px; margin:0; font-size:12px;
+}
+.prompt-coaching-preview-measures dt,.prompt-coaching-preview-fields dt { font:700 12px/1.6 ui-monospace,monospace; overflow-wrap:anywhere; }
+.prompt-coaching-preview-measures dd,.prompt-coaching-preview-fields dd { margin:0; color:var(--ink-muted); line-height:1.6; overflow-wrap:anywhere; }
+.prompt-coaching-preview-nested > summary { color:var(--ink-muted); font:650 12px/1.6 ui-monospace,monospace; cursor:pointer; }
+.prompt-coaching-preview-nested > summary:focus-visible { outline:2px solid var(--import-accent); outline-offset:3px; }
+.prompt-coaching-preview-nested .prompt-coaching-preview-json { margin-top:8px; }
+.prompt-coaching-preview-states,.prompt-coaching-preview-boundary { display:grid; gap:12px; margin:0; padding:0; list-style:none; }
+.prompt-coaching-preview-states > li,.prompt-coaching-preview-boundary > li {
+  display:grid; gap:4px; border-left:4px solid var(--import-line); padding-left:11px;
+}
+.prompt-coaching-preview-states > li[data-outcome="graded"] { border-left-color:var(--import-accent); }
+.prompt-coaching-preview-state-title,.prompt-coaching-preview-boundary-label { margin:0; font:700 13px/1.5 inherit; overflow-wrap:anywhere; }
+.prompt-coaching-preview-state-meaning,.prompt-coaching-preview-state-delivers,
+.prompt-coaching-preview-boundary-claim { margin:0; max-width:70ch; font-size:12px; line-height:1.6; overflow-wrap:anywhere; }
+.prompt-coaching-preview-state-codes,.prompt-coaching-preview-state-sample,
+.prompt-coaching-preview-boundary-verify {
+  margin:0; max-width:70ch; color:var(--ink-muted); font:650 11px/1.6 ui-monospace,monospace; overflow-wrap:anywhere;
+}
+
 @media (max-width:640px) {
   .prompt-coaching-letter { font-size:40px; }
   .prompt-coaching-actions button,.prompt-coaching-disclosure-toggle { width:100%; }
+  .prompt-coaching-preview-measures,.prompt-coaching-preview-fields { grid-template-columns:minmax(0,1fr); gap:2px; }
+  .prompt-coaching-preview-measures dd,.prompt-coaching-preview-fields dd { margin-bottom:6px; }
   .prompt-coaching-axes { grid-template-columns:minmax(0,1fr); gap:2px; }
   .prompt-coaching-axes dd { margin-bottom:6px; }
 }
