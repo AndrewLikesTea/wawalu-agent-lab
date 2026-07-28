@@ -49,6 +49,47 @@
         </div>
       </section>
 
+      <!-- The guided result. One question, one benchmark, one action, and the
+           required trust verdict, composed in src/finops-guided-result.js. Every
+           other executive panel on this page is progressive-disclosure support
+           and is listed, in declared rank order, in the closed block at the
+           bottom of this section. Nothing here is computed by the page: the
+           contract selects, this section displays. -->
+      <section class="guided-result finops-panel" id="guided-result" data-state="unavailable" data-decision-ready="false" aria-labelledby="guided-result-question" hidden>
+        <p class="eyebrow">Guided result</p>
+        <h2 id="guided-result-question">What should we do now?</h2>
+        <p class="guided-result-finding" id="guided-result-finding">Composing the result…</p>
+        <!-- How far this composition may be taken, written beside it rather than
+             in a footnote: a synthetic sample and an unattributable import are
+             both readable and neither is a basis for a decision. -->
+        <p class="guided-result-readiness" id="guided-result-readiness" role="note" data-ready="false">Not decision-ready</p>
+        <div class="guided-result-slots">
+          <div class="guided-result-slot">
+            <p class="guided-result-label">Headline benchmark</p>
+            <p class="guided-result-figure" id="guided-result-benchmark" data-available="false">—</p>
+            <p class="guided-result-detail" id="guided-result-benchmark-detail"></p>
+          </div>
+          <div class="guided-result-slot">
+            <p class="guided-result-label">Trust verdict — required</p>
+            <p class="guided-result-figure" id="guided-result-trust" data-satisfied="false">—</p>
+          </div>
+          <div class="guided-result-slot">
+            <p class="guided-result-label">Prioritized action — one</p>
+            <p class="guided-result-figure" id="guided-result-action" data-actionable="false">—</p>
+            <p class="guided-result-detail" id="guided-result-action-effect"></p>
+            <!-- Shown only when the contract names an in-page control. The
+                 action remains understandable without it; this makes the next
+                 step operable for keyboard, switch, and pointer users. -->
+            <button class="guided-result-action-control" id="guided-result-action-control" type="button" hidden>Choose files</button>
+          </div>
+        </div>
+        <details class="guided-result-support" id="guided-result-support">
+          <summary>Supporting detail — open to check the finding above</summary>
+          <p class="guided-result-support-note">These panels are progressive-disclosure support, not primary content. Each answers a narrower question than the one above; a panel that cannot be computed still names the one input that would answer it.</p>
+          <ol class="guided-result-disclosures" id="guided-result-disclosures" aria-label="Supporting panels, in the order to open them"></ol>
+        </details>
+      </section>
+
       <article class="proof-point" data-basis="illustrative" aria-labelledby="proof-point-title">
         <!-- Written above the figures, not under them: a leader reads what kind
              of number this is before they read the number. The view sharpens the
