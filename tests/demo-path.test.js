@@ -147,7 +147,7 @@ test("the static markup already states the count a cold visitor will see", async
   assert.doesNotMatch(before, /^0 records$/);
 
   // And the hero's demo call to action lands on the list that shows them.
-  assert.match(html, /href="#record-history">Explore the live demo/);
+  assert.match(html, /href="#record-history">Explore the decision and release log/);
   assert.match(html, /id="record-history"/);
   // The sample links agree with the ids the seed data uses.
   assert.ok(html.includes(`href="/decision.html?id=${SAMPLE_DECISION_ID}"`));
