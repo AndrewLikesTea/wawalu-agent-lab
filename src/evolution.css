@@ -1515,7 +1515,116 @@
   margin:0; max-width:70ch; color:var(--ink-muted); font:650 11px/1.6 ui-monospace,monospace; overflow-wrap:anywhere;
 }
 
+/* Coaching result presentation primitives (src/coaching-result-view.js).
+   Composed entirely from the import-flow and state roles declared at the top of
+   this file: no new hue, no type size this page did not already use, and the
+   same 44px control floor and 70ch measure as the workflow above.
+
+   TONE IS NEVER THE SIGNAL. The left rail and wash follow the model's tone, and
+   every one of them is redundant: the status line prints the state as a word,
+   every figure carries its label, and each state has its own shape. Contrast is
+   stated rather than assumed — import-ink 9.7:1 on white and 8.8:1 on the import
+   wash, warn-ink 8.1:1 on the warn wash, error-ink 9.7:1 on the error wash, and
+   ink-muted 5.1:1 on white, so the smallest 11px monospace metadata clears AA.
+   The pending rail is ink-muted rather than the panel border because a 1.6:1
+   rule is not a perceivable boundary. */
+.coaching-result {
+  display:grid; gap:14px; border:1px solid var(--import-line);
+  border-left:5px solid var(--import-accent); border-radius:12px; padding:16px; background:#fff;
+}
+.coaching-result[data-tone="pending"] { border-left-color:var(--ink-muted); border-left-style:dashed; }
+.coaching-result[data-tone="caution"] { border-left-color:var(--state-warn-line); background:var(--state-warn-wash); }
+.coaching-result[data-tone="blocked"] { border-left-color:var(--state-error-line); background:var(--state-error-wash); }
+.coaching-result-heading { margin:0; font-size:15px; line-height:1.4; }
+.coaching-result-region { display:grid; gap:8px; }
+.coaching-result-region > .eyebrow { margin:0; }
+.coaching-result-shape { flex:none; font-weight:750; }
+.coaching-result-status { display:flex; flex-wrap:wrap; align-items:baseline; gap:6px; margin:0; }
+.coaching-result-status-label { color:var(--ink-muted); font:700 11px/1.6 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; }
+.coaching-result-status-value { font:750 13px/1.5 ui-monospace,monospace; }
+.coaching-result-mark { margin:0; color:var(--import-ink); font-size:52px; font-weight:750; line-height:.9; letter-spacing:-.05em; }
+.coaching-result-answer { margin:0; max-width:70ch; font-size:17px; font-weight:750; line-height:1.45; overflow-wrap:anywhere; }
+.coaching-result-facts { display:grid; grid-template-columns:minmax(0,auto) minmax(0,1fr); gap:4px 14px; margin:0; font-size:13px; }
+.coaching-result-facts dt { color:var(--ink-muted); overflow-wrap:anywhere; }
+.coaching-result-facts dd { margin:0; font:700 13px/1.5 ui-monospace,monospace; overflow-wrap:anywhere; }
+.coaching-result-facts dd[data-pending="true"] { color:var(--ink-muted); font-weight:400; }
+/* An out-of-range figure is marked in the type itself, not only in red: the
+   value already says "out of range" and the underline survives a grayscale
+   print, a color-blind reader, and a screenshot pasted into a ticket. */
+.coaching-result-facts dd[data-implausible="true"] {
+  color:var(--state-error-ink); text-decoration:underline wavy; text-underline-offset:3px;
+}
+.coaching-result-notices { display:grid; gap:8px; margin:0; padding:0; list-style:none; }
+.coaching-result-notices > li {
+  display:grid; grid-template-columns:auto minmax(0,1fr); gap:2px 8px;
+  border:1px dashed var(--state-error-line); border-radius:9px; padding:8px 10px; color:var(--state-error-ink);
+}
+.coaching-result-notices .coaching-result-shape { grid-row:1/3; font-size:15px; }
+.coaching-result-notice-label { font:750 12px/1.5 ui-monospace,monospace; overflow-wrap:anywhere; }
+.coaching-result-notice-guidance { font-size:12px; line-height:1.6; }
+.coaching-result-note { display:grid; gap:3px; margin:0; max-width:70ch; color:var(--ink-muted); font-size:12px; line-height:1.55; overflow-wrap:anywhere; }
+.coaching-result-note-label { color:var(--import-ink); font:700 12px/1.5 ui-monospace,monospace; }
+.coaching-result-action { border-left:4px solid var(--import-accent); padding-left:12px; }
+.coaching-result-action[data-available="false"] { border-left-style:dashed; border-left-color:var(--ink-muted); }
+.coaching-result-action-title { display:flex; gap:8px; margin:0; font-size:15px; font-weight:700; line-height:1.5; overflow-wrap:anywhere; }
+.coaching-result-action-guidance { margin:0; max-width:70ch; font-size:13px; line-height:1.6; overflow-wrap:anywhere; }
+.coaching-result-rewrite-label { margin:0; color:var(--import-ink); font:700 12px/1.5 ui-monospace,monospace; }
+.coaching-result-worth,.coaching-result-action-control { margin:0; color:var(--ink-muted); font:650 12px/1.5 ui-monospace,monospace; overflow-wrap:anywhere; }
+.coaching-result-rewrite {
+  margin:0; max-width:70ch; border:1px solid var(--import-line); border-radius:9px; padding:10px 12px;
+  background:var(--import-wash); font:400 12px/1.6 ui-monospace,monospace; white-space:pre-wrap; overflow-wrap:anywhere;
+}
+.coaching-result-toggle {
+  justify-self:start; min-height:44px; max-width:100%; border:1px solid var(--import-line); border-radius:9px;
+  padding:10px 14px; background:#fff; color:var(--import-ink); font:650 13px/1.35 inherit; text-align:left; cursor:pointer;
+}
+.coaching-result-toggle:hover { background:var(--import-wash); }
+.coaching-result-toggle:focus-visible { outline:3px solid var(--import-accent); outline-offset:2px; }
+.coaching-result-panel { display:grid; gap:10px; border:1px solid var(--import-line); border-radius:11px; padding:14px; background:#fff; }
+.coaching-result-recommendation { display:grid; gap:6px; border-left:4px solid var(--import-line); padding-left:11px; }
+.coaching-result-recommendation[data-evidenced="false"] { border-left-style:dotted; }
+.coaching-result-recommendation-title { display:flex; flex-wrap:wrap; align-items:baseline; gap:6px; margin:0; font-size:14px; font-weight:700; line-height:1.5; overflow-wrap:anywhere; }
+.coaching-result-recommendation-label { color:var(--ink-muted); font:700 11px/1.6 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; }
+.coaching-result-recommendation-text { margin:0; max-width:70ch; font-size:13px; line-height:1.6; overflow-wrap:anywhere; }
+.coaching-result-recommendation-basis,.coaching-result-version { margin:0; color:var(--ink-muted); font:650 11px/1.6 ui-monospace,monospace; overflow-wrap:anywhere; }
+.coaching-result-turns,.coaching-result-runners-up { display:grid; gap:6px; margin:0; padding:0; list-style:none; }
+.coaching-result-assumptions {
+  display:grid; grid-template-columns:minmax(0,auto) minmax(0,1fr);
+  gap:6px 12px; margin:0; border-top:1px solid var(--import-line); padding-top:10px;
+  font-size:12px; line-height:1.6;
+}
+.coaching-result-assumptions dt {
+  color:var(--import-ink); font:700 11px/1.6 ui-monospace,monospace; overflow-wrap:anywhere;
+}
+.coaching-result-assumptions dd { margin:0; max-width:70ch; overflow-wrap:anywhere; }
+.coaching-result-turn,.coaching-result-runners-up li { display:flex; flex-wrap:wrap; gap:4px 12px; border-top:1px solid var(--import-line); padding-top:6px; font-size:12px; }
+.coaching-result-turn[data-scored="false"] { border-top-style:dashed; }
+.coaching-result-turn-index,.coaching-result-runner-title { font-weight:700; overflow-wrap:anywhere; }
+.coaching-result-turn-role,.coaching-result-turn-read,.coaching-result-turn-scored,
+.coaching-result-turn-codes,.coaching-result-runner-worth {
+  color:var(--ink-muted); font:650 11px/1.6 ui-monospace,monospace; overflow-wrap:anywhere;
+}
+
+/* The specimen wrapper: a review surface, so it is quiet and closed by default. */
+.coaching-specimen { border:1px solid var(--import-line); border-radius:11px; padding:12px 14px; }
+.coaching-specimen > summary { font:650 13px/1.5 inherit; cursor:pointer; }
+.coaching-specimen > summary:focus-visible { outline:3px solid var(--import-accent); outline-offset:3px; }
+.coaching-specimen-static,.coaching-specimen-lead { margin:10px 0 0; max-width:70ch; color:var(--ink-muted); font-size:12px; line-height:1.6; }
+.coaching-specimen-body { display:grid; gap:22px; margin-top:14px; }
+.coaching-specimen-case { display:grid; gap:8px; }
+.coaching-specimen-case-title { margin:0; font-size:14px; line-height:1.4; }
+.coaching-specimen-case-purpose { margin:0; max-width:70ch; color:var(--ink-muted); font-size:12px; line-height:1.6; }
+
 @media (max-width:640px) {
+  /* One column at 390px: a two-column definition grid puts a 13px label and a
+     monospace figure in ~40 characters each, which is the failure the mobile
+     review filed as finding 01 on the dashboard. */
+  .coaching-result-facts { grid-template-columns:minmax(0,1fr); gap:2px; }
+  .coaching-result-assumptions { grid-template-columns:minmax(0,1fr); gap:2px; }
+  .coaching-result-assumptions dd { margin-bottom:6px; }
+  .coaching-result-facts dd { margin-bottom:6px; }
+  .coaching-result-mark { font-size:40px; }
+  .coaching-result-toggle { width:100%; }
   .prompt-coaching-letter { font-size:40px; }
   .prompt-coaching-actions button,.prompt-coaching-disclosure-toggle { width:100%; }
   .prompt-coaching-preview-measures,.prompt-coaching-preview-fields { grid-template-columns:minmax(0,1fr); gap:2px; }
