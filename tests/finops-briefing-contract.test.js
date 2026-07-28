@@ -375,14 +375,22 @@ test("the export path records the briefing-contract version it was built against
 });
 
 test("the page renders the three slots from the contract rather than deciding them itself", async () => {
-  const [page, flow, script] = await Promise.all([
+  const [page, flow, script, adapter] = await Promise.all([
     readFile(new URL("../src/evolution.html", import.meta.url), "utf8"),
     readFile(new URL("../src/local-import-flow.js", import.meta.url), "utf8"),
     readFile(new URL("../src/evolution-page.js", import.meta.url), "utf8"),
+    readFile(new URL("../src/imported-analysis-disclosures.js", import.meta.url), "utf8"),
   ]);
-  // The page builds a briefing and hands it to the painter. Nothing else on
-  // this page selects the question, the figure, or the action.
-  assert.match(script, /buildFinopsBriefing\(next, \{/);
+  // The briefing is selected in exactly one place for the whole imported
+  // analysis: the disclosure adapter builds it beside the benchmark, the
+  // evidence and the savings figure, and the page paints the one it is handed.
+  // A second `buildFinopsBriefing` on the page would be the leading finding
+  // drifting away from the three disclosures linked to it.
+  assert.match(adapter, /buildFinopsBriefing\(state\.analysis, \{/);
+  assert.doesNotMatch(script, /buildFinopsBriefing\(/,
+    "the page must consume the adapter's guided.finding, not build a briefing of its own");
+  assert.match(script, /guidedDisclosures\(importedAnalysisState\(\{/);
+  assert.match(script, /currentBriefing = guided\.finding\.briefing;/);
   assert.match(script, /applyBriefing\(document,/);
   assert.doesNotMatch(script, /applyLeadingFinding/);
   assert.doesNotMatch(flow, /applyLeadingFinding/);

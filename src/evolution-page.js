@@ -73,7 +73,7 @@ import { gradeEligibility } from "/grade-eligibility.js";
 import {
   ACTION_UNAVAILABLE_FIELD, ACTION_UNAVAILABLE_REASON, applyDepartmentDetailState,
   BUNDLED_LOAD_STATE, DEPARTMENT_LIST_MESSAGE, EVALUATION_BUNDLE_UNAVAILABLE,
-  EVIDENCE_LIST_MESSAGE, HEADLINE_BUNDLE_UNAVAILABLE, IMPORTED_BRIEFING_EMPTY,
+  EVIDENCE_LIST_MESSAGE, HEADLINE_BUNDLE_UNAVAILABLE,
   KPI_NEEDS_REVIEW, KPI_NOT_LOADED, NO_COMPARABLE_PERIOD, NOT_GRADED,
   sampledCoverageLine,
 } from "/briefing-strings.js";
@@ -114,12 +114,23 @@ import { EXAMPLE_QUERY_SAMPLE_FILE, exampleQuerySampleText } from "/query-sample
 import {
   CONVERSATION_EXAMPLE_FILES, conversationExampleText,
 } from "/conversation-export-example.js";
-// The versioned briefing contract. The three slots above the fold — the
-// question, the one figure, and the rank-1 action — are selected there and only
+// One imported-analysis state, and the four linked disclosures composed from
+// it: the leading finding, the benchmark card, the recommendation evidence, and
+// the quantified-impact figure with the action it sizes. Four call sites reading
+// three different inputs is how one analysis said four different things about
+// itself, so this page composes the state once and paints what it is handed.
+//
+// The leading finding is still the versioned briefing contract's — the three
+// slots above the fold are selected in finops-briefing-contract.js and only
 // there, so this page, the JSON export, and anything downstream cannot each
-// decide them for themselves. The month-over-month arithmetic still lives in
-// finops-leading-finding.js; the contract reads it rather than repeating it.
-import { buildFinopsBriefing } from "/finops-briefing-contract.js";
+// decide them for themselves — but the adapter is what calls it now, and this
+// page reads `guided.finding.briefing` rather than building a second briefing
+// beside the other three disclosures. The month-over-month arithmetic still
+// lives in finops-leading-finding.js; the contract reads it rather than
+// repeating it.
+import {
+  DISCLOSURE_SOURCE, guidedDisclosures, importedAnalysisState,
+} from "/imported-analysis-disclosures.js";
 // Reopening a briefing this page previously wrote. It consumes the artifact the
 // Export JSON button produces and nothing else, re-selects the slots through the
 // same contract above, and compares against the analysis on screen only where
@@ -879,7 +890,10 @@ function mountLocalFinopsImport() {
     setText("local-result-notice-copy", resultPlausible
       ? "No provider aggregate joined an active HRIS unit. Resolve the mapping gaps before choosing an action."
       : "A total is outside the supported 0–1 trillion USD display range, or recoverable spend exceeds observed spend. Values are withheld; inspect the source export.");
-    setText("local-recoverable", resultPlausible ? moneyText(next.recoverableUsd) : "Needs review");
+    // The quantified impact is painted below, from the disclosure adapter, once
+    // the attribution decision it depends on has been made. It used to be
+    // written here and then overwritten a few lines later, which is two call
+    // sites deciding one figure.
     // The number and the sentence that says what kind of number it is are
     // written together; neither can ship without the other.
     const basis = showMetricBasis(example ? { mode: "example-dataset" } : {
@@ -915,20 +929,37 @@ function mountLocalFinopsImport() {
     attributedShare = share?.share ?? 0;
     attributedFraction = share?.defined ? share.share : null;
     const attribution = applyAttributionPolicy(share);
-    // Below the floor the figure itself is withheld. A dollar amount with a
-    // caveat under it is the same unsupported claim with an asterisk on it.
-    if (attribution?.confidence === CONFIDENCE.SUPPRESSED) {
-      setText("local-recoverable", "Not shown · attribution below floor");
-      const figure = document.getElementById("local-recoverable");
-      if (figure) figure.dataset.real = "false";
-    }
     // The landing surface. It is drawn from the same envelope for example data
     // and for a real import; there is no example-only branch below this line.
-    // The attribution decision made three lines up is handed to the contract
+    // The attribution decision made three lines up is handed to the adapter
     // rather than re-derived by it: a figure this page withheld must not
     // reappear in the briefing built from the same analysis.
     const attributionWithheld = attribution?.confidence === CONFIDENCE.SUPPRESSED;
-    currentBriefing = buildFinopsBriefing(next, { attributionWithheld });
+    // One state, four disclosures. The leading finding, the benchmark card, the
+    // recommendation evidence and the quantified impact are composed together,
+    // from this analysis and the two decisions above it, so a change to an
+    // imported department or to the ranked recommendation cannot move one of
+    // them without moving the rest.
+    const disclosures = guidedDisclosures(importedAnalysisState({
+      analysis: next,
+      source: example ? DISCLOSURE_SOURCE.example : DISCLOSURE_SOURCE.import,
+      plausible: resultPlausible,
+      attributionWithheld,
+      attributedShare: attributedFraction,
+      files: example ? [] : importProvenance()?.files ?? [],
+    }));
+    const guided = disclosures.guided;
+    // Below the floor — or outside the display range — the figure itself is
+    // withheld. A dollar amount with a caveat under it is the same unsupported
+    // claim with an asterisk on it. Painted once, from the one decision the
+    // adapter made, rather than written and then overwritten.
+    setText("local-recoverable", guided.savings.value);
+    const impactFigure = document.getElementById("local-recoverable");
+    if (impactFigure) impactFigure.dataset.real = String(guided.savings.real);
+    // The briefing is the adapter's, selected through the same briefing contract
+    // as before. The page no longer builds one of its own beside the other three
+    // disclosures — that was how the leading finding drifted from them.
+    currentBriefing = guided.finding.briefing;
     // The derivation is taken from the same payload the export button writes, so
     // the arithmetic a director checks on screen is byte-for-byte the arithmetic
     // in the file they were sent. `buildBriefing` refuses to build a payload that
@@ -948,14 +979,17 @@ function mountLocalFinopsImport() {
     // moment the live analysis changes underneath it. Repainting here is what
     // stops a delta from outliving the analysis it was computed against.
     syncRestored();
-    setText("local-department", next.topDepartment?.name ?? IMPORTED_BRIEFING_EMPTY.department);
+    setText("local-department", guided.savings.department);
     // A withheld figure cannot carry the analysis's own confidence word beside
     // it: the attribution policy has already decided the number is not shown, so
     // the label says withheld rather than contradicting the slot next to it.
     setText("local-confidence-label", attribution?.confidence === CONFIDENCE.SUPPRESSED
       ? "Withheld confidence"
       : `${resultPlausible ? next.confidence : "Withheld"} confidence`);
-    setText("local-action", resultPlausible ? next.action : "Review imported totals before selecting a department action.");
+    // The recommendation is the one the savings figure sizes, so both are read
+    // off the same disclosure: an action that outlives a withheld figure is a
+    // next step for a number the page just refused to print.
+    setText("local-action", guided.savings.action);
     setText("local-provenance",
       next.provenance);
     const trend = next.history;
@@ -973,9 +1007,18 @@ function mountLocalFinopsImport() {
       : trend.state === "available"
         ? "The preceding organization period has no positive spend, so percentage change is undefined."
         : trend.message);
-    setText("local-benchmark-answer", IMPORTED_BRIEFING_EMPTY.benchmarkAnswer);
-    setText("local-benchmark-summary", IMPORTED_BRIEFING_EMPTY.benchmarkSummary);
-    setText("local-benchmark-why", next.benchmark.message);
+    // The benchmark card is the analysis's own cohort, or the analysis's own
+    // reason for having none. It used to be two constants written over whatever
+    // the envelope said, so an import that did establish an intra-tenant cohort
+    // was told it had none.
+    const benchmarkState = document.getElementById("local-benchmark-state");
+    if (benchmarkState) {
+      benchmarkState.dataset.state = guided.benchmark.available ? "available" : "unavailable";
+      benchmarkState.dataset.source = guided.benchmark.provenance.source;
+    }
+    setText("local-benchmark-answer", guided.benchmark.answer);
+    setText("local-benchmark-summary", guided.benchmark.summary);
+    setText("local-benchmark-why", guided.benchmark.why);
     fillTextList("local-periods", trend.periods.map((period) =>
       `${period.period} · ${period.spendUsd.toFixed(2)} USD observed · `
       + `${period.recoverableUsd.toFixed(2)} USD scenario · ${period.completeness} export · ${period.exportId}`),
@@ -985,7 +1028,10 @@ function mountLocalFinopsImport() {
     fillTextList("local-assumptions", next.assumptions, "No mapping assumptions.");
     fillTextList("local-warnings", next.warnings, "No declared data-quality warnings.");
     fillTextList("local-limits", next.limits, "No declared limits.");
-    fillTextList("local-evidence", next.evidence, "No recommendation evidence.");
+    // The evidence list names the same department the savings figure is on,
+    // because both are read off the one disclosure state rather than off the
+    // envelope twice.
+    fillTextList("local-evidence", guided.evidence.items, guided.evidence.emptyText);
     resultsNode.hidden = false;
     clear.hidden = false;
     clear.textContent = example ? "Clear example data" : "Return to example data";
