@@ -9,7 +9,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { loadPage, textOf } from "./support/browser.js";
+import { loadPage, tabSequence, textOf } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 
 const SEED_URL = "/social-demo-data.json";
@@ -102,11 +102,37 @@ test("arriving from a profile turns the one exit into the profile's, and nothing
 test("an unknown id is named as a missing post, with the feed still the way out", async () => {
   const page = await openPostPage("?id=p-gone", seedOnly([SEED_POST]));
   try {
-    assert.match(textOf(page.panel), /Post not found/);
-    assert.match(textOf(page.panel), /This post may have been removed, or the link may be incomplete\./);
+    assert.match(textOf(page.panel), /This post is unavailable/);
+    assert.match(textOf(page.panel), /It may have been removed, or the link may be incomplete\./);
     assert.doesNotMatch(textOf(page.panel), /couldn’t be loaded|Try again/);
     assert.equal(page.panel.querySelector(".detail-state-message").getAttribute("role"), "status");
+    assert.equal(page.document.title, "Post unavailable · Shiplog");
     assertOneExit(page, SOCIAL, "not found");
+    // The standing exit is the feed here, so the panel adds nothing: exactly one
+    // link to Social on the page, and it is keyboard-reachable.
+    assert.equal(page.panel.querySelectorAll(".detail-state-feed").length, 0);
+    assert.ok(tabSequence(page.document).includes(page.document.querySelector("#post-back")));
+  } finally {
+    page.restore();
+  }
+});
+
+test("a missing post reached from a profile still offers the feed it belonged to", async () => {
+  const page = await openPostPage("?id=p-gone&from=profile&author=Mina%20Okafor", seedOnly([SEED_POST]));
+  try {
+    assertOneExit(page, PROFILE, "missing, from a profile");
+    // The one exit goes back to the profile, so without this the reader would
+    // have no route at all to the feed the missing post lived in.
+    const feed = page.panel.querySelector(".detail-state-feed");
+    assert.equal(feed.getAttribute("href"), "/social.html");
+    assert.equal(textOf(feed), "Browse the Social feed");
+    const toFeed = page.document.querySelectorAll("a")
+      .filter((link) => link.getAttribute("href") === "/social.html" && !link.closest(".site-nav"));
+    assert.equal(toFeed.length, 1, "one link to Social outside the site nav, not two");
+
+    // Tab order: the exit first, then the post region's own action.
+    const sequence = tabSequence(page.document);
+    assert.ok(sequence.indexOf(page.document.querySelector("#post-back")) < sequence.indexOf(feed));
   } finally {
     page.restore();
   }
@@ -158,7 +184,7 @@ test("a visit with no id is told what the page needs, and still has one way out"
   }
 });
 
-test("the loading state is labelled, announced, and reserves the space the post will take", async () => {
+test("the loading state is one announced line in the post's region, and takes no focus", async () => {
   // Held open: the seed never answers, so the page stays in its loading state
   // for as long as the assertions need it.
   const page = await loadPage(new URL("../src/post.html", import.meta.url), { location: { search: "?id=p-image" } });
@@ -167,25 +193,84 @@ test("the loading state is labelled, announced, and reserves the space the post 
     globalThis.fetch = () => new Promise((resolve) => { release = () => resolve(seedResponse([SEED_POST])); });
     await importPageModule("/post-page.js");
     const panel = page.document.querySelector("#post-detail");
-    await waitFor(() => panel.querySelector(".detail-state-message"), "the loading state rendered");
+    await waitFor(() => panel.querySelector(".detail-loading"), "the loading state rendered");
 
-    const state = panel.querySelector(".detail-state-message");
+    const state = panel.querySelector(".detail-loading");
     assert.equal(panel.getAttribute("aria-busy"), "true");
     assert.equal(state.getAttribute("role"), "status", "the state is announced without stealing focus");
     assert.equal(page.document.activeElement, null, "nothing may take focus on load");
-    assert.match(textOf(state), /Post status/);
-    assert.match(textOf(state), /Loading post/);
-    // Same sentence shape as the decision page's "We're finding this decision
-    // and its linked releases." — a title is not a state on its own.
-    assert.match(textOf(state), /We’re finding this post and its author\./);
-    // Reserved space, so the post does not shove the page around when it lands.
-    assert.equal(state.querySelector(".detail-skeleton").getAttribute("aria-hidden"), "true");
-    assert.equal(state.querySelectorAll(".skeleton-media").length, 1);
+    assert.equal(textOf(state), "Loading this post…");
+    // A wait, not a second page: no state banner, no heading of its own, and no
+    // placeholder block standing in for an image this post may not have.
+    assert.equal(panel.querySelectorAll(".detail-state-message").length, 0);
+    assert.equal(panel.querySelectorAll("h2").length, 0);
+    assert.equal(panel.querySelectorAll(".skeleton-media").length, 0);
+    // The frame around it still says what the page is, so the region is never
+    // an unexplained blank.
+    assert.match(textOf(page.document.querySelector(".hero-post")), /Social is a shared demo feed/);
     assertOneExit(page, SOCIAL, "loading");
+    // Nothing inside the waiting region is tabbable, so the exit stays the
+    // first thing on the page a keyboard reader reaches after the site frame.
+    assert.equal(tabSequence(page.document).filter((node) => node.closest("#post-detail")).length, 0);
 
     release();
     await waitFor(() => page.document.documentElement.dataset.shiplogPostDetail === "ready", "the post arrived");
+    assert.equal(panel.getAttribute("aria-busy"), "false");
     assertOneExit(page, SOCIAL, "after loading");
+  } finally {
+    page.restore();
+  }
+});
+
+test("the failed state reads back link, then the post's region, then its retry", async () => {
+  const page = await openPostPage("?id=p-image", () => { throw new TypeError("Failed to fetch"); });
+  try {
+    const { document } = page;
+    const back = document.querySelector("#post-back");
+    const retry = page.panel.querySelector(".detail-retry");
+
+    // Document order, which is tab order here: the way out, the post's region,
+    // then the one action that region owns.
+    const sequence = tabSequence(document);
+    assert.ok(sequence.includes(back) && sequence.includes(retry), "both controls are reachable by keyboard");
+    assert.ok(sequence.indexOf(back) < sequence.indexOf(retry), "the exit comes before the retry");
+    assert.ok(retry.closest("#post-detail"), "the retry belongs to the post's region, not the page frame");
+    // The retry is the only control the panel adds.
+    assert.equal(page.panel.querySelectorAll("button").length, 1);
+    assert.equal(page.panel.querySelectorAll("a").length, 0);
+  } finally {
+    page.restore();
+  }
+});
+
+test("a retry that succeeds puts the reader on the post, not back at the top", async () => {
+  let failing = true;
+  const page = await openPostPage("?id=p-image", (url) => {
+    if (failing) throw new TypeError("Failed to fetch");
+    return seedOnly([SEED_POST])(url);
+  });
+  try {
+    const retry = page.panel.querySelector(".detail-retry");
+    retry.focus();
+    assert.equal(page.document.activeElement, retry);
+
+    // A retry that fails again must not drop focus on the floor: the button the
+    // reader is standing on is replaced by a new one, so focus follows it.
+    retry.click();
+    await waitFor(page.settled, "the second failure rendered");
+    const second = page.panel.querySelector(".detail-retry");
+    assert.notEqual(second, retry, "the failed state re-rendered");
+    assert.equal(page.document.activeElement, second, "focus follows the retry it replaced");
+
+    failing = false;
+    second.click();
+    await waitFor(page.settled, "the retry recovered");
+    // And when it works, focus lands on what was asked for. -1 keeps the post
+    // out of the tab sequence, so nothing new appears in it.
+    const article = page.panel.querySelector(".detail-post");
+    assert.equal(page.document.activeElement, article);
+    assert.equal(article.getAttribute("tabindex"), "-1");
+    assert.equal(tabSequence(page.document).includes(article), false);
   } finally {
     page.restore();
   }
