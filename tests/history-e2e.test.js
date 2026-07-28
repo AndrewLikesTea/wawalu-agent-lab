@@ -557,16 +557,14 @@ test("a file that is not a Shiplog export is refused as a whole and changes noth
 
 // --------------------------------------------------------------------------
 // Product gaps found while writing this suite. These tests describe the
-// behaviour PRODUCT.md promises, fail against what is shipped today, and are
-// marked todo so the suite stays green while the gap stays visible. They are
-// the evidence; the fix belongs to the owning engineer (see PR follow-ups).
+// behaviour PRODUCT.md promises. The first two were todo until the releases
+// page grew a recorder (tests/release-recorder-flow.test.js drives the whole
+// flow); they stay here as the cheap markup-level guard that the two controls
+// a user needs are on a shipped page at all.
 // --------------------------------------------------------------------------
 
-// FOLLOW-UP 1: PRODUCT.md — "Record a release and associate it with decisions."
-// No shipped page has a release form. Releases only ever come from the
-// read-only demo seed or from browser storage that no UI writes to
-// (saveReleases() has no production caller), so a user cannot record one.
-test("a release can be recorded from the UI", { todo: "no shipped page records a release" }, async () => {
+// PRODUCT.md — "Record a release and associate it with decisions."
+test("a release can be recorded from the UI", async () => {
   const pages = await Promise.all([DECISIONS_PAGE, RELEASES_PAGE]
     .map(async (url) => parseHtml(await readFile(url, "utf8"))));
   const controls = pages.flatMap((document) => document.querySelectorAll("button,a,input,summary"))
@@ -577,13 +575,12 @@ test("a release can be recorded from the UI", { todo: "no shipped page records a
   );
 });
 
-// FOLLOW-UP 2: same gap, association half. A release's decisionIds can only be
-// set outside the product, so the "associate" step of the flow is untestable at
-// the user-visible level; the suite pins the association's *rendering* and its
-// survival through export instead.
-test("a release can be associated with a decision from the UI", { todo: "no shipped page links a release to a decision" }, async () => {
+// Same flow, association half: the control that links decisions to the release
+// being recorded. The group is a fieldset, so its legend is the label a user
+// reads for it — hence `legend` alongside the other control elements.
+test("a release can be associated with a decision from the UI", async () => {
   const document = parseHtml(await readFile(RELEASES_PAGE, "utf8"));
-  const controls = document.querySelectorAll("button,a,input,select,label")
+  const controls = document.querySelectorAll("button,a,input,select,label,legend")
     .map((control) => textOf(control));
   assert.ok(
     controls.some((label) => /link .*decision|associate .*decision/i.test(label)),
