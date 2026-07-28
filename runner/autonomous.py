@@ -30,7 +30,7 @@ from runner.layers import (CAPACITY_EXIT_CODES, PROVIDER_OVERLOAD_EXIT_CODE, WOR
                            consult_next_steps, propose_directive_plan, propose_task,
                            review_pull_request, snapshot_live_site, stakeholder_review)
 from runner.orchestrator import (BUDGET, DIFF_BUDGET_EXIT_CODE, PRODUCT_ROOT, REPOSITORY,
-                                 checkout_lock, load_personas, load_runtime_env, safe_slug)
+                                 REVIEW_REJECTED_EXIT_CODE, checkout_lock, load_personas, load_runtime_env, safe_slug)
 from runner.simulation import choose_collaborator, load_behaviors
 from scripts.check_reviewer_approval import REVIEWER_LOGINS, approved_current_head
 
@@ -1408,6 +1408,7 @@ def execute_issue(issue: dict[str, Any], config: dict[str, Any], state: State,
         record.update({"status": "running", "persona": persona,
                        "attempts": attempt,
                        "started_at": utc_now().isoformat()})
+        prior_rejection = str(record.get("review_feedback") or "")
         state.record_run()
         requested_worker = resolve_worker(
             record.get("worker_override", config["default_worker"]), state) or config["default_worker"]
@@ -1416,6 +1417,19 @@ def execute_issue(issue: dict[str, Any], config: dict[str, Any], state: State,
     scenario_path = scenario_dir / f"issue-{number}-{uuid.uuid4().hex[:6]}.json"
     scenario = scenario_from_issue(issue, persona)
     scenario["attempt"] = attempt
+    if prior_rejection:
+        scenario["prior_review_feedback"] = prior_rejection
+        # Put it in the outcome too: the planner reads the outcome to write the worker
+        # handoff, so feedback parked in a field it never opens changes nothing.
+        scenario["outcome"] = (
+            f"{scenario['outcome']}\n\n"
+            f"A previous attempt at this issue was REJECTED in review. Marcus's blocking "
+            f"feedback was:\n\n{prior_rejection}\n\n"
+            f"Address that gap explicitly in this attempt; re-submitting the same shape of "
+            f"change will be rejected again.")
+        scenario["acceptance_criteria"] = [
+            *scenario["acceptance_criteria"],
+            "The blocking feedback from the previous rejected attempt is resolved"]
     behaviors = load_behaviors()
     eligible = [candidate for candidate in PERSONAS
                 if state.persona_available(candidate, int(config["min_pr_interval_seconds"]))]
@@ -1474,6 +1488,32 @@ def latest_run_transcripts() -> list[pathlib.Path]:
     except OSError:
         return []
     return sorted(newest.glob("*.jsonl")) if newest else []
+
+
+def latest_run_review() -> str:
+    """Marcus's blocking feedback from the run that just finished, if he rejected it.
+
+    Same newest-directory assumption as latest_run_transcripts: the daemon never
+    learns the run id. Reading the wrong run's review would put stale advice in
+    front of the next attempt, which is still strictly better than the status quo
+    of throwing the feedback away — a rejected attempt currently replans from the
+    issue body alone and re-earns the identical rejection until the issue blocks.
+    """
+    runs = ROOT / ".agent" / "runs"
+    try:
+        newest = max((path for path in runs.iterdir() if path.is_dir()),
+                     key=lambda path: path.stat().st_mtime, default=None)
+    except OSError:
+        return ""
+    if newest is None:
+        return ""
+    try:
+        verdict = json.loads((newest / "review.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return ""
+    if verdict.get("approved"):
+        return ""
+    return str(verdict.get("feedback") or verdict.get("summary") or "").strip()
 
 
 def record_run_outcome(exit_code: int, issue: dict[str, Any], number: int, persona: str,
@@ -1558,14 +1598,22 @@ def record_run_outcome(exit_code: int, issue: dict[str, Any], number: int, perso
              f"an implementation attempt; Sam will retry with {alternate.title()} after the backoff."))
         tell("label", lambda: replace_state_label(token, issue, config["issue_label"], None, keep_ready=True))
     else:
+        # A rejection is the one failure that says something specific about the work.
+        # Carry Marcus's blocking note onto the record so the next attempt starts from
+        # what he asked for; without it the retry replans from the issue body and hands
+        # him the same gap again, spending a full paid session per repeat.
+        rejection = latest_run_review() if exit_code == REVIEW_REJECTED_EXIT_CODE else ""
         with state.mutate():
             record = state.value["issues"].setdefault(str(number), {})
             attempts = int(record.get("attempts", 1))
             blocked = attempts >= int(config["max_attempts"])
             record["status"] = "blocked" if blocked else "retry"
+            if rejection:
+                record["review_feedback"] = rejection
             if not blocked:
                 record["retry_at"] = (utc_now() + dt.timedelta(seconds=int(config["retry_cooldown_seconds"]))).isoformat()
-        journal.emit("run_failed", issue=number, persona=persona, exit_code=exit_code, attempts=attempts)
+        journal.emit("run_failed", issue=number, persona=persona, exit_code=exit_code, attempts=attempts,
+                     carried_review_feedback=bool(rejection))
         if blocked:
             tell("comment", lambda: comment(token, number, "blocked", f"The run failed {attempts} times and needs human attention. Exit code: `{exit_code}`."))
             tell("label", lambda: replace_state_label(token, issue, config["issue_label"], "agent-blocked", keep_ready=False))

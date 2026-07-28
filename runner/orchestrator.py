@@ -29,6 +29,10 @@ RUNTIME_ENV = ROOT / ".secrets" / "runtime.env"
 BUDGET = DiffBudget(ROOT)
 # Distinct from the capacity codes in layers.CAPACITY_EXIT_CODES (75/76).
 DIFF_BUDGET_EXIT_CODE = 77
+# Marcus read the diff and withheld approval. Named because the daemon has to tell
+# this apart from a crash: a rejection carries reviewer feedback the next attempt
+# must see, and repeating the attempt without it just earns the same rejection.
+REVIEW_REJECTED_EXIT_CODE = 3
 
 
 CHECKOUT_LOCK = AGENT_DIR / "autonomy" / "checkout.lock"
@@ -440,7 +444,7 @@ Scenario: {json.dumps(scenario, indent=2)}
         metadata["review"] = "rejected"
         (run_dir / "metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")
         print(json.dumps(metadata, indent=2))
-        return 3
+        return REVIEW_REJECTED_EXIT_CODE
     debate_value = None
     debate_cast = [persona, *collaborators[:1]]
     if len(debate_cast) > 1 or happens(float(profile["debate_rate"]), "debate", persona, scenario_id):
