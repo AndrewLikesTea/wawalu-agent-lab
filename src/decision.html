@@ -6,6 +6,7 @@
     <meta name="description" content="A Shiplog engineering decision and its alternatives" />
     <title>Decision · Shiplog</title>
     <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/decision-outcome.css" />
   </head>
   <body>
     <a class="skip-link" href="#main-content">Skip to main content</a>
@@ -33,6 +34,28 @@
             <p class="detail-state-label">Decision status</p>
             <h1 class="detail-state-title" id="decision-state-title">Loading decision</h1>
             <p class="detail-state-guidance">We’re finding this decision and its linked releases.</p>
+          </section>
+        </div>
+      </section>
+
+      <!-- The outcome of the decision above: whether what shipped saved what was
+           projected. The later month is not in storage — the AI FinOps page keeps
+           nothing — so it is a briefing file the visitor exported themselves and
+           opens here. The control is in the markup rather than in the render
+           module because the region below is replaced on every read. -->
+      <section class="list-panel dout-panel" aria-labelledby="dout-panel-title">
+        <h2 class="dout-panel-title" id="dout-panel-title">Outcome and evidence</h2>
+        <div class="dout-controls">
+          <label for="dout-file">Open a later month’s briefing</label>
+          <input id="dout-file" type="file" accept="application/json,.json" aria-describedby="dout-file-note" />
+          <p class="dout-file-note" id="dout-file-note">A briefing JSON exported from AI FinOps, for the month after the one this decision was priced in. It is read in this tab only: no upload, no credentials, no network transfer. Without one, this region says what it is still missing.</p>
+          <p class="dout-file-status" id="dout-file-status" role="status" aria-live="polite">No later month opened yet.</p>
+        </div>
+        <div id="decision-outcome" aria-busy="true" data-state="loading">
+          <section class="dout-state" data-state="loading" role="status">
+            <p class="dout-kicker">Recorded decision outcome</p>
+            <h3 class="dout-state-title">Checking this decision’s outcome</h3>
+            <p class="dout-state-body">Reading the recorded decision, the releases linked to it, and any month you have opened.</p>
           </section>
         </div>
       </section>
@@ -69,6 +92,7 @@
       </div>
     </footer>
     <script type="module" src="/decision-page.js"></script>
+    <script type="module" src="/decision-outcome-page.js"></script>
     <script type="module" src="/site-footer-page.js"></script>
   </body>
 </html>
