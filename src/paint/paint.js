@@ -1,5 +1,6 @@
 import { fitBitmapSize, FRAME_BUDGET_MS, PixelDocument, WebGLPresenter } from "./paint-engine.js";
 import { dataUrlPayload, writePaintHandoff } from "../publishing-media.js";
+import { paintHandoffCopy, paintHandoffHref } from "../paint-handoff.js";
 
 export const THEME_KEY = "paint.theme.v1";
 export const DEFAULT_PAINT_RETURN = {
@@ -346,19 +347,64 @@ export function initEditor(root = document, environment = globalThis) {
     return exportCanvas;
   }
 
-  root.querySelector("#export-button").addEventListener("click", () => {
+  const publishButton = root.querySelector("#publish-button");
+  const publishStatus = root.querySelector("#publish-status");
+  const exportButton = root.querySelector("#export-button");
+  const handoff = root.querySelector("#paint-handoff");
+  const handoffLink = root.querySelector("#paint-handoff-link");
+  const handoffDismiss = root.querySelector("#paint-handoff-dismiss");
+  let handoffOrigin = null;
+
+  // Shown after the work exists, never before, and never as a redirect: the
+  // visitor decides when to leave the editor. Focus moves to the link because
+  // this card is the whole point of the action that just completed, and a
+  // keyboard reader would otherwise have to walk back through the header to
+  // find it.
+  function showHandoff(kind, origin) {
+    if (!handoff) return null;
+    const copy = paintHandoffCopy(kind);
+    handoff.dataset.handoff = copy.kind;
+    handoff.hidden = false;
+    handoffOrigin = origin ?? null;
+    const set = (selector, text) => {
+      const node = root.querySelector(selector);
+      if (node) node.textContent = text;
+    };
+    set("#paint-handoff-chip-label", copy.chip);
+    set("#paint-handoff-title", copy.title);
+    set("#paint-handoff-detail", copy.detail);
+    set("#paint-handoff-action-label", copy.action);
+    if (handoffLink) {
+      handoffLink.href = paintHandoffHref(copy.kind);
+      handoffLink.focus?.();
+    }
+    return handoffLink;
+  }
+
+  function hideHandoff() {
+    if (!handoff) return;
+    handoff.hidden = true;
+    handoffOrigin?.focus?.();
+    handoffOrigin = null;
+  }
+  handoffDismiss?.addEventListener("click", hideHandoff);
+
+  exportButton?.addEventListener("click", () => {
     const exportCanvas = flattenedCanvas();
     exportCanvas.toBlob((blob) => {
-      if (!blob) return;
+      if (!blob) {
+        if (publishStatus) publishStatus.textContent = "The drawing could not be exported. Try again after another edit.";
+        return;
+      }
       const link = root.createElement("a");
       link.download = "paint-export.png";
       link.href = URL.createObjectURL(blob);
       link.click();
       setTimeout(() => URL.revokeObjectURL(link.href), 0);
+      if (publishStatus) publishStatus.textContent = "";
+      showHandoff("exported", exportButton);
     }, "image/png");
   });
-  const publishButton = root.querySelector("#publish-button");
-  const publishStatus = root.querySelector("#publish-status");
   publishButton?.addEventListener("click", () => {
     publishButton.disabled = true;
     publishStatus.textContent = "Preparing a preview for your post…";
@@ -378,8 +424,9 @@ export function initEditor(root = document, environment = globalThis) {
           publishButton.disabled = false;
           return;
         }
-        publishStatus.textContent = "Drawing ready. Opening the post preview…";
-        environment.location.assign("/social.html#post-form");
+        publishStatus.textContent = "";
+        publishButton.disabled = false;
+        showHandoff("prepared", publishButton);
       }, { once: true });
       reader.addEventListener("error", () => {
         publishStatus.textContent = "The drawing could not be read. Export it and upload the file from Social.";

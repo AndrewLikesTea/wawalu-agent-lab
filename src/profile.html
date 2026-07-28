@@ -14,8 +14,10 @@
         <a class="brand" href="/"><span class="mark" aria-hidden="true"></span>Shiplog</a>
         <nav class="site-nav" aria-label="Wawalu Labs">
           <a href="/">Decisions</a>
-          <a class="nav-social" href="/social.html">Social</a>
-          <a aria-current="page" href="/profile.html">Profile</a>
+          <span class="nav-group">
+            <a class="nav-social" href="/social.html">Social</a>
+            <a class="nav-profile" aria-current="page" href="/profile.html">Profile</a>
+          </span>
           <a href="/releases.html">Releases</a>
           <a href="/paint/">Paint</a>
           <a class="nav-evolution" href="/evolution.html">AI FinOps</a>
@@ -39,6 +41,10 @@
           </div>
         </div>
         <p class="profile-lede">Every post with an image from one display name, newest first. Text-only posts stay on Social. Select a post to read it in full.</p>
+        <!-- Profile and Social are one feed seen two ways, and the nav now says
+             so by nesting them. This says it in words at the destination, and
+             keeps the way back one link away. -->
+        <p class="profile-role"><span class="profile-role-chip">Filtered view</span> This is the Social feed narrowed to one name's image posts — not a second feed, and not an account. <a class="text-link" href="/social.html">See every post on Social</a>.</p>
       </section>
 
       <section class="workspace profile-workspace" aria-labelledby="grid-title">

@@ -151,6 +151,20 @@
         </aside>
       </main>
       <p class="publish-status" id="publish-status" role="status" aria-live="polite"></p>
+      <!-- The one route from a finished image to a post. It appears only after
+           an export or a prepare, it never navigates on its own, and its first
+           control takes focus so a keyboard reader is standing on the way out
+           rather than hunting for it. The chip carries a shape and a word; no
+           state here is told by colour alone. -->
+      <section class="paint-handoff" id="paint-handoff" aria-labelledby="paint-handoff-title" hidden>
+        <p class="paint-handoff-chip"><span class="paint-handoff-shape" aria-hidden="true"></span><span id="paint-handoff-chip-label">Saved to this device</span></p>
+        <strong class="paint-handoff-title" id="paint-handoff-title">The PNG is on your device, not on Social</strong>
+        <p class="paint-handoff-detail" id="paint-handoff-detail">Paint uploaded nothing. Open Social to write a post, then attach paint-export.png yourself.</p>
+        <div class="paint-handoff-actions">
+          <a class="primary-action paint-handoff-link" id="paint-handoff-link" href="/social.html?from=paint&amp;image=exported#post-form"><span id="paint-handoff-action-label">Add it to a post on Social</span> <span aria-hidden="true">→</span></a>
+          <button class="secondary-action paint-handoff-dismiss" id="paint-handoff-dismiss" type="button">Keep editing</button>
+        </div>
+      </section>
     </div>
     <script type="module" src="./paint.js"></script>
   </body>

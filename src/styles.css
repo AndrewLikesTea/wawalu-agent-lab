@@ -27,6 +27,14 @@ main,.page { width:min(1180px,calc(100% - 40px)); margin:auto; padding:24px 0 80
 .site-nav { display:flex; align-items:center; justify-content:flex-end; gap:6px; min-width:0; }
 .site-nav a { border-radius:7px; padding:8px 10px; color:#62625d; text-decoration:none; }
 .site-nav a:hover,.site-nav a[aria-current="page"] { background:rgba(255,255,255,.72); color:#171713; }
+/* Social and Profile are not two feeds. Profile is Social narrowed to one
+   display name's image posts, so it is rendered inside the Social group, one
+   step in and one size down, behind a turn mark. Shape, size, and position
+   carry the relationship — no colour does this job on its own — and the link
+   itself is unchanged, so Profile stays one ordinary tab stop away. */
+.nav-group { display:flex; align-items:center; gap:0; padding-left:2px; }
+.nav-group .nav-profile { font-size:.92em; }
+.nav-group .nav-profile::before { content:"\21B3"; margin-right:4px; color:#8b8b84; font-size:.95em; }
 .mark { width:11px; height:11px; background:#1f70c1; border-radius:3px; box-shadow:8px 8px 0 #e6a541; }
 .hero { max-width:940px; padding:clamp(70px,11vw,130px) 0 72px; }
 .eyebrow { margin:0; color:#65717d; font:700 11px/1.4 ui-monospace,monospace; letter-spacing:.11em; text-transform:uppercase; }
@@ -342,6 +350,20 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .import-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
 .paint-link { gap:5px; }
 .media-picker > .hint { display:block; margin-top:8px; }
+/* The Paint arrival. Same border, radius, and wash as the composer's own media
+   panel, so it reads as part of this form rather than as an alert; the chip
+   states where the visitor came from in words and in a shape, and the "Next"
+   line is the single instruction. */
+.paint-arrival { margin:0 0 18px; border:1px solid #c7d7e8; border-left:5px solid #1f70c1; border-radius:12px; padding:14px 16px; background:#f8fbff; }
+.paint-arrival[hidden] { display:none; }
+.paint-arrival:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.paint-arrival-chip { display:inline-flex; align-items:center; gap:7px; margin:0; color:#285f8f; font:750 10px/1.6 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; }
+.paint-arrival-shape { width:10px; height:10px; flex:none; border:2px solid #1f70c1; border-radius:2px; transform:rotate(45deg); }
+.paint-arrival[data-handoff="prepared"] .paint-arrival-shape { border-radius:50%; transform:none; }
+.paint-arrival-title { margin:8px 0 0; font-size:15px; line-height:1.35; letter-spacing:-.01em; }
+.paint-arrival-detail { margin:6px 0 0; color:#4c5b66; font-size:13px; line-height:1.55; }
+.paint-arrival-next { display:flex; flex-wrap:wrap; align-items:baseline; gap:8px; margin:10px 0 0; color:#243746; font-size:13px; font-weight:650; line-height:1.5; }
+.paint-arrival-step { border:1px solid #a9c6e2; border-radius:5px; padding:1px 7px; color:#285f8f; font:750 10px/1.6 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; }
 .compose-media { margin-top:15px; padding:13px; border:1px solid #c7d7e8; border-radius:12px; background:#f8fbff; }
 .compose-media-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:11px; }
 .compose-media-head p { display:flex; align-items:center; gap:8px; margin:0; color:#243746; font-size:12px; }
@@ -424,6 +446,10 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .profile-identity-text { min-width:0; }
 .profile-summary { margin:10px 0 0; color:#5b5b56; font:650 13px/1.5 ui-monospace,monospace; }
 .profile-lede { max-width:640px; margin:22px 0 0; color:#555550; font-size:17px; line-height:1.6; }
+/* The role line, not a status: an outline chip and a sentence, the same pair
+   the composer's arrival panel uses. */
+.profile-role { display:flex; flex-wrap:wrap; align-items:baseline; gap:8px; max-width:640px; margin:14px 0 0; color:#4c5b66; font-size:14px; line-height:1.6; }
+.profile-role-chip { border:1px solid #a9c6e2; border-radius:5px; padding:1px 7px; color:#285f8f; font:750 10px/1.6 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; }
 .profile-toolbar { display:flex; align-items:end; flex-wrap:wrap; gap:12px 20px; margin:0 0 16px; }
 .profile-toolbar .filter { flex:0 1 240px; }
 .profile-toolbar-hint { flex:1 1 240px; margin:0 0 4px; }

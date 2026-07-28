@@ -201,6 +201,7 @@ export function safeActivityUrl(value) {
 export function renderEvents(list, events) {
   list.replaceChildren();
   list.setAttribute("aria-busy", "false");
+  list.dataset.feed = "live";
   const visible = events.map((event) => ({ event, item: describeEvent(event) })).filter(({ item }) => item);
   if (!visible.length) {
     renderState(list, {
@@ -232,10 +233,45 @@ export function renderEvents(list, events) {
   return visible.length;
 }
 
-export function renderRepresentativeActivity(list) {
+// Why the live feed is not on screen, in the reader's terms. A stalled request
+// and an unavailable service are not the same fact, and neither of them is "the
+// team has published nothing" — which is what four unlabelled synthetic rows
+// looked like before this banner sat above them.
+export const ACTIVITY_FALLBACK_REASONS = Object.freeze({
+  loading: Object.freeze({
+    chip: "Waiting for live data",
+    detail: "The public activity request is still in flight. These four steps are a synthetic example of the work it will show.",
+  }),
+  unavailable: Object.freeze({
+    chip: "Live data unavailable",
+    detail: "Public activity could not be reached, so nothing here is live. These four steps are a synthetic example; use Retry to ask again.",
+  }),
+  empty: Object.freeze({
+    chip: "No matching live events",
+    detail: "The public feed answered and carried no events this observatory recognises. These four steps are a synthetic example.",
+  }),
+});
+
+function fallbackNote(reason) {
+  const copy = ACTIVITY_FALLBACK_REASONS[reason] ?? ACTIVITY_FALLBACK_REASONS.loading;
+  const row = document.createElement("li");
+  row.className = "activity-fallback";
+  row.dataset.reason = reason in ACTIVITY_FALLBACK_REASONS ? reason : "loading";
+  const chip = appendText(row, "p", "activity-fallback-chip", copy.chip);
+  const shape = document.createElement("span");
+  shape.className = "activity-fallback-shape";
+  shape.setAttribute("aria-hidden", "true");
+  chip.prepend(shape);
+  appendText(row, "span", "activity-fallback-detail", copy.detail);
+  return row;
+}
+
+export function renderRepresentativeActivity(list, { reason = "loading" } = {}) {
   list.replaceChildren();
   list.setAttribute("aria-busy", "false");
   list.setAttribute("aria-label", "Representative synthetic activity");
+  list.dataset.feed = "representative";
+  list.append(fallbackNote(reason));
   for (const item of REPRESENTATIVE_ACTIVITY) {
     const row = document.createElement("li");
     row.className = "activity-item activity-item-representative";
@@ -259,7 +295,7 @@ export async function loadActivity(root = document, fetcher = fetch) {
   status.textContent = "Refreshing public repository activity…";
   const hasLiveEvents = Boolean(list.querySelector?.(".activity-item:not(.activity-item-representative)"));
   if (!hasLiveEvents) {
-    renderRepresentativeActivity(list);
+    renderRepresentativeActivity(list, { reason: "loading" });
     status.textContent = "Loading public repository activity · showing representative synthetic activity";
     label.textContent = "Representative preview";
     updated.textContent = "Public request in progress";
@@ -280,7 +316,7 @@ export async function loadActivity(root = document, fetcher = fetch) {
       status.textContent = `${count} relevant events · refreshes every 90 seconds`;
       label.textContent = "Live signal";
     } else {
-      renderRepresentativeActivity(list);
+      renderRepresentativeActivity(list, { reason: "empty" });
       status.textContent = "No relevant public events yet · showing representative synthetic activity";
       label.textContent = "Representative preview";
     }
@@ -294,7 +330,7 @@ export async function loadActivity(root = document, fetcher = fetch) {
     label.textContent = "Connection status: paused";
     updated.textContent = "Last request: failed";
     if (!hasLiveEvents) {
-      renderRepresentativeActivity(list);
+      renderRepresentativeActivity(list, { reason: "unavailable" });
       status.textContent = "Public repository activity is unavailable · showing representative synthetic activity";
       const retry = root.querySelector("#refresh-activity");
       if (retry) retry.textContent = "Retry public activity";
