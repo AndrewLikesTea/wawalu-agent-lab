@@ -34,9 +34,9 @@ async function init() {
   // the loading, loaded, missing and failed states, and never changes under a
   // reader mid-visit. Provenance comes from the URL the visitor arrived on, not
   // from the post: what they came from does not change with what loads.
+  const exit = postReturnContext(window.location.search);
   const back = document.querySelector("#post-back");
   if (back) {
-    const exit = postReturnContext(window.location.search);
     back.href = exit.href;
     back.textContent = exit.label;
   }
@@ -46,14 +46,14 @@ async function init() {
     if (heading) heading.textContent = postPageHeading(post);
   };
 
-  const load = async () => {
+  const load = async ({ fromRetry = false } = {}) => {
     // The heading only names a post once there is one. Until then it names the
     // page, and the panel below carries the state. The marker goes back to
     // "loading" on every attempt, including a retry, so anything watching the
     // page (a test, a smoke check) sees the second fetch as its own load.
     document.documentElement.dataset.shiplogPostDetail = "loading";
     nameHeading(null);
-    renderPostDetail(container, null, { state: "loading", id, author: requestedAuthor });
+    renderPostDetail(container, null, { state: "loading", id, author: requestedAuthor, returnHref: exit.href });
     let post = null;
     let failed = false;
     if (id) {
@@ -78,11 +78,22 @@ async function init() {
       state,
       id,
       author: post?.author ?? requestedAuthor,
-      onRetry: load,
+      returnHref: exit.href,
+      onRetry: () => load({ fromRetry: true }),
     });
     nameHeading(post);
     document.title = postDetailTitle(post, state);
     document.documentElement.dataset.shiplogPostDetail = "ready";
+
+    // Pressing "Try again" destroys the button the reader was standing on, so
+    // this render has to say where focus goes next. It goes to the post when the
+    // retry worked and back onto the new retry button when it did not — never to
+    // the top of the document, which would cost the reader their place. Nothing
+    // moves focus on a first load: an arriving page must not grab it.
+    if (fromRetry) {
+      const landing = container.querySelector(".detail-post") ?? container.querySelector(".detail-retry");
+      landing?.focus?.();
+    }
   };
 
   await load();

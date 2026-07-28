@@ -13,6 +13,7 @@
 // as by the browser, and only a relative specifier resolves in both.
 import { captionFor, countLabel, profileHref } from "./profile.js";
 import { pageTitle, recordTitle } from "./page-title.js";
+import { normalizeImage } from "./social.js";
 
 // Where "back" goes, read the way src/paint/paint.js reads the same thing: an
 // explicit `from` written by the link that sent the reader here. One exit, named
@@ -55,53 +56,76 @@ function formatDateTime(iso) {
 }
 
 // The page carries exactly one standing exit, in src/post.html, named by
-// postReturnContext above. No state renders a second way back: the id-less state
-// used to add its own "Return to Social", and the standing exit now covers it in
-// every state, including that one.
+// postReturnContext above. No state renders a second way back — with one narrow
+// exception, feedAction() below, for the reader whose exit does not lead to the
+// feed and whose post is not there.
 
-// One title and one sentence per state, in the same shape the decision detail
-// uses: a category label, a heading that names the state, then a single line
+// One title and one sentence per resolved state, in the same shape the decision
+// detail uses: a status chip, a heading that names the state, then a single line
 // saying what is happening. Nothing here reports a status code, an id, or an
 // exception — none of those tell a reader what to do next.
+//
+// `tone` picks the chip's colour. Every chip here reports the outcome of a
+// lookup that just happened, which is a dynamic signal, so all of them are
+// filled washes rather than outlines — the outline is this site's mark for a
+// standing classification (see the note above .sample-badge in evolution.css).
+// The word in the chip is the signal; the wash only agrees with it.
 const POST_STATE_COPY = {
-  loading: {
-    className: "detail-state-loading",
-    label: "Post status",
-    title: "Loading post",
-    description: "We’re finding this post and its author.",
-  },
   empty: {
     className: "detail-state-not-found",
+    tone: "neutral",
     label: "Post status",
     title: "Choose a post",
     description: "No post was specified. Open one from Social.",
   },
   "not-found": {
     className: "detail-state-not-found",
-    label: "Post status",
-    title: "Post not found",
-    description: "This post may have been removed, or the link may be incomplete.",
+    tone: "missing",
+    label: "Unavailable",
+    title: "This post is unavailable",
+    description: "It may have been removed, or the link may be incomplete.",
   },
   error: {
     className: "empty-state-error detail-state-unavailable",
+    tone: "error",
     label: "Error",
     title: "Post couldn’t be loaded",
     description: "We couldn’t reach Social, so this post didn’t load.",
   },
 };
 
-function labelledState(state, action) {
+function labelledState(state, actions = []) {
   const copy = POST_STATE_COPY[state] ?? POST_STATE_COPY.error;
   const node = el("div", `empty-state detail-state-message ${copy.className}`);
   const heading = el("h2", "empty-title", copy.title);
   heading.id = `post-state-${state}-title`;
   node.setAttribute("role", state === "error" ? "alert" : "status");
   node.setAttribute("aria-labelledby", heading.id);
-  node.append(el("p", "detail-state-label", copy.label), heading, el("p", undefined, copy.description));
-  // A state offers the one action it owns — retrying a failed load, or opening
-  // the feed when no post was asked for. The way back is the standing link.
-  if (action) node.append(action);
+  node.append(
+    el("p", `detail-state-label detail-state-chip detail-state-chip-${copy.tone}`, copy.label),
+    heading,
+    el("p", undefined, copy.description),
+  );
+  // A state offers the actions it owns — retrying a failed load, or reaching the
+  // feed when the standing exit leads somewhere else. The way *back* is still
+  // the standing link, and these come after the words that explain them.
+  for (const action of actions.filter(Boolean)) node.append(action);
   return node;
+}
+
+// The one case where a panel may link to Social itself.
+//
+// The standing exit is usually the feed, and then this adds nothing and renders
+// nothing: one link to Social on the page, never two. But a reader who arrived
+// from a profile has an exit that goes back to that profile, and if the post
+// they clicked is gone, nothing on the page reaches the feed the post belonged
+// to. That reader gets this link, and only in the states where the post is not
+// there to read.
+function feedAction(returnHref) {
+  if (String(returnHref ?? DEFAULT_POST_RETURN.href).startsWith(DEFAULT_POST_RETURN.href)) return null;
+  const link = el("a", "empty-action empty-action-secondary detail-state-feed", "Browse the Social feed");
+  link.href = DEFAULT_POST_RETURN.href;
+  return link;
 }
 
 // The image's accessible name, in one place, with one precedence:
@@ -164,39 +188,54 @@ function renderMedia(image, caption) {
   return frame;
 }
 
-function renderMissing(container, id) {
-  container.append(labelledState(id ? "not-found" : "empty"));
+function renderMissing(container, id, returnHref) {
+  container.append(labelledState(id ? "not-found" : "empty", [feedAction(returnHref)]));
 }
 
 function renderFailed(container, onRetry) {
-  const retry = el("button", "empty-action", "Try again");
+  const retry = el("button", "empty-action detail-retry", "Try again");
   retry.type = "button";
   if (onRetry) retry.addEventListener("click", onRetry);
-  container.append(labelledState("error", retry));
+  container.append(labelledState("error", [retry]));
 }
 
+// Waiting is not one of the states above, and it does not get their furniture.
+//
+// It used to: a full banner with its own heading, its own sentence, and a 4:3
+// shimmer block standing in for the image. On a page whose frame, heading and
+// standing sentence are already drawn, that is a second page announcing itself
+// on top of the first — and the placeholder was a guess at a shape (an image
+// this post may not even have) that then shoved the real post down when it
+// landed. One short labelled line in the post's own region says the same thing:
+// something is coming, here, and it is this post. The dot is decorative and
+// stops moving under prefers-reduced-motion; the sentence carries the state.
 function renderLoading(container) {
-  const loading = labelledState("loading");
-  const skeleton = el("div", "detail-skeleton");
-  skeleton.setAttribute("aria-hidden", "true");
-  skeleton.append(el("div", "skeleton-line skeleton-line-short"), el("div", "skeleton-media"), el("div", "skeleton-line"));
-  loading.append(skeleton);
-  container.append(loading);
+  const status = el("p", "detail-loading");
+  status.setAttribute("role", "status");
+  const dot = el("span", "detail-loading-dot");
+  dot.setAttribute("aria-hidden", "true");
+  status.append(dot, el("span", "detail-loading-text", "Loading this post…"));
+  container.append(status);
 }
 
 export function renderPostDetail(container, post, options = {}) {
-  const { state = "ready", id = "" } = options;
+  const { state = "ready", id = "", returnHref = DEFAULT_POST_RETURN.href } = options;
   container.replaceChildren();
   container.setAttribute("aria-busy", state === "loading" ? "true" : "false");
 
   if (!post) {
     if (state === "loading") renderLoading(container);
     else if (state === "error") renderFailed(container, options.onRetry);
-    else renderMissing(container, id);
+    else renderMissing(container, id, returnHref);
     return;
   }
 
   const article = el("article", "detail-post");
+  // Focusable only on purpose, never by tabbing: post-page.js sends focus here
+  // after a retry succeeds, so the reader lands on what they asked for instead
+  // of at the top of the document. -1 keeps it out of the tab sequence, which
+  // stays: back link, post content, then retry when there is one.
+  article.setAttribute("tabindex", "-1");
 
   // Reading order, top to bottom: who posted (the page's h1, written by
   // post-page.js into the hero above this panel), when, the image, the caption.
@@ -209,11 +248,16 @@ export function renderPostDetail(container, post, options = {}) {
   article.append(time);
 
   const caption = captionFor(post);
-  if (post.image) {
+  // The page normally receives posts through profile.js's normalizers, but
+  // this renderer is also an exported boundary. Recheck the URL at the final
+  // browser sink so a future caller cannot turn an attacker-controlled image
+  // field into a cross-origin request or an active data/javascript URL.
+  const image = normalizeImage(post.image);
+  if (image) {
     // figure/figcaption, so the caption is the image's caption to a screen
     // reader and not merely the paragraph that happens to sit under it.
     const figure = el("figure", "detail-figure");
-    figure.append(renderMedia(post.image, caption));
+    figure.append(renderMedia(image, caption));
     // An empty figcaption would announce a caption that is not there. A post
     // with neither caption nor body cannot come out of the normalizers, but the
     // renderer is handed plain objects and must not invent text either way.
@@ -253,7 +297,13 @@ export function postPageHeading(post) {
 // Same shape as the decision detail's title — the record, then the surface the
 // nav names, then the product. src/post.html ships titled "Post · Social ·
 // Shiplog", which is what a reader sees until this runs.
+//
+// The title says what the panel says, in the panel's words: a post that is not
+// there is "unavailable" in both places, and a load that failed says so in both.
+// They used to be crossed — the tab read "Post unavailable" for the failure and
+// "Post not found" for the absence, which is the one distinction this page
+// exists to keep straight.
 export function postDetailTitle(post, state = "ready") {
   if (post?.author) return recordTitle(`Post by ${post.author}`, { surface: "Social", fallback: "Post" });
-  return state === "error" ? pageTitle("Post unavailable") : pageTitle("Post not found");
+  return state === "error" ? pageTitle("Post couldn’t be loaded") : pageTitle("Post unavailable");
 }

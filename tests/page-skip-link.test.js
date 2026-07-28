@@ -386,5 +386,17 @@ test("every interactive control on the post page inherits the site's focus ring"
   assert.match(css, /^\.detail-back:focus-visible \{ outline:3px solid var\(--focus-ring\)/m);
   assert.match(css, /:focus-visible[^{]*\{[^}]*outline:3px solid var\(--focus-ring\)/);
   const postCss = css.match(/^\.detail-(image|caption|post|media|date)[^{]*\{[^}]*\}/gm) ?? [];
-  for (const rule of postCss) assert.doesNotMatch(rule, /outline/, `${rule.split("{")[0].trim()} must not restyle the ring`);
+  for (const rule of postCss) {
+    const selector = rule.split("{")[0].trim();
+    // One of these is focusable, and only on purpose: post-page.js sends focus
+    // to .detail-post after a successful retry so the reader lands on the post
+    // rather than at the top of the document. It gets the site's ring in the
+    // site's colour — offset and radius are the only things it may set for
+    // itself, because a ring drawn tight against an image reads as a border.
+    if (selector.endsWith(":focus-visible")) {
+      assert.match(rule, /outline:3px solid var\(--focus-ring\)/, `${selector} must use the site's ring, not its own`);
+      continue;
+    }
+    assert.doesNotMatch(rule, /outline/, `${selector} must not restyle the ring`);
+  }
 });

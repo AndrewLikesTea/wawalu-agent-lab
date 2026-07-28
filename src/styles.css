@@ -515,10 +515,28 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .detail-caption { margin:16px 0 0; color:#282824; font-size:17px; line-height:1.6; white-space:pre-wrap; overflow-wrap:anywhere; }
 .detail-body { margin:14px 0 0; color:#42423d; font-size:15px; line-height:1.6; white-space:pre-wrap; overflow-wrap:anywhere; }
 .detail-stats { display:flex; gap:18px; margin:20px 0 0; padding-top:16px; border-top:1px solid #dedcd5; color:#62625d; font:650 12px/1.4 ui-monospace,monospace; }
-.detail-skeleton { display:flex; flex-direction:column; gap:14px; max-width:720px; margin:auto; }
-.detail-skeleton .skeleton-media { aspect-ratio:4/3; border-radius:12px; }
 .detail-state-message { max-width:720px; margin:auto; }
-.detail-state-message .detail-skeleton { margin-top:28px; text-align:left; }
+/* The post's wait, in one line inside the post's own region: a small spinning
+   dot and a sentence, sized like the post's own metadata rather than like a
+   banner. It replaced a full state panel plus a 4:3 shimmer block, which
+   announced a second page over the one already drawn and then displaced the
+   post when it arrived. min-height keeps the panel from collapsing to nothing
+   while it waits, without reserving a shape the post may not have. */
+.detail-loading { display:flex; align-items:center; justify-content:center; gap:10px; min-height:96px; margin:0; padding:20px 0; color:#4a4a44; font:650 14px/1.5 system-ui,sans-serif; }
+.detail-loading-dot { flex:none; width:12px; height:12px; border:2px solid #a8c2da; border-top-color:#155f9e; border-radius:50%; animation:shiplog-spin .8s linear infinite; }
+/* Status chips for the states that resolved. Text first — the word is the
+   signal and survives colour being off, inverted, or unseen — with a filled
+   wash behind it because each one reports a live lookup, not a standing
+   classification. Every pairing is an existing site palette at AA contrast. */
+.detail-state-chip { display:inline-flex; align-items:center; margin:0 0 11px; border:1px solid transparent; border-radius:5px; padding:2px 9px; font:750 10px/1.6 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; }
+.detail-state-chip-neutral { border-color:#cfccc3; background:#eeece5; color:#4a4a44; }
+.detail-state-chip-missing { border-color:#d9c69a; background:#fdf7e8; color:#5b4a20; }
+.detail-state-chip-error { border-color:#d5aaa6; background:#fbf1f1; color:#713b37; }
+/* The retry's landing place after a successful retry (post-page.js). It is
+   focusable only programmatically, so this ring appears exactly once: when the
+   reader pressed "Try again" and the post replaced the failure. */
+.detail-post:focus-visible { outline:3px solid var(--focus-ring); outline-offset:6px; border-radius:8px; }
+.detail-state-feed { margin-top:18px; }
 @media(max-width:800px) { .workspace{grid-template-columns:1fr}.form-panel{position:static}.hero{padding-bottom:52px}.lead-capture{grid-template-columns:1fr}.product-story-intro{grid-template-columns:1fr}.product-story-intro .eyebrow{grid-column:auto}.story-flow{grid-template-columns:1fr}.story-connector{min-height:62px}.story-connector::before{top:10px;bottom:10px;left:50%;right:auto;width:1px;height:auto}.story-connector::after{right:auto;bottom:9px;width:7px;height:7px;border-top:0;border-right:1px solid #8eacc8;border-bottom:1px solid #8eacc8;transform:rotate(45deg)}.story-connector span{writing-mode:horizontal-tb} }
 @media(max-width:520px) { main,.page{width:calc(100% - 24px);padding-top:18px}.site-header{align-items:flex-start;flex-direction:column;gap:14px}.site-nav{justify-content:flex-start;width:100%;overflow-x:auto;padding:2px 2px 8px;scrollbar-width:thin}.site-nav a{flex:none;min-height:44px;display:inline-flex;align-items:center}.form-panel,.list-panel{padding:21px}.hero{padding-top:48px}.hero h1{font-size:clamp(38px,13vw,56px)}form{grid-template-columns:1fr}.field{grid-column:1/-1}.list-heading{align-items:start;flex-direction:column;gap:10px}.filters,.social-toolbar{align-items:stretch;flex-direction:column;gap:14px}.filter{flex:1 1 auto;width:100%;min-width:0}.clear-filters{width:100%;justify-content:center} }
 @media(max-width:520px) { .release-filters{align-items:stretch;flex-direction:column}.release-search-filter{flex:1 1 auto} }
@@ -606,4 +624,4 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 /* Narrow: the band keeps the page's own gutter, and every control goes full
    width rather than wrapping into a sliver. */
 @media(max-width:520px) { .site-footer-inner{width:calc(100% - 24px);padding:24px 0 32px}.site-footer-trigger{width:100%}.site-footer-panel{padding:15px}.site-footer-actions button{flex:1 1 auto} }
-@media(prefers-reduced-motion:reduce) { html{scroll-behavior:auto}.release-chevron{transition:none}.list-state-loading h3::before,.post-media[data-state="loading"],.profile-media[data-state="loading"],.detail-media[data-state="loading"],.skeleton-media,.skeleton-line{animation:none}.profile-tile{transition:none}.profile-tile:hover{transform:none}.site-footer-panel{animation:none} }
+@media(prefers-reduced-motion:reduce) { html{scroll-behavior:auto}.release-chevron{transition:none}.list-state-loading h3::before,.detail-loading-dot,.post-media[data-state="loading"],.profile-media[data-state="loading"],.detail-media[data-state="loading"],.skeleton-media,.skeleton-line{animation:none}.profile-tile{transition:none}.profile-tile:hover{transform:none}.site-footer-panel{animation:none} }

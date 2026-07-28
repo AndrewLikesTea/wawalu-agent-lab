@@ -148,6 +148,42 @@ test("a text post falls back to a labelled paragraph", () => {
   assert.ok(ids(container).includes(body.id));
 });
 
+test("a post with no image renders no image slot at all, empty or otherwise", () => {
+  for (const image of [undefined, null]) {
+    const container = createElement("div");
+    renderPostDetail(container, { ...post, image });
+    // Not an empty frame, not a placeholder, not a hidden fallback waiting for
+    // an error that cannot happen: the post is text, so the page is text.
+    assert.equal(tags(container, "IMG").length, 0, "a post with no image must not render one");
+    assert.equal(tags(container, "FIGURE").length, 0);
+    assert.equal(byClass(container, "detail-media").length, 0, "no image frame reserves space for nothing");
+    assert.equal(byClass(container, "detail-media-fallback").length, 0);
+    // The text still reads, and still names the article.
+    assert.equal(first(container, "detail-body").textContent, "The middle card, ringed.");
+  }
+});
+
+test("hostile post text stays text and an active image URL is rejected at the render sink", () => {
+  const container = createElement("div");
+  const hostile = `<img src=x onerror="globalThis.pwned=true"><script>globalThis.pwned=true</script>`;
+  globalThis.pwned = false;
+
+  renderPostDetail(container, {
+    ...post,
+    author: hostile,
+    body: hostile,
+    caption: hostile,
+    image: { src: "javascript:globalThis.pwned=true", alt: hostile },
+  });
+
+  assert.equal(first(container, "detail-body").textContent, hostile);
+  assert.equal(tags(container, "SCRIPT").length, 0, "caption markup must not create executable nodes");
+  assert.equal(tags(container, "IMG").length, 0, "an active image scheme must not reach the browser");
+  assert.equal(tags(container, "FIGURE").length, 0, "a rejected image must degrade to a text-only post");
+  assert.equal(globalThis.pwned, false);
+  delete globalThis.pwned;
+});
+
 test("a dead image keeps its description rather than dropping it", () => {
   const container = createElement("div");
   renderPostDetail(container, post);
@@ -169,9 +205,9 @@ test("a dead image keeps its description rather than dropping it", () => {
 test("a missing post is named in plain language, with no id or code echoed back", () => {
   const missing = createElement("div");
   renderPostDetail(missing, null, { id: "p-gone", author: "Mina" });
-  assert.equal(first(missing, "detail-state-label").textContent, "Post status");
-  assert.equal(first(missing, "empty-title").textContent, "Post not found");
-  assert.match(missing.textContent, /This post may have been removed, or the link may be incomplete\./);
+  assert.equal(first(missing, "detail-state-label").textContent, "Unavailable");
+  assert.equal(first(missing, "empty-title").textContent, "This post is unavailable");
+  assert.match(missing.textContent, /It may have been removed, or the link may be incomplete\./);
   assert.equal(missing.firstChild.getAttribute("role"), "status");
   assert.ok(ids(missing).includes(missing.firstChild.getAttribute("aria-labelledby")));
   assert.equal(byClass(missing, "empty-action-secondary").length, 0, "the standing back link is not repeated here");
@@ -206,17 +242,30 @@ test("an id-less visit is told what the page needs, and the standing exits carry
   assert.equal(byClass(container, "empty-action-secondary").length, 0);
 });
 
-test("the loading state names what is loading in one sentence", () => {
+test("the loading state is one labelled line in the post's region, not a banner", () => {
   const container = createElement("div");
   renderPostDetail(container, null, { state: "loading", id: "p-image", author: "Mina" });
+
   assert.equal(container.getAttribute("aria-busy"), "true");
-  assert.equal(first(container, "detail-state-label").textContent, "Post status");
-  assert.equal(first(container, "empty-title").textContent, "Loading post");
-  assert.match(container.textContent, /We’re finding this post and its author\./);
-  assert.equal(container.firstChild.getAttribute("role"), "status");
-  assert.ok(ids(container).includes(container.firstChild.getAttribute("aria-labelledby")));
+  // One node, announced politely, naming what is being waited for.
+  assert.equal(container.children.length, 1, "the wait is a single line, not a stack of furniture");
+  const status = first(container, "detail-loading");
+  assert.equal(status.getAttribute("role"), "status");
+  assert.equal(status.textContent.replace(/\s+/g, " ").trim(), "Loading this post…");
+
+  // Concise: no heading of its own, no state banner, and no placeholder block
+  // pretending to be an image the post may not even have.
+  assert.equal(tags(container, "H2").length, 0, "the wait must not open a heading");
+  assert.equal(byClass(container, "empty-state").length, 0);
+  assert.equal(byClass(container, "detail-skeleton").length, 0);
+  assert.equal(byClass(container, "skeleton-media").length, 0);
+  // Nor is the region left blank, which is the other way to say nothing.
+  assert.ok(status.textContent.trim().length > 0, "the region must not be empty while it waits");
+
+  // The spinner is decoration; the sentence is the state.
+  assert.equal(first(container, "detail-loading-dot").getAttribute("aria-hidden"), "true");
+  assert.equal(first(container, "detail-loading-dot").textContent, "");
   assert.equal(byClass(container, "empty-action-secondary").length, 0, "the standing back link is not repeated here");
-  assert.equal(first(container, "detail-skeleton").getAttribute("aria-hidden"), "true");
 });
 
 test("the loaded page is headed by the poster's display name, not the bare word Post", () => {
@@ -228,8 +277,10 @@ test("the loaded page is headed by the poster's display name, not the bare word 
 
 test("the document title names the post, the feed, and the product", () => {
   assert.equal(postDetailTitle(post), "Post by Mina Okafor · Social · Shiplog");
-  assert.equal(postDetailTitle(null), "Post not found · Shiplog");
-  assert.equal(postDetailTitle(null, "error"), "Post unavailable · Shiplog");
+  // The tab reads what the panel reads: absence is "unavailable" in both, a
+  // failed load says it failed in both. These two used to be swapped.
+  assert.equal(postDetailTitle(null), "Post unavailable · Shiplog");
+  assert.equal(postDetailTitle(null, "error"), "Post couldn’t be loaded · Shiplog");
 });
 
 test("the post page's exit sits after the site frame, and names where it goes", async () => {
@@ -391,9 +442,14 @@ test("loading, not found and failed each say a different thing, in words", () =>
   const missing = render(null, { state: "ready", id: "p-gone" });
   const failed = render(null, { state: "error", id: "p-gone", onRetry: () => {} });
 
-  const title = (container) => first(container, "empty-title").textContent;
-  const titles = [title(loading), title(missing), title(failed)];
-  assert.deepEqual(titles, ["Loading post", "Post not found", "Post couldn’t be loaded"]);
+  // The wait has no heading of its own — it is a status line — so it is read
+  // by its sentence, and the two resolved states by their headings.
+  const titles = [
+    first(loading, "detail-loading").textContent.trim(),
+    first(missing, "empty-title").textContent,
+    first(failed, "empty-title").textContent,
+  ];
+  assert.deepEqual(titles, ["Loading this post…", "This post is unavailable", "Post couldn’t be loaded"]);
   assert.equal(new Set(titles).size, 3, "two states share a title");
 
   // The difference has to survive with colour, icons and badges removed, so it
@@ -406,9 +462,74 @@ test("loading, not found and failed each say a different thing, in words", () =>
   assert.ok(only(failedWords, missingWords).some((word) => ["couldn’t", "reach"].includes(word)),
     "the failed state must describe a failure, not an absence");
 
-  // And in the other direction: neither state may be readable as the other.
-  assert.doesNotMatch(missing.textContent, /couldn’t|failed|unavailable|try again/i);
+  // And in the other direction: neither state may be readable as the other. The
+  // missing state does say "unavailable" — that is the word for a post that is
+  // not there — but it never describes a failure, and the failure never
+  // describes an absence.
+  assert.doesNotMatch(missing.textContent, /couldn’t|failed|try again/i);
   assert.doesNotMatch(failed.textContent, /removed|incomplete|may have been/i);
+});
+
+test("each state's chip carries a word, and a wash that only agrees with it", async () => {
+  const chipOf = (value, options) => {
+    const container = createElement("div");
+    renderPostDetail(container, value, options);
+    return first(container, "detail-state-chip");
+  };
+
+  const chips = [
+    ["not-found", chipOf(null, { state: "ready", id: "p-gone" }), "missing", "Unavailable"],
+    ["error", chipOf(null, { state: "error", id: "p-gone" }), "error", "Error"],
+    ["id-less", chipOf(null, { state: "ready", id: "" }), "neutral", "Post status"],
+  ];
+
+  for (const [name, chip, tone, text] of chips) {
+    // Text plus colour, never colour alone: with the stylesheet gone the chip
+    // still reads, and the wash class only names the tone it is painted in.
+    assert.equal(chip.textContent, text, `the ${name} chip must name its state in words`);
+    assert.ok(chip.classes.includes(`detail-state-chip-${tone}`), `the ${name} chip carries its tone class`);
+  }
+  assert.equal(new Set(chips.map(([, chip]) => chip.textContent)).size, 3, "two chips share a word");
+
+  // A resolved lookup is a dynamic signal, so every one of these is a filled
+  // wash. The outline chip is this site's mark for a standing classification,
+  // and nothing on this page is one.
+  const css = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
+  for (const tone of ["missing", "error", "neutral"]) {
+    const rule = css.match(new RegExp(`^\\.detail-state-chip-${tone} \\{([^}]*)\\}`, "m"))?.[1] ?? "";
+    assert.match(rule, /background:#/, `the ${tone} chip needs a filled wash, not a bare outline`);
+    assert.match(rule, /color:#/, `the ${tone} chip needs its own ink`);
+  }
+  // The wait is not chipped at all: it is a sentence, and a colour would be the
+  // only thing a chip added to it.
+  const waiting = createElement("div");
+  renderPostDetail(waiting, null, { state: "loading", id: "p-image" });
+  assert.equal(byClass(waiting, "detail-state-chip").length, 0);
+});
+
+test("a missing post reaches the feed even when the standing exit does not", () => {
+  // Arrived from a profile: the one exit goes back to that profile, so the panel
+  // is the only thing that can offer the feed the missing post belonged to.
+  const fromProfile = createElement("div");
+  renderPostDetail(fromProfile, null, { id: "p-gone", returnHref: "/profile.html?author=Mina%20Okafor" });
+  const feed = first(fromProfile, "detail-state-feed");
+  assert.equal(feed.tagName, "A");
+  assert.equal(feed.href, "/social.html");
+  assert.equal(feed.textContent, "Browse the Social feed");
+  // It comes after the words that explain it, so it is not tabbed to first.
+  assert.equal(fromProfile.firstChild.lastChild, feed);
+
+  // Arrived any other way: the standing exit already is the feed, so nothing is
+  // added — one link to Social on the page, never two.
+  for (const returnHref of ["/social.html", undefined]) {
+    const container = createElement("div");
+    renderPostDetail(container, null, { id: "p-gone", returnHref });
+    assert.equal(byClass(container, "detail-state-feed").length, 0, `"${returnHref}" must not add a second feed link`);
+  }
+  // And a post that failed to load is not missing: its action is the retry.
+  const failed = createElement("div");
+  renderPostDetail(failed, null, { state: "error", id: "p-gone", returnHref: "/profile.html" });
+  assert.equal(byClass(failed, "detail-state-feed").length, 0);
 });
 
 /* ------------------------- extremes stay in the page ---------------------- */
@@ -455,6 +576,27 @@ test("a 1,000-character caption and an extreme image stay inside the page's colu
   // And the column itself is the page's existing container, not a new max-width.
   assert.match(rule(".detail-post"), /min-width:0/);
   assert.match(rule(".detail-media"), /overflow:hidden/);
+  assert.match(rule(".detail-figure"), /min-width:0/);
+
+  // The same caption on a text-only post lands in .detail-body instead, which
+  // needs the same treatment — this is the path a caption over 1,000 characters
+  // takes when the post carries no image, and it is the one easiest to forget.
+  const textOnly = createElement("div");
+  renderPostDetail(textOnly, { ...post, caption, image: undefined });
+  const body = first(textOnly, "detail-body");
+  assert.equal(body.textContent.length, caption.length, "the caption is shown whole, not truncated");
+  assert.equal(body.getAttribute("style"), null, "no inline width may be written from post data");
+  assert.match(rule(".detail-body"), /overflow-wrap:anywhere/);
+  // Neither the caption nor the body may clip what it cannot fit: wrapping is
+  // the answer at 390px, not an ellipsis or a hidden overflow.
+  for (const selector of [".detail-caption", ".detail-body"]) {
+    assert.doesNotMatch(rule(selector), /text-overflow|overflow:hidden|white-space:nowrap|max-height/,
+      `${selector} must wrap a long caption rather than cut it off`);
+  }
+  // At phone width the page column itself is what keeps the line inside the
+  // viewport, and it is a percentage of it rather than a fixed width.
+  const phone = css.match(/@media\(max-width:520px\) \{ (main,\.page\{[^}]*\})/)?.[1] ?? "";
+  assert.match(phone, /width:calc\(100% - 24px\)/, "the page column must stay inside a 390px viewport");
 });
 
 test("the post page's nav lists the profile destination once", async () => {
