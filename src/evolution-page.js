@@ -21,8 +21,9 @@ import {
   examplePanelFacts, importedPanelFacts, panelStates,
 } from "/finops-panel-contract.js";
 import {
-  applyPanelContract, applyProofPointBasis,
+  applyPanelContract, applyPanelLifecycle, applyProofPointBasis,
 } from "/finops-panel-contract-view.js";
+import { PANEL_STATUS } from "/panel-status-view.js";
 import { formatIntegrationProvenance } from "/integration-contracts.js";
 import { createStaticGateway } from "/static-gateway.js";
 import { createFinancePortfolio } from "/finance-portfolio.js";
@@ -1736,6 +1737,11 @@ async function init() {
   async function loadAndRender() {
     setLoadState("loading", "Loading bundled analysis…",
       "Previously rendered content stays visible while the synthetic fixture is refreshed.");
+    // Only on a first load. A refresh over panels that already hold figures must
+    // not blank their state back to "reading": the copy above says the previous
+    // analysis stays visible, and a status chip that contradicts it is worse
+    // than no chip.
+    if (!hasRenderedAnalysis) applyPanelLifecycle(document, PANEL_STATUS.loading);
     let data;
     try {
       data = await loadData();
@@ -1773,6 +1779,11 @@ async function init() {
       // loading line under a heading that promises a figure.
       bundledSeed = null;
       syncExecutivePanels();
+      // After the contract, not before it: a seed that never arrived leaves
+      // every bundled panel unanswerable, and the contract is right to say so —
+      // but the reason is a failed fetch, not a file the reader forgot. Left as
+      // "awaiting input" the page sends them to the import panel for nothing.
+      applyPanelLifecycle(document, PANEL_STATUS.error);
       return;
     }
 

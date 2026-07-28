@@ -543,8 +543,92 @@
 .panel-unavailable-question { font-weight:700; }
 .panel-unavailable-need { color:#3f4a44; }
 .panel-unavailable-rest { color:var(--ink-muted); font-size:12px; }
+/* Exactly one panel on the page carries this line, and it says "start here" in
+   words before it says it in weight — so the ranking survives a greyscale print
+   and reaches a screen reader in reading order rather than as an emphasis. */
+.panel-unavailable-priority { color:var(--import-accent); font:750 11px/1.5 ui-monospace,monospace; }
+[data-next-action="primary"] .panel-unavailable { border-left-color:var(--import-accent); border-left-width:6px; }
+[data-next-action="primary"] .panel-unavailable-need { font-weight:650; }
 [data-panel-state="unavailable"] { border-style:dashed; }
 .kpi[data-panel-state="unavailable"] .panel-unavailable { border:0; border-left:3px solid #6f6f69; border-radius:0; padding:8px 0 8px 12px; background:none; font-size:12px; }
+
+/* ---------------------------------------------------------------------------
+   The shared panel status treatment (src/panel-status-view.js).
+
+   One block, six states, and no colour doing a job on its own. The chip carries
+   a word and a glyph as well as a tone; the silhouette follows the foundations
+   card's rule — filled wash for a signal that moves (reading, partly attributed,
+   failed), outline for a classification that holds until the reader brings
+   another file (computed, awaiting input, no records).
+
+   The tones are the roles this stylesheet already declares. `awaiting input`
+   and `no records` deliberately resolve to the same neutral inks as a caption,
+   so an unanswerable panel reads as quiet rather than as damaged; only `error`
+   reaches for --state-error-*. That separation is the whole point of the block.
+   --------------------------------------------------------------------------- */
+.panel-status {
+  display:grid; gap:8px; margin:0 0 16px; border:1px solid var(--panel-border);
+  border-left:5px solid var(--ink-muted); border-radius:11px; padding:12px 15px;
+  background:rgba(255,255,255,.55); font-size:13px; line-height:1.55; overflow-wrap:anywhere;
+}
+/* Waiting is not damage. Dashed says "not filled in yet" in the same grammar the
+   contract note and the review-band score card already use. */
+.panel-status[data-status="unavailable"],.panel-status[data-status="empty"] { border-style:dashed; background:#faf9f5; }
+.panel-status[data-status="loading"] { border-left-color:#174f83; }
+.panel-status[data-status="computed"] { border-color:var(--import-line); border-left-color:var(--import-accent); background:var(--import-wash); }
+.panel-status[data-status="partial"] { border-color:var(--state-warn-line); border-left-color:var(--state-warn-ink); background:var(--state-warn-wash); }
+.panel-status[data-status="error"] { border-color:var(--state-error-line); border-left-color:var(--state-error-ink); background:var(--state-error-wash); }
+
+.panel-status-line { display:flex; align-items:baseline; flex-wrap:wrap; gap:6px 10px; margin:0; }
+.panel-status-summary { flex:1 1 260px; color:#3f3f3a; }
+.panel-status[data-status="error"] .panel-status-summary { color:var(--state-error-ink); }
+
+.panel-status-chip {
+  flex:none; display:inline-flex; align-items:baseline; gap:6px; border-radius:5px;
+  padding:2px 9px; font:750 10px/1.6 ui-monospace,monospace; letter-spacing:.05em;
+  text-transform:uppercase; white-space:nowrap;
+}
+/* Static classification: an outline, no fill. */
+.panel-status-chip[data-silhouette="outline"] { border:1px solid var(--panel-border); color:#4a4a44; }
+.panel-status[data-status="computed"] .panel-status-chip { border-color:var(--import-line); color:var(--import-ink); }
+/* Dynamic signal: a wash, no outline. */
+.panel-status-chip[data-silhouette="filled"] { background:color-mix(in srgb,var(--ink-muted) 12%,transparent); color:#4a4a44; }
+.panel-status[data-status="partial"] .panel-status-chip { background:color-mix(in srgb,var(--state-warn-ink) 14%,transparent); color:var(--state-warn-ink); }
+.panel-status[data-status="error"] .panel-status-chip { background:color-mix(in srgb,var(--state-error-ink) 12%,transparent); color:var(--state-error-ink); }
+.panel-status[data-status="loading"] .panel-status-chip { background:#e9f1f8; color:#174f83; }
+.panel-status-shape { font-weight:750; }
+
+/* Provenance at a glance: count, period, coverage, confidence on one line, each
+   under its own label so no value is read without the thing it measures. */
+.panel-status-facts { display:flex; flex-wrap:wrap; gap:4px 22px; margin:0; }
+.panel-status-fact dt { color:var(--ink-muted); font:700 10px/1.5 ui-monospace,monospace; letter-spacing:.07em; text-transform:uppercase; }
+.panel-status-fact dd { margin:0; font-size:13px; font-weight:650; }
+/* An implausible figure is marked in text ("· check this") by the view; the rule
+   underline is the second channel, never the only one. */
+.panel-status-fact[data-implausible] dd { color:var(--state-error-ink); text-decoration:underline dotted; text-underline-offset:3px; }
+.panel-status-caveat { margin:0; color:var(--state-error-ink); font-size:12px; line-height:1.5; }
+
+/* The one next action. Exactly one block on the page is "primary", so the label
+   itself is the ranking and a monochrome print keeps it. */
+.panel-status-next { display:grid; gap:3px; margin:0; }
+.panel-status-next-label { color:var(--ink-muted); font:750 10px/1.4 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; }
+.panel-status-next[data-priority="primary"] { border-left:4px solid var(--import-accent); padding:2px 0 2px 12px; }
+.panel-status-next[data-priority="primary"] .panel-status-next-label { color:var(--import-accent); }
+.panel-status-next[data-priority="primary"] .panel-status-next-text { font-weight:650; }
+
+.panel-status-detail > summary { cursor:pointer; color:var(--ink-muted); font:700 10px/1.4 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; }
+.panel-status-detail > summary:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; border-radius:4px; }
+.panel-status-detail p { margin:8px 0 0; color:var(--ink-muted); font-size:12px; line-height:1.55; }
+
+/* Narrow: the facts stack rather than wrapping mid-pair, and the block loses the
+   inset so the copy keeps its measure at 320px. */
+@media (max-width:640px) {
+  .panel-status { padding:11px 12px; }
+  .panel-status-facts { gap:6px 16px; }
+  .panel-status-fact { flex:1 1 130px; }
+}
+/* Inside a KPI card the block is a rule and a caption, not a second card. */
+.kpi .panel-status { border:0; border-left:3px solid var(--ink-muted); border-radius:0; margin-bottom:10px; padding:6px 0 6px 11px; background:none; font-size:12px; }
 /* The static worked example, marked before it is read rather than after. Above
    a leader's own thinner import the marker stops being a footnote. */
 .proof-point-illustrative { display:grid; grid-column:1/-1; gap:5px; margin:0 0 4px; border-left:4px solid #8c6b1f; padding:2px 0 2px 12px; font-size:12px; line-height:1.5; }
@@ -1196,8 +1280,29 @@
      engine that has, it is a no-op. */
   .local-lead-detail::details-content,
   .local-provenance-detail::details-content,
+  .panel-status-detail::details-content,
   .local-disclosures details::details-content { content-visibility:visible; block-size:auto; }
-  .local-lead-detail>*,.local-provenance-detail>*,.local-disclosures details>* { display:revert; }
+  .local-lead-detail>*,.local-provenance-detail>*,.panel-status-detail>*,
+  .local-disclosures details>* { display:revert; }
+  /* A panel's state and its provenance travel with the panel onto paper. A
+     printed briefing whose figures lost the count, period, coverage, and
+     confidence behind them is a claim again — and one whose status chip was
+     dropped cannot say which panels are still waiting on a file. The washes go
+     (they print as grey mud); the rule, the word, and the glyph stay, which is
+     exactly the greyscale case this block was drawn for. */
+  .panel-status { break-inside:avoid; background:#fff; border-color:#767670; border-left-width:3px; box-shadow:none; }
+  /* The silhouette is a channel, so it survives the printer too: the coloured
+     washes go, but a filled chip keeps a neutral tint a laser press reproduces
+     and an outlined one keeps its rule. Word, glyph, and silhouette all print. */
+  .panel-status-chip { border:1px solid #767670; background:none; color:#171713; }
+  .panel-status-chip[data-silhouette="filled"] { border-color:transparent; background:#e6e5e0; }
+  .panel-status-facts { gap:2px 18px; }
+  .panel-status-detail>summary {
+    display:block; padding:0; list-style:none; color:#171713;
+    font:700 10px/1.6 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase;
+  }
+  .panel-status-detail>summary::marker { content:""; }
+  .panel-status-detail>summary::-webkit-details-marker { display:none; }
   .local-lead-arithmetic[hidden] { display:none; }
   /* The disclosure content stays; the disclosure control goes. A summary is a
      control that means nothing on paper, so it prints as the section heading it
