@@ -1373,6 +1373,40 @@ class AutonomousTests(IsolatedDiffBudget):
                     state, journal, "token")
             self.assertNotIn("review_feedback", state.value["issues"]["60"])
 
+    def test_policy_rejection_is_carried_onto_the_issue_record(self):
+        """An oversized change is discarded whole, so the retry must be told to shrink.
+
+        Issue 448 lost a full paid session by exceeding the diff ceiling by ten lines,
+        then replanned from the issue body alone with no idea the ceiling had fired.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            state.value["issues"]["60"] = {"status": "running", "attempts": 1}
+            journal = autonomous.Journal(pathlib.Path(tmp) / "events.jsonl")
+            issue = {"number": 60, "title": "Share button", "body": "",
+                     "labels": [{"name": "agent-ready"}]}
+            with mock.patch.object(autonomous, "comment"), \
+                 mock.patch.object(autonomous, "replace_state_label"):
+                run_dir = pathlib.Path(tmp) / ".agent" / "runs" / "sim_1"
+                run_dir.mkdir(parents=True)
+                (run_dir / orchestrator.POLICY_REJECTION_FILE).write_text(
+                    "policy: 2010 changed lines exceeds limit 2000\n")
+                with mock.patch.object(autonomous, "ROOT", pathlib.Path(tmp)):
+                    autonomous.record_run_outcome(
+                        orchestrator.POLICY_REJECTED_EXIT_CODE, issue, 60, "frontend", {},
+                        {**self.config(), "issue_label": "agent-ready"}, state, journal, "token")
+            carried = state.value["issues"]["60"]["review_feedback"]
+            self.assertIn("2010 changed lines exceeds limit 2000", carried)
+            self.assertIn("smallest change", carried)
+
+    def test_latest_run_policy_rejection_is_empty_without_a_rejection_file(self):
+        """A run that passed the gate leaves no note, and none must be invented."""
+        with tempfile.TemporaryDirectory() as tmp:
+            run_dir = pathlib.Path(tmp) / ".agent" / "runs" / "sim_1"
+            run_dir.mkdir(parents=True)
+            with mock.patch.object(autonomous, "ROOT", pathlib.Path(tmp)):
+                self.assertEqual(autonomous.latest_run_policy_rejection(), "")
+
     def test_latest_run_review_ignores_an_approved_verdict(self):
         """Only a withheld approval carries advice; an approval must not leak forward."""
         with tempfile.TemporaryDirectory() as tmp:

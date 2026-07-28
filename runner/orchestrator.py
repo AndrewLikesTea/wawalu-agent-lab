@@ -33,6 +33,12 @@ DIFF_BUDGET_EXIT_CODE = 77
 # this apart from a crash: a rejection carries reviewer feedback the next attempt
 # must see, and repeating the attempt without it just earns the same rejection.
 REVIEW_REJECTED_EXIT_CODE = 3
+# The policy gate threw the change away before Marcus ever saw it — oversized diff,
+# too many files, or a forbidden path. Like a rejection this says something specific
+# about the work, so it gets its own code and its message is carried to the retry;
+# otherwise the next attempt rebuilds the same 2000-line change and is discarded again.
+POLICY_REJECTED_EXIT_CODE = 4
+POLICY_REJECTION_FILE = "policy-rejection.txt"
 
 
 CHECKOUT_LOCK = AGENT_DIR / "autonomy" / "checkout.lock"
@@ -461,7 +467,17 @@ Scenario: {json.dumps(scenario, indent=2)}
     # change fails here, in seconds, instead of after the reviewer has spent an
     # hour on work the final policy check was always going to throw away.
     run(["git", "add", "--intent-to-add", "--all"], cwd=worktree)
-    run([sys.executable, "-m", "runner.policy", "--base", base_sha, "--repo", str(worktree)])
+    policy_result = subprocess.run(
+        [sys.executable, "-m", "runner.policy", "--base", base_sha, "--repo", str(worktree)],
+        cwd=ROOT, text=True, capture_output=True)
+    print(policy_result.stdout, end="")
+    print(policy_result.stderr, end="", file=sys.stderr)
+    if policy_result.returncode:
+        reasons = (policy_result.stderr or policy_result.stdout).strip()
+        (run_dir / POLICY_REJECTION_FILE).write_text(reasons + "\n", encoding="utf-8")
+        metadata["policy"] = "rejected"
+        (run_dir / "metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")
+        return POLICY_REJECTED_EXIT_CODE
     diff = output(["git", "diff", "--no-ext-diff", base_sha], cwd=worktree)
     reviewed_diff_sha256 = hashlib.sha256(diff.encode()).hexdigest()
     reviewer_prompt = (ROOT / personas["reviewer"]["prompt_file"]).read_text()
