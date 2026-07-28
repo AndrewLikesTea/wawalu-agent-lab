@@ -53,11 +53,18 @@ import {
 // the three states the three panels are in, and `graded-sample-view.js` paints
 // them. The one adapter this page adds is the routing below: a selected file
 // that the query-sample validator accepts is a sample, not a provider export.
-import { classifyQuerySample, parseQuerySample } from "/query-sample-contract.js";
+import {
+  CLASSIFICATION_FIELDS, REQUIRED_QUERY_SAMPLE_FIELDS,
+  classifyQuerySample, parseQuerySample,
+} from "/query-sample-contract.js";
 import { scorePromptLiteracy } from "/prompt-literacy-scoring.js";
 import { gradedSampleFigures, querySampleEligibility } from "/graded-sample-figures.js";
 import { promptGradingEligibility, promptGradingSignals } from "/prompt-grading-eligibility.js";
 import { applyGradedSample, clearGradedSample } from "/graded-sample-view.js";
+import {
+  FINOPS_IMPORT_STATUS, finopsProvenanceModel, promptImportFacts,
+} from "/finops-provenance-model.js";
+import { applyFinopsProvenance, clearFinopsProvenance } from "/finops-provenance-view.js";
 import { loadExampleDatasetInputs } from "/example-dataset.js";
 import { EXAMPLE_QUERY_SAMPLE_FILE, exampleQuerySampleText } from "/query-sample-example.js";
 import {
@@ -471,11 +478,58 @@ function mountLocalFinopsImport() {
   // owns it. This surface reads `hasOwnImport` rather than counting files, so
   // the comparison exists once; the same verdict carries the state, the named
   // gaps, and the one next action for the headline that reads it next.
-  const promptGrading = () => promptGradingEligibility(promptGradingSignals(
-    exampleActive ? [] : samples.map((entry) => ({
-      parsed: entry.parsed, classified: classifyQuerySample(entry.parsed),
-    })),
-  ));
+  // The reader's own prompt samples, parsed once and paired with the classifier
+  // output every consumer below needs. The bundled example is never one of
+  // these: an example dataset graded as the reader's own would be the exact
+  // mislabelling the per-panel provenance exists to end.
+  const classifiedSamples = () => (exampleActive ? [] : samples.map((entry) => ({
+    fileName: entry.fileName,
+    parsed: entry.parsed,
+    classified: classifyQuerySample(entry.parsed),
+  })));
+  /**
+   * The composite each department's own prompts scored, keyed by org unit.
+   * Handed to the eligibility rule so its `own_grade` action can name the team
+   * to coach rather than saying it has no way to choose one.
+   */
+  const departmentScores = (entries) => {
+    const byUnit = new Map();
+    for (const entry of entries) {
+      for (const record of entry.classified.records) {
+        if (!record.orgUnitId) continue;
+        const bucket = byUnit.get(record.orgUnitId) ?? [];
+        bucket.push(record);
+        byUnit.set(record.orgUnitId, bucket);
+      }
+    }
+    return Object.fromEntries([...byUnit].map(([unit, records]) =>
+      [unit, scorePromptLiteracy(records).composite]));
+  };
+  const promptGrading = (entries = classifiedSamples()) => promptGradingEligibility(
+    promptGradingSignals(entries), { departmentScores: departmentScores(entries) },
+  );
+  /**
+   * The one place four panels learn whose numbers they are showing.
+   *
+   * Every input below is a count, a file name, or an already-decided verdict:
+   * `promptImportFacts` is the boundary where a parsed sample becomes five
+   * scalars, so nothing downstream of this call holds prompt text to leak.
+   */
+  const paintPanelProvenance = ({ status = FINOPS_IMPORT_STATUS.ready } = {}) => {
+    const entries = status === FINOPS_IMPORT_STATUS.ready ? classifiedSamples() : [];
+    const verdict = promptGrading(entries);
+    const provenance = exampleActive ? null : importProvenance();
+    return applyFinopsProvenance(document, finopsProvenanceModel({
+      status,
+      promptGrading: verdict,
+      promptFacts: promptImportFacts(entries,
+        [...REQUIRED_QUERY_SAMPLE_FIELDS, ...CLASSIFICATION_FIELDS]),
+      usage: provenance && result
+        ? { fileName: provenance.files.join(", "), rows: provenance.rows } : null,
+      coaching: verdict.nextAction?.kind === "coach_department" && verdict.nextAction.department
+        ? { department: verdict.nextAction.department, score: verdict.nextAction.score } : null,
+    }), { onReturnToSample: () => reset() });
+  };
   const gradedModel = () => {
     if (!promptGrading().hasOwnImport) return null;
     const classified = samples.map((entry) => classifyQuerySample(entry.parsed));
@@ -631,6 +685,11 @@ function mountLocalFinopsImport() {
     focusStageHeading(document, "read");
     void paintModelOverspend(example);
     paintGradedSample();
+    // Last, so the four panels are labelled from the result that is actually on
+    // screen. Focus is not taken here: `focusStageHeading` above already moved
+    // it to the brief's own heading, and two moves for one import is one too
+    // many.
+    paintPanelProvenance();
   };
   // Fetched once and reused, like the evaluation fixtures above it. A fixture
   // that cannot be read leaves the panel hidden rather than half-painted: this
@@ -715,6 +774,9 @@ function mountLocalFinopsImport() {
     // example badge, the example mix and the bundled KPI figures are exactly
     // what a visitor who imports nothing has always seen.
     clearGradedSample(document);
+    // All four panels together, from the model with no import in it. A reload
+    // produces exactly this, because nothing here was ever written down.
+    clearFinopsProvenance(document);
     repaintBundledAnalysis();
     showMetricBasis({ mode: "example" });
     setText("finops-intro",
@@ -754,6 +816,10 @@ function mountLocalFinopsImport() {
     });
     applyFieldDiagnostic(document, diagnostic);
     showTransientBasis("failed");
+    // Every panel goes back to the sample together. A surface with the KPI row
+    // swapped and the grade stale would be a half-import nobody asked for, and
+    // a blank headline would strand the reader on nothing at all.
+    paintPanelProvenance({ status: FINOPS_IMPORT_STATUS.failed });
     syncStage();
     announce("error", "This file was not analyzed.",
       `${diagnostic.text} ${diagnostic.recovery} Existing analysis was not replaced.`);
@@ -924,6 +990,10 @@ function mountLocalFinopsImport() {
     applyFieldDiagnostic(document, null);
     announce("loading", "Reading files in this tab…",
       "Parsing and validation are running locally; no file contents are being transferred.");
+    // While a file is being read the panels stay exactly what they were and say
+    // so in a reserved line. Relabelling them now would caption figures that
+    // have not changed with a source that does not yet exist.
+    paintPanelProvenance({ status: FINOPS_IMPORT_STATUS.pending });
     try {
       // The size ceiling is checked from `File.size`, before a byte is decoded
       // and before a worker exists. An oversized file costs one comparison and
@@ -1061,6 +1131,10 @@ function mountLocalFinopsImport() {
   applyAttributionSplit(document, null);
   applyChangeSummary(document, null);
   applyImportProgress(document, null);
+  // The four panels start where the authored markup already has them, painted
+  // from the model rather than trusted to it — and the return control is bound
+  // on this pass, so it exists the moment a panel becomes the reader's.
+  paintPanelProvenance();
   showMetricBasis({ mode: "example" });
   syncStage();
 }
