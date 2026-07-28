@@ -181,6 +181,11 @@ export const SHIPLOG_EXPORT_SHAPE = Object.freeze({
     status: "string",
     createdAt: "string",
     supersedes: "string?",
+    // Present only on a decision recorded from an approved FinOps commitment.
+    // Its own fields are pinned by finops-commitment-decision.test.js, which
+    // owns the block; here it is pinned as optional so the exporter carrying it
+    // is a declared part of the shape rather than undetected drift.
+    finopsCommitment: "object?",
   },
   releases: {
     id: "string",

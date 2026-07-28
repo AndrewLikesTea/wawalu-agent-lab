@@ -2,6 +2,13 @@ import { loadDecisions } from "./app.js";
 import { loadReleases } from "./releases.js";
 
 export const SHIPLOG_EXPORT_SCHEMA = "shiplog-history";
+// Still 1, deliberately. A decision recorded from an approved FinOps commitment
+// carries one extra optional field — `finopsCommitment`, see
+// finops-commitment-decision.js — and the envelope around it is unchanged. The
+// addition is compatible in both directions: a file written before it exists is
+// a file whose decisions simply have no such field, and a reader that predates
+// it carries the field through untouched. Bumping the number would have made
+// every older export unreadable to buy nothing.
 export const SHIPLOG_EXPORT_VERSION = 1;
 
 export function createShiplogExport(storage, options = {}) {
