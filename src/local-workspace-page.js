@@ -1,6 +1,8 @@
-// Entry for /workspace.html. The page is one surface with one module: read this
-// browser, draw the state, and wire the four controls.
+// Entry for /workspace.html. The page is one surface with two stores: Shiplog's
+// records, kept by default, and AI FinOps' derived figures, kept only after an
+// explicit yes. Each has its own module; neither reads the other's key.
 import { initLocalWorkspace } from "/local-workspace-view.js";
+import { initFinopsWorkspace } from "/finops-workspace-view.js";
 import {
   FINOPS_LABELS_KEY,
   FINOPS_PROHIBITED_CLASSES,
@@ -10,6 +12,7 @@ import {
 } from "/finops-workspace-contract.js";
 
 initLocalWorkspace(document, localStorage);
+initFinopsWorkspace(document, localStorage);
 
 const preview = document.querySelector("#finops-workspace-preview");
 if (preview) {

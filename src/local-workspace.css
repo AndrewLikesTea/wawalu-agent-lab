@@ -26,6 +26,48 @@
 .ws-finops-preview ul { margin:0; padding-left:20px; }
 .ws-finops-limit { border-left:3px solid #5f7f9f; padding-left:12px; }
 .ws-finops-preview summary:focus-visible,.ws-finops-preview pre:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.ws-finops-preview { margin-top:28px; }
+
+/* The FinOps flow reuses the Shiplog surface's own components — the same status
+   card, chips, action card, controls grid and confirmation — one heading level
+   down, because it is a section of this page rather than a second page. Only the
+   briefing block below is new, and it is new because nothing on this page
+   previously had a headline figure to draw. */
+.fw-status { margin:22px 0 18px; }
+.ws-finops-preview .fw-status h3,.fw-controls h3 { margin:0 0 12px; color:#171713; font-size:19px; line-height:1.25; letter-spacing:-.02em; }
+.fw-controls { margin-top:20px; }
+.fw-controls h3 { grid-column:1/-1; }
+.fw-controls h4 { margin:0; color:#5f5f59; font:750 10px/1.4 ui-monospace,monospace; letter-spacing:.07em; text-transform:uppercase; }
+.fw-controls .ws-control-note,.fw-controls button { font-size:12.5px; }
+.fw-choice { display:flex; flex-wrap:wrap; gap:9px; width:100%; margin-top:auto; }
+.fw-choice button { margin-top:0; }
+.fw-controls button[aria-pressed="true"] { border-color:#315f50; background:#eef6f2; color:#245643; }
+.ws-confirm .ws-confirm-title { font-size:14px; }
+
+/* The briefing: one figure, at the only display size on this page that competes
+   with the h1, because the whole point of the block is that a reader does not
+   have to hunt for the number. `data-available="false"` is the refusal state —
+   the slot still renders, and says in words why it is empty, because a figure
+   that silently disappeared is indistinguishable from one that scored zero. */
+.fw-briefing { margin:0 0 18px; border:1px solid #b9cde1; border-left:5px solid #1f70c1; border-radius:12px; padding:18px 20px; background:#f7fafd; }
+.fw-briefing h3 { margin:0 0 10px; color:#5f5f59; font:750 10px/1.4 ui-monospace,monospace; letter-spacing:.07em; text-transform:uppercase; }
+.fw-benchmark-figure { margin:0; color:#171713; font-size:clamp(28px,4.4vw,40px); font-weight:750; line-height:1.05; letter-spacing:-.035em; }
+.fw-benchmark-figure[data-available="false"] { color:#5f5f59; font-size:clamp(20px,3vw,26px); }
+.fw-benchmark-label { margin:8px 0 0; color:#2c4257; font-size:14px; font-weight:700; line-height:1.45; }
+.fw-benchmark-detail,.fw-briefing-period { margin:8px 0 0; color:#4c4c47; font-size:12.5px; line-height:1.6; }
+.fw-briefing-period { color:#5f5f59; font-family:ui-monospace,monospace; font-size:11.5px; }
+
+.fw-disclosure { margin:0 0 14px; }
+.fw-records-review { grid-column:1/-1; margin:0; }
+.fw-records { display:grid; gap:10px; margin:14px 0 0; padding:0; list-style:none; }
+.fw-record { display:grid; gap:3px; border-left:3px solid #cfd9e2; padding-left:11px; color:#4c4c47; font-size:12.5px; line-height:1.55; overflow-wrap:anywhere; }
+.fw-record[data-kind="labels"] { border-left-color:#d9c48a; }
+.fw-record[data-kind="commitment"] { border-left-color:#9fbfa8; }
+.fw-record strong { color:#2f2f2b; font-size:13px; }
+.ws-finops-preview .ws-next-card { margin:0 0 18px; }
+.ws-finops-preview .ws-next-title { font-size:21px; }
+.ws-finops-preview .ws-outcome,.ws-finops-preview .ws-summary { max-width:none; }
+.fw-controls button:focus-visible,.fw-disclosure summary:focus-visible { outline:3px solid var(--focus-ring); outline-offset:2px; }
 
 .ws-status,.ws-controls,.ws-next-card { border:1px solid #d2d8dc; border-radius:14px; padding:22px; background:#fff; }
 .ws-status { margin-bottom:18px; }

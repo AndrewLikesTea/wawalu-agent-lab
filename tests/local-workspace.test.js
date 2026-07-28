@@ -305,7 +305,7 @@ test("a populated browser renders both chips as words, not as colours", async ()
     [RELEASE_STORAGE_KEY]: JSON.stringify([RELEASE]),
   });
   try {
-    const chips = document.querySelectorAll(".ws-chip");
+    const chips = document.querySelector("#ws-facts").querySelectorAll(".ws-chip");
     assert.deepEqual(chips.map((chip) => textOf(chip)), ["Retaining", "Verified"]);
     // The tone is an attribute the stylesheet reads; the meaning is in the text.
     assert.deepEqual(chips.map((chip) => chip.dataset.tone), ["on", "verified"]);
@@ -319,7 +319,7 @@ test("a populated browser renders both chips as words, not as colours", async ()
 test("the page names one next action, and the reader can reach every control by keyboard", async () => {
   const { document, restore } = await open({ [STORAGE_KEY]: JSON.stringify([DECISION]) });
   try {
-    assert.equal(document.querySelectorAll(".ws-next-action").length, 1);
+    assert.equal(document.querySelector("#ws-next").querySelectorAll(".ws-next-action").length, 1);
 
     // Walked as the real tab sequence, narrowed to the content region: the
     // header and footer stops are the site's, asserted in their own suites.
@@ -328,12 +328,18 @@ test("the page names one next action, and the reader can reach every control by 
       .map((stop) => textOf(stop) || stop.id);
     // Reading order: the one action first, then the ordinary controls, then the
     // disclosure. Nothing reachable sits above the action it is subordinate to.
+    // The FinOps flow follows the whole Shiplog surface rather than interleaving
+    // with it — it is a second store with a second question, and its own stops
+    // are asserted in tests/finops-workspace-flow.test.js.
     assert.deepEqual(labels, [
       "Download JSON backup",
       "Stop keeping new records in this browser",
       "Download JSON backup",
       "ws-restore-file",
       "Erase local records",
+      "Remember these figures in this browser",
+      "Remember these figures in this browser",
+      "Keep using files only",
     ]);
   } finally {
     restore();
@@ -387,7 +393,7 @@ test("confirming the erase empties both stores and announces the new state", asy
     assert.equal(document.querySelector("#ws-outcome").hidden, false);
     // The erased state is drawn, not merely announced.
     assert.match(shown(document, "ws-summary"), /0 decisions and 0 releases/);
-    assert.equal(textOf(document.querySelector(".ws-chip")), "Retaining · nothing stored");
+    assert.equal(textOf(document.querySelector("#ws-facts").querySelector(".ws-chip")), "Retaining · nothing stored");
     assert.equal(document.querySelector("#ws-erase").disabled, true);
     // The reader lands on the answer, not on a control whose label just changed.
     assert.equal(document.activeElement, document.querySelector("#ws-next-title"));
@@ -412,7 +418,7 @@ test("turning retention off is one press, is reflected in the control, and stops
     assert.equal(toggle.getAttribute("aria-pressed"), "false");
     assert.equal(textOf(toggle), "Keep new records in this browser");
     assert.match(shown(document, "ws-announcement"), /Records already stored here were not erased/);
-    assert.equal(textOf(document.querySelector(".ws-chip")), "Not retaining");
+    assert.equal(textOf(document.querySelector("#ws-facts").querySelector(".ws-chip")), "Not retaining");
     assert.match(shown(document, "ws-retention-note"), /^Off\./);
     // The control governs the store rather than describing it.
     assert.throws(() => saveDecisions(page.storage, []), (error) => error.code === "retention_declined");
@@ -436,7 +442,7 @@ test("a browser with nothing stored draws the empty state and disables what it c
 test("unreadable stored text is drawn as unreadable, and the action is restore", async () => {
   const { document, restore } = await open({ [STORAGE_KEY]: "{ truncated" });
   try {
-    const chips = document.querySelectorAll(".ws-chip");
+    const chips = document.querySelector("#ws-facts").querySelectorAll(".ws-chip");
     assert.deepEqual(chips.map((chip) => textOf(chip)), ["Stored text unreadable", "Partial"]);
     assert.match(shown(document, "ws-next-title"), /Restore from a JSON backup/);
     // Erase stays available, but it is not what the page asks for first.

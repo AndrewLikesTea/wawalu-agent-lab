@@ -489,7 +489,8 @@ export function validateBriefing(briefing) {
 
 export const CLIENT_SIDE_PROVENANCE =
   "This analysis ran in your browser. No prompt, conversation content, or file left this tab; "
-  + "nothing was uploaded, and nothing is stored after this page is closed.";
+  + "nothing was uploaded. Derived monthly figures are stored only if you opted in to the local "
+  + "workspace; otherwise nothing from this analysis remains after this page is closed.";
 
 function absence(reason) {
   return Object.freeze({ reason, statement: ABSENCE_STATEMENT[reason] });
