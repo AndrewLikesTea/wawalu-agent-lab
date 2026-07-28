@@ -13,6 +13,7 @@
 // small shared module; that abstraction is not yet earned by two call sites.
 
 import { DECISION_STATUSES, canonicalDecisionStatus } from "./decision-status.js";
+import { retentionDeclined, retentionRefusal } from "./local-retention.js";
 import { createShareControl } from "./share-link.js";
 import { EXAMPLE_LABEL } from "./seed-records.js";
 
@@ -64,7 +65,12 @@ export function loadReleases(storage) {
   }
 }
 
+// Mirrors saveDecisions: the same explicit "do not keep records in this browser"
+// choice governs both stores, and it is read from local-retention.js — a module
+// with no dependencies of its own, so this file still imports nothing from
+// app.js.
 export function saveReleases(storage, releases) {
+  if (retentionDeclined(storage)) throw retentionRefusal();
   storage.setItem(RELEASE_STORAGE_KEY, JSON.stringify(releases));
 }
 

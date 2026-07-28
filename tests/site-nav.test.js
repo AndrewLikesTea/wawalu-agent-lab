@@ -17,6 +17,7 @@ import { SITE_NAV, SITE_NAV_LABELS, navParentOf, siteNavMarkup } from "../src/si
 const PAGES = [
   { file: "index.html", current: "/", title: "Shiplog · Decision and release log" },
   { file: "decision.html", current: "/", title: "Decision · Shiplog" },
+  { file: "workspace.html", current: "/", title: "Local workspace · Shiplog" },
   { file: "social.html", current: "/social.html", title: "Social · Shiplog" },
   { file: "post.html", current: "/social.html", title: "Post · Social · Shiplog" },
   { file: "profile.html", current: "/profile.html", title: "People · Shiplog" },
