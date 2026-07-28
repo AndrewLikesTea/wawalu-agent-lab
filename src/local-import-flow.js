@@ -256,6 +256,8 @@ const RECOVERY_BY_CODE = Object.freeze({
   record_outside_period: "Re-export so every record falls inside the declared period.",
   malformed_period: "Correct period_start and period_end, then select the files again.",
   incompatible_source: "Select periods from one source instance, or analyze each source separately.",
+  too_many_files: "Choose a smaller set of related exports, then analyze any remaining files separately.",
+  selection_too_large: "Choose a smaller set of related exports; no file in this selection was read.",
 });
 
 const DEFAULT_RECOVERY = "Select a manifest-compatible v1 JSON export and try again.";

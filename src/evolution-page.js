@@ -49,6 +49,7 @@ import { readDelimitedText } from "/delimited-text.js";
 // thread when it does not; the ceilings and the messages are the same either
 // way, and the worker calls the same `parseLocalImportFile` imported above.
 import { CANCELLED_CODE, checkImportCeiling, createImportOffloader } from "/import-offload.js";
+import { checkFileSelectionCeiling, safeDisplayFileName } from "/import-limits.js";
 // The column-review step. The model owns what every column became; the view
 // owns the surface; this layer owns only when the step opens and closes.
 import { createColumnMapping, mappingBinding, setColumnTarget, setMappingKind } from "/import-column-mapping.js";
@@ -88,6 +89,15 @@ import { scorePromptLiteracy } from "/prompt-literacy-scoring.js";
 import { gradedSampleFigures, querySampleEligibility } from "/graded-sample-figures.js";
 import { promptGradingEligibility, promptGradingSignals } from "/prompt-grading-eligibility.js";
 import { applyGradedSample, clearGradedSample } from "/graded-sample-view.js";
+// The reader's own figures, in the executive slots above the import panel. The
+// panel contract decides which of those slots may show a figure at all; this
+// pair decides what the figure says once it may. Without them an import leaves
+// the hero grade, the KPI row and the mix holding the BUNDLED sample's numbers
+// under a provenance line that reads "Your data".
+import { gradeImportedCorpus } from "/imported-corpus-grade.js";
+import {
+  applyImportedExecutive, clearImportedExecutive, importedExecutiveFigures,
+} from "/imported-executive-view.js";
 import {
   FINOPS_IMPORT_STATUS, finopsProvenanceModel, promptImportFacts,
 } from "/finops-provenance-model.js";
@@ -675,6 +685,58 @@ function mountLocalFinopsImport() {
       cohort: result?.benchmark ?? null,
     });
   };
+  /**
+   * The reader's own corpus, graded against the declared hero-panel floor.
+   *
+   * Every row the query sample handed over is counted as a source record —
+   * including the ones no rubric category could be assigned to, which are passed
+   * as an empty record so they land in `unclassified` rather than quietly
+   * shrinking the denominator. Nothing from an unreadable row is copied.
+   */
+  const importedCorpus = (entries = classifiedSamples()) => gradeImportedCorpus(
+    entries.flatMap(({ classified }) => [
+      ...classified.records,
+      ...classified.unclassified.map(() => ({ category: null })),
+    ]));
+  /**
+   * The executive figures above the import panel, filled from that corpus.
+   *
+   * Called after the graded surface, because when a sample clears the
+   * spend-coverage tier that surface owns the KPI row and the mix and publishes
+   * a richer reading of both. When it does not — the common case for a leader's
+   * first import — those slots would otherwise still hold the bundled sample's
+   * numbers under the reader's own provenance line, which is the mislabelling
+   * this wiring exists to end.
+   */
+  const syncImportedFigures = ({ analysis = null, plausible = true, withheld = false, gradedMix = false } = {}) => {
+    const figures = importedExecutiveFigures(importedCorpus(), {
+      spendUsd: analysis?.spendUsd ?? null,
+      recoverableUsd: analysis?.recoverableUsd ?? null,
+      departments: analysis?.rankedDepartments?.length ?? 0,
+      period: analysis?.period ?? null,
+      plausible,
+      recoverableWithheld: withheld,
+    });
+    applyImportedExecutive(document, figures, { band });
+    // One painter per state. The graded surface has already drawn its own mix
+    // into these nodes; drawing a second one over it would be the same chart
+    // twice with two different captions.
+    if (!gradedMix) {
+      if (figures.mix) {
+        renderMix({ mix: figures.mix.shares, spendUsd: analysis?.spendUsd ?? 0 },
+          { captionFor: figures.mix.captionFor, basis: figures.mix.basis });
+      } else {
+        // Nothing scored. The panel contract already marks this panel
+        // unavailable and names the file that would answer it; what must not
+        // survive underneath is the bundled sample's chart.
+        renderMix({ mix: {}, spendUsd: 0 }, {
+          captionFor: () => "0 of 0 scored queries",
+          basis: "No query in this import carried a category the rubric scores, so there is no mix to draw.",
+        });
+      }
+    }
+    return figures;
+  };
   const paintGradedSample = () => {
     const model = gradedModel();
     if (!model) return null;
@@ -831,7 +893,19 @@ function mountLocalFinopsImport() {
     syncStage({ hasResult: true });
     focusStageHeading(document, "read");
     void paintModelOverspend(example).then(syncPanels);
-    paintGradedSample();
+    const graded = paintGradedSample();
+    // The reader's own grade, confidence, record count, KPI figures and query
+    // mix, written into the executive slots before the contract decides which of
+    // them may be read. The example path is left alone: it is the bundled seed's
+    // own analysis and `repaintBundledAnalysis` already owns those slots.
+    if (!example) {
+      syncImportedFigures({
+        analysis: next,
+        plausible: resultPlausible,
+        withheld: attributionWithheld,
+        gradedMix: graded?.state === "graded",
+      });
+    }
     // After the graded view, and after every slot above it: the panels a leader
     // may read are decided once, from the contract, out of what this import
     // actually contains. Nothing before this line hides an executive panel.
@@ -938,6 +1012,10 @@ function mountLocalFinopsImport() {
     // example badge, the example mix and the bundled KPI figures are exactly
     // what a visitor who imports nothing has always seen.
     clearGradedSample(document);
+    // The executive slots hand their caption and their per-card markers back
+    // before the bundled analysis repaints the numbers into them, so nothing of
+    // the reader's own import outlives the clear.
+    clearImportedExecutive(document);
     // All four panels together, from the model with no import in it. A reload
     // produces exactly this, because nothing here was ever written down.
     clearFinopsProvenance(document);
@@ -1098,6 +1176,10 @@ function mountLocalFinopsImport() {
       // eligibility withholds the grade and says why. That is a state worth
       // showing, and it is the one the reader is now in.
       const graded = paintGradedSample();
+      // A query sample with no invoice beside it still grades: the hero says so,
+      // and the two money cards say plainly that no provider export was
+      // selected rather than keeping the bundled sample's totals.
+      if (samples.length) syncImportedFigures({ gradedMix: graded?.state === "graded" });
       announce("ready", `${total} compatible file${total === 1 ? "" : "s"} ready.`,
         graded?.message
           ? `${graded.message.label}. ${graded.nextAction.text}`
@@ -1164,11 +1246,16 @@ function mountLocalFinopsImport() {
     // have not changed with a source that does not yet exist.
     paintPanelProvenance({ status: FINOPS_IMPORT_STATUS.pending });
     try {
+      const selectionProblem = checkFileSelectionCeiling(files);
+      if (selectionProblem) {
+        failFile(selectionProblem, { ordinal: 1, total: 1 });
+        return;
+      }
       // The size ceiling is checked from `File.size`, before a byte is decoded
       // and before a worker exists. An oversized file costs one comparison and
       // yields one message; nothing partial is ever built from it.
       const chosen = files.map((file, index) => ({
-        file, fileName: file.name, mediaType: file.type, byteSize: file.size,
+        file, fileName: safeDisplayFileName(file.name), mediaType: file.type, byteSize: file.size,
         ordinal: index + 1, total: files.length,
       }));
       const oversize = chosen.map((entry) => ({ entry, error: checkImportCeiling(entry.byteSize) }))
@@ -1482,17 +1569,27 @@ function renderHeadline(organization, totals, eligibility, departments = []) {
     : "Needs review · percentile must be between 0 and 100");
 }
 
-function renderMix(totals) {
+/**
+ * The four-slice mix, for the bundled seed and for a reader's own import alike.
+ *
+ * `captionFor` is the one thing the two sources disagree about. The bundled seed
+ * publishes a share of SPEND, so each slice is captioned in dollars. A query
+ * sample carries no per-query cost, so an imported mix is a share of QUERIES and
+ * is captioned in records — printing dollars over it would be a number nobody
+ * measured. The basis sentence beside the chart says which one is on screen.
+ */
+function renderMix(totals, { captionFor = null, basis = null } = {}) {
   const bar = document.getElementById("mix-bar");
   const legend = document.getElementById("mix-legend");
   if (!bar || !legend) return;
   bar.replaceChildren();
   legend.replaceChildren();
 
+  const caption = captionFor
+    ?? ((category, share) => `${formatUsd(Math.round(totals.spendUsd * share))} of spend`);
   const summary = [];
   for (const category of QUERY_CATEGORIES) {
     const share = totals.mix[category.key] ?? 0;
-    const spend = Math.round(totals.spendUsd * share);
     const color = `var(${CATEGORY_VARS[category.key]})`;
 
     const segment = element("div", "mix-segment");
@@ -1500,7 +1597,7 @@ function renderMix(totals) {
     segment.style.background = color;
     // Native tooltip: the same numbers are already visible in the legend, so the
     // hover layer is an accelerator rather than the only way to read a segment.
-    segment.title = `${category.label} · ${formatPercent(share)} · ${formatUsd(spend)}`;
+    segment.title = `${category.label} · ${formatPercent(share)} · ${caption(category, share)}`;
     bar.append(segment);
     summary.push(`${category.label} ${formatPercent(share)}`);
 
@@ -1513,12 +1610,19 @@ function renderMix(totals) {
     label.append(swatch, element("span", undefined, category.label));
     head.append(label, element("span", "legend-share", formatPercent(share)));
     item.append(head,
-      element("p", "legend-spend", `${formatUsd(spend)} of spend`),
+      element("p", "legend-spend", caption(category, share)),
       element("p", "legend-copy", category.description),
       element("p", "legend-action", category.systemAction));
     legend.append(item);
   }
-  setText("mix-summary", `Spend mix: ${summary.join(", ")}.`);
+  setText("mix-summary", basis
+    ? `Your scored query mix: ${summary.join(", ")}. ${basis}`
+    : `Spend mix: ${summary.join(", ")}.`);
+  const basisNode = document.getElementById("mix-basis");
+  if (basisNode) {
+    basisNode.textContent = basis ?? "";
+    basisNode.hidden = !basis;
+  }
 }
 
 function gradeChip(score) {

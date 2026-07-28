@@ -25,9 +25,15 @@ export const MAX_IMPORT_BYTES = MAX_DELIMITED_BYTES;
 /** Largest accepted record count, header row included. Checked during parse. */
 export const MAX_IMPORT_ROWS = MAX_DELIMITED_ROWS;
 
+/** Bound one picker action as well as each individual file. */
+export const MAX_IMPORT_FILES = 20;
+export const MAX_IMPORT_SELECTION_BYTES = MAX_IMPORT_BYTES * 2;
+
 export const IMPORT_LIMITS = Object.freeze({
   maxBytes: MAX_IMPORT_BYTES,
   maxRows: MAX_IMPORT_ROWS,
+  maxFiles: MAX_IMPORT_FILES,
+  maxSelectionBytes: MAX_IMPORT_SELECTION_BYTES,
 });
 
 const MEGABYTE = 1_000_000;
@@ -49,7 +55,8 @@ export function formatLimitRows(rows = MAX_IMPORT_ROWS) {
  */
 export function importLimitsSentence(limits = IMPORT_LIMITS) {
   return `Each file may be up to ${formatLimitBytes(limits.maxBytes)} and `
-    + `${formatLimitRows(limits.maxRows)} rows. A file over either ceiling is refused whole — `
+    + `${formatLimitRows(limits.maxRows)} rows. Select up to ${limits.maxFiles} files totaling `
+    + `${formatLimitBytes(limits.maxSelectionBytes)}. A selection over a ceiling is refused whole — `
     + "no rows are kept and no total is shown, so a short number can never reach you.";
 }
 
@@ -71,4 +78,46 @@ export function checkFileSizeCeiling(byteSize, limit = MAX_IMPORT_BYTES) {
     observed: Math.trunc(byteSize),
     unit: "bytes",
   });
+}
+
+/**
+ * Refuse a picker selection before any Blob is decoded.
+ *
+ * A per-file ceiling alone still permits an attacker to select hundreds of
+ * individually valid files and make `Promise.all(file.text())` retain all of
+ * them at once. The normal demo path needs only a handful of exports, so a
+ * count and aggregate-byte bound are both understandable and comfortably above
+ * ordinary use.
+ */
+export function checkFileSelectionCeiling(files = [], limits = IMPORT_LIMITS) {
+  const count = files.length;
+  const bytes = files.reduce((sum, file) =>
+    sum + (Number.isFinite(file?.size) && file.size > 0 ? file.size : 0), 0);
+  if (count > limits.maxFiles) {
+    return Object.freeze({
+      code: "too_many_files",
+      message: `Select at most ${limits.maxFiles} files at a time; ${count} were selected.`,
+    });
+  }
+  if (bytes > limits.maxSelectionBytes) {
+    return Object.freeze({
+      code: "selection_too_large",
+      message: `The selection is ${bytes} bytes; the combined limit is ${limits.maxSelectionBytes} bytes.`,
+    });
+  }
+  return null;
+}
+
+/**
+ * Make an OS-provided filename safe to display as a left-to-right label.
+ *
+ * DOM text APIs already prevent markup execution. Replacing control and bidi
+ * formatting characters additionally prevents a filename from hiding or
+ * visually reordering its extension in provenance and review labels.
+ */
+export function safeDisplayFileName(value, fallback = "selected file") {
+  const cleaned = String(value ?? "")
+    .replace(/[\u0000-\u001f\u007f-\u009f\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/gu, "\uFFFD")
+    .trim();
+  return cleaned || fallback;
 }
