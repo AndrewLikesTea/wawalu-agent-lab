@@ -1,0 +1,207 @@
+/* Recorded-decision outcome region.
+ *
+ * Every state is distinguished twice over: by the word in `.dout-status-label`
+ * and by the border treatment `data-shape` selects. Colour is the third cue and
+ * never the only one, so the four states survive a monochrome print, a
+ * high-contrast mode that drops background tints, and a reader who cannot tell
+ * the tints apart.
+ *
+ * The layout is one column that widens rather than a grid that reflows: the
+ * region is a claim read top to bottom — status, comparison, support, next step
+ * — and that order is the same order at every width. */
+
+.dout-panel { margin-top: 1.5rem; }
+.dout-panel-title { margin: 0 0 0.75rem; font-size: 1.05rem; }
+
+.dout-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.85rem;
+  margin-bottom: 1rem;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 0.6rem;
+}
+
+.dout-controls label { font-weight: 600; }
+.dout-file-note,
+.dout-file-status { margin: 0; font-size: 0.85rem; color: #475569; }
+.dout-file-status { font-weight: 600; color: #1f2937; }
+
+.dout {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
+  border-radius: 0.75rem;
+  background: #f8fafc;
+  border-left: 6px solid #64748b;
+}
+
+/* The non-colour cue: each state gets its own border treatment as well as its
+   own tint, so the four are distinguishable without either one. */
+.dout[data-shape="solid"] { border-left-style: solid; border-left-color: #15803d; }
+.dout[data-shape="double"] { border-left: 8px double #b45309; }
+.dout[data-shape="dashed"] { border-left-style: dashed; border-left-color: #475569; }
+.dout[data-shape="dotted"] { border-left-style: dotted; border-left-color: #7c3aed; }
+
+.dout-header { display: flex; flex-direction: column; gap: 0.4rem; }
+
+.dout-kicker {
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.72rem;
+  color: #475569;
+}
+
+.dout-question,
+.dout-state-title { margin: 0; font-size: 1.2rem; line-height: 1.3; }
+
+.dout-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.dout-cue { font-size: 1.1rem; line-height: 1; }
+.dout-status-label { font-weight: 700; letter-spacing: 0.02em; }
+.dout-status[data-status="verified"] .dout-status-label { color: #14532d; }
+.dout-status[data-status="underperforming"] .dout-status-label { color: #92400e; }
+.dout-status[data-status="inconclusive"] .dout-status-label { color: #334155; }
+.dout-status[data-status="unmatched"] .dout-status-label { color: #5b21b6; }
+
+.dout-verdict,
+.dout-meta { font-size: 0.85rem; color: #475569; }
+.dout-statement { margin: 0; max-width: 68ch; }
+.dout-release-absent { color: #92400e; }
+
+.dout-links,
+.dout-provenance,
+.dout-periods { margin: 0; display: grid; gap: 0.5rem; }
+
+.dout-row { display: grid; gap: 0.15rem; }
+
+.dout-row dt {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #475569;
+}
+
+.dout-row dd {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.4rem;
+}
+
+.dout-comparison,
+.dout-confidence,
+.dout-evidence,
+.dout-next { border-top: 1px solid rgba(15, 23, 42, 0.1); padding-top: 0.75rem; }
+
+.dout-comparison-title,
+.dout-confidence-title,
+.dout-evidence-title,
+.dout-next-title { margin: 0 0 0.4rem; font-size: 0.95rem; }
+
+.dout-figure {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.dout-figure-value {
+  font-size: clamp(1.6rem, 5vw, 2.4rem);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.dout-figure-unit { font-size: 0.9rem; color: #475569; }
+
+.dout-figure-against,
+.dout-figure-scope,
+.dout-evidence-count,
+.dout-confidence-level { margin: 0.25rem 0 0; font-size: 0.9rem; }
+
+/* The direction of the miss is stated in the text as a signed variance; this
+   only reinforces it. */
+.dout-figure-against { font-weight: 600; }
+.dout-comparison[data-state="below"] .dout-figure-against { color: #92400e; }
+.dout-comparison[data-state="at_or_above"] .dout-figure-against { color: #14532d; }
+
+.dout-confidence-reasons,
+.dout-evidence-gaps,
+.dout-citations {
+  margin: 0.4rem 0 0;
+  padding-left: 1.1rem;
+  display: grid;
+  gap: 0.3rem;
+  font-size: 0.85rem;
+}
+
+.dout-citation { display: grid; gap: 0.1rem; }
+.dout-evidence[data-complete="false"] .dout-evidence-gaps { color: #92400e; }
+
+.dout-citation-id,
+.dout-step-formula {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.8rem;
+  overflow-wrap: anywhere;
+}
+
+.dout-disclosure {
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  background: #ffffff;
+}
+
+.dout-summary { cursor: pointer; font-weight: 600; }
+.dout-summary:focus-visible { outline: 3px solid #1d4ed8; outline-offset: 2px; }
+.dout-disclosure-body { margin-top: 0.6rem; font-size: 0.9rem; }
+.dout-steps { margin: 0; padding-left: 1.2rem; display: grid; gap: 0.7rem; }
+.dout-step p { margin: 0 0 0.2rem; }
+.dout-step-label { font-weight: 600; }
+
+.dout-step-rule,
+.dout-step-assumption,
+.dout-caveat,
+.dout-period-note { color: #475569; }
+
+.dout-period-cost { font-weight: 700; font-variant-numeric: tabular-nums; }
+.dout-next-label,
+.dout-next-link { font-weight: 700; margin: 0; }
+.dout-next-rationale { margin: 0.2rem 0 0; font-size: 0.9rem; color: #334155; }
+
+.dout-state {
+  display: grid;
+  gap: 0.4rem;
+  padding: 1rem;
+  border-radius: 0.75rem;
+  background: #f8fafc;
+  border-left: 6px dashed #64748b;
+}
+
+@media (min-width: 48rem) {
+  .dout-links,
+  .dout-provenance,
+  .dout-periods { grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); }
+
+  .dout-controls { flex-direction: row; flex-wrap: wrap; align-items: center; }
+  .dout-file-note,
+  .dout-file-status { flex-basis: 100%; }
+}
+
+@media (prefers-contrast: more) {
+  .dout,
+  .dout-disclosure,
+  .dout-controls { border-color: currentColor; }
+}
