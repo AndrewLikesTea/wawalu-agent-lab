@@ -46,7 +46,7 @@ import { headlineTrust } from "/finops-display.js";
 import { gradeEligibility } from "/grade-eligibility.js";
 import {
   announce as announceStage, applyDatasetProvenance, applyFieldDiagnostic, applyImportLimits,
-  applyBriefing, applyImportProgress, applyMetricBasis, applyRequirements, applyRestoreRejection,
+  applyBriefing, applyBriefingState, applyImportProgress, applyMetricBasis, applyRequirements, applyRestoreRejection,
   applyRestoredBriefing, applyStage, applyTrustVerdict, diagnosticFor, EXAMPLE_DATASET_PROVENANCE,
   focusStageHeading, importStage, metricBasis, userDatasetProvenance,
 } from "/local-import-flow.js";
@@ -813,13 +813,13 @@ function mountLocalFinopsImport() {
     }
     const lead = document.getElementById("local-lead-finding");
     if (lead) {
-      lead.hidden = true;
-      lead.dataset.state = "unavailable";
+      // The briefing returns to its empty state first — the one that says what
+      // will appear here and how to make it appear — and only then goes off
+      // screen, so nothing but a husk is ever left behind it.
+      applyBriefingState(document, "empty");
       for (const id of ["local-lead-question", "local-lead-metric", "local-lead-coverage", "local-lead-action"])
         setText(id, "—");
-      setText("local-lead-arithmetic", "");
-      const arithmetic = document.getElementById("local-lead-arithmetic");
-      if (arithmetic) arithmetic.hidden = true;
+      lead.hidden = true;
     }
     // The one reset. The per-model panel goes with everything else, and so do
     // the org-unit labels this browser was holding — they are the only thing on

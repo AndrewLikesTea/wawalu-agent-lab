@@ -401,15 +401,81 @@
 .local-trust-action[data-available="false"] { color:var(--state-warn-ink); font-weight:400; }
 .local-trust-jump { margin-top:10px; padding:7px 13px; border:1px solid #6b5c3e; border-radius:7px; background:#fff; font:700 12px/1.4 inherit; cursor:pointer; }
 /* The landing surface: the question first, then the one number that answers it. */
+/* The briefing, read top to bottom: the question, the answer block that cannot
+   be split, the action and its owner, the disclosed detail, then the two lines
+   that say what graded it and where it ran. The DOM is authored in that order —
+   nothing below reorders anything, because a screen reader and a Tab key read
+   the DOM and not the stylesheet. */
 .local-lead-finding { margin-top:20px; border:1px solid #9eb9aa; border-top:5px solid #315f50; border-radius:12px; padding:clamp(18px,3vw,24px); background:#fff; }
-.local-lead-finding h4 { max-width:760px; margin:6px 0 0; font-size:clamp(21px,3.2vw,29px); line-height:1.2; letter-spacing:-.025em; }
-.local-lead-metric { margin:14px 0 0; color:#8a2b2b; font-size:clamp(22px,3.4vw,30px); font-weight:750; letter-spacing:-.025em; line-height:1.2; overflow-wrap:anywhere; }
-.local-lead-coverage { margin:8px 0 0; font-size:14px; line-height:1.5; font-weight:650; }
-.local-lead-arithmetic { margin:6px 0 0; font-size:13px; line-height:1.5; color:#41544b; overflow-wrap:anywhere; }
-.local-lead-next { margin-top:18px; padding-top:16px; border-top:1px solid #d8e2dc; }
-.local-lead-action { margin:5px 0 0; font-size:14px; font-weight:700; line-height:1.5; }
-.local-lead-action[data-available="false"] { color:var(--state-warn-ink); font-weight:400; }
+/* The question outranks the figure. It is one display step above the metric so
+   the headline is the question and the figure is its answer, not the reverse.
+   Interpolated inside the page's existing clamp display family (the steps on
+   either side are the 30px panel head and the 82px hero); no new hue, weight or
+   spacing value is introduced. */
+.local-lead-finding h4 { max-width:760px; margin:6px 0 0; font-size:clamp(26px,4.2vw,38px); line-height:1.15; letter-spacing:-.03em; }
+.local-lead-status { margin:12px 0 0; max-width:660px; color:var(--state-warn-ink); font-size:14px; line-height:1.55; font-weight:650; }
+.local-lead-status[hidden] { display:none; }
+
+/* THE ANSWER BLOCK. One container, so the figure, the grade and the coverage
+   cannot be separated by a reflow, a paint order, or a page break. */
+.local-lead-answer { margin:16px 0 0; border:1px solid var(--import-line); border-left:4px solid var(--import-accent); border-radius:10px; padding:14px 16px 15px; background:#fff; break-inside:avoid; }
+.local-lead-answer .eyebrow { color:var(--import-ink); }
+.local-lead-metric { margin:8px 0 0; color:#8a2b2b; font-size:clamp(22px,3.4vw,30px); font-weight:750; letter-spacing:-.025em; line-height:1.2; overflow-wrap:anywhere; }
+/* The grade, in four channels: shape, word, value, and only then colour. */
+.local-lead-grade { display:flex; flex-wrap:wrap; align-items:baseline; gap:8px 12px; margin:12px 0 0; }
+.local-lead-grade-chip { display:inline-flex; align-items:baseline; gap:6px; border-radius:6px; padding:3px 9px; background:color-mix(in srgb,var(--ink-muted) 12%,transparent); color:#3f3f3a; font:700 12px/1.5 ui-monospace,monospace; }
+/* Filled wash, not an outline: the design mirror's chip rule reserves the wash
+   for a dynamic signal, and confidence is recomputed for every analysis. */
+.local-lead-grade-chip[data-confidence="high"] { background:var(--import-wash); color:var(--import-ink); }
+.local-lead-grade-chip[data-confidence="moderate"] { background:var(--state-warn-wash); color:var(--state-warn-ink); }
+.local-lead-grade-chip[data-confidence="low"] { background:var(--state-warn-wash); color:var(--state-warn-ink); }
+.local-lead-grade-chip[data-confidence="insufficient"] { background:var(--state-error-wash); color:var(--state-error-ink); }
+.local-lead-grade-shape { font-size:13px; line-height:1; }
+.local-lead-grade-value { font-size:15px; font-weight:750; letter-spacing:-.01em; overflow-wrap:anywhere; }
+.local-lead-coverage { margin:8px 0 0; font-size:14px; line-height:1.5; font-weight:650; overflow-wrap:anywhere; }
+
+.local-lead-next { margin-top:18px; padding-top:16px; border-top:1px solid #d8e2dc; break-inside:avoid; }
+.local-lead-action { margin:5px 0 0; font-size:16px; font-weight:750; line-height:1.45; }
+.local-lead-action[data-available="false"] { color:var(--state-warn-ink); font-size:14px; font-weight:400; }
+.local-lead-role { margin:6px 0 0; color:var(--import-ink); font:700 12px/1.5 ui-monospace,monospace; letter-spacing:.04em; }
+.local-lead-role[hidden] { display:none; }
+
+/* Supporting detail. Native disclosure, so expanded/collapsed is conveyed by
+   the element itself rather than by an attribute somebody has to remember to
+   keep in sync. Every summary names what it reveals. */
+.local-lead-support { display:grid; gap:8px; margin-top:16px; }
+.local-lead-detail[hidden] { display:none; }
+.local-lead-detail>summary { display:list-item; border-radius:7px; padding:6px 8px; color:var(--import-ink); font-size:13px; font-weight:700; line-height:1.5; cursor:pointer; }
+.local-lead-detail>summary:hover { background:var(--import-wash); }
+.local-lead-detail>summary:focus-visible { outline:3px solid var(--focus-ring); outline-offset:2px; }
+.local-lead-arithmetic { margin:6px 0 0; padding:0 8px; font-size:13px; line-height:1.5; color:#41544b; overflow-wrap:anywhere; }
+.local-lead-arithmetic[hidden] { display:none; }
+.local-lead-method { margin:6px 0 0; padding:0 8px; font-size:13px; line-height:1.55; color:#41544b; overflow-wrap:anywhere; }
+
+/* Persistent and small, never disclosed. */
+.local-lead-basis,.local-lead-provenance { margin:12px 0 0; color:var(--ink-muted); font:600 11px/1.6 ui-monospace,monospace; overflow-wrap:anywhere; }
+.local-lead-provenance { margin-top:4px; max-width:760px; }
+
 .local-lead-finding[data-state="unavailable"] .local-lead-metric { color:var(--state-warn-ink); font-size:16px; }
+/* Loading: a skeleton drawn over the real slots, so nothing moves when the
+   figures arrive. The text is still in the DOM and still transparent-on-wash
+   rather than removed, which is what keeps the block's height honest. */
+.local-lead-finding[data-state="loading"] .local-lead-metric,
+.local-lead-finding[data-state="loading"] .local-lead-coverage,
+.local-lead-finding[data-state="loading"] .local-lead-action,
+.local-lead-finding[data-state="loading"] .local-lead-grade-value {
+  border-radius:6px; background:color-mix(in srgb,var(--ink-muted) 14%,transparent); color:transparent;
+}
+.local-lead-finding[data-state="loading"] .local-lead-metric { min-height:1.2em; }
+.local-lead-finding[data-state="empty"] .local-lead-answer,
+.local-lead-finding[data-state="empty"] .local-lead-next,
+.local-lead-finding[data-state="empty"] .local-lead-support,
+.local-lead-finding[data-state="error"] .local-lead-answer,
+.local-lead-finding[data-state="error"] .local-lead-next,
+.local-lead-finding[data-state="error"] .local-lead-support { display:none; }
+.local-lead-finding[data-state="error"] { border-color:var(--state-error-line); }
+.local-lead-finding[data-state="error"] .local-lead-status { color:var(--state-error-ink); }
+.local-lead-finding[data-state="empty"] .local-lead-status { color:#41544b; font-weight:400; }
 /* A briefing reopened from a file. Deliberately unlike .local-lead-finding:
    dashed border, muted paper, smaller figure. A returning visitor should be able
    to tell the two apart before reading a word — and the eyebrow and heading say
@@ -1039,3 +1105,71 @@
 /* Matches how the rest of the site handles motion: the only animated property
    here is the toggle's own background, and reduced motion removes it. */
 @media (prefers-reduced-motion:reduce) { .evidence-disclosure-toggle { transition:none; } }
+
+/* ---------------------------------------------------------------------------
+   The board-ready page.
+
+   Scoped to the briefing surface and the sheet it sits on — this is not a
+   global print concern, and nothing outside the FinOps decision brief is
+   restyled here. The printed artifact is the *complete* briefing: every
+   disclosure is open, the answer block is unsplittable, and the two lines that
+   say what graded it and where it ran are on the paper.
+
+   Type comes from the same scale the screen uses. The clamp() steps resolve
+   against a print viewport rather than a browser window, so the two places
+   below that pin a value pin it to a step the scale already ships (the 30px
+   panel-head step for the question, the 22px lower bound of the metric's own
+   clamp) instead of inventing a print-only size.
+   --------------------------------------------------------------------------- */
+@media print {
+  /* A briefing is printed from a page whose frame is viewport-sized. Anything
+     that clips, scrolls sideways, or sticks has no meaning on paper. */
+  .local-results,.local-import,.local-lead-finding,.restored-briefing {
+    position:static; overflow:visible; max-height:none;
+  }
+  .local-lead-finding {
+    border:1px solid #767670; border-top-width:3px; background:#fff; box-shadow:none;
+  }
+  .local-lead-finding h4 { font-size:30px; line-height:1.15; }
+  .local-lead-metric { font-size:22px; }
+  /* The one thing that must never straddle a page break: the figure, the grade,
+     and the coverage that bounds it. Same rule as the screen, restated where
+     the pagination actually happens. */
+  .local-lead-answer,.local-lead-grade,.local-lead-next { break-inside:avoid; }
+  .local-lead-answer { background:#fff; }
+  /* Every disclosure is open on paper, in CSS rather than by mutating the DOM
+     on beforeprint.
+
+     A closed `details` does not hide its light-DOM children — the UA hides the
+     shadow wrapper the content is slotted into — so `display` on the children
+     cannot open one. `::details-content` is the pseudo-element that wrapper is
+     exposed as, and lifting its `content-visibility` is the CSS-only way to
+     print the whole disclosure. The `display` rule underneath it is the
+     fallback for an engine that has not shipped the pseudo-element yet; on an
+     engine that has, it is a no-op. */
+  .local-lead-detail::details-content,
+  .local-provenance-detail::details-content,
+  .local-disclosures details::details-content { content-visibility:visible; block-size:auto; }
+  .local-lead-detail>*,.local-provenance-detail>*,.local-disclosures details>* { display:revert; }
+  .local-lead-arithmetic[hidden] { display:none; }
+  /* The disclosure content stays; the disclosure control goes. A summary is a
+     control that means nothing on paper, so it prints as the section heading it
+     was standing in for rather than as a dead affordance. */
+  .local-lead-detail>summary,.local-provenance-detail>summary,.local-disclosures summary {
+    display:block; padding:0; list-style:none; color:#171713;
+    font:700 11px/1.6 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase;
+  }
+  .local-lead-detail>summary::marker,.local-disclosures summary::marker { content:""; }
+  .local-lead-detail>summary::-webkit-details-marker,
+  .local-disclosures summary::-webkit-details-marker { display:none; }
+  /* Interactive-only affordances. A dead button on a printed page reads as
+     something the reader failed to press. */
+  .local-lead-finding button,.restored-briefing button,.local-results button,
+  .coverage-upgrade-jump,.local-trust-jump,.restored-briefing-close { display:none; }
+  /* Persistent on paper, at the smallest step of the mono caption role. */
+  .local-lead-basis,.local-lead-provenance { display:block; color:#3f3f3a; font-size:10px; }
+  /* A briefing whose department ranking overflows one sheet breaks cleanly
+     rather than being cropped to fit: no row is split, and nothing is clipped. */
+  .local-lead-finding { orphans:3; widows:3; }
+  .local-department-evidence,.local-department-list>li { break-inside:avoid; }
+}
