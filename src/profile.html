@@ -3,8 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="Shiplog profile — every post with an image from one display name" />
-    <title>Profile · Shiplog</title>
+    <meta name="description" content="Image posts from demo personas in the Shiplog Social feed" />
+    <title>People · Shiplog</title>
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
@@ -16,7 +16,7 @@
           <a href="/">Decisions</a>
           <span class="nav-group">
             <a class="nav-social" href="/social.html">Social</a>
-            <a class="nav-profile" aria-current="page" href="/profile.html">Profile</a>
+            <a class="nav-profile" aria-current="page" href="/profile.html">People</a>
           </span>
           <a href="/releases.html">Releases</a>
           <a href="/paint/">Paint</a>
@@ -31,9 +31,11 @@
         <!-- The avatar is decorative: the name beside it is the heading text, so
              the page has exactly one h1 and it reads as the author's name. -->
         <div class="profile-identity">
-          <span class="profile-avatar" id="profile-avatar" aria-hidden="true">?</span>
+          <span class="profile-avatar" id="profile-avatar" aria-hidden="true">AR</span>
           <div class="profile-identity-text">
-            <h1 id="page-title"><span id="profile-name">Guest</span></h1>
+            <!-- "Ari" is the pre-hydration render of the first demo persona in
+                 the seed feed. The picker replaces it once a reader chooses. -->
+            <h1 id="page-title"><span id="profile-name">Ari</span></h1>
             <!-- These defaults are the pre-hydration render of the empty state.
                  They must stay word-for-word with PROFILE_EMPTY_COPY.summary and
                  the image-post count label in src/profile.js; a test pins it. -->
@@ -41,10 +43,10 @@
           </div>
         </div>
         <p class="profile-lede">Every post with an image from one display name, newest first. Text-only posts stay on Social. Select a post to read it in full.</p>
-        <!-- Profile and Social are one feed seen two ways, and the nav now says
-             so by nesting them. This says it in words at the destination, and
-             keeps the way back one link away. -->
-        <p class="profile-role"><span class="profile-role-chip">Filtered view</span> This is the Social feed narrowed to one name's image posts — not a second feed, and not an account. <a class="text-link" href="/social.html">See every post on Social</a>.</p>
+        <!-- People is a filtered view of Social, and the nav says so by nesting
+             them. This says it in words at the destination and keeps the way
+             back one link away. -->
+        <p class="profile-role"><span class="profile-role-chip">Demo persona</span> <span id="profile-role-name">Ari</span> is a demo persona in the Social feed, not a signed-in user. This view shows that person's image posts only. <a class="text-link" href="/social.html">See every post on Social</a>.</p>
       </section>
 
       <section class="workspace profile-workspace" aria-labelledby="grid-title">
