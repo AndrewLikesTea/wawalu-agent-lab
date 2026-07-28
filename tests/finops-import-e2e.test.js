@@ -241,6 +241,34 @@ test("a leader imports the example provider export and reaches a decision they c
       assert.match(shownText(document, "import-stages"), /Step 3Read the resultnow/);
     });
 
+    await t.test("step 3 · the benchmark, the evidence and the figure all come from this import", () => {
+      // One imported-analysis state feeds four linked disclosures. The benchmark
+      // card used to be two constants written over whatever the analysis said;
+      // now it carries the analysis's own verdict, and the card says which
+      // source it is speaking for.
+      const benchmark = byId(document, "local-benchmark-state");
+      assert.equal(benchmark.dataset.source, "import",
+        "the benchmark card must declare that it is speaking for the leader's own import");
+      assert.equal(benchmark.dataset.state, "unavailable",
+        "this import carries no query sample, so no cohort may be claimed for it");
+      assert.equal(shownText(document, "local-benchmark-why"),
+        "Unavailable: the imported contracts contain no compatible peer cohort or benchmark methodology.",
+        "the sentence under the card is the analysis's own reason, not a constant");
+
+      // The evidence list is the same analysis's, and it is not the bundled
+      // sample's: it counts the rows this import actually joined.
+      const evidence = textOf(byId(document, "local-evidence"));
+      assert.match(evidence, /deduplicated provider aggregate/);
+      assert.match(evidence, /USD is the disclosed routing scenario/);
+
+      // The figure, the department beside it, and the action it sizes are one
+      // decision, so the action names the amount the figure shows.
+      const impact = shownText(document, "local-recoverable");
+      assert.match(impact, /^\d+\.\d{2} USD$/,
+        "the quantified impact must be this import's own figure, painted once");
+      assert.match(shownText(document, "local-action"), /Pilot lower-cost routing/);
+    });
+
     await t.test("step 3b · the leader can check the math on the figure they were just shown", () => {
       // The region is painted from the same payload the export button writes, so
       // this is the on-screen half of the assertion step 4 makes about the file.
