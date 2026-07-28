@@ -134,6 +134,23 @@
             <button id="download-conversation-example" type="button">Download an example conversation export</button>
             <p id="conversation-example-help">Invented sample prose only. Downloads from this tab; nothing is uploaded.</p>
           </div>
+          <!-- Reopen side of the file the Export JSON button writes. Same
+               idiom as every other file field on this page — a programmatic
+               label, a help sentence the input points at with aria-describedby,
+               and a field error attached to the control it concerns — and the
+               same promise the Shiplog importer makes: the file is read in this
+               tab, nothing is uploaded, nothing is written down. It sits with
+               the pickers rather than with the result, because a visitor may
+               reopen a briefing before importing anything at all. -->
+          <div class="local-import-field">
+            <label for="reopen-briefing-file">Reopen a saved briefing</label>
+            <input id="reopen-briefing-file" type="file" accept=".json,application/json" aria-describedby="reopen-briefing-help" aria-invalid="false" />
+            <p id="reopen-briefing-help">Choose a briefing JSON file this page exported. It is read in this browser only — nothing is uploaded, and nothing is saved after you close this tab. It opens read-only below the imported result and never replaces it.</p>
+            <!-- Deliberately not a live region: the polite/assertive pair above
+                 speaks the outcome once, and this is what a reader who wants the
+                 reason again comes back to. -->
+            <p class="field-error" id="restored-briefing-error" tabindex="-1" hidden></p>
+          </div>
           <button id="remap-local-import" type="button" hidden>Change column mapping</button>
           <button id="clear-local-analysis" type="button" hidden>Return to example data</button>
         </div>
@@ -416,6 +433,34 @@
               <ul id="local-evidence"></ul>
             </details>
           </div>
+        </section>
+        <!-- A briefing reopened from a file. A sibling of the imported result,
+             never a slot inside it: a visitor who comes back next quarter must
+             not be able to read a figure saved in June as this morning's total.
+             Hence the separate region, its own heading naming it as restored,
+             the observation window and the write date taken out of the file
+             rather than off the clock, and no export controls on it — it is
+             something to read, not a second live analysis.
+
+             Every paragraph below is a slot painted through textContent by
+             applyRestoredBriefing(). Nothing that came out of the file becomes
+             markup, an attribute value, or a URL. -->
+        <section class="restored-briefing" id="restored-briefing" role="region" aria-labelledby="restored-briefing-title" data-state="empty" hidden>
+          <p class="eyebrow">Reopened from a file · not the current analysis</p>
+          <h3 id="restored-briefing-title" tabindex="-1">Restored briefing (read-only)</h3>
+          <p class="restored-briefing-captured" id="restored-briefing-captured"></p>
+          <p class="restored-briefing-dataset" id="restored-briefing-dataset" hidden></p>
+          <p class="restored-briefing-question" id="restored-briefing-question"></p>
+          <p class="restored-briefing-metric" id="restored-briefing-metric"></p>
+          <p class="restored-briefing-coverage" id="restored-briefing-coverage"></p>
+          <p class="restored-briefing-arithmetic" id="restored-briefing-arithmetic" hidden></p>
+          <p class="restored-briefing-action" id="restored-briefing-action"></p>
+          <!-- Shown only when there is a current analysis to compare against,
+               and carrying the reason in words when the two cannot be compared.
+               Direction is in the sentence; the data-direction attribute is for
+               the stylesheet and is never the only signal. -->
+          <p class="restored-briefing-delta" id="restored-briefing-delta" data-comparable="false" data-direction="none" hidden></p>
+          <button class="restored-briefing-close" id="restored-briefing-close" type="button">Close this restored briefing</button>
         </section>
       </section>
 

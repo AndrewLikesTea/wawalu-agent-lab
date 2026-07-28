@@ -17,6 +17,10 @@ import {
   ORG_MAPPING_REQUIREMENT_STATUS, OPTIONAL_UPGRADES,
 } from "./finops-attribution-policy.js";
 import { importLimitsSentence } from "./import-limits.js";
+// The two authored sentences a reopened briefing needs. They live with the
+// reader that produced the briefing, not here, so the dates in them are the
+// file's own and this layer cannot invent a third wording for them.
+import { capturedPeriodLine, EXAMPLE_DATASET_LINE } from "./finops-briefing-restore.js";
 
 /** The stages the shipped flow already walks. Naming them does not add one. */
 export const IMPORT_STAGES = Object.freeze([
@@ -491,6 +495,30 @@ function arithmeticText(arithmetic) {
 }
 
 /**
+ * The four sentences a briefing renders to, authored in exactly one place.
+ *
+ * The live surface and a briefing reopened from a file are the same contract
+ * seen twice, so they format it once. A second copy of these lines is how a
+ * reader ends up comparing two differently-worded versions of the same slot.
+ *
+ * `arithmetic` is null when there is no figure to recompute; every other line is
+ * always a string, because a slot the contract declared absent still has the
+ * contract's own statement of why to render.
+ */
+export function briefingLines(briefing) {
+  const { materialMetric, rankedAction } = briefing;
+  return {
+    question: briefing.headlineQuestion,
+    metric: materialMetric ? metricText(materialMetric) : briefing.absent.materialMetric.statement,
+    coverage: coverageText(briefing.coverage),
+    arithmetic: materialMetric ? arithmeticText(briefing.arithmeticInputs) : null,
+    action: rankedAction
+      ? `${rankedAction.action} Accountable role: ${rankedAction.accountableRole}.`
+      : briefing.absent.rankedAction.statement,
+  };
+}
+
+/**
  * Paint the briefing: the one question, the one figure that answers it, how
  * that figure was computed, and the rank-1 action with the role accountable for
  * it — in that order.
@@ -504,6 +532,7 @@ export function applyBriefing(doc, briefing) {
   const section = byId(doc, "local-lead-finding");
   if (!section) return briefing;
   const { materialMetric, rankedAction } = briefing;
+  const lines = briefingLines(briefing);
   section.dataset.state = materialMetric ? "available" : "unavailable";
   // The version this surface rendered, on the surface itself: a reviewer
   // comparing the page against an export is comparing two stated versions.
@@ -513,27 +542,119 @@ export function applyBriefing(doc, briefing) {
     const node = byId(doc, id);
     if (node) node.textContent = text;
   };
-  write("local-lead-question", briefing.headlineQuestion);
-  write("local-lead-metric", materialMetric
-    ? metricText(materialMetric)
-    : briefing.absent.materialMetric.statement);
+  write("local-lead-question", lines.question);
+  write("local-lead-metric", lines.metric);
   const metricNode = byId(doc, "local-lead-metric");
   if (metricNode) metricNode.dataset.available = String(Boolean(materialMetric));
   // Coverage is stated in every state, including the states with no figure in
   // them. A low-coverage briefing that hides its coverage is the one dishonest
   // shape this surface can take.
-  write("local-lead-coverage", coverageText(briefing.coverage));
-  write("local-lead-arithmetic", materialMetric
-    ? arithmeticText(briefing.arithmeticInputs)
-    : "");
+  write("local-lead-coverage", lines.coverage);
+  write("local-lead-arithmetic", lines.arithmetic ?? "");
   const arithmetic = byId(doc, "local-lead-arithmetic");
   if (arithmetic) arithmetic.hidden = !materialMetric;
-  write("local-lead-action", rankedAction
-    ? `${rankedAction.action} Accountable role: ${rankedAction.accountableRole}.`
-    : briefing.absent.rankedAction.statement);
+  write("local-lead-action", lines.action);
   const action = byId(doc, "local-lead-action");
   if (action) action.dataset.available = String(Boolean(rankedAction));
   return briefing;
+}
+
+// --- a briefing reopened from a file ---------------------------------------
+// Its own region, below the live analysis and never inside it. A returning
+// visitor has to be able to tell at a glance which numbers are from today's
+// import and which came off a file they saved weeks ago, so this surface never
+// borrows the live slot's markup, its heading, or its position.
+
+const RESTORED_SLOTS = Object.freeze([
+  "restored-briefing-captured", "restored-briefing-dataset", "restored-briefing-question",
+  "restored-briefing-metric", "restored-briefing-coverage", "restored-briefing-arithmetic",
+  "restored-briefing-action", "restored-briefing-delta",
+]);
+
+/**
+ * Paint — or clear — the restored briefing.
+ *
+ * @param model `{ saved, delta }` from `parseSavedBriefing` and `briefingDelta`,
+ *   or null to take the region off screen entirely. There is no third state: a
+ *   rejected file clears this region rather than leaving half of one behind.
+ *
+ * Every value written here goes through `textContent`. Nothing out of the file
+ * becomes markup, an attribute, or a URL.
+ */
+export function applyRestoredBriefing(doc, model) {
+  const section = byId(doc, "restored-briefing");
+  if (!section) return null;
+  const write = (id, text) => {
+    const node = byId(doc, id);
+    if (node) node.textContent = text;
+  };
+  const show = (id, visible) => {
+    const node = byId(doc, id);
+    if (node) node.hidden = !visible;
+  };
+  if (!model?.saved) {
+    section.hidden = true;
+    section.dataset.state = "empty";
+    delete section.dataset.contractVersion;
+    for (const id of RESTORED_SLOTS) {
+      write(id, "");
+      show(id, false);
+    }
+    return null;
+  }
+
+  const { saved, delta = null } = model;
+  const lines = briefingLines(saved.briefing);
+  section.hidden = false;
+  section.dataset.state = "restored";
+  section.dataset.contractVersion = saved.contractVersion;
+  section.dataset.savedOn = saved.savedOn;
+  write("restored-briefing-captured", capturedPeriodLine(saved));
+  show("restored-briefing-captured", true);
+  // The example-data notice travels with the file that carried it. Without this
+  // a reopened example briefing would read as somebody's real spend.
+  write("restored-briefing-dataset", saved.dataset === "example" ? EXAMPLE_DATASET_LINE : "");
+  show("restored-briefing-dataset", saved.dataset === "example");
+  write("restored-briefing-question", lines.question);
+  show("restored-briefing-question", true);
+  write("restored-briefing-metric", lines.metric);
+  show("restored-briefing-metric", true);
+  write("restored-briefing-coverage", lines.coverage);
+  show("restored-briefing-coverage", true);
+  write("restored-briefing-arithmetic", lines.arithmetic ?? "");
+  show("restored-briefing-arithmetic", Boolean(lines.arithmetic));
+  write("restored-briefing-action", lines.action);
+  show("restored-briefing-action", true);
+  // The delta is absent, not empty, when there is nothing on screen to compare
+  // against: an empty line under a restored briefing reads as "no change".
+  write("restored-briefing-delta", delta?.text ?? "");
+  show("restored-briefing-delta", Boolean(delta));
+  const deltaNode = byId(doc, "restored-briefing-delta");
+  if (deltaNode) {
+    // Direction is in the sentence itself; this attribute exists for styling and
+    // is never the only place the reader can find it.
+    deltaNode.dataset.comparable = String(Boolean(delta?.comparable));
+    deltaNode.dataset.direction = delta?.comparable ? delta.spend.direction : "none";
+  }
+  return model;
+}
+
+/**
+ * The one place a rejected file is written to the page: a sentence beside the
+ * control that read it, and no restored region at all.
+ *
+ * Deliberately not a live region — `announce` already speaks the same outcome
+ * from the page's one polite/assertive pair, and this page's rule is that a
+ * message is announced from exactly one region.
+ */
+export function applyRestoreRejection(doc, rejection) {
+  const node = byId(doc, "restored-briefing-error");
+  if (!node) return null;
+  node.textContent = rejection?.message ?? "";
+  node.hidden = !rejection;
+  const input = byId(doc, "reopen-briefing-file");
+  if (input) input.setAttribute("aria-invalid", rejection ? "true" : "false");
+  return rejection ?? null;
 }
 
 /**
