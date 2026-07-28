@@ -14,7 +14,7 @@ installDocument();
 function activityRoot() {
   const nodes = {
     "#activity-list": createElement("ol"),
-    "#activity-status": createElement("p"),
+    "#activity-status": createElement("div"),
     ".signal-card": createElement("div"),
     "#connection-label": createElement("strong"),
     "#last-updated": createElement("span"),
@@ -92,7 +92,8 @@ test("unavailable public activity retains the representative fallback and retry"
 
   assert.equal(byClass(root.nodes["#activity-list"], "activity-fallback")[0].dataset.reason, "unavailable");
   assert.equal(byClass(root.nodes["#activity-list"], "activity-item-representative").length, 4);
-  assert.match(root.nodes["#activity-status"].textContent, /unavailable.*representative synthetic/i);
+  assert.equal(root.nodes["#activity-status"].dataset.state, "error");
+  assert.match(root.nodes["#activity-status"].textContent, /could not be loaded.*synthetic example/i);
   assert.equal(root.nodes["#connection-label"].textContent, "Connection status: paused");
   assert.equal(root.nodes["#refresh-activity"].textContent, "Retry public activity");
 });
@@ -126,7 +127,8 @@ test("an empty public response uses the labelled representative sequence", async
 
   assert.equal(byClass(root.nodes["#activity-list"], "activity-fallback")[0].dataset.reason, "empty");
   assert.equal(byClass(root.nodes["#activity-list"], "activity-item-representative").length, 4);
-  assert.match(root.nodes["#activity-status"].textContent, /No relevant public events.*representative synthetic/i);
+  assert.equal(root.nodes["#activity-status"].dataset.state, "empty");
+  assert.match(root.nodes["#activity-status"].textContent, /No recent public activity is available/i);
   assert.equal(root.nodes["#connection-label"].textContent, "Representative preview");
   assert.equal(root.nodes[".signal-card"].dataset.connected, "true");
 });
