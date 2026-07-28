@@ -90,7 +90,16 @@ def worker_left_work(worktree: pathlib.Path) -> bool:
     return bool(output(["git", "status", "--porcelain"], cwd=worktree))
 
 
-def push_branch(branch: str, worktree: pathlib.Path, env: dict[str, str]) -> None:
+def push_credentials(token: str) -> dict[str, str]:
+    """Carry an installation token to git without writing it into the worktree's config."""
+    auth = base64.b64encode(f"x-access-token:{token}".encode()).decode()
+    env = os.environ.copy()
+    env.update({"GIT_CONFIG_COUNT": "1", "GIT_CONFIG_KEY_0": "http.https://github.com/.extraheader",
+                "GIT_CONFIG_VALUE_0": "AUTHORIZATION: basic " + auth})
+    return env
+
+
+def push_branch(branch: str, worktree: pathlib.Path, mint) -> str:
     """Push the run's branch, replacing whatever an earlier attempt left behind.
 
     Branch names come from persona and issue, so a retried issue pushes the same name
@@ -98,16 +107,36 @@ def push_branch(branch: str, worktree: pathlib.Path, env: dict[str, str]) -> Non
     paid worker session at its very last step. The branch is this run's alone and holds
     exactly the diff the reviewer just approved, so replacing a stale tip is the right
     move; the lease is read first so a ref that moved after we looked still wins.
+
+    The other way a last-step push dies is a freshly minted installation token GitHub
+    refuses to write with (403 "Permission ... denied to <app>[bot]") while still
+    serving reads, so ls-remote sees no branch and nothing explains the failure. That
+    has cost several approved sessions, and a second token costs a single API call, so
+    mint one and try again before declaring a finished, reviewed run lost.
+
+    Returns the token the push actually succeeded with — the pull request and auto-merge
+    steps that follow must use that one, not the refused one.
     """
+    token = mint()
+    env = push_credentials(token)
     attempt = subprocess.run(["git", "push", "--set-upstream", "origin", branch],
                              cwd=worktree, env=env, text=True)
     if not attempt.returncode:
-        return
+        return token
     stale = output(["git", "ls-remote", "origin", f"refs/heads/{branch}"], cwd=worktree, env=env)
     if not stale:
-        raise RuntimeError(f"pushing {branch} failed and no remote branch explains it")
+        print(f"pushing {branch} was refused; retrying once with a fresh installation token",
+              file=sys.stderr)
+        token = mint()
+        try:
+            run(["git", "push", "--set-upstream", "origin", branch],
+                cwd=worktree, env=push_credentials(token))
+        except subprocess.CalledProcessError as refusal:
+            raise RuntimeError(f"pushing {branch} failed and no remote branch explains it") from refusal
+        return token
     run(["git", "push", f"--force-with-lease={branch}:{stale.split()[0]}",
          "--set-upstream", "origin", branch], cwd=worktree, env=env)
+    return token
 
 
 def create_pull_request(command: list[str], branch: str, worktree: pathlib.Path,
@@ -471,12 +500,7 @@ Scenario: {json.dumps(scenario, indent=2)}
         raise RuntimeError("committed diff does not match the reviewer-approved diff")
     run([sys.executable, "-m", "runner.policy", "--base", base_sha, "--repo", str(worktree)])
     if push:
-        github_token = installation_token()
-        auth = base64.b64encode(f"x-access-token:{github_token}".encode()).decode()
-        push_env = os.environ.copy()
-        push_env.update({"GIT_CONFIG_COUNT": "1", "GIT_CONFIG_KEY_0": "http.https://github.com/.extraheader",
-                         "GIT_CONFIG_VALUE_0": "AUTHORIZATION: basic " + auth})
-        push_branch(branch, worktree, push_env)
+        github_token = push_branch(branch, worktree, installation_token)
         title = scenario.get("title", scenario["outcome"].splitlines()[0])[:100]
         pr_env = os.environ.copy(); pr_env["GH_TOKEN"] = github_token
         issue_line = f"\n\nCloses #{scenario['issue']}" if scenario.get("issue") else ""
