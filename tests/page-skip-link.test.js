@@ -14,18 +14,32 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
+import { relative } from "node:path";
+import { fileURLToPath } from "node:url";
 import { SITE_NAV } from "../src/site-nav.js";
 import { parseHtml, pressEnter, pressTab, tabSequence, textOf } from "./support/browser.js";
 
-// Every page reviewed in issue 348. The home page is both the front door and
-// the decisions list, so the six reviewed surfaces are these five files.
+// Every page whose content region begins with its own interactive control, so
+// the full keystroke walk below — skip, then land inside main — has something
+// to land on. The home page is both the front door and the decisions list.
+// Issue 348 reviewed the first five; issue 378 found the AI FinOps tab and the
+// published prompt trace had never been converted and added them here.
+//
+// A page whose content region is empty until its module renders (the release
+// detail, the Savings Action Center) cannot be walked this way from static
+// markup. Those are covered structurally by the enumerating guard at the foot
+// of this file, which no page can fall out of.
 const PAGES = [
   { file: "index.html", surface: "home and decisions list" },
   { file: "decision.html", surface: "single decision" },
   { file: "post.html", surface: "single post" },
   { file: "releases.html", surface: "releases" },
   { file: "agents.html", surface: "agent observatory" },
+  { file: "social.html", surface: "social feed" },
+  { file: "profile.html", surface: "profile" },
+  { file: "evolution.html", surface: "AI FinOps" },
+  { file: "agent-trace.html", surface: "published prompt trace" },
 ];
 
 const SKIP_TEXT = "Skip to main content";
@@ -119,6 +133,76 @@ test("activating the skip link goes to the landmark, past every site-frame tab s
   }
 });
 
+/* --------------------------- the enumerating guard ------------------------ */
+
+// PAGES above is hand-written, so it can only fail for a page somebody
+// remembered to add. This test cannot be forgotten: it derives the page list
+// from the routing source of truth instead of from a literal.
+//
+// That source of truth is the src/ tree itself. Every surface here is static
+// HTML and scripts/build.mjs copies src/ into dist/ verbatim — no router, no
+// manifest, no generated pages — so "the routes the site serves" and "the .html
+// files under src/" are the same set by construction. Walking the directory is
+// walking the route table, and a page added tomorrow is enumerated the moment
+// its file exists.
+//
+// There is no exclusion list, and adding one would defeat the point. Every page
+// is renderable from its shipped markup with no fixture parameters: the detail
+// pages read their id from the query string at runtime and still serve the same
+// document frame. The Paint editor is the one page whose destination is not the
+// main landmark — it skips to the canvas, which is the content a reader came
+// for — and it is held to the same three requirements as the rest rather than
+// waived.
+
+const SRC = new URL("../src/", import.meta.url);
+const SRC_PATH = fileURLToPath(SRC);
+
+async function servedPages() {
+  const entries = await readdir(SRC_PATH, { withFileTypes: true, recursive: true });
+  return entries
+    .filter((entry) => entry.isFile() && entry.name.endsWith(".html"))
+    // Recorded as a route-relative path so a failure names the URL, not a file.
+    .map((entry) => `${relative(SRC_PATH, entry.parentPath)}/${entry.name}`.replace(/^\//, ""))
+    .sort();
+}
+
+// Natively focusable, or made focusable by a tabindex of any value. A skip link
+// that lands on neither moves the scroll position and leaves the keyboard where
+// it was, which is the failure this whole file exists to prevent.
+const isFocusable = (node) =>
+  node.getAttribute("tabindex") !== null
+  || ["A", "BUTTON", "INPUT", "SELECT", "TEXTAREA"].includes(node.tagName);
+
+test("every page the build serves ships a skip link, enumerated from src/ rather than listed", async () => {
+  const pages = await servedPages();
+
+  // A glob that silently matched nothing would make every assertion below
+  // vacuous, so the enumeration has to find at least the pages already pinned.
+  assert.ok(pages.length >= PAGES.length, `only ${pages.length} pages enumerated`);
+  for (const { file } of PAGES) assert.ok(pages.includes(file), `${file} is not enumerated from src/`);
+
+  for (const route of pages) {
+    const document = parseHtml(await readFile(new URL(route, SRC), "utf8"));
+
+    const links = document.querySelectorAll(".skip-link");
+    assert.equal(links.length, 1, `/${route} renders ${links.length} skip links`);
+
+    // First in the tab sequence, by document order — not by where CSS paints it.
+    assert.equal(
+      tabSequence(document)[0],
+      links[0],
+      `/${route}: the first tab stop is "${textOf(tabSequence(document)[0])}", not the skip link`,
+    );
+
+    // The link has to have somewhere to go, and focus has to be able to land there.
+    const href = links[0].href;
+    assert.match(href, /^#\S+$/, `/${route}: the skip link points at "${href}" rather than a fragment on the page`);
+    const target = document.querySelector(href);
+    assert.ok(target, `/${route}: the skip link targets ${href}, which no element on the page carries`);
+    assert.ok(isFocusable(target), `/${route}: ${href} cannot take focus, so the link only scrolls`);
+  }
+});
+
 /* ------------------------------ focus styling ----------------------------- */
 
 function relativeLuminance(hex) {
@@ -166,6 +250,54 @@ test("the skip link is offscreen rather than removed, and readable once focused"
     assert.ok(
       ratio >= 4.5,
       `${file}: the focused skip link renders ${color} on ${background} at ${ratio.toFixed(2)}:1`,
+    );
+  }
+});
+
+// The test above reads one stylesheet at a time. That is not the same question
+// as "is the link readable on this page": a page loads more than one sheet, and
+// a later one could restyle .skip-link into its own palette. Issue 378 asked
+// for the computed pair on the two pages it converted, so this walks the cascade
+// each page actually assembles from its own <link> tags, in load order.
+//
+// Only the pages carrying the site frame are walked. The Paint editor states its
+// skip link in theme custom properties that switch with a light/dark toggle, so
+// its pair is not two literals and belongs with tests/paint-shell.test.js; the
+// enumerating guard above still holds it to shipping a working link.
+async function pageStylesheets(html) {
+  const hrefs = [...html.matchAll(/<link rel="stylesheet" href="([^"]+)"/g)].map(([, href]) => href);
+  return Promise.all(hrefs.map((href) => readFile(new URL(href.replace(/^\//, ""), SRC), "utf8")));
+}
+
+// Last declaration wins, which is what the cascade does for rules of equal
+// specificity — the only kind any sheet here writes for .skip-link.
+function declared(sheets, selector, property) {
+  const rules = new RegExp(`^\\${selector} \\{([^}]*)\\}`, "gm");
+  let value = null;
+  for (const css of sheets) {
+    for (const [, body] of css.matchAll(rules)) {
+      const match = body.match(new RegExp(`(?:^|[;\\s])${property}:\\s*(#[0-9a-f]{3,8})`, "i"));
+      if (match) value = match[1];
+    }
+  }
+  return value;
+}
+
+test("the focused skip link clears 4.5:1 against what it is actually painted on", async () => {
+  for (const { file, surface } of PAGES) {
+    const sheets = await pageStylesheets(await read(file));
+    const background = declared(sheets, ".skip-link", "background");
+    const color = declared(sheets, ".skip-link", "color");
+    assert.ok(background && color, `${file} (${surface}): no sheet it loads gives .skip-link a colour pair`);
+
+    // The link is position:fixed with an opaque background of its own, so the
+    // page's backdrop never shows through and this pair is the whole contrast
+    // question. A sheet that dropped the background would break that assumption,
+    // which is why the assertion above is not optional.
+    const ratio = contrastRatio(color, background);
+    assert.ok(
+      ratio >= 4.5,
+      `${file} (${surface}): the focused skip link renders ${color} on ${background} at ${ratio.toFixed(2)}:1`,
     );
   }
 });

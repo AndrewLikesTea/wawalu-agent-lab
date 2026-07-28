@@ -67,7 +67,9 @@
 body { margin:0; min-height:100vh; background:radial-gradient(circle at 84% 0,#d6e6fa 0,transparent 30%),#f3f1eb; }
 main,.page { width:min(1180px,calc(100% - 40px)); margin:auto; padding:24px 0 80px; }
 /* Same arrangement as src/styles.css: .page is the frame, <main> is the content
-   region the skip link targets, so header and nav sit outside the landmark. */
+   region the skip link targets, so header and nav sit outside the landmark.
+   Both pages this stylesheet serves are converted — issue 378 took the
+   published prompt trace, which had been shipping without a skip link. */
 .page>main { width:auto; margin:0; padding:0; }
 .page>main:focus { outline:none; }
 .page>main:focus-visible { outline:3px solid #8abbe9; outline-offset:4px; }

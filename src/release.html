@@ -8,7 +8,8 @@
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
-    <main>
+    <a class="skip-link" href="#main-content">Skip to main content</a>
+    <div class="page">
       <header class="site-header">
         <a class="brand" href="/"><span class="mark" aria-hidden="true"></span>Shiplog</a>
         <nav class="site-nav" aria-label="Wawalu Labs">
@@ -22,6 +23,7 @@
         </nav>
       </header>
 
+      <main id="main-content" tabindex="-1">
       <section class="list-panel detail-panel" aria-label="Release detail">
         <div id="release-detail" aria-busy="true">
           <div class="list-state list-state-loading" role="status">
@@ -30,7 +32,8 @@
           </div>
         </div>
       </section>
-    </main>
+      </main>
+    </div>
     <footer class="site-footer" id="site-footer" aria-labelledby="site-footer-title">
       <div class="site-footer-inner">
         <h2 class="site-footer-title" id="site-footer-title">About Shiplog</h2>
