@@ -1,0 +1,81 @@
+{
+  "contractVersion": "finops-decision/1.0.0",
+  "question": "Are we wasting money?",
+  "benchmark": {
+    "baselineName": "Analyzed AI spend in the measurement window",
+    "baselineUsd": 154500,
+    "observedUsd": 51254,
+    "currency": "USD",
+    "comparisonShare": 0.3317,
+    "window": {
+      "start": "2026-06-01T00:00:00Z",
+      "end": "2026-07-01T00:00:00Z",
+      "endExclusive": true
+    },
+    "basis": "Modelled recoverable spend divided by analyzed AI spend, both in USD over the same window. The window is half-open: 2026-06-01 inclusive to 2026-07-01 exclusive. The baseline is every invented provider record the bundled dataset ships for that window, not a subset chosen after the fact.",
+    "headline": "33% of analyzed AI spend is recoverable"
+  },
+  "prioritizedAction": {
+    "rank": 1,
+    "statement": "Pilot lower-cost routing for text-generation in Department …atlas0; cap the pilot at 32903.50 USD and verify against a like-for-like period.",
+    "accountableRole": "Platform Engineering Lead",
+    "basis": "Rank 1 of five invented departments, ordered by modelled recoverable spend. Only the top-ranked intervention is carried here: a leader who has read one action and a cap can start, and a list of five would move the ranking decision back onto them."
+  },
+  "impact": {
+    "kind": "estimated_cost_reduction",
+    "value": 51254,
+    "currency": "USD",
+    "period": {
+      "start": "2026-06-01T00:00:00Z",
+      "end": "2026-07-01T00:00:00Z",
+      "endExclusive": true
+    },
+    "realized": false,
+    "calculationBasis": "Sum of the per-department routing scenarios over the five ranked invented departments, under rule version down-routing-candidate/1.0.0: premium-tier token spend repriced at the standard-tier reference rate. A ceiling on what re-routing could recover in one month, not a realized, invoiced, or promised saving.",
+    "headline": "Up to $51,254 estimated cost reduction in the month"
+  },
+  "confidence": {
+    "score": 0.85,
+    "scaleMin": 0,
+    "scaleMax": 1,
+    "band": "moderate",
+    "basis": "Coverage 1.00 — all 15 bundled example records were analyzed and all four required aggregate inputs were present — less 0.15 because the rank-1 routing candidate's call shape could not be verified. Coverage asks how much of the data was read; this score also asks how much of the recommendation was checked, which is why it sits a band below coverage.",
+    "limits": [
+      {
+        "code": "missing_request_counts",
+        "detail": "No text-generation record reports usage in requests, so tokens per call could not be checked against the short-call ceiling."
+      }
+    ]
+  },
+  "provenance": {
+    "source": "synthetic-local",
+    "sourceLabel": "Bundled synthetic dataset, generated in this browser tab",
+    "datasetId": "example-dataset/six-invented-months",
+    "generator": "example-dataset.js · loadExampleDataset",
+    "generatedAt": "2026-07-29T00:00:00Z",
+    "generatedAtBasis": "An authored static instant, not a reading of the browser clock, so the demo shows the same figures on every open and in every timezone.",
+    "executionContext": "Composed from a module in this page's bundle. No network call, no stored credential, no customer or telemetry data, and no live provider integration is involved; every company, account, and department named here is invented."
+  },
+  "evidence": {
+    "disclosure": "progressive",
+    "distinctFromSummary": true,
+    "entries": [
+      {
+        "term": "Inputs",
+        "detail": "Six invented monthly provider exports and one invented HRIS org export, generated in this tab. No company, account, provider, or person in them is real."
+      },
+      {
+        "term": "Ranked departments",
+        "detail": "Five invented departments carry analyzed spend in the window. The top-ranked one holds 79,000 USD of the 154,500 USD analyzed."
+      },
+      {
+        "term": "Arithmetic",
+        "detail": "recoverable_scenario_usd = Σ(per-department routing scenario over ranked_departments); recoverable_share = recoverable_scenario_usd ÷ analyzed_spend_usd."
+      },
+      {
+        "term": "What is not claimed",
+        "detail": "This sample ships no comparable peer cohort and no scored query sample, so no peer position and no literacy grade is claimed from it. Your own export will produce different numbers."
+      }
+    ]
+  }
+}
