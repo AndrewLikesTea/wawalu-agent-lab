@@ -773,13 +773,22 @@
 .proof-point-illustrative span { color:#4c5650; overflow-wrap:anywhere; }
 .proof-point-illustrative[data-basis="illustrative-over-import"] { border-left-width:6px; border-radius:0 10px 10px 0; padding:12px 14px; background:#fdf6e6; }
 .proof-point-illustrative[data-basis="illustrative-over-import"] strong { color:#5c4409; }
-.finops-load-state { display:flex; align-items:center; justify-content:space-between; gap:18px; margin:0 0 18px; border:1px solid #d1cfc7; border-left:5px solid #6f6f69; border-radius:11px; padding:14px 16px; background:#faf9f5; }
+/* The one status region, now directly under the hero. It leads the page, so the
+   title is a reading size rather than a caption size, and the state travels as
+   a shape and a word in the label above it — the left border only repeats them. */
+.finops-load-state { display:flex; align-items:center; justify-content:space-between; gap:18px; margin:0 0 22px; border:1px solid #d1cfc7; border-left:5px solid #6f6f69; border-radius:11px; padding:16px 18px; background:#faf9f5; }
 .finops-load-state>div { display:grid; gap:3px; }
 .finops-load-state span { color:var(--ink-muted); font-size:12px; line-height:1.5; }
+.finops-load-state strong { color:var(--ink); font-size:17px; line-height:1.35; }
+.finops-load-state .eyebrow { display:flex; align-items:baseline; gap:6px; margin:0; }
+.finops-load-shape { flex:none; font-size:13px; font-weight:750; }
 .finops-load-state[data-state="error"] { border-color:#b4453a; background:#fdf4f3; color:#6f2821; }
 .finops-load-state[data-state="ready"] { border-left-color:#315f50; }
-.finops-load-state button { flex:none; min-height:42px; border:1px solid currentColor; border-radius:8px; padding:9px 13px; background:#fff; color:#6f2821; font-weight:750; cursor:pointer; }
+.finops-load-actions { display:flex; flex:none; flex-wrap:wrap; gap:9px; }
+.finops-load-state button { flex:none; min-height:44px; border:1px solid currentColor; border-radius:8px; padding:9px 13px; background:#fff; color:#6f2821; font-weight:750; cursor:pointer; }
+.finops-load-state[data-state="loading"] button,.finops-load-state[data-state="ready"] button { color:#174f83; }
 .finops-load-state button:focus-visible { outline:3px solid #2a78d6; outline-offset:3px; }
+.finops-load-state button[disabled] { opacity:.55; cursor:default; }
 .finops-panel .section-heading>p:last-child { max-width:720px; margin:12px 0 0; color:var(--ink-muted); line-height:1.55; }
 .finops-panel .list-heading { align-items:end; margin-bottom:16px; }
 .finops-panel .list-heading .section-heading { margin-bottom:0; }

@@ -112,7 +112,10 @@ test("the bundled decision surface explains empty evidence and unavailable sampl
   assert.match(page, /Which department needs help\?/);
   assert.match(page, /Priority 01 · recommended intervention/);
   assert.match(page, /<details class="evidence-disclosure">/);
-  assert.match(page, /Reading the bundled demo result\. No live analysis is running\./);
+  // The authored rationale states what is missing rather than narrating a read:
+  // only #finops-load-state may say a load is in progress. See
+  // tests/finops-load-status.test.js.
+  assert.match(page, /No intervention has been prioritized from the bundled example yet\. No live analysis is running\./);
   assert.ok(page.indexOf("Which department needs help?")
     < page.indexOf("Is cost/performance worsening?"));
   assert.ok(page.indexOf("Is cost/performance worsening?")
