@@ -841,6 +841,12 @@
 .first-run-action-text { margin:0; max-width:70ch; color:var(--ink); font-size:16px; font-weight:650; line-height:1.5; }
 .first-run-action-text[data-available="false"] { color:var(--state-warn-ink); font-weight:700; }
 .first-run-role { margin:0; color:var(--ink-muted); font:700 12px/1.5 ui-monospace,monospace; }
+/* Confidence sits below the action rather than beside the figures: it qualifies
+   the whole answer, not one slot, and reading it before the answer would be
+   reading a caveat with nothing to caveat. Its value is deliberately quieter
+   than the headline figures — it is a bound on them, not a fourth measurement. */
+.first-run-confidence { display:grid; gap:5px; border-top:2px solid var(--import-accent); padding-top:10px; break-inside:avoid; }
+.first-run-confidence>.first-run-value { font-size:17px; }
 .first-run-method>summary { cursor:pointer; color:var(--import-ink); font-size:13px; font-weight:700; }
 .first-run-method>summary:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
 .first-run-method-list { display:grid; gap:10px; margin:12px 0 0; }

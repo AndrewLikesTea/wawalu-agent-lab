@@ -48,6 +48,7 @@
 
 import { loadExampleDataset } from "./example-dataset.js";
 import { buildFinopsBriefing, validateBriefing } from "./finops-briefing-contract.js";
+import { DECISION_QUESTION, loadCanonicalDecision } from "./finops-decision-contract.js";
 
 /** Bump when a slot, a state word, or a label changes meaning. */
 export const FIRST_RUN_VERSION = "finops-first-run-result/1.0.0";
@@ -55,7 +56,10 @@ export const FIRST_RUN_VERSION = "finops-first-run-result/1.0.0";
 /** The element ids this module's view owns. Nothing else writes them. */
 export const FIRST_RUN_IDS = Object.freeze({
   region: "finops-first-run",
+  question: "finops-first-run-title",
   label: "finops-first-run-label",
+  confidenceValue: "finops-first-run-confidence-value",
+  confidenceDetail: "finops-first-run-confidence-detail",
   shape: "finops-first-run-shape",
   word: "finops-first-run-word",
   sample: "finops-first-run-sample",
@@ -156,12 +160,13 @@ export const FIRST_RUN_CONVERSION = Object.freeze({
   focusId: "finops-contact-email",
 });
 
-/** The three slot labels, so the region and its tests cannot disagree. */
+/** The slot labels, so the region and its tests cannot disagree. */
 export const SLOT_LABEL = Object.freeze({
   benchmark: "Headline benchmark · recoverable share of analyzed spend",
   impact: "Quantified impact · routing scenario",
   peer: "Peer comparison",
   action: "Recommended action · rank 1",
+  confidence: "Confidence in this answer",
 });
 
 const USD = new Intl.NumberFormat("en-US", {
@@ -289,6 +294,25 @@ function actionSlot(briefing) {
 }
 
 /**
+ * The confidence slot: the canonical decision's bounded score, and the basis
+ * for it in the same breath.
+ *
+ * A summary that states an impact without stating how much of it was verified
+ * is not a complete decision — it is a number a leader has to take on faith. So
+ * the score never appears without its basis: if the canonical record is missing
+ * or fails its contract, this slot says so rather than showing a bare decimal.
+ */
+function confidenceSlot(decision) {
+  const confidence = decision?.confidence;
+  const score = Number(confidence?.score);
+  if (!Number.isFinite(score) || typeof confidence?.basis !== "string" || !confidence.basis.trim()) {
+    return slot(false, UNAVAILABLE_VALUE,
+      "No confidence score was published with this example, so none is claimed.");
+  }
+  return slot(true, `${score.toFixed(2)} of 1.00 · ${confidence.band}`, confidence.basis);
+}
+
+/**
  * The method disclosure, built out of the briefing rather than written beside
  * it, so the sentence a reader checks the figure against cannot drift from the
  * figure. Every entry is a term and its plain-text value.
@@ -326,7 +350,7 @@ function methodEntries(analysis, briefing) {
  * because the sample label and the two next actions below the figures stay
  * useful in exactly those cases.
  */
-export function composeFirstRunResult({ analysis = null, briefing = null } = {}) {
+export function composeFirstRunResult({ analysis = null, briefing = null, decision = null } = {}) {
   if (!analysis || typeof analysis !== "object" || !briefing || typeof briefing !== "object") {
     return unavailableResult(FIRST_RUN_UNAVAILABLE.notComposed);
   }
@@ -349,11 +373,17 @@ export function composeFirstRunResult({ analysis = null, briefing = null } = {})
   return Object.freeze({
     ...BASE,
     presentation: FIRST_RUN_STATE.ready,
-    question: briefing.headlineQuestion,
+    // The region's own heading is the canonical decision question, not the
+    // briefing's headline question. The briefing asks what an analysis says;
+    // this region is the page's one complete answer to what a leader arrived
+    // to decide, and `finops-decision-contract.js` owns that wording.
+    question: DECISION_QUESTION,
+    decision,
     benchmark,
     impact: impactSlot(briefing),
     peer: peerSlot(analysis),
     action: actionSlot(briefing),
+    confidence: confidenceSlot(decision),
     method: methodEntries(analysis, briefing),
     reason: null,
   });
@@ -373,11 +403,16 @@ function unavailableResult(reason) {
   return Object.freeze({
     ...BASE,
     presentation: FIRST_RUN_STATE.unavailable,
-    question: "What does an analysis here actually say?",
+    // The question stands even when the answer does not: a reader who meets
+    // this region in its unavailable state should still be able to see what it
+    // would have decided.
+    question: DECISION_QUESTION,
+    decision: null,
     benchmark: empty,
     impact: empty,
     peer: empty,
     action: slot(false, "No action is ranked from this example.", reason),
+    confidence: empty,
     method: Object.freeze([Object.freeze({ term: "Limits", detail: reason })]),
     reason,
   });
@@ -392,10 +427,19 @@ function unavailableResult(reason) {
  *
  * @param load injectable for tests; defaults to the shipped example dataset.
  */
-export function buildFirstRunResult(load = loadExampleDataset) {
+export function buildFirstRunResult(load = loadExampleDataset, loadDecision = loadCanonicalDecision) {
   try {
     const analysis = load();
-    return composeFirstRunResult({ analysis, briefing: buildFinopsBriefing(analysis) });
+    // The established example analysis and the authored fixture are independent
+    // local inputs. A broken fixture must not hide a still-valid benchmark and
+    // action; it only removes the confidence claim it owns.
+    let decision = null;
+    try {
+      decision = loadDecision()?.decision ?? null;
+    } catch {
+      decision = null;
+    }
+    return composeFirstRunResult({ analysis, briefing: buildFinopsBriefing(analysis), decision });
   } catch {
     return unavailableResult(FIRST_RUN_UNAVAILABLE.failed);
   }

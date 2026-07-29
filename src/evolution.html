@@ -87,10 +87,19 @@
            reader's own export. Both delegate to the single control that already
            owns each behaviour, so there is still exactly one way into the
            example dataset and one file input on this page. -->
-      <section class="first-run" id="finops-first-run" data-state="pending" data-tone="neutral" aria-labelledby="finops-first-run-title">
+      <!-- The page's one complete decision summary, declared as such in markup.
+           `data-decision-summary="complete"` means this region answers the
+           canonical question on its own; every other decision-bearing region on
+           this page is marked "evidence" and supports an answer given here.
+           Exactly one complete summary may be visible at a time — this one is
+           retired the moment the reader's own result appears, and
+           tests/finops-decision-contract.test.js holds that rule. -->
+      <section class="first-run" id="finops-first-run" data-state="pending" data-tone="neutral" data-decision-summary="complete" aria-labelledby="finops-first-run-title">
         <div class="first-run-head">
           <p class="eyebrow" id="finops-first-run-label"><span class="first-run-shape" id="finops-first-run-shape" aria-hidden="true">◇</span> <span id="finops-first-run-word">Example result pending</span> · nothing of yours needed</p>
-          <h2 id="finops-first-run-title">Example AI spend decision</h2>
+          <!-- The heading is the decision question itself, authored here in the
+               same words `finops-decision-contract.js` publishes. -->
+          <h2 id="finops-first-run-title">Are we wasting money?</h2>
         </div>
         <p class="sample-marker first-run-sample" id="finops-first-run-sample"><span class="sample-marker-shape" aria-hidden="true">◇</span><strong>Invented sample data</strong> Every figure below comes from a bundled six-month dataset for an invented company. It is not your spend, customer data, or realized savings.</p>
         <div class="first-run-slots">
@@ -120,6 +129,15 @@
           <p class="first-run-action-text" id="finops-first-run-action" data-available="false">No action is ranked from this example yet.</p>
           <!-- A role, never a person, beside the action it owns. -->
           <p class="first-run-role" id="finops-first-run-role" hidden></p>
+        </div>
+        <!-- A score never appears without the basis for it. An impact figure
+             with no statement of how much of it was verified asks the reader to
+             take the number on faith, which is the one thing this region is not
+             allowed to do. -->
+        <div class="first-run-confidence">
+          <p class="first-run-slot-label">Confidence in this answer</p>
+          <p class="first-run-value" id="finops-first-run-confidence-value" data-available="false">Not scored yet</p>
+          <p class="first-run-detail" id="finops-first-run-confidence-detail" hidden></p>
         </div>
         <!-- Provenance directly off the headline, one keystroke away and never
              a footnote: the inputs, the path the figures took, the arithmetic
@@ -210,7 +228,7 @@
            ranked yet" beside the h1 made "not yet" the page's headline claim on
            every cold load. It keeps its prominence relative to the panels it
            belongs with; it no longer outranks a populated result. -->
-      <section class="score-card" id="score-card" aria-labelledby="score-card-title">
+      <section class="score-card" id="score-card" data-decision-summary="evidence" aria-labelledby="score-card-title">
         <p class="eyebrow" id="score-card-title">AI literacy</p>
         <p class="score-grade" id="score-grade" aria-hidden="true">–</p>
         <!-- The letter above is a glyph and a colour band, which is one and a
@@ -231,7 +249,7 @@
            and is listed, in declared rank order, in the closed block at the
            bottom of this section. Nothing here is computed by the page: the
            contract selects, this section displays. -->
-      <section class="guided-result finops-panel" id="guided-result" data-state="unavailable" data-decision-ready="false" aria-labelledby="guided-result-question" hidden>
+      <section class="guided-result finops-panel" id="guided-result" data-state="unavailable" data-decision-ready="false" data-decision-summary="complete" aria-labelledby="guided-result-question" hidden>
         <p class="eyebrow">FinOps briefing · headline</p>
         <h2 id="guided-result-question">What should we do now?</h2>
         <p class="guided-result-finding" id="guided-result-finding">No next step ranked yet</p>
@@ -455,7 +473,7 @@
              not announced twice. -->
         <div class="local-attribution-fallback" id="local-attribution-fallback" data-state="inactive" aria-label="What this export can answer without attribution" hidden></div>
 
-        <section class="local-results" id="local-results" data-analysis-surface data-dataset="user" aria-labelledby="local-results-title" aria-busy="false" hidden>
+        <section class="local-results" id="local-results" data-analysis-surface data-dataset="user" data-decision-summary="evidence" aria-labelledby="local-results-title" aria-busy="false" hidden>
           <div class="local-result-heading">
             <div>
               <p class="eyebrow">From your imported files</p>
@@ -709,7 +727,7 @@
 
                No content moved into it: the DOM order of every block below is the
                order it already shipped in. -->
-          <section class="local-secondary-evidence" id="local-secondary-evidence" data-analysis-surface data-dataset="user" aria-labelledby="local-secondary-evidence-title">
+          <section class="local-secondary-evidence" id="local-secondary-evidence" data-analysis-surface data-dataset="user" data-decision-summary="evidence" aria-labelledby="local-secondary-evidence-title">
             <p class="eyebrow" id="local-secondary-evidence-title">Supporting evidence · read after the finding above</p>
             <p class="dataset-provenance" id="dataset-provenance-secondary" data-dataset-provenance data-dataset="user" role="note" aria-label="Data provenance" hidden></p>
             <div class="local-state-grid" aria-label="Supporting trend and benchmark evidence">
@@ -810,7 +828,7 @@
              Every paragraph below is a slot painted through textContent by
              applyRestoredBriefing(). Nothing that came out of the file becomes
              markup, an attribute value, or a URL. -->
-        <section class="restored-briefing" id="restored-briefing" role="region" aria-labelledby="restored-briefing-title" data-state="empty" hidden>
+        <section class="restored-briefing" id="restored-briefing" data-decision-summary="evidence" role="region" aria-labelledby="restored-briefing-title" data-state="empty" hidden>
           <p class="eyebrow">Reopened from a file · not the current analysis</p>
           <h3 id="restored-briefing-title" tabindex="-1">Reopened FinOps briefing (read-only)</h3>
           <p class="restored-briefing-captured" id="restored-briefing-captured"></p>
@@ -954,7 +972,7 @@
            visitor meets a coherent headline before any script runs and so the
            surface does not jump when one does. A test pins these strings against
            the model, which is what keeps the two from drifting apart. -->
-      <section class="finops-headline" id="finops-headline" data-status="ready" data-state="sample_only" data-source="sample" aria-labelledby="finops-headline-question" aria-describedby="finops-headline-basis">
+      <section class="finops-headline" id="finops-headline" data-decision-summary="evidence" data-status="ready" data-state="sample_only" data-source="sample" aria-labelledby="finops-headline-question" aria-describedby="finops-headline-basis">
         <p class="eyebrow">Your grade</p>
         <!-- One question, and it is the heading: a reader listing headings meets
              the thing this surface answers, not a styled sentence. -->
