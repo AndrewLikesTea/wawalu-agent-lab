@@ -6,6 +6,7 @@ work ships with it.
 Executable form: `src/executive-finops-briefing.js`.
 Canonical fixture: `src/executive-finops-briefing-fixture.json`.
 Tests: `tests/executive-finops-briefing.test.js`.
+Labelled state coverage: `docs/executive-briefing-fixtures.md`.
 
 ## The three questions, in order
 
