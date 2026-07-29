@@ -32,6 +32,14 @@ import {
 } from "./provider-usage-record.js";
 import { modelPseudonym, orgUnitPseudonym, unitDigest, unitKey } from "./unit-pseudonym.js";
 import { NO_NATIVE_GROUPING, detectNativeGrouping } from "./native-grouping.js";
+// The package layer: which vendor packages are supported, what a reader is told
+// to ask for, and which containers are refused. Everything below reads those
+// declarations rather than restating them — the accepted extensions, the
+// accepted media types, the vendor a row is attributed to, and the sentence an
+// undeclared file is refused with all come from the one versioned contract.
+import {
+  ACCEPTED_PACKAGE_EXTENSIONS, PROVIDER_PATTERNS, matchExportPackage,
+} from "./provider-export-package.js";
 
 export { MAX_DELIMITED_BYTES, MAX_DELIMITED_ROWS };
 
@@ -50,8 +58,9 @@ export const TABULAR_CODES = Object.freeze({
   CONTRACT_REJECTED: "contract_rejected",
 });
 
-/** Extensions the picker and the validator accept. `.json` keeps its own path. */
-export const ACCEPTED_DELIMITED_EXTENSIONS = Object.freeze([".csv", ".tsv", ".txt"]);
+/** Extensions the picker and the validator accept, from the package contract.
+ * `.json` keeps its own path. */
+export const ACCEPTED_DELIMITED_EXTENSIONS = ACCEPTED_PACKAGE_EXTENSIONS;
 
 /** The `accept` attribute the file input ships, written once, here. */
 export const LOCAL_FILE_ACCEPT = [
@@ -236,6 +245,10 @@ export const SHAPES = Object.freeze([
     label: "OpenAI usage export",
     kind: "provider",
     provider: "openai",
+    // The package this shape reads, in `provider-export-package.js`. Asserted
+    // both ways by the contract test, so a shape can never lose its guidance
+    // and guidance can never describe a shape nobody normalizes.
+    packageId: "openai-usage-export",
     columns: Object.freeze({
       date: { aliases: ["date", "usage date", "day", "start time", "timestamp"], required: true },
       orgUnit: {
@@ -265,6 +278,7 @@ export const SHAPES = Object.freeze([
     label: "Anthropic usage export",
     kind: "provider",
     provider: "anthropic",
+    packageId: "anthropic-usage-export",
     columns: Object.freeze({
       date: { aliases: ["date", "usage date", "day", "usage day"], required: true },
       orgUnit: {
@@ -288,6 +302,7 @@ export const SHAPES = Object.freeze([
     label: "Bedrock usage export",
     kind: "provider",
     provider: "aws",
+    packageId: "aws-cost-and-usage-report",
     columns: Object.freeze({
       date: {
         aliases: ["lineitem usagestartdate", "line item usage start date", "usage start date",
@@ -326,6 +341,7 @@ export const SHAPES = Object.freeze([
     id: "org_roster",
     label: "Org roster",
     kind: "hris",
+    packageId: "generic-hris-roster",
     columns: Object.freeze({
       orgUnit: {
         aliases: ["unit id", "org unit", "unit", "department", "team", "cost center", "unit name"],
@@ -403,13 +419,10 @@ export const DELIMITED_SOURCE_INSTANCE_ID = "psn_delimited_import_v1_0001";
 
 // --- row classification ----------------------------------------------------
 
-const PROVIDER_BY_PATTERN = Object.freeze([
-  [/openai|gpt|o\d-|davinci/i, "openai"],
-  [/anthropic|claude/i, "anthropic"],
-  [/bedrock|aws|amazon|titan|nova/i, "aws"],
-  [/google|gemini|vertex|palm/i, "google"],
-  [/azure|microsoft/i, "azure"],
-]);
+// Compiled from the package contract's `provider_patterns`, in declared order,
+// so the vendor a package documents and the vendor its rows are attributed to
+// are one statement rather than two lists that can disagree.
+const PROVIDER_BY_PATTERN = PROVIDER_PATTERNS;
 
 function mapProvider(value, fallback) {
   const text = String(value ?? "").trim();
@@ -965,11 +978,6 @@ export function parseDelimitedFinopsFile(text, fileName = "export.csv", options 
   });
 }
 
-const DELIMITED_MEDIA_TYPES = Object.freeze([
-  "text/csv", "text/tab-separated-values", "text/plain", "application/csv",
-  "application/vnd.ms-excel", "",
-]);
-
 function extensionOf(fileName) {
   const name = String(fileName ?? "").toLowerCase();
   const dot = name.lastIndexOf(".");
@@ -1003,13 +1011,14 @@ export function parseLocalImportFile(text, fileName = "local.json", mediaType = 
   if (extension === ACCEPTED_LOCAL_FILE.extension) {
     return parseLocalFinopsFile(text, fileName, mediaType);
   }
-  if (!ACCEPTED_DELIMITED_EXTENSIONS.includes(extension)) {
-    reject(TABULAR_CODES.UNSUPPORTED_FORMAT,
-      "Choose a .json, .csv, .tsv, or .txt export; other formats are not declared.");
-  }
-  if (mediaType && !DELIMITED_MEDIA_TYPES.includes(mediaType)) {
-    reject(TABULAR_CODES.UNSUPPORTED_FORMAT,
-      `The file media type “${mediaType}” is not a declared delimited-text type.`);
+  // The unsupported-package path, stated by the contract rather than here. A
+  // declared container — a ZIP from a console that only delivers archives, a
+  // workbook, an invoice PDF — comes back with the one step that turns it into
+  // a file this page reads, and the refusal happens before a byte is parsed.
+  const routed = matchExportPackage({ fileName, mediaType });
+  if (routed.status !== "supported") {
+    reject(TABULAR_CODES.UNSUPPORTED_FORMAT, routed.message,
+      { container: routed.container?.label ?? null });
   }
   const result = parseDelimitedFinopsFile(text, fileName, options);
   if (!result.ok) {

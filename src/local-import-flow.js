@@ -25,6 +25,13 @@ import { BRIEFING_CONFIDENCE_LABEL, BRIEFING_STATE_MESSAGE } from "./briefing-st
 // file's own and this layer cannot invent a third wording for them.
 import { capturedPeriodLine, EXAMPLE_DATASET_LINE } from "./finops-briefing-restore.js";
 import { renderBriefingDerivation } from "./finops-briefing-derivation-view.js";
+// Where a reader gets the file this panel is asking them for. The panel paints
+// the contract's own guidance rather than wording a vendor's console itself, so
+// the sentence beside the picker and the sentence a refusal carries are the
+// same versioned statement.
+import {
+  EXPORT_PACKAGES, PACKAGE_INTAKE_SENTENCE, UNSUPPORTED_PACKAGE, exportPackageGuidance,
+} from "./provider-export-package.js";
 
 /** The stages the shipped flow already walks. Naming them does not add one. */
 export const IMPORT_STAGES = Object.freeze([
@@ -232,7 +239,10 @@ export function redactDiagnostic(text) {
 }
 
 const RECOVERY_BY_CODE = Object.freeze({
-  unsupported_format: "Select a .json v1 export, or a .csv/.tsv provider usage export or org roster.",
+  // The one unsupported-package sentence, from the package contract. A reader
+  // handed an archive by a console that only delivers archives is told the step
+  // that turns it into a file this page reads, not that they chose wrongly.
+  unsupported_format: UNSUPPORTED_PACKAGE.recovery,
   // Delimited-import reasons. Each one names the single edit that clears it; the
   // located row and column travel on the problem, never in this sentence.
   empty_file: "The selected file has no rows; re-export the period and select it again.",
@@ -1142,6 +1152,41 @@ export function applyImportLimits(doc) {
   const sentence = importLimitsSentence();
   if (help) help.textContent = sentence;
   return sentence;
+}
+
+/**
+ * Paint "where do I get this file" from the package contract.
+ *
+ * One block per supported package, each a heading and the same four terms in
+ * the same order — ask for, arrives as, accepted here, take out first — so a
+ * reader compares vendors down a column instead of reading five paragraphs.
+ * The markup holds no vendor name, no console path, and no format list: adding
+ * a package is an entry in the contract, and this list follows.
+ *
+ * Every node is written with `textContent`, and nothing here is derived from a
+ * selected file, so no cell value can reach the page through this path.
+ */
+export function applyExportPackageGuidance(doc) {
+  const promise = byId(doc, "export-package-promise");
+  if (promise) promise.textContent = PACKAGE_INTAKE_SENTENCE;
+  const list = byId(doc, "export-package-guidance");
+  if (!list) return EXPORT_PACKAGES.length;
+  list.replaceChildren(...EXPORT_PACKAGES.flatMap((entry) => {
+    const term = textNode(doc, "dt", "export-package-name", entry.label);
+    const rows = exportPackageGuidance(entry).map((row) => {
+      const detail = doc.createElement("dd");
+      detail.className = "export-package-detail";
+      detail.append(textNode(doc, "span", "export-package-term", `${row.term}: `));
+      detail.append(textNode(doc, "span", "export-package-value", row.detail));
+      return detail;
+    });
+    if (entry.support) {
+      rows.push(textNode(doc, "dd", "export-package-detail export-package-support",
+        `Support: ${entry.support}.`));
+    }
+    return [term, ...rows];
+  }));
+  return EXPORT_PACKAGES.length;
 }
 
 /** Move focus to the stage a reader has just been moved into. */

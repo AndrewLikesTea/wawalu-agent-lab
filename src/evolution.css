@@ -335,6 +335,22 @@
    a reader who tabs to this button hears what the data is before they press it. */
 .local-example-basis { font-weight:600; }
 
+/* Where to get a provider export, behind one disclosure beside the picker.
+   A reader who already has their file never opens it; a reader who does not
+   compares vendors down a column, so each package is a name followed by the
+   same four labelled rows. The term label carries weight rather than colour,
+   and the summary is a 44px target like every other disclosure here. */
+.export-package-help { flex-basis:100%; margin-top:6px; border-top:1px solid var(--import-line); padding-top:12px; }
+.export-package-help>summary { display:flex; align-items:center; min-height:44px; border-radius:8px; padding:6px 8px; color:var(--import-ink); font-size:13px; font-weight:750; cursor:pointer; }
+.export-package-help>summary:hover { background:var(--import-wash); }
+.export-package-promise { margin:10px 2px; color:var(--import-ink); font-size:13px; }
+.export-package-list { margin:0 0 12px; }
+.export-package-name { margin-top:14px; font-size:13px; font-weight:750; }
+.export-package-detail { margin:6px 0 0 14px; color:var(--ink-muted); font-size:12.5px; line-height:1.5; }
+.export-package-term { color:var(--import-ink); font-weight:700; }
+.export-package-support { font-style:italic; }
+.export-package-source { margin:0 2px; font-size:12.5px; }
+
 /* Every other way to start, behind one disclosure.
    The reader's own export is the page's first step, so the template downloads,
    the example conversation exports, and the saved-briefing reopen live here
