@@ -15,6 +15,7 @@ import {
 } from "../src/shiplog-export.js";
 import {
   linkIntegrityViolations,
+  orderingViolations,
   shiplogExportViolations,
 } from "../src/shiplog-export-schema.js";
 import { STORAGE_KEY } from "../src/app.js";
@@ -150,6 +151,105 @@ test("many decisions and releases export with every association intact", () => {
     { releaseId: "link-r-1-5-0", decisionId: "link-d-erased", position: 2 },
   ]);
   assert.deepEqual(shiplogExportViolations(payload), []);
+});
+
+// --------------------------------------------------------------------------
+// Determinism
+// --------------------------------------------------------------------------
+//
+// The file is a record two parties can compare, so the same history has to
+// produce the same bytes. localStorage order is not that: records are prepended
+// as they are written, a restore rewrites both arrays wholesale, and the same
+// log therefore reached the exporter in different orders depending on how it
+// got into the browser. These tests pin the file against the *content* of the
+// store rather than against its layout.
+
+// The linked fixture, shuffled, with two decisions and two releases sharing a
+// createdAt so the id tiebreak is exercised rather than assumed.
+const TIED_DECISIONS = [
+  { ...LINKED_DECISIONS[2], createdAt: "2026-02-01T09:00:00.000Z" },
+  ...LINKED_DECISIONS.slice(0, 2),
+];
+const TIED_RELEASES = [
+  LINKED_RELEASES[2],
+  { ...LINKED_RELEASES[1], createdAt: "2026-02-04T09:00:00.000Z" },
+  LINKED_RELEASES[0],
+];
+
+const bytesOf = (decisions, releases) => JSON.stringify(createShiplogExport(storage({
+  [STORAGE_KEY]: JSON.stringify(decisions),
+  [RELEASE_STORAGE_KEY]: JSON.stringify(releases),
+}), { generatedAt: GENERATED_AT }));
+
+test("the same history exports to the same bytes whatever order the browser holds it in", () => {
+  const expected = bytesOf(TIED_DECISIONS, TIED_RELEASES);
+
+  // Every rotation of both stores: the exporter sees a different array each
+  // time and must not let that reach the file.
+  for (let offset = 1; offset < 3; offset += 1) {
+    const rotate = (records) => [...records.slice(offset), ...records.slice(0, offset)];
+    assert.equal(
+      bytesOf(rotate(TIED_DECISIONS), rotate(TIED_RELEASES)),
+      expected,
+      `storage rotated by ${offset} produced a different file`,
+    );
+  }
+  assert.equal(bytesOf([...TIED_DECISIONS].reverse(), [...TIED_RELEASES].reverse()), expected);
+  // Determinism is worth nothing if the agreed-on file is itself invalid.
+  assert.deepEqual(shiplogExportViolations(JSON.parse(expected)), []);
+});
+
+test("records are written oldest first, with same-instant records ordered by id", () => {
+  const { payload } = buildShiplogExport(storage({
+    [STORAGE_KEY]: JSON.stringify(TIED_DECISIONS),
+    [RELEASE_STORAGE_KEY]: JSON.stringify(TIED_RELEASES),
+  }), { generatedAt: GENERATED_AT });
+
+  assert.deepEqual(payload.decisions.map(({ id }) => id), [
+    // Two decisions at 2026-02-01T09:00:00Z: "link-d-cache" before
+    // "link-d-tokens", which is the id order and not the storage order.
+    "link-d-cache", "link-d-tokens", "link-d-flags",
+  ]);
+  assert.deepEqual(payload.releases.map(({ id }) => id), [
+    "link-r-1-4-0", "link-r-1-5-0", "link-r-1-6-0",
+  ]);
+  assert.deepEqual(orderingViolations(payload), []);
+  assert.deepEqual(shiplogExportViolations(payload), []);
+});
+
+test("canonical order does not disturb the associations or the drop report", () => {
+  const { payload, unresolvedLinks } = buildShiplogExport(storage({
+    [STORAGE_KEY]: JSON.stringify([...LINKED_DECISIONS].reverse()),
+    [RELEASE_STORAGE_KEY]: JSON.stringify([...LINKED_RELEASES].reverse()),
+  }), { generatedAt: GENERATED_AT });
+
+  assert.deepEqual(
+    payload.releases.map(({ id, decisionIds }) => [id, decisionIds]),
+    [
+      ["link-r-1-4-0", ["link-d-cache", "link-d-flags"]],
+      // Reordering the collection does not reorder a release's own links: that
+      // sequence is what the visitor recorded.
+      ["link-r-1-5-0", ["link-d-cache", "link-d-tokens"]],
+      ["link-r-1-6-0", []],
+    ],
+  );
+  assert.deepEqual(unresolvedLinks, [
+    { releaseId: "link-r-1-5-0", decisionId: "link-d-erased", position: 2 },
+  ]);
+  assert.deepEqual(shiplogExportViolations(payload), []);
+});
+
+test("an empty log is deterministic too, and stays valid JSON", async () => {
+  const first = createShiplogExport(storage(), { generatedAt: GENERATED_AT });
+  const second = createShiplogExport(storage({
+    [STORAGE_KEY]: "[]",
+    [RELEASE_STORAGE_KEY]: "not JSON at all",
+  }), { generatedAt: GENERATED_AT });
+
+  assert.equal(JSON.stringify(second), JSON.stringify(first));
+  const { text } = await capture(storage({ [RELEASE_STORAGE_KEY]: "not JSON at all" }));
+  assert.equal(text, `${JSON.stringify(first, null, 2)}\n`);
+  assert.deepEqual(orderingViolations(JSON.parse(text)), []);
 });
 
 test("every exported release link resolves to an exported decision", () => {

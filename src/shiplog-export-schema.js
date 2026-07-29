@@ -11,8 +11,12 @@
 //     the browser — PRODUCT.md rules out exporting credentials, cookies,
 //     customer data, and telemetry, and an allowlist is the only version of
 //     that promise that survives a future writer who does not read this file.
-//   * Field order is the declaration order, so two exports of the same log
-//     diff cleanly.
+//   * Field order is the declaration order, and record order is canonical
+//     (`compareExportRecords`: oldest first, ties broken by id), so two exports
+//     of the same log are byte-identical and two exports of different logs diff
+//     cleanly. Without this the file inherited localStorage insertion order,
+//     which means the same history exported from two browsers — or from one
+//     browser before and after a restore — produced different bytes.
 //   * `shiplogExportViolations` states the whole contract as a check a consumer
 //     can run, including link integrity: every id in a release's `decisionIds`
 //     resolves to a decision in the same file.
@@ -102,6 +106,62 @@ export function normalizeExportRecord(record, fields) {
     normalized[field] = structuredClone(record[field]);
   }
   return normalized;
+}
+
+/**
+ * The canonical order of a collection in an export file: oldest record first,
+ * ties broken by id.
+ *
+ * `createdAt` alone is not a total order — two records written in the same
+ * millisecond, or restored from a file that carried both, would keep whatever
+ * order storage happened to hold. The id tiebreak closes that, and both stores
+ * guarantee a unique string id, so the comparator is total: the same set of
+ * records always produces the same sequence regardless of how it arrived.
+ *
+ * A record whose `createdAt` does not parse sorts after every dated record
+ * rather than at an arbitrary point, still ordered by id. Neither store can
+ * produce one (loadDecisions/loadReleases reject them), but this comparator is
+ * exported and a consumer may hand it a file it did not write.
+ */
+export function compareExportRecords(a, b) {
+  const timeOf = (record) => {
+    const parsed = Date.parse(record?.createdAt);
+    return Number.isNaN(parsed) ? Number.POSITIVE_INFINITY : parsed;
+  };
+  const left = timeOf(a);
+  const right = timeOf(b);
+  if (left !== right) return left < right ? -1 : 1;
+  const leftId = typeof a?.id === "string" ? a.id : "";
+  const rightId = typeof b?.id === "string" ? b.id : "";
+  if (leftId === rightId) return 0;
+  return leftId < rightId ? -1 : 1;
+}
+
+/** A copy of `records` in canonical export order. Never mutates the input. */
+export function canonicalExportOrder(records) {
+  return Array.isArray(records) ? [...records].sort(compareExportRecords) : [];
+}
+
+/**
+ * Collections that are not in canonical order, named with the first record that
+ * is out of place — the check a consumer runs to tell "this file was written by
+ * a conforming exporter" from "this file was hand-edited or reordered".
+ */
+export function orderingViolations(payload) {
+  const violations = [];
+  for (const kind of ["decisions", "releases"]) {
+    const records = payload?.[kind];
+    if (!Array.isArray(records)) continue;
+    for (let index = 1; index < records.length; index += 1) {
+      if (compareExportRecords(records[index - 1], records[index]) <= 0) continue;
+      violations.push(
+        `export.${kind}[${index}]: ${JSON.stringify(records[index]?.id)} is out of canonical order `
+        + "(oldest createdAt first, ties by id)",
+      );
+      break;
+    }
+  }
+  return violations;
 }
 
 /** The keys a record carries that the export contract does not declare. */
@@ -213,5 +273,6 @@ export function shiplogExportViolations(payload) {
     violations.push(...duplicateIdViolations(kind, payload[kind]));
   }
   violations.push(...linkIntegrityViolations(payload));
+  violations.push(...orderingViolations(payload));
   return violations;
 }
