@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="A one-page executive FinOps briefing rendered from the canonical synthetic sample: where to act first, how much is indicated, what to do next, how far to trust it, and what bounds it." />
+    <title>Executive briefing · Shiplog</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/executive-briefing.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to main content</a>
+    <div class="page">
+      <header class="site-header">
+        <a class="brand" href="/"><span class="mark" aria-hidden="true"></span>Shiplog</a>
+        <nav class="site-nav" aria-label="Wawalu Labs">
+          <a href="/">Decisions</a>
+          <span class="nav-group">
+            <a class="nav-social" href="/social.html">Social</a>
+            <a class="nav-profile" href="/profile.html">People</a>
+          </span>
+          <a href="/releases.html">Releases</a>
+          <a href="/paint/">Paint</a>
+          <a class="nav-evolution" aria-current="page" href="/evolution.html">AI FinOps</a>
+          <a class="nav-coach" href="/coach.html">Prompt coach</a>
+          <a href="/agents.html">Agent observatory</a>
+        </nav>
+      </header>
+
+      <main id="main-content" tabindex="-1">
+      <!-- The masthead of a document, not the hero of a landing page: it says
+           what this sheet is and stays out of the way of the briefing below it.
+           In print it shrinks to a title block so the first page still carries
+           the finding, the figure, the action, and the verdict. -->
+      <section class="brief-hero" aria-labelledby="page-title">
+        <p class="eyebrow">Executive FinOps briefing</p>
+        <h1 id="page-title">One page,<br />one decision.</h1>
+        <p>The canonical synthetic briefing, rebuilt in this tab from the retained periods it publishes and checked against the contract that defines it. Read the first screen to act; open the two levels below to challenge it. Nothing here is uploaded, stored, or linked.</p>
+        <p class="brief-print-hint">Printing or saving as PDF keeps the whole briefing: both levels open on paper, and the site chrome comes off.</p>
+      </section>
+
+      <!-- The briefing is painted here. The document ships its own loading state
+           so a reader on a slow connection is told what is happening rather than
+           given an empty frame. -->
+      <div id="executive-briefing" aria-live="polite" aria-busy="true">
+        <section class="brief-state" data-state="loading" role="status">
+          <h2>Reading the canonical briefing</h2>
+          <p>Rebuilding it in this tab from the retained periods the published sample carries…</p>
+        </section>
+      </div>
+      </main>
+    </div>
+    <footer class="site-footer" id="site-footer" aria-labelledby="site-footer-title">
+      <div class="site-footer-inner">
+        <h2 class="site-footer-title" id="site-footer-title">About Shiplog</h2>
+        <p class="site-footer-identity">Shiplog is a demonstration engineering decision and release log, built and operated by Wawalu at labs.wawalu.org.</p>
+        <button class="site-footer-trigger" id="site-footer-open" type="button" aria-expanded="false" aria-controls="site-footer-panel">
+          Talk to us about Shiplog
+        </button>
+        <div class="site-footer-panel" id="site-footer-panel" hidden>
+          <form id="site-footer-form" class="site-footer-form" novalidate>
+            <div class="site-footer-field">
+              <label for="site-footer-email">Work email</label>
+              <!-- Only the note is named here. The inline error and the recovery
+                   paragraph are added to this description by site-footer.js when
+                   they exist, because a hidden element referenced by
+                   aria-describedby is still part of the accessible description
+                   and would otherwise be read on first focus. -->
+              <input id="site-footer-email" name="email" type="email" maxlength="254" inputmode="email" autocomplete="email" placeholder="you@company.com" required aria-describedby="site-footer-note" />
+            </div>
+            <p class="site-footer-error" id="site-footer-error" hidden></p>
+            <p class="site-footer-note" id="site-footer-note">Submitting requests a follow-up conversation about Shiplog. This form sends one thing: the work email address you type. Nothing else on this page — nothing you have read, filtered, imported, or exported — is read, attached, or transmitted, and the address goes to the Wawalu team that operates Shiplog.</p>
+            <div class="site-footer-actions">
+              <button type="submit">Request a follow-up</button>
+              <button id="site-footer-dismiss" type="button">Close</button>
+            </div>
+          </form>
+          <p class="site-footer-status" id="site-footer-status" role="status" aria-live="polite"></p>
+          <p class="site-footer-recovery" id="site-footer-recovery" hidden>Your email address is still in the field above, so you can request a follow-up again. Nothing else on this page changed.</p>
+        </div>
+      </div>
+    </footer>
+    <script type="module" src="/executive-briefing-page.js"></script>
+    <script type="module" src="/site-footer-page.js"></script>
+  </body>
+</html>

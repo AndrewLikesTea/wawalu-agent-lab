@@ -30,6 +30,7 @@ import { importPageModule, waitFor } from "./support/page-module.js";
 const PAGES = [
   "index.html", "decision.html", "workspace.html", "social.html", "post.html", "profile.html", "releases.html",
   "release.html", "evolution.html", "coach.html", "savings-action-center.html", "savings-commitment.html",
+  "executive-briefing.html",
   "agents.html", "agent-trace.html",
 ];
 
