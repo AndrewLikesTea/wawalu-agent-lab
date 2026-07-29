@@ -148,6 +148,13 @@ export async function verifyArtifact(root) {
     // past its building state. The stylesheet is what keeps the rest of the
     // page off the printed sheet.
     "index.html", "landing-decision-page.js", "landing-decision.js", "landing-decision.css",
+    // The canonical decision the FinOps front door answers with, and the
+    // contract that derives and validates it. The fixture is the published
+    // answer — the benchmark, the ranked action, the impact, the confidence, and
+    // the provenance a reader quotes — so shipping the region without it is a
+    // front door that asks the question and then withdraws its own confidence
+    // claim, with nothing on the artifact to say why.
+    "finops-decision-contract.js", "finops-decision-fixture.json", "finops-first-run.js",
   ]);
   const paths = new Set(actual.map(({ path }) => path));
   for (const path of required) if (!paths.has(path)) throw new Error(`missing required UI asset: ${path}`);
@@ -191,6 +198,41 @@ export async function verifyArtifact(root) {
   if (JSON.stringify(JSON.parse(JSON.stringify(buildExecutiveBriefing(samplePeriods))))
     !== JSON.stringify(fixture?.briefing)) {
     throw new Error("the bundled briefing sample does not rebuild the published briefing");
+  }
+
+  // The same probe for the canonical FinOps decision: the artifact's own
+  // fixture has to be what the artifact's own contract derives from the
+  // artifact's own bundled dataset, and it has to pass validation. A published
+  // decision is a figure a director will be asked to act on, so a stale one is
+  // not a cosmetic drift — it is a number with no derivation behind it, on the
+  // one screen the front door leads with. Local modules and files only: no
+  // environment variable, network, storage, or runtime binding is read.
+  const decisionFixture = JSON.parse(await readFile(
+    resolve(root, "finops-decision-fixture.json"),
+    "utf8",
+  ));
+  const decisionUrl = pathToFileURL(resolve(root, "finops-decision-contract.js"));
+  decisionUrl.searchParams.set(
+    "sha256",
+    actual.find(({ path }) => path === "finops-decision-contract.js").sha256,
+  );
+  const { deriveDecisionRecord, validateDecisionRecord } = await import(decisionUrl.href);
+  const { loadExampleDataset } = await import(
+    pathToFileURL(resolve(root, "example-dataset.js")).href
+  );
+  const { buildFinopsBriefing } = await import(
+    pathToFileURL(resolve(root, "finops-briefing-contract.js")).href
+  );
+  const analysis = loadExampleDataset();
+  const derivedDecision = JSON.parse(JSON.stringify(
+    deriveDecisionRecord(analysis, buildFinopsBriefing(analysis)),
+  ));
+  if (JSON.stringify(derivedDecision) !== JSON.stringify(decisionFixture)) {
+    throw new Error("canonical FinOps decision fixture does not match its artifact contract");
+  }
+  const decisionVerdict = validateDecisionRecord(decisionFixture);
+  if (!decisionVerdict.valid) {
+    throw new Error(`canonical FinOps decision fixture is invalid: ${JSON.stringify(decisionVerdict.errors)}`);
   }
 
   const headers = await readFile(resolve(root, "_headers"), "utf8");
