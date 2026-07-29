@@ -177,6 +177,10 @@ function unusable(message) {
  *
  * A bad record is rejected on its own and never stops the rest of the file.
  * Only a non-JSON file or an unrecognizable top-level shape fails as a whole.
+ *
+ * A release's associations come back normalized the way createRelease writes
+ * them: unknown links dropped, repeats collapsed, first-seen order kept. See
+ * the release loop below for why.
  */
 export function parseImport(text, options = {}) {
   if (typeof text !== "string") {
@@ -299,18 +303,36 @@ export function parseImport(text, options = {}) {
       for (const message of errors) rejected.push(rejection("releases", index, recordId(record), message));
       return;
     }
+    // Match createRelease's set invariant while retaining stable file order.
+    // Check availability first so repeated unknown ids remain unknown drops,
+    // rather than duplicates of an association that was never retained.
     const decisionIds = [];
+    const keptAt = new Map();
     record.decisionIds.forEach((id, position) => {
-      if (available.has(id)) {
-        decisionIds.push(id);
+      if (!available.has(id)) {
+        droppedAssociations.push({
+          releaseId: record.id,
+          releaseIndex: index,
+          decisionId: id,
+          reason: "unknown",
+          message: `${path}.decisionIds[${position}]: dropped link to unknown decision ${JSON.stringify(id)}`,
+        });
         return;
       }
-      droppedAssociations.push({
-        releaseId: record.id,
-        releaseIndex: index,
-        decisionId: id,
-        message: `${path}.decisionIds[${position}]: dropped link to unknown decision ${JSON.stringify(id)}`,
-      });
+      if (keptAt.has(id)) {
+        droppedAssociations.push({
+          releaseId: record.id,
+          releaseIndex: index,
+          decisionId: id,
+          reason: "duplicate",
+          position,
+          firstPosition: keptAt.get(id),
+          message: `${path}.decisionIds[${position}]: dropped repeat link to decision ${JSON.stringify(id)}, already associated at position ${keptAt.get(id)}`,
+        });
+        return;
+      }
+      keptAt.set(id, position);
+      decisionIds.push(id);
     });
     releases.push({ ...structuredClone(record), decisionIds });
   });
