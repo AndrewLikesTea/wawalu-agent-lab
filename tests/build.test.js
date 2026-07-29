@@ -289,3 +289,20 @@ test("artifact verification rejects an imported briefing without its peer benchm
     /missing required UI asset: imported-peer-benchmark\.js/,
   );
 });
+
+test("artifact verification probes the executive FinOps contract and canonical fixture together", async (t) => {
+  const directory = await mkdtemp(resolve(tmpdir(), "shiplog-finops-briefing-artifact-test-"));
+  t.after(async () => (await import("node:fs/promises")).rm(directory, { recursive: true, force: true }));
+  await cp(new URL("../src", import.meta.url), directory, { recursive: true });
+
+  const fixturePath = resolve(directory, "executive-finops-briefing-fixture.json");
+  const fixture = JSON.parse(await readFile(fixturePath, "utf8"));
+  fixture.briefing.recoverable.valueMinor += 1;
+  await writeFile(fixturePath, `${JSON.stringify(fixture, null, 2)}\n`);
+  await createManifest(directory);
+
+  await assert.rejects(
+    verifyArtifact(directory),
+    /executive FinOps fixture does not match its artifact contract/,
+  );
+});
