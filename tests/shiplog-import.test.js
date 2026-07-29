@@ -186,6 +186,7 @@ test("a release link to a decision missing from the file and the store is droppe
     releaseId: "r-1",
     releaseIndex: 0,
     decisionId: "d-gone",
+    reason: "unknown",
     message: 'releases[0].decisionIds[1]: dropped link to unknown decision "d-gone"',
   }]);
 });
@@ -203,12 +204,70 @@ test("a link to a decision rejected by validation is dropped, not written dangli
   );
 });
 
-test("association order is preserved for links that survive", () => {
+test("a release keeps its associations, in the file's order, when every link resolves", () => {
+  const parsed = parseImport(exportFile({
+    decisions: [decisionB, decisionA],
+    releases: [{ ...releaseA, decisionIds: ["d-cache", "d-queue"] }],
+  }));
+
+  assert.equal(parsed.ok, true);
+  assert.deepEqual(parsed.releases[0].decisionIds, ["d-cache", "d-queue"]);
+  assert.deepEqual(parsed.droppedAssociations, []);
+});
+
+// createRelease writes `[...new Set(values.decisionIds)]`, so a release this app
+// authored can never name the same decision twice. The import holds the same
+// invariant rather than letting a hand-edited or drifted file write a shape the
+// form cannot produce: the first occurrence keeps its position, the repeat is
+// dropped and reported.
+test("a repeated release link is collapsed to its first occurrence and reported", () => {
   const parsed = parseImport(exportFile({
     decisions: [decisionB, decisionA],
     releases: [{ ...releaseA, decisionIds: ["d-cache", "d-queue", "d-cache"] }],
   }));
-  assert.deepEqual(parsed.releases[0].decisionIds, ["d-cache", "d-queue", "d-cache"]);
+
+  assert.deepEqual(parsed.releases[0].decisionIds, ["d-cache", "d-queue"]);
+  assert.deepEqual(parsed.droppedAssociations, [{
+    releaseId: "r-1",
+    releaseIndex: 0,
+    decisionId: "d-cache",
+    reason: "duplicate",
+    position: 2,
+    firstPosition: 0,
+    message: 'releases[0].decisionIds[2]: dropped repeat link to decision "d-cache", '
+      + "already associated at position 0",
+  }]);
+});
+
+test("a repeat of an unknown link is reported per position as an unknown link, not a duplicate", () => {
+  const parsed = parseImport(exportFile({
+    decisions: [decisionA],
+    releases: [{ ...releaseA, decisionIds: ["d-gone", "d-queue", "d-gone"] }],
+  }));
+
+  assert.deepEqual(parsed.releases[0].decisionIds, ["d-queue"]);
+  assert.ok(parsed.droppedAssociations.every((entry) => entry.reason === "unknown"));
+  assert.deepEqual(parsed.droppedAssociations.map((entry) => entry.message), [
+    'releases[0].decisionIds[0]: dropped link to unknown decision "d-gone"',
+    'releases[0].decisionIds[2]: dropped link to unknown decision "d-gone"',
+  ]);
+});
+
+test("de-duplicated associations are what reaches storage, and the counts say so", () => {
+  const storage = memoryStorage();
+  const plan = prepareShiplogImport(storage, exportFile({
+    decisions: [decisionA, decisionB],
+    releases: [{ ...releaseA, decisionIds: ["d-queue", "d-queue", "d-cache", "d-gone"] }],
+  }));
+
+  assert.equal(plan.ok, true);
+  assert.equal(plan.merged.summary.droppedAssociations, 2);
+  assert.deepEqual(
+    plan.parsed.droppedAssociations.map((entry) => entry.reason),
+    ["duplicate", "unknown"],
+  );
+  commitShiplogImport(storage, plan);
+  assert.deepEqual(loadReleases(storage)[0].decisionIds, ["d-queue", "d-cache"]);
 });
 
 // --------------------------------------------------------------------------
