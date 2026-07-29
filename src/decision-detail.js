@@ -83,7 +83,10 @@ function renderBackLink() {
 const DETAIL_STATE_COPY = {
   loading: {
     title: "Loading decision",
-    description: "We’re finding this decision and its linked releases.",
+    // Names the region it describes: the outcome panel below has its own
+    // loading sentence, and two "reading the decision and its releases" lines
+    // on one page tell a visitor nothing about which half is still coming.
+    description: "We’re filling in the decision detail: the recorded decision itself and the releases linked to it.",
   },
   empty: {
     title: "Choose a decision",

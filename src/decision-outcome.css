@@ -24,6 +24,8 @@
 }
 
 .dout-controls label { font-weight: 600; }
+.dout-controls-title { margin: 0; font-size: 0.95rem; }
+.dout-file-intro,
 .dout-file-note,
 .dout-file-status { margin: 0; font-size: 0.85rem; color: #475569; }
 .dout-file-status { font-weight: 600; color: #1f2937; }
@@ -196,6 +198,10 @@
   .dout-periods { grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); }
 
   .dout-controls { flex-direction: row; flex-wrap: wrap; align-items: center; }
+  /* The heading and its explanatory sentences stay full-width rows above the
+     label and file input, which are the only two things that sit side by side. */
+  .dout-controls-title,
+  .dout-file-intro,
   .dout-file-note,
   .dout-file-status { flex-basis: 100%; }
 }

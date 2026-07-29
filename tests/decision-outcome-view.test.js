@@ -270,6 +270,12 @@ test("loading and error are rendered states with the same shape as an outcome", 
   assert.equal(first(section, "dout-state-title").id, "dout-question");
   assert.match(text(section), /Checking this decision’s outcome/);
 
+  // The state after a file is chosen names the artifact by its site-wide name,
+  // so it is not confusable with the region-level "outcome panel" load above.
+  const reading = renderDecisionOutcomeState(container(), "reading");
+  assert.match(text(reading), /Reading the FinOps briefing you opened/);
+  assert.match(text(reading), /savings-commitment contract/);
+
   const failed = container();
   const errorSection = renderDecisionOutcomeState(failed, "error");
   assert.equal(errorSection.getAttribute("role"), "alert");
@@ -294,6 +300,59 @@ test("the decision page ships the loading state, the control, and the script", a
   assert.match(html, /id="dout-file-status"[^>]*role="status"[^>]*aria-live="polite"/);
   assert.match(html, /src="\/decision-outcome-page\.js"/);
   assert.match(html, /href="\/decision-outcome\.css"/);
+});
+
+test("the file control says it is optional, names the export it wants, and needs no action", async () => {
+  const html = await readFile(new URL("../src/decision.html", import.meta.url), "utf8");
+  const note = html.match(/id="dout-file-note">([^<]*)</)[1];
+  const status = html.match(/id="dout-file-status"[^>]*>([^<]*)</)[1];
+  const intro = html.match(/class="dout-file-intro">([^<]*)</)[1];
+
+  // Optional, and said before the control rather than after it.
+  assert.ok(html.indexOf(intro) < html.indexOf('<label for="dout-file">'),
+    "the optional sentence must come before the control it describes");
+  assert.match(intro, /optional/i);
+  assert.match(intro, /recorded Shiplog decision/);
+  assert.match(intro, /imported evidence/i);
+
+  // The note identifies the file by the control that writes it and by its page,
+  // instead of the unexplained "month after the one this decision was priced in".
+  assert.match(note, /FinOps briefing JSON/);
+  assert.match(note, /AI FinOps page/);
+  assert.match(note, /Export briefing \(JSON\)/);
+  assert.doesNotMatch(note, /month after the one this decision was priced in/);
+  assert.match(note, /read in this tab only/);
+
+  // The empty state says no action is required, not just that nothing happened.
+  assert.match(status, /No FinOps briefing opened/);
+  assert.match(status, /none is required/i);
+});
+
+test("the two loading sentences name the region each one describes", async () => {
+  const [html, detail] = await Promise.all([
+    readFile(new URL("../src/decision.html", import.meta.url), "utf8"),
+    readFile(new URL("../src/decision-detail.js", import.meta.url), "utf8"),
+  ]);
+  const detailCopy = html.match(/class="detail-state-guidance">([^<]*)</)[1];
+  const outcomeCopy = DECISION_OUTCOME_STATE_COPY.loading.body;
+
+  assert.match(detailCopy, /decision detail/);
+  assert.match(outcomeCopy, /outcome panel/);
+  assert.notEqual(detailCopy, outcomeCopy);
+  // The shipped markup and the module that repaints the detail agree.
+  assert.ok(detail.includes(detailCopy), "the decision detail loading sentence drifted");
+});
+
+test("headings separate the recorded decision from the optional import", async () => {
+  const html = await readFile(new URL("../src/decision.html", import.meta.url), "utf8");
+  assert.match(html, /id="dout-panel-title">Outcome of this recorded decision</);
+  assert.match(html, /class="dout-controls"[^>]*aria-labelledby="dout-controls-title"/);
+  assert.match(html, /id="dout-controls-title">Optional: add an imported FinOps briefing</);
+
+  const article = renderDecisionOutcome(container(), decisionOutcome({
+    decision, releases: [release], observation: observation(), observationMeta: META,
+  }));
+  assert.equal(text(first(article, "dout-evidence-title")), "Evidence behind this outcome");
 });
 
 test("painting replaces the previous state rather than appending to it", () => {

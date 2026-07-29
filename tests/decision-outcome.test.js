@@ -8,6 +8,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
+import { createElement, installDocument } from "./support/dom.js";
 import { buildCommitmentDecision } from "../src/finops-commitment-decision.js";
 import { buildSavingsCommitment } from "../src/savings-commitment.js";
 import { VERIFICATION_UNAVAILABLE_REASON } from "../src/commitment-verification.js";
@@ -366,7 +367,8 @@ test("a month is labelled for reading, and an unreadable one says so", () => {
 
 /* -------------------------------- the wiring ------------------------------- */
 
-const { loadDecisionOutcome, readObservationFile } = await import("../src/decision-outcome-page.js");
+const { initDecisionOutcome, loadDecisionOutcome, readObservationFile } =
+  await import("../src/decision-outcome-page.js");
 
 test("the page resolves the decision out of the visitor's own log and its releases", () => {
   const record = decision();
@@ -388,4 +390,41 @@ test("a file that is not a saved briefing is reported with the reader's own sent
   assert.equal(read.observationMeta, null);
   assert.match(read.message, /^notes\.txt: /);
   assert.ok(read.message.length > "notes.txt: ".length);
+});
+
+test("a slower file read cannot overwrite a newer briefing selection", async () => {
+  installDocument();
+  const outcome = createElement("div");
+  const input = createElement("input");
+  const status = createElement("p");
+  const nodes = {
+    "#decision-outcome": outcome,
+    "#dout-file": input,
+    "#dout-file-status": status,
+  };
+  globalThis.document.querySelector = (selector) => nodes[selector] ?? null;
+  globalThis.document.documentElement = createElement("html");
+  globalThis.window = { location: { search: "?id=decision-1" } };
+  globalThis.localStorage = {};
+
+  initDecisionOutcome({
+    loadData: () => ({ decisions: [], releases: [] }),
+    detailSeeds: [],
+  });
+  const onChange = input.listeners.change[0];
+  let finishSlow;
+  const slowText = new Promise((resolve) => { finishSlow = resolve; });
+  const slow = onChange({
+    target: { files: [{ name: "older.json", size: 4, text: () => slowText }] },
+  });
+  const fast = onChange({
+    target: { files: [{ name: "newer.json", size: 4, text: async () => "nope" }] },
+  });
+
+  await fast;
+  finishSlow("also nope");
+  await slow;
+
+  assert.match(status.textContent, /^newer\.json:/,
+    "the status and outcome must continue to describe the newest file selected");
 });

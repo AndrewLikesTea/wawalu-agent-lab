@@ -68,7 +68,7 @@ test("derives available, absent, not-found, and error states without conflating 
 
 test("loading, absent, not-found, and error states explain the outcome and keep return navigation first", () => {
   const expected = {
-    loading: /finding this decision and its linked releases/i,
+    loading: /filling in the decision detail/i,
     empty: /No decision was specified/i,
     "not-found": /may have been removed/i,
     error: /temporarily unavailable/i,

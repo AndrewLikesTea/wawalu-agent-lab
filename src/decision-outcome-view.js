@@ -132,7 +132,10 @@ function confidenceBlock(outcome) {
 function evidenceBlock(outcome) {
   const block = el("section", "dout-evidence");
   block.setAttribute("aria-labelledby", "dout-evidence-title");
-  const title = el("h4", "dout-evidence-title", "Evidence");
+  // "Evidence behind this outcome", not "Evidence": the panel above this one
+  // offers optional imported FinOps evidence, and a reader has to be able to
+  // tell the recorded decision's own citations from a file they opened.
+  const title = el("h4", "dout-evidence-title", "Evidence behind this outcome");
   title.id = "dout-evidence-title";
   block.append(title);
   block.dataset.complete = String(outcome.evidence.complete);
@@ -317,11 +320,13 @@ export function renderDecisionOutcome(container, outcome) {
 export const DECISION_OUTCOME_STATE_COPY = Object.freeze({
   loading: {
     title: "Checking this decision’s outcome",
-    body: "Reading the recorded decision, the releases linked to it, and any month you have opened.",
+    body: "We’re filling in the outcome panel: what this decision projected, what its linked "
+      + "releases shipped, and any FinOps briefing you have opened.",
   },
   reading: {
-    title: "Reading the month you opened",
-    body: "Validating the briefing against the savings-commitment contract before comparing it.",
+    title: "Reading the FinOps briefing you opened",
+    body: "Checking it against the savings-commitment contract before comparing it with this "
+      + "decision.",
   },
   error: {
     title: "This outcome could not be read",

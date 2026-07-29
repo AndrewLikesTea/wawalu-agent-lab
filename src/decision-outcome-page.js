@@ -74,6 +74,7 @@ export function initDecisionOutcome(options = {}) {
 
   const id = new URLSearchParams(window.location.search).get("id") ?? "";
   let opened = { observation: null, observationMeta: null };
+  let fileSelection = 0;
 
   const paint = () => {
     try {
@@ -91,6 +92,7 @@ export function initDecisionOutcome(options = {}) {
   input?.addEventListener("change", async (event) => {
     const file = event.target?.files?.[0];
     if (!file) return;
+    const selection = ++fileSelection;
     renderDecisionOutcomeState(container, "reading");
     if (status) status.textContent = `Reading ${file.name}…`;
     let text = null;
@@ -99,6 +101,9 @@ export function initDecisionOutcome(options = {}) {
     } catch {
       text = null;
     }
+    // A large first file may finish after a newer selection. Only the latest
+    // selection may replace the visible status and imported evidence.
+    if (selection !== fileSelection) return;
     const read = readObservationFile({ name: file.name, text, byteSize: file.size });
     opened = { observation: read.observation, observationMeta: read.observationMeta };
     if (status) status.textContent = read.message;

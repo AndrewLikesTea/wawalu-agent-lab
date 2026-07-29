@@ -34,7 +34,7 @@
           <section class="detail-state detail-state-loading list-state-loading" data-state="loading" role="status" aria-labelledby="decision-state-title">
             <p class="detail-state-label">Decision status</p>
             <h1 class="detail-state-title" id="decision-state-title">Loading decision</h1>
-            <p class="detail-state-guidance">We’re finding this decision and its linked releases.</p>
+            <p class="detail-state-guidance">We’re filling in the decision detail: the recorded decision itself and the releases linked to it.</p>
           </section>
         </div>
       </section>
@@ -43,20 +43,35 @@
            projected. The later month is not in storage — the AI FinOps page keeps
            nothing — so it is a briefing file the visitor exported themselves and
            opens here. The control is in the markup rather than in the render
-           module because the region below is replaced on every read. -->
+           module because the region below is replaced on every read.
+
+           NAMING, AND WHAT IS STILL INCONSISTENT ELSEWHERE
+           The artifact is a "FinOps briefing" everywhere on this page, which is
+           the name AI FinOps itself uses ("Export briefing (JSON)", "Reopen a
+           saved FinOps briefing"). Two surfaces outside this page still say
+           something else for the same file, and neither is fixed here because
+           each has its own copy and assertions:
+             * `savings-commitment.html` calls it "the briefing JSON the AI
+               FinOps page exported".
+             * The next-step labels in `decision-outcome.js` call it a "month"
+               ("Open the month after the baseline"), which is why the file
+               control below is still labelled "Open a later month's FinOps
+               briefing" — that label is the bridge between the two words. -->
       <section class="list-panel dout-panel" aria-labelledby="dout-panel-title">
-        <h2 class="dout-panel-title" id="dout-panel-title">Outcome and evidence</h2>
-        <div class="dout-controls">
+        <h2 class="dout-panel-title" id="dout-panel-title">Outcome of this recorded decision</h2>
+        <section class="dout-controls" aria-labelledby="dout-controls-title">
+          <h3 class="dout-controls-title" id="dout-controls-title">Optional: add an imported FinOps briefing</h3>
+          <p class="dout-file-intro">Opening a file here is optional. The outcome below is already stated from the recorded Shiplog decision and its linked releases; a FinOps briefing you open adds imported evidence of what a later month actually cost.</p>
           <label for="dout-file">Open a later month’s FinOps briefing</label>
           <input id="dout-file" type="file" accept="application/json,.json" aria-describedby="dout-file-note" />
-          <p class="dout-file-note" id="dout-file-note">A FinOps briefing JSON exported from AI FinOps, for the month after the one this decision was priced in. It is read in this tab only: no upload, no credentials, no network transfer. Without one, this region says what it is still missing.</p>
-          <p class="dout-file-status" id="dout-file-status" role="status" aria-live="polite">No later month opened yet.</p>
-        </div>
+          <p class="dout-file-note" id="dout-file-note">Choose the FinOps briefing JSON that the AI FinOps page writes when you press “Export briefing (JSON)”. Pick one covering a month after the release linked below shipped, so there is a later month to measure the projected saving against. It is read in this tab only: no upload, no credentials, no network transfer.</p>
+          <p class="dout-file-status" id="dout-file-status" role="status" aria-live="polite">No FinOps briefing opened, and none is required. The outcome below already says what it can without one, and names what opening one would add.</p>
+        </section>
         <div id="decision-outcome" aria-busy="true" data-state="loading">
           <section class="dout-state" data-state="loading" role="status">
             <p class="dout-kicker">Recorded decision outcome</p>
             <h3 class="dout-state-title">Checking this decision’s outcome</h3>
-            <p class="dout-state-body">Reading the recorded decision, the releases linked to it, and any month you have opened.</p>
+            <p class="dout-state-body">We’re filling in the outcome panel: what this decision projected, what its linked releases shipped, and any FinOps briefing you have opened.</p>
           </section>
         </div>
       </section>
