@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { readdir, readFile, writeFile } from "node:fs/promises";
 import { relative, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const MANIFEST = "build-manifest.json";
 
@@ -87,9 +87,39 @@ export async function verifyArtifact(root) {
     // rejected entry module — the whole coaching panel, not just the copy
     // button, would fail to come to life.
     "coaching-summary.js", "coaching-summary-view.js",
+    // This issue ships an executable contract and its canonical briefing as a
+    // pair. Later presentation work consumes both from the deployed artifact;
+    // silently dropping either file would leave preview/source checks green
+    // while production no longer carries the reviewed contract.
+    "executive-finops-briefing.js", "executive-finops-briefing-fixture.json",
   ]);
   const paths = new Set(actual.map(({ path }) => path));
   for (const path of required) if (!paths.has(path)) throw new Error(`missing required UI asset: ${path}`);
+
+  // Probe the artifact itself, not the source tree: the canonical sample must
+  // still be reproducible and valid after the exact build selection that Pages
+  // will receive. This uses no environment variables, network, storage, or
+  // runtime binding.
+  const fixture = JSON.parse(await readFile(
+    resolve(root, "executive-finops-briefing-fixture.json"),
+    "utf8",
+  ));
+  const contractUrl = pathToFileURL(resolve(root, "executive-finops-briefing.js"));
+  contractUrl.searchParams.set(
+    "sha256",
+    actual.find(({ path }) => path === "executive-finops-briefing.js").sha256,
+  );
+  const { buildExecutiveBriefing, validateExecutiveBriefing } = await import(contractUrl.href);
+  const built = JSON.parse(JSON.stringify(
+    buildExecutiveBriefing(fixture?.input?.retainedPeriods),
+  ));
+  if (JSON.stringify(built) !== JSON.stringify(fixture?.briefing)) {
+    throw new Error("executive FinOps fixture does not match its artifact contract");
+  }
+  const verdict = validateExecutiveBriefing(fixture.briefing);
+  if (!verdict.valid) {
+    throw new Error(`executive FinOps fixture is invalid: ${JSON.stringify(verdict.violations)}`);
+  }
 
   const headers = await readFile(resolve(root, "_headers"), "utf8");
   if (!headers.includes("default-src 'none'") || !headers.includes("Permissions-Policy: camera=(), geolocation=(), microphone=()")) {

@@ -1,0 +1,350 @@
+{
+  "fixtureVersion": "executive-finops-briefing-fixture/1.0.0",
+  "metadata": {
+    "synthetic": true,
+    "description": "Canonical executive FinOps briefing: three gapless retained periods of one workspace, a benchmark-eligible reporting period, and the single next action they select.",
+    "containsImportedRecords": false,
+    "containsPrompts": false,
+    "containsCustomerData": false,
+    "liveProviderReferences": false,
+    "orgUnitIdConvention": "syn- prefixed synthetic slugs. No real org unit, person, or account is named.",
+    "determinism": "buildExecutiveBriefing(input.retainedPeriods) deep-equals briefing. No clock, no randomness, no locale.",
+    "presentation": {
+      "print": {
+        "pageSizes": [
+          "A4",
+          "Letter"
+        ],
+        "orientation": "portrait",
+        "firstPageMustContain": [
+          "primaryFinding",
+          "recoverable",
+          "benchmark",
+          "nextAction",
+          "confidence"
+        ],
+        "mustAppearSomewhere": [
+          "limitations",
+          "provenance",
+          "method",
+          "contractVersions"
+        ],
+        "mustNotAppear": [
+          "interactive controls",
+          "navigation chrome",
+          "collapsed detail that is hidden in print"
+        ],
+        "colorIsDecorative": true,
+        "notes": "Every disclosure level expands for print: a collapsed level-2 or level-3 section must render expanded rather than be dropped. Standing is stated in words as well as by any color, because a printed briefing is read in monochrome."
+      },
+      "export": {
+        "mediaType": "application/json",
+        "fileNamePattern": "executive-finops-briefing-{period}.json",
+        "mustCarry": [
+          "contractVersions",
+          "provenance",
+          "limitations",
+          "method",
+          "confidence"
+        ],
+        "mustNotCarry": [
+          "imported records",
+          "source rows",
+          "file names",
+          "prompts",
+          "credentials",
+          "shareable links",
+          "network endpoints"
+        ],
+        "shareableLink": false,
+        "notes": "The exported object is the briefing verbatim plus nothing. An export that adds a figure the screen did not show is a second source of truth for the same claim."
+      }
+    }
+  },
+  "input": {
+    "retainedPeriods": [
+      {
+        "periodId": "user:2026-04",
+        "period": "2026-04",
+        "dataset": "user",
+        "briefingContractVersion": "finops-briefing/1.0.0",
+        "derivedAt": "2026-05-02T09:00:00Z",
+        "sourceFingerprint": "a1b2c3d4",
+        "analyzedSpendMinor": 4000000,
+        "attributedSpendMinor": 3800000,
+        "recoverableScenarioMinor": 480000,
+        "recordsTotal": 1600,
+        "recordsAnalyzed": 1536,
+        "coverageRatioPpm": 960000,
+        "confidence": "high",
+        "missingInputs": [],
+        "materialMetricId": "recoverable_scenario",
+        "materialMetricMinor": 480000,
+        "topDepartmentId": "syn-support-triage"
+      },
+      {
+        "periodId": "user:2026-05",
+        "period": "2026-05",
+        "dataset": "user",
+        "briefingContractVersion": "finops-briefing/1.0.0",
+        "derivedAt": "2026-06-02T09:00:00Z",
+        "sourceFingerprint": "b2c3d4e5",
+        "analyzedSpendMinor": 4400000,
+        "attributedSpendMinor": 4180000,
+        "recoverableScenarioMinor": 616000,
+        "recordsTotal": 1720,
+        "recordsAnalyzed": 1651,
+        "coverageRatioPpm": 960000,
+        "confidence": "high",
+        "missingInputs": [],
+        "materialMetricId": "recoverable_scenario",
+        "materialMetricMinor": 616000,
+        "topDepartmentId": "syn-support-triage"
+      },
+      {
+        "periodId": "user:2026-06",
+        "period": "2026-06",
+        "dataset": "user",
+        "briefingContractVersion": "finops-briefing/1.0.0",
+        "derivedAt": "2026-07-02T09:14:00Z",
+        "sourceFingerprint": "c1daf8d2",
+        "analyzedSpendMinor": 4300000,
+        "attributedSpendMinor": 4085000,
+        "recoverableScenarioMinor": 612000,
+        "recordsTotal": 1840,
+        "recordsAnalyzed": 1766,
+        "coverageRatioPpm": 960000,
+        "confidence": "high",
+        "missingInputs": [],
+        "materialMetricId": "recoverable_scenario",
+        "materialMetricMinor": 612000,
+        "topDepartmentId": "syn-support-triage"
+      }
+    ]
+  },
+  "briefing": {
+    "contractVersion": "executive-finops-briefing/1.0.0",
+    "contractVersions": {
+      "executiveBriefing": "executive-finops-briefing/1.0.0",
+      "briefing": "finops-briefing/1.0.0",
+      "derivedFrom": "finops-briefing/1.0.0"
+    },
+    "questions": [
+      {
+        "order": 1,
+        "id": "act_first",
+        "question": "Where should we act first?",
+        "answeredBy": "primaryFinding"
+      },
+      {
+        "order": 2,
+        "id": "recoverable_vs_benchmark",
+        "question": "How much recoverable spend is indicated, relative to the benchmark?",
+        "answeredBy": "recoverable, benchmark"
+      },
+      {
+        "order": 3,
+        "id": "next_on_what_evidence",
+        "question": "What should happen next, on what evidence, and with what limits?",
+        "answeredBy": "nextAction, confidence, provenance, method, limitations"
+      }
+    ],
+    "disclosure": [
+      {
+        "level": 1,
+        "id": "headline",
+        "intent": "What to act on and how much is indicated.",
+        "fields": [
+          "primaryFinding",
+          "recoverable",
+          "benchmark.standing",
+          "nextAction"
+        ],
+        "collapsible": false
+      },
+      {
+        "level": 2,
+        "id": "supporting",
+        "intent": "What the claim rests on and how far it may be trusted.",
+        "fields": [
+          "benchmark",
+          "confidence",
+          "provenance",
+          "limitations"
+        ],
+        "collapsible": true
+      },
+      {
+        "level": 3,
+        "id": "method",
+        "intent": "How to recompute every figure from the same retained records.",
+        "fields": [
+          "method",
+          "selection",
+          "contractVersions"
+        ],
+        "collapsible": true
+      }
+    ],
+    "safety": {
+      "dataResidency": "browser_local_derived_workspace_records",
+      "readsImportedRecords": false,
+      "readsLiveProviderEndpoints": false,
+      "shareableLinkSupported": false,
+      "statement": "This briefing operates only on derived FinOps workspace records held in this browser. It reads no import, prompt, conversation, file, credential, or provider endpoint, and it cannot create a shareable link containing imported records."
+    },
+    "reportingPeriod": {
+      "periodId": "user:2026-06",
+      "period": "2026-06",
+      "dataset": "user",
+      "derivedAt": "2026-07-02T09:14:00Z"
+    },
+    "recoverable": {
+      "valueMinor": 612000,
+      "currency": "USD",
+      "unit": "usd_minor",
+      "sharePpm": 142326,
+      "analyzedSpendMinor": 4300000,
+      "label": "Recoverable AI spend indicated for the reporting period (routing scenario, not a realized saving)"
+    },
+    "benchmark": {
+      "kind": "own_trailing_baseline",
+      "eligible": true,
+      "reason": null,
+      "baselineSharePpm": 130000,
+      "varianceSharePpm": 12326,
+      "standing": "more_recoverable_than_baseline",
+      "priorPeriodCount": 2,
+      "priorPeriods": [
+        "2026-04",
+        "2026-05"
+      ]
+    },
+    "primaryFinding": {
+      "orgUnitId": "syn-support-triage",
+      "periodId": "user:2026-06",
+      "basis": "highest-ranked org unit of the reporting period, as derived by the briefing contract",
+      "statement": "Act first in the named org unit: it carries the reporting period's recoverable-spend scenario."
+    },
+    "nextAction": {
+      "id": "pilot_routing",
+      "statement": "Pilot lower-cost routing in the named org unit, capped at the recoverable scenario for the reporting period, and verify against a like-for-like period before extending it.",
+      "accountableRole": "Platform Engineering Lead",
+      "precondition": "A primary finding names an org unit and the reporting period's recoverable scenario is positive.",
+      "capMinor": 612000,
+      "capCurrency": "USD",
+      "evidence": [
+        "reporting period 2026-06 of dataset user",
+        "recoverable scenario 612000 usd_minor of 4300000 analyzed",
+        "benchmark more_recoverable_than_baseline over 2 prior period(s)"
+      ]
+    },
+    "confidence": {
+      "level": "high",
+      "meaning": "The figure and the org unit it names are supported well enough to open a capped pilot against them.",
+      "source": "coverage confidence stored with the retained derived period",
+      "rule": [
+        "Confidence is the weakest of the three levels below. It is never recomputed from records here.",
+        "The reporting period's own coverage confidence, as computed by the briefing contract and stored with the retained period.",
+        "A ceiling of moderate when the benchmark is ineligible: a figure with nothing to compare against cannot support a commitment.",
+        "A ceiling of low when the dataset is not the reader's own import: a demonstration cannot evidence a decision."
+      ],
+      "ceiling": null,
+      "ceilingReason": null,
+      "periodConfidence": "high"
+    },
+    "method": {
+      "note": "Nothing here is recomputed from raw records. The recoverable scenario, the analyzed spend, the coverage confidence, and the named org unit are read off one retained derived period exactly as the briefing contract selected them. This briefing selects which period, computes the share and the trailing baseline from the retained aggregates, and applies a fixed action catalog.",
+      "operations": [
+        "recoverable_share_ppm = round_half_away_from_zero(recoverable_scenario_minor ÷ analyzed_spend_minor × 1e6)",
+        "baseline_share_ppm = round_half_away_from_zero(mean(prior periods' recoverable_share_ppm))",
+        "variance_share_ppm = reporting_share_ppm − baseline_share_ppm",
+        "standing = in_line_with_baseline when |variance_share_ppm| <= 10000"
+      ],
+      "selectionRule": [
+        "Eligible retained periods are ordered by period label descending.",
+        "Ties break by recoverableScenarioMinor descending.",
+        "Then by recordsAnalyzed descending.",
+        "Then by derivedAt descending, compared as an ISO-8601 string.",
+        "Then by periodId ascending, which is unique per retained period and makes the order total.",
+        "The first entry is the reporting period, and its topDepartmentId is the primary finding."
+      ],
+      "benchmarkRule": [
+        "Prior periods are the retained periods of the reporting period's own dataset whose period label sorts strictly before it. Another dataset's periods are never averaged in.",
+        "The benchmark is eligible only when the reporting period and its priors number at least 3, their labels form a gapless consecutive calendar-month sequence ending at the reporting period, and every one carries a positive analyzedSpendMinor and a finite recoverableScenarioMinor.",
+        "baselineSharePpm is the mean of the prior periods' recoverableSharePpm, rounded half away from zero to whole ppm.",
+        "varianceSharePpm = reportingSharePpm − baselineSharePpm.",
+        "Standing is in_line_with_baseline when |varianceSharePpm| <= 10000, otherwise more_recoverable_than_baseline or less_recoverable_than_baseline by the sign."
+      ],
+      "confidenceRule": [
+        "Confidence is the weakest of the three levels below. It is never recomputed from records here.",
+        "The reporting period's own coverage confidence, as computed by the briefing contract and stored with the retained period.",
+        "A ceiling of moderate when the benchmark is ineligible: a figure with nothing to compare against cannot support a commitment.",
+        "A ceiling of low when the dataset is not the reader's own import: a demonstration cannot evidence a decision."
+      ],
+      "readFields": [
+        "period",
+        "dataset",
+        "derivedAt",
+        "analyzedSpendMinor",
+        "attributedSpendMinor",
+        "recoverableScenarioMinor",
+        "recordsAnalyzed",
+        "recordsTotal",
+        "coverageRatioPpm",
+        "confidence",
+        "missingInputs",
+        "topDepartmentId"
+      ],
+      "derivedFromBriefingContract": "finops-briefing/1.0.0"
+    },
+    "limitations": [
+      {
+        "code": "scenario_not_realized_saving",
+        "statement": "The recoverable figure is a routing scenario, not a realized saving. Nothing here has been banked, and no invoice has changed."
+      },
+      {
+        "code": "browser_local_derived_only",
+        "statement": "This briefing was built in your browser from derived workspace records only. No import, prompt, file, or credential was read, and nothing was uploaded."
+      },
+      {
+        "code": "no_shareable_link",
+        "statement": "This briefing cannot produce a shareable link. There is no link form that could carry imported records, and none is offered."
+      },
+      {
+        "code": "usd_only",
+        "statement": "Every figure is USD. No exchange rate is applied, so a workspace holding another currency is not comparable here."
+      },
+      {
+        "code": "no_peer_cohort",
+        "statement": "The benchmark is this workspace's own trailing history. No peer, industry, or market cohort is implied by any figure."
+      }
+    ],
+    "provenance": {
+      "dataset": "user",
+      "derivedAt": "2026-07-02T09:14:00Z",
+      "sourceFingerprint": "c1daf8d2",
+      "periodIds": [
+        "user:2026-04",
+        "user:2026-05",
+        "user:2026-06"
+      ],
+      "retainedPeriodCount": 3,
+      "recordsAnalyzed": 1766,
+      "recordsTotal": 1840
+    },
+    "selection": {
+      "rule": [
+        "Eligible retained periods are ordered by period label descending.",
+        "Ties break by recoverableScenarioMinor descending.",
+        "Then by recordsAnalyzed descending.",
+        "Then by derivedAt descending, compared as an ISO-8601 string.",
+        "Then by periodId ascending, which is unique per retained period and makes the order total.",
+        "The first entry is the reporting period, and its topDepartmentId is the primary finding."
+      ],
+      "tieBreakApplied": "period_descending",
+      "candidateCount": 3
+    },
+    "absent": {}
+  }
+}
