@@ -1245,14 +1245,25 @@
                   <p class="eyebrow">Priority 01 · recommended intervention</p>
                   <h4 id="action-title">No intervention prioritized yet</h4>
                 </div>
-                <span class="action-status" id="action-status">Not prioritized yet</span>
+                <!-- The status word never travels alone: the shape beside it is
+                     a second channel, so a greyscale print and a reader who
+                     cannot separate the tints both still read the state. It is
+                     a sibling rather than a child because the page writes this
+                     slot with textContent, which would eat a nested span. -->
+                <p class="action-status-line"><span class="action-status-shape" id="action-status-shape" aria-hidden="true">◇</span><span class="action-status" id="action-status">Not prioritized yet</span></p>
               </div>
               <p class="action-rationale" id="action-rationale">No intervention has been prioritized from the bundled example yet. No live analysis is running.</p>
+              <!-- The declared reading order of the handout: the action, then
+                   what it is worth a month, then how much to trust it, then
+                   where it came from, then the pattern under it. Provenance is
+                   authored ahead of the accountable role deliberately — a
+                   reader forwarding this to a director has to be able to say
+                   what produced the number before they say who owns it. -->
               <dl class="action-facts">
-                <div><dt>Expected impact</dt><dd id="action-impact">Not estimated</dd></div>
+                <div><dt>Expected monthly value</dt><dd id="action-impact">Not estimated</dd></div>
                 <div><dt>Confidence</dt><dd id="action-confidence">Not assessed</dd></div>
-                <div><dt>Accountable role</dt><dd id="action-owner">Unassigned</dd></div>
                 <div><dt>Provenance</dt><dd id="action-provenance">Bundled static fixture</dd></div>
+                <div><dt>Accountable role</dt><dd id="action-owner">Unassigned</dd></div>
               </dl>
               <div class="savings-inspection" aria-label="Intervention savings">
                 <div><span>Baseline</span><strong id="action-baseline">—</strong></div>
@@ -1261,6 +1272,23 @@
                 <div><span>Simulated realized</span><strong id="action-realized">—</strong></div>
               </div>
               <p class="diagnosis-link"><strong>Why this action:</strong> <span id="action-diagnosis">No diagnosis yet</span></p>
+              <!-- The fifth slot of the handout: the pattern the figure rests
+                   on. The heading and the summary sit outside the disclosure so
+                   the pattern is legible before anything is pressed; the panel
+                   holds the audit trail. It is authored with content rather
+                   than empty so a page whose script never runs still says what
+                   this block is, and it is painted in every state whether it is
+                   open or shut, because the print stylesheet shows it either
+                   way and evidence a reader has to press for is evidence a
+                   printed handout would lose. -->
+              <div class="action-evidence" id="action-evidence" data-state="loading" data-expanded="false">
+                <h5 class="eyebrow" id="action-evidence-title">Pattern evidence</h5>
+                <p class="action-evidence-summary" id="action-evidence-summary">No pattern has been read yet. Nothing is claimed for this department.</p>
+                <button class="action-evidence-toggle" id="action-evidence-toggle" type="button" aria-expanded="false" aria-controls="action-evidence-panel">Show pattern evidence</button>
+                <div class="action-evidence-panel" id="action-evidence-panel" role="group" aria-labelledby="action-evidence-title" hidden>
+                  <p class="action-evidence-note">No pattern evidence has been read yet.</p>
+                </div>
+              </div>
             </section>
 
             <section class="decision-question" aria-labelledby="trend-title">
@@ -1277,7 +1305,12 @@
               <p class="method-note" id="benchmark-method"></p>
               <details class="evidence-disclosure">
                 <summary>Inspect supporting scored evidence</summary>
-                <ul class="evidence-list" id="department-evidence"></ul>
+                <!-- `department-evidence-list`, not `department-evidence`: that
+                     id already belongs to the evidence panel further up this
+                     page, and two elements sharing one id meant
+                     getElementById returned the panel here — so the drill-down
+                     emptied that panel and this list was never filled. -->
+                <ul class="evidence-list" id="department-evidence-list"></ul>
               </details>
             </section>
           </article>

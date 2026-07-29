@@ -137,7 +137,7 @@ export function interventionActionFields(result) {
     status: presentation.status,
     title: recommendation.title,
     rationale: recommendation.rationale.text,
-    impact: `Recover about ${formatUsd(estimate)} of monthly AI spend`,
+    impact: `${formatUsd(estimate)} per 30-day month`,
     confidence: confidenceLine(recommendation),
     owner: ACCOUNTABLE_ROLE[recommendation.kind] ?? "Unassigned",
     provenance: provenanceLine(result),

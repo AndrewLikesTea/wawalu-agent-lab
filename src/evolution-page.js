@@ -89,6 +89,12 @@ import { gradeEligibility } from "/grade-eligibility.js";
 // from the department's aggregate record and nothing else.
 import { scoreDepartmentIntervention } from "/department-intervention-scoring.js";
 import { interventionActionFields } from "/department-intervention-view.js";
+// The fifth slot of the same card: the pattern under the figure, painted in
+// every state and printed whether the reader opened it or not.
+import {
+  ACTION_STATUS_SHAPE, bindFixPackDisclosure, computedFixPackEvidence,
+  renderFixPackEvidence, reviewedFixPackEvidence, unavailableFixPackEvidence,
+} from "/department-fix-pack-view.js";
 // No panel on this page writes its own "nothing here" sentence. Every empty,
 // partial-coverage and failed-load string is authored in one module, so a
 // reader meets one vocabulary for absence instead of one per branch.
@@ -1976,12 +1982,25 @@ function definitionTerm(label, value) {
   return fragment;
 }
 
+/**
+ * The status shape, written beside the status word.
+ *
+ * The word is the fact and the shape is the redundant channel, so it is
+ * `aria-hidden` in the markup and never the only thing that changed.
+ */
+function setActionStatusShape(status) {
+  const shape = document.getElementById("action-status-shape");
+  if (shape) shape.textContent = ACTION_STATUS_SHAPE[status] ?? ACTION_STATUS_SHAPE.unavailable;
+}
+
 function renderUnavailableAction(reason) {
   const actionSurface = document.getElementById("action-result");
   if (actionSurface) {
     actionSurface.dataset.status = "unavailable";
     actionSurface.setAttribute("aria-busy", "false");
   }
+  setActionStatusShape("unavailable");
+  renderFixPackEvidence(document, unavailableFixPackEvidence(reason));
   setText("action-status", ACTION_UNAVAILABLE_FIELD.status);
   setText("action-title", ACTION_UNAVAILABLE_FIELD.title);
   setText("action-rationale", reason);
@@ -2011,6 +2030,7 @@ function renderComputedAction(fields) {
     actionSurface.dataset.status = fields.dataStatus;
     actionSurface.setAttribute("aria-busy", "false");
   }
+  setActionStatusShape(fields.dataStatus);
   setText("action-status", fields.status);
   setText("action-title", fields.title);
   setText("action-rationale", fields.rationale);
@@ -2045,16 +2065,28 @@ function renderDecisionDetail(department, data) {
     actionSurface.setAttribute("aria-busy", "false");
   }
   setText("action-status", action.statusLabel);
+  setActionStatusShape(action.status);
   if (!action.available) {
     // No reviewed intervention for this department. Rather than an empty
     // surface, run the deterministic scorer over the aggregate record the
     // drill-down already holds — it either names one prioritized action with its
     // arithmetic, or names exactly why it will not.
-    renderComputedAction(interventionActionFields(scoreDepartmentIntervention(department)));
+    const scored = scoreDepartmentIntervention(department);
+    renderComputedAction(interventionActionFields(scored));
+    // The same result, opened one level further: the pattern, the rivals it
+    // beat, and the arithmetic. Painted from the result already scored above so
+    // the headline figure and its evidence cannot describe two different runs.
+    renderFixPackEvidence(document, computedFixPackEvidence(scored));
   } else {
     setText("action-title", action.title);
     setText("action-rationale", action.rationale);
-    setText("action-impact", action.impact);
+    // This slot answers one question in one unit for both reviewed and computed
+    // plans: "What is this worth in a normalized month?" The fixture's authored
+    // impact may be a percentage or a range, so it remains supporting context
+    // in the rationale rather than changing the metric displayed here.
+    setText("action-impact", Number.isFinite(action.estimatedSavingsUsd)
+      ? `${formatUsd(action.estimatedSavingsUsd)} per 30-day month`
+      : "Not estimated");
     setText("action-confidence", action.confidence);
     setText("action-owner", action.accountableRole);
     setText("action-provenance", action.provenance);
@@ -2064,6 +2096,11 @@ function renderDecisionDetail(department, data) {
     setText("action-realized", action.realizedSavingsUsd === null
       ? "Not yet simulated" : formatUsd(action.realizedSavingsUsd));
     setText("action-diagnosis", action.diagnosis);
+    // A reviewed plan gets the evidence a reviewed plan actually has: its own
+    // baseline, target and estimate, checkable by subtraction. No computed
+    // candidate is shown beside it — a rule's opinion inside a human's result
+    // is how a reviewed decision quietly acquires a second author.
+    renderFixPackEvidence(document, reviewedFixPackEvidence(action, department.name));
   }
 
   setText("trend-answer", trend.worsening === true
@@ -2091,7 +2128,7 @@ function renderDecisionDetail(department, data) {
     + `${benchmark.rubricVersion ?? "rubric unavailable"} · ${benchmark.provenance ?? provenance.label ?? "provenance unavailable"}`
     + ` · ${PEER_COHORT_PROVENANCE.version} · ${PEER_COHORT_PROVENANCE.statement}`);
 
-  const list = document.getElementById("department-evidence");
+  const list = document.getElementById("department-evidence-list");
   list?.replaceChildren();
   if (!performance.available) {
     list?.append(element("li", "evidence-empty",
@@ -2215,6 +2252,9 @@ async function init() {
   // has to open its way out of the disclosures it points into, and the handlers
   // that keep doing so have to be attached before the reader can click one.
   installDeepLinkDisclosure(document, window);
+  // Bound before any fixture resolves, so the pattern-evidence disclosure is
+  // operable from the keyboard in the loading state as well as the answered one.
+  bindFixPackDisclosure(document);
   mountLocalFinopsImport();
   // The page's one next action, operable before any fixture resolves: it stands
   // the reader on the file input and opens the picker. Bound here rather than

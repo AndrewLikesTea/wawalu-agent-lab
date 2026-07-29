@@ -987,6 +987,11 @@
 .action-result[data-status="unavailable"] { border-color:#d6d4cc; background:#f8f7f3; }
 .action-lead { display:flex; justify-content:space-between; align-items:start; gap:18px; }
 .action-lead h4 { margin:5px 0 0; font-size:21px; line-height:1.25; }
+/* Word and shape on one baseline. The shape is redundant by design — it is what
+   survives a greyscale print and a reader who cannot separate the two washes. */
+.action-status-line { display:flex; align-items:baseline; flex:none; gap:6px; margin:0; }
+.action-status-shape { flex:none; color:#245643; font:750 11px/1.2 ui-monospace,monospace; }
+.action-result[data-status="unavailable"] .action-status-shape { color:#62625c; }
 .action-status { flex:none; border-radius:99px; padding:6px 9px; background:#dceae3; color:#245643; font:750 10px/1.2 ui-monospace,monospace; text-transform:uppercase; }
 .action-result[data-status="unavailable"] .action-status { background:#e8e6df; color:#62625c; }
 .action-rationale,.diagnosis-link { font-size:13px; line-height:1.55; }
@@ -999,6 +1004,41 @@
 .savings-inspection div { display:grid; gap:5px; padding:12px; background:#fff; }
 .savings-inspection strong { font-size:15px; line-height:1.25; }
 .diagnosis-link { margin:16px 0 0; padding-top:14px; border-top:1px solid #d8e2dc; }
+/* The pattern under the figure. Heading and summary sit outside the disclosure
+   so the pattern is legible before anything is pressed; the panel holds the
+   audit trail. No new hue and no new type step: the accent, ink and mono
+   caption roles are the ones the import panel already publishes. */
+.action-evidence { margin-top:16px; padding-top:14px; border-top:1px solid #d8e2dc; }
+.action-evidence>.eyebrow { margin:0; }
+.action-evidence-summary { margin:6px 0 10px; max-width:70ch; font-size:13px; line-height:1.55; overflow-wrap:anywhere; }
+.action-evidence[data-state="unavailable"] .action-evidence-summary { color:var(--ink-muted); }
+/* The control's own edge is the only thing that says "control", so it is drawn
+   in the accent (6.8:1 on this panel) rather than a hairline that would miss the
+   3:1 non-text floor. 44px is the pointer target the rest of the page uses. */
+.action-evidence-toggle { display:inline-flex; align-items:center; min-height:44px; border:1px solid var(--import-accent); border-radius:9px; padding:8px 14px; background:#fff; color:var(--import-ink); font:650 12px/1.4 ui-monospace,monospace; text-align:left; cursor:pointer; }
+.action-evidence-toggle:hover { background:var(--import-wash); }
+.action-evidence-toggle:focus-visible { outline:3px solid var(--import-accent); outline-offset:2px; }
+.action-evidence-panel { display:grid; gap:12px; margin-top:12px; border:1px solid #d8e2dc; border-radius:11px; padding:14px; background:#fff; }
+.action-evidence-panel[hidden] { display:none; }
+/* Outline chips, never a fill: a kind, a category and an outcome are static
+   classifications of a result already computed — Claude Design · Foundations,
+   chip inventory ("filled wash = dynamic signal, outline = static
+   classification"). The chip repeats a word that is also in the rows below it,
+   so it is an accelerator rather than the only place a state is said. */
+.action-evidence-chips { display:flex; flex-wrap:wrap; gap:6px; margin:0; }
+.action-evidence-chip { border:1px solid var(--import-line); border-radius:5px; padding:2px 8px; color:var(--import-ink); font:650 10.5px/1.6 ui-monospace,monospace; overflow-wrap:anywhere; }
+.action-evidence-rows { display:grid; grid-template-columns:minmax(0,14ch) minmax(0,1fr); gap:8px 16px; margin:0; }
+.action-evidence-rows dt { color:var(--ink-muted); font:700 9px/1.4 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; overflow-wrap:anywhere; }
+.action-evidence-value { display:grid; gap:3px; margin:0; min-width:0; }
+.action-evidence-figure { font-size:12.5px; font-weight:700; line-height:1.4; overflow-wrap:anywhere; }
+.action-evidence-note { color:var(--ink-muted); font-size:11.5px; line-height:1.5; overflow-wrap:anywhere; }
+.action-evidence-arithmetic { margin:0; font:650 11.5px/1.6 ui-monospace,monospace; overflow-wrap:anywhere; }
+.action-evidence-assumptions { margin:0; padding-left:18px; font-size:12px; line-height:1.55; }
+/* The promise, in every state and never behind a second control. Neutral
+   surface: withholding prompt text is a decision this product made, not a fault
+   it is reporting. */
+.action-evidence-redaction { display:flex; align-items:baseline; flex-wrap:wrap; gap:4px 6px; margin:0; border-left:4px solid #6f6f69; padding:4px 0 4px 10px; color:#3f3f3a; font-size:11.5px; line-height:1.55; }
+.action-evidence-shape { flex:none; font-weight:750; }
 .evidence-disclosure { margin-top:20px; border-top:1px solid #e2e0d9; padding-top:14px; }
 .evidence-disclosure summary { width:fit-content; cursor:pointer; font-size:12px; font-weight:750; }
 .evidence-disclosure summary:focus-visible,.department-choice:focus-visible { outline:3px solid #7aa7d1; outline-offset:3px; }
@@ -1157,6 +1197,13 @@
   .action-status { width:fit-content; }
   .action-facts { grid-template-columns:1fr; }
   .savings-inspection { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  /* One column, and the label stays above the figure it names: a 14ch label
+     column at this width would wrap the label and the value into two ragged
+     stacks that no longer read as pairs. The order is the DOM order either way,
+     so the hierarchy survives the reflow. */
+  .action-evidence-rows { grid-template-columns:1fr; gap:2px; }
+  .action-evidence-rows dt { margin-top:8px; }
+  .action-evidence-toggle { width:100%; }
   .finops-panel .list-heading { align-items:stretch; flex-direction:column; gap:14px; }
   .finops-panel .filter { width:100%; }
   .action-card { grid-template-columns:1fr; }
@@ -2124,4 +2171,56 @@
      something the reader failed to press. The notes stay: they say what would
      have happened, which is the part that is still true on paper. */
   .first-run-choice button,.first-run-conversion-action { display:none; }
+
+  /* ---------------------------------------------------------------------
+     THE DEPARTMENT FIX PACK AS A HANDOUT
+     ---------------------------------------------------------------------
+     A fix pack is forwarded more often than it is read on the screen it was
+     computed on, so paper is a first-class state for it rather than a
+     degradation. What has to survive, in this order and on one sheet:
+
+       the prioritized action → its monthly value → its confidence →
+       its provenance → the pattern-level evidence under all four.
+
+     That order is the DOM order in `evolution.html`, so paper keeps it for
+     free. What paper needs on top of it is that nothing in the sequence is
+     hidden, clipped, or split from the figure it qualifies.
+
+     The drill-down lives inside a support disclosure, so the disclosure has to
+     be open on paper or the whole handout prints as one collapsed summary
+     line. Same two-declaration mechanism the other disclosures on this page
+     use — the pseudo-element for engines that have shipped it, and an explicit
+     `display:block` on the light-DOM children for those that have not. */
+  .support-disclosure::details-content { content-visibility:visible; block-size:auto; }
+  .support-disclosure:not([open])>*:not(summary) { display:block; }
+  .support-disclosure>summary {
+    display:block; padding:0; list-style:none; color:#171713;
+    font:700 10px/1.6 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase;
+  }
+  .support-disclosure>summary::marker { content:""; }
+  .support-disclosure>summary::-webkit-details-marker { display:none; }
+  /* The card, its washes dropped for a laser press. The rule and the status
+     word carry what the tint used to. */
+  .action-result { break-inside:avoid; border:1px solid #767670; border-left-width:3px; background:#fff; }
+  .action-status { background:none; border:1px solid #767670; color:#171713; }
+  .action-status-shape { color:#171713; }
+  /* The four labelled facts never straddle a sheet, and none of them is split
+     from the action it qualifies: a printed page carrying a monthly value whose
+     confidence landed overleaf is the claim this block exists not to make. */
+  .action-lead,.action-facts div,.savings-inspection div { break-inside:avoid; }
+  .action-lead,.action-rationale { break-after:avoid; }
+  .action-facts { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  /* The evidence prints whether or not the reader opened it. `hidden` is a
+     user-agent `display:none`, and an author rule of any specificity outranks
+     the UA origin — so this needs no `!important` and nothing to revert on
+     screen. The content is in the DOM in every state, which is what makes a
+     CSS-only reveal honest rather than a second copy nobody proofread. */
+  .action-evidence { break-inside:auto; }
+  .action-evidence-panel,.action-evidence-panel[hidden] { display:grid; border-color:#767670; }
+  .action-evidence-rows>dt,.action-evidence-value,.action-evidence-redaction { break-inside:avoid; }
+  .action-evidence-note,.action-evidence-redaction { color:#171713; }
+  .action-evidence-chip { border-color:#767670; color:#171713; }
+  /* The control is not a control on paper, so it prints as the heading it was
+     standing in for rather than as an affordance the reader failed to press. */
+  .action-evidence-toggle { display:none; }
 }

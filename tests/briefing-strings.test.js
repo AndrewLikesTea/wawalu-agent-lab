@@ -263,7 +263,7 @@ test("the coverage line on the shipped page names the department that was not gr
   assert.ok(choice, "the ungraded department is missing from the priority list");
   choice.click();
   assert.equal(textOf(document.getElementById("detail-score")), NOT_GRADED);
-  const evidence = textOf(document.getElementById("department-evidence"));
+  const evidence = textOf(document.getElementById("department-evidence-list"));
   assert.match(evidence, /^Not graded, so there is no scored evidence to show\./);
   assert.match(evidence, /omitted sampling metadata/);
 });
