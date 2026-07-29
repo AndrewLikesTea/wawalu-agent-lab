@@ -34,6 +34,13 @@ export const SITE_NAV = [
   { href: "/releases.html", label: "Releases" },
   { href: "/paint/", label: "Paint" },
   { href: "/evolution.html", label: "AI FinOps", className: "nav-evolution" },
+  // The prompt coach is a destination, not a panel of AI FinOps: it shares no
+  // state with the analysis — no import, no workspace, no seed — and answers the
+  // question a visitor arrives with before they have any file to analyse. It
+  // sits beside AI FinOps because that is the surface it is closest to, and it
+  // is a peer rather than a subordinate because neither one is a view of the
+  // other.
+  { href: "/coach.html", label: "Prompt coach", className: "nav-coach" },
   { href: "/agents.html", label: "Agent observatory" },
 ];
 

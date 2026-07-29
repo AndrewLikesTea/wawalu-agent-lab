@@ -57,6 +57,11 @@ export async function verifyArtifact(root) {
     // module before painting the unavailable state, so this must fail before a
     // Pages deployment rather than becoming a client-side blank panel.
     "imported-executive-view.js", "imported-peer-benchmark.js", "peer-cohort-contract.js",
+    // The prompt coach is a destination of its own, so the page itself is an
+    // asset the artifact can drop: a nav link and a home-page card that both
+    // point at a route Pages does not serve is a 404 on the one surface a
+    // visitor can finish something on.
+    "coach.html",
     // The coaching workflow's entry and everything it imports. The contract and
     // its preview are listed too: the entry imports them, so an artifact missing
     // either one is an entry the browser refuses and a coaching panel that never

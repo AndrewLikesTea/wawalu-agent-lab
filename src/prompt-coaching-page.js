@@ -19,7 +19,8 @@
 import { COACHING_INPUT_SOURCE, buildCoachingSession } from "./prompt-coaching-contract.js";
 import { COACHING_ENTRY_EXAMPLE, coachingEntryState } from "./prompt-coaching-entry.js";
 import {
-  EXAMPLE_CONTROL_ID, announceCoachingEntrySource, applyCoachingEntry, setCoachingEntryState,
+  EXAMPLE_CONTROL_ID, announceCoachingEntrySource, applyCoachingEntry,
+  applyCoachingFirstRun, setCoachingEntryState, setCoachingFirstRunState,
 } from "./prompt-coaching-entry-view.js";
 import {
   INPUT_HINT, applyPromptCoaching, buildRevisionChange, clearPromptCoaching,
@@ -33,6 +34,12 @@ export function initPromptCoaching(doc = globalThis.document) {
   // deciding whether this page is worth their prompt reads what they get, what
   // it is measured against, and what it never reaches before anything else.
   applyCoachingEntry(doc);
+  // The first-run sample, on the destination that carries one: a complete
+  // graded result from the bundled example, painted before the form is wired
+  // and independently of it, so a visitor reads a real answer on arrival even
+  // if the form never comes to life. A page without the sample region — the
+  // dashboard's link to this workflow, for one — is unaffected.
+  applyCoachingFirstRun(doc);
   // The preview is painted before the form is wired, and independently of it:
   // a reader deciding whether to type anything into the box needs the boundary
   // and the worked example whether or not the form ever comes to life.
@@ -117,6 +124,10 @@ export function initPromptCoaching(doc = globalThis.document) {
       : null;
     applyPromptCoaching(doc, session.result, { change });
     announceCoachingEntrySource(doc, session.input.source);
+    // The visitor has a result of their own now, so the worked example steps
+    // aside: one result on the page at a time is the only way an example figure
+    // cannot be mistaken for a reading of their prompt.
+    setCoachingFirstRunState(doc, { replaced: true });
     refreshEntry(true);
     // A refusal is not a baseline: there is no grade in it to compare against,
     // so the last good one stands and the next grade still compares.
@@ -130,6 +141,9 @@ export function initPromptCoaching(doc = globalThis.document) {
     fromExample = false;
     clearPromptCoaching(doc);
     announceCoachingEntrySource(doc, null);
+    // Back to the first-run state, sample and all: the page a visitor cleared
+    // is the page they arrived on.
+    setCoachingFirstRunState(doc, { replaced: false });
     refreshEntry();
     input?.focus?.();
   });

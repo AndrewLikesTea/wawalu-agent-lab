@@ -21,6 +21,7 @@
           <a href="/releases.html">Releases</a>
           <a href="/paint/">Paint</a>
           <a class="nav-evolution" href="/evolution.html">AI FinOps</a>
+          <a class="nav-coach" href="/coach.html">Prompt coach</a>
           <a href="/agents.html">Agent observatory</a>
         </nav>
       </header>
@@ -61,12 +62,12 @@
         </div>
       </section>
 
-      <!-- The nav offers seven destinations and the hero can only describe two
-           of them. This list names the other five in the same words the nav
+      <!-- The nav offers eight destinations and the hero can only describe two
+           of them. This list names the other six in the same words the nav
            uses, next to the nav, so a first-time visitor is not left guessing
-           what Social, People, Paint, or the Agent observatory are. The labels
-           and hrefs must stay identical to SITE_NAV in src/site-nav.js; a test
-           pins them. -->
+           what Social, People, Paint, the Prompt coach, or the Agent
+           observatory are. The labels and hrefs must stay identical to the
+           navigation module's link set; a test pins them. -->
       <section class="site-guide" aria-labelledby="site-guide-title">
         <h2 id="site-guide-title">Where everything is</h2>
         <ul>
@@ -76,8 +77,23 @@
           <li><a href="/releases.html">Releases</a> Every release, newest first, with the decisions it carried.</li>
           <li><a href="/paint/">Paint</a> Draw or crop an image in this tab, export a PNG, then hand it to a Social post yourself.</li>
           <li><a href="/evolution.html">AI FinOps</a> Score a provider export for intent, efficiency, and model fit, then see where the spend is not working.</li>
+          <li><a href="/coach.html">Prompt coach</a> Grade one prompt against a bundled rubric in your browser tab, then revise it and grade again.</li>
           <li><a href="/agents.html">Agent observatory</a> Watch a synthetic engineering team plan, build, review, and deliver work.</li>
         </ul>
+      </section>
+
+      <!-- The one destination on this site a visitor can finish something on
+           without a file, an account, or a record of their own: it is named in
+           the list above like every other surface, and said once more here
+           because "grade a prompt in this tab" is a thing to do rather than a
+           place to look at. It sits below the destination list and outside the
+           hero on purpose — the log is what this page leads with, and a second
+           primary call to action beside the first would make neither one. -->
+      <section class="coach-entry" aria-labelledby="coach-entry-title">
+        <p class="eyebrow">Try it now · nothing to install, nothing to upload</p>
+        <h2 id="coach-entry-title">Grade a prompt in your browser.</h2>
+        <p>The Prompt coach scores one prompt for intent, efficiency, and model fit against a bundled rubric, names the single change worth making first, and lets you revise and grade again. A worked example is already graded when you arrive, so there is a real result to read before you paste anything. No sign-in, no upload, no storage, and no request to a model.</p>
+        <a class="secondary-button" href="/coach.html">Open the prompt coach</a>
       </section>
 
       <section class="product-story" id="decision-to-release" aria-labelledby="product-story-title" data-proof-point="decision-to-release">

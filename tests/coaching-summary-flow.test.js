@@ -1,4 +1,4 @@
-// The copy control, driven through the shipped markup of evolution.html.
+// The copy control, driven through the shipped markup of the prompt-coach destination.
 //
 // `coaching-summary.test.js` covers the summary and the three rungs of the copy
 // as functions. This file covers only what a page can be wrong about: when the
@@ -25,7 +25,7 @@ import { loadPage, pressEnter, pressTab, tabSequence, textOf } from "./support/b
 import { importPageModule } from "./support/page-module.js";
 import { coachingSample } from "../src/prompt-coaching-contract.js";
 
-const PAGE = fileURLToPath(new URL("../src/evolution.html", import.meta.url));
+const PAGE = fileURLToPath(new URL("../src/coach.html", import.meta.url));
 const CSS = new URL("../src/evolution.css", import.meta.url);
 
 const WEAK = coachingSample("underspecified-request").text;
