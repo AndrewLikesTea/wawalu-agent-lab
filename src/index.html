@@ -248,29 +248,47 @@
             <h2 id="decision-form-title">Record a decision</h2>
           </div>
 
-          <form id="decision-form">
+          <!-- novalidate, and validated by decision-entry.js instead. A native
+               bubble reports one empty field at a time, in the browser's words,
+               and takes it away again on the next keystroke; the inline errors
+               below report every field at once, in ours, and stay until the
+               field they describe is edited.
+               Each field names its own error paragraph in aria-describedby up
+               front. That is safe here — and different from the lead capture
+               form below — because these paragraphs are empty until a submit
+               actually fails, so nothing is read out on first focus. -->
+          <form id="decision-form" novalidate>
             <div class="field field-wide">
               <label for="title">Title</label>
-              <input id="title" name="title" type="text" maxlength="120" required autocomplete="off" aria-describedby="title-hint" />
+              <input id="title" name="title" type="text" maxlength="120" required autocomplete="off" aria-describedby="title-hint title-error" />
               <span class="hint" id="title-hint">A short name for the decision.</span>
+              <p class="field-error" id="title-error" role="alert" hidden></p>
             </div>
 
             <div class="field field-wide">
               <label for="context">Context</label>
-              <textarea id="context" name="context" rows="5" maxlength="1000" required aria-describedby="context-hint"></textarea>
+              <textarea id="context" name="context" rows="5" maxlength="1000" required aria-describedby="context-hint context-error"></textarea>
               <span class="hint" id="context-hint">The problem, constraints, and reasoning.</span>
+              <p class="field-error" id="context-error" role="alert" hidden></p>
             </div>
 
+            <!-- Required, where it used to be optional. PRODUCT.md's first
+                 outcome is a decision recorded *with* its alternatives, and a
+                 record that omits them is the one a team re-argues from scratch
+                 later. The hint now says what to write when nothing else was
+                 weighed, so the requirement is answerable rather than a wall. -->
             <div class="field field-wide">
-              <label for="alternatives">Alternatives <span class="label-optional">(optional)</span></label>
-              <textarea id="alternatives" name="alternatives" rows="4" maxlength="1000" aria-describedby="alternatives-hint"></textarea>
-              <span class="hint" id="alternatives-hint">Other options considered and why they were not chosen.</span>
+              <label for="alternatives">Alternatives</label>
+              <textarea id="alternatives" name="alternatives" rows="4" maxlength="1000" required aria-describedby="alternatives-hint alternatives-error"></textarea>
+              <span class="hint" id="alternatives-hint">Other options considered and why they were not chosen. Write “None considered” if there were none.</span>
+              <p class="field-error" id="alternatives-error" role="alert" hidden></p>
             </div>
 
             <div class="field">
               <label for="owner">Owner</label>
-              <input id="owner" name="owner" type="text" maxlength="80" required autocomplete="name" aria-describedby="owner-hint" />
+              <input id="owner" name="owner" type="text" maxlength="80" required autocomplete="name" aria-describedby="owner-hint owner-error" />
               <span class="hint" id="owner-hint">The person responsible for the decision.</span>
+              <p class="field-error" id="owner-error" role="alert" hidden></p>
             </div>
 
             <div class="field">
@@ -278,11 +296,12 @@
               <!-- Two of the four statuses. The form cannot set Proposed or
                    Superseded, and the hint says so rather than letting a
                    visitor discover it from a filter that offers both. -->
-              <select id="status" name="status" required aria-describedby="status-hint">
+              <select id="status" name="status" required aria-describedby="status-hint status-error">
                 <option value="pending">Pending</option>
                 <option value="accepted">Accepted</option>
               </select>
               <span class="hint" id="status-hint">Set Pending or Accepted. Records can also read Proposed or Superseded; this form does not set those.</span>
+              <p class="field-error" id="status-error" role="alert" hidden></p>
             </div>
 
             <div class="field field-wide">
@@ -294,9 +313,20 @@
               <p class="field-error" id="supersedes-error" role="alert" hidden></p>
             </div>
 
+            <!-- The form-level count, next to the button that was pressed. It
+                 never repeats the field messages: each one is already on its
+                 field, and a summary that restates them reads the whole form
+                 twice to a screen reader. -->
+            <p class="field-error form-error-summary" id="decision-form-error" role="alert" hidden></p>
+
             <button type="submit">Record decision</button>
             <button class="recorder-exit" id="exit-decision-recorder" type="button">Back to decision history</button>
           </form>
+
+          <!-- What happened after a successful save, said once. Separate from
+               #storage-notice in the list panel, which reports a save failing,
+               and from the debounced result count, which reports the list. -->
+          <p class="hint decision-record-status" id="decision-record-status" role="status" aria-live="polite"></p>
         </div>
 
         <div class="list-panel" aria-labelledby="decisions-title">

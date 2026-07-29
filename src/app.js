@@ -1,3 +1,10 @@
+import {
+  DECISION_ENTRY_FIELDS,
+  DECISION_ENTRY_LIMITS,
+  decisionEntrySummary,
+  decisionRecordedSummary,
+  validateDecisionEntry,
+} from "./decision-entry.js";
 import { STORED_DECISION_STATUSES, canonicalDecisionStatus } from "./decision-status.js";
 import { dedupeById } from "./demo-data.js";
 import { initLeadCapture } from "./lead-capture.js";
@@ -61,10 +68,15 @@ export const DEFAULT_SORT = "newest";
 
 // Mirror the form's maxlength attributes so entries written straight into
 // storage (bypassing the form) are bounded the same way before rendering.
-export const MAX_TITLE_LENGTH = 120;
-export const MAX_CONTEXT_LENGTH = 1000;
-export const MAX_ALTERNATIVES_LENGTH = 1000;
-export const MAX_OWNER_LENGTH = 80;
+//
+// Read from decision-entry.js rather than declared twice: the recorder tells a
+// visitor which field is too long and needs the same numbers this module
+// enforces. The names stay, because shiplog-import.js and the FinOps commitment
+// path import them from here.
+export const MAX_TITLE_LENGTH = DECISION_ENTRY_LIMITS.title;
+export const MAX_CONTEXT_LENGTH = DECISION_ENTRY_LIMITS.context;
+export const MAX_ALTERNATIVES_LENGTH = DECISION_ENTRY_LIMITS.alternatives;
+export const MAX_OWNER_LENGTH = DECISION_ENTRY_LIMITS.owner;
 
 function isDecision(value) {
   return value !== null
@@ -766,6 +778,16 @@ export async function initDecisionLog(root = document, storage = localStorage, o
   const supersedeSummary = root.querySelector("#history-supersede-summary");
   const supersedesField = root.querySelector("#supersedes");
   const supersedesError = root.querySelector("#supersedes-error");
+  const formError = root.querySelector("#decision-form-error");
+  const recordStatus = root.querySelector("#decision-record-status");
+  // Each required field paired with the paragraph that reports its failure. A
+  // surface that mounts the recorder without those paragraphs still validates
+  // and still refuses a bad entry; it just cannot show the message, so every
+  // access below is optional rather than assumed.
+  const entryFields = new Map(DECISION_ENTRY_FIELDS.map((field) => [field, {
+    control: root.querySelector(`#${field}`),
+    error: root.querySelector(`#${field}-error`),
+  }]));
   const locationRef = options.location ?? globalThis.window?.location;
   const historyRef = options.history ?? globalThis.window?.history;
   const announce = createCountAnnouncer(root.querySelector("#history-announcement"), {
@@ -816,6 +838,10 @@ export async function initDecisionLog(root = document, storage = localStorage, o
     }
     supersedesField?.setAttribute?.("aria-invalid", "true");
     supersedesField?.focus?.();
+    // Same rule the field errors follow: a refusal retires the previous
+    // success line, so the last thing said about this form is what just
+    // happened to it.
+    if (recordStatus) recordStatus.textContent = "";
   };
 
   const clearSupersedesError = () => {
@@ -825,6 +851,77 @@ export async function initDecisionLog(root = document, storage = localStorage, o
     }
     supersedesField?.setAttribute?.("aria-invalid", "false");
   };
+
+  // Which fields are currently reporting a failure. Held here so the form-level
+  // count can be corrected as fields are fixed one at a time, instead of
+  // advertising a stale "3 fields" next to two remaining messages.
+  const failingFields = new Set();
+
+  const syncEntrySummary = () => {
+    if (!formError) return;
+    formError.textContent = decisionEntrySummary(failingFields.size);
+    formError.hidden = failingFields.size === 0;
+  };
+
+  const clearFieldError = (field) => {
+    const slot = entryFields.get(field);
+    failingFields.delete(field);
+    if (slot?.error) {
+      slot.error.textContent = "";
+      slot.error.hidden = true;
+    }
+    // Removed rather than set to "false": aria-invalid is the state of a control
+    // a visitor has actually been told about, and a form nobody has submitted
+    // yet should not describe five controls as explicitly valid.
+    slot?.control?.removeAttribute?.("aria-invalid");
+  };
+
+  const showFieldError = (field, message) => {
+    const slot = entryFields.get(field);
+    failingFields.add(field);
+    if (slot?.error) {
+      // textContent, never markup. The message is our copy, but it sits beside
+      // fields holding the visitor's, and no path from a typed value to parsed
+      // HTML may exist anywhere in this form (PRODUCT.md: no user-generated
+      // HTML execution).
+      slot.error.textContent = message;
+      slot.error.hidden = false;
+    }
+    slot?.control?.setAttribute?.("aria-invalid", "true");
+  };
+
+  const showEntryErrors = (errors) => {
+    for (const field of DECISION_ENTRY_FIELDS) clearFieldError(field);
+    for (const { field, message } of errors) showFieldError(field, message);
+    syncEntrySummary();
+    // A fresh failure retires the previous success line: the last thing said
+    // about this form must be the thing that just happened to it.
+    if (recordStatus) recordStatus.textContent = "";
+    // Focus the first failure in form order — where a reader would start — not
+    // the last one found. Every other message is already on its own field.
+    const first = entryFields.get(errors[0]?.field)?.control;
+    first?.focus?.({ preventScroll: true });
+    first?.scrollIntoView?.({ block: "center" });
+  };
+
+  const clearEntryErrors = () => {
+    for (const field of DECISION_ENTRY_FIELDS) clearFieldError(field);
+    syncEntrySummary();
+  };
+
+  // A message clears as soon as its own field is edited, so it can never outlive
+  // the problem it describes. Nothing is re-validated on the way through:
+  // telling somebody their half-typed context is empty while they are typing it
+  // is noise, and the next submit is the moment that decides.
+  for (const [field, slot] of entryFields) {
+    if (!slot.control) continue;
+    const event = slot.control.tagName === "SELECT" ? "change" : "input";
+    slot.control.addEventListener?.(event, () => {
+      if (!failingFields.has(field)) return;
+      clearFieldError(field);
+      syncEntrySummary();
+    });
+  }
 
   const syncCurrentOnlyControl = () => {
     if (!currentOnly) return;
@@ -989,11 +1086,21 @@ export async function initDecisionLog(root = document, storage = localStorage, o
 
   form.addEventListener("submit", (event) => {
     event.preventDefault();
-    if (!form.reportValidity()) return;
+    const values = Object.fromEntries(new FormData(form));
+
+    // Our own validation, not form.reportValidity(). The form carries
+    // `novalidate` so the browser's one-bubble-at-a-time report never runs
+    // first, and every failure is stated inline on the field it belongs to
+    // instead. Nothing is written while any of them stands.
+    const errors = validateDecisionEntry(values);
+    if (errors.length > 0) {
+      showEntryErrors(errors);
+      return;
+    }
 
     let decision;
     try {
-      decision = createDecision(Object.fromEntries(new FormData(form)), { decisions });
+      decision = createDecision(values, { decisions });
     } catch (error) {
       // A rejected supersede link is the one failure the native form validity
       // cannot express, so it is reported inline against the field that caused
@@ -1004,14 +1111,17 @@ export async function initDecisionLog(root = document, storage = localStorage, o
       return;
     }
     clearSupersedesError();
+    clearEntryErrors();
     // Only the recorded half grows. refresh() recomposes the examples behind
     // it, so a new decision is added to the visitor's records rather than
     // replacing anything, and both sets survive.
     recordedDecisions = [decision, ...recordedDecisions];
+    let saved = true;
     try {
       saveDecisions(storage, recordedDecisions);
       notice.hidden = true;
     } catch (error) {
+      saved = false;
       // Two different failures, told apart because the recovery differs: a full
       // or disabled store is something to work around, a declined retention
       // choice is something to change on the workspace page.
@@ -1021,7 +1131,22 @@ export async function initDecisionLog(root = document, storage = localStorage, o
         : "This decision is visible for now, but could not be saved in this browser.";
       notice.hidden = false;
     }
+    // The history is recomposed in the same turn as the save, so the row is on
+    // screen before focus returns to the form — there is nothing to reload and
+    // nothing to wait for.
     refresh();
+    // …unless the visitor's own filters exclude it. A save deliberately does not
+    // reset them, so the status line says which of the two happened rather than
+    // leaving somebody hunting for a row that was filtered away.
+    //
+    // Nothing is said when the save failed: the notice above already explains
+    // that this decision is visible for now but was not kept, and a second line
+    // announcing it as recorded would contradict it.
+    if (recordStatus) {
+      const visible = selectHistory(records, view)
+        .some((record) => record.type === "decision" && record.id === decision.id);
+      recordStatus.textContent = saved ? decisionRecordedSummary(decision, { visible }) : "";
+    }
     form.reset();
     form.elements.title.focus();
   });
