@@ -1,4 +1,4 @@
-// The specimen, driven through the shipped markup of evolution.html.
+// The specimen, driven through the shipped markup of the prompt-coach destination.
 //
 // The page and the page entry are the real ones — not a fixture DOM and not a
 // re-implementation of the wiring — so "a reviewer can read every state, and a
@@ -20,7 +20,7 @@ import { renderCoachingResult } from "../src/coaching-result-view.js";
 import { buildCoachingSpecimen } from "../src/coaching-specimen.js";
 import { COACHING_SAMPLES } from "../src/prompt-coaching-contract.js";
 
-const PAGE = fileURLToPath(new URL("../src/evolution.html", import.meta.url));
+const PAGE = fileURLToPath(new URL("../src/coach.html", import.meta.url));
 
 async function openSpecimen() {
   const page = await loadPage(PAGE);

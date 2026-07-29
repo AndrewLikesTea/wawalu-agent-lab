@@ -39,6 +39,7 @@ const PAGES = [
   { file: "social.html", surface: "social feed" },
   { file: "profile.html", surface: "profile" },
   { file: "evolution.html", surface: "AI FinOps" },
+  { file: "coach.html", surface: "prompt coach" },
   { file: "agent-trace.html", surface: "published prompt trace" },
 ];
 
@@ -119,7 +120,11 @@ test("activating the skip link goes to the landmark, past every site-frame tab s
     const first = sequence.findIndex((stop) => inside.has(stop));
     assert.ok(first > 0, `${file}: the content region has no tab stop of its own`);
     const skipped = sequence.slice(0, first).filter((stop) => stop !== skip);
-    assert.equal(skipped.length, 8, `${file}: expected the wordmark and seven nav links to be skipped`);
+    // Counted from the nav itself rather than written down: a destination added
+    // to the link set changes what one press is worth, and this number moving
+    // with it is the point.
+    assert.equal(skipped.length, SITE_NAV.length + 1,
+      `${file}: expected the wordmark and every nav link to be skipped`);
     assert.ok(skipped.every((stop) => stop.closest(".site-header")), `${file}: a content control sits outside <main>`);
 
     // And nothing the footer contributes may shadow the landmark: every stop it
@@ -312,12 +317,14 @@ test("the main landmark rings for keyboard focus only, never for a mouse click",
 
 /* --------------------------- the post page's order ------------------------ */
 
+const FRAME_STOPS = SITE_NAV.length + 3;
+
 test("the post page's tab order is skip link, then the nav, then the one exit", async () => {
   const document = await load("post.html");
   const sequence = tabSequence(document);
 
   assert.deepEqual(
-    sequence.slice(0, 10).map((stop) => textOf(stop)),
+    sequence.slice(0, FRAME_STOPS).map((stop) => textOf(stop)),
     [
       SKIP_TEXT,
       "Shiplog",
@@ -327,9 +334,9 @@ test("the post page's tab order is skip link, then the nav, then the one exit", 
     "the post page's tab order changed",
   );
 
-  // Walked as keystrokes, not read off the list: ten presses from page load.
-  const walked = Array.from({ length: 10 }, () => textOf(pressTab(document)));
-  assert.deepEqual(walked, sequence.slice(0, 10).map((stop) => textOf(stop)));
+  // Walked as keystrokes, not read off the list: one press per frame stop.
+  const walked = Array.from({ length: FRAME_STOPS }, () => textOf(pressTab(document)));
+  assert.deepEqual(walked, sequence.slice(0, FRAME_STOPS).map((stop) => textOf(stop)));
 
   // After the exit, the next stop a keyboard reader reaches is the footer form's
   // trigger. Nothing the shipped post markup contains sits between them: the
@@ -337,10 +344,10 @@ test("the post page's tab order is skip link, then the nav, then the one exit", 
   // their own (a caption is text, never markup — PRODUCT.md), so the order the
   // review asked for — exit, image link, caption links, footer — holds with its
   // middle two steps empty.
-  const afterExit = sequence.slice(10).map((stop) => textOf(stop));
+  const afterExit = sequence.slice(FRAME_STOPS).map((stop) => textOf(stop));
   assert.equal(afterExit[0], "Talk to us about Shiplog");
   assert.ok(
-    sequence.slice(10).every((stop) => stop.closest("#site-footer")),
+    sequence.slice(FRAME_STOPS).every((stop) => stop.closest("#site-footer")),
     "a control on the post page sits between the exit and the footer",
   );
 });

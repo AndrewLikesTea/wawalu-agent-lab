@@ -1,4 +1,4 @@
-// The coaching workflow, driven through the shipped markup of evolution.html.
+// The coaching workflow, driven through the shipped markup of the prompt-coach destination.
 //
 // This file loads the real page and the real page entry — not a fixture DOM and
 // not a re-implementation of the wiring — so "a reader can paste a prompt and
@@ -29,7 +29,7 @@ import {
   buildEntryExampleSession,
 } from "../src/prompt-coaching-entry.js";
 
-const PAGE = fileURLToPath(new URL("../src/evolution.html", import.meta.url));
+const PAGE = fileURLToPath(new URL("../src/coach.html", import.meta.url));
 
 const byId = (document, id) => document.getElementById(id);
 

@@ -23,15 +23,21 @@
 
 import {
   COACHING_ENTRY_EXAMPLE, COACHING_ENTRY_VERSION, COACHING_ENTRY_STATE,
-  COACHING_INPUT_SOURCE_LABELS, coachingEntryJourney, coachingEntryNextAction,
+  COACHING_INPUT_SOURCE_LABELS, buildEntryExampleSession, coachingEntryJourney,
+  coachingEntryNextAction,
 } from "./prompt-coaching-entry.js";
+import { presentCoachingResult } from "./coaching-result-presentation.js";
+import { renderCoachingResult } from "./coaching-result-view.js";
 
 const SECTION_ID = "prompt-coaching-entry";
 const BODY_ID = "prompt-coaching-entry-body";
 const ACTION_ID = "prompt-coaching-entry-action";
 const ALTERNATIVE_ID = "prompt-coaching-entry-alternative";
 const SOURCE_ID = "prompt-coaching-entry-source";
+const FIRST_RUN_SECTION_ID = "prompt-coach-sample";
+const FIRST_RUN_BODY_ID = "prompt-coach-sample-body";
 export const EXAMPLE_CONTROL_ID = "prompt-coaching-example";
+export const FIRST_RUN_RESULT_ID = "prompt-coach-sample-result";
 
 const byId = (doc, id) => (doc?.getElementById ? doc.getElementById(id) : null);
 
@@ -191,6 +197,65 @@ export function setCoachingEntryState(doc, { state = COACHING_ENTRY_STATE.empty 
     // Offering to overwrite text a visitor already typed is not an offer.
     control.hidden = state !== COACHING_ENTRY_STATE.empty;
   }
+  return section;
+}
+
+/**
+ * Paint the first-run sample: one complete graded result, on arrival, from the
+ * bundled example.
+ *
+ * WHY A DESTINATION PAINTS ONE AT ALL. The workflow's front door explains what a
+ * result contains; this shows one. A visitor deciding whether this page is worth
+ * their prompt reads the same regions their own grade would produce — the answer,
+ * what it is measured against with its provenance, the one thing to do first, and
+ * the rubric evidence behind a disclosure — before being asked for anything.
+ *
+ * DETERMINISM. The session comes from `buildEntryExampleSession()`: bundled text,
+ * bundled tier, a pure rubric, no clock and no sampling. The same page load draws
+ * the same figures on every machine, which is what makes this assertable.
+ *
+ * WHOSE TEXT IT IS. The attribution is the contract's own sentence for a
+ * `bundled_sample` grade, rendered beside the figures rather than under them, so
+ * a demonstration can never be read as a reading of the visitor's work.
+ *
+ * @returns the container that was painted, or `null` on a page that carries no
+ *   sample region — the grading workflow does not depend on this surface.
+ */
+export function applyCoachingFirstRun(doc) {
+  const body = byId(doc, FIRST_RUN_BODY_ID);
+  if (!body) return null;
+  const session = buildEntryExampleSession();
+  const model = presentCoachingResult({ session });
+  body.replaceChildren(
+    element(doc, "p", "prompt-coach-sample-attribution",
+      COACHING_INPUT_SOURCE_LABELS[session.input.source]),
+    // The sample's own heading names it, so the result is labelled by that
+    // heading rather than writing a second one over the same figures.
+    renderCoachingResult(doc, model, {
+      idPrefix: FIRST_RUN_RESULT_ID,
+      headingLevel: 4,
+      labelledBy: "prompt-coach-sample-title",
+    }),
+  );
+  body.dataset.sampleId = COACHING_ENTRY_EXAMPLE.sampleId;
+  body.dataset.source = session.input.source;
+  setCoachingFirstRunState(doc, { replaced: false });
+  return body;
+}
+
+/**
+ * Stand the sample down, or bring it back.
+ *
+ * A visitor who has graded their own text has the result they came for, and two
+ * results on one page is the state where an example figure gets read as theirs.
+ * Clearing the panel returns the page to its first-run state, where the sample
+ * is the only result on screen and is offered again.
+ */
+export function setCoachingFirstRunState(doc, { replaced = false } = {}) {
+  const section = byId(doc, FIRST_RUN_SECTION_ID);
+  if (!section) return null;
+  section.dataset.sampleState = replaced ? "replaced" : "shown";
+  section.hidden = replaced;
   return section;
 }
 
