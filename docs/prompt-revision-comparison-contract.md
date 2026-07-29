@@ -305,6 +305,14 @@ if it cannot, the `none` branch is covered by a constructed session and the
 handoff's claim is that it is unreachable from reader text, not that it is
 untested.
 
+**Answered.** It can. `intent-rewrite-gain` in
+`docs/prompt-revision-score-delta-fixtures.md` is a prose ask that saturates the
+intent criterion at 100, returns `status: "none"` and `nextAction.kind: "stop"`,
+and is graded from reader text rather than a constructed session. The fixture
+guide breaks down all three deltas into two clearly labeled values: the
+criterion score change and its weighted contribution to the composite. It does
+not add per-axis figures to this envelope.
+
 ## Acceptance criteria
 
 Written as the question a leader is asking, not the widget that displays it.
