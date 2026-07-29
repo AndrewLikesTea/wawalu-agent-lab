@@ -43,6 +43,45 @@ export const PERSONAL_HISTORY_QUESTION =
 // ---------------------------------------------------------------------------
 
 /**
+ * How every field list below is read: as an allowlist of paths, and as the only
+ * paths any reader of a personal export may resolve.
+ *
+ * WHY A PATH AND NOT A FIELD NAME. Real conversation exports nest: the role sits
+ * at `author.role` in one vendor's file and at `role` in another's, and the
+ * prompt itself arrives as `content.parts` at least as often as `content`. A
+ * reader that reached those spellings by hand-written `?.` chains would be
+ * indexing fields nobody declared, one nested expression at a time, and the
+ * boundary this contract publishes would be checkable only by reading the
+ * parser. So the spellings are declared here and resolved by one accessor —
+ * `readDeclaredExportPath` in personal-history-report.js — which refuses any
+ * path this contract did not list.
+ *
+ * THE RULES, in full, because they are what make the allowlist a boundary rather
+ * than a convenience:
+ *
+ *   1. A segment is a literal object key. A name with no dot is a one-segment
+ *      path, so `role` and `author.role` are the same kind of thing.
+ *   2. Every segment but the last must resolve to a plain object the export
+ *      itself carries. An array, a string, or a null part-way through a path
+ *      ends the resolution at nothing rather than being indexed into.
+ *   3. Only own keys resolve. An inherited key never does, so `__proto__`,
+ *      `constructor`, and `prototype` cannot be walked through by a file.
+ *   4. No wildcard, no recursion, no search. A path names one place. There is no
+ *      "find the text wherever it is", because that is exactly the behaviour
+ *      that reads a field a person never expected this product to open.
+ *
+ * A delimited shape's lists are column names, which are single-segment by
+ * construction: a spreadsheet header has no nesting to declare.
+ */
+export const PERSONAL_EXPORT_PATH_RULE = Object.freeze({
+  separator: ".",
+  segmentsResolve: "own keys of plain objects only",
+  wildcards: "none",
+  search: "none",
+  undeclaredPaths: "never resolved, at any depth",
+});
+
+/**
  * The shapes this product reads, declared as data so a reader can check their
  * own file against the list before pasting it anywhere.
  *
@@ -53,7 +92,9 @@ export const PERSONAL_HISTORY_QUESTION =
  *
  * `detect` is the human-readable rule; the executable form is
  * `detectPersonalExportShape` in personal-history-report.js, and the two are
- * pinned to each other by tests/personal-history-report.test.js.
+ * pinned to each other by tests/personal-history-report.test.js. Every
+ * `*Paths`, `dateFields`, and `textFields` entry is a path under
+ * `PERSONAL_EXPORT_PATH_RULE`.
  */
 export const PERSONAL_EXPORT_SHAPES = Object.freeze([
   Object.freeze({
@@ -61,11 +102,28 @@ export const PERSONAL_EXPORT_SHAPES = Object.freeze([
     label: "Personal conversation export (JSON)",
     container: "json",
     detect: "The file parses as JSON and is either an array of conversations or an object "
-      + "carrying a `conversations` array. Each conversation carries a `messages` array.",
+      + "carrying a `conversations` array at one of the declared record paths. Each "
+      + "conversation carries a messages array at one of the declared record paths.",
     promptEntry: "One message whose role is user, human, or you. Assistant, system, and tool "
       + "messages are read for nothing at all — not counted, not measured, not classified.",
-    dateFields: Object.freeze(["create_time", "created_at", "createdAt", "timestamp", "time", "date"]),
-    textFields: Object.freeze(["text", "content", "message", "body", "parts"]),
+    // Where the two record lists live. A top-level array is the third spelling
+    // and needs no path, because there is nothing to name.
+    conversationPaths: Object.freeze(["conversations", "data.conversations"]),
+    messagePaths: Object.freeze(["messages", "conversation.messages"]),
+    // `author.role` is the spelling of the largest assistant export in the wild.
+    // A message carrying none of these is not a message this reader can attribute
+    // to anybody, so it is not a prompt entry.
+    rolePaths: Object.freeze(["role", "author.role", "sender.role"]),
+    // Counted, never opened. Declared so the count comes from named places
+    // rather than from whatever an export happens to call a file.
+    attachmentPaths: Object.freeze(["attachments", "content.attachments"]),
+    dateFields: Object.freeze([
+      "create_time", "created_at", "createdAt", "timestamp", "time", "date",
+      "metadata.create_time", "metadata.timestamp",
+    ]),
+    textFields: Object.freeze([
+      "text", "content", "message", "body", "parts", "content.parts", "content.text",
+    ]),
     dateFallback: "A message with no date of its own inherits its conversation's date. A "
       + "conversation with no date leaves its messages undated, which is a counted drop and "
       + "never a guess.",
@@ -78,6 +136,8 @@ export const PERSONAL_EXPORT_SHAPES = Object.freeze([
       + "and one recognized prompt column. A header missing either is not this shape.",
     promptEntry: "One data row. A prompt log has no roles in it, so every row is taken as "
       + "something you wrote.",
+    // Column names. Single-segment by construction: a header has no nesting, so
+    // the path rule above degenerates to "the column is named one of these".
     dateFields: Object.freeze(["date", "created_at", "create_time", "timestamp", "time", "when", "day"]),
     textFields: Object.freeze(["prompt", "message", "text", "content", "message_text", "request"]),
     dateFallback: "None. A table row carries its own date or it is a counted drop.",

@@ -34,9 +34,10 @@ import { gradeMyPrompt } from "./prompt-coaching.js";
 import {
   FORBIDDEN_REPORT_KEYS, PERSONAL_BASIS, PERSONAL_BOUNDARY, PERSONAL_CONFIDENCE_NONE,
   PERSONAL_CONFIDENCE_TIERS, PERSONAL_COVERAGE_FLOOR, PERSONAL_COVERAGE_IDENTITY,
-  PERSONAL_ELIGIBILITY, PERSONAL_EXPORT_SHAPES, PERSONAL_HISTORY_QUESTION,
-  PERSONAL_HISTORY_VERSION, PERSONAL_NOT_ELIGIBLE, PERSONAL_NOT_ELIGIBLE_RULE,
-  PERSONAL_READER_LIMITS, PERSONAL_REPORT_STATE, PERSONAL_REPORT_STATES,
+  PERSONAL_ELIGIBILITY, PERSONAL_EXPORT_PATH_RULE, PERSONAL_EXPORT_SHAPES,
+  PERSONAL_HISTORY_QUESTION, PERSONAL_HISTORY_VERSION, PERSONAL_NOT_ELIGIBLE,
+  PERSONAL_NOT_ELIGIBLE_RULE, PERSONAL_READER_LIMITS, PERSONAL_REPORT_STATE,
+  PERSONAL_REPORT_STATES,
 } from "./personal-history-contract.js";
 
 const SHAPE = Object.fromEntries(PERSONAL_EXPORT_SHAPES.map((shape) => [shape.id, shape]));
@@ -54,6 +55,82 @@ const roundTo = (value, decimals) => {
   const factor = 10 ** decimals;
   return Math.round(value * factor) / factor;
 };
+
+// ---------------------------------------------------------------------------
+// Reading a declared path
+// ---------------------------------------------------------------------------
+
+/**
+ * Segments of every path this contract declares, resolved once at load.
+ *
+ * Built from the contract rather than from a caller's string, which is the first
+ * half of the allowlist: a path that is not a key in this map has no segments
+ * here to walk, so there is nothing for the accessor to resolve it with.
+ */
+const DECLARED_PATH_LISTS = new Set(PERSONAL_EXPORT_SHAPES.flatMap((shape) => [
+  shape.conversationPaths, shape.messagePaths, shape.rolePaths, shape.attachmentPaths,
+  shape.dateFields, shape.textFields,
+].filter(Boolean)));
+const DECLARED_SEGMENTS = new Map([...DECLARED_PATH_LISTS].flatMap((paths) => paths.map(
+  (path) => [path, Object.freeze(path.split(PERSONAL_EXPORT_PATH_RULE.separator))])));
+
+/** A plain object: something a path may be walked *through*. Arrays are not. */
+const isRecord = (value) => {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+};
+
+/**
+ * The one way anything in this module reads a field out of an export.
+ *
+ * WHY THERE IS EXACTLY ONE. A parser that reaches nested export fields with
+ * hand-written `?.` chains is a parser whose real allowlist is its own source
+ * code: every new spelling adds an expression that indexes a place nobody
+ * declared, and the boundary this product publishes stops being checkable. This
+ * accessor is the whole of the reader's access to a parsed export, so "what can
+ * this product read out of your file" is answered by the path lists in
+ * personal-history-contract.js and by nothing else.
+ *
+ * TWO CHECKS, BOTH LOAD-BEARING. `declared` is the allowlist for this call site
+ * — a role path is not resolvable where a date is being read — and
+ * `DECLARED_SEGMENTS` is the allowlist for the contract as a whole, so a caller
+ * cannot invent a path by passing a list of its own. A path failing either check
+ * resolves to undefined and the export is not touched.
+ *
+ * Only own keys of plain objects are walked, per `PERSONAL_EXPORT_PATH_RULE`: an
+ * array or a string part-way along a path ends the resolution, and an inherited
+ * key never resolves at all, so a file carrying `__proto__` or `constructor` in
+ * a declared path gets nothing rather than something off the prototype chain.
+ *
+ * @param {unknown} source a parsed value from the export.
+ * @param {string} path the path to resolve.
+ * @param {ReadonlyArray<string>} declared the paths this call site may resolve.
+ * @returns {unknown} the value at that path, or undefined.
+ */
+export function readDeclaredExportPath(source, path, declared) {
+  if (!DECLARED_PATH_LISTS.has(declared) || !declared.includes(path)) return undefined;
+  const segments = DECLARED_SEGMENTS.get(path);
+  if (!segments) return undefined;
+  let value = source;
+  for (const segment of segments) {
+    if (!isRecord(value) || !Object.hasOwn(value, segment)) return undefined;
+    value = value[segment];
+  }
+  return value;
+}
+
+/**
+ * The first declared path whose value the caller accepts, or undefined. The
+ * ordinary way to read one field that an export may spell several ways.
+ */
+function readFirstDeclared(source, declared, accept) {
+  for (const path of declared) {
+    const value = readDeclaredExportPath(source, path, declared);
+    if (accept(value)) return value;
+  }
+  return undefined;
+}
 
 // ---------------------------------------------------------------------------
 // Reading a date
@@ -116,10 +193,15 @@ export function personalHistoryDate(value) {
   return stamp.toISOString().slice(0, 10) === `${year}-${month}-${day}` ? `${year}-${month}-${day}` : null;
 }
 
-function firstDate(source, fields) {
-  if (!source || typeof source !== "object") return null;
-  for (const field of fields) {
-    const date = personalHistoryDate(source[field]);
+/**
+ * The first declared date path on a record that reads as a calendar date, or
+ * null. A declared path carrying a malformed value is not a date and does not
+ * stop the search: the record's other declared path, or its conversation's, is a
+ * real date and this one is a field the export filled in wrong.
+ */
+function firstDate(source, declared) {
+  for (const path of declared) {
+    const date = personalHistoryDate(readDeclaredExportPath(source, path, declared));
     if (date) return date;
   }
   return null;
@@ -140,6 +222,11 @@ function locateColumn(header, candidates) {
   return -1;
 }
 
+/** The messages of one conversation record: the first declared path that is an array. */
+function messagesOf(conversation) {
+  return readFirstDeclared(conversation, JSON_SHAPE.messagePaths, Array.isArray) ?? null;
+}
+
 function readJsonShape(text) {
   let root = null;
   try {
@@ -147,13 +234,14 @@ function readJsonShape(text) {
   } catch {
     return null;
   }
+  // A top-level array is the shape with nothing to name; every other spelling is
+  // a declared record path and is resolved as one.
   const conversations = Array.isArray(root) ? root
-    : Array.isArray(root?.conversations) ? root.conversations : null;
+    : readFirstDeclared(root, JSON_SHAPE.conversationPaths, Array.isArray) ?? null;
   if (!conversations) return null;
   // An empty array is this shape carrying nothing, which is a different answer
   // from "not this shape" and gets the reason code that says so.
-  if (conversations.length && !conversations.some(
-    (entry) => entry && typeof entry === "object" && Array.isArray(entry.messages))) return null;
+  if (conversations.length && !conversations.some((entry) => messagesOf(entry))) return null;
   return conversations;
 }
 
@@ -183,26 +271,42 @@ export function detectPersonalExportShape(text) {
 // Extracting prompt entries
 // ---------------------------------------------------------------------------
 
-/** The text and attachment count of one JSON message. Attachments are counted, never read. */
+/**
+ * The text and attachment count of one JSON message, read from declared paths
+ * and nowhere else. Attachments are counted, never read: an attachment path
+ * contributes its array's length and a non-string part contributes one, and no
+ * filename, MIME type, or byte length is looked at on the way.
+ *
+ * A nested spelling such as `content.parts` is a declared path like any other
+ * rather than a branch that reaches into `content` — which is what makes "this
+ * reader opens the fields on that list" a statement about the contract instead
+ * of about this function.
+ */
 function messageBody(message) {
-  let attachments = Array.isArray(message?.attachments) ? message.attachments.length : 0;
+  let attachments = 0;
+  for (const path of JSON_SHAPE.attachmentPaths) {
+    const value = readDeclaredExportPath(message, path, JSON_SHAPE.attachmentPaths);
+    if (Array.isArray(value)) attachments += value.length;
+  }
   const strings = [];
-  const takeParts = (parts) => {
-    for (const part of parts) {
-      if (typeof part === "string") strings.push(part);
-      else attachments += 1;
-    }
-  };
-  for (const field of JSON_SHAPE.textFields) {
-    const value = message?.[field];
+  for (const path of JSON_SHAPE.textFields) {
+    const value = readDeclaredExportPath(message, path, JSON_SHAPE.textFields);
     if (typeof value === "string") strings.push(value);
-    else if (Array.isArray(value)) takeParts(value);
-    else if (Array.isArray(value?.parts)) takeParts(value.parts);
+    else if (Array.isArray(value)) {
+      for (const part of value) {
+        if (typeof part === "string") strings.push(part);
+        else attachments += 1;
+      }
+    }
   }
   return { text: strings.join("\n"), attachments };
 }
 
-const roleOf = (message) => String(message?.role ?? message?.author?.role ?? "").trim().toLowerCase();
+/** The role a message is attributed to, from a declared path. Unattributed reads as "". */
+function roleOf(message) {
+  const role = readFirstDeclared(message, JSON_SHAPE.rolePaths, (value) => typeof value === "string");
+  return (role ?? "").trim().toLowerCase();
+}
 
 /**
  * The file to a local list of `{ date, text }`, plus the attachment count.
@@ -216,9 +320,13 @@ function extractEntries(shapeId, text) {
 
   if (shapeId === JSON_SHAPE.id) {
     for (const conversation of readJsonShape(text) ?? []) {
-      if (!conversation || typeof conversation !== "object") continue;
+      // A record carrying no declared messages path is not a conversation this
+      // reader recognizes. It is skipped whole rather than searched for
+      // something message-shaped somewhere inside it.
+      const messages = messagesOf(conversation);
+      if (!messages) continue;
       const conversationDate = firstDate(conversation, JSON_SHAPE.dateFields);
-      for (const message of Array.isArray(conversation.messages) ? conversation.messages : []) {
+      for (const message of messages) {
         if (!READER_ROLES.has(roleOf(message))) continue;
         const body = messageBody(message);
         attachments += body.attachments;
