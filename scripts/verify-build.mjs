@@ -92,6 +92,12 @@ export async function verifyArtifact(root) {
     // silently dropping either file would leave preview/source checks green
     // while production no longer carries the reviewed contract.
     "executive-finops-briefing.js", "executive-finops-briefing-fixture.json",
+    // The briefing's printable surface. The entry imports the contract and the
+    // view and fetches the fixture above by path, so any one of these missing is
+    // either a rejected entry module or a page stuck in its loading state — and
+    // the stylesheet is what removes the site chrome from a printed briefing.
+    "executive-briefing.html", "executive-briefing-page.js",
+    "executive-briefing-view.js", "executive-briefing.css",
   ]);
   const paths = new Set(actual.map(({ path }) => path));
   for (const path of required) if (!paths.has(path)) throw new Error(`missing required UI asset: ${path}`);
