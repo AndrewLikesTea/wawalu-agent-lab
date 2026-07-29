@@ -350,3 +350,22 @@ test("artifact verification refuses to ship the FinOps front door without its de
     /missing required UI asset: finops-decision-fixture\.json/,
   );
 });
+
+test("artifact verification rejects AI FinOps first-paint and runtime copy drift", async (t) => {
+  const directory = await mkdtemp(resolve(tmpdir(), "shiplog-finops-copy-artifact-test-"));
+  t.after(async () => (await import("node:fs/promises")).rm(directory, { recursive: true, force: true }));
+  await cp(new URL("../src", import.meta.url), directory, { recursive: true });
+
+  const pagePath = resolve(directory, "evolution.html");
+  const page = await readFile(pagePath, "utf8");
+  await writeFile(pagePath, page.replace(
+    "Analyze your provider export",
+    "Analyze provider exports",
+  ));
+  await createManifest(directory);
+
+  await assert.rejects(
+    verifyArtifact(directory),
+    /AI FinOps first-paint copy drifted from its runtime contract at #finops-first-run-import/,
+  );
+});

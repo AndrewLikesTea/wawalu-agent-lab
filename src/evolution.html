@@ -32,12 +32,22 @@
         <div class="hero-copy">
           <p class="eyebrow">AI FinOps</p>
           <h1 id="page-title">Know what your<br />AI spend is buying.</h1>
-          <p id="finops-intro">Every prompt is scored for intent, efficiency, and model fit, then attributed to the org chart. One number tells you whether the spend is working; the rows below tell you where it is not.</p>
+          <!-- One sentence, and it is the outcome rather than the machinery.
+               The copy is authored here and in finops-load-status.js as
+               HERO_INTRO, because evolution-page.js repaints this slot when a
+               reader returns to the example data. -->
+          <p id="finops-intro">Import a provider export and this page names how much of your AI spend is recoverable, what to do first, and how far to trust the number.</p>
           <!-- Every slot on this page states what it does not have yet rather
                than narrating the fetch. Exactly one region — #finops-load-state
                below — is allowed to say a load is in progress; a test walks the
                document and fails on any second one. -->
-          <p class="finops-provenance" id="finops-provenance">Bundled example · organization not read yet</p>
+          <!-- Provenance, not progress. This slot used to read "organization not
+               read yet", which put a second waiting-message above the example
+               result's own state label — two lines competing to tell a reader
+               what has not happened, over an answer that was already composed.
+               It names the dataset instead, and the fetch replaces it with the
+               organization line the moment there is one. -->
+          <p class="finops-provenance" id="finops-provenance">Bundled example data</p>
         </div>
       </section>
 
@@ -67,7 +77,7 @@
            benchmark, one quantified impact, one honestly-unavailable value, and
            one recommended action with the role accountable for it. Every figure
            is composed in src/finops-first-run.js from the same bundled invented
-           dataset the "Try it with example data" button loads, through the same
+           dataset the "Try the example data" button loads, through the same
            translator, analysis, and briefing contract a reader's own file walks
            through. Nothing here is pre-computed, and no number is authored in
            this document.
@@ -195,11 +205,16 @@
           <h3 class="visually-hidden" id="finops-first-run-next-heading">Two ways to go on</h3>
           <div class="first-run-choice">
             <button class="first-run-primary" id="finops-first-run-demo" type="button" aria-describedby="finops-first-run-demo-note">Try the example data</button>
-            <p class="first-run-action-note" id="finops-first-run-demo-note">See the same six invented months in every panel below. Nothing is uploaded or stored.</p>
+            <!-- No upload promise on this one, and not by oversight: this
+                 choice never touches a file of the reader's, so the sentence
+                 would be reassuring them about a risk they are not taking —
+                 and it sits inches from the choice where the promise is the
+                 whole point. One claim, beside the control it is about. -->
+            <p class="first-run-action-note" id="finops-first-run-demo-note">Fills every panel below with the same six invented months.</p>
           </div>
           <div class="first-run-choice">
-            <button class="first-run-secondary" id="finops-first-run-import" type="button" aria-describedby="finops-first-run-import-note">Analyze local exports</button>
-            <p class="first-run-action-note" id="finops-first-run-import-note">Choose your provider exports. They stay in this tab and are not uploaded or stored.</p>
+            <button class="first-run-secondary" id="finops-first-run-import" type="button" aria-describedby="finops-first-run-import-note">Analyze your provider export</button>
+            <p class="first-run-action-note" id="finops-first-run-import-note">Choose your export files. They stay in this tab and are not uploaded or stored.</p>
           </div>
         </div>
         <p class="visually-hidden" id="finops-first-run-live" role="status" aria-live="polite" aria-atomic="true"></p>
@@ -383,7 +398,10 @@
                disclosure below, because "I have no export" is a first step a
                visitor genuinely takes, and because a synthetic path a reader
                cannot see is a synthetic path they cannot recognize as one. -->
-          <button class="local-example-action" id="try-example-dataset" type="button">Try it with example data <span class="local-example-basis">· invented sample, not your spend</span></button>
+          <!-- The same words as the first-run choice that delegates to it. Two
+               labels for one dataset — "Try the example data" up there, "Try it
+               with example data" here — read as two different things to try. -->
+          <button class="local-example-action" id="try-example-dataset" type="button">Try the example data <span class="local-example-basis">· invented sample, not your spend</span></button>
           <!-- Everything below is a second way to start, and a page that offers
                four of them beside the picker has no first step at all. They keep
                their ids, their handlers, and their copy; they lose only their

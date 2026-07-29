@@ -154,12 +154,18 @@ export const FIRST_RUN_UNAVAILABLE = Object.freeze({
 export const FIRST_RUN_ACTIONS = Object.freeze({
   demo: Object.freeze({
     label: "Try the example data",
-    note: "See the same six invented months in every panel below. Nothing is uploaded or stored.",
+    note: "Fills every panel below with the same six invented months.",
     targetId: "try-example-dataset",
   }),
   import: Object.freeze({
-    label: "Analyze local exports",
-    note: "Choose your provider exports. They stay in this tab and are not uploaded or stored.",
+    // "Analyze local exports" named the file rather than the reader, and
+    // "local" is this page's word for where the analysis runs, not for whose
+    // export it is. The two labels have to be told apart at a glance by whose
+    // data each one uses, which is the only difference that matters here.
+    label: "Analyze your provider export",
+    // The first sentence is the label of the picker this choice delegates to,
+    // so a reader who follows it meets the same words on the control itself.
+    note: "Choose your export files. They stay in this tab and are not uploaded or stored.",
     targetId: "local-finops-files",
   }),
 });

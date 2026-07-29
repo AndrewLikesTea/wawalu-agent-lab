@@ -97,7 +97,7 @@ import {
 // This module owns that division, the shape-and-word flags a metric with no
 // measurement carries, and the single next action the region always offers.
 import {
-  applyImportPresence, applyMetricFlag, applyPageLoadStatus, bindChooseFiles,
+  applyImportPresence, applyMetricFlag, applyPageLoadStatus, bindChooseFiles, HERO_INTRO,
 } from "/finops-load-status.js";
 // The populated synthetic result a first-time visitor with no export meets in
 // the first viewport. Composed from the bundled invented dataset through the
@@ -1326,9 +1326,9 @@ function mountLocalFinopsImport() {
     // reading the same fact record.
     syncPanels();
     showMetricBasis({ mode: "example" });
-    setText("finops-intro",
-      "Every prompt is scored for intent, efficiency, and model fit, then attributed to the org chart. "
-      + "One number tells you whether the spend is working; the rows below tell you where it is not.");
+    // The authored hero sentence, from the module that owns it, so a reader who
+    // clears an import lands back on the words the page shipped with.
+    setText("finops-intro", HERO_INTRO);
     announce("ready", wasExample ? "Example data cleared." : "Returned to example data.",
       wasExample
         ? "The example export, its computed finding, and every provenance label were discarded. "

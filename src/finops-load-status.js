@@ -110,14 +110,31 @@ export const IMPORT_PRESENCE = Object.freeze({
 });
 
 /**
+ * The hero's one sentence, authored in `evolution.html` and repainted here when
+ * a reader returns to the example data.
+ *
+ * It says what a visitor gets rather than how the page works: one sentence,
+ * three outcomes, no vocabulary a first-time reader has to be taught. The
+ * mechanics — scoring, attribution, the org chart — are what the panels below
+ * demonstrate, and describing them here cost the sentence its answer.
+ */
+export const HERO_INTRO = "Import a provider export and this page names how much of your AI spend "
+  + "is recoverable, what to do first, and how far to trust the number.";
+
+/**
  * What a slot says while it has no figure.
  *
  * One vocabulary, so a reader learns it once: every line names the measurement
  * that is missing and ends in "yet", which is the difference between a page
  * that has not been given a file and a page that is broken.
+ *
+ * The hero provenance slot is the one exception, and deliberately so: it names
+ * the dataset on screen rather than a measurement that has not happened. It is
+ * read before the example result's own state label, and two waiting-messages
+ * stacked above one answer is the thing that region exists to prevent.
  */
 export const SECONDARY_PLACEHOLDER = Object.freeze({
-  organization: "Bundled example · organization not read yet",
+  organization: "Bundled example data",
   score: "Not scored yet",
   coverage: "Sampled-spend coverage not measured yet",
   scoreAction: "No action ranked yet",
