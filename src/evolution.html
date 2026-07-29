@@ -703,6 +703,26 @@
              re-grade, which is what the reader pressed the button to find out.
              Its accessible name is set with the heading the view renders. -->
         <section class="prompt-coaching-change" id="prompt-coaching-change" tabindex="-1" hidden></section>
+        <!-- The copyable record of that comparison. This block is permanent
+             markup rather than rendered nodes because the change region above is
+             replaced wholesale on every repaint, and a status region that is
+             replaced may never announce: assistive technology watches a node,
+             and a new node that arrives with its text already in it is not a
+             change to anything it was watching. The textarea is both the manual
+             fallback a reader selects from and the single place the current
+             summary text lives, so the button and the box cannot disagree. It
+             holds figures, grades, and the rubric's own words — never pasted
+             prompt text — and nothing here is saved, sent, or downloaded. -->
+        <div class="prompt-coaching-copy" id="prompt-coaching-copy" hidden>
+          <h3 class="eyebrow">Take this with you</h3>
+          <p class="prompt-coaching-copy-lead" id="prompt-coaching-copy-lead">A short summary of both grades, what moved, and the next step &mdash; figures and rubric wording only, never your prompt text.</p>
+          <button type="button" id="prompt-coaching-copy-button" aria-describedby="prompt-coaching-copy-lead prompt-coaching-copy-status">Copy this coaching summary</button>
+          <p class="prompt-coaching-copy-status" id="prompt-coaching-copy-status" role="status" aria-live="polite" aria-atomic="true"></p>
+          <div class="prompt-coaching-copy-fallback" id="prompt-coaching-copy-fallback" hidden>
+            <label for="prompt-coaching-copy-text">Coaching summary to copy by hand</label>
+            <textarea id="prompt-coaching-copy-text" rows="9" readonly spellcheck="false"></textarea>
+          </div>
+        </div>
         <div class="prompt-coaching-result" id="prompt-coaching-result" hidden></div>
 
         <!-- Before you paste: what this reads, what it returns, and what it
