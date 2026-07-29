@@ -789,6 +789,60 @@
 .finops-load-state[data-state="loading"] button,.finops-load-state[data-state="ready"] button { color:#174f83; }
 .finops-load-state button:focus-visible { outline:3px solid #2a78d6; outline-offset:3px; }
 .finops-load-state button[disabled] { opacity:.55; cursor:default; }
+
+/* The first-run synthetic result: the populated answer a visitor with no export
+   meets above the fold. It reads as one block — label, sample marker, three
+   slots, the ranked action, the method disclosure, and two next steps — because
+   a figure that can be reflowed away from the sentence saying it is invented is
+   a figure that can be quoted as real. Hence the single bordered container and
+   `break-inside:avoid` on the answer grid rather than six loose siblings. */
+.first-run { display:grid; gap:16px; margin:0 0 8px; border:1px solid var(--import-line); border-left:5px solid var(--import-accent); border-radius:14px; padding:clamp(18px,3vw,26px); background:linear-gradient(150deg,var(--import-wash),#fff 58%); }
+.first-run[data-state="unavailable"] { border-color:var(--state-error-line); border-left-color:var(--state-error-line); background:var(--state-error-wash); }
+.first-run-head { display:grid; gap:6px; }
+.first-run-head .eyebrow { display:flex; align-items:baseline; flex-wrap:wrap; gap:6px; margin:0; }
+.first-run-shape { flex:none; font-size:13px; font-weight:750; }
+.first-run-head h2 { max-width:26ch; margin:0; font-size:clamp(22px,3.2vw,31px); line-height:1.18; }
+.first-run-sample { margin:0; }
+/* Three slots, and the whole grid is one print/column unit: the share, the
+   scenario, and the unavailable peer position qualify each other. */
+.first-run-slots { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px 22px; break-inside:avoid; }
+.first-run-slot { display:grid; align-content:start; gap:5px; border-top:2px solid var(--import-accent); padding-top:10px; }
+.first-run-slot-label { margin:0; color:var(--import-ink); font:700 10px/1.5 ui-monospace,monospace; letter-spacing:.07em; text-transform:uppercase; }
+.first-run-value { margin:0; color:var(--ink); font-size:clamp(19px,2.4vw,25px); font-weight:750; line-height:1.2; overflow-wrap:anywhere; }
+/* An unavailable value is never only a tint or a dash: it says the word, in the
+   slot, at a weight that reads as a state rather than as a measurement. */
+.first-run-value[data-available="false"] { color:var(--state-warn-ink); font-size:17px; font-weight:700; }
+.first-run-slot:has(>.first-run-value[data-available="false"]) { border-top-style:dashed; border-top-color:var(--state-warn-line); }
+.first-run-detail { margin:0; color:var(--ink-muted); font-size:12.5px; line-height:1.55; overflow-wrap:anywhere; }
+.first-run-recommendation { display:grid; gap:5px; border-left:3px solid var(--import-accent); padding:2px 0 2px 13px; break-inside:avoid; }
+.first-run-recommendation .eyebrow { margin:0; }
+.first-run-action-text { margin:0; max-width:70ch; color:var(--ink); font-size:16px; font-weight:650; line-height:1.5; }
+.first-run-action-text[data-available="false"] { color:var(--state-warn-ink); font-weight:700; }
+.first-run-role { margin:0; color:var(--ink-muted); font:700 12px/1.5 ui-monospace,monospace; }
+.first-run-method>summary { cursor:pointer; color:var(--import-ink); font-size:13px; font-weight:700; }
+.first-run-method>summary:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.first-run-method-list { display:grid; gap:10px; margin:12px 0 0; }
+.first-run-method-list dt { color:var(--ink-muted); font:700 10px/1.5 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; }
+.first-run-method-list dd { margin:3px 0 0; max-width:80ch; color:#4c5650; font-size:12.5px; line-height:1.6; overflow-wrap:anywhere; }
+/* Two choices, not four, and told apart by more than one channel: the filled
+   accent, the position, and the note under each say which is which. */
+.first-run-actions { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:14px 22px; }
+.first-run-choice { display:grid; align-content:start; gap:7px; }
+.first-run-choice button { min-height:46px; border-radius:9px; padding:11px 15px; font-size:14px; font-weight:750; cursor:pointer; }
+.first-run-primary { border:1px solid var(--import-accent); background:var(--import-accent); color:#fff; }
+.first-run-primary:hover { background:#25493d; }
+.first-run-secondary { border:1px solid var(--import-line); border-style:dashed; background:transparent; color:var(--import-ink); }
+.first-run-secondary:hover { border-color:var(--import-accent); border-style:solid; }
+.first-run-choice button:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.first-run-action-note { margin:0; color:var(--ink-muted); font-size:12px; line-height:1.55; }
+/* The conversion moment. Quieter than either choice above by type scale and by
+   having no filled accent at all: it is a different step, not a third way in. */
+.first-run-conversion { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px 22px; margin:0 0 22px; border:1px solid var(--panel-border); border-radius:11px; padding:14px 18px; background:#faf9f5; }
+.first-run-conversion-title { margin:0; color:var(--ink); font-size:15px; font-weight:700; }
+.first-run-conversion-body { margin:4px 0 0; max-width:66ch; color:var(--ink-muted); font-size:12.5px; line-height:1.55; }
+.first-run-conversion-action { flex:none; min-height:44px; border:1px solid #bdbbb3; border-radius:8px; padding:10px 14px; background:#fff; color:#333330; font-size:13px; font-weight:700; cursor:pointer; }
+.first-run-conversion-action:hover { border-color:#1f70c1; }
+.first-run-conversion-action:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
 .finops-panel .section-heading>p:last-child { max-width:720px; margin:12px 0 0; color:var(--ink-muted); line-height:1.55; }
 .finops-panel .list-heading { align-items:end; margin-bottom:16px; }
 .finops-panel .list-heading .section-heading { margin-bottom:0; }
@@ -1000,6 +1054,12 @@
 }
 @media(max-width:640px) {
   .finops-load-state { align-items:stretch; flex-direction:column; }
+  /* One column on a phone, and the buttons go full width: the two choices stay
+     equally reachable rather than one of them becoming a thumb-sized target. */
+  .first-run-slots,.first-run-actions { grid-template-columns:1fr; }
+  .first-run-choice button { width:100%; }
+  .first-run-conversion { align-items:stretch; flex-direction:column; }
+  .first-run-conversion-action { width:100%; }
   .proof-point-facts { grid-template-columns:1fr; }
   .proof-point-boundary { align-items:start; flex-direction:column; }
   .local-import-heading,.local-import-controls,.local-result-heading { align-items:stretch; flex-direction:column; }
