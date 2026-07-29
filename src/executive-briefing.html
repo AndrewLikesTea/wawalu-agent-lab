@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="A one-page executive FinOps briefing rendered from the canonical synthetic sample: where to act first, how much is indicated, what to do next, how far to trust it, and what bounds it." />
+    <meta name="description" content="A one-page executive FinOps briefing, built in your browser from the FinOps figures it already holds: where to act first, how much is indicated, what to do next, how far to trust it, and what bounds it. Printable, and never uploaded." />
     <title>Executive briefing · Shiplog</title>
     <link rel="stylesheet" href="/styles.css" />
     <link rel="stylesheet" href="/executive-briefing.css" />
@@ -35,17 +35,24 @@
       <section class="brief-hero" aria-labelledby="page-title">
         <p class="eyebrow">Executive FinOps briefing</p>
         <h1 id="page-title">One page,<br />one decision.</h1>
-        <p>The canonical synthetic briefing, rebuilt in this tab from the retained periods it publishes and checked against the contract that defines it. Read the first screen to act; open the two levels below to challenge it. Nothing here is uploaded, stored, or linked.</p>
+        <p>Built in this tab from the FinOps periods this browser already holds, and checked against the contract that defines it. Read the first screen to act; open the two levels below to challenge it. When this browser holds nothing to brief on, the page says so and shows the published synthetic sample instead. Nothing here is uploaded, stored, or linked.</p>
         <p class="brief-print-hint">Printing or saving as PDF keeps the whole briefing: both levels open on paper, and the site chrome comes off.</p>
       </section>
+
+      <!-- The print control is drawn here by the entry module rather than shipped
+           in the markup: a control that calls the browser's print dialog is a
+           control that does nothing on a page whose script never ran, and a dead
+           button is worse than no button. Readers who never see it keep the
+           browser's own print command, which the same code listens for. -->
+      <div id="briefing-actions" class="brief-actions"></div>
 
       <!-- The briefing is painted here. The document ships its own loading state
            so a reader on a slow connection is told what is happening rather than
            given an empty frame. -->
       <div id="executive-briefing" aria-live="polite" aria-busy="true">
         <section class="brief-state" data-state="loading" role="status">
-          <h2>Reading the canonical briefing</h2>
-          <p>Rebuilding it in this tab from the retained periods the published sample carries…</p>
+          <h2>Reading this browser's own FinOps figures</h2>
+          <p>Building the briefing in this tab from the periods retained here, or saying so and showing the published sample if there are none…</p>
         </section>
       </div>
       </main>

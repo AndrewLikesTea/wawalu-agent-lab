@@ -1,38 +1,74 @@
-// The executive briefing preview: one static document, rebuilt in the reader's
-// own tab from the canonical synthetic fixture.
+// The executive briefing: one printable document, rebuilt in the reader's own
+// tab from the figures that are already in their browser.
 //
-// The page is inspectable on purpose. It does not render the `briefing` block
+// SOURCE ORDER
+// ------------
+// The reader's own retained FinOps periods come first. They are read from this
+// browser's local workspace — the same aggregates the AI FinOps page already
+// keeps there, with the reader's own consent — and the briefing is built from
+// them by the shipped contract. Nothing is uploaded, fetched, or sent to derive
+// them: the whole computation happens between `localStorage` and this tab.
+//
+// When this browser holds nothing to brief on — retention was never chosen, was
+// declined, is on but empty, or the store cannot be read — the page says so in
+// words, in its own labelled state, and *then* draws the published synthetic
+// sample beneath it so the artifact can still be read and printed in full. The
+// sample is labelled as a sample in the notice, in the masthead, and on paper.
+//
+// The sample path is inspectable on purpose. It does not render the `briefing` block
 // the fixture publishes — it reads the fixture's *input* periods, rebuilds the
 // briefing through the shipped contract, validates the result, and only then
 // compares it to the published block. A reader who opens the fixture and the
 // contract sees exactly the arithmetic this page performed, and a drift between
 // the two is reported as an error rather than painted as a figure.
 //
-// It reads one file, from this origin, and writes nothing: no storage, no clock,
-// no import, no credential, no shareable link. That is the same boundary the
-// briefing's own safety statement makes, which is why this entry can honestly
-// render it.
+// It reads at most one file, from this origin, and writes nothing: no clock, no
+// import, no credential, no shareable link, and never a write back to the store
+// it read. That is the same boundary the briefing's own safety statement makes,
+// which is why this entry can honestly render it.
 
 import {
   buildExecutiveBriefing, validateExecutiveBriefing,
 } from "/executive-finops-briefing.js";
+import { browserFinopsWorkspaceStorage } from "/finops-workspace.js";
+import { BRIEFING_SOURCE, chooseBriefingSource } from "/executive-briefing-source.js";
 import {
   renderBriefingError,
   renderExecutiveBriefingPreview,
+  renderPrintControl,
+  renderSourceNotice,
   wireDisclosures,
+  wirePrintControl,
   wirePrintExpansion,
 } from "/executive-briefing-view.js";
 
 export const FIXTURE_PATH = "/executive-finops-briefing-fixture.json";
 
-const ORIGIN =
-  "Published synthetic sample — no import, no customer data, and not your workspace's figures.";
-
 const root = document.getElementById("executive-briefing");
+const actions = document.getElementById("briefing-actions");
 
-function paint(node) {
-  root.replaceChildren(node);
+function paint(...nodes) {
+  // `loadExecutiveBriefingPreview` is public and may be retried in the same
+  // document. Never leave a print control pointing at a briefing that an error
+  // state has just replaced.
+  actions?.replaceChildren();
+  root.replaceChildren(...nodes.filter(Boolean));
   root.setAttribute("aria-busy", "false");
+}
+
+/**
+ * Hand the finished document its behaviour: the two disclosures, the browser's
+ * own print command, and this page's print control. The control is drawn only
+ * beside a briefing — a print button over an error state offers a sheet with no
+ * figure on it.
+ */
+function activate(article) {
+  wireDisclosures(article, document);
+  wirePrintExpansion(globalThis.window ?? globalThis, article, document);
+  if (!actions) return;
+  const control = renderPrintControl();
+  actions.replaceChildren(control);
+  wirePrintControl(control, article, { scope: globalThis.window ?? globalThis, doc: document });
 }
 
 /**
@@ -60,7 +96,39 @@ async function readFixture() {
   return response.json();
 }
 
+/**
+ * Draw the briefing this browser's own retained periods produce.
+ *
+ * A contract violation here is withheld rather than painted, exactly as it is on
+ * the sample path: a briefing that fails the contract it declares cannot be
+ * quoted, and the reader is told their figures are untouched.
+ */
+function paintWorkspaceBriefing({ periods, origin, provenanceNote }) {
+  const briefing = buildExecutiveBriefing(periods);
+  const verdict = validateExecutiveBriefing(briefing);
+  if (!verdict.valid) {
+    const first = verdict.violations[0];
+    paint(renderBriefingError({
+      summary: "This browser's own briefing failed its contract",
+      detail: `The briefing built from the ${periods.length} period(s) retained here broke `
+        + `${verdict.violations.length} rule(s); the first is ${first.code} at `
+        + `“${first.path || "the briefing itself"}”.`,
+      remedy: "No figure is shown, because a briefing that fails the contract it declares cannot be "
+        + "quoted. Your retained figures were not changed, and nothing was uploaded.",
+    }));
+    return null;
+  }
+  const article = renderExecutiveBriefingPreview(briefing, { origin, provenanceNote });
+  paint(article);
+  activate(article);
+  return article;
+}
+
 export async function loadExecutiveBriefingPreview() {
+  const chosen = chooseBriefingSource(browserFinopsWorkspaceStorage());
+  if (chosen.source === BRIEFING_SOURCE.workspace) return paintWorkspaceBriefing(chosen);
+
+  const notice = renderSourceNotice(chosen.absence);
   let fixture;
   try {
     fixture = await readFixture();
@@ -111,7 +179,7 @@ export async function loadExecutiveBriefingPreview() {
   }
 
   const preview = renderExecutiveBriefingPreview(briefing, {
-    origin: ORIGIN,
+    origin: chosen.origin,
     provenanceNote: published
       ? "Rebuilt in this tab from the periods above and matched, field for field, against the briefing "
         + "the published sample carries. No clock, no random value, and no network call beyond reading "
@@ -119,9 +187,8 @@ export async function loadExecutiveBriefingPreview() {
       : "Rebuilt in this tab from the periods above. No clock, no random value, and no network call "
         + "beyond reading that one file took part.",
   });
-  paint(preview);
-  wireDisclosures(preview, document);
-  wirePrintExpansion(globalThis.window ?? globalThis, preview, document);
+  paint(notice, preview);
+  activate(preview);
   return preview;
 }
 

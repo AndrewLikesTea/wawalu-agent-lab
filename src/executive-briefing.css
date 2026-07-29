@@ -151,6 +151,42 @@
 /* Outline chip: a fixed catalogue code, not a live signal. */
 .brief-code { display:inline-block; margin-right:8px; border:1px solid var(--brief-line); border-radius:5px; padding:1px 7px; color:#5c5b56; font:700 10px/1.6 ui-monospace,monospace; letter-spacing:.05em; overflow-wrap:anywhere; }
 
+/* ------------------------------ the print control --------------------------- */
+
+/* The one control this page owns, and the only affordance above the document.
+ * It sits between the masthead and the sheet because that is where a reader
+ * decides to take the briefing with them, and it is a filled button rather than
+ * a quiet link: "make me a PDF of this" is the second thing a leader wants from
+ * an executive briefing, and the first is already on the sheet. */
+.brief-actions:empty { display:none; }
+.brief-print-control { max-width:900px; margin:0 0 22px; }
+.brief-print-button { display:inline-flex; align-items:center; gap:8px; min-height:44px; border:1px solid var(--brief-ink); border-radius:10px; padding:11px 20px; background:var(--brief-ink); color:#fff; font:700 15px/1.2 inherit; letter-spacing:-.01em; cursor:pointer; }
+/* Decorative only, and declared with the empty alternative text so a reader
+   using speech hears the label rather than the name of a glyph. A browser that
+   does not understand the alt syntax drops the whole declaration and loses an
+   ornament, which is the right thing to lose. */
+.brief-print-button::before { content:"⎙" / ""; font-size:17px; line-height:1; }
+.brief-print-button:hover { background:#2c2c26; }
+.brief-print-button:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.brief-print-note { max-width:66ch; margin:10px 0 0; color:#55554f; font-size:13.5px; line-height:1.6; }
+/* Empty until something happened, and never reserving a strip of blank page. */
+.brief-print-status:not(:empty) { max-width:66ch; margin:10px 0 0; border-left:3px solid #72520a; padding-left:12px; color:#5c4a1e; font-size:14px; line-height:1.55; }
+
+/* ------------------------- whose figures these are -------------------------- */
+
+/* Drawn above the sheet, and printed with it: a briefing built from the
+ * published sample rather than from the reader's own months has to say so
+ * everywhere it could be mistaken for a measurement, paper included. The wash is
+ * the site's caution pair, but the label word carries it — this reads the same
+ * in monochrome. */
+.brief-source-notice { max-width:900px; margin:0 0 22px; border:1px solid #e0cf8f; border-left:5px solid #72520a; border-radius:14px; padding:20px 24px; background:#fffdf3; }
+.brief-source-title { margin:0 0 8px; color:var(--brief-ink); font-size:clamp(18px,2.6vw,22px); line-height:1.3; letter-spacing:-.02em; }
+.brief-source-label { display:block; color:#72520a; font:750 11px/1.6 ui-monospace,monospace; letter-spacing:.08em; text-transform:uppercase; }
+.brief-source-notice p { max-width:70ch; margin:0 0 8px; color:#4d4d47; font-size:15px; line-height:1.6; }
+.brief-source-remedy { font-weight:650; }
+.brief-source-notice .brief-source-substitute { color:#5c5b56; font-size:13.5px; }
+.brief-source-notice p:last-child { margin-bottom:0; }
+
 /* -------------------------------- responsive ------------------------------- */
 
 @media (max-width:640px) {
@@ -161,6 +197,9 @@
   .brief-panel { padding:0 20px 22px; }
   .brief-facts { grid-template-columns:1fr; }
   .brief-figure { font-size:clamp(32px,10vw,44px); }
+  /* A control a thumb reaches for is full width rather than a target to aim at. */
+  .brief-print-button { width:100%; justify-content:center; }
+  .brief-source-notice { border-radius:12px; padding:18px 18px 18px 16px; }
 }
 
 /* ---------------------------------- print ---------------------------------- */
@@ -176,7 +215,13 @@
   html,body { background:#fff; }
   body { background-image:none; }
   .page,main,.brief-hero { width:auto; margin:0; padding:0; }
-  .site-header,.site-footer,.skip-link,.brief-print-hint,.brief-toggle-mark { display:none !important; }
+  .site-header,.site-footer,.skip-link,.brief-print-hint,.brief-toggle-mark,.brief-print-control { display:none !important; }
+  /* The notice stays. A sheet that carries a figure without saying whose figure
+     it is, is the sheet that gets quoted six weeks later as if it were real. */
+  .brief-source-notice { max-width:none; margin:0 0 12px; border:1px solid #171713; border-left:4px solid #171713; border-radius:0; padding:12px 14px; background:none !important; break-inside:avoid; }
+  .brief-source-notice p { color:#171713 !important; font-size:11px; line-height:1.45; }
+  .brief-source-title { font-size:15px; }
+  .brief-source-label,.brief-source-notice .brief-source-substitute { color:#171713; font-size:11px; }
   .brief-hero { padding-bottom:10px; }
   .brief-hero h1 { max-width:none; margin:4px 0 8px; font-size:26px; letter-spacing:-.02em; }
   .brief-hero > p:not(.eyebrow) { font-size:11px; line-height:1.45; }

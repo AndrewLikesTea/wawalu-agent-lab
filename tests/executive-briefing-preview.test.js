@@ -206,7 +206,10 @@ test("the page ships its own loading state rather than an empty frame", async ()
   const html = await readFile(PAGE, "utf8");
   assert.match(html, /<div id="executive-briefing" aria-live="polite" aria-busy="true">/);
   assert.match(html, /data-state="loading" role="status"/);
-  assert.match(html, /Reading the canonical briefing/);
+  // The state names what is actually read first: this browser's own retained
+  // periods. The sample below is the fallback, and tests/executive-briefing-local
+  // .test.js owns the states that choose between them.
+  assert.match(html, /Reading this browser's own FinOps figures/);
 });
 
 test("a workspace with nothing retained says what is absent, in the same reading order", async (t) => {

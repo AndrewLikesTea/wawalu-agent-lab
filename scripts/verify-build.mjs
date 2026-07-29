@@ -98,6 +98,11 @@ export async function verifyArtifact(root) {
     // the stylesheet is what removes the site chrome from a printed briefing.
     "executive-briefing.html", "executive-briefing-page.js",
     "executive-briefing-view.js", "executive-briefing.css",
+    // The entry now decides between this browser's own retained periods and the
+    // published sample before it draws anything, and it imports both the chooser
+    // and the workspace reader to do it. A dropped one is a rejected entry
+    // module — a page stuck on its loading state with no briefing at all.
+    "executive-briefing-source.js", "finops-workspace.js",
   ]);
   const paths = new Set(actual.map(({ path }) => path));
   for (const path of required) if (!paths.has(path)) throw new Error(`missing required UI asset: ${path}`);
