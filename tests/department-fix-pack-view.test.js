@@ -30,7 +30,7 @@ import {
   FIX_PACK_EVIDENCE_PANEL_ID, FIX_PACK_EVIDENCE_TOGGLE_ID, FIX_PACK_MORE_PANEL_ID,
   FIX_PACK_MORE_TOGGLE_ID, FIX_PACK_PRINT_ID, FIX_PACK_PRINT_STATUS_ID,
   PRINT_UNAVAILABLE_MESSAGE, applyDepartmentFixPack, clearDepartmentFixPack,
-  fixPackHandout, fixPackWorkflowAnnouncement, leadQuestion,
+  confidenceSummary, fixPackHandout, fixPackWorkflowAnnouncement, leadQuestion,
 } from "../src/department-fix-pack-view.js";
 import { formatUsd } from "../src/evolution.js";
 
@@ -276,7 +276,119 @@ test("the model is the only source of the question, the figure and the action", 
   assert.equal(action.dataset.rank, String(built.interventions[0].rank));
   assert.ok(textOf(action).includes(built.interventions[0].action.name));
   assert.equal(textOf(body(document)).includes(built.interventions[1].action.name), false);
-  assert.match(textOf(action), /Confidence High/);
+  assert.match(textOf(action), /Confidence: High/);
+});
+
+/* --------------------------- the confidence summary -------------------------- */
+//
+// The regression this file exists to hold: the level and the count of factors
+// behind it are two spans, and a flex `gap` is not a character. Without a
+// separator in the text they reach a screen reader, a clipboard and a printed
+// sheet as "Confidence Medium2 factors lowered it".
+
+test("the confidence summary carries its separator in the text, not in the gap", async () => {
+  const { document } = await openPage();
+  const lowered = intervention({
+    level: "Medium",
+    reasons: [
+      { code: "estimated_saving", detail: "The saving is apportioned.", effect: "lowered one tier" },
+      { code: "thin_classification_coverage", detail: "Coverage is thin.", effect: "lowered one tier" },
+    ],
+  });
+  applyDepartmentFixPack(document, pack({ interventions: [lowered] }));
+
+  const line = document.querySelector(".fix-pack-confidence");
+  assert.equal(confidenceSummary(fixPackHandout(pack({ interventions: [lowered] })).lead),
+    "Confidence: Medium — 2 factors lowered it");
+  assert.match(textOf(line), /Confidence: Medium — 2 factors lowered it/);
+  // The failure mode itself, named: no adjacent pair may concatenate.
+  assert.doesNotMatch(textOf(line), /Medium\d/);
+  assert.doesNotMatch(textOf(section(document)), /[a-z]\d+ factors? lowered/);
+  // The tint is never the only channel: a level word, a count and a shape.
+  assert.equal(line.dataset.level, "medium");
+  assert.equal(line.querySelector(".evidence-shape").getAttribute("aria-hidden"), "true");
+  // And the announcement reads the same string, so the two cannot drift.
+  assert.match(fixPackWorkflowAnnouncement(fixPackHandout(pack({ interventions: [lowered] }))),
+    /Confidence: Medium — 2 factors lowered it/);
+});
+
+test("one factor is singular, and no factor says so rather than saying nothing", async () => {
+  const { document } = await openPage();
+  applyDepartmentFixPack(document, pack({
+    interventions: [intervention({ level: "Low", reasons: [{ code: "unpriced_saving" }] })],
+  }));
+  assert.match(textOf(document.querySelector(".fix-pack-confidence")),
+    /Confidence: Low — 1 factor lowered it/);
+
+  applyDepartmentFixPack(document, pack({ interventions: [intervention({ level: "High" })] }));
+  assert.match(textOf(document.querySelector(".fix-pack-confidence")),
+    /Confidence: High — nothing lowered it/);
+});
+
+/* ------------------------------- reading order ------------------------------- */
+
+/** The five things a lead reads, in the order this surface promises them. */
+const READING_ORDER = (built) => [
+  built.interventions[0].action.name,
+  `${formatUsd(built.interventions[0].monthlySavingsUsd)} a month`,
+  "Confidence: High",
+  built.interventions[0].provenance.rubricVersion,
+  `${built.interventions[0].signal.numerator} of ${built.interventions[0].signal.denominator}`,
+];
+
+/** Assert that every fragment appears, once, in the given order. */
+function readsInOrder(text, fragments, what) {
+  let cursor = -1;
+  for (const fragment of fragments) {
+    const next = text.indexOf(fragment, cursor + 1);
+    assert.ok(next > cursor, `${what}: "${fragment}" is out of reading order in: ${text}`);
+    cursor = next;
+  }
+}
+
+test("the action, its value, its confidence and its provenance read in that order", async () => {
+  const { document } = await openPage();
+  const built = pack({ interventions: THREE });
+  applyDepartmentFixPack(document, built);
+  document.getElementById(FIX_PACK_EVIDENCE_TOGGLE_ID).click();
+
+  readsInOrder(textOf(section(document)), READING_ORDER(built), "the painted panel");
+  // The roll-up is context for the decision, so it reads after the decision.
+  const text = textOf(section(document));
+  assert.ok(text.indexOf("Across this department") > text.indexOf(built.interventions[0].action.name));
+  // Nothing is placed by CSS order, so the announcement reads the same way.
+  readsInOrder(fixPackWorkflowAnnouncement(fixPackHandout(built)),
+    READING_ORDER(built).slice(0, 4), "the announcement");
+});
+
+/* ---------------------------- implausible extremes --------------------------- */
+
+test("an implausible figure is refused rather than printed as a numeral", async () => {
+  const { document } = await openPage();
+  const absurd = 9.9e17;
+  applyDepartmentFixPack(document, pack({
+    interventions: [intervention({ monthlySavingsUsd: absurd })],
+    totals: { monthlySavingsUsd: absurd, pricedCount: 1, complete: true },
+  }));
+
+  const text = textOf(section(document));
+  assert.equal(text.includes(formatUsd(absurd)), false,
+    "an absurd figure reached the sheet a lead would carry into a meeting");
+  assert.match(text, /Needs review/);
+  assert.match(textOf(document.querySelector(".fix-pack-metric-label")),
+    /outside the display range/);
+  assert.equal(document.querySelector(".fix-pack-metric").dataset.available, "false");
+});
+
+test("a negative monthly value is refused on the same rule as an enormous one", async () => {
+  const { document } = await openPage();
+  applyDepartmentFixPack(document, pack({
+    interventions: [intervention({ monthlySavingsUsd: -4200 })],
+    totals: { monthlySavingsUsd: -4200, pricedCount: 1, complete: true },
+  }));
+  const text = textOf(section(document));
+  assert.equal(text.includes("-$4,200"), false);
+  assert.match(text, /Needs review/);
 });
 
 test("an incomplete total says how many actions are outside it and why", async () => {
@@ -310,18 +422,16 @@ test("an unpriced lead action is refused a figure rather than shown at zero", as
     /No dollar figure is claimed for this department/);
 });
 
-test("the announcement reads question, then money, then the one action", async () => {
+test("the announcement reads question, then the action, then the roll-up", async () => {
   await openPage();
   const built = pack({ interventions: THREE });
   const sentence = fixPackWorkflowAnnouncement(fixPackHandout(built));
-  const order = ["What should Atlas Platform", formatUsd(built.totals.monthlySavingsUsd),
-    "Do this first", built.interventions[0].action.name, "confidence High"];
-  let cursor = -1;
-  for (const fragment of order) {
-    const next = sentence.indexOf(fragment);
-    assert.ok(next > cursor, `${fragment} is out of reading order in: ${sentence}`);
-    cursor = next;
-  }
+  readsInOrder(sentence, [
+    "What should Atlas Platform", "Do this first", built.interventions[0].action.name,
+    `${formatUsd(built.interventions[0].monthlySavingsUsd)} a month`, "Confidence: High",
+    built.interventions[0].provenance.rubricVersion,
+    "Across this department", formatUsd(built.totals.monthlySavingsUsd),
+  ], "the announcement");
 });
 
 /* ---------------------------- disclosure behaviour --------------------------- */
@@ -375,6 +485,31 @@ test("the evidence disclosure opens from the keyboard and keeps focus on its con
   pressEnter(document);
   assert.equal(document.getElementById(FIX_PACK_EVIDENCE_TOGGLE_ID).getAttribute("aria-expanded"), "false");
   assert.equal(document.getElementById(FIX_PACK_EVIDENCE_PANEL_ID).hidden, true);
+});
+
+test("every control is reachable by keyboard, in the order the panel reads", async () => {
+  const { document } = await openPage();
+  applyDepartmentFixPack(document, pack({ interventions: THREE }), { scope: fakeScope() });
+
+  const reachable = tabSequence(document).map((node) => node.id)
+    .filter((id) => id.startsWith("department-fix-pack"));
+  assert.deepEqual(reachable,
+    [FIX_PACK_EVIDENCE_TOGGLE_ID, FIX_PACK_MORE_TOGGLE_ID, FIX_PACK_PRINT_ID],
+    "focus order does not follow the reading order");
+
+  // The second disclosure opens from the keyboard too, and hands focus back to
+  // the control that opened it rather than to the top of the document.
+  document.getElementById(FIX_PACK_MORE_TOGGLE_ID).focus();
+  pressEnter(document);
+  assert.equal(document.activeElement.id, FIX_PACK_MORE_TOGGLE_ID);
+  assert.equal(document.getElementById(FIX_PACK_MORE_TOGGLE_ID).getAttribute("aria-expanded"), "true");
+  assert.equal(document.getElementById(FIX_PACK_MORE_PANEL_ID).hidden, false);
+  // Opening one disclosure does not open or close the other.
+  assert.equal(document.getElementById(FIX_PACK_EVIDENCE_TOGGLE_ID).getAttribute("aria-expanded"), "false");
+
+  pressEnter(document);
+  assert.equal(document.getElementById(FIX_PACK_MORE_PANEL_ID).hidden, true);
+  assert.equal(document.activeElement.id, FIX_PACK_MORE_TOGGLE_ID);
 });
 
 test("the other interventions appear only once their control is pressed", async () => {
@@ -545,6 +680,36 @@ test("the browser's own print command gets the same sheet as the button", async 
   scope.fire("afterprint");
   assert.equal(document.documentElement.dataset.departmentHandout, undefined);
   assert.equal(document.getElementById(FIX_PACK_EVIDENCE_PANEL_ID).hidden, true);
+});
+
+test("the printed sheet carries the whole decision, in the reading order", async () => {
+  const { document } = await openPage();
+  const built = pack({ interventions: THREE });
+  const scope = fakeScope();
+  applyDepartmentFixPack(document, built, { scope });
+  scope.capture = () => textOf(section(document));
+
+  document.getElementById(FIX_PACK_PRINT_ID).click();
+
+  const sheet = scope.snapshot;
+  // The question names the department, so a sheet cannot be filed against the
+  // wrong one, and the five things a lead defends the action with are in order.
+  readsInOrder(sheet, [leadQuestion(built.department), ...READING_ORDER(built)], "the sheet");
+  // The rest of what the sheet must carry, whether or not the reader opened it.
+  for (const row of built.interventions) assert.ok(sheet.includes(row.action.name));
+  assert.match(sheet, /Prompt text withheld/);
+  assert.match(sheet, /Across this department/);
+  assert.ok(sheet.includes(built.basis.source), "the spend basis is not on the sheet");
+});
+
+test("the print stylesheet keeps the sheet to one page's worth of blocks", async () => {
+  const css = await readFile(STYLESHEET, "utf8");
+  const print = css.slice(css.indexOf('html[data-department-handout="printing"]'));
+  // A handout is a page, so it gets a page: margins, and no widowed heading.
+  assert.match(print, /@page\s*\{[^}]*margin/);
+  assert.match(print, /\.fix-pack-lead\s*\{[^}]*break-inside\s*:\s*avoid/);
+  // The live region is a screen affordance; on paper it is the same sentence twice.
+  assert.match(print, /#department-fix-pack-live\s*\{\s*display:none/);
 });
 
 test("the print stylesheet isolates the handout and opens its panels on paper", async () => {

@@ -300,6 +300,20 @@ test("artifact verification rejects an imported briefing without its peer benchm
   );
 });
 
+test("artifact verification rejects AI FinOps without a department drill-down view", async (t) => {
+  const directory = await mkdtemp(resolve(tmpdir(), "shiplog-department-view-artifact-test-"));
+  t.after(async () => (await import("node:fs/promises")).rm(directory, { recursive: true, force: true }));
+  await cp(new URL("../src", import.meta.url), directory, { recursive: true });
+
+  await (await import("node:fs/promises")).rm(resolve(directory, "department-fix-pack-view.js"));
+  await createManifest(directory);
+
+  await assert.rejects(
+    verifyArtifact(directory),
+    /missing required UI asset: department-fix-pack-view\.js/,
+  );
+});
+
 test("artifact verification probes the executive FinOps contract and canonical fixture together", async (t) => {
   const directory = await mkdtemp(resolve(tmpdir(), "shiplog-finops-briefing-artifact-test-"));
   t.after(async () => (await import("node:fs/promises")).rm(directory, { recursive: true, force: true }));

@@ -52,6 +52,11 @@ export async function verifyArtifact(root) {
     "post.html", "post-page.js", "post-detail.js",
     "evolution.html", "evolution-page.js", "evolution.css",
     "finops-panel-contract.js", "finops-panel-contract-view.js", "panel-status-view.js",
+    // The department drill-down is painted by these live views. Both are direct
+    // imports of the AI FinOps entry module, so dropping either from a narrowed
+    // artifact prevents that entry module from evaluating and leaves the fix
+    // pack and its evidence in their static loading states.
+    "department-evidence-view.js", "department-fix-pack-view.js",
     // The import guidance in evolution.html is only the static first paint.
     // These modules render the staged picker, recovery actions, load status,
     // and guided result that must use the same input contract after scripts

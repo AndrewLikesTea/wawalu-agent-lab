@@ -110,6 +110,43 @@ test("the reviewed intervention is never overwritten by a computed one", async (
   assert.doesNotMatch(shown(document, "action-status"), /Computed recommendation/);
 });
 
+test("drilling in paints the evidence panel and the fix pack for that department", async () => {
+  const document = await openPage();
+  drillInto(document, UNREVIEWED.id);
+
+  // The two sections `evolution.html` ships empty are filled by the drill-down,
+  // for the department the reader actually pressed.
+  const evidence = document.getElementById("department-evidence");
+  assert.equal(evidence.hidden, false);
+  assert.equal(evidence.querySelector("h2").textContent, "Evidence behind this grade",
+    "the panel's own markup did not survive the drill-down");
+  assert.ok(textOf(evidence).includes(UNREVIEWED.name));
+
+  // The bundled record carries no classified prompt, so the fix pack publishes
+  // its withheld reading rather than a recommendation nobody graded — and every
+  // intervention it considered is still named, each with its reason.
+  const pack = document.getElementById("department-fix-pack");
+  assert.equal(pack.hidden, false);
+  assert.equal(pack.dataset.state, "withheld");
+  assert.match(textOf(pack), /Not enough evidence to prioritize an action/);
+  assert.match(textOf(pack), /Considered and not offered/);
+  assert.match(textOf(pack), /department_not_graded/);
+  assert.ok(textOf(pack).includes(`What should ${UNREVIEWED.name}`));
+  // No figure is invented for a department nothing was classified against.
+  assert.equal(/\$\d/.test(textOf(pack)), false);
+});
+
+test("the evidence list in the benchmark disclosure is its own element again", async () => {
+  const document = await openPage();
+  drillInto(document, REVIEWED.id);
+  // Two elements once shared the id `department-evidence`, so this list's
+  // repaint emptied the panel above it. Both are present, and distinct.
+  const list = document.getElementById("department-evidence-list");
+  assert.equal(list.tagName, "UL");
+  assert.notEqual(list, document.getElementById("department-evidence"));
+  assert.ok(list.querySelectorAll("li").length > 0, "the scored evidence list is empty");
+});
+
 const PAINTED_SLOTS = ["action-status", "action-title", "action-rationale", "action-impact",
   "action-confidence", "action-owner", "action-provenance", "action-baseline",
   "action-target", "action-estimate", "action-realized", "action-diagnosis"];

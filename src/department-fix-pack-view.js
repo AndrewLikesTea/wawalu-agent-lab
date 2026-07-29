@@ -33,6 +33,7 @@
 
 import { formatPercent, formatUsd } from "./evolution.js";
 import { sanitizeDepartmentLabel } from "./department-intervention-scoring.js";
+import { TRUST_LABEL, metricState } from "./finops-display.js";
 
 export const FIX_PACK_SECTION_ID = "department-fix-pack";
 export const FIX_PACK_BODY_ID = "department-fix-pack-body";
@@ -123,7 +124,21 @@ const SHELL = Object.freeze({
 /** The pack states this surface knows how to draw. `ready` is the fifth. */
 const KNOWN_STATES = new Set([...Object.keys(SHELL), "ready"]);
 
+/** A shape per confidence level, so the tint is never the only channel. */
+const CONFIDENCE_SHAPE = Object.freeze({
+  high: "●", medium: "◐", low: "○", unstated: "◌",
+});
+
 const NO_FIGURE = "No dollar figure";
+/**
+ * What an implausible figure reads as.
+ *
+ * `metricState` is the display trust boundary the executive cards already use,
+ * and `TRUST_LABEL.needsReview` is the wording every other refusal on this site
+ * carries. A pack that hands over 1e18 gets the refusal rather than the numeral:
+ * an absurd figure printed on a handout is a figure a lead takes into a meeting.
+ */
+const IMPLAUSIBLE_FIGURE = `${TRUST_LABEL.needsReview} — figure outside the display range`;
 const MAX_INTERVENTIONS = 3;
 const MAX_EXCLUDED = 3;
 const MAX_MODELS = 24;
@@ -149,11 +164,41 @@ function shapeSpan(doc, glyph) {
 
 const chip = (doc, text) => element(doc, "span", "evidence-chip", text);
 
+/* ------------------------------- separators --------------------------------- */
+//
+// A `gap` separates two spans on screen and separates nothing at all in the
+// accessibility tree, in `textContent`, or in a line a reader copies out: the
+// confidence summary used to be announced as "Confidence Medium2 factors
+// lowered it". Every adjacent pair on this surface is joined by a real
+// character instead — visible where the parts read as one sentence, and
+// `.visually-hidden` where a grid has already put them on their own lines and a
+// printed dash would be noise.
+
+const SEPARATOR = " — ";
+
+const withSeparators = (nodes, between) => nodes.filter(Boolean)
+  .flatMap((node, index) => (index ? [between(), node] : [node]));
+
+/** Joined by a separator the eye reads too. */
+const joined = (doc, nodes, mark = SEPARATOR) =>
+  withSeparators(nodes, () => doc.createTextNode(mark));
+
+/** Joined for the ear and the clipboard; the layout carries the eye. */
+const quietlyJoined = (doc, nodes, mark = SEPARATOR) =>
+  withSeparators(nodes, () => element(doc, "span", "visually-hidden", mark));
+
 const countText = (value) =>
   (Number.isFinite(value) ? Math.round(value) : 0).toLocaleString("en-US");
 
-/** A dollar figure, or the refusal. `null` is never formatted as `$0`. */
-const money = (usd) => (Number.isFinite(usd) ? formatUsd(usd) : NO_FIGURE);
+/** Whether a figure is inside the range this site publishes numerals in. */
+const plausibleUsd = (usd) => Number.isFinite(usd) && metricState(usd, "spendUsd").plausible;
+
+/**
+ * A dollar figure, or the refusal. `null` is never formatted as `$0`, and an
+ * implausible extreme is named as one rather than printed.
+ */
+const money = (usd) => (!Number.isFinite(usd) ? NO_FIGURE
+  : plausibleUsd(usd) ? formatUsd(usd) : IMPLAUSIBLE_FIGURE);
 
 const share = (value) => (Number.isFinite(value) ? formatPercent(value) : "—");
 
@@ -311,22 +356,69 @@ export function fixPackHandout(pack, { status = "ready" } = {}) {
 }
 
 /**
+ * The confidence field as one string, authored once.
+ *
+ * The line on screen, the printed sheet and the announcement all read this, so
+ * the level and the count of factors behind it cannot drift apart — and the
+ * separator is part of the string rather than part of the layout, which is what
+ * stops "Confidence: Medium" and "2 factors lowered it" running together.
+ */
+export function confidenceSummary(intervention) {
+  const { level, reasons } = intervention.confidence;
+  const count = reasons.length;
+  return `Confidence: ${level ?? "unstated"}${SEPARATOR}${count
+    ? `${countText(count)} factor${count === 1 ? "" : "s"} lowered it`
+    : "nothing lowered it"}`;
+}
+
+/** The lead action's own money, in the words the metric line uses. */
+const leadValueText = (lead) => (lead.monthlySavingsUsd === null
+  ? "No dollar figure — ranked on recoverable prompt-points alone."
+  : `${money(lead.monthlySavingsUsd)} a month`);
+
+/** The versions that say which model produced this recommendation. */
+function provenanceTerms(handout) {
+  const { provenance } = handout.lead;
+  return [
+    `Fix pack ${provenance.fixPackVersion ?? handout.version ?? "unstated"}`,
+    `rubric ${provenance.rubricVersion ?? "unstated"}`,
+    `classifier ${provenance.classifierVersion ?? "unstated"}`,
+    `routing rule ${provenance.routingRuleVersion ?? "not run"}`,
+    `source ${provenance.source ?? "unstated"}`,
+  ];
+}
+
+/** The department roll-up in words, or the refusal it is owed. */
+function rollupText(handout) {
+  const total = handout.totals.monthlySavingsUsd;
+  if (handout.totals.pricedCount < 1) return "No dollar figure is claimed for this department";
+  if (!plausibleUsd(total)) {
+    return `${TRUST_LABEL.needsReview} — the prioritized total is outside the display `
+      + "range, so no figure is published for this department";
+  }
+  return `${money(total)} a month across ${countText(handout.totals.pricedCount)} priced `
+    + `action${handout.totals.pricedCount === 1 ? "" : "s"}`;
+}
+
+/**
  * The handout as one ordered sentence, for the live region and for a test that
  * would rather assert the reading order as a string than walk the DOM.
+ *
+ * The order is the DOM's and the sheet's: the action first, then its monthly
+ * value, then confidence, then the versions behind it, then the department
+ * roll-up the action sits inside.
  */
 export function fixPackWorkflowAnnouncement(handout) {
   if (handout.state !== "ready" || !handout.lead) {
     return `${handout.question} ${SHELL[handout.state]?.title ?? "No answer available"}.`;
   }
-  const total = handout.totals.pricedCount > 0
-    ? `${money(handout.totals.monthlySavingsUsd)} a month is prioritized for this department.`
-    : "No dollar figure is claimed for this department.";
+  const lead = handout.lead;
   const unpriced = handout.totals.complete ? ""
     : ` ${countText(handout.totals.unpricedCount)} further action`
       + `${handout.totals.unpricedCount === 1 ? " carries" : "s carry"} no dollar figure.`;
-  return `${handout.question} ${total}${unpriced} Do this first: ${handout.lead.name}`
-    + ` — ${money(handout.lead.monthlySavingsUsd)} a month, confidence `
-    + `${handout.lead.confidence.level ?? "unstated"}.`;
+  return `${handout.question} Do this first: ${lead.name}. ${leadValueText(lead)}. `
+    + `${confidenceSummary(lead)}. ${provenanceTerms(handout).join(" · ")}. `
+    + `Across this department: ${rollupText(handout)}.${unpriced}`;
 }
 
 /* --------------------------------- painting --------------------------------- */
@@ -436,7 +528,7 @@ function shellBlock(doc, handout) {
   block.dataset.state = handout.state;
 
   const status = element(doc, "p", "fix-pack-shell-status");
-  status.append(shapeSpan(doc, shell.shape),
+  status.append(shapeSpan(doc, shell.shape), doc.createTextNode(" "),
     element(doc, "span", "fix-pack-shell-word", shell.word));
 
   block.append(
@@ -450,11 +542,11 @@ function shellBlock(doc, handout) {
   // from a newer model has to read as something rather than vanish.
   if (handout.reasonCode) {
     const reason = element(doc, "p", "fix-pack-reason");
-    reason.append(
+    reason.append(...quietlyJoined(doc, [
       element(doc, "span", "fix-pack-reason-text",
         REASON_SENTENCE[handout.reasonCode] ?? "The model declined to prioritize an action."),
       chip(doc, handout.reasonCode),
-    );
+    ]));
     block.append(reason);
   }
   // The actions are still named when they are refused. A reader told "nothing
@@ -472,13 +564,13 @@ function shellBlock(doc, handout) {
 
 function excludedItem(doc, row) {
   const item = element(doc, "li", "fix-pack-excluded-row");
-  item.append(
+  item.append(...quietlyJoined(doc, [
     element(doc, "span", "fix-pack-excluded-name", row.name ?? row.actionId ?? "Unnamed action"),
     chip(doc, KIND_WORD[row.kind] ?? row.kind ?? "unclassified"),
     element(doc, "span", "fix-pack-excluded-reason",
       REASON_SENTENCE[row.reasonCode] ?? "Not offered for this department."),
     chip(doc, row.reasonCode ?? "unstated"),
-  );
+  ]));
   return item;
 }
 
@@ -490,24 +582,99 @@ function excludedItem(doc, row) {
 
 function leadBlock(doc, handout) {
   const block = element(doc, "div", "fix-pack-lead");
+  block.append(
+    element(doc, "h3", "fix-pack-question", handout.question),
+    actionBlock(doc, handout),
+    rollupBlock(doc, handout),
+  );
+  return block;
+}
+
+/**
+ * The one action, and everything a lead needs to defend choosing it: what to do,
+ * what it is worth a month, how sure the model is, and which versions said so.
+ *
+ * That is also the order it is read in — by an eye down the block, by a screen
+ * reader through the DOM, and by anyone holding the printed sheet.
+ */
+function actionBlock(doc, handout) {
   const lead = handout.lead;
+  const action = element(doc, "div", "fix-pack-action");
+  action.dataset.rank = String(lead.rank ?? 1);
+  action.dataset.priced = String(lead.monthlySavingsUsd !== null);
+  const heading = element(doc, "h4", "fix-pack-action-name");
+  heading.append(shapeSpan(doc, "▶"), doc.createTextNode(" "),
+    element(doc, "span", "fix-pack-action-words", lead.name));
 
-  block.append(element(doc, "h3", "fix-pack-question", handout.question));
-
-  const metric = element(doc, "div", "fix-pack-metric");
-  metric.dataset.available = String(handout.totals.pricedCount > 0);
-  const figure = element(doc, "p", "fix-pack-metric-figure",
-    handout.totals.pricedCount > 0 ? money(handout.totals.monthlySavingsUsd) : NO_FIGURE);
+  const value = element(doc, "div", "fix-pack-action-value");
+  value.dataset.priced = String(lead.monthlySavingsUsd !== null);
   // The numeral is decorative in the accessibility tree: the line under it says
   // the same thing in words, and a screen reader that read both would say it twice.
+  const figure = element(doc, "p", "fix-pack-action-figure",
+    lead.monthlySavingsUsd === null ? NO_FIGURE : money(lead.monthlySavingsUsd));
+  figure.setAttribute("aria-hidden", "true");
+  value.append(figure, element(doc, "p", "fix-pack-action-value-label", leadValueText(lead)));
+
+  action.append(
+    element(doc, "p", "eyebrow", "Do this first"),
+    heading,
+    chip(doc, KIND_WORD[lead.kind] ?? lead.kind ?? "unclassified"),
+    element(doc, "p", "fix-pack-action-summary", lead.summary ?? ""),
+    value,
+    confidenceLine(doc, lead),
+    provenanceLine(doc, handout),
+  );
+  return action;
+}
+
+/**
+ * The confidence field, naming the factor that capped it.
+ *
+ * A bare "Medium" is the kind of number a lead cannot argue with and therefore
+ * does not believe. The count of reasons travels with the level in one string,
+ * separator included, and the reasons themselves are one control away.
+ */
+function confidenceLine(doc, intervention) {
+  const level = String(intervention.confidence.level ?? "unstated").toLowerCase();
+  const line = element(doc, "p", "confidence-chip fix-pack-confidence");
+  line.dataset.level = level;
+  // Level, shape and count: three channels, so the tint is never the only one.
+  line.append(
+    shapeSpan(doc, CONFIDENCE_SHAPE[level] ?? CONFIDENCE_SHAPE.unstated),
+    element(doc, "span", "fix-pack-confidence-text", confidenceSummary(intervention)),
+  );
+  return line;
+}
+
+/**
+ * The versions behind the recommendation, in front of the reader rather than
+ * behind a control: "which model said this" is part of deciding, not part of
+ * auditing, and the printed sheet has to carry it either way.
+ */
+function provenanceLine(doc, handout) {
+  const line = element(doc, "p", "fix-pack-action-provenance");
+  line.append(...joined(doc,
+    provenanceTerms(handout).map((term) =>
+      element(doc, "span", "fix-pack-provenance-term", term)), " · "));
+  return line;
+}
+
+/**
+ * The department roll-up the one action sits inside — context for the decision,
+ * so it reads after it and at a smaller step than the action's own figure.
+ */
+function rollupBlock(doc, handout) {
+  const metric = element(doc, "div", "fix-pack-metric");
+  const priced = handout.totals.pricedCount > 0
+    && plausibleUsd(handout.totals.monthlySavingsUsd);
+  metric.dataset.available = String(priced);
+  const figure = element(doc, "p", "fix-pack-metric-figure",
+    handout.totals.pricedCount > 0 ? money(handout.totals.monthlySavingsUsd) : NO_FIGURE);
   figure.setAttribute("aria-hidden", "true");
   metric.append(
+    element(doc, "p", "eyebrow", "Across this department"),
     figure,
-    element(doc, "p", "fix-pack-metric-label", handout.totals.pricedCount > 0
-      ? `${money(handout.totals.monthlySavingsUsd)} a month across `
-        + `${countText(handout.totals.pricedCount)} priced action`
-        + `${handout.totals.pricedCount === 1 ? "" : "s"}`
-      : "No dollar figure is claimed for this department"),
+    element(doc, "p", "fix-pack-metric-label", rollupText(handout)),
   );
   if (!handout.totals.complete) {
     const caveat = element(doc, "p", "fix-pack-metric-caveat");
@@ -518,46 +685,7 @@ function leadBlock(doc, handout) {
         .map((code) => UNPRICED_SENTENCE[code] ?? code).join("; ")}.`));
     metric.append(caveat);
   }
-  block.append(metric);
-
-  const action = element(doc, "div", "fix-pack-action");
-  action.dataset.rank = String(lead.rank ?? 1);
-  action.dataset.priced = String(lead.monthlySavingsUsd !== null);
-  const heading = element(doc, "h4", "fix-pack-action-name");
-  heading.append(shapeSpan(doc, "▶"), element(doc, "span", "fix-pack-action-words", lead.name));
-  action.append(
-    element(doc, "p", "eyebrow", "Do this first"),
-    heading,
-    chip(doc, KIND_WORD[lead.kind] ?? lead.kind ?? "unclassified"),
-    element(doc, "p", "fix-pack-action-summary", lead.summary ?? ""),
-    element(doc, "p", "fix-pack-action-value", lead.monthlySavingsUsd === null
-      ? "No dollar figure — ranked on recoverable prompt-points alone."
-      : `${money(lead.monthlySavingsUsd)} a month`),
-    confidenceLine(doc, lead),
-  );
-  block.append(action);
-  return block;
-}
-
-/**
- * The confidence field, naming the factor that capped it.
- *
- * A bare "Medium" is the kind of number a lead cannot argue with and therefore
- * does not believe. The count of reasons is printed beside the level and the
- * reasons themselves are one control away, so "what would make this high?" has
- * an answer without the answer crowding the decision.
- */
-function confidenceLine(doc, intervention) {
-  const { level, reasons } = intervention.confidence;
-  const line = element(doc, "p", "confidence-chip fix-pack-confidence");
-  line.dataset.level = String(level ?? "unstated").toLowerCase();
-  line.append(
-    element(doc, "span", "confidence-chip-label", `Confidence ${level ?? "unstated"}`),
-    element(doc, "span", "fix-pack-confidence-detail", reasons.length
-      ? `${countText(reasons.length)} factor${reasons.length === 1 ? "" : "s"} lowered it — see the pattern evidence`
-      : "Nothing lowered it"),
-  );
-  return line;
+  return metric;
 }
 
 /* --------------------------- progressive disclosure -------------------------- */
@@ -647,7 +775,9 @@ function otherItem(doc, row) {
   const item = element(doc, "li", "fix-pack-other");
   item.dataset.rank = String(row.rank ?? "");
   item.dataset.priced = String(row.monthlySavingsUsd !== null);
-  item.append(
+  // The grid puts these on their own lines; the separators put them on their own
+  // lines for a reader who hears the row instead of seeing it.
+  item.append(...quietlyJoined(doc, [
     element(doc, "span", "fix-pack-other-rank", `Rank ${countText(row.rank)}`),
     element(doc, "span", "fix-pack-other-name", row.name ?? row.actionId ?? "Unnamed action"),
     chip(doc, KIND_WORD[row.kind] ?? row.kind ?? "unclassified"),
@@ -655,10 +785,9 @@ function otherItem(doc, row) {
       ? `${NO_FIGURE} — ${UNPRICED_SENTENCE[row.savings.unpricedReasonCode]
         ?? row.savings.unpricedReasonCode ?? "unstated"}`
       : `${money(row.monthlySavingsUsd)} a month`),
-    element(doc, "span", "fix-pack-other-confidence",
-      `Confidence ${row.confidence.level ?? "unstated"}`),
+    element(doc, "span", "fix-pack-other-confidence", confidenceSummary(row)),
     element(doc, "span", "fix-pack-other-pattern", patternSentence(row)),
-  );
+  ]));
   return item;
 }
 
@@ -718,12 +847,12 @@ function savingsBlock(doc, handout) {
     const models = element(doc, "ul", "fix-pack-model-list");
     for (const row of lead.savings.models) {
       const item = element(doc, "li", "fix-pack-model");
-      item.append(
+      item.append(...quietlyJoined(doc, [
         chip(doc, row.model ?? "unrecognized"),
         element(doc, "span", "fix-pack-model-move",
           `${row.tier ?? "unstated"} → ${row.proposedTier ?? "unstated"}`),
         element(doc, "span", "fix-pack-model-value", money(row.recoverableUsd)),
-      );
+      ]));
       models.append(item);
     }
     block.append(models);
@@ -748,13 +877,13 @@ function confidenceBlock(doc, lead) {
   for (const reason of reasons) {
     const item = element(doc, "li", "fix-pack-confidence-reason");
     item.dataset.inherited = String(reason.inherited);
-    item.append(
+    item.append(...quietlyJoined(doc, [
       chip(doc, reason.code),
       element(doc, "span", "fix-pack-confidence-reason-text",
         reason.detail ?? "No detail was published for this factor."),
       element(doc, "span", "fix-pack-confidence-reason-effect",
         reason.inherited ? "inherited from the routing rule" : (reason.effect ?? "lowered one tier")),
-    );
+    ]));
     items.append(item);
   }
   block.append(items);
@@ -776,7 +905,8 @@ function provenanceBlock(doc, handout) {
   ]));
   if (provenance.evidence.length) {
     const keys = element(doc, "p", "fix-pack-evidence-keys");
-    for (const entry of provenance.evidence) keys.append(chip(doc, entry));
+    keys.append(...quietlyJoined(doc,
+      provenance.evidence.map((entry) => chip(doc, entry)), ", "));
     block.append(keys);
   }
   if (handout.redaction.droppedInputFields.length) {
@@ -790,12 +920,11 @@ function provenanceBlock(doc, handout) {
 
 function redactionBlock(doc, handout) {
   const block = element(doc, "p", "evidence-privacy fix-pack-privacy");
-  block.append(
-    shapeSpan(doc, "▨"),
+  block.append(shapeSpan(doc, "▨"), doc.createTextNode(" "), ...joined(doc, [
     element(doc, "strong", "evidence-privacy-label", "Prompt text withheld"),
     element(doc, "span", "evidence-privacy-copy",
       "This surface publishes counts, shares and dollars. No prompt text reaches it."),
-  );
+  ]));
   return block;
 }
 
