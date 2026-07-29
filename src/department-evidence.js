@@ -30,6 +30,7 @@ import {
   MAX_SKETCH_SIGNATURES, PROMPT_LENGTH_BANDS,
 } from "./conversation-literacy.js";
 import { MIN_JOINED_RECORDS_FOR_GRADE } from "./query-literacy.js";
+import { departmentFixPack } from "./department-fix-pack.js";
 
 /** Bump when a state, a field, or the reading order changes meaning. */
 export const DEPARTMENT_EVIDENCE_VERSION = "department-evidence/1.0.0";
@@ -163,6 +164,8 @@ const isRow = (value) => Boolean(value) && typeof value === "object";
  *   `grading` is a `promptGradingEligibility` verdict, or null when the caller
  *   has not run it. `status` is `"ready"`, `"loading"` or `"error"` — the two
  *   states no result can describe, because there is no result yet.
+ *   `routing` and `basis` are `department-fix-pack.js`'s inputs, both optional:
+ *   without them the fix pack still publishes its actions, unpriced and saying so.
  * @returns the frozen view model, or a loading/empty/error model.
  */
 export function departmentEvidenceModel({
@@ -171,6 +174,8 @@ export function departmentEvidenceModel({
   grading = null,
   provenance = EVIDENCE_PROVENANCE.sample.kind,
   minimumPrompts = MIN_JOINED_RECORDS_FOR_GRADE,
+  routing = null,
+  basis = null,
 } = {}) {
   const source = provenance === EVIDENCE_PROVENANCE.own.kind
     ? EVIDENCE_PROVENANCE.own : EVIDENCE_PROVENANCE.sample;
@@ -248,6 +253,11 @@ export function departmentEvidenceModel({
       chip: REDACTED_CHIP_LABEL,
     }),
     detail: detailOf(department, prompts),
+    // The loaded result carries its fix pack: the named actions behind the
+    // evidence above, ranked and priced by `department-fix-pack.js`. It is on the
+    // model rather than fetched by the view so the panel and the actions can never
+    // describe two different departments.
+    fixPack: departmentFixPack({ department, routing, basis, provenance: source.kind }),
     disclosureLabel: disclosureLabel(department),
     announcement: null,
   });
@@ -293,6 +303,9 @@ function shell(state, source, copy) {
       chip: REDACTED_CHIP_LABEL,
     }),
     detail: null,
+    // No department, no result, no fix pack. A loading or unreadable panel with
+    // actions beside it would be actions about nothing.
+    fixPack: null,
     disclosureLabel: null,
     announcement: null,
   });
