@@ -289,11 +289,55 @@ test("the decision page ships the loading state, the control, and the script", a
   assert.ok(html.includes(DECISION_OUTCOME_STATE_COPY.loading.body), "the loading body drifted");
   // The file control is in the markup, not in the render module, so it is not
   // replaced — and its focus not stolen — every time the region repaints.
-  assert.match(html, /<input id="dout-file" type="file"[^>]*aria-describedby="dout-file-note"/);
+  assert.match(html,
+    /<input id="dout-file" type="file"[^>]*aria-describedby="dout-file-intro dout-file-note"/);
   assert.match(html, /<label for="dout-file">/);
   assert.match(html, /id="dout-file-status"[^>]*role="status"[^>]*aria-live="polite"/);
   assert.match(html, /src="\/decision-outcome-page\.js"/);
   assert.match(html, /href="\/decision-outcome\.css"/);
+});
+
+test("the panel's copy tells a first-time reader what is recorded and what is optional", async () => {
+  const html = await readFile(new URL("../src/decision.html", import.meta.url), "utf8");
+  const controls = html.match(/<div class="dout-controls">[\s\S]*?<\/div>/)[0];
+
+  // The two headings name the two halves, so a reader arriving with no FinOps
+  // context can tell the recorded decision from the file they may never open.
+  assert.match(html, /id="dout-panel-title">Recorded outcome and optional evidence</);
+  assert.match(controls, /<h3 class="dout-controls-title">Optional evidence<\/h3>/);
+
+  // One sentence, before the control, saying what opening a briefing adds and
+  // that opening it is optional.
+  const intro = controls.match(/<p class="dout-file-intro" id="dout-file-intro">([^<]*)<\/p>/)[1];
+  assert.ok(controls.indexOf(intro) < controls.indexOf('for="dout-file"'),
+    "the explanation must precede the control it explains");
+  assert.match(intro, /is optional/);
+  assert.match(intro, /measured against what this decision projected/);
+
+  // The note names the file and where it comes from rather than describing a
+  // month by how the decision was priced.
+  const note = controls.match(/id="dout-file-note">([^<]*)</)[1];
+  assert.match(note, /AI FinOps page/);
+  assert.match(note, /Export briefing \(JSON\)/);
+  assert.doesNotMatch(note, /priced in/);
+
+  // The empty state is reassuring and actionable, and names the control by its
+  // own label rather than saying "try again".
+  const status = controls.match(/id="dout-file-status"[^>]*>([^<]*)</)[1];
+  assert.match(status, /reads without one/);
+  assert.match(status, /Open a later month’s FinOps briefing/);
+});
+
+test("the two waiting states describe their own region and nothing else", () => {
+  const { loading, reading } = DECISION_OUTCOME_STATE_COPY;
+  // The recorded half never claims to be reading a file, and the file half
+  // never restates the recorded half.
+  assert.doesNotMatch(loading.body, /briefing|month you have opened/i);
+  assert.match(loading.body, /No file is needed for this step/);
+  assert.match(reading.title, /FinOps briefing/);
+  assert.match(reading.body, /FinOps briefing/);
+  assert.doesNotMatch(reading.body, /savings-commitment contract/);
+  assert.notEqual(loading.title, reading.title);
 });
 
 test("painting replaces the previous state rather than appending to it", () => {

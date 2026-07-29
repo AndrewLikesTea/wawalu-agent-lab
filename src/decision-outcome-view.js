@@ -317,11 +317,12 @@ export function renderDecisionOutcome(container, outcome) {
 export const DECISION_OUTCOME_STATE_COPY = Object.freeze({
   loading: {
     title: "Checking this decision’s outcome",
-    body: "Reading the recorded decision, the releases linked to it, and any month you have opened.",
+    body: "Checking what this decision projected and whether a release recorded it as shipped. "
+      + "No file is needed for this step.",
   },
   reading: {
-    title: "Reading the month you opened",
-    body: "Validating the briefing against the savings-commitment contract before comparing it.",
+    title: "Reading the FinOps briefing you opened",
+    body: "Checking that this file is a FinOps briefing Shiplog can compare with this decision.",
   },
   error: {
     title: "This outcome could not be read",

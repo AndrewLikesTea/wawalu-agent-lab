@@ -23,7 +23,9 @@
   border-radius: 0.6rem;
 }
 
+.dout-controls-title { margin: 0; font-size: 0.95rem; }
 .dout-controls label { font-weight: 600; }
+.dout-file-intro { margin: 0; font-size: 0.9rem; color: #334155; }
 .dout-file-note,
 .dout-file-status { margin: 0; font-size: 0.85rem; color: #475569; }
 .dout-file-status { font-weight: 600; color: #1f2937; }
@@ -196,6 +198,8 @@
   .dout-periods { grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); }
 
   .dout-controls { flex-direction: row; flex-wrap: wrap; align-items: center; }
+  .dout-controls-title,
+  .dout-file-intro,
   .dout-file-note,
   .dout-file-status { flex-basis: 100%; }
 }
