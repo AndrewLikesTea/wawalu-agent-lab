@@ -39,11 +39,20 @@ export const BRIEFING_STATE_MESSAGE = Object.freeze({
     + "Nothing was uploaded. Check the column mapping above and analyze again.",
 });
 
-/** The page-level bundled-analysis lifecycle copy. */
+/**
+ * The page-level bundled-analysis lifecycle copy.
+ *
+ * These four sentences are the only ones on the AI FinOps page allowed to
+ * narrate a load, because they are the only ones painted into the single status
+ * region under the hero. Every other slot says what it does not have yet — see
+ * `src/finops-load-status.js`, which owns that vocabulary and the test that
+ * enforces it.
+ */
 export const BUNDLED_LOAD_STATE = Object.freeze({
   loading: Object.freeze({
-    title: "Loading bundled analysis…",
-    detail: "Previously rendered content stays visible while the synthetic fixture is refreshed.",
+    title: "Reading the bundled example…",
+    detail: "Nothing of yours is imported. The local import tools below are already usable, "
+      + "and previously rendered content stays visible while the synthetic fixture is refreshed.",
   }),
   firstFailure: Object.freeze({
     title: "Bundled analysis unavailable",
@@ -79,9 +88,9 @@ export const NOT_GRADED = "Not graded";
  */
 export const DEPARTMENT_DETAIL_STATE = Object.freeze({
   loading: Object.freeze({
-    name: "Reading the bundled sample…",
+    name: "No department selected yet",
     score: "–",
-    sample: "No department is selected until the bundled sample has been read.",
+    sample: "No department is selected until the bundled example has been read.",
   }),
   noDepartments: Object.freeze({
     name: "No department in this period",

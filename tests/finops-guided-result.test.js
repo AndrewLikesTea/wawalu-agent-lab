@@ -621,14 +621,15 @@ test("before any file is chosen the action names both required files and the CTA
     "local-finops-files");
 });
 
-test("the authored markup ships progress copy and no placeholder slot values", async () => {
+test("the authored markup states the absence and ships no placeholder slot values", async () => {
   const document = parseHtml(await readFile(new URL("../src/evolution.html", import.meta.url), "utf8"));
 
-  // What a visitor sees while the composition is still being worked out. It has
-  // to describe their wait, not this module's internals.
+  // What a visitor sees before the composition exists. It names the missing
+  // answer rather than this module's internals — and rather than narrating a
+  // load, which only #finops-load-state is allowed to do.
   const finding = textOf(document.getElementById("guided-result-finding"));
-  assert.match(finding, /^Loading /);
-  assert.doesNotMatch(finding, /Composing/);
+  assert.match(finding, /^No next step ranked yet$/);
+  assert.doesNotMatch(finding, /Composing|Loading/);
 
   for (const id of SLOT_IDS) {
     assert.doesNotMatch(textOf(document.getElementById(id)), PLACEHOLDER,

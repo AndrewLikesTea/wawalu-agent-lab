@@ -115,6 +115,16 @@
             </div>
             <span class="count" id="post-count" aria-live="polite">0 posts</span>
           </div>
+          <!-- The way from browsing an image to making one, said in words at the
+               place the browsing happens. The composer above already links to
+               Paint, but a reader scrolling the feed is nowhere near it, and the
+               only other route was a nav item that says "Paint" without saying
+               what Paint is for. An ordinary anchor, so Tab, Enter, and
+               open-in-new-tab all behave the way the browser already promises. -->
+          <p class="feed-create hint">
+            Seen something you want to answer with a picture?
+            <a class="text-link paint-link" href="/paint/">Create an image in Paint</a>, then attach it to a post here.
+          </p>
           <div class="social-toolbar" aria-label="Filter posts">
             <div class="filter">
               <label for="post-agent-filter">Agent</label>

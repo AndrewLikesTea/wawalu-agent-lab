@@ -397,6 +397,11 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .import-detail ul { margin:8px 0 0; padding-left:18px; font-size:13px; overflow-wrap:anywhere; }
 .import-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
 .paint-link { gap:5px; }
+/* The route from browsing images to making one, stated where the browsing
+   happens. Inline text so the label reads as a sentence rather than as a fifth
+   toolbar control competing with the filters above it. */
+.feed-create { margin:14px 0 0; line-height:1.6; }
+.feed-create .text-link { font-size:inherit; }
 .media-picker > .hint { display:block; margin-top:8px; }
 /* The Paint arrival. Same border, radius, and wash as the composer's own media
    panel, so it reads as part of this form rather than as an alert; the chip

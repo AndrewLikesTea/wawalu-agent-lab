@@ -93,6 +93,12 @@ import {
   KPI_NEEDS_REVIEW, KPI_NOT_LOADED, NO_COMPARABLE_PERIOD, NOT_GRADED,
   sampledCoverageLine,
 } from "/briefing-strings.js";
+// One status region narrates the load; every other slot states what it lacks.
+// This module owns that division, the shape-and-word flags a metric with no
+// measurement carries, and the single next action the region always offers.
+import {
+  applyImportPresence, applyMetricFlag, applyPageLoadStatus, bindChooseFiles,
+} from "/finops-load-status.js";
 import {
   announce as announceStage, applyDatasetProvenance, applyFieldDiagnostic, applyImportLimits,
   applyBriefing, applyBriefingState, applyImportProgress, applyMetricBasis, applyRequirements, applyRestoreRejection,
@@ -226,16 +232,29 @@ function setText(id, text) {
   if (node) node.textContent = text;
 }
 
-function setLoadState(state, title, copy) {
-  const region = document.getElementById("finops-load-state");
-  const retry = document.getElementById("finops-data-retry");
-  if (region) region.dataset.state = state;
-  setText("finops-load-title", title);
-  setText("finops-load-copy", copy);
-  if (retry) {
-    retry.hidden = state !== "error";
-    retry.disabled = state === "loading";
-  }
+// The lifecycle half of the one status region. Title and copy are optional: on
+// the way to "ready" the region's sentence is not "the fetch finished" but
+// "these numbers are/are not yours", and `applyImportPresence` writes that.
+function setLoadState(state, title = "", copy = "") {
+  return applyPageLoadStatus(document, { state, title, detail: copy });
+}
+
+/**
+ * Flag the five bundled metric slots that are not measurements.
+ *
+ * Every one of them already carried the right words — "Needs review", "Not
+ * loaded" — under a dashed border and an amber tint. What they lacked was the
+ * second non-colour channel, so a greyscale print or a colour-blind reader met
+ * a figure-shaped slot and no way to tell it apart from a figure. The flag adds
+ * a shape and repeats the state as a lowercase word beside it.
+ */
+function applyBundledMetricFlags({ score = null, spend = null, recoverable = null,
+  highValue = null, percentile = null } = {}) {
+  applyMetricFlag(document, "score-flag", score);
+  applyMetricFlag(document, "kpi-spend-flag", spend);
+  applyMetricFlag(document, "kpi-recoverable-flag", recoverable);
+  applyMetricFlag(document, "kpi-productive-flag", highValue);
+  applyMetricFlag(document, "kpi-peer-flag", percentile);
 }
 
 function fillTextList(id, values, emptyText) {
@@ -266,6 +285,12 @@ let syncExecutivePanels = () => {};
  */
 function applyPanelFacts(facts, { imported = false } = {}) {
   applyProofPointBasis(document, { imported });
+  // Whose numbers these are, said in the one region a reader meets first. It is
+  // a no-op while that region is still reading or has failed: the load
+  // lifecycle owns it in those two states, and a panel repaint that happens to
+  // run afterwards must not overwrite a failure notice with a data-provenance
+  // sentence.
+  applyImportPresence(document, imported);
   return applyPanelContract(document, panelStates(facts));
 }
 
@@ -1838,6 +1863,22 @@ function renderHeadline(organization, totals, eligibility, departments = []) {
     ? `${quartileLabel(organization.peerPercentile)} · ${organization?.peerCohort ?? "peer cohort"}`
       + ` · ${PEER_COHORT_PROVENANCE.label}`
     : "Needs review · percentile must be between 0 and 100");
+
+  // The same five verdicts the words above already carry, in a shape and a
+  // second word. A slot that passed its check clears its flag rather than
+  // hiding a stale one, so a surface that later only toggles `hidden` cannot
+  // reveal last render's verdict.
+  const review = (plausible) => (plausible ? null : "needsReview");
+  applyBundledMetricFlags({
+    // Two different absences, and the flag tells them apart: a score outside
+    // 0–100 is a figure that failed its check, while a score the rubric was not
+    // allowed to publish is a figure nobody measured.
+    score: trust.score.plausible ? (gradeVisible ? null : "unmeasured") : "needsReview",
+    spend: review(trust.spend.plausible),
+    recoverable: review(trust.recoverable.plausible),
+    highValue: review(trust.highValue.plausible),
+    percentile: review(trust.percentile.plausible),
+  });
 }
 
 /**
@@ -2122,6 +2163,10 @@ async function init() {
   // that keep doing so have to be attached before the reader can click one.
   installDeepLinkDisclosure(document, window);
   mountLocalFinopsImport();
+  // The page's one next action, operable before any fixture resolves: it stands
+  // the reader on the file input and opens the picker. Bound here rather than
+  // inside the import closure so it exists even if that closure never mounts.
+  bindChooseFiles(document);
   initFinopsContact(document);
   const gateway = createStaticGateway();
   const refreshGateway = document.getElementById("integration-gateway-refresh");
@@ -2174,6 +2219,12 @@ async function init() {
       setText("score-peer", HEADLINE_BUNDLE_UNAVAILABLE.peer);
       for (const id of ["kpi-spend-value", "kpi-recoverable-value", "kpi-productive-value", "kpi-peer-value"])
         setText(id, KPI_NOT_LOADED);
+      // "Not loaded" is a different claim from "needs review", and the shape
+      // beside it says so without the reader having to parse two words.
+      applyBundledMetricFlags({
+        score: "notLoaded", spend: "notLoaded", recoverable: "notLoaded",
+        highValue: "notLoaded", percentile: "notLoaded",
+      });
       const portfolioList = document.getElementById("portfolio-list");
       portfolioList?.setAttribute("aria-busy", "false");
       portfolioList?.replaceChildren(
@@ -2208,8 +2259,11 @@ async function init() {
     renderDecisionSurface(data, departments);
     renderRedaction(data.redactionSamples);
 
-    setLoadState("ready", "Bundled analysis ready",
-      "Synthetic headline metrics, decisions, and action portfolio are available.");
+    // Ready is the lifecycle; "are these numbers mine?" is the question. The
+    // region answers the second one, first from here so it is never blank and
+    // then from the panel contract below, which knows about an import.
+    setLoadState("ready");
+    applyImportPresence(document, false);
     // The seed is loaded, so the panels are re-decided from what it actually
     // contains. This is also the first paint of the contract on a fresh visit.
     syncExecutivePanels();
