@@ -104,6 +104,21 @@ import {
   orgQueryDecisionData, orgQueryDecisionDepartments, orgQueryDepartmentLiteracy,
   orgQueryDepartmentRows,
 } from "/org-query-scoring.js";
+// The one leadership question that sample answers, assembled once. The scorer
+// publishes fourteen fields of evidence; this pair selects the decision out of
+// them — the answer, the grade and benchmark it rests on, the confidence, the
+// provenance, one prioritized action, and the four disclosures a leader checks it
+// with — and paints them. An ungradeable sample keeps the same block and says
+// which floor it missed instead of publishing a letter.
+import { orgQueryCoachingDecision } from "/org-query-decision.js";
+import { applyOrgQueryDecision, clearOrgQueryDecision } from "/org-query-decision-view.js";
+// The bundled synthetic sample behind that surface. The downloadable template is
+// nine rows and every publishable floor refuses it, so it demonstrates the
+// refusal and never the reading; this one is large enough to grade and goes
+// through the same validator, scorer and view a reader's own file does.
+import {
+  EXAMPLE_ORG_QUERY_SAMPLE_FILE, loadExampleOrgQuerySample,
+} from "/org-query-example.js";
 // No panel on this page writes its own "nothing here" sentence. Every empty,
 // partial-coverage and failed-load string is authored in one module, so a
 // reader meets one vocabulary for absence instead of one per branch.
@@ -1284,6 +1299,10 @@ function mountLocalFinopsImport() {
     // graded unit outliving the file it was graded from is the same mislabelling
     // the clear exists to prevent, in the other direction.
     paintImportedDecisionSurface(null);
+    // Including the bundled example's own reading: the button that opened it is
+    // still there, and a decision block outliving the clear would be answered
+    // about a sample the reader can no longer see the source of.
+    paintCoachingDecision(null);
     closeMappingReview(document);
     if (remap) remap.hidden = true;
     result = null;
@@ -1496,12 +1515,35 @@ function mountLocalFinopsImport() {
     })
     : null);
 
+  /**
+   * The coaching decision from a local sample, or the surface handed back.
+   *
+   * Two callers, one paint: the import path passes the reader's own literacy, the
+   * example button passes the bundled sample's, and the `origin` it carries is
+   * what every provenance line and the announcement are labelled from. Null hands
+   * the section back to the example surface rather than leaving a stale answer
+   * about a file that is no longer loaded.
+   */
+  const paintCoachingDecision = (literacy, { origin = "import", fileNames = [] } = {}) =>
+    (literacy
+      ? applyOrgQueryDecision(document,
+        orgQueryCoachingDecision(literacy, { origin, fileNames }))
+      : clearOrgQueryDecision(document));
+
   const finishSelection = (total) => {
     rebuildLoaded();
     // Before either branch below, because it holds in both: a gradeable query
     // sample grades the drill-down whether or not a billing export came with it.
     // An invoice with no supported query source leaves it exactly as it was.
-    paintImportedDecisionSurface(importedOrgLiteracy());
+    const literacy = importedOrgLiteracy();
+    paintImportedDecisionSurface(literacy);
+    // The same model, read as a decision rather than as a priority list. This one
+    // takes the ungradeable model too: "no department has enough classified
+    // queries yet" is the answer a reader has to act on, and the drill-down above
+    // is right to publish no letters for it.
+    paintCoachingDecision(literacy, {
+      origin: "import", fileNames: samples.map((entry) => entry.fileName),
+    });
     // The one gate, and it is the policy's. `analysisEligibility` reads the same
     // three input states that classify every finding, so a provider export on
     // its own is a complete run and only genuinely ineligible input — no file,
@@ -1697,6 +1739,29 @@ function mountLocalFinopsImport() {
   document.getElementById("download-query-sample-example")?.addEventListener("click", () => {
     downloadLocalExport(exampleQuerySampleText(),
       EXAMPLE_QUERY_SAMPLE_FILE.mediaType, EXAMPLE_QUERY_SAMPLE_FILE.fileName);
+  });
+  // The same contract, read rather than downloaded. One click grades the bundled
+  // synthetic organizational sample through `parseQuerySample`, the registry
+  // adapter and the scorer — the identical path a chosen file takes — so the
+  // coaching decision is reachable with no file, no network and no fixture
+  // fetch. Only this section is painted: the ranked department list above belongs
+  // to the bundled *billing* seed, and replacing it from a different example
+  // would put two unrelated synthetic organizations in one comparison. Every
+  // line it paints is labelled as the example it is.
+  document.getElementById("grade-example-org-query-sample")?.addEventListener("click", () => {
+    const parsed = loadExampleOrgQuerySample();
+    const sample = orgQuerySampleResult(parsed);
+    if (!sample) {
+      // Unreachable while the bundled example matches the contract. If the
+      // contract moves under it, say so rather than showing a stale surface.
+      paintCoachingDecision(null);
+      announce("error", "The bundled example query sample could not be read.",
+        "No grade is shown. The published query-sample contract no longer accepts it.");
+      return;
+    }
+    paintCoachingDecision(orgQueryDepartmentLiteracy({ results: [sample] }), {
+      origin: "example", fileNames: [EXAMPLE_ORG_QUERY_SAMPLE_FILE.fileName],
+    });
   });
   // The conversation-export examples, one per dialect the profile registry
   // declares. The chooser is painted from that registry rather than authored in
