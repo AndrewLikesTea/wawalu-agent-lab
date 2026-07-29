@@ -11,7 +11,10 @@ import {
   EXPORT_RELEASE_FIELDS,
   SHIPLOG_EXPORT_SCHEMA,
   SHIPLOG_EXPORT_VERSION,
+  canonicalExportOrder,
+  compareExportRecords,
   normalizeExportRecord,
+  orderingViolations,
   shiplogExportViolations,
   undeclaredExportFields,
 } from "../src/shiplog-export-schema.js";
@@ -115,6 +118,44 @@ test("normalization deep-copies, so a later write to the store cannot reach the 
   stored.finopsCommitment.commitmentId = "c-2";
 
   assert.equal(normalized.finopsCommitment.commitmentId, "c-1");
+});
+
+test("canonical order is total: oldest first, ties by id, undated last", () => {
+  const at = (id, createdAt) => ({ id, createdAt });
+  const records = [
+    at("b", "2026-03-02T09:00:00.000Z"),
+    at("z", undefined),
+    at("a", "2026-03-02T09:00:00.000Z"),
+    at("c", "2026-03-01T09:00:00.000Z"),
+    at("y", "not a date"),
+  ];
+  const ordered = canonicalExportOrder(records);
+
+  assert.deepEqual(ordered.map(({ id }) => id), ["c", "a", "b", "y", "z"]);
+  assert.deepEqual(records.map(({ id }) => id), ["b", "z", "a", "c", "y"], "the input is not mutated");
+  // Sorting an already-sorted collection is a no-op, which is what makes
+  // export -> import -> export a fixed point rather than a slow shuffle.
+  assert.deepEqual(canonicalExportOrder(ordered).map(({ id }) => id), ordered.map(({ id }) => id));
+  assert.deepEqual(canonicalExportOrder(undefined), []);
+
+  // Antisymmetry, so the comparator cannot depend on the order it is handed.
+  assert.equal(compareExportRecords(records[0], records[2]), 1);
+  assert.equal(compareExportRecords(records[2], records[0]), -1);
+  assert.equal(compareExportRecords(records[0], { ...records[0] }), 0);
+});
+
+test("a reordered file is named as out of canonical order", () => {
+  const older = { ...decision, id: "d-0", createdAt: "2026-02-01T09:00:00.000Z" };
+  const payload = file({ decisions: [decision, older], releases: [release] });
+
+  assert.deepEqual(orderingViolations(payload), [
+    'export.decisions[1]: "d-0" is out of canonical order (oldest createdAt first, ties by id)',
+  ]);
+  assert.ok(shiplogExportViolations(payload).includes(orderingViolations(payload)[0]),
+    "the whole-contract check carries the ordering rule");
+  assert.deepEqual(orderingViolations(file({ decisions: [older, decision] })), [],
+    "the same two records in canonical order pass");
+  assert.deepEqual(orderingViolations({}), [], "a payload with no collections has no order to violate");
 });
 
 test("a non-object is refused rather than treated as an empty export", () => {

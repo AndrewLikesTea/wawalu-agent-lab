@@ -15,6 +15,12 @@
 //     longer holds is reported, not written as a dangling reference. This is the
 //     same trade shiplog-import.js already makes on the way in, so
 //     export -> import -> export is a fixed point.
+//   * One order per log. Both collections are written in the schema's canonical
+//     order (oldest first, ties by id) rather than in localStorage order, so the
+//     same history exports to the same bytes no matter how it got into the
+//     browser. A release's own `decisionIds` are left in the order the release
+//     recorded them: that sequence is content the visitor authored, not an
+//     artifact of storage, and re-sorting it would lose information.
 //
 // `buildShiplogExport` returns the payload together with what it had to leave
 // out; `createShiplogExport` is the payload alone, for the callers that only
@@ -27,6 +33,7 @@ import {
   EXPORT_RELEASE_FIELDS,
   SHIPLOG_EXPORT_SCHEMA,
   SHIPLOG_EXPORT_VERSION,
+  canonicalExportOrder,
   normalizeExportRecord,
   undeclaredExportFields,
 } from "./shiplog-export-schema.js";
@@ -55,12 +62,15 @@ export function buildShiplogExport(storage, options = {}) {
     return normalizeExportRecord(record, fields);
   };
 
-  const decisions = loadDecisions(storage)
+  // Canonical order first, so everything downstream — the records, the
+  // unresolved-link report, the dropped-field report — is a function of what
+  // the browser holds and not of the order it happened to hold it in.
+  const decisions = canonicalExportOrder(loadDecisions(storage))
     .map((decision) => collect("decisions", decision, EXPORT_DECISION_FIELDS));
   const known = new Set(decisions.map((decision) => decision.id));
 
   const unresolvedLinks = [];
-  const releases = loadReleases(storage).map((stored) => {
+  const releases = canonicalExportOrder(loadReleases(storage)).map((stored) => {
     const release = collect("releases", stored, EXPORT_RELEASE_FIELDS);
     release.decisionIds = release.decisionIds.filter((decisionId, position) => {
       if (known.has(decisionId)) return true;
