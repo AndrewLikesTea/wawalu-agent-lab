@@ -5,11 +5,21 @@ import { createShareControl } from "./share-link.js";
 import { canonicalDecisionStatus } from "./decision-status.js";
 import { EXAMPLE_LABEL } from "./seed-records.js";
 import { indexSupersessions } from "./supersede.js";
+import { releaseDetailHref, releaseStatus, releaseTitle } from "./releases.js";
 
 export const MAX_COMPARISON_SELECTION = 2;
+export const MAX_LINKED_RELEASES = 100;
 
 const text = (value, fallback = "") => typeof value === "string" && value.trim() ? value.trim() : fallback;
 const list = (value) => Array.isArray(value) ? value.filter((item) => typeof item === "string" && item.trim()).map((item) => item.trim()) : [];
+// Stored data can be edited outside the recorder. Keep route identifiers free
+// of invisible controls and bound the copy this view will put into the DOM.
+const UNSAFE_IDENTIFIER_CHARACTERS = /[\u0000-\u001f\u007f\u202a-\u202e\u2066-\u2069]/u;
+const UNSAFE_DISPLAY_CHARACTERS = /[\u0000-\u001f\u007f\u202a-\u202e\u2066-\u2069]/gu;
+const boundedText = (value, max) => {
+  const normalized = text(value).replace(UNSAFE_DISPLAY_CHARACTERS, "");
+  return normalized.length <= max ? normalized : normalized.slice(0, max);
+};
 
 export function normalizeAlternatives(decision) {
   if (Array.isArray(decision?.alternatives)) {
@@ -224,6 +234,124 @@ export function renderReplacesDisclosure(predecessor) {
   return disclosure;
 }
 
+// ---------------------------------------------------------------------------
+// Linked releases: what shipped because of this decision.
+//
+// The shape lives above the DOM the same way the comparison state does, so the
+// ordering rule and the summary sentence are verifiable without a browser. The
+// releases arrive already associated (decision-page.js matches decisionIds);
+// this layer only decides what is renderable, in what order, and what the
+// section says about it.
+// ---------------------------------------------------------------------------
+
+// A release is renderable when it can be named and routed to: an id for the
+// existing release detail route, and a version to name the link by. Everything
+// else has a stated fallback so one malformed record never empties the section.
+// A missing or unparseable date is kept and said out loud rather than dropped —
+// the association is still true, only its position in time is unknown.
+function normalizeLinkedRelease(release) {
+  const id = text(release?.id);
+  const version = boundedText(release?.version, 40);
+  if (!id || id.length > 200 || UNSAFE_IDENTIFIER_CHARACTERS.test(id) || !version) return null;
+  const createdAt = text(release?.createdAt);
+  const dated = Boolean(createdAt) && !Number.isNaN(Date.parse(createdAt));
+  const title = boundedText(releaseTitle(release), 120);
+  return {
+    id,
+    version,
+    // releaseTitle falls back to the version, which the link already shows.
+    title: title === version ? "" : title,
+    status: releaseStatus(release),
+    createdAt: dated ? createdAt : "",
+    dated,
+    timestamp: dated ? Date.parse(createdAt) : 0,
+    href: releaseDetailHref(id),
+  };
+}
+
+// Newest first, undated last, one entry per release. A release that names this
+// decision twice is one association, not two — the same rule the history rows
+// follow.
+export function normalizeLinkedReleases(releases) {
+  const seen = new Set();
+  const entries = [];
+  for (const release of Array.isArray(releases) ? releases : []) {
+    const entry = normalizeLinkedRelease(release);
+    if (!entry || seen.has(entry.id)) continue;
+    seen.add(entry.id);
+    entries.push(entry);
+    if (entries.length === MAX_LINKED_RELEASES) break;
+  }
+  return entries.sort((a, b) => Number(a.dated !== true) - Number(b.dated !== true) || b.timestamp - a.timestamp);
+}
+
+// One sentence a reader can take in without walking the list: how much shipped,
+// and where the most recent of it stands. Takes normalized entries so the
+// sentence can never disagree with the order the list is rendered in.
+export function summarizeLinkedReleases(entries = []) {
+  const [newest = null] = entries;
+  if (!newest) return { count: 0, newest: null, text: "" };
+  const count = `${entries.length} linked ${entries.length === 1 ? "release" : "releases"}`;
+  const when = newest.dated ? ` on ${longDate(newest.createdAt)}` : " (date not recorded)";
+  return { count: entries.length, newest, text: `${count}. Newest: ${newest.version} — ${newest.status}${when}.` };
+}
+
+const LINKED_RELEASE_UNDATED = "Date not recorded";
+
+// Native anchors, one per release: keyboard reachability is the browser's job
+// here, not a tabindex the view has to keep correct. Status and date sit outside
+// the link so the accessible name stays the release itself, and are joined back
+// to it with aria-describedby so a screen reader still hears them on focus.
+function renderLinkedRelease(entry, index) {
+  const item = el("li", `linked-release${index === 0 ? " linked-release-newest" : ""}`);
+  const link = el("a", "linked-release-link");
+  link.href = entry.href;
+  link.append(el("span", "linked-release-version", entry.version));
+  // A real separator character, not a gap: the accessible name is computed from
+  // text, and flex spacing between two spans is not text. The version and the
+  // title would otherwise be announced run together.
+  if (entry.title) link.append(document.createTextNode(" · "), el("span", "linked-release-title", entry.title));
+  const meta = el("p", "linked-release-meta");
+  meta.id = `linked-release-meta-${index + 1}`;
+  meta.append(el("span", `badge badge-release-${entry.status}`, entry.status));
+  if (entry.dated) {
+    const time = el("time", "linked-release-date", longDate(entry.createdAt));
+    time.dateTime = entry.createdAt;
+    meta.append(time);
+  } else {
+    meta.append(el("span", "linked-release-date linked-release-undated", LINKED_RELEASE_UNDATED));
+  }
+  link.setAttribute("aria-describedby", meta.id);
+  item.append(link, meta);
+  return item;
+}
+
+export function renderLinkedReleases(releases) {
+  const section = el("section", "proof-relationship linked-releases");
+  section.setAttribute("aria-labelledby", "linked-releases-title");
+  const heading = el("h2", undefined, "Linked releases");
+  heading.id = "linked-releases-title";
+  section.append(heading);
+
+  const entries = normalizeLinkedReleases(releases);
+  // The absence is stated rather than hidden: a decision with nothing shipped
+  // yet is a real answer, and silence reads as a page that failed to load.
+  if (!entries.length) {
+    section.append(el("p", "detail-muted", "No releases link to this decision yet."));
+    return section;
+  }
+
+  const summary = el("p", "linked-release-summary", summarizeLinkedReleases(entries).text);
+  summary.id = "linked-releases-summary";
+  section.append(summary);
+  const list = el("ul", "linked-release-list");
+  // The order is meaningful, so it is stated, not left to be inferred visually.
+  list.setAttribute("aria-label", "Linked releases, newest first");
+  entries.forEach((entry, index) => list.append(renderLinkedRelease(entry, index)));
+  section.append(list);
+  return section;
+}
+
 export function renderDecisionDetail(container, decision, options = {}) {
   container.replaceChildren(renderBackLink());
   if (!decision) {
@@ -266,25 +394,9 @@ export function renderDecisionDetail(container, decision, options = {}) {
   if (successor) view.append(renderSupersededBanner(successor));
   if (predecessor) view.append(renderReplacesDisclosure(predecessor));
 
-  const linkedReleases = Array.isArray(options.linkedReleases) ? options.linkedReleases : [];
-  const relationship = el("section", "proof-relationship");
-  relationship.setAttribute("aria-labelledby", "linked-releases-title");
-  relationship.append(el("h2", undefined, "Linked releases"));
-  relationship.firstChild.id = "linked-releases-title";
-  if (linkedReleases.length) {
-    const releaseList = el("ul");
-    for (const release of linkedReleases) {
-      const item = el("li");
-      const link = el("a", undefined, `${release.version} · ${release.title || release.version}`);
-      link.href = `/release.html?id=${encodeURIComponent(release.id)}`;
-      item.append(link, el("span", `badge badge-release-${release.status}`, release.status));
-      releaseList.append(item);
-    }
-    relationship.append(releaseList);
-  } else {
-    relationship.append(el("p", "detail-muted", "No releases link to this decision yet."));
+  if (normalizeLinkedReleases(options.linkedReleases).length) {
+    view.append(renderLinkedReleases(options.linkedReleases));
   }
-  view.append(relationship);
   const context = el("section", "decision-context"); context.setAttribute("aria-labelledby", "context-title");
   context.append(el("h2", undefined, "Context and rationale"), el("p", undefined, decision.context)); context.firstChild.id = "context-title"; view.append(context);
   const alternativesSection = el("section", "decision-alternatives"); alternativesSection.setAttribute("aria-labelledby", "alternatives-title");

@@ -295,6 +295,22 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .proof-relationship ul,.site-guide ul { display:grid; gap:9px; margin:0; padding:0; list-style:none; }
 .proof-relationship li,.site-guide li { display:flex; align-items:center; flex-wrap:wrap; gap:10px; }
 .proof-relationship a,.site-guide a { color:#1f5fa8; font-weight:700; }
+/* Linked releases on a decision. Each row is a link on one side and its status
+   and date on the other; both halves wrap, so a long release title narrows the
+   row instead of overflowing it. Under 760px the halves stack (see the query at
+   the end of this file) rather than being squeezed onto one line. */
+.linked-release-summary { max-width:60ch; color:#4a4a44; font-size:14px; }
+.linked-release-list { display:grid; gap:10px; margin:0; padding:0; list-style:none; }
+.proof-relationship li.linked-release { align-items:baseline; justify-content:space-between; gap:4px 14px; }
+.linked-release-newest { font-weight:600; }
+/* Inline, not a flex row: the version, the separator, and the title are one
+   phrase, so they wrap like words and are announced as one name. */
+.linked-release-link { overflow-wrap:anywhere; }
+.linked-release-link:focus-visible { outline:3px solid var(--focus-ring); outline-offset:2px; border-radius:4px; }
+.linked-release-title { color:#3f3f3a; font-weight:500; }
+.linked-release-meta { display:flex; align-items:center; flex-wrap:wrap; gap:8px; }
+.linked-release-date { color:#6c6c66; font-size:13px; white-space:nowrap; }
+.linked-release-undated { font-style:italic; }
 /* The prompt-coach entry point. One column at every width: the card is three
    short blocks and a control, and a second column would only widen the reading
    measure of a paragraph that is already short. */
@@ -566,7 +582,7 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 @media(max-width:520px) { main,.page{width:calc(100% - 24px);padding-top:18px}.site-header{align-items:flex-start;flex-direction:column;gap:14px}.site-nav{justify-content:flex-start;width:100%;overflow-x:auto;padding:2px 2px 8px;scrollbar-width:thin}.site-nav a{flex:none;min-height:44px;display:inline-flex;align-items:center}.form-panel,.list-panel{padding:21px}.hero{padding-top:48px}.hero h1{font-size:clamp(38px,13vw,56px)}form{grid-template-columns:1fr}.field{grid-column:1/-1}.list-heading{align-items:start;flex-direction:column;gap:10px}.filters,.social-toolbar{align-items:stretch;flex-direction:column;gap:14px}.filter{flex:1 1 auto;width:100%;min-width:0}.clear-filters{width:100%;justify-content:center} }
 @media(max-width:520px) { .release-filters{align-items:stretch;flex-direction:column}.release-search-filter{flex:1 1 auto} }
 @media(max-width:520px) { .release-toggle{align-items:flex-start;padding:16px}.release-info{align-items:flex-start;flex-direction:column}.release-chevron{margin-top:5px}.detail-heading{align-items:stretch;flex-direction:column}.share-control{align-items:stretch;flex-direction:column}.share-button{width:100%}.share-status{max-width:none}.detail-decision{align-items:flex-start}.detail-decision-owner{width:100%;padding-left:0}.detail-meta{display:grid;grid-template-columns:1fr;gap:14px}.detail-decision-alternatives{align-items:flex-start;flex-direction:column;gap:3px} }
-@media(max-width:760px) { .alternative-grid{grid-template-columns:1fr}.decision-section-heading{align-items:stretch;flex-direction:column}.comparison-controls{align-items:stretch;flex-direction:column}.comparison-status{max-width:none;text-align:left}.comparison-toggle{width:100%}.decision-context{grid-template-columns:1fr;gap:10px} }
+@media(max-width:760px) { .alternative-grid{grid-template-columns:1fr}.decision-section-heading{align-items:stretch;flex-direction:column}.comparison-controls{align-items:stretch;flex-direction:column}.comparison-status{max-width:none;text-align:left}.comparison-toggle{width:100%}.decision-context{grid-template-columns:1fr;gap:10px}.proof-relationship li.linked-release{align-items:flex-start;flex-direction:column;gap:6px} }
 @media(max-width:520px) { .decision-detail-panel{padding:20px}.alternative-card{padding:17px}.alternative-heading{align-items:stretch;flex-direction:column}.comparison-check{width:max-content}.alternative-points-grid{grid-template-columns:1fr}.comparison-view{padding:16px}.decision-detail{gap:28px} }
 /* Tablet: two comfortable columns instead of three cramped ones. */
 @media(max-width:1000px) { .post-grid{grid-template-columns:repeat(auto-fill,minmax(min(100%,240px),1fr))} }
