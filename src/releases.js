@@ -27,6 +27,29 @@ export const RELEASE_STATUSES = ["planned", "completed", "cancelled"];
 // the order breakdown counts are reported in.
 export const RELEASE_DECISION_STATUSES = DECISION_STATUSES;
 
+// `missing` is not a decision status. It is the state of an *association* whose
+// decision is not in this log — the dangling reference resolveRelease() already
+// surfaces, which an export/import round trip can leave behind. It sits in the
+// filter vocabulary because it is the one thing a reader of this list can act
+// on and cannot otherwise see without expanding every release in turn.
+export const MISSING_DECISION_FILTER = "missing";
+
+// The linked-decision filter for the shipping history. Filtering by decision
+// status asks "which releases carried at least one decision in this state",
+// which is a different question from the release-status control ("which
+// releases are planned/completed/cancelled"). They stay separate controls.
+//
+// The words are the shared vocabulary in lifecycle order; a test pins them
+// against DECISION_STATUSES so this list cannot drift from the log's.
+export const RELEASE_DECISION_STATUS_FILTERS = Object.freeze([
+  { value: "all", label: "Any status" },
+  { value: "proposed", label: "Proposed" },
+  { value: "pending", label: "Pending" },
+  { value: "accepted", label: "Accepted" },
+  { value: "superseded", label: "Superseded" },
+  { value: MISSING_DECISION_FILTER, label: "Missing decision" },
+]);
+
 // URL builders are the single seam between views. They are pure and unit-tested
 // so the routing shape lives in one place: the list links to a release detail
 // page, and a release's decisions link to the decision's canonical location.
@@ -150,18 +173,165 @@ export function releaseDescription(release) {
 // its title and its context: the row surfaces the title, so a search for text a
 // user can see must match it — matching context alone is a surprising dead end.
 export function filterReleases(releases, decisions = [], filters = {}) {
-  const status = RELEASE_STATUSES.includes(filters.status) ? filters.status : "all";
-  const query = typeof filters.query === "string" ? filters.query.trim().toLocaleLowerCase() : "";
+  const { status, decisionStatus, query } = normalizeReleaseFilters(filters);
+  const normalizedQuery = query.toLocaleLowerCase();
   return summarizeReleases(releases, decisions).filter((release) => {
     if (status !== "all" && releaseStatus(release) !== status) return false;
-    if (!query) return true;
+    if (!matchesDecisionStatus(release, decisionStatus)) return false;
+    if (!normalizedQuery) return true;
     const searchable = [
       releaseTitle(release),
       releaseDescription(release),
       ...release.decisions.flatMap((decision) => [decision.title, decision.context]),
     ];
-    return searchable.some((value) => typeof value === "string" && value.toLocaleLowerCase().includes(query));
+    return searchable.some((value) => typeof value === "string" && value.toLocaleLowerCase().includes(normalizedQuery));
   });
+}
+
+// Unknown values fall back to the default view rather than matching nothing:
+// a stale bookmark or a hand-edited control can never empty the history.
+export function decisionStatusFilter(value) {
+  return RELEASE_DECISION_STATUS_FILTERS.some((option) => option.value === value) ? value : "all";
+}
+
+// The page, list renderer, and tests may all call the filtering API. Normalize
+// their input at that boundary so selection and empty-state messaging cannot
+// interpret the same malformed or stale value differently.
+export function normalizeReleaseFilters(filters = {}) {
+  const input = filters !== null && typeof filters === "object" ? filters : {};
+  return {
+    status: RELEASE_STATUSES.includes(input.status) ? input.status : "all",
+    decisionStatus: decisionStatusFilter(input.decisionStatus),
+    query: typeof input.query === "string" ? input.query.trim() : "",
+  };
+}
+
+// A release matches when it carries at least one decision in the chosen state.
+// This reads the counts resolveRelease() already derived — including its
+// `missing` tally — so the filter and the row's own breakdown can never
+// disagree, and the fold of the retired "approved" onto "accepted" applies here
+// for free rather than being restated.
+export function matchesDecisionStatus(resolved, value) {
+  const filter = decisionStatusFilter(value);
+  if (filter === "all") return true;
+  return (resolved?.counts?.[filter] ?? 0) > 0;
+}
+
+// Whether the visible list is a narrowed view of the history. Used for the
+// no-match state (which offers a reset) rather than the first-run empty state.
+export function releaseFiltersActive(filters = {}) {
+  const normalized = normalizeReleaseFilters(filters);
+  return normalized.status !== "all"
+    || normalized.decisionStatus !== "all"
+    || normalized.query !== "";
+}
+
+// The one material count for the active filter, derived once and rendered in
+// exactly one place. Nothing else on the page states how many releases matched,
+// so a reader never has to reconcile two numbers answering the same question.
+export function releaseCountText(visible, total) {
+  return `${visible} of ${total} ${total === 1 ? "release" : "releases"}`;
+}
+
+// ---------------------------------------------------------------------------
+// Follow-up. A release needs attention when a decision it carried is not
+// settled, or when the association points at a decision this log does not hold.
+//
+// The order below is the order the single follow-up is chosen in: a dangling
+// reference is a broken record and outranks an unsettled one, and among
+// unsettled decisions the earlier the lifecycle stage, the more urgent the
+// follow-up. `accepted` is absent on purpose — a release carrying only accepted
+// decisions is the state everything else is trying to reach.
+// ---------------------------------------------------------------------------
+
+export const RELEASE_ATTENTION_KINDS = Object.freeze([
+  MISSING_DECISION_FILTER,
+  "proposed",
+  "pending",
+  "superseded",
+]);
+
+// The most urgent thing about one release, or null when nothing is outstanding.
+export function releaseAttentionKind(resolved) {
+  return RELEASE_ATTENTION_KINDS.find((kind) => (resolved?.counts?.[kind] ?? 0) > 0) ?? null;
+}
+
+// Linked-decision fields arrive from storage and from imports, so a decision
+// may reach here without a usable title. Naming it by id keeps the follow-up
+// specific — "resolve d-queue" is still actionable; "resolve a decision" is not.
+function decisionLabel(decision) {
+  for (const value of [decision?.title, decision?.id]) {
+    if (typeof value === "string" && value.trim() !== "") return value.trim();
+  }
+  return "an untitled decision";
+}
+
+// Copy per kind. Each entry states what is outstanding, what the action does,
+// and — separately, so it can describe the link rather than replace its label —
+// where the link goes and what is waiting there.
+const FOLLOW_UP_COPY = {
+  [MISSING_DECISION_FILTER]: {
+    lead: (release) => `${releaseTitle(release)} links a decision that is not in this log.`,
+    action: (release) => `Check the reference on ${releaseTitle(release)}`,
+    target: (release) => `Opens the release detail for ${releaseTitle(release)}, where the decision id that did not resolve is listed.`,
+  },
+  proposed: {
+    lead: (release, name) => `“${name}” shipped in ${releaseTitle(release)} while still proposed.`,
+    action: (release, name) => `Decide on “${name}”`,
+    target: (release, name) => `Opens the decision detail for “${name}”, with the context and alternatives behind it.`,
+  },
+  pending: {
+    lead: (release, name) => `“${name}” is still pending in ${releaseTitle(release)}.`,
+    action: (release, name) => `Settle “${name}”`,
+    target: (release, name) => `Opens the decision detail for “${name}”, with the context and alternatives behind it.`,
+  },
+  superseded: {
+    lead: (release, name) => `${releaseTitle(release)} carried “${name}”, which a later decision replaced.`,
+    action: (release, name) => `Review “${name}”`,
+    target: (release, name) => `Opens the decision detail for “${name}”, which names the decision that replaced it.`,
+  },
+};
+
+// The single most relevant follow-up across the releases currently on screen,
+// or null when none of them needs one. `resolvedReleases` is already newest
+// first, so the release chosen for a kind is the most recent one carrying it.
+//
+// Deliberately counts nothing: the matching-record count above is the page's
+// one number, and a second "N need attention" would compete with it.
+export function releaseFollowUp(resolvedReleases = []) {
+  for (const kind of RELEASE_ATTENTION_KINDS) {
+    const release = (resolvedReleases ?? []).find((candidate) => (candidate?.counts?.[kind] ?? 0) > 0);
+    if (!release) continue;
+    const copy = FOLLOW_UP_COPY[kind];
+    if (kind === MISSING_DECISION_FILTER) {
+      return {
+        kind,
+        releaseId: release.id,
+        decisionId: release.missingIds[0] ?? null,
+        href: releaseDetailHref(release.id),
+        lead: copy.lead(release),
+        action: copy.action(release),
+        target: copy.target(release),
+      };
+    }
+    const decision = release.decisions.find((candidate) => canonicalDecisionStatus(candidate?.status) === kind);
+    const name = decisionLabel(decision);
+    const addressable = typeof decision?.id === "string" && decision.id.trim() !== "";
+    return {
+      kind,
+      releaseId: release.id,
+      decisionId: addressable ? decision.id : null,
+      // A decision with no id cannot be addressed, so the follow-up falls back
+      // to the release that carries it rather than rendering a broken link.
+      href: addressable ? decisionDetailHref(decision.id) : releaseDetailHref(release.id),
+      lead: copy.lead(release, name),
+      action: addressable ? copy.action(release, name) : `Open ${releaseTitle(release)}`,
+      target: addressable
+        ? copy.target(release, name)
+        : `Opens the release detail for ${releaseTitle(release)}, where “${name}” is listed.`,
+    };
+  }
+  return null;
 }
 
 // Detail-view entry point: find one release by id and resolve its decisions.
@@ -278,8 +448,22 @@ function renderReleaseBody(release) {
   const list = el("ol", "release-decisions");
   for (const decision of release.decisions) {
     const row = el("li", "release-decision");
-    row.append(labelledValue("Status", decision.status, `badge badge-${decision.status}`));
-    row.append(el("span", "release-decision-title", decision.title));
+    // Canonical, so the word inside the disclosure is the word the filter and
+    // the collapsed breakdown used to select and count this release.
+    const status = canonicalDecisionStatus(decision.status);
+    row.append(labelledValue("Status", status, `badge badge-${status}`));
+    // The evidence is inspectable, not just visible: the title is the link to
+    // the decision this release is associated with, so the association can be
+    // followed from the row that claims it. A record with no usable id is named
+    // rather than linked — a link to `?id=undefined` is worse than plain text.
+    const name = decisionLabel(decision);
+    if (typeof decision.id === "string" && decision.id.trim() !== "") {
+      const link = el("a", "release-decision-title release-decision-link", name);
+      link.href = decisionDetailHref(decision.id);
+      row.append(link);
+    } else {
+      row.append(el("span", "release-decision-title", name));
+    }
     if (decision.owner) row.append(labelledValue("Owner", decision.owner, "release-decision-owner"));
     list.append(row);
   }
@@ -358,7 +542,7 @@ export function renderReleaseList(container, resolvedReleases, options = {}) {
   container.setAttribute("aria-busy", "false");
 
   if (resolvedReleases.length === 0) {
-    renderReleaseListState(container, "empty", { filtered: options.filtered });
+    renderReleaseListState(container, "empty", { filtered: options.filtered, actions: true });
     return;
   }
 
@@ -385,12 +569,67 @@ export function renderReleaseListState(container, state, options = {}) {
   const copy = {
     loading: [`Loading ${noun}`, `Finding ${options.singular ? "the latest release" : "your shipping history"}…`],
     error: [`${options.singular ? "Release" : "Releases"} could not be loaded`, "Try reloading this page. Your saved records have not been changed."],
+    // Two empty states, kept distinct on purpose: "nothing recorded yet" is a
+    // first-run state whose one next step is recording a release, while "no
+    // release matches" is a filter state whose one next step is clearing them.
     empty: options.filtered
-      ? ["No matching releases", "Try a different search or status filter."]
+      ? ["No matching releases", "No release matches the current search, release status, and linked decision status together."]
       : ["No releases yet", "Record a release and link the decisions behind it to build a shipping history."],
   }[state];
   panel.append(el("h3", undefined, copy[0]));
   panel.append(el("p", undefined, copy[1]));
+  // The next step is offered only where one exists to take. The homepage sample
+  // panel renders this same state without controls to reset or a form to fill,
+  // so it opts out rather than showing an action that would go nowhere.
+  if (state === "empty" && options.actions) {
+    const action = el(
+      "button",
+      `empty-action ${options.filtered ? "release-reset-action" : "release-empty-action"}`,
+      options.filtered ? "Clear filters" : "Record a release",
+    );
+    action.type = "button";
+    action.dataset.action = options.filtered ? "reset-filters" : "record-release";
+    action.setAttribute("aria-controls", options.filtered ? "release-list" : "release-form");
+    panel.append(action);
+  }
+  container.append(panel);
+}
+
+// Render-local, like the disclosure's toggle/panel ids: one follow-up exists at
+// a time, so the wiring below needs no counter to stay unique.
+const FOLLOW_UP_TITLE_ID = "release-followup-title";
+const FOLLOW_UP_TARGET_ID = "release-followup-target";
+
+// The prioritised follow-up for the releases currently on screen, rendered into
+// its own slot above the list. Hidden outright when nothing is outstanding: an
+// empty callout would still take a line and still be read out.
+//
+// Prominence is both visual (see .release-followup) and semantic: the callout
+// is a labelled section ahead of the list, its action is a real link, and the
+// link is described by the sentence naming where it goes and what is there.
+export function renderReleaseFollowUp(container, followUp) {
+  container.replaceChildren();
+  container.hidden = !followUp;
+  if (!followUp) return;
+
+  const panel = el("section", `release-followup release-followup-${followUp.kind}`);
+  panel.setAttribute("aria-labelledby", FOLLOW_UP_TITLE_ID);
+  const heading = el("h3", "release-followup-title", "Needs a follow-up");
+  heading.id = FOLLOW_UP_TITLE_ID;
+  panel.append(heading);
+  panel.append(el("p", "release-followup-lead", followUp.lead));
+
+  const link = el("a", "release-followup-action", followUp.action);
+  link.href = followUp.href;
+  link.setAttribute("aria-describedby", FOLLOW_UP_TARGET_ID);
+  const arrow = el("span", "release-followup-arrow", "→");
+  arrow.setAttribute("aria-hidden", "true");
+  link.append(arrow);
+  panel.append(link);
+
+  const target = el("p", "release-followup-target", followUp.target);
+  target.id = FOLLOW_UP_TARGET_ID;
+  panel.append(target);
   container.append(panel);
 }
 
@@ -434,7 +673,7 @@ export function mountReleaseList(container, data = {}) {
     current = next;
     state = createReleaseListState(current.releases ?? [], state.expandedIds);
     const shown = filterReleases(current.releases ?? [], current.decisions ?? [], filters);
-    const filtered = (filters.status !== undefined && filters.status !== "all") || Boolean(filters.query?.trim());
+    const filtered = releaseFiltersActive(filters);
     renderReleaseList(container, shown, {
       filtered,
       expandedIds: state.expandedIds,
