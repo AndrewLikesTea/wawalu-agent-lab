@@ -464,3 +464,27 @@ test("no module this workflow reaches can upload, store, or authenticate", async
     }
   }
 });
+
+test("one module names browser storage, and it names one key", async () => {
+  // The list above is the whole workflow except the module whose job is the
+  // slot one reading is carried forward in. The claim that used to be "nothing
+  // is written to browser storage" is now "one module writes one key", so this
+  // is what checks it: every other module still cannot reach storage at all, and
+  // the one that can cannot reach a second key.
+  const source = await readFile(
+    new URL("../src/personal-history-carry-forward.js", import.meta.url), "utf8");
+  const code = source.replace(/\/\*[\s\S]*?\*\//g, "").split("\n")
+    .filter((row) => !row.trim().startsWith("//") && !row.trim().startsWith("*")).join("\n");
+
+  for (const pattern of [/\bfetch\s*\(/, /new XMLHttpRequest/, /\.sendBeacon\s*\(/,
+    /new WebSocket/, /new EventSource/, /document\.cookie/, /\bapiKey\s*[:=]/]) {
+    assert.doesNotMatch(code, pattern, `the carry-forward module reaches for ${pattern}`);
+  }
+  assert.doesNotMatch(code, /sessionStorage|indexedDB/, "a second storage is reached for");
+  // Every call goes through the one declared key, so a key name is never built
+  // at a call site and a second slot cannot appear without this failing.
+  const keyed = [...code.matchAll(/(getItem|setItem|removeItem)\(([^)]*)/g)]
+    .filter(([, , args]) => !args.startsWith("CARRY_FORWARD_STORAGE.key"));
+  assert.deepEqual(keyed.map(([match]) => match), [],
+    "a storage call names something other than the one declared key");
+});

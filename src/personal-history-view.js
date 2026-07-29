@@ -298,6 +298,45 @@ function confidenceSection(report) {
   return section;
 }
 
+/**
+ * This reading against the last one, or the named reason there is no comparison.
+ *
+ * Every state prints something. A comparison that appeared only when it happened
+ * to work would leave a reader unable to tell "nothing changed" from "the
+ * previous reading was thrown away", and those are different facts about their
+ * own history. The sentences are the contract's; nothing is authored here.
+ */
+function carryForwardSection(comparison) {
+  const section = el("section", "ph-carry");
+  section.dataset.carry = comparison.state;
+  section.append(el("h4", "ph-section-title", "Against your last reading"));
+
+  if (!comparison.comparable) {
+    line(section, "ph-carry-reason", comparison.reasonRule);
+    return section;
+  }
+  const { previous, current, delta } = comparison;
+  section.dataset.direction = delta.direction;
+  line(section, "ph-carry-direction", CARRY_DIRECTION_COPY[delta.direction]);
+  line(section, "ph-carry-arithmetic", `${delta.arithmetic}. `
+    + `This reading scored ${plural(current.scoredPrompts, "prompt", "prompts")} across `
+    + `${plural(current.distinctDays, "day", "days")}; the last scored `
+    + `${plural(previous.scoredPrompts, "prompt", "prompts")}.`);
+  line(section, "ph-carry-metric", comparison.metric.definition);
+  line(section, "ph-carry-basis", comparison.basis.refusal);
+  return section;
+}
+
+/**
+ * One sentence per direction. Falling is improving, and the copy says what fell
+ * rather than congratulating anybody: the figure is a cost per request.
+ */
+const CARRY_DIRECTION_COPY = Object.freeze({
+  improving: "The same move costs you less on an average request than it did last reading.",
+  worsening: "The same move costs you more on an average request than it did last reading.",
+  flat: "The same move costs you the same on an average request as it did last reading.",
+});
+
 /** Where the figure came from, in the reader's own file's terms. */
 function provenanceSection(report, { kind }) {
   const section = el("section", "ph-provenance");
@@ -502,10 +541,13 @@ const DISCLOSURES = Object.freeze([
  * One report, drawn.
  *
  * @param {object} report a report from `buildPersonalHistoryReport`.
- * @param {{kind?: string}} options which start produced it, so the worked
- *   example can never be read as a grade of the reader's own history.
+ * @param {{kind?: string, comparison?: object|null}} options `kind` is which
+ *   start produced it, so the worked example can never be read as a grade of the
+ *   reader's own history. `comparison` is the carry-forward result, in any of its
+ *   four states; null draws no section at all, which is the shape of this page
+ *   before a reading was ever carried forward.
  */
-export function renderReport(report, { kind = PERSONAL_RUN_KIND.file } = {}) {
+export function renderReport(report, { kind = PERSONAL_RUN_KIND.file, comparison = null } = {}) {
   const article = el("article", "ph-report");
   article.dataset.state = report.state;
   article.dataset.kind = kind;
@@ -519,6 +561,12 @@ export function renderReport(report, { kind = PERSONAL_RUN_KIND.file } = {}) {
   if (report.state === PERSONAL_REPORT_STATE.prioritized) {
     article.append(leadSection(report));
     article.append(confidenceSection(report));
+    // Only beside a named move, and only for the reader's own export. A
+    // comparison has nothing to attach to in the other states, and the worked
+    // example is an invented person who is never carried forward.
+    if (comparison && kind !== PERSONAL_RUN_KIND.preview) {
+      article.append(carryForwardSection(comparison));
+    }
     article.append(provenanceSection(report, { kind }));
     article.append(actionSection(report));
   } else {

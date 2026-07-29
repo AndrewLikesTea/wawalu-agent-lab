@@ -112,6 +112,11 @@ export async function verifyArtifact(root) {
     "personal-history.html", "personal-history-page.js", "personal-history-view.js",
     "personal-history-entry.js", "personal-history-contract.js", "personal-history-report.js",
     "personal-history-fixture.js", "personal-history.css",
+    // The entry also imports the carry-forward module: it is the only module in
+    // the workflow that names a storage API, so a dropped one is both a rejected
+    // entry module and the page losing the comparison it promises on its own
+    // published boundary.
+    "personal-history-carry-forward.js",
   ]);
   const paths = new Set(actual.map(({ path }) => path));
   for (const path of required) if (!paths.has(path)) throw new Error(`missing required UI asset: ${path}`);

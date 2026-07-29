@@ -88,7 +88,14 @@
 .ph-lead-evidence::before { content:"▲ "; color:#155f9e; }
 .ph-lead-evidence[data-evidence=projected]::before { content:"◇ "; }
 .ph-lead-refusal,.ph-reason { margin:0 0 8px; max-width:66ch; color:#3f3f39; font-size:14px; line-height:1.55; }
-.ph-confidence,.ph-provenance,.ph-action { border-top:1px solid #eae7df; padding-top:16px; }
+.ph-confidence,.ph-carry,.ph-provenance,.ph-action { border-top:1px solid #eae7df; padding-top:16px; }
+.ph-carry p { margin:0 0 6px; max-width:70ch; line-height:1.55; }
+.ph-carry-direction { font-weight:700; }
+.ph-carry[data-direction=improving] .ph-carry-direction::before { content:"↓ "; color:#3f7a4f; }
+.ph-carry[data-direction=worsening] .ph-carry-direction::before { content:"↑ "; color:#8a3d2f; }
+.ph-carry[data-direction=flat] .ph-carry-direction::before { content:"→ "; color:#62625d; }
+.ph-carry-arithmetic { color:#3f3f39; font:400 13px/1.5 ui-monospace,monospace; }
+.ph-carry-metric,.ph-carry-basis,.ph-carry-reason { color:#3f3f39; font-size:14px; }
 .ph-confidence-level { margin:0 0 6px; font-size:17px; font-weight:700; }
 .ph-confidence-level::before { content:"● "; color:#3f7a4f; }
 .ph-confidence[data-confidence=moderate] .ph-confidence-level::before { content:"◑ "; color:#8a6a2f; }
