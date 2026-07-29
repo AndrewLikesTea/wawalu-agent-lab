@@ -1377,6 +1377,78 @@ class AutonomousTests(IsolatedDiffBudget):
             self.assertTrue(failure["sessions_exhausted"])
             self.assertEqual(failure["total_runs"], 6)
 
+    def test_repeated_size_rejections_stop_the_issue_instead_of_retrying(self):
+        """An issue that cannot fit under the diff ceiling needs splitting, not another try.
+
+        Issue 530 came back 2024 then 2349 lines against a 2000 limit: the retry rebuilt
+        an oversized change because the ceiling is a fact about the issue, not the attempt.
+        The second size rejection stops it and asks for a split, rather than spending the
+        rest of max_attempts proving the same arithmetic.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            state.value["issues"]["60"] = {"status": "running", "attempts": 1,
+                                           "total_runs": 1, "size_rejections": 1}
+            events = pathlib.Path(tmp) / "events.jsonl"
+            journal = autonomous.Journal(events)
+            issue = {"number": 60, "title": "Share button", "body": "",
+                     "labels": [{"name": "agent-ready"}]}
+            labels = []
+            with mock.patch.object(autonomous, "comment"), \
+                 mock.patch.object(autonomous, "latest_run_policy_rejection",
+                                   return_value="policy: 2349 changed lines exceeds limit 2000"), \
+                 mock.patch.object(autonomous, "replace_state_label",
+                                   side_effect=lambda *a, **k: labels.append(a[3])):
+                autonomous.record_run_outcome(
+                    orchestrator.POLICY_REJECTED_EXIT_CODE, issue, 60, "frontend", {},
+                    {**self.config(), "issue_label": "agent-ready"},
+                    state, journal, "token")
+            self.assertEqual(state.value["issues"]["60"]["status"], "blocked")
+            self.assertEqual(state.value["issues"]["60"]["size_rejections"], 2)
+            self.assertEqual(labels, ["needs-human"])
+            failure = [json.loads(line) for line in events.read_text().splitlines()
+                       if json.loads(line)["event"] == "run_failed"][0]
+            self.assertTrue(failure["oversized"])
+
+    def test_a_single_size_rejection_still_retries(self):
+        """One oversized attempt may just be a sloppy plan; the retry gets to try smaller."""
+        with tempfile.TemporaryDirectory() as tmp:
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            state.value["issues"]["60"] = {"status": "running", "attempts": 1, "total_runs": 1}
+            journal = autonomous.Journal(pathlib.Path(tmp) / "events.jsonl")
+            issue = {"number": 60, "title": "Share button", "body": "",
+                     "labels": [{"name": "agent-ready"}]}
+            with mock.patch.object(autonomous, "comment"), \
+                 mock.patch.object(autonomous, "latest_run_policy_rejection",
+                                   return_value="policy: 2024 changed lines exceeds limit 2000"), \
+                 mock.patch.object(autonomous, "replace_state_label"):
+                autonomous.record_run_outcome(
+                    orchestrator.POLICY_REJECTED_EXIT_CODE, issue, 60, "frontend", {},
+                    {**self.config(), "issue_label": "agent-ready"},
+                    state, journal, "token")
+            self.assertEqual(state.value["issues"]["60"]["status"], "retry")
+            self.assertEqual(state.value["issues"]["60"]["size_rejections"], 1)
+
+    def test_forbidden_path_rejections_do_not_count_toward_the_size_guard(self):
+        """A path violation says nothing about size, so it must not consume the split budget."""
+        with tempfile.TemporaryDirectory() as tmp:
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            state.value["issues"]["60"] = {"status": "running", "attempts": 1,
+                                           "total_runs": 1, "size_rejections": 1}
+            journal = autonomous.Journal(pathlib.Path(tmp) / "events.jsonl")
+            issue = {"number": 60, "title": "Share button", "body": "",
+                     "labels": [{"name": "agent-ready"}]}
+            with mock.patch.object(autonomous, "comment"), \
+                 mock.patch.object(autonomous, "latest_run_policy_rejection",
+                                   return_value="policy: runner/autonomous.py is a forbidden path"), \
+                 mock.patch.object(autonomous, "replace_state_label"):
+                autonomous.record_run_outcome(
+                    orchestrator.POLICY_REJECTED_EXIT_CODE, issue, 60, "frontend", {},
+                    {**self.config(), "issue_label": "agent-ready"},
+                    state, journal, "token")
+            self.assertEqual(state.value["issues"]["60"]["status"], "retry")
+            self.assertEqual(state.value["issues"]["60"]["size_rejections"], 1)
+
     def test_deferred_runs_do_not_spend_a_cumulative_session(self):
         """The diff rail and provider outages cost no paid session, so they cost no total_run."""
         with tempfile.TemporaryDirectory() as tmp:
