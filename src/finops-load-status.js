@@ -130,7 +130,7 @@ export const SECONDARY_PLACEHOLDER = Object.freeze({
   actionRationale: "No intervention has been prioritized from the bundled example yet.",
   diagnosis: "No diagnosis yet",
   trend: "No comparison yet",
-  benchmark: "No comparator yet",
+  benchmark: "No peer comparison yet",
   spendMix: "Spend mix not measured yet",
   portfolioCount: "No actions counted yet",
   portfolioTitle: "No action portfolio yet",

@@ -407,7 +407,7 @@ test("a failed submission shows recovery copy for the first time and keeps the a
     assert.equal(recovery.hidden, false);
     assert.match(describedBy(document), /finops-contact-recovery/);
     assert.match(textOf(recovery), /Your email address is still in the field/);
-    assert.match(textOf(recovery), /the result above is unchanged/);
+    assert.match(textOf(recovery), /the briefing above is unchanged/);
     assert.equal(byId(document, "finops-contact-email").value, TYPED_EMAIL,
       "a failed submission must not clear the address the visitor typed");
     // Copy this repository owns — never the string the response supplied.

@@ -176,7 +176,7 @@ export const HEADLINE_BUNDLE_UNAVAILABLE = Object.freeze({
  */
 export const IMPORTED_BRIEFING_EMPTY = Object.freeze({
   department: "No department attributed",
-  benchmarkAnswer: "No benchmark comparison",
+  benchmarkAnswer: "No peer benchmark comparison",
   benchmarkSummary: "No compatible peer cohort for this import",
 });
 

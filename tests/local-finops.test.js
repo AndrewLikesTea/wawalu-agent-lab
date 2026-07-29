@@ -279,7 +279,7 @@ test("the page exposes an accessible local workflow and progressive disclosures"
   assert.match(page, /role="status" aria-live="polite"/);
   assert.match(page, /No upload · no credentials · no network transfer · no browser storage/);
   for (const label of [
-    "Period-level detail", "Mapping assumptions", "Data-quality warnings", "Benchmark and trend limits",
+    "Period-level detail", "Mapping assumptions", "Data-quality warnings", "Peer benchmark and trend limits",
     "Recommendation evidence",
   ]) assert.match(page, new RegExp(`<summary>${label}`));
   assert.match(page, /<ol id="local-department-list".*aria-label="Departments ordered by recoverable scenario"/);
@@ -293,11 +293,11 @@ test("the page exposes an accessible local workflow and progressive disclosures"
   const finding = page.slice(page.indexOf('<article class="local-finding"'),
     page.indexOf('<div class="local-state-grid"'));
   for (const label of [
-    "Recommended department action", "Quantified impact", "Department", "Benchmark", "Data provenance",
+    "Recommended department action", "Quantified impact", "Department", "Peer benchmark", "Data provenance",
   ]) assert.match(finding, new RegExp(label));
   assert.ok(finding.indexOf("Recommended department action") < finding.indexOf("Quantified impact"));
-  assert.ok(finding.indexOf("Quantified impact") < finding.indexOf("Benchmark"));
-  assert.ok(finding.indexOf("Benchmark") < finding.indexOf("Data provenance"));
+  assert.ok(finding.indexOf("Quantified impact") < finding.indexOf("Peer benchmark"));
+  assert.ok(finding.indexOf("Peer benchmark") < finding.indexOf("Data provenance"));
 
   // Trend and benchmark have programmatic names and descriptions; glyphs are
   // hidden accelerators beside equivalent visible words and values.
