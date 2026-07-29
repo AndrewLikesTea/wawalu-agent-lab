@@ -35,10 +35,31 @@ export const MAX_RELEASE_OWNER_LENGTH = 80;
 export const RECORD_DECISION_HREF = "/#decision-form";
 
 export const RELEASE_FORM_ERRORS = {
-  required: "A release needs a version, an owner, and a status.",
+  required: "A release needs a version, an owner, a status, a release date, and a summary.",
   length: "A release field exceeds its maximum length.",
+  invalidDate: "A release date must be a real calendar day written as YYYY-MM-DD.",
+  noDecisions: "A release must link at least one decision. Tick every decision this release carried.",
   unknownDecision: "A selected decision is no longer in this log. Review the selection and record the release again.",
 };
+
+// `<input type="date">` yields a calendar day, never an instant. It is stored as
+// that day's UTC midnight so one recorded release has one unambiguous
+// `createdAt` no matter which timezone recorded it — the list ordering, the
+// export comparator, and the detail view all read that single field.
+//
+// The regex alone would accept a well-formed but unreal day (2026-02-31, which
+// Date rolls forward to March 3), so the parse is round-tripped: a value that
+// does not come back out as it went in is rejected rather than silently moved.
+const RELEASE_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+export function releaseDateToIso(day) {
+  const value = String(day ?? "").trim();
+  if (!RELEASE_DATE_PATTERN.test(value)) return null;
+  const iso = `${value}T00:00:00.000Z`;
+  const parsed = new Date(iso);
+  if (Number.isNaN(parsed.getTime()) || parsed.toISOString() !== iso) return null;
+  return iso;
+}
 
 // Selection state is an ordered, de-duplicated list of decision ids, kept apart
 // from the DOM for two reasons: a re-render (new data arriving, an error state
@@ -71,38 +92,56 @@ export function selectionSummaryText(count, total) {
 // the caller can report it inline instead of writing a record it would then
 // have to walk back. Every id is checked against the decisions that exist right
 // now: a release must not be stored naming a decision this log cannot show.
+//
+// This function is the single validation boundary for a recorded release. The
+// form's `required` attributes and `maxlength`s mirror the rules below, but
+// they are a convenience for the person typing, not the contract: every rule is
+// re-checked here, so a caller that bypasses the markup (a test, a future
+// importer, a paste into the console) cannot write a record the views and the
+// export schema would then have to tolerate.
 export function createRelease(values = {}, options = {}) {
   const version = String(values.version ?? "").trim();
   const title = String(values.title ?? "").trim();
   const description = String(values.description ?? "").trim();
   const owner = String(values.owner ?? "").trim();
   const status = String(values.status ?? "");
+  const releasedOn = String(values.releasedOn ?? "").trim();
 
-  if (!version || !owner || !RELEASE_STATUSES.includes(status)) {
+  // A release is a dated, described, attributed event or it is not a record
+  // worth keeping: the summary answers "what shipped" on every surface that
+  // lists it, and the date is what every one of them orders by.
+  if (!version || !owner || !description || !releasedOn || !RELEASE_STATUSES.includes(status)) {
     throw new TypeError(RELEASE_FORM_ERRORS.required);
   }
   if (version.length > MAX_VERSION_LENGTH || title.length > MAX_RELEASE_TITLE_LENGTH
       || description.length > MAX_RELEASE_DESCRIPTION_LENGTH || owner.length > MAX_RELEASE_OWNER_LENGTH) {
     throw new TypeError(RELEASE_FORM_ERRORS.length);
   }
+  const createdAt = releaseDateToIso(releasedOn);
+  if (!createdAt) throw new TypeError(RELEASE_FORM_ERRORS.invalidDate);
 
   const known = new Set((options.decisions ?? []).map(({ id }) => id));
   const decisionIds = [...new Set(values.decisionIds ?? [])].map(String);
+  // A release exists in this log to carry decisions. One with none is not a
+  // record of why anything shipped, and the two failures below are the pair a
+  // native form cannot express: an empty checkbox group and an id that no
+  // longer resolves. Both are reported inline and nothing is written.
+  if (decisionIds.length === 0) throw new TypeError(RELEASE_FORM_ERRORS.noDecisions);
   if (decisionIds.some((id) => !known.has(id))) throw new TypeError(RELEASE_FORM_ERRORS.unknownDecision);
 
   const release = {
     id: options.id ?? globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`,
     version,
+    description,
     owner,
     status,
-    createdAt: options.createdAt ?? new Date().toISOString(),
+    createdAt,
     decisionIds,
   };
-  // Optional copy is only written when it exists: an absent field and an empty
-  // string are the same state, and one of them is not worth storing on every
-  // record. The list and detail views already fall back to the version.
+  // Title stays optional: an absent field and an empty string are the same
+  // state, and one of them is not worth storing on every record. The list and
+  // detail views already fall back to the version.
   if (title) release.title = title;
-  if (description) release.description = description;
   return release;
 }
 
