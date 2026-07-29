@@ -278,6 +278,11 @@ test("the briefing form sends the typed address and nothing from the briefing, a
     const note = shownText(document, "briefing-contact-note");
     assert.match(note, /This form sends one thing: the work email address you type/);
     assert.match(note, /No figure, period, limitation, file, or prompt text from this briefing/);
+    // Named outright rather than left to be inferred from "nothing else": the
+    // two things a reader is actually worried about are the figures they just
+    // read and the export they opened on the AI FinOps page.
+    assert.match(note, /briefing figures on this page and any files you imported[^.]*are never transmitted/i);
+    assert.match(note, /they stay in this browser/i);
 
     byId(document, "briefing-contact-open").click();
     submitEmail(document, "briefing-contact", TYPED_EMAIL);

@@ -30,7 +30,6 @@ import { importPageModule, waitFor } from "./support/page-module.js";
 
 const PAGE = new URL("../src/executive-briefing.html", import.meta.url);
 const FIXTURE_URL = new URL("../src/executive-finops-briefing-fixture.json", import.meta.url);
-const FIXTURE_PATH = "/executive-finops-briefing-fixture.json";
 const CSS_URL = new URL("../src/executive-briefing.css", import.meta.url);
 
 const readFixture = async () => JSON.parse(await readFile(FIXTURE_URL, "utf8"));
@@ -213,6 +212,23 @@ test("the page briefs on this browser's own periods, and asks the network for no
   assert.equal(root.querySelectorAll("a").length, 0, "a printable briefing offers no link to follow");
 });
 
+test("hostile retained labels are rendered as text and cannot create markup", async (t) => {
+  const hostileOrgUnit = '<img src=x onerror="globalThis.pwned=true"><script>pwned()</script>';
+  const periods = THREE_MONTHS.map((entry) => ({ ...entry, topDepartmentId: hostileOrgUnit }));
+  const { root } = await openPage(t, { storage: storedWorkspace({ periods }) });
+
+  // The value is contract-valid derived text, so this exercises the final
+  // output-encoding boundary rather than relying on input refusal to hide an
+  // unsafe renderer. A future innerHTML refactor would turn these into elements
+  // and fail loudly.
+  assert.equal(root.querySelector(".brief").getAttribute("data-synthetic"), null,
+    "the hostile workspace was silently replaced by the synthetic sample");
+  assert.equal(root.querySelector(".brief-org-unit").textContent, hostileOrgUnit);
+  assert.equal(root.querySelectorAll("img").length, 0);
+  assert.equal(root.querySelectorAll("script").length, 0);
+  assert.equal(root.querySelectorAll("[onerror]").length, 0);
+});
+
 test("a workspace whose only period cannot be briefed on names every empty slot", async (t) => {
   const storage = storedWorkspace({
     periods: [period({ month: "2026-06", recoverableMinor: 0, confidence: "insufficient" })],
@@ -238,7 +254,9 @@ test("a workspace whose only period cannot be briefed on names every empty slot"
 /* ----------------------------- the unavailable page ------------------------- */
 
 test("a browser with nothing retained says so first, then shows the labelled sample", async (t) => {
-  const { document, root } = await openPage(t, { routes: { [FIXTURE_PATH]: await readFixture() } });
+  // No routes: the harness throws on any request, so a page that still fetched
+  // its sample would fail here rather than quietly cost a reader a round-trip.
+  const { document, root } = await openPage(t, {});
 
   const notice = root.querySelector(".brief-source-notice");
   assert.ok(notice, "the page passed off the published sample as the reader's own figures");
@@ -263,17 +281,14 @@ test("a browser with nothing retained says so first, then shows the labelled sam
 });
 
 test("a declined choice and an unreadable document are told apart on the page", async (t) => {
-  const fixture = await readFixture();
-  const declined = await openPage(t, {
-    storage: storedWorkspace({ consent: "declined" }), routes: { [FIXTURE_PATH]: fixture },
-  });
+  const declined = await openPage(t, { storage: storedWorkspace({ consent: "declined" }) });
   assert.equal(declined.root.querySelector(".brief-source-notice").getAttribute("data-absence"),
     "retention_declined");
   assert.match(textOf(declined.root.querySelector(".brief-source-notice")), /That choice is respected/);
   declined.page.restore();
 
   const unreadable = await openPage(t, {
-    storage: { [FINOPS_WORKSPACE_KEY]: "not a workspace at all" }, routes: { [FIXTURE_PATH]: fixture },
+    storage: { [FINOPS_WORKSPACE_KEY]: "not a workspace at all" },
   });
   const notice = unreadable.root.querySelector(".brief-source-notice");
   assert.equal(notice.getAttribute("data-absence"), "unreadable_document");
@@ -342,15 +357,6 @@ test("a browser that offers no print dialog is told to use its own, with the she
   }
 });
 
-test("no briefing, no print control: an error state offers no sheet to take away", async (t) => {
-  // No storage and a fixture the tab cannot read — the one path that paints no
-  // briefing at all.
-  const { document, root } = await openPage(t, {});
-  assert.equal(root.querySelector(".brief-state").getAttribute("data-state"), "error");
-  assert.equal(document.getElementById("briefing-actions").children.length, 0);
-  assert.equal(document.getElementById("brief-print"), null);
-});
-
 test("the print sheet drops the control and keeps the notice that qualifies the figure", async () => {
   const css = await readFile(CSS_URL, "utf8");
   const print = css.slice(css.indexOf("@media print"));
@@ -365,6 +371,139 @@ test("the print sheet drops the control and keeps the notice that qualifies the 
   // The screen control is a target a thumb can hit, and a focus ring can find.
   assert.match(css, /\.brief-print-button \{[^}]*min-height:44px/);
   assert.match(css, /\.brief-print-button:focus-visible \{ outline:3px solid var\(--focus-ring\)/);
+});
+
+/* --------------- the empty state is a whole artifact, immediately ----------- */
+
+test("the bundled sample is the published fixture's own input, and rebuilds its briefing", async () => {
+  const fixture = await readFixture();
+  const { SAMPLE_RETAINED_PERIODS, sampleRetainedPeriods } =
+    await importPageModule("/executive-briefing-sample.js");
+  const { buildExecutiveBriefing, validateExecutiveBriefing } =
+    await importPageModule("/executive-finops-briefing.js");
+
+  // Duplicated data is only safe when a drift is loud. This is where it is loud.
+  assert.deepEqual(JSON.parse(JSON.stringify(sampleRetainedPeriods())), fixture.input.retainedPeriods);
+  const briefing = buildExecutiveBriefing(sampleRetainedPeriods());
+  assert.deepEqual(JSON.parse(JSON.stringify(briefing)), fixture.briefing);
+  assert.equal(validateExecutiveBriefing(briefing).valid, true);
+
+  // Deterministic twice over: the same periods, and a copy the contract may sort
+  // or splice without reaching back into the module's own frozen record.
+  assert.deepEqual(sampleRetainedPeriods(), sampleRetainedPeriods());
+  assert.notEqual(sampleRetainedPeriods()[0], SAMPLE_RETAINED_PERIODS[0]);
+  assert.throws(() => { SAMPLE_RETAINED_PERIODS[0].analyzedSpendMinor = 1; }, TypeError);
+});
+
+test("an empty workspace with no network at all still paints a complete briefing", async (t) => {
+  // No storage, no routes: the harness throws on every request, so anything the
+  // reader sees here was already in the bundle.
+  const { document, root } = await openPage(t, {});
+
+  const article = root.querySelector(".brief");
+  assert.ok(article, "an empty workspace was left on a loading or error state");
+  assert.equal(article.getAttribute("data-state"), "briefing");
+  assert.equal(root.querySelector('.brief-state[data-state="loading"]'), null);
+  assert.equal(root.querySelector('.brief-state[data-state="error"]'), null);
+
+  // Everything the first screen owes a leader, present without opening a level.
+  assert.match(textOf(document.querySelector(".brief-question")), /Where should we act first\?/);
+  assert.match(textOf(document.querySelector(".brief-answer")), /syn-support-triage/);
+  assert.equal(textOf(document.querySelector(".brief-figure")), "$6,120.00");
+  assert.match(textOf(article.querySelector('[data-role="priority-action"]')), /Pilot lower-cost routing/);
+  assert.equal(article.querySelectorAll('[data-role="priority-action"]').length, 1,
+    "a leader is owed one recommended next action, not a menu");
+  assert.match(textOf(document.querySelector(".brief-verdict")), /Confidence High/);
+  // And it is a sheet worth taking away.
+  assert.ok(document.getElementById("brief-print"), "the print control is withheld from the empty state");
+});
+
+test("the sample says it is synthetic on the artifact, and separates modelled from realized", async (t) => {
+  const { document, root } = await openPage(t, {});
+  const article = root.querySelector(".brief");
+
+  // Said on the sheet itself, not only in the notice above it: a cropped
+  // screenshot or a photographed page must still carry the word.
+  assert.equal(article.getAttribute("data-synthetic"), "true");
+  const banner = article.querySelector(".brief-synthetic");
+  assert.ok(banner, "the sample carries no synthetic label inside the briefing");
+  // Never `assert.equal` on two DOM nodes: a failing comparison makes node
+  // inspect a cyclic element graph and the run stops responding rather than
+  // reporting. Compare identity as a boolean and say what went wrong in words.
+  const masthead = article.querySelector(".brief-masthead");
+  assert.ok(masthead.children[0] === banner, "the synthetic label is not the first thing in the masthead");
+  assert.match(textOf(banner), /Synthetic sample/);
+  assert.match(textOf(banner), /not a measurement of your spend/);
+  assert.match(textOf(document.querySelector(".brief-origin")), /synthetic sample/i);
+
+  // Modelled potential is not money in the bank, and it says so beside the
+  // figure rather than four sections down.
+  const basis = article.querySelector(".brief-figure-basis");
+  assert.ok(basis, "the headline figure is not distinguished from a realized saving");
+  assert.equal(basis.getAttribute("data-basis"), "modelled_potential");
+  assert.match(textOf(basis), /Modelled potential, not realized savings/);
+  assert.match(textOf(basis), /not a realized saving/);
+  assert.match(textOf(basis), /Nothing here has been banked/);
+  assert.equal(article.querySelector('[data-role="material-metric"]').querySelectorAll(".brief-figure-basis").length,
+    1, "the basis is drawn away from the figure it qualifies");
+
+  // Provenance and the route to the method are readable without opening a level.
+  const provenance = article.querySelector(".brief-provenance-summary");
+  assert.ok(provenance, "the first screen discloses no provenance at all");
+  assert.equal(provenance.querySelectorAll("[hidden]").length, 0);
+  assert.ok(provenance.closest(".brief-panel") === null, "provenance was hidden behind a disclosure");
+  assert.match(textOf(provenance), /3 retained periods of the user dataset/);
+  assert.match(textOf(provenance), /1,766 of 1,840 records analyzed/);
+  assert.match(textOf(provenance), /No clock, no random value, no network request/);
+  assert.match(textOf(provenance), /What this rests on/);
+  assert.match(textOf(provenance), /How every figure is recomputed/);
+
+  // Still a printable document with nothing to follow and nothing to leak.
+  assert.doesNotMatch(textOf(root), FORBIDDEN_LINK_PATTERN);
+  assert.equal(root.querySelectorAll("a").length, 0);
+});
+
+test("every unbriefable workspace paints the same complete sample, however it failed", async (t) => {
+  const cases = [
+    ["retention_declined", storedWorkspace({ consent: "declined" })],
+    ["no_retained_period", storedWorkspace({ consent: "granted", periods: [] })],
+    ["unreadable_document", { [FINOPS_WORKSPACE_KEY]: "{not a document" }],
+    ["unsupported_document", { [FINOPS_WORKSPACE_KEY]: workspaceDocument({ version: "finops-workspace/9.0.0" }) }],
+    ["invalid_retained_records", storedWorkspace({ periods: [{ ...THREE_MONTHS[0], recordsAnalyzed: -1 }] })],
+  ];
+
+  for (const [code, storage] of cases) {
+    const opened = await openPage(t, { storage });
+    const article = opened.root.querySelector(".brief");
+    assert.ok(article, `${code} left the reader with no briefing`);
+    assert.equal(article.getAttribute("data-synthetic"), "true", `${code} drew an unlabelled sample`);
+    assert.equal(textOf(opened.document.querySelector(".brief-figure")), "$6,120.00", `${code} drew no figure`);
+    assert.equal(opened.root.querySelector(".brief-source-notice").getAttribute("data-absence"), code);
+    assert.ok(opened.document.getElementById("brief-print"), `${code} offers no sheet to take away`);
+    opened.page.restore();
+  }
+});
+
+test("the print sheet drops the navigation and keeps the label, the basis, and the provenance", async () => {
+  const css = await readFile(CSS_URL, "utf8");
+  const print = css.slice(css.indexOf("@media print"));
+
+  // Chrome comes off: the sheet is the briefing, and a nav bar on paper is a row
+  // of dead links.
+  assert.match(print, /\.site-header,\.site-nav,[^{]*\{ display:none !important; \}/);
+  // What must survive the trip out of the building with the figure.
+  for (const kept of [
+    "brief-synthetic", "brief-figure-basis", "brief-provenance-summary",
+  ]) {
+    assert.doesNotMatch(print, new RegExp(`\\.${kept}[^\\n]*display:none`), `${kept} is dropped on paper`);
+    assert.match(print, new RegExp(`\\.${kept} \\{[^}]*break-inside:avoid`),
+      `${kept} may be split across a page break`);
+  }
+  // Colour is decorative on paper; the words carry the meaning in monochrome.
+  assert.match(print, /\.brief-synthetic \{[^}]*background:none !important/);
+  assert.match(print, /\.brief-basis-tag,\.brief-basis-statement \{[^}]*color:#171713 !important/);
+  // And the levels still open, so the full provenance and method print too.
+  assert.match(print, /\.brief-panel\[hidden\] \{ display:block !important; \}/);
 });
 
 /* --------------------------------- helpers ---------------------------------- */

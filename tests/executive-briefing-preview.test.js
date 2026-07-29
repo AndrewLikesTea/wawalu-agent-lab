@@ -231,35 +231,37 @@ test("a workspace with nothing retained says what is absent, in the same reading
   assert.match(textOf(empty.querySelector(".brief-bound-statement")), /routing scenario/);
 });
 
-test("a fixture this tab cannot read is an error that says what is not wrong", async (t) => {
+test("a tab that can reach nothing at all still paints the whole sample", async (t) => {
+  // `undefined` declares no routes, so the harness throws on any request. The
+  // sample used to be fetched from this origin, and a reader who could not reach
+  // it got an error panel with no artifact on it. It is carried in the bundle
+  // now, so there is no request left to fail and nothing left to withhold.
   const { document, root } = await openPage(t, undefined);
 
-  const panel = root.querySelector(".brief-state");
+  assert.equal(root.querySelector(".brief-state"), null, "a reachable-nothing tab was left on a state panel");
+  assert.equal(root.getAttribute("aria-busy"), "false");
+  assert.equal(root.querySelector(".brief").getAttribute("data-state"), "briefing");
+  assert.equal(textOf(document.querySelector(".brief-figure")), "$6,120.00");
+  assert.equal(document.querySelectorAll(".brief-figure").length, 1, "one headline figure, not a dashboard");
+});
+
+test("the error state a briefing can still reach says what is not wrong", async (t) => {
+  // The one failure left is a briefing that fails the contract it declares. It
+  // is unreachable from the shipped sample by construction, so it is exercised
+  // through the view directly rather than by breaking a file on disk.
+  await openPage(t, await readFixture());
+  const { renderBriefingError } = await view();
+
+  const panel = renderBriefingError({
+    summary: "The published sample failed its own contract",
+    detail: "1 violation(s).",
+    remedy: "No figure is shown. Nothing was uploaded and nothing was stored.",
+  });
   assert.equal(panel.getAttribute("data-state"), "error");
   assert.equal(panel.getAttribute("role"), "alert");
-  assert.match(textOf(panel), /Error: The published briefing could not be read/);
-  assert.match(textOf(panel), /executive-finops-briefing-fixture\.json/);
+  assert.match(textOf(panel), /Error: The published sample failed its own contract/);
   assert.match(textOf(panel), /Nothing was uploaded and nothing was stored/);
-  assert.equal(root.getAttribute("aria-busy"), "false");
-  assert.equal(document.querySelectorAll(".brief-figure").length, 0, "no figure is shown beside an error");
-});
-
-test("a rebuild that disagrees with the published briefing is withheld, not painted", async (t) => {
-  const fixture = await readFixture();
-  fixture.briefing.recoverable.valueMinor += 1;
-  const { root } = await openPage(t, fixture);
-
-  const panel = root.querySelector(".brief-state");
-  assert.equal(panel.getAttribute("data-state"), "error");
-  assert.match(textOf(panel), /does not match the published one/);
-  assert.equal(root.querySelectorAll(".brief-figure").length, 0);
-});
-
-test("a fixture with no retained periods to rebuild from is reported as such", async (t) => {
-  const fixture = await readFixture();
-  delete fixture.input;
-  const { root } = await openPage(t, fixture);
-  assert.match(textOf(root.querySelector(".brief-state")), /carries no retained periods/);
+  assert.equal(panel.querySelectorAll(".brief-figure").length, 0, "no figure is shown beside an error");
 });
 
 test("an implausible extreme is drawn with its figure and named in words", async (t) => {

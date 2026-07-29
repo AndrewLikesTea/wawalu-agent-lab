@@ -30,6 +30,15 @@ read against. `src/executive-finops-briefing-fixture.json` remains the canonical
 what the contract builds. This set is the *coverage*: twelve labelled states,
 each pinned to the claims a consumer binds to.
 
+The executive briefing page no longer fetches that file. Its three input periods
+are carried in the bundle by `src/executive-briefing-sample.js`, so a browser
+with nothing retained paints a whole briefing on the first screen rather than
+waiting on a request that can fail. The fixture is still the published record the
+module is held to: `tests/executive-briefing-local.test.js` asserts the module's
+periods deep-equal `input.retainedPeriods` and rebuild `briefing`, and
+`scripts/verify-build.mjs` repeats both against the built artifact. Change one
+without the other and the build fails rather than two samples shipping.
+
 ## The labelled set
 
 `grade` is the eligibility verdict the reader is shown: **eligible** when a
