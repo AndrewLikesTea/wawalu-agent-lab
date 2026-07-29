@@ -103,6 +103,15 @@ export async function verifyArtifact(root) {
     // and the workspace reader to do it. A dropped one is a rejected entry
     // module — a page stuck on its loading state with no briefing at all.
     "executive-briefing-source.js", "finops-workspace.js",
+    // The personal AI-history reader is a destination of its own, and its entry
+    // imports the contract, the reader, the canonical synthetic export, the
+    // entry rules, and the view. A dropped one of these is a rejected entry
+    // module — a page whose privacy guidance, eligibility list, and result
+    // states never paint at all, on the one surface that asks a person for
+    // their own history.
+    "personal-history.html", "personal-history-page.js", "personal-history-view.js",
+    "personal-history-entry.js", "personal-history-contract.js", "personal-history-report.js",
+    "personal-history-fixture.js", "personal-history.css",
   ]);
   const paths = new Set(actual.map(({ path }) => path));
   for (const path of required) if (!paths.has(path)) throw new Error(`missing required UI asset: ${path}`);

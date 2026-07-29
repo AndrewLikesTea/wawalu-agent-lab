@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Read your own AI assistant export in your own browser and find the single habit worth changing first. Nothing is uploaded, no account is connected, and no prompt you wrote is kept." />
+    <title>Personal AI history · Shiplog</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/personal-history.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to main content</a>
+    <div class="page">
+      <header class="site-header">
+        <a class="brand" href="/"><span class="mark" aria-hidden="true"></span>Shiplog</a>
+        <nav class="site-nav" aria-label="Wawalu Labs">
+          <a href="/">Decisions</a>
+          <span class="nav-group">
+            <a class="nav-social" href="/social.html">Social</a>
+            <a class="nav-profile" href="/profile.html">People</a>
+          </span>
+          <a href="/releases.html">Releases</a>
+          <a href="/paint/">Paint</a>
+          <a class="nav-evolution" href="/evolution.html">AI FinOps</a>
+          <a class="nav-coach" aria-current="page" href="/coach.html">Prompt coach</a>
+          <a href="/agents.html">Agent observatory</a>
+        </nav>
+      </header>
+
+      <main id="main-content" tabindex="-1">
+      <section class="ph-hero" aria-labelledby="page-title">
+        <p class="eyebrow">Personal AI history · browser only</p>
+        <h1 id="page-title">One habit worth<br />changing first.</h1>
+        <p class="ph-hero-lead">Hand your own assistant export to this page and it names the single improvement to prioritize in how you ask — what that move is worth across your history, how much of it the reading covers, and how far to trust the answer. It is a reading of one person: yours. It is never a score against anybody else.</p>
+        <!-- The boundary in static markup, before any script runs. A reader
+             deciding whether to hand over three weeks of their own requests
+             cannot be asked to trust a promise that only appears once
+             JavaScript has succeeded. The module below expands this into the
+             full contract; these two sentences are true with it turned off. -->
+        <p class="ph-hero-boundary"><strong>Your export never leaves this tab.</strong> <span>No upload, no sign-in, no account to connect, no storage, and no record that outlives the page. Your prompts are measured and dropped inside one function call, and the result carries counts and rubric identifiers in their place.</span></p>
+        <p class="ph-hero-aside">This is the personal path and it is separate on purpose: it is not the organizational conversation-export import, it never joins an org chart, and nothing read here becomes part of a team grade.</p>
+      </section>
+
+      <!-- Read before choosing. Two questions a reader has in this order: what
+           happens to my file, and will this even read it. Both are painted from
+           the shipped contract so the page and the tests assert the same
+           sentences. -->
+      <section class="ph-guidance" aria-labelledby="ph-boundary-title">
+        <div class="section-heading">
+          <p class="eyebrow">Before you choose a file</p>
+          <h2 id="ph-boundary-title">What this does with your history</h2>
+          <p>Every line below is a field of the shipped boundary or a refusal the contract publishes, and each one is checkable rather than a matter of tone.</p>
+        </div>
+        <div id="personal-history-boundary" class="ph-boundary">
+          <p class="ph-boundary-fallback">Read in this browser tab. Not uploaded, not stored, not sent anywhere for analysis. No provider account is connected and no attachment is opened.</p>
+        </div>
+      </section>
+
+      <section class="ph-guidance" aria-labelledby="ph-eligibility-title">
+        <div class="section-heading">
+          <p class="eyebrow">Supported files</p>
+          <h2 id="ph-eligibility-title">Which exports this can read</h2>
+          <p>Two shapes, both of which a person can obtain for themselves. A file that matches neither is refused rather than guessed at.</p>
+        </div>
+        <div id="personal-history-eligibility" class="ph-eligibility">
+          <p class="ph-eligibility-fallback">A personal conversation export as JSON, or a personal prompt log as CSV or TSV carrying a date column and a prompt column.</p>
+        </div>
+      </section>
+
+      <!-- The workflow. The controls are in the markup rather than drawn by the
+           entry module, so a keyboard reader meets the same three stops whether
+           or not the script came to life; the module gives them behaviour and
+           owns every state below them. -->
+      <section class="ph-workflow" id="personal-history" aria-labelledby="ph-workflow-title">
+        <div class="section-heading">
+          <p class="eyebrow">Read your history</p>
+          <h2 id="ph-workflow-title">What single improvement should I prioritize in my own AI usage?</h2>
+          <p>Choose your export, or build the worked example first to see what a result looks like before you hand over anything of your own.</p>
+        </div>
+
+        <div class="ph-controls">
+          <div class="ph-field">
+            <label for="personal-history-file">Your own export</label>
+            <input id="personal-history-file" type="file" aria-describedby="personal-history-file-hint" />
+            <p class="ph-hint" id="personal-history-file-hint">Chosen here, read here. The file is opened by this tab and by nothing else, and the picker never sends it anywhere.</p>
+          </div>
+          <div class="ph-actions">
+            <button id="personal-history-preview" type="button">Build the worked example</button>
+            <button id="personal-history-clear" type="button">Clear</button>
+          </div>
+        </div>
+
+        <!-- One live region, one sentence at a time. The result panels below
+             carry the detail; announcing both would read the whole report
+             aloud on every stage change. -->
+        <p class="ph-status" id="personal-history-status" role="status" aria-live="polite"></p>
+
+        <div id="personal-history-result" class="ph-result" aria-busy="false">
+          <section class="ph-state ph-idle" data-state="idle">
+            <h3 class="ph-state-title">Nothing has been read</h3>
+            <p>Choose your own export, or build the worked example, and the result appears here.</p>
+          </section>
+        </div>
+      </section>
+      </main>
+    </div>
+    <footer class="site-footer" id="site-footer" aria-labelledby="site-footer-title">
+      <div class="site-footer-inner">
+        <h2 class="site-footer-title" id="site-footer-title">About Shiplog</h2>
+        <p class="site-footer-identity">Shiplog is a demonstration engineering decision and release log, built and operated by Wawalu at labs.wawalu.org.</p>
+        <button class="site-footer-trigger" id="site-footer-open" type="button" aria-expanded="false" aria-controls="site-footer-panel">
+          Talk to us about Shiplog
+        </button>
+        <div class="site-footer-panel" id="site-footer-panel" hidden>
+          <form id="site-footer-form" class="site-footer-form" novalidate>
+            <div class="site-footer-field">
+              <label for="site-footer-email">Work email</label>
+              <!-- Only the note is named here. The inline error and the recovery
+                   paragraph are added to this description by site-footer.js when
+                   they exist, because a hidden element referenced by
+                   aria-describedby is still part of the accessible description
+                   and would otherwise be read on first focus. -->
+              <input id="site-footer-email" name="email" type="email" maxlength="254" inputmode="email" autocomplete="email" placeholder="you@company.com" required aria-describedby="site-footer-note" />
+            </div>
+            <p class="site-footer-error" id="site-footer-error" hidden></p>
+            <p class="site-footer-note" id="site-footer-note">Submitting requests a follow-up conversation about Shiplog. This form sends one thing: the work email address you type. Nothing else on this page — nothing you have read, filtered, imported, or exported — is read, attached, or transmitted, and the address goes to the Wawalu team that operates Shiplog.</p>
+            <div class="site-footer-actions">
+              <button type="submit">Request a follow-up</button>
+              <button id="site-footer-dismiss" type="button">Close</button>
+            </div>
+          </form>
+          <p class="site-footer-status" id="site-footer-status" role="status" aria-live="polite"></p>
+          <p class="site-footer-recovery" id="site-footer-recovery" hidden>Your email address is still in the field above, so you can request a follow-up again. Nothing else on this page changed.</p>
+        </div>
+      </div>
+    </footer>
+    <script type="module" src="/personal-history-page.js"></script>
+    <script type="module" src="/site-footer-page.js"></script>
+  </body>
+</html>
