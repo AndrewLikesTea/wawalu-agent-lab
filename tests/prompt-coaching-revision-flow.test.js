@@ -1,4 +1,4 @@
-// Re-grading a prompt, driven through the shipped markup of evolution.html.
+// Re-grading a prompt, driven through the shipped markup of the prompt-coach destination.
 //
 // `prompt-coaching-flow.test.js` covers the first grade. This file covers only
 // what the second one changes: the reading order of the change block, where
@@ -26,7 +26,7 @@ import {
   REVISION_STATUS, buildRevisionChange, markPromptCoachingPending,
 } from "../src/prompt-coaching-view.js";
 
-const PAGE = fileURLToPath(new URL("../src/evolution.html", import.meta.url));
+const PAGE = fileURLToPath(new URL("../src/coach.html", import.meta.url));
 const CSS = new URL("../src/evolution.css", import.meta.url);
 const BASE_CSS = new URL("../src/styles.css", import.meta.url);
 

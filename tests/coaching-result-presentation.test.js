@@ -139,7 +139,7 @@ test("a refusal is a state with a benchmark and a move in it, not a blank panel"
 });
 
 test("the control a refusal names is a control the page actually ships", async () => {
-  const markup = await readFile(new URL("../src/evolution.html", import.meta.url), "utf8");
+  const markup = await readFile(new URL("../src/coach.html", import.meta.url), "utf8");
   for (const entry of specimen()) {
     const control = regionNamed(entry.model, "action").control;
     if (control) assert.ok(markup.includes(`id="${control}"`), `${entry.id} points at a missing control`);

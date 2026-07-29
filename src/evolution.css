@@ -1743,10 +1743,38 @@
 .coaching-specimen-case-title { margin:0; font-size:14px; line-height:1.4; }
 .coaching-specimen-case-purpose { margin:0; max-width:70ch; color:var(--ink-muted); font-size:12px; line-height:1.6; }
 
+/* The prompt-coach destination. Its own frame rather than the dashboard hero:
+   this page carries one workflow, so the type ramp starts at the question and
+   the measure of every paragraph stays inside a comfortable reading width at
+   any viewport. Nothing here is positioned, sticky, or sized to a viewport
+   unit, so a 320px screen reflows instead of scrolling sideways. */
+.coach-hero { display:grid; gap:12px; max-width:70ch; margin:0 0 26px; }
+.coach-hero h1 { margin:0; font-size:clamp(32px,5.6vw,52px); line-height:1.04; letter-spacing:-.045em; }
+.coach-hero-lead { margin:0; font-size:16px; line-height:1.65; }
+.coach-hero-boundary { display:grid; gap:4px; margin:0; border-left:5px solid var(--import-accent); padding:4px 0 4px 12px; font-size:13px; line-height:1.6; }
+.coach-hero-boundary span { color:var(--ink-muted); }
+/* The worked example: a full result a visitor did not ask for, so it reads as
+   a demonstration — one step in from the workflow, and dimmed only in its
+   attribution line, never in the figures themselves. */
+.prompt-coach-sample { display:grid; gap:10px; border:1px dashed var(--import-line); border-radius:12px; padding:16px; }
+.prompt-coach-sample[hidden] { display:none; }
+.prompt-coach-sample-static,.prompt-coach-sample-lead { margin:0; max-width:70ch; color:var(--ink-muted); font-size:13px; line-height:1.6; }
+.prompt-coach-sample-body { display:grid; gap:12px; }
+.prompt-coach-sample-attribution { margin:0; max-width:70ch; border-left:5px solid var(--import-line); padding:2px 0 2px 12px; font-size:13px; line-height:1.6; }
+/* The neighbouring surface, at the foot of the coach and at the foot of the
+   dashboard: the same card, so the pair reads as two destinations rather than
+   as one page advertising another. */
+.coach-neighbour,.coach-handoff { display:grid; justify-items:start; gap:10px; max-width:70ch; }
+.coach-neighbour h2 { margin:0; font-size:clamp(20px,3vw,26px); line-height:1.15; letter-spacing:-.03em; }
+.coach-neighbour p { margin:0; font-size:15px; line-height:1.62; }
+
 @media (max-width:640px) {
   /* One column at 390px: a two-column definition grid puts a 13px label and a
      monospace figure in ~40 characters each, which is the failure the mobile
      review filed as finding 01 on the dashboard. */
+  .coach-hero-lead { font-size:15px; }
+  .coach-neighbour .secondary-button,.coach-handoff .secondary-button { width:100%; }
+  .prompt-coach-sample { padding:12px; }
   .coaching-result-facts { grid-template-columns:minmax(0,1fr); gap:2px; }
   .coaching-result-assumptions { grid-template-columns:minmax(0,1fr); gap:2px; }
   .coaching-result-assumptions dd { margin-bottom:6px; }
