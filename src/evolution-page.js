@@ -99,7 +99,7 @@ import { applyDepartmentEvidence } from "/department-evidence-view.js";
 // because a reader with a query sample and no billing export has none to give —
 // and the scoring module turns it into the same per-unit rows the drill-down's
 // evidence panel and fix pack already consume.
-import { orgQuerySampleResult } from "/org-query-source.js";
+import { orgQuerySampleResult, validateOrgQuerySource } from "/org-query-source.js";
 import {
   orgQueryDecisionData, orgQueryDecisionDepartments, orgQueryDepartmentLiteracy,
   orgQueryDepartmentRows,
@@ -425,6 +425,11 @@ function mountLocalFinopsImport() {
   // different question and are graded by a different module. Same lifetime as
   // everything else here — this closure, and no longer.
   const samples = [];
+  // Conversation or audit archives, kept apart from `samples` above because they
+  // are a different kind of evidence: they place and count queries and carry no
+  // token counts or rubric category, so every consumer that grades a *prompt
+  // sample* must not see them. Only the organizational literacy path reads them.
+  const archives = [];
   let queue = [];
   let review = null;
   let result = null;
@@ -1295,6 +1300,7 @@ function mountLocalFinopsImport() {
     queue = [];
     review = null;
     samples.length = 0;
+    archives.length = 0;
     // The drill-down goes back to the bundled sample with everything else. A
     // graded unit outliving the file it was graded from is the same mislabelling
     // the clear exists to prevent, in the other direction.
@@ -1509,9 +1515,12 @@ function mountLocalFinopsImport() {
    * this surface does not have. A file whose dialect no declared source reads
    * yields null and is filtered out rather than guessed at.
    */
-  const importedOrgLiteracy = () => (samples.length && !exampleActive
+  const importedOrgLiteracy = () => ((samples.length || archives.length) && !exampleActive
     ? orgQueryDepartmentLiteracy({
-      results: samples.map((entry) => orgQuerySampleResult(entry.parsed)).filter(Boolean),
+      results: [
+        ...samples.map((entry) => orgQuerySampleResult(entry.parsed)),
+        ...archives.map((entry) => entry.result),
+      ].filter(Boolean),
     })
     : null);
 
@@ -1542,7 +1551,8 @@ function mountLocalFinopsImport() {
     // queries yet" is the answer a reader has to act on, and the drill-down above
     // is right to publish no letters for it.
     paintCoachingDecision(literacy, {
-      origin: "import", fileNames: samples.map((entry) => entry.fileName),
+      origin: "import",
+      fileNames: [...samples, ...archives].map((entry) => entry.fileName),
     });
     // The one gate, and it is the policy's. `analysisEligibility` reads the same
     // three input states that classify every finding, so a provider export on
@@ -1596,6 +1606,18 @@ function mountLocalFinopsImport() {
       const sample = parseQuerySample(file.text);
       if (sample.ok) {
         samples.push({ fileName: file.fileName, parsed: sample });
+        continue;
+      }
+      // The third declared source, read the same way: from the file's own
+      // header, never from its name. A conversation dialect matches only on the
+      // identifier columns it declares, and a provider export or roster carries
+      // none of them, so this asks and moves on rather than claiming a file the
+      // mapping step below was going to read. Its records reach the
+      // organizational literacy path and nothing else.
+      const archive = validateOrgQuerySource(file.text,
+        { sourceId: "local-conversation-archive", fileName: file.fileName });
+      if (archive.ok) {
+        archives.push({ fileName: file.fileName, result: archive });
         continue;
       }
       // A delimited file is never analyzed on sight: it goes through the review

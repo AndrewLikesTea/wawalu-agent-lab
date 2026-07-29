@@ -22,6 +22,7 @@ import { readFile } from "node:fs/promises";
 import { DomEvent, loadPage, pressEnter, pressKey, pressTab, tabSequence, textOf } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 import { BRIEFING_FILE_VERSION } from "../src/finops-briefing-export.js";
+import { conversationExampleText } from "../src/conversation-export-example.js";
 import {
   FINOPS_WORKSPACE_KEY, FINOPS_WORKSPACE_VERSION,
 } from "../src/finops-workspace-contract.js";
@@ -743,6 +744,53 @@ test("the reopen control and the restored region are operable on the keyboard al
       pressEnter(document);
       assert.equal(byId(document, "restored-briefing").hidden, true);
     });
+  } finally {
+    page.restore();
+  }
+});
+
+// ---------------------------------------------------------------------------
+// The third declared organizational query source, through the same file input.
+// ---------------------------------------------------------------------------
+//
+// A conversation or audit archive is not a query sample and not a provider
+// export. Before this path existed the import surface had nowhere to put one:
+// it fell through to the column-mapping step, which reads billing shapes. These
+// two tests are the regression guard on that routing in both directions — an
+// archive must be recognized without the mapping step, and a provider export
+// must still reach the mapping step exactly as it always did.
+
+test("a local conversation archive is recognized without the mapping step", async () => {
+  const page = await openFinopsTab();
+  try {
+    const { document } = page;
+    chooseFiles(document, [{
+      name: "conversation-archive.csv",
+      text: conversationExampleText("chatgpt-enterprise-conversation-export"),
+    }]);
+    await waitFor(() => shownText(document, "org-coaching").includes("Your file, read in this tab"),
+      "the coaching decision to be repainted from the reader's own archive");
+    // The registry's own label for the source, so the reader is told which of
+    // the three declared shapes their file was read as.
+    assert.match(shownText(document, "org-coaching"), /Local conversation or audit archive/);
+    // And it never reached the billing-shaped mapping step.
+    assert.equal(byId(document, "import-mapping").hidden, true,
+      "an archive must not be routed through the column-mapping step");
+    // An archive carries no rubric category, so no letter is published from it
+    // and the surface names no department to coach.
+    assert.ok(!shownText(document, "org-coaching").includes("needs coaching first"));
+  } finally {
+    page.restore();
+  }
+});
+
+test("the provider export still reaches the mapping step unchanged", async () => {
+  const page = await openFinopsTab();
+  try {
+    const { document } = page;
+    chooseFiles(document, [{ name: "openai-usage-export.csv", text: PROVIDER_EXPORT }]);
+    await reviewOpens(document, "openai-usage-export.csv");
+    assert.equal(byId(document, "import-mapping").hidden, false);
   } finally {
     page.restore();
   }
