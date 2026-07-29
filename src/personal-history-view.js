@@ -47,8 +47,17 @@ import {
   PERSONAL_RANKING_RULE, PERSONAL_READER_LIMITS, PERSONAL_REPORT_STATE, PERSONAL_REQUIRED_FIELDS,
 } from "/personal-history-contract.js";
 import {
-  PERSONAL_FILE_KINDS, PERSONAL_RUN_KIND, personalStageProgress,
+  PERSONAL_CONTROL_ID, PERSONAL_FILE_KINDS, PERSONAL_RUN_KIND, personalNextStep,
+  personalReportNextStep, personalStageProgress,
 } from "/personal-history-entry.js";
+// Where a reader gets the file this page is asking them for. The panel paints
+// the contract's own guidance rather than wording an assistant's console here,
+// so the sentence beside the picker and the sentence a refusal carries are the
+// same versioned statement.
+import {
+  DEFAULT_PERSONAL_EXPORT_SOURCE, PERSONAL_EXPORT_SOURCES, PERSONAL_SOURCE_INTAKE_SENTENCE,
+  PERSONAL_SOURCE_STALENESS, archiveSupported, personalExportSourceById, personalSourceGuidance,
+} from "/personal-export-sources.js";
 // The comparison is read into a finding — is the habit actually moving? — before
 // it is drawn, because a signed number is not a trajectory. The rule that
 // decides which of the six findings applies lives in the model module; this
@@ -179,6 +188,113 @@ export function renderEligibilityGuide() {
   return section;
 }
 
+/* --------------------------- where to get a file --------------------------- */
+
+export const SOURCES_CONTAINER_ID = "personal-history-sources";
+export const SOURCE_PANEL_ID = "personal-history-source-panel";
+/** The slot the panel is swapped inside, so the radio group is never replaced. */
+export const SOURCE_PANEL_SLOT_ID = "personal-history-source-slot";
+export const SOURCE_RADIO_NAME = "personal-history-source";
+export const SOURCE_RADIO_ID = (id) => `personal-history-source-${id}`;
+
+/**
+ * Which assistant the reader is exporting from, as a native radio group.
+ *
+ * Native radios rather than a custom tablist: a radio group is one tab stop with
+ * arrow-key movement between the options, the checked state is in the
+ * accessibility tree without an attribute being maintained by hand, and the
+ * whole control works before this script does anything to it. Each radio names
+ * the panel it governs through `aria-controls`, and the panel sits immediately
+ * after the group so reading order and DOM order agree.
+ */
+export function renderSourcePicker(selectedId = DEFAULT_PERSONAL_EXPORT_SOURCE) {
+  const fieldset = el("fieldset", "ph-source-picker");
+  fieldset.append(el("legend", "ph-source-legend", "Which assistant are you exporting from?"));
+
+  const list = el("div", "ph-source-options");
+  for (const entry of PERSONAL_EXPORT_SOURCES) {
+    const option = el("div", "ph-source-option");
+    const input = el("input");
+    input.setAttribute("type", "radio");
+    input.setAttribute("name", SOURCE_RADIO_NAME);
+    input.id = SOURCE_RADIO_ID(entry.id);
+    input.setAttribute("value", entry.id);
+    input.setAttribute("aria-controls", SOURCE_PANEL_ID);
+    input.dataset.source = entry.id;
+    if (entry.id === selectedId) {
+      input.checked = true;
+      input.setAttribute("checked", "checked");
+    }
+    const label = el("label", "ph-source-label", entry.label);
+    label.setAttribute("for", input.id);
+    option.append(input, label);
+    list.append(option);
+  }
+  fieldset.append(list);
+  return fieldset;
+}
+
+/**
+ * The guidance for one source: the four terms, in one order, for every source.
+ *
+ * The container is a region with the source's own name in its accessible label,
+ * so a reader who arrows through the group and then moves into the panel is told
+ * which vendor's instructions they landed in. It is deliberately *not* a live
+ * region: the radio announces the change itself, and announcing it twice is how
+ * a picker becomes unusable with a screen reader.
+ */
+export function renderSourcePanel(sourceId = DEFAULT_PERSONAL_EXPORT_SOURCE) {
+  const entry = personalExportSourceById(sourceId);
+  const panel = el("div", "ph-source-panel");
+  panel.id = SOURCE_PANEL_ID;
+  panel.dataset.source = entry.id;
+  // Whether the container is opened in the tab travels as data as well as in the
+  // sentence, so the stylesheet marks the archive path without being the only
+  // place a reader could learn it.
+  panel.dataset.container = entry.arrives.container;
+  panel.dataset.archiveSupported = String(archiveSupported(entry));
+  panel.setAttribute("role", "region");
+  panel.setAttribute("aria-label", `How to export from ${entry.label}`);
+
+  panel.append(el("h3", "ph-source-name", entry.label));
+  const terms = el("dl", "ph-source-terms");
+  for (const row of personalSourceGuidance(entry)) {
+    const term = el("dt", "ph-source-term", row.term);
+    term.dataset.term = row.id;
+    terms.append(term, el("dd", "ph-source-detail", row.detail));
+  }
+  panel.append(terms);
+
+  // The step after the guidance, attached to the guidance. A reader who has just
+  // downloaded the file named above should not have to find the picker again.
+  const jump = el("button", "ph-source-jump", "Choose that file");
+  jump.setAttribute("type", "button");
+  jump.dataset.control = PERSONAL_CONTROL_ID.file;
+  jump.setAttribute("aria-label",
+    `Choose that file — moves focus to the file picker for your ${entry.label} export`);
+  panel.append(jump);
+  return panel;
+}
+
+/**
+ * The whole "where do I get this" surface: the promise, the picker, the panel,
+ * and the note that a console path ages.
+ */
+export function renderExportSources(sourceId = DEFAULT_PERSONAL_EXPORT_SOURCE) {
+  const section = el("div", "ph-sources-body");
+  line(section, "ph-source-promise", PERSONAL_SOURCE_INTAKE_SENTENCE);
+  section.append(renderSourcePicker(sourceId));
+  // The panel lives in a slot of its own. A change swaps the slot's contents,
+  // never the group above it: replacing a radio a reader is standing on takes
+  // their focus with it and drops them back at the top of the page.
+  const slot = el("div", "ph-source-slot");
+  slot.id = SOURCE_PANEL_SLOT_ID;
+  slot.append(renderSourcePanel(sourceId));
+  section.append(slot);
+  line(section, "ph-source-staleness", PERSONAL_SOURCE_STALENESS);
+  return section;
+}
+
 /* --------------------------------- states --------------------------------- */
 
 const KIND_EYEBROW = Object.freeze({
@@ -218,6 +334,56 @@ export function renderProgress({ kind = PERSONAL_RUN_KIND.file, stage = "read" }
 }
 
 /**
+ * The one control a state with no answer in it ends on.
+ *
+ * A refusal that ends in prose ends nowhere. This is a real button, in the tab
+ * order, carrying the id of the control it moves a reader to on the node itself
+ * — the page binds the behaviour, so a state painted into a document with no
+ * script still shows the reader which control they are being sent to.
+ *
+ * @param {{code: string, id: string, label: string, control: string,
+ *   activates: boolean, outcome: string}|null} step from `personalNextStep`.
+ *   Null draws nothing at all, which is how a state that genuinely has no next
+ *   step avoids offering a button that does nothing.
+ */
+export function renderNextStep(step) {
+  if (!step) return null;
+  const section = el("section", "ph-next");
+  section.dataset.action = step.id;
+  section.dataset.code = step.code;
+  section.append(el("h4", "ph-section-title", "One thing to do next"));
+
+  const button = el("button", "ph-next-action", step.label);
+  button.setAttribute("type", "button");
+  button.dataset.control = step.control;
+  button.dataset.activates = String(Boolean(step.activates));
+  button.setAttribute("aria-label", `${step.label} — ${step.outcome}`);
+  section.append(button);
+  line(section, "ph-next-outcome", step.outcome);
+  return section;
+}
+
+/**
+ * Give every next-step control and every guidance jump in a painted state its
+ * behaviour: move focus to the control it names, and press it where the model
+ * says pressing it is the action.
+ *
+ * Bound per render on the node that was just painted, so a superseded state
+ * cannot leave a live control behind.
+ */
+export function wireControlJumps(root, doc = document) {
+  const buttons = [...root.querySelectorAll("[data-control]")];
+  for (const button of buttons) {
+    button.addEventListener("click", () => {
+      const control = doc.getElementById(button.dataset.control);
+      control?.focus?.();
+      if (button.dataset.activates === "true") control?.click?.();
+    });
+  }
+  return buttons;
+}
+
+/**
  * A refusal a reader can recover from: what happened, what it means, and the one
  * thing to do about it. `role="alert"` because it interrupts a workflow the
  * reader started — and it always restates that nothing left the tab, because
@@ -237,6 +403,11 @@ export function renderEntryError({ code = null, summary, detail, remedy } = {}) 
   line(panel, "ph-error-remedy", remedy ?? "Choose a file again. Nothing was uploaded and nothing was kept.");
   line(panel, "ph-error-boundary", "Nothing was uploaded, nothing was stored, and no account was "
     + "connected — a refusal reaches the network no more than a reading does.");
+  // The remedy above says what to change; this is the control that gets them
+  // there. Every refusal code in the three closed sets maps to one, so a state
+  // reached by a code nobody mapped draws no button rather than a dead one.
+  const next = renderNextStep(personalNextStep(code));
+  if (next) panel.append(next);
   return panel;
 }
 
@@ -497,6 +668,18 @@ function refusalSections(report, { kind }) {
     + `${PERSONAL_ELIGIBILITY.minScoredPrompts} scored prompts and `
     + `${PERSONAL_ELIGIBILITY.minDistinctDays} distinct days.`);
 
+  // A floor measured on a sample and a floor measured on a whole export read
+  // identically and mean different things, and this is the state where the
+  // difference decides what a reader does. It is stated beside the figure that
+  // failed the floor rather than only in the provenance below it.
+  if (report.scope.sampled) {
+    line(lead, "ph-lead-sampled",
+      `Measured on a sample: your export carried ${count(report.scope.promptEntriesAvailable)} prompt `
+      + `entries, over the ${count(report.scope.ceiling)} this tab grades, so every `
+      + `${count(report.scope.stride)}th entry was read. Both floors are measured on what was read, `
+      + "never on what the file held.");
+  }
+
   if (report.reasonRule) {
     const reason = line(lead, "ph-reason", report.reasonRule);
     reason.dataset.reason = report.reason;
@@ -507,6 +690,10 @@ function refusalSections(report, { kind }) {
     + "be a habit invented out of an afternoon.");
   sections.push(lead);
   sections.push(provenanceSection(report, { kind }));
+  // The state that has no answer in it is the state a reader leaves from, so it
+  // ends on a control rather than on a paragraph.
+  const next = renderNextStep(personalReportNextStep(report));
+  if (next) sections.push(next);
   return sections;
 }
 
