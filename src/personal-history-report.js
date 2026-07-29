@@ -60,28 +60,56 @@ const roundTo = (value, decimals) => {
 // ---------------------------------------------------------------------------
 
 /**
+ * The whole of a value, or nothing: a complete ISO 8601 calendar date, or a
+ * complete date-time whose time is `hh:mm`, `hh:mm:ss`, or `hh:mm:ss.sss`, with
+ * an optional `Z` or `±hh:mm` offset. `YYYY/MM/DD` is the same date with the
+ * other separator and is spelled here rather than parsed leniently.
+ *
+ * ANCHORED AT BOTH ENDS ON PURPOSE. A prefix match reads `2026-05-01not-a-date`
+ * as the first of May, which is a date this reader invented out of a field the
+ * export did not fill in correctly. A malformed field is a counted drop and,
+ * where the record carries a second date field or sits in a dated conversation,
+ * it falls back to that real date — see `firstDate` and the JSON shape's
+ * `dateFallback`. Guessing at a partly-typed value is the one outcome that puts
+ * a day in a report with nothing behind it.
+ */
+const PERSONAL_DATE_PATTERN =
+  /^(\d{4})[-/](\d{2})[-/](\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.\d{1,9})?)?(?:Z|[+-]\d{2}:?\d{2})?)?$/;
+
+const PERSONAL_EPOCH_PATTERN = /^\d{9,14}(\.\d+)?$/;
+
+/**
  * One value to a UTC calendar date, or null.
  *
- * DELIBERATELY NARROW. Accepted: an ISO 8601 date or date-time, a `YYYY/MM/DD`
- * spelling, and an epoch number. Not accepted: `03/04/2026`, which is two
- * different days depending on where the reader lives, and every other locale
- * format a permissive parser would silently pick a hemisphere for. An
- * unparseable date is a counted drop, which is a smaller harm than a confidently
- * wrong day. An epoch number under 1e11 is read as seconds and at or above it as
- * milliseconds — that crossover is the year 5138 in seconds and 1973 in
- * milliseconds, so no plausible export is on the wrong side of it.
+ * DELIBERATELY NARROW. Accepted: the complete spellings above and an epoch
+ * number. Not accepted: `03/04/2026`, which is two different days depending on
+ * where the reader lives; every other locale format a permissive parser would
+ * silently pick a hemisphere for; and any value carrying anything else before or
+ * after the date. An unparseable date is a counted drop, which is a smaller harm
+ * than a confidently wrong day. An epoch number under 1e11 is read as seconds
+ * and at or above it as milliseconds — that crossover is the year 5138 in
+ * seconds and 1973 in milliseconds, so no plausible export is on the wrong side
+ * of it.
+ *
+ * The clock and the offset are read only to establish that the value is a
+ * well-formed instant and are then discarded: the calendar date is the one
+ * written in the value, because nothing this report answers depends on the hour
+ * and an hour is a fingerprint.
  */
 export function personalHistoryDate(value) {
-  if (typeof value === "number" || (typeof value === "string" && /^\d{9,14}(\.\d+)?$/.test(value.trim()))) {
+  if (typeof value === "number" || (typeof value === "string" && PERSONAL_EPOCH_PATTERN.test(value.trim()))) {
     const number = Number(value);
     if (!Number.isFinite(number) || number <= 0) return null;
     const stamp = new Date(number < 1e11 ? number * 1000 : number);
     return Number.isNaN(stamp.getTime()) ? null : stamp.toISOString().slice(0, 10);
   }
   if (typeof value !== "string") return null;
-  const match = value.trim().match(/^(\d{4})[-/](\d{2})[-/](\d{2})/);
+  const match = value.trim().match(PERSONAL_DATE_PATTERN);
   if (!match) return null;
-  const [, year, month, day] = match;
+  const [, year, month, day, hour, minute, second] = match;
+  // A time out of range makes the whole value malformed. Keeping its date would
+  // be reading a day out of a field the export demonstrably filled in wrong.
+  if (hour !== undefined && (Number(hour) > 23 || Number(minute) > 59 || Number(second ?? 0) > 60)) return null;
   const stamp = new Date(`${year}-${month}-${day}T00:00:00Z`);
   if (Number.isNaN(stamp.getTime())) return null;
   // Round-trip so 2026-02-31 is rejected rather than rolled into March.
@@ -253,8 +281,15 @@ function rankMoves(candidatesByPrompt) {
       || left.id.localeCompare(right.id));
 }
 
-/** The priority slot when the ranking is empty. Never a blank panel, never a filler move. */
-const NO_PRIORITY = Object.freeze({
+/**
+ * The priority slot when the ranking is empty. Never a blank panel, never a
+ * filler move.
+ *
+ * Exported because it is the only copy on a report that is authored here rather
+ * than in the contract, and a surface — or a test checking that a report prints
+ * nothing it read out of a file — needs to be able to name it as published copy.
+ */
+export const PERSONAL_NO_PRIORITY = Object.freeze({
   available: false,
   id: null,
   kind: null,
@@ -311,7 +346,8 @@ function confidenceFor({ scoredPrompts, leadMargin, coverage }) {
 const boundaryFor = (state) => PERSONAL_REPORT_STATES.find((entry) => entry.state === state).boundary;
 
 function report({
-  shape = null, state, reason = null, counts, priority = NO_PRIORITY, confidence = PERSONAL_CONFIDENCE_NONE,
+  shape = null, state, reason = null, counts, priority = PERSONAL_NO_PRIORITY,
+  confidence = PERSONAL_CONFIDENCE_NONE,
 }) {
   const promptEntries = counts.scoredPrompts + counts.empty + counts.undated + counts.unreadable;
   return Object.freeze({
