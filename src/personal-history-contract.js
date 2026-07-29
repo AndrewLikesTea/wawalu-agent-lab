@@ -19,9 +19,11 @@
 // required for a *product* reason stated in `PERSONAL_REQUIRED_FIELDS`.
 //
 // WHAT THIS CONTRACT DELIBERATELY LEAVES OUT, and will keep leaving out:
-// comparisons of any kind (no percentile, cohort, peer, team, or organizational
-// grade); provider credential connection; upload and storage; attachment
-// analysis; customer data; persistent prompt capture. `PERSONAL_BASIS` and
+// comparisons against anybody else (no percentile, cohort, peer, team, or
+// organizational grade); provider credential connection; upload; attachment
+// analysis; customer data; persistent prompt capture. The one thing this browser
+// does keep is stated on `PERSONAL_PERSISTED` and holds no part of an export.
+// `PERSONAL_BASIS` and
 // `PERSONAL_HISTORY_EXCLUSIONS` state each refusal, and `FORBIDDEN_REPORT_KEYS`
 // makes the first one mechanical: a report that grew a comparison field fails
 // validation rather than shipping.
@@ -189,6 +191,24 @@ export const PERSONAL_REQUIRED_FIELDS = Object.freeze([
 // ---------------------------------------------------------------------------
 
 /**
+ * The one thing this browser keeps, stated on the boundary below rather than
+ * omitted from it.
+ *
+ * `persisted` read "none" until a reading could be carried forward to the next
+ * one. It is a field on a published boundary, so the moment a key was written it
+ * had to say what is in that key — a boundary that stays reassuring by going
+ * stale is the exact failure this contract was written to make impossible.
+ *
+ * What is stored is not a report and no report field carries it: it is derived
+ * from a reading, defined and validated against a closed list of its own in
+ * `personal-history-carry-forward.js`, and it holds no part of an export. A
+ * refusal still stores nothing at all.
+ */
+export const PERSONAL_PERSISTED = "one derived summary of a reading — counts, ratios, version "
+  + "strings, and this repository's own move identifiers — kept in this browser, replaced by your "
+  + "next reading, and holding no part of your export";
+
+/**
  * The boundary, as data, and constant. A boundary that varied per report would
  * be a setting rather than a boundary. It rides on *every* report this contract
  * produces — the eligible ones, the ineligible ones, and the refusals — because
@@ -200,7 +220,7 @@ export const PERSONAL_BOUNDARY = Object.freeze({
   analysisCode: "bundled static client-side modules",
   sentForAnalysis: "none",
   uploaded: "none",
-  persisted: "none",
+  persisted: PERSONAL_PERSISTED,
   retainsPromptText: false,
   attachmentsRead: false,
   providerAccountsConnected: "none",
@@ -228,10 +248,14 @@ export const PERSONAL_HISTORY_EXCLUSIONS = Object.freeze([
   Object.freeze({
     id: "upload",
     label: "Upload and storage",
-    claim: "Your export is read in this tab. Nothing is uploaded, nothing is written to "
-      + "browser storage, and nothing is put in a URL.",
+    claim: "Your export is read in this tab. Nothing is uploaded, nothing is put in a URL, and no "
+      + "part of the file is written to browser storage. Where a move is named, this browser keeps "
+      + "one derived summary of the reading — counts, ratios, version strings, and this "
+      + "repository's own move identifiers — so your next reading can be compared with this one.",
     verify: "No module reachable from the reader references fetch, XMLHttpRequest, sendBeacon, "
-      + "WebSocket, EventSource, localStorage, sessionStorage, or IndexedDB.",
+      + "WebSocket, EventSource, localStorage, sessionStorage, or IndexedDB. The one module that "
+      + "does touch storage writes a single declared key, and a summary derived from an export "
+      + "whose every prompt carries a unique marker contains that marker in no field.",
   }),
   Object.freeze({
     id: "prompt-storage",
@@ -388,7 +412,9 @@ export const PERSONAL_REPORT_STATE = Object.freeze({
 });
 
 const READ_BOUNDARY = "Your export was read in this tab and is gone from memory when you leave "
-  + "the page. Nothing was uploaded and nothing was stored.";
+  + "the page. Nothing was uploaded, and no part of the file was stored. Where a move is named, "
+  + "this browser keeps a derived summary of the reading — counts, ratios, and move identifiers, "
+  + "never your prompts — so your next reading can be compared with this one.";
 
 export const PERSONAL_REPORT_STATES = Object.freeze([
   Object.freeze({
@@ -414,7 +440,8 @@ export const PERSONAL_REPORT_STATES = Object.freeze([
     delivers: "a reason code, the published sentence behind it, and every count that was "
       + "measured on the way — no move, no grade, no partial answer.",
     boundary: "Whatever was read was read in this tab and is already gone. A refusal stores "
-      + "nothing, and nothing was uploaded in order to produce it.",
+      + "nothing, replaces no summary already carried, and nothing was uploaded in order to "
+      + "produce it.",
   }),
 ]);
 

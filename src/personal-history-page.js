@@ -6,13 +6,19 @@
 // one. A file chosen on this page never reaches the conversation-export reader
 // and never becomes part of anybody's team grade.
 //
-// NO NETWORK, NO STORAGE, NO CREDENTIAL. The chosen file is read through the
+// NO NETWORK, NO CREDENTIAL, AND ONE KEY. The chosen file is read through the
 // browser's own `Blob.text()` — the local API that turns a file the reader
 // already has into a string in this tab — handed to a pure function, and dropped.
-// There is no fetch, no upload, no `localStorage`, no URL parameter, and no
-// sign-in: `PERSONAL_HISTORY_EXCLUSIONS` states each of those refusals and
+// There is no fetch, no upload, no URL parameter, and no sign-in:
+// `PERSONAL_HISTORY_EXCLUSIONS` states each of those refusals and
 // tests/personal-history-flow.test.js asserts them against this module's own
 // imports and against a harness whose `fetch` throws on any request at all.
+//
+// The one exception is the slot a reading is carried forward in, and this file
+// does not reach for it: `personal-history-carry-forward.js` is the only module
+// in the workflow that names a storage API, it writes one declared key, and what
+// goes in that key is fourteen scalars derived from a report — never the file,
+// never a prompt, never a date. The same test asserts both halves.
 //
 // ONE RUN AT A TIME, AND THE PAGE ONLY EVER SHOWS THAT ONE
 // -------------------------------------------------------
@@ -37,6 +43,9 @@
 
 import { PERSONAL_REPORT_STATE } from "/personal-history-contract.js";
 import { buildPersonalHistoryReport } from "/personal-history-report.js";
+import {
+  CARRY_FORWARD_ORIGIN, browserCarryForwardStorage, carryForward, clearCarriedSummary,
+} from "/personal-history-carry-forward.js";
 import { personalHistoryPreviewFiles } from "/personal-history-fixture.js";
 import {
   PERSONAL_ENTRY_REFUSAL, PERSONAL_FILE_ACCEPT, PERSONAL_RUN_KIND,
@@ -64,7 +73,15 @@ export const CLEAR_ID = "personal-history-clear";
  */
 const yieldToPaint = () => new Promise((resolve) => setTimeout(resolve, 0));
 
-export function initPersonalHistory(doc = globalThis.document) {
+/**
+ * @param {Document} doc the document to wire.
+ * @param {{storage?: object|null}} options the slot one reading is carried
+ *   forward in. Injected rather than reached for so a test can hand in a fake
+ *   one, and defaulted through the carry-forward module rather than through
+ *   `localStorage` here, so this file names no storage API — see
+ *   `browserCarryForwardStorage`.
+ */
+export function initPersonalHistory(doc = globalThis.document, { storage = browserCarryForwardStorage() } = {}) {
   // The standing copy is painted first and independently of the controls: a
   // reader deciding whether to hand over their own history reads what this does
   // with a file, and which files it can read, before anything is chosen — and
@@ -159,7 +176,19 @@ export function initPersonalHistory(doc = globalThis.document) {
     text = null;
     if (!ledger.isCurrent(token)) return null;
 
-    const article = settle(token, renderReport(report, { kind }), summarize(report, kind));
+    // The comparison and the write happen together, in one call, against the one
+    // slot. The reading is the product and this is a line beside it: every
+    // storage fault comes back as a state on the comparison, so a browser that
+    // refuses storage costs the reader that line and nothing else.
+    //
+    // The worked example does not reach this at all — it neither reads the slot
+    // nor writes it. `carryForwardSummary` refuses that origin as well, so the
+    // invented person cannot be carried forward by way of some later caller
+    // either; this branch is what keeps them from so much as looking.
+    const comparison = kind === PERSONAL_RUN_KIND.preview ? null
+      : carryForward(report, storage, { origin: CARRY_FORWARD_ORIGIN.ownExport }).comparison;
+
+    const article = settle(token, renderReport(report, { kind, comparison }), summarize(report, kind));
     if (article) wireDisclosures(article, doc);
     return article ? report : null;
   }
@@ -196,11 +225,21 @@ export function initPersonalHistory(doc = globalThis.document) {
   // Clear is the cancel. It takes a token nobody holds, so every completion
   // still in flight is stale by the time it asks — which is what makes "clear"
   // mean cleared rather than "cleared until that read finishes".
+  // Clear is also the way out of the one thing this browser keeps. A reader who
+  // presses it on a shared machine means "leave nothing behind", and a control
+  // that emptied the page while a summary of their history sat in storage would
+  // be answering a different question than the one they asked.
   clearButton?.addEventListener("click", () => {
     ledger.invalidate();
     setRunning(false);
+    const cleared = clearCarriedSummary(storage);
     paint(renderIdle());
-    announce("Cleared. Nothing has been read, and any reading still in progress was discarded.");
+    announce(cleared.cleared
+      ? "Cleared. Nothing has been read, any reading still in progress was discarded, and "
+        + "the summary carried forward from your last reading was deleted."
+      : "Cleared. Nothing has been read and any reading still in progress was discarded. "
+        + "This browser would not let the page delete the summary carried forward from your last "
+        + "reading; clear this site's browser storage before leaving a shared device.");
     if (fileInput) fileInput.value = "";
     fileInput?.focus?.();
   });
