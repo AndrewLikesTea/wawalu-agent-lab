@@ -99,6 +99,13 @@ import {
 import {
   applyImportPresence, applyMetricFlag, applyPageLoadStatus, bindChooseFiles,
 } from "/finops-load-status.js";
+// The populated synthetic result a first-time visitor with no export meets in
+// the first viewport. Composed from the bundled invented dataset through the
+// real analysis path, so it needs no network and survives a failed fixture.
+import { buildFirstRunResult } from "/finops-first-run.js";
+import {
+  applyFirstRunResult, applyFirstRunSupersession, bindFirstRunActions,
+} from "/finops-first-run-view.js";
 import {
   announce as announceStage, applyDatasetProvenance, applyFieldDiagnostic, applyImportLimits,
   applyBriefing, applyBriefingState, applyImportProgress, applyMetricBasis, applyRequirements, applyRestoreRejection,
@@ -810,6 +817,11 @@ function mountLocalFinopsImport() {
     return applyGuidedResult(document, composed);
   };
   const syncPanels = () => {
+    // The first-run block answers "what would this tell me?". Any analysis on
+    // screen — the reader's import, or the example loaded into every panel —
+    // closes that question, so the block retires rather than sitting beside a
+    // fuller result with a second synthetic headline in it.
+    applyFirstRunSupersession(document, Boolean(result));
     const painted = applyPanelFacts(executivePanelFacts(), {
       imported: Boolean(result) && !exampleActive,
     });
@@ -2167,6 +2179,14 @@ async function init() {
   // the reader on the file input and opens the picker. Bound here rather than
   // inside the import closure so it exists even if that closure never mounts.
   bindChooseFiles(document);
+  // The first viewport's populated result, painted before the bundled fixture
+  // is even requested. It is composed from a module in this bundle rather than
+  // fetched, so a visitor with no export meets a complete example — a headline
+  // benchmark, an impact, a labelled unavailable value, and one ranked action —
+  // whether or not the request below ever resolves. Both next actions are bound
+  // first, so they are operable in the unavailable state too.
+  bindFirstRunActions(document);
+  applyFirstRunResult(document, buildFirstRunResult());
   initFinopsContact(document);
   const gateway = createStaticGateway();
   const refreshGateway = document.getElementById("integration-gateway-refresh");

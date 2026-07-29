@@ -87,6 +87,112 @@
         </div>
       </section>
 
+      <!-- THE FIRST-RUN SYNTHETIC RESULT, and why a landing page carries one.
+
+           A first-time visitor arrives with no provider export in hand. Before
+           this region, everything above the fold told them what the page did
+           not have — "Not scored yet", "No action ranked yet", "nothing of
+           yours is imported" — and every populated figure sat behind a
+           disclosure or most of a page away. So the question a buyer actually
+           arrives with had no answer in the first viewport.
+
+           This block answers it with a complete, readable result: one headline
+           benchmark, one quantified impact, one honestly-unavailable value, and
+           one recommended action with the role accountable for it. Every figure
+           is composed in src/finops-first-run.js from the same bundled invented
+           dataset the "Try it with example data" button loads, through the same
+           translator, analysis, and briefing contract a reader's own file walks
+           through. Nothing here is pre-computed, and no number is authored in
+           this document.
+
+           It needs no network, which is the point of composing it rather than
+           fetching it: the bundled-fixture request below can fail outright and
+           this region still holds a populated result and two operable ways on.
+
+           The sample label is authored *here*, in static markup, above the
+           figures rather than under them. A claim about what kind of number a
+           reader is looking at has to be true before any script runs, or it is
+           a claim they cannot rely on while deciding. The view repaints the
+           same sentence from the module, which is what keeps the two in step.
+
+           Two next steps, deliberately distinct and deliberately not four: load
+           the invented data into every panel, or open the picker for the
+           reader's own export. Both delegate to the single control that already
+           owns each behaviour, so there is still exactly one way into the
+           example dataset and one file input on this page. -->
+      <section class="first-run" id="finops-first-run" data-state="pending" data-tone="neutral" aria-labelledby="finops-first-run-title">
+        <div class="first-run-head">
+          <p class="eyebrow" id="finops-first-run-label"><span class="first-run-shape" id="finops-first-run-shape" aria-hidden="true">◇</span> <span id="finops-first-run-word">Example result pending</span> · nothing of yours needed</p>
+          <h2 id="finops-first-run-title">Example AI spend decision</h2>
+        </div>
+        <p class="sample-marker first-run-sample" id="finops-first-run-sample"><span class="sample-marker-shape" aria-hidden="true">◇</span><strong>Invented sample data</strong> Every figure below comes from a bundled six-month dataset for an invented company. It is not your spend, customer data, or realized savings.</p>
+        <div class="first-run-slots">
+          <div class="first-run-slot">
+            <p class="first-run-slot-label">Potentially recoverable share</p>
+            <p class="first-run-value" id="finops-first-run-benchmark-value" data-available="false">Not measured yet</p>
+            <p class="first-run-detail" id="finops-first-run-benchmark-detail" hidden></p>
+          </div>
+          <div class="first-run-slot">
+            <p class="first-run-slot-label">Potential impact · routing scenario</p>
+            <p class="first-run-value" id="finops-first-run-impact-value" data-available="false">Not measured yet</p>
+            <p class="first-run-detail" id="finops-first-run-impact-detail" hidden></p>
+          </div>
+          <!-- Authored as an unavailable slot on purpose. The bundled sample
+               ships no comparable peer cohort, so this is the region's own
+               worked example of a value that is labelled rather than filled in:
+               a dash, an estimate, or a zero would each be a claim this page
+               cannot make. -->
+          <div class="first-run-slot">
+            <p class="first-run-slot-label">Peer comparison</p>
+            <p class="first-run-value" id="finops-first-run-peer-value" data-available="false">Unavailable</p>
+            <p class="first-run-detail" id="finops-first-run-peer-detail" hidden></p>
+          </div>
+        </div>
+        <div class="first-run-recommendation">
+          <p class="eyebrow">Recommended action · rank 1</p>
+          <p class="first-run-action-text" id="finops-first-run-action" data-available="false">No action is ranked from this example yet.</p>
+          <!-- A role, never a person, beside the action it owns. -->
+          <p class="first-run-role" id="finops-first-run-role" hidden></p>
+        </div>
+        <!-- Provenance directly off the headline, one keystroke away and never
+             a footnote: the inputs, the path the figures took, the arithmetic
+             behind them, the coverage they were graded on, and what they cannot
+             tell you. Painted from the briefing itself, so the sentence a
+             reader checks the figure against cannot drift from the figure. -->
+        <details class="first-run-method" id="finops-first-run-method">
+          <summary>How this example was calculated and what it cannot tell you</summary>
+          <dl class="first-run-method-list" id="finops-first-run-method-list">
+            <div><dt>Inputs</dt><dd>Invented provider and org exports generated in this tab. No company, account, provider, or person in them is real, and no customer or telemetry data is read.</dd></div>
+            <div><dt>Limits</dt><dd>A routing scenario is a modelled ceiling, not a realized saving. Your own export will produce different numbers.</dd></div>
+          </dl>
+        </details>
+        <div class="first-run-actions">
+          <div class="first-run-choice">
+            <button class="first-run-primary" id="finops-first-run-demo" type="button" aria-describedby="finops-first-run-demo-note">Try the example data</button>
+            <p class="first-run-action-note" id="finops-first-run-demo-note">See the same six invented months in every panel below. Nothing is uploaded or stored.</p>
+          </div>
+          <div class="first-run-choice">
+            <button class="first-run-secondary" id="finops-first-run-import" type="button" aria-describedby="finops-first-run-import-note">Analyze local exports</button>
+            <p class="first-run-action-note" id="finops-first-run-import-note">Choose your provider exports. They stay in this tab and are not uploaded or stored.</p>
+          </div>
+        </div>
+        <p class="visually-hidden" id="finops-first-run-live" role="status" aria-live="polite" aria-atomic="true"></p>
+      </section>
+
+      <!-- The conversion moment, after the result and outside the region that
+           holds it. It is deliberately quieter than either choice above: a
+           reader who has just read a number and wants a person is taking a
+           different step, not a third way to start. It opens the follow-up form
+           this page already ships rather than adding a second one, so there is
+           still exactly one place an email address is typed. -->
+      <aside class="first-run-conversion" id="finops-first-run-conversion" aria-labelledby="finops-first-run-conversion-title">
+        <div>
+          <p class="first-run-conversion-title" id="finops-first-run-conversion-title">Want help with your own analysis?</p>
+          <p class="first-run-conversion-body">Analyze your provider exports in this browser, or leave your email and we can walk you through the process.</p>
+        </div>
+        <button class="first-run-conversion-action" id="finops-first-run-contact" type="button">Ask for a walkthrough</button>
+      </aside>
+
       <!-- The guided result. One question, one benchmark, one action, and the
            required trust verdict, composed in src/finops-guided-result.js. Every
            other executive panel on this page is progressive-disclosure support
