@@ -2,15 +2,17 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import {
-  applyTheme, normalizedBlendMode, normalizedOpacity, paintReturnContext,
+  applyTheme, DEFAULT_PAINT_RETURN, normalizedBlendMode, normalizedOpacity,
+  PAINT_RETURN_LABELS, paintReturnContext,
   persistTheme, preferredTheme, storedTheme, THEME_KEY,
 } from "../src/paint/paint.js";
+import { SITE_NAV } from "../src/site-nav.js";
 
 test("paint shell has semantic navigation and an accessible canvas", async () => {
   const html = await readFile(new URL("../src/paint/index.html", import.meta.url), "utf8");
   assert.match(html, /<header class="app-header">/);
   assert.match(html, /<nav class="header-actions" aria-label="Document actions">/);
-  assert.match(html, /id="paint-return" href="\/social\.html">Back to feed<\/a>/);
+  assert.match(html, /id="paint-return" href="\/social\.html">Back to Social<\/a>/);
   assert.match(html, /<main class="editor" aria-label="Image editor">/);
   assert.match(html, /<aside class="tool-rail" aria-label="Editing tools">/);
   assert.match(html, /id="editor-canvas" tabindex="0" role="region"/);
@@ -30,19 +32,44 @@ test("paint shell has semantic navigation and an accessible canvas", async () =>
   assert.doesNotMatch(html, /https?:\/\//);
 });
 
-test("Paint preserves a safe, exact path back to the profile that opened it", () => {
+test("Paint preserves a safe, exact path back to the People view that opened it", () => {
   assert.deepEqual(paintReturnContext("?from=profile&author=Mina+O%27Neil"), {
     href: "/profile.html?author=Mina%20O'Neil",
-    label: "Back to profile",
+    label: "Back to People",
   });
-  assert.deepEqual(paintReturnContext("?from=profile"), {
-    href: "/social.html",
-    label: "Back to feed",
+  // Arriving from People without a usable name still returns to People: only
+  // the name is untrusted, so only the name is dropped.
+  for (const search of ["?from=profile", `?from=profile&author=${"x".repeat(61)}`]) {
+    assert.deepEqual(paintReturnContext(search), {
+      href: "/profile.html",
+      label: "Back to People",
+    });
+  }
+  // An origin that is not one of ours is not an origin: back to the feed.
+  for (const search of ["?from=https://evil.invalid&author=Mina", "?from=elsewhere", ""]) {
+    assert.deepEqual(paintReturnContext(search), {
+      href: "/social.html",
+      label: "Back to Social",
+    });
+  }
+  // Every destination stays same-origin and relative.
+  for (const search of ["?from=profile&author=//evil.invalid", "?from=profile&author=Ari"]) {
+    assert.ok(paintReturnContext(search).href.startsWith("/profile.html"));
+    assert.doesNotMatch(paintReturnContext(search).href, /^\/\/|:/);
+  }
+});
+
+test("Paint's back link is spelled with the navigation's names for those surfaces", () => {
+  // Not synonyms: "feed" and "profile" name no entry a reader has ever seen in
+  // the nav, and "Profile" is the word site-nav.js deliberately retired.
+  assert.deepEqual(PAINT_RETURN_LABELS, {
+    social: `Back to ${SITE_NAV.find((entry) => entry.href === "/social.html").label}`,
+    people: `Back to ${SITE_NAV.find((entry) => entry.href === "/profile.html").label}`,
   });
-  assert.deepEqual(paintReturnContext("?from=https://evil.invalid&author=Mina"), {
-    href: "/social.html",
-    label: "Back to feed",
-  });
+  assert.equal(DEFAULT_PAINT_RETURN.label, PAINT_RETURN_LABELS.social);
+  for (const label of Object.values(PAINT_RETURN_LABELS)) {
+    assert.doesNotMatch(label, /feed|profile/i, "the label names something the nav does not");
+  }
 });
 
 test("Paint navigation keeps focus and narrow-layout safeguards", async () => {

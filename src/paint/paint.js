@@ -1,22 +1,43 @@
 import { fitBitmapSize, FRAME_BUDGET_MS, PixelDocument, WebGLPresenter } from "./paint-engine.js";
 import { dataUrlPayload, writePaintHandoff } from "../publishing-media.js";
 import { paintHandoffCopy, paintHandoffHref } from "../paint-handoff.js";
+import { SITE_NAV } from "../site-nav.js";
 
 export const THEME_KEY = "paint.theme.v1";
-export const DEFAULT_PAINT_RETURN = {
+
+// Paint is a full-screen workspace with no site navigation of its own, so this
+// one link is the whole way back. It therefore has to name where it goes.
+//
+// The names are the navigation's names, read from the one list that owns them,
+// not synonyms invented here: "Back to feed" named no destination at all, and
+// "Back to profile" used the word src/site-nav.js deliberately retired — this
+// demo has no accounts, so that surface is "People".
+const navLabel = (href) => SITE_NAV.find((entry) => entry.href === href)?.label;
+
+export const PAINT_RETURN_LABELS = Object.freeze({
+  social: `Back to ${navLabel("/social.html")}`,
+  people: `Back to ${navLabel("/profile.html")}`,
+});
+
+export const DEFAULT_PAINT_RETURN = Object.freeze({
   href: "/social.html",
-  label: "Back to feed",
-};
+  label: PAINT_RETURN_LABELS.social,
+});
 
 export function paintReturnContext(search = "") {
   const params = new URLSearchParams(String(search).replace(/^\?/, ""));
   if (params.get("from") !== "profile") return DEFAULT_PAINT_RETURN;
 
+  // Arriving from People without a usable name is still arriving from People:
+  // return to that surface and let it resolve its own persona, rather than
+  // dropping the reader somewhere they were not. Only the name is untrusted, so
+  // only the name is dropped — the destination stays same-origin and relative
+  // either way, so nothing on the way in can become a destination on the way out.
   const author = params.get("author")?.trim();
-  if (!author || author.length > 60) return DEFAULT_PAINT_RETURN;
+  const named = author && author.length <= 60 ? author : "";
   return {
-    href: `/profile.html?author=${encodeURIComponent(author)}`,
-    label: "Back to profile",
+    href: named ? `/profile.html?author=${encodeURIComponent(named)}` : "/profile.html",
+    label: PAINT_RETURN_LABELS.people,
   };
 }
 
