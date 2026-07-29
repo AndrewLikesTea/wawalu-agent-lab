@@ -267,6 +267,7 @@ test("a supersede link that no longer exists is refused inline, and nothing is w
   supersedes.value = "deleted-in-another-tab";
   page.document.querySelector("#title").value = "A later call";
   page.document.querySelector("#context").value = "Why this happened.";
+  page.document.querySelector("#alternatives").value = "Leaving the earlier call in place.";
   page.document.querySelector("#owner").value = "Mina";
   page.document.querySelector("#status").value = "approved";
   form.querySelector('button[type="submit"]').click();
@@ -289,6 +290,7 @@ test("recording a decision that replaces an existing one links both directions",
   page.document.querySelector("#supersedes").value = "c";
   page.document.querySelector("#title").value = "Run the queue in region";
   page.document.querySelector("#context").value = "Latency across regions.";
+  page.document.querySelector("#alternatives").value = "A single region with a read replica.";
   page.document.querySelector("#owner").value = "Mina";
   page.document.querySelector("#status").value = "approved";
   form.querySelector('button[type="submit"]').click();

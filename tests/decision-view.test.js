@@ -243,7 +243,12 @@ test("decision list exposes semantic loading, empty, and error states", async ()
   assert.match(page, /<button type="submit">Record decision<\/button>/);
   assert.match(page, /id="title-hint">A short name for the decision\.<\/span>/);
   assert.match(page, /id="context-hint">The problem, constraints, and reasoning\.<\/span>/);
-  assert.match(page, /id="alternatives-hint">Other options considered and why they were not chosen\.<\/span>/);
+  // Alternatives is required, so its hint has to answer "what do I write when
+  // there were none?" rather than leaving a required field unanswerable.
+  assert.match(
+    page,
+    /id="alternatives-hint">Other options considered and why they were not chosen\. Write “None considered” if there were none\.<\/span>/,
+  );
   assert.match(page, /id="owner-hint">The person responsible for the decision\.<\/span>/);
   // The form's two statuses, and the sentence that names the two it cannot set
   // — the filter offers all four, so the gap is stated rather than discovered.

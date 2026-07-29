@@ -668,7 +668,16 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .supersede-summary:empty { display:none; }
 .filter-toggle { align-self:end; min-height:41px; margin:0; padding:0 14px; background:transparent; color:#1f70c1; border:1px solid #9cb9d4; }
 .filter-toggle[aria-pressed="true"] { background:#1f70c1; color:#fff; border-color:#1f70c1; }
-.field-error { margin:0; color:#8c2f28; font-size:12px; line-height:1.45; }
+.field-error { margin:0; color:#8c2f28; font-size:12px; line-height:1.45; overflow-wrap:anywhere; }
+.field-error[hidden] { display:none; }
+/* The recorder's form-level count. It spans both form columns and is banded
+   rather than tinted, so it is not signalled by colour alone: the border, the
+   weight, and the sentence itself all say it is a failure. */
+.form-error-summary { grid-column:1/-1; border:1px solid #8a2b2b; border-left-width:5px; border-radius:9px; padding:11px 13px; background:#fbeded; color:#6d2020; font-weight:700; }
+/* Mirrors .release-record-status: one settled line after a successful record,
+   holding no height while there is nothing to say. */
+.decision-record-status { min-height:1.45em; margin:14px 0 0; font-weight:700; }
+.decision-record-status:empty { min-height:0; }
 /* Site footer ---------------------------------------------------------------
    A quiet band after the content region, on every page. It is body-level and
    full-bleed with its own inner measure, so it reads identically on a page that
