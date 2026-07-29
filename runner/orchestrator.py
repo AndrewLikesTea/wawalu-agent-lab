@@ -372,6 +372,8 @@ def command_run(persona: str, scenario_path: str, push: bool, requested_worker: 
     # The size gate runs after the worker session, so a worker that discovers the
     # ceiling on its own — or ignores it — costs a full paid run that is then thrown
     # away. State the real numbers up front and make scoping to fit part of the task.
+    # The same is true of the surface a task names: shipping the module without wiring
+    # it in is the most common review rejection, so say so before the session starts.
     policy = json.loads((ROOT / ".agent-policy.json").read_text())
     worker_prompt = f'''{persona_prompt}
 
@@ -380,6 +382,11 @@ Your assigned implementation task:
 
 Read PRODUCT.md, AGENTS.md, and .agent-policy.json. Work only in this worktree.
 Run relevant tests. Do not push directly, deploy, or access paths outside it.
+When the task names an existing surface — a page, view, or generation path that must
+use your work — editing that file is part of the task, not a follow-up. A new module
+plus its unit tests, with nothing in the product importing or rendering it, is
+rejected by review every time. If the size ceiling forces a cut, cut the depth of the
+new module and keep the surface wired to the slice that ships.
 Your change has a hard size ceiling: at most {policy["max_diff_lines"]} changed lines
 (additions plus deletions, tests and fixtures included) across at most
 {policy["max_files_changed"]} files. This is enforced automatically after you finish,
