@@ -52,6 +52,13 @@ export async function verifyArtifact(root) {
     "post.html", "post-page.js", "post-detail.js",
     "evolution.html", "evolution-page.js", "evolution.css",
     "finops-panel-contract.js", "finops-panel-contract-view.js", "panel-status-view.js",
+    // The import guidance in evolution.html is only the static first paint.
+    // These modules render the staged picker, recovery actions, load status,
+    // and guided result that must use the same input contract after scripts
+    // load. Treat the set as one deployable surface so a narrowed copy rule
+    // fails before Pages can ship a half-static import flow.
+    "local-import-flow.js", "finops-load-status.js",
+    "finops-guided-result.js", "finops-guided-result-view.js",
     // The imported briefing's peer position is evaluated and qualified across
     // these three modules. If any one is absent, the browser rejects the entry
     // module before painting the unavailable state, so this must fail before a

@@ -586,7 +586,7 @@ test("an empty slot says findings are not available yet, never a bare dash", () 
   // And the missing input is named where the reader can act on it, rather than
   // left to be inferred from an empty benchmark.
   assert.match(textOf(document.getElementById("guided-result-benchmark-detail")),
-    /provider period export and one HRIS mapping/);
+    /Choose one provider period export below/);
   assert.match(textOf(document.getElementById("guided-result-finding")),
     /Findings are not available yet/);
   assert.match(textOf(document.getElementById("guided-result-readiness")), /Not decision-ready/);
@@ -613,7 +613,10 @@ test("before any file is chosen the action names both required files and the CTA
     bundled: { grade: grade(), analysis: analysisEnvelope(), facts: COMPLETE_FACTS },
   }));
   const action = textOf(document.getElementById("guided-result-action"));
-  assert.match(action, /Choose one provider period export and one HRIS mapping/);
+  // Only the one required input is asked for. The org mapping is an optional
+  // precision upgrade in the panel below, so naming it here would read as a gate.
+  assert.match(action, /Choose one provider period export/);
+  assert.doesNotMatch(action, /HRIS/);
   // The sentence sends the visitor to the picker, and the control it names is
   // the picker — so the words and the button cannot point at different things.
   assert.match(action, /in the panel below/);
@@ -681,10 +684,10 @@ test("the live demo composes a guided result on first paint, marked not decision
   assert.equal(document.getElementById("guided-result-action").dataset.actionId, "import_own_export");
   assert.equal(document.getElementById("guided-result-action-control").hidden, false);
   assert.equal(root.dataset.supportExpanded, "false");
-  // The first paint a visitor meets names the two files that would replace the
+  // The first paint a visitor meets names the one file that would replace the
   // bundled sample with their own, and points at the picker below.
   assert.match(textOf(document.getElementById("guided-result-finding")),
-    /Choose one provider period export and one HRIS mapping in the panel below/);
+    /Choose one provider period export in the panel below/);
 
   // Every executive panel on the shipped page is stamped with the role the
   // contract gave it, and only one of them is primary.
