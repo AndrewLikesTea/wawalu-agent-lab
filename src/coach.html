@@ -37,8 +37,11 @@
       <section class="coach-hero" aria-labelledby="page-title">
         <p class="eyebrow">Prompt coach · browser only</p>
         <h1 id="page-title">Find out if your prompt<br />is worth sending.</h1>
-        <p class="coach-hero-lead">One prompt, graded against a bundled rubric in this tab: what a model would do with it, what that is measured against, and the single change worth making first. A worked example is already graded below, so you can read a real result before you paste anything.</p>
-        <p class="coach-hero-boundary"><strong>Nothing you paste leaves this tab.</strong> <span>No sign-in, no upload, no storage, no request to a model, and no record that outlives the tab. The text is measured in this browser and left in the field you typed it into.</span></p>
+        <!-- What this page is for, in one statement. The privacy claim it used
+             to carry now sits beside the button it is a decision about, so a
+             visitor reads it where they act on it rather than three screens
+             above. -->
+        <p class="coach-hero-lead">Paste a prompt and see what a model would make of it: a score, what that score is measured against, and the single change worth making first. A worked example is already graded below, so you can read a real result before you paste anything.</p>
         <!-- The companion surface, linked from the page that owns it rather than
              added to the site nav: it is a view of the same rubric across a
              history instead of a peer destination, and it answers the question
@@ -62,20 +65,21 @@
         <div class="section-heading">
           <p class="eyebrow">Grade a prompt</p>
           <h2 id="prompt-coaching-question">Would a model answer this prompt well?</h2>
-          <p>Paste a prompt, or the few turns around it, and grade it against the same rubric AI FinOps grades an imported corpus with. The text stays in this tab: nothing is uploaded, stored, or attached to your organization&rsquo;s grade.</p>
+          <p>Paste a prompt, or the few turns around it, and grade it against the same rubric AI FinOps grades an imported corpus with.</p>
         </div>
         <!-- The front door: what a visitor gets here, what it is measured
              against, the one thing to do first, and what this never reaches.
-             The two static sentences below are readable before any script runs,
+             The static sentence below is readable before any script runs,
              because a visitor deciding whether to paste anything cannot rely on
-             a promise that only appears once JavaScript succeeds. Everything
-             inside the body is painted from the coaching entry module, the
-             journey contract the page entry itself consumes. -->
+             a promise that only appears once JavaScript succeeds. The list of
+             systems this never touches is not repeated here: the module paints
+             it, item by item with how to check each one, in the privacy
+             boundary disclosure at the foot of this block. -->
         <section class="prompt-coaching-entry" id="prompt-coaching-entry" data-entry-state="empty" aria-labelledby="prompt-coaching-entry-title">
           <h3 class="eyebrow" id="prompt-coaching-entry-title">Start here</h3>
-          <p class="prompt-coaching-entry-static">Grade one prompt against a bundled rubric, in this tab, with no sign-in and nothing uploaded. No model, HR system, billing system, credential, or customer record is contacted or read.</p>
+          <p class="prompt-coaching-entry-static">Grade one prompt against a bundled rubric, in this tab, with no sign-in and nothing uploaded.</p>
           <div class="prompt-coaching-entry-body" id="prompt-coaching-entry-body">
-            <p class="prompt-coaching-entry-lead">What you get, what it is measured against, and what to do first are rendered here from the coaching entry contract when the page&rsquo;s scripts load.</p>
+            <p class="prompt-coaching-entry-lead">What you get, what it is measured against, and what to do first appear here in a moment.</p>
           </div>
         </section>
         <!-- The first-run sample: a real, complete result on arrival, graded
@@ -93,7 +97,7 @@
           <h3 class="eyebrow" id="prompt-coach-sample-title">A worked example, already graded</h3>
           <p class="prompt-coach-sample-static">This result grades a bundled synthetic example written for this page. It is not your text, not a customer&rsquo;s, and not anyone&rsquo;s real prompt. Grade your own prompt below and this example steps aside for your result.</p>
           <div class="prompt-coach-sample-body" id="prompt-coach-sample-body">
-            <p class="prompt-coach-sample-lead">The graded example is rendered here from the bundled coaching fixtures when the page&rsquo;s scripts load.</p>
+            <p class="prompt-coach-sample-lead">The graded example appears here in a moment.</p>
           </div>
         </section>
         <!-- The first-time cue. Static, so it is readable before any script
@@ -113,7 +117,7 @@
             <p class="prompt-coaching-hint" id="prompt-coaching-hint">Label turns &ldquo;User:&rdquo; and &ldquo;Assistant:&rdquo; to grade an exchange, or paste one prompt on its own.</p>
           </div>
           <div class="prompt-coaching-field prompt-coaching-field-model">
-            <label for="prompt-coaching-model">Model you used</label>
+            <label for="prompt-coaching-model">Model you used (optional)</label>
             <select id="prompt-coaching-model" name="modelTier">
               <option value="">Not specified</option>
               <option value="premium">Premium or frontier</option>
@@ -122,9 +126,15 @@
             </select>
             <p class="prompt-coaching-hint">Model fit is one of three axes. Left unspecified, it abstains rather than assuming a tier.</p>
           </div>
+          <!-- The privacy statement, said once and said here: this is the point
+               a visitor decides whether to press the button, and a promise they
+               have to scroll back for is a promise they act without. It is
+               static markup, because a claim that only appears once a script
+               succeeds is a claim nobody can rely on. -->
+          <p class="prompt-coaching-privacy" id="prompt-coaching-privacy"><strong>Nothing you paste leaves this tab.</strong> <span>Your text is graded in this browser: no sign-in, no upload, no storage, and no request to a model.</span></p>
           <div class="prompt-coaching-actions">
             <button type="submit" id="prompt-coaching-grade">Grade this prompt</button>
-            <button type="button" id="prompt-coaching-clear">Clear</button>
+            <button type="button" id="prompt-coaching-clear">Clear and start over</button>
           </div>
         </form>
         <p class="prompt-coaching-live" id="prompt-coaching-live" role="status" aria-live="polite" aria-atomic="true"></p>

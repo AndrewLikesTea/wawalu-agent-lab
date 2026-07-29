@@ -470,7 +470,13 @@ test("the front door states what this is and what it never reaches, before any s
     assert.ok(entry, "the front door must ship in the page markup");
     const claim = textOf(entry.querySelector(".prompt-coaching-entry-static"));
     assert.match(claim, /no sign-in and nothing uploaded/);
-    assert.match(claim, /No model, HR system, billing system, credential, or customer record/);
+    // The systems this never reaches are not listed twice on the first screen:
+    // the entry module paints them, each with how to check it, in the privacy
+    // boundary disclosure. What has to survive a dead script is the promise a
+    // visitor needs before pasting, and it is beside the button they press.
+    const privacy = textOf(byId(document, "prompt-coaching-privacy"));
+    assert.match(privacy, /Nothing you paste leaves this tab/);
+    assert.match(privacy, /no upload, no storage, and no request to a model/);
   } finally {
     page.restore();
   }

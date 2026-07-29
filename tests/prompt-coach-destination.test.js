@@ -248,10 +248,39 @@ test("the destination reads as one page about one thing", async () => {
   assert.equal(sampleSection(document).getAttribute("aria-labelledby"), "prompt-coach-sample-title");
 
   // The boundary a visitor needs before pasting is readable with no script at
-  // all: it is in the shipped markup, not painted by a module.
-  assert.match(textOf(document.querySelector(".coach-hero-boundary")), /Nothing you paste leaves this tab/);
+  // all: it is in the shipped markup, not painted by a module. And it is read
+  // where the decision is made — inside the form, above the button — rather
+  // than in a hero the reader scrolled past.
+  const privacy = document.querySelector(".prompt-coaching-privacy");
+  assert.match(textOf(privacy), /Nothing you paste leaves this tab/);
+  assert.equal(privacy.closest("form")?.id, "prompt-coaching-form",
+    "the privacy statement must sit in the form a visitor is deciding whether to submit");
+  const markup = await read("coach.html");
+  assert.ok(markup.indexOf('class="prompt-coaching-privacy"') < markup.indexOf('id="prompt-coaching-grade"'),
+    "the privacy statement must be read before the grading button, not after it");
+
+  // Said once. A page that repeats the same promise four times teaches a
+  // visitor to skip all four.
+  assert.equal(document.querySelectorAll(".prompt-coaching-privacy").length, 1);
   assert.match(
     textOf(document.querySelector(".prompt-coach-sample-static")),
     /bundled synthetic example/,
   );
+
+  // One purpose statement, at the top: what a visitor does here and what comes
+  // back. It does not spend its second sentence on the promise the form makes.
+  const lead = textOf(document.querySelector(".coach-hero-lead"));
+  assert.match(lead, /Paste a prompt/);
+  assert.doesNotMatch(lead, /leaves this tab|uploaded|no sign-in/i,
+    "the purpose statement is not a second copy of the privacy statement");
+
+  // The copy a visitor reads before any script runs describes what they get,
+  // not how this page is built. Contracts, fixtures, and script loading are
+  // implementation, and they belong in a disclosure or in the source.
+  for (const selector of [".coach-hero-lead", ".prompt-coaching-entry-static",
+    ".prompt-coaching-entry-lead", ".prompt-coach-sample-static", ".prompt-coach-sample-lead"]) {
+    const text = textOf(document.querySelector(selector));
+    assert.doesNotMatch(text, /contract|fixture|scripts load|rendered here/i,
+      `first-screen copy in ${selector} describes the implementation, not the reader's result`);
+  }
 });
