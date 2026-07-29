@@ -252,6 +252,39 @@ test("filtering by record type narrows the history to decisions or releases", as
   assert.equal(countText(page), "2 records", "the unfiltered count did not come back");
 });
 
+test("a filtered decision row still links the release that shipped it, by keyboard", async (t) => {
+  const page = await openHistory(t, {
+    decisions: [SEEDED_DECISION],
+    releases: [SEEDED_RELEASE],
+  });
+
+  // Narrowing to decisions takes the release row off the list. The decision it
+  // shipped in is a property of the record, not of the view, so the row still
+  // names it — and says the release is not in the list right now.
+  chooseRecordType(page, "decision");
+  assert.deepEqual(rowTitles(page), [SEEDED_DECISION.title]);
+  assert.equal(countText(page), "1 of 2 records", "a relationship link must not be counted as a record");
+
+  const relationship = list(page).querySelector(".record-links");
+  assert.ok(relationship, "the filtered decision row states no relationship");
+  assert.match(textOf(relationship), /Shipped in/, "the row does not say what the link is");
+  assert.match(textOf(relationship), /v1\.4\.0/, "the row no longer names the release that shipped it");
+  assert.match(
+    textOf(relationship),
+    /not in this view/,
+    "a link to a row the filter removed must say so",
+  );
+
+  const link = tabTo(page, ".record-link", "the release link on a filtered decision row");
+  pressEnter(page.document);
+  assert.equal(link.getAttribute("href"), `/release.html?id=${SEEDED_RELEASE.id}`);
+  assert.deepEqual(
+    page.navigations,
+    [`/release.html?id=${SEEDED_RELEASE.id}`],
+    "the linked release could not be opened from the filtered decision row",
+  );
+});
+
 test("filtering by decision status narrows the history and is unavailable for releases", async (t) => {
   const page = await openHistory(t, {
     decisions: [SEEDED_DECISION, SEEDED_PENDING_DECISION],

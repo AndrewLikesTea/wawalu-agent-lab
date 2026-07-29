@@ -180,6 +180,22 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .decision-action { display:inline-flex; margin-top:16px; color:#1f70c1; font-size:13px; font-weight:700; }
 .decision-action::after { content:"→"; margin-left:7px; }
 .decision-detail-link:hover .decision-action { text-decoration:underline; }
+/* Decision–release relationship, rendered under each row and outside its card
+   link (an anchor cannot nest). Wraps rather than truncating, so a release with
+   many decisions stays readable on a narrow screen; each counterpart is a
+   44px-tall touch target with its own focus ring. */
+.record-links { display:flex; flex-wrap:wrap; align-items:center; gap:6px 10px; margin:8px 0 0; padding:0 21px 4px; font-size:13px; }
+.record-link { display:inline-flex; align-items:center; gap:5px; min-height:32px; border:1px solid #cddcec; border-radius:99px; padding:4px 11px; background:#f4f8fc; color:#1a5c9e; line-height:1.4; text-decoration:none; overflow-wrap:anywhere; }
+.record-link:hover { background:#e8f1fa; text-decoration:underline; }
+.record-link:focus-visible { outline:3px solid var(--focus-ring); outline-offset:2px; }
+/* A counterpart the current filters removed from the list: muted, and it says
+   so in words as well — the styling is never the only signal. */
+.record-link-hidden { border-style:dashed; background:#fbfaf8; color:#4c5a67; }
+.record-link-note { color:#6a6a65; font-size:12px; }
+/* A dangling reference has no record to open, so it is text, not a link. */
+.record-link-missing { border:1px dashed #d8c8a8; border-radius:99px; padding:4px 11px; background:#fbf7ee; color:#6e5a2c; }
+.record-link-empty { color:#6a6a65; }
+@media(max-width:520px) { .record-links{padding:0 16px 4px}.record-link,.record-link-missing{min-height:44px} }
 .empty-state,.list-state { padding:58px 20px; color:#5f5f59; text-align:center; }
 .empty-state p,.list-state p { margin:7px 0 0; line-height:1.55; }
 .empty-state .empty-title,.list-state h3 { margin:0; color:#282824; font-size:18px; line-height:1.35; }
