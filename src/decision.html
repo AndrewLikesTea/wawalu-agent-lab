@@ -45,18 +45,20 @@
            opens here. The control is in the markup rather than in the render
            module because the region below is replaced on every read. -->
       <section class="list-panel dout-panel" aria-labelledby="dout-panel-title">
-        <h2 class="dout-panel-title" id="dout-panel-title">Outcome and evidence</h2>
+        <h2 class="dout-panel-title" id="dout-panel-title">Recorded outcome and optional evidence</h2>
         <div class="dout-controls">
+          <h3 class="dout-controls-title">Optional evidence</h3>
+          <p class="dout-file-intro" id="dout-file-intro">Opening a later month’s FinOps briefing is optional: it adds what that month actually cost, so the recorded outcome below can be measured against what this decision projected.</p>
           <label for="dout-file">Open a later month’s FinOps briefing</label>
-          <input id="dout-file" type="file" accept="application/json,.json" aria-describedby="dout-file-note" />
-          <p class="dout-file-note" id="dout-file-note">A FinOps briefing JSON exported from AI FinOps, for the month after the one this decision was priced in. It is read in this tab only: no upload, no credentials, no network transfer. Without one, this region says what it is still missing.</p>
-          <p class="dout-file-status" id="dout-file-status" role="status" aria-live="polite">No later month opened yet.</p>
+          <input id="dout-file" type="file" accept="application/json,.json" aria-describedby="dout-file-intro dout-file-note" />
+          <p class="dout-file-note" id="dout-file-note">The file comes from the AI FinOps page: build a briefing there and press “Export briefing (JSON)”. Choose that saved file here — the briefing for the first full month after this decision shipped. It is read in this tab only: no upload, no credentials, no network transfer.</p>
+          <p class="dout-file-status" id="dout-file-status" role="status" aria-live="polite">No briefing opened yet. The decision below reads without one — use “Open a later month’s FinOps briefing” above to add a measured month.</p>
         </div>
         <div id="decision-outcome" aria-busy="true" data-state="loading">
           <section class="dout-state" data-state="loading" role="status">
             <p class="dout-kicker">Recorded decision outcome</p>
             <h3 class="dout-state-title">Checking this decision’s outcome</h3>
-            <p class="dout-state-body">Reading the recorded decision, the releases linked to it, and any month you have opened.</p>
+            <p class="dout-state-body">Checking what this decision projected and whether a release recorded it as shipped. No file is needed for this step.</p>
           </section>
         </div>
       </section>
