@@ -486,6 +486,28 @@ function readQuerySampleSource(text, entry, options) {
       owner ? `Choose “${owner.label}” instead.` : "Choose the source that declares this shape.",
       { sourceId: entry.id });
   }
+  return orgQuerySampleResult(parsed, entry.id);
+}
+
+/**
+ * An already-parsed query sample, adapted into this registry's result shape.
+ *
+ * The import surface parses a chosen file exactly once, through `parseQuerySample`
+ * and with no grouping unit, because a reader who has brought a query sample and
+ * no billing export has no provider grouping unit to supply. This function is
+ * how that single parse becomes an organizational sample: it takes no options,
+ * reads the source entry from the dialect the parse already recognized, and adds
+ * nothing to the records but the registry's own provenance and summary.
+ *
+ * Returns null when the parse failed or when no declared source reads that
+ * shape — a caller gets no half-result to mistake for a validated one.
+ */
+export function orgQuerySampleResult(parsed, sourceId = null) {
+  if (!parsed?.ok) return null;
+  const entry = orgQuerySourceById(sourceId)
+    ?? SOURCES.find((source) => source.dialect_ids.includes(parsed.dialect))
+    ?? null;
+  if (!entry || !entry.dialect_ids.includes(parsed.dialect)) return null;
   const records = parsed.records.map((record) => Object.freeze({
     row: record.row,
     orgUnitId: record.orgUnitId,
