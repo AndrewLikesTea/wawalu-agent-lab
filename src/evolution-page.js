@@ -94,6 +94,16 @@ import { interventionActionFields } from "/department-intervention-view.js";
 // `evolution.html` ships empty for them.
 import { EVIDENCE_PROVENANCE, departmentEvidenceModel } from "/department-evidence.js";
 import { applyDepartmentEvidence } from "/department-evidence-view.js";
+// The reader's own organizational query sample, graded. `orgQuerySampleResult`
+// adapts the single parse the import path already made — with no grouping unit,
+// because a reader with a query sample and no billing export has none to give —
+// and the scoring module turns it into the same per-unit rows the drill-down's
+// evidence panel and fix pack already consume.
+import { orgQuerySampleResult } from "/org-query-source.js";
+import {
+  orgQueryDecisionData, orgQueryDecisionDepartments, orgQueryDepartmentLiteracy,
+  orgQueryDepartmentRows,
+} from "/org-query-scoring.js";
 // No panel on this page writes its own "nothing here" sentence. Every empty,
 // partial-coverage and failed-load string is authored in one module, so a
 // reader meets one vocabulary for absence instead of one per branch.
@@ -294,6 +304,12 @@ let bundledEvaluationRecords = 0;
 // repaint the same way the bundled analysis does. Assigned in
 // `mountLocalFinopsImport`; a no-op until then.
 let syncExecutivePanels = () => {};
+// The graded rows of the reader's own organizational query sample, keyed by org
+// unit, or null while the drill-down is describing the bundled sample. It is the
+// one thing that decides whether the decision detail below is about a reader's
+// unit or about synthetic data, so it is a single flag rather than an inference
+// from counting files, and the two provenance labels follow it.
+let importedLiteracyRows = null;
 
 /**
  * Repaint every declared panel from one fact record.
@@ -1264,6 +1280,10 @@ function mountLocalFinopsImport() {
     queue = [];
     review = null;
     samples.length = 0;
+    // The drill-down goes back to the bundled sample with everything else. A
+    // graded unit outliving the file it was graded from is the same mislabelling
+    // the clear exists to prevent, in the other direction.
+    paintImportedDecisionSurface(null);
     closeMappingReview(document);
     if (remap) remap.hidden = true;
     result = null;
@@ -1462,8 +1482,26 @@ function mountLocalFinopsImport() {
     await processQueue();
   };
 
+  /**
+   * The reader's own query samples, graded per organization unit.
+   *
+   * One parse, reused: `orgQuerySampleResult` adapts what `processQueue` already
+   * read, so nothing is parsed twice and no caller has to supply a grouping unit
+   * this surface does not have. A file whose dialect no declared source reads
+   * yields null and is filtered out rather than guessed at.
+   */
+  const importedOrgLiteracy = () => (samples.length && !exampleActive
+    ? orgQueryDepartmentLiteracy({
+      results: samples.map((entry) => orgQuerySampleResult(entry.parsed)).filter(Boolean),
+    })
+    : null);
+
   const finishSelection = (total) => {
     rebuildLoaded();
+    // Before either branch below, because it holds in both: a gradeable query
+    // sample grades the drill-down whether or not a billing export came with it.
+    // An invoice with no supported query source leaves it exactly as it was.
+    paintImportedDecisionSurface(importedOrgLiteracy());
     // The one gate, and it is the policy's. `analysisEligibility` reads the same
     // three input states that classify every finding, so a provider export on
     // its own is a complete run and only genuinely ineligible input — no file,
@@ -2078,9 +2116,16 @@ function renderDecisionDetail(department, data) {
   // The drill-down's prompt-literacy half: the evidence behind this
   // department's grade, and the fix pack that rides on the same model so the
   // two can never describe different departments.
+  //
+  // With a gradeable organizational query sample imported, that row is the
+  // reader's own — a real letter, a real mix, a real coaching gap — and the
+  // provenance says so. Without one it is the bundled record's, which carries no
+  // classified prompt and publishes its withheld reading. There is no third
+  // state: a row is one reader's file or it is the bundled sample, never both.
+  const importedRow = importedLiteracyRows?.get(department.id) ?? null;
   applyDepartmentEvidence(document, departmentEvidenceModel({
-    department: unclassifiedDepartmentRow(department),
-    provenance: EVIDENCE_PROVENANCE.sample.kind,
+    department: importedRow ?? unclassifiedDepartmentRow(department),
+    provenance: importedRow ? EVIDENCE_PROVENANCE.own.kind : EVIDENCE_PROVENANCE.sample.kind,
   }));
   setText("detail-score", performance.available ? `${performance.score}/100` : NOT_GRADED);
   setText("detail-sample", performance.available
@@ -2161,6 +2206,33 @@ function renderDecisionDetail(department, data) {
     );
     list?.append(item);
   }
+}
+
+/**
+ * Repaint the decision surface from the reader's own organizational query
+ * sample, or hand it back to the bundled seed.
+ *
+ * This is the wiring the registry deliberately shipped without: a validated,
+ * gradeable local query source now reaches the drill-down a leader actually
+ * clicks, as its own priority list and its own graded detail. Nothing is mixed —
+ * the imported units replace the synthetic ones rather than joining them, so a
+ * reader is never comparing their own team against a fixture in the same list.
+ *
+ * @param literacy an `orgQueryDepartmentLiteracy` model, or null to return to
+ *   the bundled sample. A model with no gradeable unit is treated as null: the
+ *   drill-down publishes letters, and units with nothing to grade belong in the
+ *   graded-sample panel that already reports their shortfalls.
+ */
+function paintImportedDecisionSurface(literacy) {
+  if (!literacy?.gradeable) {
+    if (!importedLiteracyRows) return null;
+    importedLiteracyRows = null;
+    if (bundledSeed) renderDecisionSurface(bundledSeed, bundledSeed.departments ?? []);
+    return null;
+  }
+  importedLiteracyRows = orgQueryDepartmentRows(literacy);
+  renderDecisionSurface(orgQueryDecisionData(literacy), orgQueryDecisionDepartments(literacy));
+  return literacy;
 }
 
 function renderDecisionSurface(data, departments) {
