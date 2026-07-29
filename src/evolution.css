@@ -1282,12 +1282,27 @@
 .finops-contact-form[data-state="error"]+.finops-contact-status { color:var(--state-error-ink); }
 .finops-contact-recovery { margin:0; border-left:2px solid var(--state-error-line); padding-left:11px; color:var(--import-ink); font-size:12px; line-height:1.5; }
 .finops-contact-recovery[hidden] { display:none; }
-.finops-contact button:focus-visible,.finops-contact input:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+/* The next action. Quiet by design — it is somewhere to go while the reply is
+   written, not a second ask competing with the confirmation above it. */
+.finops-contact-next { margin:0; border-left:2px solid var(--import-accent); padding-left:11px; color:var(--import-ink); font-size:13px; line-height:1.55; }
+.finops-contact-next[hidden] { display:none; }
+.finops-contact button:focus-visible,.finops-contact input:focus-visible,.finops-contact a:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+
+/* The contextual invitation, beside the brief rather than at the foot of the
+   page. It is a rule and a button, not a card: a second panel here would read as
+   another result and compete with the one above it. */
+.finops-followup-cta { display:grid; gap:10px; justify-items:start; margin:22px 0 0; border-top:1px solid var(--import-line); padding:18px 0 0; }
+.finops-followup-cta-lead { margin:0; max-width:640px; color:var(--import-ink); font-size:15px; font-weight:700; line-height:1.5; }
+.finops-followup-cta-button { min-height:44px; border:1px solid var(--import-accent); border-radius:10px; padding:0 17px; background:var(--import-accent); color:#fff; font:650 14px/1.4 inherit; cursor:pointer; }
+.finops-followup-cta-button:hover { background:var(--import-ink); }
+.finops-followup-cta-button:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.finops-followup-cta-note { margin:0; max-width:640px; color:var(--ink-muted); font-size:12px; line-height:1.55; }
 
 @media(max-width:640px) {
   .finops-contact { padding:18px; }
   .finops-contact-trigger { width:100%; }
   .finops-contact-actions button { flex:1 1 auto; }
+  .finops-followup-cta-button { width:100%; }
 
   /* The table keeps its shape and scrolls inside its own labelled, focusable
      box rather than pushing the page sideways. */
