@@ -4,7 +4,16 @@
 // release-form.js; this layer only binds composed data to the DOM so both
 // components stay reusable and unit-testable.
 
-import { focusRelease, loadReleases, mountReleaseList, renderReleaseListState, saveReleases } from "./releases.js";
+import {
+  focusRelease,
+  loadReleases,
+  mountReleaseList,
+  releaseCountText,
+  releaseFollowUp,
+  renderReleaseFollowUp,
+  renderReleaseListState,
+  saveReleases,
+} from "./releases.js";
 import { loadReleaseData } from "./releases-data.js";
 import { RELEASE_FORM_ERRORS, createRelease, mountDecisionPicker, recordedSummaryText } from "./release-form.js";
 
@@ -109,7 +118,20 @@ export function initReleasesPage(root = document, storage = localStorage, option
   const count = root.querySelector("#release-count");
   const search = root.querySelector("#release-search");
   const statusFilter = root.querySelector("#release-status");
+  const followUpSlot = root.querySelector("#release-followup");
+  // A radio group, so the active filter is whichever option is checked. Read
+  // from the controls on every update rather than mirrored into page state:
+  // the browser already owns "which one is selected", and a second copy of that
+  // answer is a second thing that can be wrong.
+  const decisionStatusInputs = [...(root.querySelectorAll?.('input[name="release-decision-status"]') ?? [])];
   if (!container) return;
+
+  // Every early return below leaves the page in a stated end state: the list
+  // shows why it is empty, the count says so, and no stale follow-up survives
+  // pointing at releases this page never managed to load.
+  const clearFollowUp = () => {
+    if (followUpSlot) renderReleaseFollowUp(followUpSlot, null);
+  };
 
   container.setAttribute("aria-busy", "true");
   let data;
@@ -118,6 +140,7 @@ export function initReleasesPage(root = document, storage = localStorage, option
   } catch {
     renderReleaseListState(container, "error");
     if (count) count.textContent = "Unavailable";
+    clearFollowUp();
     return;
   }
   const { decisions, unavailable, exampleReleaseIds } = data;
@@ -125,6 +148,7 @@ export function initReleasesPage(root = document, storage = localStorage, option
   if (unavailable && releases.length === 0) {
     renderReleaseListState(container, "error");
     if (count) count.textContent = "Unavailable";
+    clearFollowUp();
     return;
   }
 
@@ -133,12 +157,39 @@ export function initReleasesPage(root = document, storage = localStorage, option
   // imported over a seed id) never carries the label.
   const view = mountReleaseList(container, { releases, decisions, exampleIds: exampleReleaseIds });
   const update = () => {
-    const filters = { query: search?.value ?? "", status: statusFilter?.value ?? "all" };
+    const filters = {
+      query: search?.value ?? "",
+      status: statusFilter?.value ?? "all",
+      decisionStatus: decisionStatusInputs.find((input) => input.checked)?.value ?? "all",
+    };
     const shown = view.render({ releases, decisions, exampleIds: exampleReleaseIds }, filters);
-    if (count) count.textContent = `${shown.length} of ${releases.length} ${releases.length === 1 ? "release" : "releases"}`;
+    // One count, from the same computation that rendered the rows, and one
+    // follow-up derived from exactly those rows — so the callout can never
+    // point at a release the active filter has hidden.
+    if (count) count.textContent = releaseCountText(shown.length, releases.length);
+    if (followUpSlot) renderReleaseFollowUp(followUpSlot, releaseFollowUp(shown));
   };
   search?.addEventListener("input", update);
   statusFilter?.addEventListener("change", update);
+  for (const input of decisionStatusInputs) input.addEventListener("change", update);
+
+  // The next step each empty state offers. Delegated to the list container so it
+  // survives the re-render that removes the button, and focus is moved off that
+  // button before it disappears: resetting returns focus to the filter group it
+  // just cleared, recording moves it to the first field of the form it names.
+  container.addEventListener("click", (event) => {
+    const action = event.target.closest?.("[data-action]");
+    if (!action) return;
+    if (action.dataset.action === "reset-filters") {
+      if (search) search.value = "";
+      if (statusFilter) statusFilter.value = "all";
+      for (const input of decisionStatusInputs) input.checked = input.value === "all";
+      update();
+      decisionStatusInputs.find((input) => input.value === "all")?.focus?.();
+    } else if (action.dataset.action === "record-release") {
+      root.querySelector("#release-version")?.focus?.();
+    }
+  });
 
   // A successfully recorded release joins the composed list in memory rather
   // than through a re-read of storage. initReleaseRecorder calls this only

@@ -122,7 +122,7 @@
             <input id="release-search" type="search" placeholder="Title, description, or decision context" autocomplete="off" />
           </div>
           <div class="filter">
-            <label for="release-status">Status</label>
+            <label for="release-status">Release status</label>
             <select id="release-status">
               <option value="all">All statuses</option>
               <option value="planned">Planned</option>
@@ -130,8 +130,48 @@
               <option value="cancelled">Cancelled</option>
             </select>
           </div>
+          <!-- Radios, not a select: the options are few, all six stay visible
+               with the chosen one marked, and the platform gives the group one
+               tab stop with arrow-key movement for free. "Missing decision" is
+               not a status a decision can hold — it is an association pointing
+               at a decision this log does not have. -->
+          <fieldset class="filter filter-group release-decision-filter" aria-describedby="release-decision-status-hint">
+            <legend>Linked decision status</legend>
+            <p class="hint" id="release-decision-status-hint">Shows releases carrying at least one decision in the chosen state. Arrow keys move between the options.</p>
+            <div class="filter-options">
+              <span class="filter-option">
+                <input id="release-decision-status-all" name="release-decision-status" type="radio" value="all" checked />
+                <label for="release-decision-status-all">Any status</label>
+              </span>
+              <span class="filter-option">
+                <input id="release-decision-status-proposed" name="release-decision-status" type="radio" value="proposed" />
+                <label for="release-decision-status-proposed">Proposed</label>
+              </span>
+              <span class="filter-option">
+                <input id="release-decision-status-pending" name="release-decision-status" type="radio" value="pending" />
+                <label for="release-decision-status-pending">Pending</label>
+              </span>
+              <span class="filter-option">
+                <input id="release-decision-status-accepted" name="release-decision-status" type="radio" value="accepted" />
+                <label for="release-decision-status-accepted">Accepted</label>
+              </span>
+              <span class="filter-option">
+                <input id="release-decision-status-superseded" name="release-decision-status" type="radio" value="superseded" />
+                <label for="release-decision-status-superseded">Superseded</label>
+              </span>
+              <span class="filter-option">
+                <input id="release-decision-status-missing" name="release-decision-status" type="radio" value="missing" />
+                <label for="release-decision-status-missing">Missing decision</label>
+              </span>
+            </div>
+          </fieldset>
         </div>
         <p class="hint release-hint">Use ↑ and ↓ to move between releases, Home and End to jump, Enter to view details, and Space to expand.</p>
+        <!-- One prioritised follow-up for whatever the filters left on screen.
+             Filled by releases-page.js and hidden while nothing is outstanding;
+             it is not a live region, because #release-count already announces
+             that the view changed. -->
+        <div class="release-followup-slot" id="release-followup" hidden></div>
         <div id="release-list" aria-live="polite" aria-busy="true">
           <div class="list-state list-state-loading" role="status">
             <h3>Loading releases</h3>
