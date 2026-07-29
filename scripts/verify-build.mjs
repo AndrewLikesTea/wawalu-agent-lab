@@ -52,6 +52,13 @@ export async function verifyArtifact(root) {
     "post.html", "post-page.js", "post-detail.js",
     "evolution.html", "evolution-page.js", "evolution.css",
     "finops-panel-contract.js", "finops-panel-contract-view.js", "panel-status-view.js",
+    // Organizational artifacts are parsed, minimized, aggregated, and scored in
+    // the browser. Treat that chain and its published contracts as one deployable
+    // unit: a partial artifact would only fail after a reader selected a file.
+    "org-query-source.js", "org-query-aggregate.js", "org-query-scoring.js",
+    "org-query-scoring-fixtures.js",
+    "contracts/integrations/org-query-source/v1/fixtures/organizational-sample.json",
+    "docs/org-query-source-contract.md", "docs/org-query-aggregate.md",
     // The department drill-down is painted by these live views. Both are direct
     // imports of the AI FinOps entry module, so dropping either from a narrowed
     // artifact prevents that entry module from evaluating and leaves the fix
@@ -239,6 +246,49 @@ export async function verifyArtifact(root) {
   const decisionVerdict = validateDecisionRecord(decisionFixture);
   if (!decisionVerdict.valid) {
     throw new Error(`canonical FinOps decision fixture is invalid: ${JSON.stringify(decisionVerdict.errors)}`);
+  }
+
+  // Exercise the organizational-artifact path from the exact files Pages will
+  // serve. This is intentionally local: the feature promises no request,
+  // persistence, binding, or environment variable, so its production smoke
+  // test must need none either.
+  const orgSampleText = await readFile(resolve(
+    root,
+    "contracts/integrations/org-query-source/v1/fixtures/organizational-sample.json",
+  ), "utf8");
+  const { validateOrgQuerySource } = await import(
+    pathToFileURL(resolve(root, "org-query-source.js")).href
+  );
+  const { orgQueryDepartmentLiteracy } = await import(
+    pathToFileURL(resolve(root, "org-query-scoring.js")).href
+  );
+  const {
+    assertOrgQueryAggregateRedacted,
+    orgQueryAggregateCanonicalForm,
+    orgQueryAggregateDigest,
+  } = await import(pathToFileURL(resolve(root, "org-query-aggregate.js")).href);
+  const orgResult = validateOrgQuerySource(orgSampleText, {
+    sourceId: "representative-prompt-batch",
+    fileName: "organizational-sample.json",
+  });
+  if (!orgResult.ok) {
+    throw new Error(`organizational sample was refused by artifact parser: ${orgResult.code}`);
+  }
+  const literacy = orgQueryDepartmentLiteracy({ results: [orgResult] });
+  if (!literacy.gradeable || !literacy.aggregate || literacy.aggregateProblem) {
+    throw new Error("organizational sample did not produce a gradeable artifact aggregate");
+  }
+  assertOrgQueryAggregateRedacted(literacy.aggregate);
+  const reversed = {
+    ...literacy.aggregate,
+    cells: [...literacy.aggregate.cells].reverse(),
+    unclassifiedCells: [...literacy.aggregate.unclassifiedCells].reverse(),
+    intakeCells: [...literacy.aggregate.intakeCells].reverse(),
+  };
+  if (JSON.stringify(orgQueryAggregateCanonicalForm(reversed))
+      !== JSON.stringify(orgQueryAggregateCanonicalForm(literacy.aggregate))
+      || orgQueryAggregateDigest(reversed) !== orgQueryAggregateDigest(literacy.aggregate)) {
+    throw new Error("organizational aggregate digest is not canonical across cell ordering");
   }
 
   // Probe the exact first paint that Pages will serve against the modules that

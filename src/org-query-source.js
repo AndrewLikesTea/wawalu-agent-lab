@@ -35,6 +35,7 @@ import { MAX_DELIMITED_BYTES, MAX_DELIMITED_ROWS, readDelimitedText } from "./de
 import { PROMPT_GRADING_THRESHOLDS } from "./prompt-grading-eligibility.js";
 import {
   MAX_PROMPT_EXCERPT_LENGTH,
+  QUERY_SAMPLE_CODES,
   QUERY_SAMPLE_CONTRACT_KIND,
   QUERY_SAMPLE_SCHEMA_VERSION,
   parseQuerySample,
@@ -460,6 +461,65 @@ export function validateOrgQuerySource(text, options = {}) {
   return entry.source_kind === "conversation-archive"
     ? readConversationArchive(text, entry)
     : readQuerySampleSource(text, entry, options);
+}
+
+/**
+ * Read one local file as whichever declared source its *bytes* say it is.
+ *
+ * `validateOrgQuerySource` above answers "can this source read this file", which
+ * is the question a panel with a source chooser asks. The intake path has no
+ * chooser: it is handed a file the reader picked for the whole import and has to
+ * decide what it is. This is that decision, and it is made from the file's own
+ * envelope or header in a fixed order — the two query-sample shapes first,
+ * because their required fields are the narrowest thing here, then the
+ * conversation dialects, which match on their own identifier columns.
+ *
+ * A file that is neither is *not* an error this function invents a reason for:
+ * it returns the refusal with `UNRECOGNIZED_SOURCE_SHAPE`, which is the caller's
+ * signal to carry on treating the file as whatever it was going to treat it as
+ * — a provider export, a roster, or a file for the mapping step. Nothing here
+ * consumes a file another path was going to read.
+ *
+ * Oversized, malformed, and unreadable files come back with the code the reader
+ * beneath assigned them (`file_too_large`, `too_many_rows`,
+ * `malformed_quoted_field`, …) so the recovery names the actual fault.
+ */
+export function readOrgQuerySource(text, { fileName = "", mediaType = "" } = {}) {
+  const sample = parseQuerySample(text);
+  if (sample.ok) {
+    const adapted = orgQuerySampleResult(sample);
+    if (adapted) return adapted;
+  }
+  // A query-sample refusal that is *not* `unrecognized_dialect` means the file
+  // was recognized as one of the two query-sample shapes and something in it is
+  // wrong — a refused identifier column, rows none of which validated, a file
+  // over the byte or row ceiling. That is this contract's file to report, and
+  // reporting it beats letting it fall through to "we do not read this".
+  if (!sample.ok && sample.problem?.code
+    && sample.problem.code !== QUERY_SAMPLE_CODES.UNRECOGNIZED_DIALECT) {
+    return failure(sample.problem.code,
+      sample.problem.message
+        ?? `This file reads as a query sample and was refused: expected `
+          + `${sample.problem.expected ?? "a valid query sample"}, observed `
+          + `${sample.problem.observed ?? "something else"}.`,
+      "Fix the file locally and choose it again; nothing from it was read or kept.",
+      { sourceId: null, issues: Object.freeze([...(sample.problem.issues ?? [])]) });
+  }
+  const archive = orgQuerySourceById("local-conversation-archive");
+  const asArchive = readConversationArchive(text, archive);
+  if (asArchive.ok) return asArchive;
+  // Same rule for the archive half: a matched conversation dialect with no
+  // attribution column, or with no usable row, is a fault worth naming. A file
+  // that matched no dialect at all is simply not one of ours.
+  if (asArchive.code === ORG_QUERY_SOURCE_CODES.MISSING_ATTRIBUTION
+    || asArchive.code === ORG_QUERY_SOURCE_CODES.EMPTY_SOURCE) {
+    return asArchive;
+  }
+  return failure(ORG_QUERY_SOURCE_CODES.UNRECOGNIZED_SOURCE_SHAPE,
+    `No declared organizational query source reads ${fileName || "this file"}.`,
+    `This contract reads ${SOURCES.map((source) => source.label).join(", ")}. `
+      + "Export one of those shapes locally, or use this file with the intake it belongs to.",
+    { sourceId: null, mediaType: String(mediaType ?? "") });
 }
 
 function readQuerySampleSource(text, entry, options) {

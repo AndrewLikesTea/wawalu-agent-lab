@@ -50,6 +50,7 @@ import {
   RUBRIC_SIGNALS, UNATTRIBUTED_DEPARTMENT, aggregateConversationLiteracy,
 } from "./conversation-literacy.js";
 import { UNGROUPED_DEPARTMENT } from "./dialect-profiles.js";
+import { orgQueryAggregate, orgQueryAggregateDigest } from "./org-query-aggregate.js";
 import { ORG_QUERY_SAMPLING, organizationalSampleSummary } from "./org-query-source.js";
 import { PROMPT_LITERACY_RUBRIC, RUBRIC_VERSION_ID } from "./prompt-literacy-scoring.js";
 import {
@@ -342,6 +343,16 @@ export function orgQueryDepartmentLiteracy({ results = [], minimumPrompts } = {}
   ].sort((left, right) => left.department.localeCompare(right.department)));
   const graded = departments.filter((row) => row.gradeable === true);
 
+  // The sanitized aggregate: counts on a grid, built past the redaction
+  // boundary from `classification` and never from `records`. This — not the
+  // validated records, and certainly not the file — is what a decision surface
+  // is handed to publish, digest, or hand on. A selection this module cannot
+  // aggregate (mixed key spaces, an unreadable member, a grid over the ceiling)
+  // yields a named problem rather than a half-grid, and the grades below are
+  // unaffected: they were never computed from the aggregate.
+  const aggregation = orgQueryAggregate({ results: list, classification });
+  const aggregate = aggregation.ok ? aggregation.aggregate : null;
+
   const summary = organizationalSampleSummary(records,
     { grades: gradesLiteracy ? "prompt_literacy" : "attribution_and_volume" });
   const mix = mixOf(classification.records);
@@ -368,6 +379,13 @@ export function orgQueryDepartmentLiteracy({ results = [], minimumPrompts } = {}
     confidence,
     coachingGap: coachingGap(graded),
     summary,
+    // The whole of what leaves this module for a decision model, and the reason
+    // it could not be built when it is null. Both are always published: a
+    // consumer that finds `aggregate: null` learns why in the same breath.
+    aggregate,
+    aggregateProblem: aggregation.ok ? null : Object.freeze({
+      code: aggregation.code, message: aggregation.message, recovery: aggregation.recovery,
+    }),
     prompts: Object.freeze({
       total: records.length,
       classified: classification.records.length,
@@ -383,7 +401,14 @@ export function orgQueryDepartmentLiteracy({ results = [], minimumPrompts } = {}
       basis: "per-unit rubric category counts and UTC day buckets; no cost and no prompt text",
       letterFloor: floor,
       publishableFloor: FLOOR.prompts_per_org_unit,
+      // Two digests, deliberately. `inputDigest` is over the classified evidence
+      // alone, so one sample delivered as a gateway log and as a prompt batch
+      // digests the same and a reader can say "we are arguing about the same
+      // queries". `aggregateDigest` covers the intake provenance too, so it
+      // separates two selections that carry identical counts from different
+      // files — the question an auditor asks, not the one a disputant does.
       inputDigest: orgQueryDigest(classification.records),
+      aggregateDigest: aggregate ? orgQueryAggregateDigest(aggregate) : null,
     }),
     weights: ORG_QUERY_SCORING_WEIGHTS,
     redaction: Object.freeze({

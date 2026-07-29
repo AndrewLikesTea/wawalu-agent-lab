@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { cp, mkdtemp, readdir, readFile, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -13,6 +13,19 @@ import {
 } from "../src/seed-records.js";
 import { SITE_NAV } from "../src/site-nav.js";
 import { parseHtml, pressEnter, pressTab } from "./support/browser.js";
+
+async function copyDeployableArtifact(directory) {
+  await cp(new URL("../src", import.meta.url), directory, { recursive: true });
+  await cp(
+    new URL("../contracts/integrations/org-query-source/v1", import.meta.url),
+    resolve(directory, "contracts/integrations/org-query-source/v1"),
+    { recursive: true },
+  );
+  await mkdir(resolve(directory, "docs"), { recursive: true });
+  for (const page of ["org-query-source-contract.md", "org-query-aggregate.md"]) {
+    await cp(new URL(`../docs/${page}`, import.meta.url), resolve(directory, "docs", page));
+  }
+}
 
 test("product has a health endpoint and accessible title", async () => {
   assert.equal((await readFile(new URL("../src/healthz", import.meta.url), "utf8")).trim(), "ok");
@@ -259,7 +272,7 @@ test("security headers ship with the site", async () => {
 test("build manifest is reproducible and detects artifact mutation", async (t) => {
   const directory = await mkdtemp(resolve(tmpdir(), "shiplog-artifact-test-"));
   t.after(async () => (await import("node:fs/promises")).rm(directory, { recursive: true, force: true }));
-  await cp(new URL("../src", import.meta.url), directory, { recursive: true });
+  await copyDeployableArtifact(directory);
 
   const first = await createManifest(directory);
   const firstBytes = await readFile(resolve(directory, "build-manifest.json"), "utf8");
@@ -275,7 +288,7 @@ test("build manifest is reproducible and detects artifact mutation", async (t) =
 test("artifact verification rejects an executive page without its panel status module", async (t) => {
   const directory = await mkdtemp(resolve(tmpdir(), "shiplog-executive-artifact-test-"));
   t.after(async () => (await import("node:fs/promises")).rm(directory, { recursive: true, force: true }));
-  await cp(new URL("../src", import.meta.url), directory, { recursive: true });
+  await copyDeployableArtifact(directory);
 
   await (await import("node:fs/promises")).rm(resolve(directory, "panel-status-view.js"));
   await createManifest(directory);
@@ -289,7 +302,7 @@ test("artifact verification rejects an executive page without its panel status m
 test("artifact verification rejects an imported briefing without its peer benchmark module", async (t) => {
   const directory = await mkdtemp(resolve(tmpdir(), "shiplog-peer-artifact-test-"));
   t.after(async () => (await import("node:fs/promises")).rm(directory, { recursive: true, force: true }));
-  await cp(new URL("../src", import.meta.url), directory, { recursive: true });
+  await copyDeployableArtifact(directory);
 
   await (await import("node:fs/promises")).rm(resolve(directory, "imported-peer-benchmark.js"));
   await createManifest(directory);
@@ -303,7 +316,7 @@ test("artifact verification rejects an imported briefing without its peer benchm
 test("artifact verification rejects AI FinOps without a department drill-down view", async (t) => {
   const directory = await mkdtemp(resolve(tmpdir(), "shiplog-department-view-artifact-test-"));
   t.after(async () => (await import("node:fs/promises")).rm(directory, { recursive: true, force: true }));
-  await cp(new URL("../src", import.meta.url), directory, { recursive: true });
+  await copyDeployableArtifact(directory);
 
   await (await import("node:fs/promises")).rm(resolve(directory, "department-fix-pack-view.js"));
   await createManifest(directory);
@@ -314,10 +327,24 @@ test("artifact verification rejects AI FinOps without a department drill-down vi
   );
 });
 
+test("artifact verification rejects a partial organizational-artifact reader", async (t) => {
+  const directory = await mkdtemp(resolve(tmpdir(), "shiplog-org-query-artifact-test-"));
+  t.after(async () => (await import("node:fs/promises")).rm(directory, { recursive: true, force: true }));
+  await copyDeployableArtifact(directory);
+
+  await (await import("node:fs/promises")).rm(resolve(directory, "org-query-aggregate.js"));
+  await createManifest(directory);
+
+  await assert.rejects(
+    verifyArtifact(directory),
+    /missing required UI asset: org-query-aggregate\.js/,
+  );
+});
+
 test("artifact verification probes the executive FinOps contract and canonical fixture together", async (t) => {
   const directory = await mkdtemp(resolve(tmpdir(), "shiplog-finops-briefing-artifact-test-"));
   t.after(async () => (await import("node:fs/promises")).rm(directory, { recursive: true, force: true }));
-  await cp(new URL("../src", import.meta.url), directory, { recursive: true });
+  await copyDeployableArtifact(directory);
 
   const fixturePath = resolve(directory, "executive-finops-briefing-fixture.json");
   const fixture = JSON.parse(await readFile(fixturePath, "utf8"));
@@ -334,7 +361,7 @@ test("artifact verification probes the executive FinOps contract and canonical f
 test("artifact verification rejects a canonical FinOps decision that drifted from its derivation", async (t) => {
   const directory = await mkdtemp(resolve(tmpdir(), "shiplog-finops-decision-artifact-test-"));
   t.after(async () => (await import("node:fs/promises")).rm(directory, { recursive: true, force: true }));
-  await cp(new URL("../src", import.meta.url), directory, { recursive: true });
+  await copyDeployableArtifact(directory);
 
   // Move the published baseline by one dollar. The contract re-derives that
   // figure from the bundled dataset rather than reading it back, so the artifact
@@ -354,7 +381,7 @@ test("artifact verification rejects a canonical FinOps decision that drifted fro
 test("artifact verification refuses to ship the FinOps front door without its decision", async (t) => {
   const directory = await mkdtemp(resolve(tmpdir(), "shiplog-finops-decision-missing-test-"));
   t.after(async () => (await import("node:fs/promises")).rm(directory, { recursive: true, force: true }));
-  await cp(new URL("../src", import.meta.url), directory, { recursive: true });
+  await copyDeployableArtifact(directory);
 
   await (await import("node:fs/promises")).rm(resolve(directory, "finops-decision-fixture.json"));
   await createManifest(directory);
@@ -368,7 +395,7 @@ test("artifact verification refuses to ship the FinOps front door without its de
 test("artifact verification rejects AI FinOps first-paint and runtime copy drift", async (t) => {
   const directory = await mkdtemp(resolve(tmpdir(), "shiplog-finops-copy-artifact-test-"));
   t.after(async () => (await import("node:fs/promises")).rm(directory, { recursive: true, force: true }));
-  await cp(new URL("../src", import.meta.url), directory, { recursive: true });
+  await copyDeployableArtifact(directory);
 
   const pagePath = resolve(directory, "evolution.html");
   const page = await readFile(pagePath, "utf8");

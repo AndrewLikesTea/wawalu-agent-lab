@@ -157,7 +157,17 @@ is untouched.
   rubric category, so it reports `attribution_and_volume` and its samples are
   never marked gradeable. Pairing one with a gateway log or a prompt batch is
   the documented route to a grade.
-- **No consumer yet for a selected source.** The registry, its validator, and
-  the panel ship together; the file picker still routes a chosen file through
-  the existing provider-export and query-sample paths. Wiring a selected source
-  to its own import is the next change, and it is deliberately not this one.
+- **The file picker routes by shape, not by the chooser.** The panel's source
+  chooser paints guidance and a compatibility verdict; it selects no file. The
+  import path decides what a chosen file is from its own envelope or header —
+  the two query-sample shapes first, then the conversation dialects, then the
+  existing provider-export and mapping paths, untouched. `readOrgQuerySource`
+  is that same order as one callable function, for a caller that has a file and
+  no parse of it yet; the import surface, which has already parsed for the
+  query-sample shapes, asks the registry for the archive half directly so
+  nothing is parsed twice. A file no declared source reads is handed straight
+  back rather than claimed.
+- **What travels onward is the aggregate, not the records.** Counts on a grid
+  plus the intake provenance of the files behind them, with its own cell keys,
+  canonical form, digest, and refusals: see the [sanitized organizational query
+  aggregate](org-query-aggregate.md).

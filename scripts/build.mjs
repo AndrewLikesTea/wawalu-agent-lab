@@ -33,6 +33,9 @@ try {
     "conversation-export-import-contract.md",
     "provider-export-package-contract.md",
     "org-query-source-contract.md",
+    // Linked from the source contract above, so it has to travel with it or the
+    // deployed copy links into a 404.
+    "org-query-aggregate.md",
   ]) {
     await cp(resolve(root, "docs", page), resolve(staging, "docs", page));
   }
