@@ -316,3 +316,37 @@ test("artifact verification probes the executive FinOps contract and canonical f
     /executive FinOps fixture does not match its artifact contract/,
   );
 });
+
+test("artifact verification rejects a canonical FinOps decision that drifted from its derivation", async (t) => {
+  const directory = await mkdtemp(resolve(tmpdir(), "shiplog-finops-decision-artifact-test-"));
+  t.after(async () => (await import("node:fs/promises")).rm(directory, { recursive: true, force: true }));
+  await cp(new URL("../src", import.meta.url), directory, { recursive: true });
+
+  // Move the published baseline by one dollar. The contract re-derives that
+  // figure from the bundled dataset rather than reading it back, so the artifact
+  // check is what stands between a hand-edited decision figure and production.
+  const fixturePath = resolve(directory, "finops-decision-fixture.json");
+  const fixture = JSON.parse(await readFile(fixturePath, "utf8"));
+  fixture.benchmark.baselineUsd += 1;
+  await writeFile(fixturePath, `${JSON.stringify(fixture, null, 2)}\n`);
+  await createManifest(directory);
+
+  await assert.rejects(
+    verifyArtifact(directory),
+    /canonical FinOps decision fixture does not match its artifact contract/,
+  );
+});
+
+test("artifact verification refuses to ship the FinOps front door without its decision", async (t) => {
+  const directory = await mkdtemp(resolve(tmpdir(), "shiplog-finops-decision-missing-test-"));
+  t.after(async () => (await import("node:fs/promises")).rm(directory, { recursive: true, force: true }));
+  await cp(new URL("../src", import.meta.url), directory, { recursive: true });
+
+  await (await import("node:fs/promises")).rm(resolve(directory, "finops-decision-fixture.json"));
+  await createManifest(directory);
+
+  await assert.rejects(
+    verifyArtifact(directory),
+    /missing required UI asset: finops-decision-fixture\.json/,
+  );
+});

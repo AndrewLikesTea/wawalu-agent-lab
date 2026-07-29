@@ -557,9 +557,17 @@ export function buildFirstRunResult(load = loadExampleDataset, loadDecision = lo
     // The established example analysis and the authored fixture are independent
     // local inputs. A broken fixture must not hide a still-valid benchmark and
     // action; it only removes the confidence claim it owns.
+    //
+    // A record that failed validation is dropped whole rather than attached and
+    // ignored. The loader's verdict is the boundary: a rejected record may carry
+    // exactly the content the boundary rejected it for — an address, a
+    // credential, a string that arrived from an import — and this result is
+    // serialized into views, snapshots, and judge-facing summaries. Carrying it
+    // "unused" would put the rejected value in every one of them.
     let decision = null;
     try {
-      decision = loadDecision()?.decision ?? null;
+      const loaded = loadDecision();
+      decision = loaded?.valid ? (loaded.decision ?? null) : null;
     } catch {
       decision = null;
     }
