@@ -131,7 +131,7 @@ function requirement(fact, atLeast, kind, label, need) {
 
 const PROVIDER_FILE = requirement("providerPeriodFiles", 1, FILE,
   "Provider period export",
-  "Select one provider period export (CSV, TSV, or a v1 JSON envelope) in the import panel above. "
+  "Choose one provider period export (CSV, TSV, or a v1 JSON envelope) in the import panel above. "
   + "Nothing else on this page can produce a spend figure.");
 
 const COST_FIELD = requirement("costedRows", 1, FIELD,

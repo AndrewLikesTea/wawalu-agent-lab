@@ -104,7 +104,7 @@ export const IMPORT_PRESENCE = Object.freeze({
   imported: Object.freeze({
     title: "This page is showing your imported analysis",
     detail: "Every figure below the import panel was computed in this tab from the files you "
-      + "chose. Nothing was uploaded or stored. Choose files again to add a period or an "
+      + "chose. Nothing was uploaded or stored. Choose files to add another period or an "
       + "org mapping.",
   }),
 });

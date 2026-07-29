@@ -183,7 +183,7 @@ test("a leader imports the example provider export and reaches a decision they c
   const { document } = page;
   try {
     await t.test("step 1 · the idle panel asks for the one file it needs", () => {
-      assert.match(shownText(document, "import-stages"), /Step 1Select exportsnow/);
+      assert.match(shownText(document, "import-stages"), /Step 1Choose filesnow/);
       // One required input, two optional precision upgrades. Each row says
       // whether it is required in a word, and each optional row says what it
       // buys. Neither optional row is offered as something to add, because the
