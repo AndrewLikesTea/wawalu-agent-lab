@@ -77,7 +77,11 @@ test("a date is read only when it means one day everywhere", () => {
   assert.equal(personalHistoryDate("2026/05/04"), "2026-05-04");
   assert.equal(personalHistoryDate(1_777_939_200), "2026-05-05", "epoch seconds");
   assert.equal(personalHistoryDate(1_777_939_200_000), "2026-05-05", "epoch milliseconds");
-  for (const ambiguous of ["03/04/2026", "4 May 2026", "May 4, 2026", "2026-02-31", "", null, {}]) {
+  for (const ambiguous of ["03/04/2026", "4 May 2026", "May 4, 2026", "2026-02-31", "", null, {},
+    // A value that only starts like a date is a malformed field, not a day. The
+    // complete-value rule and its fallback are exercised in
+    // tests/personal-history-evaluation.test.js.
+    "2026-05-01not-a-date", "2026-05-04 and later", "2026-05-04T09"]) {
     assert.equal(personalHistoryDate(ambiguous), null,
       `${ambiguous} was resolved to a day it does not unambiguously name`);
   }
