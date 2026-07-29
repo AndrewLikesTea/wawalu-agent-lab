@@ -417,6 +417,11 @@ export function mountProfile(root, options = {}) {
     announcer: root.querySelector("#profile-announcer"),
     picker: root.querySelector("#profile-author"),
     count: root.querySelector("#profile-count"),
+    // The always-visible route into Paint, above the grid. It is a real anchor
+    // in the markup and stays one whether or not this runs; all that is added
+    // here is the display name, so Paint's back link returns to the profile
+    // that was actually being read rather than the default persona.
+    paintRoute: root.querySelector("#profile-paint-route"),
   };
 
   let posts = options.posts ?? [];
@@ -427,6 +432,7 @@ export function mountProfile(root, options = {}) {
     const mine = selectProfilePosts(posts, author);
     const summary = profileSummary(posts, author);
     renderProfileHeader(elements, author, summary);
+    if (elements.paintRoute) elements.paintRoute.href = profilePaintHref(author);
     renderProfileGrid(grid, mine, {
       state,
       onRetry: options.onRetry,
