@@ -119,6 +119,12 @@ export async function verifyArtifact(root) {
     "personal-history.html", "personal-history-page.js", "personal-history-view.js",
     "personal-history-entry.js", "personal-history-contract.js", "personal-history-report.js",
     "personal-history-fixture.js", "personal-history.css",
+    // The bring-your-own-export intake: the archive reader the entry opens a
+    // chosen ZIP with, and the source contract the "where to ask for your
+    // history" panel is painted from. A dropped archive reader is a rejected
+    // entry module — every chosen file refused; a dropped source contract is the
+    // same, and the step before the picker gone with it.
+    "personal-archive.js", "personal-export-sources.js",
     // The entry also imports the carry-forward module: it is the only module in
     // the workflow that names a storage API, so a dropped one is both a rejected
     // entry module and the page losing the comparison it promises on its own

@@ -13,10 +13,11 @@
 // never handed to that reader, and nothing that reader retains is read here.
 
 import {
-  PERSONAL_ARCHIVE_EXTENSION, PERSONAL_ARCHIVE_LIMITS, isPersonalArchiveName,
+  PERSONAL_ARCHIVE_EXTENSION, PERSONAL_ARCHIVE_LIMITS, PERSONAL_ARCHIVE_OUTCOME,
+  isPersonalArchiveName,
 } from "./personal-archive.js";
 import {
-  PERSONAL_EXPORT_SHAPES, PERSONAL_READER_LIMITS,
+  PERSONAL_EXPORT_SHAPES, PERSONAL_NOT_ELIGIBLE, PERSONAL_READER_LIMITS, PERSONAL_REPORT_STATE,
 } from "./personal-history-contract.js";
 
 /**
@@ -141,6 +142,119 @@ export function personalFileEligibility(file) {
     );
   }
   return Object.freeze({ eligible: true, code: null, extension, summary: "", detail: "", remedy: "" });
+}
+
+// ---------------------------------------------------------------------------
+// The next step, when there is no result
+// ---------------------------------------------------------------------------
+
+/**
+ * The ids of the three controls the workflow has. Declared here, in the pure
+ * layer, because the next-step model below points at one of them and a model
+ * that named a control the page happened to call something else would be a
+ * button that moves focus nowhere.
+ */
+export const PERSONAL_CONTROL_ID = Object.freeze({
+  file: "personal-history-file",
+  preview: "personal-history-preview",
+  clear: "personal-history-clear",
+});
+
+/**
+ * What a reader can press when the workflow has no result for them.
+ *
+ * Two, and never a list. A state with no answer in it is the state a reader is
+ * most likely to leave from, so it ends in one control with one label rather
+ * than in a paragraph that ends in nothing.
+ */
+export const PERSONAL_NEXT_ACTION = Object.freeze({
+  chooseFile: Object.freeze({
+    id: "choose_file",
+    label: "Choose another export",
+    control: PERSONAL_CONTROL_ID.file,
+    // Focus only. Pressing a button that opened a file dialog on the reader's
+    // behalf would be this page taking an action on their filesystem, which is
+    // the one thing the whole intake is careful not to look like.
+    activates: false,
+    outcome: "Moves focus to the file picker. The file you chose was not kept, and choosing "
+      + "another one replaces nothing — there is nothing here to replace.",
+  }),
+  workedExample: Object.freeze({
+    id: "worked_example",
+    label: "Build the worked example",
+    control: PERSONAL_CONTROL_ID.preview,
+    // Activating is the whole point of this one: the example needs no file, so
+    // there is nothing to ask the reader for between the press and the result.
+    activates: true,
+    outcome: "Builds a complete result from a bundled invented history, so you can see exactly "
+      + "what a reading of your own export would give you before you have one that qualifies.",
+  }),
+});
+
+/**
+ * Which action closes each way this workflow can end without a result.
+ *
+ * A code that describes the *file* sends a reader back to the picker: another
+ * export is the thing that changes the outcome. A code that describes the
+ * *history* — too few prompts, too few days — does not, because no file they own
+ * today will clear that floor, and pointing them at the picker would be sending
+ * them to press a control that cannot help. Those get the worked example, which
+ * is the honest offer: here is what you will get when your history is longer.
+ */
+const NEXT_ACTION_BY_CODE = Object.freeze({
+  [PERSONAL_ENTRY_REFUSAL.noFile]: PERSONAL_NEXT_ACTION.chooseFile,
+  [PERSONAL_ENTRY_REFUSAL.unsupportedFileType]: PERSONAL_NEXT_ACTION.chooseFile,
+  [PERSONAL_ENTRY_REFUSAL.fileTooLarge]: PERSONAL_NEXT_ACTION.chooseFile,
+  [PERSONAL_ENTRY_REFUSAL.readFailed]: PERSONAL_NEXT_ACTION.chooseFile,
+
+  [PERSONAL_ARCHIVE_OUTCOME.notAnArchive]: PERSONAL_NEXT_ACTION.chooseFile,
+  [PERSONAL_ARCHIVE_OUTCOME.malformedArchive]: PERSONAL_NEXT_ACTION.chooseFile,
+  [PERSONAL_ARCHIVE_OUTCOME.unsupportedArchive]: PERSONAL_NEXT_ACTION.chooseFile,
+  [PERSONAL_ARCHIVE_OUTCOME.unsafeMemberPath]: PERSONAL_NEXT_ACTION.chooseFile,
+  [PERSONAL_ARCHIVE_OUTCOME.archiveTooLarge]: PERSONAL_NEXT_ACTION.chooseFile,
+  [PERSONAL_ARCHIVE_OUTCOME.memberTooLarge]: PERSONAL_NEXT_ACTION.chooseFile,
+  [PERSONAL_ARCHIVE_OUTCOME.noSupportedMember]: PERSONAL_NEXT_ACTION.chooseFile,
+
+  [PERSONAL_NOT_ELIGIBLE.unsupportedInput]: PERSONAL_NEXT_ACTION.chooseFile,
+  [PERSONAL_NOT_ELIGIBLE.exportTooLarge]: PERSONAL_NEXT_ACTION.chooseFile,
+  [PERSONAL_NOT_ELIGIBLE.unrecognizedShape]: PERSONAL_NEXT_ACTION.chooseFile,
+  [PERSONAL_NOT_ELIGIBLE.noPromptEntries]: PERSONAL_NEXT_ACTION.chooseFile,
+  [PERSONAL_NOT_ELIGIBLE.noDatedPrompts]: PERSONAL_NEXT_ACTION.chooseFile,
+  [PERSONAL_NOT_ELIGIBLE.tooFewScoredPrompts]: PERSONAL_NEXT_ACTION.workedExample,
+  [PERSONAL_NOT_ELIGIBLE.tooFewDistinctDays]: PERSONAL_NEXT_ACTION.workedExample,
+});
+
+/**
+ * The one thing to press, for any state that produced no answer.
+ *
+ * @param {string|null} code an entry refusal, an archive refusal, or an
+ *   ineligibility reason. All three are closed sets and none of them overlap, so
+ *   one table serves the three and a surface asks one question.
+ * @returns {{code: string, id: string, label: string, control: string, outcome: string}|null}
+ *   null for a code this workflow has no control for, which is how a caller
+ *   draws nothing rather than drawing a button that does nothing.
+ */
+export function personalNextStep(code) {
+  const action = NEXT_ACTION_BY_CODE[code] ?? null;
+  return action ? Object.freeze({ code: String(code), ...action }) : null;
+}
+
+/**
+ * The next step for a built report, which is the same table read through the
+ * report's own state.
+ *
+ * A report that names a move is finished and has no next step here — its action
+ * is the rewrite in the result, not a control that starts over. A report that
+ * scored enough prompts and found nothing worth points is not a refusal either,
+ * but it is still an answerless page, and the thing that changes it is a longer
+ * history rather than a different file.
+ */
+export function personalReportNextStep(report) {
+  if (!report || report.state === PERSONAL_REPORT_STATE.prioritized) return null;
+  if (report.state === PERSONAL_REPORT_STATE.noMoveAvailable) {
+    return Object.freeze({ code: report.state, ...PERSONAL_NEXT_ACTION.chooseFile });
+  }
+  return personalNextStep(report.reason);
 }
 
 /**

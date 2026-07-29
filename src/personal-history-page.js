@@ -52,19 +52,24 @@ import {
 } from "/personal-history-carry-forward.js";
 import { personalHistoryPreviewFiles } from "/personal-history-fixture.js";
 import {
-  PERSONAL_ENTRY_REFUSAL, PERSONAL_FILE_ACCEPT, PERSONAL_RUN_KIND,
+  PERSONAL_CONTROL_ID, PERSONAL_ENTRY_REFUSAL, PERSONAL_FILE_ACCEPT, PERSONAL_RUN_KIND,
   createRunLedger, personalFileEligibility,
 } from "/personal-history-entry.js";
+import { DEFAULT_PERSONAL_EXPORT_SOURCE } from "/personal-export-sources.js";
 import {
-  BOUNDARY_CONTAINER_ID, ELIGIBILITY_CONTAINER_ID, RESULT_ID, STATUS_ID,
-  renderBoundaryGuidance, renderEligibilityGuide, renderEntryError, renderIdle,
-  renderProgress, renderReport, wireDisclosures,
+  BOUNDARY_CONTAINER_ID, ELIGIBILITY_CONTAINER_ID, RESULT_ID, SOURCES_CONTAINER_ID,
+  SOURCE_PANEL_SLOT_ID, SOURCE_RADIO_NAME, STATUS_ID,
+  renderBoundaryGuidance, renderEligibilityGuide, renderEntryError, renderExportSources,
+  renderIdle, renderProgress, renderReport, renderSourcePanel, wireControlJumps, wireDisclosures,
 } from "/personal-history-view.js";
 import { wireHandoff } from "/personal-history-trajectory-view.js";
 
-export const FILE_INPUT_ID = "personal-history-file";
-export const PREVIEW_ID = "personal-history-preview";
-export const CLEAR_ID = "personal-history-clear";
+// The control ids are the pure layer's, because the next-step model points at
+// one of them by id and two spellings of the same control is a button that
+// moves focus nowhere.
+export const FILE_INPUT_ID = PERSONAL_CONTROL_ID.file;
+export const PREVIEW_ID = PERSONAL_CONTROL_ID.preview;
+export const CLEAR_ID = PERSONAL_CONTROL_ID.clear;
 
 /**
  * Give the browser one turn to paint the stage that was just written before the
@@ -93,6 +98,10 @@ export function initPersonalHistory(doc = globalThis.document, { storage = brows
   // still reads the shorter static version of both if this script never runs.
   doc?.getElementById?.(BOUNDARY_CONTAINER_ID)?.replaceChildren(renderBoundaryGuidance());
   doc?.getElementById?.(ELIGIBILITY_CONTAINER_ID)?.replaceChildren(renderEligibilityGuide());
+  // Where to get the file, before the control that asks for one. It is painted
+  // and wired independently of the result surface: a reader who never chooses a
+  // file still needs it, and it must not be taken away by a run in flight.
+  wireExportSources(doc);
 
   const result = doc?.getElementById?.(RESULT_ID);
   if (!result) return null;
@@ -112,6 +121,10 @@ export function initPersonalHistory(doc = globalThis.document, { storage = brows
 
   const paint = (node) => {
     result.replaceChildren(node);
+    // Every painted state gets its controls bound on the node that was just
+    // painted. A state with no control in it binds nothing, and a superseded
+    // state is replaced whole rather than left holding a live listener.
+    wireControlJumps(node, doc);
     return node;
   };
 
@@ -267,6 +280,38 @@ export function initPersonalHistory(doc = globalThis.document, { storage = brows
 
   setRunning(false);
   return { ledger, result };
+}
+
+/**
+ * Paint the "where do I get this file" surface and give it its behaviour.
+ *
+ * The picker is a native radio group, so choosing a source is keyboard-operable
+ * before this function touches it; what is added here is the panel swap and the
+ * jump into the file control. Only the panel is replaced on a change — the group
+ * itself is left alone, because replacing a radio a reader is standing on takes
+ * their focus with it.
+ *
+ * @returns the container, or null where the page does not declare one. A page
+ *   without this section keeps working: nothing else reads what it paints.
+ */
+export function wireExportSources(doc = globalThis.document, selected = DEFAULT_PERSONAL_EXPORT_SOURCE) {
+  const container = doc?.getElementById?.(SOURCES_CONTAINER_ID);
+  if (!container) return null;
+  container.replaceChildren(renderExportSources(selected));
+  wireControlJumps(container, doc);
+
+  container.addEventListener("change", (event) => {
+    const radio = event?.target;
+    if (radio?.name !== SOURCE_RADIO_NAME || !radio.value) return;
+    const slot = doc.getElementById(SOURCE_PANEL_SLOT_ID);
+    if (!slot) return;
+    const replacement = renderSourcePanel(radio.value);
+    // Only the slot's contents change, so the radio the reader is standing on
+    // keeps its focus and the arrow keys keep working.
+    slot.replaceChildren(replacement);
+    wireControlJumps(replacement, doc);
+  });
+  return container;
 }
 
 /**

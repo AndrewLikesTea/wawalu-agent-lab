@@ -43,6 +43,39 @@
 .ph-floors li { margin-bottom:6px; }
 .ph-field-name { display:inline-block; margin-right:6px; font:650 13px/1.4 ui-monospace,monospace; color:#171713; }
 
+/* Where to get an export. The picker is a native radio group and the panel
+   beside it is one source's four terms; on a narrow viewport the two stack and
+   the group becomes a single column of full-width targets. */
+.ph-sources-fallback { margin:0; color:#3f3f39; }
+.ph-source-promise { margin:0 0 16px; max-width:70ch; color:#3f3f39; line-height:1.55; }
+.ph-source-picker { margin:0 0 16px; border:1px solid #e2dfd7; border-radius:12px; padding:14px 16px; background:#fff; }
+.ph-source-legend { padding:0 6px; font-weight:650; }
+.ph-source-options { display:flex; flex-wrap:wrap; gap:8px 18px; }
+.ph-source-option { display:flex; align-items:center; gap:8px; min-height:44px; }
+.ph-source-option input { width:20px; height:20px; accent-color:#171713; }
+.ph-source-option input:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.ph-source-label { cursor:pointer; line-height:1.4; }
+.ph-source-panel { border:1px solid #cfd9e6; border-left:4px solid #155f9e; border-radius:12px; padding:18px; background:#f7fafd; }
+.ph-source-name { margin:0 0 12px; font-size:17px; }
+.ph-source-terms { display:grid; grid-template-columns:minmax(120px,max-content) 1fr; gap:8px 18px; margin:0 0 14px; }
+.ph-source-term { font-weight:650; }
+.ph-source-term::after { content:":"; }
+.ph-source-detail { margin:0; color:#3f3f39; line-height:1.55; }
+/* An archive this tab cannot open is a different instruction, not a warmer
+   tint: the sentence says so, and this only makes the difference visible. */
+.ph-source-panel[data-archive-supported=false] { border-left-color:#8a3d2f; background:#fdf7f4; }
+.ph-source-jump { min-height:44px; border:1px solid #171713; border-radius:10px; padding:0 18px; background:#171713; color:#fff; font-weight:650; cursor:pointer; }
+.ph-source-jump:focus-visible { outline:3px solid var(--focus-ring); outline-offset:2px; }
+.ph-source-staleness { margin:14px 0 0; color:#62625d; font-size:13px; line-height:1.5; }
+
+/* The one control a state with no answer in it ends on. */
+.ph-next { border:1px solid #d8d4cb; border-radius:12px; padding:16px; background:#faf9f6; }
+.ph-error .ph-next { margin-top:14px; background:#fff; }
+.ph-next-action { min-height:44px; margin:4px 0 10px; border:1px solid #171713; border-radius:10px; padding:0 18px; background:#171713; color:#fff; font-weight:650; cursor:pointer; }
+.ph-next-action:focus-visible { outline:3px solid var(--focus-ring); outline-offset:2px; }
+.ph-next-outcome { margin:0; color:#3f3f39; font-size:14px; line-height:1.55; }
+.ph-lead-sampled { margin:0 0 10px; color:#3f3f39; line-height:1.55; }
+
 .ph-controls { display:flex; flex-wrap:wrap; align-items:flex-end; gap:18px; margin:0 0 16px; }
 .ph-field { flex:1 1 320px; min-width:0; }
 .ph-field label { display:block; margin-bottom:6px; font-weight:650; }
@@ -192,6 +225,13 @@
   .ph-readings-arrow { justify-self:center; rotate:90deg; }
   .ph-handoff-actions { flex-direction:column; align-items:stretch; }
   .ph-handoff-copy,.ph-handoff-link { justify-content:center; text-align:center; }
+  /* One source per line, each a full-width target, and the four terms become
+     term-over-detail rather than two columns squeezed into a phone. */
+  .ph-source-options { flex-direction:column; gap:2px; }
+  .ph-source-option { width:100%; }
+  .ph-source-terms { grid-template-columns:1fr; gap:2px; }
+  .ph-source-detail { margin:0 0 10px; }
+  .ph-source-jump,.ph-next-action { width:100%; }
 }
 
 @media(prefers-reduced-motion:reduce) { html { scroll-behavior:auto; } }

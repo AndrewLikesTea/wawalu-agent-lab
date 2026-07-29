@@ -67,6 +67,22 @@
         </div>
       </section>
 
+      <!-- The step before "choose a file": getting one. A reader arriving here
+           usually has no export yet, so the workflow starts at the console they
+           have to ask, not at a picker for a file nobody has. The list is
+           painted from the shipped source contract; the fallback below is true
+           with the script turned off. -->
+      <section class="ph-guidance" aria-labelledby="ph-sources-title">
+        <div class="section-heading">
+          <p class="eyebrow">Getting your export</p>
+          <h2 id="ph-sources-title">Where to ask for your history</h2>
+          <p>Pick your assistant and this says what to request, what it will arrive as, which file to choose out of it, and what to leave out. You download it yourself: this page never contacts an assistant and connects no account.</p>
+        </div>
+        <div id="personal-history-sources" class="ph-sources">
+          <p class="ph-sources-fallback">Ask your assistant for your own data export — usually under Settings, in a “data”, “privacy”, or “export” section. Most arrive as a ZIP holding a conversations.json; choose the ZIP as it downloaded, or the JSON inside it. A CSV or TSV of your own prompts with a date column works too.</p>
+        </div>
+      </section>
+
       <!-- The workflow. The controls are in the markup rather than drawn by the
            entry module, so a keyboard reader meets the same three stops whether
            or not the script came to life; the module gives them behaviour and
