@@ -107,7 +107,8 @@ import {
   applyFirstRunResult, applyFirstRunSupersession, bindFirstRunActions,
 } from "/finops-first-run-view.js";
 import {
-  announce as announceStage, applyDatasetProvenance, applyFieldDiagnostic, applyImportLimits,
+  announce as announceStage, applyDatasetProvenance, applyExportPackageGuidance,
+  applyFieldDiagnostic, applyImportLimits,
   applyBriefing, applyBriefingState, applyImportProgress, applyMetricBasis, applyRequirements, applyRestoreRejection,
   applyRestoredBriefing, applyStage, applySupportingDisclosures, applyTrustVerdict, diagnosticFor,
   EXAMPLE_DATASET_PROVENANCE,
@@ -1744,6 +1745,8 @@ function mountLocalFinopsImport() {
   syncWorkspaceRestore();
   // The enforced ceilings, painted from the one place they are defined.
   applyImportLimits(document);
+  // Where the export comes from, painted from the versioned package contract.
+  applyExportPackageGuidance(document);
   // What one provider export will answer, said before a byte is selected.
   applyPreUploadDisclosure(document);
   applySuppressedSavings(document, null);

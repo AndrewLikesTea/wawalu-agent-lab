@@ -299,6 +299,18 @@
                claim on the reader's first decision. A reader who wants a
                template or a saved briefing opens one disclosure to find all
                three, and a deep link into any of them opens it for them. -->
+          <!-- Where the file this picker is asking for actually comes from.
+               Closed by default, because a reader who already has their export
+               does not need it, and one disclosure away for the reader who
+               does. Every word inside is painted from the versioned package
+               contract by local-import-flow.js — this is a slot, never a list
+               of vendor names, console paths, or formats. -->
+          <details class="export-package-help" id="export-package-help">
+            <summary>Where to get a provider export — what to ask for, and what to take out first</summary>
+            <p class="export-package-promise" id="export-package-promise"></p>
+            <dl class="export-package-list" id="export-package-guidance"></dl>
+            <p class="export-package-source">The full package contract, including the unsupported-package path and what happens to partial, stale, malformed, and reordered data: <a href="/docs/provider-export-package-contract.md">provider export package contract</a>.</p>
+          </details>
           <details class="import-alternatives" id="import-alternatives">
             <summary>Other ways to start — templates, example exports, and a saved briefing</summary>
           <!-- The query-sample contract has no producer in this repository yet:
