@@ -117,6 +117,11 @@ export async function verifyArtifact(root) {
     // entry module and the page losing the comparison it promises on its own
     // published boundary.
     "personal-history-carry-forward.js",
+    // The trajectory finding and the handoff that follows it. The view imports
+    // both, so a dropped one is a rejected view module — a page that reads a
+    // file, names a move, and then silently loses the before/after and the one
+    // control that carries the move anywhere.
+    "personal-history-trajectory.js", "personal-history-trajectory-view.js",
   ]);
   const paths = new Set(actual.map(({ path }) => path));
   for (const path of required) if (!paths.has(path)) throw new Error(`missing required UI asset: ${path}`);

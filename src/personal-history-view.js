@@ -49,6 +49,12 @@ import {
 import {
   PERSONAL_FILE_KINDS, PERSONAL_RUN_KIND, personalStageProgress,
 } from "/personal-history-entry.js";
+// The comparison is read into a finding — is the habit actually moving? — before
+// it is drawn, because a signed number is not a trajectory. The rule that
+// decides which of the six findings applies lives in the model module; this
+// layer draws whichever one comes back.
+import { buildTrajectory } from "/personal-history-trajectory.js";
+import { renderHandoff, renderTrajectory } from "/personal-history-trajectory-view.js";
 
 /* -------------------------------- helpers -------------------------------- */
 
@@ -298,45 +304,6 @@ function confidenceSection(report) {
   return section;
 }
 
-/**
- * This reading against the last one, or the named reason there is no comparison.
- *
- * Every state prints something. A comparison that appeared only when it happened
- * to work would leave a reader unable to tell "nothing changed" from "the
- * previous reading was thrown away", and those are different facts about their
- * own history. The sentences are the contract's; nothing is authored here.
- */
-function carryForwardSection(comparison) {
-  const section = el("section", "ph-carry");
-  section.dataset.carry = comparison.state;
-  section.append(el("h4", "ph-section-title", "Against your last reading"));
-
-  if (!comparison.comparable) {
-    line(section, "ph-carry-reason", comparison.reasonRule);
-    return section;
-  }
-  const { previous, current, delta } = comparison;
-  section.dataset.direction = delta.direction;
-  line(section, "ph-carry-direction", CARRY_DIRECTION_COPY[delta.direction]);
-  line(section, "ph-carry-arithmetic", `${delta.arithmetic}. `
-    + `This reading scored ${plural(current.scoredPrompts, "prompt", "prompts")} across `
-    + `${plural(current.distinctDays, "day", "days")}; the last scored `
-    + `${plural(previous.scoredPrompts, "prompt", "prompts")}.`);
-  line(section, "ph-carry-metric", comparison.metric.definition);
-  line(section, "ph-carry-basis", comparison.basis.refusal);
-  return section;
-}
-
-/**
- * One sentence per direction. Falling is improving, and the copy says what fell
- * rather than congratulating anybody: the figure is a cost per request.
- */
-const CARRY_DIRECTION_COPY = Object.freeze({
-  improving: "The same move costs you less on an average request than it did last reading.",
-  worsening: "The same move costs you more on an average request than it did last reading.",
-  flat: "The same move costs you the same on an average request as it did last reading.",
-});
-
 /** Where the figure came from, in the reader's own file's terms. */
 function provenanceSection(report, { kind }) {
   const section = el("section", "ph-provenance");
@@ -367,6 +334,11 @@ function actionSection(report) {
     rewrite.dataset.authored = "rubric";
     section.append(rewrite);
   }
+  // The next press, attached to the answer rather than left to the reader to
+  // find. It is drawn for the worked example too: somebody deciding whether to
+  // hand over their own history is owed the whole of what they would get.
+  const handoff = renderHandoff(report);
+  if (handoff) section.append(handoff);
   return section;
 }
 
@@ -564,9 +536,8 @@ export function renderReport(report, { kind = PERSONAL_RUN_KIND.file, comparison
     // Only beside a named move, and only for the reader's own export. A
     // comparison has nothing to attach to in the other states, and the worked
     // example is an invented person who is never carried forward.
-    if (comparison && kind !== PERSONAL_RUN_KIND.preview) {
-      article.append(carryForwardSection(comparison));
-    }
+    const trajectory = buildTrajectory(report, comparison, { kind });
+    if (trajectory) article.append(renderTrajectory(trajectory));
     article.append(provenanceSection(report, { kind }));
     article.append(actionSection(report));
   } else {
