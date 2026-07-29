@@ -692,6 +692,57 @@
         <p class="prompt-coaching-live" id="prompt-coaching-live" role="status" aria-live="polite" aria-atomic="true"></p>
         <div class="prompt-coaching-result" id="prompt-coaching-result" hidden></div>
 
+        <!-- Step 2, and only once step 1 has answered. The section ships hidden
+             and stays hidden until a baseline is graded, so a reader who wants
+             one grade sees the page they saw before this step existed and a
+             keyboard user never tabs into controls that have nothing to act on.
+
+             The baseline lives in a JavaScript variable for the lifetime of the
+             tab and nowhere else; the two prompts live in the two textareas the
+             reader owns. Nothing here is stored, exported, or sent — the one
+             thing that can leave is the coaching summary, and only when the
+             reader presses the copy control themselves. The text it would put
+             on the clipboard is printed below the control first. -->
+        <section class="prompt-revision" id="prompt-revision" data-state="idle" aria-labelledby="prompt-revision-question" hidden>
+          <div class="section-heading">
+            <p class="eyebrow">Step 2 &middot; Revise and re-grade &middot; browser only</p>
+            <h3 id="prompt-revision-question">Did my revised prompt improve?</h3>
+            <p>Edit the copy of your prompt below, then re-grade it. You get one score delta, one letter-grade move, and one thing to do next &mdash; measured against the baseline above, never against a stored history.</p>
+          </div>
+          <div class="prompt-revision-baseline" id="prompt-revision-baseline"></div>
+          <form class="prompt-coaching-form prompt-revision-form" id="prompt-revision-form" novalidate>
+            <div class="prompt-coaching-field">
+              <label for="prompt-coaching-revision-input">Your revised prompt</label>
+              <textarea id="prompt-coaching-revision-input" name="revision" rows="8" spellcheck="false" aria-describedby="prompt-revision-hint"></textarea>
+              <!-- Rewritten on load from the view's own constant, for the same
+                   reason step 1's hint is: the static text is the pre-script
+                   fallback and the module owns the wording. -->
+              <p class="prompt-coaching-hint" id="prompt-revision-hint">This starts as the prompt you graded above. Edit it, then re-grade.</p>
+            </div>
+            <div class="prompt-coaching-actions">
+              <button type="submit" id="prompt-coaching-regrade">Re-grade the revision</button>
+              <button type="button" id="prompt-revision-reset">Restore the original prompt</button>
+            </div>
+          </form>
+          <p class="prompt-coaching-live" id="prompt-revision-live" role="status" aria-live="polite" aria-atomic="true"></p>
+          <div class="prompt-revision-result" id="prompt-revision-result" hidden></div>
+
+          <!-- The clipboard is this workflow's only egress, so the control that
+               uses it says what it would send, before it sends it. The summary
+               is written into the page when a comparison is painted: that is
+               also the manual recovery when a browser has no clipboard API or
+               denies the permission. -->
+          <div class="prompt-revision-copy" id="prompt-revision-copy-group" hidden>
+            <button type="button" id="prompt-revision-copy" aria-describedby="prompt-revision-copy-status">Copy coaching summary</button>
+            <p class="prompt-revision-copy-status" id="prompt-revision-copy-status" role="status" aria-live="polite" aria-atomic="true"></p>
+            <details class="prompt-revision-summary">
+              <summary>What gets copied</summary>
+              <pre class="prompt-revision-summary-text" id="prompt-revision-summary-text"></pre>
+            </details>
+          </div>
+          <div class="prompt-revision-evidence" id="prompt-revision-evidence" hidden></div>
+        </section>
+
         <!-- Before you paste: what this reads, what it returns, and what it
              never does. The two sentences below are static because a claim
              about privacy that only appears once a script succeeds is a claim a

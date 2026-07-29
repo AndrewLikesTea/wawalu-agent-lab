@@ -64,9 +64,13 @@ export async function verifyArtifact(root) {
     "prompt-coaching-page.js", "prompt-coaching.js", "prompt-coaching-view.js",
     "prompt-coaching-contract.js", "prompt-coaching-contract-view.js",
     "prompt-literacy-rubric.json",
-    // The revision contract is a client import even before its dedicated
-    // surface lands. Fail artifact verification if build selection drops it.
-    "prompt-revision-comparison.js",
+    // The revision loop: the comparison contract, its reading surface, and the
+    // words the copy control puts on the clipboard. The coaching entry imports
+    // all three, so a missing one is an entry module the browser rejects — and
+    // that would take the *single-prompt* grading path down with it, not just
+    // the revision step.
+    "prompt-revision-comparison.js", "prompt-revision-view.js",
+    "prompt-revision-summary.js",
     // The result-presentation primitives and the specimen that reviews them.
     // The entry imports the specimen view, so a missing one of these is a
     // rejected entry module and a coaching panel that never comes to life.

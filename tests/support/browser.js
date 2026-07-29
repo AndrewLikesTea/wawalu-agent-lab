@@ -572,7 +572,12 @@ function createStorage(seed = {}) {
 // Some of these (localStorage, fetch) are getter-only globals in current Node,
 // so they are installed and restored through property descriptors rather than
 // plain assignment.
-const GLOBAL_KEYS = ["document", "window", "localStorage", "fetch", "Option", "FormData", "Blob"];
+const GLOBAL_KEYS = ["document", "window", "localStorage", "fetch", "Option", "FormData", "Blob",
+  // `navigator` is installed only when a test asks for a clipboard. Left alone,
+  // Node's own navigator has no `clipboard`, which is exactly the browser a
+  // copy control has to stay usable in — so "no clipboard" is the default and a
+  // test opts into having one. Saved and restored either way.
+  "navigator"];
 
 function defineGlobals(values) {
   for (const [key, value] of Object.entries(values)) {
@@ -606,7 +611,7 @@ class HarnessFormData {
 // that serves exactly the fixtures a test names. Every unlisted request throws,
 // so a test can never accidentally depend on the network or on a file it did not
 // declare.
-export async function loadPage(pageUrl, { storage = {}, routes = {}, location = {} } = {}) {
+export async function loadPage(pageUrl, { storage = {}, routes = {}, location = {}, clipboard = null } = {}) {
   const html = await readFile(pageUrl, "utf8");
   const document = parseHtml(html);
   const browserStorage = createStorage(storage);
@@ -622,6 +627,7 @@ export async function loadPage(pageUrl, { storage = {}, routes = {}, location = 
 
   defineGlobals({
     document,
+    ...(clipboard ? { navigator: { clipboard } } : {}),
     window: {
       location: { hash: "", search: "", origin: "https://labs.wawalu.org", ...location },
       addEventListener() {},

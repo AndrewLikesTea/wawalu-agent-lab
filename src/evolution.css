@@ -1615,10 +1615,81 @@
 .coaching-specimen-case-title { margin:0; font-size:14px; line-height:1.4; }
 .coaching-specimen-case-purpose { margin:0; max-width:70ch; color:var(--ink-muted); font-size:12px; line-height:1.6; }
 
+/* Step 2: revise and re-grade. Set apart from step 1 by a rule and an indent
+   rather than by a card, because it is the same workflow continued — a second
+   panel would read as a second answer to a second question. */
+.prompt-revision {
+  display:grid; gap:16px; border-top:1px solid var(--import-line);
+  border-left:3px solid var(--import-accent); padding:18px 0 2px 15px;
+}
+.prompt-revision[hidden] { display:none; }
+.prompt-revision-form { max-width:70ch; }
+.prompt-revision-baseline-body { display:grid; gap:8px; }
+.prompt-revision-baseline-text { margin:0; font:750 14px/1.5 ui-monospace,monospace; overflow-wrap:anywhere; }
+.prompt-revision-baseline-move { display:grid; gap:6px; }
+.prompt-revision-baseline-move-title { display:flex; gap:8px; margin:0; max-width:70ch; font-size:14px; font-weight:700; line-height:1.5; overflow-wrap:anywhere; }
+.prompt-revision-result { display:grid; gap:14px; }
+#prompt-coaching-regrade { border:1px solid var(--import-accent); background:var(--import-accent); color:#fff; }
+#prompt-revision-reset,#prompt-revision-copy { border:1px solid var(--import-line); background:#fff; color:var(--import-ink); }
+#prompt-coaching-regrade[disabled],#prompt-revision-copy[disabled] { opacity:.55; cursor:progress; }
+#prompt-revision-copy {
+  border-radius:9px; padding:9px 14px; font:650 13px/1 inherit; cursor:pointer;
+}
+#prompt-revision-copy:focus-visible,.prompt-revision-summary > summary:focus-visible {
+  outline:3px solid var(--import-accent); outline-offset:2px;
+}
+
+/* The verdict block. The word carries the meaning; the tint and the shape only
+   agree with it. */
+.prompt-revision-headline {
+  display:grid; gap:6px; border:1px solid var(--import-line); border-radius:11px;
+  padding:14px 15px;
+}
+.prompt-revision-headline[data-direction="improved"] { border-color:var(--import-accent); }
+.prompt-revision-headline[data-direction="regressed"] { border-color:var(--state-warn-line); background:var(--state-warn-wash); }
+.prompt-revision-verdict { display:flex; gap:8px; margin:0; font-size:20px; font-weight:750; line-height:1.35; }
+.prompt-revision-headline-text { margin:0; font:750 14px/1.5 ui-monospace,monospace; overflow-wrap:anywhere; }
+.prompt-revision-grade { display:flex; flex-wrap:wrap; align-items:center; gap:6px 16px; }
+.prompt-revision-grade-figure { margin:0; font-size:34px; line-height:1; letter-spacing:-.03em; font-weight:750; color:var(--import-ink); }
+.prompt-revision-grade-text { margin:0; max-width:60ch; font-size:13px; line-height:1.6; overflow-wrap:anywhere; }
+.prompt-revision-remaining { border-left:5px solid var(--import-line); padding:2px 0 2px 12px; }
+.prompt-revision-remaining[data-status="unaddressed"] { border-left-color:var(--state-warn-line); }
+.prompt-revision-remaining[data-status="none"] { border-left-style:dotted; }
+.prompt-revision-remaining-label { display:flex; gap:8px; margin:0; font-size:15px; font-weight:700; line-height:1.5; overflow-wrap:anywhere; }
+.prompt-revision-remaining-text { margin:6px 0 0; max-width:70ch; font-size:13px; line-height:1.6; overflow-wrap:anywhere; }
+.prompt-revision-remaining-signal { margin:6px 0 0; color:var(--ink-muted); font:650 12px/1.5 ui-monospace,monospace; overflow-wrap:anywhere; }
+.prompt-revision-action { border-left:5px solid var(--import-accent); padding:2px 0 2px 12px; }
+.prompt-revision-action[data-kind="revert"] { border-left-color:var(--state-warn-line); }
+.prompt-revision-action[data-kind="stop"] { border-left-style:dashed; }
+.prompt-revision-action-title { display:flex; gap:8px; margin:0; font-size:15px; font-weight:750; line-height:1.5; overflow-wrap:anywhere; }
+.prompt-revision-action-guidance { margin:6px 0 0 0; max-width:70ch; font-size:13px; line-height:1.6; overflow-wrap:anywhere; }
+.prompt-revision-recovery { border-left:5px dashed var(--state-warn-line); padding:2px 0 2px 12px; color:var(--state-warn-ink); }
+.prompt-revision-copy { display:grid; gap:8px; justify-items:start; }
+.prompt-revision-copy-status { margin:0; min-height:1.4em; color:var(--ink-muted); font-size:12px; line-height:1.4; }
+.prompt-revision-copy-status[data-outcome="copied"] { color:var(--import-ink); font-weight:650; }
+.prompt-revision-copy-status[data-outcome="failed"],.prompt-revision-copy-status[data-outcome="unavailable"] { color:var(--state-warn-ink); font-weight:650; }
+.prompt-revision-summary { justify-self:stretch; border:1px solid var(--import-line); border-radius:11px; padding:10px 13px; }
+.prompt-revision-summary > summary { font:650 12px/1.5 inherit; cursor:pointer; }
+.prompt-revision-summary-text {
+  margin:10px 0 0; border-radius:9px; background:var(--import-wash); padding:11px 12px;
+  font:400 12px/1.65 ui-monospace,monospace; white-space:pre-wrap; overflow-wrap:anywhere;
+}
+.prompt-revision-evidence[hidden] { display:none; }
+.prompt-revision-evidence-body { display:grid; gap:16px; }
+
 @media (max-width:640px) {
   /* One column at 390px: a two-column definition grid puts a 13px label and a
      monospace figure in ~40 characters each, which is the failure the mobile
      review filed as finding 01 on the dashboard. */
+  /* Step 2 keeps its rule but gives back the indent: 15px of gutter is ~4
+     characters of a 70ch measure at 390px, and the border already says the
+     section is subordinate. */
+  .prompt-revision { padding-left:11px; }
+  .prompt-revision-grade-figure { font-size:28px; }
+  .prompt-revision-verdict { font-size:18px; }
+  /* Full-width targets, matching step 1's controls at this width. */
+  .prompt-revision-form .prompt-coaching-actions button,#prompt-revision-copy { width:100%; }
+  .prompt-revision-copy { justify-items:stretch; }
   .coaching-result-facts { grid-template-columns:minmax(0,1fr); gap:2px; }
   .coaching-result-assumptions { grid-template-columns:minmax(0,1fr); gap:2px; }
   .coaching-result-assumptions dd { margin-bottom:6px; }
