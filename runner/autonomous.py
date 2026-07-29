@@ -58,6 +58,10 @@ PERSONAS = set(PERSONA_NAMES)
 ASSIGNABLE_PERSONAS = tuple(PERSONA_NAMES)
 CAPACITY_WORKERS = {code: worker for worker, code in CAPACITY_EXIT_CODES.items()}
 DELIVERY_ATTEMPT_LIMIT = 3
+# Check-run conclusions that mean the pull request will never merge as it stands.
+# "cancelled" and "skipped" are excluded: they say the check did not run, not that
+# the change is wrong, and a cancelled run is usually superseded by a fresh one.
+CHECK_FAILURE_CONCLUSIONS = {"failure", "timed_out", "action_required", "startup_failure"}
 PAUSED_LABEL = "paused"                        # owner parks an issue: never queue or requeue it
 DIRECTIVE = AUTONOMY / "directive.json"        # legacy single-slot record, read once and carried forward
 DIRECTIVES = AUTONOMY / "directives.json"
@@ -1149,6 +1153,106 @@ def requeue_conflicted_pull(pull: dict[str, Any], token: str, config: dict[str, 
     return True
 
 
+def failed_check_summary(sha: str, token: str, config: dict[str, Any]) -> str:
+    """Describe the settled, failing checks on ``sha``, or ``""`` if it is not red.
+
+    Only settled failures count. A check that is still queued or running can go
+    green on its own, and a rerun that started seconds ago would otherwise read
+    as a dead pull request, so a check still in flight holds the whole verdict
+    until the next sweep and the grace window lets CI retry a flake before the
+    branch is thrown away for a paid session.
+    """
+    grace = int(config.get("check_failure_grace_seconds", 600))
+    payload = github(
+        f"/repos/{REPOSITORY}/commits/{urllib.parse.quote(sha)}/check-runs?per_page=100", token) or {}
+    now = utc_now()
+    failures = []
+    for run in payload.get("check_runs") or []:
+        if str(run.get("status")) != "completed":
+            return ""
+        if str(run.get("conclusion")) not in CHECK_FAILURE_CONCLUSIONS:
+            continue
+        try:
+            completed = dt.datetime.fromisoformat(str(run.get("completed_at")).replace("Z", "+00:00"))
+        except ValueError:
+            completed = now - dt.timedelta(seconds=grace)
+        if (now - completed).total_seconds() < grace:
+            return ""
+        output = run.get("output") or {}
+        detail = " — ".join(part for part in (str(output.get("title") or "").strip(),
+                                              str(output.get("summary") or "").strip()) if part)
+        failures.append(f"`{run.get('name')}` {run.get('conclusion')}: "
+                        f"{detail[:1500] or run.get('details_url') or 'no output reported'}")
+    return "\n\n".join(failures)
+
+
+def requeue_failed_check_pull(pull: dict[str, Any], token: str, config: dict[str, Any],
+                              state: State, journal: Journal) -> bool:
+    """Return an issue to the queue when its approved pull request turns red.
+
+    Auto-merge parks a pull whose required check fails: GitHub will not merge it,
+    nothing re-runs the work, and the issue keeps its ``agent-running`` label, so
+    finished-looking work sits open forever while the queue moves on without it —
+    a red ``validate`` cost pull #580 a full day parked that way. The conflict
+    path already covers losing a merge race; this covers failing the gate that
+    decides the merge. The check output rides back as ``review_feedback`` so the
+    retry fixes the reported failure instead of replanning from the issue body,
+    and the cumulative ``total_runs`` ceiling still stops an issue that cannot go
+    green from recycling on paid sessions.
+    """
+    branch = str(pull["head"]["ref"])
+    match = re.match(r"agent/[^/]+/issue-(\d+)-", branch)
+    if not branch.startswith("agent/") or not match:
+        return False
+    head_sha = str(pull["head"]["sha"])
+    failure = failed_check_summary(head_sha, token, config)
+    if not failure:
+        return False
+    issue_number = int(match.group(1))
+    issue = github(f"/repos/{REPOSITORY}/issues/{issue_number}", token)
+    if issue.get("state") != "open":
+        return False
+    pull_number = int(pull["number"])
+    journal.emit("pr_checks_failed", pull=pull_number, issue=issue_number, branch=branch,
+                 sha=head_sha, detail=failure[:300])
+    github(f"/repos/{REPOSITORY}/pulls/{pull_number}", token, "PATCH", {"state": "closed"})
+    try:
+        github(f"/repos/{REPOSITORY}/git/refs/heads/{urllib.parse.quote(branch)}", token, "DELETE")
+    except urllib.error.HTTPError:
+        pass
+    ready = config["issue_label"]
+    with state.mutate():
+        record = state.value["issues"].setdefault(str(issue_number), {})
+        record.pop("retry_at", None)
+        total_runs = int(record.get("total_runs", record.get("attempts", 0)))
+        exhausted = total_runs >= int(config.get("max_total_runs", 6))
+        record["total_runs"] = total_runs
+        record["review_feedback"] = (
+            "The delivered pull request was approved but its required checks failed:\n\n"
+            + failure)[:4000]
+        record.update({"status": "blocked", "blocked_at": utc_now().isoformat()} if exhausted else
+                      {"status": "requeued", "requeued_at": utc_now().isoformat(), "attempts": 0})
+    if exhausted:
+        replace_state_label(token, issue, ready, "needs-human", keep_ready=False)
+        comment(token, issue_number, "needs human",
+                f"Pull request #{pull_number} failed its required checks and this issue has "
+                f"already consumed {total_runs} worker sessions (cumulative limit "
+                f"{int(config.get('max_total_runs', 6))}). Sam will not retry it — it likely "
+                f"needs to be split into smaller issues.\n\n{failure[:1500]}")
+        journal.emit("pr_checks_blocked", pull=pull_number, issue=issue_number,
+                     total_runs=total_runs)
+        return True
+    replace_state_label(token, issue, ready, ready, keep_ready=True)
+    comment(token, issue_number, "requeued",
+            f"Pull request #{pull_number} was approved but its required checks failed, so it "
+            f"was closed and this issue returns to the queue. The next run receives the check "
+            f"output as review feedback.\n\n{failure[:1500]}")
+    journal.emit("pr_checks_requeued", pull=pull_number, issue=issue_number, branch=branch)
+    journal.emit("requeue", issue=issue_number, reason="pr_checks_failed", pull=pull_number,
+                 total_runs=total_runs)
+    return True
+
+
 def deliver_approved_pull(pull: dict[str, Any], token: str, state: State,
                           journal: Journal) -> None:
     """Ask GitHub to merge a reviewer-approved team pull the worker forgot to deliver.
@@ -1254,6 +1358,9 @@ def _review_outstanding_prs(token: str, config: dict[str, Any], state: State,
         if author != OWNER and not is_team_pull and not team_approved_before:
             continue
         if approved_current_head(reviews, head_sha):
+            if is_team_pull and config.get("requeue_failed_check_prs", True) and \
+                    requeue_failed_check_pull(pull, token, config, state, journal):
+                continue
             if pull.get("auto_merge"):
                 if config.get("update_stuck_prs", True):
                     update_pull_branch(pull, token, config, state, journal)
