@@ -116,7 +116,7 @@ test("the shipped page reads state, then action, then activity — and says so i
   // mistaken for this panel's state.
   const boundary = document.querySelector(".privacy-note");
   assert.equal(boundary.tagName, "P");
-  assert.match(textOf(boundary), /synthetic representative examples/i);
+  assert.match(textOf(boundary), /synthetic examples/i);
   assert.equal(panel.querySelectorAll(".privacy-note").length, 0);
 });
 
