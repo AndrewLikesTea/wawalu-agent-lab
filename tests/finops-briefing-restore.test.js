@@ -157,10 +157,10 @@ test("the restored region is labelled as restored and names the period it captur
   assert.equal(section.hidden, false);
   assert.equal(section.dataset.state, "restored");
   // The accessible name is what a screen-reader user hears when they jump here,
-  // so "restored" and "read-only" have to be in it rather than in a tooltip.
+  // so "reopened" and "read-only" have to be in it rather than in a tooltip.
   const heading = doc.getElementById(section.getAttribute("aria-labelledby"));
   assert.equal(section.getAttribute("role"), "region");
-  assert.match(textOf(heading), /Restored briefing \(read-only\)/);
+  assert.match(textOf(heading), /Reopened FinOps briefing \(read-only\)/);
   assert.match(textOf(section), /Reopened from a file · not the current analysis/);
   // Both dates are the file's own.
   assert.equal(textOf(doc.getElementById("restored-briefing-captured")),
@@ -538,7 +538,7 @@ test("the reopen control is a labelled, keyboard-reachable file input", async ()
   // an aria-label standing in for one.
   const label = doc.querySelectorAll("label").find((node) => node.getAttribute("for") === "reopen-briefing-file");
   assert.ok(label, "the reopen input needs a label element bound to it");
-  assert.equal(textOf(label), "Reopen a saved briefing");
+  assert.equal(textOf(label), "Reopen a saved FinOps briefing");
   assert.equal(input.getAttribute("placeholder"), null);
 
   // The help text is programmatically associated and repeats the same promise
@@ -565,7 +565,7 @@ test("the restored region and its close control are reachable and named once ope
   const close = doc.getElementById("restored-briefing-close");
   assert.ok(tabSequence(doc).includes(close),
     "the close control must be reachable by Tab once the region is open");
-  assert.equal(textOf(close), "Close this restored briefing");
+  assert.equal(textOf(close), "Close this reopened briefing");
 });
 
 test("reading a file touches neither the network nor any storage API", async () => {

@@ -200,7 +200,7 @@
            bottom of this section. Nothing here is computed by the page: the
            contract selects, this section displays. -->
       <section class="guided-result finops-panel" id="guided-result" data-state="unavailable" data-decision-ready="false" aria-labelledby="guided-result-question" hidden>
-        <p class="eyebrow">Guided result</p>
+        <p class="eyebrow">FinOps briefing · headline</p>
         <h2 id="guided-result-question">What should we do now?</h2>
         <p class="guided-result-finding" id="guided-result-finding">No next step ranked yet</p>
         <!-- How far this composition may be taken, written beside it rather than
@@ -209,12 +209,12 @@
         <p class="guided-result-readiness" id="guided-result-readiness" role="note" data-ready="false">Not decision-ready</p>
         <div class="guided-result-slots">
           <div class="guided-result-slot">
-            <p class="guided-result-label">Headline benchmark</p>
+            <p class="guided-result-label">Peer benchmark</p>
             <p class="guided-result-figure" id="guided-result-benchmark" data-available="false">Not available yet</p>
             <p class="guided-result-detail" id="guided-result-benchmark-detail"></p>
           </div>
           <div class="guided-result-slot">
-            <p class="guided-result-label">Trust verdict</p>
+            <p class="guided-result-label">Trust verdict · in one line</p>
             <p class="guided-result-figure" id="guided-result-trust" data-satisfied="false">Not available yet</p>
           </div>
           <div class="guided-result-slot">
@@ -239,7 +239,7 @@
           <div class="section-heading">
             <p class="eyebrow">Bring your own exports · browser only</p>
             <h2 id="local-import-title">Analyze provider spend without uploading it.</h2>
-            <p>One provider export is enough to get a decision brief. Add a second, equal-length period to compare spend across time, and an org mapping to put your own department names on it. Three steps: choose files, check the mapping, read the result.</p>
+            <p>One provider export is enough to get a FinOps briefing. Add a second, equal-length period to compare spend across time, and an org mapping to put your own department names on it. Three steps: choose files, check the mapping, read the briefing.</p>
             <!-- What this page will answer, said before a byte is selected. The
                  three statements are painted from finops-attribution-policy.js
                  by finops-attribution-view.js; this is a slot, never wording,
@@ -312,7 +312,7 @@
             <p class="export-package-source">The full package contract, including the unsupported-package path and what happens to partial, stale, malformed, and reordered data: <a href="/docs/provider-export-package-contract.md">provider export package contract</a>.</p>
           </details>
           <details class="import-alternatives" id="import-alternatives">
-            <summary>Other ways to start — templates, example exports, and a saved briefing</summary>
+            <summary>Other ways to start — templates, example exports, and a saved FinOps briefing</summary>
           <!-- The query-sample contract has no producer in this repository yet:
                nothing here reads a sample, so this button ships the template a
                gateway owner fills in, not an import path. It downloads the
@@ -333,7 +333,7 @@
             <button id="download-conversation-example" type="button">Download an example conversation export</button>
             <p id="conversation-example-help">Invented sample prose only. Downloads from this tab; nothing is uploaded.</p>
           </div>
-          <!-- Reopen side of the file the Export JSON button writes. Same
+          <!-- Reopen side of the file the Export briefing button writes. Same
                idiom as every other file field on this page — a programmatic
                label, a help sentence the input points at with aria-describedby,
                and a field error attached to the control it concerns — and the
@@ -342,9 +342,9 @@
                the pickers rather than with the result, because a visitor may
                reopen a briefing before importing anything at all. -->
           <div class="local-import-field">
-            <label for="reopen-briefing-file">Reopen a saved briefing</label>
+            <label for="reopen-briefing-file">Reopen a saved FinOps briefing</label>
             <input id="reopen-briefing-file" type="file" accept=".json,application/json" aria-describedby="reopen-briefing-help" aria-invalid="false" />
-            <p id="reopen-briefing-help">Choose a briefing JSON file this page exported. It is read in this browser only — nothing is uploaded, and nothing is saved after you close this tab. It opens read-only below the imported result and never replaces it.</p>
+            <p id="reopen-briefing-help">Choose a FinOps briefing JSON file this page exported. It is read in this browser only — nothing is uploaded, and nothing is saved after you close this tab. It opens read-only below the current briefing and never replaces it.</p>
             <!-- Deliberately not a live region: the polite/assertive pair above
                  speaks the outcome once, and this is what a reader who wants the
                  reason again comes back to. -->
@@ -426,11 +426,11 @@
         <section class="local-results" id="local-results" data-analysis-surface data-dataset="user" aria-labelledby="local-results-title" aria-busy="false" hidden>
           <div class="local-result-heading">
             <div>
-              <p class="eyebrow">Imported result</p>
-              <h3 id="local-results-title" tabindex="-1">Local FinOps decision brief</h3>
+              <p class="eyebrow">From your imported files</p>
+              <h3 id="local-results-title" tabindex="-1">FinOps briefing</h3>
             </div>
-            <div class="local-export-actions" aria-label="Export imported analysis">
-              <button id="export-local-json" type="button">Export JSON</button>
+            <div class="local-export-actions" aria-label="Export this FinOps briefing">
+              <button id="export-local-json" type="button">Export briefing (JSON)</button>
               <button id="export-local-summary" type="button">Meeting summary</button>
             </div>
           </div>
@@ -457,7 +457,7 @@
                this order: can I trust it, what is wrong and what is it worth,
                and what do I do next. Nothing else belongs in this block. -->
           <article class="local-trust" id="local-trust" data-analysis-surface data-dataset="user" data-state="empty" aria-labelledby="local-trust-question" hidden>
-            <p class="eyebrow">Post-import trust verdict</p>
+            <p class="eyebrow">Trust verdict · coverage, gaps, and one fix</p>
             <h4 id="local-trust-question">Can I trust this number?</h4>
             <p class="local-trust-coverage" id="local-trust-coverage" data-available="false">—</p>
             <!-- The percentage never ships alone: numerator, denominator, and
@@ -508,7 +508,7 @@
             <!-- The question is the headline of this surface, so it carries the
                  largest display step on the page after the hero. It stays an h4
                  because it is the fourth level of *this page's* outline (h1 page
-                 title › h2 import section › h3 decision brief › this); a second
+                 title › h2 import section › h3 FinOps briefing › this); a second
                  h1 here would break the page's one-h1 contract. Size is the
                  hierarchy signal; the heading level is the document structure,
                  and the two are allowed to disagree. -->
@@ -643,7 +643,7 @@
                    the policy's own arithmetic produced. -->
               <div class="local-attribution-split" id="local-attribution-split" data-state="unmeasured" role="group" aria-label="How much of this spend is attributed" hidden></div>
               <div><dt>Department</dt><dd id="local-department">—</dd></div>
-              <div><dt>Benchmark</dt><dd id="local-benchmark-summary">Unavailable</dd></div>
+              <div><dt>Peer benchmark</dt><dd id="local-benchmark-summary">Not compared yet</dd></div>
             </dl>
             <!-- Demoted from the top of the results: a result-level notice is
                  not per-field information, so it sits with the number it
@@ -654,7 +654,7 @@
             </div>
             <details class="local-provenance-detail">
               <summary>Data provenance and redaction</summary>
-              <p id="local-provenance">Waiting for an imported result.</p>
+              <p id="local-provenance">Waiting for an imported file.</p>
               <p class="local-redaction-note">Only column headers, one sample value per column in the mapping step, declared contract fields, and aggregate totals are read into this page. No other cell value or record identifier is rendered, announced, or written to an export, and your file name appears only as the provenance label on your own result.</p>
             </details>
           </article>
@@ -691,8 +691,8 @@
                    said "unavailable" over an available cohort, which made the one
                    non-colour channel on this card wrong in the state that matters. -->
               <article id="local-benchmark-state" aria-labelledby="local-benchmark-title" aria-describedby="local-benchmark-why" data-state="unavailable">
-                <p class="eyebrow">Benchmark</p>
-                <h4 id="local-benchmark-title"><span id="local-benchmark-shape" aria-hidden="true">◇</span> <span id="local-benchmark-answer">Unavailable</span></h4>
+                <p class="eyebrow">Peer benchmark</p>
+                <h4 id="local-benchmark-title"><span id="local-benchmark-shape" aria-hidden="true">◇</span> <span id="local-benchmark-answer">Not compared yet</span></h4>
                 <p id="local-benchmark-why"></p>
               </article>
             </div>
@@ -738,7 +738,7 @@
                 <ul id="local-warnings"></ul>
               </details>
               <details data-state="unavailable" id="local-limits-detail">
-                <summary>Benchmark and trend limits: <span class="disclosure-count" id="local-limits-count">not analyzed</span></summary>
+                <summary>Peer benchmark and trend limits: <span class="disclosure-count" id="local-limits-count">not analyzed</span></summary>
                 <ul id="local-limits"></ul>
               </details>
               <details data-state="unavailable" id="local-evidence-detail">
@@ -761,16 +761,16 @@
              construction, because the request body is assembled from the field
              alone. -->
         <div class="finops-followup-cta" id="finops-result-followup">
-          <p class="finops-followup-cta-lead">Want to go through this decision brief — or your own numbers — with a person?</p>
+          <p class="finops-followup-cta-lead">Want to go through this briefing — or your own numbers — with a person?</p>
           <button class="finops-followup-cta-button" id="finops-followup-cta" type="button" data-follow-up-cta="finops-contact" aria-controls="finops-contact-panel">
-            Discuss this brief with us
+            Discuss this briefing with us
           </button>
           <p class="finops-followup-cta-note">Only the work email address you type is submitted. No imported file, figure, column value, department name, or prompt text is attached.</p>
         </div>
-        <!-- A briefing reopened from a file. A sibling of the imported result,
+        <!-- A briefing reopened from a file. A sibling of the current briefing,
              never a slot inside it: a visitor who comes back next quarter must
              not be able to read a figure saved in June as this morning's total.
-             Hence the separate region, its own heading naming it as restored,
+             Hence the separate region, its own heading naming it as reopened,
              the observation window and the write date taken out of the file
              rather than off the clock, and no export controls on it — it is
              something to read, not a second live analysis.
@@ -780,7 +780,7 @@
              markup, an attribute value, or a URL. -->
         <section class="restored-briefing" id="restored-briefing" role="region" aria-labelledby="restored-briefing-title" data-state="empty" hidden>
           <p class="eyebrow">Reopened from a file · not the current analysis</p>
-          <h3 id="restored-briefing-title" tabindex="-1">Restored briefing (read-only)</h3>
+          <h3 id="restored-briefing-title" tabindex="-1">Reopened FinOps briefing (read-only)</h3>
           <p class="restored-briefing-captured" id="restored-briefing-captured"></p>
           <p class="restored-briefing-dataset" id="restored-briefing-dataset" hidden></p>
           <p class="restored-briefing-question" id="restored-briefing-question"></p>
@@ -800,7 +800,7 @@
             <summary>Check the math: re-derive this saved figure and grade</summary>
             <div class="briefing-derivation" id="restored-briefing-derivation" hidden></div>
           </details>
-          <button class="restored-briefing-close" id="restored-briefing-close" type="button">Close this restored briefing</button>
+          <button class="restored-briefing-close" id="restored-briefing-close" type="button">Close this reopened briefing</button>
         </section>
 
         <!-- What this browser kept from earlier visits, if the visitor opted in.
@@ -841,10 +841,10 @@
         <a class="secondary-button" href="/coach.html">Open the prompt coach</a>
       </section>
 
-      <!-- Immediately below the result region and outside it: the decision brief
+      <!-- Immediately below the result region and outside it: the briefing
            above is never swapped, covered, or unmounted by anything in here.
-           The section is always present because a result always is — the
-           bundled analysis on load, the example brief, or the reader's own
+           The section is always present because a briefing always is — the
+           bundled analysis on load, the example briefing, or the reader's own
            import — so there is no state in which a visitor who has reached a
            number has no way to ask about it. -->
       <section class="finops-panel finops-contact" id="finops-contact" aria-labelledby="finops-contact-title">
@@ -875,7 +875,7 @@
             </div>
           </form>
           <p class="finops-contact-status" id="finops-contact-status" role="status" aria-live="polite"></p>
-          <p class="finops-contact-recovery" id="finops-contact-recovery" hidden>Your email address is still in the field, and nothing from your analysis was sent. Try again in a few minutes — the result above is unchanged and stays until you refresh.</p>
+          <p class="finops-contact-recovery" id="finops-contact-recovery" hidden>Your email address is still in the field, and nothing from your analysis was sent. Try again in a few minutes — the briefing above is unchanged and stays until you refresh.</p>
           <!-- Revealed by finops-contact.js once an address lands, and never
                before: until then there is nothing to do next. It is a place to
                go in this tab while the reply is written, not a second ask. -->
@@ -1163,8 +1163,8 @@
 
             <section class="decision-question" aria-labelledby="benchmark-title">
               <p class="eyebrow">Decision 3 of 3 · comparator &amp; evidence</p>
-              <h4 id="benchmark-title">How does it compare with the benchmark?</h4>
-              <p class="decision-answer" id="benchmark-answer">No comparator yet</p>
+              <h4 id="benchmark-title">How does it compare with the peer benchmark?</h4>
+              <p class="decision-answer" id="benchmark-answer">No peer comparison yet</p>
               <p class="method-note" id="benchmark-method"></p>
               <details class="evidence-disclosure">
                 <summary>Inspect supporting scored evidence</summary>

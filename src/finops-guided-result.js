@@ -306,7 +306,7 @@ export function composeTrust(verdict, basis) {
       findingCount: 0,
       unavailable: Object.freeze({
         reason: GUIDED_UNAVAILABLE_REASON.noTrustVerdict,
-        needLabel: "Post-import trust verdict",
+        needLabel: "Trust verdict",
         need: "Compute the trust verdict before composing a result. A figure with no coverage "
           + "statement behind it is a number nobody can audit.",
       }),

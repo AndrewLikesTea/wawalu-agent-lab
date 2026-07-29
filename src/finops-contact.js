@@ -1,6 +1,6 @@
-// The contact affordance that sits under a FinOps decision brief.
+// The contact affordance that sits under a FinOps briefing.
 //
-// A leader who has just read a decision brief — the bundled example one, the one
+// A leader who has just read a briefing — the bundled example one, the one
 // computed from their own export, or the one-page executive briefing built from
 // what their browser already holds — has exactly one thing they might want that
 // the page cannot give them: a person. This module is that, and nothing more.

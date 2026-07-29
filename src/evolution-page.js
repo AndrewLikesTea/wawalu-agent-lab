@@ -966,8 +966,8 @@ function mountLocalFinopsImport() {
       ? `${EXAMPLE_DATASET_PROVENANCE.detail} It walks the same translator and analysis an `
         + `imported file walks, so the finding below is computed, not written. `
         + EXAMPLE_DATASET_PROVENANCE.swap
-      : "This decision brief uses only the provider and HRIS exports selected in this tab. "
-      + "It makes a bounded routing estimate and refuses unsupported benchmark or prompt-quality claims.");
+      : "This FinOps briefing uses only the provider and HRIS exports selected in this tab. "
+      + "It makes a bounded routing estimate and refuses unsupported peer benchmark or prompt-quality claims.");
     setText("finops-provenance", `${next.period} · ${next.provenance}`);
     const resultPlausible = plausibleUsd(next.spendUsd) && plausibleUsd(next.recoverableUsd)
       && next.recoverableUsd <= next.spendUsd;
@@ -1722,7 +1722,7 @@ function mountLocalFinopsImport() {
     restored = outcome.saved;
     syncRestored();
     announce("ready", "Saved briefing reopened.",
-      `It is shown read-only below the imported result and observes ${outcome.saved.period.label}. `
+      `It is shown read-only below the current briefing and observes ${outcome.saved.period.label}. `
       + "It was read in this tab, nothing was uploaded, and nothing on this page was replaced.");
     document.getElementById("restored-briefing-title")?.focus?.({ preventScroll: true });
   });
@@ -1730,8 +1730,8 @@ function mountLocalFinopsImport() {
     restored = null;
     applyRestoreRejection(document, null);
     syncRestored();
-    announce("ready", "Restored briefing closed.",
-      "The reopened file was discarded. Nothing about the imported result changed.");
+    announce("ready", "Reopened briefing closed.",
+      "The reopened file was discarded. Nothing about the current briefing changed.");
     reopenInput?.focus?.({ preventScroll: true });
   });
 
@@ -2046,10 +2046,10 @@ function renderDecisionDetail(department, data) {
 
   setText("benchmark-answer", comparison.available
     ? `${signed(comparison.deltaPoints, " points")} versus the cohort median of ${data.benchmark.medianScore}.`
-    : `Unavailable. ${comparison.reason}`);
+    : `No peer comparison. ${comparison.reason}`);
   const benchmark = data.benchmark ?? {};
   setText("benchmark-method",
-    `${benchmark.name ?? "Benchmark unavailable"} · ${benchmark.organizationCount ?? "–"} synthetic organizations · `
+    `${benchmark.name ?? "Peer benchmark unavailable"} · ${benchmark.organizationCount ?? "–"} synthetic organizations · `
     + `${benchmark.segment ?? "segment unavailable"} · snapshot ${benchmark.snapshotDate ?? "unavailable"} · `
     + `${benchmark.rubricVersion ?? "rubric unavailable"} · ${benchmark.provenance ?? provenance.label ?? "provenance unavailable"}`
     + ` · ${PEER_COHORT_PROVENANCE.version} · ${PEER_COHORT_PROVENANCE.statement}`);
