@@ -1,0 +1,208 @@
+/* The executive briefing sheet.
+ *
+ * Composed from the tokens styles.css already ships — the ink (#171713), the
+ * muted body inks (#555550, #4d4d47), the rule (#cfcdc5), the accent (#1f70c1),
+ * --focus-ring, .eyebrow, and the .badge chip pairs the decision log already
+ * uses (#dcefdc/#205d2b, #fff0c7/#72520a, #f6dede/#8a2b2b). No new scale, no new
+ * hue, no second type family: the mono/sans split is the one Claude Design's
+ * foundations card describes (stat numerals in the sans face; metadata,
+ * timestamps and status codes in mono, one ink down).
+ *
+ * Chip silhouettes follow the same card's rule — filled wash = dynamic signal,
+ * outline = static classification. The standing and the confidence verdict are
+ * derived per period, so they are washes; the period stamp, the limitation codes
+ * and the contract versions classify the document, so they are outlines.
+ *
+ * Colour is never the signal. Every wash carries the word, the value, and a
+ * shape; the print sheet drops the wash entirely and loses nothing.
+ */
+:root { --brief-ink:#171713; --brief-muted:#4d4d47; --brief-line:#cfcdc5; --brief-rule:#e3e1d9; --brief-surface:#fff; --brief-quiet:#faf9f5; }
+
+.brief-hero { max-width:780px; padding:64px 0 34px; }
+.brief-hero h1 { max-width:13ch; margin:8px 0 18px; color:var(--brief-ink); font-size:clamp(42px,7.4vw,74px); line-height:.96; letter-spacing:-.05em; }
+.brief-hero > p:not(.eyebrow) { max-width:66ch; margin:0 0 12px; color:#555550; font-size:17px; line-height:1.6; }
+.brief-print-hint { color:#3f544f; font-size:14px; font-weight:650; }
+
+#executive-briefing { padding-bottom:80px; }
+
+/* ------------------------------ the document ------------------------------ */
+
+.brief,.brief-state { max-width:900px; border:1px solid var(--brief-line); border-radius:20px; background:var(--brief-surface); box-shadow:0 18px 50px rgba(27,50,48,.08); }
+.brief-state { padding:32px 34px; }
+.brief-state h2 { margin:0 0 10px; color:var(--brief-ink); font-size:clamp(23px,3.2vw,31px); letter-spacing:-.03em; }
+.brief-state p { max-width:64ch; margin:0 0 10px; color:var(--brief-muted); line-height:1.55; }
+.brief-state[data-state="error"] { border-left:5px solid #8a2b2b; }
+.brief-state-label { color:#8a2b2b; font:750 12px/1 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; }
+.brief-state-remedy { color:#55554f; font-size:14px; }
+
+.brief-masthead { padding:34px 34px 26px; border-bottom:1px solid var(--brief-rule); }
+.brief-question { max-width:24ch; margin:10px 0 16px; color:var(--brief-ink); font-size:clamp(28px,4.2vw,46px); line-height:1.08; letter-spacing:-.038em; }
+.brief-answer { max-width:64ch; margin:0 0 8px; color:var(--brief-ink); font-size:18px; line-height:1.5; }
+/* The named org unit is the answer, so it is the one thing set apart: mono, a
+   size up, and ahead of the sentence that explains it. Deliberately ink rather
+   than the site's blue — Claude Design's foundations card guards blue's double
+   duty as accent and selection, and an emphasised identifier that is not a link
+   should not wear the colour the focus ring uses. Size, face, and position do
+   the emphasis; no colour is asked to. */
+.brief-org-unit { display:block; color:var(--brief-ink); font:800 clamp(17px,2.2vw,22px)/1.35 ui-monospace,monospace; overflow-wrap:anywhere; }
+.brief-answer-basis,.brief-origin { max-width:66ch; margin:0 0 6px; color:#55554f; font-size:14px; line-height:1.55; }
+.brief-origin { margin-top:10px; font-weight:650; }
+
+/* Outline chips: static classification of this document. */
+.brief-stamp { display:flex; flex-wrap:wrap; gap:8px; margin:14px 0 0; }
+.brief-tag { border:1px solid var(--brief-line); border-radius:5px; padding:3px 9px; color:#55554f; font:700 10px/1.6 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; overflow-wrap:anywhere; }
+
+.brief-section { padding:28px 34px; border-bottom:1px solid var(--brief-rule); }
+.brief-section-title { margin:0 0 12px; color:#5c5b56; font:750 11px/1.4 ui-monospace,monospace; letter-spacing:.08em; text-transform:uppercase; }
+.brief-subheading { margin:22px 0 8px; color:var(--brief-ink); font-size:15px; letter-spacing:-.01em; }
+.brief-absent { max-width:64ch; margin:0; color:var(--brief-muted); font-size:16px; line-height:1.55; }
+
+/* -------------------------------- the metric ------------------------------- */
+
+/* The stat numeral, in the sans face, allowed to wrap rather than clip: an
+   implausible fixture can hand this element fifteen digits and a briefing that
+   cuts its own headline figure in half is worse than one that wraps it. */
+.brief-figure { margin:0; color:var(--brief-ink); font-size:clamp(38px,7vw,64px); font-weight:800; line-height:1.02; letter-spacing:-.045em; overflow-wrap:anywhere; }
+.brief-figure-label { max-width:56ch; margin:10px 0 0; color:var(--brief-ink); font-size:17px; line-height:1.5; }
+.brief-figure-share { max-width:56ch; margin:6px 0 0; color:var(--brief-muted); font-size:15px; line-height:1.5; }
+
+/* Filled wash: a signal derived for this period. Word, value, and shape all
+   carry it; the wash is the fourth channel. */
+.brief-standing { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 12px; margin:18px 0 0; border-radius:10px; padding:11px 14px; }
+.brief-standing-shape::before { font-size:13px; }
+.brief-standing-word { font-size:15px; font-weight:800; }
+.brief-standing-value { font:650 13px/1.5 ui-monospace,monospace; }
+.brief-standing[data-standing="more_recoverable_than_baseline"] { background:#fff0c7; color:#72520a; }
+.brief-standing[data-standing="more_recoverable_than_baseline"] .brief-standing-shape::before { content:"\25B2"; }
+.brief-standing[data-standing="in_line_with_baseline"] { background:#e8e6e2; color:#4a4a44; }
+.brief-standing[data-standing="in_line_with_baseline"] .brief-standing-shape::before { content:"\25AC"; }
+.brief-standing[data-standing="less_recoverable_than_baseline"] { background:#dcefdc; color:#205d2b; }
+.brief-standing[data-standing="less_recoverable_than_baseline"] .brief-standing-shape::before { content:"\25BC"; }
+.brief-standing[data-standing="unavailable"] { background:#f1efe9; color:#55554f; }
+.brief-standing[data-standing="unavailable"] .brief-standing-shape::before { content:"\25C7"; }
+
+/* The implausible read. Not an error state — the figure stays on screen — but a
+   named caution beside it, in words, so a monochrome print says the same thing. */
+.brief-caution { margin:18px 0 0; border-left:4px solid #8a2b2b; border-radius:0 10px 10px 0; padding:14px 16px; background:#fbf1f1; }
+.brief-caution-title { margin:0 0 8px; color:#8a2b2b; font-size:15px; }
+.brief-caution-list { margin:0; padding-left:20px; color:#5f2b26; font-size:14px; line-height:1.55; }
+.brief-caution-list li + li { margin-top:8px; }
+
+/* ------------------------------- action, trust ----------------------------- */
+
+.brief-action-statement { max-width:62ch; margin:0; color:var(--brief-ink); font-size:19px; line-height:1.45; }
+.brief-facts { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:16px 26px; margin:18px 0 0; }
+.brief-facts-stacked { grid-template-columns:1fr; }
+.brief-fact { min-width:0; }
+.brief-fact dt { color:#5c5b56; font:750 10px/1.4 ui-monospace,monospace; letter-spacing:.07em; text-transform:uppercase; }
+.brief-fact dd { margin:6px 0 0; color:var(--brief-ink); font-size:16px; font-weight:700; line-height:1.45; overflow-wrap:anywhere; }
+.brief-fact dd.brief-fact-detail { margin-top:4px; color:#55554f; font-size:13px; font-weight:500; }
+.brief-evidence { margin:0; padding-left:20px; color:var(--brief-muted); font-size:14px; line-height:1.6; }
+.brief-evidence li + li { margin-top:6px; }
+
+.brief-verdict { display:flex; flex-wrap:wrap; align-items:baseline; gap:6px 12px; margin:0; border-radius:10px; padding:11px 14px; }
+.brief-verdict-label { font:750 10px/1.6 ui-monospace,monospace; letter-spacing:.07em; text-transform:uppercase; }
+.brief-verdict-word { font-size:20px; font-weight:800; letter-spacing:-.02em; }
+.brief-verdict-rung { font:650 13px/1.5 ui-monospace,monospace; }
+.brief-verdict-shape::before { letter-spacing:.12em; font-size:13px; }
+.brief-verdict[data-confidence="high"] { background:#dcefdc; color:#205d2b; }
+.brief-verdict[data-confidence="high"] .brief-verdict-shape::before { content:"\25AE\25AE\25AE\25AE"; }
+.brief-verdict[data-confidence="moderate"] { background:#fff0c7; color:#72520a; }
+.brief-verdict[data-confidence="moderate"] .brief-verdict-shape::before { content:"\25AE\25AE\25AE\25AF"; }
+.brief-verdict[data-confidence="low"] { background:#f3e3d6; color:#7a3f10; }
+.brief-verdict[data-confidence="low"] .brief-verdict-shape::before { content:"\25AE\25AE\25AF\25AF"; }
+.brief-verdict[data-confidence="insufficient"] { background:#f6dede; color:#8a2b2b; }
+.brief-verdict[data-confidence="insufficient"] .brief-verdict-shape::before { content:"\25AE\25AF\25AF\25AF"; }
+.brief-verdict-meaning { max-width:62ch; margin:14px 0 0; color:var(--brief-ink); font-size:16px; line-height:1.55; }
+.brief-verdict-ceiling,.brief-verdict-source { max-width:62ch; margin:8px 0 0; color:#55554f; font-size:14px; line-height:1.55; }
+
+/* ------------------------------- what bounds it ---------------------------- */
+
+.brief-bounds { background:var(--brief-quiet); }
+.brief-bound-statement { max-width:62ch; margin:0; color:var(--brief-ink); font-size:17px; line-height:1.55; }
+.brief-bound-more { max-width:62ch; margin:10px 0 0; color:var(--brief-muted); font-size:14px; font-weight:650; line-height:1.55; }
+.brief-bound-safety { max-width:66ch; margin:12px 0 0; padding-top:12px; border-top:1px solid var(--brief-rule); color:#55554f; font-size:13px; line-height:1.6; }
+
+/* ------------------------------- disclosures ------------------------------- */
+
+/* A button and a hidden panel rather than <details>: the print sheet has to be
+   able to open a level the reader left shut, and no author rule can open a
+   closed <details>. See the note at the head of executive-briefing-view.js. */
+.brief-disclosure { border-top:1px solid var(--brief-rule); }
+.brief-disclosure-heading { margin:0; }
+.brief-toggle { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 12px; width:100%; border:0; padding:22px 34px; background:none; color:var(--brief-ink); font-family:inherit; text-align:left; cursor:pointer; }
+.brief-toggle:hover { background:var(--brief-quiet); }
+.brief-toggle:focus-visible { outline:3px solid var(--focus-ring); outline-offset:-3px; }
+.brief-toggle-mark { color:#5c5b56; font:800 13px/1 ui-monospace,monospace; }
+.brief-toggle-mark::before { content:"\25B8"; }
+.brief-toggle[aria-expanded="true"] .brief-toggle-mark::before { content:"\25BE"; }
+.brief-toggle-label { font-size:17px; font-weight:800; letter-spacing:-.015em; }
+.brief-toggle-hint { color:#55554f; font-size:13.5px; font-weight:500; }
+.brief-panel { padding:0 34px 28px; }
+.brief-panel > .brief-subheading:first-child { margin-top:0; }
+.brief-rule,.brief-fields { margin:0; padding-left:20px; color:var(--brief-muted); font-size:14px; line-height:1.6; }
+.brief-fields { padding-left:0; list-style:none; display:flex; flex-wrap:wrap; gap:6px 10px; }
+.brief-rule li + li { margin-top:6px; }
+.brief-mono { font-family:ui-monospace,monospace; font-size:13px; overflow-wrap:anywhere; }
+.brief-method-note { max-width:66ch; margin:0; color:var(--brief-muted); font-size:15px; line-height:1.6; }
+.brief-provenance-note { max-width:66ch; margin:14px 0 0; color:#55554f; font-size:13.5px; line-height:1.6; }
+.brief-limitations { margin:0; padding-left:20px; color:var(--brief-muted); font-size:14px; line-height:1.6; }
+.brief-limitations li + li { margin-top:10px; }
+/* Outline chip: a fixed catalogue code, not a live signal. */
+.brief-code { display:inline-block; margin-right:8px; border:1px solid var(--brief-line); border-radius:5px; padding:1px 7px; color:#5c5b56; font:700 10px/1.6 ui-monospace,monospace; letter-spacing:.05em; overflow-wrap:anywhere; }
+
+/* -------------------------------- responsive ------------------------------- */
+
+@media (max-width:640px) {
+  .brief-hero { padding:44px 0 26px; }
+  .brief,.brief-state { border-radius:16px; }
+  .brief-masthead,.brief-section { padding:22px 20px; }
+  .brief-toggle { padding:18px 20px; }
+  .brief-panel { padding:0 20px 22px; }
+  .brief-facts { grid-template-columns:1fr; }
+  .brief-figure { font-size:clamp(32px,10vw,44px); }
+}
+
+/* ---------------------------------- print ---------------------------------- */
+
+/* A printed briefing is read in monochrome, in one pass, by somebody who cannot
+ * click. So: no site chrome, no control affordances, no wash carrying meaning,
+ * nothing clipped or scrolled, and every disclosure open — the requirement
+ * PRESENTATION_REQUIREMENTS.print states and the reason this is CSS rather than
+ * a print-time script. The order is unchanged, so the first sheet still carries
+ * the finding, the figure, the standing, the action, and the confidence. */
+@media print {
+  @page { size:portrait; margin:14mm; }
+  html,body { background:#fff; }
+  body { background-image:none; }
+  .page,main,.brief-hero { width:auto; margin:0; padding:0; }
+  .site-header,.site-footer,.skip-link,.brief-print-hint,.brief-toggle-mark { display:none !important; }
+  .brief-hero { padding-bottom:10px; }
+  .brief-hero h1 { max-width:none; margin:4px 0 8px; font-size:26px; letter-spacing:-.02em; }
+  .brief-hero > p:not(.eyebrow) { font-size:11px; line-height:1.45; }
+  /* Nothing on paper may clip, scroll, or stick. */
+  #executive-briefing,.brief,.brief-panel,.brief-section { position:static; overflow:visible; max-height:none; }
+  .brief { max-width:none; border:1px solid #767670; border-radius:0; box-shadow:none; }
+  .brief-masthead,.brief-section,.brief-disclosure { break-inside:avoid; }
+  .brief-section-title { break-after:avoid; }
+  /* The one rule the print sheet exists for: a level the reader left collapsed
+     still prints, because a briefing that leaves the room without its
+     provenance, its limitations, and its method is a number with no caveat. */
+  .brief-panel[hidden] { display:block !important; }
+  /* The disclosure heading prints as a heading. No control appears on paper. */
+  .brief-toggle { display:block; padding:18px 0 0; background:none !important; cursor:auto; }
+  .brief-toggle-label { display:block; font-size:15px; }
+  .brief-toggle-hint { display:block; }
+  .brief-masthead,.brief-section,.brief-panel { padding-left:0; padding-right:0; }
+  .brief-masthead,.brief-section { padding-top:14px; padding-bottom:14px; }
+  .brief-bounds { background:none; }
+  /* Colour is decorative here: the word, the value, and the shape already say
+     it, so the washes become outlines and print legibly in greyscale. */
+  .brief-standing,.brief-verdict { border:1px solid #767670; border-radius:0; background:none !important; color:#171713 !important; break-inside:avoid; }
+  .brief-caution { background:none; border-left:3px solid #171713; }
+  .brief-caution-title,.brief-caution-list { color:#171713; }
+  .brief-figure { font-size:34px; }
+  .brief-question { font-size:24px; }
+  .brief-facts { grid-template-columns:repeat(2,1fr); }
+  .brief-figure,.brief-figure-label,.brief-standing,.brief-action-statement,.brief-verdict { break-after:avoid; }
+}
