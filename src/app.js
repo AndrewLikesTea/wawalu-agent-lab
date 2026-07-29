@@ -11,6 +11,7 @@ import {
   validateSupersedes,
 } from "./supersede.js";
 import {
+  decisionDetailHref,
   indexById,
   loadReleases,
   mountReleaseList,
@@ -160,8 +161,49 @@ export function uniqueOwners(decisions) {
 // release can never fall through a decision-shaped code path.
 export const RECORD_TYPES = ["all", "decision", "release"];
 
+// The wording each row uses for its counterparts, and what it says when there
+// are none. Held here so the copy is pinned by a test instead of being spelled
+// out twice in two row renderers that could drift apart.
+//
+// The two labels are deliberately different words, and neither repeats the
+// release card's own "Linked decisions" count line — that line summarises
+// (`2 decisions · 1 accepted`), this one names and opens them.
+//
+// A release with no associations has `empty: null`: its card already says "No
+// linked decisions", so a second line saying the same thing is noise. A
+// decision's row has nothing else to say it, so it gets the note.
+export const RELATIONSHIP_COPY = {
+  decision: { label: "Shipped in", empty: "Not linked to a release yet." },
+  release: { label: "Decisions in this release", empty: null },
+};
+
+// Said on a counterpart the current filters have removed from the list. The
+// relationship is a property of the records, not of the view, so a filter
+// changes what is listed and never what a row knows — but a link that points at
+// a row a visitor cannot see has to say so.
+export const HIDDEN_LINK_NOTE = "· not in this view";
+
+// Which releases carry each decision, built once per composition rather than
+// re-scanned per row. Releases already resolve their decisions (resolveRelease);
+// this is the same association read from the other side, so a decision row can
+// name its releases even when the release rows are filtered away.
+function indexReleasesByDecision(releases) {
+  const index = new Map();
+  for (const release of releases) {
+    for (const id of release.decisionIds ?? []) {
+      const carried = index.get(id);
+      if (!carried) index.set(id, [release]);
+      // A release that names the same decision twice is one association, not
+      // two: the row would otherwise repeat the link.
+      else if (!carried.includes(release)) carried.push(release);
+    }
+  }
+  return index;
+}
+
 export function toHistoryRecords(decisions = [], releases = [], options = {}) {
   const byId = indexById(decisions);
+  const releasesByDecision = indexReleasesByDecision(releases);
   // Derived once per composition rather than per row, and only here: rows carry
   // the answer, they never re-derive it. Which records are examples is decided
   // by the caller that composed the stream, so a row never has to guess from an
@@ -181,6 +223,15 @@ export function toHistoryRecords(decisions = [], releases = [], options = {}) {
       status: canonicalDecisionStatus(decision.status),
       superseded: supersededBy.has(decision.id),
       searchable: [decision.title, decision.context, decision.alternatives],
+      // The releases that carried it, in composition order, as the same link
+      // shape a release uses for its decisions.
+      links: (releasesByDecision.get(decision.id) ?? []).map((release) => ({
+        type: "release",
+        id: release.id,
+        label: release.version,
+        href: releaseDetailHref(release.id),
+        missing: false,
+      })),
       decision,
     })),
     ...releases.map((release) => {
@@ -200,6 +251,16 @@ export function toHistoryRecords(decisions = [], releases = [], options = {}) {
           ...resolved.decisions.map((decision) => decision.title),
         ],
         superseded: false,
+        // Association order is preserved, and a dangling reference is carried
+        // as a named-but-unopenable link rather than dropped: a release that
+        // lost a decision is history the row must not quietly rewrite.
+        links: resolved.associations.map(({ id, decision, missing }) => ({
+          type: "decision",
+          id,
+          label: missing ? "Unavailable decision" : decision.title,
+          href: missing ? "" : decisionDetailHref(id),
+          missing,
+        })),
         release: resolved,
       };
     }),
@@ -454,7 +515,52 @@ function appendExampleBadge(meta, example) {
   return appendTextElement(meta, "span", "badge badge-example", EXAMPLE_LABEL);
 }
 
-function renderDecisionRow(decision, index, example = false) {
+// The decision–release relationship, rendered once per row for both kinds.
+//
+// It sits *outside* the card's own link on purpose. An anchor cannot nest, so
+// putting a counterpart link inside the card would either be invalid markup or
+// a dead label; as a sibling it is a real Tab stop that opens that record
+// directly, and it stays out of the arrow-key path (`.history-card` only), so
+// the list navigation a keyboard user already knows is unchanged.
+//
+// `visibleKeys` is the set of rows the current filters left on screen. A
+// counterpart outside it is still named — filtering narrows the list, never the
+// relationship — and is marked as not being in this view.
+function appendRelationships(article, record, visibleKeys) {
+  const copy = RELATIONSHIP_COPY[record.type];
+  const links = record.links ?? [];
+  if (!copy || (links.length === 0 && !copy.empty)) return null;
+  const relationship = document.createElement("p");
+  relationship.className = "record-links";
+  appendTextElement(relationship, "span", "owner-label", copy.label);
+  if (links.length === 0) {
+    appendTextElement(relationship, "span", "record-link-empty", copy.empty);
+  }
+  for (const link of links) {
+    // A dangling reference gets no anchor: there is no record to open. It is
+    // named anyway, so the row and the release's own count agree.
+    if (link.missing) {
+      appendTextElement(relationship, "span", "record-link record-link-missing", link.label);
+      continue;
+    }
+    const anchor = document.createElement("a");
+    anchor.className = "record-link";
+    anchor.href = link.href;
+    appendTextElement(anchor, "span", "record-link-label", link.label);
+    if (visibleKeys && !visibleKeys.has(`${link.type}:${link.id}`)) {
+      anchor.classList.add("record-link-hidden");
+      // Stated in words inside the link, so the note travels with the
+      // accessible name instead of being carried by the muted styling alone.
+      appendTextElement(anchor, "span", "record-link-note", HIDDEN_LINK_NOTE);
+    }
+    relationship.append(anchor);
+  }
+  article.append(relationship);
+  return relationship;
+}
+
+function renderDecisionRow(record, index, visibleKeys) {
+  const { decision, example } = record;
   const item = document.createElement("li");
   const article = document.createElement("article");
   const detailLink = document.createElement("a");
@@ -500,6 +606,7 @@ function renderDecisionRow(decision, index, example = false) {
   appendTextElement(summary, "span", "decision-action", "View decision details");
   detailLink.append(summary);
   article.append(detailLink);
+  appendRelationships(article, record, visibleKeys);
   item.append(article);
   return item;
 }
@@ -507,7 +614,8 @@ function renderDecisionRow(decision, index, example = false) {
 // A release row carries the same amount of context as a decision row — status,
 // date, description, linked-decision summary, owner — and the same open/act
 // affordance, so a filtered result is still actionable without a second hop.
-function renderReleaseRow(release, index, example = false) {
+function renderReleaseRow(record, index, visibleKeys) {
+  const { release, example } = record;
   const item = document.createElement("li");
   const article = document.createElement("article");
   const detailLink = document.createElement("a");
@@ -545,6 +653,7 @@ function renderReleaseRow(release, index, example = false) {
   appendTextElement(summary, "span", "decision-action", "View release details");
   detailLink.append(summary);
   article.append(detailLink);
+  appendRelationships(article, record, visibleKeys);
   item.append(article);
   return item;
 }
@@ -572,10 +681,14 @@ export function renderHistory(container, count, records, view = {}) {
 
   const list = document.createElement("ol");
   list.className = "decision-list";
+  // What the filters left on screen, keyed by kind and id so a decision and a
+  // release that share an id can never be mistaken for each other. Rows read it
+  // to mark a counterpart the current view does not list.
+  const visibleKeys = new Set(visible.map((record) => `${record.type}:${record.id}`));
   visible.forEach((record, index) => {
     list.append(record.type === "release"
-      ? renderReleaseRow(record.release, index, record.example)
-      : renderDecisionRow(record.decision, index, record.example));
+      ? renderReleaseRow(record, index, visibleKeys)
+      : renderDecisionRow(record, index, visibleKeys));
   });
   container.append(list);
   return visible.length;
