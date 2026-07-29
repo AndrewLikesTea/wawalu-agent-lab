@@ -60,6 +60,27 @@ function shapeSpan(doc, glyph) {
   return shape;
 }
 
+/**
+ * A separator that lives in the text rather than in the `gap`.
+ *
+ * Flex and grid space two spans apart on screen and leave nothing between them
+ * in the accessibility tree or in `textContent`, so a label and its value are
+ * announced run together. Where the layout already separates the parts the
+ * separator is `.visually-hidden` — absolutely positioned, so it takes no grid
+ * cell and no flex slot — and where the line reads as one sentence it is a
+ * plain character the eye reads too.
+ */
+const SEPARATOR = " — ";
+
+const withSeparators = (nodes, between) => nodes.filter(Boolean)
+  .flatMap((node, index) => (index ? [between(), node] : [node]));
+
+const joined = (doc, nodes, mark = SEPARATOR) =>
+  withSeparators(nodes, () => doc.createTextNode(mark));
+
+const quietlyJoined = (doc, nodes, mark = SEPARATOR) =>
+  withSeparators(nodes, () => element(doc, "span", "visually-hidden", mark));
+
 function state(section) {
   if (!section.__departmentEvidence) section.__departmentEvidence = { model: null };
   return section.__departmentEvidence;
@@ -168,7 +189,7 @@ function shellBlock(doc, model) {
   const block = element(doc, "div", "evidence-shell");
   block.dataset.state = model.state;
   const status = element(doc, "p", "evidence-shell-status");
-  status.append(shapeSpan(doc, model.mark.shape),
+  status.append(shapeSpan(doc, model.mark.shape), doc.createTextNode(" "),
     element(doc, "span", "evidence-shell-word", model.mark.word));
   block.append(
     status,
@@ -204,17 +225,20 @@ function headBlock(doc, model) {
 
   const confidence = element(doc, "p", "confidence-chip evidence-confidence");
   confidence.dataset.tone = head.confidence.tone;
-  confidence.append(
-    element(doc, "span", "confidence-chip-shape", head.confidence.shape),
-    element(doc, "span", "confidence-chip-label", head.confidence.label),
-  );
+  // The shape is a second channel beside the tone, not a word: the label after
+  // it is the fact, and the separator keeps the two from being read as one.
+  const confidenceShape = element(doc, "span", "confidence-chip-shape", head.confidence.shape);
+  confidenceShape.setAttribute("aria-hidden", "true");
+  confidence.append(confidenceShape, doc.createTextNode(" "),
+    element(doc, "span", "confidence-chip-label", `Confidence: ${head.confidence.label}`));
 
   const provenance = element(doc, "p", "evidence-provenance");
   provenance.dataset.rank = model.provenance.rank;
-  provenance.append(
+  provenance.append(...joined(doc, [
     element(doc, "span", "evidence-provenance-label", model.provenance.label),
-    element(doc, "span", "evidence-provenance-detail", model.provenance.detail ?? ""),
-  );
+    model.provenance.detail
+      ? element(doc, "span", "evidence-provenance-detail", model.provenance.detail) : null,
+  ]));
 
   block.append(
     figure,
@@ -247,11 +271,10 @@ function privacyBlock(doc, model) {
   const block = element(doc, "p", "evidence-privacy");
   // Neutral surface, never the error palette: this is a design decision the
   // product made, not a fault it is reporting.
-  block.append(
-    shapeSpan(doc, "▨"),
+  block.append(shapeSpan(doc, "▨"), doc.createTextNode(" "), ...joined(doc, [
     element(doc, "strong", "evidence-privacy-label", "Prompt text withheld"),
     element(doc, "span", "evidence-privacy-copy", model.privacy.statement),
-  );
+  ]));
   return block;
 }
 
@@ -321,13 +344,13 @@ function signalsBlock(doc, signals) {
     item.dataset.fired = String(signal.fired);
     // The word "no prompts" is the state, not the empty bar: a signal that did
     // not fire says so in text, in its own row, rather than disappearing.
-    item.append(
+    item.append(...quietlyJoined(doc, [
       element(doc, "span", "evidence-signal-label", signal.label),
       element(doc, "span", "evidence-signal-count",
         signal.fired ? `${signal.countText} · ${signal.shareText}` : "no prompts · 0%"),
       element(doc, "span", "evidence-signal-impact", signal.impactText),
       element(doc, "span", "evidence-signal-evidence", signal.evidence),
-    );
+    ]));
     list.append(item);
   }
   block.append(list);

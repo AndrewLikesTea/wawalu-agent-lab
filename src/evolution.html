@@ -1293,7 +1293,11 @@
               <p class="method-note" id="benchmark-method"></p>
               <details class="evidence-disclosure">
                 <summary>Inspect supporting scored evidence</summary>
-                <ul class="evidence-list" id="department-evidence"></ul>
+                <!-- `department-evidence-list`, not `department-evidence`: that
+                     id belongs to the evidence panel above, and two elements
+                     sharing it meant this list's `replaceChildren` emptied the
+                     panel's markup on every drill-down. -->
+                <ul class="evidence-list" id="department-evidence-list"></ul>
               </details>
             </section>
           </article>

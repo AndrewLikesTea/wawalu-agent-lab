@@ -89,6 +89,11 @@ import { gradeEligibility } from "/grade-eligibility.js";
 // from the department's aggregate record and nothing else.
 import { scoreDepartmentIntervention } from "/department-intervention-scoring.js";
 import { interventionActionFields } from "/department-intervention-view.js";
+// The other half of the drill-down: the evidence behind the grade and the fix
+// pack that rides on the same model, painted into the two sections
+// `evolution.html` ships empty for them.
+import { EVIDENCE_PROVENANCE, departmentEvidenceModel } from "/department-evidence.js";
+import { applyDepartmentEvidence } from "/department-evidence-view.js";
 // No panel on this page writes its own "nothing here" sentence. Every empty,
 // partial-coverage and failed-load string is authored in one module, so a
 // reader meets one vocabulary for absence instead of one per branch.
@@ -2025,6 +2030,34 @@ function renderComputedAction(fields) {
   setText("action-diagnosis", fields.diagnosis);
 }
 
+/**
+ * The bundled department as the evidence panel's own input.
+ *
+ * The panel and the fix pack below it are built from
+ * `aggregateConversationLiteracy` rows, which only a conversation export
+ * produces. The bundled record carries spend, mix and sampling — and not one
+ * classified prompt — so this row carries the department's name and the fact
+ * that nothing is classified against it, and nothing else. `gradeable: false`
+ * is that fact rather than a placeholder: it is what makes the fix pack publish
+ * its withheld reading, in which all three interventions are still named and
+ * each says why it is not offered. Assembling a grade out of figures nobody
+ * classified would be the one thing this drill-down must never do.
+ */
+function unclassifiedDepartmentRow(department) {
+  return {
+    department: department?.name ?? null,
+    gradeable: false,
+    reasonCode: "department_not_graded",
+    prompts: { total: 0, classified: 0, unclassified: 0 },
+    coverage: 0,
+    confidence: null,
+    signals: [],
+    subscores: [],
+    distribution: [],
+    sketches: { signatures: [], signatureCount: 0, retainedShare: 0, truncated: false },
+  };
+}
+
 function renderDecisionDetail(department, data) {
   const performance = departmentPerformance(department);
   const trend = departmentTrend(department);
@@ -2034,6 +2067,13 @@ function renderDecisionDetail(department, data) {
   const action = actionPlanFor(department);
 
   setText("detail-name", department.name ?? "Unnamed department");
+  // The drill-down's prompt-literacy half: the evidence behind this
+  // department's grade, and the fix pack that rides on the same model so the
+  // two can never describe different departments.
+  applyDepartmentEvidence(document, departmentEvidenceModel({
+    department: unclassifiedDepartmentRow(department),
+    provenance: EVIDENCE_PROVENANCE.sample.kind,
+  }));
   setText("detail-score", performance.available ? `${performance.score}/100` : NOT_GRADED);
   setText("detail-sample", performance.available
     ? `${performance.rubricVersion} · ${sampling.sampledQueries} sampled queries · through ${sampling.sampledThrough} (${sampling.freshnessLabel}) · 95% sampling uncertainty ±${performance.uncertaintyPoints} points · ${provenance.label}`
@@ -2091,7 +2131,7 @@ function renderDecisionDetail(department, data) {
     + `${benchmark.rubricVersion ?? "rubric unavailable"} · ${benchmark.provenance ?? provenance.label ?? "provenance unavailable"}`
     + ` · ${PEER_COHORT_PROVENANCE.version} · ${PEER_COHORT_PROVENANCE.statement}`);
 
-  const list = document.getElementById("department-evidence");
+  const list = document.getElementById("department-evidence-list");
   list?.replaceChildren();
   if (!performance.available) {
     list?.append(element("li", "evidence-empty",

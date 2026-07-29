@@ -1511,23 +1511,37 @@
 .fix-pack-shell-body,.fix-pack-reason { margin:4px 0 0; max-width:70ch; color:var(--ink-muted); font-size:13px; line-height:1.55; }
 .fix-pack-reason { display:flex; align-items:baseline; flex-wrap:wrap; gap:4px 8px; }
 
-/* The figure is the one number a lead carries out of the room, so it gets the
-   page's stat treatment; the sentence under it repeats it in words, which is
-   what a screen reader and a monochrome print both read. */
-.fix-pack-metric { margin-top:14px; border-left:5px solid #6b5c3e; padding:4px 0 4px 15px; }
-.fix-pack-metric[data-available="false"] { border-left-color:#a5a29a; }
-.fix-pack-metric-figure { margin:0; font-size:clamp(30px,5vw,42px); font-weight:760; line-height:1.05; letter-spacing:-.035em; }
-.fix-pack-metric-label { margin:4px 0 0; font-size:14px; font-weight:650; line-height:1.5; }
-.fix-pack-metric-caveat { margin:6px 0 0; max-width:70ch; color:var(--ink-muted); font-size:12px; line-height:1.55; }
-
-.fix-pack-action { margin-top:18px; border:1px solid #6b5c3e; border-top-width:4px; border-radius:12px; padding:14px 16px; background:#fffdf7; }
+/* The one action carries the page's heaviest edge below the grade, and it reads
+   first: what to do, what it is worth a month, how sure the model is, and which
+   versions said so. The department roll-up under it is context for that
+   decision, so it is a step down in scale rather than the thing competing for
+   the eye. */
+.fix-pack-action { margin-top:16px; border:1px solid #6b5c3e; border-top-width:4px; border-radius:12px; padding:14px 16px; background:#fffdf7; }
 .fix-pack-action[data-priced="false"] { border-color:#8a877e; background:#faf9f5; }
 .fix-pack-action .eyebrow { margin:0; }
 .fix-pack-action-name { display:flex; align-items:baseline; gap:8px; margin:6px 0 8px; font-size:clamp(17px,2vw,20px); line-height:1.3; }
 .fix-pack-action-summary { margin:8px 0 0; max-width:70ch; font-size:13px; line-height:1.6; color:var(--ink-muted); }
-.fix-pack-action-value { margin:8px 0 0; font-size:15px; font-weight:700; }
-.fix-pack-confidence { display:flex; align-items:baseline; flex-wrap:wrap; gap:4px 10px; margin:10px 0 0; }
-.fix-pack-confidence-detail { color:var(--ink-muted); font-size:12px; }
+
+/* The figure the lead carries out of the room. The numeral is decoration over
+   the sentence beneath it — that sentence is what a screen reader, a monochrome
+   print and a reader who refuses numerals all get. */
+.fix-pack-action-value { margin:12px 0 0; }
+.fix-pack-action-figure { margin:0; font-size:clamp(28px,4.4vw,38px); font-weight:760; line-height:1.05; letter-spacing:-.035em; }
+.fix-pack-action-value[data-priced="false"] .fix-pack-action-figure { font-size:clamp(17px,2vw,20px); letter-spacing:-.015em; color:var(--ink-muted); }
+.fix-pack-action-value-label { margin:2px 0 0; font-size:14px; font-weight:650; line-height:1.5; }
+
+/* One line, not a row of flex items: the separator between the level and the
+   count is a character in the text, so the line has to wrap like a sentence. */
+.fix-pack-confidence { margin:12px 0 0; font-size:13px; line-height:1.55; }
+.fix-pack-confidence-text { font-weight:650; }
+.fix-pack-action-provenance { margin:8px 0 0; max-width:74ch; color:var(--ink-muted); font:400 11px/1.65 ui-monospace,monospace; }
+
+.fix-pack-metric { margin-top:16px; border-left:5px solid #6b5c3e; padding:4px 0 4px 15px; }
+.fix-pack-metric[data-available="false"] { border-left-color:#a5a29a; }
+.fix-pack-metric .eyebrow { margin:0 0 2px; }
+.fix-pack-metric-figure { margin:0; font-size:clamp(21px,2.6vw,26px); font-weight:740; line-height:1.15; letter-spacing:-.025em; }
+.fix-pack-metric-label { margin:2px 0 0; font-size:13px; font-weight:650; line-height:1.5; }
+.fix-pack-metric-caveat { margin:6px 0 0; max-width:70ch; color:var(--ink-muted); font-size:12px; line-height:1.55; }
 
 .fix-pack-disclosure { margin-top:18px; }
 .fix-pack-note { margin-top:18px; }
@@ -2222,9 +2236,21 @@
   html[data-department-handout="printing"] .fix-pack-print-control { display:none; }
   #department-fix-pack .evidence-disclosure-panel[hidden] { display:grid; }
   #department-fix-pack .evidence-disclosure-toggle { display:none; }
-  /* Nothing a lead reads as one thought may straddle a page break. */
+  /* Nothing a lead reads as one thought may straddle a page break, and the
+     decision itself — question, action, value, confidence, provenance, roll-up
+     — is one thought. What can spill to a second sheet is the audit trail
+     below it, which is the right thing to spill. */
+  @page { margin:14mm; }
+  .fix-pack-lead { break-inside:avoid; }
   .fix-pack-metric,.fix-pack-action,.fix-pack-other,.fix-pack-privacy,
   .fix-pack-confidence-reason { break-inside:avoid; }
   .fix-pack-question { break-after:avoid; }
   .fix-pack-action { background:#fff; box-shadow:none; }
+  /* Type steps down for paper: the numeral does not need 38px on a sheet held
+     at reading distance, and every step below comes off the screen's own scale. */
+  .fix-pack-action-figure { font-size:26px; }
+  .fix-pack-metric-figure { font-size:19px; }
+  /* The live region has already said this on screen; on paper it is the same
+     sentence a second time, above the sentence it duplicates. */
+  #department-fix-pack-live { display:none; }
 }
