@@ -16,7 +16,11 @@
 // into. It is not saved, not exported, not put in a URL, and not written to any
 // storage. The one place it exists is the DOM node the reader owns.
 
-import { buildCoachingSession } from "./prompt-coaching-contract.js";
+import { COACHING_INPUT_SOURCE, buildCoachingSession } from "./prompt-coaching-contract.js";
+import { COACHING_ENTRY_EXAMPLE, coachingEntryState } from "./prompt-coaching-entry.js";
+import {
+  EXAMPLE_CONTROL_ID, announceCoachingEntrySource, applyCoachingEntry, setCoachingEntryState,
+} from "./prompt-coaching-entry-view.js";
 import {
   INPUT_HINT, applyPromptCoaching, buildRevisionChange, clearPromptCoaching,
 } from "./prompt-coaching-view.js";
@@ -25,6 +29,10 @@ import { applyCoachingSpecimen } from "./coaching-specimen-view.js";
 import { initCoachingSummaryCopy } from "./coaching-summary-view.js";
 
 export function initPromptCoaching(doc = globalThis.document) {
+  // The front door is painted first and independently of the form: a visitor
+  // deciding whether this page is worth their prompt reads what they get, what
+  // it is measured against, and what it never reaches before anything else.
+  applyCoachingEntry(doc);
   // The preview is painted before the form is wired, and independently of it:
   // a reader deciding whether to type anything into the box needs the boundary
   // and the worked example whether or not the form ever comes to life.
@@ -58,6 +66,38 @@ export function initPromptCoaching(doc = globalThis.document) {
   let baseline = null;
   let graded = 0;
 
+  // Whether the field currently holds the supplied example exactly as this page
+  // wrote it. It is the whole of the example/reader distinction the session
+  // contract classifies on, so it is set in exactly two places: true when the
+  // example is loaded, false on any keystroke in the field or on clear.
+  let fromExample = false;
+  const refreshEntry = (answered = false) => setCoachingEntryState(doc, {
+    state: coachingEntryState({
+      fieldText: input?.value ?? "", fromExample, graded: answered,
+    }),
+  });
+
+  // The zero-input path: a visitor with nothing to paste presses one control and
+  // has a real result. Both halves of the submission are written — the text and
+  // the tier — because grading the example's text against a tier it does not
+  // name would grade something the example does not describe.
+  doc.getElementById(EXAMPLE_CONTROL_ID)?.addEventListener("click", () => {
+    if (input) input.value = COACHING_ENTRY_EXAMPLE.text;
+    if (model && COACHING_ENTRY_EXAMPLE.appliesModelTier) {
+      model.value = COACHING_ENTRY_EXAMPLE.modelTier ?? "";
+    }
+    fromExample = true;
+    refreshEntry();
+    input?.focus?.();
+  });
+
+  // Editing ends the example. One keystroke is enough: from here the next grade
+  // is the visitor's own text and is classified as such.
+  input?.addEventListener("input", () => {
+    fromExample = false;
+    refreshEntry();
+  });
+
   form.addEventListener("submit", (event) => {
     event.preventDefault?.();
     graded += 1;
@@ -67,11 +107,17 @@ export function initPromptCoaching(doc = globalThis.document) {
       sessionId: `grade-${graded}`,
       text: input?.value ?? "",
       modelTier: model?.value || null,
+      // The classification travels with the session rather than being inferred
+      // downstream: a figure produced from the supplied example must never be
+      // readable as a grade of the visitor's own work.
+      source: fromExample ? COACHING_ENTRY_EXAMPLE.source : COACHING_INPUT_SOURCE.readerText,
     });
     const change = baseline && session.result.scored
       ? buildRevisionChange({ comparisonId: `revision-${graded}`, baseline, revision: session })
       : null;
     applyPromptCoaching(doc, session.result, { change });
+    announceCoachingEntrySource(doc, session.input.source);
+    refreshEntry(true);
     // A refusal is not a baseline: there is no grade in it to compare against,
     // so the last good one stands and the next grade still compares.
     if (session.result.scored) baseline = session;
@@ -81,7 +127,10 @@ export function initPromptCoaching(doc = globalThis.document) {
     if (input) input.value = "";
     baseline = null;
     graded = 0;
+    fromExample = false;
     clearPromptCoaching(doc);
+    announceCoachingEntrySource(doc, null);
+    refreshEntry();
     input?.focus?.();
   });
 

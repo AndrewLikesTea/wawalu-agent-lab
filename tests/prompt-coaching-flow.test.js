@@ -20,10 +20,14 @@ import { loadPage, pressEnter, pressTab, tabSequence, textOf, typeText } from ".
 import { importPageModule } from "./support/page-module.js";
 import { COACHING_INPUT_LIMITS } from "../src/prompt-coaching.js";
 import {
-  COACHING_LOCAL_ONLY_BOUNDARY, COACHING_OUTCOME_STATES, COACHING_SESSION_VERSION,
-  PREVIEW_SAMPLE_ID, RESULT_FIELD_MEANINGS, SESSION_FIELDS, buildSampleCoachingSession,
-  coachingSample, validateCoachingSession,
+  COACHING_INPUT_SOURCE, COACHING_LOCAL_ONLY_BOUNDARY, COACHING_OUTCOME_STATES,
+  COACHING_SESSION_VERSION, PREVIEW_SAMPLE_ID, RESULT_FIELD_MEANINGS, SESSION_FIELDS,
+  buildSampleCoachingSession, coachingSample, validateCoachingSession,
 } from "../src/prompt-coaching-contract.js";
+import {
+  COACHING_ENTRY_EXAMPLE, COACHING_ENTRY_EXCLUSIONS, COACHING_ENTRY_VERSION,
+  buildEntryExampleSession,
+} from "../src/prompt-coaching-entry.js";
 
 const PAGE = fileURLToPath(new URL("../src/evolution.html", import.meta.url));
 
@@ -437,6 +441,176 @@ test("the preview demonstrates every state, including the three that refuse", as
       assert.ok(item.querySelectorAll(".prompt-coaching-preview-state-sample").length,
         `${item.dataset.outcome} is claimed but not demonstrated`);
     }
+  } finally {
+    page.restore();
+  }
+});
+
+// ---------------------------------------------------------------------------
+// The front door
+// ---------------------------------------------------------------------------
+//
+// The journey a visitor is on before they have typed anything: what they get,
+// what it is measured against, the one thing to do first, and — once a grade is
+// on screen — whose text produced it. The last of those is the assertion that
+// matters most: a figure produced from our supplied example must never be
+// readable, by a person or a consumer, as a grade of the visitor's own work.
+
+/** Load the supplied example from the keyboard, as a visitor with nothing to paste would. */
+function loadExample(document) {
+  tabTo(document, "prompt-coaching-example");
+  pressEnter(document);
+}
+
+test("the front door states what this is and what it never reaches, before any script runs", async () => {
+  const page = await loadPage(PAGE);
+  try {
+    const { document } = page;
+    const entry = byId(document, "prompt-coaching-entry");
+    assert.ok(entry, "the front door must ship in the page markup");
+    const claim = textOf(entry.querySelector(".prompt-coaching-entry-static"));
+    assert.match(claim, /no sign-in and nothing uploaded/);
+    assert.match(claim, /No model, HR system, billing system, credential, or customer record/);
+  } finally {
+    page.restore();
+  }
+});
+
+test("the front door answers the arrival questions in order: value, benchmark, action, exclusions", async () => {
+  const page = await openCoachingPage();
+  try {
+    const { document } = page;
+    const body = byId(document, "prompt-coaching-entry-body");
+    assert.equal(body.dataset.entryVersion, COACHING_ENTRY_VERSION);
+    assert.deepEqual(
+      body.querySelectorAll(".prompt-coaching-entry-block").map((block) => block.dataset.block),
+      ["value", "benchmark", "action", "exclusions"],
+      "a visitor asks what they get before what it is measured against, and both before what to do",
+    );
+
+    // The benchmark is named with its scale and its bands, not asserted as good.
+    const benchmark = body.querySelector('[data-block="benchmark"]');
+    assert.match(textOf(benchmark.querySelector(".prompt-coaching-entry-metric")),
+      /0–100 in whole points, from rubric literacy-mix\/1\.0\.0/);
+    assert.match(textOf(benchmark), /only when the letter band moves/);
+    assert.match(textOf(benchmark), /classified prompts in a department/);
+
+    // And every excluded system is on the page with the way to check it.
+    const excluded = body.querySelector('[data-block="exclusions"]').querySelectorAll("li");
+    const boundary = body.querySelector('[data-block="exclusions"]');
+    assert.equal(boundary.tagName, "DETAILS",
+      "audit proofs stay reachable without blocking the path from action to field");
+    assert.equal(boundary.hasAttribute("open"), false);
+    assert.match(textOf(boundary.querySelector("summary")),
+      /no provider, HRIS, enterprise system, credential, or customer data/i);
+    assert.deepEqual(excluded.map((item) => item.dataset.exclusion),
+      COACHING_ENTRY_EXCLUSIONS.map((entry) => entry.id));
+    for (const item of excluded) {
+      assert.match(textOf(item.querySelector(".prompt-coaching-entry-exclusion-verify")),
+        /^How to check: /);
+    }
+  } finally {
+    page.restore();
+  }
+});
+
+test("with nothing typed the one offered action is the supplied example", async () => {
+  const page = await openCoachingPage();
+  try {
+    const { document } = page;
+    const entry = byId(document, "prompt-coaching-entry");
+    assert.equal(entry.dataset.entryState, "empty");
+    assert.equal(entry.dataset.nextAction, "try_example");
+    assert.equal(entry.dataset.gradedSource, undefined, "nothing has been graded yet");
+    assert.equal(byId(document, "prompt-coaching-entry-source").hidden, true);
+
+    // Reachable from the keyboard, and it says what it does before it is pressed.
+    const control = tabTo(document, "prompt-coaching-example");
+    assert.equal(control.getAttribute("type"), "button");
+    assert.equal(control.getAttribute("aria-describedby"), "prompt-coaching-entry-action");
+    assert.match(textOf(byId(document, "prompt-coaching-entry-action")), /Nothing to paste\?/);
+    assert.match(textOf(byId(document, "prompt-coaching-entry-alternative")), /field below/);
+  } finally {
+    page.restore();
+  }
+});
+
+test("grading the supplied example is classified bundled_sample and said so on the page", async () => {
+  const page = await openCoachingPage();
+  try {
+    const { document } = page;
+    loadExample(document);
+
+    // The example is written into the field with the tier it is graded against.
+    assert.equal(byId(document, "prompt-coaching-input").value, COACHING_ENTRY_EXAMPLE.text);
+    assert.equal(byId(document, "prompt-coaching-model").value, COACHING_ENTRY_EXAMPLE.modelTier);
+    const entry = byId(document, "prompt-coaching-entry");
+    assert.equal(entry.dataset.entryState, "example_loaded");
+    assert.equal(entry.dataset.nextAction, "grade_example");
+    assert.equal(byId(document, "prompt-coaching-example").hidden, true,
+      "offering to overwrite text already in the field is not an offer");
+
+    tabTo(document, "prompt-coaching-grade");
+    pressEnter(document);
+
+    // The classification the session carries, published on the page: this is a
+    // demonstration, not a reading of anything the visitor wrote.
+    assert.equal(entry.dataset.gradedSource, COACHING_INPUT_SOURCE.bundledSample);
+    const attribution = byId(document, "prompt-coaching-entry-source");
+    assert.equal(attribution.hidden, false);
+    assert.equal(attribution.getAttribute("role"), "status");
+    assert.match(textOf(attribution), /supplied example, not of your text/);
+
+    // And the result is the real one the example grades to, not a canned figure.
+    assert.equal(byId(document, "prompt-coaching").dataset.grade,
+      buildEntryExampleSession().result.benchmark.grade);
+    assert.equal(entry.dataset.entryState, "answered");
+    assert.equal(entry.dataset.nextAction, "apply_one_change");
+  } finally {
+    page.restore();
+  }
+});
+
+test("editing the supplied example makes the next grade the visitor's own text", async () => {
+  const page = await openCoachingPage();
+  try {
+    const { document } = page;
+    loadExample(document);
+    const entry = byId(document, "prompt-coaching-entry");
+
+    // One keystroke in the field ends the example.
+    tabTo(document, "prompt-coaching-input");
+    typeText(document, " and state the constraint the answer must respect");
+    assert.equal(entry.dataset.entryState, "visitor_text");
+    assert.equal(entry.dataset.nextAction, "grade_own");
+    assert.equal(byId(document, "prompt-coaching-example").hidden, true);
+
+    tabTo(document, "prompt-coaching-grade");
+    pressEnter(document);
+    assert.equal(entry.dataset.gradedSource, COACHING_INPUT_SOURCE.readerText,
+      "edited text is the reader's, however it started");
+    assert.match(textOf(byId(document, "prompt-coaching-entry-source")), /grade is of your text/);
+  } finally {
+    page.restore();
+  }
+});
+
+test("a prompt the visitor typed is classified reader_text, and clearing re-offers the example", async () => {
+  const page = await openCoachingPage();
+  try {
+    const { document } = page;
+    gradeText(document, WEAK_PROMPT);
+    const entry = byId(document, "prompt-coaching-entry");
+    assert.equal(entry.dataset.gradedSource, COACHING_INPUT_SOURCE.readerText);
+
+    tabTo(document, "prompt-coaching-clear");
+    pressEnter(document);
+    assert.equal(entry.dataset.gradedSource, undefined,
+      "a cleared panel attributes nothing, because nothing is on screen");
+    assert.equal(byId(document, "prompt-coaching-entry-source").hidden, true);
+    assert.equal(entry.dataset.entryState, "empty");
+    assert.equal(entry.dataset.nextAction, "try_example");
+    assert.equal(byId(document, "prompt-coaching-example").hidden, false);
   } finally {
     page.restore();
   }
