@@ -16,7 +16,7 @@ import assert from "node:assert/strict";
 import {
   PERSONAL_CONFIDENCE_TIERS, PERSONAL_COVERAGE_FLOOR, PERSONAL_ELIGIBILITY,
   PERSONAL_EXPORT_SHAPES, PERSONAL_NOT_ELIGIBLE, PERSONAL_READER_LIMITS,
-  PERSONAL_REPORT_STATE, validatePersonalHistoryReport,
+  PERSONAL_REPORT_STATE, PERSONAL_SAMPLING, validatePersonalHistoryReport,
 } from "../src/personal-history-contract.js";
 import {
   buildPersonalHistoryReport, detectPersonalExportShape, personalHistoryDate,
@@ -163,13 +163,66 @@ test("each refusal reason is reachable and carries its published sentence", () =
   }
 });
 
-test("a file over the in-tab ceiling is refused whole, never truncated", () => {
+test("a history over the in-tab ceiling is sampled across the whole export, not refused", () => {
+  const available = PERSONAL_READER_LIMITS.maxPromptEntries * 2 + 1;
+  const text = exportJson({ prompts: available, days: 20 });
+  const report = buildPersonalHistoryReport(text);
+
+  assert.equal(report.state, PERSONAL_REPORT_STATE.prioritized,
+    "a long history is the one most worth reading, and it used to be the one that was refused");
+  assert.equal(report.scope.sampled, true);
+  assert.equal(report.scope.method, PERSONAL_SAMPLING.methods.evenlySpaced);
+  assert.equal(report.scope.promptEntriesAvailable, available);
+  assert.equal(report.scope.stride, Math.ceil(available / PERSONAL_SAMPLING.ceiling));
+  assert.ok(report.scope.promptEntriesRead <= PERSONAL_SAMPLING.ceiling,
+    "the ceiling still bounds what is graded in this tab");
+  // The sample is the denominator, so the published ratio is a ratio of what was
+  // actually read rather than of a file this reader only partly opened.
+  assert.equal(report.coverage.promptEntries, report.scope.promptEntriesRead);
+  assert.deepEqual(validatePersonalHistoryReport(report).errors, []);
+  // Deterministic: no clock, no randomness, so the same export samples the same
+  // entries and two readings of one file can be compared at all.
+  assert.deepEqual(buildPersonalHistoryReport(text), report);
+});
+
+test("sampling reads across the whole span rather than the opening of it", () => {
+  // Every entry after the ceiling sits on a later day than every entry before
+  // it. A reader that took the first N would see one day; the declared stride
+  // makes the sample span the file.
+  const available = PERSONAL_READER_LIMITS.maxPromptEntries * 2;
+  const report = buildPersonalHistoryReport(exportJson({ prompts: available, days: 30 }));
+  assert.equal(report.scope.sampled, true);
+  assert.ok(report.eligibility.distinctDays >= PERSONAL_ELIGIBILITY.minDistinctDays,
+    "a sample of a month-long history has to be able to see the month");
+});
+
+test("both floors still bind on the sample, so sampling is not a way past eligibility", () => {
   const report = buildPersonalHistoryReport(exportJson({
-    prompts: PERSONAL_READER_LIMITS.maxPromptEntries + 1, days: 20,
+    prompts: PERSONAL_READER_LIMITS.maxPromptEntries * 2 + 1,
+    days: PERSONAL_ELIGIBILITY.minDistinctDays - 1,
   }));
+  assert.equal(report.state, PERSONAL_REPORT_STATE.notEligible);
+  assert.equal(report.reason, PERSONAL_NOT_ELIGIBLE.tooFewDistinctDays);
+  assert.equal(report.scope.sampled, true, "a refusal states the scope it was measured over too");
+  assert.deepEqual(validatePersonalHistoryReport(report).errors, []);
+});
+
+test("a history inside the ceiling is read whole and says so", () => {
+  const report = buildPersonalHistoryReport(exportJson({ prompts: 40, days: 8 }));
+  assert.equal(report.scope.sampled, false);
+  assert.equal(report.scope.method, PERSONAL_SAMPLING.methods.complete);
+  assert.equal(report.scope.stride, 1);
+  assert.equal(report.scope.promptEntriesAvailable, 40);
+  assert.equal(report.scope.promptEntriesRead, 40);
+});
+
+test("a file too large to pull into the tab at all is still refused whole", () => {
+  const report = buildPersonalHistoryReport("x".repeat(PERSONAL_READER_LIMITS.maxChars + 1));
   assert.equal(report.reason, PERSONAL_NOT_ELIGIBLE.exportTooLarge);
   assert.equal(report.coverage.promptEntries, 0,
     "a refused file reports no coverage rather than the coverage of the part that was read");
+  assert.equal(report.scope.sampled, false);
+  assert.equal(report.scope.promptEntriesAvailable, 0);
 });
 
 test("both floors are read with >=, so a history sitting exactly on them qualifies", () => {

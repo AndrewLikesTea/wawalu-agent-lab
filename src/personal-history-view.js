@@ -170,8 +170,10 @@ export function renderEligibilityGuide() {
     + "score. Below that floor one message is more than a twentieth of the evidence."));
   floors.append(el("li", null, `Those prompts have to fall on at least ${PERSONAL_ELIGIBILITY.minDistinctDays} `
     + "distinct days. Fewer than that is a session, not a habit."));
-  floors.append(el("li", null, `At most ${count(PERSONAL_READER_LIMITS.maxPromptEntries)} prompts, because the `
-    + "whole reading happens in this tab. A larger export is refused rather than half read."));
+  floors.append(el("li", null, `The reading grades at most ${count(PERSONAL_READER_LIMITS.maxPromptEntries)} `
+    + "prompts, because the whole of it happens in this tab. A longer history is not refused and "
+    + "not cut short at the beginning: every nth prompt is read, evenly across the whole export, "
+    + "and the report says so."));
   section.append(el("h3", "ph-eligibility-subhead", "And it has to clear these floors"));
   section.append(floors);
   return section;
@@ -317,6 +319,16 @@ function provenanceSection(report, { kind }) {
     `${count(report.coverage.scoredPrompts)} of ${count(report.coverage.promptEntries)} prompt entries `
     + `scored (${percent(report.coverage.ratio)}), across `
     + `${plural(report.coverage.distinctDays, "day", "days")}.`);
+  // Stated beside the coverage figure rather than under a disclosure, because a
+  // ratio over a sample and a ratio over a whole export read identically and
+  // mean different things.
+  if (report.scope.sampled) {
+    line(section, "ph-provenance-scope",
+      `Sampled: your export carried ${count(report.scope.promptEntriesAvailable)} prompt entries, `
+      + `over the ${count(report.scope.ceiling)} this tab grades, so every `
+      + `${count(report.scope.stride)}th entry was read — ${count(report.scope.promptEntriesRead)} of `
+      + "them, evenly across the whole export. The figures above are that sample's.");
+  }
   line(section, "ph-provenance-boundary", report.eligibility.boundary);
   return section;
 }
@@ -403,6 +415,10 @@ function evidencePanel(report) {
     if (note) dd.append(el("span", "ph-count-note", note));
     table.append(dt, dd);
   };
+  if (report.scope.sampled) {
+    row("Prompt entries in your export", count(report.scope.promptEntriesAvailable),
+      `every ${count(report.scope.stride)}th one read, across the whole export`);
+  }
   row("Prompt entries found", count(coverage.promptEntries), "the coverage denominator");
   row("Scored", count(coverage.scoredPrompts));
   row("Dropped: empty after trimming", count(coverage.dropped.empty));

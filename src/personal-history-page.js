@@ -9,6 +9,9 @@
 // NO NETWORK, NO CREDENTIAL, AND ONE KEY. The chosen file is read through the
 // browser's own `Blob.text()` — the local API that turns a file the reader
 // already has into a string in this tab — handed to a pure function, and dropped.
+// A chosen `.zip` takes the one extra step of `Blob.arrayBuffer()` and
+// `openPersonalArchive`, which is the same thing one layer down: a local API
+// over bytes the browser already holds, one declared member out, no network.
 // There is no fetch, no upload, no URL parameter, and no sign-in:
 // `PERSONAL_HISTORY_EXCLUSIONS` states each of those refusals and
 // tests/personal-history-flow.test.js asserts them against this module's own
@@ -42,6 +45,7 @@
 // all: a disabled attribute is a UI convenience, and the guard is the invariant.
 
 import { PERSONAL_REPORT_STATE } from "/personal-history-contract.js";
+import { isPersonalArchiveName, openPersonalArchive } from "/personal-archive.js";
 import { buildPersonalHistoryReport } from "/personal-history-report.js";
 import {
   CARRY_FORWARD_ORIGIN, browserCarryForwardStorage, carryForward, clearCarriedSummary,
@@ -148,9 +152,9 @@ export function initPersonalHistory(doc = globalThis.document, { storage = brows
       ? "Building the worked example in this tab."
       : "Reading your export in this tab. Nothing is being uploaded.");
 
-    let text = null;
+    let loaded = null;
     try {
-      text = await load();
+      loaded = await load();
     } catch (error) {
       // A read that failed is still only allowed to speak if it is the current
       // run: a reader who pressed Clear is owed the empty page they asked for,
@@ -165,6 +169,16 @@ export function initPersonalHistory(doc = globalThis.document, { storage = brows
       }), "Your file could not be read. Nothing was uploaded.");
     }
     if (!ledger.isCurrent(token)) return null;
+
+    // An archive that could not be opened is a refusal with a code and three
+    // authored sentences, not an exception and not a half-read file. It is
+    // painted the same way an ineligible file is, because from where the reader
+    // sits it is the same event: nothing was read and here is what to do.
+    if (loaded?.refusal) {
+      return settle(token, renderEntryError(loaded.refusal),
+        `${loaded.refusal.summary}. Nothing was uploaded and nothing was read out of it.`);
+    }
+    let text = loaded?.text ?? null;
 
     paint(renderProgress({ kind, stage: "grade" }));
     await yieldToPaint();
@@ -217,7 +231,7 @@ export function initPersonalHistory(doc = globalThis.document, { storage = brows
       announce(`${eligibility.summary}. The file was not opened.`);
       return;
     }
-    void run(PERSONAL_RUN_KIND.file, () => file.text());
+    void run(PERSONAL_RUN_KIND.file, () => loadChosenFile(file));
   });
 
   // The zero-input path: a reader who has not exported anything yet — or who
@@ -226,7 +240,7 @@ export function initPersonalHistory(doc = globalThis.document, { storage = brows
   // exactly the same reader, and the result says on its face that it is not
   // theirs.
   previewButton?.addEventListener("click", () => {
-    void run(PERSONAL_RUN_KIND.preview, async () => personalHistoryPreviewFiles()[0].text);
+    void run(PERSONAL_RUN_KIND.preview, async () => ({ text: personalHistoryPreviewFiles()[0].text }));
   });
 
   // Clear is the cancel. It takes a token nobody holds, so every completion
@@ -253,6 +267,25 @@ export function initPersonalHistory(doc = globalThis.document, { storage = brows
 
   setRunning(false);
   return { ledger, result };
+}
+
+/**
+ * Turn a chosen file into the string the reader grades, or into a refusal.
+ *
+ * Two paths and one destination. A `.json`, `.csv`, `.tsv`, or `.txt` is read
+ * with `Blob.text()` exactly as it always was — nothing about the direct import
+ * changed. A `.zip` is read as bytes with `Blob.arrayBuffer()` and opened by
+ * `openPersonalArchive`, which takes out the one declared member and hands back
+ * its text. Both are local browser APIs over a file the reader already has:
+ * there is no upload, no provider call, no credential, and nothing written
+ * anywhere on either path.
+ */
+async function loadChosenFile(file) {
+  if (!isPersonalArchiveName(file.name)) return { text: await file.text() };
+  const opened = await openPersonalArchive(await file.arrayBuffer());
+  // The archive's bytes and every member of it but the declared one go out of
+  // scope here, unread.
+  return opened.status === "extracted" ? { text: opened.text } : { refusal: opened };
 }
 
 /** The one sentence the live region gets when a run lands. */
