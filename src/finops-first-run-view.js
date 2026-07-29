@@ -64,6 +64,11 @@ export function applyFirstRunResult(doc, result) {
     sample.replaceChildren(shape, badge, doc.createTextNode(` ${result.sample.statement}`));
   }
 
+  // The heading is the decision question. It is authored in the document with
+  // the same words, and repainting it is what proves the region and the
+  // canonical contract have not drifted apart.
+  setText(doc, FIRST_RUN_IDS.question, result.question ?? "");
+
   paintSlot(doc, FIRST_RUN_IDS.benchmarkValue, FIRST_RUN_IDS.benchmarkDetail, result.benchmark);
   paintSlot(doc, FIRST_RUN_IDS.impactValue, FIRST_RUN_IDS.impactDetail, result.impact);
   paintSlot(doc, FIRST_RUN_IDS.peerValue, FIRST_RUN_IDS.peerDetail, result.peer);
@@ -72,6 +77,8 @@ export function applyFirstRunResult(doc, result) {
   if (action) action.dataset.available = result.action?.available ? "true" : "false";
   const role = setText(doc, FIRST_RUN_IDS.role, result.action?.detail ?? "");
   if (role) role.hidden = !result.action?.detail;
+
+  paintSlot(doc, FIRST_RUN_IDS.confidenceValue, FIRST_RUN_IDS.confidenceDetail, result.confidence);
 
   const method = byId(doc, FIRST_RUN_IDS.methodList);
   if (method) {
