@@ -684,6 +684,15 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .decision-picker-field { min-width:0; margin:0; border:0; padding:0; }
 .decision-picker-field legend { padding:0; font-size:14px; font-weight:700; }
 .decision-picker-field .hint { margin:7px 0 0; }
+/* An empty group is refused by createRelease(), not by the browser, so the
+   refusal has to be visible as well as announced: aria-invalid alone reaches a
+   screen reader and nobody else. The marker is a border and a padded inset
+   rather than colour alone, so it survives a monochrome or high-contrast view. */
+.decision-picker-field[aria-invalid="true"] {
+  border-left:3px solid #8c2f28;
+  padding-left:10px;
+}
+.decision-picker-field[aria-invalid="true"] legend { color:#8c2f28; }
 .decision-picker-summary { margin:8px 0 0; color:#3a3a36; font:650 12px/1.45 ui-monospace,monospace; }
 .decision-picker { margin-top:10px; max-height:290px; overflow-y:auto; overscroll-behavior:contain; border:1px solid #d9d7d0; border-radius:11px; background:#fff; }
 .decision-picker-options { display:grid; gap:1px; margin:0; padding:0; list-style:none; background:#ebe9e3; }

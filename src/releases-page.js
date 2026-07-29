@@ -24,17 +24,32 @@ function initReleaseRecorder(root, storage, options = {}) {
   const error = root.querySelector("#release-form-error");
   const status = root.querySelector("#release-record-status");
   const notice = root.querySelector("#release-storage-notice");
+  const decisionGroup = root.querySelector("#release-decisions-field");
   const picker = mountDecisionPicker(decisionField, {
     decisions: options.decisions ?? [],
     summary: root.querySelector("#release-decisions-summary"),
+    // Ticking anything answers the only complaint this group can raise, so the
+    // alert and the invalid marking clear as soon as the user acts on them
+    // rather than lingering until the next submit.
+    onChange: () => clearError(),
   });
 
+  // Failures the checkbox group owns are also announced *on* the group: the
+  // alert states what is wrong, `aria-invalid` marks which control is wrong,
+  // and focus lands back in the group so the fix is one keystroke away.
+  const SELECTION_ERRORS = [RELEASE_FORM_ERRORS.noDecisions, RELEASE_FORM_ERRORS.unknownDecision];
+
   const showError = (message) => {
-    if (!error) return;
-    error.textContent = message;
-    error.hidden = false;
+    if (error) {
+      error.textContent = message;
+      error.hidden = false;
+    }
+    if (!SELECTION_ERRORS.includes(message)) return;
+    decisionGroup?.setAttribute("aria-invalid", "true");
+    picker.focus();
   };
   const clearError = () => {
+    decisionGroup?.removeAttribute("aria-invalid");
     if (!error) return;
     error.textContent = "";
     error.hidden = true;
@@ -52,12 +67,14 @@ function initReleaseRecorder(root, storage, options = {}) {
         description: form.elements.description?.value,
         owner: form.elements.owner?.value,
         status: form.elements.status?.value,
+        releasedOn: form.elements.releasedOn?.value,
         decisionIds: picker.selectedIds(),
       }, { decisions: options.decisions ?? [] });
     } catch (failure) {
-      // A selection that no longer resolves is the one failure native form
-      // validity cannot express. It is reported inline and nothing is written;
-      // any other failure is a programming error and keeps throwing.
+      // An empty checkbox group and a selection that no longer resolves are the
+      // failures native form validity cannot express. They are reported inline
+      // and nothing is written; any other failure is a programming error and
+      // keeps throwing.
       if (!Object.values(RELEASE_FORM_ERRORS).includes(failure.message)) throw failure;
       showError(failure.message);
       return;

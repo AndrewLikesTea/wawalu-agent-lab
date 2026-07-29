@@ -16,6 +16,8 @@ import { STORAGE_KEY } from "../src/app.js";
 import { RELEASE_STORAGE_KEY } from "../src/releases.js";
 import { initReleasesPage } from "../src/releases-page.js";
 import { initReleaseDetail } from "../src/release-page.js";
+import { buildShiplogExport } from "../src/shiplog-export.js";
+import { shiplogExportViolations } from "../src/shiplog-export-schema.js";
 import { loadPage, pressSpace, pressTab, textOf, typeText } from "./support/browser.js";
 
 const RELEASES_PAGE = new URL("../src/releases.html", import.meta.url);
@@ -87,6 +89,17 @@ function submit(page) {
   page.document.querySelectorAll("button").find((button) => textOf(button) === "Record release").click();
 }
 
+// The fields issue #533 requires beyond the linked decisions. Filled through
+// one helper so a test that is about the picker does not restate the form.
+function fillRequired(page, { version, owner = "Priya", releasedOn = "2026-07-02", description = "The durable queue shipped." } = {}) {
+  fill(page, "release-version", version);
+  fill(page, "release-owner", owner);
+  fill(page, "release-released-on", releasedOn);
+  fill(page, "release-description", description);
+}
+
+const formError = (page) => page.document.querySelector("#release-form-error");
+
 test("a release is recorded from the page with the decisions it carried", async (t) => {
   const page = await openReleases(t, { decisions: [QUEUE_DECISION, CACHE_DECISION] });
 
@@ -102,10 +115,8 @@ test("a release is recorded from the page with the decisions it carried", async 
   assert.equal(optionFor(page, QUEUE_DECISION.title).checked, true);
   assert.equal(summaryText(page), "1 of 2 decisions linked.");
 
-  fill(page, "release-version", "v1.4.0");
-  fill(page, "release-owner", "Priya");
+  fillRequired(page, { version: "v1.4.0" });
   fill(page, "release-title", "Throughput work");
-  fill(page, "release-description", "The durable queue shipped.");
   submit(page);
 
   assert.equal(stored(page).length, 1, "the release was not saved in this browser");
@@ -113,10 +124,12 @@ test("a release is recorded from the page with the decisions it carried", async 
   assert.equal(release.version, "v1.4.0");
   assert.equal(release.owner, "Priya");
   assert.equal(release.title, "Throughput work");
+  assert.equal(release.description, "The durable queue shipped.");
   assert.equal(release.status, "completed");
+  // The date the user typed, not the moment they pressed the button.
+  assert.equal(release.createdAt, "2026-07-02T00:00:00.000Z");
   assert.deepEqual(release.decisionIds, [QUEUE_DECISION.id], "the linked decision's id was not submitted");
   assert.match(release.id, /\S/);
-  assert.ok(!Number.isNaN(Date.parse(release.createdAt)));
 
   // The new release is in the history immediately, with its linked decision
   // summarised the same way every other row is.
@@ -131,6 +144,8 @@ test("a release is recorded from the page with the decisions it carried", async 
 
   // The form is ready for the next release rather than still holding the last.
   assert.equal(page.document.querySelector("#release-version").value, "");
+  assert.equal(page.document.querySelector("#release-released-on").value, "");
+  assert.equal(page.document.querySelector("#release-description").value, "");
   assert.equal(optionFor(page, QUEUE_DECISION.title).checked, false);
   assert.equal(summaryText(page), "No decisions linked yet. 2 available.");
 });
@@ -141,8 +156,7 @@ test("more than one decision can be linked, in the order they were picked", asyn
   optionFor(page, QUEUE_DECISION.title).click();
   optionFor(page, CACHE_DECISION.title).click();
   assert.equal(summaryText(page), "2 of 2 decisions linked.");
-  fill(page, "release-version", "v2.0.0");
-  fill(page, "release-owner", "Priya");
+  fillRequired(page, { version: "v2.0.0" });
   submit(page);
 
   assert.deepEqual(stored(page)[0].decisionIds, [QUEUE_DECISION.id, CACHE_DECISION.id]);
@@ -151,8 +165,7 @@ test("more than one decision can be linked, in the order they were picked", asyn
   optionFor(page, CACHE_DECISION.title).click();
   optionFor(page, QUEUE_DECISION.title).click();
   optionFor(page, QUEUE_DECISION.title).click();
-  fill(page, "release-version", "v2.0.1");
-  fill(page, "release-owner", "Priya");
+  fillRequired(page, { version: "v2.0.1", releasedOn: "2026-07-09" });
   submit(page);
   assert.deepEqual(stored(page)[0].decisionIds, [CACHE_DECISION.id]);
   assert.equal(stored(page).length, 2);
@@ -164,12 +177,15 @@ test("a rejected submit keeps the linked decisions and writes nothing", async (t
   optionFor(page, CACHE_DECISION.title).click();
   // Version is required and empty, so the browser refuses the submit.
   fill(page, "release-owner", "Priya");
+  fill(page, "release-released-on", "2026-07-02");
+  fill(page, "release-description", "The cache shipped.");
   submit(page);
 
   assert.deepEqual(stored(page), [], "an invalid release was written anyway");
   assert.equal(optionFor(page, CACHE_DECISION.title).checked, true, "the selection was lost with the rejected submit");
   assert.equal(summaryText(page), "1 of 2 decisions linked.");
   assert.equal(page.document.querySelector("#release-owner").value, "Priya", "the typed owner was lost");
+  assert.equal(page.document.querySelector("#release-released-on").value, "2026-07-02", "the typed date was lost");
 
   // Completing the record recovers, and the selection made before the failure
   // is the selection that is stored.
@@ -178,13 +194,43 @@ test("a rejected submit keeps the linked decisions and writes nothing", async (t
   assert.deepEqual(stored(page)[0].decisionIds, [CACHE_DECISION.id]);
 });
 
+test("a release with no decision linked is refused, explained, and returns focus to the group", async (t) => {
+  const page = await openReleases(t, { decisions: [QUEUE_DECISION, CACHE_DECISION] });
+
+  // Every native field is complete; the only thing missing is the association
+  // that makes this a release log entry rather than a note.
+  fillRequired(page, { version: "v3.0.0" });
+  submit(page);
+
+  assert.deepEqual(stored(page), [], "a release with no linked decision was written");
+  const error = formError(page);
+  assert.equal(error.hidden, false, "the refusal was silent");
+  assert.equal(error.getAttribute("role"), "alert", "the refusal is not announced");
+  assert.match(textOf(error), /must link at least one decision/);
+  // The group is marked invalid and focus lands inside it, so the fix is the
+  // next keystroke rather than a hunt back up the form.
+  const group = page.document.querySelector("#release-decisions-field");
+  assert.equal(group.getAttribute("aria-invalid"), "true");
+  assert.equal(page.document.activeElement, optionFor(page, QUEUE_DECISION.title));
+
+  // Acting on the complaint clears it immediately rather than at next submit.
+  pressSpace(page.document);
+  assert.equal(error.hidden, true, "the alert outlived the problem it reported");
+  assert.equal(group.hasAttribute("aria-invalid"), false);
+
+  // Nothing typed was lost, so resubmitting records the release.
+  submit(page);
+  assert.equal(stored(page).length, 1);
+  assert.deepEqual(stored(page)[0].decisionIds, [QUEUE_DECISION.id]);
+  assert.equal(stored(page)[0].createdAt, "2026-07-02T00:00:00.000Z");
+});
+
 test("a failed save is reported and preserves the release for retry", async (t) => {
   const page = await openReleases(t, { decisions: [QUEUE_DECISION] });
   page.storage.setItem = () => { throw new Error("quota"); };
 
   optionFor(page, QUEUE_DECISION.title).click();
-  fill(page, "release-version", "v1.5.0");
-  fill(page, "release-owner", "Priya");
+  fillRequired(page, { version: "v1.5.0" });
   submit(page);
 
   const notice = page.document.querySelector("#release-storage-notice");
@@ -214,16 +260,14 @@ test("with no decisions to link, the picker says so and offers the way out", asy
   action.click();
   assert.deepEqual(page.navigations, ["/#decision-form"]);
 
-  // A release with nothing to link is still recordable: infrastructure work
-  // ships without a decision behind it.
-  fill(page, "release-version", "v0.1.0");
-  fill(page, "release-owner", "Mina");
+  // With nothing to link, no release can be recorded: the refusal names the
+  // reason and the empty state above it names the way out, so this is a
+  // signposted dead end rather than a silent one.
+  fillRequired(page, { version: "v0.1.0", owner: "Mina" });
   submit(page);
-  assert.deepEqual(stored(page)[0].decisionIds, []);
-  assert.equal(
-    textOf(page.document.querySelector("#release-record-status")),
-    "Recorded v0.1.0 with no linked decisions.",
-  );
+  assert.deepEqual(stored(page), [], "a release was recorded with no decision to link");
+  assert.match(textOf(formError(page)), /must link at least one decision/);
+  assert.equal(textOf(page.document.querySelector("#release-record-status")), "");
 });
 
 test("the picker is a keyboard-reachable group inside the form's tab order", async (t) => {
@@ -248,9 +292,7 @@ test("the picker is a keyboard-reachable group inside the form's tab order", asy
 test("a recorded release opens a detail page listing each linked decision", async (t) => {
   const recorder = await openReleases(t, { decisions: [QUEUE_DECISION, CACHE_DECISION] });
   optionFor(recorder, QUEUE_DECISION.title).click();
-  fill(recorder, "release-version", "v1.6.0");
-  fill(recorder, "release-owner", "Priya");
-  fill(recorder, "release-description", "The durable queue shipped.");
+  fillRequired(recorder, { version: "v1.6.0" });
   submit(recorder);
   const [saved] = stored(recorder);
   recorder.restore();
@@ -269,6 +311,8 @@ test("a recorded release opens a detail page listing each linked decision", asyn
   assert.equal(detail.getAttribute("aria-busy"), "false", "the detail view never left its loading state");
   assert.match(textOf(detail.querySelector(".detail-summary")), /1 decision · 1 accepted/);
   assert.match(textOf(detail.querySelector(".detail-notes")), /The durable queue shipped\./);
+  // The recorded calendar day is what the detail view dates the release by.
+  assert.equal(detail.querySelector(".date").getAttribute("datetime"), "2026-07-02T00:00:00.000Z");
 
   const linked = detail.querySelectorAll(".detail-decision");
   assert.equal(linked.length, 1);
@@ -277,6 +321,35 @@ test("a recorded release opens a detail page listing each linked decision", asyn
   assert.equal(textOf(linked[0].querySelector(".badge")), "accepted");
   assert.match(textOf(linked[0].querySelector(".detail-decision-owner")), /Kai/);
   assert.equal(linked[0].href, `/decision.html?id=${QUEUE_DECISION.id}`);
+});
+
+test("a recorded release exports with its decision associations intact", async (t) => {
+  const page = await openReleases(t, { decisions: [QUEUE_DECISION, CACHE_DECISION] });
+  optionFor(page, CACHE_DECISION.title).click();
+  optionFor(page, QUEUE_DECISION.title).click();
+  fillRequired(page, { version: "v1.7.0", description: "Queue and cache shipped together." });
+  fill(page, "release-title", "Throughput work");
+  submit(page);
+
+  const { payload, unresolvedLinks, droppedFields } = buildShiplogExport(page.storage, {
+    generatedAt: "2026-07-03T00:00:00.000Z",
+  });
+
+  // Explicit shape: exactly the declared fields, in declaration order, with the
+  // association order the user picked. No field the recorder writes is dropped
+  // on the way out, and no link goes unresolved.
+  assert.equal(payload.releases.length, 1);
+  const [exported] = payload.releases;
+  assert.deepEqual(Object.keys(exported), ["id", "version", "title", "description", "owner", "status", "createdAt", "decisionIds"]);
+  assert.deepEqual(exported.decisionIds, [CACHE_DECISION.id, QUEUE_DECISION.id]);
+  assert.equal(exported.createdAt, "2026-07-02T00:00:00.000Z");
+  assert.equal(exported.description, "Queue and cache shipped together.");
+  assert.deepEqual(unresolvedLinks, []);
+  assert.deepEqual(droppedFields, [], "the recorder wrote a field the export schema does not declare");
+  // Every association resolves to a decision that travels in the same file.
+  const exportedDecisionIds = new Set(payload.decisions.map(({ id }) => id));
+  assert.ok(exported.decisionIds.every((id) => exportedDecisionIds.has(id)));
+  assert.deepEqual(shiplogExportViolations(payload), []);
 });
 
 test("a release whose decision is gone says so instead of dropping it", async (t) => {

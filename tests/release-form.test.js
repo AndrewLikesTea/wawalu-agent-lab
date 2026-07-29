@@ -17,6 +17,7 @@ import {
   mountDecisionPicker,
   pruneSelection,
   recordedSummaryText,
+  releaseDateToIso,
   renderDecisionPicker,
   selectionSummaryText,
   toggleDecisionSelection,
@@ -29,7 +30,16 @@ const DECISIONS = [
   { id: "d-flags", title: "Introduce feature flags", context: "c", owner: "Priya", status: "proposed", createdAt: "2026-06-01T00:00:00.000Z" },
 ];
 
-const VALID = { version: "v1.4.0", owner: "Priya", status: "completed" };
+// Every field issue #533 requires: a name, a date, a summary, and at least one
+// existing decision. A fixture missing any of them is a rejection case below.
+const VALID = {
+  version: "v1.4.0",
+  owner: "Priya",
+  status: "completed",
+  releasedOn: "2026-07-02",
+  description: "Short-lived credentials shipped.",
+  decisionIds: ["d-queue"],
+};
 
 // The render layer reads the global `document`, so each test that needs one
 // installs it and hands it back afterwards.
@@ -78,19 +88,36 @@ test("the selection summary counts against what is offered", () => {
 
 // --- the record ------------------------------------------------------------
 
+test("a release date is a calendar day, stored as one unambiguous instant", () => {
+  assert.equal(releaseDateToIso("2026-07-02"), "2026-07-02T00:00:00.000Z");
+  assert.equal(releaseDateToIso("  2026-07-02  "), "2026-07-02T00:00:00.000Z");
+  // Not a calendar day at all.
+  assert.equal(releaseDateToIso(""), null);
+  assert.equal(releaseDateToIso(undefined), null);
+  assert.equal(releaseDateToIso("07/02/2026"), null);
+  assert.equal(releaseDateToIso("2026-07-02T09:00:00.000Z"), null);
+  // Well formed but unreal: Date would roll these forward silently, which would
+  // store a date the user never typed.
+  assert.equal(releaseDateToIso("2026-02-31"), null);
+  assert.equal(releaseDateToIso("2026-13-01"), null);
+  assert.equal(releaseDateToIso("2026-00-10"), null);
+  // A real leap day still resolves.
+  assert.equal(releaseDateToIso("2028-02-29"), "2028-02-29T00:00:00.000Z");
+});
+
 test("createRelease writes the shape the release views already read", () => {
   const release = createRelease({
     ...VALID,
     title: "Security hardening",
-    description: "Short-lived credentials shipped.",
     decisionIds: ["d-flags", "d-queue"],
-  }, { decisions: DECISIONS, id: "r-1", createdAt: "2026-07-02T00:00:00.000Z" });
+  }, { decisions: DECISIONS, id: "r-1" });
 
   assert.deepEqual(release, {
     id: "r-1",
     version: "v1.4.0",
     owner: "Priya",
     status: "completed",
+    // Derived from the calendar day the form collected, not from "now".
     createdAt: "2026-07-02T00:00:00.000Z",
     decisionIds: ["d-flags", "d-queue"],
     title: "Security hardening",
@@ -101,34 +128,37 @@ test("createRelease writes the shape the release views already read", () => {
 test("createRelease keeps the association order and drops repeats", () => {
   const release = createRelease({ ...VALID, decisionIds: ["d-flags", "d-queue", "d-flags"] }, { decisions: DECISIONS });
   assert.deepEqual(release.decisionIds, ["d-flags", "d-queue"]);
-  // A release with nothing linked is valid: infrastructure work ships too.
-  assert.deepEqual(createRelease(VALID, { decisions: DECISIONS }).decisionIds, []);
   // Generated values are asserted by shape, never by value.
   assert.match(createRelease(VALID, { decisions: DECISIONS }).id, /\S/);
-  assert.ok(!Number.isNaN(Date.parse(createRelease(VALID, { decisions: DECISIONS }).createdAt)));
 });
 
-test("createRelease omits optional copy rather than storing empty strings", () => {
-  const release = createRelease({ ...VALID, title: "  ", description: "  " }, { decisions: DECISIONS });
+test("createRelease omits an absent title rather than storing an empty string", () => {
+  const release = createRelease({ ...VALID, title: "  " }, { decisions: DECISIONS });
   assert.equal("title" in release, false);
-  assert.equal("description" in release, false);
+  // The summary is required, so it is always present and always trimmed.
+  assert.equal(createRelease({ ...VALID, description: "  Shipped.  " }, { decisions: DECISIONS }).description, "Shipped.");
 });
 
 test("createRelease refuses an incomplete, oversized, or dangling record", () => {
-  const rejected = (values) => assert.throws(
+  const rejects = (values, message) => assert.throws(
     () => createRelease(values, { decisions: DECISIONS }),
-    (error) => Object.values(RELEASE_FORM_ERRORS).includes(error.message),
+    { message },
   );
-  rejected({ ...VALID, version: "   " });
-  rejected({ ...VALID, owner: "" });
-  rejected({ ...VALID, status: "shipped" });
-  rejected({ ...VALID, version: "v".repeat(MAX_VERSION_LENGTH + 1) });
-  // The one failure a native form cannot express: an id that no longer resolves
-  // must not be written as a dangling reference.
-  assert.throws(
-    () => createRelease({ ...VALID, decisionIds: ["d-queue", "ghost"] }, { decisions: DECISIONS }),
-    { message: RELEASE_FORM_ERRORS.unknownDecision },
-  );
+  const { required, length, invalidDate, noDecisions, unknownDecision } = RELEASE_FORM_ERRORS;
+
+  rejects({ ...VALID, version: "   " }, required);
+  rejects({ ...VALID, owner: "" }, required);
+  rejects({ ...VALID, status: "shipped" }, required);
+  // Issue #533's three new requirements: a date, a summary, and a link.
+  rejects({ ...VALID, releasedOn: "" }, required);
+  rejects({ ...VALID, description: "   " }, required);
+  rejects({ ...VALID, releasedOn: "2026-02-31" }, invalidDate);
+  rejects({ ...VALID, decisionIds: [] }, noDecisions);
+  rejects({ ...VALID, decisionIds: undefined }, noDecisions);
+
+  rejects({ ...VALID, version: "v".repeat(MAX_VERSION_LENGTH + 1) }, length);
+  // An id that no longer resolves must not be written as a dangling reference.
+  rejects({ ...VALID, decisionIds: ["d-queue", "ghost"] }, unknownDecision);
 });
 
 test("the recorded announcement names the release and what it linked", () => {
@@ -246,7 +276,18 @@ test("the recorder markup groups the picker and never builds HTML from stored te
   ]);
   assert.match(page, /id="release-form"/);
   assert.match(page, /id="release-decisions"/);
-  assert.match(page, /<legend>Link decisions to this release/);
+  assert.match(page, /<legend>Link decisions to this release<\/legend>/);
+  // The three required fields issue #533 adds. The date is a native date
+  // control, so the platform supplies the picker and the format hint; the
+  // summary is required in the markup as well as in createRelease().
+  assert.match(page, /id="release-released-on" name="releasedOn" type="date" required/);
+  assert.match(page, /<label for="release-released-on">Release date<\/label>/);
+  assert.match(page, /<label for="release-description">Summary<\/label>/);
+  assert.match(page, /id="release-description" name="description"[^>]*\srequired/);
+  // `required` on a checkbox group would demand every option; the group is
+  // described instead, and createRelease() owns the at-least-one rule.
+  assert.doesNotMatch(page, /class="decision-picker-check"/);
+  assert.match(page, /id="release-decisions-field" aria-describedby="release-decisions-hint release-decisions-summary"/);
   assert.match(page, /id="release-decisions-summary" role="status" aria-live="polite"/);
   assert.match(page, /id="release-form-error" role="alert" hidden/);
   assert.match(page, /id="release-storage-notice" role="alert" hidden/);
