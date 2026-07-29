@@ -167,9 +167,18 @@ test("the block is authored above every panel it is meant to replace", async () 
     assert.ok(html.indexOf(`id="${FIRST_RUN_IDS.region}"`) < html.indexOf(later),
       `#${FIRST_RUN_IDS.region} is authored after ${later}`);
   }
-  // Under the page status, not over it: "are these numbers mine?" is still the
-  // first thing answered, and this block is the answer to what they say.
-  assert.ok(html.indexOf('id="finops-load-state"') < html.indexOf(`id="${FIRST_RUN_IDS.region}"`));
+  // Over the page status and over the score card, not under them. Both of those
+  // wait on /evolution-demo-data.json and this block does not, so a fetch that
+  // is slow or fails must not put "Reading the bundled example…", "Not scored
+  // yet", or a retry button ahead of a result the page already holds. "Are
+  // these numbers mine?" is still answered first — by this block's own sample
+  // line, in the same region as the figures it qualifies.
+  for (const later of ['id="finops-load-state"', 'id="score-card"']) {
+    assert.ok(html.indexOf(`id="${FIRST_RUN_IDS.region}"`) < html.indexOf(later),
+      `#${FIRST_RUN_IDS.region} is authored after ${later}`);
+  }
+  // And still under the h1: the page leads with what it is.
+  assert.ok(html.indexOf('id="page-title"') < html.indexOf(`id="${FIRST_RUN_IDS.region}"`));
   // And the conversion moment follows the result rather than preceding it.
   assert.ok(html.indexOf(`id="${FIRST_RUN_IDS.region}"`) < html.indexOf('id="finops-first-run-conversion"'));
 });
@@ -359,6 +368,48 @@ test("the view paints an unavailable composition without blanking the block", as
   // Not hidden, not empty: the reason and both next steps are still readable.
   assert.equal(region.hidden, false);
   assert.match(textOf(byId(document, FIRST_RUN_IDS.benchmarkDetail)), /no figure is shown/);
+});
+
+test("hostile result strings stay literal text in the promoted first viewport", async () => {
+  const document = parseHtml(await readFile(PAGE, "utf8"));
+  const hostile = `<img src=x onerror="globalThis.pwned=true"><script>pwned()</script>`;
+  const base = buildFirstRunResult();
+  const result = {
+    ...base,
+    sample: { badge: hostile, statement: hostile },
+    benchmark: { available: true, value: hostile, detail: hostile },
+    impact: { available: true, value: hostile, detail: hostile },
+    peer: { available: false, value: hostile, detail: hostile },
+    action: { available: true, value: hostile, detail: hostile },
+    method: [{ term: hostile, detail: hostile }],
+  };
+
+  applyFirstRunResult(document, result);
+
+  // Every newly prominent slot receives analysis-derived strings. Prove that
+  // the hostile version is neutralized instead of trusting the normal sample.
+  for (const id of [
+    FIRST_RUN_IDS.sample,
+    FIRST_RUN_IDS.benchmarkValue,
+    FIRST_RUN_IDS.benchmarkDetail,
+    FIRST_RUN_IDS.impactValue,
+    FIRST_RUN_IDS.impactDetail,
+    FIRST_RUN_IDS.peerValue,
+    FIRST_RUN_IDS.peerDetail,
+    FIRST_RUN_IDS.action,
+    FIRST_RUN_IDS.role,
+    FIRST_RUN_IDS.live,
+  ]) {
+    assert.match(textOf(byId(document, id)), /<img src=x on/,
+      `#${id} did not preserve the hostile string as text`);
+  }
+  assert.equal(byId(document, FIRST_RUN_IDS.region).querySelectorAll("script").length, 0);
+  assert.equal(byId(document, FIRST_RUN_IDS.region).querySelectorAll("img").length, 0);
+  assert.equal(textOf(byId(document, FIRST_RUN_IDS.methodList).querySelectorAll("dt")[0]), hostile);
+  assert.equal(textOf(byId(document, FIRST_RUN_IDS.methodList).querySelectorAll("dd")[0]), hostile);
+
+  const viewSource = await readFile(new URL("../src/finops-first-run-view.js", import.meta.url), "utf8");
+  assert.doesNotMatch(viewSource, /innerHTML|outerHTML|insertAdjacentHTML|document\.write/);
 });
 
 test("the view is a no-op on a document that has no block in it", () => {

@@ -54,10 +54,17 @@ export const BUNDLED_LOAD_STATE = Object.freeze({
     detail: "Nothing of yours is imported. The local import tools below are already usable, "
       + "and previously rendered content stays visible while the synthetic fixture is refreshed.",
   }),
+  // Scoped deliberately to the panels that actually wait on the fixture. The
+  // example decision above this region is composed from a module in the bundle
+  // and needs no network, so a failed fetch must not read as "this page has
+  // nothing for you" or send a reader to a retry for an answer already on
+  // screen. The retry is still named — it is the control that fills the rest —
+  // but it is offered after the reader is told what they already have.
   firstFailure: Object.freeze({
-    title: "Bundled analysis unavailable",
-    detail: "The bundled sample file could not be loaded. "
-      + "Press “Retry bundled analysis” to load it again.",
+    title: "The supporting panels below could not load",
+    detail: "The example decision above is complete and needed no network. "
+      + "The bundled sample file behind the panels below could not be loaded, so they stay "
+      + "unmeasured. Press “Retry bundled analysis” to fill them, or choose your own files.",
   }),
   refreshFailure: Object.freeze({
     title: "Bundled analysis unavailable",
@@ -160,8 +167,13 @@ export const KPI_NEEDS_REVIEW = "Needs review";
 export const HEADLINE_BUNDLE_UNAVAILABLE = Object.freeze({
   score: "Score unavailable",
   peer: "No score is inferred from a sample that did not load.",
-  provenance: "Bundled sample not loaded. Press “Retry bundled analysis” above; "
-    + "local import and the inspectable evaluation below still work.",
+  // This line sits in the hero, so it is the one failure sentence a reader
+  // meets before the example brief. It therefore leads with what they already
+  // have and names the retry only as a control that also still works — it no
+  // longer sends them to a button for an answer that is on the next screenful.
+  provenance: "Bundled sample not loaded, so the panels under this hero stay unmeasured. "
+    + "The example decision is complete without it; “Retry bundled analysis”, local import, "
+    + "and the inspectable evaluation all still work.",
   portfolioCount: "No actions loaded",
   portfolioReason: "The bundled sample file could not be read, so no action portfolio is available. "
     + "Press “Retry bundled analysis” above to load it again.",
