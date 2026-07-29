@@ -13,6 +13,7 @@
 // contract's own operation line and a department label taken out of an analysis.
 
 import { FIRST_RUN_ACTIONS, FIRST_RUN_CONVERSION, FIRST_RUN_IDS } from "./finops-first-run.js";
+import { DISCLOSURE_SPEC, disclosureStateLabel } from "./finops-decision-interaction.js";
 
 const byId = (doc, id) => (doc?.getElementById ? doc.getElementById(id) : null);
 
@@ -36,6 +37,67 @@ function paintSlot(doc, valueId, detailId, slot) {
   return value;
 }
 
+/** One `<dt>`/`<dd>` pair, built rather than assigned. */
+function definition(doc, entry) {
+  const item = doc.createElement("div");
+  const term = doc.createElement("dt");
+  term.textContent = entry.term;
+  const detail = doc.createElement("dd");
+  detail.textContent = entry.detail;
+  item.append(term, detail);
+  return item;
+}
+
+/**
+ * Write the disclosure's state into the three channels it is owed: the
+ * accessible name, the `aria-expanded` mirror, and the visible word beside the
+ * summary. A chevron that only rotates is a state a reader cannot hear, cannot
+ * print, and cannot see in greyscale.
+ *
+ * The count travels with the state — "Show evidence · 6" says how much is
+ * behind the control, which is the difference between a disclosure a reader
+ * opens and one they scroll past.
+ */
+export function paintDisclosureState(doc, entryCount = null) {
+  const details = byId(doc, FIRST_RUN_IDS.method);
+  const summary = byId(doc, FIRST_RUN_IDS.methodSummary);
+  if (!details || !summary) return null;
+  const open = Boolean(details.open ?? details.hasAttribute?.("open"));
+  const spec = open ? DISCLOSURE_SPEC.expanded : DISCLOSURE_SPEC.collapsed;
+  summary.setAttribute("aria-expanded", open ? "true" : "false");
+  details.dataset.disclosure = open ? "expanded" : "collapsed";
+  const state = byId(doc, FIRST_RUN_IDS.methodState);
+  if (state) {
+    state.dataset.disclosure = open ? "expanded" : "collapsed";
+    // The glyph is decoration beside a word, never the word itself, so it is
+    // hidden from the name the visible text composes.
+    const shape = doc.createElement("span");
+    shape.className = "first-run-method-shape";
+    shape.setAttribute("aria-hidden", "true");
+    shape.textContent = spec.shape;
+    state.replaceChildren(shape, doc.createTextNode(` ${disclosureStateLabel(open, entryCount)}`));
+  }
+  return summary;
+}
+
+/**
+ * Keep the three state channels in step with the element's own `open`.
+ *
+ * Bound to `toggle`, which fires for a click, for Enter, for Space, and for a
+ * programmatic `open` — so the keyboard path and the pointer path go through
+ * one piece of code rather than two that can disagree. Nothing here intercepts
+ * a key: the native control already handles every one of them, and re-handling
+ * them is how a disclosure stops being operable in the browser's own way.
+ */
+export function bindFirstRunDisclosure(doc) {
+  const details = byId(doc, FIRST_RUN_IDS.method);
+  if (!details) return null;
+  const count = () => byId(doc, FIRST_RUN_IDS.methodList)?.querySelectorAll?.("dt")?.length ?? null;
+  details.addEventListener("toggle", () => paintDisclosureState(doc, count()));
+  paintDisclosureState(doc, count());
+  return details;
+}
+
 /**
  * Apply a composed result to the document.
  *
@@ -48,6 +110,10 @@ export function applyFirstRunResult(doc, result) {
 
   region.dataset.state = presentation.state ?? "pending";
   region.dataset.tone = presentation.tone ?? "neutral";
+  // A figure that was refused travels as a flag on the region as well as a
+  // sentence in the slot, so a printed page, a screenshot, and a test all agree
+  // that this result is holding something it would not draw.
+  region.dataset.figures = (result.notices?.length ?? 0) > 0 ? "out-of-range" : "in-range";
   setText(doc, FIRST_RUN_IDS.shape, presentation.shape ?? "◇");
   setText(doc, FIRST_RUN_IDS.word, presentation.word ?? "");
 
@@ -69,6 +135,10 @@ export function applyFirstRunResult(doc, result) {
   // canonical contract have not drifted apart.
   setText(doc, FIRST_RUN_IDS.question, result.question ?? "");
 
+  // The answer, immediately under the question it answers. A reader who stops
+  // here has still read a decision; everything below sizes and checks it.
+  paintSlot(doc, FIRST_RUN_IDS.answer, FIRST_RUN_IDS.answerDetail, result.answer);
+
   paintSlot(doc, FIRST_RUN_IDS.benchmarkValue, FIRST_RUN_IDS.benchmarkDetail, result.benchmark);
   paintSlot(doc, FIRST_RUN_IDS.impactValue, FIRST_RUN_IDS.impactDetail, result.impact);
   paintSlot(doc, FIRST_RUN_IDS.peerValue, FIRST_RUN_IDS.peerDetail, result.peer);
@@ -80,25 +150,34 @@ export function applyFirstRunResult(doc, result) {
 
   paintSlot(doc, FIRST_RUN_IDS.confidenceValue, FIRST_RUN_IDS.confidenceDetail, result.confidence);
 
+  const entries = result.method ?? [];
   const method = byId(doc, FIRST_RUN_IDS.methodList);
-  if (method) {
-    method.replaceChildren(...(result.method ?? []).map((entry) => {
-      const item = doc.createElement("div");
-      const term = doc.createElement("dt");
-      term.textContent = entry.term;
-      const detail = doc.createElement("dd");
-      detail.textContent = entry.detail;
-      item.append(term, detail);
-      return item;
-    }));
+  if (method) method.replaceChildren(...entries.map((entry) => definition(doc, entry)));
+
+  // The same evidence, a second time, outside the disclosure. See PRINT_SPEC:
+  // this sibling is what actually reaches paper, because no rule in any cascade
+  // origin can suppress a block that is not inside a `details` at all. It is
+  // `aria-hidden` and holds nothing focusable — the disclosure above is the
+  // copy the accessibility tree reads.
+  const print = byId(doc, FIRST_RUN_IDS.methodPrint);
+  if (print) {
+    const list = doc.createElement("dl");
+    list.className = "first-run-method-list";
+    list.replaceChildren(...entries.map((entry) => definition(doc, entry)));
+    const heading = doc.createElement("p");
+    heading.className = "first-run-method-print-heading";
+    heading.textContent = DISCLOSURE_SPEC.heading;
+    print.replaceChildren(heading, list);
   }
+
+  paintDisclosureState(doc, entries.length);
 
   // Spoken once, and only what a reader who cannot see the region would need to
   // decide whether to read it: what kind of numbers these are and what they say.
   const live = byId(doc, FIRST_RUN_IDS.live);
   if (live) {
     live.textContent = result.benchmark?.available
-      ? `${result.sample.badge}. ${result.benchmark.value}. ${result.action?.value ?? ""}`
+      ? `${result.sample.badge}. ${result.answer?.value ?? result.benchmark.value}. ${result.action?.value ?? ""}`
       : `${result.sample.badge}. ${result.reason ?? ""}`;
   }
   return region;

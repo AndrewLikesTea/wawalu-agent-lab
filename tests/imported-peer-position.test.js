@@ -336,7 +336,8 @@ test("the disclosure control has a visible focus ring and its content prints", (
   // is the claim this panel exists not to make, so the disclosure opens on paper
   // in CSS rather than by mutating the DOM on beforeprint.
   assert.match(CSS, /\.kpi-disclosure::details-content/);
-  assert.match(CSS, /\.kpi-disclosure>\*/);
+  assert.match(CSS, /\.kpi-disclosure:not\(\[open\]\)>\*:not\(summary\)/);
+  assert.doesNotMatch(CSS.replace(/\/\*[\s\S]*?\*\//g, ""), /\.kpi-disclosure>\*[^{]*\{[^}]*display\s*:\s*revert/);
 });
 
 test("an unavailable card shows no rank, no cohort, and names the input it needs", async () => {
