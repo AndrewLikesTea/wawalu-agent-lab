@@ -1493,6 +1493,80 @@
 @media (prefers-reduced-motion:reduce) { .evidence-disclosure-toggle { transition:none; } }
 
 /* ---------------------------------------------------------------------------
+   The department lead's fix pack: one question, one figure, one action.
+
+   Hierarchy is scale, weight, rhythm and border — never tint alone. The one
+   action a lead should take carries the heaviest edge on the page below the
+   grade, every other intervention sits behind a control, and each state
+   ("no figure", "insufficient evidence", "nothing applies") carries its own
+   word and its own shape beside whatever the panel is tinted.
+   --------------------------------------------------------------------------- */
+.department-fix-pack { margin-top:24px; border:1px solid var(--panel-border); border-radius:18px; padding:clamp(20px,3vw,28px); background:rgba(255,255,255,.68); box-shadow:0 14px 40px rgba(38,38,31,.04); }
+.department-fix-pack[hidden] { display:none; }
+.fix-pack-question { margin:6px 0 0; font-size:clamp(19px,2.4vw,24px); line-height:1.25; letter-spacing:-.015em; }
+
+.fix-pack-shell { display:grid; gap:6px; }
+.fix-pack-shell-status { display:flex; align-items:baseline; gap:8px; margin:0; font:750 11px/1.4 ui-monospace,monospace; letter-spacing:.05em; text-transform:uppercase; color:var(--ink-muted); }
+.fix-pack-shell-title { margin:4px 0 0; font-size:15px; font-weight:700; line-height:1.45; }
+.fix-pack-shell-body,.fix-pack-reason { margin:4px 0 0; max-width:70ch; color:var(--ink-muted); font-size:13px; line-height:1.55; }
+.fix-pack-reason { display:flex; align-items:baseline; flex-wrap:wrap; gap:4px 8px; }
+
+/* The figure is the one number a lead carries out of the room, so it gets the
+   page's stat treatment; the sentence under it repeats it in words, which is
+   what a screen reader and a monochrome print both read. */
+.fix-pack-metric { margin-top:14px; border-left:5px solid #6b5c3e; padding:4px 0 4px 15px; }
+.fix-pack-metric[data-available="false"] { border-left-color:#a5a29a; }
+.fix-pack-metric-figure { margin:0; font-size:clamp(30px,5vw,42px); font-weight:760; line-height:1.05; letter-spacing:-.035em; }
+.fix-pack-metric-label { margin:4px 0 0; font-size:14px; font-weight:650; line-height:1.5; }
+.fix-pack-metric-caveat { margin:6px 0 0; max-width:70ch; color:var(--ink-muted); font-size:12px; line-height:1.55; }
+
+.fix-pack-action { margin-top:18px; border:1px solid #6b5c3e; border-top-width:4px; border-radius:12px; padding:14px 16px; background:#fffdf7; }
+.fix-pack-action[data-priced="false"] { border-color:#8a877e; background:#faf9f5; }
+.fix-pack-action .eyebrow { margin:0; }
+.fix-pack-action-name { display:flex; align-items:baseline; gap:8px; margin:6px 0 8px; font-size:clamp(17px,2vw,20px); line-height:1.3; }
+.fix-pack-action-summary { margin:8px 0 0; max-width:70ch; font-size:13px; line-height:1.6; color:var(--ink-muted); }
+.fix-pack-action-value { margin:8px 0 0; font-size:15px; font-weight:700; }
+.fix-pack-confidence { display:flex; align-items:baseline; flex-wrap:wrap; gap:4px 10px; margin:10px 0 0; }
+.fix-pack-confidence-detail { color:var(--ink-muted); font-size:12px; }
+
+.fix-pack-disclosure { margin-top:18px; }
+.fix-pack-note { margin-top:18px; }
+.fix-pack-detail-list { display:grid; grid-template-columns:minmax(0,15em) minmax(0,1fr); gap:4px 16px; margin:0; font-size:13px; }
+.fix-pack-detail-list dt { color:var(--ink-muted); font-weight:650; }
+.fix-pack-detail-list dd { margin:0; }
+.fix-pack-rationale { margin:12px 0 0; max-width:74ch; font-size:13px; line-height:1.6; }
+.fix-pack-model-list,.fix-pack-confidence-list,.fix-pack-other-list,.fix-pack-excluded-list { display:grid; gap:8px; margin:12px 0 0; padding:0; list-style:none; }
+.fix-pack-model,.fix-pack-confidence-reason,.fix-pack-excluded-row { display:flex; align-items:baseline; flex-wrap:wrap; gap:4px 10px; font-size:12px; line-height:1.5; }
+.fix-pack-confidence-reason[data-inherited="true"] { border-left:3px solid #d8d6cf; padding-left:10px; }
+.fix-pack-confidence-reason-effect,.fix-pack-model-move { color:var(--ink-muted); font:600 11px/1.5 ui-monospace,monospace; }
+.fix-pack-other { display:grid; grid-template-columns:auto minmax(0,1fr); gap:2px 10px; border-top:1px solid #e2e0d9; padding-top:8px; font-size:13px; }
+.fix-pack-other-rank { grid-row:1/span 2; align-self:start; color:var(--ink-muted); font:750 11px/1.6 ui-monospace,monospace; }
+.fix-pack-other-name { font-weight:700; }
+.fix-pack-other-value,.fix-pack-other-confidence,.fix-pack-other-pattern { grid-column:2; color:var(--ink-muted); font-size:12px; line-height:1.5; }
+.fix-pack-other[data-priced="false"] .fix-pack-other-value { font-style:italic; }
+.fix-pack-excluded-name { font-weight:700; }
+.fix-pack-evidence-keys { display:flex; flex-wrap:wrap; gap:6px; margin:12px 0 0; }
+
+.fix-pack-print-control { margin-top:18px; border-top:1px solid #e2e0d9; padding-top:14px; }
+.fix-pack-print-button { min-height:44px; border:1px solid #24241f; border-radius:8px; padding:9px 15px; background:#24241f; color:#fdfcf8; font:750 12px/1.4 inherit; cursor:pointer; }
+.fix-pack-print-button:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.fix-pack-print-note { margin:8px 0 0; max-width:70ch; color:var(--ink-muted); font-size:12px; line-height:1.55; }
+.fix-pack-print-status { margin:6px 0 0; color:#7a3d1d; font-size:12px; line-height:1.55; }
+.fix-pack-print-status:empty { display:none; }
+@media (max-width:640px) {
+  .fix-pack-detail-list { grid-template-columns:minmax(0,1fr); }
+  .fix-pack-detail-list dd { margin:0 0 6px; }
+  .fix-pack-other { grid-template-columns:minmax(0,1fr); }
+  .fix-pack-other-rank { grid-row:auto; }
+  .fix-pack-other-value,.fix-pack-other-confidence,.fix-pack-other-pattern { grid-column:auto; }
+  .fix-pack-print-button { width:100%; }
+}
+
+/* The handout's own print rules live at the foot of this sheet, after the two
+   `@media print` blocks that were already here — they are the last word on
+   paper, and a reader looking for "what prints" finds all three together. */
+
+/* ---------------------------------------------------------------------------
    The board-ready page.
 
    Scoped to the briefing surface and the sheet it sits on — this is not a
@@ -2124,4 +2198,33 @@
      something the reader failed to press. The notes stay: they say what would
      have happened, which is the part that is still true on paper. */
   .first-run-choice button,.first-run-conversion-action { display:none; }
+}
+
+/* ---------------------------------------------------------------------------
+   The one-page department handout.
+
+   The sheet is the fix-pack section and nothing else: a second copy built for
+   paper could describe a different department from the screen, so the page is
+   isolated rather than duplicated. `visibility` rather than `display`, because
+   it leaves the layout of every ancestor alone — only the section is made
+   visible again, and its own `hidden` panels are opened by the rule below,
+   which the script has already filled before the dialog opens.
+   --------------------------------------------------------------------------- */
+@media print {
+  html[data-department-handout="printing"] body * { visibility:hidden; }
+  html[data-department-handout="printing"] #department-fix-pack,
+  html[data-department-handout="printing"] #department-fix-pack * { visibility:visible; }
+  html[data-department-handout="printing"] #department-fix-pack {
+    position:absolute; top:0; left:0; width:100%; margin:0; border:0; border-radius:0;
+    padding:0; background:#fff; box-shadow:none;
+  }
+  /* The control that produced the sheet is not on the sheet. */
+  html[data-department-handout="printing"] .fix-pack-print-control { display:none; }
+  #department-fix-pack .evidence-disclosure-panel[hidden] { display:grid; }
+  #department-fix-pack .evidence-disclosure-toggle { display:none; }
+  /* Nothing a lead reads as one thought may straddle a page break. */
+  .fix-pack-metric,.fix-pack-action,.fix-pack-other,.fix-pack-privacy,
+  .fix-pack-confidence-reason { break-inside:avoid; }
+  .fix-pack-question { break-after:avoid; }
+  .fix-pack-action { background:#fff; box-shadow:none; }
 }

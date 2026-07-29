@@ -1113,6 +1113,22 @@
         <p class="department-evidence-live" id="department-evidence-live" role="status" aria-live="polite" aria-atomic="true"></p>
       </section>
 
+      <!-- What that department should do about it. Authored empty and hidden,
+           like the evidence panel above it, and painted by
+           department-fix-pack-view.js out of the fix pack the evidence model
+           carries — one question, one monthly figure, one prioritized action,
+           and everything else behind a control the reader chooses to press.
+
+           This section is also the printable handout: the print stylesheet
+           isolates it on paper rather than a second copy of the same facts being
+           built for the sheet, so the page and the printout cannot describe two
+           different departments. -->
+      <section class="department-fix-pack" id="department-fix-pack" data-state="unavailable" data-evidence-expanded="false" data-more-expanded="false" aria-labelledby="department-fix-pack-title" hidden>
+        <h2 class="eyebrow" id="department-fix-pack-title">What this department should do first</h2>
+        <div id="department-fix-pack-body"></div>
+        <p class="department-evidence-live" id="department-fix-pack-live" role="status" aria-live="polite" aria-atomic="true"></p>
+      </section>
+
       <details class="support-disclosure" id="disclosure-spend-and-recovery" data-panel-id="spend-and-recovery">
         <summary class="support-disclosure-summary"><span class="support-disclosure-step" data-role="step">Supporting panel</span> <span class="support-disclosure-question" data-role="question">What did we spend this period, and how much of it is recoverable?</span></summary>
       <section class="kpi-row" id="kpi-row" data-source="sample" aria-label="Headline metrics" aria-describedby="headline-basis">

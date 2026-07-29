@@ -24,12 +24,19 @@
 //   4. **Nothing is signalled by tint alone.** Every state carries a word and a
 //      shape beside its tint, and each sketch row carries its own counts.
 //
+// This panel says what is weak. What to do about it is the fix pack that rides
+// on the same model, painted into its own section by `department-fix-pack-view.js`
+// and applied from here so the two can never describe different departments.
+//
 // Provenance hierarchy: an own-import finding is painted at the panel's primary
 // type role and a bundled-sample finding one step down, with less spacing
 // around it. That is scale, weight and rhythm — not colour — so a reader who
 // cannot see the tint still reads which grade is theirs.
 
 import { evidenceAnnouncement } from "./department-evidence.js";
+import {
+  applyDepartmentFixPack, clearDepartmentFixPack,
+} from "./department-fix-pack-view.js";
 
 const SECTION_ID = "department-evidence";
 const BODY_ID = "department-evidence-body";
@@ -86,6 +93,17 @@ export function applyDepartmentEvidence(doc, model) {
   state(section).model = model;
   if (section.dataset.expanded !== "true") section.dataset.expanded = "false";
   paint(doc, section);
+  // The drill-down's other half: the same model's fix pack, painted into its own
+  // section by its own view. It is applied here rather than by every caller so a
+  // department can never be shown with another department's actions beside it —
+  // and only from `applyDepartmentEvidence`, not from `paint`, so opening the
+  // evidence disclosure does not rebuild the workflow under the reader's hands.
+  //
+  // A loading or unreadable panel carries no pack, and says so in its own words
+  // rather than borrowing this panel's.
+  applyDepartmentFixPack(doc, model.fixPack ?? null, {
+    status: model.state === "loading" ? "loading" : "ready",
+  });
   return model;
 }
 
@@ -102,6 +120,7 @@ export function clearDepartmentEvidence(doc) {
   byId(doc, BODY_ID)?.replaceChildren();
   const live = byId(doc, LIVE_ID);
   if (live) live.textContent = "";
+  clearDepartmentFixPack(doc);
   return null;
 }
 
