@@ -352,6 +352,17 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .detail-state-guidance { max-width:58ch; margin:0; color:#5f5f59; line-height:1.6; }
 .detail-state-error { border-color:#d5aaa6; }
 .detail-state-error .detail-state-label,.detail-state-error .detail-state-title { color:#713b37; }
+.detail-state-not-found { border-color:#d9c69a; }
+.detail-state-not-found .detail-state-title { color:#5b4a20; }
+/* The chip is a word first; the wash only agrees with it. Left-aligned in the
+   detail grid rather than the centred post panel, and no bottom margin because
+   the grid already owns the gap. */
+.detail-state .detail-state-chip { justify-self:start; margin:0; }
+/* Recovery sits after the sentence that explains it, in reading and tab order. */
+.detail-state-actions { display:flex; flex-wrap:wrap; gap:10px; margin:5px 0 0; }
+.detail-state-actions .empty-action { margin:0; }
+.detail-state:focus-visible,.decision-detail:focus-visible { outline:3px solid var(--focus-ring); outline-offset:6px; }
+@media(max-width:560px) { .detail-state-actions { flex-direction:column; align-items:stretch; } .detail-state-actions .empty-action { width:100%; } }
 .alternative-facts { display:flex; gap:24px; margin:18px 0 0; padding-top:14px; border-top:1px solid #ebe9e3; }
 .alternative-facts div { display:grid; gap:3px; }
 .alternative-facts dt { color:#777771; font:700 9px/1.4 ui-monospace,monospace; letter-spacing:.08em; text-transform:uppercase; }

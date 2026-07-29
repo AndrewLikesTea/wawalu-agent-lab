@@ -1,12 +1,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { byClass, createElement, installDocument, tags } from "./support/dom.js";
+import { byClass, createElement, first, installDocument, tags } from "./support/dom.js";
 
 installDocument();
 
 import {
+  DECISION_RETRY_LABEL,
   decisionDetailState,
+  isRecoverableDecisionState,
   normalizeAlternatives,
   createComparisonState,
   renderDecisionDetail,
@@ -15,6 +17,8 @@ import {
   toggleComparison,
   resolveDecisionDetail,
 } from "../src/decision-detail.js";
+
+const DETAIL_STATES = ["loading", "empty", "not-found", "error"];
 
 const alternatives = normalizeAlternatives({ alternatives: [
   { id: "a", name: "Queue", summary: "Durable", pros: ["Retries", ""], cons: ["Cost"], effort: "Medium", risk: "Low", selected: true },
@@ -87,6 +91,98 @@ test("loading, absent, not-found, and error states explain the outcome and keep 
   }
 });
 
+// --- one primary state message, and only the actions the state is entitled to ---
+
+test("each state names itself once, with its own status label and heading", () => {
+  const seen = { label: new Set(), title: new Set(), guidance: new Set() };
+
+  for (const state of DETAIL_STATES) {
+    const container = createElement("div");
+    const panel = renderDecisionDetailState(container, state, { onRetry() {} });
+
+    // Exactly one heading in the panel: the primary state message, and nothing
+    // beside it competing to be read first.
+    const headings = [...tags(panel, "H1"), ...tags(panel, "H2"), ...tags(panel, "H3")];
+    assert.equal(headings.length, 1, `${state}: one heading, so one primary message`);
+    assert.equal(headings[0].className, "detail-state-title");
+
+    const label = first(panel, "detail-state-label");
+    assert.ok(label.classes.includes("detail-state-chip"),
+      `${state}: the status label uses the shared chip, so the word carries the state`);
+    // A tone class, never a bare colour: the wash only agrees with the word.
+    assert.ok(label.classes.some((name) => name.startsWith("detail-state-chip-")), `${state}: chip carries a tone`);
+
+    seen.label.add(label.textContent);
+    seen.title.add(headings[0].textContent);
+    seen.guidance.add(first(panel, "detail-state-guidance").textContent);
+  }
+
+  for (const [what, values] of Object.entries(seen)) {
+    assert.equal(values.size, DETAIL_STATES.length, `two decision states share a ${what}`);
+  }
+});
+
+test("retry is offered for a failed read and refused for states a second look cannot change", () => {
+  assert.deepEqual(DETAIL_STATES.filter(isRecoverableDecisionState), ["error"]);
+
+  for (const state of DETAIL_STATES) {
+    const container = createElement("div");
+    let retries = 0;
+    const panel = renderDecisionDetailState(container, state, { onRetry: () => { retries += 1; } });
+    const buttons = tags(panel, "BUTTON");
+
+    assert.equal(panel.dataset.recoverable, String(state === "error"));
+    if (state !== "error") {
+      assert.equal(buttons.length, 0, `${state}: retrying cannot change this outcome, so nothing offers it`);
+      continue;
+    }
+    assert.equal(buttons.length, 1);
+    assert.equal(buttons[0].textContent, DECISION_RETRY_LABEL, "the retry says what it retries");
+    assert.equal(buttons[0].type, "button", "a real button, so Enter and Space already work");
+    buttons[0].dispatch("click");
+    assert.equal(retries, 1);
+  }
+});
+
+test("a caller with no retry handler renders the failure without a dead control", () => {
+  const container = createElement("div");
+  const panel = renderDecisionDetailState(container, "error");
+  assert.equal(tags(panel, "BUTTON").length, 0);
+  assert.match(panel.textContent, /trying again is safe/i);
+});
+
+test("recovery follows the words that explain it, and return navigation stays first", () => {
+  const container = createElement("div");
+  const panel = renderDecisionDetailState(container, "error", { onRetry() {} });
+
+  // Reading order inside the panel: status label, heading, sentence, then the
+  // action. Tab order is the same, because both are DOM order here.
+  assert.deepEqual(panel.children.map((child) => child.className), [
+    "detail-state-label detail-state-chip detail-state-chip-error",
+    "detail-state-title",
+    "detail-state-guidance",
+    "detail-state-actions",
+  ]);
+
+  // The two operable things on a failed first screen, in the order they are met.
+  const operable = [...tags(container, "A"), ...tags(container, "BUTTON")];
+  assert.equal(operable[0].textContent, "← Back to Decisions");
+  assert.equal(container.children[0], tags(container, "A")[0], "the labelled route back is still first");
+  assert.equal(tags(container, "BUTTON")[0].textContent, DECISION_RETRY_LABEL);
+  // Script-only focus targets for the moment a retry replaces the button.
+  assert.equal(panel.getAttribute("tabindex"), "-1");
+});
+
+test("every state keeps a labelled route back to Decisions", () => {
+  for (const state of DETAIL_STATES) {
+    const container = createElement("div");
+    renderDecisionDetailState(container, state, { onRetry() {} });
+    const back = tags(container, "A")[0];
+    assert.equal(back.href, "/", `${state}: the route back points at Decisions`);
+    assert.match(back.textContent, /Back to Decisions/, `${state}: the route back is labelled`);
+  }
+});
+
 test("available detail renders labelled text, empty alternatives, and linked-release navigation in logical order", () => {
   const container = createElement("div");
   renderDecisionDetail(container, {
@@ -149,7 +245,7 @@ test("detail page uses semantic landmarks and safe DOM rendering", async () => {
   // that branch is exactly how a visitor got stranded on "Loading decision".
   // The static loading state in decision.html stays as the pre-script paint.
   assert.doesNotMatch(page, /renderDecisionDetailState\(container, "loading"\)/);
-  assert.match(page, /renderDecisionDetailState\(container, "error"\)/);
+  assert.match(page, /renderDecisionDetailState\(container, "error", retry\)/);
   assert.match(html, /href="\/">← Back to Decisions<\/a>/);
   assert.match(css, /@media\(max-width:760px\)/);
 });

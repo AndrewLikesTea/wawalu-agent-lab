@@ -43,33 +43,54 @@ export async function initDecisionDetail(options = {}) {
   if (!container) return;
 
   const id = new URLSearchParams(window.location.search).get("id") ?? "";
-  container.setAttribute("aria-busy", "true");
-  try {
-    const result = loadDecisionDetail(id, localStorage, options);
-    if (result.state === "available") {
-      renderDecisionDetail(container, result.decision, {
-        id,
-        decisions: result.decisions,
-        linkedReleases: result.linkedReleases,
-        shareable: result.shareable,
-        example: result.example,
-      });
-    } else {
-      renderDecisionDetailState(container, result.state);
+
+  // One read, offered again by Retry. The read is synchronous, so a retry is a
+  // second attempt at the same two sources rather than a second request — which
+  // is exactly why it is offered only where the first attempt *threw*. A record
+  // that resolved to "not-found" is not going to arrive on a second look, and
+  // renderDecisionDetailState refuses to draw a retry for it.
+  const load = ({ fromRetry = false } = {}) => {
+    const retry = { onRetry: () => load({ fromRetry: true }) };
+    container.setAttribute("aria-busy", "true");
+    try {
+      const result = loadDecisionDetail(id, localStorage, options);
+      if (result.state === "available") {
+        renderDecisionDetail(container, result.decision, {
+          id,
+          decisions: result.decisions,
+          linkedReleases: result.linkedReleases,
+          shareable: result.shareable,
+          example: result.example,
+        });
+      } else {
+        renderDecisionDetailState(container, result.state, retry);
+      }
+      // src/decision.html ships titled "Decision · Shiplog", so the tab names this
+      // page — not the log it came from — for the whole load. This only ever
+      // narrows that to the record actually on screen.
+      document.title = result.decision
+        ? recordTitle(result.decision.title, { surface: "Decisions", fallback: "Decision" })
+        : result.state === "error" ? pageTitle("Decision unavailable") : pageTitle("Decision not found");
+    } catch {
+      renderDecisionDetailState(container, "error", retry);
+      document.title = pageTitle("Decision unavailable");
+    } finally {
+      container.setAttribute("aria-busy", "false");
+      document.documentElement.dataset.shiplogDecisionDetail = "ready";
     }
-    // src/decision.html ships titled "Decision · Shiplog", so the tab names this
-    // page — not the log it came from — for the whole load. This only ever
-    // narrows that to the record actually on screen.
-    document.title = result.decision
-      ? recordTitle(result.decision.title, { surface: "Decisions", fallback: "Decision" })
-      : result.state === "error" ? pageTitle("Decision unavailable") : pageTitle("Decision not found");
-  } catch {
-    renderDecisionDetailState(container, "error");
-    document.title = pageTitle("Decision unavailable");
-  } finally {
-    container.setAttribute("aria-busy", "false");
-    document.documentElement.dataset.shiplogDecisionDetail = "ready";
-  }
+
+    // Pressing Retry destroys the button the reader was standing on, so this
+    // render says where focus goes next: onto the record when the second read
+    // worked, otherwise onto the state panel that now explains why it did not.
+    // Never the top of the document, and never on a first load — an arriving
+    // page must not take focus from the reader.
+    if (fromRetry) {
+      const landing = container.querySelector(".decision-detail") ?? container.querySelector(".detail-state");
+      landing?.focus?.();
+    }
+  };
+
+  load();
 }
 
 // Guarded so this module can be imported by a test (or another page) without

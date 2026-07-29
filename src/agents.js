@@ -292,6 +292,12 @@ export function renderRepresentativeActivity(list, { reason = "loading" } = {}) 
 // each state owns a distinct heading, its own explanatory sentence, and its own
 // outline shape. Colour never carries the difference on its own: the chip word,
 // the heading, and the icon geometry each say which state this is.
+//
+// `recovery` is what the one control in this panel is for in each state, held
+// in the model rather than read back off its label. Only a failed public
+// request is a recovery: asking GitHub again is what could change the answer.
+// Loading, live, and "the feed carried nothing" are all successful reads, and
+// the same button there is an ordinary refresh, not a way out of a fault.
 export const ACTIVITY_STATES = Object.freeze({
   loading: Object.freeze({
     shape: "loading",
@@ -300,6 +306,7 @@ export const ACTIVITY_STATES = Object.freeze({
     detail: "Requesting public repository activity from GitHub. Until it answers, the steps below are a synthetic example rather than live events.",
     keptDetail: "Checking for newer public repository activity. The events below are from the last successful update.",
     action: "Refresh",
+    recovery: "refresh",
   }),
   live: Object.freeze({
     shape: "live",
@@ -307,6 +314,7 @@ export const ACTIVITY_STATES = Object.freeze({
     title: "Live public activity",
     detail: "Public repository events are shown below. This list refreshes every 90 seconds.",
     action: "Refresh",
+    recovery: "refresh",
   }),
   empty: Object.freeze({
     shape: "empty",
@@ -318,6 +326,7 @@ export const ACTIVITY_STATES = Object.freeze({
       Object.freeze({ label: "Read the published prompt trace", href: "/agent-trace.html" }),
     ]),
     action: "Check for new activity",
+    recovery: "refresh",
   }),
   error: Object.freeze({
     shape: "error",
@@ -326,8 +335,16 @@ export const ACTIVITY_STATES = Object.freeze({
     detail: "The request for public repository activity failed, so nothing below is live. The steps shown are a synthetic example, and the rest of this page is unaffected.",
     keptDetail: "The request for public repository activity failed. The events below are from the last successful update, and the rest of this page is unaffected.",
     action: "Retry public activity",
+    recovery: "retry",
   }),
 });
+
+// The public feed is read over the network, so every way it can fail is a way a
+// second attempt could still succeed. Kept as a predicate rather than inlined so
+// the retry rule is stated once and can be asserted directly.
+export function isRecoverableActivityState(state) {
+  return ACTIVITY_STATES[state]?.recovery === "retry";
+}
 
 function liveDetail(count) {
   return `${count} recent public ${count === 1 ? "event" : "events"} from the lab repositories. This list refreshes every 90 seconds.`;
@@ -344,6 +361,12 @@ export function renderActivityState(root, state, { count = 0, keptEvents = false
   if (control) {
     control.textContent = copy.action;
     control.dataset.state = name;
+    // What this control is for right now, so "is a retry on offer?" is a fact
+    // about the state rather than a guess at the button's wording.
+    control.dataset.recovery = copy.recovery;
+    // The sentence that explains the state is the button's description, so a
+    // reader who tabs straight to it hears why they are being offered it.
+    control.setAttribute("aria-describedby", "activity-state-detail");
   }
   const container = root.querySelector("#activity-status");
   if (!container) return null;
@@ -356,9 +379,10 @@ export function renderActivityState(root, state, { count = 0, keptEvents = false
   body.className = "activity-state-copy";
   appendText(body, "p", "activity-state-chip", copy.chip);
   appendText(body, "h3", "activity-state-title", copy.title);
-  appendText(body, "p", "activity-state-detail", name === "live"
+  const detail = appendText(body, "p", "activity-state-detail", name === "live"
     ? liveDetail(count)
     : (keptEvents && copy.keptDetail) || copy.detail);
+  detail.id = "activity-state-detail";
   // Nothing recent to read is not a dead end: point at the two published things
   // that are always there — the persona profiles and the full prompt trace.
   if (copy.links) {

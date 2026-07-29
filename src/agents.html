@@ -67,11 +67,14 @@
             <div class="activity-state-copy">
               <p class="activity-state-chip">Loading</p>
               <h3 class="activity-state-title">Loading recent activity</h3>
-              <p class="activity-state-detail">Requesting public repository activity from GitHub. Until it answers, the steps below are a synthetic example rather than live events.</p>
+              <p class="activity-state-detail" id="activity-state-detail">Requesting public repository activity from GitHub. Until it answers, the steps below are a synthetic example rather than live events.</p>
             </div>
           </div>
           <div class="activity-actions">
-            <button class="observatory-refresh" id="refresh-activity" type="button">Refresh</button>
+            <!-- One control, after the status it acts on. Its label and its
+                 data-recovery marker are rewritten per state by agents.js:
+                 "Retry public activity" only when a public request failed. -->
+            <button class="observatory-refresh" id="refresh-activity" type="button" data-state="loading" data-recovery="refresh" aria-describedby="activity-state-detail">Refresh</button>
           </div>
           <ol class="activity-list" id="activity-list" aria-label="Representative synthetic activity" aria-busy="true"></ol>
         </section>
