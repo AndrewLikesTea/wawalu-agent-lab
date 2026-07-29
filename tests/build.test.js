@@ -17,7 +17,7 @@ import { parseHtml, pressEnter, pressTab } from "./support/browser.js";
 test("product has a health endpoint and accessible title", async () => {
   assert.equal((await readFile(new URL("../src/healthz", import.meta.url), "utf8")).trim(), "ok");
   const html = await readFile(new URL("../src/index.html", import.meta.url), "utf8");
-  assert.match(html, /<title>Shiplog · Decision and release log<\/title>/);
+  assert.match(html, /<title>Shiplog · AI FinOps, decisions, and releases<\/title>/);
   // The landmark the skip link targets — header and nav sit outside it.
   assert.match(html, /<main id="main-content" tabindex="-1">/);
   assert.match(html, /<label for="title">Title<\/label>/);
@@ -50,52 +50,60 @@ test("homepage explains the decision-to-release value and links to live examples
   assert.match(html, /href="\/release\.html\?id=demo-r-1-3-0"/);
 });
 
-// The hero is everything before the destination list.
+// The hero is everything before the decision summary the front door leads with.
 const heroOf = (html) =>
-  html.slice(html.indexOf('<section class="hero"'), html.indexOf('<section class="site-guide"'));
+  html.slice(html.indexOf('<section class="hero'), html.indexOf('<section class="landing-decision"'));
 
-test("the hero leads with the log and keeps AI FinOps as a labelled secondary path", async () => {
+// The log's own entry: from its heading down to the destination list.
+const logEntryOf = (html) =>
+  html.slice(html.indexOf('<section class="shiplog-entry"'), html.indexOf('<section class="site-guide"'));
+
+test("the hero leads with AI FinOps and keeps the log as a named, complete secondary path", async () => {
   const html = await readFile(new URL("../src/index.html", import.meta.url), "utf8");
   const hero = heroOf(html);
 
-  // What Shiplog is, in the words the title and the nav already use, before any
-  // adjacent demo is named.
-  assert.match(hero, /Decision and release log for engineering teams/);
-  assert.ok(
-    hero.indexOf("records decisions, tracks the releases they shape") < hero.indexOf("AI FinOps"),
-    "the hero must say what Shiplog is before it names AI FinOps",
-  );
-
-  // Both capabilities, in the hero, in the surface's own name — not a synonym.
-  assert.match(hero, /score your own provider export in AI FinOps/);
+  // What AI FinOps answers, in the surface's own name — not a synonym — before
+  // any other destination on this site is named.
+  assert.match(hero, /AI FinOps · what your AI spend is buying/);
   assert.match(hero, /Your files do not leave this tab\./);
   assert.doesNotMatch(html, /cost analyzer|spend tool/i);
+  assert.ok(
+    html.indexOf("AI FinOps") < html.indexOf("Know why it shipped."),
+    "the front door must lead with AI FinOps, not with the log",
+  );
 
-  // Exactly one primary button, and it names the log it opens. It lands on the
-  // populated record list, not on the one sample decision the story card
-  // already links — the log is what the demo means.
+  // Exactly one primary button in the hero, and it opens the surface the hero
+  // is about. The second way on is the summary below it, as a text link: two
+  // primary buttons beside each other would make neither one primary.
   assert.equal((hero.match(/class="button-link"/g) ?? []).length, 1,
     "the hero must carry exactly one primary call to action");
-  assert.match(hero, /<a class="button-link" href="#record-history">Explore the decision and release log/);
-  assert.match(html, /<section class="workspace" id="record-history"/);
+  assert.match(hero, /<a class="button-link" href="\/evolution\.html">Analyze your own provider export in AI FinOps/);
+  assert.match(hero, /<a class="text-link" href="#landing-decision">/);
+  assert.equal((hero.match(/class="secondary-button"/g) ?? []).length, 0,
+    "the hero must not carry a third call to action");
 
-  // AI FinOps is the one secondary call to action: a real focusable anchor
-  // whose name names its destination, under a label that says it is separate.
-  assert.equal((hero.match(/class="secondary-button"/g) ?? []).length, 1,
-    "the hero must carry exactly one secondary call to action");
-  const aside = hero.slice(hero.indexOf('<div class="hero-aside">'));
-  assert.match(aside, /Also on this site · separate demo/);
-  assert.match(aside, /<a class="secondary-button" href="\/evolution\.html">Score your provider export in AI FinOps<\/a>/);
-  assert.ok(hero.indexOf('class="button-link"') < hero.indexOf('class="secondary-button"'));
+  // The log is not demoted out of the page, only out of the first screen: its
+  // own labelled section, its own heading, and the same call to action landing
+  // on the same populated record list.
+  const entry = logEntryOf(html);
+  assert.match(entry, /Also on this site · the decision and release log/);
+  assert.match(entry, /records decisions, tracks the releases they shape/);
+  assert.match(entry, /<a class="button-link" href="#record-history">Explore the decision and release log/);
+  assert.match(html, /<section class="workspace" id="record-history"/);
+  assert.ok(
+    html.indexOf('<section class="landing-decision"') < html.indexOf('<section class="shiplog-entry"'),
+    "the decision summary must read before the log's entry",
+  );
 });
 
-test("the hero's proof point ties a recorded decision to the release that shipped it", async () => {
+test("the log entry's proof point ties a recorded decision to the release that shipped it", async () => {
   const [html, finops] = await Promise.all([
     readFile(new URL("../src/index.html", import.meta.url), "utf8"),
     readFile(new URL("../src/evolution.html", import.meta.url), "utf8"),
   ]);
   const hero = heroOf(html);
-  const proof = hero.slice(hero.indexOf('<div class="hero-proof">'), hero.indexOf('<div class="hero-aside">'));
+  const entry = logEntryOf(html);
+  const proof = entry.slice(entry.indexOf('<div class="hero-proof">'), entry.indexOf('<div class="hero-actions">'));
   const proofDocument = parseHtml(proof);
   const facts = proofDocument.querySelector(".hero-proof-facts")
     .querySelectorAll("dd")
@@ -128,9 +136,10 @@ test("the hero's proof point ties a recorded decision to the release that shippe
   assert.match(proof, /invented records demonstrate Shiplog/);
   assert.match(proof, /not customer or internal operational data/);
 
-  // No money in the hero: a savings figure quoted next to the product story
-  // reads as savings a team has already banked. It belongs to AI FinOps, and
-  // AI FinOps still publishes it under its own qualifier.
+  // No money authored into the hero, still. Every figure on this page is
+  // rebuilt by a contract into the summary below, under the qualifier that
+  // contract carries; a dollar amount typed into the markup above it would be
+  // a claim with no arithmetic and no caveat behind it.
   assert.doesNotMatch(hero, /\$\d/);
   assert.doesNotMatch(hero, /realized savings|saved \$|per month/i);
   for (const figure of ["$7,430", "$5,200 / month", "High · 760-query scored sample"]) {
@@ -226,14 +235,15 @@ test("no developer note leaks into the copy a visitor reads", async () => {
 
 test("the AI FinOps call to action is reachable by Tab alone and opens on Enter", async () => {
   const document = parseHtml(await readFile(new URL("../src/index.html", import.meta.url), "utf8"));
-  const secondary = document.querySelector('a[href="/evolution.html"].secondary-button');
+  const primary = document.querySelector('a[href="/evolution.html"].button-link');
 
-  // From the top of the page, with nothing but Tab: the demo comes first, the
-  // AI FinOps link is a stop in the natural order, and Enter navigates there.
-  // Being secondary means reading as secondary, not being unreachable.
+  // From the top of the page, with nothing but Tab: the skip link, the brand,
+  // the nav, and then the hero's own call to action. Leading a page with a
+  // surface means reaching its control early in the natural order, not putting
+  // it somewhere only a pointer finds.
   let reached = null;
-  for (let press = 0; press < 20 && reached !== secondary; press += 1) reached = pressTab(document);
-  assert.equal(reached, secondary, "the AI FinOps link must sit in the natural tab order");
+  for (let press = 0; press < 20 && reached !== primary; press += 1) reached = pressTab(document);
+  assert.equal(reached, primary, "the AI FinOps link must sit in the natural tab order");
   pressEnter(document);
   assert.deepEqual(document.navigations, ["/evolution.html"]);
 });

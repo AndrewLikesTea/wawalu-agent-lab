@@ -1,0 +1,70 @@
+/* The front door's decision summary, and the log entry beneath it.
+ *
+ * The summary itself is drawn by executive-briefing.css: same document, same
+ * responsive scale, same colour-independent chips, same print sheet. This file
+ * only says how that document sits on a page it shares with the rest of the
+ * site, and what happens to the rest of the site when the page is printed.
+ *
+ * No new hue, no new type scale: every ink here is one styles.css already
+ * ships.
+ */
+
+/* ------------------------------- the hero ---------------------------------- */
+
+/* The privacy boundary is a claim a reader checks before they decide to try
+ * anything, so it is stated in the hero rather than beside the picker a page
+ * away. Bordered, not tinted: the words carry it in greyscale too. */
+.hero-boundary {
+  max-width:760px; margin:26px 0 0; border-left:4px solid #315f50; border-radius:0 10px 10px 0;
+  padding:12px 16px; background:#eef6f2; font-size:13px; line-height:1.55;
+}
+.hero-boundary strong {
+  display:block; color:#245643; font:750 10px/1.4 ui-monospace,monospace;
+  letter-spacing:.05em; text-transform:uppercase;
+}
+.hero-boundary span { color:#4c5650; }
+
+/* ------------------------- the one decision summary ------------------------ */
+
+.landing-decision { padding:0 0 clamp(40px,6vw,72px); }
+.landing-decision-intro { max-width:70ch; margin:0 0 26px; }
+.landing-decision-intro h2 {
+  margin:8px 0 12px; font-size:clamp(26px,4vw,40px); line-height:1.08; letter-spacing:-.03em;
+}
+.landing-decision-intro > p:not(.eyebrow) { margin:0 0 10px; color:#555550; font-size:17px; line-height:1.6; }
+.landing-decision-next { max-width:70ch; margin:22px 0 0; color:#55554f; font-size:14px; line-height:1.6; }
+
+/* The print control sits above the sheet it prints, in the tab order, with its
+ * own note. `.brief-actions` and `.brief-print-*` are the executive briefing's
+ * own classes, so the control looks and behaves identically on both pages. */
+.landing-decision .brief-actions { margin:0 0 18px; }
+
+/* The mount is the sheet's own container on this page. `#executive-briefing`
+ * carries the equivalent rule on the briefing page; neither id styles the
+ * other, so the two cannot drift into one selector nobody owns. */
+#landing-decision-summary { max-width:900px; }
+
+/* ------------------------ the log, one section down ------------------------ */
+
+.shiplog-entry {
+  max-width:940px; margin:0 0 clamp(28px,4vw,44px); border-top:1px solid #e0ded5; padding-top:clamp(26px,4vw,40px);
+}
+.shiplog-entry h2 { margin:8px 0 12px; font-size:clamp(24px,3.6vw,36px); line-height:1.1; letter-spacing:-.03em; }
+.shiplog-entry > p:not(.eyebrow) { max-width:70ch; margin:0; color:#555550; font-size:17px; line-height:1.6; }
+
+/* --------------------------------- print ----------------------------------- */
+
+/* What a reader gets when they print the front door: the briefing, alone.
+ *
+ * executive-briefing.css already takes off the site chrome and opens every
+ * collapsed level. This adds the part that is specific to a summary sharing a
+ * page: the rest of the front door — the hero, the log, the recorder, the
+ * filters, the export and import panels, the forms — is navigation and
+ * interactive control, and the presentation contract says neither may appear
+ * on the sheet. The intro copy and the "your own numbers" links go with them:
+ * they are this page speaking about the document, not the document. */
+@media print {
+  #main-content > *:not(.landing-decision) { display:none !important; }
+  .landing-decision { padding:0; }
+  .landing-decision-intro,.landing-decision-next { display:none !important; }
+}

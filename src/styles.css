@@ -57,8 +57,6 @@ h1 { margin:16px 0 24px; font-size:clamp(44px,7.3vw,82px); line-height:.96; lett
 .hero-proof-boundary span { color:#4c5650; }
 /* The secondary path. It sits below the proof point, under its own label and a
    rule, so nothing here competes with the one primary button above it. */
-.hero-aside { max-width:760px; margin-top:30px; border-top:1px solid #e0ded5; padding-top:16px; }
-.hero-aside p:not(.eyebrow) { max-width:640px; margin:8px 0 14px; color:#5f5f59; font-size:15px; line-height:1.6; }
 .product-story { margin:0 0 24px; border:1px solid #b9cde1; border-radius:18px; padding:clamp(26px,5vw,54px); background:linear-gradient(135deg,rgba(255,255,255,.94),rgba(226,239,251,.84)); box-shadow:0 14px 40px rgba(38,38,31,.05); scroll-margin-top:24px; }
 .product-story-intro { display:grid; grid-template-columns:minmax(220px,.7fr) minmax(340px,1.3fr); gap:10px clamp(30px,6vw,76px); align-items:start; margin-bottom:36px; }
 .product-story-intro .eyebrow { grid-column:1/-1; }

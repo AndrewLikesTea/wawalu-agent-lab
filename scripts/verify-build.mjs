@@ -140,6 +140,14 @@ export async function verifyArtifact(root) {
     // file, names a move, and then silently loses the before/after and the one
     // control that carries the move anywhere.
     "personal-history-trajectory.js", "personal-history-trajectory-view.js",
+    // The front door leads with one AI FinOps decision summary, so the summary
+    // is part of the home page rather than an enhancement on it. Its entry
+    // imports the composer, the composer imports the contract and the in-bundle
+    // synthetic sample, and the view draws it — a dropped one of these is a
+    // rejected entry module and a landing page whose first screen never gets
+    // past its building state. The stylesheet is what keeps the rest of the
+    // page off the printed sheet.
+    "index.html", "landing-decision-page.js", "landing-decision.js", "landing-decision.css",
   ]);
   const paths = new Set(actual.map(({ path }) => path));
   for (const path of required) if (!paths.has(path)) throw new Error(`missing required UI asset: ${path}`);

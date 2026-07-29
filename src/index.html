@@ -3,9 +3,17 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="Shiplog connects engineering decisions to releases so teams can understand why work shipped and make better decisions." />
-    <title>Shiplog · Decision and release log</title>
+    <meta name="description" content="AI FinOps names one AI spend decision — where to act first, how much is recoverable, what to do next, and how far to trust it — built in your browser tab. Shiplog's decision and release log is on the same site." />
+    <title>Shiplog · AI FinOps, decisions, and releases</title>
     <link rel="stylesheet" href="/styles.css" />
+    <!-- The decision summary below the hero is the same artifact the executive
+         briefing page draws, so it is drawn by the same stylesheet: one set of
+         responsive, colour-independent, and print rules for one document,
+         rather than a second copy of them that can drift. The landing sheet
+         adds only what is specific to sharing a page with the rest of this
+         site. -->
+    <link rel="stylesheet" href="/executive-briefing.css" />
+    <link rel="stylesheet" href="/landing-decision.css" />
   </head>
   <body>
     <a class="skip-link" href="#main-content">Skip to main content</a>
@@ -27,23 +35,85 @@
       </header>
 
       <main id="main-content" tabindex="-1">
-      <section class="hero" id="top" aria-labelledby="page-title">
-        <p class="eyebrow">Decision and release log for engineering teams</p>
-        <h1 id="page-title">Know why it shipped.<br />Decide what’s next.</h1>
-        <p>Shiplog records decisions, tracks the releases they shape, and keeps the link between them. A teammate who arrives six months late opens the release and reads the reasoning behind it, instead of reconstructing it from chat history.</p>
+      <!-- THE FRONT DOOR IS THE DECISION, NOT THE FILING CABINET.
+           This hero used to lead with the decision and release log and name AI
+           FinOps in an aside. That order asked a first-time visitor to want a
+           log before they had been shown anything worth logging, and put the
+           one surface that answers a question on arrival — "what is our AI
+           spend buying, and what should we do about it?" — behind a secondary
+           button. So AI FinOps leads, and the log keeps every workflow it had
+           one section down, under a heading that says what it is.
+           Nothing was removed. The record form, the searchable history, the
+           export, the import, the release panel, and every nav destination are
+           all still on this page, in the same order, with the same ids. -->
+      <section class="hero hero-finops" id="top" aria-labelledby="page-title">
+        <p class="eyebrow">AI FinOps · what your AI spend is buying</p>
+        <h1 id="page-title">One AI spend decision,<br />before you upload anything.</h1>
+        <p>AI FinOps reads a provider export in this browser tab and names the one thing to act on: where to act first, how much is recoverable, what to do next, and how far the number can be trusted. The example decision below is already built and needs nothing of yours.</p>
         <div class="hero-actions" data-conversion-slot="hero">
-          <a class="button-link" href="#record-history">Explore the decision and release log <span aria-hidden="true">→</span></a>
-          <a class="text-link" href="#decision-to-release">See how a decision reaches a release</a>
+          <a class="button-link" href="/evolution.html">Analyze your own provider export in AI FinOps <span aria-hidden="true">→</span></a>
+          <a class="text-link" href="#landing-decision">Read the example decision first</a>
         </div>
-        <!-- The proof point quotes the sample decision and the release that
-             carried it from seed-records.js, so the hero, the story cards
-             below, and the record list all describe the same two records.
-             Change the seed and change these words with it. The
-             synthetic-data line is part of this block and stays inside
-             it: the records may never appear without it.
-             Keep raw tag markup and double hyphens out of this note. Either
-             one ends the comment early and paints the rest of the paragraph,
-             and its closing marker, as visitor copy. -->
+        <p class="hero-boundary"><strong>Your files do not leave this tab.</strong> <span>Exports are read and analyzed in this browser. No upload, no credentials, no account, and nothing of yours is stored.</span></p>
+      </section>
+
+      <!-- ONE SUMMARY, AND ONLY ONE.
+           Every figure in it is rebuilt in this tab by the shipped executive
+           briefing contract from the three synthetic periods
+           executive-briefing-sample.js carries, which are the canonical
+           fixture's own inputs. No number is authored in this document, no
+           request is made, no clock is read, and nothing is written down.
+           The summary carries the six things a decision needs — the question
+           it answers, the material benchmark, the prioritized action, the
+           impact, the confidence, and the provenance — with the supporting
+           and method levels behind native disclosures rather than duplicated
+           into a second stack of result cards further down the page. -->
+      <!-- tabindex="-1" because the hero's second way on lands here: a reader
+           on a keyboard continues from the summary rather than from the top of
+           the page again. -->
+      <section class="landing-decision" id="landing-decision" tabindex="-1" aria-labelledby="landing-decision-title">
+        <div class="landing-decision-intro">
+          <p class="eyebrow">Built in this tab · nothing fetched, nothing uploaded</p>
+          <h2 id="landing-decision-title">The decision this site produces.</h2>
+          <p>One question, one figure, one action, and the verdict that bounds them. Open the two levels inside it to check the benchmark, the confidence, the provenance, the limits, and the arithmetic — the same document, one keystroke deeper, rather than a second copy of it elsewhere on this page.</p>
+          <p class="brief-print-hint">Printing or saving this page as PDF produces the briefing alone: every level opens on paper, and the site chrome, the controls, and the rest of this page come off.</p>
+        </div>
+        <!-- Drawn by the entry module, never shipped in the markup: a print
+             control on a page whose script never ran is a dead control. -->
+        <div class="brief-actions" id="landing-decision-actions"></div>
+        <!-- Deliberately not a live region. The summary is painted once, on
+             arrival, and nothing on this page ever replaces it — so announcing
+             a whole briefing document into a screen reader over the top of a
+             page a visitor has only just opened would interrupt them to read
+             out something they are already about to reach. aria-busy carries
+             the one state that does change. -->
+        <div id="landing-decision-summary" aria-busy="true">
+          <section class="brief-state" data-state="loading" role="status">
+            <h3>Building the example decision in this tab</h3>
+            <p>The three synthetic periods behind it ship with this page, so there is nothing to fetch and nothing to wait for…</p>
+          </section>
+        </div>
+        <p class="landing-decision-next">Your own numbers: <a href="/evolution.html">analyze a provider export in AI FinOps</a>, then <a href="/executive-briefing.html">read the same briefing built from the periods this browser keeps</a>. Both are read in this tab.</p>
+      </section>
+
+      <!-- THE LOG, WHOLE, ONE SECTION DOWN.
+           Every Shiplog workflow stays on this page and keeps its own ids: the
+           call to action below still lands on the populated record list at
+           #record-history, and the story, the recorder, the filters, the
+           export, and the import all follow it unchanged.
+           The proof point quotes the sample decision and the release that
+           carried it from seed-records.js, so this block, the story cards
+           below, and the record list all describe the same two records.
+           Change the seed and change these words with it. The
+           synthetic-data line is part of this block and stays inside it: the
+           records may never appear without it.
+           Keep raw tag markup and double hyphens out of this note. Either one
+           ends the comment early and paints the rest of the paragraph, and its
+           closing marker, as visitor copy. -->
+      <section class="shiplog-entry" id="shiplog-entry" aria-labelledby="shiplog-entry-title">
+        <p class="eyebrow">Also on this site · the decision and release log</p>
+        <h2 id="shiplog-entry-title">Know why it shipped. Decide what’s next.</h2>
+        <p>Shiplog records decisions, tracks the releases they shape, and keeps the link between them. A teammate who arrives six months late opens the release and reads the reasoning behind it, instead of reconstructing it from chat history. Recording, searching, filtering, exporting, and importing the log are all further down this page.</p>
         <div class="hero-proof">
           <p class="eyebrow">One recorded decision, and the release that shipped it</p>
           <dl class="hero-proof-facts">
@@ -53,12 +123,9 @@
           </dl>
           <p class="hero-proof-boundary"><strong>Representative synthetic records</strong> <span>These invented records demonstrate Shiplog. They are not customer or internal operational data.</span></p>
         </div>
-        <!-- AI FinOps is a different surface, so it is labelled as one and gets
-             a secondary button rather than a second primary one. -->
-        <div class="hero-aside">
-          <p class="eyebrow">Also on this site · separate demo</p>
-          <p>AI FinOps is a spend demo, not part of the log: score your own provider export in AI FinOps for intent, efficiency, and model fit. Your files do not leave this tab.</p>
-          <a class="secondary-button" href="/evolution.html">Score your provider export in AI FinOps</a>
+        <div class="hero-actions">
+          <a class="button-link" href="#record-history">Explore the decision and release log <span aria-hidden="true">→</span></a>
+          <a class="text-link" href="#decision-to-release">See how a decision reaches a release</a>
         </div>
       </section>
 
@@ -419,6 +486,7 @@
         </div>
       </div>
     </footer>
+    <script type="module" src="/landing-decision-page.js"></script>
     <script type="module" src="/app.js"></script>
     <script type="module" src="/shiplog-export-page.js"></script>
     <script type="module" src="/shiplog-import-page.js"></script>

@@ -54,7 +54,7 @@ test("the home page and the single-decision page are not titled the same thing",
   const detail = (await read("decision.html")).match(/<title>([^<]*)<\/title>/)[1];
 
   assert.notEqual(home, detail);
-  assert.equal(home, "Shiplog · Decision and release log");
+  assert.equal(home, "Shiplog · AI FinOps, decisions, and releases");
   // The detail page ships with a title before its record arrives. It has to be
   // stable, non-empty, and not the log's own name — the reader is on one
   // decision, and the tab should say so from the first paint.
