@@ -40,6 +40,16 @@
 // declared count", not "until the bytes stop looking like records": exactly the
 // declared count, ending exactly on the declared boundary, or the archive is
 // refused whole.
+//
+// A MEMBER IS DESCRIBED TWICE AND BOTH COPIES MUST AGREE. The directory is what
+// this reader searches; the local file header immediately before the bytes is
+// what it extracts. If those two are never compared, a central record can name
+// `conversations.json` while its offset points at some other member's local
+// header — and every check downstream still passes, because they all compare
+// the bytes against the record that lied. So the selected record and the local
+// header it points at are required to describe the same member in every field
+// that decides what is read or how: name bytes, method, flags, CRC, and both
+// sizes. See `readLocalHeader`.
 
 import { PERSONAL_READER_LIMITS } from "./personal-history-contract.js";
 
@@ -192,8 +202,28 @@ const ZIP64_MARKER_32 = 0xffffffff;
 const METHOD_STORE = 0;
 const METHOD_DEFLATE = 8;
 
-/** General-purpose bit 0: the member is encrypted. */
+/**
+ * The general-purpose bits that end a reading, and why each one does.
+ *
+ * bit 0 — encrypted: the bytes are not the member's bytes.
+ * bit 3 — data descriptor: the local header's CRC and sizes are zero and the
+ *   real ones sit *after* the payload, at an offset only a decompressor knows.
+ *   Reading it would mean inflating first and checking afterwards, which is the
+ *   opposite order to the one this module is built on, so it is refused instead.
+ * bit 6 — strong encryption: as bit 0, by another mechanism.
+ * bit 13 — masked local header: the local copies of the CRC and sizes are
+ *   deliberately zeroed, so the agreement check below has nothing to check.
+ *
+ * A flag outside this mask is one that does not change how the bytes are read
+ * (bit 1 and 2 are compression hints, bit 11 is the name's encoding), so it is
+ * carried through and compared rather than refused.
+ */
 const FLAG_ENCRYPTED = 0x0001;
+const FLAG_DATA_DESCRIPTOR = 0x0008;
+const FLAG_STRONG_ENCRYPTION = 0x0040;
+const FLAG_MASKED_LOCAL_HEADER = 0x2000;
+const UNSUPPORTED_FLAGS = FLAG_ENCRYPTED | FLAG_DATA_DESCRIPTOR
+  | FLAG_STRONG_ENCRYPTION | FLAG_MASKED_LOCAL_HEADER;
 
 const outcome = (code, extra = {}) => Object.freeze({
   version: PERSONAL_ARCHIVE_VERSION,
@@ -366,6 +396,12 @@ export function readCentralDirectory(bytes) {
 
     entries.push(Object.freeze({
       name, flags, method, crc, compressedSize, uncompressedSize, localHeaderAt,
+      // Where the name was read from, kept so the local header's copy of it can
+      // be compared byte for byte rather than through two decodes. Two different
+      // byte strings can decode to the same string, and "the same name" has to
+      // mean the same bytes for the comparison below to be worth making.
+      nameAt: cursor + CENTRAL_FIXED,
+      nameLength,
     }));
     cursor += CENTRAL_FIXED + variable;
   }
@@ -465,6 +501,96 @@ async function inflateRaw(bytes, cap) {
 const TEXT_DECODER = new TextDecoder("utf-8", { fatal: true });
 
 /**
+ * Read the local file header a selected record points at, and require the two
+ * copies of the member to be the same member.
+ *
+ * WHY THIS EXISTS. A ZIP describes every member twice: once in the central
+ * directory, which is what a reader searches, and once in a local file header
+ * immediately before the bytes themselves, which is what a reader extracts. The
+ * first version of this module searched the first and extracted from the second
+ * without ever asking whether they agreed. That gap is the whole of the attack:
+ * a central record can name `conversations.json` and point its offset at a
+ * local entry named something else entirely. Every downstream check still
+ * passes — the payload is real, its CRC matches, its size matches — because
+ * every one of those checks compares the bytes against the *central* record,
+ * which is the record that lied. What is graded is then not the member this
+ * product declared it would open, and the archive got to choose which member
+ * that was.
+ *
+ * THE RULE. The two records must describe the same member in every field that
+ * decides what is read or how: the name (compared as bytes, at the same
+ * length), the compression method, the general-purpose flags, and the CRC and
+ * both sizes. Any disagreement refuses the archive whole. This is deliberately
+ * stricter than the format requires — a ZIP writer is permitted to differ in
+ * the extra field, and only that — because "which of these two records is the
+ * true one" has no answer a reader could check, and an ambiguous archive read
+ * either way is a reading nobody can defend.
+ *
+ * THE ZIP64 SENTINELS need no separate check here: the central record's own
+ * sizes were refused as unsupported before this function is reached, and the
+ * local copies are then required to equal them.
+ *
+ * Bounds are checked in the same order as everything else in this module —
+ * containment first, then the signature, then the fields — and every offset is
+ * bounded by `directoryAt`, because a member's bytes live before the directory
+ * that describes them.
+ *
+ * @param {Uint8Array} bytes the whole archive.
+ * @param {DataView} view the same bytes.
+ * @param {object} member the selected central-directory record.
+ * @param {number} directoryAt where the central directory starts.
+ * @returns {{ok: true, dataAt: number, dataEnd: number} | {ok: false, code: string}}
+ */
+export function readLocalHeader(bytes, view, member, directoryAt) {
+  const fail = (code) => Object.freeze({ ok: false, code });
+  const headerAt = member.localHeaderAt;
+  if (headerAt + LOCAL_FIXED > directoryAt) return fail(PERSONAL_ARCHIVE_OUTCOME.malformedArchive);
+  if (view.getUint32(headerAt, true) !== LOCAL_SIGNATURE) {
+    return fail(PERSONAL_ARCHIVE_OUTCOME.malformedArchive);
+  }
+
+  const flags = view.getUint16(headerAt + 6, true);
+  const method = view.getUint16(headerAt + 8, true);
+  const crc = view.getUint32(headerAt + 14, true);
+  const compressedSize = view.getUint32(headerAt + 18, true);
+  const uncompressedSize = view.getUint32(headerAt + 22, true);
+  const nameLength = view.getUint16(headerAt + 26, true);
+  const extraLength = view.getUint16(headerAt + 28, true);
+
+  // A flag this reader does not open is unsupported wherever it is declared. It
+  // is read off the local header too, because the central record is the copy an
+  // archive controls most cheaply and agreement alone would let both lie.
+  if (flags & UNSUPPORTED_FLAGS) return fail(PERSONAL_ARCHIVE_OUTCOME.unsupportedArchive);
+
+  if (flags !== member.flags || method !== member.method || crc !== member.crc
+    || compressedSize !== member.compressedSize || uncompressedSize !== member.uncompressedSize) {
+    return fail(PERSONAL_ARCHIVE_OUTCOME.malformedArchive);
+  }
+
+  // The name, as bytes, at the same length. The length is checked first so the
+  // comparison below is over two ranges of equal size, and the range is checked
+  // for containment before it is read.
+  const nameAt = headerAt + LOCAL_FIXED;
+  if (nameLength !== member.nameLength) return fail(PERSONAL_ARCHIVE_OUTCOME.malformedArchive);
+  if (nameAt + nameLength > directoryAt) return fail(PERSONAL_ARCHIVE_OUTCOME.malformedArchive);
+  for (let at = 0; at < nameLength; at += 1) {
+    if (bytes[nameAt + at] !== bytes[member.nameAt + at]) {
+      return fail(PERSONAL_ARCHIVE_OUTCOME.malformedArchive);
+    }
+  }
+
+  // The data starts after the local copy of the name and extra field — the
+  // local lengths, not the central ones, because those two are allowed to
+  // differ and the payload sits after whichever this header declared.
+  const dataAt = nameAt + nameLength + extraLength;
+  const dataEnd = dataAt + member.compressedSize;
+  if (dataAt > directoryAt || dataEnd > directoryAt) {
+    return fail(PERSONAL_ARCHIVE_OUTCOME.malformedArchive);
+  }
+  return Object.freeze({ ok: true, dataAt, dataEnd });
+}
+
+/**
  * Open a chosen archive and return the one declared member's text, or a
  * structured refusal.
  *
@@ -497,7 +623,7 @@ export async function openPersonalArchive(input) {
 
   const member = matches[0];
   const pack = PERSONAL_ARCHIVE_PACKAGES.find((entry) => entry.members.includes(member.name));
-  if (member.flags & FLAG_ENCRYPTED) return refuse(PERSONAL_ARCHIVE_OUTCOME.unsupportedArchive, directory);
+  if (member.flags & UNSUPPORTED_FLAGS) return refuse(PERSONAL_ARCHIVE_OUTCOME.unsupportedArchive, directory);
   if (member.method !== METHOD_STORE && member.method !== METHOD_DEFLATE) {
     return refuse(PERSONAL_ARCHIVE_OUTCOME.unsupportedArchive, directory);
   }
@@ -508,27 +634,15 @@ export async function openPersonalArchive(input) {
     return refuse(PERSONAL_ARCHIVE_OUTCOME.memberTooLarge, directory);
   }
 
-  // The local header, bounded the same way the directory was: a member's bytes
-  // live before the directory that describes them, so the whole of the header
-  // and the whole of the data must lie in [0, directoryAt).
+  // The local header the selected record points at, required to describe the
+  // same member the directory did. Nothing is decompressed until it does: an
+  // archive whose two descriptions of a member disagree does not get to pick
+  // which one this reader grades.
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  const headerAt = member.localHeaderAt;
-  if (headerAt + LOCAL_FIXED > directory.directoryAt) {
-    return refuse(PERSONAL_ARCHIVE_OUTCOME.malformedArchive, directory);
-  }
-  if (view.getUint32(headerAt, true) !== LOCAL_SIGNATURE) {
-    return refuse(PERSONAL_ARCHIVE_OUTCOME.malformedArchive, directory);
-  }
-  // The local header's own name and extra lengths, not the directory's: the two
-  // are allowed to differ, and the data starts after the local copy.
-  const dataAt = headerAt + LOCAL_FIXED
-    + view.getUint16(headerAt + 26, true) + view.getUint16(headerAt + 28, true);
-  const dataEnd = dataAt + member.compressedSize;
-  if (dataAt > directory.directoryAt || dataEnd > directory.directoryAt) {
-    return refuse(PERSONAL_ARCHIVE_OUTCOME.malformedArchive, directory);
-  }
+  const local = readLocalHeader(bytes, view, member, directory.directoryAt);
+  if (!local.ok) return refuse(local.code, directory);
 
-  const raw = bytes.subarray(dataAt, dataEnd);
+  const raw = bytes.subarray(local.dataAt, local.dataEnd);
   let content;
   if (member.method === METHOD_STORE) {
     if (member.compressedSize !== member.uncompressedSize) {
