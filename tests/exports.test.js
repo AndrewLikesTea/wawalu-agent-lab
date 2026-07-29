@@ -31,12 +31,27 @@ function store() {
   };
 }
 
+// The linked snapshot (`links`, `metadata.counts`, `metadata.unresolvedLinks`,
+// the field allowlist, and canonical order) is pinned in
+// tests/shiplog-snapshot.test.js; these tests hold the envelope and the
+// endpoint behaviour around it.
+const LINKED_METADATA = {
+  timestamp: NOW.toISOString(),
+  version: EXPORT_VERSION,
+  counts: {
+    decisions: 1, releases: 1, links: 1,
+    decisionsWithoutReleases: 0, releasesWithoutDecisions: 0,
+  },
+  unresolvedLinks: [],
+};
+
 test("createExport wraps exact internal records with versioned timestamp metadata", () => {
   const exported = createExport({ decisions: [decision], releases: [release] }, { timestamp: NOW.toISOString() });
   assert.deepEqual(exported, {
-    metadata: { timestamp: NOW.toISOString(), version: EXPORT_VERSION },
+    metadata: LINKED_METADATA,
     decisions: [decision],
     releases: [release],
+    links: [{ releaseId: "r1", decisionId: "d1", position: 0 }],
   });
   assert.notEqual(exported.decisions[0], decision, "the export is a snapshot, not a live record reference");
 });
@@ -49,8 +64,9 @@ test("combined endpoint exports every decision and release as a JSON attachment"
   assert.equal(response.headers.get("content-type"), "application/json; charset=utf-8");
   assert.equal(response.headers.get("content-disposition"), 'attachment; filename="shiplog-all-2026-07-18.json"');
   assert.deepEqual(await response.json(), {
-    metadata: { timestamp: NOW.toISOString(), version: EXPORT_VERSION },
+    metadata: LINKED_METADATA,
     decisions: [decision], releases: [release],
+    links: [{ releaseId: "r1", decisionId: "d1", position: 0 }],
   });
 });
 
@@ -166,7 +182,9 @@ test("D1 adapter reads both complete tables and restores release decisionIds", a
   assert.deepEqual(await d1.listReleases(), [release]);
   assert.deepEqual(await d1.listAll(), { decisions: [decision], releases: [release] });
   assert.deepEqual(queries, [
-    "SELECT * FROM decisions", "SELECT * FROM releases",
-    "SELECT * FROM decisions", "SELECT * FROM releases",
+    "SELECT * FROM decisions ORDER BY createdAt ASC, id ASC",
+    "SELECT * FROM releases ORDER BY createdAt ASC, id ASC",
+    "SELECT * FROM decisions ORDER BY createdAt ASC, id ASC",
+    "SELECT * FROM releases ORDER BY createdAt ASC, id ASC",
   ]);
 });

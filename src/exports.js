@@ -1,3 +1,14 @@
+import {
+  linkShiplogRecords,
+  snapshotDecisions,
+  snapshotReleases,
+} from "./shiplog-snapshot.js";
+
+// Still "1". Every change the linked snapshot made to this payload is additive
+// (`links`, `metadata.counts`, `metadata.unresolvedLinks`) or narrowing (only
+// declared fields, canonical order, no dangling reference). A reader written
+// against version 1 keeps working on both counts, and bumping the number would
+// only invalidate stored exports to buy nothing.
 export const EXPORT_VERSION = "1";
 
 const EXPORT_PATH =
@@ -23,8 +34,22 @@ export function createExport(records, options = {}) {
   const payload = {
     metadata: { timestamp, version: EXPORT_VERSION },
   };
-  if (records.decisions !== undefined) payload.decisions = structuredClone(records.decisions);
-  if (records.releases !== undefined) payload.releases = structuredClone(records.releases);
+  // Both logs in one file is the only case where an association can be
+  // resolved, so it is the only case that carries `links`. A single-table
+  // export still gets the allowlist and the canonical order; it just leaves
+  // each release's `decisionIds` as the release recorded them, because there
+  // are no decisions in the file to check them against.
+  if (records.decisions !== undefined && records.releases !== undefined) {
+    const snapshot = linkShiplogRecords(records.decisions, records.releases);
+    payload.metadata.counts = snapshot.counts;
+    payload.metadata.unresolvedLinks = snapshot.unresolvedLinks;
+    payload.decisions = snapshot.decisions;
+    payload.releases = snapshot.releases;
+    payload.links = snapshot.links;
+  } else {
+    if (records.decisions !== undefined) payload.decisions = snapshotDecisions(records.decisions);
+    if (records.releases !== undefined) payload.releases = snapshotReleases(records.releases);
+  }
   if (records.portfolio !== undefined) payload.portfolio = structuredClone(records.portfolio);
   if (records.reconciliation !== undefined) {
     payload.reconciliation = structuredClone(records.reconciliation);
@@ -81,6 +106,14 @@ function parseDecisionIds(record) {
   }
 }
 
+// Deterministic at the query, not only in the handler. SQLite is free to return
+// rows in any order it likes and will change that order as soon as a query plan
+// changes; naming the order here means the rows arrive in the same sequence the
+// snapshot writes them in, so a paged or truncated read can never silently
+// reshuffle the file. `createdAt` is not unique, hence the id tiebreak — the
+// same total order shiplog-export-schema.js defines for the browser export.
+const EXPORT_ORDER = "ORDER BY createdAt ASC, id ASC";
+
 export function createD1ExportStore(database) {
   if (!database || typeof database.prepare !== "function") {
     throw new TypeError("A D1-compatible database is required.");
@@ -92,7 +125,7 @@ export function createD1ExportStore(database) {
     return result.results;
   };
   const list = async (table) => readResult(
-    await database.prepare(`SELECT * FROM ${table}`).all(),
+    await database.prepare(`SELECT * FROM ${table} ${EXPORT_ORDER}`).all(),
     table,
   );
   return Object.freeze({
@@ -102,9 +135,12 @@ export function createD1ExportStore(database) {
       if (typeof database.batch !== "function") {
         throw new Error("The database does not support transactional batch exports.");
       }
+      // One batch, so both logs are read from the same point in time: a release
+      // recorded between two separate reads would otherwise export a link to a
+      // decision the file does not carry.
       const [decisionResult, releaseResult] = await database.batch([
-        database.prepare("SELECT * FROM decisions"),
-        database.prepare("SELECT * FROM releases"),
+        database.prepare(`SELECT * FROM decisions ${EXPORT_ORDER}`),
+        database.prepare(`SELECT * FROM releases ${EXPORT_ORDER}`),
       ]);
       return {
         decisions: readResult(decisionResult, "decisions"),
