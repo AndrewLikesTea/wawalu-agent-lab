@@ -56,6 +56,7 @@ import {
   renderBoundaryGuidance, renderEligibilityGuide, renderEntryError, renderIdle,
   renderProgress, renderReport, wireDisclosures,
 } from "/personal-history-view.js";
+import { wireHandoff } from "/personal-history-trajectory-view.js";
 
 export const FILE_INPUT_ID = "personal-history-file";
 export const PREVIEW_ID = "personal-history-preview";
@@ -189,7 +190,13 @@ export function initPersonalHistory(doc = globalThis.document, { storage = brows
       : carryForward(report, storage, { origin: CARRY_FORWARD_ORIGIN.ownExport }).comparison;
 
     const article = settle(token, renderReport(report, { kind, comparison }), summarize(report, kind));
-    if (article) wireDisclosures(article, doc);
+    if (article) {
+      wireDisclosures(article, doc);
+      // The handoff carries rubric copy and a move identifier to the reader's
+      // clipboard and nowhere else. It is wired per render, on the article that
+      // won the race, so a superseded run cannot leave a live control behind.
+      wireHandoff(article, doc);
+    }
     return article ? report : null;
   }
 

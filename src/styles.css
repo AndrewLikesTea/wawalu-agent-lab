@@ -318,6 +318,9 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .coach-entry h2 { margin:0; font-size:clamp(21px,3vw,27px); line-height:1.15; letter-spacing:-.03em; }
 .coach-entry p:not(.eyebrow) { max-width:70ch; margin:0; color:#4f5a4d; font-size:15px; line-height:1.62; }
 .coach-entry .secondary-button { margin-top:4px; }
+/* The companion path reads as a footnote to the offer above it, not as a second
+   call to action competing with it. */
+.coach-entry .coach-entry-companion { margin-top:2px; font-size:14px; color:#5c6759; }
 .decision-context { display:grid; grid-template-columns:minmax(180px,.4fr) minmax(0,1fr); gap:24px; padding:24px 0; border-block:1px solid #dedcd5; }
 .decision-context h2,.decision-context p { margin:0; }
 .decision-context h2 { font-size:19px; letter-spacing:-.02em; }

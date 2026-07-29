@@ -445,6 +445,11 @@ test("no module this workflow reaches can upload, store, or authenticate", async
   const modules = [
     "personal-history-page.js", "personal-history-view.js", "personal-history-entry.js",
     "personal-history-report.js", "personal-history-contract.js", "personal-history-fixture.js",
+    // The trajectory finding and the surface that draws it. They read a report
+    // and a comparison, both of which are already text-free, and the handoff
+    // they add puts its brief on a clipboard the reader pressed for — never in a
+    // request, a URL, or a second stored key.
+    "personal-history-trajectory.js", "personal-history-trajectory-view.js",
   ];
   // Call syntax rather than the word: the contract module *states* these
   // refusals in its published copy, and a scan that could not tell a promise

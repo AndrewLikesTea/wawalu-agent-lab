@@ -96,6 +96,59 @@
 .ph-carry[data-direction=flat] .ph-carry-direction::before { content:"→ "; color:#62625d; }
 .ph-carry-arithmetic { color:#3f3f39; font:400 13px/1.5 ui-monospace,monospace; }
 .ph-carry-metric,.ph-carry-basis,.ph-carry-reason { color:#3f3f39; font-size:14px; }
+
+/* The trajectory finding. The headline carries the answer, the two readings
+   carry the evidence for it, and neither is signalled by colour alone: the
+   finding word is in the sentence and the mark before it is a shape. */
+.ph-trajectory-headline { margin:0 0 8px; font-size:17px; font-weight:700; max-width:66ch; }
+.ph-trajectory-headline::before { content:"— "; color:#62625d; }
+.ph-carry[data-trajectory=improved] .ph-trajectory-headline::before { content:"↓ "; color:#3f7a4f; }
+.ph-carry[data-trajectory=worsened] .ph-trajectory-headline::before { content:"↑ "; color:#8a3d2f; }
+.ph-carry[data-trajectory=no_meaningful_movement] .ph-trajectory-headline::before { content:"= "; color:#62625d; }
+.ph-carry[data-trajectory=first_reading] .ph-trajectory-headline::before { content:"◆ "; color:#155f9e; }
+.ph-carry[data-trajectory=incompatible] .ph-trajectory-headline::before { content:"✕ "; color:#8a6a2f; }
+.ph-carry[data-trajectory=insufficient_evidence] .ph-trajectory-headline::before { content:"○ "; color:#62625d; }
+.ph-trajectory-rule,.ph-trajectory-claims { margin:0 0 6px; max-width:70ch; color:#3f3f39; font-size:14px; }
+.ph-trajectory-refuses { margin:0 0 6px; max-width:70ch; color:#3f3f39; font-size:14px; }
+.ph-trajectory-refuses::before { content:"✕ "; color:#8a3d2f; }
+
+/* Before and after. Two lists in one row where there is room, stacked in
+   reading order where there is not — the same document either way. */
+.ph-readings { display:grid; grid-template-columns:1fr auto 1fr; align-items:start; gap:12px; margin:10px 0 14px; }
+.ph-reading { border:1px solid #e2dfd7; border-radius:12px; padding:12px 14px; background:#fff; }
+.ph-reading[data-side=current] { border-color:#c5cfd9; background:#f7fafc; }
+.ph-reading-title { margin:0 0 8px; font-size:13px; letter-spacing:.06em; text-transform:uppercase; color:#62625d; }
+.ph-reading-facts { display:grid; grid-template-columns:1fr auto; gap:4px 12px; margin:0; }
+.ph-reading-facts dt { color:#3f3f39; font-size:14px; }
+.ph-reading-facts dd { margin:0; text-align:right; font-weight:650; font-size:14px; font-variant-numeric:tabular-nums; }
+.ph-reading-absent { margin:0; color:#62625d; font-size:14px; line-height:1.55; }
+.ph-readings-arrow { margin:0; align-self:center; color:#62625d; font-size:20px; }
+
+.ph-trajectory-confidence { margin:0 0 10px; border-left:3px solid #cfcdc5; padding:2px 0 2px 12px; }
+.ph-trajectory-confidence[data-confidence=low] { border-left-color:#8a3d2f; }
+.ph-trajectory-confidence[data-confidence=moderate] { border-left-color:#8a6a2f; }
+.ph-trajectory-confidence[data-confidence=high] { border-left-color:#3f7a4f; }
+.ph-trajectory-confidence-level { margin:0 0 4px; font-weight:650; }
+.ph-trajectory-confidence-caveat { margin:0; max-width:70ch; color:#3f3f39; font-size:14px; line-height:1.55; }
+.ph-trajectory-disclosure { margin-top:12px; }
+.ph-panel-body h6 { margin:14px 0 6px; font-size:14px; }
+.ph-panel-body h6:first-child { margin-top:0; }
+
+/* The handoff. One press and one link, both full-height targets, and the
+   fallback box only where a clipboard refused. */
+.ph-handoff { margin:16px 0 0; border:1px solid #cfd6dd; border-radius:12px; padding:14px 16px; background:#f7fafc; }
+.ph-handoff-lead { margin:0 0 10px; max-width:70ch; line-height:1.55; }
+.ph-handoff-actions { display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+.ph-handoff-copy { min-height:44px; border:1px solid #155f9e; border-radius:10px; padding:10px 16px; background:#155f9e; color:#fff; font-size:15px; font-weight:650; cursor:pointer; }
+.ph-handoff-copy[disabled] { opacity:.6; cursor:progress; }
+.ph-handoff-link { display:inline-flex; align-items:center; min-height:44px; padding:10px 16px; border:1px solid #b9c2cb; border-radius:10px; background:#fff; color:#155f9e; font-weight:650; text-decoration:none; }
+.ph-handoff-copy:focus-visible,.ph-handoff-link:focus-visible,.ph-handoff-text:focus-visible { outline:3px solid var(--focus-ring); outline-offset:2px; }
+.ph-handoff-status { margin:8px 0 0; min-height:1.4em; color:#3f3f39; font-size:14px; }
+.ph-handoff-status[data-outcome=manual] { color:#8a3d2f; }
+.ph-handoff-fallback { margin:10px 0 0; }
+.ph-handoff-label { display:block; margin:0 0 4px; font-size:13px; font-weight:650; color:#62625d; }
+.ph-handoff-text { width:100%; border:1px solid #cfcdc5; border-radius:10px; padding:10px; background:#fff; font:400 14px/1.55 ui-monospace,monospace; }
+.ph-handoff-boundary { margin:10px 0 0; max-width:70ch; color:#62625d; font-size:13px; line-height:1.5; }
 .ph-confidence-level { margin:0 0 6px; font-size:17px; font-weight:700; }
 .ph-confidence-level::before { content:"● "; color:#3f7a4f; }
 .ph-confidence[data-confidence=moderate] .ph-confidence-level::before { content:"◑ "; color:#8a6a2f; }
@@ -133,6 +186,12 @@
   .ph-counts { grid-template-columns:1fr; }
   .ph-counts dd { text-align:left; }
   .ph-lead { border-left-width:2px; padding-left:12px; }
+  /* Before and after become before, then after. The arrow turns to match, so
+     the one decoration on the pair still points the way the eye travels. */
+  .ph-readings { grid-template-columns:1fr; }
+  .ph-readings-arrow { justify-self:center; rotate:90deg; }
+  .ph-handoff-actions { flex-direction:column; align-items:stretch; }
+  .ph-handoff-copy,.ph-handoff-link { justify-content:center; text-align:center; }
 }
 
 @media(prefers-reduced-motion:reduce) { html { scroll-behavior:auto; } }
