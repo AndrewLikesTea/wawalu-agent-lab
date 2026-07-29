@@ -353,9 +353,29 @@ export function wirePrintControl(control, article, { scope = globalThis, doc = d
 
 /* --------------------------------- sections ---------------------------------- */
 
-function masthead(briefing, origin) {
+/**
+ * The one thing a reader must not be able to miss on a sample.
+ *
+ * First element of the masthead, above the question: a chip whose word is
+ * "sample" and a sentence that says what that means, so a sheet photographed off
+ * a screen or pulled out of a drawer cannot be mistaken for a measurement. It
+ * carries no colour of its own on paper — the word is the signal.
+ */
+function syntheticBanner({ label, disclosure }) {
+  const banner = el("aside", "brief-synthetic");
+  banner.dataset.synthetic = "true";
+  banner.setAttribute("aria-labelledby", "brief-synthetic-title");
+  const title = el("p", "brief-synthetic-title");
+  title.id = "brief-synthetic-title";
+  title.append(el("span", "brief-synthetic-tag", label));
+  banner.append(title, el("p", "brief-synthetic-statement", disclosure));
+  return banner;
+}
+
+function masthead(briefing, origin, synthetic) {
   const header = el("header", "brief-masthead");
   const question = briefing.questions?.[0]?.question ?? "Where should we act first?";
+  if (synthetic) header.append(syntheticBanner(synthetic));
   header.append(el("p", "eyebrow", "Executive briefing · AI FinOps"));
 
   const title = el("h2", "brief-question");
@@ -410,6 +430,24 @@ function metricSection(briefing) {
   section.append(el("p", "brief-figure-share",
     `${percentOfPpm(recoverable.sharePpm)} of ${usd(recoverable.analyzedSpendMinor)} analyzed spend`
     + `${briefing.reportingPeriod ? ` in ${briefing.reportingPeriod.period}` : ""}.`));
+
+  // Modelled potential is not money in the bank, and a figure this size is read
+  // as money in the bank unless the sheet says otherwise where the figure is —
+  // not four sections later. The statement is the contract's own
+  // `scenario_not_realized_saving` limitation, drawn at level 1 beside the
+  // figure it qualifies rather than restated in this file's words.
+  const notRealized = (briefing.limitations ?? [])
+    .find((entry) => entry?.code === "scenario_not_realized_saving");
+  if (notRealized) {
+    const basis = el("p", "brief-figure-basis");
+    basis.dataset.basis = "modelled_potential";
+    inline(
+      basis,
+      el("span", "brief-basis-tag", "Modelled potential, not realized savings"),
+      el("span", "brief-basis-statement", notRealized.statement),
+    );
+    section.append(basis);
+  }
 
   const benchmark = briefing.benchmark;
   if (benchmark?.eligible) {
@@ -515,7 +553,7 @@ function trustSection(briefing) {
  * and an honest count of the rest, which names where they are rather than
  * implying there are none.
  */
-function boundsSection(briefing, { level2Title }) {
+function boundsSection(briefing, { level2Title, level3Title, provenanceNote }) {
   const section = el("section", "brief-section brief-bounds");
   section.dataset.role = "limitations";
   section.setAttribute("aria-labelledby", "brief-bounds-title");
@@ -532,7 +570,41 @@ function boundsSection(briefing, { level2Title }) {
       + `“${level2Title}” below. All ${limitations.length} print.`
     : "This briefing carries no further limitation."));
   section.append(el("p", "brief-bound-safety", briefing.safety?.statement ?? ""));
+  section.append(provenanceSummary(briefing, { level2Title, level3Title, provenanceNote }));
   return section;
+}
+
+/**
+ * How this sheet was produced, said once on the first screen.
+ *
+ * A reader who is going to carry a figure into a room needs "where did this come
+ * from" answered before they leave, not after they find and open a disclosure —
+ * and a printed sheet that only proves its provenance on page three proves it to
+ * nobody. This is the level-2 provenance record summarised at the level it is
+ * read at, plus the route to the full record and the method, which is the same
+ * treatment the governing limitation already gets above it. No level-3 field is
+ * quoted here: the method stays behind its own level, named rather than opened.
+ */
+function provenanceSummary(briefing, { level2Title, level3Title, provenanceNote }) {
+  const block = el("section", "brief-provenance-summary");
+  block.setAttribute("aria-labelledby", "brief-provenance-summary-title");
+  const heading = el("h4", "brief-subheading", "Where this came from, and how to check it");
+  heading.id = "brief-provenance-summary-title";
+  block.append(heading);
+
+  const provenance = briefing.provenance ?? {};
+  const periods = provenance.retainedPeriodCount;
+  block.append(el("p", "brief-provenance-line",
+    `${count(periods)} retained period${periods === 1 ? "" : "s"} of the `
+    + `${provenance.dataset ?? "none"} dataset, derived ${provenance.derivedAt ?? "—"}, `
+    + `fingerprint ${provenance.sourceFingerprint ?? "—"}; `
+    + `${count(provenance.recordsAnalyzed)} of ${count(provenance.recordsTotal)} records analyzed.`));
+  if (provenanceNote) block.append(el("p", "brief-provenance-note-lead", provenanceNote));
+  block.append(el("p", "brief-provenance-route",
+    `The full provenance record and every limitation are in “${level2Title}”; the method that recomputes `
+    + `each figure is in “${level3Title}”. Both open on paper, so a printed sheet carries them whether or `
+    + "not they were opened on screen."));
+  return block;
 }
 
 /* ------------------------------- disclosures --------------------------------- */
@@ -638,12 +710,13 @@ function methodPanel(briefing) {
  * published synthetic fixture is not the reader's own spend, and says so in the
  * masthead rather than in a footnote.
  */
-export function renderExecutiveBriefingPreview(briefing, { origin, provenanceNote } = {}) {
+export function renderExecutiveBriefingPreview(briefing, { origin, provenanceNote, synthetic } = {}) {
   const article = el("article", "brief");
   article.dataset.state = briefing?.reportingPeriod ? "briefing" : "absent";
+  if (synthetic) article.dataset.synthetic = "true";
   article.setAttribute("aria-labelledby", "brief-question");
 
-  article.append(masthead(briefing, origin));
+  article.append(masthead(briefing, origin, synthetic));
 
   if (!briefing?.reportingPeriod) {
     const absent = el("section", "brief-section brief-absent-slots");
@@ -661,7 +734,9 @@ export function renderExecutiveBriefingPreview(briefing, { origin, provenanceNot
   }
 
   article.append(trustSection(briefing));
-  article.append(boundsSection(briefing, { level2Title: DISCLOSURE[0].title }));
+  article.append(boundsSection(briefing, {
+    level2Title: DISCLOSURE[0].title, level3Title: DISCLOSURE[1].title, provenanceNote,
+  }));
   article.append(disclosure(DISCLOSURE[0], supportingPanel(briefing, provenanceNote)));
   article.append(disclosure(DISCLOSURE[1], methodPanel(briefing)));
   return article;

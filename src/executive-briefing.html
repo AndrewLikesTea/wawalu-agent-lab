@@ -35,7 +35,7 @@
       <section class="brief-hero" aria-labelledby="page-title">
         <p class="eyebrow">Executive FinOps briefing</p>
         <h1 id="page-title">One page,<br />one decision.</h1>
-        <p>Built in this tab from the FinOps periods this browser already holds, and checked against the contract that defines it. Read the first screen to act; open the two levels below to challenge it. When this browser holds nothing to brief on, the page says so and shows the published synthetic sample instead. Nothing here is uploaded, stored, or linked.</p>
+        <p>Built in this tab from the FinOps periods this browser already holds, and checked against the contract that defines it. Read the first screen to act; open the two levels below to challenge it. When this browser holds nothing to brief on, the page says so and draws the published synthetic sample straight away — it ships in this page, so there is nothing to wait for and nothing to fetch. Nothing here is uploaded, stored, or linked.</p>
         <p class="brief-print-hint">Printing or saving as PDF keeps the whole briefing: both levels open on paper, and the site chrome comes off.</p>
       </section>
 
@@ -46,13 +46,15 @@
            browser's own print command, which the same code listens for. -->
       <div id="briefing-actions" class="brief-actions"></div>
 
-      <!-- The briefing is painted here. The document ships its own loading state
-           so a reader on a slow connection is told what is happening rather than
-           given an empty frame. -->
+      <!-- The briefing is painted here. The state below is what a reader sees
+           between parse and module execution only: neither path fetches
+           anything, so it is replaced by a complete briefing in the same pass —
+           the reader's own periods when this browser holds them, and the
+           synthetic sample this page ships when it does not. -->
       <div id="executive-briefing" aria-live="polite" aria-busy="true">
         <section class="brief-state" data-state="loading" role="status">
           <h2>Reading this browser's own FinOps figures</h2>
-          <p>Building the briefing in this tab from the periods retained here, or saying so and showing the published sample if there are none…</p>
+          <p>Building the briefing in this tab from the periods retained here, or from the synthetic sample this page carries if there are none. Nothing is fetched either way…</p>
         </section>
       </div>
 
@@ -84,7 +86,7 @@
               <input id="briefing-contact-email" name="email" type="email" maxlength="254" inputmode="email" autocomplete="email" placeholder="you@company.com" required aria-describedby="briefing-contact-note" />
             </div>
             <p class="field-error brief-contact-error" id="briefing-contact-error" hidden></p>
-            <p class="brief-contact-note" id="briefing-contact-note">This form sends one thing: the work email address you type. No figure, period, limitation, file, or prompt text from this briefing is read, attached, or transmitted — this form cannot reach what your browser holds, and the briefing above does not change when you send it.</p>
+            <p class="brief-contact-note" id="briefing-contact-note">This form sends one thing: the work email address you type. No figure, period, limitation, file, or prompt text from this briefing is read, attached, or transmitted — this form cannot reach what your browser holds, and the briefing above does not change when you send it. The briefing figures on this page and any files you imported on the AI FinOps page are never transmitted, by this form or by anything else on this site: they stay in this browser.</p>
             <div class="brief-contact-actions">
               <button type="submit">Request a follow-up</button>
               <button id="briefing-contact-dismiss" type="button">Close</button>
