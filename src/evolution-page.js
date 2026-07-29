@@ -83,6 +83,12 @@ import { headlineTrust } from "/finops-display.js";
 // Whether the letter may be shown at all is decided before it is drawn: the
 // score card is a roll-up of only the departments the rubric actually scored.
 import { gradeEligibility } from "/grade-eligibility.js";
+// The drill-down's fallback answer to "so what do I do". A fixture that carries
+// no reviewed intervention used to leave the whole action surface saying
+// "Result unavailable"; the scorer fills the same twelve fields by rule instead,
+// from the department's aggregate record and nothing else.
+import { scoreDepartmentIntervention } from "/department-intervention-scoring.js";
+import { interventionActionFields } from "/department-intervention-view.js";
 // No panel on this page writes its own "nothing here" sentence. Every empty,
 // partial-coverage and failed-load string is authored in one module, so a
 // reader meets one vocabulary for absence instead of one per branch.
@@ -1990,6 +1996,35 @@ function renderUnavailableAction(reason) {
   setText("action-diagnosis", reason);
 }
 
+/**
+ * Paint a computed recommendation into the reviewed-intervention surface.
+ *
+ * Same twelve slots, same order, same labels. What changes is the content: the
+ * status says it was computed and not reviewed, the provenance carries the
+ * scorer version and the input digest that produced these numbers, and the
+ * realized field says plainly that nothing has been simulated. A reader is never
+ * left unable to tell a rule's proposal from a reviewed result.
+ */
+function renderComputedAction(fields) {
+  const actionSurface = document.getElementById("action-result");
+  if (actionSurface) {
+    actionSurface.dataset.status = fields.dataStatus;
+    actionSurface.setAttribute("aria-busy", "false");
+  }
+  setText("action-status", fields.status);
+  setText("action-title", fields.title);
+  setText("action-rationale", fields.rationale);
+  setText("action-impact", fields.impact);
+  setText("action-confidence", fields.confidence);
+  setText("action-owner", fields.owner);
+  setText("action-provenance", fields.provenance);
+  setText("action-baseline", fields.baseline);
+  setText("action-target", fields.target);
+  setText("action-estimate", fields.estimate);
+  setText("action-realized", fields.realized);
+  setText("action-diagnosis", fields.diagnosis);
+}
+
 function renderDecisionDetail(department, data) {
   const performance = departmentPerformance(department);
   const trend = departmentTrend(department);
@@ -2011,9 +2046,11 @@ function renderDecisionDetail(department, data) {
   }
   setText("action-status", action.statusLabel);
   if (!action.available) {
-    renderUnavailableAction(performance.available
-      ? "A score is available, but this fixture does not contain a reviewed intervention."
-      : `No action conclusion: ${performance.reason}`);
+    // No reviewed intervention for this department. Rather than an empty
+    // surface, run the deterministic scorer over the aggregate record the
+    // drill-down already holds — it either names one prioritized action with its
+    // arithmetic, or names exactly why it will not.
+    renderComputedAction(interventionActionFields(scoreDepartmentIntervention(department)));
   } else {
     setText("action-title", action.title);
     setText("action-rationale", action.rationale);
