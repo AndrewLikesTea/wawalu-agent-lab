@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="Public repository activity and representative examples from a synthetic engineering team" />
+    <meta name="description" content="How a synthetic engineering team works: public GitHub activity, demo personas, and a sample prompt trace" />
     <title>Agent observatory · Wawalu Labs</title>
     <link rel="stylesheet" href="/agents.css" />
     <link rel="stylesheet" href="/state-ui.css" />
@@ -32,30 +32,30 @@
         <div>
           <p class="eyebrow">Synthetic engineering team</p>
           <h1 id="page-title">Agent observatory</h1>
-          <p>See how a synthetic engineering team plans, builds, reviews, and delivers work. Follow public repository activity, meet each demo persona, and inspect a sample prompt handoff.</p>
+          <p>See how a synthetic engineering team plans, builds, reviews, and delivers work. Follow public GitHub activity, meet each demo persona, and inspect a sample prompt handoff.</p>
         </div>
-        <div class="signal-card" aria-label="Observatory connection">
+        <div class="signal-card" aria-label="Public GitHub activity status">
           <span class="signal-dot" aria-hidden="true"></span>
-          <div><strong id="connection-label">Connecting</strong><span id="last-updated">Waiting for activity</span></div>
+          <div><strong id="connection-label">Checking</strong><span id="last-updated">Not updated yet</span></div>
         </div>
       </section>
 
       <section class="observatory-grid" aria-label="Agent activity">
         <aside class="team-panel" aria-labelledby="persona-title">
           <div class="section-heading">
-            <p class="eyebrow">On the floor</p>
+            <p class="eyebrow">Synthetic team</p>
             <!-- The no-activity state links here, so the heading is a focus
                  target: an in-page link to a plain ordered list moves the
                  reading position for sighted users only. -->
             <h2 id="persona-title" tabindex="-1">Personas</h2>
           </div>
           <ol class="persona-list" id="persona-list" aria-busy="true"></ol>
-          <p class="privacy-note"><strong>Demo boundary</strong> Persona profiles, prompt traces, and fallback activity are synthetic representative examples. When available, recent activity comes only from public GitHub events. This observatory does not access customer data, private repositories, hidden instructions, credentials, or private identities.</p>
+          <p class="privacy-note"><strong>Demo boundary</strong> Persona profiles, prompt traces, and fallback steps are synthetic examples. Recent activity shows public GitHub activity only, and only when GitHub answers. This observatory does not access customer data, private repositories, hidden instructions, credentials, or private identities.</p>
         </aside>
 
         <section class="activity-panel" aria-labelledby="activity-title">
           <div class="activity-heading">
-            <p class="eyebrow">Repository signal</p><h2 id="activity-title">Recent activity</h2>
+            <p class="eyebrow">Public GitHub activity</p><h2 id="activity-title">Recent activity</h2>
           </div>
           <!-- Status comes straight after the panel heading, before the control
                and before the list, so the first thing anyone reads after
@@ -65,18 +65,18 @@
           <div class="activity-state" id="activity-status" data-state="loading" role="status" aria-live="polite">
             <span class="activity-state-icon" data-shape="loading" aria-hidden="true"></span>
             <div class="activity-state-copy">
-              <p class="activity-state-chip">Loading</p>
-              <h3 class="activity-state-title">Loading recent activity</h3>
-              <p class="activity-state-detail" id="activity-state-detail">Requesting public repository activity from GitHub. Until it answers, the steps below are a synthetic example rather than live events.</p>
+              <p class="activity-state-chip">Checking</p>
+              <h3 class="activity-state-title">Checking public GitHub activity</h3>
+              <p class="activity-state-detail" id="activity-state-detail">Nothing is needed from you. Until GitHub answers, the steps below are a synthetic example rather than live events.</p>
             </div>
           </div>
           <div class="activity-actions">
             <!-- One control, after the status it acts on. Its label and its
                  data-recovery marker are rewritten per state by agents.js:
-                 "Retry public activity" only when a public request failed. -->
+                 "Retry public GitHub activity" only when a request failed. -->
             <button class="observatory-refresh" id="refresh-activity" type="button" data-state="loading" data-recovery="refresh" aria-describedby="activity-state-detail">Refresh</button>
           </div>
-          <ol class="activity-list" id="activity-list" aria-label="Representative synthetic activity" aria-busy="true"></ol>
+          <ol class="activity-list" id="activity-list" aria-label="Synthetic example activity" aria-busy="true"></ol>
         </section>
       </section>
 
