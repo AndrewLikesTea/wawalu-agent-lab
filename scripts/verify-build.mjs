@@ -72,6 +72,11 @@ export async function verifyArtifact(root) {
     // rejected entry module and a coaching panel that never comes to life.
     "coaching-result-presentation.js", "coaching-result-view.js",
     "coaching-specimen.js", "coaching-specimen-view.js",
+    // The copyable revision summary and its control. The entry imports the view
+    // and the coaching view imports it too, so a missing one of these is a
+    // rejected entry module — the whole coaching panel, not just the copy
+    // button, would fail to come to life.
+    "coaching-summary.js", "coaching-summary-view.js",
   ]);
   const paths = new Set(actual.map(({ path }) => path));
   for (const path of required) if (!paths.has(path)) throw new Error(`missing required UI asset: ${path}`);

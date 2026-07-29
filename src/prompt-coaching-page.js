@@ -22,6 +22,7 @@ import {
 } from "./prompt-coaching-view.js";
 import { applyCoachingPreview } from "./prompt-coaching-contract-view.js";
 import { applyCoachingSpecimen } from "./coaching-specimen-view.js";
+import { initCoachingSummaryCopy } from "./coaching-summary-view.js";
 
 export function initPromptCoaching(doc = globalThis.document) {
   // The preview is painted before the form is wired, and independently of it:
@@ -31,6 +32,11 @@ export function initPromptCoaching(doc = globalThis.document) {
   // The specimen likewise: it is a review surface over bundled samples and
   // reads nothing a visitor types, so it renders whether or not the form does.
   applyCoachingSpecimen(doc);
+  // The copy control is wired before the form and independently of it, for the
+  // same reason: its markup is already in the document, and a button that is
+  // painted but never wired is worse than one that never appears. It stays
+  // hidden until a comparison exists to summarise.
+  initCoachingSummaryCopy(doc);
 
   const form = doc?.getElementById?.("prompt-coaching-form");
   if (!form) return null;

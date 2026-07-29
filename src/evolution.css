@@ -1533,6 +1533,56 @@
 .prompt-coaching-change-action-title { display:flex; gap:8px; margin:6px 0 0; font-size:15px; font-weight:700; line-height:1.5; overflow-wrap:anywhere; }
 .prompt-coaching-change-action-guidance { margin:6px 0 0; max-width:70ch; font-size:13px; line-height:1.6; overflow-wrap:anywhere; }
 
+/* The copyable summary. It reads as a continuation of the change card above it
+   rather than a panel of its own — same left rule, no top border — because it is
+   an action on that comparison and not a second subject.
+
+   Every outcome pairs a fill with ink measured for 4.5:1 in the contrast test
+   below this file's own rules, and none of them is the sole carrier of its
+   state: the status sentence says in words what the tint says in colour, and
+   `data-outcome` is what the panel is styled from rather than a class a reader
+   could not perceive. */
+.prompt-coaching-copy {
+  display:grid; gap:9px; justify-items:start;
+  border:1px solid var(--import-line); border-left:5px solid var(--import-accent);
+  border-radius:11px; padding:13px 16px; background:var(--import-wash);
+}
+.prompt-coaching-copy-lead { max-width:70ch; margin:0; color:var(--import-ink); font-size:13px; line-height:1.6; }
+#prompt-coaching-copy-button {
+  min-height:44px; border:1px solid var(--import-accent); border-radius:9px;
+  padding:10px 16px; background:#fff; color:var(--import-ink);
+  font:700 13px/1.4 inherit; cursor:pointer;
+}
+#prompt-coaching-copy-button:focus-visible { outline:3px solid var(--import-accent); outline-offset:2px; }
+#prompt-coaching-copy-button[disabled] { cursor:progress; color:var(--ink-muted); border-color:var(--import-line); }
+.prompt-coaching-copy-status {
+  max-width:70ch; margin:0; border-radius:8px; padding:5px 9px;
+  background:#fff; color:#171713; font-size:13px; line-height:1.6; overflow-wrap:anywhere;
+}
+.prompt-coaching-copy-status:empty { display:none; }
+.prompt-coaching-copy-status[data-outcome="pending"] { background:#fff; color:var(--ink-muted); }
+.prompt-coaching-copy-status[data-outcome="copied"] { background:#fff; color:var(--import-ink); font-weight:700; }
+.prompt-coaching-copy-status[data-outcome="manual"] {
+  border:1px solid var(--state-warn-line); background:var(--state-warn-wash); color:var(--state-warn-ink); font-weight:700;
+}
+/* The floor of the fallback chain: the text itself, selectable, with a real
+   label rather than a placeholder. It is only unhidden when copying failed, so
+   a reader for whom the button works never tabs past a box of text they did not
+   ask to see. */
+.prompt-coaching-copy-fallback { display:grid; gap:5px; justify-self:stretch; }
+.prompt-coaching-copy-fallback label { color:var(--import-ink); font:700 12px/1.5 inherit; }
+#prompt-coaching-copy-text {
+  width:100%; box-sizing:border-box; border:1px solid var(--import-line); border-radius:9px;
+  padding:10px 12px; background:#fff; color:#171713;
+  font:400 13px/1.6 ui-monospace,monospace; resize:vertical;
+}
+#prompt-coaching-copy-text:focus-visible { outline:3px solid var(--import-accent); outline-offset:2px; }
+/* Off-screen, not hidden: `display:none` and `hidden` are both nodes no engine
+   will copy a selection out of, and this node exists for exactly one
+   `execCommand("copy")` before it is removed. A style attribute would be
+   simpler and is blocked by this origin's `style-src 'self'`. */
+.prompt-coaching-copy-staging { position:fixed; top:-2000px; left:-2000px; width:1px; height:1px; opacity:0; }
+
 /* The pre-paste preview. Quieter than the result it sits under: it is read once,
    before anything is typed, and never competes with an answer. */
 .prompt-coaching-preview { border:1px solid var(--import-line); border-radius:11px; padding:12px 14px; }

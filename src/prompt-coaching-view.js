@@ -35,6 +35,7 @@
 import { COACHING_INPUT_LIMITS } from "./prompt-coaching.js";
 import { buildRevisionComparison } from "./prompt-revision-comparison.js";
 import { auditFigures } from "./coaching-result-presentation.js";
+import { applyCoachingSummary } from "./coaching-summary-view.js";
 
 const SECTION_ID = "prompt-coaching";
 const RESULT_ID = "prompt-coaching-result";
@@ -487,9 +488,14 @@ function paint(doc, section) {
  * never tabs through an empty landmark.
  */
 function paintChange(doc, section) {
-  const model = state(section).change;
+  const { change: model, result } = state(section);
   const cue = byId(doc, CUE_ID);
   if (cue) cue.hidden = Boolean(model);
+  // The copyable record of this comparison. It lives outside the region because
+  // its status line has to survive the region being replaced — see
+  // `coaching-summary-view.js` — and it draws nothing unless a comparison was
+  // actually made.
+  applyCoachingSummary(doc, { change: model, result });
   const region = byId(doc, CHANGE_ID);
   if (!region) return;
   if (!model) {
