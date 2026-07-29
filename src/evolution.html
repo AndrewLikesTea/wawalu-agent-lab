@@ -39,52 +39,6 @@
                document and fails on any second one. -->
           <p class="finops-provenance" id="finops-provenance">Bundled example · organization not read yet</p>
         </div>
-        <!-- Every panel below is declared in src/finops-panel-contract.js: one
-             executive question, the exact inputs that answer it, and the
-             sentence shown when they are missing. The page does not decide
-             panel visibility; the contract does, and a declared panel is never
-             removed from this document. -->
-        <div class="score-card" id="score-card" aria-labelledby="score-card-title">
-          <p class="eyebrow" id="score-card-title">AI literacy</p>
-          <p class="score-grade" id="score-grade" aria-hidden="true">–</p>
-          <!-- The letter above is a glyph and a colour band, which is one and a
-               half channels. This is the other two: a word a screen reader
-               reads and a shape a greyscale screenshot keeps, so "no grade" and
-               "a grade that failed its plausibility check" are told apart
-               without the amber. Painted by finops-load-status.js. -->
-          <p class="kpi-flag" id="score-flag" hidden><span class="kpi-flag-shape" aria-hidden="true">◇</span> unmeasured</p>
-          <p class="score-value" id="score-value">Not scored yet</p>
-          <p class="score-coverage" id="score-coverage">Sampled-spend coverage not measured yet</p>
-          <p class="score-action" id="score-action" data-available="false">No action ranked yet</p>
-          <p class="score-peer" id="score-peer">Rubric and arithmetic not read yet</p>
-        </div>
-      </section>
-
-      <!-- THE ONE STATUS REGION, and the reason it is here rather than at the
-           foot of the page where it used to sit.
-
-           A visitor's first question on this page is not "is the fixture
-           loading?" — it is "are these numbers mine?". The honest answer on a
-           cold load is no, and it has to be readable in the first viewport,
-           beside the synthetic grade it disqualifies, rather than under nine
-           screens of panels. So this region carries, in this order: a visible
-           label, the state as a word and a shape, the answer in one sentence,
-           the evidence in the next, and one action that is operable right
-           there. The retry appears only in the failure state; "Choose files" is
-           available in all three, because a reader whose bundled example failed
-           can still analyze their own export and that is the better next step.
-           Both are real buttons in this region's own tab order — no scroll
-           hint, no anchor, nothing a keyboard reaches differently. -->
-      <section class="finops-load-state" id="finops-load-state" role="status" aria-live="polite" aria-atomic="true" data-state="loading" data-tone="neutral" aria-labelledby="finops-load-label">
-        <div>
-          <p class="eyebrow" id="finops-load-label"><span class="finops-load-shape" id="finops-load-shape" aria-hidden="true">◌</span> <span id="finops-load-word">Reading</span> · Page status</p>
-          <strong id="finops-load-title">Reading the bundled example…</strong>
-          <span id="finops-load-copy">Nothing of yours is imported. The local import tools below are already usable.</span>
-        </div>
-        <div class="finops-load-actions">
-          <button id="finops-choose-files" type="button">Choose files</button>
-          <button id="finops-data-retry" type="button" hidden>Retry bundled analysis</button>
-        </div>
       </section>
 
       <!-- THE FIRST-RUN SYNTHETIC RESULT, and why a landing page carries one.
@@ -95,6 +49,19 @@
            yours is imported" — and every populated figure sat behind a
            disclosure or most of a page away. So the question a buyer actually
            arrives with had no answer in the first viewport.
+
+           AND IT IS AUTHORED DIRECTLY UNDER THE HERO, ahead of both the page
+           status region and the AI-literacy score card, because for a while it
+           was not and that was the same defect one layer down. Those two both
+           wait on /evolution-demo-data.json. Until that fetch resolved — and
+           permanently if it failed — the first viewport read "Not scored yet",
+           "No action ranked yet", "Reading the bundled example…", and then
+           "Bundled analysis unavailable · press Retry bundled analysis", while
+           the complete example brief sat under all of it needing no network at
+           all. A reader was asked to retry, or to choose a file, for an answer
+           the page already had. So the answer goes first and the machinery that
+           does not gate it goes after: the status strip now sits immediately
+           above the score card whose figures it actually explains.
 
            This block answers it with a complete, readable result: one headline
            benchmark, one quantified impact, one honestly-unavailable value, and
@@ -192,6 +159,71 @@
         </div>
         <button class="first-run-conversion-action" id="finops-first-run-contact" type="button">Ask for a walkthrough</button>
       </aside>
+
+      <!-- THE ONE STATUS REGION, and the reason it is here rather than at the
+           foot of the page where it used to sit — or above the result, where it
+           used to sit after that.
+
+           A visitor's first question on this page is not "is the fixture
+           loading?" — it is "are these numbers mine?". The honest answer on a
+           cold load is no, and it has to be readable in the first viewport
+           rather than under nine screens of panels. But it is not the first
+           thing the page owes them either: the block above already carries that
+           answer in its own second line, in the same region as the figures it
+           qualifies, and unlike this strip it needs no network to say anything
+           at all. So the status region sits directly above the score card and
+           the panels whose figures it actually explains — the ones that do wait
+           on the bundled fixture — instead of narrating that fetch over a
+           result which never depended on it.
+
+           It carries, in this order: a visible label, the state as a word and a
+           shape, the answer in one sentence, the evidence in the next, and one
+           action that is operable right there. The retry appears only in the
+           failure state; "Choose files" is available in all three, because a
+           reader whose bundled example failed can still analyze their own
+           export and that is the better next step. Both are real buttons in
+           this region's own tab order — no scroll hint, no anchor, nothing a
+           keyboard reaches differently. -->
+      <section class="finops-load-state" id="finops-load-state" role="status" aria-live="polite" aria-atomic="true" data-state="loading" data-tone="neutral" aria-labelledby="finops-load-label">
+        <div>
+          <p class="eyebrow" id="finops-load-label"><span class="finops-load-shape" id="finops-load-shape" aria-hidden="true">◌</span> <span id="finops-load-word">Reading</span> · Page status</p>
+          <strong id="finops-load-title">Reading the bundled example…</strong>
+          <span id="finops-load-copy">Nothing of yours is imported. The local import tools below are already usable.</span>
+        </div>
+        <div class="finops-load-actions">
+          <button id="finops-choose-files" type="button">Choose files</button>
+          <button id="finops-data-retry" type="button" hidden>Retry bundled analysis</button>
+        </div>
+      </section>
+
+      <!-- Every panel below is declared in src/finops-panel-contract.js: one
+           executive question, the exact inputs that answer it, and the sentence
+           shown when they are missing. The page does not decide panel
+           visibility; the contract does, and a declared panel is never removed
+           from this document.
+
+           The AI-literacy card is the first of them, and it is a supporting
+           panel rather than the hero's companion for a reason: its question
+           needs a scored query sample, which neither the bundled example nor a
+           provider invoice carries. It is therefore the panel most often
+           honestly unanswerable, and a card reading "Not scored yet · No action
+           ranked yet" beside the h1 made "not yet" the page's headline claim on
+           every cold load. It keeps its prominence relative to the panels it
+           belongs with; it no longer outranks a populated result. -->
+      <section class="score-card" id="score-card" aria-labelledby="score-card-title">
+        <p class="eyebrow" id="score-card-title">AI literacy</p>
+        <p class="score-grade" id="score-grade" aria-hidden="true">–</p>
+        <!-- The letter above is a glyph and a colour band, which is one and a
+             half channels. This is the other two: a word a screen reader reads
+             and a shape a greyscale screenshot keeps, so "no grade" and "a
+             grade that failed its plausibility check" are told apart without
+             the amber. Painted by finops-load-status.js. -->
+        <p class="kpi-flag" id="score-flag" hidden><span class="kpi-flag-shape" aria-hidden="true">◇</span> unmeasured</p>
+        <p class="score-value" id="score-value">Not scored yet</p>
+        <p class="score-coverage" id="score-coverage">Sampled-spend coverage not measured yet</p>
+        <p class="score-action" id="score-action" data-available="false">No action ranked yet</p>
+        <p class="score-peer" id="score-peer">Rubric and arithmetic not read yet</p>
+      </section>
 
       <!-- The guided result. One question, one benchmark, one action, and the
            required trust verdict, composed in src/finops-guided-result.js. Every

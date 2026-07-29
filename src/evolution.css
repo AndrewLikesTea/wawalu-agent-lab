@@ -31,15 +31,20 @@
 .nav-evolution { display:inline-flex; align-items:center; gap:7px; }
 .nav-evolution::before { content:""; width:6px; height:6px; border-radius:2px; background:#1baf7a; }
 
-.finops-hero { display:grid; grid-template-columns:minmax(0,1fr) 280px; align-items:end; gap:48px; padding:clamp(60px,8vw,104px) 0 56px; }
+/* One column at every width. The score card used to sit in a second column
+   here; it now follows the populated example result, so the hero is copy only
+   and the first thing under it is an answer rather than a pending card. */
+.finops-hero { display:grid; gap:48px; padding:clamp(60px,8vw,104px) 0 40px; }
 .finops-hero h1 { margin-bottom:22px; }
-/* Scoped to the copy column: the score card is also a direct child of the hero,
-   and a `.finops-hero>div>p` rule would out-specify the hero number's own size. */
+/* Still scoped to the copy block rather than to `.finops-hero>div>p`: the rule
+   sizes body copy, and the hero has carried other children before. */
 .finops-hero .hero-copy>p { max-width:680px; margin:0; color:#555550; font-size:18px; line-height:1.65; }
 .finops-hero .hero-copy>p.finops-provenance { margin-top:18px; color:var(--ink-muted); font:600 12px/1.6 ui-monospace,monospace; }
 
-/* Hero number: the "are we wasting money" answer, readable in one glance. */
-.score-card { display:grid; gap:6px; border:1px solid var(--panel-border); border-radius:16px; padding:22px; background:rgba(255,255,255,.72); box-shadow:0 14px 40px rgba(38,38,31,.04); }
+/* The literacy grade, readable in one glance. Bounded rather than full-bleed:
+   a 66px letter stretched across a desktop column reads as the page's verdict,
+   which is the prominence this card gave up when it left the hero. */
+.score-card { display:grid; gap:6px; width:min(100%,360px); margin:0 0 24px; border:1px solid var(--panel-border); border-radius:16px; padding:22px; background:rgba(255,255,255,.72); box-shadow:0 14px 40px rgba(38,38,31,.04); }
 .score-grade { margin:6px 0 0; font-size:66px; line-height:.9; letter-spacing:-.05em; font-weight:750; }
 .score-card[data-band="good"] .score-grade { color:#17845c; }
 .score-card[data-band="watch"] .score-grade { color:#8a6d0a; }
@@ -1059,7 +1064,7 @@
 .evaluation-arithmetic,.evaluation-gate { font:650 11px/1.6 ui-monospace,monospace; }
 
 @media(max-width:900px) {
-  .finops-hero { grid-template-columns:1fr; gap:32px; }
+  .finops-hero { gap:32px; }
   .score-card { width:min(100%,320px); }
   .proof-point { grid-template-columns:1fr; }
   .proof-point-boundary,.proof-point-link { grid-column:1; }
