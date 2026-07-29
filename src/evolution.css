@@ -820,11 +820,22 @@
    `break-inside:avoid` on the answer grid rather than six loose siblings. */
 .first-run { display:grid; gap:16px; margin:0 0 8px; border:1px solid var(--import-line); border-left:5px solid var(--import-accent); border-radius:14px; padding:clamp(18px,3vw,26px); background:linear-gradient(150deg,var(--import-wash),#fff 58%); }
 .first-run[data-state="unavailable"] { border-color:var(--state-error-line); border-left-color:var(--state-error-line); background:var(--state-error-wash); }
+/* Empty is not an error, and it is not drawn as one. A dataset with nothing in
+   it needs a neutral rule and a sentence, not a red block that reads as a
+   failure a reader is meant to retry. The dashed edge is the same "nothing to
+   resolve here" silhouette the unavailable slots already use. */
+.first-run[data-state="empty"] { border-style:dashed; border-left-style:solid; border-color:var(--panel-border); border-left-color:var(--ink-muted); background:#fbfaf6; }
 .first-run-head { display:grid; gap:6px; }
 .first-run-head .eyebrow { display:flex; align-items:baseline; flex-wrap:wrap; gap:6px; margin:0; }
 .first-run-shape { flex:none; font-size:13px; font-weight:750; }
 .first-run-head h2 { max-width:26ch; margin:0; font-size:clamp(22px,3.2vw,31px); line-height:1.18; }
 .first-run-sample { margin:0; }
+/* The answer: the one sentence a reader who stops here has still read. Sized
+   between the heading above it and the slot figures below, so the type scale
+   itself says which of the three is the conclusion. */
+.first-run-answer { margin:0; max-width:44ch; color:var(--ink); font-size:clamp(17px,2.1vw,21px); font-weight:700; line-height:1.35; overflow-wrap:anywhere; }
+.first-run-answer[data-available="false"] { max-width:60ch; color:var(--state-warn-ink); font-size:16px; }
+.first-run-answer-detail { margin:-8px 0 0; max-width:70ch; color:var(--ink-muted); font-size:13px; line-height:1.55; overflow-wrap:anywhere; }
 /* Three slots, and the whole grid is one print/column unit: the share, the
    scenario, and the unavailable peer position qualify each other. */
 .first-run-slots { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px 22px; break-inside:avoid; }
@@ -847,8 +858,28 @@
    than the headline figures — it is a bound on them, not a fourth measurement. */
 .first-run-confidence { display:grid; gap:5px; border-top:2px solid var(--import-accent); padding-top:10px; break-inside:avoid; }
 .first-run-confidence>.first-run-value { font-size:17px; }
-.first-run-method>summary { cursor:pointer; color:var(--import-ink); font-size:13px; font-weight:700; }
-.first-run-method>summary:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+/* The disclosure control. The summary carries a real `h3` and a state chip, so
+   it is one line in the heading outline and one line a reader can act on. The
+   UA marker goes because the chip's own glyph is the marker — one triangle, not
+   two, and the one that stays is the one that travels with a word. */
+.first-run-method>summary { list-style:none; cursor:pointer; color:var(--import-ink); font-size:13px; font-weight:700; }
+.first-run-method>summary::marker { content:""; }
+.first-run-method>summary::-webkit-details-marker { display:none; }
+.first-run-method-heading { display:flex; align-items:baseline; flex-wrap:wrap; gap:6px 12px; margin:0; color:var(--import-ink); font-size:13px; font-weight:700; line-height:1.5; }
+/* Filled wash, because expanded/collapsed is a dynamic signal rather than a
+   static classification — the rule the Claude Design foundations card sets for
+   chip silhouettes. The word and the glyph are the channels; the wash only
+   repeats them. */
+.first-run-method-state { display:inline-flex; align-items:baseline; gap:5px; flex:none; border:1px solid transparent; border-radius:99px; padding:2px 9px; background:#e2ebe6; color:var(--import-ink); font:700 10.5px/1.5 ui-monospace,monospace; letter-spacing:.05em; text-transform:uppercase; }
+.first-run-method-state[data-disclosure="expanded"] { background:var(--import-accent); color:#fff; }
+.first-run-method-shape { font-size:10px; }
+.first-run-method>summary:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; border-radius:5px; }
+/* The print rendering is an inert sibling, not disclosure content. Both halves
+   of its visibility switch are author rules, so the paper rule never has to
+   override the browser's implementation of the HTML `hidden` attribute. */
+.first-run-method-print { display:none; }
+.first-run-method-print-heading { margin:0 0 8px; color:var(--import-ink); font:700 11px/1.6 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; }
+.first-run-support { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px 22px; }
 .first-run-method-list { display:grid; gap:10px; margin:12px 0 0; }
 .first-run-method-list dt { color:var(--ink-muted); font:700 10px/1.5 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; }
 .first-run-method-list dd { margin:3px 0 0; max-width:80ch; color:#4c5650; font-size:12.5px; line-height:1.6; overflow-wrap:anywhere; }
@@ -1084,7 +1115,11 @@
   .finops-load-state { align-items:stretch; flex-direction:column; }
   /* One column on a phone, and the buttons go full width: the two choices stay
      equally reachable rather than one of them becoming a thumb-sized target. */
-  .first-run-slots,.first-run-actions { grid-template-columns:1fr; }
+  /* One column at 390px, and the same order it had at 1440: the narrow layout
+     collapses the grids rather than reordering them, so answer → benchmark →
+     action → provenance survives the reflow. */
+  .first-run-slots,.first-run-actions,.first-run-support { grid-template-columns:1fr; }
+  .first-run-method-heading { align-items:flex-start; flex-direction:column; }
   .first-run-choice button { width:100%; }
   .first-run-conversion { align-items:stretch; flex-direction:column; }
   .first-run-conversion-action { width:100%; }
@@ -1939,19 +1974,36 @@
      on beforeprint.
 
      A closed `details` does not hide its light-DOM children — the UA hides the
-     shadow wrapper the content is slotted into — so `display` on the children
-     cannot open one. `::details-content` is the pseudo-element that wrapper is
+     wrapper the content is slotted into — so a declaration on the children
+     cannot reach it. `::details-content` is the pseudo-element that wrapper is
      exposed as, and lifting its `content-visibility` is the CSS-only way to
-     print the whole disclosure. The `display` rule underneath it is the
-     fallback for an engine that has not shipped the pseudo-element yet; on an
-     engine that has, it is a no-op. */
+     print the whole disclosure on an engine that has shipped it.
+
+     `display:revert` used to sit underneath this as the "fallback" for engines
+     that have not. It was worse than nothing: `revert` rolls a property back to
+     the *user-agent* cascade origin, which is exactly the origin doing the
+     hiding, so the fallback resolved to the rule it was meant to beat. It is
+     replaced here by an explicit `display:block` on the non-summary children of
+     a closed disclosure — the honest version of the same attempt, which does
+     reach an engine whose UA rule is a non-important `display:none` on the
+     light-DOM children, and reaches nothing on an engine that hides a wrapper
+     or writes `!important` (author `!important` loses to UA `!important` by
+     definition). No author CSS can beat that case.
+
+     Which is why the one disclosure on this page that carries the *evidence for
+     a money figure* does not rely on any of it: `.first-run-method-print`
+     below is a sibling of the `details`, not a descendant, so no rule in any
+     origin can suppress it. See the block at the foot of this media query. */
   .local-lead-detail::details-content,
   .local-provenance-detail::details-content,
   .panel-status-detail::details-content,
   .kpi-disclosure::details-content,
   .local-disclosures details::details-content { content-visibility:visible; block-size:auto; }
-  .local-lead-detail>*,.local-provenance-detail>*,.panel-status-detail>*,
-  .kpi-disclosure>*,.local-disclosures details>* { display:revert; }
+  .local-lead-detail:not([open])>*:not(summary),
+  .local-provenance-detail:not([open])>*:not(summary),
+  .panel-status-detail:not([open])>*:not(summary),
+  .kpi-disclosure:not([open])>*:not(summary),
+  .local-disclosures details:not([open])>*:not(summary) { display:block; }
   /* The peer method and its supporting metrics print with the position they
      qualify: a briefing that carries a percentile and drops the cohort it was
      measured in is the claim this panel exists not to make. */
@@ -2039,4 +2091,37 @@
   #restored-briefing-derivation-detail:not([hidden])>* { display:block; }
   .derivation-verdict { background:#fff; border-left-width:3px; }
   .derivation-step { orphans:2; widows:2; }
+
+  /* ---------------------------------------------------------------------
+     THE FRONT-DOOR DECISION ON PAPER
+     ---------------------------------------------------------------------
+     The evidence behind the money figure is the one disclosure on this page
+     that may not depend on `::details-content`. So it does not: the `details`
+     is dropped outright and its plain sibling is shown in its place. A sibling
+     is not a descendant of a `details`, so `details:not([open])` — in the UA
+     origin, with `!important`, or through a shadow wrapper — cannot reach it,
+     and exactly one copy of the evidence prints whether the reader left the
+     disclosure open or shut.
+
+     The print copy is hidden and shown by two author rules of equal
+     specificity, with the later print rule winning by source order. That is
+     the whole mechanism: no dependency on the browser's `hidden` rule, no
+     pseudo-element, no script, no `beforeprint` DOM mutation, nothing to
+     revert to. */
+  .first-run-method { display:none; }
+  .first-run-method-print { display:block; break-inside:auto; }
+  .first-run-method-print .first-run-method-list { margin:0; }
+  /* The reading order is the DOM order, so paper keeps it for free. What paper
+     needs on top of that is for the answer and the action never to straddle a
+     sheet: a recommendation split from the figure that motivates it is two
+     fragments rather than one decision. */
+  .first-run { border:1px solid #767670; border-left-width:3px; background:#fff; box-shadow:none; }
+  .first-run-answer,.first-run-recommendation,.first-run-confidence,.first-run-slot { break-inside:avoid; }
+  .first-run-answer { break-after:avoid; }
+  .first-run-answer[data-available="false"],.first-run-value[data-available="false"],
+  .first-run-action-text[data-available="false"] { color:#171713; }
+  /* Interactive-only affordances. A dead button on a printed page reads as
+     something the reader failed to press. The notes stay: they say what would
+     have happened, which is the part that is still true on paper. */
+  .first-run-choice button,.first-run-conversion-action { display:none; }
 }

@@ -49,6 +49,9 @@
 import { loadExampleDataset } from "./example-dataset.js";
 import { buildFinopsBriefing, validateBriefing } from "./finops-briefing-contract.js";
 import { DECISION_QUESTION, loadCanonicalDecision } from "./finops-decision-contract.js";
+import {
+  auditDecisionFigures, DECISION_STATE, noticeFor, OUT_OF_RANGE_VALUE,
+} from "./finops-decision-interaction.js";
 
 /** Bump when a slot, a state word, or a label changes meaning. */
 export const FIRST_RUN_VERSION = "finops-first-run-result/1.0.0";
@@ -57,6 +60,8 @@ export const FIRST_RUN_VERSION = "finops-first-run-result/1.0.0";
 export const FIRST_RUN_IDS = Object.freeze({
   region: "finops-first-run",
   question: "finops-first-run-title",
+  answer: "finops-first-run-answer",
+  answerDetail: "finops-first-run-answer-detail",
   label: "finops-first-run-label",
   confidenceValue: "finops-first-run-confidence-value",
   confidenceDetail: "finops-first-run-confidence-detail",
@@ -72,6 +77,10 @@ export const FIRST_RUN_IDS = Object.freeze({
   action: "finops-first-run-action",
   role: "finops-first-run-role",
   methodList: "finops-first-run-method-list",
+  method: "finops-first-run-method",
+  methodSummary: "finops-first-run-method-summary",
+  methodState: "finops-first-run-method-state",
+  methodPrint: "finops-first-run-method-print",
   demo: "finops-first-run-demo",
   import: "finops-first-run-import",
   contact: "finops-first-run-contact",
@@ -90,11 +99,20 @@ export const FIRST_RUN_LABEL = "Example result · nothing of yours needed";
  * There is deliberately no "loading" state here. Only `#finops-load-state` may
  * narrate a load, and this result needs no network at all: it is composed from
  * a module in the bundle, which is why it survives a failed fixture fetch.
+ * `DECISION_STATE.loading` names that state and names its owner, so the fact
+ * that this region does not reach it is written down rather than inferred.
+ *
+ * `empty` and `unavailable` are deliberately two states and not one. "The
+ * example carried no records" and "the example could not be analyzed" ask a
+ * reader for different things — the first is a dataset with nothing in it, the
+ * second is a failure — and collapsing them into one red block is how a page
+ * tells someone to retry something that worked.
  */
 export const FIRST_RUN_STATE = Object.freeze({
-  pending: Object.freeze({ state: "pending", word: "Example result pending", shape: "◇", tone: "neutral" }),
-  ready: Object.freeze({ state: "ready", word: "Example result", shape: "▣", tone: "resolved" }),
-  unavailable: Object.freeze({ state: "unavailable", word: "Example result unavailable", shape: "▲", tone: "error" }),
+  pending: DECISION_STATE.pending,
+  ready: DECISION_STATE.ready,
+  empty: DECISION_STATE.empty,
+  unavailable: DECISION_STATE.error,
 });
 
 /**
@@ -119,6 +137,8 @@ export const FIRST_RUN_UNAVAILABLE = Object.freeze({
   notComposed: "No example analysis was produced, so no figure is shown here.",
   invalidBriefing: "The bundled example did not satisfy the briefing contract, so no figure is shown here.",
   failed: "The bundled example could not be analyzed in this browser, so no figure is shown here.",
+  empty: DECISION_STATE.empty.statement,
+  outOfRange: "A figure in the bundled example was outside the range it can take, so it is not shown.",
 });
 
 /**
@@ -221,10 +241,24 @@ function slot(available, value, detail) {
 }
 
 /**
+ * The slot a figure gets when it is outside the range it can take.
+ *
+ * Not "Unavailable": an absent figure and an impossible one are different
+ * facts, and a reader who is shown the same word for both cannot tell a sample
+ * that ships no peer cohort from a pipeline that produced 412%. The offending
+ * value travels with the notice, because the person who can fix it needs it.
+ */
+function outOfRangeSlot(notice) {
+  return slot(false, `${OUT_OF_RANGE_VALUE}: ${notice.value}`, notice.statement);
+}
+
+/**
  * The benchmark slot: a share, with the two operands that produced it beside
  * it so a reader can check the ratio rather than take it.
  */
-function benchmarkSlot(analysis, briefing) {
+function benchmarkSlot(analysis, briefing, notices = []) {
+  const notice = noticeFor(notices, "share");
+  if (notice) return outOfRangeSlot(notice);
   const share = recoverableShare(analysis?.recoverableUsd, analysis?.spendUsd);
   if (share === null) {
     return slot(false, UNAVAILABLE_VALUE,
@@ -245,7 +279,9 @@ function benchmarkSlot(analysis, briefing) {
  * statement of why there is none. The absence statement is carried verbatim —
  * this module does not re-decide a slot the contract already decided.
  */
-function impactSlot(briefing) {
+function impactSlot(briefing, notices = []) {
+  const notice = noticeFor(notices, "impactUsd");
+  if (notice) return outOfRangeSlot(notice);
   const metric = briefing?.materialMetric;
   const amount = metric?.unit === "USD" ? usd(metric.value) : null;
   if (!amount) {
@@ -302,7 +338,9 @@ function actionSlot(briefing) {
  * the score never appears without its basis: if the canonical record is missing
  * or fails its contract, this slot says so rather than showing a bare decimal.
  */
-function confidenceSlot(decision) {
+function confidenceSlot(decision, notices = []) {
+  const notice = noticeFor(notices, "confidence");
+  if (notice) return outOfRangeSlot(notice);
   const confidence = decision?.confidence;
   const score = Number(confidence?.score);
   if (!Number.isFinite(score) || typeof confidence?.basis !== "string" || !confidence.basis.trim()) {
@@ -310,6 +348,35 @@ function confidenceSlot(decision) {
       "No confidence score was published with this example, so none is claimed.");
   }
   return slot(true, `${score.toFixed(2)} of 1.00 · ${confidence.band}`, confidence.basis);
+}
+
+/**
+ * The answer: one sentence, directly under the question, before any figure.
+ *
+ * WHY IT EXISTS. The region used to lead with the question and then hand the
+ * reader three labelled slots to assemble an answer out of. A leader who reads
+ * "Are we wasting money?" and meets a grid is being asked to do the summarising
+ * the page exists to do. So the canonical record's own headline is carried
+ * here, verbatim where it exists, and the impact headline goes underneath it as
+ * the sentence that sizes it.
+ *
+ * The canonical fixture and the composed benchmark are independent inputs, so
+ * this falls back to the benchmark rather than disappearing with the fixture: a
+ * page that can still say "33% of analyzed AI spend is recoverable" should say
+ * it even when the authored headline for that number did not load.
+ */
+function answerSlot(decision, benchmark, impact) {
+  const headline = decision?.benchmark?.headline;
+  const sized = decision?.impact?.headline;
+  if (typeof headline === "string" && headline.trim()) {
+    return slot(true, headline.trim(),
+      typeof sized === "string" && sized.trim() ? sized.trim() : (impact?.detail ?? ""));
+  }
+  if (benchmark?.available) {
+    return slot(true, `${benchmark.value} is recoverable in this example.`, benchmark.detail ?? "");
+  }
+  return slot(false, "No answer is claimed from this example.",
+    benchmark?.detail ?? FIRST_RUN_UNAVAILABLE.notComposed);
 }
 
 /**
@@ -354,6 +421,12 @@ export function composeFirstRunResult({ analysis = null, briefing = null, decisi
   if (!analysis || typeof analysis !== "object" || !briefing || typeof briefing !== "object") {
     return unavailableResult(FIRST_RUN_UNAVAILABLE.notComposed);
   }
+  // Checked before the briefing contract, deliberately. An analysis that read
+  // nothing may well produce a briefing with no metric in it — that is the
+  // contract working, not a contract failure — and reporting it as "the example
+  // did not satisfy the briefing contract" would tell a reader to retry
+  // something that ran correctly and found an empty window.
+  if (isEmptyAnalysis(analysis)) return emptyResult();
   let validation;
   try {
     validation = validateBriefing(briefing);
@@ -363,30 +436,62 @@ export function composeFirstRunResult({ analysis = null, briefing = null, decisi
   if (!validation?.valid) {
     return unavailableResult(FIRST_RUN_UNAVAILABLE.invalidBriefing);
   }
-  const benchmark = benchmarkSlot(analysis, briefing);
+  // Every figure this region would print, checked against the range it can take
+  // before any of it is drawn. A share of 412% or a negative impact is not a
+  // number to format — it is a number to refuse.
+  const notices = auditDecisionFigures({
+    share: recoverableShare(analysis?.recoverableUsd, analysis?.spendUsd),
+    impactUsd: briefing?.materialMetric?.unit === "USD" ? briefing.materialMetric.value : null,
+    analyzedUsd: analysis?.spendUsd,
+    confidence: decision?.confidence?.score,
+    rank: decision?.prioritizedAction?.rank,
+  });
+  const benchmark = benchmarkSlot(analysis, briefing, notices);
   // A region whose one populated headline is itself unavailable is not a
   // result, and calling it one would be the exact misrepresentation this
   // module exists to prevent.
   if (!benchmark.available) {
-    return unavailableResult(FIRST_RUN_UNAVAILABLE.notComposed);
+    return unavailableResult(noticeFor(notices, "share")
+      ? FIRST_RUN_UNAVAILABLE.outOfRange
+      : FIRST_RUN_UNAVAILABLE.notComposed);
   }
+  const impact = impactSlot(briefing, notices);
   return Object.freeze({
     ...BASE,
     presentation: FIRST_RUN_STATE.ready,
+    notices,
     // The region's own heading is the canonical decision question, not the
     // briefing's headline question. The briefing asks what an analysis says;
     // this region is the page's one complete answer to what a leader arrived
     // to decide, and `finops-decision-contract.js` owns that wording.
     question: DECISION_QUESTION,
     decision,
+    answer: answerSlot(decision, benchmark, impact),
     benchmark,
-    impact: impactSlot(briefing),
+    impact,
     peer: peerSlot(analysis),
     action: actionSlot(briefing),
-    confidence: confidenceSlot(decision),
+    confidence: confidenceSlot(decision, notices),
     method: methodEntries(analysis, briefing),
     reason: null,
   });
+}
+
+/**
+ * True when the analysis ran and found nothing.
+ *
+ * Both conditions, not either: an empty ranking *and* no analyzed spend. One of
+ * the two alone is a partial analysis, which is a result with a caveat rather
+ * than an empty one — a window with spend in it but nothing rankable still has
+ * a share to state.
+ *
+ * `rankedDepartments` must actually be an array: an analysis that never
+ * produced the field at all is malformed, not empty, and belongs in the
+ * unavailable state with the rest of the unreadable input.
+ */
+function isEmptyAnalysis(analysis) {
+  if (!Array.isArray(analysis?.rankedDepartments) || analysis.rankedDepartments.length > 0) return false;
+  return Number(analysis?.spendUsd) === 0;
 }
 
 /** The part of the region that does not depend on any analysis at all. */
@@ -398,24 +503,43 @@ const BASE = Object.freeze({
   conversion: FIRST_RUN_CONVERSION,
 });
 
-function unavailableResult(reason) {
-  const empty = slot(false, UNAVAILABLE_VALUE, reason);
+function degradedResult(presentation, reason, answerValue) {
+  const blank = slot(false, UNAVAILABLE_VALUE, reason);
   return Object.freeze({
     ...BASE,
-    presentation: FIRST_RUN_STATE.unavailable,
+    presentation,
+    notices: Object.freeze([]),
     // The question stands even when the answer does not: a reader who meets
     // this region in its unavailable state should still be able to see what it
     // would have decided.
     question: DECISION_QUESTION,
     decision: null,
-    benchmark: empty,
-    impact: empty,
-    peer: empty,
+    answer: slot(false, answerValue, reason),
+    benchmark: blank,
+    impact: blank,
+    peer: blank,
     action: slot(false, "No action is ranked from this example.", reason),
-    confidence: empty,
+    confidence: blank,
     method: Object.freeze([Object.freeze({ term: "Limits", detail: reason })]),
     reason,
   });
+}
+
+function unavailableResult(reason) {
+  return degradedResult(FIRST_RUN_STATE.unavailable, reason,
+    "No answer is claimed from this example.");
+}
+
+/**
+ * The empty state: the analysis ran, and there was nothing in it.
+ *
+ * Drawn as its own state rather than folded into `unavailable`, because the two
+ * ask different things of a reader. Nothing here is red and nothing suggests a
+ * retry — the dataset is simply empty, and saying so is the whole answer.
+ */
+function emptyResult() {
+  return degradedResult(FIRST_RUN_STATE.empty, FIRST_RUN_UNAVAILABLE.empty,
+    "No spend was recorded in this window, so nothing is recoverable from it.");
 }
 
 /**

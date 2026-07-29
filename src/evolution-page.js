@@ -104,7 +104,7 @@ import {
 // real analysis path, so it needs no network and survives a failed fixture.
 import { buildFirstRunResult } from "/finops-first-run.js";
 import {
-  applyFirstRunResult, applyFirstRunSupersession, bindFirstRunActions,
+  applyFirstRunResult, applyFirstRunSupersession, bindFirstRunActions, bindFirstRunDisclosure,
 } from "/finops-first-run-view.js";
 import {
   announce as announceStage, applyDatasetProvenance, applyExportPackageGuidance,
@@ -2191,6 +2191,10 @@ async function init() {
   // first, so they are operable in the unavailable state too.
   bindFirstRunActions(document);
   applyFirstRunResult(document, buildFirstRunResult());
+  // After the paint: the disclosure's state chip counts the evidence entries
+  // the paint just wrote, and binding it afterwards is what makes the first
+  // chip agree with the list under it.
+  bindFirstRunDisclosure(document);
   initFinopsContact(document);
   const gateway = createStaticGateway();
   const refreshGateway = document.getElementById("integration-gateway-refresh");

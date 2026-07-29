@@ -317,11 +317,12 @@ test("the print stylesheet produces a complete sheet, not a screenshot of a scre
   assert.match(PRINT, /\.local-lead-answer[^{]*\{[^}]*break-inside\s*:\s*avoid/);
   // Disclosure content is revealed; the control that revealed it is not printed
   // as a control.
-  // A closed `details` hides its content in the shadow wrapper, not on the
-  // light-DOM children, so the rule that actually opens it is the one on
-  // `::details-content`; the `display` rule is the fallback beneath it.
+  // Engines exposing the shadow wrapper use `::details-content`. The
+  // light-DOM fallback must use an explicit display value: `revert` returns to
+  // the UA rule that hid the closed disclosure and therefore reveals nothing.
   assert.match(PRINT, /::details-content[^{]*\{[^}]*content-visibility\s*:\s*visible/);
-  assert.match(PRINT, /\.local-lead-detail>\*[^{]*\{[^}]*display\s*:\s*revert/);
+  assert.match(PRINT, /\.local-lead-detail:not\(\[open\]\)>\*:not\(summary\)[^{]*\{[^}]*display\s*:\s*block/);
+  assert.doesNotMatch(PRINT.replace(/\/\*[\s\S]*?\*\//g, ""), /display\s*:\s*revert/);
   assert.match(PRINT, /summary[^{]*\{[^}]*list-style\s*:\s*none/);
   // Interactive-only affordances go.
   assert.match(PRINT, /\.local-lead-finding button[\s\S]*?\{[^}]*display\s*:\s*none/);
