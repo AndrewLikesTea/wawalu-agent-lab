@@ -154,7 +154,8 @@ export async function verifyArtifact(root) {
     // the provenance a reader quotes — so shipping the region without it is a
     // front door that asks the question and then withdraws its own confidence
     // claim, with nothing on the artifact to say why.
-    "finops-decision-contract.js", "finops-decision-fixture.json", "finops-first-run.js",
+    "finops-decision-contract.js", "finops-decision-fixture.json",
+    "finops-first-run.js", "finops-first-run-view.js",
   ]);
   const paths = new Set(actual.map(({ path }) => path));
   for (const path of required) if (!paths.has(path)) throw new Error(`missing required UI asset: ${path}`);
@@ -233,6 +234,31 @@ export async function verifyArtifact(root) {
   const decisionVerdict = validateDecisionRecord(decisionFixture);
   if (!decisionVerdict.valid) {
     throw new Error(`canonical FinOps decision fixture is invalid: ${JSON.stringify(decisionVerdict.errors)}`);
+  }
+
+  // Probe the exact first paint that Pages will serve against the modules that
+  // repaint it after boot. Source tests can prove each side independently while
+  // a narrowed or partially promoted artifact still carries mismatched words.
+  // Keep this local and deterministic: no browser, binding, or network is
+  // required for the production build to fail before deployment.
+  const finopsHtml = await readFile(resolve(root, "evolution.html"), "utf8");
+  const { FIRST_RUN_ACTIONS, FIRST_RUN_IDS } = await import(
+    pathToFileURL(resolve(root, "finops-first-run.js")).href
+  );
+  const { HERO_INTRO } = await import(
+    pathToFileURL(resolve(root, "finops-load-status.js")).href
+  );
+  const requiredFirstPaint = [
+    [`#finops-intro`, `<p id="finops-intro">${HERO_INTRO}</p>`],
+    [`#${FIRST_RUN_IDS.demo}`, `id="${FIRST_RUN_IDS.demo}" type="button" aria-describedby="${FIRST_RUN_IDS.demo}-note">${FIRST_RUN_ACTIONS.demo.label}</button>`],
+    [`#${FIRST_RUN_IDS.demo}-note`, `id="${FIRST_RUN_IDS.demo}-note">${FIRST_RUN_ACTIONS.demo.note}</p>`],
+    [`#${FIRST_RUN_IDS.import}`, `id="${FIRST_RUN_IDS.import}" type="button" aria-describedby="${FIRST_RUN_IDS.import}-note">${FIRST_RUN_ACTIONS.import.label}</button>`],
+    [`#${FIRST_RUN_IDS.import}-note`, `id="${FIRST_RUN_IDS.import}-note">${FIRST_RUN_ACTIONS.import.note}</p>`],
+  ];
+  for (const [slot, markup] of requiredFirstPaint) {
+    if (!finopsHtml.includes(markup)) {
+      throw new Error(`AI FinOps first-paint copy drifted from its runtime contract at ${slot}`);
+    }
   }
 
   const headers = await readFile(resolve(root, "_headers"), "utf8");
