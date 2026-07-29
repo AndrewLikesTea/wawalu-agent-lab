@@ -420,6 +420,26 @@
             <dl class="export-package-list" id="export-package-guidance"></dl>
             <p class="export-package-source">The full package contract, including the unsupported-package path and what happens to partial, stale, malformed, and reordered data: <a href="/docs/provider-export-package-contract.md">provider export package contract</a>.</p>
           </details>
+          <!-- The query sources that may stand beside a provider export: what a
+               department asked for, not only what it spent. Closed by default
+               and painted entirely from the versioned registry by
+               local-import-flow.js — the chooser's options, the compatibility
+               sentence, the guidance rows, and the declined sources are all
+               slots. Nothing in here selects, reads, or uploads a file; it
+               states which local sources are supported and on what terms. -->
+          <details class="org-query-source-help" id="org-query-source-help">
+            <summary>Which query sources can be read here — and which cannot</summary>
+            <p class="org-query-source-promise" id="org-query-source-promise"></p>
+            <p class="org-query-source-field">
+              <label for="org-query-source-select">Source</label>
+              <select id="org-query-source-select"></select>
+            </p>
+            <p class="org-query-source-status" id="org-query-source-status" data-status="unselected" role="status"></p>
+            <dl class="org-query-source-list" id="org-query-source-guidance"></dl>
+            <p class="org-query-source-declined-title">Not read here, and what to bring instead:</p>
+            <ul class="org-query-source-declined" id="org-query-source-declined"></ul>
+            <p class="export-package-source">The full source contract, including attribution, bucketing, sampling bounds, and partial, stale, malformed, and reordered behaviour: <a href="/docs/org-query-source-contract.md">organizational query-source contract</a>.</p>
+          </details>
           <details class="import-alternatives" id="import-alternatives">
             <summary>Other ways to start — templates, example exports, and a saved FinOps briefing</summary>
           <!-- The query-sample contract has no producer in this repository yet:

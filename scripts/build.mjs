@@ -15,7 +15,7 @@ try {
   // Ship the reviewed schemas, compatibility metadata, and synthetic fixtures.
   // No integration credential, transport, or live customer/provider data exists.
   for (const integration of ["hris-org", "provider-usage-billing", "query-sample",
-    "conversation-export", "provider-export-package"]) {
+    "conversation-export", "provider-export-package", "org-query-source"]) {
     await cp(
       resolve(root, "contracts", "integrations", integration, "v1"),
       resolve(staging, "contracts", "integrations", integration, "v1"),
@@ -32,6 +32,7 @@ try {
   for (const page of [
     "conversation-export-import-contract.md",
     "provider-export-package-contract.md",
+    "org-query-source-contract.md",
   ]) {
     await cp(resolve(root, "docs", page), resolve(staging, "docs", page));
   }

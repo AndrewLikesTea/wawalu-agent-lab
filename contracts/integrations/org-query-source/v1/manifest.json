@@ -1,0 +1,239 @@
+{
+  "manifest_version": "1.0",
+  "kind": "wawalu.integration.org-query-source",
+  "published_at": "2026-07-29T00:00:00Z",
+  "fixture_data": "synthetic-only",
+  "guarantees": {
+    "credentials": false,
+    "network_calls": false,
+    "customer_data_transfer": false,
+    "prompt_content_persisted": false,
+    "prompt_content_rendered": false,
+    "processing": "the reader's own browser tab",
+    "file_selection": "a local file picker; the product never reaches a console, gateway, or directory",
+    "retained_from_a_source": [
+      "counts per organization unit, day bucket, and model",
+      "the derived rubric category of a query, never the query",
+      "pseudonymous or reader-supplied organization-unit keys"
+    ],
+    "never_retained": [
+      "the file itself",
+      "prompt or completion text, including in an error message",
+      "per-person, per-session, or per-request rows",
+      "any credential, token, or endpoint"
+    ]
+  },
+  "attribution": {
+    "required": true,
+    "unattributed_row": "skipped and counted; never merged into another unit",
+    "key_spaces": [
+      {
+        "id": "org_pseudonym",
+        "note": "the HRIS org contract's `unit_id`, compared verbatim, never canonicalized"
+      },
+      {
+        "id": "provider_unit",
+        "note": "the provider-native project, workspace, or account the bill is grouped by"
+      },
+      {
+        "id": "source_label",
+        "note": "the department label the export itself carries; grouped as written, never parsed"
+      }
+    ]
+  },
+  "time_bucket": {
+    "granularity": "day",
+    "format": "YYYY-MM-DD",
+    "timezone": "UTC",
+    "why": "the rubric weights every sampled query once and publishes no time series, so an hour bucket would carry precision no grade can use and would narrow the crowd one row hides in"
+  },
+  "sampling": {
+    "max_bytes": 8000000,
+    "max_rows": 50000,
+    "max_prompt_excerpt_chars": 280,
+    "selection": "the producer's own bounded sample; this contract never asks for a full corpus",
+    "gradeable_floor": {
+      "prompts_per_org_unit": 25,
+      "classified_share": 0.6,
+      "history_window_days": 14
+    }
+  },
+  "delivery_behaviour": {
+    "partial": {
+      "situation": "the source states it omitted records, or some rows fail validation.",
+      "behaviour": "accepted; the omitted count and one located issue per skipped row are carried through, and the summary counts what was read rather than what was sent.",
+      "never": "a partial source is never presented as a complete one."
+    },
+    "stale": {
+      "situation": "a delivery arrives at or below the last accepted sequence from the same source.",
+      "behaviour": "refused whole with `stale_delivery`; sequence decides freshness, never arrival.",
+      "never": "a re-delivered older snapshot never overwrites a newer one."
+    },
+    "malformed": {
+      "situation": "the envelope, the header, or the quoting is unreadable.",
+      "behaviour": "refused whole, before a row is read, with the code and the coordinate.",
+      "never": "a malformed source is never partly parsed to see what it might have been."
+    },
+    "reordered": {
+      "situation": "rows arrive out of day order, or columns in a different position.",
+      "behaviour": "kept. Columns are mapped by name; out-of-order rows are counted and reported, because order carries no meaning to a day bucket but a shuffled file is usually an unintended concatenation.",
+      "never": "a row is never dropped for its position."
+    }
+  },
+  "sources": [
+    {
+      "id": "local-conversation-archive",
+      "label": "Local conversation or audit archive",
+      "source_kind": "conversation-archive",
+      "summary": "An assistant's own conversation or admin audit export, already downloaded.",
+      "reads": {
+        "contract": "wawalu.integration.conversation-export",
+        "version": "1.0",
+        "module": "src/conversation-export.js"
+      },
+      "dialect_ids": [
+        "chatgpt-enterprise-conversation-export",
+        "claude-enterprise-conversation-export",
+        "copilot-conversation-export",
+        "workspace-audit-conversation-export"
+      ],
+      "accepted_extensions": [
+        ".csv",
+        ".tsv",
+        ".txt"
+      ],
+      "attribution": {
+        "field": "department",
+        "key_space": "source_label",
+        "required": true,
+        "note": "a row with no department is grouped as “(ungrouped)” and counted; a file with no department column at all is incomplete for this purpose and is reported as such"
+      },
+      "time_bucket": {
+        "field": "occurred_at",
+        "granularity": "day",
+        "derived": "UTC calendar day of the timestamp"
+      },
+      "sampling": {
+        "bounded_by": "rows and bytes",
+        "excerpt_admitted": false
+      },
+      "provenance": {
+        "label": "Local conversation archive",
+        "detail": "Read in this tab. Prompt bodies are measured and discarded inside the parser; no prompt text leaves it."
+      },
+      "grades": "attribution_and_volume",
+      "grades_note": "carries no token counts or rubric category, so it places and counts queries rather than grading them; pair it with a gateway log or prompt batch for a literacy grade"
+    },
+    {
+      "id": "gateway-proxy-log",
+      "label": "Gateway or proxy log export",
+      "source_kind": "gateway-log",
+      "summary": "A delimited export from the LLM gateway or proxy the organization already runs.",
+      "reads": {
+        "contract": "wawalu.integration.query-sample",
+        "version": "1.0",
+        "module": "src/query-sample-contract.js"
+      },
+      "dialect_ids": [
+        "delimited-gateway-log"
+      ],
+      "accepted_extensions": [
+        ".csv",
+        ".tsv",
+        ".txt"
+      ],
+      "attribution": {
+        "field": "org_unit_id",
+        "key_space": "org_pseudonym_or_provider_unit",
+        "required": true,
+        "note": "decided once per file from the caller's grouping unit, never per row from the shape of a cell"
+      },
+      "time_bucket": {
+        "field": "query_date",
+        "granularity": "day",
+        "derived": null
+      },
+      "sampling": {
+        "bounded_by": "rows and bytes",
+        "excerpt_admitted": true
+      },
+      "provenance": {
+        "label": "Gateway log sample",
+        "detail": "Read and classified in this tab. Any excerpt is discarded at the classifier; only the derived category survives."
+      },
+      "grades": "prompt_literacy",
+      "grades_note": "carries the four fields the rubric consumes, so it can drive a graded sample"
+    },
+    {
+      "id": "representative-prompt-batch",
+      "label": "Representative prompt batch",
+      "source_kind": "prompt-batch",
+      "summary": "A JSON envelope of already-categorized representative queries, assembled by the organization's own gateway owner.",
+      "reads": {
+        "contract": "wawalu.integration.query-sample",
+        "version": "1.0",
+        "module": "src/query-sample-contract.js"
+      },
+      "dialect_ids": [
+        "json-envelope"
+      ],
+      "accepted_extensions": [
+        ".json"
+      ],
+      "attribution": {
+        "field": "org_unit_id",
+        "key_space": "org_pseudonym_or_provider_unit",
+        "required": true,
+        "note": "same key space and same verbatim comparison as the gateway log"
+      },
+      "time_bucket": {
+        "field": "query_date",
+        "granularity": "day",
+        "derived": null
+      },
+      "sampling": {
+        "bounded_by": "records and bytes",
+        "excerpt_admitted": true
+      },
+      "provenance": {
+        "label": "Representative prompt batch",
+        "detail": "Read in this tab. The envelope declares its own sequence and completeness, so a re-delivery is reconciled rather than summed."
+      },
+      "grades": "prompt_literacy",
+      "grades_note": "the bundled synthetic fixture is one of these, and it grades",
+      "bundled_fixture": "contracts/integrations/org-query-source/v1/fixtures/organizational-sample.json"
+    }
+  ],
+  "unsupported_sources": [
+    {
+      "id": "live-gateway-api",
+      "label": "Live gateway or proxy API",
+      "why": "it needs a credential and a network call, and this product makes neither.",
+      "do_instead": "Export a bounded sample from the gateway yourself and choose the file as a gateway or proxy log export."
+    },
+    {
+      "id": "provider-admin-api",
+      "label": "Provider admin or usage API",
+      "why": "an admin key would be a production credential held by a page that promises to hold none.",
+      "do_instead": "Download the usage export from the provider console and use the provider-export intake above."
+    },
+    {
+      "id": "hris-live-connector",
+      "label": "Live HRIS connector",
+      "why": "a directory connection transfers employee records continuously; this product reads one pseudonymized file the reader chose.",
+      "do_instead": "Use the HRIS org export contract's pseudonymized file, produced on your side."
+    },
+    {
+      "id": "browser-session-capture",
+      "label": "Browser or endpoint session capture",
+      "why": "a capture is per-person, per-session evidence, which this contract refuses at any granularity.",
+      "do_instead": "Ask the gateway owner for aggregate rows keyed by organization unit instead."
+    },
+    {
+      "id": "raw-prompt-dump",
+      "label": "Raw prompt or transcript dump",
+      "why": "full prompt bodies are refused whole: the redaction boundary rejects the file rather than reading part of it.",
+      "do_instead": "Ask for categories, or excerpts within the declared excerpt limit, in a representative prompt batch."
+    }
+  ]
+}

@@ -32,6 +32,15 @@ import { renderBriefingDerivation } from "./finops-briefing-derivation-view.js";
 import {
   EXPORT_PACKAGES, PACKAGE_INTAKE_SENTENCE, UNSUPPORTED_PACKAGE, exportPackageGuidance,
 } from "./provider-export-package.js";
+// The second half of the same question. The package contract says where a
+// *billing* export comes from; this registry says which local query sources may
+// stand beside it, and on what terms. Both are painted from their contract
+// rather than worded here, so the panel cannot describe a source the validator
+// does not read.
+import {
+  ORG_QUERY_SOURCES, ORG_QUERY_SOURCE_INTAKE_SENTENCE, UNSUPPORTED_ORG_QUERY_SOURCES,
+  orgQuerySourceCompatibility, orgQuerySourceGuidance,
+} from "./org-query-source.js";
 
 /** The stages the shipped flow already walks. Naming them does not add one. */
 export const IMPORT_STAGES = Object.freeze([
@@ -1187,6 +1196,65 @@ export function applyExportPackageGuidance(doc) {
     return [term, ...rows];
   }));
   return EXPORT_PACKAGES.length;
+}
+
+/**
+ * Paint the organizational query-source chooser and its guidance.
+ *
+ * The option list is built from the registry, never authored in the markup, so
+ * a source cannot appear on the page without a validator behind it — and the
+ * declined sources are listed too, because "why can't I connect the gateway
+ * directly" is the question this panel exists to answer once.
+ */
+export function applyOrgQuerySources(doc) {
+  const promise = byId(doc, "org-query-source-promise");
+  if (promise) promise.textContent = ORG_QUERY_SOURCE_INTAKE_SENTENCE;
+  const chooser = byId(doc, "org-query-source-select");
+  if (chooser && !chooser.options.length) {
+    chooser.replaceChildren(...ORG_QUERY_SOURCES.map((entry) => {
+      const option = doc.createElement("option");
+      option.value = entry.id;
+      option.textContent = entry.label;
+      return option;
+    }));
+  }
+  const declined = byId(doc, "org-query-source-declined");
+  if (declined) {
+    declined.replaceChildren(...UNSUPPORTED_ORG_QUERY_SOURCES.map((entry) => textNode(
+      doc, "li", "org-query-source-declined-item",
+      `${entry.label}: ${entry.why} ${entry.do_instead}`)));
+  }
+  applyOrgQuerySourceStatus(doc, chooser?.value ?? ORG_QUERY_SOURCES[0]?.id ?? null);
+  return ORG_QUERY_SOURCES.length;
+}
+
+/**
+ * The compatibility line and the five-row guidance for one selected source.
+ *
+ * Compatibility is stated as a word and a shape, never a tint: `data-status`
+ * carries the machine-readable verdict and the sentence carries the same
+ * verdict in words, so a reader who cannot see the styling reads the same
+ * answer. Nothing here is derived from a file — the reader has not chosen one
+ * yet — so no cell value can reach this text.
+ */
+export function applyOrgQuerySourceStatus(doc, sourceId) {
+  const compatibility = orgQuerySourceCompatibility({ sourceId });
+  const entry = ORG_QUERY_SOURCES.find((source) => source.id === sourceId) ?? null;
+  const status = byId(doc, "org-query-source-status");
+  if (status) {
+    status.dataset.status = compatibility.status;
+    status.textContent = compatibility.status === "supported"
+      ? `Supported: ${compatibility.message}`
+      : `Not read here: ${compatibility.message} ${compatibility.recovery}`.trim();
+  }
+  const list = byId(doc, "org-query-source-guidance");
+  if (list) {
+    list.replaceChildren(...orgQuerySourceGuidance(entry).flatMap((row) => [
+      textNode(doc, "dt", "org-query-source-term", row.term),
+      textNode(doc, "dd", "org-query-source-value", row.detail),
+    ]));
+  }
+  return compatibility;
 }
 
 /** Move focus to the stage a reader has just been moved into. */
