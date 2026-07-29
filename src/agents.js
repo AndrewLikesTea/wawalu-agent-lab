@@ -208,8 +208,8 @@ export function renderEvents(list, events) {
       state: "empty",
       item: true,
       label: "Activity status",
-      value: "No public activity yet.",
-      description: "Check back after the team publishes repository work.",
+      value: "No public GitHub activity yet.",
+      description: "This list fills in once the team publishes repository work.",
       action: { label: "View the repository", href: "https://github.com/AndrewLikesTea/wawalu-agent-lab" },
     });
     return 0;
@@ -237,18 +237,26 @@ export function renderEvents(list, events) {
 // and an unavailable service are not the same fact, and neither of them is "the
 // team has published nothing" — which is what four unlabelled synthetic rows
 // looked like before this banner sat above them.
+//
+// The banner sits at the top of the list, far below the status block, so it
+// answers a different question: not "what happened to the request" — the status
+// block above already said that — but "what am I looking at in these rows".
+// The chip names the term for the rows and, after the separator, the one word
+// that tells the reasons apart; the sentence says what the rows stand for. It
+// never repeats the status block's sentence and never asks for an action: the
+// only control on offer is the button beside the status.
 export const ACTIVITY_FALLBACK_REASONS = Object.freeze({
   loading: Object.freeze({
-    chip: "Waiting for live data",
-    detail: "The public activity request is still in flight. These four steps are a synthetic example of the work it will show.",
+    chip: "Synthetic example · checking",
+    detail: "These four steps are the kind of work public GitHub activity reports. Live events replace them when GitHub answers.",
   }),
   unavailable: Object.freeze({
-    chip: "Live data unavailable",
-    detail: "Public activity could not be reached, so nothing here is live. These four steps are a synthetic example; use Retry to ask again.",
+    chip: "Synthetic example · check failed",
+    detail: "These four steps are the kind of work public GitHub activity reports. Nothing in this list is live.",
   }),
   empty: Object.freeze({
-    chip: "No matching live events",
-    detail: "The public feed answered and carried no events this observatory recognises. These four steps are a synthetic example.",
+    chip: "Synthetic example · no events",
+    detail: "These four steps are the kind of work public GitHub activity reports. GitHub answered with no events to show.",
   }),
 });
 
@@ -269,7 +277,7 @@ function fallbackNote(reason) {
 export function renderRepresentativeActivity(list, { reason = "loading" } = {}) {
   list.replaceChildren();
   list.setAttribute("aria-busy", "false");
-  list.setAttribute("aria-label", "Representative synthetic activity");
+  list.setAttribute("aria-label", "Synthetic example activity");
   list.dataset.feed = "representative";
   list.append(fallbackNote(reason));
   for (const item of REPRESENTATIVE_ACTIVITY) {
@@ -301,26 +309,26 @@ export function renderRepresentativeActivity(list, { reason = "loading" } = {}) 
 export const ACTIVITY_STATES = Object.freeze({
   loading: Object.freeze({
     shape: "loading",
-    chip: "Loading",
-    title: "Loading recent activity",
-    detail: "Requesting public repository activity from GitHub. Until it answers, the steps below are a synthetic example rather than live events.",
-    keptDetail: "Checking for newer public repository activity. The events below are from the last successful update.",
+    chip: "Checking",
+    title: "Checking public GitHub activity",
+    detail: "Nothing is needed from you. Until GitHub answers, the steps below are a synthetic example rather than live events.",
+    keptDetail: "Nothing is needed from you. The events below are from the last successful update until GitHub answers again.",
     action: "Refresh",
     recovery: "refresh",
   }),
   live: Object.freeze({
     shape: "live",
     chip: "Live",
-    title: "Live public activity",
-    detail: "Public repository events are shown below. This list refreshes every 90 seconds.",
+    title: "Live public GitHub activity",
+    detail: "Public GitHub activity is shown below. This list refreshes every 90 seconds.",
     action: "Refresh",
     recovery: "refresh",
   }),
   empty: Object.freeze({
     shape: "empty",
-    chip: "No activity",
-    title: "No recent public activity",
-    detail: "No recent public activity is available. The public feed answered and carried no events this observatory recognises — nothing failed, and nothing is hidden. The steps below are a synthetic example of the work this feed shows.",
+    chip: "No events",
+    title: "No recent public GitHub activity",
+    detail: "GitHub answered and carried no events this observatory recognises — nothing failed, and nothing is hidden. The steps below are a synthetic example of the work this panel shows when there are events.",
     links: Object.freeze([
       Object.freeze({ label: "Meet the demo personas", href: "#persona-title" }),
       Object.freeze({ label: "Read the published prompt trace", href: "/agent-trace.html" }),
@@ -331,10 +339,10 @@ export const ACTIVITY_STATES = Object.freeze({
   error: Object.freeze({
     shape: "error",
     chip: "Request failed",
-    title: "Public activity could not be loaded",
-    detail: "The request for public repository activity failed, so nothing below is live. The steps shown are a synthetic example, and the rest of this page is unaffected.",
-    keptDetail: "The request for public repository activity failed. The events below are from the last successful update, and the rest of this page is unaffected.",
-    action: "Retry public activity",
+    title: "Public GitHub activity could not be loaded",
+    detail: "The request for public GitHub activity failed, so nothing below is live. The steps shown are a synthetic example, and the rest of this page is unaffected.",
+    keptDetail: "The request for public GitHub activity failed. The events below are from the last successful update, and the rest of this page is unaffected.",
+    action: "Retry public GitHub activity",
     recovery: "retry",
   }),
 });
@@ -347,7 +355,7 @@ export function isRecoverableActivityState(state) {
 }
 
 function liveDetail(count) {
-  return `${count} recent public ${count === 1 ? "event" : "events"} from the lab repositories. This list refreshes every 90 seconds.`;
+  return `${count} recent public GitHub ${count === 1 ? "event" : "events"} from the lab repositories. This list refreshes every 90 seconds.`;
 }
 
 // The status block sits immediately after the panel heading, so this is the
@@ -409,8 +417,11 @@ export async function loadActivity(root = document, fetcher = fetch) {
   renderActivityState(root, "loading", { keptEvents: hasLiveEvents });
   if (!hasLiveEvents) {
     renderRepresentativeActivity(list, { reason: "loading" });
-    label.textContent = "Representative preview";
-    updated.textContent = "Public request in progress";
+    // The hero card is the page-level indicator: connection and freshness. It
+    // must not restate the panel's status sentence, so it never repeats the
+    // status heading — it says how the check stands and when data last arrived.
+    label.textContent = "Checking";
+    updated.textContent = "Not updated yet";
   }
   try {
     const responses = await Promise.all(EVENTS_URLS.map(
@@ -424,21 +435,21 @@ export async function loadActivity(root = document, fetcher = fetch) {
       .slice(0, 30);
     const count = renderEvents(list, events);
     if (count) {
-      list.setAttribute("aria-label", "Recent public repository events");
+      list.setAttribute("aria-label", "Recent public GitHub events");
       renderActivityState(root, "live", { count });
       label.textContent = "Live signal";
     } else {
       renderRepresentativeActivity(list, { reason: "empty" });
       renderActivityState(root, "empty");
-      label.textContent = "Representative preview";
+      label.textContent = "Synthetic example shown";
     }
     signal.dataset.connected = "true";
     updated.textContent = `Updated ${new Intl.DateTimeFormat(undefined, { timeStyle: "short" }).format(new Date())}`;
   } catch {
     renderActivityState(root, "error", { keptEvents: hasLiveEvents });
     signal.dataset.connected = "false";
-    label.textContent = "Connection status: paused";
-    updated.textContent = "Last request: failed";
+    label.textContent = "Check failed";
+    updated.textContent = "Not updated";
     if (!hasLiveEvents) renderRepresentativeActivity(list, { reason: "unavailable" });
   }
 }

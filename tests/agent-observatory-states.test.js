@@ -95,7 +95,7 @@ test("no recent activity says so and points at the personas and the prompt trace
   renderActivityState(root, "empty");
   const panel = stateOf(root);
 
-  assert.match(panel.textContent, /No recent public activity/i);
+  assert.match(panel.textContent, /No recent public GitHub activity/i);
   assert.match(panel.textContent, /nothing failed/i);
   const links = tags(panel, "A");
   assert.deepEqual(links.map((link) => link.href), ["#persona-title", "/agent-trace.html"]);
@@ -142,8 +142,8 @@ test("retry runs the same load, and a recovered request reaches the live state",
   retry.dispatch("click");
   await waitFor(() => stateOf(root).dataset.state === "live", "the retried request reached the live state", 50);
 
-  assert.match(titleOf(root), /Live public activity/i);
-  assert.match(stateOf(root).textContent, /1 recent public event/);
+  assert.match(titleOf(root), /Live public GitHub activity/i);
+  assert.match(stateOf(root).textContent, /1 recent public GitHub event/);
   assert.equal(byClass(root.nodes["#activity-list"], "activity-item-representative").length, 0);
   assert.equal(root.nodes["#refresh-activity"].textContent, "Refresh");
 });
@@ -173,7 +173,7 @@ test("status is the first thing after the panel heading, before the control and 
   assert.equal(status.getAttribute("role"), "status");
   assert.equal(status.getAttribute("aria-live"), "polite");
   assert.equal(status.dataset.state, "loading", "the served markup is already the loading state");
-  assert.match(textOf(status), /Loading recent activity/);
+  assert.match(textOf(status), /Checking public GitHub activity/);
   // The personas link target has to be reachable, and focusable when reached.
   const personas = document.querySelector("#persona-title");
   assert.equal(personas.getAttribute("tabindex"), "-1");

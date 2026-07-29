@@ -33,7 +33,7 @@ test("representative activity is clearly labelled and contains no live links", (
   const list = createElement("ol");
   renderRepresentativeActivity(list);
 
-  assert.equal(list.getAttribute("aria-label"), "Representative synthetic activity");
+  assert.equal(list.getAttribute("aria-label"), "Synthetic example activity");
   assert.equal(list.getAttribute("aria-busy"), "false");
   assert.equal(byClass(list, "activity-item-representative").length, 4);
   assert.equal(tags(list, "A").length, 0);
@@ -94,8 +94,8 @@ test("unavailable public activity retains the representative fallback and retry"
   assert.equal(byClass(root.nodes["#activity-list"], "activity-item-representative").length, 4);
   assert.equal(root.nodes["#activity-status"].dataset.state, "error");
   assert.match(root.nodes["#activity-status"].textContent, /could not be loaded.*synthetic example/i);
-  assert.equal(root.nodes["#connection-label"].textContent, "Connection status: paused");
-  assert.equal(root.nodes["#refresh-activity"].textContent, "Retry public activity");
+  assert.equal(root.nodes["#connection-label"].textContent, "Check failed");
+  assert.equal(root.nodes["#refresh-activity"].textContent, "Retry public GitHub activity");
 });
 
 test("live public activity replaces the representative fallback", async () => {
@@ -117,7 +117,7 @@ test("live public activity replaces the representative fallback", async () => {
 
   assert.equal(byClass(root.nodes["#activity-list"], "activity-item-representative").length, 0);
   assert.equal(byClass(root.nodes["#activity-list"], "activity-item").length, 2);
-  assert.equal(root.nodes["#activity-list"].getAttribute("aria-label"), "Recent public repository events");
+  assert.equal(root.nodes["#activity-list"].getAttribute("aria-label"), "Recent public GitHub events");
   assert.equal(root.nodes["#connection-label"].textContent, "Live signal");
 });
 
@@ -128,8 +128,8 @@ test("an empty public response uses the labelled representative sequence", async
   assert.equal(byClass(root.nodes["#activity-list"], "activity-fallback")[0].dataset.reason, "empty");
   assert.equal(byClass(root.nodes["#activity-list"], "activity-item-representative").length, 4);
   assert.equal(root.nodes["#activity-status"].dataset.state, "empty");
-  assert.match(root.nodes["#activity-status"].textContent, /No recent public activity is available/i);
-  assert.equal(root.nodes["#connection-label"].textContent, "Representative preview");
+  assert.match(root.nodes["#activity-status"].textContent, /No recent public GitHub activity/i);
+  assert.equal(root.nodes["#connection-label"].textContent, "Synthetic example shown");
   assert.equal(root.nodes[".signal-card"].dataset.connected, "true");
 });
 
