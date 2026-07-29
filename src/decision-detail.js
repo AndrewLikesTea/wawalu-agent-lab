@@ -80,37 +80,80 @@ function renderBackLink() {
   return back;
 }
 
+// One primary state message per rendered first screen: a chip that names the
+// state in words, one heading, and one sentence saying what happened. `tone`
+// picks the chip's wash from the semantic set already used by the post detail —
+// the word is the signal, the colour only agrees with it.
+//
+// `recoverable` is the retry rule, held in the model rather than inferred from
+// the copy. Retrying is only an answer when a *read* failed and a second attempt
+// could succeed. A decision that is not in this browser will not appear because
+// the reader pressed a button again, and neither will one that was never named,
+// so those states offer the labelled route back and nothing else — a Retry that
+// cannot change the outcome is a promise the page cannot keep.
 const DETAIL_STATE_COPY = {
   loading: {
+    tone: "neutral",
+    label: "Decision status",
     title: "Loading decision",
     description: "We’re finding this decision and its linked releases.",
+    recoverable: false,
   },
   empty: {
+    tone: "neutral",
+    label: "No decision selected",
     title: "Choose a decision",
-    description: "No decision was specified. Return to Decisions to choose one from the log.",
+    description: "No decision was specified. Use “Back to Decisions” above to choose one from the log.",
+    recoverable: false,
   },
   "not-found": {
+    tone: "missing",
+    label: "Not found",
     title: "Decision not found",
-    description: "This decision may have been removed or is not available in this browser.",
+    description: "This decision may have been removed or is not recorded in this browser. Trying again will not find it — use “Back to Decisions” above to choose another record.",
+    recoverable: false,
   },
   error: {
+    tone: "error",
+    label: "Request failed",
     title: "Decision couldn’t be loaded",
-    description: "The decision log is temporarily unavailable. Your browser data has not been changed.",
+    description: "The decision log is temporarily unavailable, so this record didn’t load. Your browser data has not been changed, so trying again is safe.",
+    recoverable: true,
   },
 };
 
-export function renderDecisionDetailState(container, state) {
+export const DECISION_RETRY_LABEL = "Retry loading this decision";
+
+export function isRecoverableDecisionState(state) {
+  return DETAIL_STATE_COPY[state]?.recoverable === true;
+}
+
+export function renderDecisionDetailState(container, state, { onRetry } = {}) {
   const copy = DETAIL_STATE_COPY[state] ?? DETAIL_STATE_COPY.error;
   container.replaceChildren(renderBackLink());
   const loadingHook = state === "loading" ? " list-state-loading" : "";
   const panel = el("section", `detail-state detail-state-${state}${loadingHook}`);
   panel.dataset.state = state;
+  panel.dataset.recoverable = String(copy.recoverable === true);
   panel.setAttribute("aria-labelledby", "decision-state-title");
   panel.setAttribute("role", state === "error" ? "alert" : "status");
-  const label = el("p", "detail-state-label", state === "error" ? "Error" : "Decision status");
+  // Focusable only by script: a retry replaces the control the reader was
+  // standing on, and this panel is where they need to land next.
+  panel.setAttribute("tabindex", "-1");
+  const label = el("p", `detail-state-label detail-state-chip detail-state-chip-${copy.tone}`, copy.label);
   const title = el("h1", "detail-state-title", copy.title);
   title.id = "decision-state-title";
   panel.append(label, title, el("p", "detail-state-guidance", copy.description));
+  // Actions come after the words that explain them, so a reader — and a tab
+  // sequence — meets the reason before the button.
+  if (copy.recoverable === true && typeof onRetry === "function") {
+    const actions = el("div", "detail-state-actions");
+    const retry = el("button", "empty-action detail-retry", DECISION_RETRY_LABEL);
+    retry.type = "button";
+    retry.addEventListener("click", onRetry);
+    actions.append(retry);
+    panel.append(actions);
+  }
   container.append(panel);
   return panel;
 }
@@ -355,13 +398,16 @@ export function renderLinkedReleases(releases) {
 export function renderDecisionDetail(container, decision, options = {}) {
   container.replaceChildren(renderBackLink());
   if (!decision) {
-    renderDecisionDetailState(container, decisionDetailState(options));
+    renderDecisionDetailState(container, decisionDetailState(options), options);
     return;
   }
 
   const alternatives = normalizeAlternatives(decision);
   let state = createComparisonState(alternatives);
   const view = el("article", "decision-detail");
+  // Where focus lands when a retry finally resolves the record. Script-only, so
+  // it never adds a stop to the reader's own tab sequence.
+  view.setAttribute("tabindex", "-1");
   const header = el("header", "decision-detail-header");
   const heading = el("div", "detail-heading");
   heading.append(el("p", "eyebrow", "Engineering decision"), el("h1", undefined, decision.title));
