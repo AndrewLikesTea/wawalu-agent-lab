@@ -249,6 +249,108 @@ export function renderBriefingError({ summary, detail, remedy } = {}) {
   return panel;
 }
 
+/**
+ * Why the reader is looking at the published sample instead of their own months.
+ *
+ * It sits above the briefing rather than inside it, and it prints: a sheet that
+ * carries a figure without saying whose figure it is, is the sheet that gets
+ * quoted in a board deck six weeks later. `role="status"` rather than an alert —
+ * an empty workspace is a state, not a fault, and the reader did nothing wrong.
+ */
+export function renderSourceNotice(absence) {
+  if (!absence) return null;
+  const panel = el("section", "brief-source-notice");
+  panel.dataset.absence = absence.code;
+  panel.setAttribute("role", "status");
+  panel.setAttribute("aria-labelledby", "brief-source-title");
+  const heading = el("h2", "brief-source-title");
+  heading.id = "brief-source-title";
+  heading.append(
+    el("span", "brief-source-label", "Not your figures: "),
+    document.createTextNode(absence.summary),
+  );
+  panel.append(heading);
+  panel.append(el("p", "brief-source-statement", absence.statement));
+  if (absence.remedy) panel.append(el("p", "brief-source-remedy", absence.remedy));
+  panel.append(el("p", "brief-source-substitute",
+    "The published synthetic sample is shown below so the artifact can be read and printed in full. "
+    + "Every figure in it is invented, and none of it is a measurement of your spend."));
+  return panel;
+}
+
+/* ----------------------------------- print ----------------------------------- */
+
+export const PRINT_CONTROL_ID = "brief-print";
+export const PRINT_NOTE_ID = "brief-print-note";
+export const PRINT_STATUS_ID = "brief-print-status";
+
+export const PRINT_CONTROL_LABEL = "Print or save as PDF";
+
+export const PRINT_CONTROL_NOTE =
+  "Both levels open on paper, the site chrome comes off, and the sheet carries its own figure, "
+  + "action, confidence, provenance, method, and limitations. Nothing is uploaded and nothing is sent.";
+
+export const PRINT_UNAVAILABLE_MESSAGE =
+  "This browser did not offer a print dialog to this page. The briefing is fully expanded now, so "
+  + "printing from the browser's own menu produces the same sheet.";
+
+/**
+ * The one control this page owns.
+ *
+ * A real `<button>`, in the tab order, labelled with what it does rather than
+ * with an icon — and drawn from script, because a print control on a page whose
+ * script never ran is a control that does nothing when pressed. The keyboard
+ * route that does not depend on this button at all (the browser's own print
+ * command) still works: `wirePrintExpansion` listens for `beforeprint`.
+ */
+export function renderPrintControl({
+  label = PRINT_CONTROL_LABEL, note = PRINT_CONTROL_NOTE,
+} = {}) {
+  const wrapper = el("div", "brief-print-control");
+  const button = el("button", "brief-print-button", label);
+  button.setAttribute("type", "button");
+  button.id = PRINT_CONTROL_ID;
+  button.setAttribute("aria-describedby", PRINT_NOTE_ID);
+  const hint = el("p", "brief-print-note", note);
+  hint.id = PRINT_NOTE_ID;
+  const status = el("p", "brief-print-status");
+  status.id = PRINT_STATUS_ID;
+  status.setAttribute("role", "status");
+  wrapper.append(button, hint, status);
+  return wrapper;
+}
+
+/**
+ * Press the control, get a whole briefing.
+ *
+ * Expanding before the dialog opens and restoring after it closes is done here
+ * as well as on `beforeprint`/`afterprint`, because the pair is not fired by
+ * every engine and the reader who pressed a button labelled "print" must not
+ * receive a sheet with its provenance missing. Both paths are idempotent:
+ * `expandForPrint` skips a level the reader opened, and `restoreAfterPrint`
+ * closes only what this code opened.
+ */
+export function wirePrintControl(control, article, { scope = globalThis, doc = document } = {}) {
+  const button = control.querySelector(".brief-print-button");
+  const status = control.querySelector(".brief-print-status");
+  if (!button) return () => {};
+  const onClick = () => {
+    expandForPrint(article, doc);
+    if (typeof scope.print !== "function") {
+      status.textContent = PRINT_UNAVAILABLE_MESSAGE;
+      return;
+    }
+    status.textContent = "";
+    try {
+      scope.print();
+    } finally {
+      restoreAfterPrint(article, doc);
+    }
+  };
+  button.addEventListener("click", onClick);
+  return () => button.removeEventListener("click", onClick);
+}
+
 /* --------------------------------- sections ---------------------------------- */
 
 function masthead(briefing, origin) {
