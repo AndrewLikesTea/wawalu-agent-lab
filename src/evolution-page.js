@@ -119,7 +119,7 @@ import {
 } from "/finops-first-run-view.js";
 import {
   announce as announceStage, applyDatasetProvenance, applyExportPackageGuidance,
-  applyFieldDiagnostic, applyImportLimits,
+  applyFieldDiagnostic, applyImportLimits, applyOrgQuerySources, applyOrgQuerySourceStatus,
   applyBriefing, applyBriefingState, applyImportProgress, applyMetricBasis, applyRequirements, applyRestoreRejection,
   applyRestoredBriefing, applyStage, applySupportingDisclosures, applyTrustVerdict, diagnosticFor,
   EXAMPLE_DATASET_PROVENANCE,
@@ -1758,6 +1758,14 @@ function mountLocalFinopsImport() {
   applyImportLimits(document);
   // Where the export comes from, painted from the versioned package contract.
   applyExportPackageGuidance(document);
+  // Which local query sources may stand beside it, painted from the versioned
+  // source registry. Changing the chooser repaints the compatibility sentence
+  // and the guidance rows and does nothing else: no file is selected, nothing
+  // is read, and the provider-export path above is untouched by it.
+  applyOrgQuerySources(document);
+  document.getElementById("org-query-source-select")?.addEventListener("change", (event) => {
+    applyOrgQuerySourceStatus(document, event.target?.value ?? null);
+  });
   // What one provider export will answer, said before a byte is selected.
   applyPreUploadDisclosure(document);
   applySuppressedSavings(document, null);

@@ -356,6 +356,25 @@
 .export-package-support { font-style:italic; }
 .export-package-source { margin:0 2px; font-size:12.5px; }
 
+/* The organizational query-source chooser, styled as a sibling of the package
+   guidance above it because it answers the same question about a different
+   file. The status line is never signalled by colour alone: it carries the
+   verdict in words and a leading mark, and the tint only agrees with them. */
+.org-query-source-help { flex-basis:100%; margin-top:6px; border-top:1px solid var(--import-line); padding-top:12px; }
+.org-query-source-help>summary { display:flex; align-items:center; min-height:44px; border-radius:8px; padding:6px 8px; color:var(--import-ink); font-size:13px; font-weight:750; cursor:pointer; }
+.org-query-source-help>summary:hover { background:var(--import-wash); }
+.org-query-source-promise { margin:10px 2px; color:var(--import-ink); font-size:13px; }
+.org-query-source-field { display:flex; align-items:center; gap:8px; margin:10px 2px; font-size:13px; }
+.org-query-source-field>select { min-height:44px; border:1px solid var(--import-line); border-radius:8px; padding:4px 8px; font:inherit; }
+.org-query-source-status { margin:8px 2px; border-left:3px solid var(--import-line); padding-left:8px; color:var(--import-ink); font-size:12.5px; }
+.org-query-source-status[data-status="supported"]::before { content:"\2713\00a0"; font-weight:750; }
+.org-query-source-status:not([data-status="supported"])::before { content:"\2717\00a0"; font-weight:750; }
+.org-query-source-list { margin:0 0 12px; }
+.org-query-source-term { margin-top:10px; color:var(--import-ink); font-size:12.5px; font-weight:750; }
+.org-query-source-value { margin:4px 0 0 14px; color:var(--ink-muted); font-size:12.5px; line-height:1.5; }
+.org-query-source-declined-title { margin:0 2px; color:var(--import-ink); font-size:12.5px; font-weight:700; }
+.org-query-source-declined { margin:6px 0 12px 18px; padding:0; color:var(--ink-muted); font-size:12.5px; line-height:1.5; }
+
 /* Every other way to start, behind one disclosure.
    The reader's own export is the page's first step, so the template downloads,
    the example conversation exports, and the saved-briefing reopen live here
