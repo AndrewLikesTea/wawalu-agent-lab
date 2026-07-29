@@ -450,6 +450,13 @@
                `.local-example-action`: there is still exactly one way into the
                example dataset, and this is a download, not a second entry. -->
           <button id="download-query-sample-example" type="button">Download the query-sample template</button>
+          <!-- The template above is nine rows: every publishable floor refuses
+               it, which is right for a template and useless as a demonstration.
+               This grades a larger bundled synthetic sample through the same
+               validator, scorer and view a reader's own file goes through, so the
+               coaching decision is reachable with no file at all. It is labelled
+               as the example it is on every line it paints. -->
+          <button id="grade-example-org-query-sample" type="button">Grade the bundled example query sample</button>
           <!-- The same idea for the conversation-export contract, one control
                further: four vendor shapes, so the chooser is a labelled select
                rather than four buttons. The options are painted from the
@@ -1118,6 +1125,21 @@
         <h2 class="eyebrow" id="graded-sample-title">Your graded sample</h2>
         <div id="graded-sample-body"></div>
         <p class="graded-sample-live" id="graded-sample-live" role="status" aria-live="polite" aria-atomic="true"></p>
+      </section>
+
+      <!-- The coaching decision from a local organizational query sample.
+           Authored empty and hidden, like the graded sample above it: a visitor
+           who has brought no sample and not opened the bundled example never
+           meets this section. The answer, the grade it rests on, the confidence,
+           the provenance, the one prioritized action and the four disclosures are
+           all painted by org-query-decision-view.js out of the state
+           org-query-decision.js selects; these are slots, never wording. No
+           prompt text can reach here — the model is built from classified
+           records whose eight fields are an allowlist. -->
+      <section class="org-coaching" id="org-coaching" data-state="absent" aria-labelledby="org-coaching-title" hidden>
+        <h2 class="eyebrow" id="org-coaching-title">Which department needs coaching now?</h2>
+        <div id="org-coaching-body"></div>
+        <p class="org-coaching-live" id="org-coaching-live" role="status" aria-live="polite" aria-atomic="true"></p>
       </section>
 
       <!-- The evidence behind one department's grade. Authored empty and hidden,
