@@ -626,6 +626,25 @@
             </div>
           </section>
         </section>
+        <!-- The invitation, where the reading ends. The form itself stays below
+             this section and outside the result region, so no re-render can
+             unmount it; what sits here is a button that opens it and puts the
+             cursor in the field. It is a sibling of the result rather than a
+             slot inside it for the same reason, and it is always visible
+             because a result always is — the bundled analysis on load, the
+             example brief, or the reader's own import.
+
+             The sentence under the button is the whole privacy claim, said
+             before a visitor commits to opening anything: it is true by
+             construction, because the request body is assembled from the field
+             alone. -->
+        <div class="finops-followup-cta" id="finops-result-followup">
+          <p class="finops-followup-cta-lead">Want to go through this decision brief — or your own numbers — with a person?</p>
+          <button class="finops-followup-cta-button" id="finops-followup-cta" type="button" data-follow-up-cta="finops-contact" aria-controls="finops-contact-panel">
+            Discuss this brief with us
+          </button>
+          <p class="finops-followup-cta-note">Only the work email address you type is submitted. No imported file, figure, column value, department name, or prompt text is attached.</p>
+        </div>
         <!-- A briefing reopened from a file. A sibling of the imported result,
              never a slot inside it: a visitor who comes back next quarter must
              not be able to read a figure saved in June as this morning's total.
@@ -735,6 +754,10 @@
           </form>
           <p class="finops-contact-status" id="finops-contact-status" role="status" aria-live="polite"></p>
           <p class="finops-contact-recovery" id="finops-contact-recovery" hidden>Your email address is still in the field, and nothing from your analysis was sent. Try again in a few minutes — the result above is unchanged and stays until you refresh.</p>
+          <!-- Revealed by finops-contact.js once an address lands, and never
+               before: until then there is nothing to do next. It is a place to
+               go in this tab while the reply is written, not a second ask. -->
+          <p class="finops-contact-next" id="finops-contact-next" hidden>Next, while you wait: <a href="/executive-briefing.html">open the one-page executive briefing</a> — the same figures, built in this tab and formatted to print.</p>
         </div>
       </section>
 
