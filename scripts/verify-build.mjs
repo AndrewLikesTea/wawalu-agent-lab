@@ -63,6 +63,11 @@ export async function verifyArtifact(root) {
     // comes to life — including the boundary a reader consults before pasting.
     "prompt-coaching-page.js", "prompt-coaching.js", "prompt-coaching-view.js",
     "prompt-coaching-contract.js", "prompt-coaching-contract-view.js",
+    // The front-door journey contract and the surface it paints. The entry
+    // imports both, so a missing one is a rejected entry module — and the
+    // zero-input path a visitor with nothing to paste depends on.
+    "prompt-coaching-entry.js", "prompt-coaching-entry-view.js",
+    "prompt-grading-eligibility.js", "prompt-literacy-scoring.js",
     "prompt-literacy-rubric.json",
     // The revision contract is a client import even before its dedicated
     // surface lands. Fail artifact verification if build selection drops it.

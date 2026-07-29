@@ -665,6 +665,20 @@
           <h2 id="prompt-coaching-question">Would a model answer this prompt well?</h2>
           <p>Paste a prompt, or the few turns around it, and grade it against the same rubric this page grades an imported corpus with. The text stays in this tab: nothing is uploaded, stored, or attached to your organization&rsquo;s grade.</p>
         </div>
+        <!-- The front door: what a visitor gets here, what it is measured
+             against, the one thing to do first, and what this never reaches.
+             The two static sentences below are readable before any script runs,
+             because a visitor deciding whether to paste anything cannot rely on
+             a promise that only appears once JavaScript succeeds. Everything
+             inside the body is painted from src/prompt-coaching-entry.js, the
+             journey contract the page entry itself consumes. -->
+        <section class="prompt-coaching-entry" id="prompt-coaching-entry" data-entry-state="empty" aria-labelledby="prompt-coaching-entry-title">
+          <h3 class="eyebrow" id="prompt-coaching-entry-title">Start here</h3>
+          <p class="prompt-coaching-entry-static">Grade one prompt against a bundled rubric, in this tab, with no sign-in and nothing uploaded. No model, HR system, billing system, credential, or customer record is contacted or read.</p>
+          <div class="prompt-coaching-entry-body" id="prompt-coaching-entry-body">
+            <p class="prompt-coaching-entry-lead">What you get, what it is measured against, and what to do first are rendered here from the coaching entry contract when the page&rsquo;s scripts load.</p>
+          </div>
+        </section>
         <!-- The first-time cue. Static, so it is readable before any script
              runs, and hidden by the view once a comparison is on screen: by
              then the change block says the same thing by existing. It promises
