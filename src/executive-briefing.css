@@ -66,6 +66,14 @@
 .brief-figure-label { max-width:56ch; margin:10px 0 0; color:var(--brief-ink); font-size:17px; line-height:1.5; }
 .brief-figure-share { max-width:56ch; margin:6px 0 0; color:var(--brief-muted); font-size:15px; line-height:1.5; }
 
+/* Modelled potential, beside the figure it qualifies. A rule and a tag rather
+   than a wash: this is a classification of the number above it, not a signal
+   derived per period, and it has to read the same in monochrome on paper as it
+   does on screen. */
+.brief-figure-basis { display:flex; flex-wrap:wrap; align-items:baseline; gap:8px; max-width:66ch; margin:14px 0 0; padding-left:12px; border-left:3px solid var(--brief-ink); }
+.brief-basis-tag { color:var(--brief-ink); font:750 11px/1.5 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; }
+.brief-basis-statement { color:#55554f; font-size:14px; line-height:1.55; }
+
 /* Filled wash: a signal derived for this period. Word, value, and shape all
    carry it; the wash is the fourth channel. */
 .brief-standing { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 12px; margin:18px 0 0; border-radius:10px; padding:11px 14px; }
@@ -123,6 +131,14 @@
 .brief-bound-more { max-width:62ch; margin:10px 0 0; color:var(--brief-muted); font-size:14px; font-weight:650; line-height:1.55; }
 .brief-bound-safety { max-width:66ch; margin:12px 0 0; padding-top:12px; border-top:1px solid var(--brief-rule); color:#55554f; font-size:13px; line-height:1.6; }
 
+/* Provenance at the level the figure is read at. Quiet by design — it is the
+   thing a reader checks rather than the thing they act on — but present on the
+   first screen and on the first pages of the sheet, never only behind a level. */
+.brief-provenance-summary { max-width:66ch; margin:16px 0 0; padding-top:14px; border-top:1px solid var(--brief-rule); }
+.brief-provenance-summary .brief-subheading { margin-top:0; font-size:14px; }
+.brief-provenance-line { margin:0 0 6px; color:var(--brief-ink); font:400 13px/1.6 ui-monospace,monospace; overflow-wrap:anywhere; }
+.brief-provenance-note-lead,.brief-provenance-route { margin:0 0 6px; color:#55554f; font-size:13px; line-height:1.6; }
+
 /* ------------------------------- disclosures ------------------------------- */
 
 /* A button and a hidden panel rather than <details>: the print sheet has to be
@@ -173,6 +189,16 @@
 .brief-print-status:not(:empty) { max-width:66ch; margin:10px 0 0; border-left:3px solid #72520a; padding-left:12px; color:#5c4a1e; font-size:14px; line-height:1.55; }
 
 /* ------------------------- whose figures these are -------------------------- */
+
+/* Inside the sheet, first thing in the masthead. The notice above the sheet
+ * explains *why* the reader is looking at a sample; this says *what they are
+ * looking at* on the artifact itself, so a page that is photographed, cropped, or
+ * printed cannot lose the word. Same caution pair as the notice; the word does
+ * the work, the wash is the third channel. */
+.brief-synthetic { margin:0 0 18px; border:1px solid #e0cf8f; border-left:4px solid #72520a; border-radius:10px; padding:12px 16px; background:#fffdf3; }
+.brief-synthetic-title { margin:0 0 4px; }
+.brief-synthetic-tag { color:#72520a; font:750 11px/1.6 ui-monospace,monospace; letter-spacing:.08em; text-transform:uppercase; }
+.brief-synthetic-statement { max-width:66ch; margin:0; color:#55554f; font-size:13.5px; line-height:1.55; }
 
 /* Drawn above the sheet, and printed with it: a briefing built from the
  * published sample rather than from the reader's own months has to say so
@@ -253,7 +279,11 @@
   html,body { background:#fff; }
   body { background-image:none; }
   .page,main,.brief-hero { width:auto; margin:0; padding:0; }
-  .site-header,.site-footer,.skip-link,.brief-print-hint,.brief-toggle-mark,.brief-print-control,.brief-contact { display:none !important; }
+  /* Navigation and every other control come off: a link, a nav bar, or a form
+     on paper is a dead control, and the sheet is the briefing. `.site-nav` is
+     named alongside its header so the rule still holds if the header ever
+     becomes a print-visible title block. */
+  .site-header,.site-nav,.site-footer,.skip-link,.brief-print-hint,.brief-toggle-mark,.brief-print-control,.brief-contact { display:none !important; }
   /* The notice stays. A sheet that carries a figure without saying whose figure
      it is, is the sheet that gets quoted six weeks later as if it were real. */
   .brief-source-notice { max-width:none; margin:0 0 12px; border:1px solid #171713; border-left:4px solid #171713; border-radius:0; padding:12px 14px; background:none !important; break-inside:avoid; }
@@ -288,4 +318,14 @@
   .brief-question { font-size:24px; }
   .brief-facts { grid-template-columns:repeat(2,1fr); }
   .brief-figure,.brief-figure-label,.brief-standing,.brief-action-statement,.brief-verdict { break-after:avoid; }
+  /* The three things that must survive the trip out of the building with the
+     figure: what kind of number it is, whether it is a sample, and where it came
+     from. None of them is chrome, so none of them is dropped — they are only
+     stripped of colour, because the words already carry them. */
+  .brief-synthetic { border:1px solid #171713; border-left:4px solid #171713; border-radius:0; background:none !important; break-inside:avoid; }
+  .brief-synthetic-tag,.brief-synthetic-statement { color:#171713 !important; font-size:11px; }
+  .brief-figure-basis { border-left:3px solid #171713; break-inside:avoid; }
+  .brief-basis-tag,.brief-basis-statement { color:#171713 !important; font-size:11px; }
+  .brief-provenance-summary { break-inside:avoid; }
+  .brief-provenance-line,.brief-provenance-note-lead,.brief-provenance-route { color:#171713 !important; font-size:10.5px; line-height:1.45; }
 }

@@ -99,12 +99,17 @@ export async function verifyArtifact(root) {
     // silently dropping either file would leave preview/source checks green
     // while production no longer carries the reviewed contract.
     "executive-finops-briefing.js", "executive-finops-briefing-fixture.json",
-    // The briefing's printable surface. The entry imports the contract and the
-    // view and fetches the fixture above by path, so any one of these missing is
-    // either a rejected entry module or a page stuck in its loading state — and
-    // the stylesheet is what removes the site chrome from a printed briefing.
+    // The briefing's printable surface. The entry imports the contract, the
+    // view, and the in-bundle synthetic sample, so any one of these missing is a
+    // rejected entry module — a page stuck in its loading state — and the
+    // stylesheet is what removes the site chrome from a printed briefing.
     "executive-briefing.html", "executive-briefing-page.js",
     "executive-briefing-view.js", "executive-briefing.css",
+    // The empty-state sample now ships as a module the entry imports rather than
+    // a file it fetches, so a reader with nothing retained sees a whole briefing
+    // on the first screen instead of a request that may never land. A dropped
+    // one is a rejected entry module: the common first visit paints nothing.
+    "executive-briefing-sample.js",
     // The entry now decides between this browser's own retained periods and the
     // published sample before it draws anything, and it imports both the chooser
     // and the workspace reader to do it. A dropped one is a rejected entry
@@ -162,6 +167,22 @@ export async function verifyArtifact(root) {
   const verdict = validateExecutiveBriefing(fixture.briefing);
   if (!verdict.valid) {
     throw new Error(`executive FinOps fixture is invalid: ${JSON.stringify(verdict.violations)}`);
+  }
+
+  // The empty-state sample is carried in the bundle so the briefing paints
+  // without a request. Duplicated data is only safe when a drift is loud, so the
+  // built module has to declare the same periods the published fixture does, and
+  // has to still produce the published briefing through the same contract.
+  const { sampleRetainedPeriods } = await import(
+    pathToFileURL(resolve(root, "executive-briefing-sample.js")).href
+  );
+  const samplePeriods = JSON.parse(JSON.stringify(sampleRetainedPeriods()));
+  if (JSON.stringify(samplePeriods) !== JSON.stringify(fixture?.input?.retainedPeriods)) {
+    throw new Error("the bundled briefing sample and the published fixture declare different periods");
+  }
+  if (JSON.stringify(JSON.parse(JSON.stringify(buildExecutiveBriefing(samplePeriods))))
+    !== JSON.stringify(fixture?.briefing)) {
+    throw new Error("the bundled briefing sample does not rebuild the published briefing");
   }
 
   const headers = await readFile(resolve(root, "_headers"), "utf8");
