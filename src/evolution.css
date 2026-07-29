@@ -1490,6 +1490,30 @@
    region after a re-grade; `html { scroll-behavior:smooth }` in styles.css is
    already reverted under prefers-reduced-motion, so that scroll is instant for
    a reader who asked for less motion. */
+/* The front door. Ordinary flow, one column, no card inside a card: it is the
+   first thing read on the panel and nothing in it competes with the field. The
+   attribution of the last grade is the only tinted line, because "this is our
+   example, not your text" is the one sentence a reader must not skim past. */
+.prompt-coaching-entry { display:grid; gap:10px; max-width:70ch; }
+.prompt-coaching-entry-static { margin:0; color:var(--ink-muted); font-size:13px; line-height:1.6; }
+.prompt-coaching-entry-body { display:grid; gap:14px; }
+.prompt-coaching-entry-block { display:grid; gap:6px; }
+.prompt-coaching-entry-headline { margin:0; font-weight:650; }
+.prompt-coaching-entry-block dl { display:grid; grid-template-columns:minmax(9rem,auto) 1fr; gap:4px 12px; margin:0; font-size:13px; line-height:1.6; }
+.prompt-coaching-entry-block dt { color:var(--ink-muted); }
+.prompt-coaching-entry-block dd { margin:0; }
+.prompt-coaching-entry-exclusions { display:grid; gap:8px; margin:0; padding:0; list-style:none; font-size:13px; line-height:1.6; }
+.prompt-coaching-entry-exclusions li { border-left:3px solid var(--import-line); padding-left:10px; }
+.prompt-coaching-entry-exclusion-label { margin:0; font-weight:650; }
+.prompt-coaching-entry-exclusion-claim, .prompt-coaching-entry-exclusion-verify { margin:0; color:var(--ink-muted); }
+.prompt-coaching-entry-boundary { border-top:1px solid var(--import-line); padding-top:10px; }
+.prompt-coaching-entry-boundary-summary { color:var(--import-ink); font:700 12px/1.6 ui-monospace,monospace; cursor:pointer; }
+.prompt-coaching-entry-boundary-summary:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.prompt-coaching-entry-boundary[open] .prompt-coaching-entry-boundary-summary { margin-bottom:6px; }
+.prompt-coaching-entry-lead { margin:0 0 8px; color:var(--ink-muted); font-size:13px; line-height:1.6; }
+.prompt-coaching-entry-action, .prompt-coaching-entry-alternative, .prompt-coaching-entry-attribution { margin:0; color:var(--ink-muted); font-size:13px; line-height:1.6; }
+.prompt-coaching-entry-example { justify-self:start; }
+.prompt-coaching-entry-source { margin:0; border-left:5px solid var(--import-accent); padding:2px 0 2px 12px; font-size:13px; line-height:1.6; }
 .prompt-coaching-cue { max-width:70ch; margin:0; border-left:5px solid var(--import-line); padding:2px 0 2px 12px; color:var(--ink-muted); font-size:13px; line-height:1.6; }
 .prompt-coaching-cue strong { color:var(--import-ink); }
 .prompt-coaching-change {
@@ -1730,7 +1754,9 @@
   .coaching-result-mark { font-size:40px; }
   .coaching-result-toggle { width:100%; }
   .prompt-coaching-letter { font-size:40px; }
-  .prompt-coaching-actions button,.prompt-coaching-disclosure-toggle { width:100%; }
+  .prompt-coaching-actions button,.prompt-coaching-disclosure-toggle,.prompt-coaching-entry-example { width:100%; }
+  .prompt-coaching-entry-block dl { grid-template-columns:minmax(0,1fr); gap:2px; }
+  .prompt-coaching-entry-block dd { margin-bottom:6px; }
   .prompt-coaching-preview-measures,.prompt-coaching-preview-fields { grid-template-columns:minmax(0,1fr); gap:2px; }
   .prompt-coaching-preview-measures dd,.prompt-coaching-preview-fields dd { margin-bottom:6px; }
   .prompt-coaching-axes { grid-template-columns:minmax(0,1fr); gap:2px; }
