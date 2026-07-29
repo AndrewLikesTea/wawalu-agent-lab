@@ -40,6 +40,7 @@ const PAGES = [
   { file: "profile.html", surface: "profile" },
   { file: "evolution.html", surface: "AI FinOps" },
   { file: "coach.html", surface: "prompt coach" },
+  { file: "personal-history.html", surface: "personal AI history" },
   { file: "agent-trace.html", surface: "published prompt trace" },
 ];
 

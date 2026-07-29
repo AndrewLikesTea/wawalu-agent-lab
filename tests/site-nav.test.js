@@ -28,6 +28,7 @@ const PAGES = [
   { file: "savings-commitment.html", current: "/evolution.html", title: "Savings Commitment · Shiplog" },
   { file: "executive-briefing.html", current: "/evolution.html", title: "Executive briefing · Shiplog" },
   { file: "coach.html", current: "/coach.html", title: "Prompt coach · Shiplog" },
+  { file: "personal-history.html", current: "/coach.html", title: "Personal AI history · Shiplog" },
   { file: "agents.html", current: "/agents.html", title: "Agent observatory · Wawalu Labs" },
   { file: "agent-trace.html", current: "/agents.html", title: "Published prompt trace · Wawalu Labs" },
 ];

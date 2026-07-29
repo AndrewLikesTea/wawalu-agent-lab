@@ -1,0 +1,131 @@
+/* The personal AI-history workflow.
+ *
+ * Layered over styles.css, which owns the frame, the type scale, and the focus
+ * ring. Nothing here signals state by colour alone: every state ships a word
+ * (`now`, `next`, `done`, `Not read:`, the confidence label) and a shape, and the
+ * tint below is the third channel. Every interactive target is at least 44px
+ * high, and the two column layouts collapse to one before 760px.
+ */
+
+.ph-hero { padding:52px 0 34px; max-width:64ch; }
+.ph-hero h1 { margin:8px 0 16px; font-size:clamp(38px,6vw,60px); line-height:1.02; letter-spacing:-.02em; }
+.ph-hero-lead { margin:0 0 18px; font-size:18px; line-height:1.55; }
+.ph-hero-boundary { margin:0 0 12px; border-left:3px solid #155f9e; padding:12px 16px; background:rgba(255,255,255,.72); border-radius:0 10px 10px 0; }
+.ph-hero-boundary strong { display:block; }
+.ph-hero-boundary span { color:#3f3f39; }
+.ph-hero-aside { margin:0; color:#62625d; font-size:14px; line-height:1.5; max-width:60ch; }
+
+.ph-guidance,.ph-workflow { margin:0 0 34px; border:1px solid #dbd8d0; border-radius:16px; padding:26px; background:rgba(255,255,255,.72); }
+.ph-guidance .section-heading p:last-child,.ph-workflow .section-heading p:last-child { margin:6px 0 18px; max-width:70ch; color:#3f3f39; }
+
+/* The boundary, one claim per row. `field` and `value` are two columns on a
+   wide screen and stacked pairs on a narrow one — never a table a phone has to
+   scroll sideways. */
+.ph-boundary-list { display:grid; grid-template-columns:repeat(auto-fill,minmax(min(100%,270px),1fr)); gap:10px; margin:0 0 20px; padding:0; list-style:none; }
+.ph-boundary-list li { display:flex; flex-direction:column; gap:2px; border:1px solid #e2dfd7; border-radius:10px; padding:10px 12px; background:#fff; }
+.ph-boundary-field { color:#62625d; font:650 11px/1.3 ui-monospace,monospace; letter-spacing:.05em; text-transform:uppercase; }
+.ph-boundary-value { font-weight:650; }
+.ph-exclusions { margin:0; }
+.ph-exclusion-term { margin:14px 0 2px; font-weight:700; }
+.ph-exclusion-term::before { content:"✕ "; color:#8a3d2f; }
+.ph-exclusion-claim { margin:0; color:#3f3f39; line-height:1.55; }
+.ph-exclusion-verify { display:block; margin-top:4px; color:#62625d; font:400 13px/1.5 ui-monospace,monospace; }
+.ph-boundary-fallback,.ph-eligibility-fallback { margin:0; color:#3f3f39; }
+
+.ph-shapes { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr)); gap:14px; margin:0; padding:0; list-style:none; }
+.ph-shape { border:1px solid #e2dfd7; border-radius:12px; padding:16px; background:#fff; }
+.ph-shape-label { margin:0 0 4px; font-size:16px; }
+.ph-shape-extensions { margin:0 0 8px; font:650 13px/1.4 ui-monospace,monospace; color:#155f9e; }
+.ph-shape-detect { margin:0; color:#3f3f39; font-size:14px; line-height:1.55; }
+.ph-eligibility-subhead { margin:22px 0 8px; font-size:15px; }
+.ph-required-fields,.ph-floors { margin:0; padding-left:20px; color:#3f3f39; line-height:1.55; }
+.ph-required-fields li { list-style:disc; margin-bottom:6px; }
+.ph-floors li { margin-bottom:6px; }
+.ph-field-name { display:inline-block; margin-right:6px; font:650 13px/1.4 ui-monospace,monospace; color:#171713; }
+
+.ph-controls { display:flex; flex-wrap:wrap; align-items:flex-end; gap:18px; margin:0 0 16px; }
+.ph-field { flex:1 1 320px; min-width:0; }
+.ph-field label { display:block; margin-bottom:6px; font-weight:650; }
+.ph-field input[type=file] { width:100%; min-height:44px; border:1px solid #b9b5ab; border-radius:10px; padding:9px 12px; background:#fff; }
+.ph-field input[type=file]:disabled { border-style:dashed; background:#f1efe9; color:#62625d; }
+.ph-hint { margin:6px 0 0; color:#62625d; font-size:13px; line-height:1.5; }
+.ph-actions { display:flex; flex-wrap:wrap; gap:10px; }
+.ph-actions button { min-height:44px; border:1px solid #171713; border-radius:10px; padding:0 18px; background:#171713; color:#fff; font-weight:650; cursor:pointer; }
+.ph-actions #personal-history-clear { border-color:#b9b5ab; background:#fff; color:#171713; }
+.ph-actions button:disabled { border-color:#cfcdc5; background:#e8e5dd; color:#75756f; cursor:not-allowed; }
+.ph-actions button:focus-visible,.ph-field input:focus-visible,.ph-toggle:focus-visible { outline:3px solid var(--focus-ring); outline-offset:2px; }
+
+.ph-status { margin:0 0 14px; min-height:1.5em; color:#3f3f39; font-size:14px; line-height:1.5; }
+.ph-result { display:grid; gap:18px; }
+.ph-state { border:1px solid #e2dfd7; border-radius:12px; padding:18px; background:#fff; }
+.ph-state-title { margin:0 0 8px; font-size:17px; }
+.ph-error { border-color:#c58b7e; background:#fdf5f2; }
+.ph-state-label { color:#8a3d2f; }
+.ph-error-detail,.ph-error-remedy { margin:0 0 8px; line-height:1.55; }
+.ph-error-boundary { margin:0; color:#62625d; font-size:13px; line-height:1.5; }
+
+.ph-progress { border-color:#9dbde0; background:#f4f8fd; }
+.ph-progress-current { margin:0 0 12px; line-height:1.55; }
+.ph-progress-stages { display:flex; flex-wrap:wrap; gap:10px; margin:0; padding:0; list-style:none; counter-reset:none; }
+.ph-progress-stage { display:flex; align-items:center; gap:8px; border:1px solid #cfcdc5; border-radius:999px; padding:6px 14px; background:#fff; font-size:14px; }
+.ph-progress-stage[data-stage-state=current] { border-color:#155f9e; font-weight:650; }
+.ph-progress-stage[data-stage-state=complete] { border-color:#3f7a4f; }
+.ph-progress-status { color:#62625d; font:650 11px/1 ui-monospace,monospace; letter-spacing:.05em; text-transform:uppercase; }
+
+.ph-report { display:grid; gap:20px; border:1px solid #dbd8d0; border-radius:14px; padding:22px; background:#fff; }
+.ph-report-head { display:grid; gap:6px; }
+.ph-report-question { margin:0; font-size:22px; line-height:1.25; }
+.ph-section-title { margin:0 0 8px; font-size:13px; letter-spacing:.06em; text-transform:uppercase; color:#62625d; }
+.ph-lead { border-left:3px solid #155f9e; padding-left:18px; }
+.ph-lead-refused { border-left-color:#8a6a2f; }
+.ph-lead-move { margin:0 0 10px; font-size:21px; font-weight:700; line-height:1.3; }
+.ph-figure { display:flex; align-items:baseline; flex-wrap:wrap; gap:8px; margin:0 0 4px; }
+.ph-figure-value { font-size:clamp(34px,7vw,46px); font-weight:750; letter-spacing:-.02em; line-height:1; }
+.ph-figure-unit { color:#3f3f39; font-weight:650; }
+.ph-figure-caption { margin:0 0 12px; max-width:62ch; color:#62625d; font-size:13px; line-height:1.55; }
+.ph-lead-reach { margin:0 0 8px; line-height:1.55; }
+.ph-lead-evidence { margin:0 0 8px; line-height:1.55; }
+.ph-lead-evidence::before { content:"▲ "; color:#155f9e; }
+.ph-lead-evidence[data-evidence=projected]::before { content:"◇ "; }
+.ph-lead-refusal,.ph-reason { margin:0 0 8px; max-width:66ch; color:#3f3f39; font-size:14px; line-height:1.55; }
+.ph-confidence,.ph-provenance,.ph-action { border-top:1px solid #eae7df; padding-top:16px; }
+.ph-confidence-level { margin:0 0 6px; font-size:17px; font-weight:700; }
+.ph-confidence-level::before { content:"● "; color:#3f7a4f; }
+.ph-confidence[data-confidence=moderate] .ph-confidence-level::before { content:"◑ "; color:#8a6a2f; }
+.ph-confidence[data-confidence=low] .ph-confidence-level::before { content:"○ "; color:#8a3d2f; }
+.ph-confidence[data-confidence=none] .ph-confidence-level::before { content:"— "; color:#62625d; }
+.ph-confidence-rule,.ph-confidence-downgrade { margin:0 0 8px; max-width:66ch; line-height:1.55; }
+.ph-confidence-arithmetic { margin:0 0 8px; color:#3f3f39; font:400 13px/1.5 ui-monospace,monospace; }
+.ph-provenance p { margin:0 0 6px; max-width:70ch; line-height:1.55; }
+.ph-provenance-boundary { color:#3f3f39; font-size:14px; }
+.ph-action-guidance { margin:0 0 10px; max-width:70ch; font-size:17px; line-height:1.55; }
+.ph-action-subhead { margin:0 0 6px; font-size:13px; letter-spacing:.06em; text-transform:uppercase; color:#62625d; }
+.ph-action-rewrite { margin:0; border:1px dashed #b9b5ab; border-radius:10px; padding:14px; background:#faf9f5; font:400 15px/1.6 ui-monospace,monospace; white-space:pre-wrap; }
+
+.ph-disclosure { border-top:1px solid #eae7df; padding-top:14px; }
+.ph-disclosure-heading { margin:0; }
+.ph-toggle { display:flex; flex-wrap:wrap; align-items:baseline; gap:10px; width:100%; min-height:44px; border:1px solid #cfcdc5; border-radius:10px; padding:10px 14px; background:#faf9f5; color:#171713; font-size:15px; font-weight:650; text-align:left; cursor:pointer; }
+.ph-toggle-mark { font:700 16px/1 ui-monospace,monospace; color:#155f9e; }
+.ph-toggle-hint { flex:1 1 220px; color:#62625d; font-size:13px; font-weight:400; }
+.ph-panel { padding:14px 2px 2px; }
+.ph-panel-subhead { margin:16px 0 6px; font-size:14px; }
+.ph-panel-subhead:first-child { margin-top:0; }
+.ph-counts { display:grid; grid-template-columns:1fr auto; gap:6px 16px; margin:0; }
+.ph-counts dt { color:#3f3f39; }
+.ph-counts dd { margin:0; text-align:right; font-weight:650; font-variant-numeric:tabular-nums; }
+.ph-count-note { display:block; color:#62625d; font-size:12px; font-weight:400; }
+.ph-identity { margin:10px 0 0; color:#62625d; font:400 13px/1.5 ui-monospace,monospace; }
+.ph-runner-up,.ph-runner-up-close,.ph-ranking-primary { margin:0 0 6px; max-width:70ch; line-height:1.55; }
+.ph-ranking-ties { margin:0; padding-left:22px; color:#3f3f39; line-height:1.55; }
+.ph-basis { margin:12px 0 0; max-width:70ch; color:#3f3f39; line-height:1.55; }
+
+@media(max-width:760px) {
+  .ph-guidance,.ph-workflow,.ph-report { padding:18px; }
+  .ph-controls { flex-direction:column; align-items:stretch; }
+  .ph-actions button { flex:1 1 auto; }
+  .ph-counts { grid-template-columns:1fr; }
+  .ph-counts dd { text-align:left; }
+  .ph-lead { border-left-width:2px; padding-left:12px; }
+}
+
+@media(prefers-reduced-motion:reduce) { html { scroll-behavior:auto; } }
