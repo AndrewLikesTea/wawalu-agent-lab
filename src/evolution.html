@@ -665,6 +665,13 @@
           <h2 id="prompt-coaching-question">Would a model answer this prompt well?</h2>
           <p>Paste a prompt, or the few turns around it, and grade it against the same rubric this page grades an imported corpus with. The text stays in this tab: nothing is uploaded, stored, or attached to your organization&rsquo;s grade.</p>
         </div>
+        <!-- The first-time cue. Static, so it is readable before any script
+             runs, and hidden by the view once a comparison is on screen: by
+             then the change block says the same thing by existing. It promises
+             only what this workflow does — a second grade from the same bundled
+             rubric, in this tab — and never a live provider reading or a record
+             that outlives the tab. -->
+        <p class="prompt-coaching-cue" id="prompt-coaching-cue"><strong>You can revise and re-grade in this session.</strong> Grade once, edit, and grade again to see the previous and revised scores, what moved, and one next step. Both grades use the bundled rubric in this tab; no prompt is sent to a model. A text-free result envelope from the previous grade is kept in memory only until you clear the panel or close the tab.</p>
         <form class="prompt-coaching-form" id="prompt-coaching-form" novalidate>
           <div class="prompt-coaching-field">
             <label for="prompt-coaching-input">Your prompt or short conversation</label>
@@ -690,6 +697,12 @@
           </div>
         </form>
         <p class="prompt-coaching-live" id="prompt-coaching-live" role="status" aria-live="polite" aria-atomic="true"></p>
+        <!-- What changed between two grades, above the result it is a change to.
+             Empty and hidden until a second grade exists; tabindex="-1" keeps it
+             out of the tab sequence while letting focus land here after a
+             re-grade, which is what the reader pressed the button to find out.
+             Its accessible name is set with the heading the view renders. -->
+        <section class="prompt-coaching-change" id="prompt-coaching-change" tabindex="-1" hidden></section>
         <div class="prompt-coaching-result" id="prompt-coaching-result" hidden></div>
 
         <!-- Before you paste: what this reads, what it returns, and what it
