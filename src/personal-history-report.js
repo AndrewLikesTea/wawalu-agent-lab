@@ -37,7 +37,7 @@ import {
   PERSONAL_ELIGIBILITY, PERSONAL_EXPORT_PATH_RULE, PERSONAL_EXPORT_SHAPES,
   PERSONAL_HISTORY_QUESTION, PERSONAL_HISTORY_VERSION, PERSONAL_NOT_ELIGIBLE,
   PERSONAL_NOT_ELIGIBLE_RULE, PERSONAL_READER_LIMITS, PERSONAL_REPORT_STATE,
-  PERSONAL_REPORT_STATES,
+  PERSONAL_REPORT_STATES, PERSONAL_SAMPLING,
 } from "./personal-history-contract.js";
 
 const SHAPE = Object.fromEntries(PERSONAL_EXPORT_SHAPES.map((shape) => [shape.id, shape]));
@@ -453,9 +453,48 @@ function confidenceFor({ scoredPrompts, leadMargin, coverage }) {
 
 const boundaryFor = (state) => PERSONAL_REPORT_STATES.find((entry) => entry.state === state).boundary;
 
+const scopeOf = ({ sampled, stride, available, read }) => Object.freeze({
+  sampled,
+  method: sampled ? PERSONAL_SAMPLING.methods.evenlySpaced : PERSONAL_SAMPLING.methods.complete,
+  ceiling: PERSONAL_SAMPLING.ceiling,
+  stride,
+  promptEntriesAvailable: available,
+  promptEntriesRead: read,
+  rule: PERSONAL_SAMPLING.rule,
+});
+
+/** Every entry the export carried was read. The shape a refusal carries too. */
+const completeScope = (entries) => scopeOf({ sampled: false, stride: 1, available: entries, read: entries });
+
+/**
+ * Bound a history to the in-tab ceiling by reading every nth entry.
+ *
+ * `stride = ceil(available / ceiling)` and the entries at `0, stride, 2*stride,
+ * …` are taken in file order, so the sample spans the whole export rather than
+ * its opening months, at most `ceiling` entries are graded, and the selection is
+ * a pure function of one integer. No clock, no randomness, no hashing: the same
+ * export sampled twice reads the same entries, which is what lets two readings
+ * of one file be compared at all.
+ *
+ * @param {ReadonlyArray<{date: string|null, text: string}>} entries in file order.
+ * @returns {{sample: ReadonlyArray<object>, scope: object}} the entries to grade
+ *   and the declared scope that travels onto the report beside their figures.
+ */
+export function sampleEntries(entries) {
+  const available = entries.length;
+  const ceiling = PERSONAL_SAMPLING.ceiling;
+  if (available <= ceiling) {
+    return { sample: entries, scope: completeScope(available) };
+  }
+  const stride = Math.ceil(available / ceiling);
+  const sample = [];
+  for (let at = 0; at < available; at += stride) sample.push(entries[at]);
+  return { sample, scope: scopeOf({ sampled: true, stride, available, read: sample.length }) };
+}
+
 function report({
   shape = null, state, reason = null, counts, priority = PERSONAL_NO_PRIORITY,
-  confidence = PERSONAL_CONFIDENCE_NONE,
+  confidence = PERSONAL_CONFIDENCE_NONE, scope = null,
 }) {
   const promptEntries = counts.scoredPrompts + counts.empty + counts.undated + counts.unreadable;
   return Object.freeze({
@@ -465,6 +504,10 @@ function report({
     state,
     reason,
     reasonRule: reason ? PERSONAL_NOT_ELIGIBLE_RULE[reason] : null,
+    // What the figures below are drawn from. A refusal that read nothing still
+    // carries it, so a consumer reads one shape and a reader never has to infer
+    // from a missing field that nothing was left out.
+    scope: scope ?? completeScope(promptEntries),
     eligibility: Object.freeze({
       minScoredPrompts: PERSONAL_ELIGIBILITY.minScoredPrompts,
       minDistinctDays: PERSONAL_ELIGIBILITY.minDistinctDays,
@@ -534,13 +577,17 @@ export function buildPersonalHistoryReport(text) {
   }
 
   const { entries, attachments } = extractEntries(shape, text);
-  const refuse = (reason, counts) => report({ shape, state: PERSONAL_REPORT_STATE.notEligible, reason, counts });
+  // The sample is decided before a prompt is graded and travels onto the report
+  // whether or not it fired. A history over the ceiling is read across its whole
+  // span rather than refused; what the old refusal was right about — that a
+  // figure drawn from part of a file must say so — is `scope`, not silence.
+  const { sample, scope } = sampleEntries(entries);
+  const refuse = (reason, counts) => report({
+    shape, state: PERSONAL_REPORT_STATE.notEligible, reason, counts, scope,
+  });
 
   if (!entries.length) {
     return refuse(PERSONAL_NOT_ELIGIBLE.noPromptEntries, { ...NO_COUNTS, attachments });
-  }
-  if (entries.length > PERSONAL_READER_LIMITS.maxPromptEntries) {
-    return refuse(PERSONAL_NOT_ELIGIBLE.exportTooLarge, { ...NO_COUNTS, attachments });
   }
 
   // Drop precedence, declared in PERSONAL_METRIC_DEFINITIONS: empty, then
@@ -549,7 +596,7 @@ export function buildPersonalHistoryReport(text) {
   const counts = { scoredPrompts: 0, empty: 0, undated: 0, unreadable: 0, distinctDays: 0, attachments };
   const days = new Set();
   const candidatesByPrompt = [];
-  for (const entry of entries) {
+  for (const entry of sample) {
     if (!entry.text.trim()) { counts.empty += 1; continue; }
     if (!entry.date) { counts.undated += 1; continue; }
     const graded = gradeMyPrompt({ text: entry.text });
@@ -574,7 +621,7 @@ export function buildPersonalHistoryReport(text) {
 
   const ranked = rankMoves(candidatesByPrompt);
   if (!ranked.length) {
-    return report({ shape, state: PERSONAL_REPORT_STATE.noMoveAvailable, counts });
+    return report({ shape, state: PERSONAL_REPORT_STATE.noMoveAvailable, counts, scope });
   }
 
   const promptEntries = counts.scoredPrompts + counts.empty + counts.undated + counts.unreadable;
@@ -585,6 +632,7 @@ export function buildPersonalHistoryReport(text) {
     shape,
     state: PERSONAL_REPORT_STATE.prioritized,
     counts,
+    scope,
     confidence: confidenceFor({ scoredPrompts: counts.scoredPrompts, leadMargin, coverage }),
     priority: Object.freeze({
       available: true,

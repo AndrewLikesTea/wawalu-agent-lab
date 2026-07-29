@@ -338,15 +338,61 @@ export const PERSONAL_ELIGIBILITY = Object.freeze({
 });
 
 /**
- * The in-tab ceiling. Reading is synchronous and single-threaded, and a report
- * that locks a tab for a minute is a report nobody waits for. Stated as a
- * refusal with its own reason code rather than a silent truncation: a report
- * drawn from the first N prompts of a larger file is a coverage figure that
- * quietly lies.
+ * The in-tab ceilings. Reading is synchronous and single-threaded, and a report
+ * that locks a tab for a minute is a report nobody waits for.
+ *
+ * `maxChars` is a refusal: a file this reader cannot pull into the tab at all is
+ * one it has read nothing of, and there is no honest figure to publish about it.
+ *
+ * `maxPromptEntries` is *not* a refusal any more. It was, and the refusal was
+ * wrong for the case it fired on: a long history is exactly the history worth
+ * reading, and "export more than two thousand prompts and this product has
+ * nothing to say to you" is a product that gets quieter the more evidence it is
+ * handed. What replaced it is `PERSONAL_SAMPLING` — a declared, deterministic,
+ * whole-file sample — and the thing the old refusal was right about survives in
+ * `scope`: a reader is told the sample was taken, how, and out of how many.
  */
 export const PERSONAL_READER_LIMITS = Object.freeze({
   maxPromptEntries: 2000,
   maxChars: 12_000_000,
+});
+
+/**
+ * How a history larger than the in-tab ceiling is read.
+ *
+ * NOT THE FIRST N. Truncation was the refusal's own argument against itself: the
+ * first two thousand prompts of a two-year export are the first few months of
+ * it, so the distinct-day floor measures a season, the leading move is the move
+ * of whoever the reader was then, and the coverage ratio describes a file nobody
+ * handed in. Every one of those is a figure that quietly lies.
+ *
+ * EVERY Nth, ACROSS THE WHOLE FILE. `stride = ceil(available / ceiling)` and the
+ * entries at positions `0, stride, 2*stride, …` are read, in file order. The
+ * sample therefore spans the export end to end, at most `ceiling` entries are
+ * graded, and the arithmetic is a function of one integer — the same export read
+ * twice samples the same entries and produces a byte-identical report.
+ *
+ * WHAT IS STILL TRUE OF THE FLOORS. They bind on what was actually read, not on
+ * what was available: `minScoredPrompts` and `minDistinctDays` are read off the
+ * sample, so a sampled history that cannot clear them is refused exactly as an
+ * unsampled one is. A sample is not a shortcut past eligibility.
+ *
+ * WHAT A READER IS OWED. `scope` on every report, sampled or not, carrying the
+ * method, the stride, what was available, and what was read — because a coverage
+ * ratio of 0.9 means something different over a sample than over a whole file,
+ * and a reader cannot tell the two apart from the ratio.
+ */
+export const PERSONAL_SAMPLING = Object.freeze({
+  methods: Object.freeze({ complete: "complete", evenlySpaced: "evenly_spaced" }),
+  ceiling: PERSONAL_READER_LIMITS.maxPromptEntries,
+  formula: "stride = ceil(prompt entries available / ceiling); entries at 0, stride, 2*stride, … are read",
+  rule: "A history over the in-tab ceiling is sampled rather than refused or truncated: every "
+    + "nth prompt entry is read, evenly across the whole export, so the reading spans the same "
+    + "period the file does. The sample is stated on the report, both floors are measured on it, "
+    + "and the same file sampled twice reads the same entries.",
+  boundary: "Sampling changes how much of your export is graded and nothing else about it. The "
+    + "entries that were not sampled were not read, not measured, and not kept — and neither "
+    + "were the ones that were.",
 });
 
 /**
@@ -370,9 +416,11 @@ export const PERSONAL_NOT_ELIGIBLE_RULE = Object.freeze({
   [PERSONAL_NOT_ELIGIBLE.unsupportedInput]:
     "An export is read as text. Nothing else was handed in, so there was nothing to read.",
   [PERSONAL_NOT_ELIGIBLE.exportTooLarge]:
-    `This file is over the in-tab ceiling of ${PERSONAL_READER_LIMITS.maxPromptEntries} prompts. `
-    + "Reading part of it would produce a coverage figure that describes a file you did not "
-    + "hand in, so nothing is read. Split the export and read one part at a time.",
+    `This file is over the in-tab ceiling of ${PERSONAL_READER_LIMITS.maxChars.toLocaleString("en-US")} `
+    + "characters, which is more than this tab can pull in at all. A file that could not be read "
+    + "has nothing honest to report about it, so nothing is read. Split the export and read one "
+    + "part at a time. A history with more prompts than the reader grades is not this: it is "
+    + "sampled and reported, never refused.",
   [PERSONAL_NOT_ELIGIBLE.unrecognizedShape]:
     "This file matched neither supported personal export shape. Check it against the two shapes "
     + "this product reads; a shape it does not recognize is not guessed at.",
@@ -624,7 +672,21 @@ export const PERSONAL_COVERAGE_FLOOR = 0.75;
 
 export const PERSONAL_REPORT_FIELDS = Object.freeze([
   "schemaVersion", "question", "shape", "state", "reason", "reasonRule",
-  "eligibility", "coverage", "confidence", "priority", "basis", "boundary",
+  "eligibility", "scope", "coverage", "confidence", "priority", "basis", "boundary",
+]);
+
+/**
+ * How much of the export the figures beside it are drawn from.
+ *
+ * Present on every report in every state, sampled or not, so a consumer reads
+ * one shape and a reader is never left to infer from a missing field that
+ * nothing was left out. `promptEntriesRead` is the coverage denominator, which
+ * is what makes `coverage.ratio` a ratio of the sample and `scope` the only
+ * place the whole file's size is stated.
+ */
+export const PERSONAL_SCOPE_FIELDS = Object.freeze([
+  "sampled", "method", "ceiling", "stride", "promptEntriesAvailable",
+  "promptEntriesRead", "rule",
 ]);
 
 export const PERSONAL_COVERAGE_FIELDS = Object.freeze([
@@ -748,6 +810,38 @@ export function validatePersonalHistoryReport(report) {
     }
     if (report.coverage.identity !== PERSONAL_COVERAGE_IDENTITY) {
       fail("coverage_identity_text", "the reconciliation travels with the figures it reconciles");
+    }
+  }
+
+  if (!fieldsMatch(report.scope, PERSONAL_SCOPE_FIELDS)) {
+    fail("scope_fields", `scope carries exactly: ${PERSONAL_SCOPE_FIELDS.join(", ")}`);
+  } else {
+    const { sampled, method, ceiling, stride, promptEntriesAvailable, promptEntriesRead } = report.scope;
+    const methods = Object.values(PERSONAL_SAMPLING.methods);
+    if (typeof sampled !== "boolean") fail("scope_sampled", "scope.sampled is a boolean");
+    if (!methods.includes(method)) fail("scope_method", `scope.method must be one of: ${methods.join(", ")}`);
+    if (![ceiling, promptEntriesAvailable, promptEntriesRead].every(isCount) || !isCount(stride) || stride < 1) {
+      fail("scope_counts", "every scope figure is a non-negative integer and the stride is at least 1");
+    } else if (promptEntriesRead > promptEntriesAvailable) {
+      fail("scope_read", "a reader cannot read more prompt entries than the export carried");
+    } else if (sampled !== (method === PERSONAL_SAMPLING.methods.evenlySpaced)) {
+      // The flag and the method are one statement. A report that says it sampled
+      // and names the complete method is a report a surface would print both
+      // ways round.
+      fail("scope_method_agrees", "scope.sampled and scope.method say the same thing");
+    } else if (!sampled && promptEntriesRead !== promptEntriesAvailable) {
+      fail("scope_complete", "an unsampled reading reads every prompt entry the export carried");
+    }
+    if (report.scope.rule !== PERSONAL_SAMPLING.rule) {
+      fail("scope_rule", "the published sampling rule travels with the figures it governs");
+    }
+    // The coverage denominator is the sample, not the file. Stated as a check
+    // rather than a comment, because a producer that got this backwards would
+    // publish a ratio over a denominator it never graded.
+    if (fieldsMatch(report.coverage, PERSONAL_COVERAGE_FIELDS)
+      && isCount(report.coverage.promptEntries) && isCount(promptEntriesRead)
+      && report.coverage.promptEntries !== promptEntriesRead) {
+      fail("scope_coverage", "coverage is measured over exactly the prompt entries scope says were read");
     }
   }
 

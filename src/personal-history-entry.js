@@ -13,6 +13,9 @@
 // never handed to that reader, and nothing that reader retains is read here.
 
 import {
+  PERSONAL_ARCHIVE_EXTENSION, PERSONAL_ARCHIVE_LIMITS, isPersonalArchiveName,
+} from "./personal-archive.js";
+import {
   PERSONAL_EXPORT_SHAPES, PERSONAL_READER_LIMITS,
 } from "./personal-history-contract.js";
 
@@ -42,7 +45,13 @@ export const PERSONAL_FILE_KINDS = Object.freeze(PERSONAL_EXPORT_SHAPES.map((sha
   id: shape.id,
   label: shape.label,
   container: shape.container,
-  extensions: Object.freeze(shape.container === "json" ? [".json"] : [".csv", ".tsv", ".txt"]),
+  // The JSON shape arrives twice: as the file itself, and as the one member of
+  // the archive a console hands back. The archive is a container around this
+  // same shape and not a third shape — it is opened in the tab, one declared
+  // member is taken out of it, and that member goes to this same reader.
+  extensions: Object.freeze(shape.container === "json"
+    ? [".json", PERSONAL_ARCHIVE_EXTENSION]
+    : [".csv", ".tsv", ".txt"]),
 })));
 
 export const PERSONAL_FILE_EXTENSIONS = Object.freeze(
@@ -108,20 +117,25 @@ export function personalFileEligibility(file) {
     return refuse(
       PERSONAL_ENTRY_REFUSAL.unsupportedFileType,
       `A ${extension || "file with no extension"} is not one of the two shapes this reader accepts`,
-      `This workflow reads a personal conversation export (${listed([".json"])}) or a personal prompt `
-        + `log (${listed([".csv", ".tsv", ".txt"])}). The file you chose was not opened, because a `
-        + "shape this reader cannot recognize is not guessed at.",
+      `This workflow reads a personal conversation export (${listed([".json", PERSONAL_ARCHIVE_EXTENSION])}) `
+        + `or a personal prompt log (${listed([".csv", ".tsv", ".txt"])}). The file you chose was not `
+        + "opened, because a shape this reader cannot recognize is not guessed at.",
       "Export your history again in one of the two shapes described above and choose that file. "
         + "Nothing was uploaded, and the file you chose was never read.",
     );
   }
-  if (Number.isFinite(file.size) && file.size > PERSONAL_MAX_FILE_BYTES) {
+  // An archive is compressed, so the byte ceiling a text file meets would refuse
+  // archives well inside what this tab can open. It gets its own, and the
+  // member it holds meets the reader's character ceiling after decompression —
+  // an archive is not a way around a limit, only a different measure of it.
+  const archive = isPersonalArchiveName(file.name);
+  const ceiling = archive ? PERSONAL_ARCHIVE_LIMITS.maxArchiveBytes : PERSONAL_MAX_FILE_BYTES;
+  if (Number.isFinite(file.size) && file.size > ceiling) {
     return refuse(
       PERSONAL_ENTRY_REFUSAL.fileTooLarge,
-      "This export is too large to read in a browser tab",
+      `This ${archive ? "archive" : "export"} is too large to read in a browser tab`,
       `Reading is single-threaded and happens in this tab, so this workflow stops at `
-        + `${PERSONAL_MAX_FILE_BYTES.toLocaleString("en-US")} bytes. Your file was measured and not `
-        + "opened.",
+        + `${ceiling.toLocaleString("en-US")} bytes. Your file was measured and not opened.`,
       "Split the export and read one part at a time. A part read on its own is a complete reading "
         + "of that part, and no figure is drawn from a file that was only half read.",
     );
