@@ -331,16 +331,20 @@ test("the bundled example brief is equally undisturbed, and the confirmation say
     submitEmail(document, TYPED_EMAIL);
     await settled(document);
 
+    // The first words name the request that succeeded, not merely that
+    // something was sent: this sentence is announced on its own, out of the
+    // context of the button that produced it.
     const confirmation = shownText(document, "finops-contact-status");
-    assert.match(confirmation, /^Sent — your email address, and nothing else\./);
+    assert.match(confirmation, /^Follow-up requested — we sent your email address, and nothing else\./);
     assert.match(confirmation, /within two business days/, "the confirmation must say roughly when");
     assert.deepEqual(resultSnapshot(document), before,
       "the example brief must survive the submission exactly as the imported one does");
 
     // A repeat submission is still a success, and still claims nothing more.
     submitEmail(document, TYPED_EMAIL);
-    await waitFor(() => shownText(document, "finops-contact-status").startsWith("That address is already"),
+    await waitFor(() => shownText(document, "finops-contact-status").includes("already on our list"),
       "the already-captured confirmation");
+    assert.match(shownText(document, "finops-contact-status"), /^Follow-up requested — that address is already on our list/);
     assert.match(shownText(document, "finops-contact-status"), /within two business days/);
     assert.deepEqual(resultSnapshot(document), before);
 

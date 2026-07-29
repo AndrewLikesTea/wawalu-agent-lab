@@ -1,11 +1,18 @@
-// The contact affordance that sits under the AI FinOps result.
+// The contact affordance that sits under a FinOps decision brief.
 //
-// A leader who has just read a decision brief — the bundled example one or the
-// one computed from their own export — has exactly one thing they might want
-// that this page cannot give them: a person. This module is that, and nothing
-// more.
+// A leader who has just read a decision brief — the bundled example one, the one
+// computed from their own export, or the one-page executive briefing built from
+// what their browser already holds — has exactly one thing they might want that
+// the page cannot give them: a person. This module is that, and nothing more.
 //
-// Three rules hold it together:
+// It drives two surfaces now, so every id it touches is derived from a `prefix`
+// rather than written out: `finops-contact` on the AI FinOps result and
+// `briefing-contact` on the executive briefing. The markup stays with each page
+// — the copy beside a briefing is not the copy beside an import — but the
+// behaviour, the transport, and the promise made once an address lands are one
+// implementation, so the two surfaces cannot drift apart.
+//
+// Four rules hold it together:
 //
 //   1. It never touches the result. The form is a disclosure *beside* the
 //      analysis, never in place of it; opening, submitting, failing, and
@@ -19,7 +26,15 @@
 //      that does.
 //   3. Failure copy exists only after a failure. The recovery paragraph starts
 //      hidden *and* unreferenced by the field's accessible description, because
-//      a hidden node named by aria-describedby is still read aloud.
+//      a hidden node named by aria-describedby is still read aloud. The
+//      next-step paragraph follows the same rule from the other direction: it
+//      exists only after a success, because until then there is nothing to do
+//      next.
+//   4. A visitor who has just read a figure never has to go looking for the
+//      form. Any control marked `data-follow-up-cta="<prefix>"` anywhere on the
+//      page opens this panel and puts the cursor in the field, so the invitation
+//      can sit beside the brief while the form itself stays outside the region
+//      that re-renders.
 //
 // The transport, the validation, and the failure-to-copy mapping are the home
 // page's. This form asks for the same thing the site footer's does — a person,
@@ -31,31 +46,54 @@ import {
   CONTACT_COPY, describeWith, emailFieldError, looksLikeEmail, postLeadEmail, SubmissionError,
 } from "./lead-capture.js";
 
-const ERROR_ID = "finops-contact-error";
-const RECOVERY_ID = "finops-contact-recovery";
+/**
+ * What a visitor is told once the address is stored. It names what was asked
+ * for, the one thing that travelled, who answers, and by when. Two business days
+ * is the commitment this makes; nothing here claims a customer, a saving, or an
+ * outcome.
+ *
+ * It opens on "Follow-up requested" for the same reason the site footer's does:
+ * the live region announces this sentence on its own, out of the context of the
+ * button that was pressed, so the first words have to say which request
+ * succeeded rather than merely that something was sent.
+ */
+export const CAPTURED = "Follow-up requested — we sent your email address, and nothing else. Someone here "
+  + "replies within two business days. We cannot see your analysis, so say in your reply what you would "
+  + "like to go through.";
+export const ALREADY_CAPTURED = "Follow-up requested — that address is already on our list, so nothing new "
+  + "was stored. Someone here replies within two business days.";
 
-// What a visitor is told once the address is stored. It names the one thing that
-// travelled, who answers, and by when. Two business days is the commitment this
-// makes; nothing here claims a customer, a saving, or an outcome.
-const CAPTURED = "Sent — your email address, and nothing else. Someone here replies within two "
-  + "business days. We cannot see your analysis, so say in your reply what you would like to go through.";
-const ALREADY_CAPTURED = "That address is already on our list, so nothing new was stored. Someone here "
-  + "replies within two business days.";
+const SUBMITTING = "Requesting a follow-up — sending your email address…";
 
-const SUBMITTING = "Sending your email address…";
-
-export function initFinopsContact(root = document, request = (...args) => globalThis.fetch(...args)) {
-  const form = root.querySelector("#finops-contact-form");
-  const trigger = root.querySelector("#finops-contact-open");
-  const panel = root.querySelector("#finops-contact-panel");
+/**
+ * Wire one contact panel.
+ *
+ * `prefix` names the family of ids the surface ships: `<prefix>-form`, `-open`,
+ * `-panel`, `-email`, `-error`, `-status`, `-recovery`, `-dismiss`, `-next`. A
+ * page that ships none of them gets `null` and no listeners.
+ */
+export function initFinopsContact(
+  root = document,
+  request = (...args) => globalThis.fetch(...args),
+  { prefix = "finops-contact" } = {},
+) {
+  const ERROR_ID = `${prefix}-error`;
+  const RECOVERY_ID = `${prefix}-recovery`;
+  const form = root.querySelector(`#${prefix}-form`);
+  const trigger = root.querySelector(`#${prefix}-open`);
+  const panel = root.querySelector(`#${prefix}-panel`);
   if (!form || !trigger || !panel) return null;
 
   const email = form.elements.email;
   const submit = form.querySelector('button[type="submit"]');
-  const dismiss = root.querySelector("#finops-contact-dismiss");
+  const dismiss = root.querySelector(`#${prefix}-dismiss`);
   const fieldError = root.querySelector(`#${ERROR_ID}`);
-  const status = root.querySelector("#finops-contact-status");
+  const status = root.querySelector(`#${prefix}-status`);
   const recovery = root.querySelector(`#${RECOVERY_ID}`);
+  // Optional: a surface may offer no next action, and one that does not still
+  // works. It is never named by aria-describedby — it is a place to go, not a
+  // description of the field.
+  const nextStep = root.querySelector(`#${prefix}-next`);
 
   function setFieldError(message) {
     fieldError.textContent = message ?? "";
@@ -68,6 +106,10 @@ export function initFinopsContact(root = document, request = (...args) => global
   function setRecoveryVisible(visible) {
     recovery.hidden = !visible;
     describeWith(email, RECOVERY_ID, visible);
+  }
+
+  function setNextStepVisible(visible) {
+    if (nextStep) nextStep.hidden = !visible;
   }
 
   function open() {
@@ -90,6 +132,19 @@ export function initFinopsContact(root = document, request = (...args) => global
 
   trigger.addEventListener("click", () => (panel.hidden ? open() : close()));
   dismiss?.addEventListener("click", close);
+
+  // The contextual invitations. They live beside the brief a visitor has just
+  // read — which is a region this module must never render into — and all they
+  // do is bring the reader to this form: open it if it is shut, and land the
+  // cursor in the field either way, so a second press is never a way to close
+  // the form a visitor just asked for.
+  for (const cta of root.querySelectorAll(`[data-follow-up-cta="${prefix}"]`)) {
+    cta.addEventListener("click", () => {
+      open();
+      email.focus();
+    });
+  }
+
   panel.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") return;
     event.preventDefault();
@@ -114,6 +169,7 @@ export function initFinopsContact(root = document, request = (...args) => global
       form.dataset.state = "invalid";
       setFieldError(invalid);
       setRecoveryVisible(false);
+      setNextStepVisible(false);
       status.textContent = "";
       email.focus();
       return;
@@ -122,6 +178,7 @@ export function initFinopsContact(root = document, request = (...args) => global
     form.dataset.state = "submitting";
     setFieldError(null);
     setRecoveryVisible(false);
+    setNextStepVisible(false);
     submit.disabled = true;
     submit.setAttribute("aria-disabled", "true");
     status.textContent = SUBMITTING;
@@ -130,6 +187,9 @@ export function initFinopsContact(root = document, request = (...args) => global
       const body = await postLeadEmail(request, email.value, CONTACT_COPY);
       form.dataset.state = "success";
       status.textContent = body?.subscribed === false ? ALREADY_CAPTURED : CAPTURED;
+      // Waiting two business days is not a next action, so the surface offers
+      // one: somewhere to go now, in this tab, that does not depend on the reply.
+      setNextStepVisible(true);
     } catch (error) {
       // Copy this repository owns, never a string an intermediary supplied, and
       // never a claim that the address was lost when that is not known.

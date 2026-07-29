@@ -187,9 +187,47 @@
 .brief-source-notice .brief-source-substitute { color:#5c5b56; font-size:13.5px; }
 .brief-source-notice p:last-child { margin-bottom:0; }
 
+/* ------------------------- the follow-up affordance ------------------------ */
+/* Beneath the document, not inside it: the sheet keeps its own frame and this
+   reads as a page control rather than a section of the briefing. Disclosure
+   grows downward, so nothing ever overlays a figure. Same inks and same focus
+   ring as the rest of the sheet; the accent is the site's link blue. */
+.brief-contact { display:grid; justify-items:start; gap:14px; max-width:900px; margin:38px 0 0; border-top:1px solid var(--brief-rule); padding:30px 0 0; }
+.brief-contact h2 { margin:0; color:var(--brief-ink); font-size:clamp(22px,3vw,28px); letter-spacing:-.03em; }
+.brief-contact > p:not(.eyebrow) { max-width:64ch; margin:0; color:var(--brief-muted); font-size:16px; line-height:1.6; }
+.brief-contact-trigger { min-height:44px; border:1px solid #1f70c1; border-radius:10px; padding:0 18px; background:#1f70c1; color:#fff; font:650 14px/1.4 inherit; cursor:pointer; }
+.brief-contact-trigger:hover { background:#17538f; }
+.brief-contact-panel { display:grid; gap:14px; width:100%; max-width:640px; border:1px solid var(--brief-line); border-radius:14px; padding:20px; background:var(--brief-quiet); }
+.brief-contact-panel[hidden] { display:none; }
+.brief-contact-form { display:grid; gap:12px; }
+.brief-contact-field { display:grid; gap:7px; }
+.brief-contact-field label { color:var(--brief-ink); font-size:14px; font-weight:700; }
+.brief-contact-field input { min-height:46px; border:1px solid var(--brief-line); border-radius:9px; padding:0 12px; background:#fff; font:inherit; }
+.brief-contact-error { margin:0; border:1px solid #d9b7b7; border-left:5px solid #8a2b2b; border-radius:9px; padding:11px 13px; background:#fdf4f4; color:#8a2b2b; font-size:12px; font-weight:700; line-height:1.5; }
+.brief-contact-error[hidden] { display:none; }
+.brief-contact-note { margin:0; color:var(--brief-muted); font-size:12px; line-height:1.55; }
+.brief-contact-actions { display:flex; flex-wrap:wrap; gap:10px; }
+.brief-contact-actions button { min-height:44px; border:1px solid #1f70c1; border-radius:9px; padding:0 16px; background:#1f70c1; color:#fff; font:650 13px/1.4 inherit; cursor:pointer; }
+.brief-contact-actions button[type="button"] { background:#fff; color:var(--brief-ink); border-color:var(--brief-line); }
+.brief-contact-actions button[aria-disabled="true"] { background:#777771; border-color:#777771; cursor:wait; }
+/* Outcome, recovery, and next action are text first: the words carry the state
+   and the colour only reinforces it. */
+.brief-contact-status { margin:0; min-height:1.5em; color:var(--brief-ink); font-size:13px; font-weight:700; line-height:1.5; }
+.brief-contact-form[data-state="error"]+.brief-contact-status { color:#8a2b2b; }
+.brief-contact-recovery { margin:0; border-left:2px solid #8a2b2b; padding-left:11px; color:var(--brief-muted); font-size:12px; line-height:1.5; }
+.brief-contact-recovery[hidden] { display:none; }
+.brief-contact-next { margin:0; border-left:2px solid #1f70c1; padding-left:11px; color:var(--brief-ink); font-size:13px; line-height:1.55; }
+.brief-contact-next[hidden] { display:none; }
+.brief-contact button:focus-visible,.brief-contact input:focus-visible,.brief-contact a:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+
 /* -------------------------------- responsive ------------------------------- */
 
 @media (max-width:640px) {
+  /* A thumb gets the whole width rather than a target to aim at, and the
+     disclosed panel keeps its padding inside the viewport. */
+  .brief-contact-trigger { width:100%; }
+  .brief-contact-actions button { flex:1 1 auto; }
+  .brief-contact-panel { padding:16px; border-radius:12px; }
   .brief-hero { padding:44px 0 26px; }
   .brief,.brief-state { border-radius:16px; }
   .brief-masthead,.brief-section { padding:22px 20px; }
@@ -215,7 +253,7 @@
   html,body { background:#fff; }
   body { background-image:none; }
   .page,main,.brief-hero { width:auto; margin:0; padding:0; }
-  .site-header,.site-footer,.skip-link,.brief-print-hint,.brief-toggle-mark,.brief-print-control { display:none !important; }
+  .site-header,.site-footer,.skip-link,.brief-print-hint,.brief-toggle-mark,.brief-print-control,.brief-contact { display:none !important; }
   /* The notice stays. A sheet that carries a figure without saying whose figure
      it is, is the sheet that gets quoted six weeks later as if it were real. */
   .brief-source-notice { max-width:none; margin:0 0 12px; border:1px solid #171713; border-left:4px solid #171713; border-radius:0; padding:12px 14px; background:none !important; break-inside:avoid; }

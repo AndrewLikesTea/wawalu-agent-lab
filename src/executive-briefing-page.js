@@ -32,6 +32,7 @@ import {
 } from "/executive-finops-briefing.js";
 import { browserFinopsWorkspaceStorage } from "/finops-workspace.js";
 import { BRIEFING_SOURCE, chooseBriefingSource } from "/executive-briefing-source.js";
+import { initFinopsContact } from "/finops-contact.js";
 import {
   renderBriefingError,
   renderExecutiveBriefingPreview,
@@ -191,5 +192,11 @@ export async function loadExecutiveBriefingPreview() {
   activate(preview);
   return preview;
 }
+
+// The follow-up affordance is wired before the briefing is built and never
+// touched again: it sits outside the painted region, so it is usable while the
+// document is still loading, and it survives every repaint above it. The AI
+// FinOps result runs the same module under its own id family.
+initFinopsContact(document, undefined, { prefix: "briefing-contact" });
 
 if (root) await loadExecutiveBriefingPreview();

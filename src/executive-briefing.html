@@ -55,6 +55,46 @@
           <p>Building the briefing in this tab from the periods retained here, or saying so and showing the published sample if there are none…</p>
         </section>
       </div>
+
+      <!-- The invitation, at the end of the document a leader just read, and
+           outside the region the briefing is painted into: nothing here is
+           unmounted when the briefing is redrawn, and nothing here can displace
+           a figure. It is the same behaviour, transport, and confirmation the AI
+           FinOps result carries — src/finops-contact.js drives both under the
+           `briefing-contact` id family — with the copy this page owns.
+
+           It never prints. The sheet is the briefing; a form on paper is a dead
+           control. -->
+      <section class="brief-contact" id="briefing-contact" aria-labelledby="briefing-contact-title">
+        <p class="eyebrow">Next step</p>
+        <h2 id="briefing-contact-title">Questions about this briefing?</h2>
+        <p>Everything above was built in this tab from figures this browser already held. If you would rather go through this decision brief — or your own numbers — with a person, leave a work email and we will get in touch.</p>
+        <button class="brief-contact-trigger" id="briefing-contact-open" type="button" aria-expanded="false" aria-controls="briefing-contact-panel">
+          Discuss this briefing with us
+        </button>
+        <div class="brief-contact-panel" id="briefing-contact-panel" hidden>
+          <form id="briefing-contact-form" class="brief-contact-form" novalidate>
+            <div class="brief-contact-field">
+              <label for="briefing-contact-email">Work email</label>
+              <!-- Only the note is named here. The inline error and the recovery
+                   paragraph are added to this description by finops-contact.js
+                   when they exist, because a hidden element referenced by
+                   aria-describedby is still part of the accessible description
+                   and would otherwise be read on first focus. -->
+              <input id="briefing-contact-email" name="email" type="email" maxlength="254" inputmode="email" autocomplete="email" placeholder="you@company.com" required aria-describedby="briefing-contact-note" />
+            </div>
+            <p class="field-error brief-contact-error" id="briefing-contact-error" hidden></p>
+            <p class="brief-contact-note" id="briefing-contact-note">This form sends one thing: the work email address you type. No figure, period, limitation, file, or prompt text from this briefing is read, attached, or transmitted — this form cannot reach what your browser holds, and the briefing above does not change when you send it.</p>
+            <div class="brief-contact-actions">
+              <button type="submit">Request a follow-up</button>
+              <button id="briefing-contact-dismiss" type="button">Close</button>
+            </div>
+          </form>
+          <p class="brief-contact-status" id="briefing-contact-status" role="status" aria-live="polite"></p>
+          <p class="brief-contact-recovery" id="briefing-contact-recovery" hidden>Your email address is still in the field, and nothing from this briefing was sent. Try again in a few minutes — the briefing above is unchanged.</p>
+          <p class="brief-contact-next" id="briefing-contact-next" hidden>Next, while you wait: <a href="/evolution.html">run the same analysis on your own export</a> — it is read in your browser, and nothing is uploaded.</p>
+        </div>
+      </section>
       </main>
     </div>
     <footer class="site-footer" id="site-footer" aria-labelledby="site-footer-title">
