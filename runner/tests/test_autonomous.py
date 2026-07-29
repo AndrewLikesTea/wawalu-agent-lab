@@ -857,6 +857,83 @@ class AutonomousTests(IsolatedDiffBudget):
         self.assertNotIn("agent-ready", relabeled.args[3]["labels"])
         self.assertIn("human attention", github.call_args_list[6].args[3]["body"])
 
+    @staticmethod
+    def check_runs(*runs):
+        """A check-runs payload, defaulting each entry to a long-settled failure."""
+        settled = (autonomous.utc_now() - dt.timedelta(hours=1)).isoformat()
+        return {"check_runs": [{"name": "validate", "status": "completed", "conclusion": "failure",
+                                "completed_at": settled,
+                                "output": {"title": "1 failing", "summary": "ALLOWED_MODULES"},
+                                **run} for run in runs]}
+
+    def red_pull_after(self, github, record, config, checks=None):
+        """Drive an approved agent pull with failing checks through the requeue path."""
+        with tempfile.TemporaryDirectory() as tmp:
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            state.value["issues"]["8"] = {"status": "submitted", "persona": "staff", **record}
+            github.side_effect = [
+                checks if checks is not None else self.check_runs({}),
+                {"state": "open", "number": 8,
+                 "labels": [{"name": "agent-running"}, {"name": "persona:staff"}]},
+                None, None,
+                {"number": 8, "labels": [{"name": "agent-running"}, {"name": "persona:staff"}]},
+                None, None,
+            ]
+            journal = mock.Mock()
+            handled = autonomous.requeue_failed_check_pull(
+                dict(self.AGENT_PULL), "token", {"issue_label": "agent-ready", **config},
+                state, journal)
+            return handled, dict(state.value["issues"]["8"]), journal
+
+    @mock.patch.object(autonomous, "github")
+    def test_red_check_closes_pull_and_requeues_with_the_failure_as_feedback(self, github):
+        handled, record, journal = self.red_pull_after(github, {"attempts": 1, "total_runs": 1}, {})
+        self.assertTrue(handled)
+        self.assertEqual(record["status"], "requeued")
+        # The pull passed review, so the retry starts with a fresh attempt budget
+        # and only the cumulative session ceiling bounds it.
+        self.assertEqual(record["attempts"], 0)
+        self.assertIn("ALLOWED_MODULES", record["review_feedback"])
+        closed = github.call_args_list[2]
+        self.assertEqual(closed.args[0], f"/repos/{REPO}/pulls/41")
+        self.assertEqual(closed.args[3], {"state": "closed"})
+        deleted = github.call_args_list[3]
+        self.assertEqual(deleted.args[2], "DELETE")
+        relabeled = github.call_args_list[5]
+        self.assertEqual(sorted(relabeled.args[3]["labels"]), ["agent-ready", "persona:staff"])
+        emitted = [call.args[0] for call in journal.emit.call_args_list]
+        self.assertEqual(emitted, ["pr_checks_failed", "pr_checks_requeued", "requeue"])
+
+    @mock.patch.object(autonomous, "github")
+    def test_red_check_past_the_session_ceiling_asks_for_a_human(self, github):
+        handled, record, journal = self.red_pull_after(
+            github, {"attempts": 1, "total_runs": 6}, {"max_total_runs": 6})
+        self.assertTrue(handled)
+        self.assertEqual(record["status"], "blocked")
+        relabeled = github.call_args_list[5]
+        self.assertIn("needs-human", relabeled.args[3]["labels"])
+        self.assertNotIn("agent-ready", relabeled.args[3]["labels"])
+        self.assertIn("pr_checks_blocked", [call.args[0] for call in journal.emit.call_args_list])
+
+    @mock.patch.object(autonomous, "github")
+    def test_green_and_in_flight_checks_leave_the_pull_alone(self, github):
+        for checks in (self.check_runs({"conclusion": "success"}),
+                       self.check_runs({"status": "in_progress", "conclusion": None}),
+                       self.check_runs({"conclusion": "cancelled"}),
+                       {"check_runs": []}):
+            handled, record, _ = self.red_pull_after(github, {"attempts": 1}, {}, checks=checks)
+            self.assertFalse(handled)
+            self.assertEqual(record["status"], "submitted")
+            self.assertEqual(github.call_count, 1)
+            github.reset_mock()
+
+    @mock.patch.object(autonomous, "github")
+    def test_a_fresh_failure_waits_out_the_grace_window_for_a_rerun(self, github):
+        checks = self.check_runs({"completed_at": autonomous.utc_now().isoformat()})
+        handled, record, _ = self.red_pull_after(github, {"attempts": 1}, {}, checks=checks)
+        self.assertFalse(handled)
+        self.assertEqual(record["status"], "submitted")
+
     @mock.patch.object(autonomous, "github")
     def test_concurrent_sweep_is_skipped_via_lock(self, github):
         with tempfile.TemporaryDirectory() as tmp, \
@@ -996,6 +1073,10 @@ class AutonomousTests(IsolatedDiffBudget):
 
     APPROVED_REVIEW = [{"state": "APPROVED", "commit_id": "def456",
                         "user": {"login": "wawalu-synthetic-reviewer[bot]"}}]
+    # The sweep asks about the head's checks before it decides an approved team pull
+    # is on its way; a green head leaves delivery exactly as it was.
+    GREEN_CHECKS = {"check_runs": [{"name": "validate", "status": "completed",
+                                    "conclusion": "success"}]}
 
     def undelivered_agent_pull(self) -> dict:
         pull = dict(self.AGENT_PULL)
@@ -1009,7 +1090,8 @@ class AutonomousTests(IsolatedDiffBudget):
              mock.patch.object(autonomous, "AUTONOMY", pathlib.Path(tmp) / "autonomy"), \
              mock.patch.object(autonomous, "ROOT", pathlib.Path(tmp)):
             state = autonomous.State(pathlib.Path(tmp) / "state.json")
-            github.side_effect = [[self.undelivered_agent_pull()], list(self.APPROVED_REVIEW)]
+            github.side_effect = [[self.undelivered_agent_pull()], list(self.APPROVED_REVIEW),
+                                  dict(self.GREEN_CHECKS)]
             autonomous.review_outstanding_prs("token", {}, state, mock.Mock())
             record = state.value["pr_deliveries"]["41"]
         merge.assert_called_once_with(
@@ -1024,7 +1106,8 @@ class AutonomousTests(IsolatedDiffBudget):
              mock.patch.object(autonomous, "AUTONOMY", pathlib.Path(tmp) / "autonomy"), \
              mock.patch.object(autonomous, "ROOT", pathlib.Path(tmp)):
             state = autonomous.State(pathlib.Path(tmp) / "state.json")
-            github.side_effect = [[self.undelivered_agent_pull()], list(self.APPROVED_REVIEW)]
+            github.side_effect = [[self.undelivered_agent_pull()], list(self.APPROVED_REVIEW),
+                                  dict(self.GREEN_CHECKS)]
             autonomous.review_outstanding_prs(
                 "token", {"deliver_approved_team_prs": False}, state, mock.Mock())
         merge.assert_not_called()
@@ -1039,7 +1122,8 @@ class AutonomousTests(IsolatedDiffBudget):
              mock.patch.object(autonomous, "ROOT", pathlib.Path(tmp)):
             state = autonomous.State(pathlib.Path(tmp) / "state.json")
             for _ in range(autonomous.DELIVERY_ATTEMPT_LIMIT + 2):
-                github.side_effect = [[self.undelivered_agent_pull()], list(self.APPROVED_REVIEW)]
+                github.side_effect = [[self.undelivered_agent_pull()], list(self.APPROVED_REVIEW),
+                                  dict(self.GREEN_CHECKS)]
                 autonomous.review_outstanding_prs("token", {}, state, journal)
             attempts = state.value["pr_deliveries"]["41"]["attempts"]
         self.assertEqual(merge.call_count, autonomous.DELIVERY_ATTEMPT_LIMIT)
@@ -1058,7 +1142,8 @@ class AutonomousTests(IsolatedDiffBudget):
             state.value["pr_deliveries"]["41"] = {
                 "sha": "old-sha", "attempts": autonomous.DELIVERY_ATTEMPT_LIMIT,
                 "at": "2026-07-25T00:00:00+00:00"}
-            github.side_effect = [[self.undelivered_agent_pull()], list(self.APPROVED_REVIEW)]
+            github.side_effect = [[self.undelivered_agent_pull()], list(self.APPROVED_REVIEW),
+                                  dict(self.GREEN_CHECKS)]
             autonomous.review_outstanding_prs("token", {}, state, mock.Mock())
             record = state.value["pr_deliveries"]["41"]
         merge.assert_called_once()
