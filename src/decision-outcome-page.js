@@ -50,7 +50,7 @@ export function readObservationFile({ name, text, byteSize } = {}) {
     return {
       observation: null,
       observationMeta: null,
-      message: `${name}: ${rejected[0]?.message ?? "could not be read as a saved briefing."}`,
+      message: `${name}: ${rejected[0]?.message ?? "could not be read as a saved FinOps briefing."}`,
     };
   }
   const observation = observationFromBriefing(entry);

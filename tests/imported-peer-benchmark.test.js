@@ -255,7 +255,7 @@ test("the evidence is the import's own savings figures, repeated and never recom
   assert.equal(finding.evidence[0].value, "$3,400");
   assert.match(finding.evidenceText, /Recoverable in this import: \$3,400/);
   assert.match(finding.evidenceText, /Largest recoverable unit: unit-3 · Platform · \$2,100/);
-  assert.match(finding.evidenceText, /Already on this brief: Pilot lower-cost routing/);
+  assert.match(finding.evidenceText, /Already on this briefing: Pilot lower-cost routing/);
 });
 
 test("an analysis that published no savings evidence contributes no entry, not a zero", () => {

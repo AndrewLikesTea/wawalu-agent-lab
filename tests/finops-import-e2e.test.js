@@ -593,7 +593,7 @@ test("a leader reopens the briefing they exported and reads it beside the curren
 
       const region = byId(document, "restored-briefing");
       assert.equal(region.getAttribute("role"), "region");
-      assert.match(shownText(document, "restored-briefing-title"), /Restored briefing \(read-only\)/);
+      assert.match(shownText(document, "restored-briefing-title"), /Reopened FinOps briefing \(read-only\)/);
       assert.match(textOf(region), /Reopened from a file · not the current analysis/);
       // The window it observed is the file's own period, not today.
       assert.match(shownText(document, "restored-briefing-captured"),
@@ -624,7 +624,7 @@ test("a leader reopens the briefing they exported and reads it beside the curren
       byId(document, "restored-briefing-close").click();
       assert.equal(byId(document, "restored-briefing").hidden, true);
       assert.equal(document.activeElement?.id, "reopen-briefing-file");
-      assert.match(shownText(document, "local-import-state"), /Restored briefing closed\./);
+      assert.match(shownText(document, "local-import-state"), /Reopened briefing closed\./);
     });
   } finally {
     page.restore();
@@ -726,17 +726,17 @@ test("the reopen control and the restored region are operable on the keyboard al
       assert.equal(input.getAttribute("type"), "file");
       const label = document.querySelectorAll("label")
         .find((node) => node.getAttribute("for") === "reopen-briefing-file");
-      assert.equal(textOf(label), "Reopen a saved briefing");
+      assert.equal(textOf(label), "Reopen a saved FinOps briefing");
       assert.equal(input.getAttribute("placeholder"), null,
         "the control is labelled programmatically, never by placeholder text");
     });
 
-    await t.test("the restored region is discoverable by its accessible name", async () => {
+    await t.test("the reopened region is discoverable by its accessible name", async () => {
       chooseBriefing(document, exported);
-      await waitFor(() => !byId(document, "restored-briefing").hidden, "the restored briefing");
+      await waitFor(() => !byId(document, "restored-briefing").hidden, "the reopened briefing");
       const region = byId(document, "restored-briefing");
       const name = textOf(byId(document, region.getAttribute("aria-labelledby")));
-      assert.match(name, /Restored/, "the region's accessible name must say it is restored");
+      assert.match(name, /Reopened/, "the region's accessible name must say it is reopened");
       // And its own control is on the Tab path once it is open.
       const close = tabTo(document, "restored-briefing-close");
       assert.equal(close.id, "restored-briefing-close");

@@ -234,7 +234,7 @@ export function importedPeerEvidence(analysis = null) {
   }
   const next = typeof analysis?.action === "string" ? analysis.action.trim() : "";
   if (next) {
-    entries.push(Object.freeze({ id: "analysis_action", label: "Already on this brief", value: next }));
+    entries.push(Object.freeze({ id: "analysis_action", label: "Already on this briefing", value: next }));
   }
   return Object.freeze(entries);
 }

@@ -568,7 +568,7 @@ function disclosure({ level, title, hint }, build) {
 function supportingPanel(briefing, provenanceNote) {
   return (panel) => {
     const benchmark = briefing.benchmark;
-    panel.append(subheading("Benchmark"));
+    panel.append(subheading("Benchmark · this workspace’s own trailing baseline"));
     panel.append(facts([
       ["Kind", benchmark?.kind ?? "own_trailing_baseline",
         "This workspace's own trailing history. No peer or industry cohort."],
@@ -620,7 +620,7 @@ function methodPanel(briefing) {
       ["Candidates", count(briefing.selection?.candidateCount)],
       ["Tie-break applied", briefing.selection?.tieBreakApplied ?? "none"],
     ]));
-    panel.append(subheading("How the benchmark was decided"));
+    panel.append(subheading("How the trailing-baseline benchmark was decided"));
     panel.append(lines(method.benchmarkRule ?? []));
     panel.append(subheading("Fields read from each retained period"));
     panel.append(lines(method.readFields ?? [], { ordered: false, className: "brief-fields", mono: true }));

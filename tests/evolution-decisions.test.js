@@ -119,7 +119,7 @@ test("the bundled decision surface explains empty evidence and unavailable sampl
   assert.ok(page.indexOf("Which department needs help?")
     < page.indexOf("Is cost/performance worsening?"));
   assert.ok(page.indexOf("Is cost/performance worsening?")
-    < page.indexOf("How does it compare with the benchmark?"));
+    < page.indexOf("How does it compare with the peer benchmark?"));
   // The two empty-evidence sentences live in briefing-strings.js, with every
   // other state string this page paints; the page module only chooses between
   // them. `briefing-strings.test.js` covers what they say.
