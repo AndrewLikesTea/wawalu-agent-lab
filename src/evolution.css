@@ -1479,6 +1479,60 @@
 .prompt-coaching-turn[data-scored="false"] { border-top-style:dashed; }
 .prompt-coaching-rubric-version { margin:0; color:var(--ink-muted); font:400 11px/1.6 ui-monospace,monospace; overflow-wrap:anywhere; }
 
+/* Revise and re-grade: the cue before, the change after.
+   No new token, no new hue. The delta follows the chip rule the design mirror
+   states — filled wash for a dynamic signal, neutral outline for a static
+   classification — so the movement between two grades is a filled chip and the
+   rubric versions under it stay unfilled monospace. Every variant below pairs
+   its tint with a word (the materiality label and the direction word inside the
+   chip) and a silhouette, so the tint is the third cue and never the first.
+   The one motion this block can cause is the scroll when focus lands on the
+   region after a re-grade; `html { scroll-behavior:smooth }` in styles.css is
+   already reverted under prefers-reduced-motion, so that scroll is instant for
+   a reader who asked for less motion. */
+.prompt-coaching-cue { max-width:70ch; margin:0; border-left:5px solid var(--import-line); padding:2px 0 2px 12px; color:var(--ink-muted); font-size:13px; line-height:1.6; }
+.prompt-coaching-cue strong { color:var(--import-ink); }
+.prompt-coaching-change {
+  display:grid; gap:10px; scroll-margin-top:24px;
+  border:1px solid var(--import-line); border-left:5px solid var(--import-accent);
+  border-radius:11px; padding:14px 16px; background:#fff;
+}
+/* A focus destination, not a control: the ring is drawn on plain focus too, so
+   a reader who re-graded with the mouse can still see where focus went. */
+.prompt-coaching-change:focus,.prompt-coaching-change:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.prompt-coaching-change[data-status="pending"] { border-left-style:dashed; }
+.prompt-coaching-change[data-status="abstained"],.prompt-coaching-change[data-status="error"] { border-left-color:var(--state-warn-line); background:var(--state-warn-wash); }
+.prompt-coaching-change[data-implausible="true"] { border-left-color:var(--state-error-line); background:var(--state-error-wash); }
+.prompt-coaching-change-status { display:flex; gap:8px; margin:0; font-size:15px; line-height:1.5; overflow-wrap:anywhere; }
+.prompt-coaching-change-reason { max-width:70ch; margin:0; color:var(--state-warn-ink); font-size:13px; line-height:1.6; overflow-wrap:anywhere; }
+.prompt-coaching-change-scores { display:grid; grid-template-columns:minmax(0,auto) auto; gap:4px 16px; margin:0; justify-content:start; font-size:13px; }
+.prompt-coaching-change-scores dt { color:var(--ink-muted); font-weight:700; }
+.prompt-coaching-change-scores dd { margin:0; font:750 15px/1.4 ui-monospace,monospace; overflow-wrap:anywhere; }
+.prompt-coaching-change-scores dd[data-pending="true"] { color:var(--ink-muted); font-weight:400; }
+.prompt-coaching-change-delta {
+  display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 10px;
+  width:fit-content; max-width:100%; margin:0;
+  border:1px solid var(--import-line); border-radius:11px; padding:8px 13px;
+  background:var(--import-wash); color:var(--import-ink);
+  font-size:14px; line-height:1.5; overflow-wrap:anywhere;
+}
+.prompt-coaching-change-delta[data-direction="regressed"] { border-color:var(--state-error-line); background:var(--state-error-wash); color:var(--state-error-ink); }
+.prompt-coaching-change-delta[data-direction="unchanged"],
+.prompt-coaching-change-delta[data-direction="none"] { border-color:var(--ink-muted); background:#fff; color:#171713; }
+.prompt-coaching-change-delta[data-implausible="true"] { border-color:var(--state-error-line); background:var(--state-error-wash); color:var(--state-error-ink); }
+.prompt-coaching-change-delta-label { font-size:15px; font-weight:750; }
+.prompt-coaching-change-delta-direction { font:700 11px/1.6 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; }
+.prompt-coaching-change-delta-value { font:700 13px/1.5 ui-monospace,monospace; }
+.prompt-coaching-change-delta-band { flex-basis:100%; font-size:13px; }
+.prompt-coaching-change-notices { display:grid; gap:8px; margin:0; padding:0; list-style:none; }
+.prompt-coaching-change-notices li { display:grid; grid-template-columns:auto minmax(0,1fr); gap:2px 8px; border-left:5px solid var(--state-error-line); padding:2px 0 2px 12px; color:var(--state-error-ink); font-size:13px; line-height:1.55; }
+.prompt-coaching-change-notice-label { font-weight:700; overflow-wrap:anywhere; }
+.prompt-coaching-change-notice-guidance { grid-column:2; }
+.prompt-coaching-change-provenance { margin:0; color:var(--ink-muted); font:600 11px/1.6 ui-monospace,monospace; overflow-wrap:anywhere; }
+.prompt-coaching-change-action { border-left:5px solid var(--import-accent); padding:2px 0 2px 12px; }
+.prompt-coaching-change-action-title { display:flex; gap:8px; margin:6px 0 0; font-size:15px; font-weight:700; line-height:1.5; overflow-wrap:anywhere; }
+.prompt-coaching-change-action-guidance { margin:6px 0 0; max-width:70ch; font-size:13px; line-height:1.6; overflow-wrap:anywhere; }
+
 /* The pre-paste preview. Quieter than the result it sits under: it is read once,
    before anything is typed, and never competes with an answer. */
 .prompt-coaching-preview { border:1px solid var(--import-line); border-radius:11px; padding:12px 14px; }

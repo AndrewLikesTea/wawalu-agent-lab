@@ -16,8 +16,10 @@
 // into. It is not saved, not exported, not put in a URL, and not written to any
 // storage. The one place it exists is the DOM node the reader owns.
 
-import { gradeMyPrompt } from "./prompt-coaching.js";
-import { INPUT_HINT, applyPromptCoaching, clearPromptCoaching } from "./prompt-coaching-view.js";
+import { buildCoachingSession } from "./prompt-coaching-contract.js";
+import {
+  INPUT_HINT, applyPromptCoaching, buildRevisionChange, clearPromptCoaching,
+} from "./prompt-coaching-view.js";
 import { applyCoachingPreview } from "./prompt-coaching-contract-view.js";
 import { applyCoachingSpecimen } from "./coaching-specimen-view.js";
 
@@ -42,16 +44,37 @@ export function initPromptCoaching(doc = globalThis.document) {
   const hint = doc.getElementById("prompt-coaching-hint");
   if (hint) hint.textContent = INPUT_HINT;
 
+  // The last graded session, so a second grade can be read as a change rather
+  // than as a repeat of the first question. It is a session envelope — the
+  // measurements of what was graded, never the text — and it lives in this
+  // closure for as long as the tab is open and nowhere else: no storage, no
+  // request, no URL. Clearing the panel drops it.
+  let baseline = null;
+  let graded = 0;
+
   form.addEventListener("submit", (event) => {
     event.preventDefault?.();
-    applyPromptCoaching(doc, gradeMyPrompt({
+    graded += 1;
+    const session = buildCoachingSession({
+      // Numbered, not derived from the text and not generated from a clock, so
+      // the same two grades produce the same pair of identifiers every time.
+      sessionId: `grade-${graded}`,
       text: input?.value ?? "",
       modelTier: model?.value || null,
-    }));
+    });
+    const change = baseline && session.result.scored
+      ? buildRevisionChange({ comparisonId: `revision-${graded}`, baseline, revision: session })
+      : null;
+    applyPromptCoaching(doc, session.result, { change });
+    // A refusal is not a baseline: there is no grade in it to compare against,
+    // so the last good one stands and the next grade still compares.
+    if (session.result.scored) baseline = session;
   });
 
   clear?.addEventListener("click", () => {
     if (input) input.value = "";
+    baseline = null;
+    graded = 0;
     clearPromptCoaching(doc);
     input?.focus?.();
   });
