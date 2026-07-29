@@ -1,0 +1,458 @@
+{
+  "manifest_version": "1.0",
+  "kind": "wawalu.integration.provider-export-package",
+  "published_at": "2026-07-29T00:00:00Z",
+  "fixture_data": "synthetic-only",
+  "intake": {
+    "processing": "reader's own browser tab",
+    "uploads": false,
+    "network_calls": false,
+    "credentials": false,
+    "prompt_storage": false,
+    "prompt_rendering": false,
+    "browser_storage": "opt-in workspace only, and never a raw file or a cell value",
+    "retained_from_a_file": [
+      "column headers",
+      "aggregate totals per day, org unit, and model",
+      "pseudonymous org-unit and model identifiers"
+    ],
+    "never_retained": [
+      "the file itself",
+      "any cell value, including in an error message",
+      "prompt, completion, or any free-text column",
+      "any per-person or per-request row"
+    ]
+  },
+  "accepted_formats": [
+    {
+      "id": "csv",
+      "label": "Comma-separated values",
+      "extensions": [
+        ".csv"
+      ],
+      "media_types": [
+        "text/csv",
+        "application/csv",
+        "application/vnd.ms-excel",
+        ""
+      ],
+      "encoding": "utf-8"
+    },
+    {
+      "id": "tsv",
+      "label": "Tab-separated values",
+      "extensions": [
+        ".tsv"
+      ],
+      "media_types": [
+        "text/tab-separated-values",
+        "text/plain",
+        ""
+      ],
+      "encoding": "utf-8"
+    },
+    {
+      "id": "delimited-text",
+      "label": "Delimited text with a declared delimiter",
+      "extensions": [
+        ".txt"
+      ],
+      "media_types": [
+        "text/plain",
+        ""
+      ],
+      "encoding": "utf-8"
+    },
+    {
+      "id": "v1-envelope",
+      "label": "Wawalu v1 provider-usage or HRIS-org JSON envelope",
+      "extensions": [
+        ".json"
+      ],
+      "media_types": [
+        "application/json",
+        ""
+      ],
+      "encoding": "utf-8"
+    }
+  ],
+  "unsupported_containers": [
+    {
+      "extensions": [
+        ".zip"
+      ],
+      "label": "ZIP archive",
+      "why": "Several consoles deliver the export as an archive; this page reads one text file at a time.",
+      "do_instead": "Open the archive on your own machine and choose the CSV member named by the package below."
+    },
+    {
+      "extensions": [
+        ".gz",
+        ".tgz",
+        ".bz2"
+      ],
+      "label": "Compressed file",
+      "why": "A compressed export is not decompressed here; nothing is written to disk by this page.",
+      "do_instead": "Decompress it on your own machine, then choose the CSV inside it."
+    },
+    {
+      "extensions": [
+        ".xlsx",
+        ".xls",
+        ".numbers",
+        ".ods"
+      ],
+      "label": "Spreadsheet workbook",
+      "why": "A workbook carries formatting, formulas, and sheets this contract does not declare.",
+      "do_instead": "Save the usage sheet as CSV, then choose that file."
+    },
+    {
+      "extensions": [
+        ".pdf",
+        ".html",
+        ".htm"
+      ],
+      "label": "Rendered invoice or report",
+      "why": "An invoice is a picture of a total, not the daily rows the analysis needs.",
+      "do_instead": "Request the usage or cost export instead of the invoice; the packages below name where."
+    },
+    {
+      "extensions": [
+        ".ndjson",
+        ".jsonl",
+        ".xml",
+        ".parquet",
+        ".avro"
+      ],
+      "label": "Undeclared record format",
+      "why": "This contract declares CSV, TSV, delimited text, and the v1 JSON envelope, and nothing else.",
+      "do_instead": "Re-export as CSV, or convert it yourself before choosing the file."
+    }
+  ],
+  "packages": [
+    {
+      "id": "openai-usage-export",
+      "label": "OpenAI organization usage export",
+      "provider": "openai",
+      "kind": "usage",
+      "dialect_id": "openai-usage-export",
+      "shape_id": "openai_usage",
+      "provider_patterns": [
+        "openai",
+        "gpt",
+        "o\\d-",
+        "davinci"
+      ],
+      "export_request": {
+        "requested_by": "an organization owner or billing member",
+        "console_path": "Settings → Organization → Usage, then Export for one billing period",
+        "ask_for": "the cost and usage export, grouped by project and model",
+        "not": "the invoice PDF, and not a per-user activity report"
+      },
+      "archive": {
+        "delivery": "downloads in your browser",
+        "lands_in": "your own download folder — this page never looks there; you choose the file",
+        "container": "single file",
+        "member": null,
+        "expected_content": "one row per day, project, and model, with a cost column"
+      },
+      "accepted_formats": [
+        "csv",
+        "tsv",
+        "delimited-text"
+      ],
+      "redaction": {
+        "before_import": [
+          "Do not request the per-user breakdown; department-level rows are what the analysis reads.",
+          "Delete any column naming an individual account before you choose the file."
+        ],
+        "never_read": [
+          "user",
+          "user email",
+          "api key",
+          "prompt",
+          "completion",
+          "request id"
+        ],
+        "pseudonymized_on_read": [
+          "project name",
+          "model"
+        ]
+      }
+    },
+    {
+      "id": "anthropic-usage-export",
+      "label": "Anthropic Console usage export",
+      "provider": "anthropic",
+      "kind": "usage",
+      "dialect_id": "anthropic-usage-export",
+      "shape_id": "anthropic_usage",
+      "provider_patterns": [
+        "anthropic",
+        "claude"
+      ],
+      "export_request": {
+        "requested_by": "a workspace admin or billing contact",
+        "console_path": "Console → Usage, filtered to one period, then Export CSV",
+        "ask_for": "usage and cost by workspace and model",
+        "not": "the conversation or audit export, which carries prompt text and has its own contract"
+      },
+      "archive": {
+        "delivery": "downloads in your browser",
+        "lands_in": "your own download folder; nothing is fetched from the console by this page",
+        "container": "single file",
+        "member": null,
+        "expected_content": "one row per day, workspace, and model, with input and output token columns"
+      },
+      "accepted_formats": [
+        "csv",
+        "tsv",
+        "delimited-text"
+      ],
+      "redaction": {
+        "before_import": [
+          "Export usage, not conversations; a conversation export is read under the never-render rule instead.",
+          "Remove any API-key label column — a key name identifies a person on small teams."
+        ],
+        "never_read": [
+          "prompt",
+          "message",
+          "content",
+          "api key",
+          "user email"
+        ],
+        "pseudonymized_on_read": [
+          "workspace",
+          "model"
+        ]
+      }
+    },
+    {
+      "id": "aws-cost-and-usage-report",
+      "label": "AWS Cost and Usage Report (Bedrock lines)",
+      "provider": "aws",
+      "kind": "usage",
+      "dialect_id": "aws-cost-and-usage-report",
+      "shape_id": "bedrock_usage",
+      "provider_patterns": [
+        "bedrock",
+        "aws",
+        "amazon",
+        "titan",
+        "nova"
+      ],
+      "export_request": {
+        "requested_by": "the payer-account owner or a FinOps engineer with Cost Explorer access",
+        "console_path": "Billing → Data Exports → Standard data export, scoped to the Bedrock product code",
+        "ask_for": "daily granularity with the cost-allocation tag that carries your cost centre",
+        "not": "the full unfiltered CUR for every service, which is large and mostly irrelevant here"
+      },
+      "archive": {
+        "delivery": "written to an S3 bucket you own",
+        "lands_in": "your bucket; download one period yourself and choose that file",
+        "container": "zip or gzip archive",
+        "member": "the CSV part file inside the report folder for the period",
+        "expected_content": "line items with usage start date, unblended cost, and your cost-centre tag column"
+      },
+      "accepted_formats": [
+        "csv",
+        "tsv",
+        "delimited-text"
+      ],
+      "redaction": {
+        "before_import": [
+          "Decompress and, if the report is split into parts, choose one part per import.",
+          "Drop resource-id and account-id columns; the cost-centre tag is the only grouping this reads."
+        ],
+        "never_read": [
+          "lineitem resourceid",
+          "bill payeraccountid",
+          "identity lineitemid",
+          "lineitem description"
+        ],
+        "pseudonymized_on_read": [
+          "cost centre tag value",
+          "product code"
+        ]
+      }
+    },
+    {
+      "id": "google-cloud-billing-export",
+      "label": "Google Cloud billing export (Vertex AI lines)",
+      "provider": "google",
+      "kind": "usage",
+      "dialect_id": "google-cloud-billing-export",
+      "shape_id": null,
+      "provider_patterns": [
+        "google",
+        "gemini",
+        "vertex",
+        "palm"
+      ],
+      "export_request": {
+        "requested_by": "a billing-account administrator",
+        "console_path": "Billing → Cost table, filtered to the Vertex AI service, then Download CSV",
+        "ask_for": "daily cost by project and SKU for one month",
+        "not": "the BigQuery detailed export, which carries far more than this contract declares"
+      },
+      "archive": {
+        "delivery": "downloads in your browser",
+        "lands_in": "your own download folder; the billing account is never contacted from this page",
+        "container": "single file",
+        "member": null,
+        "expected_content": "one row per day, project, and SKU, with a cost column in the billing currency"
+      },
+      "accepted_formats": [
+        "csv",
+        "tsv",
+        "delimited-text"
+      ],
+      "redaction": {
+        "before_import": [
+          "Export one billing currency at a time; rows in a second currency are quarantined, not converted.",
+          "Remove label columns that carry a person's name or address."
+        ],
+        "never_read": [
+          "labels",
+          "system labels",
+          "credits",
+          "project number"
+        ],
+        "pseudonymized_on_read": [
+          "project",
+          "sku"
+        ]
+      },
+      "support": "columns recognized; no normalizer shape yet, so this package reaches the manual column-mapping step"
+    },
+    {
+      "id": "azure-cost-management-export",
+      "label": "Azure Cost Management export (Azure OpenAI lines)",
+      "provider": "azure",
+      "kind": "usage",
+      "dialect_id": "azure-cost-management-export",
+      "shape_id": null,
+      "provider_patterns": [
+        "azure",
+        "microsoft"
+      ],
+      "export_request": {
+        "requested_by": "a subscription owner or cost-management contributor",
+        "console_path": "Cost Management → Exports → new daily export, scoped to the Azure OpenAI service",
+        "ask_for": "actual cost, daily, with the tag that carries your cost centre",
+        "not": "amortized and actual in one file; pick one basis and stay on it across periods"
+      },
+      "archive": {
+        "delivery": "written to a storage account you own",
+        "lands_in": "your storage container; download one period yourself and choose that file",
+        "container": "single file per period, sometimes zipped",
+        "member": "the CSV for the period, if the download is an archive",
+        "expected_content": "one row per day, resource, and meter, with a cost column and your tag column"
+      },
+      "accepted_formats": [
+        "csv",
+        "tsv",
+        "delimited-text"
+      ],
+      "redaction": {
+        "before_import": [
+          "Keep one cost basis per import; mixing actual and amortized rows double-counts a period.",
+          "Drop resource-id and subscription-id columns before choosing the file."
+        ],
+        "never_read": [
+          "resourceid",
+          "subscriptionid",
+          "tags",
+          "publishername"
+        ],
+        "pseudonymized_on_read": [
+          "cost centre tag value",
+          "meter name"
+        ]
+      },
+      "support": "columns recognized; no normalizer shape yet, so this package reaches the manual column-mapping step"
+    },
+    {
+      "id": "generic-hris-roster",
+      "label": "HRIS org roster",
+      "provider": null,
+      "kind": "roster",
+      "dialect_id": "generic-hris-roster",
+      "shape_id": "org_roster",
+      "provider_patterns": [],
+      "export_request": {
+        "requested_by": "an HRIS administrator or the people-operations partner who owns the org tree",
+        "console_path": "your HRIS reporting section: a unit report, not a worker report",
+        "ask_for": "unit id, parent unit, unit type, and whether the unit is active",
+        "not": "a worker list — no person-level row is needed, accepted, or read"
+      },
+      "archive": {
+        "delivery": "downloads in your browser, or arrives from your HRIS partner",
+        "lands_in": "wherever you saved it; you choose it alongside the provider period",
+        "container": "single file",
+        "member": null,
+        "expected_content": "one row per organizational unit, with its parent"
+      },
+      "accepted_formats": [
+        "csv",
+        "tsv",
+        "delimited-text",
+        "v1-envelope"
+      ],
+      "redaction": {
+        "before_import": [
+          "Send units, never people: delete name, email, title, manager, compensation, and location columns.",
+          "A unit smaller than the declared minimum group size is still a unit here; it is suppressed downstream."
+        ],
+        "never_read": [
+          "name",
+          "email",
+          "employee id",
+          "job title",
+          "manager",
+          "compensation",
+          "location"
+        ],
+        "pseudonymized_on_read": [
+          "unit id",
+          "unit name",
+          "parent unit"
+        ]
+      }
+    }
+  ],
+  "unsupported_package": {
+    "code": "unsupported_format",
+    "headline": "This file is not one of the declared packages.",
+    "recovery": "Choose a .csv/.tsv provider usage export or org roster, or a .json v1 envelope. If your console delivered an archive, open it and choose the CSV inside.",
+    "behaviour": "The file is refused before it is parsed. Nothing about it is read, kept, or reported beyond its extension and media type.",
+    "never": "An unrecognized package is never partially parsed to see what it might have been."
+  },
+  "delivery_behaviour": {
+    "partial": {
+      "situation": "Some rows are unreadable — a bad date, a negative amount, a short row.",
+      "behaviour": "The readable rows import and every rejected row is reported with a code, a row number, and a column name. Partial success is the normal case, not a failure.",
+      "never": "A rejected row is never silently dropped and never repaired by guessing."
+    },
+    "stale": {
+      "situation": "The chosen file is an older period, or one already imported.",
+      "behaviour": "It imports. A delimited export carries no delivery sequence, so freshness is the reader's own file-picking decision; overlapping periods from one source reconcile by date, and the provenance label states the period that was read.",
+      "never": "A stale file never silently replaces a newer period's totals under a fresh-looking label."
+    },
+    "malformed": {
+      "situation": "The file is not the shape it claims — an unclosed quoted field, a header with no data, a row count that disagrees with the header.",
+      "behaviour": "The import is refused whole, with one code and one located coordinate. A ceiling breach (size or rows) is likewise a whole-file refusal, never a truncation.",
+      "never": "No partial total is ever shown, because a short total is indistinguishable from a real one."
+    },
+    "reordered": {
+      "situation": "Rows arrive out of date order, or periods are chosen in the wrong order.",
+      "behaviour": "Accepted. Every aggregate is derived from the date column, so row order changes no figure, and multi-file selections are ordered by their declared periods rather than by pick order.",
+      "never": "Row order is never treated as chronology."
+    },
+    "duplicated": {
+      "situation": "The same period is chosen twice, or a file contains repeated rows.",
+      "behaviour": "Identical aggregate rows collapse; a repeated period from the same source is reconciled rather than summed twice, and the count the reader sees is the reconciled one.",
+      "never": "A duplicate is never added into a total on the quiet."
+    }
+  }
+}
