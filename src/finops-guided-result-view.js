@@ -85,11 +85,12 @@ function applyActionControl(doc, action) {
  * and so reads as one, and it cannot tell "this could not be measured" apart
  * from "you have not chosen files yet".
  *
- * `CHOOSE_FILES` names the same two files the import panel's own label and
- * intro name, so the page asks for one thing in one way.
+ * `CHOOSE_FILES` names the one file the import panel's own label and intro name
+ * as required, so the page asks for one thing in one way. The org mapping is an
+ * optional precision upgrade there and is not asked for here either.
  */
 const NOT_AVAILABLE = "Not available yet";
-const CHOOSE_FILES = "Choose one provider period export and one HRIS mapping below";
+const CHOOSE_FILES = "Choose one provider period export below";
 
 /** The one word beside the composition that says how far it may be taken. */
 export const READINESS_LABEL = Object.freeze({

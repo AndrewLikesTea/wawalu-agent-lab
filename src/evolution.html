@@ -239,7 +239,7 @@
           <div class="section-heading">
             <p class="eyebrow">Bring your own exports · browser only</p>
             <h2 id="local-import-title">Analyze provider spend without uploading it.</h2>
-            <p>Select one or more manifest-compatible provider exports and one HRIS mapping. Two contiguous, equal-length provider periods unlock a like-for-like trend; a single period keeps the current decision brief unchanged.</p>
+            <p>One provider export is enough to get a decision brief. Add a second, equal-length period to compare spend across time, and an org mapping to put your own department names on it. Three steps: choose files, check the mapping, read the result.</p>
             <!-- What this page will answer, said before a byte is selected. The
                  three statements are painted from finops-attribution-policy.js
                  by finops-attribution-view.js; this is a slot, never wording,
@@ -253,11 +253,11 @@
         </div>
         <div class="privacy-boundary" role="note" aria-label="Local processing privacy boundary">
           <strong>Your files do not leave this tab.</strong>
-          <span>No upload · no credentials · no network transfer · no browser storage · results disappear on refresh. Column headers, one sample value per column while you check the mapping, and totals are shown; no other cell value is ever rendered, announced, or exported.</span>
+          <span>They are read and analyzed here, in this browser. No upload · no credentials · no network transfer · no browser storage · results disappear on refresh. Column headers, one sample value per column while you check the mapping, and totals are shown; no other cell value is ever rendered, announced, or exported.</span>
           <!-- Said before a file is chosen, not after: an assistant conversation
                export carries prompt bodies, and the contract's rule for them is
                stricter than the one above — no sample value, ever. -->
-          <span id="prompt-privacy-note"><strong>Prompt text is never one of them.</strong> An AI-assistant conversation or audit export is parsed in memory only to measure it: a character count and an estimated token count. The prompt itself is never rendered on this page, never written to an export, never stored in this browser, and never uploaded — see the <a href="/docs/conversation-export-import-contract.md">conversation-export contract</a>.</span>
+          <span id="prompt-privacy-note"><strong>Prompt text is never one of them.</strong> A conversation or audit export is parsed in memory only to count its characters and estimate its tokens. The prompt itself is never rendered on this page, never exported, never stored in this browser, and never uploaded — see the <a href="/docs/conversation-export-import-contract.md">conversation-export contract</a>.</span>
         </div>
         <!-- The three stages this flow already walked, now said out loud. The
              list is authored empty and painted by local-import-flow.js so the
@@ -269,16 +269,20 @@
         <ol class="import-stages" id="import-stages" aria-label="Import progress"></ol>
         <div class="local-import-controls">
           <div class="local-import-field">
-            <label for="local-finops-files">Provider period(s) + HRIS mapping</label>
+            <label for="local-finops-files">Choose your export files</label>
             <input id="local-finops-files" type="file" accept=".json,.csv,.tsv,.txt,application/json,text/csv,text/tab-separated-values,text/plain" multiple aria-describedby="local-file-help" aria-invalid="false" />
-            <p id="local-file-help">Choose files together or add them in batches. A v1 JSON envelope or a provider CSV/TSV export works; provider periods must use the same source, and all processing and state stay in this tab.</p>
+            <p id="local-file-help">Required: at least one provider period export, as CSV, TSV, or a v1 JSON envelope. Optional: an org mapping for your own department names, and a query sample. Choose them together or add them in batches; every provider period must come from the same source.</p>
             <!-- The ceiling sentence is painted from the one place the numbers
                  are defined (import-limits.js). No number is written here. -->
             <p class="local-file-limits" id="local-file-limits"></p>
             <p class="field-error" id="local-file-error" hidden></p>
+            <!-- Two recoveries, two different outcomes. The note says which is
+                 which, because the labels alone cannot carry that discarding
+                 also drops the result and puts the example data back. -->
             <div class="field-recovery" id="local-file-recovery" hidden>
+              <p class="field-recovery-note" id="local-file-recovery-note">Choosing again keeps the files that already loaded. Discarding drops every file you chose and any result with them, and puts the example data back.</p>
               <button class="field-recovery-action" id="local-file-repick" type="button">Choose files again</button>
-              <button class="field-recovery-action" id="local-file-discard" type="button">Discard this selection</button>
+              <button class="field-recovery-action" id="local-file-discard" type="button">Discard all files and results</button>
             </div>
           </div>
           <!-- The one exit from the unsatisfiable file picker: no export in
@@ -405,7 +409,7 @@
         </div>
         <div class="local-import-state" id="local-import-state" role="status" aria-live="polite">
           <strong>Ready for local files.</strong>
-          <span>The bundled example analysis remains visible until both compatible exports are ready.</span>
+          <span>The bundled example analysis stays on screen until your first provider export is ready.</span>
         </div>
         <!-- Hard failures only. Progress and success stay in the polite status
              above, so no message is ever announced from both regions. -->

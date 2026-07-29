@@ -45,6 +45,57 @@ test("the stage model names the stages the flow already walked, and no more", ()
   assert.deepEqual(progress.map((step) => step.shape), ["✓", "●", "○"]);
 });
 
+// --- the words on the import path ------------------------------------------
+
+test("the import path names its required input, its formats, and one way in", async () => {
+  const doc = await page();
+  // The one action word, used by the stage, the label, and every control that
+  // opens the picker. "Select" reads as a second, different step.
+  assert.equal(IMPORT_STAGES[0].label, "Choose files");
+  assert.equal(textOf(doc.querySelector('label[for="local-finops-files"]')),
+    "Choose your export files");
+
+  const help = normalized(doc.getElementById("local-file-help"));
+  // Required versus optional is a word at the control, not something a reader
+  // infers from the requirement rows further down.
+  assert.match(help, /^Required: at least one provider period export/);
+  assert.match(help, /Optional: an org mapping for your own department names, and a query sample/);
+  for (const format of ["CSV", "TSV", "v1 JSON envelope"])
+    assert.ok(help.includes(format), `the supported formats must name ${format}`);
+  // The privacy promise is made once, in the boundary above — not repeated here.
+  assert.doesNotMatch(help, /uploaded|stay in this tab/);
+
+  // The lede says what one export buys, so nothing implies a second file gates
+  // the analysis. `analysisEligibility` has always accepted a provider alone.
+  const lede = normalized(doc.getElementById("local-import-title").parentNode);
+  assert.match(lede, /One provider export is enough/);
+});
+
+test("the browser-only promise is explicit before anything is chosen", async () => {
+  const doc = await page();
+  const boundary = normalized(doc.querySelector(".privacy-boundary"));
+  assert.match(boundary, /Your files do not leave this tab\./);
+  assert.match(boundary, /read and analyzed here, in this browser/);
+  for (const claim of ["No upload", "no network transfer", "no browser storage"])
+    assert.ok(boundary.includes(claim), `the boundary must say "${claim}"`);
+});
+
+test("each file-recovery label describes what it leaves behind", async () => {
+  const doc = await page();
+  assert.equal(textOf(doc.getElementById("local-file-repick")), "Choose files again");
+  // The destructive recovery says it is destructive. It calls the same reset the
+  // "Return to example data" control does, so the label cannot say "selection".
+  assert.equal(textOf(doc.getElementById("local-file-discard")),
+    "Discard all files and results");
+  const note = normalized(doc.getElementById("local-file-recovery-note"));
+  assert.match(note, /Choosing again keeps the files that already loaded/);
+  assert.match(note, /puts the example data back/);
+  // The note is hidden and shown with the buttons it explains.
+  assert.equal(doc.getElementById("local-file-recovery").hidden, true);
+  assert.equal(doc.getElementById("local-file-recovery-note").closest("#local-file-recovery")
+    .getAttribute("id"), "local-file-recovery");
+});
+
 test("the stage indicator exposes the current step to assistive tech", async () => {
   const doc = await page();
   applyStage(doc, "check");
@@ -454,7 +505,10 @@ test("every surface that renders analysis numbers carries the one provenance lab
     assert.equal(note.getAttribute("data-dataset"), "example");
     // One string, repeated exactly: the label, and what to bring to replace it.
     assert.match(normalized(note), new RegExp(state.label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
-    assert.match(normalized(note), /v1 provider-usage JSON export/);
+    // The swap sentence is the module's, not a second copy authored here: the
+    // audit is that every note carries the same one, whatever it says.
+    assert.ok(normalized(note).includes(state.swap),
+      "every provenance note must carry the one authored swap sentence");
   }
   for (const surface of doc.querySelectorAll("[data-analysis-surface]"))
     assert.equal(surface.getAttribute("data-dataset"), "example");
@@ -464,7 +518,7 @@ test("every surface that renders analysis numbers carries the one provenance lab
   const basis = metricBasis({ mode: "example-dataset" });
   assert.equal(basis.real, false);
   assert.equal(basis.label, EXAMPLE_DATASET_PROVENANCE.label);
-  assert.match(basis.detail, /v1 provider-usage JSON export/);
+  assert.ok(basis.detail.includes(EXAMPLE_DATASET_PROVENANCE.swap));
 });
 
 test("clearing example data leaves no residue in state, storage, or the URL", async () => {

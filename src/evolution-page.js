@@ -1606,8 +1606,9 @@ function mountLocalFinopsImport() {
     }
   });
   // Both recoveries live at the control. "Choose files again" reopens the same
-  // picker; "Discard this selection" drops what was accepted so a half-loaded
-  // pair cannot silently outlive the error that interrupted it.
+  // picker and keeps what already loaded; "Discard all files and results" drops
+  // everything accepted so a half-loaded pair cannot silently outlive the error
+  // that interrupted it. The note beside them says which is which.
   // Sharpening a result from the result itself. It opens the same picker the
   // panel above uses; the selection already in hand is untouched, so the
   // provider export is never re-requested and the brief below stays mounted

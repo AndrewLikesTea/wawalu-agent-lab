@@ -35,7 +35,7 @@ import {
 
 /** The stages the shipped flow already walks. Naming them does not add one. */
 export const IMPORT_STAGES = Object.freeze([
-  Object.freeze({ id: "select", label: "Select exports" }),
+  Object.freeze({ id: "select", label: "Choose files" }),
   Object.freeze({ id: "check", label: "Check the mapping" }),
   Object.freeze({ id: "read", label: "Read the result" }),
 ]);
@@ -156,7 +156,7 @@ export function mappingRequirements({
 export const EXAMPLE_DATASET_PROVENANCE = Object.freeze({
   label: "Example data — not your data",
   detail: "Computed from a bundled synthetic provider export and org roster.",
-  swap: "To replace it, import your own v1 provider-usage JSON export plus an HRIS org mapping.",
+  swap: "To replace it, choose your own provider export in the import panel.",
 });
 
 /**
@@ -245,32 +245,32 @@ const RECOVERY_BY_CODE = Object.freeze({
   unsupported_format: UNSUPPORTED_PACKAGE.recovery,
   // Delimited-import reasons. Each one names the single edit that clears it; the
   // located row and column travel on the problem, never in this sentence.
-  empty_file: "The selected file has no rows; re-export the period and select it again.",
+  empty_file: "The selected file has no rows; re-export the period and choose it again.",
   file_too_large: "Split the export into smaller periods; the size ceiling is stated in the message.",
   too_many_rows: "Split the export into smaller periods; the row ceiling is stated in the message.",
   malformed_quoted_field: "Re-export without editing the file by hand; a quoted field is left open.",
-  missing_required_column: "Add the named column to the export, or select the full provider export.",
-  unparseable_date: "Correct the dates in the named column, then select the file again.",
+  missing_required_column: "Add the named column to the export, or choose the full provider export.",
+  unparseable_date: "Correct the dates in the named column, then choose the file again.",
   invalid_amount: "Correct the cost column so every row holds a non-negative amount.",
   invalid_quantity: "Correct the usage column so every row holds a non-negative quantity.",
   unsupported_currency: "Export one currency at a time; totals are not converted for you.",
   malformed_row: "Correct the rows whose field count differs from the header row.",
-  missing_value: "Fill in the named column for every row, then select the file again.",
+  missing_value: "Fill in the named column for every row, then choose the file again.",
   no_usable_rows: "No row could be normalized; check the date, org unit, and cost columns.",
   contract_rejected: "The normalized export did not satisfy the v1 contract; report this file shape.",
   invalid_json: "Re-export the period; the file is not valid JSON.",
-  unsupported_contract: "Select a v1 provider-usage or HRIS-org envelope.",
-  unknown_field: "Remove the undeclared field from the source export and select the files again.",
-  missing_field: "Add the named field to the source export and select the files again.",
-  invalid_value: "Correct the named field in the source export and select the files again.",
+  unsupported_contract: "Choose a v1 provider-usage or HRIS-org envelope.",
+  unknown_field: "Remove the undeclared field from the source export and choose the files again.",
+  missing_field: "Add the named field to the source export and choose the files again.",
+  invalid_value: "Correct the named field in the source export and choose the files again.",
   record_outside_period: "Re-export so every record falls inside the declared period.",
-  malformed_period: "Correct period_start and period_end, then select the files again.",
-  incompatible_source: "Select periods from one source instance, or analyze each source separately.",
+  malformed_period: "Correct period_start and period_end, then choose the files again.",
+  incompatible_source: "Choose periods from one source instance, or analyze each source separately.",
   too_many_files: "Choose a smaller set of related exports, then analyze any remaining files separately.",
   selection_too_large: "Choose a smaller set of related exports; no file in this selection was read.",
 });
 
-const DEFAULT_RECOVERY = "Select a manifest-compatible v1 JSON export and try again.";
+const DEFAULT_RECOVERY = "Choose a provider export in CSV, TSV, or v1 JSON format and try again.";
 
 /**
  * A per-field diagnostic: which file in the selection failed (by position, not
