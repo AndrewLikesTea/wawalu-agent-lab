@@ -1559,6 +1559,18 @@ def latest_run_review() -> str:
     return str(verdict.get("feedback") or verdict.get("summary") or "").strip()
 
 
+def is_size_rejection(reasons: str) -> bool:
+    """Did the policy gate discard the change for being too big, rather than out of bounds?
+
+    A forbidden-path rejection is a mistake the next attempt can simply not repeat. A size
+    rejection is different: it is a statement about the issue, not the attempt. Retrying an
+    issue whose smallest honest implementation exceeds the ceiling rebuilds an oversized
+    change every time — issue #530 came back 2024 then 2349 lines against a 2000 limit,
+    two paid sessions to relearn the same arithmetic.
+    """
+    return "exceeds limit" in (reasons or "").lower()
+
+
 def latest_run_policy_rejection() -> str:
     """Why the policy gate discarded the run that just finished, phrased for the retry.
 
@@ -1683,12 +1695,21 @@ def record_run_outcome(exit_code: int, issue: dict[str, Any], number: int, perso
             rejection = latest_run_policy_rejection()
         else:
             rejection = ""
+        max_size_rejections = int(config.get("max_size_rejections", 2))
         with state.mutate():
             record = state.value["issues"].setdefault(str(number), {})
             attempts = int(record.get("attempts", 1))
             total_runs = int(record.get("total_runs", attempts))
+            # Counted on the record like total_runs, so a requeue cannot reset the
+            # evidence that this issue does not fit. Only size rejections count: a
+            # forbidden-path stumble says nothing about how big the work is.
+            size_rejections = int(record.get("size_rejections", 0))
+            if exit_code == POLICY_REJECTED_EXIT_CODE and is_size_rejection(rejection):
+                size_rejections += 1
+                record["size_rejections"] = size_rejections
+            oversized = size_rejections >= max_size_rejections
             exhausted_sessions = total_runs >= int(config.get("max_total_runs", 6))
-            blocked = attempts >= int(config["max_attempts"]) or exhausted_sessions
+            blocked = attempts >= int(config["max_attempts"]) or exhausted_sessions or oversized
             record["status"] = "blocked" if blocked else "retry"
             if rejection:
                 record["review_feedback"] = rejection
@@ -1696,8 +1717,22 @@ def record_run_outcome(exit_code: int, issue: dict[str, Any], number: int, perso
                 record["retry_at"] = (utc_now() + dt.timedelta(seconds=int(config["retry_cooldown_seconds"]))).isoformat()
         journal.emit("run_failed", issue=number, persona=persona, exit_code=exit_code, attempts=attempts,
                      total_runs=total_runs, carried_review_feedback=bool(rejection),
-                     sessions_exhausted=exhausted_sessions)
-        if exhausted_sessions:
+                     sessions_exhausted=exhausted_sessions, size_rejections=size_rejections,
+                     oversized=oversized)
+        if oversized:
+            # The ceiling is not going to move and the persona has already shown twice
+            # that it cannot get under it, so another attempt is a paid session spent on
+            # a foregone conclusion. This wants a human to split the issue, and it says
+            # so plainly rather than blocking with a generic failure note that reads like
+            # a flaky run and invites a requeue that starts the same three attempts over.
+            tell("comment", lambda: comment(token, number, "needs human — split this issue",
+                 f"The policy gate discarded this work for size {size_rejections} times "
+                 f"(most recently: `{rejection.splitlines()[0] if rejection else 'size limit'}`). "
+                 f"The smallest honest implementation of this issue does not fit under the "
+                 f"diff ceiling, so Sam will not retry it — it needs to be split into smaller "
+                 f"issues that each fit. Requeuing it as-is will just spend more sessions."))
+            tell("label", lambda: replace_state_label(token, issue, config["issue_label"], "needs-human", keep_ready=False))
+        elif exhausted_sessions:
             # Requeuing past this point buys nothing: the issue has already been handed
             # to a worker more times than any single record is allowed, and each pass
             # spends a paid session. It is not a flaky run, it is a task that needs
