@@ -38,6 +38,31 @@
 .finops-journey[data-phase="new_review"] { border-left: 4px solid #4a5568; }
 .finops-journey[data-phase="degraded"] { border-left: 4px solid #8a2f2f; }
 
+/* The bundled-example picker. Pressed state is a border and a weight as well as
+ * a fill, and the sample line below it says in words which records are loaded,
+ * so nothing about "this is an example" is carried by colour. */
+.fjc-examples { margin: 0 0 12px; }
+.fjc-examples-label {
+  margin: 0 0 6px;
+  font-size: 0.8rem;
+  color: var(--muted, #4a5568);
+}
+.fjc-examples-controls { display: flex; flex-wrap: wrap; gap: 8px; }
+.fjc-example {
+  border: 1px solid var(--line, #d8dde5);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font: inherit;
+  font-size: 0.8rem;
+  background: var(--surface, #fff);
+  cursor: pointer;
+}
+.fjc-example[aria-pressed="true"] {
+  border: 2px solid #1f3b6f;
+  font-weight: 700;
+  background: #eef2fa;
+}
+
 .fjc-headline { font-size: 1.15rem; line-height: 1.45; margin: 0 0 16px; overflow-wrap: anywhere; }
 
 .fjc-metric { margin: 0 0 16px; }

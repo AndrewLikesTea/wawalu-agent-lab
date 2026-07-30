@@ -18,7 +18,15 @@ import {
 // entry already read — nothing is read from storage twice — and it decides
 // nothing the contracts below have not already decided.
 import { consolidateJourney } from "/finops-journey-consolidated.js";
-import { renderConsolidatedJourney } from "/finops-journey-consolidated-view.js";
+import {
+  renderConsolidatedJourney, renderJourneyExamplePicker,
+} from "/finops-journey-consolidated-view.js";
+// The bundled examples, loaded through the same restore this entry already
+// makes. They are records, not a mode: choosing one changes which store the
+// journey is composed from and nothing else on this page.
+import {
+  BUNDLED_EXAMPLES, BUNDLED_EXAMPLE_NAMES, evaluateBundledExample,
+} from "/finops-journey-fixtures.js";
 import { browserFinopsWorkspaceStorage } from "/finops-workspace.js";
 import { loadDecisions } from "/app.js";
 import { loadReleases } from "/releases.js";
@@ -60,6 +68,15 @@ let announced = false;
 // read of the file input, so the panel and the save control can never describe a
 // selection that is no longer on screen.
 let reconciliation = null;
+
+// Which bundled example is loaded, or null for this browser's own records. It
+// is held in this tab only: an example a reader opened is not a preference, and
+// a returning visitor is shown their own review.
+let example = null;
+
+const EXAMPLE_CHOICES = BUNDLED_EXAMPLE_NAMES.map((name) => ({
+  name, title: BUNDLED_EXAMPLES[name].title,
+}));
 
 // The opened evidence, held only for as long as the tab is open. Nothing here is
 // written to storage: a briefing is the visitor's own spend, and this page has
@@ -147,8 +164,18 @@ function renderClaim() {
   // arguments, so the same records always produce the same journey. A journey
   // that has not changed is left standing by the view itself, which is what keeps
   // an evidence read from closing the disclosures a reader opened.
-  renderConsolidatedJourney(document,
-    consolidateJourney({ restored, now: new Date(), surface: "review" }));
+  renderJourneyExamplePicker(document, {
+    choices: EXAMPLE_CHOICES,
+    active: example,
+    onSelect: (name) => { example = name; renderClaim(); },
+  });
+  // A loaded example composes the same model from bundled records, carrying the
+  // provenance marker that makes it distinguishable from the reader's own. Its
+  // clock is the fixture's own hardcoded day, which is what makes the answer
+  // below reproducible rather than dependent on when it is read.
+  renderConsolidatedJourney(document, example
+    ? evaluateBundledExample(example, { surface: "review" })
+    : consolidateJourney({ restored, now: new Date(), surface: "review" }));
   // An unchanged review is left standing. Every evidence read repaints this
   // region, and rebuilding a review nothing moved would close the disclosures
   // the reader opened and take the keyboard with them — the same rule the
