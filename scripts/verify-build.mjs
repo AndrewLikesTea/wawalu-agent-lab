@@ -181,6 +181,15 @@ export async function verifyArtifact(root) {
     // claim, with nothing on the artifact to say why.
     "finops-decision-contract.js", "finops-decision-fixture.json",
     "finops-first-run.js", "finops-first-run-view.js",
+    // The recurring monthly review: its destination, the entry, the view, the
+    // stylesheet the readiness tone is carried in, and the contract that decides
+    // whether the review may be acted on. The entry imports the contract and the
+    // view directly, so a narrowed artifact is not a missing panel — it is a
+    // rejected entry module, and this page's static markup is a "Reconciling
+    // monthly savings…" region with aria-busy="true" that never resolves.
+    "savings-action-center.html", "savings-action-center-page.js",
+    "savings-action-center-view.js", "savings-action-center.css",
+    "recurring-review-readiness.js",
   ]);
   const paths = new Set(actual.map(({ path }) => path));
   for (const path of required) if (!paths.has(path)) throw new Error(`missing required UI asset: ${path}`);
@@ -354,6 +363,37 @@ export async function verifyArtifact(root) {
     if (!finopsHtml.includes(markup)) {
       throw new Error(`AI FinOps first-paint copy drifted from its runtime contract at ${slot}`);
     }
+  }
+
+  // The same two probes for the recurring monthly review, run against the files
+  // Pages will serve rather than the source tree. Local modules and files only:
+  // the review promises no request, storage, binding, or environment variable,
+  // so the check that gates its deployment needs none either.
+  //
+  // First, the screen a visitor with nothing open actually gets. The bundled
+  // demonstration exists to show a review that IS ready to act on; a drifted
+  // date, scope, unit, or currency in it silently downgrades that first screen
+  // to a refusal, and the manifest, the health check, the required-asset list
+  // and the module graph all stay green while it does.
+  const { REVIEW_STATE, demoRecurringReviewReadiness } = await import(
+    pathToFileURL(resolve(root, "recurring-review-readiness.js")).href
+  );
+  const demoReview = demoRecurringReviewReadiness();
+  if (demoReview.state !== REVIEW_STATE.ready || !demoReview.ready
+    || !demoReview.recommendation || demoReview.evidence.gaps.length > 0) {
+    throw new Error(`bundled recurring-review demonstration is not a ready review: ${
+      demoReview.state} ${JSON.stringify(demoReview.evidence.gaps)}`);
+  }
+
+  // Second, the drift between the static first paint and the module that
+  // repaints it. The page's hero asks the question in hand-written markup and
+  // the contract answers it at runtime; two copies of one sentence in two files
+  // is exactly the pair that walks apart in a preview nobody reloads.
+  const actionCenterHtml = await readFile(resolve(root, "savings-action-center.html"), "utf8");
+  const heroQuestion = actionCenterHtml.match(/<h1 id="page-title">([\s\S]*?)<\/h1>/)?.[1]
+    ?.replaceAll(/<br\s*\/?>/g, " ").replaceAll(/\s+/g, " ").trim();
+  if (heroQuestion !== demoReview.question) {
+    throw new Error(`the action center's first paint asks "${heroQuestion}" but its contract answers "${demoReview.question}"`);
   }
 
   const headers = await readFile(resolve(root, "_headers"), "utf8");

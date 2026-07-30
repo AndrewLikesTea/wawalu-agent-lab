@@ -118,6 +118,60 @@ export function renderSavingsActionCenter(claim) {
 }
 
 /**
+ * Paint the recurring-review contract before any legacy savings reconciliation.
+ * Benchmark and prior-result evidence are deliberately contained by `details`;
+ * the surface itself carries only readiness and one next action.
+ */
+export function renderRecurringReviewReadiness(review, { source = "demo" } = {}) {
+  const article = el("article", "sac-focus");
+  article.setAttribute("aria-labelledby", "sac-question");
+  article.dataset.source = source;
+  article.dataset.reviewState = review.state;
+
+  const heading = el("header", "sac-heading");
+  const question = el("h2", undefined, review.question);
+  question.id = "sac-question";
+  const answer = review.ready
+    ? "Yes. The current period, benchmark, and retained prior outcome are comparable."
+    : "No. The review does not yet support an executive recommendation.";
+  const headline = el("p", "sac-headline", answer);
+  // The headline's tone is set from readiness, not from the words in it: the
+  // stylesheet's default is the caution colour, so a ready review painted
+  // without this reads as a warning it is not.
+  headline.dataset.state = review.ready ? "verified" : "demo";
+  heading.append(el("p", "sac-kicker", source === "demo" ? "Demonstration data" : "Local import"),
+    question, headline);
+  article.append(heading);
+
+  const decision = el("section", "sac-decision");
+  decision.setAttribute("aria-labelledby", "sac-decision-title");
+  const title = el("h3", undefined, review.nextAction.label);
+  title.id = "sac-decision-title";
+  decision.append(el("p", "sac-kicker", "Do this next"), title,
+    el("p", undefined, review.nextAction.rationale));
+  article.append(decision);
+
+  const details = el("details", "sac-details");
+  details.append(el("summary", undefined, "Review benchmark and prior result"));
+  const body = el("div", "sac-details-body");
+  const rows = el("dl", "sac-calculation");
+  const value = (number) => number === null ? "Not available" : String(number);
+  fact(rows, "Current value", value(review.metrics.currentValue));
+  fact(rows, "Benchmark delta", value(review.metrics.benchmarkDelta));
+  fact(rows, "Prior-action outcome delta", value(review.metrics.priorActionOutcomeDelta));
+  fact(rows, "Improvement direction",
+    review.metrics.optimizationDirection ?? "Not declared");
+  body.append(rows);
+  body.append(el("p", "sac-caveat", review.recommendation
+    ? "Recommendation evidence is available. Positive interpreted deltas mean improvement; negative interpreted deltas mean deterioration."
+    : `Recommendation withheld. Missing or mismatched evidence: ${review.evidence.gaps.join(", ")}.`));
+  body.append(el("p", "sac-contracts", review.schemaVersion));
+  details.append(body);
+  article.append(details);
+  return article;
+}
+
+/**
  * The arithmetic, behind a native disclosure.
  *
  * `details`/`summary` is used rather than a scripted panel because it is
