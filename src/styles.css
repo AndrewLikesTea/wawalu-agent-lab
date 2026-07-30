@@ -114,6 +114,28 @@ button { grid-column:1/-1; display:flex; align-items:center; justify-content:spa
 button:hover { background:#1f70c1; }
 .recorder-exit { justify-content:center; margin-top:-6px; border:1px solid #9cb9d4; background:transparent; color:#1f70c1; }
 .recorder-exit:hover { background:#eef4fb; color:#174f84; }
+/* The one prioritised review, above the history filters. Same panel idiom as
+   the release follow-up: accent rule, tinted ground, one solid action against
+   the plain links below. The two calm states drop the accent and the tint —
+   "nothing is late" must not be dressed as an alert — and keep the border, so
+   the panel still reads as one region at every width. Colour is never the
+   carrier: the heading, the lead, and the status word say the state. */
+.overdue-finding-pending { margin:0 0 18px; }
+.overdue-finding { margin:0 0 20px; border:1px solid #e0c9a6; border-left:5px solid #b5761b; border-radius:11px; padding:16px 18px; background:#fdf7ed; }
+.overdue-finding-title { margin:0; color:#7c4c07; font:700 11px/1.4 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; }
+.overdue-finding-lead { margin:9px 0 0; max-width:70ch; color:#26312c; font:650 16px/1.45 system-ui,sans-serif; overflow-wrap:anywhere; }
+.overdue-finding-meta { margin:13px 0 0; }
+.overdue-finding-benchmark { margin:11px 0 0; max-width:70ch; color:#26312c; font-size:14px; line-height:1.55; }
+.overdue-finding-priority,.overdue-finding-target { margin:8px 0 0; max-width:70ch; color:#5c5449; font-size:13px; line-height:1.55; }
+.overdue-finding-action { display:inline-flex; align-items:center; gap:8px; margin-top:14px; border-radius:9px; padding:11px 18px; background:#8a5510; color:#fff; font:700 14px/1.2 system-ui,sans-serif; text-decoration:none; }
+.overdue-finding-action:hover { background:#663f0b; }
+.overdue-finding-action:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.overdue-finding-none-overdue,.overdue-finding-none-open { border:1px solid #d9d7d0; border-left-width:1px; background:#fbfaf7; }
+.overdue-finding-none-overdue .overdue-finding-title,.overdue-finding-none-open .overdue-finding-title { color:#5c5b56; }
+.overdue-finding-none-overdue .overdue-finding-lead,.overdue-finding-none-open .overdue-finding-lead { font-weight:600; font-size:15px; }
+/* The action fills the measure once the panel is a single narrow column, so it
+   is a full-width 44px-plus target on a phone rather than a small inline one. */
+@media(max-width:520px) { .overdue-finding{padding:15px 16px}.overdue-finding-action{width:100%;justify-content:center} }
 .filters { display:flex; flex-wrap:wrap; gap:14px 16px; margin-bottom:22px; }
 .filter { display:flex; flex-direction:column; gap:7px; flex:1 1 150px; min-width:130px; }
 .filter label { color:#62625d; font:700 11px/1.4 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; }
