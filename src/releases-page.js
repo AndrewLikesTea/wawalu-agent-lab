@@ -5,10 +5,13 @@
 // components stay reusable and unit-testable.
 
 import {
+  ALL_DECISIONS_FILTER,
+  decisionFilterSearch,
   focusRelease,
   loadReleases,
   mountReleaseList,
   releaseCountText,
+  readDecisionFilter,
   releaseFollowUp,
   renderReleaseFollowUp,
   renderReleaseListState,
@@ -124,6 +127,12 @@ export function initReleasesPage(root = document, storage = localStorage, option
   // the browser already owns "which one is selected", and a second copy of that
   // answer is a second thing that can be wrong.
   const decisionStatusInputs = [...(root.querySelectorAll?.('input[name="release-decision-status"]') ?? [])];
+  // The one filter whose state survives a reload, for the same reason the
+  // decisions history's does: a link to the releases behind one decision is
+  // worth sharing. Everything else stays in the controls.
+  const decisionFilter = root.querySelector("#release-decision");
+  const locationRef = options.location ?? globalThis.window?.location;
+  const historyRef = options.history ?? globalThis.window?.history;
   if (!container) return;
 
   // Every early return below leaves the page in a stated end state: the list
@@ -155,12 +164,44 @@ export function initReleasesPage(root = document, storage = localStorage, option
   // The same example ids the decisions history badges its rows from, so a
   // shipped example says so here too and a release the visitor recorded (or
   // imported over a seed id) never carries the label.
+  // One option per decision this log holds, named by its title. Written through
+  // textContent, never markup: a decision title is user-authored (PRODUCT.md:
+  // no user-generated HTML), and an <option> is no exception.
+  const ownerDocument = root.ownerDocument ?? root;
+  const knownDecisionIds = new Set(decisions.map(({ id }) => id));
+  if (decisionFilter && typeof ownerDocument?.createElement === "function") {
+    for (const decision of decisions) {
+      const option = ownerDocument.createElement("option");
+      option.setAttribute("value", decision.id);
+      option.textContent = typeof decision.title === "string" && decision.title.trim() !== ""
+        ? decision.title
+        : decision.id;
+      decisionFilter.append(option);
+    }
+    // A restored value naming a decision this log no longer holds falls back to
+    // "all" rather than emptying the history — the same rule the status filter
+    // applies to a stale bookmark. The <select> cannot show an option that is
+    // not there, so leaving it set would also desync the control from the view.
+    const restored = readDecisionFilter(locationRef?.search ?? "");
+    decisionFilter.value = knownDecisionIds.has(restored) ? restored : ALL_DECISIONS_FILTER;
+  }
+
+  // The query string this page owns, tracked locally because replaceState does
+  // not report back through the same object in every environment.
+  let queryString = locationRef?.search ?? "";
+  const syncUrl = () => {
+    queryString = decisionFilterSearch(queryString, decisionFilter?.value ?? ALL_DECISIONS_FILTER);
+    const target = `${locationRef?.pathname ?? ""}${queryString}${locationRef?.hash ?? ""}`;
+    if (target) historyRef?.replaceState?.(null, "", target);
+  };
+
   const view = mountReleaseList(container, { releases, decisions, exampleIds: exampleReleaseIds });
   const update = () => {
     const filters = {
       query: search?.value ?? "",
       status: statusFilter?.value ?? "all",
       decisionStatus: decisionStatusInputs.find((input) => input.checked)?.value ?? "all",
+      decisionId: decisionFilter?.value ?? ALL_DECISIONS_FILTER,
     };
     const shown = view.render({ releases, decisions, exampleIds: exampleReleaseIds }, filters);
     // One count, from the same computation that rendered the rows, and one
@@ -172,6 +213,10 @@ export function initReleasesPage(root = document, storage = localStorage, option
   search?.addEventListener("input", update);
   statusFilter?.addEventListener("change", update);
   for (const input of decisionStatusInputs) input.addEventListener("change", update);
+  decisionFilter?.addEventListener("change", () => {
+    syncUrl();
+    update();
+  });
 
   // The next step each empty state offers. Delegated to the list container so it
   // survives the re-render that removes the button, and focus is moved off that
@@ -183,7 +228,9 @@ export function initReleasesPage(root = document, storage = localStorage, option
     if (action.dataset.action === "reset-filters") {
       if (search) search.value = "";
       if (statusFilter) statusFilter.value = "all";
+      if (decisionFilter) decisionFilter.value = ALL_DECISIONS_FILTER;
       for (const input of decisionStatusInputs) input.checked = input.value === "all";
+      syncUrl();
       update();
       decisionStatusInputs.find((input) => input.value === "all")?.focus?.();
     } else if (action.dataset.action === "record-release") {
@@ -203,7 +250,7 @@ export function initReleasesPage(root = document, storage = localStorage, option
   });
 
   update();
-  const focusId = new URLSearchParams(globalThis.window?.location?.search ?? "").get("focus");
+  const focusId = new URLSearchParams(locationRef?.search ?? "").get("focus");
   if (focusId) focusRelease(container, focusId);
   const documentElement = root.documentElement ?? globalThis.document?.documentElement;
   if (documentElement) documentElement.dataset.shiplogReleases = "ready";

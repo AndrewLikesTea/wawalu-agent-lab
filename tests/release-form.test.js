@@ -234,11 +234,13 @@ test("the mounted picker tracks ticks, announces the count, and survives new dat
   checks(container)[2].click();
   checks(container)[0].click();
   assert.deepEqual(picker.selectedIds(), ["d-flags", "d-queue"], "ticks are not recorded in the order they happened");
-  assert.equal(textOf(summary), "2 of 3 decisions linked.");
+  // The head of that order is the governing decision, and the summary names it:
+  // that sentence is how the recorder learns which one it just chose.
+  assert.equal(textOf(summary), "2 of 3 decisions linked. “Introduce feature flags” governs this release.");
 
   checks(container)[2].click();
   assert.deepEqual(picker.selectedIds(), ["d-queue"]);
-  assert.equal(textOf(summary), "1 of 3 decisions linked.");
+  assert.equal(textOf(summary), "1 of 3 decisions linked. “Adopt a durable job queue” governs this release.");
 
   // Fresh data redraws the group without losing a selection that still
   // resolves, and drops one that no longer does.
