@@ -7,7 +7,7 @@
 // the release in the same turn the page boots — the same content in-site
 // navigation produces, with no request in between to stall on.
 
-import { resolveReleaseDetail, renderReleaseDetail } from "./releases.js";
+import { browserReleaseStorage, renderReleaseDetail, renderReleaseDetailError, resolveReleaseDetail } from "./releases.js";
 import { loadReleaseData } from "./releases-data.js";
 import { pageTitle, recordTitle } from "./page-title.js";
 
@@ -17,7 +17,23 @@ export function initReleaseDetail() {
 
   const id = new URLSearchParams(window.location.search).get("id") ?? "";
   container.setAttribute("aria-busy", "true");
-  const { decisions, releases, publicReleaseIds, exampleReleaseIds } = loadReleaseData(localStorage);
+
+  // Sourcing is synchronous, so there is no pending window to strand a reader
+  // in. What can still fail is the store itself: a browser that refuses
+  // `localStorage` outright is read through browserReleaseStorage (whose null
+  // the tolerant loaders degrade to the shipped examples), and anything past
+  // that is a real failure. It gets its own state rather than a not-found page,
+  // which would be a definite answer this page does not have.
+  let data;
+  try {
+    data = loadReleaseData(browserReleaseStorage());
+  } catch {
+    renderReleaseDetailError(container);
+    document.title = pageTitle("Release unavailable");
+    document.documentElement.dataset.shiplogReleaseDetail = "ready";
+    return;
+  }
+  const { decisions, releases, publicReleaseIds, exampleReleaseIds } = data;
   const resolved = id ? resolveReleaseDetail(releases, decisions, id) : null;
 
   renderReleaseDetail(container, resolved, {

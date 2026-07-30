@@ -351,6 +351,130 @@ export function releaseFollowUp(resolvedReleases = []) {
   return null;
 }
 
+// ---------------------------------------------------------------------------
+// The follow-up for ONE release.
+//
+// releaseFollowUp() above answers the list's question — "which release on this
+// screen needs attention?". This answers the question a lead asks after opening
+// one: "of the decisions this release carried, which do I chase next, and why
+// does it matter?". Both read RELEASE_ATTENTION_KINDS, so the two surfaces can
+// never disagree about what is outstanding or in which order.
+//
+// The settled state in this log is `accepted`; there is no separate "completed"
+// decision status (see decision-status.js — the whole vocabulary is proposed,
+// pending, accepted, superseded). A release whose linked decisions are all
+// accepted therefore has no follow-up, and the detail view renders none.
+// ---------------------------------------------------------------------------
+
+// Where someone is sent to enter a record that is missing. Declared here rather
+// than imported from release-form.js, which already imports this module and
+// would make the cycle; a test pins the two values equal.
+export const RECORD_DECISION_HREF = "/#decision-form";
+
+// Attribution for a linked decision, with the same `author` alias releases
+// accept. "Unassigned" is a statement about the record, not a guess: a decision
+// nobody owns is exactly why a follow-up stalls, so the callout says so.
+export function decisionOwner(decision) {
+  for (const value of [decision?.owner, decision?.author]) {
+    if (typeof value === "string" && value.trim() !== "") return value.trim();
+  }
+  return "Unassigned";
+}
+
+// Why this one decision matters *to this release*, what to do, and where the
+// action goes. Split the same way the list callout's copy is: the reason can be
+// read on its own, and the target sentence describes the link rather than
+// replacing its label.
+const DECISION_FOLLOW_UP_COPY = {
+  [MISSING_DECISION_FILTER]: {
+    reason: (release) => `${releaseTitle(release)} names this decision, but the record is not in this log — the reasoning behind the release cannot be reviewed.`,
+    action: () => "Record the missing decision",
+    target: () => "Opens the decision recorder on the decisions page, where the absent record can be entered.",
+  },
+  proposed: {
+    reason: (release, name) => `“${name}” is still proposed, so ${releaseTitle(release)} has no recorded decision to stand behind.`,
+    action: (release, name) => `Decide on “${name}”`,
+    target: (release, name) => `Opens the decision record for “${name}”, with the context and alternatives behind it.`,
+  },
+  pending: {
+    reason: (release, name) => `“${name}” is still pending, so ${releaseTitle(release)} has no recorded outcome for it.`,
+    action: (release, name) => `Settle “${name}”`,
+    target: (release, name) => `Opens the decision record for “${name}”, with the context and alternatives behind it.`,
+  },
+  superseded: {
+    reason: (release, name) => `A later decision replaced “${name}”, so ${releaseTitle(release)} is linked to reasoning this log no longer treats as current.`,
+    action: (release, name) => `Review “${name}”`,
+    target: (release, name) => `Opens the decision record for “${name}”, which names the decision that replaced it.`,
+  },
+};
+
+/**
+ * The next decision to chase on one resolved release, or null when nothing is
+ * outstanding. `resolved` is the output of resolveRelease/resolveReleaseDetail.
+ *
+ * Ordering: a dangling reference outranks an unsettled decision (a broken
+ * record cannot be reviewed at all), and among unsettled ones the earlier the
+ * lifecycle stage the more urgent. Within a single kind the release author's
+ * association order decides, so the answer is stable across renders and matches
+ * the order the evidence list below is read in.
+ */
+export function releaseDecisionFollowUp(resolved) {
+  const kind = releaseAttentionKind(resolved);
+  if (!kind) return null;
+  const copy = DECISION_FOLLOW_UP_COPY[kind];
+
+  if (kind === MISSING_DECISION_FILTER) {
+    const decisionId = resolved.missingIds[0];
+    return {
+      kind,
+      decisionId,
+      title: null,
+      status: "missing",
+      // Not "Unassigned": the record may well have an owner. This log does not
+      // hold it, and saying so is the honest state.
+      owner: "Unknown",
+      reason: copy.reason(resolved),
+      action: copy.action(),
+      href: RECORD_DECISION_HREF,
+      target: copy.target(),
+    };
+  }
+
+  const decision = resolved.decisions.find((candidate) => canonicalDecisionStatus(candidate?.status) === kind);
+  const name = decisionLabel(decision);
+  // A decision with no usable id cannot be addressed, so the callout names it
+  // and says why it cannot be opened rather than rendering a broken link.
+  const addressable = typeof decision?.id === "string" && decision.id.trim() !== "";
+  return {
+    kind,
+    decisionId: addressable ? decision.id : null,
+    title: name,
+    status: kind,
+    owner: decisionOwner(decision),
+    reason: copy.reason(resolved, name),
+    action: addressable ? copy.action(resolved, name) : null,
+    href: addressable ? decisionDetailHref(decision.id) : null,
+    target: addressable
+      ? copy.target(resolved, name)
+      : "This decision has no id, so it has no record to open. It is listed below as it was linked.",
+  };
+}
+
+// The detail view can answer only the decision-record part of release
+// readiness. Operational checks, approvals, and deployment state do not exist
+// in this product, so this conclusion deliberately makes no claim about them.
+// "Clear" means exactly: at least one decision is linked, every reference
+// resolves, and every linked decision canonicalizes to `accepted`.
+export function releaseDecisionReadinessText(resolved) {
+  if ((resolved?.counts?.total ?? 0) === 0) {
+    return "Decision check: Unknown — no decisions are linked.";
+  }
+  if (releaseAttentionKind(resolved)) {
+    return "Decision check: Follow-up required — at least one linked decision is missing, proposed, pending, or superseded.";
+  }
+  return "Decision check: Clear — every linked decision is accepted.";
+}
+
 // Detail-view entry point: find one release by id and resolve its decisions.
 // Returns null when the id is unknown so the view can render a "not found"
 // state instead of guessing — a release reached by a stale link or a bad id is
@@ -752,9 +876,13 @@ function renderMetaRow(label, valueNode) {
   return row;
 }
 
-function renderDetailDecision(decision) {
+// The evidence row for one linked decision. `flagged` marks the row the
+// follow-up callout above is about, inside the link so a screen reader hears
+// "next follow-up" as part of the row's name rather than as a stray word.
+function renderDetailDecision(decision, flagged = false) {
   const item = el("li");
-  const link = el("a", "detail-decision");
+  const link = el("a", `detail-decision${flagged ? " detail-decision-flagged" : ""}`);
+  if (flagged) link.append(el("span", "detail-decision-flag", "Next follow-up"));
   const summary = el("span", "detail-decision-summary");
   link.href = decisionDetailHref(decision.id);
   link.append(el("span", `badge badge-${decision.status}`, decision.status));
@@ -787,8 +915,9 @@ function renderDetailDecision(decision) {
   return item;
 }
 
-function renderMissingDecision(id) {
-  const item = el("li", "detail-decision-missing");
+function renderMissingDecision(id, flagged = false) {
+  const item = el("li", `detail-decision-missing${flagged ? " detail-decision-flagged" : ""}`);
+  if (flagged) item.append(el("span", "detail-decision-flag", "Next follow-up"));
   item.append(el("span", "badge badge-missing", "missing"));
   const label = el("span", "detail-decision-title");
   label.append(document.createTextNode("Linked decision "));
@@ -798,7 +927,29 @@ function renderMissingDecision(id) {
   return item;
 }
 
-function renderDetailDecisions(resolved) {
+// Nothing linked. A release with no decisions behind it is a real gap in the
+// log rather than a blank slot, so this state says what is missing and links to
+// the recorder — the same next step the release form's picker offers when there
+// is nothing to link.
+function renderDetailDecisionsEmpty() {
+  const empty = el("div", "detail-decisions-empty");
+  // The exact sentence the collapsed row uses, kept as its own element so the
+  // two surfaces read identically.
+  empty.append(el("p", "release-empty", "No decisions linked to this release."));
+  empty.append(el(
+    "p",
+    "detail-decisions-empty-body",
+    "Nothing in this log says why it shipped. Record the decision behind it so the reasoning is written down; a release links its decisions at the moment it is recorded.",
+  ));
+  const actions = el("div", "detail-state-actions");
+  const action = el("a", "empty-action detail-decisions-empty-action", "Record the decision behind this release");
+  action.href = RECORD_DECISION_HREF;
+  actions.append(action);
+  empty.append(actions);
+  return empty;
+}
+
+function renderDetailDecisions(resolved, followUp = null) {
   const section = el("section", "detail-decisions");
   section.setAttribute("aria-labelledby", "detail-decisions-title");
   section.append(el("h2", "detail-decisions-heading", "Decisions in this release"));
@@ -806,20 +957,106 @@ function renderDetailDecisions(resolved) {
   section.append(el("p", "detail-summary", statusSummaryText(resolved)));
 
   if (resolved.counts.total === 0) {
-    section.append(el("p", "release-empty", "No decisions linked to this release."));
+    section.append(renderDetailDecisionsEmpty());
     return section;
   }
+
+  // The list is the evidence behind the callout above: everything this release
+  // carried, not just the one decision being chased. Saying so is what keeps
+  // the prioritised follow-up from reading like the whole picture.
+  section.append(el(
+    "p",
+    "detail-decisions-caption",
+    "Every decision linked to this release, in the order it was linked. Open one to read the record behind it.",
+  ));
 
   const list = el("ol", "detail-decision-list");
   // Keep the release author's association order, including dangling records.
   // Grouping missing references at the end would subtly rewrite that history.
+  //
+  // One row carries the marker even if the same id was linked twice: the
+  // callout is about a single decision, so a second marker would claim there
+  // are two things to chase next.
+  let marked = false;
   for (const association of resolved.associations) {
+    const flagged = !marked
+      && followUp !== null
+      && followUp.decisionId !== null
+      && followUp.decisionId === association.id
+      && association.missing === (followUp.kind === MISSING_DECISION_FILTER);
+    marked ||= flagged;
     list.append(association.missing
-      ? renderMissingDecision(association.id)
-      : renderDetailDecision(association.decision));
+      ? renderMissingDecision(association.id, flagged)
+      : renderDetailDecision(association.decision, flagged));
   }
   section.append(list);
   return section;
+}
+
+// Render-local ids, like the list callout's: one follow-up exists per release
+// detail view, so nothing here needs a counter to stay unique.
+const DETAIL_FOLLOW_UP_TITLE_ID = "detail-followup-title";
+const DETAIL_FOLLOW_UP_TARGET_ID = "detail-followup-target";
+
+function renderDetailFollowUpName(followUp) {
+  const name = el("p", "detail-followup-decision");
+  if (followUp.kind !== MISSING_DECISION_FILTER) {
+    name.textContent = followUp.title;
+    return name;
+  }
+  name.append(document.createTextNode("Linked decision "));
+  name.append(el("code", undefined, followUp.decisionId));
+  name.append(document.createTextNode(" is not in this log."));
+  return name;
+}
+
+// The one decision to chase next on this release, ahead of the evidence list.
+// Prominence is semantic as well as visual: a labelled section, the status and
+// owner as a real definition list, the reason as prose, and an action link
+// described by the sentence naming where it goes.
+function renderDetailFollowUp(followUp) {
+  const section = el("section", `detail-followup detail-followup-${followUp.kind}`);
+  section.setAttribute("aria-labelledby", DETAIL_FOLLOW_UP_TITLE_ID);
+  const heading = el("h2", "detail-followup-title", "Next follow-up");
+  heading.id = DETAIL_FOLLOW_UP_TITLE_ID;
+  section.append(heading);
+  section.append(renderDetailFollowUpName(followUp));
+
+  const meta = el("dl", "detail-meta detail-followup-meta");
+  meta.append(renderMetaRow("Status", el("span", `badge badge-${followUp.status}`, followUp.status)));
+  meta.append(renderMetaRow("Owner", document.createTextNode(followUp.owner)));
+  section.append(meta);
+
+  section.append(el("p", "detail-followup-reason", followUp.reason));
+
+  if (followUp.href) {
+    const link = el("a", "detail-followup-action", followUp.action);
+    link.href = followUp.href;
+    link.setAttribute("aria-describedby", DETAIL_FOLLOW_UP_TARGET_ID);
+    const arrow = el("span", "detail-followup-arrow", "→");
+    arrow.setAttribute("aria-hidden", "true");
+    link.append(arrow);
+    section.append(link);
+  }
+
+  const target = el("p", "detail-followup-target", followUp.target);
+  target.id = DETAIL_FOLLOW_UP_TARGET_ID;
+  section.append(target);
+  return section;
+}
+
+// The release detail page could not read this browser's log at all. Distinct
+// from "not found", which is a definite answer about a definite id: this one
+// says nothing was decided and that retrying is safe.
+export function renderReleaseDetailError(container) {
+  container.replaceChildren();
+  container.setAttribute("aria-busy", "false");
+  container.append(renderBackLink());
+  const panel = el("div", "empty-state empty-state-error");
+  panel.setAttribute("role", "alert");
+  panel.append(el("h1", "empty-title", "This release could not be loaded."));
+  panel.append(el("p", undefined, "Reading this browser's log failed. Try reloading the page — your saved records have not been changed."));
+  container.append(panel);
 }
 
 // Render the whole detail view into `container`. `resolved` is the output of
@@ -875,6 +1112,13 @@ export function renderReleaseDetail(container, resolved, options = {}) {
   if (summary.trim() !== "") header.append(el("p", "detail-notes", summary));
 
   article.append(header);
-  article.append(renderDetailDecisions(resolved));
+  article.append(el("p", "detail-readiness", releaseDecisionReadinessText(resolved)));
+  // The prioritised follow-up sits between the release and its evidence: a
+  // reader meets what needs doing before the full list they would otherwise
+  // have to triage themselves. Absent entirely when nothing is outstanding —
+  // an empty callout would still take a line and still be read out.
+  const followUp = releaseDecisionFollowUp(resolved);
+  if (followUp) article.append(renderDetailFollowUp(followUp));
+  article.append(renderDetailDecisions(resolved, followUp));
   container.append(article);
 }
