@@ -161,11 +161,22 @@ export function renderRecurringReviewReadiness(review, { source = "demo" } = {})
   fact(rows, "Prior-action outcome delta", value(review.metrics.priorActionOutcomeDelta));
   fact(rows, "Improvement direction",
     review.metrics.optimizationDirection ?? "Not declared");
+  fact(rows, "Recurring-review verdict", review.verdict.verdict.replaceAll("_", " "));
+  fact(rows, "Confidence", review.verdict.confidence);
+  fact(rows, "Permitted conclusion", review.verdict.statement);
+  fact(rows, "Evidence boundary",
+    `Comparable: ${review.verdict.evidenceBoundaries.comparable ? "yes" : "no"} · `
+    + `complete sampling: ${review.verdict.evidenceBoundaries.completeSampling ? "yes" : "no"} · `
+    + `retained baseline: ${review.verdict.evidenceBoundaries.retainedBaseline ? "yes" : "no"}`);
   body.append(rows);
   body.append(el("p", "sac-caveat", review.recommendation
     ? "Recommendation evidence is available. Positive interpreted deltas mean improvement; negative interpreted deltas mean deterioration."
     : `Recommendation withheld. Missing or mismatched evidence: ${review.evidence.gaps.join(", ")}.`));
-  body.append(el("p", "sac-contracts", review.schemaVersion));
+  body.append(el("p", "sac-contracts",
+    `${review.schemaVersion} · confidence weights `
+    + `comparability ${review.verdict.confidenceBasis.policy.weights.comparability}, `
+    + `sampling ${review.verdict.confidenceBasis.policy.weights.sampling}, `
+    + `baseline ${review.verdict.confidenceBasis.policy.weights.baseline}`));
   details.append(body);
   article.append(details);
   return article;

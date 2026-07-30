@@ -2,11 +2,19 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { byClass, installDocument, tags } from "./support/dom.js";
 import {
+  CONFIDENCE_POLICY,
   OPTIMIZATION_DIRECTION,
+  REVIEW_CONFIDENCE,
   REVIEW_STATE,
+  REVIEW_VERDICT,
   demoRecurringReviewReadiness,
   recurringReviewReadiness,
 } from "../src/recurring-review-readiness.js";
+import {
+  RECURRING_REVIEW_REFUSAL_FIXTURES,
+  RECURRING_REVIEW_VERDICT_FIXTURES,
+  REFUSAL_MARKER,
+} from "../src/recurring-review-verdict-fixtures.js";
 import { renderRecurringReviewReadiness } from "../src/savings-action-center-view.js";
 
 installDocument();
@@ -19,7 +27,123 @@ const metric = (value, periodEnd, overrides = {}) => ({
   scopeId: "team-a",
   periodDurationDays: 30,
   periodEnd,
+  sample: { observed: 30, eligible: 30 },
   ...overrides,
+});
+
+test("the labelled adjudication set covers every required verdict and evidence boundary", () => {
+  assert.deepEqual(RECURRING_REVIEW_VERDICT_FIXTURES.map((item) => item.fixtureId), [
+    "comparable-improvement",
+    "comparable-regression",
+    "incomparable-periods",
+    "missing-prior-evidence",
+  ]);
+  for (const fixture of RECURRING_REVIEW_VERDICT_FIXTURES) {
+    const result = recurringReviewReadiness(fixture.input).verdict;
+    assert.equal(result.verdict, fixture.expected.verdict, fixture.fixtureId);
+    assert.equal(result.confidence, fixture.expected.confidence, fixture.fixtureId);
+    for (const [boundary, expected] of Object.entries(fixture.expected.boundaries)) {
+      assert.equal(result.evidenceBoundaries[boundary], expected,
+        `${fixture.fixtureId}:${boundary}`);
+    }
+    assert.ok(result.permittedWording.includes(fixture.expected.permittedWording),
+      `${fixture.fixtureId}: permitted wording`);
+    assert.equal(result.statement, fixture.expected.permittedWording, fixture.fixtureId);
+    assert.equal(result.causalClaimPermitted, false, fixture.fixtureId);
+  }
+  assert.deepEqual(new Set(RECURRING_REVIEW_VERDICT_FIXTURES.map(
+    (item) => item.expected.verdict,
+  )), new Set(Object.values(REVIEW_VERDICT)));
+});
+
+test("identical local inputs produce byte-identical verdicts", () => {
+  for (const fixture of RECURRING_REVIEW_VERDICT_FIXTURES) {
+    const first = recurringReviewReadiness(structuredClone(fixture.input)).verdict;
+    const second = recurringReviewReadiness(structuredClone(fixture.input)).verdict;
+    assert.equal(JSON.stringify(first), JSON.stringify(second), fixture.fixtureId);
+  }
+});
+
+test("confidence weights and thresholds are complete, named, and explainable", () => {
+  assert.equal(Object.values(CONFIDENCE_POLICY.weights).reduce((sum, value) => sum + value, 0), 1);
+  assert.equal(CONFIDENCE_POLICY.assumptions.length,
+    Object.keys(CONFIDENCE_POLICY.weights).length + 1);
+  assert.ok(CONFIDENCE_POLICY.thresholds.high > CONFIDENCE_POLICY.thresholds.moderate);
+});
+
+test("missing comparability, sampling, or baseline cannot emit causal-success wording", () => {
+  const unsafe = /\b(caused|because of|resulted in|delivered savings|successful action)\b/i;
+  const cases = [
+    recurringReviewReadiness(RECURRING_REVIEW_VERDICT_FIXTURES[2].input).verdict,
+    recurringReviewReadiness({
+      ...RECURRING_REVIEW_VERDICT_FIXTURES[0].input,
+      current: metric(900, "2026-07-31", { sample: { observed: 29, eligible: 30 } }),
+    }).verdict,
+    recurringReviewReadiness(RECURRING_REVIEW_VERDICT_FIXTURES[3].input).verdict,
+  ];
+  assert.deepEqual(cases.map((result) => result.confidence), [
+    REVIEW_CONFIDENCE.insufficient,
+    REVIEW_CONFIDENCE.insufficient,
+    REVIEW_CONFIDENCE.moderate,
+  ]);
+  for (const result of cases) {
+    assert.equal(result.causalClaimPermitted, false);
+    assert.doesNotMatch([result.statement, ...result.permittedWording].join(" "), unsafe);
+  }
+  const incomplete = recurringReviewReadiness({
+    ...RECURRING_REVIEW_VERDICT_FIXTURES[0].input,
+    current: metric(900, "2026-07-31", { sample: { observed: 29, eligible: 30 } }),
+  });
+  assert.equal(incomplete.ready, false);
+  assert.equal(incomplete.recommendation, null);
+  assert.ok(incomplete.evidence.gaps.includes("complete_sampling_missing"));
+});
+
+test("untrusted prompt-like fields never cross the verdict evidence boundary", () => {
+  const marker = "UNTRUSTED_PROMPT_DO_NOT_REPEAT";
+  const input = structuredClone(RECURRING_REVIEW_VERDICT_FIXTURES[0].input);
+  input.current.prompt = marker;
+  input.priorAction.outcome.judgeInstructions = marker;
+  // Unknown keys are the easy half. The period boundaries are the hard half:
+  // they are the only imported strings the verdict quotes back, so the same
+  // marker has to be refused when it arrives inside one of them.
+  input.benchmark.periodEnd = `2026-06-30 ${marker}`;
+  const serialized = JSON.stringify(recurringReviewReadiness(input).verdict);
+  assert.doesNotMatch(serialized, new RegExp(marker));
+  assert.ok(JSON.parse(serialized).evidenceBoundaries.excluded.includes("prompt content"));
+});
+
+// Every one of these reached "ready", "improvement", and "high confidence"
+// before the boundaries were validated, because a string that is not a day
+// still compares against other strings. A hostile export needs no unknown key
+// to do it — just a plausible-looking date in a field the surface prints.
+test("a period boundary that is not a real calendar day is refused, not parsed", () => {
+  assert.deepEqual(RECURRING_REVIEW_REFUSAL_FIXTURES.map((item) => item.fixtureId), [
+    "day-that-does-not-exist",
+    "timestamp-sorts-past-its-own-day",
+    "prose-in-a-period-boundary",
+    "benchmark-is-not-the-earlier-period",
+  ]);
+  for (const fixture of RECURRING_REVIEW_REFUSAL_FIXTURES) {
+    const review = recurringReviewReadiness(structuredClone(fixture.input));
+    assert.equal(review.ready, false, fixture.fixtureId);
+    assert.equal(review.recommendation, null, fixture.fixtureId);
+    assert.equal(review.verdict.verdict, REVIEW_VERDICT.incomparable, fixture.fixtureId);
+    assert.equal(review.verdict.confidence, REVIEW_CONFIDENCE.insufficient, fixture.fixtureId);
+    assert.ok(review.evidence.gaps.includes(fixture.expected.gap),
+      `${fixture.fixtureId}: ${review.evidence.gaps.join(",")}`);
+    if (fixture.expected.absentBoundary) {
+      assert.equal(review.verdict.evidenceBoundaries[fixture.expected.absentBoundary], null,
+        fixture.fixtureId);
+    }
+    // Nothing that failed the calendar rule survives anywhere in the verdict.
+    assert.doesNotMatch(JSON.stringify(review.verdict), new RegExp(REFUSAL_MARKER));
+    // The reader is told which evidence was refused, in the surface's own words.
+    const view = renderRecurringReviewReadiness(review, { source: "imported" });
+    assert.match(byClass(view, "sac-caveat")[0].textContent,
+      new RegExp(`Recommendation withheld.*${fixture.expected.gap}`), fixture.fixtureId);
+    assert.doesNotMatch(view.textContent, new RegExp(REFUSAL_MARKER), fixture.fixtureId);
+  }
 });
 
 test("first review answers the leader with one baseline action", () => {
@@ -158,4 +282,8 @@ test("the view shows one next action and discloses benchmark and prior result", 
   assert.equal(tags(view, "DETAILS").length, 1);
   assert.equal(tags(view, "SUMMARY")[0].textContent, "Review benchmark and prior result");
   assert.equal(tags(view, "DT").filter((node) => /Benchmark|Prior-action/.test(node.textContent)).length, 2);
+  assert.match(view.textContent, /Recurring-review verdict/);
+  assert.match(view.textContent, /Permitted conclusion/);
+  assert.match(view.textContent, /Evidence boundary/);
+  assert.match(view.textContent, /confidence weights comparability 0.5, sampling 0.3, baseline 0.2/);
 });
