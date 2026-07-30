@@ -143,6 +143,10 @@ export function applyFirstRunResult(doc, result) {
   paintSlot(doc, FIRST_RUN_IDS.benchmarkValue, FIRST_RUN_IDS.benchmarkDetail, result.benchmark);
   paintSlot(doc, FIRST_RUN_IDS.impactValue, FIRST_RUN_IDS.impactDetail, result.impact);
   paintSlot(doc, FIRST_RUN_IDS.peerValue, FIRST_RUN_IDS.peerDetail, result.peer);
+  // The internal drill-down of the position above, painted through the same
+  // helper and into the same slot shape: a suppressed finding is a sentence in
+  // the value, never an empty panel and never a console warning.
+  paintSlot(doc, FIRST_RUN_IDS.internalValue, FIRST_RUN_IDS.internalDetail, result.internal);
 
   const action = setText(doc, FIRST_RUN_IDS.action, result.action?.value ?? "");
   if (action) action.dataset.available = result.action?.available ? "true" : "false";

@@ -53,6 +53,9 @@ import { buildFinopsBriefing, validateBriefing } from "./finops-briefing-contrac
 import {
   costPositionDetail, costPositionHeadline, resolveCostPosition,
 } from "./peer-cost-position.js";
+import {
+  INTERNAL_GAP_STATUS, internalGapDetail, internalGapHeadline, resolveInternalCostGap,
+} from "./internal-cost-gap.js";
 import { DECISION_QUESTION, loadCanonicalDecision } from "./finops-decision-contract.js";
 import {
   auditDecisionFigures, DECISION_STATE, noticeFor, OUT_OF_RANGE_VALUE,
@@ -79,6 +82,10 @@ export const FIRST_RUN_IDS = Object.freeze({
   impactDetail: "finops-first-run-impact-detail",
   peerValue: "finops-first-run-peer-value",
   peerDetail: "finops-first-run-peer-detail",
+  // The internal drill-down of that same position: which department is furthest
+  // behind which, on the same metric and the same band boundaries.
+  internalValue: "finops-first-run-internal-value",
+  internalDetail: "finops-first-run-internal-detail",
   action: "finops-first-run-action",
   role: "finops-first-run-role",
   methodList: "finops-first-run-method-list",
@@ -240,6 +247,7 @@ export const SLOT_LABEL = Object.freeze({
   benchmark: "Headline benchmark · recoverable share of analyzed spend",
   impact: "Quantified impact · routing scenario",
   peer: "Peer comparison",
+  internal: "Internal drill-down · widest department gap",
   action: "Recommended action · rank 1",
   confidence: "Confidence in this answer",
 });
@@ -373,6 +381,31 @@ function peerSlot(analysis, org, tasks) {
   return slot(true, costPositionHeadline(position), costPositionDetail(position));
 }
 
+/**
+ * The internal drill-down of the peer slot above: the widest gap BETWEEN this
+ * organization's own departments, on the same metric and against the same band
+ * boundaries the peer position was placed against.
+ *
+ * It sits directly under the peer comparison on purpose. A leader who has just
+ * read "bottom quartile against comparable organizations" asks one question
+ * next — where inside the company that is coming from — and answering it in a
+ * different unit, against a different cohort, or three panels away is how a
+ * position stops being actionable. `internal-cost-gap.js` imports the metric,
+ * the boundaries, and the eligibility floor from `peer-cost-position.js` rather
+ * than restating any of them, so the two lines are directly comparable.
+ *
+ * A suppressed finding renders its own sentence, exactly like the peer slot's
+ * withheld reason. It never renders the bare word "Unavailable" and it never
+ * renders an empty panel: "we did not compare, here is why" is the answer.
+ */
+function internalSlot(gap) {
+  if (gap?.status !== INTERNAL_GAP_STATUS.finding) {
+    return slot(false, gap?.suppressedReason ?? FIRST_RUN_UNAVAILABLE.notComposed,
+      gap?.metric?.definition ?? "");
+  }
+  return slot(true, `${internalGapHeadline(gap)}.`, internalGapDetail(gap));
+}
+
 /** The rank-1 action and the role accountable for it, or the reason there is none. */
 function actionSlot(briefing) {
   const ranked = briefing?.rankedAction;
@@ -447,7 +480,7 @@ function answerSlot(decision, benchmark, impact) {
  * it, so the sentence a reader checks the figure against cannot drift from the
  * figure. Every entry is a term and its plain-text value.
  */
-function methodEntries(analysis, briefing) {
+function methodEntries(analysis, briefing, gap = null) {
   const coverage = briefing?.coverage ?? {};
   const entries = [
     ["Inputs", "Six invented monthly provider exports and one invented HRIS org export, generated "
@@ -469,6 +502,22 @@ function methodEntries(analysis, briefing) {
   entries.push(["Limits", "A routing scenario is a modelled ceiling, not a realized saving. This "
     + "sample carries no peer cohort and no scored query sample, so the peer and literacy "
     + "figures on this page stay unavailable. Your own export will produce different numbers."]);
+  // The internal gap's provenance, beside the rest of the evidence rather than
+  // only inside the slot: a later verification pass needs the metric, the rubric
+  // version, the rows the finding selected, and the window they cover in order
+  // to recompute the same number without re-importing the file.
+  if (gap?.provenance) {
+    const { provenance } = gap;
+    const rows = provenance.rowSelector.values.length
+      ? `${provenance.rowSelector.field} in ${provenance.rowSelector.values.join(", ")}`
+      : `no ${provenance.rowSelector.field} rows selected`;
+    const window = provenance.dateRange.start && provenance.dateRange.end
+      ? `${provenance.dateRange.start} to ${provenance.dateRange.end}`
+      : "window unavailable";
+    entries.push(["Internal gap", `${provenance.metricId} · ${provenance.rubricVersion} · `
+      + `cohort ${provenance.cohortId ?? "unmatched"} · snapshot ${provenance.snapshotId ?? "unknown"} · `
+      + `${rows} · ${window}. Recompute from these and compare.`]);
+  }
   if (briefing?.provenance?.text) entries.push(["Where it ran", briefing.provenance.text]);
   return Object.freeze(entries.map(([term, detail]) => Object.freeze({ term, detail })));
 }
@@ -521,6 +570,10 @@ export function composeFirstRunResult({
       : FIRST_RUN_UNAVAILABLE.notComposed);
   }
   const impact = impactSlot(briefing, notices);
+  // Resolved once and used twice — the slot and the method entry read the same
+  // object, so the sentence a reader checks the finding against cannot drift
+  // from the finding.
+  const gap = resolveInternalCostGap({ analysis, org, tasks });
   return Object.freeze({
     ...BASE,
     presentation: FIRST_RUN_STATE.ready,
@@ -535,9 +588,11 @@ export function composeFirstRunResult({
     benchmark,
     impact,
     peer: peerSlot(analysis, org, tasks),
+    internal: internalSlot(gap),
+    internalGap: gap,
     action: actionSlot(briefing),
     confidence: confidenceSlot(decision, notices),
-    method: methodEntries(analysis, briefing),
+    method: methodEntries(analysis, briefing, gap),
     reason: null,
   });
 }
@@ -588,6 +643,11 @@ function degradedResult(presentation, reason, answerValue) {
     // reason a reader can act on.
     peer: slot(false, "No peer position: this example could not be composed, so there is "
       + "no cost per successful task to place.", reason),
+    // Suppressed, not blank, for the same reason: a comparison that was not made
+    // is owed the sentence that says so.
+    internal: slot(false, "No internal comparison: this example could not be composed, so no "
+      + "department was placed against another.", reason),
+    internalGap: null,
     action: slot(false, "Recommended action unavailable.", reason),
     confidence: blank,
     method: Object.freeze([Object.freeze({ term: "Limits", detail: reason })]),
