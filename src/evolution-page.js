@@ -2557,7 +2557,7 @@ function renderDecisionDetail(department, data) {
   applyDepartmentEvidence(document, departmentEvidenceModel({
     department: importedRow ?? unclassifiedDepartmentRow(department),
     provenance: importedRow ? EVIDENCE_PROVENANCE.own.kind : EVIDENCE_PROVENANCE.sample.kind,
-  }));
+  }), { storage: browserFinopsWorkspaceStorage() });
   setText("detail-score", performance.available ? `${performance.score}/100` : NOT_GRADED);
   setText("detail-sample", performance.available
     ? `${performance.rubricVersion} · ${sampling.sampledQueries} sampled queries · through ${sampling.sampledThrough} (${sampling.freshnessLabel}) · 95% sampling uncertainty ±${performance.uncertaintyPoints} points · ${provenance.label}`
