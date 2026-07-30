@@ -1583,6 +1583,14 @@
         <p class="department-evidence-live" id="department-fix-pack-live" role="status" aria-live="polite" aria-atomic="true"></p>
       </section>
 
+      <!-- The consumed monthly-cycle decision contract for the same department
+           finding. Its DOM order is the leader's decision order; evidence stays
+           collapsed until requested. It creates no record and stores nothing. -->
+      <section class="department-fix-pack monthly-department-decision" id="monthly-department-decision" data-state="insufficient_evidence" data-workspace-region="department" aria-labelledby="monthly-department-decision-title" hidden>
+        <h2 class="eyebrow" id="monthly-department-decision-title">Monthly action decision</h2>
+        <div id="monthly-department-decision-body"></div>
+      </section>
+
       <details class="support-disclosure" id="disclosure-spend-and-recovery" data-panel-id="spend-and-recovery" data-workspace-region="evidence">
         <summary class="support-disclosure-summary"><span class="support-disclosure-step" data-role="step">Supporting panel</span> <span class="support-disclosure-question" data-role="question">What did we spend this period, and how much of it is recoverable?</span></summary>
       <section class="kpi-row" id="kpi-row" data-source="sample" aria-label="Headline metrics" aria-describedby="headline-basis">

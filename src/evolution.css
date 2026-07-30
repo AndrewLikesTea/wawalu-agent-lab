@@ -1671,6 +1671,18 @@ section[data-workspace-current="true"] { box-shadow:-6px 0 0 0 var(--import-wash
 .department-evidence[hidden] { display:none; }
 .department-evidence-live { margin:14px 0 0; color:var(--ink-muted); font:600 11px/1.5 ui-monospace,monospace; }
 .department-evidence-live:empty { display:none; }
+.monthly-department-decision { display:grid; gap:18px; }
+.monthly-decision-answer { border-top:1px solid var(--panel-border); padding-top:16px; }
+.monthly-decision-answer:first-child { border-top:0; padding-top:0; }
+.monthly-decision-question { margin:4px 0 10px; font-size:clamp(18px,2vw,23px); }
+.monthly-decision-action,.monthly-decision-refusal,.monthly-decision-confidence,.monthly-decision-next { margin:0; }
+.monthly-decision-refusal { font-weight:700; }
+.monthly-decision-tracking { display:block; margin-top:6px; }
+.monthly-decision-metric { display:grid; gap:8px; margin:0; }
+.monthly-decision-metric div { display:grid; grid-template-columns:minmax(110px,.35fr) 1fr; gap:12px; }
+.monthly-decision-metric dt { font-weight:700; }
+.monthly-decision-metric dd { margin:0; color:var(--ink-muted); }
+.monthly-decision-evidence { margin-top:12px; }
 /* Provenance hierarchy, in scale and rhythm rather than hue: the reader's own
    finding gets the page's stat-numeral role and a full block of air; the bundled
    sample sits a step down at the card-title role, indented behind a rule. Both
