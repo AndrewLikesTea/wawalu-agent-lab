@@ -1,161 +1,180 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { byClass, installDocument, tags } from "./support/dom.js";
 import {
-  OPTIMIZATION_DIRECTION,
+  REVIEW_EVIDENCE_KEY,
+  REVIEW_EVIDENCE_VERSION,
+  REVIEW_READINESS_VERSION,
   REVIEW_STATE,
-  demoRecurringReviewReadiness,
-  recurringReviewReadiness,
+  assembleRecurringReview,
+  readCurrentReviewEvidence,
+  retainCurrentReviewEvidence,
 } from "../src/recurring-review-readiness.js";
-import { renderRecurringReviewReadiness } from "../src/savings-action-center-view.js";
+import { MONTHLY_ACTION_VERSION } from "../src/monthly-department-action-store.js";
+import { loadPage } from "./support/browser.js";
+import { importPageModule, waitFor } from "./support/page-module.js";
 
-installDocument();
+const retainedAction = {
+  schemaVersion: MONTHLY_ACTION_VERSION,
+  decisionVersion: "monthly-department-decision/1.0.0",
+  actionId: "route-short-lookups",
+  actionLabel: "Route short lookups",
+  department: "Atlas Platform",
+  ownerLabel: "AI Platform product owner",
+  baseline: {
+    value: 1200, unit: "USD/month", period: "2026-06",
+    aggregation: "Monthly eligible recoverable spend",
+    calculation: "Sum eligible row deltas",
+  },
+  target: {
+    value: 0, unit: "USD/month remaining avoidable spend",
+    deadline: "2026-07-31", calculation: "baseline minus verified reduction",
+  },
+  reviewPeriod: "2026-07",
+  confidence: "high",
+  provenanceReferences: ["fix-pack:1", "rubric:1"],
+  committedAt: "2026-06-30T12:00:00.000Z",
+};
 
-const metric = (value, periodEnd, overrides = {}) => ({
-  value,
-  metricDefinition: "cost_per_review_v1",
-  unit: "currency_minor",
-  currency: "USD",
-  scopeId: "team-a",
-  periodDurationDays: 30,
-  periodEnd,
+const analysis = (overrides = {}) => ({
+  schemaVersion: "local-finops/1.0.0",
+  period: "2026-07-01 to 2026-08-01",
+  rankedDepartments: [{ name: "Atlas Platform", recoverableUsd: 900 }],
+  ...overrides,
+});
+const verdict = (overrides = {}) => ({
+  state: "all_clear",
+  headline: { available: true, coveragePercent: 100, totalRows: 12 },
   ...overrides,
 });
 
-test("first review answers the leader with one baseline action", () => {
-  const review = recurringReviewReadiness({
-    current: metric(900, "2026-07-31"),
-    benchmark: metric(1000, "2026-06-30"),
-    optimizationDirection: OPTIMIZATION_DIRECTION.minimize,
+test("a retained action resumes ready from a later analysis and Theo verdict", () => {
+  const review = assembleRecurringReview({
+    retainedAction, currentAnalysis: analysis(), theoVerdict: verdict(),
   });
-  assert.equal(review.state, REVIEW_STATE.first);
-  assert.equal(review.ready, false);
-  assert.match(review.nextAction.label, /first review/i);
+  assert.equal(review.state, REVIEW_STATE.ready);
+  assert.equal(review.recommendation.change, -300);
+  assert.equal(review.benchmark.value, 1200);
+  assert.equal(review.confidence.theo, "high");
+  assert.equal(review.provenance.verdictRows, 12);
+  assert.deepEqual(review.evidenceBoundary.gaps, []);
+  // The contract the figure came from, not a placeholder standing in for it: a
+  // finding defended with "local-finops-analysis" names no version at all.
+  assert.equal(review.provenance.analysisContract, "local-finops/1.0.0");
+  assert.equal(review.current.unit, review.benchmark.unit);
+});
+
+test("a benchmark in another unit is blocked rather than differenced", () => {
+  const review = assembleRecurringReview({
+    retainedAction: {
+      ...retainedAction,
+      baseline: { ...retainedAction.baseline, unit: "USD/quarter" },
+    },
+    currentAnalysis: analysis(),
+    theoVerdict: verdict(),
+  });
+  assert.equal(review.state, REVIEW_STATE.blocked);
+  assert.equal(review.code, "metric_changed");
+  assert.equal(review.recommendation, null);
+  assert.deepEqual(review.evidenceBoundary.gaps, ["metric_unit_mismatch"]);
+});
+
+test("an absent retained action is explicitly blocked", () => {
+  const review = assembleRecurringReview({
+    currentAnalysis: analysis(), theoVerdict: verdict(),
+  });
+  assert.equal(review.state, REVIEW_STATE.blocked);
+  assert.equal(review.code, "absent_action");
   assert.equal(review.recommendation, null);
 });
 
-test("a tracked action without a retained post-period outcome waits", () => {
-  const review = recurringReviewReadiness({
-    current: metric(900, "2026-07-31"),
-    benchmark: metric(1000, "2026-06-30"),
-    priorAction: { reviewPeriodEnd: "2026-06-30", baseline: metric(1100, "2026-06-30") },
-    optimizationDirection: OPTIMIZATION_DIRECTION.minimize,
+test("a changed department scope is blocked", () => {
+  const review = assembleRecurringReview({
+    retainedAction,
+    currentAnalysis: analysis({
+      rankedDepartments: [{ name: "Security", recoverableUsd: 900 }],
+    }),
+    theoVerdict: verdict(),
   });
-  assert.equal(review.state, REVIEW_STATE.awaiting);
-  assert.equal(review.evidence.priorResultAvailable, false);
-  assert.match(review.nextAction.label, /post-action measurement/i);
+  assert.equal(review.code, "department_changed");
+  assert.deepEqual(review.evidenceBoundary.gaps, ["department_scope_mismatch"]);
 });
 
-test("comparable retained outcome makes the review ready and computes exact deltas", () => {
-  const review = recurringReviewReadiness({
-    current: metric(900, "2026-07-31"),
-    benchmark: metric(1000, "2026-06-30"),
-    priorAction: {
-      reviewPeriodEnd: "2026-05-31",
-      baseline: metric(1200, "2026-05-31"),
-      outcome: metric(1000, "2026-06-30"),
-    },
-    optimizationDirection: OPTIMIZATION_DIRECTION.minimize,
-  });
-  assert.equal(review.state, REVIEW_STATE.ready);
-  assert.equal(review.ready, true);
-  assert.equal(review.metrics.currentValue, 900);
-  assert.equal(review.metrics.benchmarkDelta, -100);
-  assert.equal(review.metrics.benchmarkDirection, 100);
-  assert.equal(review.metrics.priorActionOutcomeDelta, -200);
-  assert.equal(review.metrics.priorActionOutcomeDirection, 200);
-  assert.equal(review.recommendation.status, "available");
-});
-
-test("missing or mismatched comparison dimensions suppress recommendations", () => {
-  for (const [field, override] of [
-    ["metricDefinition", { metricDefinition: "cost_per_review_v2" }],
-    ["unit", { unit: "tokens" }],
-    ["currency", { currency: "EUR" }],
-    ["scopeId", { scopeId: "team-b" }],
-    ["periodDurationDays", { periodDurationDays: 31 }],
-  ]) {
-    const review = recurringReviewReadiness({
-      current: metric(900, "2026-07-31"),
-      benchmark: metric(1000, "2026-06-30", override),
-      priorAction: {
-        reviewPeriodEnd: "2026-05-31",
-        baseline: metric(1200, "2026-05-31"),
-        outcome: metric(1000, "2026-06-30"),
-      },
-      optimizationDirection: OPTIMIZATION_DIRECTION.minimize,
+test("same and earlier periods are incomparable", () => {
+  for (const period of ["2026-06-01 to 2026-07-01", "2026-05-01 to 2026-06-01"]) {
+    const review = assembleRecurringReview({
+      retainedAction, currentAnalysis: analysis({ period }), theoVerdict: verdict(),
     });
-    assert.equal(review.recommendation, null, field);
-    assert.equal(review.ready, false, field);
-    assert.ok(review.evidence.gaps.some((gap) => gap.startsWith(field)), field);
-    // A measured prior outcome must not hand the leader a "the evidence is
-    // ready" action while the headline above it refuses the recommendation.
-    assert.equal(review.state, REVIEW_STATE.ready, field);
-    assert.match(review.nextAction.label, /Reconcile the mismatched evidence/, field);
+    assert.equal(review.code, "period_not_later", period);
+    assert.equal(review.ready, false, period);
   }
-  assert.equal(recurringReviewReadiness().recommendation, null);
 });
 
-test("a review refused for mismatched evidence never paints a ready next action", () => {
-  const review = recurringReviewReadiness({
-    current: metric(900, "2026-07-31"),
-    benchmark: metric(1000, "2026-06-30", { currency: "EUR" }),
-    priorAction: {
-      reviewPeriodEnd: "2026-05-31",
-      baseline: metric(1200, "2026-05-31"),
-      outcome: metric(1000, "2026-06-30"),
-    },
-    optimizationDirection: OPTIMIZATION_DIRECTION.minimize,
+test("missing and unmeasured Theo evidence are insufficient, not ready", () => {
+  assert.equal(assembleRecurringReview({
+    retainedAction, currentAnalysis: analysis(),
+  }).state, REVIEW_STATE.insufficient);
+  assert.equal(assembleRecurringReview({
+    retainedAction,
+    currentAnalysis: analysis(),
+    theoVerdict: verdict({ state: "zero_spend", headline: { available: false } }),
+  }).code, "verdict_insufficient");
+});
+
+test("the navigation handoff retains only bounded analysis and verdict facts", () => {
+  const values = new Map();
+  const storage = {
+    getItem: (key) => values.get(key) ?? null,
+    setItem: (key, value) => values.set(key, value),
+  };
+  const currentAnalysis = analysis({
+    rankedDepartments: [{
+      name: "Atlas Platform", recoverableUsd: 900, sourceRows: [{ prompt: "secret" }],
+    }],
   });
-  const view = renderRecurringReviewReadiness(review);
-  assert.equal(view.dataset.reviewState, REVIEW_STATE.ready);
-  assert.doesNotMatch(view.textContent, /ready for an executive decision/);
-  assert.match(byClass(view, "sac-decision")[0].textContent, /Reconcile the mismatched evidence/);
-  assert.match(byClass(view, "sac-caveat")[0].textContent, /currency_mismatch/);
-  assert.equal(byClass(view, "sac-headline")[0].dataset.state, "demo");
+  assert.equal(retainCurrentReviewEvidence(storage, {
+    currentAnalysis, theoVerdict: verdict({ findings: [{ identifiers: ["customer"] }] }),
+  }), true);
+  const serialized = values.get(REVIEW_EVIDENCE_KEY);
+  assert.doesNotMatch(serialized, /secret|customer|sourceRows|findings|Atlas Platform/);
+  const restored = readCurrentReviewEvidence(storage);
+  assert.equal(assembleRecurringReview({
+    retainedAction, ...restored,
+  }).state, REVIEW_STATE.ready);
+  // The handoff payload is versioned separately from the result contract, so
+  // rewording a headline cannot silently discard evidence already retained.
+  assert.notEqual(REVIEW_EVIDENCE_VERSION, REVIEW_READINESS_VERSION);
+  assert.equal(JSON.parse(serialized).schemaVersion, REVIEW_EVIDENCE_VERSION);
+  values.set(REVIEW_EVIDENCE_KEY, JSON.stringify({
+    ...JSON.parse(serialized), schemaVersion: "finops-current-review-evidence/9.0.0",
+  }));
+  assert.deepEqual(readCurrentReviewEvidence(storage),
+    { currentAnalysis: null, theoVerdict: null });
 });
 
-// The shipped demonstration is what every visitor with nothing open sees. A
-// drifted date, scope, or unit in it degrades that first screen to "not ready"
-// with no other test failing, so assert the state it is meant to demonstrate.
-test("the bundled demonstration demonstrates a ready review", () => {
-  const review = demoRecurringReviewReadiness();
-  assert.equal(review.state, REVIEW_STATE.ready);
-  assert.equal(review.ready, true);
-  assert.deepEqual(review.evidence.gaps, []);
-  assert.equal(review.metrics.benchmarkDirection, 90000);
-  assert.equal(byClass(renderRecurringReviewReadiness(review), "sac-headline")[0].dataset.state,
-    "verified");
-});
-
-// The branch a reader actually reaches by opening files: the entry point calls
-// the model with no arguments on purpose, so the refusal it paints has to name
-// what is missing rather than render an empty list.
-test("the imported entry point paints a named refusal, not a blank one", () => {
-  const view = renderRecurringReviewReadiness(recurringReviewReadiness(),
-    { source: "imported" });
-  assert.equal(view.dataset.source, "imported");
-  assert.equal(view.dataset.reviewState, REVIEW_STATE.first);
-  assert.match(byClass(view, "sac-caveat")[0].textContent,
-    /Recommendation withheld.*current_import_missing/);
-  assert.match(byClass(view, "sac-decision")[0].textContent, /baseline/);
-});
-
-test("the view shows one next action and discloses benchmark and prior result", () => {
-  const review = recurringReviewReadiness({
-    current: metric(900, "2026-07-31"),
-    benchmark: metric(1000, "2026-06-30"),
-    priorAction: {
-      reviewPeriodEnd: "2026-05-31",
-      baseline: metric(1200, "2026-05-31"),
-      outcome: metric(1000, "2026-06-30"),
+test("the action-center entry passes retained action, current analysis, and Theo verdict", async () => {
+  const evidence = {
+    schemaVersion: REVIEW_EVIDENCE_VERSION,
+    currentAnalysis: analysis(),
+    theoVerdict: {
+      state: "all_clear", measured: true, coveragePercent: 100, rows: 12, confidence: "high",
     },
-    optimizationDirection: OPTIMIZATION_DIRECTION.minimize,
+  };
+  const page = await loadPage(new URL("../src/savings-action-center.html", import.meta.url), {
+    storage: {
+      "shiplog.finops.monthly-department-action.v1": JSON.stringify(retainedAction),
+      [REVIEW_EVIDENCE_KEY]: JSON.stringify(evidence),
+    },
   });
-  const view = renderRecurringReviewReadiness(review);
-  assert.equal(tags(view, "H2")[0].textContent, "Is this month’s review ready to act on?");
-  assert.equal(byClass(view, "sac-decision").length, 1);
-  assert.equal(tags(view, "DETAILS").length, 1);
-  assert.equal(tags(view, "SUMMARY")[0].textContent, "Review benchmark and prior result");
-  assert.equal(tags(view, "DT").filter((node) => /Benchmark|Prior-action/.test(node.textContent)).length, 2);
+  try {
+    await importPageModule("/savings-action-center-page.js");
+    await waitFor(() => page.document.querySelector(".sac-focus")?.dataset.reviewState === "ready",
+      "ready recurring review");
+    const focus = page.document.querySelector(".sac-focus");
+    assert.equal(focus.dataset.source, "local");
+    assert.match(focus.textContent, /ready for review/i);
+    assert.match(focus.textContent, /100\.0%/);
+    assert.doesNotMatch(focus.textContent, /Demonstration data/);
+  } finally {
+    page.restore();
+  }
 });

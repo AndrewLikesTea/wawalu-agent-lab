@@ -370,30 +370,101 @@ export async function verifyArtifact(root) {
   // the review promises no request, storage, binding, or environment variable,
   // so the check that gates its deployment needs none either.
   //
-  // First, the screen a visitor with nothing open actually gets. The bundled
-  // demonstration exists to show a review that IS ready to act on; a drifted
-  // date, scope, unit, or currency in it silently downgrades that first screen
-  // to a refusal, and the manifest, the health check, the required-asset list
-  // and the module graph all stay green while it does.
-  const { REVIEW_STATE, demoRecurringReviewReadiness } = await import(
-    pathToFileURL(resolve(root, "recurring-review-readiness.js")).href
-  );
-  const demoReview = demoRecurringReviewReadiness();
-  if (demoReview.state !== REVIEW_STATE.ready || !demoReview.ready
-    || !demoReview.recommendation || demoReview.evidence.gaps.length > 0) {
-    throw new Error(`bundled recurring-review demonstration is not a ready review: ${
-      demoReview.state} ${JSON.stringify(demoReview.evidence.gaps)}`);
+  // First, the screen a visitor with no retained evidence actually gets. It
+  // must remain an explicit blocked result and must never regress to a
+  // synthetic ready demonstration.
+  const {
+    REVIEW_STATE, assembleRecurringReview,
+    readCurrentReviewEvidence, retainCurrentReviewEvidence,
+  } = await import(pathToFileURL(resolve(root, "recurring-review-readiness.js")).href);
+  const emptyReview = assembleRecurringReview();
+  if (emptyReview.state !== REVIEW_STATE.blocked || emptyReview.ready
+    || emptyReview.recommendation || emptyReview.code !== "absent_action") {
+    throw new Error(`empty recurring review did not remain explicitly blocked: ${
+      emptyReview.state} ${emptyReview.code}`);
   }
 
-  // Second, the drift between the static first paint and the module that
+  // Second, the same contract must still be able to reach `ready`. A refusal
+  // that can never be anything else passes the check above and every other
+  // assertion on this artifact while the feature is inert — that is the exact
+  // shape this review shipped as once already. So walk the whole handoff the two
+  // pages are wired through: the analysis page retains a bounded projection, the
+  // action center reads it back on a later load, and the join must produce a
+  // recommendation. This probes the artifact's own storage schema agreement,
+  // which is otherwise only visible after a deploy, in one browser, with a
+  // retained record nobody has.
+  const held = new Map();
+  const probeStorage = {
+    getItem: (key) => held.get(key) ?? null,
+    setItem: (key, value) => held.set(key, value),
+    removeItem: (key) => held.delete(key),
+  };
+  const retained = retainCurrentReviewEvidence(probeStorage, {
+    currentAnalysis: {
+      schemaVersion: "local-finops/1.0.0",
+      period: "2026-07-01 to 2026-08-01",
+      rankedDepartments: [{ name: "Atlas Platform", recoverableUsd: 900 }],
+    },
+    theoVerdict: {
+      state: "all_clear",
+      headline: { available: true, coveragePercent: 100, totalRows: 12 },
+    },
+  });
+  const readyReview = assembleRecurringReview({
+    retainedAction: {
+      schemaVersion: "monthly-department-action/1.0.0",
+      decisionVersion: "monthly-department-decision/1.0.0",
+      actionId: "route-short-lookups",
+      actionLabel: "Route short lookups",
+      department: "Atlas Platform",
+      ownerLabel: "AI Platform product owner",
+      baseline: {
+        value: 1200, unit: "USD/month", period: "2026-06",
+        aggregation: "Monthly eligible recoverable spend",
+        calculation: "Sum eligible row deltas",
+      },
+      target: {
+        value: 0, unit: "USD/month remaining avoidable spend",
+        deadline: "2026-07-31", calculation: "baseline minus verified reduction",
+      },
+      reviewPeriod: "2026-07",
+      confidence: "high",
+      provenanceReferences: ["fix-pack:1"],
+      committedAt: "2026-06-30T12:00:00.000Z",
+    },
+    ...readCurrentReviewEvidence(probeStorage),
+  });
+  if (!retained || readyReview.state !== REVIEW_STATE.ready || !readyReview.ready
+    || readyReview.recommendation?.change !== -300
+    || readyReview.provenance.analysisContract !== "local-finops/1.0.0") {
+    throw new Error(`the retained-evidence handoff cannot reach a ready review: ${
+      readyReview.state} ${readyReview.code}`);
+  }
+
+  // And the entry module must actually be the thing that performs that join.
+  // A contract that reaches `ready` in this file and a page that only ever hands
+  // it one of its three inputs is a green build and a review a lead can never
+  // get; naming the call here fails that at the artifact instead.
+  const actionCenterEntry = await readFile(
+    resolve(root, "savings-action-center-page.js"), "utf8");
+  for (const wiring of [
+    "assembleRecurringReview", "readCurrentReviewEvidence", "readMonthlyAction",
+    "retainedAction", "currentAnalysis", "theoVerdict",
+  ]) {
+    if (!actionCenterEntry.includes(wiring)) {
+      throw new Error(`the action center entry no longer joins ${wiring} into its review`);
+    }
+  }
+
+  // Third, the drift between the static first paint and the module that
   // repaints it. The page's hero asks the question in hand-written markup and
   // the contract answers it at runtime; two copies of one sentence in two files
   // is exactly the pair that walks apart in a preview nobody reloads.
   const actionCenterHtml = await readFile(resolve(root, "savings-action-center.html"), "utf8");
   const heroQuestion = actionCenterHtml.match(/<h1 id="page-title">([\s\S]*?)<\/h1>/)?.[1]
     ?.replaceAll(/<br\s*\/?>/g, " ").replaceAll(/\s+/g, " ").trim();
-  if (heroQuestion !== demoReview.question) {
-    throw new Error(`the action center's first paint asks "${heroQuestion}" but its contract answers "${demoReview.question}"`);
+  if (heroQuestion !== emptyReview.question) {
+    throw new Error(`the action center's first paint asks "${heroQuestion}" but its contract answers "${emptyReview.question}"`);
   }
 
   const headers = await readFile(resolve(root, "_headers"), "utf8");

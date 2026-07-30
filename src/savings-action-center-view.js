@@ -131,40 +131,45 @@ export function renderRecurringReviewReadiness(review, { source = "demo" } = {})
   const heading = el("header", "sac-heading");
   const question = el("h2", undefined, review.question);
   question.id = "sac-question";
-  const answer = review.ready
-    ? "Yes. The current period, benchmark, and retained prior outcome are comparable."
-    : "No. The review does not yet support an executive recommendation.";
-  const headline = el("p", "sac-headline", answer);
+  const headline = el("p", "sac-headline", review.headline);
   // The headline's tone is set from readiness, not from the words in it: the
   // stylesheet's default is the caution colour, so a ready review painted
   // without this reads as a warning it is not.
   headline.dataset.state = review.ready ? "verified" : "demo";
-  heading.append(el("p", "sac-kicker", source === "demo" ? "Demonstration data" : "Local import"),
+  heading.append(el("p", "sac-kicker", source === "demo" ? "Demonstration data" : "Local evidence"),
     question, headline);
   article.append(heading);
 
   const decision = el("section", "sac-decision");
   decision.setAttribute("aria-labelledby", "sac-decision-title");
-  const title = el("h3", undefined, review.nextAction.label);
+  const title = el("h3", undefined, review.ready
+    ? "Review the measured change" : "Resolve the evidence boundary");
   title.id = "sac-decision-title";
   decision.append(el("p", "sac-kicker", "Do this next"), title,
-    el("p", undefined, review.nextAction.rationale));
+    el("p", undefined, review.ready
+      ? "Use the benchmark and Theo-bounded current result to decide whether to continue or replace the action."
+      : "Supply only the named missing local evidence; no recommendation is available."));
   article.append(decision);
 
   const details = el("details", "sac-details");
   details.append(el("summary", undefined, "Review benchmark and prior result"));
   const body = el("div", "sac-details-body");
   const rows = el("dl", "sac-calculation");
-  const value = (number) => number === null ? "Not available" : String(number);
-  fact(rows, "Current value", value(review.metrics.currentValue));
-  fact(rows, "Benchmark delta", value(review.metrics.benchmarkDelta));
-  fact(rows, "Prior-action outcome delta", value(review.metrics.priorActionOutcomeDelta));
-  fact(rows, "Improvement direction",
-    review.metrics.optimizationDirection ?? "Not declared");
+  // Both figures carry the unit they are stated in. A bare pair of numbers is
+  // what lets a reader subtract two things that were never the same measurement,
+  // and the contract blocks that case rather than painting it — so when both
+  // rows do appear, the units on them are the evidence that it did.
+  const value = (number, unit) =>
+    number === null ? "Not available" : `${number}${unit ? ` ${unit}` : ""}`;
+  fact(rows, "Current value", value(review.current.value, review.current.unit));
+  fact(rows, "Retained benchmark", value(review.benchmark.value, review.benchmark.unit));
+  fact(rows, "Current period", review.current.period ?? "Not available");
+  fact(rows, "Theo coverage", review.confidence.coveragePercent === null
+    ? "Not available" : `${review.confidence.coveragePercent.toFixed(1)}%`);
   body.append(rows);
   body.append(el("p", "sac-caveat", review.recommendation
     ? "Recommendation evidence is available. Positive interpreted deltas mean improvement; negative interpreted deltas mean deterioration."
-    : `Recommendation withheld. Missing or mismatched evidence: ${review.evidence.gaps.join(", ")}.`));
+    : `Recommendation withheld. Missing or mismatched evidence: ${review.evidenceBoundary.gaps.join(", ")}.`));
   body.append(el("p", "sac-contracts", review.schemaVersion));
   details.append(body);
   article.append(details);
