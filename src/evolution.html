@@ -119,7 +119,7 @@
            own. -->
       <section class="first-run" id="finops-first-run" tabindex="-1" data-state="pending" data-tone="neutral" data-decision-summary="complete" data-workspace-frame="true" aria-labelledby="finops-first-run-title">
         <div class="first-run-head">
-          <p class="eyebrow" id="finops-first-run-label"><span class="first-run-shape" id="finops-first-run-shape" aria-hidden="true">◇</span> <span id="finops-first-run-word">Example result pending</span> · nothing of yours needed</p>
+          <p class="eyebrow" id="finops-first-run-label"><span class="first-run-shape" id="finops-first-run-shape" aria-hidden="true">◇</span> <span id="finops-first-run-word">Not analyzed</span></p>
           <!-- The heading is the decision question itself, authored here in the
                same words `finops-decision-contract.js` publishes. -->
           <h2 id="finops-first-run-title">Are we wasting money?</h2>
@@ -132,23 +132,23 @@
              a reader check it — and only then the supporting detail. It is the
              DOM order, which is what makes it also the focus order and the
              print order; nothing below reorders in CSS. -->
-        <p class="first-run-answer" id="finops-first-run-answer" data-available="false">The example has not been composed on this page yet.</p>
+        <p class="first-run-answer" id="finops-first-run-answer" data-available="false">No analysis has run yet. Try the bundled example data, or analyze your own export.</p>
         <p class="first-run-answer-detail" id="finops-first-run-answer-detail" hidden></p>
         <div class="first-run-slots">
           <div class="first-run-slot">
             <h3 class="first-run-slot-label" id="finops-first-run-benchmark-heading">Potentially recoverable share</h3>
-            <p class="first-run-value" id="finops-first-run-benchmark-value" data-available="false">Not measured yet</p>
+            <p class="first-run-value" id="finops-first-run-benchmark-value" data-available="false">Not yet measured</p>
             <p class="first-run-detail" id="finops-first-run-benchmark-detail" hidden></p>
           </div>
           <div class="first-run-slot">
             <h3 class="first-run-slot-label" id="finops-first-run-impact-heading">Potential impact · routing scenario</h3>
-            <p class="first-run-value" id="finops-first-run-impact-value" data-available="false">Not measured yet</p>
+            <p class="first-run-value" id="finops-first-run-impact-value" data-available="false">Not yet measured</p>
             <p class="first-run-detail" id="finops-first-run-impact-detail" hidden></p>
           </div>
         </div>
         <div class="first-run-recommendation">
           <h3 class="eyebrow" id="finops-first-run-action-heading">Recommended action · rank 1</h3>
-          <p class="first-run-action-text" id="finops-first-run-action" data-available="false">No action is ranked from this example yet.</p>
+          <p class="first-run-action-text" id="finops-first-run-action" data-available="false">Not yet ranked</p>
           <!-- A role, never a person, beside the action it owns. -->
           <p class="first-run-role" id="finops-first-run-role" hidden></p>
         </div>
@@ -158,7 +158,7 @@
              allowed to do. -->
         <div class="first-run-confidence">
           <h3 class="first-run-slot-label" id="finops-first-run-confidence-heading">Confidence in this answer</h3>
-          <p class="first-run-value" id="finops-first-run-confidence-value" data-available="false">Not scored yet</p>
+          <p class="first-run-value" id="finops-first-run-confidence-value" data-available="false">Not yet measured</p>
           <p class="first-run-detail" id="finops-first-run-confidence-detail" hidden></p>
         </div>
         <!-- Provenance directly off the headline, one keystroke away and never
@@ -217,7 +217,7 @@
         <div class="first-run-actions">
           <h3 class="visually-hidden" id="finops-first-run-next-heading">Two ways to go on</h3>
           <div class="first-run-choice">
-            <button class="first-run-primary" id="finops-first-run-demo" type="button" aria-describedby="finops-first-run-demo-note">Try the example data</button>
+            <button class="first-run-primary" id="finops-first-run-demo" type="button" aria-describedby="finops-first-run-demo-note">Try the bundled example data</button>
             <!-- No upload promise on this one, and not by oversight: this
                  choice never touches a file of the reader's, so the sentence
                  would be reassuring them about a risk they are not taking —
@@ -226,8 +226,8 @@
             <p class="first-run-action-note" id="finops-first-run-demo-note">Fills every panel below with the same six invented months.</p>
           </div>
           <div class="first-run-choice">
-            <button class="first-run-secondary" id="finops-first-run-import" type="button" aria-describedby="finops-first-run-import-note">Analyze your provider export</button>
-            <p class="first-run-action-note" id="finops-first-run-import-note">Choose your export files. They stay in this tab and are not uploaded or stored.</p>
+            <button class="first-run-secondary" id="finops-first-run-import" type="button" aria-describedby="finops-first-run-import-note">Analyze your own export</button>
+            <p class="first-run-action-note" id="finops-first-run-import-note">Choose your export files. They stay in this browser and are not uploaded.</p>
           </div>
         </div>
         <!-- THE THIRD WAY ON, and why it is a link rather than a fourth button.
@@ -506,34 +506,34 @@
              first cell of a grid. -->
         <div class="portfolio-brief-total">
           <h3 class="portfolio-brief-total-label" id="finops-portfolio-brief-total-heading">Total aligned spend</h3>
-          <p class="portfolio-brief-total-value" id="finops-portfolio-brief-total" data-available="false">Not combined yet</p>
+          <p class="portfolio-brief-total-value" id="finops-portfolio-brief-total" data-available="false">Not yet combined</p>
           <p class="portfolio-brief-detail" id="finops-portfolio-brief-total-detail" hidden></p>
         </div>
         <div class="portfolio-brief-slots">
           <div class="portfolio-brief-slot">
             <h3 class="portfolio-brief-label" id="finops-portfolio-brief-benchmark-heading">Efficiency benchmark</h3>
-            <p class="portfolio-brief-value" id="finops-portfolio-brief-benchmark" data-available="false">Not selected yet</p>
+            <p class="portfolio-brief-value" id="finops-portfolio-brief-benchmark" data-available="false">Not yet measured</p>
             <p class="portfolio-brief-detail" id="finops-portfolio-brief-benchmark-detail" hidden></p>
           </div>
           <div class="portfolio-brief-slot">
             <h3 class="portfolio-brief-label" id="finops-portfolio-brief-impact-heading">Estimated impact · routing scenario</h3>
-            <p class="portfolio-brief-value" id="finops-portfolio-brief-impact" data-available="false">Not measured yet</p>
+            <p class="portfolio-brief-value" id="finops-portfolio-brief-impact" data-available="false">Not yet measured</p>
             <p class="portfolio-brief-detail" id="finops-portfolio-brief-impact-detail" hidden></p>
           </div>
           <div class="portfolio-brief-slot">
             <h3 class="portfolio-brief-label" id="finops-portfolio-brief-confidence-heading">Confidence in this answer</h3>
-            <p class="portfolio-brief-value" id="finops-portfolio-brief-confidence" data-available="false">Not scored yet</p>
+            <p class="portfolio-brief-value" id="finops-portfolio-brief-confidence" data-available="false">Not yet measured</p>
             <p class="portfolio-brief-detail" id="finops-portfolio-brief-confidence-detail" hidden></p>
           </div>
         </div>
         <div class="portfolio-brief-action">
           <h3 class="eyebrow" id="finops-portfolio-brief-action-heading">Next action · rank 1</h3>
-          <p class="portfolio-brief-action-text" id="finops-portfolio-brief-action" data-available="false">No action is ranked from this portfolio yet.</p>
+          <p class="portfolio-brief-action-text" id="finops-portfolio-brief-action" data-available="false">Not yet ranked</p>
           <p class="portfolio-brief-detail" id="finops-portfolio-brief-action-detail" hidden></p>
         </div>
         <div class="portfolio-brief-provenance">
           <h3 class="portfolio-brief-label" id="finops-portfolio-brief-provenance-heading">Provenance</h3>
-          <p class="portfolio-brief-value" id="finops-portfolio-brief-provenance">Not combined yet</p>
+          <p class="portfolio-brief-value" id="finops-portfolio-brief-provenance">Not yet combined</p>
           <dl class="portfolio-brief-provenance-list" id="finops-portfolio-brief-provenance-list" aria-labelledby="finops-portfolio-brief-provenance-heading"></dl>
         </div>
         <!-- Provider composition, exclusions, period coverage, and the
@@ -646,7 +646,7 @@
           <!-- The same words as the first-run choice that delegates to it. Two
                labels for one dataset — "Try the example data" up there, "Try it
                with example data" here — read as two different things to try. -->
-          <button class="local-example-action" id="try-example-dataset" type="button">Try the example data <span class="local-example-basis">· invented sample, not your spend</span></button>
+          <button class="local-example-action" id="try-example-dataset" type="button">Try the bundled example data <span class="local-example-basis">· invented sample, not your spend</span></button>
           <!-- Everything below is a second way to start, and a page that offers
                four of them beside the picker has no first step at all. They keep
                their ids, their handlers, and their copy; they lose only their

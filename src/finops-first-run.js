@@ -114,12 +114,45 @@ export const FIRST_RUN_LABEL = "Example result · nothing of yours needed";
  * reader for different things — the first is a dataset with nothing in it, the
  * second is a failure — and collapsing them into one red block is how a page
  * tells someone to retry something that worked.
+ *
+ * `pending` overrides the word `DECISION_STATE.pending` carries. This region's
+ * pending state is "a visitor has just arrived", not "a composition this page
+ * started is still running", and "Example result pending" narrates a wait for
+ * something nobody asked for. The word stays a state *name* — two words beside
+ * the ◇ glyph — because that pairing is the greyscale, print, and screen-reader
+ * channel, and because it is swapped on every transition. The sentence a
+ * visitor actually reads is `FIRST_RUN_INSTRUCTION`, in the answer slot below.
  */
 export const FIRST_RUN_STATE = Object.freeze({
-  pending: DECISION_STATE.pending,
+  pending: Object.freeze({ ...DECISION_STATE.pending, word: "Not analyzed" }),
   ready: DECISION_STATE.ready,
   empty: DECISION_STATE.empty,
   unavailable: DECISION_STATE.error,
+});
+
+/**
+ * The one plain-language message before anything has been analyzed.
+ *
+ * It is authored into the *answer* slot rather than the state label above it.
+ * The label is `.eyebrow` — 11px uppercase monospace at .11em tracking — which
+ * is a legible home for two words and an illegible one for a two-clause
+ * instruction; the answer slot is the region's largest text and the first line
+ * a reader lands on. It says what has happened and names both ways on, so the
+ * slots underneath do not each have to re-explain themselves.
+ *
+ * "Not yet" and not "unavailable": this page spends "unavailable" on
+ * `DECISION_STATE.error`, down to `state: "unavailable"` and `tone: "error"`.
+ * A first screen that borrows it tells a visitor their analysis failed before
+ * they have chosen anything, and leaves nothing to say when one really does.
+ */
+export const FIRST_RUN_INSTRUCTION =
+  "No analysis has run yet. Try the bundled example data, or analyze your own export.";
+
+/** What a slot says before anything has been analyzed, in one shape. */
+export const FIRST_RUN_NOT_YET = Object.freeze({
+  measured: "Not yet measured",
+  ranked: "Not yet ranked",
+  combined: "Not yet combined",
 });
 
 /**
@@ -160,7 +193,7 @@ export const FIRST_RUN_UNAVAILABLE = Object.freeze({
  */
 export const FIRST_RUN_ACTIONS = Object.freeze({
   demo: Object.freeze({
-    label: "Try the example data",
+    label: "Try the bundled example data",
     note: "Fills every panel below with the same six invented months.",
     targetId: "try-example-dataset",
   }),
@@ -169,10 +202,10 @@ export const FIRST_RUN_ACTIONS = Object.freeze({
     // "local" is this page's word for where the analysis runs, not for whose
     // export it is. The two labels have to be told apart at a glance by whose
     // data each one uses, which is the only difference that matters here.
-    label: "Analyze your provider export",
+    label: "Analyze your own export",
     // The first sentence is the label of the picker this choice delegates to,
     // so a reader who follows it meets the same words on the control itself.
-    note: "Choose your export files. They stay in this tab and are not uploaded or stored.",
+    note: "Choose your export files. They stay in this browser and are not uploaded.",
     targetId: "local-finops-files",
   }),
 });
@@ -342,7 +375,9 @@ function actionSlot(briefing) {
         ? `Accountable role: ${ranked.accountableRole}`
         : "");
   }
-  return slot(false, "No action is ranked from this example.",
+  // The composition succeeded and ranked nothing, which is not the same as a
+  // composition that failed — `degradedResult` owns that word.
+  return slot(false, `${FIRST_RUN_NOT_YET.ranked}.`,
     briefing?.absent?.rankedAction?.statement ?? "");
 }
 
@@ -535,7 +570,7 @@ function degradedResult(presentation, reason, answerValue) {
     benchmark: blank,
     impact: blank,
     peer: blank,
-    action: slot(false, "No action is ranked from this example.", reason),
+    action: slot(false, "Recommended action unavailable.", reason),
     confidence: blank,
     method: Object.freeze([Object.freeze({ term: "Limits", detail: reason })]),
     reason,

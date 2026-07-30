@@ -453,7 +453,7 @@ test("artifact verification rejects AI FinOps first-paint and runtime copy drift
   const pagePath = resolve(directory, "evolution.html");
   const page = await readFile(pagePath, "utf8");
   await writeFile(pagePath, page.replace(
-    "Analyze your provider export",
+    "Analyze your own export",
     "Analyze provider exports",
   ));
   await createManifest(directory);

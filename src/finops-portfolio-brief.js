@@ -158,7 +158,7 @@ function selectNextAction(analysis) {
   if (!text) {
     return Object.freeze({
       available: false,
-      text: "No action is ranked from this portfolio yet.",
+      text: "Not yet ranked.",
       accountable: null,
       rank: null,
     });
