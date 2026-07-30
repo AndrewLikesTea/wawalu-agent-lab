@@ -9,6 +9,8 @@ import { STORED_DECISION_STATUSES, canonicalDecisionStatus } from "./decision-st
 import { dedupeById } from "./demo-data.js";
 import { initLeadCapture } from "./lead-capture.js";
 import { retentionDeclined, retentionRefusal } from "./local-retention.js";
+import { overdueDecisionFinding } from "./overdue-decision.js";
+import { renderOverdueFinding } from "./overdue-decision-view.js";
 import { EXAMPLE_LABEL, SAMPLE_RELEASE_ID, SEED_DECISIONS, SEED_RELEASES } from "./seed-records.js";
 import {
   SUPERSEDE_ERRORS,
@@ -776,6 +778,7 @@ export async function initDecisionLog(root = document, storage = localStorage, o
   const statusHint = root.querySelector("#filter-status-hint");
   const currentOnly = root.querySelector("#filter-current-only");
   const supersedeSummary = root.querySelector("#history-supersede-summary");
+  const overdueSlot = root.querySelector("#overdue-decision");
   const supersedesField = root.querySelector("#supersedes");
   const supersedesError = root.querySelector("#supersedes-error");
   const formError = root.querySelector("#decision-form-error");
@@ -968,6 +971,23 @@ export async function initDecisionLog(root = document, storage = localStorage, o
       .map(({ id }) => id)
       .filter((id) => !recordedIds.has(id)));
     records = toHistoryRecords(decisions, releases, { exampleIds });
+    // The review finding is composed here and not in render(), on purpose: it
+    // reads the whole log, so a filter or a keystroke can never change it. Only
+    // the data changing can, and this is the one place the data changes.
+    //
+    // The clock is read here rather than at boot so a tab left open across a
+    // review point does not keep reporting yesterday's answer. `options.now`
+    // exists so a test never depends on the wall clock.
+    if (overdueSlot) {
+      renderOverdueFinding(
+        overdueSlot,
+        overdueDecisionFinding(records, {
+          now: options.now ?? Date.now(),
+          reviewWindowDays: options.reviewWindowDays,
+        }),
+        { exampleLabel: EXAMPLE_LABEL },
+      );
+    }
     if (ownerFilter) syncOwnerOptions(ownerFilter, records);
     if (supersedesField) syncSupersedesOptions(supersedesField, decisions);
     view.owner = ownerFilter?.value ?? view.owner;
