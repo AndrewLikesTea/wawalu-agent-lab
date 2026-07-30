@@ -2328,6 +2328,20 @@
 .spd-evidence,.spd-confounders { margin:0; padding-left:20px; font-size:13px; line-height:1.6; }
 .spd-evidence li,.spd-confounders li { overflow-wrap:anywhere; }
 .spd-provenance,.spd-provenance-fields { margin:0; color:var(--ink-muted); font-size:12px; line-height:1.55; overflow-wrap:anywhere; }
+/* The classified finding. Every classification gets the same box: a border that
+   changed weight with the outcome would rank the outcomes a second time, in a
+   language only a sighted reader can read, and the priority is already a word. */
+.spd-finding { display:grid; gap:7px; border:1px solid var(--import-line); border-left:5px solid var(--import-accent); border-radius:11px; padding:11px 14px; }
+.spd-finding[data-classification="invalid_period_alignment"],
+.spd-finding[data-classification="insufficient_evidence"] { border-left-style:dashed; border-left-color:var(--state-warn-line); }
+.spd-finding-head { display:flex; flex-wrap:wrap; align-items:baseline; gap:6px 10px; margin:0; }
+.spd-finding-class { font:750 12px/1.4 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; color:var(--import-ink); }
+.spd-finding-priority { color:var(--ink-muted); font-size:12px; }
+.spd-finding-headline { margin:0; font-size:14px; line-height:1.55; font-weight:700; overflow-wrap:anywhere; }
+.spd-finding-detail > summary { display:flex; align-items:center; min-height:44px; color:var(--import-ink); font:650 13px/1.45 inherit; cursor:pointer; }
+.spd-finding-detail > summary:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.spd-finding-rationale,.spd-finding-thresholds,.spd-finding-caveats { margin:0; padding-left:20px; font-size:12px; line-height:1.6; color:var(--ink-muted); }
+.spd-finding-rationale li,.spd-finding-thresholds li,.spd-finding-caveats li { overflow-wrap:anywhere; }
 .spend-per-delivery-live { margin:0; font-size:12px; color:var(--ink-muted); }
 
 /* ---------------------------------------------------------------------------
