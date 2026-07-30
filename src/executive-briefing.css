@@ -214,6 +214,7 @@
 .brief-source-remedy { font-weight:650; }
 .brief-source-notice .brief-source-substitute { color:#5c5b56; font-size:13.5px; }
 .brief-source-notice p:last-child { margin-bottom:0; }
+.brief-source-actions { display:flex; flex-wrap:wrap; gap:8px 20px; }
 /* The way back to the region a reader came from. A real link at the foot of the
    notice, and the only focusable node in it, so it never sits between the notice
    and the figure in the tab order. It keeps its underline: a coloured word among

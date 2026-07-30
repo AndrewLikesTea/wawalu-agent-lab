@@ -290,9 +290,17 @@ test("a browser with nothing retained says so first, then shows the labelled sam
   assert.equal(notice.getAttribute("data-absence"), "retention_not_chosen");
   assert.equal(notice.getAttribute("role"), "status", "an empty workspace is a state, not a fault");
   assert.equal(notice.querySelector("h2").id, "brief-source-title");
-  assert.match(textOf(notice), /Not your figures/);
-  assert.match(textOf(notice), /nothing will be until you choose it on the AI FinOps page/);
+  assert.match(textOf(notice), /No FinOps analysis yet/);
+  assert.match(textOf(notice), /No FinOps analysis is available in this browser/);
+  assert.match(textOf(notice), /Your export and briefing figures are not transmitted/);
   assert.match(textOf(notice), /published synthetic sample is shown below/);
+  const links = [...notice.querySelectorAll("a")];
+  assert.deepEqual(links.map((link) => textOf(link)),
+    ["Open the bundled example", "Analyze your own export"]);
+  assert.deepEqual(links.map((link) => link.getAttribute("href")), [
+    "/executive-briefing.html?example=ai-finops-bundled",
+    "/evolution.html#local-finops-files",
+  ]);
 
   // Order matters more than presence: the reader is told whose figures these
   // are before they read one.
@@ -302,9 +310,8 @@ test("a browser with nothing retained says so first, then shows the labelled sam
   assert.match(textOf(document.querySelector(".brief-origin")), /synthetic sample/i);
   assert.equal(textOf(document.querySelector(".brief-figure")), "$6,120.00");
 
-  // The notice is part of a printable document, so it carries no link either.
+  // The notice does not expose a record or carry a figure in either action.
   assert.doesNotMatch(textOf(notice), FORBIDDEN_LINK_PATTERN);
-  assert.equal(notice.querySelectorAll("a").length, 0);
 });
 
 test("a declined choice and an unreadable document are told apart on the page", async (t) => {
@@ -485,9 +492,11 @@ test("the sample says it is synthetic on the artifact, and separates modelled fr
   assert.match(textOf(provenance), /What this rests on/);
   assert.match(textOf(provenance), /How every figure is recomputed/);
 
-  // Still a printable document with nothing to follow and nothing to leak.
+  // The artifact still leaks no record. Its only links are the two routes out
+  // of the empty state, outside the briefing sheet itself.
   assert.doesNotMatch(textOf(root), FORBIDDEN_LINK_PATTERN);
-  assert.equal(root.querySelectorAll("a").length, 0);
+  assert.equal(article.querySelectorAll("a").length, 0);
+  assert.equal(root.querySelector(".brief-source-actions").querySelectorAll("a").length, 2);
 });
 
 test("every unbriefable workspace paints the same complete sample, however it failed", async (t) => {
