@@ -5,9 +5,9 @@
 // contract says the outcome is actually known.
 //
 // The transport, the validation, and the failure-to-copy mapping are exported
-// because other forms use them: the site footer's "Talk to us about Shiplog"
-// panel and the AI FinOps contact affordance. Those forms own their disclosure
-// behaviour, but they must not own a second guess at what a 502 means — one
+// because other forms use them: the site footer's follow-up panel and the AI
+// FinOps contact affordance. Those forms own their disclosure behaviour, but
+// they must not own a second guess at what a 502 means — one
 // implementation of "was this captured?" is the whole point of the contract.
 // What they do choose is which set of words a visitor reads, because they are
 // not asking for the same thing this form is.
@@ -62,14 +62,16 @@ export const FIELD_NOTE_COPY = Object.freeze({
 });
 
 /**
- * Asking a person to get back to you: the site footer's "Talk to us about
- * Shiplog" form and the AI FinOps contact form. Both make the same request of
- * the same team, so both say so the same way; what differs between them is the
- * promise they make once it lands, which each of them still owns.
+ * Asking a person to get back to you: the site footer's follow-up form, the AI
+ * FinOps contact form, and the executive briefing's. All three make the same
+ * request of the same team, so all three say so the same way — one name for the
+ * thing being asked for, "a Shiplog follow-up", on every surface that asks. What
+ * differs between them is the promise they make once it lands, which each of
+ * them still owns.
  */
 export const CONTACT_COPY = Object.freeze({
-  emptyEmail: "Enter your work email to request a follow-up conversation.",
-  invalidEmail: "Enter a valid work email address to request a follow-up conversation.",
+  emptyEmail: "Enter your work email to request a Shiplog follow-up.",
+  invalidEmail: "Enter a valid work email address to request a Shiplog follow-up.",
   rejected: rejectedCopy({
     invalidEmail: "We didn’t get your request: that address wasn’t accepted. Check it and submit again.",
     unreadable: "We didn’t get your request because it couldn’t be read. Reload the page and try again.",

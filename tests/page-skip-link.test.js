@@ -361,7 +361,7 @@ test("the post page's tab order is skip link, then the nav, then the one exit", 
   // review asked for — exit, image link, caption links, footer — holds with its
   // middle two steps empty.
   const afterExit = sequence.slice(FRAME_STOPS).map((stop) => textOf(stop));
-  assert.equal(afterExit[0], "Talk to us about Shiplog");
+  assert.equal(afterExit[0], "Request a follow-up");
   assert.ok(
     sequence.slice(FRAME_STOPS).every((stop) => stop.closest("#site-footer")),
     "a control on the post page sits between the exit and the footer",
