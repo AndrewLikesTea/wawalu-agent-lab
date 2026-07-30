@@ -333,7 +333,13 @@ test("example records the visitor can see are left out of the export, and the pa
   );
 });
 
-test("a filtered history still exports every stored record, and the panel states the full count", async (t) => {
+// The resolved contract, replacing a pinned "everything, always" and the todo
+// that contradicted it: the file follows the browsed history, and PRODUCT.md's
+// "Export all records as JSON" stays reachable through the panel's own scope
+// control rather than being the only behaviour. A visitor who narrowed the
+// history to two records and pressed Download JSON now gets two, and the count
+// above the button says so before they press it.
+test("the export follows the history the visitor is browsing", async (t) => {
   const page = await openHistory(t);
 
   // Narrow the browsed history to a strict subset: two of the four decisions.
@@ -347,51 +353,74 @@ test("a filtered history still exports every stored record, and the panel states
   assert.deepEqual(visible.releases, [], "the status filter left releases in the history");
   assert.equal(countText(page), `2 of ${TOTAL_RECORDS} records`, "the filtered count is wrong");
 
-  // Today's shipped contract, pinned deliberately: the export is the whole
-  // stored history, not the filtered view — PRODUCT.md asks for "Export all
-  // records as JSON" and the panel promises everything "stored in this
-  // browser". The companion todo test below states the other reading. If this
-  // assertion starts failing, the product changed its mind; decide which
-  // behaviour is wanted rather than editing the number.
+  // The panel restates the file in the filtered numbers before the download, so
+  // the smaller file is never a surprise either.
+  assert.equal(
+    textOf(page.document.querySelector("#export-shiplog-counts")),
+    "Ready to export 2 decisions and 0 releases matching your history filters.",
+    "the export panel does not tell a filtered visitor how many records the file will hold",
+  );
+
+  const payload = exportFromPage(page);
+  assertParity(
+    {
+      decisions: DECISIONS.filter((decision) => decision.status === "accepted"),
+      releases: [],
+    },
+    payload,
+    "the export does not follow the filtered history:",
+  );
+  assert.deepEqual(shapeViolations(payload), [], "a filtered export lost its envelope");
+});
+
+test("a filtered visitor can still export every stored record, and the panel states that count", async (t) => {
+  const page = await openHistory(t);
+  chooseOption(page, "#filter-status", "accepted");
+
+  // The other scope, chosen deliberately through the control beside the button.
+  chooseOption(page, "#export-shiplog-scope", "stored");
+  assert.equal(
+    textOf(page.document.querySelector("#export-shiplog-counts")),
+    `Ready to export ${DECISIONS.length} decisions and ${RELEASES.length} releases stored in this browser.`,
+    "choosing the whole-history scope does not restate the full count",
+  );
+
   const payload = exportFromPage(page);
   assertParity(
     { decisions: DECISIONS, releases: RELEASES },
     payload,
-    "a filtered history no longer exports the whole stored history:",
-  );
-  assert.equal(
-    textOf(page.document.querySelector("#export-shiplog-counts")),
-    `Ready to export ${DECISIONS.length} decisions and ${RELEASES.length} releases stored in this browser.`,
-    "the export panel does not tell a filtered visitor how many records the file will hold",
+    "the whole-history scope no longer exports the whole stored history:",
   );
 });
 
-// The other reading of the same flow, kept visible instead of silently dropped:
-// a visitor who filtered the history down to two records and then pressed
-// Download JSON gets seven. Nothing on the button says the file ignores the
-// filters — only the count above it does — so the file can hold records the
-// visitor deliberately filtered out. Marked todo because it contradicts
-// PRODUCT.md's "Export all records as JSON"; the owning engineer decides
-// whether the export follows the filters or the panel says plainly that it
-// does not. The suite stays green either way and this test names the gap.
-test(
-  "the export follows the history the visitor is browsing",
-  { todo: "the export always writes the whole stored history, whatever the filters show" },
-  async (t) => {
-    const page = await openHistory(t);
-    chooseOption(page, "#filter-status", "accepted");
+test("a filtered export keeps its links resolvable and says which links it left out", async (t) => {
+  const page = await openHistory(t);
 
-    const payload = exportFromPage(page);
-    assertParity(
-      {
-        decisions: DECISIONS.filter((decision) => decision.status === "accepted"),
-        releases: [],
-      },
-      payload,
-      "the export does not follow the filtered history:",
-    );
-  },
-);
+  // v1.5.0 links two decisions; the owner filter keeps the release and hides one
+  // of them, which is the case where a filtered file could go dangling.
+  chooseOption(page, "#filter-owner", "Priya");
+  const visible = visibleIds(page);
+  assert.deepEqual(visible.releases, ["parity-r-1-5-0"], "the owner filter shows the wrong releases");
+  assert.deepEqual(visible.decisions, ["parity-d-flags"], "the owner filter shows the wrong decisions");
+
+  const payload = exportFromPage(page);
+  assertParity(
+    {
+      decisions: DECISIONS.filter((decision) => decision.owner === "Priya"),
+      releases: [{ ...RELEASES[1], decisionIds: ["parity-d-flags"] }],
+    },
+    payload,
+    "the filtered export does not hold exactly the browsed records:",
+  );
+
+  // The dropped link is reported as hidden, not as missing from the browser: the
+  // decision is still there and clearing the filter brings the link back.
+  assert.equal(
+    textOf(page.document.querySelector("#export-shiplog-status")),
+    "Shiplog history exported. 1 release link to a decision your filters hide was left out.",
+    "the filtered export does not say which link it left out, or blames the wrong cause",
+  );
+});
 
 // --- shape -----------------------------------------------------------------
 

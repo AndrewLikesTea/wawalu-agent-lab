@@ -43,6 +43,11 @@ import {
   renderFinopsEvaluationPanel, renderFinopsEvaluationUnavailable,
 } from "/finops-evaluation-view.js";
 import { localFinopsMeetingSummary, normalizeLocalFinopsHistory } from "/local-finops.js";
+// The portfolio-primary answer. It reads the intake plan the analysis already
+// carries, so it cannot disagree with the coverage list painted from the same
+// object, and it hands the page back to the single-provider brief when no
+// portfolio exists.
+import { applyPortfolioBrief, clearPortfolioBrief } from "/finops-portfolio-brief-view.js";
 // The download itself. Every figure decision is inside `briefingFile`; the only
 // thing this layer contributes is the clock, because the generator is pure and
 // will not read one.
@@ -1195,6 +1200,11 @@ function mountLocalFinopsImport() {
     // out of it. Painted from the plan the analysis carries rather than from a
     // second read of the selection, so the panel and the total cannot disagree.
     applyProviderCoverage(document, next.multiProvider ?? null);
+    // The answer a portfolio deserves, from the same plan the coverage list is
+    // painted from. It leads the answer destination when — and only when — the
+    // intake contract actually combined two or more providers; a single-provider
+    // import returns `available: false` and the page renders exactly as before.
+    applyPortfolioBrief(document, next);
     applyDatasetProvenance(document, example, example ? null : importProvenance());
     if (remap) remap.hidden = example || !imports.some((entry) => entry.source === "delimited");
     setMode(example ? "example-dataset" : "local", example ? "Example data" : "Local import");
@@ -1553,6 +1563,10 @@ function mountLocalFinopsImport() {
     // The coverage list belongs to one import. Leaving it painted through a
     // clear would name providers for a total that is no longer on screen.
     applyProviderCoverage(document, null);
+    // Same rule for the portfolio brief, one step earlier in the reading order:
+    // clearing the import gives the single-provider answer back rather than
+    // leaving a combined total leading the page.
+    clearPortfolioBrief(document);
     const trust = document.getElementById("local-trust");
     if (trust) {
       trust.hidden = true;
