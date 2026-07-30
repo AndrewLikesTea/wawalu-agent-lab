@@ -1123,6 +1123,9 @@ Set approved=true unless you can name a concrete blocking defect present in this
 a specific bug, a real security hole, or work outside the pull request's stated scope.
 Missing optional tests, style, naming, accessibility polish, and speculative risks are
 NOT blockers — note them in feedback but still approve. When uncertain, approve.
+If you do reject, feedback must enumerate EVERY blocking defect you can find as a
+numbered list, not only the first one. The author fixes the whole list in a single
+retry, so a blocker you leave out costs another full round trip.
 Return only JSON with boolean approved and string fields feedback and summary. Do not
 run commands.
 
@@ -1149,7 +1152,10 @@ Set approved=true unless you can name a concrete blocking defect that is present
 this diff: a specific bug, a real security hole, or work that is outside the issue's
 scope. Missing optional tests, style, naming, accessibility polish, and speculative
 risks are NOT blockers — mention them in feedback but still approve. When uncertain,
-approve. Return only JSON with boolean approved and string fields feedback and
+approve. If you do reject, feedback must enumerate EVERY blocking defect you can find
+as a numbered list, not only the first one. The author fixes the whole list in a single
+retry, so a blocker you leave out costs another full round trip.
+Return only JSON with boolean approved and string fields feedback and
 summary. Do not run commands.
 
 Scenario: {json.dumps(scenario)}
