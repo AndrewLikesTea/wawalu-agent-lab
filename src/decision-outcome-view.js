@@ -316,36 +316,98 @@ export function renderDecisionOutcome(container, outcome) {
  */
 export const DECISION_OUTCOME_STATE_COPY = Object.freeze({
   loading: {
+    word: "Checking records",
+    glyph: "◌",
+    shape: "dashed",
     title: "Checking this decision’s outcome",
     body: "Checking what this decision projected and whether a release recorded it as shipped. "
       + "No file is needed for this step.",
+    recoverable: false,
   },
   reading: {
+    word: "Reading your file",
+    glyph: "◍",
+    shape: "dotted",
     title: "Reading the FinOps briefing you opened",
     body: "Checking that this file is a FinOps briefing Shiplog can compare with this decision.",
+    recoverable: false,
   },
   error: {
+    word: "Could not read",
+    glyph: "▲",
+    shape: "double",
     title: "This outcome could not be read",
     body: "The stored records could not be read, so no outcome is stated rather than one computed "
-      + "from a partial read. Reload the page to try again.",
+      + "from a partial read. Nothing in your browser was changed, so reading them again is safe.",
+    recoverable: true,
   },
 });
+
+export const DECISION_OUTCOME_RETRY_LABEL = "Retry reading this outcome";
+
+/** The id the state's own sentence carries, so the retry can be described by it. */
+export const DECISION_OUTCOME_DETAIL_ID = "dout-state-detail";
+
+/**
+ * Whether trying again could change this state's answer.
+ *
+ * Only a *read* that failed is worth retrying. Waiting for records and reading a
+ * file the visitor just opened are both in progress, and offering a Retry beside
+ * them would promise a recovery from something that has not gone wrong yet.
+ */
+export function isRecoverableOutcomeState(state) {
+  return DECISION_OUTCOME_STATE_COPY[state]?.recoverable === true;
+}
 
 /**
  * Paint a non-outcome state. Kept in this module so the loading and error
  * states are the same shape as the outcome they precede, rather than markup a
  * page author reinvents.
+ *
+ * The blocks read in the order the reader needs them: the region's label, the
+ * heading that says which state this is, one compact status chip, the single
+ * thing to do next, and only then the sentence that explains it. The retry is
+ * described by that sentence through `aria-describedby`, so a reader who tabs
+ * straight onto the button still hears the reason before pressing it.
+ *
+ * The chip carries a word and a glyph and the section carries `data-shape`, so
+ * the three states stay distinguishable in greyscale: colour is the last cue
+ * here, never the only one.
  */
-export function renderDecisionOutcomeState(container, state) {
+export function renderDecisionOutcomeState(container, state, { onRetry } = {}) {
   const copy = DECISION_OUTCOME_STATE_COPY[state] ?? DECISION_OUTCOME_STATE_COPY.error;
+  const name = DECISION_OUTCOME_STATE_COPY[state] ? state : "error";
   const section = el("section", "dout-state");
-  section.dataset.state = state;
-  section.setAttribute("role", state === "error" ? "alert" : "status");
+  section.dataset.state = name;
+  section.dataset.shape = copy.shape;
+  section.dataset.recoverable = String(copy.recoverable === true);
+  section.setAttribute("role", name === "error" ? "alert" : "status");
+  // Focusable by script only: a retry replaces the button the reader was
+  // standing on, and this panel is where they need to land next.
+  section.setAttribute("tabindex", "-1");
   const title = el("h3", "dout-state-title", copy.title);
   title.id = "dout-question";
-  section.append(el("p", "dout-kicker", KICKER), title, el("p", "dout-state-body", copy.body));
+  const status = el("p", "dout-status");
+  status.dataset.status = name;
+  status.dataset.shape = copy.shape;
+  const glyph = el("span", "dout-cue", copy.glyph);
+  glyph.setAttribute("aria-hidden", "true");
+  status.append(glyph, el("span", "dout-status-label", copy.word));
+  const body = el("p", "dout-state-body", copy.body);
+  body.id = DECISION_OUTCOME_DETAIL_ID;
+  section.append(el("p", "dout-kicker", KICKER), title, status);
+  if (copy.recoverable === true && typeof onRetry === "function") {
+    const actions = el("div", "dout-state-actions");
+    const retry = el("button", "empty-action dout-retry", DECISION_OUTCOME_RETRY_LABEL);
+    retry.type = "button";
+    retry.setAttribute("aria-describedby", DECISION_OUTCOME_DETAIL_ID);
+    retry.addEventListener("click", onRetry);
+    actions.append(retry);
+    section.append(actions);
+  }
+  section.append(body);
   container.replaceChildren(section);
-  container.setAttribute("aria-busy", state === "error" ? "false" : "true");
-  container.dataset.state = state;
+  container.setAttribute("aria-busy", name === "error" ? "false" : "true");
+  container.dataset.state = name;
   return section;
 }

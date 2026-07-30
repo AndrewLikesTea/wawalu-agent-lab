@@ -75,13 +75,28 @@ export function initDecisionOutcome(options = {}) {
   const id = new URLSearchParams(window.location.search).get("id") ?? "";
   let opened = { observation: null, observationMeta: null };
 
-  const paint = () => {
+  // One read, offered again by Retry. The read is synchronous, so a retry is a
+  // second attempt at the same records rather than a second request — which is
+  // why it is offered only where the first attempt *threw*. A decision that is
+  // simply not recorded here renders its own state through renderDecisionOutcome
+  // and is never given a button that cannot change the answer.
+  const paint = ({ fromRetry = false } = {}) => {
     try {
       renderDecisionOutcome(container, loadDecisionOutcome(id, localStorage, { ...options, ...opened }));
     } catch {
-      renderDecisionOutcomeState(container, "error");
+      renderDecisionOutcomeState(container, "error", { onRetry: () => paint({ fromRetry: true }) });
     } finally {
       document.documentElement.dataset.shiplogDecisionOutcome = "ready";
+    }
+
+    // Pressing Retry destroys the button the reader was standing on, so this
+    // render says where focus goes next: onto the outcome when the second read
+    // worked, otherwise onto the state that now explains why it did not. Never
+    // on a first paint — an arriving region must not take focus from the reader.
+    if (fromRetry) {
+      const landing = container.querySelector(".dout-state") ?? container.querySelector(".dout");
+      landing?.setAttribute?.("tabindex", "-1");
+      landing?.focus?.();
     }
   };
 
