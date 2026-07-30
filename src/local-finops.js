@@ -21,6 +21,10 @@ import { analyzeQueryLiteracy, missingInputNotice, NOT_GRADEABLE_COPY } from "./
 // contract knows the difference. A single-provider selection passes through it
 // unchanged — see `planMultiProviderIntake`.
 import { planMultiProviderIntake } from "./multi-provider-intake.js";
+// The merge folds a window's providers into one period, so the reconciled totals
+// below cannot say who paid what. The aggregate re-derives that from the records'
+// own provider identity, after the reconciler has decided which periods count.
+import { aggregatePortfolio } from "./finops-portfolio-aggregate.js";
 import {
   PREVIOUS_PROVIDER_USAGE_SCHEMA_VERSION, PROVIDER_USAGE_SCHEMA_VERSION,
   SUPPORTED_PROVIDER_USAGE_SCHEMA_VERSIONS, USAGE_DETAIL_KEYS, usageDetailProblem,
@@ -720,7 +724,7 @@ function deterministicSourceGroup(entries) {
  * are comparable despite differing day counts; non-monthly periods must be
  * contiguous and equal length. Quarantined inputs never affect totals.
  */
-export function normalizeLocalFinopsHistory({ providers = [], hris = null }) {
+export function normalizeLocalFinopsHistory({ providers = [], hris = null, deliveries = [] }) {
   const selected = Array.isArray(providers) ? providers : [providers];
   // Same removal as the single-period path: only the file carrying the spend is
   // required, and `hris` is an optional enrichment input on the way through.
@@ -912,6 +916,14 @@ export function normalizeLocalFinopsHistory({ providers = [], hris = null }) {
     // rather than restated, so the panel, the provenance block, and the download
     // are three views of one plan.
     multiProvider: intake.summary,
+    // One portfolio answer over the same accepted periods, with per-provider
+    // provenance intact. `available: false` for a single-provider selection, so
+    // every figure above and every surface that reads them is unchanged.
+    portfolio: aggregatePortfolio({
+      periods: ordered,
+      intake: intake.summary,
+      deliveries,
+    }),
     // The benchmark is the current period's, because a cohort is a comparison
     // between departments in one import, not between periods. When no query
     // sample was imported this is byte-for-byte the previous answer, under the

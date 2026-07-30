@@ -24,6 +24,7 @@ import { readFile } from "node:fs/promises";
 import { parseHtml } from "./support/browser.js";
 import { countCompleteSummaries } from "../src/finops-decision-contract.js";
 import {
+  PORTFOLIO_DISCLOSURES,
   PORTFOLIO_STATE,
   portfolioBrief,
   selectPortfolioBenchmark,
@@ -116,8 +117,7 @@ test("two combined providers lead with the aligned total before any provider det
   assert.match(brief.alignedSpend.detail, /2 providers on one billing window/);
   // The order the view paints and a reader reads: total, one benchmark, impact,
   // confidence, provenance, one action — then the provider-level disclosures.
-  assert.deepEqual(brief.disclosures.map((group) => group.id),
-    ["composition", "exclusions", "coverage", "validation"]);
+  assert.deepEqual(brief.disclosures.map((group) => group.id), [...PORTFOLIO_DISCLOSURES]);
 });
 
 // --- 2. exactly one, twice over --------------------------------------------
@@ -210,16 +210,22 @@ test("an unpublishable total blocks every figure rather than showing one with a 
   }
 });
 
-test("the money in a merged window is never split back into per-provider spend", () => {
-  const composition = portfolioBrief(analysis()).disclosures
-    .find((group) => group.id === "composition");
+test("composition never apportions the merged total, and says where the split does come from", () => {
+  const brief = portfolioBrief(analysis());
+  const composition = brief.disclosures.find((group) => group.id === "composition");
   assert.equal(composition.rows.length, 2);
-  assert.match(composition.note, /cannot be split back into per-provider spend/);
+  assert.match(composition.note, /carries no per-provider spend column/);
   for (const row of composition.rows) {
     assert.doesNotMatch(row.detail, /USD/,
       `the composition row for ${row.term} invented a per-provider figure`);
     assert.match(row.detail, /adapter .+ v1\.0/, `${row.term} does not state the adapter that read it`);
   }
+  // The per-provider figures are the aggregate's, re-derived from record-level
+  // provider identity. This envelope carries none, and the group says so rather
+  // than apportioning the merged total to fill itself in.
+  const contribution = brief.disclosures.find((group) => group.id === "contribution");
+  assert.equal(contribution.rows.length, 0);
+  assert.match(contribution.note, /no per-provider split/);
 });
 
 test("period coverage and validation reasons are carried, not summarized away", () => {
@@ -307,12 +313,14 @@ test("clearing the import gives the single-provider answer back", () => {
   assert.equal(guided.dataset.superseded, "false");
 });
 
-test("the four evidence groups are native disclosures, collapsed, and never empty-bodied", () => {
+test("every evidence group is a native disclosure, collapsed, and never empty-bodied", () => {
   const doc = openPage();
   applyPortfolioBrief(doc, analysis());
   const host = doc.getElementById("finops-portfolio-brief-disclosures");
   const groups = [...host.querySelectorAll("details")];
-  assert.equal(groups.length, 4, "the four evidence groups are not four disclosures");
+  assert.equal(groups.length, PORTFOLIO_DISCLOSURES.length,
+    "the evidence groups and the declared disclosure ids disagree");
+  assert.deepEqual(groups.map((group) => group.dataset.disclosure), [...PORTFOLIO_DISCLOSURES]);
   for (const group of groups) {
     const summary = group.querySelector("summary");
     assert.ok(summary, `${group.dataset.disclosure} has no summary to operate`);
@@ -324,10 +332,11 @@ test("the four evidence groups are native disclosures, collapsed, and never empt
     assert.ok(group.querySelector(".portfolio-brief-disclosure-note"),
       `${group.dataset.disclosure} opens with no explanation`);
   }
-  // Two of the four have nothing to list on a clean portfolio; they open onto a
-  // sentence rather than an empty list.
+  // Three of them have nothing to list on a clean portfolio with no aggregate;
+  // each opens onto a sentence rather than an empty list.
   const empty = groups.filter((group) => group.querySelector(".portfolio-brief-disclosure-empty"));
-  assert.deepEqual(empty.map((group) => group.dataset.disclosure), ["exclusions", "validation"]);
+  assert.deepEqual(empty.map((group) => group.dataset.disclosure),
+    ["contribution", "exclusions", "validation"]);
   assert.equal(empty[0].querySelector(".portfolio-brief-disclosure-empty").textContent,
     "Nothing to list here.");
   assert.equal(host.querySelectorAll(".portfolio-brief-disclosure-rows").length, 2);
