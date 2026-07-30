@@ -48,6 +48,15 @@
              them. This says it in words at the destination and keeps the way
              back one link away. -->
         <p class="profile-role"><span class="profile-role-chip">Demo persona</span> <span id="profile-role-name">Ari</span> is a demo persona in the Social feed, not a signed-in user. This view shows that person's image posts only. <a class="text-link" href="/social.html">See every post on Social</a>.</p>
+        <!-- Two ways out of this view, both visible on arrival and both named in
+             words: the sentence above returns to every post on Social, and this
+             is the way to make an image that ends up here. `from=profile` is
+             provenance, not state — it is what lets Paint's one back link say
+             "Back to People"; profile.js adds the selected display name so the
+             return lands on the profile that was being read. -->
+        <div class="hero-actions">
+          <a class="button-link" id="profile-paint-cta" href="/paint/?from=profile">Create an image in Paint, then publish it on Social <span aria-hidden="true">→</span></a>
+        </div>
       </section>
 
       <section class="workspace profile-workspace" aria-labelledby="grid-title">

@@ -14,10 +14,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { parseHtml, tabSequence, textOf } from "./support/browser.js";
+import { loadPage, parseHtml, tabSequence, textOf } from "./support/browser.js";
 import { SOCIAL_COMPOSER_PATH } from "../src/paint-handoff.js";
 import { initPaint, paintReturnContext } from "../src/paint/paint.js";
-import { profilePaintHref } from "../src/profile.js";
+import { mountProfile, profilePaintHref } from "../src/profile.js";
 
 const PAINT_PATH = "/paint/";
 /** The editor, with or without the provenance the origin surface writes on it. */
@@ -80,10 +80,74 @@ test("People names both ends of the route: the editor and the feed the image ret
   assert.deepEqual(hrefs, ["/paint/?from=profile", SOCIAL_COMPOSER_PATH]);
 });
 
+/* ---------------------------- the primary route ---------------------------- */
+// The invitation above covers a reader already scrolling the feed. This covers
+// the reader who has just arrived: the publishing path has to be on screen and
+// stated as an outcome before any scrolling happens, because "Paint" in the nav
+// names a destination without saying that it is how an image gets published.
+
+/** The page's leading call to action: the primary control in its hero. */
+const heroCta = (document) => document.querySelector(".hero-actions").querySelector("a");
+
+test("Social leads with a call to action that names the outcome, not the destination alone", () => {
+  const cta = heroCta(documents.Social);
+  assert.equal(cta.tagName, "A", "the primary route is not an anchor");
+  assert.ok(opensPaint(cta.href), `Social's primary route does not open Paint: ${cta.href}`);
+  // Creating and publishing an image, in words. "Paint" alone, an arrow alone,
+  // or a colour alone would each name nothing a reader can act on.
+  assert.match(textOf(cta), /^Create an image in Paint, then publish it here/);
+  assert.ok(tabSequence(documents.Social).includes(cta), "the primary route is not keyboard reachable");
+
+  // Above the composer and the feed, in the source, so it is the first route a
+  // reader meets rather than one more control inside the form.
+  const html = sources.Social;
+  assert.ok(html.indexOf('id="social-paint-cta"') < html.indexOf('id="post-form"'));
+  assert.ok(html.indexOf('id="social-paint-cta"') < html.indexOf('class="feed-create'));
+});
+
+test("People names both ends of the path from its entry point, in words", () => {
+  // Two distinct visible links in the page's opening section: back to every post
+  // on Social, and on to the editor. Neither depends on an icon or a colour, and
+  // each says which destination it goes to.
+  const hero = documents.People.querySelector(".hero");
+  const links = hero.querySelectorAll("a");
+  const toPaint = links.filter((anchor) => opensPaint(anchor.href));
+  const toSocial = links.filter((anchor) => anchor.href.startsWith("/social.html"));
+  assert.equal(toPaint.length, 1, "People's entry point offers no single way into Paint");
+  assert.equal(toSocial.length, 1, "People's entry point offers no single way back to Social");
+  assert.match(textOf(toPaint[0]), /^Create an image in Paint, then publish it on Social/);
+  assert.match(textOf(toSocial[0]), /Social/);
+
+  const sequence = tabSequence(documents.People);
+  for (const link of [toPaint[0], toSocial[0]]) {
+    assert.ok(sequence.includes(link), `${textOf(link)} is not keyboard reachable`);
+  }
+  // The primary control carries the provenance, so Paint's back link returns
+  // here rather than to Social.
+  assert.equal(paintReturnContext(toPaint[0].href.slice(PAINT_PATH.length)).label, "Back to People");
+});
+
+test("both of People's routes into Paint follow the profile actually being read", async () => {
+  const page = await loadPage(PAGES.People);
+  try {
+    const profile = mountProfile(page.document, { posts: [], author: "Ari" });
+    profile.setAuthor("Mina O'Neil");
+    for (const id of ["profile-paint-cta", "profile-paint-route"]) {
+      const link = page.document.getElementById(id);
+      assert.ok(link, `#${id} is missing from People`);
+      assert.equal(link.href, profilePaintHref("Mina O'Neil"), `#${id} still points at the default persona`);
+      assert.equal(paintReturnContext(link.href.slice(PAINT_PATH.length)).href, "/profile.html?author=Mina%20O'Neil");
+    }
+  } finally {
+    page.restore();
+  }
+});
+
 test("the composer's own Paint control is unchanged and still labelled in words", () => {
   const links = paintLinks(documents.Social);
-  // Three: the site nav, the composer's media picker, and the feed invitation.
-  assert.equal(links.length, 3, "the number of routes into Paint from Social changed");
+  // Four: the site nav, the hero's call to action, the composer's media picker,
+  // and the feed invitation.
+  assert.equal(links.length, 4, "the number of routes into Paint from Social changed");
   const composer = documents.Social.querySelector(".media-source-actions").querySelector("a");
   assert.equal(composer.href, PAINT_PATH);
   assert.match(textOf(composer), /Create in Paint/);
