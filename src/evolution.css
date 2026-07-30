@@ -59,6 +59,40 @@
 .portfolio-provider-window,.portfolio-provider-count,.portfolio-provider-provenance { color:var(--ink-muted); font-size:11px; }
 .portfolio-errors li { color:var(--state-error-ink); line-height:1.55; overflow-wrap:anywhere; }
 .portfolio-basis,.portfolio-comparability-source { margin:10px 0 0; color:var(--ink-muted); font-size:11px; line-height:1.55; overflow-wrap:anywhere; }
+/* The partial-evidence finding on the import panel. Same three redundant
+   carriers as the region above it — the state word first, the glyph second, the
+   tint last — so nothing here is only a colour. The partial stamp is deliberately
+   loud: an unlabelled subtotal read as a total is the mistake this region
+   exists to prevent. */
+.partial-evidence { grid-column:1/-1; margin:18px 0 0; border:1px solid var(--import-line); border-left:5px solid var(--import-accent); border-radius:11px; padding:15px 17px; background:#fff; color:var(--import-ink); }
+.partial-evidence[data-state="partial"] { border-left-color:var(--state-warn-line); }
+.partial-evidence[data-state="insufficient_evidence"] { border-left-color:var(--state-error-line); }
+.partial-evidence-heading h3 { margin:2px 0 10px; font-size:17px; }
+.pe-headline { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 8px; margin:0 0 12px; font-size:14px; line-height:1.55; }
+.pe-headline-shape { flex:none; font-size:18px; font-weight:750; }
+.pe-headline-word { font-size:16px; }
+.pe-headline-text { flex-basis:100%; color:var(--ink-muted); overflow-wrap:anywhere; }
+.pe-material { border-top:1px solid var(--import-line); border-bottom:1px solid var(--import-line); padding:10px 0; }
+.pe-material-label { margin:0; color:var(--ink-muted); font:700 10px/1.4 ui-monospace,monospace; letter-spacing:.08em; text-transform:uppercase; }
+.pe-material-figure { margin:4px 0 0; font:700 24px/1.25 ui-monospace,monospace; overflow-wrap:anywhere; }
+.pe-material-partial { margin:7px 0 0; border:1px solid var(--state-warn-line); border-left:5px solid var(--state-warn-line); border-radius:9px; padding:8px 11px; background:var(--state-warn-wash); font-size:12px; line-height:1.55; font-weight:650; overflow-wrap:anywhere; }
+.pe-material-basis { margin:7px 0 0; color:var(--ink-muted); font-size:12px; line-height:1.55; overflow-wrap:anywhere; }
+.pe-action { margin:12px 0 0; font-size:14px; line-height:1.55; font-weight:650; overflow-wrap:anywhere; }
+.pe-action-jump { margin:10px 0 0; }
+.pe-peer { margin:12px 0 0; color:var(--ink-muted); font-size:12px; line-height:1.55; overflow-wrap:anywhere; }
+.pe-disclosure { margin:12px 0 0; border-top:1px solid var(--import-line); padding:9px 0 0; font-size:12px; }
+.pe-disclosure summary { cursor:pointer; font-weight:650; }
+.pe-disclosure-heading { margin:11px 0 0; font:700 10px/1.4 ui-monospace,monospace; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-muted); }
+.pe-exclusion-list,.pe-usable-list,.pe-review-gaps,.pe-contract-errors { display:grid; gap:7px; margin:7px 0 0; padding:0; list-style:none; }
+.pe-exclusion,.pe-usable { display:flex; flex-wrap:wrap; gap:2px 10px; border:1px solid var(--import-line); border-radius:8px; padding:7px 10px; background:var(--import-wash); line-height:1.5; }
+.pe-usable { background:#fff; }
+.pe-exclusion-label,.pe-usable-label { font-weight:700; }
+.pe-exclusion-reason { flex-basis:100%; color:var(--ink-muted); font-size:11px; overflow-wrap:anywhere; }
+.pe-usable-window,.pe-usable-provenance { color:var(--ink-muted); font-size:11px; }
+.pe-review-gaps li,.pe-contract-errors li { line-height:1.55; overflow-wrap:anywhere; }
+.pe-contract-errors li { color:var(--state-error-ink); }
+.pe-definition,.pe-arithmetic,.pe-provenance,.partial-evidence-source { margin:10px 0 0; color:var(--ink-muted); font-size:11px; line-height:1.55; overflow-wrap:anywhere; }
+.pe-arithmetic { font-family:ui-monospace,monospace; }
 .nav-evolution { display:inline-flex; align-items:center; gap:7px; }
 .nav-evolution::before { content:""; width:6px; height:6px; border-radius:2px; background:#1baf7a; }
 
