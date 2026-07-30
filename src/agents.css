@@ -72,8 +72,15 @@
 .activity-fallback-detail { color:#6f6f69; font-size:13px; line-height:1.55; }
 .activity-list[data-feed="representative"] .activity-item-representative { padding-left:14px; border-top-style:dashed; box-shadow:inset 2px 0 0 #cfcdc5; }
 .activity-list>.state-panel { grid-column:1/-1; }
-.persona-list>.state-panel { display:flex; border-top:0; }
+/* agent-trace.html still fills a .prompt-trace grid through renderState. */
 .prompt-trace>.state-panel { grid-column:1/-1; }
+/* The two demo-data panels borrow the activity panel's status treatment rather
+   than growing a second vocabulary for the same three states. `[hidden]` needs
+   saying because the author `display` above would otherwise beat the browser's
+   own rule, and the populated panels rely on the block being hidden. */
+.demo-state { margin:16px 0 0; }
+.activity-state[hidden],.activity-actions[hidden],.observatory-refresh[hidden] { display:none; }
+.activity-state:focus-visible { outline:3px solid #155f9e; outline-offset:3px; }
 .prompt-panel { margin-top:24px; padding:30px; }
 .section-heading h2 { margin:7px 0 0; font-size:26px; letter-spacing:-.03em; }
 .section-heading>p:not(.eyebrow) { max-width:720px; margin:12px 0 0; color:#6f6f69; line-height:1.55; }
