@@ -695,12 +695,23 @@ def is_capacity_limited(log_path: pathlib.Path) -> bool:
 def is_provider_overloaded(log_path: pathlib.Path) -> bool:
     """Recognize the provider's own servers failing (529 overloaded, 503, 500).
 
-    Deliberately narrower than is_capacity_limited: only the terminal `result`
-    record's numeric `api_error_status` counts. That field is the CLI reporting the
-    status its OWN request died on, so no amount of product text, tool output, or
-    source code quoting "529" or "overloaded" can forge it. Anything below 500 is
-    the request being refused rather than the server breaking, and 429-style
-    refusals are already the capacity path's business.
+    Deliberately narrower than is_capacity_limited: only fields the CLI itself
+    writes on the terminal `result` record count, so no amount of product text,
+    tool output, or source code quoting "529" or "overloaded" can forge it.
+
+    Two shapes qualify. The plain one is a numeric `api_error_status` of 500 or
+    more — the status the CLI's OWN request died on. Anything below 500 is the
+    request being refused rather than the server breaking, and 429-style refusals
+    are already the capacity path's business.
+
+    The second shape is the one that cost issue #625 a retry on 2026-07-30: when
+    the stream breaks part-way the CLI ends with `terminal_reason: "api_error"`,
+    a NULL `api_error_status` (there was no complete response to read a status
+    from), and its own prose in `result` — "API Error: Server error mid-response".
+    That is the provider's server failing just as plainly as a 529, so it must
+    defer rather than burn an attempt. `terminal_reason` is CLI-authored and the
+    model cannot set it, so requiring it alongside the prose keeps the field
+    unforgeable: product text alone still proves nothing.
     """
     try:
         text = log_path.read_text(encoding="utf-8", errors="replace")
@@ -719,10 +730,26 @@ def is_provider_overloaded(log_path: pathlib.Path) -> bool:
         try:
             status = int(record.get("api_error_status"))
         except (TypeError, ValueError):
+            status = None
+        if status is not None and status >= 500:
+            return True
+        if str(record.get("terminal_reason", "")) != "api_error":
             continue
-        if status >= 500:
+        if status is not None:
+            # The CLI read a real status and it was below 500 — a refused request,
+            # not a broken server. Leave it to the capacity path or a real failure.
+            continue
+        if SERVER_ERROR_PROSE.search(str(record.get("result", ""))):
             return True
     return False
+
+
+# The CLI's own wording when the stream dies mid-response and it never got a status
+# back. Matched only on a terminal record already marked terminal_reason=api_error.
+SERVER_ERROR_PROSE = re.compile(
+    r"server error|internal server error|overloaded|bad gateway|service unavailable",
+    re.IGNORECASE,
+)
 
 
 def is_budget_exhausted(log_path: pathlib.Path) -> bool:
