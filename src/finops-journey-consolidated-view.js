@@ -41,6 +41,7 @@ export const JOURNEY_IDS = Object.freeze({
   action: "finops-journey-action",
   metric: "finops-journey-metric",
   checkpoint: "finops-journey-checkpoint",
+  examples: "finops-journey-example-controls",
 });
 
 /** A shape beside the word, so the phase survives greyscale and a screen reader. */
@@ -151,6 +152,40 @@ function checkpointBlock(doc, journey) {
 }
 
 /**
+ * The bundled-example picker, beside the journey it loads.
+ *
+ * Real `<button>`s carrying `aria-pressed`, not a tab set: pressing one swaps
+ * which records the region below is composed from, and nothing is shown or
+ * hidden by it. The controls are built once and then only their pressed state
+ * changes, so a repaint cannot take the keyboard away from the button a reader
+ * just pressed. Each button also names what it loads in words — an example is
+ * distinguishable from a reader's own records without reading a tint.
+ *
+ * @param options.choices `[{name, title}]` in reading order.
+ * @param options.active the loaded example's name, or null for own records.
+ * @param options.onSelect handed the chosen name, or null for own records.
+ * @returns the control group, or null on a surface that does not carry one.
+ */
+export function renderJourneyExamplePicker(doc, { choices, active = null, onSelect }) {
+  const group = doc.getElementById(JOURNEY_IDS.examples);
+  if (!group) return null;
+  if (group.dataset.built !== "true") {
+    group.dataset.built = "true";
+    for (const { name, title } of [{ name: "", title: "Your own local records" }, ...choices]) {
+      const button = element(doc, "button", "fjc-example", title);
+      button.type = "button";
+      button.dataset.example = name;
+      button.addEventListener("click", () => onSelect(name || null));
+      group.append(button);
+    }
+  }
+  for (const button of group.children) {
+    button.setAttribute("aria-pressed", String((button.dataset.example || null) === active));
+  }
+  return group;
+}
+
+/**
  * Paint one journey into the region the surface ships.
  *
  * @param doc the document holding `#finops-journey`.
@@ -171,6 +206,10 @@ export function renderConsolidatedJourney(doc, journey) {
   region.dataset.journeyKey = key;
   region.dataset.phase = journey.phase;
   region.dataset.source = journey.source;
+  // Whose records these are, as an attribute for a stylesheet and as words in
+  // the sample line and the carried-detail panel below. A data attribute is not
+  // read to anyone, so it is never the only place this is said.
+  region.dataset.provenance = journey.provenance?.kind ?? "own-records";
   body.replaceChildren();
 
   const question = doc.getElementById(JOURNEY_IDS.question);

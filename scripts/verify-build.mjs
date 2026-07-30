@@ -204,6 +204,10 @@ export async function verifyArtifact(root) {
     // narrows rather than an unstyled stack of definition lists.
     "finops-journey-consolidated.js", "finops-journey-consolidated-view.js",
     "finops-journey-consolidated.css",
+    // The bundled examples and the redaction pass every record-sourced string
+    // takes on its way to the screen. Both are hard imports of the action center
+    // entry, so a narrowed artifact that drops either stops the page painting.
+    "finops-journey-fixtures.js", "finops-journey-redaction.js",
   ]);
   const paths = new Set(actual.map(({ path }) => path));
   for (const path of required) if (!paths.has(path)) throw new Error(`missing required UI asset: ${path}`);
@@ -478,6 +482,11 @@ export async function verifyArtifact(root) {
     if (!snapshotModule.includes(wiring)) {
       throw new Error(`the journey snapshot no longer resolves ${wiring} into restored state`);
     }
+  }
+  // And the bundled examples reach a reader through that same entry. A fixture
+  // module nothing on a page loads is a test asset, not a reproducible answer.
+  if (!actionCenterEntry.includes("evaluateBundledExample")) {
+    throw new Error("the action center entry no longer loads the bundled journey examples");
   }
   const evolutionEntry = await readFile(resolve(root, "evolution-page.js"), "utf8");
   if (!evolutionEntry.includes("captureJourneySnapshot")) {

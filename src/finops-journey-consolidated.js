@@ -35,6 +35,7 @@
 
 import { assembleRecurringReview } from "./recurring-review-readiness.js";
 import { journeySignals, money } from "./finops-journey-signals.js";
+import { neutralizeRecordText } from "./finops-journey-redaction.js";
 import {
   JOURNEY_STATE, NEXT_STEP_CONTRACT, PRIMARY_ACTION, selectNextStep,
 } from "./finops-next-step.js";
@@ -87,6 +88,18 @@ export const PHASE_COPY = Object.freeze({
 const freeze = Object.freeze;
 const isRecord = (value) => Boolean(value && typeof value === "object" && !Array.isArray(value));
 const filled = (value) => typeof value === "string" && value.trim().length > 0;
+
+/**
+ * Every row this view paints from a stored record, on its way to the screen.
+ *
+ * The strings a record carries — an action label, an owner title, a department
+ * name — are free text a visitor or a file they were handed wrote, and they land
+ * inside sentences a reader will paste somewhere else. Nothing here is derived
+ * from them, so redacting cannot change a finding; it only stops one record's
+ * free text from reading as an instruction to whoever reads it next.
+ */
+const displayRows = (list) => freeze(list.map(([label, value]) =>
+  freeze([label, neutralizeRecordText(value)])));
 
 /** A value that is genuinely absent, said as such rather than as a dash. */
 const stated = (value, unit) =>
@@ -190,7 +203,7 @@ function decided(review, retainedAction, checkpoint) {
   if (review?.provenance?.analysisContract) {
     rows.push(["Evidence contract", review.provenance.analysisContract]);
   }
-  return freeze(rows.map(freeze));
+  return displayRows(rows);
 }
 
 /** And what is still open, taken from the recommendation rather than restated. */
@@ -206,7 +219,7 @@ function remaining(review, recommendation, checkpoint) {
     rows.push([`Not known here (${recommendation.unknowns.length})`,
       recommendation.unknowns.join("; ")]);
   }
-  return freeze(rows.map(freeze));
+  return displayRows(rows);
 }
 
 /**
@@ -216,9 +229,9 @@ function remaining(review, recommendation, checkpoint) {
  */
 function priorResults(restored) {
   const carried = restored?.carried ?? null;
-  if (!carried) return freeze([]);
+  if (!carried) return [];
   const { provenance, verification, departmentReferences: departments } = carried;
-  return freeze([
+  return [
     ["Carried from import", `${provenance.importSourceId} · ${provenance.fileCount} file`
       + `${provenance.fileCount === 1 ? "" : "s"}, ${provenance.rows} row`
       + `${provenance.rows === 1 ? "" : "s"} · ${provenance.importedAt}`],
@@ -229,8 +242,38 @@ function priorResults(restored) {
       ? `${verification.state} · ${stated(verification.rows, "measured rows") ?? "row count not stated"}`
       : "Not verified"],
     ["Prior action confidence", carried.confidence.action ?? "Not recorded"],
-  ].map(freeze));
+  ];
 }
+
+/**
+ * Where a journey's records came from, as data.
+ *
+ * A bundled example reaches this module through the same restore a visitor's own
+ * records do — which is the point of bundling it, and exactly why the reader has
+ * to be told which they are looking at. The marker travels on the model, so the
+ * distinction survives an export, a test, and a screen reader; the view paints
+ * it, it does not invent it. An absent or malformed marker means local records,
+ * because a claim about provenance is only ever made from a stated one.
+ */
+function provenanceMarker(provenance) {
+  if (!isRecord(provenance) || !filled(provenance.kind) || !filled(provenance.label)) return null;
+  return freeze({
+    kind: provenance.kind,
+    label: neutralizeRecordText(provenance.label),
+    note: filled(provenance.note) ? neutralizeRecordText(provenance.note) : null,
+  });
+}
+
+/** The sample line a marked journey carries instead of the source's own. */
+const provenanceSample = (marker) =>
+  `◇ ${marker.label} — ${marker.note ?? "Bundled with this app."}`;
+
+/** And the row that says the same thing inside the supporting detail. */
+const provenanceRow = (marker) => [
+  "Evidence provenance",
+  `${marker.label}. ${marker.note ?? ""} These records ship with this app and are not `
+  + "your own imported evidence.",
+];
 
 /**
  * Which phase this journey is in.
@@ -295,14 +338,15 @@ function onboarding(surface) {
  * step the reader can still take all survive, so no panel is ever blank and no
  * unreadable record reaches a reader as a thrown error.
  */
-function degraded(reason, surface) {
+function degraded(reason, surface, marker = null) {
   return freeze({
     contract: CONSOLIDATED_JOURNEY_CONTRACT,
     phase: JOURNEY_PHASE.degraded,
     phaseLabel: PHASE_LABEL[JOURNEY_PHASE.degraded],
     phaseCopy: PHASE_COPY[JOURNEY_PHASE.degraded],
     source: "local",
-    sample: null,
+    provenance: marker,
+    sample: marker ? provenanceSample(marker) : null,
     question: JOURNEY_QUESTION,
     headline: "This journey's records could not be read, so no step is recommended from them.",
     metric: freeze({
@@ -320,10 +364,10 @@ function degraded(reason, surface) {
         + "in this browser was changed or deleted by the failed read.",
     }),
     decided: freeze([]),
-    remaining: freeze([freeze(["Why this is degraded", reason])]),
+    remaining: displayRows([["Why this is degraded", reason]]),
     checkpoint: verificationCheckpoint(null),
     signals: freeze([]),
-    priorResults: freeze([]),
+    priorResults: displayRows(marker ? [provenanceRow(marker)] : []),
     departments: freeze([]),
     notice: null,
     reason,
@@ -339,12 +383,19 @@ function degraded(reason, surface) {
  * @param input.now the injected clock, handed straight to `selectNextStep`.
  * @param input.surface `"briefing"` or `"review"` — which page the action link is
  *   painted on. It changes the href and nothing else.
+ * @param input.provenance an optional `{kind, label, note}` marker for records
+ *   that are not the reader's own — a bundled example loaded through this same
+ *   restore. It labels the journey and changes nothing else about it: no figure,
+ *   no phase, no confidence, and no recommendation is derived from it.
  * @returns one frozen `finops-consolidated-journey/1.0.0` model. Never throws:
  *   an unreadable input resolves to the degraded phase with its reason named.
  */
-export function consolidateJourney({ restored = null, now = new Date(), surface = "briefing" } = {}) {
+export function consolidateJourney({
+  restored = null, now = new Date(), surface = "briefing", provenance = null,
+} = {}) {
+  const marker = provenanceMarker(provenance);
   if (restored !== null && !isRecord(restored)) {
-    return degraded("The restored journey is not a record this view can read.", surface);
+    return degraded("The restored journey is not a record this view can read.", surface, marker);
   }
   let review = null;
   let recommendation = null;
@@ -360,11 +411,11 @@ export function consolidateJourney({ restored = null, now = new Date(), surface 
     recommendation = selectNextStep(chosen.journeyState, now);
   } catch (error) {
     return degraded(
-      `A local record could not be read: ${error?.message ?? String(error)}`, surface);
+      `A local record could not be read: ${error?.message ?? String(error)}`, surface, marker);
   }
   if (!isRecord(review) || recommendation?.contract !== NEXT_STEP_CONTRACT) {
     return degraded(
-      "A journey contract answered in a shape this view does not support.", surface);
+      "A journey contract answered in a shape this view does not support.", surface, marker);
   }
 
   const checkpoint = verificationCheckpoint(retainedAction);
@@ -389,23 +440,31 @@ export function consolidateJourney({ restored = null, now = new Date(), surface 
     phaseLabel: PHASE_LABEL[phase],
     phaseCopy: PHASE_COPY[phase],
     source: phase === JOURNEY_PHASE.new ? "none" : chosen.source,
-    sample: first.sample,
+    // Marked records say so in the sample line, over the source's own label: a
+    // bundled example read through the local path would otherwise introduce
+    // itself as "your own retained records", which is the one thing it is not.
+    provenance: marker,
+    sample: marker ? provenanceSample(marker) : first.sample,
     question: JOURNEY_QUESTION,
-    headline: first.headline,
+    headline: neutralizeRecordText(first.headline),
     metric: first.metric,
-    action: first.action,
+    action: freeze({ ...first.action, label: neutralizeRecordText(first.action.label) }),
     decided: decided(review, retainedAction, checkpoint),
     remaining: phase === JOURNEY_PHASE.new
-      ? freeze([freeze(["Nothing retained yet",
+      ? displayRows([["Nothing retained yet",
         "No provider export, no retained monthly action, and no evidence verdict are held "
-        + "in this browser. Importing one export fills all three."])])
+        + "in this browser. Importing one export fills all three."]])
       : remaining(review, recommendation, checkpoint),
     checkpoint,
     // Iris's five chips, unchanged: the same words, tones, and shapes the action
     // center already paints, so one journey does not describe itself twice.
     signals: journeySignals(review, { retainedAction }),
-    priorResults: priorResults(restored),
-    departments: freeze([
+    // Provenance leads the carried block: which records these are is the first
+    // thing a reader needs before any figure carried with them means anything.
+    priorResults: displayRows([
+      ...(marker ? [provenanceRow(marker)] : []), ...priorResults(restored),
+    ]),
+    departments: displayRows([
       ["Department", review.current.department ?? retainedAction?.department ?? "Not identified in this evidence"],
       ["Metric definition", review.current.definition],
       ["Current value", stated(review.current.value, review.current.unit) ?? "Not available"],
@@ -419,7 +478,7 @@ export function consolidateJourney({ restored = null, now = new Date(), surface 
       ["Evidence boundary", phase === JOURNEY_PHASE.new
         ? "No boundary is stated: no imported evidence exists here to bound."
         : recommendation.evidenceBoundary],
-    ].map(freeze)),
+    ]),
     notice: restored?.notice ?? null,
     reason: null,
   });
@@ -434,7 +493,8 @@ export function consolidateJourney({ restored = null, now = new Date(), surface 
  * standing — the same rule the recurring review already runs on.
  */
 export const consolidatedJourneyPaintKey = (journey) => [
-  journey.contract, journey.phase, journey.source, journey.headline,
+  journey.contract, journey.phase, journey.source,
+  journey.provenance?.label ?? "own-records", journey.headline,
   journey.metric.value, journey.action.label, journey.action.href,
   journey.checkpoint.due, journey.checkpoint.expected,
   journey.decided.length, journey.remaining.length, journey.priorResults.length,
