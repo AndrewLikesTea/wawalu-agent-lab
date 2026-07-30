@@ -48,7 +48,7 @@
 .activity-state-detail { max-width:66ch; margin:8px 0 0; color:#4b4b46; font-size:14px; line-height:1.6; }
 .activity-state-links { display:flex; flex-wrap:wrap; gap:4px 22px; margin:12px 0 0; padding:0; list-style:none; }
 .activity-state-links a { display:inline-flex; align-items:center; min-height:36px; border-radius:7px; color:#17558e; font-size:13px; font-weight:750; text-underline-offset:3px; }
-.activity-state-links a:focus-visible,.section-heading h2:focus-visible { outline:3px solid #8abbe9; outline-offset:3px; }
+.activity-state-links a:focus-visible,.section-heading h2:focus-visible { outline:3px solid #155f9e; outline-offset:3px; }
 @keyframes activity-spin { to { transform:rotate(360deg); } }
 .activity-list { display:grid; }
 .activity-item { display:grid; grid-template-columns:165px minmax(0,1fr) auto; gap:18px; align-items:start; padding:19px 0; border-top:1px solid #e5e3dc; }
@@ -78,7 +78,7 @@
 .section-heading h2 { margin:7px 0 0; font-size:26px; letter-spacing:-.03em; }
 .section-heading>p:not(.eyebrow) { max-width:720px; margin:12px 0 0; color:#6f6f69; line-height:1.55; }
 .trace-link,.back-link { display:inline-flex; margin-top:18px; border-radius:7px; color:#195b96; font-weight:750; line-height:1.5; text-underline-offset:3px; }
-.trace-link:focus-visible,.back-link:focus-visible,.persona-list summary:focus-visible,.observatory-refresh:focus-visible { outline:3px solid #8abbe9; outline-offset:3px; }
+.trace-link:focus-visible,.back-link:focus-visible,.persona-list summary:focus-visible,.observatory-refresh:focus-visible { outline:3px solid #155f9e; outline-offset:3px; }
 .prompt-trace { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; margin-top:24px; }
 .trace-heading { grid-column:1/-1; display:flex; justify-content:space-between; gap:20px; border-bottom:1px solid #dedcd5; padding-bottom:16px; }
 .trace-heading span { color:#71716b; font:650 11px/1.5 ui-monospace,monospace; text-transform:capitalize; }
@@ -104,16 +104,19 @@ main,.page { width:min(1180px,calc(100% - 40px)); margin:auto; padding:24px 0 80
    published prompt trace, which had been shipping without a skip link. */
 .page>main { width:auto; margin:0; padding:0; }
 .page>main:focus { outline:none; }
-.page>main:focus-visible { outline:3px solid #8abbe9; outline-offset:4px; }
+.page>main:focus-visible { outline:3px solid #155f9e; outline-offset:4px; }
 /* Offscreen until focused — still in the accessibility tree and in tab order. */
 .skip-link { position:fixed; z-index:30; top:8px; left:8px; display:inline-flex; align-items:center; min-height:48px; border-radius:9px; padding:0 17px; background:#171713; color:#fff; font-size:14px; font-weight:750; text-decoration:none; transform:translateY(-200%); }
-.skip-link:focus { transform:translateY(0); outline:3px solid #8abbe9; outline-offset:2px; }
+.skip-link:focus { transform:translateY(0); outline:3px solid #155f9e; outline-offset:2px; }
 .site-header { display:flex; align-items:center; justify-content:space-between; padding-bottom:18px; border-bottom:1px solid #cfcdc5; color:#62625d; font:650 12px/1 ui-monospace,monospace; letter-spacing:.05em; text-transform:uppercase; }
 .brand { display:flex; align-items:center; gap:10px; color:#171713; text-decoration:none; }
 .mark { width:11px; height:11px; background:#1f70c1; border-radius:3px; box-shadow:8px 8px 0 #e6a541; }
 .site-nav { display:flex; align-items:center; gap:6px; }
 .site-nav a { border-radius:7px; padding:8px 10px; color:#62625d; text-decoration:none; }
 .site-nav a:hover,.site-nav a[aria-current="page"] { background:rgba(255,255,255,.72); color:#171713; }
+/* Mirrors the rule in styles.css: hover and current page share a background, so
+   the page you are on is marked by weight and a rule under the label instead. */
+.site-nav a[aria-current="page"] { font-weight:750; box-shadow:inset 0 -2px 0 currentColor; }
 /* Mirrors the rule in styles.css: Profile is a view of Social, so it sits
    inside the Social group, one step in and one size down. */
 .nav-group { display:flex; align-items:center; gap:0; padding-left:2px; }
@@ -121,7 +124,7 @@ main,.page { width:min(1180px,calc(100% - 40px)); margin:auto; padding:24px 0 80
 .nav-group .nav-profile::before { content:"\21B3"; margin-right:4px; color:#8b8b84; font-size:.95em; }
 .eyebrow { margin:0; color:#65717d; font:700 11px/1.4 ui-monospace,monospace; letter-spacing:.11em; text-transform:uppercase; }
 h1 { margin:16px 0 24px; font-size:clamp(44px,7.3vw,82px); line-height:.96; letter-spacing:-.055em; }
-button:focus-visible,.brand:focus-visible,.site-nav a:focus-visible { outline:3px solid #8abbe9; outline-offset:2px; }
+button:focus-visible,.brand:focus-visible,.site-nav a:focus-visible { outline:3px solid #155f9e; outline-offset:2px; }
 /* Site footer — the mirror of the block in src/styles.css, in this stylesheet's
    own focus colour. The observatory pages load only this file, so the band has
    to be defined twice or it would appear unstyled on two of the eleven pages.
@@ -152,6 +155,6 @@ button:focus-visible,.brand:focus-visible,.site-nav a:focus-visible { outline:3p
 .site-footer-form[data-state="error"]+.site-footer-status { color:#8a2b2b; }
 .site-footer-recovery { margin:0; border-left:2px solid #8a2b2b; padding-left:11px; color:#4f4f4a; font-size:12px; line-height:1.5; }
 .site-footer-recovery[hidden] { display:none; }
-.site-footer button:focus-visible,.site-footer input:focus-visible { outline:3px solid #8abbe9; outline-offset:3px; }
+.site-footer button:focus-visible,.site-footer input:focus-visible { outline:3px solid #155f9e; outline-offset:3px; }
 @media(max-width:520px) { .site-footer-inner{width:calc(100% - 24px);padding:24px 0 32px}.site-footer-trigger{width:100%}.site-footer-panel{padding:15px}.site-footer-actions button{flex:1 1 auto} }
 @media(prefers-reduced-motion:reduce) { .site-footer-panel{animation:none} }

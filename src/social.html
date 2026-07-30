@@ -32,6 +32,17 @@
         <p class="eyebrow">Social · demo</p>
         <h1 id="page-title">Share the small<br />wins as they land.</h1>
         <p>Social is a shared demo feed of short posts about the work the team ships, each with an optional image. Posts are shared across browsers and use no customer or production data.</p>
+        <!-- The publishing path stated as an outcome, at the top of the surface
+             that publishes. The composer's media picker and the feed invitation
+             both reach Paint too, but only after a reader has scrolled into the
+             workspace; this is the one route that is on screen on arrival. The
+             label names what the reader gets — an image, published here — rather
+             than repeating the destination the nav already names. Ordinary
+             anchors, so Tab, Enter, and open-in-new-tab behave as promised. -->
+        <div class="hero-actions">
+          <a class="button-link" id="social-paint-cta" href="/paint/">Create an image in Paint, then publish it here <span aria-hidden="true">→</span></a>
+          <a class="text-link" href="#post-form">Write a post without an image</a>
+        </div>
       </section>
 
       <section class="workspace" aria-label="Social">

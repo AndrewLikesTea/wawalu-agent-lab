@@ -9,6 +9,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
 import { SITE_NAV, SITE_NAV_LABELS, navParentOf, siteNavMarkup } from "../src/site-nav.js";
+import { parseHtml, tabSequence, textOf } from "./support/browser.js";
 
 // `current` is the surface the page belongs to, not always its own URL: a
 // release detail is still "Releases", a single post is still "Social".
@@ -217,6 +218,63 @@ test("the profile page identifies the selected name as a demo persona", async ()
   // A reader who clicked "People" arrives at a heading that names the selected
   // person, and the same view says that person is a demo persona.
   assert.match(html, /<h1 id="page-title"><span id="profile-name">Ari<\/span><\/h1>/);
+});
+
+/* --------------------------- the item you are on --------------------------- */
+// Which destination the reader is already looking at has to survive two things
+// the markup cannot see: a screen reader that never renders the highlight, and
+// a reader who cannot separate the two greys it is drawn in.
+
+test("every page marks exactly one nav item as the current page, and marks the right one", async () => {
+  for (const { file, current } of PAGES) {
+    const nav = parseHtml(await readFile(pageUrl(file), "utf8")).querySelector(".site-nav");
+    const marked = nav.querySelectorAll("a").filter((link) => link.getAttribute("aria-current") === "page");
+    assert.equal(marked.length, 1, `${file} marks ${marked.length} nav items as the current page`);
+    assert.equal(marked[0].href, current, `${file} marks the wrong nav item as current`);
+    // A detail page belongs to a surface, so the marked item is that surface's
+    // name — "Release · Shiplog" is still under Releases.
+    assert.equal(textOf(marked[0]), SITE_NAV.find((link) => link.href === current).label);
+  }
+});
+
+test("the current nav item is distinguishable without colour, on both stylesheets", async () => {
+  for (const sheet of ["styles.css", "agents.css"]) {
+    const css = await readFile(new URL(`../src/${sheet}`, import.meta.url), "utf8");
+    // Hover paints the same background and text colour as the current page, so
+    // colour cannot be the thing that separates them. Weight and a rule under
+    // the label do it, and neither needs the reader to see a hue.
+    // Anchored: the rule of its own, not the one it shares with :hover.
+    const rule = css.match(/^\.site-nav a\[aria-current="page"\] \{([^}]*)\}/m);
+    assert.ok(rule, `${sheet} must give the current nav item a mark of its own`);
+    assert.match(rule[1], /font-weight:/, `${sheet}: the current item must carry weight`);
+    assert.match(rule[1], /box-shadow:inset 0 -2px 0/, `${sheet}: the current item must carry a rule`);
+    // currentColor, not a new token: the mark inherits the palette rather than
+    // introducing a colour the design system does not have.
+    assert.match(rule[1], /currentColor/, `${sheet}: the mark must reuse the text colour`);
+  }
+});
+
+test("the nav is reached by keyboard in the order it is displayed", async () => {
+  for (const { file } of PAGES) {
+    const document = parseHtml(await readFile(pageUrl(file), "utf8"));
+    const links = document.querySelector(".site-nav").querySelectorAll("a");
+    const sequence = tabSequence(document).filter((node) => links.includes(node));
+    // Every destination is a tab stop — nesting the profile link inside the
+    // Social group must not cost it one — and the sequence is document order,
+    // which is the order the nav is authored and read in.
+    assert.deepEqual(sequence.map(textOf), SITE_NAV_LABELS, `${file}: nav tab order`);
+  }
+
+  // Nothing in the stylesheets re-orders the row visually, which would leave the
+  // focus ring jumping around a nav that looks sequential.
+  for (const sheet of ["styles.css", "agents.css"]) {
+    const css = await readFile(new URL(`../src/${sheet}`, import.meta.url), "utf8");
+    for (const [, selector, body] of css.matchAll(/([^{}]*)\{([^}]*)\}/g)) {
+      if (!/\.site-nav|\.nav-group/.test(selector)) continue;
+      assert.doesNotMatch(body, /(^|[;{\s])order:/, `${sheet} re-orders "${selector.trim()}"`);
+      assert.doesNotMatch(body, /-reverse/, `${sheet} reverses "${selector.trim()}"`);
+    }
+  }
 });
 
 test("the feed has one name: no page still says Team feed in its nav, eyebrow, or title", async () => {
