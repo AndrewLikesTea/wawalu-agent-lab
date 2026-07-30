@@ -155,6 +155,28 @@
           <!-- A role, never a person, beside the action it owns. -->
           <p class="first-run-role" id="finops-first-run-role" hidden></p>
         </div>
+        <!-- WHERE THE SPEND RANKS, beside the action rather than nine screens
+             below it. The slot answers exactly one question — "among comparable
+             organizations, is this org's cost per successful task high or low?"
+             — and it is authored here, adjacent to the recommended action, so a
+             leader reads the position and the action it justifies in one pass
+             instead of holding a band in their head while they scroll.
+
+             The authored value is a pending state, not a figure: every number
+             in this region comes out of the analysis path at run time, so
+             hand-writing a band here would be the one thing the region is not
+             allowed to do. `peer-cost-position.js` resolves the position and
+             `finops-first-run.js` paints it, and when a position is withheld
+             the same slot carries that module's reason sentence. The bare word
+             "Unavailable" is never painted into it: a reader who cannot be
+             given a position is owed the sentence that says what is missing. -->
+        <div class="first-run-support">
+          <div class="first-run-slot">
+            <h3 class="first-run-slot-label" id="finops-first-run-peer-heading">Peer comparison</h3>
+            <p class="first-run-value" id="finops-first-run-peer-value" data-available="false">Not yet compared</p>
+            <p class="first-run-detail" id="finops-first-run-peer-detail" hidden></p>
+          </div>
+        </div>
         <!-- A score never appears without the basis for it. An impact figure
              with no statement of how much of it was verified asks the reader to
              take the number on faith, which is the one thing this region is not
@@ -203,19 +225,6 @@
             <div><dt>Inputs</dt><dd>Invented provider and org exports generated in this tab. No company, account, provider, or person in them is real, and no customer or telemetry data is read.</dd></div>
             <div><dt>Limits</dt><dd>A routing scenario is a modelled ceiling, not a realized saving. Your own export will produce different numbers.</dd></div>
           </dl>
-        </div>
-        <!-- SUPPORTING DETAIL, below the decision rather than inside it.
-             Authored as an unavailable slot on purpose: the bundled sample
-             ships no comparable peer cohort, so this is the region's own worked
-             example of a value that is labelled rather than filled in. A dash,
-             an estimate, or a zero would each be a claim this page cannot
-             make. -->
-        <div class="first-run-support">
-          <div class="first-run-slot">
-            <h3 class="first-run-slot-label" id="finops-first-run-peer-heading">Peer comparison</h3>
-            <p class="first-run-value" id="finops-first-run-peer-value" data-available="false">Unavailable</p>
-            <p class="first-run-detail" id="finops-first-run-peer-detail" hidden></p>
-          </div>
         </div>
         <div class="first-run-actions">
           <h3 class="visually-hidden" id="finops-first-run-next-heading">Two ways to go on</h3>
