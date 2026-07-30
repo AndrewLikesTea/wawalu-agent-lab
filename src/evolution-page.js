@@ -119,6 +119,20 @@ import { applyOrgQueryDecision, clearOrgQueryDecision } from "/org-query-decisio
 import {
   EXAMPLE_ORG_QUERY_SAMPLE_FILE, loadExampleOrgQuerySample,
 } from "/org-query-example.js";
+// The second question this page can answer once an analysis exists: is the spend
+// keeping pace with what was shipped? The contract owns the ratio, its three
+// publishable states and the framing that keeps it an observation; this page owns
+// only the pairing — which spend periods and which release log — and hands both
+// sides to it.
+import { spendPerDeliveryDecision, spendPerDeliveryInput } from "/spend-per-delivery.js";
+import { applySpendPerDelivery, clearSpendPerDelivery } from "/spend-per-delivery-view.js";
+// Delivery evidence is the release log this site already keeps, read through its
+// own loader so the shape it validates is the shape counted here.
+import { browserReleaseStorage, loadReleases } from "/releases.js";
+// The bundled example dataset's release evidence, synthetic on both sides: an
+// example analysis paired with a reader's real release log would put one
+// organization's spend over another's deliveries.
+import { EXAMPLE_DELIVERY_RELEASES } from "/spend-per-delivery-fixtures.js";
 // No panel on this page writes its own "nothing here" sentence. Every empty,
 // partial-coverage and failed-load string is authored in one module, so a
 // reader meets one vocabulary for absence instead of one per branch.
@@ -299,6 +313,38 @@ function applyBundledMetricFlags({ score = null, spend = null, recoverable = nul
   applyMetricFlag(document, "kpi-recoverable-flag", recoverable);
   applyMetricFlag(document, "kpi-productive-flag", highValue);
   applyMetricFlag(document, "kpi-peer-flag", percentile);
+}
+
+/**
+ * This browser's release log, or an empty log where storage refuses to be read.
+ *
+ * The store is acquired through `releases.js`, which owns both the key and the
+ * shape it validates, so this page names no storage API of its own. An unreadable
+ * store is an empty release log — which the contract already answers with
+ * `no_delivery_evidence` and the action that fixes it — not an error state.
+ */
+function storedDeliveryReleases() {
+  const store = browserReleaseStorage();
+  return store ? loadReleases(store) : [];
+}
+
+/**
+ * Paint "is AI spend keeping pace with shipped delivery?" from an analysis, or
+ * hand the section back when there is no analysis to pair.
+ *
+ * The pairing is the only decision made here, and it is symmetric: the bundled
+ * example dataset is paired with the bundled example release log, a reader's own
+ * import with a reader's own release log. Which of the three states appears is the
+ * contract's call — including the common one, where an analysis exists and no
+ * release has ever been recorded, and the prioritized action is to record one.
+ */
+function paintSpendPerDelivery(analysis, { example = false } = {}) {
+  if (!analysis) return clearSpendPerDelivery(document);
+  return applySpendPerDelivery(document, spendPerDeliveryDecision(spendPerDeliveryInput({
+    analysis,
+    releases: example ? EXAMPLE_DELIVERY_RELEASES : storedDeliveryReleases(),
+    origin: example ? "example" : "import",
+  })));
 }
 
 function fillTextList(id, values, emptyText) {
@@ -1016,6 +1062,12 @@ function mountLocalFinopsImport() {
       : "This FinOps briefing uses only the provider and HRIS exports selected in this tab. "
       + "It makes a bounded routing estimate and refuses unsupported peer benchmark or prompt-quality claims.");
     setText("finops-provenance", `${next.period} · ${next.provenance}`);
+    // The delivery comparison, from the same envelope. It is painted here rather
+    // than at the two call sites above it because every analysis this page renders
+    // — bundled example or reader's own import — has spend periods, and a section
+    // that answered for one and not the other would leave a stale window on
+    // screen. Whether a ratio is publishable at all is the contract's decision.
+    paintSpendPerDelivery(next, { example });
     const resultPlausible = plausibleUsd(next.spendUsd) && plausibleUsd(next.recoverableUsd)
       && next.recoverableUsd <= next.spendUsd;
     const notice = document.getElementById("local-result-notice");
@@ -1309,6 +1361,10 @@ function mountLocalFinopsImport() {
     // still there, and a decision block outliving the clear would be answered
     // about a sample the reader can no longer see the source of.
     paintCoachingDecision(null);
+    // And the delivery comparison, for the same reason: its window came from the
+    // analysis being discarded, and a ratio with no visible source is exactly the
+    // figure this section exists to avoid publishing.
+    paintSpendPerDelivery(null);
     closeMappingReview(document);
     if (remap) remap.hidden = true;
     result = null;
