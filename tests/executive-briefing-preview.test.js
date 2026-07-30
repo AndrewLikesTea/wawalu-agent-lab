@@ -92,16 +92,17 @@ test("the page paints the briefing it rebuilt, in the order a leader reads it", 
   assert.match(textOf(document.querySelector(".brief-bound-more")), /All 5 print/);
 });
 
-test("the briefing states its provenance as a rebuild, and reaches no link of any kind", async (t) => {
+test("the briefing states its provenance as a rebuild, and contains no link", async (t) => {
   const { document, root } = await openPage(t, await readFixture());
+  const article = root.querySelector("article.brief");
 
   assert.match(textOf(document.querySelector(".brief-provenance-note")), /Rebuilt in this tab/);
   assert.match(textOf(document.querySelector(".brief-origin")), /synthetic sample/i);
 
   // The safety claim the briefing makes about itself has to be true of what is
   // on screen: no URL, no blob, no data: anywhere in the rendered document.
-  assert.doesNotMatch(textOf(root), FORBIDDEN_LINK_PATTERN);
-  assert.equal(root.querySelectorAll("a").length, 0, "a printable briefing offers no link to follow");
+  assert.doesNotMatch(textOf(article), FORBIDDEN_LINK_PATTERN);
+  assert.equal(article.querySelectorAll("a").length, 0, "a printable briefing offers no link to follow");
 });
 
 /* --------------------------- semantics and keyboard ------------------------ */

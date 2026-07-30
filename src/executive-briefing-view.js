@@ -301,6 +301,13 @@ export function renderSourceNotice(absence) {
   panel.append(heading);
   panel.append(el("p", "brief-source-statement", absence.statement));
   if (absence.remedy) panel.append(el("p", "brief-source-remedy", absence.remedy));
+  const actions = el("p", "brief-source-actions");
+  const example = el("a", "brief-source-return-link", "Open the bundled example");
+  example.setAttribute("href", "/executive-briefing.html?example=ai-finops-bundled");
+  const own = el("a", "brief-source-return-link", "Analyze your own export");
+  own.setAttribute("href", "/evolution.html#local-finops-files");
+  inline(actions, example, own);
+  panel.append(actions);
   panel.append(el("p", "brief-source-substitute",
     "The published synthetic sample is shown below so the artifact can be read and printed in full. "
     + "Every figure in it is invented, and none of it is a measurement of your spend."));

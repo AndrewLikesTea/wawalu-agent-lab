@@ -74,11 +74,10 @@ export const WORKSPACE_ABSENCE_COPY = Object.freeze({
       + "before using this browser's figures for an executive briefing.",
   }),
   [WORKSPACE_ABSENCE.notAsked]: Object.freeze({
-    summary: "This browser is not keeping FinOps figures yet",
-    statement: "Nothing FinOps-related is stored here, and nothing will be until you choose it on the "
-      + "AI FinOps page.",
-    remedy: "Run an analysis on the AI FinOps page and let this browser remember the derived figures. "
-      + "Only the derived aggregates are kept — no file, prompt, credential, or source row.",
+    summary: "No FinOps analysis yet",
+    statement: "No FinOps analysis is available in this browser.",
+    remedy: "Try the bundled example, or analyze your own export. Your export and briefing figures "
+      + "are not transmitted.",
   }),
   [WORKSPACE_ABSENCE.declined]: Object.freeze({
     summary: "This browser is set not to keep FinOps figures",
@@ -88,11 +87,10 @@ export const WORKSPACE_ABSENCE_COPY = Object.freeze({
       + "Changing the retention choice there is what gives this page your own months to brief on.",
   }),
   [WORKSPACE_ABSENCE.empty]: Object.freeze({
-    summary: "This browser is remembering FinOps figures and holds none yet",
-    statement: "Retention is on, but no analysis has been run whose derived period could be kept, so "
-      + "there is no reporting period to select.",
-    remedy: "Run one analysis on the AI FinOps page. One retained month produces a briefing; three "
-      + "consecutive months are what a trailing baseline needs.",
+    summary: "No FinOps analysis yet",
+    statement: "No FinOps analysis is available in this browser.",
+    remedy: "Try the bundled example, or analyze your own export. Your export and briefing figures "
+      + "are not transmitted.",
   }),
 });
 
