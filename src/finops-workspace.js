@@ -59,6 +59,9 @@ import {
 } from "./finops-workspace-contract.js";
 import { MIGRATION_STATUS, migrateFinopsWorkspace } from "./finops-workspace-migrations.js";
 import { ORG_UNIT_LABEL_STORAGE_KEY, readOrgUnitLabels } from "./org-unit-labels.js";
+import {
+  MONTHLY_ACTION_KEY, readMonthlyAction,
+} from "./monthly-department-action-store.js";
 
 /** The three answers a visitor can have given. `not_asked` is not `declined`. */
 export const FINOPS_CONSENT = Object.freeze({
@@ -82,7 +85,7 @@ export const FINOPS_STATE = Object.freeze({
 });
 
 /** The file this page downloads. Everything the forget action deletes is in it. */
-export const FINOPS_FILE_VERSION = "finops-workspace-file/1.0.0";
+export const FINOPS_FILE_VERSION = "finops-workspace-file/1.1.0";
 
 /** The most months this browser keeps. Older ones fall off the front. */
 export const MAX_RETAINED_PERIODS = 24;
@@ -743,7 +746,7 @@ const KEY_CLEARED = (storage, key) => {
 };
 
 /**
- * Remove everything FinOps kept, then read both keys back to prove it.
+ * Remove everything FinOps kept, then read every key back to prove it.
  *
  * Consent returns to `not_asked` rather than to `declined`, because forgetting
  * is not an answer to the question — the next visit asks it again from a clean
@@ -751,7 +754,7 @@ const KEY_CLEARED = (storage, key) => {
  * promised. Shiplog decisions and releases are not touched.
  */
 export function forgetFinopsWorkspace(storage) {
-  const keys = [FINOPS_WORKSPACE_KEY, ORG_UNIT_LABEL_STORAGE_KEY];
+  const keys = [FINOPS_WORKSPACE_KEY, ORG_UNIT_LABEL_STORAGE_KEY, MONTHLY_ACTION_KEY];
   try {
     for (const key of keys) clearKey(storage, key);
     if (!keys.every((key) => KEY_CLEARED(storage, key))) {
@@ -779,6 +782,7 @@ export function finopsWorkspaceFile(storage, { now = new Date() } = {}) {
     exportedAt: now.toISOString(),
     workspace: document,
     orgUnitLabels: readOrgUnitLabels(storage),
+    monthlyDepartmentAction: readMonthlyAction(storage).record,
   };
 }
 

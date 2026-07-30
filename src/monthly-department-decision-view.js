@@ -6,6 +6,9 @@ import {
 } from "./finops-workspace.js";
 import { restoreFinopsWorkspace } from "./finops-workspace-restore.js";
 import { applyWorkspaceRestore } from "./finops-workspace-restore-view.js";
+import {
+  compareMonthlyAction, readMonthlyAction, writeMonthlyAction,
+} from "./monthly-department-action-store.js";
 
 export const MONTHLY_DECISION_SECTION_ID = "monthly-department-decision";
 
@@ -60,6 +63,16 @@ function commitmentId(decision) {
 
 function trackedCommitment(storage, decision) {
   if (!decision.action) return null;
+  const local = readMonthlyAction(storage);
+  if (local.record?.department === decision.department
+    && local.record.actionId === decision.action.id) {
+    return {
+      department: decision.department,
+      actionId: decision.action.id,
+      status: "Saved for later review",
+      reference: local.record.actionId,
+    };
+  }
   const match = readRetainedCommitments(storage)
     .find((entry) => entry.commitmentId === commitmentId(decision));
   return match ? {
@@ -248,11 +261,15 @@ export function applyMonthlyDepartmentDecision(doc, pack, options = {}) {
     decline.type = "button";
     commit.addEventListener("click", () => {
       const result = retainApprovedCommitment(storage, commitmentInput(decision, now), { now });
-      if (result.ok) {
+      const actionResult = result.ok ? writeMonthlyAction(storage, decision, { now }) : null;
+      if (result.ok && actionResult.ok) {
         announce(doc, outcome, "tracked", "Kept in this browser and awaiting a compatible later "
           + "analysis. Nothing is proven yet: no saving has been realized or verified.");
       } else {
-        announce(doc, outcome, "not-tracked", `${result.message} Choose “Local workspace” to `
+        const message = result.ok
+          ? "The commitment was kept, but the monthly action could not be restored from storage."
+          : result.message;
+        announce(doc, outcome, "not-tracked", `${message} Choose “Local workspace” to `
           + "allow browser-only retention, then return here.");
       }
       if (result.ok) {
@@ -282,44 +299,43 @@ export function applyMonthlyDepartmentDecision(doc, pack, options = {}) {
 
   if (decision.state === MONTHLY_DECISION_STATE.tracked) {
     const restored = restoreFinopsWorkspace(storage, { now });
+    const storedAction = readMonthlyAction(storage);
+    const comparison = storedAction.record
+      ? compareMonthlyAction(storedAction.record, initial) : null;
     const trend = restored.available ? restored.trend : null;
-    const reviewState = trend?.available ? "comparable"
-      : trend?.reason === "contract_changed" ? "non-comparable" : "awaiting";
+    const reviewState = comparison?.comparable ? "comparable"
+      : comparison?.status === "awaiting_later_analysis" || !storedAction.record
+        ? "awaiting" : "non-comparable";
     review.dataset.state = reviewState;
     review.setAttribute("aria-label",
       `Later monthly review: ${STATE_PRESENTATION[reviewState].label}`);
-    const currentMinor = restored.briefing?.analyzedSpend
-      ? Number(restored.briefing.analyzedSpend.replace(/[^0-9.-]/g, "")) * 100 : null;
-    const priorMinor = trend?.available && Number.isFinite(currentMinor)
-      ? currentMinor - trend.changeMinor : null;
-    const comparison = element(doc, "dl", "monthly-decision-comparison");
+    const comparisonList = element(doc, "dl", "monthly-decision-comparison");
     for (const [term, value] of [
-      // Not "baseline": that word already names the action's monthly avoidable
-      // spend two answers above, and these are analyzed-spend totals.
-      ["Earlier analyzed spend", priorMinor === null ? "Not available" : minorMoney(priorMinor)],
-      ["Current analyzed spend", currentMinor === null ? "Not available" : minorMoney(currentMinor)],
+      ["Committed baseline", comparison?.baseline == null ? "Not available" : money(comparison.baseline)],
+      ["Current result", comparison?.current == null ? "Not comparable" : money(comparison.current)],
       ["Comparison status", STATE_PRESENTATION[reviewState].label],
     ]) {
       const row = element(doc, "div");
       row.append(element(doc, "dt", null, term), element(doc, "dd", null, value));
-      comparison.append(row);
+      comparisonList.append(row);
     }
     review.append(
-      statusLine(doc, reviewState, trend?.available
-        ? "Two retained periods use the same analysis contract."
-        : trend?.reason === "contract_changed"
-          ? "The retained periods use different analysis contracts."
-          : "A second compatible retained period is required."),
-      element(doc, "h4", null, trend?.available
-        ? `Earlier versus current: analyzed spend went ${trend.direction}`
-        : trend?.reason === "contract_changed"
-          ? "This later analysis is not comparable"
+      statusLine(doc, reviewState, comparison?.comparable
+        ? "The committed baseline and current result use the same decision and metric contract."
+        : reviewState === "non-comparable"
+          ? "The current analysis does not use the committed action and metric contract."
+          : "A compatible later monthly analysis is required."),
+      element(doc, "h4", null, comparison?.comparable
+        ? `Baseline versus current: ${money(comparison.baseline)} to ${money(comparison.current)}`
+        : reviewState === "non-comparable" ? "This later analysis is not comparable"
           : "Waiting for a compatible later analysis"),
-      element(doc, "p", null, trend?.statement
-        ?? "Run and retain a later monthly analysis to compare analyzed spend. No realized savings are available."),
-      comparison,
+      element(doc, "p", null, comparison?.comparable
+        ? `The current result changed by ${money(Math.abs(comparison.change))} from the committed baseline.`
+        : trend?.statement
+          ?? "Run a compatible later monthly analysis. No realized savings are available."),
+      comparisonList,
       element(doc, "p", "monthly-decision-review-boundary",
-        "Result type: unproven analyzed-spend movement. This does not measure, attribute, or verify savings from this action."),
+        "Result type: unproven metric movement. This does not measure, attribute, or verify savings from this action."),
     );
   }
 

@@ -248,7 +248,7 @@ test("the page ships a readable FinOps loading state before any module runs", as
   const document = (await loadPage(PAGE)).document;
 
   assert.equal(document.querySelector("#fw-panel").getAttribute("aria-busy"), "true");
-  assert.match(shown(document, "fw-summary"), /Reading this browser's two FinOps keys/);
+  assert.match(shown(document, "fw-summary"), /Reading this browser's FinOps keys/);
   // The boundary claims are static markup: they do not wait for a script.
   assert.match(shown(document, "finops-preview-title"), /What AI FinOps would remember here/);
   assert.match(shown(document, "finops-never-stored"), /Credentials, prompts, raw imports/);
