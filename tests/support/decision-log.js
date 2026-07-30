@@ -6,7 +6,7 @@
 // the empty state can be driven the way a user drives it. The controls are
 // modelled as the native form elements they are: a change event carries the
 // new value, which is exactly what a keyboard user produces.
-import { createElement, installDocument } from "./dom.js";
+import { byClass, createElement, installDocument } from "./dom.js";
 
 function control(properties = {}) {
   const node = {
@@ -27,9 +27,57 @@ function select(value = "all") {
   return node;
 }
 
-export function createHistoryHarness(data) {
+// A browsing session: one location, one history stack, and the popstate the
+// browser fires when the Back button unwinds it. pushState/replaceState are
+// modelled the way a browser implements them — they rewrite `location.search`
+// without firing an event — so the page under test is driven through exactly
+// the API it calls in production, and Back is a real step backwards rather than
+// a direct call into a handler.
+function createBrowsingSession(start = "") {
+  const location = { pathname: "/", search: start, hash: "", origin: "https://labs.wawalu.org" };
+  const entries = [start];
+  let index = 0;
+  const listeners = [];
+  const searchOf = (url) => {
+    const query = String(url).indexOf("?");
+    return query === -1 ? "" : String(url).slice(query);
+  };
+  const history = {
+    pushState(state, title, url) {
+      entries.splice(index + 1);
+      entries.push(searchOf(url));
+      index = entries.length - 1;
+      location.search = entries[index];
+    },
+    replaceState(state, title, url) {
+      entries[index] = searchOf(url);
+      location.search = entries[index];
+    },
+  };
+  const window = {
+    location,
+    history,
+    addEventListener(type, handler) { if (type === "popstate") listeners.push(handler); },
+  };
+  return {
+    location,
+    history,
+    window,
+    get entries() { return [...entries]; },
+    back() {
+      if (index === 0) return false;
+      index -= 1;
+      location.search = entries[index];
+      for (const handler of listeners) handler({ type: "popstate" });
+      return true;
+    },
+  };
+}
+
+export function createHistoryHarness(data, { search = "", clipboard } = {}) {
   installDocument();
   globalThis.document.documentElement = { dataset: {} };
+  const session = createBrowsingSession(search);
   globalThis.window = { location: { hash: "" } };
   globalThis.Option = function Option(label, value) { return { label, value, textContent: label }; };
   globalThis.fetch = async () => ({ ok: true, json: async () => data });
@@ -49,6 +97,13 @@ export function createHistoryHarness(data) {
     "#exit-decision-recorder": control(),
     "#title": control({ scrollIntoView() {} }),
     "#decisions-title": control({ scrollIntoView() {} }),
+    "#filter-from": control({ value: "" }),
+    "#filter-to": control({ value: "" }),
+    "#filter-current-only": control(),
+    "#history-filter-summary": createElement("p"),
+    "#history-filter-chips": createElement("ul"),
+    "#copy-history-link": control(),
+    "#history-copy-status": createElement("p"),
   };
   const radios = ["all", "decision", "release"].map((value) =>
     control({ value, checked: value === "all", name: "record-type" }));
@@ -70,6 +125,33 @@ export function createHistoryHarness(data) {
     storage,
     radios,
     elements,
+    // Handed to initDecisionLog as `options`, so the page reads and writes this
+    // session's URL instead of the process-wide one.
+    browser: {
+      location: session.location,
+      history: session.history,
+      window: session.window,
+      clipboard,
+    },
+    get url() { return session.location.search; },
+    get entries() { return session.entries; },
+    back: () => session.back(),
+    summary: elements["#history-filter-summary"],
+    chips: elements["#history-filter-chips"],
+    copyStatus: elements["#history-copy-status"],
+    chipButtons: () => byClass(elements["#history-filter-chips"], "filter-chip"),
+    removeChip(filter) {
+      const button = byClass(elements["#history-filter-chips"], "filter-chip")
+        .find((chip) => chip.dataset.filter === filter);
+      if (!button) throw new Error(`No chip for the ${filter} filter is on screen.`);
+      button.dispatch("click");
+      return button;
+    },
+    chooseDates(from, to) {
+      elements["#filter-from"].value = from;
+      elements["#filter-to"].value = to;
+      elements["#filter-from"].dispatch("change");
+    },
     list: elements["#decision-list"],
     count: elements["#decision-count"],
     search: elements["#decision-search"],

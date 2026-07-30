@@ -753,6 +753,31 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .supersede-summary:empty { display:none; }
 .filter-toggle { align-self:end; min-height:41px; margin:0; padding:0 14px; background:transparent; color:#1f70c1; border:1px solid #9cb9d4; }
 .filter-toggle[aria-pressed="true"] { background:#1f70c1; color:#fff; border-color:#1f70c1; }
+/* The recorded-on window: two labelled date inputs on one row, each keeping its
+   own label above it so neither end is identified by position alone. */
+.filter-dates { flex:1 1 260px; min-width:220px; }
+.filter-date-options { gap:10px 12px; }
+.filter-date { display:flex; flex-direction:column; gap:6px; flex:1 1 120px; min-width:118px; }
+.filter-date label { color:#62625d; font:700 11px/1.4 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; }
+.filter-date input { min-height:41px; padding:9px 11px; }
+/* THE HEADLINE OF THE LIST.
+   The summary reads first and largest; the chips under it are the same
+   information broken into the filters that produced it, sized as controls
+   rather than as prose so the row cannot compete with the sentence above it. */
+.filter-summary-panel { display:grid; gap:9px; margin:0 0 16px; }
+.filter-summary { margin:0; color:#26261f; font:700 19px/1.35 system-ui,sans-serif; }
+.filter-summary[data-filtered="true"] { color:#174f84; }
+.filter-chips { display:flex; flex-wrap:wrap; gap:8px; margin:0; padding:0; list-style:none; }
+.filter-chips[hidden] { display:none; }
+.filter-chip { display:inline-flex; align-items:center; gap:8px; min-height:32px; margin:0; padding:4px 11px; border:1px solid #b9cbdd; border-radius:999px; background:#eef4fb; color:#174f84; font:600 13px/1.35 system-ui,sans-serif; cursor:pointer; }
+.filter-chip:hover { background:#dce9f7; border-color:#1f70c1; }
+.filter-chip-text { overflow-wrap:anywhere; }
+.filter-chip-dismiss { font-size:15px; line-height:1; color:#3f6f9f; }
+.filter-share { display:flex; flex-wrap:wrap; align-items:center; gap:6px 12px; }
+.filter-share-action { min-height:38px; margin:0; padding:0 13px; background:transparent; color:#1f70c1; border:1px solid #9cb9d4; font-size:13px; }
+.filter-share-action:hover { background:#eef4fb; color:#174f84; }
+.filter-copy-status { margin:0; color:#4a4a45; font-size:13px; }
+.filter-copy-status:empty { display:none; }
 .field-error { margin:0; color:#8c2f28; font-size:12px; line-height:1.45; overflow-wrap:anywhere; }
 .field-error[hidden] { display:none; }
 /* The recorder's form-level count. It spans both form columns and is banded

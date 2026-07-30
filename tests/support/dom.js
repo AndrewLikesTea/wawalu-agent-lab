@@ -19,6 +19,10 @@ export function createElement(tagName) {
     className: "",
     hidden: false,
     ownText: "",
+    // Focus is counted, not simulated: these tests assert that a control was
+    // given focus after a re-render, which is a thing the render layer does.
+    focused: 0,
+    focus() { node.focused += 1; },
     get classes() { return node.className.split(" ").filter(Boolean); },
     classList: {
       add(...names) { node.className = [...new Set([...node.classes, ...names])].join(" "); },

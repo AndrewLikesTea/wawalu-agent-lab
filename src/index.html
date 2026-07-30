@@ -401,6 +401,25 @@
                 <option value="all">all</option>
               </select>
             </div>
+            <!-- The recorded-on window. Two native date inputs, each with its
+                 own visible label, so the range is keyboard-operable and its
+                 two ends are separately clearable. Both bounds are inclusive
+                 and read as calendar days; an end before the start is repaired
+                 rather than shown as an empty history. -->
+            <fieldset class="filter filter-group filter-dates">
+              <legend>Recorded between</legend>
+              <div class="filter-options filter-date-options">
+                <span class="filter-date">
+                  <label for="filter-from">From</label>
+                  <input id="filter-from" type="date" aria-describedby="filter-date-hint" />
+                </span>
+                <span class="filter-date">
+                  <label for="filter-to">To</label>
+                  <input id="filter-to" type="date" aria-describedby="filter-date-hint" />
+                </span>
+              </div>
+              <span class="hint" id="filter-date-hint">Both days are included. Leave one empty for an open-ended window.</span>
+            </fieldset>
             <div class="filter">
               <label for="sort-by">Sort</label>
               <select id="sort-by">
@@ -431,6 +450,26 @@
                list itself is deliberately not a live region: re-announcing every
                matching record on each keystroke floods a screen reader. -->
           <p class="visually-hidden" id="history-announcement" role="status" aria-live="polite"></p>
+          <!-- WHAT THIS VIEW IS, ABOVE THE RESULTS.
+               The summary is the headline of the list — how many of the log's
+               records survived the filters, over what scope — and the chips
+               below it are the secondary row that says which filters produced
+               that number and lets any one of them go. app.js writes both from
+               the same filter state the URL carries, and writes them as text: a
+               search term is a visitor's string and never markup. The count
+               here is what a visitor whose script has not run sees, and matches
+               the static #decision-count above. -->
+          <div class="filter-summary-panel">
+            <p class="filter-summary" id="history-filter-summary" data-filtered="false">10 records</p>
+            <ul class="filter-chips" id="history-filter-chips" aria-label="Active filters" hidden></ul>
+            <div class="filter-share">
+              <button class="filter-share-action" id="copy-history-link" type="button">Copy link to this view</button>
+              <!-- A live region of its own, present before there is anything to
+                   say, so the copy confirmation is announced without competing
+                   with the record count in #history-announcement. -->
+              <p class="filter-copy-status" id="history-copy-status" role="status" aria-live="polite"></p>
+            </div>
+          </div>
           <div id="decision-list" aria-busy="true">
             <div class="list-state list-state-loading" role="status">
               <h3>Loading decisions</h3>
