@@ -176,6 +176,26 @@
             <p class="first-run-value" id="finops-first-run-peer-value" data-available="false">Not yet compared</p>
             <p class="first-run-detail" id="finops-first-run-peer-detail" hidden></p>
           </div>
+          <!-- THE DRILL-DOWN OF THAT SAME POSITION, one slot to its right: the
+               widest gap between this organization's OWN departments, stated in
+               the same units. `internal-cost-gap.js` imports the metric, the
+               band boundaries, and the eligibility floor from
+               `peer-cost-position.js` rather than restating any of them, so
+               "bottom quartile against comparable organizations" and "a full
+               band behind internally" are the same measurement at two scopes.
+
+               One consolidated pair, never a list of per-department alerts. The
+               authored value is a pending state for the same reason the peer
+               slot's is: every figure here comes out of the analysis path at run
+               time. When the finding is suppressed — too few departments over
+               the sample floor, no department dimension in the records, or a
+               spread that never leaves one band — this slot carries that
+               module's own reason sentence, with the real numbers in it. -->
+          <div class="first-run-slot">
+            <h3 class="first-run-slot-label" id="finops-first-run-internal-heading">Internal drill-down · widest department gap</h3>
+            <p class="first-run-value" id="finops-first-run-internal-value" data-available="false">Not yet compared</p>
+            <p class="first-run-detail" id="finops-first-run-internal-detail" hidden></p>
+          </div>
         </div>
         <!-- A score never appears without the basis for it. An impact figure
              with no statement of how much of it was verified asks the reader to

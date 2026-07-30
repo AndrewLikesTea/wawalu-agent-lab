@@ -225,6 +225,31 @@ test("the peer position is authored adjacent to the recommended action", async (
   assert.doesNotMatch(textOf(value), /quartile|\$/i);
 });
 
+test("the internal drill-down is authored in the same area as the peer position", async () => {
+  const document = parseHtml(await readFile(PAGE, "utf8"));
+  const support = document.querySelectorAll(".first-run-support")[0];
+  assert.ok(support, "the drill-down lives in the peer position's own area");
+  const values = support.querySelectorAll(".first-run-value").map((node) => node.id);
+  assert.deepEqual(values, [FIRST_RUN_IDS.peerValue, FIRST_RUN_IDS.internalValue],
+    "the internal gap follows the org-level position it drills into");
+
+  // The same slot idiom as its neighbour, down to the heading level: an h3 under
+  // the region's h2, a value, and a detail that is hidden until it has content.
+  const heading = support.querySelectorAll("h3")[1];
+  assert.equal(textOf(heading), "Internal drill-down · widest department gap");
+  const value = byId(document, FIRST_RUN_IDS.internalValue);
+  assert.equal(value.className, "first-run-value");
+  assert.equal(value.dataset.available, "false");
+  // Authored as a pending state: no hand-written band, no department name, and
+  // never the bare word "Unavailable".
+  assert.notEqual(textOf(value), "Unavailable");
+  assert.doesNotMatch(textOf(value), /quartile|band|\$/i);
+  assert.equal(byId(document, FIRST_RUN_IDS.internalDetail).hasAttribute("hidden"), true);
+  // No new control, so no new tab stop and no new focus trap in this area.
+  assert.equal(support.querySelectorAll("button").length, 0);
+  assert.equal(support.querySelectorAll("a").length, 0);
+});
+
 test("two distinct next steps, both real buttons, neither a scroll hint", async () => {
   const document = parseHtml(await readFile(PAGE, "utf8"));
   const demo = byId(document, FIRST_RUN_IDS.demo);
@@ -286,7 +311,8 @@ test("a visitor with no files meets four resolved slots and one ranked action", 
     // The method disclosure is painted from the briefing, not from the markup.
     const terms = byId(document, FIRST_RUN_IDS.methodList)
       .querySelectorAll("dt").map((node) => textOf(node));
-    assert.deepEqual(terms, ["Inputs", "Path", "Arithmetic", "Coverage", "Limits", "Where it ran"]);
+    assert.deepEqual(terms,
+      ["Inputs", "Path", "Arithmetic", "Coverage", "Limits", "Internal gap", "Where it ran"]);
 
     // One announcement, carrying what a reader who cannot see the block needs
     // to decide whether to read it: what kind of numbers, and what they say.
@@ -297,6 +323,65 @@ test("a visitor with no files meets four resolved slots and one ranked action", 
   } finally {
     page.restore();
   }
+});
+
+test("the internal department gap renders in the drill-down area of the booted page", async () => {
+  const page = await bootedPage();
+  const { document } = page;
+  try {
+    // The bundled example, with no import at all, produces a real internal
+    // finding — a module with no consuming surface is the failure mode this
+    // pins. `internal-cost-gap.test.js` owns the rubric; what is pinned here is
+    // that the answer reaches the slot a reader can see.
+    const value = byId(document, FIRST_RUN_IDS.internalValue);
+    assert.equal(value.dataset.available, "true");
+    assert.match(textOf(value),
+      /^.+ is (a full band|\d+ full bands) behind .+ on cost per successful task\.$/);
+
+    // Both sides' record counts, and the provenance, in the detail beside it.
+    const detail = byId(document, FIRST_RUN_IDS.internalDetail);
+    assert.equal(detail.hidden, false);
+    const text = textOf(detail);
+    assert.equal(text.match(/successful tasks across \d+ records/g)?.length, 2,
+      "each side states how many records it was computed over");
+    assert.match(text, /Lower cost per successful task is better\./);
+    assert.match(text, /cost_per_successful_task · finops-cost-position\//);
+    assert.match(text, /\d{4}-\d{2}-\d{2} to \d{4}-\d{2}-\d{2}\.$/);
+
+    // And the same provenance in the evidence disclosure, where this surface
+    // already surfaces comparable evidence, in a form a later pass can recompute.
+    const entries = byId(document, FIRST_RUN_IDS.methodList).querySelectorAll("div");
+    const gapEntry = entries.find((node) => textOf(node.querySelectorAll("dt")[0]) === "Internal gap");
+    assert.ok(gapEntry, "the internal gap publishes its provenance with the rest of the evidence");
+    assert.match(textOf(gapEntry.querySelectorAll("dd")[0]),
+      /orgUnitId in \S+, \S+ · \d{4}-\d{2}-\d{2} to \d{4}-\d{2}-\d{2}\. Recompute from these and compare\./);
+  } finally {
+    page.restore();
+  }
+});
+
+test("a suppressed internal gap renders its stated reason rather than an empty panel", async () => {
+  const analysis = loadExampleDataset();
+  // An import that declared no size band or industry: the shared rubric cannot
+  // place the org, so it cannot place a department against the same boundaries
+  // either. The slot must say so in words.
+  const suppressed = composeFirstRunResult({
+    analysis, briefing: buildFinopsBriefing(analysis), org: null, tasks: null,
+  });
+  assert.equal(suppressed.internalGap.status, "suppressed");
+  assert.equal(suppressed.internal.available, false);
+  assert.match(suppressed.internal.value, /^No internal comparison: /);
+  assert.notEqual(suppressed.internal.value, UNAVAILABLE_VALUE,
+    "the bare word Unavailable is never this slot's answer");
+
+  // Painted into the real markup, the reason is visible text in the slot — not a
+  // console warning, not a blank element, and not a value with no explanation.
+  const document = parseHtml(await readFile(PAGE, "utf8"));
+  applyFirstRunResult(document, suppressed);
+  const value = byId(document, FIRST_RUN_IDS.internalValue);
+  assert.equal(value.dataset.available, "false");
+  assert.equal(textOf(value), suppressed.internal.value);
+  assert.ok(textOf(value).length > 20, "the reason is a sentence, not a dash");
 });
 
 test("the block survives a bundled fixture that never arrives", async () => {
