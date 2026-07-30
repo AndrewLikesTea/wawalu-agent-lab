@@ -1,12 +1,16 @@
-import { demoSavingsClaim, loadSavingsActionCenter } from "/savings-action-center.js";
+import { loadSavingsActionCenter } from "/savings-action-center.js";
 import {
-  importedSavingsClaim, readEvidenceFiles, savingsEvidenceBundle,
+  readEvidenceFiles, savingsEvidenceBundle,
 } from "/savings-evidence.js";
 import {
   renderEvidenceRejections,
+  renderRecurringReviewReadiness,
   renderSavingsActionCenter,
   renderSavingsActionCenterError,
 } from "/savings-action-center-view.js";
+import {
+  demoRecurringReviewReadiness, recurringReviewReadiness,
+} from "/recurring-review-readiness.js";
 import { loadDecisions } from "/app.js";
 import { loadReleases } from "/releases.js";
 import {
@@ -83,11 +87,14 @@ function renderClaim() {
   clearButton.disabled = !importing;
   renderReconciliation();
   if (importing) {
-    paint(renderSavingsActionCenter(importedSavingsClaim(opened)));
+    // Saved briefings do not yet retain the complete metric-definition,
+    // currency, scope, and aligned-duration contract required by the recurring
+    // review. Refuse a recommendation instead of translating partial fields.
+    paint(renderRecurringReviewReadiness(recurringReviewReadiness(), { source: "imported" }));
     return;
   }
   paint(demo
-    ? renderSavingsActionCenter(demoSavingsClaim(demo))
+    ? renderRecurringReviewReadiness(demoRecurringReviewReadiness())
     : renderSavingsActionCenterError());
 }
 
