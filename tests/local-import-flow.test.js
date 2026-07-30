@@ -59,7 +59,10 @@ test("the import path names its required input, its formats, and one way in", as
   // Required versus optional is a word at the control, not something a reader
   // infers from the requirement rows further down.
   assert.match(help, /^Required: at least one provider period export/);
-  assert.match(help, /Optional: an org mapping for your own department names, and a query sample/);
+  assert.match(help, /Optional: an org mapping for your own department names, a query sample/);
+  // The fourth optional input, named where the picker is rather than only in the
+  // region that reports what was read from it.
+  assert.match(help, /a Shiplog delivery-history JSON export/);
   for (const format of ["CSV", "TSV", "v1 JSON envelope"])
     assert.ok(help.includes(format), `the supported formats must name ${format}`);
   // The privacy promise is made once, in the boundary above — not repeated here.

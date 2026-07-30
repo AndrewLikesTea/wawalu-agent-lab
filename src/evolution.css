@@ -375,6 +375,24 @@
 .org-query-source-declined-title { margin:0 2px; color:var(--import-ink); font-size:12.5px; font-weight:700; }
 .org-query-source-declined { margin:6px 0 12px 18px; padding:0; color:var(--ink-muted); font-size:12.5px; line-height:1.5; }
 
+/* What a chosen Shiplog delivery-history export turned out to be.
+   Three states, and each one is a word plus a leading shape before it is a
+   tint: the border colour below only ever agrees with the glyph and the label
+   the view already wrote, so a greyscale print and a colour-blind reader get the
+   same verdict as everyone else. */
+.delivery-history { flex-basis:100%; margin:12px 0 0; border:1px solid var(--import-line); border-left-width:4px; border-radius:10px; padding:12px 14px; background:var(--import-wash); }
+.delivery-history[data-outcome="accepted"] { border-left-color:#1d6f4b; }
+.delivery-history[data-outcome="incomplete"] { border-left-color:#8a6100; }
+.delivery-history[data-outcome="incompatible"] { border-left-color:#96261f; }
+.delivery-history>h3 { margin:0 0 8px; color:var(--import-ink); font-size:13px; font-weight:750; }
+.delivery-history-verdict { display:flex; flex-wrap:wrap; align-items:baseline; gap:6px; margin:0; color:var(--import-ink); font-size:13px; line-height:1.5; }
+.delivery-history-shape { font-size:15px; font-weight:750; }
+.delivery-history-counts { margin:8px 0 0; color:var(--ink-muted); font-size:12.5px; font-variant-numeric:tabular-nums; }
+.delivery-history-latest { margin:6px 0 0; color:var(--import-ink); font-size:12.5px; }
+.delivery-history-provenance { margin:6px 0 0; color:var(--ink-muted); font-size:12.5px; line-height:1.5; }
+.delivery-history-notes { margin:8px 0 0 18px; padding:0; color:var(--ink-muted); font-size:12.5px; line-height:1.5; }
+.delivery-history-note { margin-top:4px; }
+
 /* Every other way to start, behind one disclosure.
    The reader's own export is the page's first step, so the template downloads,
    the example conversation exports, and the saved-briefing reopen live here

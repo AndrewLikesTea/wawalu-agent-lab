@@ -377,7 +377,7 @@
           <div class="local-import-field">
             <label for="local-finops-files">Choose your export files</label>
             <input id="local-finops-files" type="file" accept=".json,.csv,.tsv,.txt,application/json,text/csv,text/tab-separated-values,text/plain" multiple aria-describedby="local-file-help" aria-invalid="false" />
-            <p id="local-file-help">Required: at least one provider period export, as CSV, TSV, or a v1 JSON envelope. Optional: an org mapping for your own department names, and a query sample. Choose them together or add them in batches; every provider period must come from the same source.</p>
+            <p id="local-file-help">Required: at least one provider period export, as CSV, TSV, or a v1 JSON envelope. Optional: an org mapping for your own department names, a query sample, and a Shiplog delivery-history JSON export if the releases you want spend compared against live in another install. Choose them together or add them in batches; every provider period must come from the same source.</p>
             <!-- The ceiling sentence is painted from the one place the numbers
                  are defined (import-limits.js). No number is written here. -->
             <p class="local-file-limits" id="local-file-limits"></p>
@@ -491,6 +491,28 @@
           <button id="clear-local-analysis" type="button" hidden>Return to example data</button>
         </div>
         <ul class="mapping-requirements" id="mapping-requirements" aria-label="Required inputs and what is still unresolved"></ul>
+
+        <!-- What a chosen Shiplog delivery-history export was found to be. The
+             region has exactly three states — accepted, accepted as a floor, and
+             not read — and every one of them is a word and a shape as well as a
+             tint. Every slot below is painted by shiplog-delivery-history-view.js
+             from the parsed outcome; the markup holds no count, no period, and
+             no reason of its own. No delivery id, instance id, export id, or
+             file name is ever written into it: the contract withholds them and
+             a version label derived from one is refused before it gets here. -->
+        <section class="delivery-history" id="delivery-history" data-outcome="absent" role="region" aria-labelledby="delivery-history-title" hidden>
+          <h3 id="delivery-history-title">Delivery history read from a Shiplog export</h3>
+          <p class="delivery-history-verdict">
+            <span class="delivery-history-shape" id="delivery-history-shape" aria-hidden="true"></span>
+            <strong class="delivery-history-state" id="delivery-history-state"></strong>
+            <span class="delivery-history-statement" id="delivery-history-statement"></span>
+          </p>
+          <p class="delivery-history-counts" id="delivery-history-counts" hidden></p>
+          <p class="delivery-history-latest" id="delivery-history-latest" hidden></p>
+          <p class="delivery-history-provenance" id="delivery-history-provenance" hidden></p>
+          <ul class="delivery-history-notes" id="delivery-history-notes" hidden></ul>
+          <p class="export-package-source">The full schema, the versioning rule, and what happens to partial, stale, malformed, reordered, and period-incompatible exports: <a href="/docs/shiplog-delivery-history-contract.md">Shiplog delivery-history contract</a>.</p>
+        </section>
 
         <!-- Step 2 of the flow, said out loud: before a single number is
              computed, the reader sees every column of their own file, what it
