@@ -45,6 +45,10 @@ try {
     // by side, each adapter's schema version, and what partial, stale,
     // malformed, reordered, and mixed-currency exports do.
     "multi-provider-intake-contract.md",
+    // Linked from the comparability region on the same panel: the metric
+    // definitions behind the verdict, the coverage benchmark, and the rule that
+    // picks the single next action.
+    "portfolio-comparability-contract.md",
   ]) {
     await cp(resolve(root, "docs", page), resolve(staging, "docs", page));
   }

@@ -185,6 +185,12 @@ import {
 import {
   applyWorkspaceNav, bindWorkspaceNav, supersedeWorkspaceNavRanking,
 } from "/finops-workspace-nav.js";
+// The question one level above the import panel: not "what did you read?" but
+// "may these providers be put in one number at all?" The contract owns the
+// verdict, the coverage benchmark, and the single next action; the samples are
+// invented locally so the judgment is readable before a reader has any files.
+import { evaluateSample } from "/portfolio-comparability-samples.js";
+import { bindPortfolioSamples } from "/portfolio-comparability-view.js";
 import {
   announce as announceStage, applyDatasetProvenance, applyExportPackageGuidance,
   applyFieldDiagnostic, applyImportLimits, applyOrgQuerySources, applyOrgQuerySourceStatus,
@@ -2720,6 +2726,11 @@ async function init() {
   // the keyboard there, and saying so once.
   applyWorkspaceNav(document, destinations, { hash: window.location?.hash ?? "" });
   bindWorkspaceNav(document);
+  // The comparability judgment on the import panel. Same synchronous pass and
+  // the same reason: it depends on no fetch, no file, and no adapter, so the
+  // question "may these be combined at all?" is readable and its next action is
+  // reachable by keyboard before a reader has chosen anything.
+  bindPortfolioSamples(document, evaluateSample);
   initFinopsContact(document);
   const gateway = createStaticGateway();
   const refreshGateway = document.getElementById("integration-gateway-refresh");
