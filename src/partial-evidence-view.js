@@ -156,6 +156,17 @@ function disclosure(doc, result) {
     details.append(errors);
   }
 
+  details.append(element(doc, "h4", "pe-disclosure-heading", "Eligibility score"));
+  details.append(element(doc, "p", "pe-eligibility-score",
+    `${result.eligibility.score} of 100 · aggregate threshold `
+    + `${result.eligibility.threshold}. ${result.eligibility.rule}`));
+  const dimensions = element(doc, "ul", "pe-eligibility-dimensions");
+  dimensions.setAttribute("aria-label", "Eligibility weights and assumptions");
+  dimensions.append(...result.eligibility.dimensions.map((entry) =>
+    element(doc, "li", null,
+      `${entry.id.replace(/_/g, " ")}: ${entry.earned} of ${entry.weight}. ${entry.assumption}`)));
+  details.append(dimensions);
+
   details.append(element(doc, "p", "pe-definition", result.material.definition));
   if (result.material.arithmetic) {
     details.append(element(doc, "p", "pe-arithmetic", result.material.arithmetic));
@@ -194,6 +205,8 @@ export function applyPartialEvidence(doc, result, { onAct } = {}) {
   section.dataset.policyVersion = result.version;
   section.dataset.admissible = String(result.evidence.admissible);
   section.dataset.excluded = String(result.evidence.excludedCount);
+  section.dataset.eligibilityScore = String(result.eligibility.score);
+  section.dataset.aggregateEligible = String(result.eligibility.aggregateEligible);
   // The peer claim is a fact on the element, not only a sentence inside it, so
   // "was a comparison measured?" is one attribute a reviewer can read.
   section.dataset.peerMeasured = String(result.peer.measured);
