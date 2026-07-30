@@ -81,7 +81,7 @@ const COMBINED_STATES = Object.freeze(["combined", "combined_bounded"]);
 
 /** The disclosure ids, in the order a reader opens them. */
 export const PORTFOLIO_DISCLOSURES = Object.freeze([
-  "composition", "exclusions", "coverage", "validation",
+  "composition", "contribution", "exclusions", "coverage", "validation",
 ]);
 
 const usable = (value) => metricState(value, "spendUsd").plausible;
@@ -185,6 +185,65 @@ function compositionRows(summary) {
   }));
 }
 
+/**
+ * The portfolio aggregate's one prioritized finding, then who contributed what,
+ * then what was kept out of the trusted total.
+ *
+ * The merge cannot split its own period back into per-provider spend, but the
+ * records inside it never stopped declaring a provider — `aggregatePortfolio`
+ * re-derives the split from that identity, and this disclosure is where a lead
+ * reads it. When no aggregate is on the envelope the group opens onto the reason
+ * rather than disappearing, so "who is 60% of this?" always has an answer or a
+ * stated absence.
+ */
+function contributionRows(portfolio) {
+  if (!portfolio?.available) return [];
+  const rows = [];
+  const finding = portfolio.finding ?? null;
+  if (finding?.available) {
+    rows.push(Object.freeze({ term: finding.title, detail: finding.summary }));
+    rows.push(Object.freeze({
+      term: `Impact · confidence ${finding.confidence?.level ?? "unavailable"}`,
+      detail: `${finding.impact.text}. ${finding.impact.basis}`,
+    }));
+    rows.push(Object.freeze({ term: "Next action", detail: finding.nextAction.text }));
+  }
+  for (const entry of list(portfolio.contributions)) {
+    rows.push(Object.freeze({
+      term: `${entry.label} — ${entry.sharePercent}%`,
+      detail: `${entry.spendUsd.toFixed(2)} USD over ${entry.evidenceId} · `
+        + `${plural(entry.records, "record")} · export ${entry.exportId}`,
+    }));
+  }
+  for (const held of list(portfolio.exclusions)) {
+    rows.push(Object.freeze({
+      term: `${held.evidenceId} — ${String(held.code).replace(/_/g, " ")}`,
+      detail: `${held.message} ${held.action}`.trim(),
+    }));
+  }
+  const delivery = portfolio.deliveryEfficiency ?? null;
+  if (delivery) {
+    rows.push(Object.freeze({
+      term: "Delivery efficiency",
+      detail: delivery.available
+        ? `${delivery.spendPerDeliveryUsd.toFixed(2)} USD per delivery across `
+          + `${plural(delivery.deliveries, "delivery")} in the aligned window.`
+        : delivery.reason,
+    }));
+  }
+  const trend = portfolio.trend ?? null;
+  if (trend) {
+    rows.push(Object.freeze({
+      term: "Portfolio trend",
+      detail: trend.eligible
+        ? `${trend.spendChangePercent}% against ${trend.previousPeriod} on an unchanged `
+          + "provider set."
+        : trend.reason,
+    }));
+  }
+  return rows;
+}
+
 function exclusionRows(analysis, summary) {
   const rejections = list(summary.rejections);
   if (rejections.length === 0) return [];
@@ -259,13 +318,30 @@ export function portfolioBrief(analysis) {
 
   const providerLabels = list(summary.providers).map((provider) => provider.label);
   const periodCount = list(analysis.history?.periods).length;
+  const portfolio = analysis.portfolio ?? null;
+  const contribution = contributionRows(portfolio);
   const disclosures = Object.freeze([
     Object.freeze({
       id: "composition",
       summary: `Which providers are inside this total (${providerLabels.length})`,
       note: "Windows covered by more than one provider are merged before any total is computed, "
-        + "so the aligned figure cannot be split back into per-provider spend.",
+        + "so the merged period itself carries no per-provider spend column.",
       rows: Object.freeze(compositionRows(summary)),
+    }),
+    Object.freeze({
+      id: "contribution",
+      summary: contribution.length
+        ? `Who this total is made of, and what to do about it (${contribution.length})`
+        : "Who this total is made of (unavailable)",
+      note: contribution.length
+        ? "Re-derived from each record's own provider identity after reconciliation, under "
+          + `${portfolio.provenance?.identityRule ?? "one provider per billing window"} `
+          + "Evidence excluded from the trusted total is listed with the reason and the action "
+          + "that recovers it."
+        : portfolio?.reason
+          ?? "No portfolio aggregate was computed for this analysis, so no per-provider split "
+            + "is published.",
+      rows: Object.freeze(contribution),
     }),
     Object.freeze({
       id: "exclusions",

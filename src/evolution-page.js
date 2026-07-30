@@ -130,7 +130,9 @@ import {
 // only the pairing — which spend periods and which release log — and hands both
 // sides to it.
 import { deliveryEfficiencyFinding } from "/delivery-efficiency-finding.js";
-import { spendPerDeliveryDecision, spendPerDeliveryInput } from "/spend-per-delivery.js";
+import {
+  deliveriesFromReleases, spendPerDeliveryDecision, spendPerDeliveryInput,
+} from "/spend-per-delivery.js";
 // The same figure asked of two aligned windows instead of a trailing mean, so the
 // panel can answer "and did it move since the last comparable window?".
 import { alignedSpendPerRelease } from "/aligned-spend-per-release.js";
@@ -419,6 +421,20 @@ function withDeliveryHistory(input, history) {
       ],
     },
   };
+}
+
+/**
+ * The releases a portfolio's delivery efficiency is divided by, in the one
+ * precedence this page already uses: an accepted delivery-history file answers
+ * for the whole log when there is one, and this browser's release log otherwise.
+ * The example dataset is never paired with a reader's own releases, so the
+ * example path supplies none and the aggregate reports the absence.
+ */
+function portfolioDeliveries() {
+  if (importedDeliveryHistory?.usable) {
+    return deliveriesFromDeliveryHistory(importedDeliveryHistory).deliveries;
+  }
+  return deliveriesFromReleases(storedDeliveryReleases()).deliveries;
 }
 
 function paintSpendPerDelivery(analysis, { example = false } = {}) {
@@ -1817,6 +1833,12 @@ function mountLocalFinopsImport() {
     renderResult(normalizeLocalFinopsHistory({
       providers: loaded.providers,
       hris: loaded.hris ?? null,
+      // The same denominator the spend-per-delivery panel divides by, under the
+      // same precedence: an accepted delivery-history file is authoritative and
+      // replaces this browser's release log rather than being merged with it, so
+      // the portfolio's delivery efficiency and the panel's ratio can never be
+      // counting different releases.
+      deliveries: portfolioDeliveries(),
     }));
   };
 

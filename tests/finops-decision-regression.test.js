@@ -532,6 +532,10 @@ const ALLOWED_MODULES = Object.freeze([
   "finops-attribution-policy.js", "finops-briefing-contract.js", "finops-decision-contract.js",
   "finops-decision-interaction.js", "finops-display.js", "finops-first-run.js",
   "finops-leading-finding.js",
+  // Reviewed on: pure arithmetic over already-accepted period documents. No
+  // fetch, no storage, no clock, no randomness — it is on the path because
+  // `local-finops.js` aggregates the portfolio during reconciliation.
+  "finops-portfolio-aggregate.js",
   "finops-workspace-contract.js", "finops-workspace-migrations.js", "finops-workspace.js",
   "grade-eligibility.js", "landing-decision-page.js", "landing-decision.js", "local-finops.js",
   "longitudinal-finops-metrics.js", "multi-provider-intake.js", "org-unit-labels.js", "prompt-literacy-scoring.js",
