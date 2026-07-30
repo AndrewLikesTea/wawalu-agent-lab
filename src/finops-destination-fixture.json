@@ -1,0 +1,124 @@
+{
+  "contractVersion": "finops-workspace-destinations/1.0.0",
+  "priorityRuleVersion": "destination-priority/1.0.0",
+  "question": "Where do I go next to act on this?",
+  "benchmark": {
+    "name": "Recoverable share of analyzed AI spend",
+    "baselineName": "Analyzed AI spend in the measurement window",
+    "baselineUsd": 154500,
+    "observedUsd": 51254,
+    "currency": "USD",
+    "comparisonShare": 0.3317,
+    "materialityMinShare": 0.05,
+    "materialityMinObservedUsd": 10000,
+    "material": true,
+    "window": {
+      "start": "2026-06-01T00:00:00Z",
+      "end": "2026-07-01T00:00:00Z",
+      "endExclusive": true
+    },
+    "basis": "Modelled recoverable spend divided by analyzed AI spend, both in USD over the half-open window 2026-06-01 inclusive to 2026-07-01 exclusive. Material because it clears both published thresholds: the share is at least 5% and the recoverable figure is at least 10,000 USD. Each threshold alone would pass a figure not worth a leader's meeting — a fifth of a 400 USD baseline, or 10,000 USD against 50,000,000 USD."
+  },
+  "rankedAction": {
+    "rank": 1,
+    "statement": "Pilot lower-cost routing for text-generation in Department …atlas0; cap the pilot at 32903.50 USD and verify against a like-for-like period.",
+    "accountableRole": "Platform Engineering Lead",
+    "departmentScope": "Department …atlas0",
+    "capUsd": 32903.5,
+    "window": {
+      "start": "2026-06-01T00:00:00Z",
+      "end": "2026-07-01T00:00:00Z",
+      "endExclusive": true
+    },
+    "priorityBasis": "Rank 1 of five invented departments. Only the top-ranked intervention is carried: a leader who has read one action and a cap can start, and a list of five would hand the ranking decision back to them.",
+    "rankingBasis": {
+      "key": "modelled_recoverable_spend_usd",
+      "direction": "descending",
+      "tieBreak": "department_pseudonym_ascending"
+    }
+  },
+  "finding": {
+    "id": "verify-before-committing-the-pilot-cap",
+    "statement": "One invented department holds the largest share of the recoverable spend, and the basis for its routing recommendation has one unchecked input — so the evidence panel comes before the commitment.",
+    "whyItMatters": "The pilot asks a named role to commit 32,903.50 USD of a department's spend. Committing that against a figure whose call shape was never verified is how a savings programme loses the room the first time a number is disputed.",
+    "confidence": {
+      "score": 0.85,
+      "scaleMin": 0,
+      "scaleMax": 1,
+      "band": "moderate",
+      "basis": "Coverage 1.00 — all 15 bundled example records were analyzed and all four required aggregate inputs were present — less 0.15 because the rank-1 routing candidate's call shape could not be verified. Coverage asks how much of the data was read; this score also asks how much of the recommendation was checked.",
+      "limits": [
+        {
+          "code": "missing_request_counts",
+          "detail": "No text-generation record reports usage in requests, so tokens per call could not be checked against the short-call ceiling."
+        }
+      ]
+    },
+    "provenance": {
+      "source": "synthetic-local",
+      "sourceLabel": "Bundled synthetic dataset, ranked in this browser tab",
+      "datasetId": "example-dataset/six-invented-months",
+      "generator": "finops-destination-fixture.json · loadWorkspaceDestinations",
+      "generatedAt": "2026-07-29T00:00:00Z",
+      "generatedAtBasis": "An authored static instant rather than a value taken from the clock in this tab, so the ranking is the same on every open and in every timezone.",
+      "executionContext": "Composed from a module in this page's bundle. No network call, no stored credential, no customer or telemetry data, and no live provider integration is involved; every company, account, and department named here is invented."
+    },
+    "evidence": {
+      "disclosure": "progressive",
+      "distinctFromSummary": true,
+      "entries": [
+        {
+          "term": "Why this order",
+          "detail": "Clause unchecked_basis fired first: the confidence for this finding carries one limit, so the evidence destination is promoted over the department drill-down and the monthly commitment loop. Clear that limit and the same rule promotes the act-and-verify loop instead."
+        },
+        {
+          "term": "How the department was ranked",
+          "detail": "Five invented departments ordered by modelled recoverable spend in USD over the window, descending; ties to the cent break on the department pseudonym ascending, so the order does not depend on input row order."
+        },
+        {
+          "term": "Where the cap comes from",
+          "detail": "The cap is the top-ranked department's own routing scenario value, not a share of the portfolio total, so a pilot cannot be authorised for more than the scenario it was justified by."
+        },
+        {
+          "term": "What is not claimed",
+          "detail": "None of these destinations reports a realized or invoiced saving. The bundled sample also ships no comparable peer cohort, so no peer position is claimed from it, and your own export will rank differently."
+        }
+      ]
+    }
+  },
+  "destinations": [
+    {
+      "id": "destination-recommendation-evidence",
+      "role": "evidence",
+      "rank": 1,
+      "label": "Check the evidence behind this recommendation",
+      "href": "#recommendation-evidence",
+      "answers": "What was actually measured, and which input was not checked?",
+      "doesNotAnswer": "It does not name the department to start in and it records no commitment.",
+      "disclosure": "progressive",
+      "callToAction": "Open the recommendation evidence",
+      "priorityClause": "unchecked_basis",
+      "selectionBasis": "Promoted to rank 1 by clause unchecked_basis under destination-priority/1.0.0: the finding's confidence carries one limit, so the basis is checked before a spend cap is committed."
+    },
+    {
+      "id": "destination-department-priority",
+      "role": "department-detail",
+      "rank": 2,
+      "label": "See which department to start in, and why",
+      "href": "#department-decision-panel",
+      "answers": "Which invented unit holds the recoverable spend, and how the five were ordered?",
+      "doesNotAnswer": "It does not verify the inputs behind the ranking and it records no commitment.",
+      "disclosure": "progressive"
+    },
+    {
+      "id": "destination-savings-action-center",
+      "role": "act-and-verify",
+      "rank": 3,
+      "label": "Commit the action and verify it next month",
+      "href": "/savings-action-center.html",
+      "answers": "What did we commit to, what landed, and what did the variance turn out to be?",
+      "doesNotAnswer": "It cannot confirm an unverified input, and every figure it carries is modelled rather than invoiced.",
+      "disclosure": "progressive"
+    }
+  ]
+}

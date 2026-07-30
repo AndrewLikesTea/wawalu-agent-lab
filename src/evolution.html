@@ -220,6 +220,40 @@
         <p class="visually-hidden" id="finops-first-run-live" role="status" aria-live="polite" aria-atomic="true"></p>
       </section>
 
+      <!-- WHERE THE READER GOES NEXT, and why this region exists at all.
+
+           The block above answers "are we wasting money?" and stops there. This
+           page has always had the follow-on surfaces — an in-page evidence
+           panel, a department drill-down, and a monthly act-and-verify loop on
+           its own page — but they were authored a thousand lines apart, and the
+           act-and-verify links sit inside a collapsed supporting disclosure near
+           the foot of the document. Three equally-presented doors scattered
+           through a monolith is not a recommendation: it hands the routing
+           decision back to a reader the page had just told it made for them.
+
+           So the ranking is stated here, as data, by
+           src/finops-destination-contract.js: three allowed destinations, one
+           per role, exactly one prioritized, and a named clause saying why that
+           one. The rank-1 door and the reason it won are visible; the other two
+           doors and the whole derivation are behind the two disclosures this
+           region's body paints. `data-decision-summary="evidence"` — it answers
+           a different question from the brief above and never restates that
+           one, so the page still presents exactly one complete summary.
+
+           It is superseded together with the example brief it belongs to: the
+           destinations stay true when a reader imports their own export, but
+           the order they are in was ranked from invented data. -->
+      <section class="finops-destinations" id="finops-destinations" data-state="unavailable" data-superseded="false" data-decision-summary="evidence" aria-labelledby="finops-destinations-title">
+        <div class="finops-destinations-head">
+          <p class="eyebrow" id="finops-destinations-label">Next step · one of three doors</p>
+          <h2 id="finops-destinations-title">Where do I go next to act on this?</h2>
+        </div>
+        <p class="sample-marker" id="finops-destinations-sample"><span class="sample-marker-shape" aria-hidden="true">◇</span><strong>Ranked from the bundled example</strong> The three destinations are real surfaces of this demo. The order they are in was computed from the same invented six-month dataset, not from your spend.</p>
+        <div id="finops-destinations-body">
+          <p class="dest-unavailable">No destination is ranked from this example.</p>
+        </div>
+      </section>
+
       <!-- The conversion moment, after the result and outside the region that
            holds it. It is deliberately quieter than either choice above: a
            reader who has just read a number and wants a person is taking a
