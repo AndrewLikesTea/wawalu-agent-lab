@@ -270,6 +270,7 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .detail-back:focus-visible { outline:3px solid var(--focus-ring); outline-offset:2px; border-radius:6px; }
 .detail-back-arrow { font-size:15px; }
 .release-detail { display:grid; gap:28px; }
+.detail-readiness { margin:0; border-left:4px solid #155f9e; padding:11px 14px; background:#f1f7fc; color:#173d5c; font-size:14px; font-weight:650; line-height:1.5; }
 .detail-header { display:grid; gap:16px; }
 .detail-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:20px; }
 .detail-heading > div { min-width:0; }
@@ -303,6 +304,31 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .detail-decision-arrow { flex:none; color:#1f70c1; font-size:16px; }
 .detail-decision-missing { display:flex; align-items:center; gap:14px; flex-wrap:wrap; padding:15px 16px; border:1px solid #efd9d9; border-radius:11px; background:#fbf1f1; }
 .detail-decision-missing code { font-size:13px; }
+/* Release detail: the prioritised follow-up sits between the release header and
+   the evidence list. Same visual family as the history callout so the two read
+   as one idea at two zoom levels. */
+.detail-followup { display:grid; justify-items:start; gap:0; border:1px solid #b7cde2; border-left:5px solid #155f9e; border-radius:11px; padding:17px 19px; background:#f1f7fc; }
+.detail-followup-title { margin:0; color:#0f3c63; font:700 11px/1.4 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; }
+.detail-followup-decision { margin:9px 0 0; max-width:70ch; color:#171713; font-size:19px; font-weight:650; line-height:1.3; letter-spacing:-.02em; overflow-wrap:anywhere; }
+.detail-followup-meta { gap:12px 32px; margin-top:13px; }
+.detail-followup-reason { margin:13px 0 0; max-width:70ch; color:#26312c; font-size:15px; line-height:1.55; overflow-wrap:anywhere; }
+.detail-followup-action { display:inline-flex; align-items:center; gap:8px; margin-top:15px; border-radius:9px; padding:11px 18px; background:#155f9e; color:#fff; font:700 14px/1.2 system-ui,sans-serif; text-decoration:none; }
+.detail-followup-action:hover { background:#0e456f; }
+.detail-followup-action:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.detail-followup-target { margin:10px 0 0; max-width:70ch; color:#3d5163; font-size:13px; line-height:1.55; }
+.detail-followup-missing { border-color:#e3c6c3; border-left-color:#a33a34; background:#fbf2f1; }
+.detail-followup-missing .detail-followup-title { color:#7d2c27; }
+.detail-followup-missing .detail-followup-action { background:#8f312c; }
+.detail-followup-missing .detail-followup-action:hover { background:#6f2521; }
+.detail-decisions-caption { margin:0; max-width:70ch; color:#5f5f59; font-size:14px; line-height:1.55; }
+.detail-decision-flag { flex:none; border-radius:999px; padding:4px 9px; background:#155f9e; color:#fff; font:700 9px/1.4 ui-monospace,monospace; letter-spacing:.08em; text-transform:uppercase; }
+.detail-decision-flagged { border-color:#155f9e; box-shadow:inset 0 0 0 1px #b7cde2; }
+.detail-decision-missing.detail-decision-flagged { border-color:#a33a34; box-shadow:inset 0 0 0 1px #e3c6c3; }
+.detail-decision-missing .detail-decision-flag { background:#8f312c; }
+.detail-decisions-empty { border:1px dashed #d9d7d0; border-radius:11px; padding:26px 20px; text-align:center; }
+.detail-decisions-empty-body { margin:8px auto 0; max-width:62ch; color:#5f5f59; font-size:14px; line-height:1.6; }
+.detail-decisions-empty .detail-state-actions { justify-content:center; margin-top:18px; }
+@media(max-width:520px) { .detail-followup-action{width:100%;justify-content:center} .detail-decisions-empty .empty-action{width:100%} .detail-decision-flagged{align-items:flex-start} }
 /* Decision detail: rich alternatives remain cards on narrow screens, then form
    a flexible two-column reading layout. The comparison table scrolls inside its
    own labelled region rather than forcing the entire page wider than mobile. */
