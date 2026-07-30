@@ -1,9 +1,18 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
+import { readFileSync } from "node:fs";
+
 import { parseHtml, textOf } from "./support/browser.js";
 import { assembleRecurringReview } from "../src/recurring-review-readiness.js";
 import { renderRecurringReviewWorkspace } from "../src/recurring-review-workspace-view.js";
+
+// The rendered surface is held to the same prohibition the fixtures declare: the
+// wording constants being clean does not prove the painted paragraph is, because
+// the view concatenates the verdict with its own finding text.
+const CAUSAL_SUCCESS = new RegExp(JSON.parse(readFileSync(
+  new URL("../src/recurring-review-verdict-fixtures.json", import.meta.url), "utf8"),
+).metadata.prohibitedWordingPattern, "i");
 
 const action = Object.freeze({
   schemaVersion: "monthly-department-action/1.0.0",
@@ -64,11 +73,17 @@ test("a ready review leads with one metric and completes without changing retain
   const visibleText = textOf(root);
   assert.match(visibleText, /\$760\.00 vs \$1,000\.00/);
   assert.match(visibleText, /Recoverable spend is \$240\.00 lower/);
-  assert.match(visibleText, /high evidence confidence · 96\.0% attribution coverage/);
+  assert.match(visibleText, /high verdict confidence · 96\.0% attribution coverage/);
   assert.match(visibleText, /local-finops-analysis\/1\.0\.0 · Theo verdict: all_clear/);
   assert.match(visibleText, /Continue the tracked action and review it again next month/);
-  assert.equal(root.querySelectorAll("details").length, 3,
-    "prior outcome, limits, and evidence stay progressively disclosed");
+  assert.equal(root.querySelectorAll("details").length, 4,
+    "prior outcome, limits, evidence, and verdict metadata stay progressively disclosed");
+  const verdictDetails = root.querySelectorAll("details")[3];
+  assert.match(textOf(verdictDetails), /improvement/);
+  assert.match(textOf(verdictDetails), /minimum_sample_met/);
+  assert.match(textOf(verdictDetails), /causal attribution/);
+  assert.match(textOf(verdictDetails), /Confidence describes evidence completeness/);
+  assert.doesNotMatch(visibleText, CAUSAL_SUCCESS);
 
   const button = root.querySelector("button");
   button.focus();
@@ -123,6 +138,8 @@ test("a blocked review explains the unavailable comparison and gives one recover
   assert.equal(root.querySelectorAll(".recurring-review-action").length, 1,
     "the blocked state does not become an equal-weight action wall");
   assert.match(textOf(root.querySelectorAll("details")[1]), /later_period_missing/);
+  assert.match(textOf(root.querySelectorAll("details")[3]), /incomparable/);
+  assert.doesNotMatch(textOf(root), CAUSAL_SUCCESS);
 });
 
 test("no retained action leaves the established guided result unchanged", () => {

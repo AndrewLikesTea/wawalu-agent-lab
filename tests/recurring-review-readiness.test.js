@@ -61,6 +61,10 @@ test("a retained action resumes ready from a later analysis and Theo verdict", (
   // finding defended with "local-finops-analysis" names no version at all.
   assert.equal(review.provenance.analysisContract, "local-finops/1.0.0");
   assert.equal(review.current.unit, review.benchmark.unit);
+  assert.equal(review.verdict.verdict, "improvement");
+  assert.equal(review.verdict.confidence.level, "high");
+  assert.deepEqual(review.verdict.confidence.basis,
+    ["attribution_coverage_at_least_95_percent", "minimum_sample_met"]);
 });
 
 test("a benchmark in another unit is blocked rather than differenced", () => {
@@ -173,6 +177,10 @@ test("the action-center entry passes retained action, current analysis, and Theo
     assert.equal(focus.dataset.source, "local");
     assert.match(focus.textContent, /ready for review/i);
     assert.match(focus.textContent, /100\.0%/);
+    assert.match(focus.textContent, /Measured recoverable spend is lower than the prior baseline/);
+    assert.match(focus.textContent, /attribution_coverage_at_least_95_percent/);
+    assert.match(focus.textContent, /causal attribution/);
+    assert.match(focus.textContent, /finops-recurring-verdict\/1\.0\.0/);
     assert.doesNotMatch(focus.textContent, /Demonstration data/);
   } finally {
     page.restore();
