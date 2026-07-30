@@ -97,7 +97,7 @@ export const LOAD_PRESENTATION = Object.freeze({
 export const IMPORT_PRESENCE = Object.freeze({
   example: Object.freeze({
     title: "Nothing of yours is imported yet",
-    detail: "Every figure on this page is bundled synthetic example data, not your spend. "
+    detail: "Every figure on this page comes from the Bundled synthetic example: invented data, not your spend. "
       + "Choose files to analyze your own provider export in this tab — "
       + "no upload, no credentials, no browser storage.",
   }),
@@ -134,7 +134,7 @@ export const HERO_INTRO = "Import a provider export and this page names how much
  * stacked above one answer is the thing that region exists to prevent.
  */
 export const SECONDARY_PLACEHOLDER = Object.freeze({
-  organization: "Bundled example data",
+  organization: "Bundled synthetic example",
   score: "Not scored yet",
   coverage: "Sampled-spend coverage not measured yet",
   scoreAction: "No action ranked yet",
@@ -144,7 +144,7 @@ export const SECONDARY_PLACEHOLDER = Object.freeze({
   departmentList: "No department ranked yet",
   actionTitle: "No intervention prioritized yet",
   actionStatus: "Not prioritized yet",
-  actionRationale: "No intervention has been prioritized from the bundled example yet.",
+  actionRationale: "No intervention has been prioritized from the Bundled synthetic example yet.",
   diagnosis: "No diagnosis yet",
   trend: "No comparison yet",
   benchmark: "No peer comparison yet",

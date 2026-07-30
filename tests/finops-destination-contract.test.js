@@ -307,7 +307,9 @@ test("the region is authored in the shipped markup, below the brief and as evide
   assert.ok(html.indexOf(`id="${DESTINATION_SECTION_ID}"`)
     < html.indexOf('id="finops-first-run-conversion"'));
   // And it says whose data ranked it before it says anything else.
-  assert.match(textOf(byId(document, "finops-destinations-sample")), /bundled example/i);
+  assert.match(textOf(byId(document, "finops-destinations-sample")), /Bundled synthetic example/);
+  assert.equal(textOf(document.querySelector(".dest-unavailable")),
+    "No destination is ranked from the Bundled synthetic example.");
 });
 
 test("painting the region makes the prioritized destination actionable in one link", async () => {

@@ -151,12 +151,12 @@ export const DECISION_STATE = Object.freeze({
   loading: Object.freeze({
     state: "loading", word: "Composing the example result", shape: "◷", tone: "neutral",
     owner: "finops-load-state",
-    statement: "The page is still reading the bundled example. No figure is claimed yet.",
+    statement: "The page is still reading the Bundled synthetic example. No figure is claimed yet.",
   }),
   pending: Object.freeze({
     state: "pending", word: "Example result pending", shape: "◇", tone: "neutral",
     owner: DECISION_REGION_ID,
-    statement: "The bundled example has not been composed on this page yet.",
+    statement: "The Bundled synthetic example has not been composed on this page yet.",
   }),
   ready: Object.freeze({
     state: "ready", word: "Example result", shape: "▣", tone: "resolved",
@@ -166,12 +166,12 @@ export const DECISION_STATE = Object.freeze({
   empty: Object.freeze({
     state: "empty", word: "Example result has no records", shape: "◻", tone: "neutral",
     owner: DECISION_REGION_ID,
-    statement: "The bundled example carried no spend records in the window, so there is nothing to rank.",
+    statement: "The Bundled synthetic example carried no spend records in the window, so there is nothing to rank.",
   }),
   error: Object.freeze({
     state: "unavailable", word: "Example result unavailable", shape: "▲", tone: "error",
     owner: DECISION_REGION_ID,
-    statement: "The bundled example could not be analyzed in this browser, so no figure is shown here.",
+    statement: "The Bundled synthetic example could not be analyzed in this browser, so no figure is shown here.",
   }),
 });
 

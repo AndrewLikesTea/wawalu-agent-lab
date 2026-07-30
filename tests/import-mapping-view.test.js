@@ -286,7 +286,8 @@ test("the reader's own file names replace the example caption on every figure", 
   // Abandoning returns every one of them to the example baseline.
   applyDatasetProvenance(doc, true);
   for (const note of doc.querySelectorAll("[data-dataset-provenance]")) {
-    assert.match(textOf(note), /Example data — not your data/);
+    assert.match(textOf(note), /Bundled synthetic example/);
+    assert.match(textOf(note), /invented provider export/);
     assert.doesNotMatch(textOf(note), /july-usage\.csv/);
   }
 });
