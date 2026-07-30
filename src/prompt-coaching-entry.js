@@ -65,10 +65,10 @@ export const COACHING_ENTRY_QUESTION = Object.freeze({
  */
 export const COACHING_ENTRY_VALUE = Object.freeze({
   headline: "A grade for one prompt, and the single change worth making first.",
-  arrivesWhen: "the visitor presses Grade this prompt. The analysis is pure and synchronous, so the answer is in the same page view — there is nothing to wait for and no queue.",
-  computedBy: "bundled client-side rubric modules in this browser tab.",
+  arrivesWhen: "you press Grade this prompt. The answer comes back in the same page view — there is nothing to wait for and no queue.",
+  computedBy: "a rubric bundled with this page, run in this browser tab.",
   costsVisitor: "nothing: no sign-in, no email address, no file, no upload, no payment, and no wait.",
-  keeps: "nothing. The submitted text is measured and left in the field it was typed into; no persistence is implemented and no request is sent for coaching.",
+  keeps: "nothing. Your text is measured and left in the field you typed it into — there is no store to write it to.",
   privateBecause: "the text never leaves the tab, so a visitor can grade a prompt that mentions their own systems without disclosing it to this site or anyone else.",
 });
 
@@ -157,16 +157,16 @@ export const COACHING_ENTRY_EXAMPLE = Object.freeze({
   id: "supplied-example",
   sampleId: EXAMPLE_SAMPLE.id,
   source: COACHING_INPUT_SOURCE.bundledSample,
-  label: `A supplied example — ${EXAMPLE_SAMPLE.label.toLowerCase()}`,
+  label: `A worked example — ${EXAMPLE_SAMPLE.label.toLowerCase()}`,
   text: EXAMPLE_SAMPLE.text,
   modelTier: EXAMPLE_SAMPLE.modelTier,
   /** Applying the example sets the field AND the tier: a partial submission would grade something the example does not describe. */
   appliesModelTier: true,
-  attribution: "Supplied by this page. Bundled synthetic text written for this preview — not your prompt, not a customer's, and not anyone's real prompt.",
+  attribution: "A worked example supplied by this page: bundled synthetic text — not your prompt, not a customer's, and not anyone's real prompt.",
   distinct: Object.freeze({
     classifiedAs: COACHING_INPUT_SOURCE.bundledSample,
     visitorTextClassifiedAs: COACHING_INPUT_SOURCE.readerText,
-    rule: "A submission is classified bundled_sample only while the field still holds the supplied example unedited. Any keystroke in the field makes the next submission reader_text.",
+    rule: "A submission is classified bundled_sample only while the field still holds the worked example unedited. Any keystroke in the field makes the next submission reader_text.",
     why: "A figure produced from our example must never be readable as a grade of the visitor's own work.",
   }),
   privacy: Object.freeze({
@@ -175,8 +175,8 @@ export const COACHING_ENTRY_EXAMPLE = Object.freeze({
     keeps: "nothing, and it holds no more of a record than a grade of your own text does — which is none.",
   }),
   transition: Object.freeze({
-    onEdit: "Editing or replacing the text in the field ends the example: the next grade is classified as your text, and the example attribution comes off the result.",
-    onClear: "Clearing empties the field and returns the front door to its zero-input state, where the example is offered again.",
+    onEdit: "Editing or replacing the text in the field ends the worked example: the next grade is classified as your text, and the example attribution comes off the result.",
+    onClear: "Clear and start over empties the field and returns the front door to its zero-input state, where the worked example is offered again.",
     editControl: "prompt-coaching-input",
     loadControl: "prompt-coaching-example",
   }),
@@ -188,7 +188,7 @@ export const COACHING_ENTRY_EXAMPLE = Object.freeze({
  * theirs. Total over `COACHING_INPUT_SOURCE`, asserted at load.
  */
 export const COACHING_INPUT_SOURCE_LABELS = Object.freeze({
-  [COACHING_INPUT_SOURCE.bundledSample]: "This grade is of the supplied example, not of your text. Replace it in the field to grade your own prompt.",
+  [COACHING_INPUT_SOURCE.bundledSample]: "This grade is of the worked example, not of your text. Replace it in the field to grade your own prompt.",
   [COACHING_INPUT_SOURCE.readerText]: "This grade is of your text, read in this tab and kept nowhere.",
 });
 
@@ -224,29 +224,29 @@ export const COACHING_ENTRY_STATE = Object.freeze({
 export const COACHING_ENTRY_NEXT_ACTION = Object.freeze({
   [COACHING_ENTRY_STATE.empty]: Object.freeze({
     id: "try_example",
-    label: "Grade the supplied example",
-    instruction: "Nothing to paste? Grade our example instead — one press, no typing, and the result is a demonstration rather than a reading of your work.",
+    label: "Grade the worked example",
+    instruction: "Nothing to paste? Grade the worked example instead — one press, no typing, and the result is a demonstration rather than a reading of your work.",
     control: COACHING_ENTRY_EXAMPLE.transition.loadControl,
     alternative: "Or paste your own prompt into the field below.",
   }),
   [COACHING_ENTRY_STATE.exampleLoaded]: Object.freeze({
     id: "grade_example",
-    label: "Grade this example",
-    instruction: "The supplied example is in the field. Grade it to see what a result contains.",
+    label: "Grade this prompt",
+    instruction: "The worked example is in the field. Press Grade this prompt to see what a result contains.",
     control: "prompt-coaching-grade",
-    alternative: "Or edit the field to replace it with your own prompt — the next grade is then yours, not the example's.",
+    alternative: "Or edit the field to replace it with your own prompt — the next grade is then yours, not the worked example's.",
   }),
   [COACHING_ENTRY_STATE.visitorText]: Object.freeze({
     id: "grade_own",
     label: "Grade this prompt",
-    instruction: "Your text is in the field. Grade it: the answer, the score, and one change come back in this tab.",
+    instruction: "Your text is in the field. Press Grade this prompt: the answer, the score, and one change come back in this tab.",
     control: "prompt-coaching-grade",
     alternative: null,
   }),
   [COACHING_ENTRY_STATE.answered]: Object.freeze({
     id: "apply_one_change",
     label: "Apply the one change, then grade again",
-    instruction: "The result names one change and what it is worth. Make it in the field, then grade again to see whether the band moved.",
+    instruction: "The result names one change and what it is worth. Make it in the field, then press Grade this prompt again to see whether the band moved.",
     control: COACHING_ENTRY_EXAMPLE.transition.editControl,
     alternative: null,
   }),

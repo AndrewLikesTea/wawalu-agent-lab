@@ -175,7 +175,7 @@ only by the workflow's own existing rules, restated here so they are testable:
 
 | Event | Focus lands on | Source |
 | --- | --- | --- |
-| Press "Grade the supplied example" | `#prompt-coaching-input` (caret at the loaded sample) | `prompt-coaching-page.js:91` |
+| Press "Grade the worked example" | `#prompt-coaching-input` (caret at the loaded sample) | `prompt-coaching-page.js:91` |
 | Grade succeeds, no baseline yet | stays on the submit button; the live region announces | `prompt-coaching-view.js:467` |
 | Re-grade produces a comparison | `#prompt-coaching-change` (`tabindex="-1"`, visible ring on plain `:focus` — `evolution.css:1526`) | `prompt-coaching-view.js:390` |
 | Grade refuses | `#prompt-coaching-input`, marked `aria-invalid="true"` and re-described to the recovery text | `prompt-coaching-view.js:106–111` |
@@ -340,12 +340,12 @@ the exact requirement.
 
 ### 7.2 Sample ready
 
-Reached by pressing **Grade the supplied example** (`prompt-coaching-page.js:84`).
+Reached by pressing **Grade the worked example** (`prompt-coaching-page.js:84`).
 
 | | |
 | --- | --- |
 | DOM | `#prompt-coaching-entry[data-entry-state="example_loaded"][data-next-action="grade_example"]` |
-| Visible | Sample text now in the textarea; the model select set to the tier the sample names; instruction rewritten to "The supplied example is in the field. Grade it to see what a result contains."; alternative line offers replacing it |
+| Visible | Sample text now in the textarea; the model select set to the tier the sample names; instruction rewritten to "The worked example is in the field. Press Grade this prompt to see what a result contains."; alternative line offers replacing it |
 | Non-colour cue | The example control is **removed from the tab order** (`hidden`) — "offering to overwrite text a visitor already typed is not an offer" (`prompt-coaching-entry-view.js:191`). The instruction sentence is the state, in words |
 | Screen reader | Focus moves into the textarea, which announces its label and value. The instruction is `aria-describedby` on the (now hidden) control; the rewritten sentence is read on next traversal |
 | Live region | Silent. Filling a field the reader just asked to fill is not news |
@@ -661,7 +661,7 @@ JavaScript enabled, the reader sees, in DOM order: the question as the only
 supplied example; and the privacy boundary as a collapsed disclosure. No score
 is claimed, and `#prompt-coaching[data-state="idle"]`.
 
-**A2 — zero-input grade.** When the reader presses "Grade the supplied example"
+**A2 — zero-input grade.** When the reader presses "Grade the worked example"
 and then "Grade this prompt", the result shows `56 / 100`, grade `F`, the
 distance to the next band, and the rubric + classifier + tier provenance line;
 the source attribution says the grade is a demonstration, not a reading of their

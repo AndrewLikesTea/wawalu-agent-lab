@@ -333,7 +333,7 @@ const REVISION_ERROR = Object.freeze({
   provenance: null,
   action: Object.freeze({
     title: "Grade this text again on its own.",
-    guidance: "Clear the panel and grade once more to start a fresh baseline to compare against.",
+    guidance: "Press Clear and start over, then grade once more to start a fresh baseline to compare against.",
     rewrite: null,
     control: INPUT_ID,
   }),

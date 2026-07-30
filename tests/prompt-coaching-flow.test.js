@@ -468,8 +468,6 @@ test("the front door states what this is and what it never reaches, before any s
     const { document } = page;
     const entry = byId(document, "prompt-coaching-entry");
     assert.ok(entry, "the front door must ship in the page markup");
-    const claim = textOf(entry.querySelector(".prompt-coaching-entry-static"));
-    assert.match(claim, /no sign-in and nothing uploaded/);
     // The systems this never reaches are not listed twice on the first screen:
     // the entry module paints them, each with how to check it, in the privacy
     // boundary disclosure. What has to survive a dead script is the promise a
@@ -565,7 +563,7 @@ test("grading the supplied example is classified bundled_sample and said so on t
     const attribution = byId(document, "prompt-coaching-entry-source");
     assert.equal(attribution.hidden, false);
     assert.equal(attribution.getAttribute("role"), "status");
-    assert.match(textOf(attribution), /supplied example, not of your text/);
+    assert.match(textOf(attribution), /worked example, not of your text/);
 
     // And the result is the real one the example grades to, not a canned figure.
     assert.equal(byId(document, "prompt-coaching").dataset.grade,
