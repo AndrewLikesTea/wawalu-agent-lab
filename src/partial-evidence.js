@@ -48,9 +48,32 @@
 // finding a disagreement about the rules below.
 
 import { calendarDate } from "./calendar-date.js";
+import { redactForScoring } from "./evolution.js";
 
 /** Bump when a state, a code, a threshold, or a metric definition changes. */
-export const PARTIAL_EVIDENCE_VERSION = "partial-evidence/1.0.0";
+export const PARTIAL_EVIDENCE_VERSION = "partial-evidence/1.1.0";
+
+/**
+ * Explainable eligibility score, not a business-performance score.
+ *
+ * Assumptions behind the weights:
+ * - aligned windows (25): time mismatch is the easiest way to create a false total;
+ * - USD-only rows (20): this browser has no reproducible exchange-rate source;
+ * - unique source instances (20): repeated imports would double count;
+ * - complete row coverage (20): a bounded sample cannot support a whole-file sum;
+ * - org mapping (15): mapping affects department actionability, not provider spend.
+ * The first four dimensions therefore control aggregate eligibility; org mapping
+ * can lower confidence and suppress ranked department actions without erasing an
+ * otherwise observed provider figure. The weights sum to 100 by construction.
+ */
+export const ELIGIBILITY_WEIGHTS = Object.freeze({
+  alignedWindow: 25,
+  usdCurrency: 20,
+  uniqueSourceInstance: 20,
+  completeRowCoverage: 20,
+  orgMapping: 15,
+});
+export const AGGREGATE_ELIGIBILITY_THRESHOLD = 85;
 
 /** The one question the result answers. Stated once, here. */
 export const PARTIAL_EVIDENCE_QUESTION =
@@ -87,6 +110,7 @@ export const EXCLUSION_CODE = Object.freeze({
   incompatibleCurrency: "incompatible_currency",
   unreadableAmount: "unreadable_amount",
   duplicateExport: "duplicate_export",
+  sampledRows: "sampled_rows",
   heldOutUpstream: "held_out_upstream",
 });
 
@@ -97,6 +121,7 @@ export const EXCLUSION_ORDER = Object.freeze([
   EXCLUSION_CODE.incompatibleCurrency,
   EXCLUSION_CODE.unreadableAmount,
   EXCLUSION_CODE.duplicateExport,
+  EXCLUSION_CODE.sampledRows,
 ]);
 
 /**
@@ -139,7 +164,10 @@ function ratio(value) {
 
 const text = (value) => {
   if (typeof value !== "string") return null;
-  const trimmed = value.trim().replace(/\s+/g, " ").slice(0, 120);
+  // Labels and upstream diagnostics can originate in imported headers or file
+  // metadata. Apply the same redaction contract used before judge-facing prompt
+  // scoring, then bound the result. No raw prompt-derived string crosses here.
+  const trimmed = redactForScoring(value).trim().replace(/\s+/g, " ").slice(0, 120);
   return trimmed.length > 0 ? trimmed : null;
 };
 
@@ -179,6 +207,7 @@ function readRequiredPeriod(period) {
 function readRecord(entry, index) {
   return {
     id: text(entry?.id) ?? `record-${index + 1}`,
+    sourceInstanceId: text(entry?.sourceInstanceId),
     label: text(entry?.providerLabel) ?? "Unnamed export",
     periodStart: calendarDate(entry?.periodStart),
     periodEnd: calendarDate(entry?.periodEnd),
@@ -189,6 +218,10 @@ function readRecord(entry, index) {
     costBasis: text(entry?.costBasis),
     completeness: text(entry?.completeness),
     provenanceLabel: text(entry?.provenanceLabel),
+    rowCounts: {
+      source: Number(entry?.rowCounts?.source),
+      analyzed: Number(entry?.rowCounts?.analyzed),
+    },
   };
 }
 
@@ -227,11 +260,19 @@ function exclusionFor(record, period, currency, seen) {
         + "to the total. A row this product cannot read is evidence about the export.",
     };
   }
-  if (seen.has(record.id)) {
+  if (record.sourceInstanceId && seen.has(record.sourceInstanceId)) {
     return {
       code: EXCLUSION_CODE.duplicateExport,
-      reason: `${record.label} repeats export ${record.id}, which is already counted. Two copies `
-        + "of one export are not two months of spend.",
+      reason: `${record.label} repeats source instance ${record.sourceInstanceId}, which is already `
+        + "counted. Repeated imports from one source are not independent evidence.",
+    };
+  }
+  const { source, analyzed } = record.rowCounts;
+  if (Number.isFinite(source) && Number.isFinite(analyzed) && analyzed < source) {
+    return {
+      code: EXCLUSION_CODE.sampledRows,
+      reason: `${record.label} analyzed ${analyzed} of ${source} rows at the declared boundary. `
+        + "A bounded sample cannot support a whole-file spend aggregate.",
     };
   }
   return null;
@@ -358,6 +399,14 @@ function nextAction({ usable, excluded, review, attribution, considered }) {
       focus: "files",
     };
   }
+  if (attribution.mappingAvailable === false) {
+    return {
+      code: ACTION_CODE.attributeUnassignedSpend,
+      statement: "Add an org mapping before ranking department actions. Provider spend remains "
+        + "observable, but no department comparison is supported.",
+      focus: "roster",
+    };
+  }
   if (attribution.share !== null && attribution.share < attribution.floor) {
     return {
       code: ACTION_CODE.attributeUnassignedSpend,
@@ -377,20 +426,14 @@ function nextAction({ usable, excluded, review, attribution, considered }) {
 
 /** The peer slot. There is no branch here that produces a measurement. */
 function peerSlot(peer) {
-  if (peer?.available === true) {
-    return Object.freeze({
-      measured: true,
-      statement: "A peer comparison is available and is published on the benchmark card. This "
-        + "finding does not restate it.",
-      reason: null,
-    });
-  }
   return Object.freeze({
     measured: false,
-    statement: "No peer comparison was measured. This finding is your own evidence compared "
+    statement: "No peer comparison was measured by this eligibility finding. It compares evidence "
       + "against nothing but itself.",
     reason: text(peer?.reason)
-      ?? "No cohort scored with the same rubric was available for this import.",
+      ?? (peer?.available === true
+        ? "A separate benchmark may be available, but degraded-input eligibility never uses it."
+        : "No cohort scored with the same rubric was available for this import."),
   });
 }
 
@@ -433,6 +476,7 @@ export function evaluatePartialEvidence({
   const reviewState = readReview(review);
   const attributionState = {
     share: Number.isFinite(attribution?.share) ? ratio(attribution.share) : null,
+    mappingAvailable: attribution?.mappingAvailable !== false,
     floor: ATTRIBUTION_FLOOR,
   };
 
@@ -455,7 +499,7 @@ export function evaluatePartialEvidence({
         }));
         continue;
       }
-      seen.add(record.id);
+      if (record.sourceInstanceId) seen.add(record.sourceInstanceId);
       usable.push(record);
     }
   }
@@ -470,6 +514,33 @@ export function evaluatePartialEvidence({
   const material = materialSlot({
     usable, excluded, observedSpendUsd, currency: currency ?? "USD", partial, review: reviewState,
   });
+  const denominator = read.length || 1;
+  const failed = (code) => excluded.filter((entry) => entry.code === code).length;
+  const dimension = (id, weight, passing, assumption) => Object.freeze({
+    id, weight, passing, earned: Math.round(weight * passing * 10_000) / 10_000, assumption,
+  });
+  const orgMapped = attributionState.mappingAvailable === false
+    ? 0 : attributionState.share ?? 1;
+  const scoring = Object.freeze([
+    dimension("aligned_window", ELIGIBILITY_WEIGHTS.alignedWindow,
+      (denominator - failed(EXCLUSION_CODE.unreadablePeriod)
+        - failed(EXCLUSION_CODE.outsideRequiredPeriod)) / denominator,
+      "Only rows inside one declared half-open billing window may be combined."),
+    dimension("usd_currency", ELIGIBILITY_WEIGHTS.usdCurrency,
+      (denominator - failed(EXCLUSION_CODE.incompatibleCurrency)) / denominator,
+      "No currency conversion is inferred; only declared USD is aggregate-eligible."),
+    dimension("unique_source_instance", ELIGIBILITY_WEIGHTS.uniqueSourceInstance,
+      (denominator - failed(EXCLUSION_CODE.duplicateExport)) / denominator,
+      "Each source_instance_id contributes at most once; distinct instances remain valid."),
+    dimension("complete_row_coverage", ELIGIBILITY_WEIGHTS.completeRowCoverage,
+      (denominator - failed(EXCLUSION_CODE.sampledRows)) / denominator,
+      "A sample describes sampled rows and cannot be promoted to a whole-file aggregate."),
+    dimension("org_mapping", ELIGIBILITY_WEIGHTS.orgMapping, orgMapped,
+      "Org mapping affects department actionability; it does not manufacture provider spend."),
+  ]);
+  const eligibilityScore = Math.round(
+    scoring.reduce((sum, item) => sum + item.earned, 0) * 10,
+  ) / 10;
 
   const headline = state === FINDING_STATE.supported
     ? `Every export you imported is admissible, so ${material.display} is a complete reading of `
@@ -496,6 +567,20 @@ export function evaluatePartialEvidence({
     nextAction: Object.freeze(nextAction({
       usable, excluded, review: reviewState, attribution: attributionState, considered,
     })),
+    rankedActions: Object.freeze([
+      Object.freeze(nextAction({
+        usable, excluded, review: reviewState, attribution: attributionState, considered,
+      })),
+    ]),
+    eligibility: Object.freeze({
+      score: eligibilityScore,
+      threshold: AGGREGATE_ELIGIBILITY_THRESHOLD,
+      aggregateEligible: usable.length > 0
+        && excluded.length === 0
+        && eligibilityScore >= AGGREGATE_ELIGIBILITY_THRESHOLD,
+      dimensions: Object.freeze(scoring),
+      rule: "Score is the sum of earned dimension weights; it measures evidence eligibility, not performance.",
+    }),
     peer: peerSlot(peer),
     // Progressive disclosure. Everything below is true and none of it is in the
     // way of the three answers above.
@@ -509,6 +594,7 @@ export function evaluatePartialEvidence({
       currency: currency ?? "no valid currency",
       usable: Object.freeze(usable.map((record) => Object.freeze({
         id: record.id,
+        sourceInstanceId: record.sourceInstanceId,
         label: record.label,
         periodStart: record.periodStart,
         periodEnd: record.periodEnd,
@@ -516,6 +602,7 @@ export function evaluatePartialEvidence({
         costBasis: record.costBasis,
         completeness: record.completeness,
         provenanceLabel: record.provenanceLabel,
+        rowCounts: Object.freeze({ ...record.rowCounts }),
       }))),
       excluded: Object.freeze(excluded),
     }),
@@ -560,10 +647,16 @@ export function partialEvidenceFromAnalysis({
   const labels = new Map((Array.isArray(analysis?.multiProvider?.providers)
     ? analysis.multiProvider.providers : []).map((entry) => [entry.provider, entry]));
   const primary = [...labels.values()][0] ?? null;
+  const receipts = new Map((analysis?.quality?.importEvidence ?? [])
+    .map((entry) => [entry?.source?.exportId, entry]));
+  const fallbackSourceInstanceId =
+    analysis?.decisionInputs?.provenance?.providerSourceInstanceId ?? null;
   const records = periods.map((entry, index) => {
     const bounds = splitPeriodString(entry?.period);
+    const receipt = receipts.get(entry?.exportId) ?? null;
     return {
       id: entry?.exportId ?? `period-${index + 1}`,
+      sourceInstanceId: receipt?.source?.sourceInstanceId ?? fallbackSourceInstanceId,
       providerLabel: primary?.label ?? "Imported provider export",
       periodStart: bounds?.start ?? null,
       periodEnd: bounds?.end ?? null,
@@ -572,6 +665,7 @@ export function partialEvidenceFromAnalysis({
       costBasis: primary?.costBasis ?? null,
       completeness: entry?.completeness ?? null,
       provenanceLabel: primary?.comparabilityNote ?? analysis?.provenance ?? null,
+      rowCounts: receipt?.rowCounts ?? null,
     };
   });
   const gaps = (analysis?.validation?.results ?? []).map((item) => ({
@@ -579,10 +673,10 @@ export function partialEvidenceFromAnalysis({
     message: item?.message ?? null,
   }));
   return {
-    // Every accepted period is judged against the analysis's own current window,
-    // widened to the earliest start and latest end the periods declare, because
-    // a multi-period history is legitimately wider than its newest month.
-    requiredPeriod: widenPeriod(records, window),
+    // The executive finding is for the analysis window, never a union silently
+    // widened around mismatched periods. Historical periods outside it remain
+    // provenance elsewhere but cannot enter this aggregate.
+    requiredPeriod: window ?? widenPeriod(records, null),
     currencyCode: "USD",
     records,
     heldOut: (analysis?.multiProvider?.rejections ?? []).map((entry) => ({
@@ -599,7 +693,10 @@ export function partialEvidenceFromAnalysis({
       available: peer?.available === true,
       reason: peer?.unavailable?.reason ?? null,
     },
-    attribution: { share: Number.isFinite(attributedShare) ? attributedShare : null },
+    attribution: {
+      share: Number.isFinite(attributedShare) ? attributedShare : null,
+      mappingAvailable: Boolean(analysis?.decisionInputs?.provenance?.hrisExportId),
+    },
     source,
   };
 }
