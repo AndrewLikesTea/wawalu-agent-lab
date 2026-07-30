@@ -94,7 +94,7 @@ test("unavailable public activity retains the representative fallback and retry"
   assert.equal(byClass(root.nodes["#activity-list"], "activity-item-representative").length, 4);
   assert.equal(root.nodes["#activity-status"].dataset.state, "error");
   assert.match(root.nodes["#activity-status"].textContent, /could not be loaded.*synthetic example/i);
-  assert.equal(root.nodes["#connection-label"].textContent, "Check failed");
+  assert.equal(root.nodes["#connection-label"].textContent, "GitHub check failed");
   assert.equal(root.nodes["#refresh-activity"].textContent, "Retry public GitHub activity");
 });
 
@@ -129,7 +129,8 @@ test("an empty public response uses the labelled representative sequence", async
   assert.equal(byClass(root.nodes["#activity-list"], "activity-item-representative").length, 4);
   assert.equal(root.nodes["#activity-status"].dataset.state, "empty");
   assert.match(root.nodes["#activity-status"].textContent, /No recent public GitHub activity/i);
-  assert.equal(root.nodes["#connection-label"].textContent, "Synthetic example shown");
+  // GitHub answered; the card says so and still names the rows below it.
+  assert.equal(root.nodes["#connection-label"].textContent, "No GitHub events · synthetic example");
   assert.equal(root.nodes[".signal-card"].dataset.connected, "true");
 });
 

@@ -204,7 +204,7 @@ test("pasting the sample decision URL into a fresh window renders the decision",
   const rendered = textOf(detail);
   assert.equal(page.document.documentElement.dataset.shiplogDecisionDetail, "ready");
   assert.equal(detail.querySelectorAll(".detail-state-loading").length, 0, "the page stayed on its loading state");
-  assert.doesNotMatch(rendered, /Loading decision/);
+  assert.doesNotMatch(rendered, /Loading this decision/);
   assert.doesNotMatch(rendered, /could not be loaded|unavailable/i);
 
   assert.match(rendered, /Adopt a durable job queue/);
@@ -249,6 +249,6 @@ test("a decision URL with an unknown id renders a not-found state, not a spinner
 
   const detail = page.document.querySelector("#decision-detail");
   assert.equal(detail.querySelectorAll(".detail-state-loading").length, 0);
-  assert.doesNotMatch(textOf(detail), /Loading decision/);
+  assert.doesNotMatch(textOf(detail), /Loading this decision/);
   assert.equal(page.document.title, "Decision not found · Shiplog");
 });
