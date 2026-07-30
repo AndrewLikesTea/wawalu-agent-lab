@@ -239,6 +239,11 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .release-search-filter { flex:3 1 280px; }
 /* The linked-decision filter takes its own row at every width: six options wrap
    badly beside the search box, and the hint above them needs the full measure. */
+/* The decision selector wraps onto its own row before it narrows: the options
+   are decision titles, and a truncated title is not a choice anyone can make. */
+.release-decision-id-filter { flex:2 1 320px; min-width:0; }
+.release-decision-id-filter select { max-width:100%; }
+.release-decision-id-filter .hint { display:block; margin:6px 0 0; }
 .release-decision-filter { flex:1 1 100%; }
 .release-decision-filter .hint { margin:6px 0 0; }
 .release-decision-filter .filter-options { margin-top:9px; }
@@ -325,6 +330,12 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .detail-decision-title { font-size:16px; font-weight:650; letter-spacing:-.01em; overflow-wrap:anywhere; }
 .detail-decision-alternatives { display:flex; align-items:baseline; gap:8px; color:#555550; font-size:13px; line-height:1.45; white-space:pre-wrap; overflow-wrap:anywhere; }
 .detail-decision-alternatives-label { flex:none; color:#777771; font:700 9px/1.4 ui-monospace,monospace; letter-spacing:.08em; text-transform:uppercase; }
+/* The rationale preview is already clipped to a sentence or so in JS; the clamp
+   is the second guard, so a run of short lines still stops at three rather than
+   pushing the link to the record off the fold. */
+.detail-decision-rationale { display:flex; align-items:baseline; gap:8px; color:#3f4a43; font-size:13px; line-height:1.45; overflow-wrap:anywhere; }
+.detail-decision-rationale-text { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:3; line-clamp:3; overflow:hidden; }
+.detail-decision-rationale-label { flex:none; color:#777771; font:700 9px/1.4 ui-monospace,monospace; letter-spacing:.08em; text-transform:uppercase; }
 .detail-decision-identifier { display:flex; align-items:baseline; gap:8px; color:#62625d; font:600 12px/1.4 ui-monospace,monospace; overflow-wrap:anywhere; }
 .detail-decision-identifier-label { flex:none; color:#777771; font:700 9px/1.4 ui-monospace,monospace; letter-spacing:.08em; text-transform:uppercase; }
 .detail-decision-owner { display:inline-flex; align-items:baseline; gap:7px; color:#777771; font:600 12px/1.4 ui-monospace,monospace; }
@@ -332,6 +343,26 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .detail-decision-arrow { flex:none; color:#1f70c1; font-size:16px; }
 .detail-decision-missing { display:flex; align-items:center; gap:14px; flex-wrap:wrap; padding:15px 16px; border:1px solid #efd9d9; border-radius:11px; background:#fbf1f1; }
 .detail-decision-missing code { font-size:13px; }
+/* Release detail: the governing decision, above the follow-up. A quieter frame
+   than the follow-up callout on purpose — this states what the release stands
+   on, the callout states what still needs doing, and the reader should be able
+   to tell them apart before reading either. */
+.detail-governing { display:grid; justify-items:start; gap:0; margin-top:18px; border:1px solid #d7d7cf; border-left:5px solid #4a5b52; border-radius:11px; padding:17px 19px; background:#f7f7f3; }
+.detail-governing-heading { margin:0; color:#374840; font:700 11px/1.4 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; }
+.detail-governing-caption { margin:7px 0 0; max-width:70ch; color:#62625d; font-size:13px; line-height:1.5; }
+.detail-governing-name { display:flex; align-items:baseline; flex-wrap:wrap; gap:10px; margin:11px 0 0; max-width:70ch; color:#171713; font-size:19px; font-weight:650; line-height:1.3; letter-spacing:-.02em; overflow-wrap:anywhere; }
+.detail-governing-meta { gap:12px 32px; margin-top:13px; }
+.detail-governing-rationale { display:flex; align-items:baseline; gap:9px; margin:13px 0 0; max-width:70ch; color:#26312c; font-size:15px; line-height:1.55; overflow-wrap:anywhere; }
+.detail-governing-rationale-label { flex:none; color:#777771; font:700 9px/1.4 ui-monospace,monospace; letter-spacing:.08em; text-transform:uppercase; }
+.detail-governing-link { display:inline-flex; align-items:center; gap:8px; margin-top:15px; border-radius:9px; padding:11px 18px; background:#31423a; color:#fff; font:700 14px/1.2 system-ui,sans-serif; text-decoration:none; }
+.detail-governing-link:hover { background:#22302a; }
+.detail-governing-link:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.detail-governing-arrow { flex:none; }
+.detail-governing-target { margin:10px 0 0; max-width:70ch; color:#4d5b53; font-size:13px; line-height:1.55; }
+.detail-governing-note { margin:11px 0 0; max-width:70ch; color:#7d2c27; font-size:14px; line-height:1.55; }
+.detail-governing.detail-governing-missing { border-color:#e3c6c3; border-left-color:#a33a34; background:#fbf2f1; }
+.detail-governing.detail-governing-missing .detail-governing-heading { color:#7d2c27; }
+@media(max-width:520px) { .detail-governing-link{width:100%;justify-content:center} .detail-governing-rationale{flex-direction:column;gap:3px} }
 /* Release detail: the prioritised follow-up sits between the release header and
    the evidence list. Same visual family as the history callout so the two read
    as one idea at two zoom levels. */
@@ -808,6 +839,9 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .decision-picker-label { display:block; min-height:22px; font-size:14px; line-height:1.4; overflow-wrap:anywhere; cursor:pointer; }
 .decision-picker-meta { display:flex; align-items:center; flex-wrap:wrap; gap:7px 12px; grid-column:2; color:#62625d; font:600 11px/1.4 ui-monospace,monospace; }
 .decision-picker-meta-label { margin-right:5px; color:#777771; font:700 9px/1.4 ui-monospace,monospace; letter-spacing:.08em; text-transform:uppercase; }
+/* The rationale takes the whole row: it is a sentence, not a chip, and it must
+   wrap rather than squeeze the status and owner beside it off the line. */
+.decision-picker-rationale { flex:1 1 100%; color:#4b4b45; font:400 12px/1.5 system-ui,sans-serif; overflow-wrap:anywhere; }
 .decision-picker-identifier code { overflow-wrap:anywhere; }
 .decision-picker-empty { padding:22px 18px; color:#5f5f59; text-align:center; }
 .decision-picker-empty p { margin:7px 0 0; font-size:13px; line-height:1.55; }

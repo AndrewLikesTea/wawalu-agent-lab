@@ -190,11 +190,12 @@ export function releaseDescription(release) {
 // its title and its context: the row surfaces the title, so a search for text a
 // user can see must match it — matching context alone is a surprising dead end.
 export function filterReleases(releases, decisions = [], filters = {}) {
-  const { status, decisionStatus, query } = normalizeReleaseFilters(filters);
+  const { status, decisionStatus, decisionId, query } = normalizeReleaseFilters(filters);
   const normalizedQuery = query.toLocaleLowerCase();
   return summarizeReleases(releases, decisions).filter((release) => {
     if (status !== "all" && releaseStatus(release) !== status) return false;
     if (!matchesDecisionStatus(release, decisionStatus)) return false;
+    if (!matchesDecisionId(release, decisionId)) return false;
     if (!normalizedQuery) return true;
     const searchable = [
       releaseTitle(release),
@@ -219,8 +220,57 @@ export function normalizeReleaseFilters(filters = {}) {
   return {
     status: RELEASE_STATUSES.includes(input.status) ? input.status : "all",
     decisionStatus: decisionStatusFilter(input.decisionStatus),
+    decisionId: decisionIdFilter(input.decisionId),
     query: typeof input.query === "string" ? input.query.trim() : "",
   };
+}
+
+// ---------------------------------------------------------------------------
+// Narrowing the shipping history to one decision: "which releases carried the
+// decision I am looking at". Unlike the status filter, the vocabulary is the
+// visitor's own log, so the value cannot be validated here — the page checks it
+// against the decisions it holds before applying it, the same way the decision
+// list validates its own restored filter.
+//
+// It rides in the query string for the same reason the decisions history's
+// current-only filter does (see app.js): a link to a narrowed history is worth
+// sharing, an absent parameter is simply the default, and nothing new has to be
+// persisted for a reload to land on the same view.
+// ---------------------------------------------------------------------------
+
+export const DECISION_FILTER_PARAM = "decision";
+export const ALL_DECISIONS_FILTER = "all";
+
+export function decisionIdFilter(value) {
+  return typeof value === "string" && value.trim() !== "" ? value.trim() : ALL_DECISIONS_FILTER;
+}
+
+export function readDecisionFilter(search = "") {
+  try {
+    return decisionIdFilter(new URLSearchParams(search).get(DECISION_FILTER_PARAM));
+  } catch {
+    return ALL_DECISIONS_FILTER;
+  }
+}
+
+// Rewrites only this parameter and leaves every other one in place, so the
+// release filters never clobber the `focus` parameter a deep link carries.
+export function decisionFilterSearch(search = "", decisionId = ALL_DECISIONS_FILTER) {
+  const params = new URLSearchParams(search);
+  const value = decisionIdFilter(decisionId);
+  if (value === ALL_DECISIONS_FILTER) params.delete(DECISION_FILTER_PARAM);
+  else params.set(DECISION_FILTER_PARAM, value);
+  const query = params.toString();
+  return query ? `?${query}` : "";
+}
+
+// A release matches when it is associated with this decision at all — including
+// through a reference that no longer resolves, so filtering by a decision that
+// was later deleted still finds the releases that named it.
+export function matchesDecisionId(resolved, value) {
+  const filter = decisionIdFilter(value);
+  if (filter === ALL_DECISIONS_FILTER) return true;
+  return (resolved?.associations ?? []).some((association) => association.id === filter);
 }
 
 // A release matches when it carries at least one decision in the chosen state.
@@ -240,6 +290,7 @@ export function releaseFiltersActive(filters = {}) {
   const normalized = normalizeReleaseFilters(filters);
   return normalized.status !== "all"
     || normalized.decisionStatus !== "all"
+    || normalized.decisionId !== ALL_DECISIONS_FILTER
     || normalized.query !== "";
 }
 
@@ -379,6 +430,53 @@ export function decisionOwner(decision) {
     if (typeof value === "string" && value.trim() !== "") return value.trim();
   }
   return "Unassigned";
+}
+
+// ---------------------------------------------------------------------------
+// The rationale behind a linked decision, previewed where the release is read.
+//
+// A release manager opening a release asks "what did we decide, and why" before
+// anything else. `context` is the field the decision recorder writes for the
+// why; nothing else on a decision answers it, so an absent one is stated rather
+// than substituted from a neighbouring field that means something different.
+//
+// The preview is clipped in JS as well as in CSS. CSS alone would leave the
+// whole rationale in the accessible name of the row that links to the record —
+// a screen reader would hear the full text where a sighted reader sees three
+// lines, and the two surfaces would stop matching. Clipping here keeps them the
+// same, and the link to the full record is what carries the rest.
+// ---------------------------------------------------------------------------
+
+export const NO_RATIONALE_TEXT = "No rationale recorded.";
+export const RATIONALE_PREVIEW_LENGTH = 180;
+
+export function decisionRationale(decision) {
+  const value = decision?.context;
+  return typeof value === "string" ? value.replace(/\s+/g, " ").trim() : "";
+}
+
+export function decisionRationalePreview(decision, limit = RATIONALE_PREVIEW_LENGTH) {
+  const value = decisionRationale(decision);
+  if (value === "") return NO_RATIONALE_TEXT;
+  if (value.length <= limit) return value;
+  const clipped = value.slice(0, limit);
+  const boundary = clipped.lastIndexOf(" ");
+  // Prefer a word boundary, but only when one is near the end: clipping a long
+  // unbroken run back to its first space would throw away most of the preview.
+  const body = boundary > limit * 0.6 ? clipped.slice(0, boundary) : clipped;
+  return `${body.trimEnd()}…`;
+}
+
+// The decision that governs a release: the first one linked to it. The order a
+// release carries is the order the recorder ticked its decisions in (see
+// release-form.js — the selection is an ordered list precisely so this survives
+// a re-render), so the head of that list is the choice the recorder made about
+// which decision the release stands on, not a guess made here.
+//
+// Returns the association rather than the decision, so a governing reference
+// that no longer resolves is still reported instead of read as "none".
+export function governingAssociation(resolved) {
+  return resolved?.associations?.[0] ?? null;
 }
 
 // Why this one decision matters *to this release*, what to do, and where the
@@ -714,7 +812,7 @@ export function renderReleaseListState(container, state, options = {}) {
     // first-run state whose one next step is recording a release, while "no
     // release matches" is a filter state whose one next step is clearing them.
     empty: options.filtered
-      ? ["No matching releases", "No release matches the current search, release status, and linked decision status together."]
+      ? ["No matching releases", "No release matches the current search, release status, linked decision, and linked decision status together."]
       : ["No releases yet", "Record a release and link the decisions behind it to build a shipping history."],
   }[state];
   panel.append(el("h3", undefined, copy[0]));
@@ -867,6 +965,19 @@ function renderBackLink(releaseId) {
   return back;
 }
 
+// Give an anchor its destination as both the property and the attribute.
+//
+// In a browser these are one write. They are not the same thing to read back:
+// an anchor whose href only exists as a property has no destination in the
+// serialized markup, which is what a link is. Writing both keeps "the link the
+// renderer built" and "the link the page ships" the same answer, whichever one
+// a caller — or a test — asks.
+function linkTo(node, href) {
+  node.href = href;
+  node.setAttribute("href", href);
+  return node;
+}
+
 function renderMetaRow(label, valueNode) {
   const row = el("div", "detail-meta-row");
   row.append(el("dt", "detail-meta-label", label));
@@ -884,7 +995,7 @@ function renderDetailDecision(decision, flagged = false) {
   const link = el("a", `detail-decision${flagged ? " detail-decision-flagged" : ""}`);
   if (flagged) link.append(el("span", "detail-decision-flag", "Next follow-up"));
   const summary = el("span", "detail-decision-summary");
-  link.href = decisionDetailHref(decision.id);
+  linkTo(link, decisionDetailHref(decision.id));
   link.append(el("span", `badge badge-${decision.status}`, decision.status));
   summary.append(el("span", "detail-decision-title", decision.title));
   // The identifier travels with the title so a linked decision can be matched
@@ -894,6 +1005,10 @@ function renderDetailDecision(decision, flagged = false) {
   identifier.append(el("span", "detail-decision-identifier-label", "ID"));
   identifier.append(el("code", undefined, decision.id));
   summary.append(identifier);
+  const rationale = el("span", "detail-decision-rationale");
+  rationale.append(el("span", "detail-decision-rationale-label", "Rationale"));
+  rationale.append(el("span", "detail-decision-rationale-text", decisionRationalePreview(decision)));
+  summary.append(rationale);
   const alternativeText = typeof decision.alternatives === "string" && decision.alternatives.trim() !== ""
     ? decision.alternatives
     : "No alternatives recorded.";
@@ -947,6 +1062,78 @@ function renderDetailDecisionsEmpty() {
   actions.append(action);
   empty.append(actions);
   return empty;
+}
+
+// Render-local ids, like the follow-up callout's: one governing decision exists
+// per release detail view, so nothing here needs a counter to stay unique.
+const GOVERNING_TITLE_ID = "detail-governing-title";
+const GOVERNING_TARGET_ID = "detail-governing-target";
+
+export const GOVERNING_DECISION_CAPTION =
+  "The decision this release stands on — the first one linked when it was recorded.";
+export const GOVERNING_DECISION_MISSING_TEXT =
+  "This decision is not in this log, so the reasoning behind the release cannot be reviewed here. "
+  + "Record it on the decisions page, or record the release again against a decision this log holds.";
+
+// The decision that governs the release, ahead of the full evidence list: title,
+// current status, owner, and a clipped rationale, with one link to the record
+// that holds the rest.
+//
+// A governing reference that no longer resolves degrades to plain text — the id
+// and a sentence saying what to do — rather than to a link that would open a
+// "decision not found" page. A dangling reference is a fact about this log, not
+// a destination.
+function renderDetailGoverning(association) {
+  const section = el("section", `detail-governing${association.missing ? " detail-governing-missing" : ""}`);
+  section.setAttribute("aria-labelledby", GOVERNING_TITLE_ID);
+  const heading = el("h2", "detail-governing-heading", "Governing decision");
+  heading.id = GOVERNING_TITLE_ID;
+  section.append(heading);
+  section.append(el("p", "detail-governing-caption", GOVERNING_DECISION_CAPTION));
+
+  if (association.missing) {
+    const name = el("p", "detail-governing-name");
+    name.append(el("span", "badge badge-missing", "missing"));
+    name.append(document.createTextNode("Linked decision "));
+    name.append(el("code", undefined, association.id));
+    name.append(document.createTextNode(" is not in this log."));
+    section.append(name);
+    const note = el("p", "detail-governing-note", GOVERNING_DECISION_MISSING_TEXT);
+    note.setAttribute("role", "note");
+    section.append(note);
+    return section;
+  }
+
+  const decision = association.decision;
+  const status = canonicalDecisionStatus(decision.status);
+  // Title as its own element so long titles wrap here rather than being clipped
+  // with the rationale below them.
+  section.append(el("p", "detail-governing-name", decision.title));
+
+  const meta = el("dl", "detail-meta detail-governing-meta");
+  meta.append(renderMetaRow("Status", el("span", `badge badge-${status}`, status)));
+  meta.append(renderMetaRow("Owner", document.createTextNode(decisionOwner(decision))));
+  section.append(meta);
+
+  const rationale = el("p", "detail-governing-rationale");
+  rationale.append(el("span", "detail-governing-rationale-label", "Rationale"));
+  rationale.append(document.createTextNode(decisionRationalePreview(decision)));
+  section.append(rationale);
+
+  // The path to the full record is a sibling of the clipped preview, never
+  // inside it, so nothing about the truncation can hide the way to the rest.
+  const link = linkTo(el("a", "detail-governing-link", "Open the full decision record"), decisionDetailHref(decision.id));
+  link.setAttribute("aria-describedby", GOVERNING_TARGET_ID);
+  const arrow = el("span", "detail-governing-arrow", "→");
+  arrow.setAttribute("aria-hidden", "true");
+  link.append(arrow);
+  section.append(link);
+
+  const target = el("p", "detail-governing-target",
+    `Opens the decision record for “${decision.title}”, with the rationale in full, the alternatives weighed, and its status.`);
+  target.id = GOVERNING_TARGET_ID;
+  section.append(target);
+  return section;
 }
 
 function renderDetailDecisions(resolved, followUp = null) {
@@ -1113,6 +1300,13 @@ export function renderReleaseDetail(container, resolved, options = {}) {
 
   article.append(header);
   article.append(el("p", "detail-readiness", releaseDecisionReadinessText(resolved)));
+  // The governing decision comes before the prioritised follow-up: what this
+  // release stands on is the question a reader opened the page with, and the
+  // follow-up is what to do about the rest. A release with nothing linked has
+  // no governing decision to state, and the evidence section's empty state
+  // below already names that gap and its next step.
+  const governing = governingAssociation(resolved);
+  if (governing) article.append(renderDetailGoverning(governing));
   // The prioritised follow-up sits between the release and its evidence: a
   // reader meets what needs doing before the full list they would otherwise
   // have to triage themselves. Absent entirely when nothing is outstanding —

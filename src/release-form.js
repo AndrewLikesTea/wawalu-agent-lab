@@ -21,7 +21,7 @@
 // in a group a user can also reach by clicking its label.
 
 import { canonicalDecisionStatus } from "./decision-status.js";
-import { RELEASE_STATUSES } from "./releases.js";
+import { RELEASE_STATUSES, decisionRationalePreview } from "./releases.js";
 
 // Mirror the form's maxlength attributes so a value written straight through
 // this core (a test, a future importer) is bounded the same way the form is.
@@ -82,10 +82,18 @@ export function pruneSelection(selected = [], decisions = []) {
   return [...new Set(selected)].filter((id) => known.has(id));
 }
 
-export function selectionSummaryText(count, total) {
+// What is linked, and — once anything is — which of those decisions governs the
+// release. The governing one is the first ticked (see toggleDecisionSelection:
+// the selection keeps the order it was chosen in, and the detail view reads the
+// head of that order back). Saying so here is how the recorder chooses it: the
+// summary is a live region, so the answer is announced as the choice is made
+// without moving focus out of the checkbox group.
+export function selectionSummaryText(count, total, governingTitle = "") {
   if (total === 0) return "No decisions are available to link yet.";
   if (count === 0) return `No decisions linked yet. ${total} available.`;
-  return `${count} of ${total} ${total === 1 ? "decision" : "decisions"} linked.`;
+  const linked = `${count} of ${total} ${total === 1 ? "decision" : "decisions"} linked.`;
+  const governing = typeof governingTitle === "string" ? governingTitle.trim() : "";
+  return governing === "" ? linked : `${linked} “${governing}” governs this release.`;
 }
 
 // Build the record. Throws a TypeError carrying one of RELEASE_FORM_ERRORS so
@@ -203,6 +211,13 @@ function renderOption(decision, index, checked) {
   identifier.append(el("span", "decision-picker-meta-label", "ID"));
   identifier.append(el("code", undefined, decision.id));
   meta.append(identifier);
+  // The rationale is part of the option's description rather than a separate
+  // stop: choosing which decision governs a release is a judgement about why it
+  // was taken, and the recorder should not have to leave the form to read it.
+  const rationale = el("span", "decision-picker-rationale");
+  rationale.append(el("span", "decision-picker-meta-label", "Rationale"));
+  rationale.append(document.createTextNode(decisionRationalePreview(decision)));
+  meta.append(rationale);
 
   // Deliberately no "open this decision" link inside the option: it would put a
   // second tab stop between every checkbox and double the distance through a
@@ -251,8 +266,14 @@ export function mountDecisionPicker(container, options = {}) {
   let selected = pruneSelection(options.selected ?? [], decisions);
   const summary = options.summary ?? null;
 
+  const governingTitle = () => {
+    const first = selected[0];
+    const decision = decisions.find(({ id }) => id === first);
+    return typeof decision?.title === "string" ? decision.title : "";
+  };
+
   const syncSummary = () => {
-    if (summary) summary.textContent = selectionSummaryText(selected.length, decisions.length);
+    if (summary) summary.textContent = selectionSummaryText(selected.length, decisions.length, governingTitle());
   };
 
   const render = () => {
