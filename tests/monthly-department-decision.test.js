@@ -307,7 +307,9 @@ test("later review ranks comparable movement and refuses incompatible analyses",
   applyMonthlyDepartmentDecision(page.document, pack(), { storage, now });
   let review = page.document.querySelector(".monthly-decision-review");
   assert.equal(review.dataset.state, "comparable");
-  assert.match(textOf(review), /Later review · rank 1/);
+  assert.equal(review.getAttribute("aria-label"), "Later monthly review: Comparable result");
+  assert.match(textOf(review), /Earlier analyzed spend\$5,000\.00/);
+  assert.match(textOf(review), /Current analyzed spend\$4,500\.00/);
   assert.match(textOf(review), /analyzed spend went down/i);
   assert.match(textOf(review), /does not measure, attribute, or verify savings/i);
 
@@ -323,7 +325,132 @@ test("later review ranks comparable movement and refuses incompatible analyses",
   applyMonthlyDepartmentDecision(page.document, pack(), { storage: incompatible, now });
   review = page.document.querySelector(".monthly-decision-review");
   assert.equal(review.dataset.state, "non-comparable");
+  assert.equal(review.getAttribute("aria-label"), "Later monthly review: Not comparable");
   assert.match(textOf(review), /not comparable/i);
+});
+
+test("every monthly workspace phase has an explicit accessible state", async () => {
+  for (const [phase, label, busy] of [
+    ["loading", "Loading monthly action", "true"],
+    ["empty", "No monthly action", "false"],
+    ["error", "Monthly action unavailable", "false"],
+  ]) {
+    const { document } = await loadPage(PAGE);
+    applyMonthlyDepartmentDecision(document, null, { phase });
+    const section = document.getElementById("monthly-department-decision");
+    assert.equal(section.hidden, false);
+    assert.equal(section.getAttribute("role"), "region");
+    assert.equal(section.getAttribute("aria-busy"), busy);
+    assert.equal(section.querySelector(".monthly-decision-status").getAttribute("role"), "status");
+    assert.equal(section.querySelector(".monthly-decision-status").getAttribute("aria-live"), "polite");
+    assert.match(textOf(section), new RegExp(label, "i"));
+    assert.match(textOf(section), /Nothing here makes a network request or is stored/i);
+  }
+});
+
+test("tracked, awaiting, comparable, and non-comparable states announce text, not color", async () => {
+  const now = new Date("2026-07-20T12:00:00.000Z");
+  const storage = storageOf();
+  setFinopsConsent(storage, FINOPS_CONSENT.granted, { now });
+  let page = await loadPage(PAGE);
+  applyMonthlyDepartmentDecision(page.document, pack(), { storage, now });
+  page.document.querySelector(".monthly-decision-commit").click();
+  const tracked = page.document.querySelector(".monthly-decision-outcome");
+  assert.equal(tracked.getAttribute("role"), "status");
+  assert.equal(tracked.getAttribute("aria-live"), "polite");
+  assert.equal(tracked.getAttribute("aria-atomic"), "true");
+  assert.match(textOf(tracked), /✓Tracked.*Nothing is proven yet/i);
+  assert.equal(tracked.querySelector(".monthly-decision-status-shape")
+    .getAttribute("aria-hidden"), "true");
+
+  page = await loadPage(PAGE);
+  applyMonthlyDepartmentDecision(page.document, pack(), { storage, now });
+  let review = page.document.querySelector(".monthly-decision-review");
+  assert.equal(review.dataset.state, "awaiting");
+  assert.equal(review.getAttribute("aria-label"), "Later monthly review: Awaiting analysis");
+  assert.match(textOf(review), /○Awaiting analysis.*second compatible retained period/i);
+  // Rendered once with the page, so it is a named landmark, not a live region that
+  // reads the whole block out on load.
+  assert.equal(review.getAttribute("aria-live"), null);
+
+  retainFinopsPeriod(storage, period("2026-07", 500000), { now });
+  retainFinopsPeriod(storage, period("2026-08", 450000), { now });
+  page = await loadPage(PAGE);
+  applyMonthlyDepartmentDecision(page.document, pack(), { storage, now });
+  review = page.document.querySelector(".monthly-decision-review");
+  assert.match(textOf(review), /↔Comparable result/);
+  assert.match(textOf(review), /Result type: unproven/);
+});
+
+test("one name per concept: the tracked path never calls itself committed or saved", async () => {
+  const now = new Date("2026-07-20T12:00:00.000Z");
+  const storage = storageOf();
+  setFinopsConsent(storage, FINOPS_CONSENT.granted, { now });
+  const page = await loadPage(PAGE);
+  applyMonthlyDepartmentDecision(page.document, pack(), { storage, now });
+  const outcome = page.document.querySelector(".monthly-decision-outcome");
+
+  page.document.querySelector(".monthly-decision-decline").click();
+  assert.match(textOf(outcome), /–Declined this month/);
+  assert.equal(outcome.dataset.state, "declined");
+
+  const refused = await loadPage(PAGE);
+  applyMonthlyDepartmentDecision(refused.document, pack(), { storage: storageOf(), now });
+  refused.document.querySelector(".monthly-decision-commit").click();
+  const notTracked = refused.document.querySelector(".monthly-decision-outcome");
+  assert.match(textOf(notTracked), /!Not tracked/);
+  assert.equal(notTracked.dataset.state, "error");
+
+  const section = page.document.getElementById("monthly-department-decision");
+  assert.doesNotMatch(textOf(section), /\bcommitted\b/i);
+});
+
+test("confidence is named from the rating the producer actually scored", async () => {
+  for (const [level, label] of [
+    ["high", "●High confidence"], ["medium", "◐Medium confidence"], ["low", "◔Low confidence"],
+  ]) {
+    const { document } = await loadPage(PAGE);
+    applyMonthlyDepartmentDecision(document, pack(lead({ level })));
+    assert.match(textOf(document.querySelector(".monthly-decision-confidence")),
+      new RegExp(label.replace(/[●◐◔]/, (shape) => `\\${shape}`)));
+  }
+  // An unpriced finding scores no confidence, so the page must not imply one.
+  const { document } = await loadPage(PAGE);
+  applyMonthlyDepartmentDecision(document, pack(null));
+  const confidence = document.querySelector(".monthly-decision-confidence");
+  assert.match(textOf(confidence), /\?Confidence not scored/);
+  assert.doesNotMatch(textOf(confidence), /Limited confidence|Rating:/);
+});
+
+test("the evidence disclosure and action path are named and keyboard reachable in reading order", async () => {
+  const { document } = await loadPage(PAGE);
+  applyMonthlyDepartmentDecision(document, pack());
+  const section = document.getElementById("monthly-department-decision");
+  const controls = section.querySelectorAll("summary,button,a");
+  assert.deepEqual(controls.map((node) => node.tagName), ["SUMMARY", "BUTTON", "BUTTON", "A"]);
+  assert.match(textOf(controls[0]), /Show 5 evidence references/);
+  assert.equal(controls[1].textContent, "Track this action");
+  assert.equal(controls[2].textContent, "Decline for this month");
+  assert.equal(controls[3].textContent, "Review local storage settings");
+  for (const control of controls) assert.notEqual(control.getAttribute("tabindex"), "-1");
+
+  const css = await readFile(new URL("../src/evolution.css", import.meta.url), "utf8");
+  assert.match(css, /\.monthly-decision-evidence>summary:focus-visible\s*\{[^}]*outline:3px solid var\(--focus-ring\)/);
+});
+
+test("implausible metric extremes stay visible and demand source verification", async () => {
+  const { document } = await loadPage(PAGE);
+  applyMonthlyDepartmentDecision(document, pack(lead({ monthlySavingsUsd: 9_999_999_999 })));
+  const measurement = document.querySelector(".monthly-decision-measurement");
+  assert.match(textOf(measurement), /\$9,999,999,999\.00/);
+  // The action itself is available, so this warning must not borrow the
+  // "Monthly action unavailable" name the loading/error phases use.
+  assert.match(textOf(measurement), /!Check this figure — This baseline is larger than any/i);
+  assert.doesNotMatch(textOf(measurement), /unavailable/i);
+  assert.equal(document.querySelector(".monthly-decision-commit").disabled, true);
+  assert.equal(document.querySelector(".monthly-decision-commit").textContent,
+    "Confirm the source before tracking");
+  assert.equal(document.querySelector(".monthly-decision-source").href, "#local-import-title");
 });
 
 test("the integration uses the reviewed local store and contains no network behavior", async () => {
