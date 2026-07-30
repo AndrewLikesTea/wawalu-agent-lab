@@ -159,6 +159,19 @@ test("each disclosure is a real button in the tab order that opens the panel it 
   assert.ok(document.getElementById(supporting.getAttribute("aria-controls")).hasAttribute("hidden"));
 });
 
+test("the primary action precedes expandable evidence and secondary export in keyboard order", async (t) => {
+  const { document } = await openPage(t, await readFixture());
+  const sequence = tabSequence(document);
+  const primary = document.getElementById("brief-followup-cta");
+  const evidence = [...document.querySelectorAll(".brief-toggle")];
+  const print = document.getElementById("brief-print");
+
+  assert.ok(primary && print && evidence.length === 2);
+  assert.ok(sequence.indexOf(primary) < sequence.indexOf(evidence[0]));
+  assert.ok(sequence.indexOf(evidence[0]) < sequence.indexOf(evidence[1]));
+  assert.ok(sequence.indexOf(evidence[1]) < sequence.indexOf(print));
+});
+
 test("level 2 carries what the claim rests on, and level 3 how to recompute it", async (t) => {
   const { document } = await openPage(t, await readFixture());
   const [supporting, method] = document.querySelectorAll(".brief-panel");
@@ -204,7 +217,8 @@ test("no confidence or standing signal is carried by colour alone", async (t) =>
 
 test("the page ships its own loading state rather than an empty frame", async () => {
   const html = await readFile(PAGE, "utf8");
-  assert.match(html, /<div id="executive-briefing" aria-live="polite" aria-busy="true">/);
+  assert.match(html, /id="executive-briefing" role="region" aria-label="Executive FinOps briefing result"/);
+  assert.match(html, /aria-live="polite" aria-busy="true"/);
   assert.match(html, /data-state="loading" role="status"/);
   // The state names what is actually read first: this browser's own retained
   // periods. The sample below is the fallback, and tests/executive-briefing-local
@@ -252,16 +266,45 @@ test("the error state a briefing can still reach says what is not wrong", async 
   await openPage(t, await readFixture());
   const { renderBriefingError } = await view();
 
+  let retries = 0;
   const panel = renderBriefingError({
     summary: "The published sample failed its own contract",
     detail: "1 violation(s).",
     remedy: "No figure is shown. Nothing was uploaded and nothing was stored.",
+    onRetry: () => { retries += 1; },
   });
   assert.equal(panel.getAttribute("data-state"), "error");
   assert.equal(panel.getAttribute("role"), "alert");
   assert.match(textOf(panel), /Error: The published sample failed its own contract/);
   assert.match(textOf(panel), /Nothing was uploaded and nothing was stored/);
   assert.equal(panel.querySelectorAll(".brief-figure").length, 0, "no figure is shown beside an error");
+  const retry = panel.querySelector(".brief-retry-button");
+  assert.equal(retry.tagName, "BUTTON");
+  assert.equal(retry.getAttribute("type"), "button");
+  assert.match(textOf(retry), /Retry briefing/);
+  retry.click();
+  assert.equal(retries, 1);
+  assert.equal(retry.getAttribute("aria-disabled"), "true");
+  // Busy for the attempt, not for good: a retry that fails again has to leave a
+  // control the reader can press a second time.
+  await Promise.resolve();
+  assert.equal(retry.hasAttribute("aria-disabled"), false);
+});
+
+test("an error panel with no way to retry carries no retry button", async (t) => {
+  // src/landing-decision-page.js draws this panel from a figure derived in the
+  // bundle: rebuilding it cannot reach a different answer, so a button offering
+  // to is a second dead end on the page a reader already got stuck on.
+  await openPage(t, await readFixture());
+  const { renderBriefingError } = await view();
+
+  const panel = renderBriefingError({
+    summary: "The summary this page carries is unavailable",
+    detail: "1 violation(s).",
+    remedy: "Nothing was uploaded and nothing was stored.",
+  });
+  assert.equal(panel.querySelectorAll(".brief-retry-button").length, 0);
+  assert.equal(panel.querySelectorAll("button").length, 0);
 });
 
 test("an implausible extreme is drawn with its figure and named in words", async (t) => {

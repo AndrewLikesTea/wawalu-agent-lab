@@ -39,24 +39,22 @@
         <p class="brief-print-hint">Printing or saving as PDF keeps the whole briefing: both levels open on paper, and the site chrome comes off.</p>
       </section>
 
-      <!-- The print control is drawn here by the entry module rather than shipped
-           in the markup: a control that calls the browser's print dialog is a
-           control that does nothing on a page whose script never ran, and a dead
-           button is worse than no button. Readers who never see it keep the
-           browser's own print command, which the same code listens for. -->
-      <div id="briefing-actions" class="brief-actions"></div>
-
       <!-- The briefing is painted here. The state below is what a reader sees
            between parse and module execution only: neither path fetches
            anything, so it is replaced by a complete briefing in the same pass —
            the reader's own periods when this browser holds them, and the
            synthetic sample this page ships when it does not. -->
-      <div id="executive-briefing" aria-live="polite" aria-busy="true">
+      <div id="executive-briefing" role="region" aria-label="Executive FinOps briefing result" aria-live="polite" aria-busy="true">
         <section class="brief-state" data-state="loading" role="status">
           <h2>Reading this browser's own FinOps figures</h2>
           <p>Building the briefing in this tab from the periods retained here, or from the synthetic sample this page carries if there are none. Nothing is fetched either way…</p>
         </section>
       </div>
+      <!-- Kept after the result in DOM order: the decision's primary follow-up
+           action and its evidence disclosures are reached before this secondary
+           export action when navigating by keyboard. It is drawn by the entry
+           module because a print button whose script never ran would be dead. -->
+      <div id="briefing-actions" class="brief-actions"></div>
 
       <!-- The invitation, at the end of the document a leader just read, and
            outside the region the briefing is painted into: nothing here is

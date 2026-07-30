@@ -185,6 +185,33 @@ export async function verifyArtifact(root) {
   const paths = new Set(actual.map(({ path }) => path));
   for (const path of required) if (!paths.has(path)) throw new Error(`missing required UI asset: ${path}`);
 
+  // Now close the graph itself. The list above names what someone remembered to
+  // name; this walks what the artifact actually asks the browser for, so a
+  // narrowed copy rule fails here instead of at a reader.
+  //
+  // The failure it deletes is specific and silent. A module specifier that 404s
+  // does not degrade to a missing feature: the browser rejects the whole entry
+  // module, no line of it runs, and the page keeps whatever static markup it
+  // shipped with. On the executive briefing that is a "Reading this browser's
+  // own FinOps figures…" panel with `aria-busy="true"` that never resolves —
+  // a page that claims to be working, forever, with the manifest, the health
+  // check, and every required-asset assertion above still green.
+  const dangling = [];
+  for (const { path } of actual) {
+    const module = path.endsWith(".js");
+    if (!module && !path.endsWith(".html")) continue;
+    const text = await readFile(resolve(root, path), "utf8");
+    const references = module
+      ? [...text.matchAll(/\bfrom\s*"(\/[^"]+)"/g), ...text.matchAll(/\bimport\s*\(\s*"(\/[^"]+)"/g)]
+      : [...text.matchAll(/<(?:script|link)\b[^>]*?(?:src|href)="(\/[^"#?]+\.(?:js|css|json))"/g)];
+    for (const [, reference] of references) {
+      if (!paths.has(reference.slice(1))) dangling.push(`${path} -> ${reference}`);
+    }
+  }
+  if (dangling.length > 0) {
+    throw new Error(`artifact references files it does not carry: ${dangling.join(", ")}`);
+  }
+
   // Probe the artifact itself, not the source tree: the canonical sample must
   // still be reproducible and valid after the exact build selection that Pages
   // will receive. This uses no environment variables, network, storage, or

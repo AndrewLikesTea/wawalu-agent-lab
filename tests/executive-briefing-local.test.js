@@ -162,6 +162,33 @@ test("every reason a browser cannot be briefed on is its own code, with a remedy
   assert.equal(new Set(Object.values(WORKSPACE_ABSENCE)).size, 7);
 });
 
+test("a browser that refuses the storage accessor still paints the labelled sample", async (t) => {
+  // Site data disabled is not an empty store: reading `window.localStorage` is
+  // itself a SecurityError, so the throw lands on the accessor before any guard
+  // a caller could put on `getItem`. It is the one absence code above that the
+  // page cannot reach through a stand-in store, and the one where an escaped
+  // exception would leave the reader on the markup's own "Reading…" panel with
+  // `aria-busy="true"` — permanently, on a first visit, which is exactly the
+  // reader this page ships a bundled sample for.
+  const page = await loadPage(PAGE, { storage: {}, routes: {} });
+  t.after(() => page.restore());
+  Object.defineProperty(globalThis, "localStorage", {
+    get() { throw new Error("SecurityError: access to storage is denied for this document"); },
+    configurable: true,
+  });
+
+  await importPageModule("/executive-briefing-page.js");
+  const root = page.document.getElementById("executive-briefing");
+  await waitFor(() => root.getAttribute("aria-busy") === "false", "the briefing finished painting");
+
+  assert.equal(root.querySelectorAll('[data-state="loading"]').length, 0, "the loading state survived");
+  assert.equal(root.querySelector(".brief-source-notice")?.dataset.absence, "storage_blocked");
+  assert.match(textOf(root), /did not let the page read its local storage/);
+  const article = root.querySelector("article.brief");
+  assert.equal(article?.dataset.synthetic, "true", "the labelled sample is drawn anyway");
+  assert.equal(article.dataset.state, "briefing");
+});
+
 test("one invalid retained record rejects the whole local source rather than publishing a subset", async () => {
   const { WORKSPACE_ABSENCE, chooseBriefingSource } = await source();
   const invalid = { ...THREE_MONTHS[1], recordsAnalyzed: -1 };

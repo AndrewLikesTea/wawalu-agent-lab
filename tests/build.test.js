@@ -361,6 +361,39 @@ test("artifact verification rejects a partial organizational-artifact reader", a
   );
 });
 
+test("artifact verification rejects a module the artifact imports but does not carry", async (t) => {
+  const directory = await mkdtemp(resolve(tmpdir(), "shiplog-import-closure-test-"));
+  t.after(async () => (await import("node:fs/promises")).rm(directory, { recursive: true, force: true }));
+  await copyDeployableArtifact(directory);
+
+  // Deliberately a module the hand-maintained required list never named. The
+  // executive briefing entry imports it, so dropping it is a rejected entry
+  // module: the page keeps its static "Reading…" panel and aria-busy="true" for
+  // good, with the manifest and every required-asset assertion still green.
+  // Closing the import graph is what turns that into a failed build.
+  await (await import("node:fs/promises")).rm(resolve(directory, "finops-contact.js"));
+  await createManifest(directory);
+
+  await assert.rejects(
+    verifyArtifact(directory),
+    /artifact references files it does not carry:.*finops-contact\.js/s,
+  );
+});
+
+test("artifact verification rejects a stylesheet a shipped page links but the artifact omits", async (t) => {
+  const directory = await mkdtemp(resolve(tmpdir(), "shiplog-linked-asset-test-"));
+  t.after(async () => (await import("node:fs/promises")).rm(directory, { recursive: true, force: true }));
+  await copyDeployableArtifact(directory);
+
+  await (await import("node:fs/promises")).rm(resolve(directory, "styles.css"));
+  await createManifest(directory);
+
+  await assert.rejects(
+    verifyArtifact(directory),
+    /artifact references files it does not carry:.*styles\.css/s,
+  );
+});
+
 test("artifact verification probes the executive FinOps contract and canonical fixture together", async (t) => {
   const directory = await mkdtemp(resolve(tmpdir(), "shiplog-finops-briefing-artifact-test-"));
   t.after(async () => (await import("node:fs/promises")).rm(directory, { recursive: true, force: true }));

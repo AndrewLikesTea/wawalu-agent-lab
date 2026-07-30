@@ -34,6 +34,10 @@
 .brief-state[data-state="error"] { border-left:5px solid #8a2b2b; }
 .brief-state-label { color:#8a2b2b; font:750 12px/1 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; }
 .brief-state-remedy { color:#55554f; font-size:14px; }
+.brief-retry-button { min-height:44px; margin-top:6px; border:1px solid #8a2b2b; border-radius:10px; padding:0 18px; background:#fff; color:#721f1f; font:700 14px/1.4 inherit; cursor:pointer; }
+.brief-retry-button:hover { background:#fdf4f4; }
+.brief-retry-button:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.brief-retry-button[aria-disabled="true"] { color:#666; border-color:#999; cursor:wait; }
 
 .brief-masthead { padding:34px 34px 26px; border-bottom:1px solid var(--brief-rule); }
 .brief-question { max-width:24ch; margin:10px 0 16px; color:var(--brief-ink); font-size:clamp(28px,4.2vw,46px); line-height:1.08; letter-spacing:-.038em; }
@@ -169,13 +173,11 @@
 
 /* ------------------------------ the print control --------------------------- */
 
-/* The one control this page owns, and the only affordance above the document.
- * It sits between the masthead and the sheet because that is where a reader
- * decides to take the briefing with them, and it is a filled button rather than
- * a quiet link: "make me a PDF of this" is the second thing a leader wants from
- * an executive briefing, and the first is already on the sheet. */
+/* The secondary export action follows the decision and evidence in DOM order.
+ * It remains visually distinct from the document rather than looking like
+ * another recommendation inside the briefing. */
 .brief-actions:empty { display:none; }
-.brief-print-control { max-width:900px; margin:0 0 22px; }
+.brief-print-control { max-width:900px; margin:22px 0 0; }
 .brief-print-button { display:inline-flex; align-items:center; gap:8px; min-height:44px; border:1px solid var(--brief-ink); border-radius:10px; padding:11px 20px; background:var(--brief-ink); color:#fff; font:700 15px/1.2 inherit; letter-spacing:-.01em; cursor:pointer; }
 /* Decorative only, and declared with the empty alternative text so a reader
    using speech hears the label rather than the name of a glyph. A browser that
