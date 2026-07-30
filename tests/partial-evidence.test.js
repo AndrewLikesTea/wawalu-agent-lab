@@ -23,7 +23,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-import { parseHtml, textOf } from "./support/browser.js";
+import { parseHtml, pressEnter, textOf } from "./support/browser.js";
 import { chooseFiles, evidencePainted, exampleSelection, openFinopsTab } from "./partial-evidence-probe.mjs";
 import {
   ACTION_CODE, AGGREGATE_ELIGIBILITY_THRESHOLD, ATTRIBUTION_FLOOR, ELIGIBILITY_WEIGHTS,
@@ -390,6 +390,18 @@ test("the shipped markup carries the region, its question, and no answer", async
     PARTIAL_EVIDENCE_QUESTION);
   assert.equal(textOf(document.getElementById(PARTIAL_EVIDENCE_BODY_ID)), "",
     "every sentence is painted, so the markup may hold no state word or figure");
+  // The answer leads the inventory it was drawn from, and it does so in the
+  // authored file. A view that reordered sections at paint time would make the
+  // page a reader is served unreadable from the page a maintainer opens.
+  assert.ok(html.indexOf('id="partial-evidence"') < html.indexOf('id="provider-coverage"'),
+    "the finding must be authored above the coverage panel, not moved there");
+  // The announcement channel lives outside the region it announces, because the
+  // region is hidden until a result exists and a live region assistive
+  // technology has never rendered is a live region it will not read.
+  const live = document.getElementById("partial-evidence-live");
+  assert.ok(live && !section.querySelector("#partial-evidence-live"),
+    "the live region must be in the rendered tree before the first result");
+  assert.equal(textOf(live), "", "the shipped markup announces nothing");
 });
 
 test("the front door paints an imported finding and no measured peer comparison", async () => {
@@ -424,6 +436,10 @@ test("the front door paints an imported finding and no measured peer comparison"
     assert.equal(section.dataset.peerMeasured, "false");
     assert.equal(document.querySelector(".pe-peer").dataset.measured, "false");
     assert.match(textOf(document.querySelector(".pe-peer")), /No peer comparison was measured/);
+    const siblings = [...section.parentNode.children];
+    assert.ok(siblings.indexOf(section)
+      < siblings.indexOf(document.getElementById("provider-coverage")),
+      "the answer must lead the record inventory in DOM and reading order");
     // Progressive disclosure: the exclusions and the provenance are behind a
     // native summary, shut on arrival.
     const disclosure = document.querySelector(".pe-disclosure");
@@ -465,12 +481,77 @@ test("a partial finding stamps the figure in words a screen reader reaches", asy
   // assistive technology rather than read out as punctuation.
   assert.match(textOf(document.querySelector(".pe-headline-word")), /Partial support/);
   assert.equal(document.querySelector(".pe-headline-shape").getAttribute("aria-hidden"), "true");
+  assert.match(textOf(document.querySelector(".pe-confidence")), /^Limited confidence\./);
+  // The attribute carries the key and the text carries the sentence, so a
+  // reworded label is an editorial change rather than a broken selector.
+  assert.equal(section.dataset.confidence, "limited");
+  // Each slot is a heading under the section's question, so a reader who
+  // navigates by heading can reach the action without hearing the figure first.
+  const labels = [...document.querySelectorAll(".pe-slot-label")];
+  assert.deepEqual([...new Set(labels.map((label) => label.tagName.toLowerCase()))], ["h4"]);
+  assert.deepEqual(labels.map((label) => textOf(label)), [
+    "Strongest evidence-backed finding",
+    "Finding confidence",
+    "Prioritized next action",
+    "Peer comparison unavailable",
+  ]);
   // The one exclusion is listed with its code and its reason.
   const excluded = document.querySelector(".pe-exclusion");
   assert.equal(excluded.dataset.code, EXCLUSION_CODE.incompatibleCurrency);
+  assert.match(textOf(excluded.querySelector(".pe-evidence-kind")), /Excluded evidence/);
   assert.match(textOf(excluded), /cannot obtain a rate locally/);
+  assert.match(textOf(document.querySelector(".pe-usable").querySelector(".pe-evidence-kind")),
+    /Analyzed evidence/);
 
   clearPartialEvidence(document);
   assert.equal(section.hidden, true);
   assert.equal(textOf(document.getElementById(PARTIAL_EVIDENCE_BODY_ID)), "");
+});
+
+test("the one next action is operable from the keyboard and lands on the fix", async () => {
+  const html = await readFile(new URL("../src/evolution.html", import.meta.url), "utf8");
+  const document = parseHtml(html);
+  const taken = [];
+  applyPartialEvidence(document, evaluatePartialEvidence({
+    requiredPeriod: PERIOD,
+    records: [record("openai"), record("aws", { currencyCode: "EUR" })],
+  }), { onAct: (action) => taken.push(action.code) });
+
+  const jump = document.getElementById("partial-evidence-action-jump");
+  assert.equal(jump.tagName.toLowerCase(), "button");
+  assert.equal(jump.getAttribute("type"), "button", "a jump must never submit anything");
+  // The accessible name carries the whole instruction, so a reader listing the
+  // controls on this page hears what pressing this one is for.
+  assert.match(jump.getAttribute("aria-label"), /^Choose provider files again\. Re-export/);
+
+  jump.focus();
+  pressEnter(document);
+  assert.deepEqual(taken, [ACTION_CODE.recoverExcludedEvidence],
+    "the caller is told which action the reader took, by code");
+  assert.equal(document.activeElement.id, "local-finops-files",
+    "an action a reader cannot reach is not a next step; focus goes to the control");
+});
+
+test("an unsupported import offers one concrete recovery and announces the result", async () => {
+  const html = await readFile(new URL("../src/evolution.html", import.meta.url), "utf8");
+  const document = parseHtml(html);
+  applyPartialEvidence(document, evaluatePartialEvidence({
+    requiredPeriod: PERIOD,
+    records: [record("broken", { periodStart: "2026-02-30" })],
+  }));
+
+  const body = document.getElementById(PARTIAL_EVIDENCE_BODY_ID);
+  assert.equal(body.getAttribute("role"), null,
+    "interactive result content must keep its native semantics");
+  const live = document.getElementById("partial-evidence-live");
+  assert.equal(live.getAttribute("role"), "status");
+  assert.equal(live.getAttribute("aria-live"), "polite");
+  assert.match(textOf(live), /Not yet supported.*Next action: Correct the billing window/);
+  assert.match(textOf(document.querySelector(".pe-confidence")), /^No finding confidence\./);
+  assert.equal(document.querySelectorAll(".pe-action").length, 1);
+  assert.equal(document.querySelectorAll(".pe-action-jump").length, 1);
+  assert.match(textOf(document.querySelector(".pe-action")), /Correct the billing window/);
+  assert.equal(document.querySelector(".pe-action-jump").dataset.actionCode,
+    ACTION_CODE.correctImpossibleDates);
+  assert.equal(Boolean(document.querySelector(".pe-disclosure").open), false);
 });

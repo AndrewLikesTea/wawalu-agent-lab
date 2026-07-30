@@ -1,9 +1,16 @@
 // The partial-evidence finding, painted from the policy.
 //
-// Three slots in one order — state, one material figure, one action — then the
-// peer line, then one native disclosure holding every exclusion, every review
-// gap, and the provenance labels. A reader who stops after the third slot has
-// the whole decision; a reader who opens the disclosure can check it.
+// Three slots in one order — state, one material figure, one action — each
+// under a named heading, with the confidence in that finding stated between the
+// figure and the action. Then the peer line, then one native disclosure holding
+// every exclusion, every review gap, and the provenance labels. A reader who
+// stops after the third slot has the whole decision; a reader who opens the
+// disclosure can check it.
+//
+// The region's order on the page and its live region are both authored in
+// evolution.html. This module paints into what it is given and never moves a
+// section: where a result sits relative to the panels around it is a fact about
+// the page, readable without running it.
 //
 // This module authors no product wording. Every sentence comes from the frozen
 // result, so a change of judgment cannot leave a stale claim in the markup.
@@ -21,6 +28,7 @@ export const PARTIAL_EVIDENCE_SECTION_ID = "partial-evidence";
 export const PARTIAL_EVIDENCE_BODY_ID = "partial-evidence-body";
 export const PARTIAL_EVIDENCE_TITLE_ID = "partial-evidence-title";
 export const PARTIAL_EVIDENCE_DISCLOSURE_ID = "partial-evidence-disclosure";
+export const PARTIAL_EVIDENCE_LIVE_ID = "partial-evidence-live";
 
 /** A word and a shape. The word carries the meaning; the shape is decoration. */
 const STATE_WORD = Object.freeze({
@@ -33,6 +41,31 @@ const STATE_SHAPE = Object.freeze({
   [FINDING_STATE.supported]: "✓",
   [FINDING_STATE.partial]: "◐",
   [FINDING_STATE.insufficient]: "○",
+});
+
+/**
+ * A named confidence, derived only from the policy's state—not a new score.
+ *
+ * `level` is the stable key and `label` is the sentence. The attribute a
+ * reviewer or a test reads carries the key, so rewording the label is an
+ * editorial change and not a broken selector.
+ */
+const CONFIDENCE = Object.freeze({
+  [FINDING_STATE.supported]: {
+    level: "high",
+    label: "High confidence",
+    reason: "Every considered export is admissible and no review gap is open.",
+  },
+  [FINDING_STATE.partial]: {
+    level: "limited",
+    label: "Limited confidence",
+    reason: "The finding is usable as a floor, but excluded evidence or an open review gap can move it.",
+  },
+  [FINDING_STATE.insufficient]: {
+    level: "none",
+    label: "No finding confidence",
+    reason: "No material finding is published because the import has no admissible evidence.",
+  },
 });
 
 /** Which control an action wants, when it wants one at all. */
@@ -49,6 +82,17 @@ function element(doc, tag, className, text) {
   if (text !== undefined) node.textContent = text;
   return node;
 }
+
+/**
+ * The name of a slot, as a heading rather than a styled paragraph.
+ *
+ * A reader who navigates by heading is the reader this region is hardest for:
+ * they arrive at the section title — the question — and then need to reach the
+ * finding, the confidence, the action and the peer claim without listening to
+ * the whole thing. `h4` under the section's `h3` is what makes that a jump
+ * rather than a scroll, and it is the level the disclosure headings already use.
+ */
+const slotLabel = (doc, text) => element(doc, "h4", "pe-slot-label", text);
 
 /** Slot two: exactly one figure, and what kind of figure it is. */
 function materialBlock(doc, material) {
@@ -94,6 +138,7 @@ function exclusionRow(doc, entry) {
   item.dataset.code = entry.code;
   item.dataset.origin = entry.origin;
   item.append(
+    element(doc, "span", "pe-evidence-kind", "Excluded evidence"),
     element(doc, "span", "pe-exclusion-label", entry.label),
     element(doc, "span", "pe-exclusion-reason", entry.reason),
   );
@@ -104,6 +149,7 @@ function usableRow(doc, entry) {
   const item = element(doc, "li", "pe-usable");
   item.dataset.record = entry.id;
   item.append(
+    element(doc, "span", "pe-evidence-kind", "Analyzed evidence"),
     element(doc, "span", "pe-usable-label", entry.label),
     element(doc, "span", "pe-usable-window", `${entry.periodStart} to ${entry.periodEnd}`),
     // The label, never the source. What a record is attributed to is evidence;
@@ -118,8 +164,9 @@ function disclosure(doc, result) {
   details.id = PARTIAL_EVIDENCE_DISCLOSURE_ID;
   details.append(element(doc, "summary", undefined,
     result.evidence.excludedCount > 0
-      ? `Show what is outside this figure (${result.evidence.excludedCount})`
-      : "Show the evidence behind this"));
+      ? `Evidence details: ${result.evidence.admissible} analyzed, `
+        + `${result.evidence.excludedCount} excluded`
+      : `Evidence details: ${result.evidence.admissible} analyzed, none excluded`));
 
   if (result.evidence.excluded.length) {
     details.append(element(doc, "h4", "pe-disclosure-heading", "Excluded from the figure"));
@@ -196,6 +243,8 @@ export function applyPartialEvidence(doc, result, { onAct } = {}) {
     section.hidden = true;
     section.dataset.state = "absent";
     body.replaceChildren();
+    const live = byId(doc, PARTIAL_EVIDENCE_LIVE_ID);
+    if (live) live.textContent = "";
     return null;
   }
   section.hidden = false;
@@ -210,6 +259,8 @@ export function applyPartialEvidence(doc, result, { onAct } = {}) {
   // The peer claim is a fact on the element, not only a sentence inside it, so
   // "was a comparison measured?" is one attribute a reviewer can read.
   section.dataset.peerMeasured = String(result.peer.measured);
+  const confidence = CONFIDENCE[result.state] ?? CONFIDENCE[FINDING_STATE.insufficient];
+  section.dataset.confidence = confidence.level;
 
   const headline = element(doc, "p", "pe-headline");
   const shape = element(doc, "span", "pe-headline-shape", STATE_SHAPE[result.state]);
@@ -225,12 +276,25 @@ export function applyPartialEvidence(doc, result, { onAct } = {}) {
   peer.dataset.measured = String(result.peer.measured);
 
   body.replaceChildren(
+    slotLabel(doc, "Strongest evidence-backed finding"),
     headline,
     materialBlock(doc, result.material),
+    slotLabel(doc, "Finding confidence"),
+    element(doc, "p", "pe-confidence", `${confidence.label}. ${confidence.reason}`),
+    slotLabel(doc, "Prioritized next action"),
     ...actionBlock(doc, result, { onAct }),
+    slotLabel(doc, result.peer.measured
+      ? "Peer comparison available"
+      : "Peer comparison unavailable"),
     peer,
     disclosure(doc, result),
   );
+  const live = byId(doc, PARTIAL_EVIDENCE_LIVE_ID);
+  if (live) {
+    live.textContent = `${STATE_WORD[result.state] ?? result.state}. `
+      + `${result.material.label}: ${result.material.display}. `
+      + `Next action: ${result.nextAction.statement}`;
+  }
   return result;
 }
 

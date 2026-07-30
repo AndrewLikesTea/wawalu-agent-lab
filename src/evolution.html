@@ -737,22 +737,6 @@
         </div>
         <ul class="mapping-requirements" id="mapping-requirements" aria-label="Required inputs and what is still unresolved"></ul>
 
-        <!-- Which providers are inside the number, and what was held out of it.
-             Painted entirely by local-import-flow.js from the multi-provider
-             intake contract: the markup carries no provider name, no adapter
-             version, and no remediation sentence, so adding an adapter cannot
-             leave a stale claim here. Hidden until an analysis exists. -->
-        <section class="provider-coverage" id="provider-coverage" aria-labelledby="provider-coverage-title" hidden>
-          <h3 class="provider-coverage-title" id="provider-coverage-title">Providers in this analysis</h3>
-          <p class="provider-coverage-state" id="provider-coverage-state"></p>
-          <ul class="provider-coverage-list" id="provider-coverage-list" aria-label="Providers read into this analysis"></ul>
-          <div class="provider-coverage-held" id="provider-coverage-held" hidden>
-            <h4 class="provider-coverage-held-title">Not added to the total</h4>
-            <ul class="provider-coverage-rejections" id="provider-coverage-rejections" aria-label="Exports held out of this analysis and how to recover them"></ul>
-          </div>
-          <p class="provider-coverage-source">What each adapter declares, including its schema version and its behaviour for partial, stale, malformed, reordered, and mixed-currency exports: <a href="/docs/multi-provider-intake-contract.md">multi-provider intake contract</a>.</p>
-        </section>
-
         <!-- WHAT THE EVIDENCE YOU ACTUALLY HAVE SUPPORTS, and why this region
              exists.
 
@@ -783,7 +767,14 @@
 
              The markup carries no figure, no provider name, no state word and
              no remediation sentence. All of it is painted, so a change of
-             judgment cannot leave a stale claim here. -->
+             judgment cannot leave a stale claim here.
+
+             It is authored above the coverage panel, not moved there at paint
+             time, because the answer leads the inventory it was drawn from: a
+             reader arriving at a result should meet the finding first and the
+             list of files that produced it second. An order this consequential
+             belongs in the markup, where it can be read without running the
+             page. -->
         <section class="partial-evidence" id="partial-evidence" data-state="absent" aria-labelledby="partial-evidence-title" hidden>
           <div class="partial-evidence-heading">
             <p class="eyebrow">From your own imported evidence</p>
@@ -791,6 +782,30 @@
           </div>
           <div id="partial-evidence-body"></div>
           <p class="partial-evidence-source">Every rule above — what makes a record admissible, how a partial floor is summed, the priority order that picks the single next action, and why a peer comparison is never measured here: <a href="/docs/partial-evidence-policy.md">partial evidence policy</a>.</p>
+        </section>
+        <!-- Outside the section on purpose. The region above is `hidden` until a
+             result exists, and a live region mutated in the same task that
+             un-hides its ancestor is a live region assistive technology may
+             never have observed. This one is always in the rendered tree, so the
+             announcement fires on the first import as well as the tenth. -->
+        <p class="visually-hidden" id="partial-evidence-live" role="status" aria-live="polite" aria-atomic="true"></p>
+
+        <!-- Which providers are inside the number, and what was held out of it.
+             Painted entirely by local-import-flow.js from the multi-provider
+             intake contract: the markup carries no provider name, no adapter
+             version, and no remediation sentence, so adding an adapter cannot
+             leave a stale claim here. Hidden until an analysis exists. It sits
+             below the finding: it is the evidence inventory behind an answer,
+             not the answer. -->
+        <section class="provider-coverage" id="provider-coverage" aria-labelledby="provider-coverage-title" hidden>
+          <h3 class="provider-coverage-title" id="provider-coverage-title">Providers in this analysis</h3>
+          <p class="provider-coverage-state" id="provider-coverage-state"></p>
+          <ul class="provider-coverage-list" id="provider-coverage-list" aria-label="Providers read into this analysis"></ul>
+          <div class="provider-coverage-held" id="provider-coverage-held" hidden>
+            <h4 class="provider-coverage-held-title">Not added to the total</h4>
+            <ul class="provider-coverage-rejections" id="provider-coverage-rejections" aria-label="Exports held out of this analysis and how to recover them"></ul>
+          </div>
+          <p class="provider-coverage-source">What each adapter declares, including its schema version and its behaviour for partial, stale, malformed, reordered, and mixed-currency exports: <a href="/docs/multi-provider-intake-contract.md">multi-provider intake contract</a>.</p>
         </section>
 
         <!-- CAN THIS PORTFOLIO BE COMBINED YET, and why this region exists.
