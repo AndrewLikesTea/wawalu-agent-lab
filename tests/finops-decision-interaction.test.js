@@ -103,9 +103,13 @@ function contrast(a, b) {
 
 test("the specification is one ordered spine, decision before supporting detail", () => {
   assert.match(INTERACTION_SPEC_VERSION, /^finops-decision-interaction\/\d+\.\d+\.\d+$/);
-  // Answer, then what sizes it, then what to do, then how to check it.
+  // Answer, then what sizes it, then what to do, then where that leaves this
+  // org against comparable ones, then how to check it. The peer position sits
+  // directly after the action because it is the fact that justifies it, and a
+  // band a leader has to scroll past the provenance to find is a band they will
+  // quote from memory.
   assert.deepEqual(DECISION_SPINE.slice(3),
-    ["answer", "benchmark", "impact", "action", "confidence", "provenance"]);
+    ["answer", "benchmark", "impact", "action", "peer", "confidence", "provenance"]);
   // Steps are numbered in reading order and nothing repeats an id.
   assert.deepEqual(READING_ORDER.map((step) => step.step),
     READING_ORDER.map((_, index) => index + 1));

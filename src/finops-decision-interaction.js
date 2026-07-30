@@ -104,19 +104,25 @@ export const READING_ORDER = Object.freeze([
     purpose: "The rank-1 intervention and the role accountable for it.",
   }),
   Object.freeze({
-    step: 8, key: "confidence", rank: "decision", level: 3,
+    // Directly after the action, and part of the decision spine rather than
+    // supporting detail: where this organization's cost per successful task
+    // ranks among comparable organizations is the fact that justifies the
+    // action above it. A leader who has to scroll past the provenance to find
+    // their band will quote it from memory instead.
+    step: 8, key: "peer", rank: "decision", level: 3,
+    id: "finops-first-run-peer-heading",
+    purpose: "Where this org's cost per successful task ranks in its published cohort, "
+      + "or the reason no position is claimed.",
+  }),
+  Object.freeze({
+    step: 9, key: "confidence", rank: "decision", level: 3,
     id: "finops-first-run-confidence-heading",
     purpose: "How much of the answer was verified, never a bare decimal.",
   }),
   Object.freeze({
-    step: 9, key: "provenance", rank: "decision", level: 3,
+    step: 10, key: "provenance", rank: "decision", level: 3,
     id: "finops-first-run-method-heading",
     purpose: "Where the figures came from and what they cannot tell you. Expandable, never omitted.",
-  }),
-  Object.freeze({
-    step: 10, key: "peer", rank: "supporting", level: 3,
-    id: "finops-first-run-peer-heading",
-    purpose: "A value this sample genuinely cannot supply, labelled rather than filled in.",
   }),
   Object.freeze({
     step: 11, key: "next", rank: "supporting", level: 3,

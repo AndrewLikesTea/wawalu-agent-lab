@@ -536,6 +536,12 @@ const ALLOWED_MODULES = Object.freeze([
   // fetch, no storage, no clock, no randomness — it is on the path because
   // `local-finops.js` aggregates the portfolio during reconciliation.
   "finops-portfolio-aggregate.js",
+  // Reviewed on: the peer-position contract and the two hand-authored
+  // reference-data files behind it. All three are frozen literals and pure
+  // arithmetic over them — no fetch, storage, clock, or randomness — and the
+  // cohort table is reachable only from module scope, so nothing a visitor
+  // imports can move a published boundary.
+  "peer-cohort-fixtures.js", "peer-cost-cohorts.js", "peer-cost-position.js",
   "finops-workspace-contract.js", "finops-workspace-migrations.js", "finops-workspace.js",
   "grade-eligibility.js", "landing-decision-page.js", "landing-decision.js", "local-finops.js",
   "longitudinal-finops-metrics.js", "multi-provider-intake.js", "org-unit-labels.js", "prompt-literacy-scoring.js",

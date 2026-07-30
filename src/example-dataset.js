@@ -17,6 +17,10 @@
 // contract's pseudonym pattern and their readable tails are made-up words.
 
 import { parseLocalFinopsFile, normalizeLocalFinopsHistory } from "./local-finops.js";
+import {
+  ORG_SIZE_BAND, PEER_COST_SNAPSHOT_ID, PEER_INDUSTRY, TASK_OUTCOME,
+  TASK_NON_TERMINAL_OUTCOME,
+} from "./peer-cost-position.js";
 
 /** Six consecutive complete calendar months; the last one is the reporting period. */
 const MONTHS = Object.freeze([
@@ -77,6 +81,59 @@ const DEPARTMENTS = Object.freeze([
       Object.freeze(["aws", "storage", 20]),
     ]),
   }),
+]);
+
+/**
+ * What the invented organization declares about itself.
+ *
+ * The two cohort attributes are DECLARED, not inferred: a size band derived
+ * from the invoice would make the peer cohort a function of the very number the
+ * cohort exists to judge. The snapshot identifier is the published cost-cohort
+ * reference data's own, so the bundled example and the reference table are
+ * comparable by construction and a future snapshot bump on either side is
+ * caught rather than silently compared across.
+ *
+ * These attributes belong to the invented company in this file and to nothing
+ * else. A reader's own import declares no size band or industry, so it is
+ * withheld with a reason rather than borrowing this one.
+ */
+export const EXAMPLE_ORG_COHORT_PROFILE = Object.freeze({
+  sizeBand: ORG_SIZE_BAND.enterprise,
+  industry: PEER_INDUSTRY.saas,
+  snapshotId: PEER_COST_SNAPSHOT_ID,
+});
+
+/**
+ * The invented task ledger for the reporting month — the denominator's source.
+ *
+ * One row per department per outcome, as a tally rather than as thousands of
+ * individual task objects: the rule the denominator turns on is which outcome a
+ * row carries, and a tally states that exactly as well as a list while staying
+ * readable. `countSuccessfulTasks` treats a row with no `count` as one task, so
+ * a test can hand it individual records and get the same rule.
+ *
+ * Every outcome the metric distinguishes is present on purpose. The failed and
+ * abandoned rows are what make the metric mean something for this example: their
+ * spend stays in the numerator and they contribute nothing to the denominator.
+ * The running rows are not yet terminal at the snapshot boundary and are
+ * excluded from both, so they can be deleted from this fixture without moving
+ * the published figure — which is the property a test pins.
+ *
+ * Successes total 4,000 for the reporting month.
+ */
+const taskRows = (unitId, success, failed, abandoned, running) => [
+  Object.freeze({ groupId: `${unitId}-success`, orgUnitId: unitId, outcome: TASK_OUTCOME.success, count: success }),
+  Object.freeze({ groupId: `${unitId}-failed`, orgUnitId: unitId, outcome: TASK_OUTCOME.failed, count: failed }),
+  Object.freeze({ groupId: `${unitId}-abandoned`, orgUnitId: unitId, outcome: TASK_OUTCOME.abandoned, count: abandoned }),
+  Object.freeze({ groupId: `${unitId}-running`, orgUnitId: unitId, outcome: TASK_NON_TERMINAL_OUTCOME.running, count: running }),
+];
+
+export const EXAMPLE_TASK_LEDGER = Object.freeze([
+  ...taskRows("psn_example_unit_atlas0", 1_500, 260, 90, 140),
+  ...taskRows("psn_example_unit_boreal", 900, 110, 40, 60),
+  ...taskRows("psn_example_unit_cinder", 780, 150, 55, 70),
+  ...taskRows("psn_example_unit_quartz", 520, 80, 30, 45),
+  ...taskRows("psn_example_unit_ember0", 300, 60, 25, 30),
 ]);
 
 const USAGE_UNIT = Object.freeze({
