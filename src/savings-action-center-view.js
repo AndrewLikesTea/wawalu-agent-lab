@@ -12,6 +12,8 @@
 // is replaced while it holds focus takes the visitor's place in the document
 // with it.
 
+import { journeyPaintKey, journeySignals, money } from "./finops-journey-signals.js";
+
 const VERDICT_TONE = Object.freeze({
   verified: "verified",
   partially_realized: "partial",
@@ -118,19 +120,101 @@ export function renderSavingsActionCenter(claim) {
 }
 
 /**
- * Paint the recurring-review contract before any legacy savings reconciliation.
- * Benchmark and prior-result evidence are deliberately contained by `details`;
- * the surface itself carries only readiness and one next action.
+ * One scannable signal. Colour is the last channel it uses, never the only one:
+ * the label names what is being reported, the value states it in words, and the
+ * shape repeats the direction — so the chip survives greyscale, a screen reader,
+ * and a reader who cannot separate the two washes.
  */
-export function renderRecurringReviewReadiness(review, { source = "demo" } = {}) {
-  const article = el("article", "sac-focus");
+function chip(signal) {
+  const item = el("li", "sac-signal");
+  const node = el("span", "sac-chip");
+  node.dataset.signal = signal.key;
+  node.dataset.tone = signal.tone;
+  node.dataset.silhouette = signal.silhouette;
+  node.dataset.known = String(signal.known);
+  const shape = el("span", "sac-chip-shape", signal.shape);
+  shape.setAttribute("aria-hidden", "true");
+  node.append(shape, el("span", "sac-chip-label", signal.label),
+    el("span", "sac-chip-value", signal.value));
+  item.append(node);
+  return item;
+}
+
+/**
+ * A disclosure the keyboard can actually work.
+ *
+ * `details`/`summary` is the cheaper control and this file still uses it for the
+ * legacy claim's arithmetic, but the journey's two panels have to report their
+ * own state to a test and to assistive technology on both sides of a toggle, so
+ * they are a button with `aria-expanded`/`aria-controls` over a named group.
+ * Nothing here traps focus: the panel is inline, and a collapsed panel is
+ * `hidden`, so it leaves the tab sequence rather than holding it.
+ */
+function disclosure(id, label, rows) {
+  const wrapper = el("div", "sac-disclosure");
+  const trigger = el("button", "sac-disclosure-trigger");
+  trigger.type = "button";
+  trigger.id = `${id}-trigger`;
+  trigger.setAttribute("aria-expanded", "false");
+  trigger.setAttribute("aria-controls", `${id}-panel`);
+  const shape = el("span", "sac-disclosure-shape", "▸");
+  shape.setAttribute("aria-hidden", "true");
+  const state = el("span", "sac-disclosure-state", "Show");
+  trigger.append(shape, el("span", "sac-disclosure-label", label), state);
+
+  const panel = el("div", "sac-disclosure-panel");
+  panel.id = `${id}-panel`;
+  panel.setAttribute("role", "group");
+  panel.setAttribute("aria-labelledby", `${id}-trigger`);
+  panel.hidden = true;
+  const list = el("dl", "sac-calculation");
+  for (const [name, value] of rows) fact(list, name, value);
+  panel.append(list);
+
+  trigger.addEventListener("click", () => {
+    const expanded = trigger.getAttribute("aria-expanded") === "true";
+    trigger.setAttribute("aria-expanded", String(!expanded));
+    panel.hidden = expanded;
+    shape.textContent = expanded ? "▸" : "▾";
+    state.textContent = expanded ? "Show" : "Hide";
+    wrapper.dataset.disclosure = expanded ? "collapsed" : "expanded";
+  });
+  wrapper.dataset.disclosure = "collapsed";
+  wrapper.append(trigger, panel);
+  return wrapper;
+}
+
+const stated = (number, unit) =>
+  number === null || number === undefined ? "Not available" : `${number}${unit ? ` ${unit}` : ""}`;
+
+// A list that may arrive empty, or with several hundred entries. Both are drawn:
+// the count is in the label so the reader knows the size before opening it, and
+// the value wraps rather than growing a horizontal scrollbar under the panel.
+const listed = (values, empty) => (values?.length ? values.join(", ") : empty);
+
+/**
+ * Paint the recurring review: one question, one recommended action, one figure,
+ * five signals, and everything else grouped and labelled as support.
+ *
+ * Reading order in the DOM is the reading order on screen — the recommendation
+ * is genuinely first, not first-looking through a CSS reorder that would leave
+ * the tab sequence somewhere else.
+ */
+export function renderRecurringReviewReadiness(review, { source = "demo", retainedAction = null } = {}) {
+  const signals = journeySignals(review, { retainedAction });
+  const article = el("article", "sac-focus sac-journey");
   article.setAttribute("aria-labelledby", "sac-question");
   article.dataset.source = source;
   article.dataset.reviewState = review.state;
+  article.dataset.reviewKey = journeyPaintKey(review, retainedAction);
 
   const heading = el("header", "sac-heading");
   const question = el("h2", undefined, review.question);
   question.id = "sac-question";
+  // The transition from the briefing lands the keyboard here, so the heading is
+  // programmatically focusable. It is not a tab stop — nobody tabs onto a
+  // heading — and the stylesheet keeps the mouse from parking a ring on it.
+  question.setAttribute("tabindex", "-1");
   const headline = el("p", "sac-headline", review.headline);
   // The headline's tone is set from readiness, not from the words in it: the
   // stylesheet's default is the caution colour, so a ready review painted
@@ -140,46 +224,79 @@ export function renderRecurringReviewReadiness(review, { source = "demo" } = {})
     question, headline);
   article.append(heading);
 
+  // First in the DOM, first on screen, and the largest thing on the page after
+  // the question itself. Everything below this block exists to justify it.
   const decision = el("section", "sac-decision");
   decision.setAttribute("aria-labelledby", "sac-decision-title");
   const title = el("h3", undefined, review.ready
     ? "Review the measured change" : "Resolve the evidence boundary");
   title.id = "sac-decision-title";
-  decision.append(el("p", "sac-kicker", "Do this next"), title,
+  decision.append(el("p", "sac-kicker", "Do this next · priority 1"), title,
     el("p", undefined, review.ready
-      ? "Use the benchmark and Theo-bounded current result to decide whether to continue or replace the action."
+      ? "Use the benchmark and evidence-bounded current result to decide whether to continue or replace the action."
       : "Supply only the named missing local evidence; no recommendation is available."));
   article.append(decision);
 
-  const details = el("details", "sac-details");
-  details.append(el("summary", undefined, "Review benchmark and prior result"));
-  const body = el("div", "sac-details-body");
-  const rows = el("dl", "sac-calculation");
-  // Both figures carry the unit they are stated in. A bare pair of numbers is
-  // what lets a reader subtract two things that were never the same measurement,
-  // and the contract blocks that case rather than painting it — so when both
-  // rows do appear, the units on them are the evidence that it did.
-  const value = (number, unit) =>
-    number === null ? "Not available" : `${number}${unit ? ` ${unit}` : ""}`;
-  fact(rows, "Current value", value(review.current.value, review.current.unit));
-  fact(rows, "Retained benchmark", value(review.benchmark.value, review.benchmark.unit));
-  fact(rows, "Current period", review.current.period ?? "Not available");
-  fact(rows, "Theo coverage", review.confidence.coveragePercent === null
-    ? "Not available" : `${review.confidence.coveragePercent.toFixed(1)}%`);
-  fact(rows, "Recurring verdict", review.verdict.verdict);
-  fact(rows, "Permitted wording", review.verdict.wording);
-  fact(rows, "Verdict confidence", review.verdict.confidence.level);
-  fact(rows, "Confidence basis", review.verdict.confidence.basis.join(", "));
-  fact(rows, "Confidence assumption", review.verdict.confidence.assumption);
-  fact(rows, "Evidence excluded", review.verdict.evidenceBoundary.excluded.join(", "));
-  body.append(rows);
-  body.append(el("p", "sac-caveat", review.recommendation
+  const metric = el("p", "sac-metric");
+  metric.append(
+    el("span", "sac-metric-label", "Current vs retained baseline"),
+    el("strong", "sac-metric-value", review.current.value === null
+      ? "Not comparable"
+      : `${money(review.current.value)} vs ${money(review.benchmark.value)}`),
+    el("span", "sac-metric-comparison",
+      `${review.current.period ?? "current period unavailable"} · baseline `
+      + `${review.benchmark.period ?? "unavailable"}`),
+  );
+  article.append(metric);
+
+  const row = el("ul", "sac-signals");
+  row.setAttribute("aria-label", "Signals behind this recommendation");
+  for (const signal of signals) row.append(chip(signal));
+  article.append(row);
+
+  const support = el("section", "sac-support");
+  support.setAttribute("aria-labelledby", "sac-support-title");
+  const supportTitle = el("h3", "sac-support-title", "Supporting evidence");
+  supportTitle.id = "sac-support-title";
+  support.append(supportTitle, el("p", "sac-support-note",
+    "Everything in this group supports the recommendation above. None of it is the decision."));
+
+  support.append(disclosure("sac-department", "Department detail", [
+    ["Department", review.current.department ?? retainedAction?.department ?? "Not identified in this evidence"],
+    ["Tracked action", retainedAction?.actionLabel ?? "No retained action"],
+    ["Owner", retainedAction?.ownerLabel ?? "Not available"],
+    ["Metric", review.current.definition],
+    ["Current value", stated(review.current.value, review.current.unit)],
+    ["Retained benchmark", stated(review.benchmark.value, review.benchmark.unit)],
+    ["Current period", review.current.period ?? "Not available"],
+    ["Comparability", review.ready
+      ? "Same department, unit, and a later period. This is measured change, not realized savings."
+      : `Comparison withheld: ${listed(review.evidenceBoundary.gaps, "reason not recorded")}.`],
+  ]));
+
+  support.append(disclosure("sac-evidence-detail", "Evidence and provenance", [
+    ["Attribution coverage", review.confidence.coveragePercent === null
+      ? "Not measured" : `${review.confidence.coveragePercent.toFixed(1)}%`],
+    ["Recurring verdict", review.verdict.verdict],
+    ["Permitted wording", review.verdict.wording],
+    ["Verdict confidence", review.verdict.confidence.level],
+    ["Confidence basis", listed(review.verdict.confidence.basis, "Not recorded")],
+    ["Confidence assumption", review.verdict.confidence.assumption],
+    [`Evidence joined (${review.evidenceBoundary.joined.length})`,
+      listed(review.evidenceBoundary.joined, "None")],
+    [`Evidence excluded (${review.verdict.evidenceBoundary.excluded.length})`,
+      listed(review.verdict.evidenceBoundary.excluded, "None")],
+    [`Action references (${review.provenance.actionReferences.length})`,
+      listed(review.provenance.actionReferences, "None retained")],
+    ["Analysis contract", review.provenance.analysisContract ?? "Not recorded"],
+  ]));
+
+  support.append(el("p", "sac-caveat", review.recommendation
     ? "A lower current value is improvement under this contract. The verdict describes measured change, not causal attribution."
-    : `Recommendation withheld. Missing or mismatched evidence: ${review.evidenceBoundary.gaps.join(", ")}.`));
-  body.append(el("p", "sac-contracts",
+    : `Recommendation withheld. Missing or mismatched evidence: ${listed(review.evidenceBoundary.gaps, "not recorded")}.`));
+  support.append(el("p", "sac-contracts",
     `${review.schemaVersion} · ${review.verdict.schemaVersion}`));
-  details.append(body);
-  article.append(details);
+  article.append(support);
   return article;
 }
 
@@ -234,4 +351,22 @@ export function renderSavingsActionCenterError() {
     el("p", undefined,
       "The bundled contracts could not be reconciled. No savings decision is shown."));
   return error;
+}
+
+/**
+ * The state between one review and the next.
+ *
+ * The page's static first paint already says "Reconciling monthly savings"; this
+ * is the same region, repainted, for the reads that happen after it — opening
+ * evidence files, or clearing them. It keeps a heading in the region so the
+ * document never loses the outline level the review occupied.
+ */
+export function renderSavingsActionCenterLoading(
+  message = "Checking the action, measurement, and adjudication records…",
+) {
+  const loading = el("section", "sac-state");
+  loading.setAttribute("role", "status");
+  loading.append(el("h2", undefined, "Reconciling monthly savings"),
+    el("p", undefined, message));
+  return loading;
 }

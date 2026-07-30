@@ -6,7 +6,9 @@ import {
   renderRecurringReviewReadiness,
   renderSavingsActionCenter,
   renderSavingsActionCenterError,
+  renderSavingsActionCenterLoading,
 } from "/savings-action-center-view.js";
+import { journeyPaintKey } from "/finops-journey-signals.js";
 import {
   assembleRecurringReview, readCurrentReviewEvidence,
 } from "/recurring-review-readiness.js";
@@ -30,6 +32,23 @@ const status = document.getElementById("sac-evidence-status");
 const reconciliationRoot = document.getElementById("sac-reconciliation");
 const saveButton = document.getElementById("sac-reconcile-save");
 const saveStatus = document.getElementById("sac-reconcile-status");
+const journeyLive = document.getElementById("sac-journey-live");
+
+// One title per state of this view. The static markup names the page; a reader
+// with six tabs open needs to know which of them holds a review that is ready.
+const TITLE = Object.freeze({
+  ready: "Ready to act on",
+  blocked: "Not ready · evidence gap",
+  insufficient_evidence: "Not ready · insufficient evidence",
+  unavailable: "Unavailable",
+});
+const titleFor = (state) =>
+  `${TITLE[state] ?? TITLE.unavailable} · Monthly Savings Action Center · Shiplog`;
+
+// The keyboard is moved to this view's heading once, when the review first
+// resolves. Later repaints must not do it again: a reader who has tabbed into a
+// disclosure would be thrown back to the top by a file they just opened.
+let announced = false;
 
 // The reconciliation the months currently open produce. Recomputed on every
 // read of the file input, so the panel and the save control can never describe a
@@ -44,6 +63,23 @@ let opened = [];
 function paint(node) {
   root.replaceChildren(node);
   root.setAttribute("aria-busy", "false");
+}
+
+/**
+ * Land the reader in this view: name it in the title, say so once in a polite
+ * live region, and put the keyboard on the view's own heading.
+ *
+ * Focus goes to the heading rather than to the recommended action, because the
+ * heading is what a returning reader needs read to them first, and because the
+ * control that brought them here is on another page and no longer exists to
+ * hold focus.
+ */
+function arrive(state, sentence) {
+  document.title = titleFor(state);
+  if (announced) return;
+  announced = true;
+  if (journeyLive) journeyLive.textContent = sentence;
+  document.getElementById("sac-question")?.focus();
 }
 
 function paintNotices(rejected) {
@@ -95,7 +131,18 @@ function renderClaim() {
   const retainedAction = readMonthlyAction(storage).record;
   const { currentAnalysis, theoVerdict } = readCurrentReviewEvidence(storage);
   const review = assembleRecurringReview({ retainedAction, currentAnalysis, theoVerdict });
-  paint(renderRecurringReviewReadiness(review, { source: "local" }));
+  // An unchanged review is left standing. Every evidence read repaints this
+  // region, and rebuilding a review nothing moved would close the disclosures
+  // the reader opened and take the keyboard with them — the same rule the
+  // guided workspace already runs on. A review that genuinely moved on does
+  // repaint, and losing the open panels is then the honest outcome.
+  const key = journeyPaintKey(review, retainedAction);
+  if (root.firstChild?.dataset?.reviewKey !== key) {
+    paint(renderRecurringReviewReadiness(review, { source: "local", retainedAction }));
+  } else {
+    root.setAttribute("aria-busy", "false");
+  }
+  arrive(review.state, `${review.question} ${review.headline}`);
 }
 
 async function openFiles(list) {
@@ -128,6 +175,13 @@ fileInput?.addEventListener("change", async (event) => {
   const list = [...(event.target.files ?? [])];
   if (!list.length) return;
   root.setAttribute("aria-busy", "true");
+  // A standing review is left on screen while the files are read — it is still
+  // true, and replacing it would close the reader's disclosures. Only a region
+  // that never resolved to a review gets the loading state drawn into it.
+  if (!root.querySelector(".sac-focus")) {
+    paint(renderSavingsActionCenterLoading("Reading the evidence files you opened…"));
+    root.setAttribute("aria-busy", "true");
+  }
   try {
     await openFiles(list);
   } catch (error) {
@@ -187,4 +241,12 @@ try {
     error: error?.message ?? String(error),
   });
   paint(renderSavingsActionCenterError());
+  // The failure is a state of this view, so it names itself in the title and in
+  // the live region too. Focus stays where the reader left it: there is no
+  // heading here worth taking the keyboard for, and the alert announces itself.
+  document.title = titleFor("unavailable");
+  announced = true;
+  if (journeyLive) {
+    journeyLive.textContent = "Monthly savings review unavailable. No savings decision is shown.";
+  }
 }

@@ -324,7 +324,12 @@
            it a name distinct from the site nav above, which is the difference
            between two navigation landmarks a screen-reader user can tell apart
            and two called "navigation". -->
-      <nav class="workspace-nav" id="finops-workspace-nav" data-ranked="false" data-current="answer" data-workspace-frame="true" aria-labelledby="finops-workspace-nav-title">
+      <!-- `tabindex="-1"` makes this landmark the return path's destination: the
+           Savings Action Center is opened from the "Act and verify" destination
+           below, and its "Back to the AI FinOps briefing" link targets this id,
+           so returning puts the keyboard back on the control that left rather
+           than at the top of a long page. It is not a tab stop. -->
+      <nav class="workspace-nav" id="finops-workspace-nav" tabindex="-1" data-ranked="false" data-current="answer" data-workspace-frame="true" aria-labelledby="finops-workspace-nav-title">
         <div class="workspace-nav-head">
           <h2 class="workspace-nav-title" id="finops-workspace-nav-title">Go to a part of this workspace</h2>
           <p class="workspace-nav-note">Four destinations. The one marked <strong>Current</strong> is the one you last opened; opening a destination moves the keyboard to it and unfolds any supporting panel it sits inside.</p>
