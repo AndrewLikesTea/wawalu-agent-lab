@@ -147,7 +147,7 @@ function exclusionsBlock(doc, journey) {
   block.append(
     summary,
     element(doc, "p", "prompt-coaching-entry-lead",
-      "None of the systems below is contacted, read, or required. Expand this boundary to inspect each claim and how the regression suite checks it."),
+      "None of the systems below is contacted, read, or required. Open this boundary to read each claim and how it is checked."),
     list,
   );
   return block;

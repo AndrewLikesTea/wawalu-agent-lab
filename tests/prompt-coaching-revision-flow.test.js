@@ -86,7 +86,9 @@ test("before a second grade the cue offers re-grading and nothing claims a chang
     assert.match(words, /no prompt is sent to a model/i);
     assert.match(words, /text-free result envelope from the previous grade/i,
       "the cue must describe the contract's retained session envelope, not understate it as counts");
-    assert.match(words, /until you clear the panel or close the tab/i);
+    // Named by the control a reader presses, not by a word for the region it
+    // sits in: "the panel" is not a thing on screen, "Clear and start over" is.
+    assert.match(words, /until you press Clear and start over, or close the tab/i);
     assert.doesNotMatch(words, /saved|stored|history|account|upload/i);
 
     assert.equal(changeRegion(document).hidden, true);
