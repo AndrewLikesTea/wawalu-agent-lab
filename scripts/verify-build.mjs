@@ -52,6 +52,10 @@ export async function verifyArtifact(root) {
     "post.html", "post-page.js", "post-detail.js",
     "evolution.html", "evolution-page.js", "evolution.css",
     "finops-panel-contract.js", "finops-panel-contract-view.js", "panel-status-view.js",
+    // The workspace rail is a hard import of the AI FinOps entry. If a narrowed
+    // artifact omits it, the browser rejects the entire entry module before any
+    // destination can be painted or bound.
+    "finops-workspace-nav.js",
     // Organizational artifacts are parsed, minimized, aggregated, and scored in
     // the browser. Treat that chain and its published contracts as one deployable
     // unit: a partial artifact would only fail after a reader selected a file.

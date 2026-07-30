@@ -104,7 +104,14 @@
            Exactly one complete summary may be visible at a time — this one is
            retired the moment the reader's own result appears, and
            tests/finops-decision-contract.test.js holds that rule. -->
-      <section class="first-run" id="finops-first-run" data-state="pending" data-tone="neutral" data-decision-summary="complete" aria-labelledby="finops-first-run-title">
+      <!-- `tabindex="-1"` on this and the other two in-page destinations of the
+           workspace rail below: a fragment whose target cannot take focus moves
+           the scroll position and leaves the keyboard where it was, so the reader
+           is looking at one region and tabbing through another. Authored rather
+           than added by script, so the rail's own doors — plain anchors — place
+           focus correctly before any module runs. It adds no tab stop of its
+           own. -->
+      <section class="first-run" id="finops-first-run" tabindex="-1" data-state="pending" data-tone="neutral" data-decision-summary="complete" aria-labelledby="finops-first-run-title">
         <div class="first-run-head">
           <p class="eyebrow" id="finops-first-run-label"><span class="first-run-shape" id="finops-first-run-shape" aria-hidden="true">◇</span> <span id="finops-first-run-word">Example result pending</span> · nothing of yours needed</p>
           <!-- The heading is the decision question itself, authored here in the
@@ -253,6 +260,86 @@
           <p class="dest-unavailable">No destination is ranked from this example.</p>
         </div>
       </section>
+
+      <!-- THE WORKSPACE RAIL, and why it is navigation rather than a fifth panel.
+
+           The two regions above answer "are we wasting money?" and "where do I
+           go next?". Neither of them tells a reader *where they are*, and on a
+           document this long that was a real omission rather than a nicety:
+           position was carried by scroll offset and nothing else, so a keyboard
+           or screen-reader user had no way to ask which part of the workspace
+           they were in and no way to move between parts except walking every
+           control in between. Both in-page destinations here are also authored
+           inside collapsed supporting disclosures a thousand lines below, which
+           is why the rail hands each click to deep-link-disclosure.js: the panel
+           unfolds before the keyboard lands in it.
+
+           IT SITS HERE, third, and not first. The reading order this page is
+           built on is question, then the metric that sizes it, then the one
+           ranked action — and a rail of four equal doors above that order would
+           be a menu offered to a reader who has not yet been given an answer.
+           Navigation earns its place after the decision, not in front of it.
+
+           THE FOUR DOORS ARE AUTHORED HERE, not painted. Every one is a real
+           anchor with a real href, so the rail is operable before any script
+           runs, survives a copy-paste into the address bar, and needs no
+           JavaScript to be keyboard-reachable. src/finops-workspace-nav.js then
+           corrects each href from the destination contract, moves the
+           "Recommended first" chip onto whichever door that contract's priority
+           clause promoted, fills the disclosure with what each door answers, and
+           marks the current one. A test fails if an authored href and the
+           contract's disagree, which is what keeps two sources of truth from
+           becoming two answers.
+
+           It carries no figure and answers no decision question, so it is not a
+           summary of anything and is not marked as one. `aria-labelledby` gives
+           it a name distinct from the site nav above, which is the difference
+           between two navigation landmarks a screen-reader user can tell apart
+           and two called "navigation". -->
+      <nav class="workspace-nav" id="finops-workspace-nav" data-ranked="false" data-current="answer" aria-labelledby="finops-workspace-nav-title">
+        <div class="workspace-nav-head">
+          <h2 class="workspace-nav-title" id="finops-workspace-nav-title">Go to a part of this workspace</h2>
+          <p class="workspace-nav-note">Four destinations. The one marked <strong>Current</strong> is the one you last opened; opening a destination moves the keyboard to it and unfolds any supporting panel it sits inside.</p>
+        </div>
+        <!-- An ordered list, because the order is the reading order: the answer,
+             then its evidence, then the unit that owns the action, then the
+             commitment. The state and recommendation chips sit *inside* each
+             link, so the name a screen reader announces and the name a
+             speech-control user says are both the name a sighted reader sees. -->
+        <ol class="workspace-nav-list" id="finops-workspace-nav-list">
+          <li class="workspace-nav-item">
+            <a class="workspace-dest" href="#finops-first-run" aria-current="true" data-destination-key="answer" data-destination-name="The answer" data-destination-target="finops-first-run" data-destination-off-page="false" data-destination-current="true"><span class="workspace-dest-shape" aria-hidden="true">●</span><span class="workspace-dest-name">The answer</span><span class="workspace-dest-state">Current</span><span class="workspace-dest-recommended" hidden></span></a>
+          </li>
+          <li class="workspace-nav-item">
+            <a class="workspace-dest" href="#recommendation-evidence" data-destination-key="evidence" data-destination-name="Evidence" data-destination-target="recommendation-evidence" data-destination-off-page="false" data-destination-current="false"><span class="workspace-dest-shape" aria-hidden="true">◇</span><span class="workspace-dest-name">Evidence</span><span class="workspace-dest-state" hidden></span><span class="workspace-dest-recommended" hidden></span></a>
+          </li>
+          <li class="workspace-nav-item">
+            <a class="workspace-dest" href="#department-decision-panel" data-destination-key="department" data-destination-name="Departments" data-destination-target="department-decision-panel" data-destination-off-page="false" data-destination-current="false"><span class="workspace-dest-shape" aria-hidden="true">◈</span><span class="workspace-dest-name">Departments</span><span class="workspace-dest-state" hidden></span><span class="workspace-dest-recommended" hidden></span></a>
+          </li>
+          <!-- The one door that leaves this document. It is never marked current
+               — a reader who follows it is reading another page, and a rail
+               claiming they are "currently" somewhere they have left is worse
+               than one that claims nothing. The chip says so in words, and it is
+               authored rather than painted because the claim has to be true
+               before any script runs. -->
+          <li class="workspace-nav-item">
+            <a class="workspace-dest" href="/savings-action-center.html" data-destination-key="act-and-verify" data-destination-name="Act and verify" data-destination-off-page="true" data-destination-current="false"><span class="workspace-dest-shape" aria-hidden="true">◆</span><span class="workspace-dest-name">Act and verify</span><span class="workspace-dest-kind">Opens another page</span></a>
+          </li>
+        </ol>
+        <!-- What each door answers and what it will not, from the contract.
+             Behind a native `details`, so it is keyboard-operable and
+             state-bearing with no script; the summary carries a real heading and
+             a state chip whose glyph replaces the UA marker. -->
+        <details class="workspace-nav-detail" id="finops-workspace-nav-detail" data-disclosure="collapsed">
+          <summary id="finops-workspace-nav-detail-summary" aria-expanded="false"><h3 class="workspace-nav-detail-heading"><span>What each destination answers, and what it will not</span><span class="workspace-nav-detail-state" id="finops-workspace-nav-detail-state" data-disclosure="collapsed"><span class="workspace-dest-shape" aria-hidden="true">▸</span> Show detail</span></h3></summary>
+          <dl class="workspace-nav-detail-list" id="finops-workspace-nav-detail-list"></dl>
+        </details>
+        <!-- One polite status region for the whole rail, and it says nothing on
+             load. It speaks only when the destination *changes* — re-pressing the
+             door you are standing in announces nothing, because a live region
+             that talks on every press is one a reader learns to ignore. -->
+        <p class="visually-hidden" id="finops-workspace-nav-live" role="status" aria-live="polite" aria-atomic="true"></p>
+      </nav>
 
       <!-- The conversion moment, after the result and outside the region that
            holds it. It is deliberately quieter than either choice above: a
@@ -1352,7 +1439,10 @@
 
       <details class="support-disclosure" id="disclosure-department-priority" data-panel-id="department-priority">
         <summary class="support-disclosure-summary"><span class="support-disclosure-step" data-role="step">Supporting panel</span> <span class="support-disclosure-question" data-role="question">Which department needs help first, and how is it trending?</span></summary>
-      <section class="finops-panel decision-panel" id="department-decision-panel" aria-labelledby="department-title">
+      <!-- A workspace-rail destination: focusable so the rail can hand it the
+           keyboard, and folded inside the disclosure above, which the rail opens
+           on the way in. -->
+      <section class="finops-panel decision-panel" id="department-decision-panel" tabindex="-1" aria-labelledby="department-title">
         <!-- The visible "Rank by" control (a label bound to a department-sort
              select) was deliberately removed because intervention priority is
              metric-defined. Written without raw tag markup on purpose: spelling
@@ -1508,7 +1598,9 @@
 
       <details class="support-disclosure" id="disclosure-recommendation-evidence" data-panel-id="recommendation-evidence">
         <summary class="support-disclosure-summary"><span class="support-disclosure-step" data-role="step">Supporting panel</span> <span class="support-disclosure-question" data-role="question">How did a recommendation earn the score it was given?</span></summary>
-      <section class="finops-panel" id="recommendation-evidence" aria-labelledby="evaluation-title">
+      <!-- A workspace-rail destination, focusable for the same reason as the
+           other two: the rail moves the keyboard here, not just the scroll. -->
+      <section class="finops-panel" id="recommendation-evidence" tabindex="-1" aria-labelledby="evaluation-title">
         <div class="section-heading">
           <p class="eyebrow">Defensible evaluation · static fixture</p>
           <h2 id="evaluation-title">Inspect how a recommendation earns its score.</h2>

@@ -333,6 +333,20 @@ test("artifact verification rejects AI FinOps without a department drill-down vi
   );
 });
 
+test("artifact verification rejects AI FinOps without its workspace navigation", async (t) => {
+  const directory = await mkdtemp(resolve(tmpdir(), "shiplog-finops-nav-artifact-test-"));
+  t.after(async () => (await import("node:fs/promises")).rm(directory, { recursive: true, force: true }));
+  await copyDeployableArtifact(directory);
+
+  await (await import("node:fs/promises")).rm(resolve(directory, "finops-workspace-nav.js"));
+  await createManifest(directory);
+
+  await assert.rejects(
+    verifyArtifact(directory),
+    /missing required UI asset: finops-workspace-nav\.js/,
+  );
+});
+
 test("artifact verification rejects a partial organizational-artifact reader", async (t) => {
   const directory = await mkdtemp(resolve(tmpdir(), "shiplog-org-query-artifact-test-"));
   t.after(async () => (await import("node:fs/promises")).rm(directory, { recursive: true, force: true }));
