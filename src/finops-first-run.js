@@ -83,6 +83,13 @@ export const FIRST_RUN_IDS = Object.freeze({
   methodPrint: "finops-first-run-method-print",
   demo: "finops-first-run-demo",
   import: "finops-first-run-import",
+  // The third way on, and the only one that leaves this page: the same bundled
+  // example, rebuilt as the printable executive sheet. Its copy and its href
+  // live in `finops-example-briefing.js`, which owns the hand-off; these are the
+  // slots that carry them.
+  briefing: "finops-first-run-briefing",
+  briefingHeading: "finops-first-run-briefing-heading",
+  briefingNote: "finops-first-run-briefing-note",
   contact: "finops-first-run-contact",
   live: "finops-first-run-live",
 });

@@ -13,6 +13,7 @@
 // contract's own operation line and a department label taken out of an analysis.
 
 import { FIRST_RUN_ACTIONS, FIRST_RUN_CONVERSION, FIRST_RUN_IDS } from "./finops-first-run.js";
+import { EXAMPLE_BRIEFING_CTA, EXAMPLE_BRIEFING_HREF } from "./finops-example-briefing.js";
 import { DISCLOSURE_SPEC, disclosureStateLabel } from "./finops-decision-interaction.js";
 
 const byId = (doc, id) => (doc?.getElementById ? doc.getElementById(id) : null);
@@ -181,6 +182,31 @@ export function applyFirstRunResult(doc, result) {
       : `${result.sample.badge}. ${result.reason ?? ""}`;
   }
   return region;
+}
+
+/**
+ * Repaint the executive-briefing hand-off from the module that owns it.
+ *
+ * The anchor, its heading, its href, and its note are all authored in
+ * evolution.html, so the way out of this region works before any script runs and
+ * survives a copy-paste into the address bar. This does not create it — it
+ * proves the authored copy and the module's copy are the same words, the same
+ * way the sample label above is repainted rather than assumed. A drift becomes a
+ * visible change on the page rather than two sentences nobody compared.
+ *
+ * @returns the anchor, so a caller can assert on what it points at.
+ */
+export function applyExampleBriefingCta(doc) {
+  const link = byId(doc, FIRST_RUN_IDS.briefing);
+  if (!link) return null;
+  setText(doc, FIRST_RUN_IDS.briefingHeading, EXAMPLE_BRIEFING_CTA.heading);
+  link.textContent = EXAMPLE_BRIEFING_CTA.label;
+  link.setAttribute("href", EXAMPLE_BRIEFING_HREF);
+  // The note is the accessible description, not a second name: the link's own
+  // text already says where it goes and whose figures are on the other end.
+  link.setAttribute("aria-describedby", FIRST_RUN_IDS.briefingNote);
+  setText(doc, FIRST_RUN_IDS.briefingNote, EXAMPLE_BRIEFING_CTA.note);
+  return link;
 }
 
 /**

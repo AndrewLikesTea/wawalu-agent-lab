@@ -230,6 +230,28 @@
             <p class="first-run-action-note" id="finops-first-run-import-note">Choose your export files. They stay in this tab and are not uploaded or stored.</p>
           </div>
         </div>
+        <!-- THE THIRD WAY ON, and why it is a link rather than a fourth button.
+             The two choices above are both ways to put data *into* this page.
+             This one takes the reader out of it, to the same answer formatted as
+             the one-page sheet they would carry into a meeting — so it is a real
+             anchor with a real href, operable before any script runs, correct in
+             the address bar, and correct when copied.
+
+             The query parameter is what preserves the context: without it the
+             briefing page briefs on whatever this browser holds, which for a
+             reader who arrived from the example is a different set of figures
+             under the same heading. `finops-example-briefing.js` owns the
+             parameter, the copy, and the derivation; the href here is authored
+             from that module's value and a test fails if the two drift.
+
+             It is deliberately outside `.first-run-actions`: the no-upload
+             promise belongs beside the one choice that reads a file, and a third
+             note in that group would put a third claim inches from it. -->
+        <div class="first-run-handoff">
+          <h3 class="first-run-handoff-heading" id="finops-first-run-briefing-heading">Read this example as a one-page briefing</h3>
+          <a class="first-run-handoff-action" id="finops-first-run-briefing" href="/executive-briefing.html?example=ai-finops-bundled" aria-describedby="finops-first-run-briefing-note">Open the executive briefing for this example</a>
+          <p class="first-run-handoff-note" id="finops-first-run-briefing-note">Opens the Executive FinOps briefing on this same bundled six-month dataset — the printable one-page sheet, with the same recoverable share and scenario. Invented figures, not your spend; nothing of yours is read, uploaded, or stored.</p>
+        </div>
         <p class="visually-hidden" id="finops-first-run-live" role="status" aria-live="polite" aria-atomic="true"></p>
       </section>
 
