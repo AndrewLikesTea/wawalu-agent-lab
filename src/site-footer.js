@@ -48,13 +48,25 @@ export const IDENTITY = "Shiplog is a demonstration engineering decision and rel
   + "built and operated by Wawalu at labs.wawalu.org.";
 
 /**
+ * The context the button no longer carries.
+ *
+ * Every form on this site that asks a person to get back to you is opened and
+ * submitted by a control reading exactly "Request a follow-up" — one label, no
+ * page-specific qualification — so the sentence beside it is what says a
+ * follow-up about what, from whom. It sits outside the panel because a visitor
+ * reads it before deciding whether to open anything.
+ */
+export const INVITATION = "Questions about Shiplog? Ask the Wawalu team that operates it, and a "
+  + "person replies by email.";
+
+/**
  * What submitting does, before the note about what it sends. The home page also
  * carries a work-email field that subscribes you to field notes, and the two are
  * a few hundred pixels apart; a visitor should never have to guess which one
- * they are typing into. The trigger above says who you are talking to, this says
+ * they are typing into. The line above says who you are talking to, this says
  * what pressing the button asks for.
  */
-export const PURPOSE = "Submitting requests a follow-up conversation about Shiplog.";
+export const PURPOSE = "Submitting sends a Shiplog follow-up request.";
 
 /**
  * The privacy claim, in the same register as the AI FinOps form's: it names the
@@ -77,8 +89,8 @@ export const PRIVACY = "This form sends one thing: the work email address you ty
 // demo would break.
 const CAPTURED = "Follow-up requested — we sent your email address, and nothing else. It is recorded "
   + "for the Wawalu team, and a person replies by email; nothing here answers automatically.";
-const ALREADY_CAPTURED = "That address is already on our list, so nothing new was recorded. The "
-  + "Wawalu team has your follow-up request and can reach you there.";
+const ALREADY_CAPTURED = "Follow-up requested — that address is already on our list, so nothing new "
+  + "was recorded. The Wawalu team can reach you there.";
 
 const SUBMITTING = "Requesting a follow-up — sending your email address…";
 
@@ -100,7 +112,10 @@ export const FOLLOW_UP_REDIRECT = Object.freeze({
     statement: "This page carries its own follow-up form, at the end of the briefing. Use that one: it reaches "
       + "the same Wawalu team, and a request made there arrives attached to the decision you just read. It "
       + "sends one thing — the work email address you type.",
-    label: "Ask about this briefing",
+    // Named for where it goes, not for what it does. It is a jump link, and
+    // giving it the CTA's words would put a second "Request a follow-up" on the
+    // page that submits nothing.
+    label: "Go to the follow-up form",
     href: "#briefing-contact",
   }),
 });
@@ -133,8 +148,9 @@ export function siteFooterMarkup(indent = "    ", { redirect = null } = {}) {
 
 function contactDisclosureLines() {
   return [
+    `    <p class="site-footer-invitation">${INVITATION}</p>`,
     '    <button class="site-footer-trigger" id="site-footer-open" type="button" aria-expanded="false" aria-controls="site-footer-panel">',
-    "      Talk to us about Shiplog",
+    "      Request a follow-up",
     "    </button>",
     '    <div class="site-footer-panel" id="site-footer-panel" hidden>',
     '      <form id="site-footer-form" class="site-footer-form" novalidate>',

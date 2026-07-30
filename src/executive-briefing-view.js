@@ -584,7 +584,10 @@ function actionSection(briefing) {
 export const FOLLOW_UP_PREFIX = "briefing-contact";
 export const FOLLOW_UP_CTA_ID = "brief-followup-cta";
 export const FOLLOW_UP_NOTE_ID = "brief-followup-note";
-export const FOLLOW_UP_CTA_LABEL = "Discuss this briefing";
+// The one CTA label every follow-up form on this site uses. It carries no
+// page-specific qualification, so the heading and lead above it are what say
+// which decision a request is about.
+export const FOLLOW_UP_CTA_LABEL = "Request a follow-up";
 
 export const FOLLOW_UP_LEAD =
   "Want to go through this decision — the figure, the action, or your own months — with a person?";

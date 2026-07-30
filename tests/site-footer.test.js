@@ -20,7 +20,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
-import { FOLLOW_UP_REDIRECT, IDENTITY, PRIVACY, PURPOSE, siteFooterMarkup } from "../src/site-footer.js";
+import { FOLLOW_UP_REDIRECT, IDENTITY, INVITATION, PRIVACY, PURPOSE, siteFooterMarkup } from "../src/site-footer.js";
 import { loadPage, pressEnter, pressKey, pressTab, tabSequence, textOf, typeText } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 
@@ -173,14 +173,22 @@ test("the footer form says what submitting asks for, on the page that carries bo
   const { document } = page;
   try {
     const note = textOf(byId(document, "site-footer-note"));
-    assert.match(note, /^Submitting requests a follow-up conversation about Shiplog\./,
+    assert.match(note, /^Submitting sends a Shiplog follow-up request\./,
       "the purpose comes before the note about what is sent");
     assert.ok(note.includes(PRIVACY), "the purpose must not have displaced the privacy claim");
     assert.equal(note, `${PURPOSE} ${PRIVACY}`);
+    // Only the entered address travels, said where the field is.
+    assert.match(note, /sends one thing: the work email address you type/);
 
     // The control the visitor presses says the same thing the note does.
     const submit = byId(document, "site-footer-panel").querySelector('button[type="submit"]');
     assert.equal(textOf(submit), "Request a follow-up");
+
+    // The button carries no page-specific qualification, so the line outside the
+    // panel is what says a follow-up about what — and it is readable before the
+    // visitor opens anything.
+    assert.equal(textOf(document.querySelector(".site-footer-invitation")), INVITATION);
+    assert.match(INVITATION, /Shiplog/);
 
     // And nothing in this form reads as the field-note sign-up a few sections up.
     const footer = textOf(byId(document, "site-footer"));
@@ -253,7 +261,7 @@ test("the footer's contact action is collapsed at first paint and says nothing a
     const trigger = byId(document, "site-footer-open");
     assert.equal(trigger.tagName, "BUTTON", "the action must be a real button, not a clickable div");
     assert.equal(trigger.getAttribute("type"), "button");
-    assert.equal(textOf(trigger), "Talk to us about Shiplog");
+    assert.equal(textOf(trigger), "Request a follow-up");
     assert.equal(trigger.getAttribute("aria-expanded"), "false");
     assert.equal(trigger.getAttribute("aria-controls"), "site-footer-panel");
     assert.equal(byId(document, "site-footer-panel").hidden, true);
@@ -348,7 +356,12 @@ test("a submission goes through the shared capture path, and the confirmation sa
 
     // A repeat submission is still a success, and still claims nothing more.
     submitEmail(document, TYPED_EMAIL);
-    await waitFor(() => shownText(document, "site-footer-status").startsWith("That address is already"),
+    // It opens on the same three words as the first confirmation: the live
+    // region announces this sentence alone, out of the context of the button
+    // that was pressed, so it has to name which request succeeded.
+    await waitFor(
+      () => shownText(document, "site-footer-status")
+        .startsWith("Follow-up requested — that address is already on our list"),
       "the already-recorded confirmation");
     assert.equal(calls.length, 2);
   } finally {
@@ -390,7 +403,7 @@ test("an obviously invalid address is diagnosed at the field and never reaches t
 
     submitEmail(document, "");
     assert.equal(calls.length, 0, "an empty address must not reach the network");
-    assert.equal(shownText(document, "site-footer-error"), "Enter your work email to request a follow-up conversation.");
+    assert.equal(shownText(document, "site-footer-error"), "Enter your work email to request a Shiplog follow-up.");
     assert.equal(byId(document, "site-footer-error").hidden, false);
     assert.equal(field.getAttribute("aria-invalid"), "true");
     assert.match(describedBy(document), /site-footer-error/,
@@ -401,7 +414,7 @@ test("an obviously invalid address is diagnosed at the field and never reaches t
 
     submitEmail(document, "director at example");
     assert.equal(calls.length, 0, "a malformed address must not reach the network");
-    assert.equal(shownText(document, "site-footer-error"), "Enter a valid work email address to request a follow-up conversation.");
+    assert.equal(shownText(document, "site-footer-error"), "Enter a valid work email address to request a Shiplog follow-up.");
     assert.equal(field.value, "director at example", "the field must keep what the visitor typed");
 
     // Editing retracts the diagnostic and its association.

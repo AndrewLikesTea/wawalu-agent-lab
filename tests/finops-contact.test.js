@@ -174,7 +174,7 @@ test("at first paint the contact action is present, keyboard-reachable, and says
     const trigger = byId(document, "finops-contact-open");
     assert.equal(trigger.tagName, "BUTTON", "the contact action must be a real button, not a clickable div");
     assert.equal(trigger.getAttribute("type"), "button");
-    assert.equal(textOf(trigger), "Talk to us about your numbers");
+    assert.equal(textOf(trigger), "Request a follow-up");
     assert.ok(tabSequence(document).includes(trigger), "the contact action must be in the tab order");
 
     assert.equal(trigger.getAttribute("aria-expanded"), "false");
@@ -366,7 +366,7 @@ test("an empty or malformed address is diagnosed at the field, and keeps what wa
 
     submitEmail(document, "");
     assert.equal(calls.length, 0, "an empty address must not reach the network");
-    assert.equal(shownText(document, "finops-contact-error"), "Enter your work email to request a follow-up conversation.");
+    assert.equal(shownText(document, "finops-contact-error"), "Enter your work email to request a Shiplog follow-up.");
     assert.equal(byId(document, "finops-contact-error").hidden, false);
     assert.equal(field.getAttribute("aria-invalid"), "true");
     assert.match(describedBy(document), /finops-contact-error/,
@@ -377,7 +377,7 @@ test("an empty or malformed address is diagnosed at the field, and keeps what wa
 
     submitEmail(document, "director at example");
     assert.equal(calls.length, 0, "a malformed address must not reach the network");
-    assert.equal(shownText(document, "finops-contact-error"), "Enter a valid work email address to request a follow-up conversation.");
+    assert.equal(shownText(document, "finops-contact-error"), "Enter a valid work email address to request a Shiplog follow-up.");
     assert.equal(field.value, "director at example", "the field must keep what the visitor typed");
 
     // Editing retracts the diagnostic and its association.

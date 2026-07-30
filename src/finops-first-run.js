@@ -187,8 +187,12 @@ export const FIRST_RUN_ACTIONS = Object.freeze({
  */
 export const FIRST_RUN_CONVERSION = Object.freeze({
   heading: "Want help with your own analysis?",
-  body: "Analyze your provider exports in this browser, or leave your email and we can walk you through the process.",
-  label: "Ask for a walkthrough",
+  // The label is the one CTA label every follow-up form on this site uses, with
+  // no page-specific qualification on it, so this line is where the context
+  // lives: whose numbers, and what pressing it eventually sends.
+  body: "Analyze your provider exports in this browser, or ask the Wawalu team to go through your numbers "
+    + "with you. Requesting a follow-up sends one thing: the work email address you type.",
+  label: "Request a follow-up",
   targetId: "finops-contact-open",
   focusId: "finops-contact-email",
 });
