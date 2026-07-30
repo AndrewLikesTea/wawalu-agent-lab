@@ -126,7 +126,12 @@ export function applyDepartmentEvidence(doc, model, options = {}) {
   applyDepartmentFixPack(doc, model.fixPack ?? null, {
     status: model.state === "loading" ? "loading" : "ready",
   });
-  applyMonthlyDepartmentDecision(doc, model.fixPack ?? null, options);
+  applyMonthlyDepartmentDecision(doc, model.fixPack ?? null, {
+    ...options,
+    phase: model.state === "loading" ? "loading"
+      : model.state === "error" ? "error"
+        : model.fixPack ? "ready" : "empty",
+  });
   return model;
 }
 
