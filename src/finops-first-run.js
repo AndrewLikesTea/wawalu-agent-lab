@@ -46,8 +46,13 @@
 // Every string here is plain text. This module builds no nodes and assigns no
 // markup; `finops-first-run-view.js` owns the DOM.
 
-import { loadExampleDataset } from "./example-dataset.js";
+import {
+  EXAMPLE_ORG_COHORT_PROFILE, EXAMPLE_TASK_LEDGER, loadExampleDataset,
+} from "./example-dataset.js";
 import { buildFinopsBriefing, validateBriefing } from "./finops-briefing-contract.js";
+import {
+  costPositionDetail, costPositionHeadline, resolveCostPosition,
+} from "./peer-cost-position.js";
 import { DECISION_QUESTION, loadCanonicalDecision } from "./finops-decision-contract.js";
 import {
   auditDecisionFigures, DECISION_STATE, noticeFor, OUT_OF_RANGE_VALUE,
@@ -345,21 +350,27 @@ function impactSlot(briefing, notices = []) {
 }
 
 /**
- * The peer slot, and the reason it exists: the bundled sample genuinely ships
- * no comparable cohort, so this is the region's own worked example of an
- * unavailable value that is labelled rather than filled in.
+ * The peer slot: where this organization's spend RANKS, not what it costs.
+ *
+ * The one question, and only it: "among comparable organizations, is this org's
+ * cost per successful task high or low?" The value line carries the band and the
+ * metric to cents; the detail line names the cohort it was compared against, so
+ * a leader can repeat the position to a peer without hunting for which group
+ * they were placed in.
+ *
+ * The numerator is `analysis.spendUsd` — the same headline spend total the
+ * benchmark slot above divides — passed through untouched. Nothing here
+ * recomputes spend, and nothing here can move it.
+ *
+ * When a position is withheld, the slot renders the contract's own reason
+ * string. It never renders the bare word "Unavailable": "we do not know" and
+ * "here is why we cannot say" ask different things of a reader, and only the
+ * second one can be acted on.
  */
-function peerSlot(analysis) {
-  const benchmark = analysis?.benchmark;
-  const comparisons = Array.isArray(benchmark?.comparisons) ? benchmark.comparisons.length : 0;
-  if (benchmark?.state === "available" && comparisons > 0) {
-    return slot(true, `${count(comparisons)} compared departments`,
-      typeof benchmark.methodology === "string" ? benchmark.methodology : "");
-  }
-  const message = typeof benchmark?.message === "string" && benchmark.message.trim()
-    ? benchmark.message
-    : "No comparable peer cohort ships with this example, so no position is claimed.";
-  return slot(false, UNAVAILABLE_VALUE, message);
+function peerSlot(analysis, org, tasks) {
+  const position = resolveCostPosition({ org, spendUsd: Number(analysis?.spendUsd), tasks });
+  if (!position.available) return slot(false, position.reason, position.metric.definition);
+  return slot(true, costPositionHeadline(position), costPositionDetail(position));
 }
 
 /** The rank-1 action and the role accountable for it, or the reason there is none. */
@@ -469,7 +480,9 @@ function methodEntries(analysis, briefing) {
  * because the sample label and the two next actions below the figures stay
  * useful in exactly those cases.
  */
-export function composeFirstRunResult({ analysis = null, briefing = null, decision = null } = {}) {
+export function composeFirstRunResult({
+  analysis = null, briefing = null, decision = null, org = null, tasks = null,
+} = {}) {
   if (!analysis || typeof analysis !== "object" || !briefing || typeof briefing !== "object") {
     return unavailableResult(FIRST_RUN_UNAVAILABLE.notComposed);
   }
@@ -521,7 +534,7 @@ export function composeFirstRunResult({ analysis = null, briefing = null, decisi
     answer: answerSlot(decision, benchmark, impact),
     benchmark,
     impact,
-    peer: peerSlot(analysis),
+    peer: peerSlot(analysis, org, tasks),
     action: actionSlot(briefing),
     confidence: confidenceSlot(decision, notices),
     method: methodEntries(analysis, briefing),
@@ -569,7 +582,12 @@ function degradedResult(presentation, reason, answerValue) {
     answer: slot(false, answerValue, reason),
     benchmark: blank,
     impact: blank,
-    peer: blank,
+    // The peer slot never degrades to the bare word "Unavailable", in any
+    // state. A position is either produced or withheld with a sentence that
+    // says what is missing, and a composition that failed outright is still a
+    // reason a reader can act on.
+    peer: slot(false, "No peer position: this example could not be composed, so there is "
+      + "no cost per successful task to place.", reason),
     action: slot(false, "Recommended action unavailable.", reason),
     confidence: blank,
     method: Object.freeze([Object.freeze({ term: "Limits", detail: reason })]),
@@ -623,7 +641,19 @@ export function buildFirstRunResult(load = loadExampleDataset, loadDecision = lo
     } catch {
       decision = null;
     }
-    return composeFirstRunResult({ analysis, briefing: buildFinopsBriefing(analysis), decision });
+    // The bundled example's own declared cohort attributes and task ledger,
+    // read from the seeded sample data rather than from the analysis envelope:
+    // the analysis is the reader's file path, and nothing on it declares an
+    // organization's size band or industry. An import therefore reaches the
+    // peer slot with no declaration and is withheld with the reason that says
+    // so, which is the honest answer for a file that never stated either.
+    return composeFirstRunResult({
+      analysis,
+      briefing: buildFinopsBriefing(analysis),
+      decision,
+      org: EXAMPLE_ORG_COHORT_PROFILE,
+      tasks: EXAMPLE_TASK_LEDGER,
+    });
   } catch {
     return unavailableResult(FIRST_RUN_UNAVAILABLE.failed);
   }

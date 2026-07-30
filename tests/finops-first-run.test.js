@@ -87,15 +87,18 @@ test("the bundled example composes a complete, populated result", () => {
   assert.match(result.action.detail, /^Accountable role: /);
 });
 
-test("the peer slot is labelled unavailable rather than filled in or zeroed", () => {
+test("the peer slot states where the spend ranks, against a named cohort", () => {
   const result = buildFirstRunResult();
-  // The bundled sample genuinely ships no comparable cohort. That is the point:
-  // an unavailable value is a state this surface can render honestly.
-  assert.equal(result.peer.available, false);
-  assert.equal(result.peer.value, UNAVAILABLE_VALUE);
-  assert.ok(result.peer.detail.length > 0, "an unavailable slot names why");
-  assert.doesNotMatch(result.peer.value, /\$|%|\b0\b|—/,
-    "an unavailable value must not be a number, a dash, or a zero");
+  // The bundled example declares its two cohort attributes and one published
+  // synthetic cohort matches them, so this slot answers its one question rather
+  // than reporting that it cannot. `peer-cost-position.test.js` owns the metric,
+  // the band boundaries, and the five withholding reasons; what is pinned here
+  // is that the answer card carries the resolved position.
+  assert.equal(result.peer.available, true);
+  assert.match(result.peer.value, /^Bottom quartile · \$\d+\.\d{2} per successful task$/);
+  assert.ok(result.peer.detail.length > 0, "the cohort it was compared against is named");
+  assert.notEqual(result.peer.value, UNAVAILABLE_VALUE,
+    "the bare word Unavailable is never this slot's answer");
 });
 
 test("no figure in the result is authored — every one comes from the analysis", () => {
@@ -203,6 +206,25 @@ test("the invented-sample sentence is true before any script runs", async () => 
     "the sample label must be authored before the headline figure");
 });
 
+test("the peer position is authored adjacent to the recommended action", async () => {
+  const document = parseHtml(await readFile(PAGE, "utf8"));
+  const region = byId(document, FIRST_RUN_IDS.region);
+  // Position and action are read together or not at all: a band a leader has to
+  // scroll back to is a band they will quote from memory.
+  const blocks = region.querySelectorAll("div").map((node) => node.className);
+  const action = blocks.indexOf("first-run-recommendation");
+  const position = blocks.indexOf("first-run-support");
+  assert.ok(action >= 0 && position >= 0);
+  assert.equal(position, action + 1, "the position block follows the action block directly");
+
+  // The authored default is a pending state, never the bare word "Unavailable"
+  // and never a hand-written band: every figure in this region is computed.
+  const value = byId(document, FIRST_RUN_IDS.peerValue);
+  assert.equal(value.dataset.available, "false");
+  assert.notEqual(textOf(value), "Unavailable");
+  assert.doesNotMatch(textOf(value), /quartile|\$/i);
+});
+
 test("two distinct next steps, both real buttons, neither a scroll hint", async () => {
   const document = parseHtml(await readFile(PAGE, "utf8"));
   const demo = byId(document, FIRST_RUN_IDS.demo);
@@ -254,8 +276,9 @@ test("a visitor with no files meets four resolved slots and one ranked action", 
     assert.equal(byId(document, FIRST_RUN_IDS.benchmarkValue).dataset.available, "true");
     assert.match(textOf(byId(document, FIRST_RUN_IDS.benchmarkValue)), /% of analyzed AI spend/);
     assert.match(textOf(byId(document, FIRST_RUN_IDS.impactValue)), /^\$[\d,]+ in the reporting period$/);
-    assert.equal(textOf(byId(document, FIRST_RUN_IDS.peerValue)), UNAVAILABLE_VALUE);
-    assert.equal(byId(document, FIRST_RUN_IDS.peerValue).dataset.available, "false");
+    assert.match(textOf(byId(document, FIRST_RUN_IDS.peerValue)),
+      /^Bottom quartile · \$\d+\.\d{2} per successful task$/);
+    assert.equal(byId(document, FIRST_RUN_IDS.peerValue).dataset.available, "true");
     assert.ok(textOf(byId(document, FIRST_RUN_IDS.peerDetail)).length > 0);
     assert.equal(byId(document, FIRST_RUN_IDS.action).dataset.available, "true");
     assert.match(textOf(byId(document, FIRST_RUN_IDS.role)), /Accountable role: /);
