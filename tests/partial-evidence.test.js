@@ -26,9 +26,13 @@ import { readFile } from "node:fs/promises";
 import { parseHtml, pressEnter, textOf } from "./support/browser.js";
 import { chooseFiles, evidencePainted, exampleSelection, openFinopsTab } from "./partial-evidence-probe.mjs";
 import {
-  ACTION_CODE, ATTRIBUTION_FLOOR, EXCLUSION_CODE, FINDING_STATE, PARTIAL_EVIDENCE_QUESTION,
-  PARTIAL_EVIDENCE_VERSION, evaluatePartialEvidence, partialEvidenceFromAnalysis,
+  ACTION_CODE, AGGREGATE_ELIGIBILITY_THRESHOLD, ATTRIBUTION_FLOOR, ELIGIBILITY_WEIGHTS,
+  EXCLUSION_CODE, FINDING_STATE, PARTIAL_EVIDENCE_QUESTION, PARTIAL_EVIDENCE_VERSION,
+  evaluatePartialEvidence, partialEvidenceFromAnalysis,
 } from "../src/partial-evidence.js";
+import {
+  PARTIAL_EVIDENCE_CASES, PARTIAL_EVIDENCE_FIXTURE_METADATA,
+} from "./fixtures/partial-evidence/labelled-cases.js";
 import {
   PARTIAL_EVIDENCE_BODY_ID, PARTIAL_EVIDENCE_SECTION_ID, PARTIAL_EVIDENCE_TITLE_ID,
   applyPartialEvidence, clearPartialEvidence,
@@ -39,6 +43,7 @@ const PERIOD = Object.freeze({ start: "2026-06-01", end: "2026-07-01" });
 /** One admissible record unless an override makes it otherwise. */
 const record = (id, overrides = {}) => ({
   id,
+  sourceInstanceId: id,
   providerLabel: `${id} export`,
   periodStart: PERIOD.start,
   periodEnd: PERIOD.end,
@@ -238,8 +243,75 @@ test("no input reaches a peer comparison, and an unavailable one says so", () =>
   // Available or not, this policy never restates a figure, so no number from a
   // comparison can appear in any string it publishes.
   const available = evaluate({ records: [record("openai")], peer: { available: true } });
-  assert.equal(available.peer.measured, true);
+  assert.equal(available.peer.measured, false);
   assert.doesNotMatch(available.peer.statement, /\d/);
+});
+
+/* ---------------- executable eligibility fixtures and stability --------------- */
+
+test("labelled degraded fixtures produce only bounded findings or safe non-findings", () => {
+  assert.equal(PARTIAL_EVIDENCE_FIXTURE_METADATA.rubric, PARTIAL_EVIDENCE_VERSION);
+  assert.equal(Object.values(ELIGIBILITY_WEIGHTS).reduce((sum, weight) => sum + weight, 0), 100);
+  assert.equal(AGGREGATE_ELIGIBILITY_THRESHOLD, 85);
+
+  for (const fixture of PARTIAL_EVIDENCE_CASES) {
+    const result = evaluatePartialEvidence(fixture.input);
+    assert.equal(result.state, fixture.expected.state, fixture.id);
+    assert.equal(result.evidence.excludedCount, fixture.expected.excluded, fixture.id);
+    assert.equal(result.evidence.excluded[0]?.code ?? null, fixture.expected.code, fixture.id);
+    if (result.material.kind === "metric") {
+      assert.equal(result.material.value, fixture.expected.spend, fixture.id);
+      assert.equal(result.partial, fixture.expected.excluded > 0, fixture.id);
+      if (result.partial) assert.match(result.material.partialReason, /floor/, fixture.id);
+    } else {
+      assert.equal(fixture.expected.spend, 0, fixture.id);
+      assert.equal(result.eligibility.aggregateEligible, false, fixture.id);
+    }
+    assert.equal(result.peer.measured, false, fixture.id);
+    assert.equal(result.rankedActions.length, 1, fixture.id);
+    assert.equal(result.eligibility.dimensions.reduce(
+      (sum, dimension) => sum + dimension.earned, 0,
+    ), result.eligibility.score, fixture.id);
+  }
+});
+
+test("duplicate identity is source_instance_id, not delivery id", () => {
+  const duplicate = evaluatePartialEvidence(PARTIAL_EVIDENCE_CASES[0].input);
+  const distinct = evaluatePartialEvidence(PARTIAL_EVIDENCE_CASES[1].input);
+
+  assert.equal(duplicate.evidence.excluded[0].id, "delivery-b");
+  assert.equal(duplicate.evidence.excluded[0].code, EXCLUSION_CODE.duplicateExport);
+  assert.equal(distinct.evidence.admissible, 2,
+    "different source_instance_id values remain independent even when all other fields match");
+  assert.equal(distinct.material.value, 200);
+});
+
+test("scores, ranked actions, provenance, and exclusion counts are byte-stable", () => {
+  for (const fixture of PARTIAL_EVIDENCE_CASES) {
+    const runs = Array.from({ length: 5 }, () => evaluatePartialEvidence(fixture.input));
+    const projection = (result) => JSON.stringify({
+      eligibility: result.eligibility,
+      rankedActions: result.rankedActions,
+      provenance: result.provenance,
+      excludedCount: result.evidence.excludedCount,
+      exclusions: result.evidence.excluded,
+    });
+    assert.equal(new Set(runs.map(projection)).size, 1, fixture.id);
+  }
+});
+
+test("missing org mapping keeps spend bounded and suppresses department ranking", () => {
+  const fixture = PARTIAL_EVIDENCE_CASES.find(
+    (entry) => entry.id === "missing-org-map-suppresses-department-action",
+  );
+  const result = evaluatePartialEvidence(fixture.input);
+
+  assert.equal(result.material.value, 100);
+  assert.equal(result.nextAction.code, ACTION_CODE.attributeUnassignedSpend);
+  assert.match(result.nextAction.statement, /no department comparison is supported/i);
+  assert.equal(result.eligibility.score, AGGREGATE_ELIGIBILITY_THRESHOLD);
+  assert.equal(result.eligibility.aggregateEligible, true,
+    "the threshold assumption preserves provider spend while suppressing org-ranked action");
 });
 
 test("the closed field set drops anything the policy does not declare", () => {
@@ -251,6 +323,23 @@ test("the closed field set drops anything the policy does not declare", () => {
   assert.equal(serialized.includes("sk-live"), false);
   assert.equal(serialized.includes("promptText"), false);
   assert.equal(result.version, PARTIAL_EVIDENCE_VERSION);
+});
+
+test("untrusted labels and diagnostics are redacted before policy-facing use", () => {
+  const result = evaluate({
+    records: [record("openai", {
+      providerLabel: "owner@example.com sk_live_abcdefghijk",
+      provenanceLabel: "Bearer abcdefghijklmnop from https://private.example/path",
+    })],
+    heldOut: [{
+      id: "held", providerLabel: "ops@example.com",
+      reason: "Bearer abcdefghijklmnop was found at https://private.example/path",
+    }],
+  });
+  const serialized = JSON.stringify(result);
+
+  assert.doesNotMatch(serialized, /example\.com|abcdefghijk|private\.example/);
+  assert.match(serialized, /\[email\]|\[secret\]|\[url\]/);
 });
 
 test("the analysis adapter names every field it forwards", () => {
@@ -329,6 +418,10 @@ test("the front door paints an imported finding and no measured peer comparison"
     // the element rather than only as prose inside it.
     assert.equal(section.dataset.source, "import");
     assert.equal(section.dataset.policyVersion, PARTIAL_EVIDENCE_VERSION);
+    assert.ok(Number.isFinite(Number(section.dataset.eligibilityScore)),
+      "the production invocation executes the scored eligibility path");
+    assert.equal(section.dataset.aggregateEligible, "false",
+      "the six-period example is bounded to the current aligned source occurrence");
     // The finding is derived, not authored: the admissible count on the section
     // equals the number of counted exports the disclosure lists.
     assert.equal(section.dataset.admissible,
@@ -353,6 +446,8 @@ test("the front door paints an imported finding and no measured peer comparison"
     assert.equal(disclosure.tagName.toLowerCase(), "details");
     assert.equal(Boolean(disclosure.open), false);
     assert.match(textOf(document.querySelector(".pe-provenance")), /browser local ephemeral/);
+    assert.match(textOf(document.querySelector(".pe-eligibility-score")),
+      /aggregate threshold 85.*measures evidence eligibility, not performance/i);
 
     // And the finding goes with the evidence. There is no bundled fallback: a
     // synthetic answer to "what do my exports support" is the claim this region

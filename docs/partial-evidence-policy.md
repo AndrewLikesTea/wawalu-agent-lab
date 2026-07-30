@@ -1,6 +1,6 @@
 # Partial evidence policy
 
-`partial-evidence/1.0.0` — implemented in `src/partial-evidence.js`, rendered by
+`partial-evidence/1.1.0` — implemented in `src/partial-evidence.js`, rendered by
 `src/partial-evidence-view.js` on the AI FinOps import panel.
 
 ## The question
@@ -35,7 +35,8 @@ only reason reported for it.
 | `outside_required_period` | The record window is not inside the declared half-open `[start, end)`. |
 | `incompatible_currency` | The record's currency is not the declared currency. No rate is obtained and none is invented. |
 | `unreadable_amount` | `spendUsd` is not a finite number `>= 0`. A numeric *string* is not an amount. |
-| `duplicate_export` | The record's export id was already counted. |
+| `duplicate_export` | The record repeats a `source_instance_id` already counted. Different delivery IDs from one instance are duplicate imports; distinct instances remain eligible. |
+| `sampled_rows` | The analyzed-row count is below the source-row count. The sample is not extrapolated into a whole-file aggregate. |
 
 Exclusions the intake decided upstream are carried through unchanged under
 `held_out_upstream` with the intake's own words.
@@ -78,11 +79,30 @@ first".
 6. `record_the_decision` — nothing is missing; the next move is a logged
    decision, not another export.
 
+## Eligibility score
+
+This is an evidence-eligibility score, never a team-performance score. Its five
+earned weights are included in every result so the number can be recomputed:
+
+| Dimension | Weight | Assumption |
+| --- | ---: | --- |
+| Aligned billing window | 25 | A temporal mismatch is the easiest way to create a false total. |
+| USD currency | 20 | The browser has no reproducible exchange-rate source. |
+| Unique source instance | 20 | One source instance may contribute once. |
+| Complete row coverage | 20 | A bounded sample cannot represent a whole-file sum. |
+| Org mapping | 15 | Mapping controls department actions, not provider spend. |
+
+The aggregate threshold is 85/100: all four aggregate dimensions must pass.
+Missing org mapping therefore preserves observed provider spend but suppresses
+department ranking. Any excluded export also makes the aggregate ineligible,
+regardless of score. This conservative override prevents one dimension from
+compensating for unsupported evidence in another.
+
 ## What this policy never does
 
-- **It never measures a peer comparison.** The caller passes availability only.
-  An unavailable comparison is reported as *not measured* with the reason. There
-  is no code path here that can produce a percentile or a cohort figure.
+- **It never measures a peer comparison.** The caller passes availability only,
+  and the result is always *not measured*. There is no code path here that can
+  produce a percentile, cohort figure, or benchmark-dependent score.
 - **It never repairs input.** An impossible date, a foreign currency, or an
   unreadable amount excludes the record and names it.
 - **It never publishes an unlabelled total.**
