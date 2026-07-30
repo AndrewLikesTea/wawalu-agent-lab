@@ -28,11 +28,24 @@
       </header>
 
       <main id="main-content" tabindex="-1">
+      <!-- The way back, before anything else in the landmark and reachable by
+           one Tab from the top of the content: this page is opened from the AI
+           FinOps briefing, and a reader who arrives here must not need the
+           browser's back button to get their bearings back. It returns to the
+           briefing's workspace navigation — the control that opens this page —
+           rather than to the top of a long page. -->
+      <nav class="sac-return" aria-label="Back to the AI FinOps briefing">
+        <a class="sac-return-link" id="sac-return" href="/evolution.html#finops-workspace-nav"><span class="sac-return-shape" aria-hidden="true">←</span>Back to the AI FinOps briefing</a>
+      </nav>
       <section class="sac-hero" aria-labelledby="page-title">
         <p class="eyebrow">Monthly Savings Action Center</p>
         <h1 id="page-title">Is this month’s review<br />ready to act on?</h1>
         <p>Open locally saved AI FinOps evidence. The review requires the same metric definition, unit or currency, scope, and review-period duration; it withholds a recommendation when any required evidence is absent or mismatched.</p>
       </section>
+      <!-- The transition announcement. Separate from #sac-evidence-status,
+           which narrates file reads: this one says what view the reader is now
+           in and what state it resolved to, once, when it resolves. -->
+      <p class="visually-hidden" id="sac-journey-live" role="status" aria-live="polite" aria-atomic="true"></p>
 
       <section class="sac-evidence" aria-labelledby="sac-evidence-title">
         <h2 id="sac-evidence-title">Your own months</h2>
@@ -50,12 +63,12 @@
 
       <div id="sac-notices"></div>
 
-      <div id="savings-action-center" aria-live="polite" aria-busy="true">
+      <section id="savings-action-center" aria-live="polite" aria-busy="true" aria-labelledby="page-title">
         <section class="sac-state" role="status">
           <h2>Reconciling monthly savings</h2>
           <p>Checking the action, measurement, and adjudication records…</p>
         </section>
-      </div>
+      </section>
 
       <section class="sac-reconciliation" aria-labelledby="rec-title">
         <h2 id="rec-title">Recorded decisions this import settles</h2>

@@ -31,9 +31,87 @@
 .sac-metric-label { flex-basis:100%; color:#71716a; font:750 10px/1.4 ui-monospace,monospace; letter-spacing:.07em; text-transform:uppercase; }
 .sac-metric-value { color:var(--sac-ink); font-size:clamp(30px,5vw,46px); font-weight:800; letter-spacing:-.03em; overflow-wrap:anywhere; }
 .sac-metric-comparison { color:#55554f; font-size:15px; }
+/* The recommended action is the primary element on this surface, and it wins on
+   all three channels at once: it is first in the DOM and first on screen, it is
+   the largest type after the question, and it is the only block carrying a wash.
+   The metric below it is deliberately stepped down one size from where it sat
+   when it led the page — same scale, one step, no new value. */
 .sac-decision { padding:28px 36px; background:var(--sac-mint); }
-.sac-decision h3 { margin:8px 0; color:var(--sac-ink); font-size:23px; letter-spacing:-.025em; }
+.sac-decision h3 { margin:8px 0; color:var(--sac-ink); font-size:clamp(26px,3.6vw,40px); font-weight:800; line-height:1.1; letter-spacing:-.025em; }
 .sac-decision > p:last-child { max-width:60ch; margin:0; line-height:1.55; }
+/* The kicker's teal is 4.25:1 on the mint wash — under AA for 11px text, which
+   is what it is. On the same wash the shipped verified ink is 6.17:1, so the
+   decision block uses that one. This is a pre-existing pairing, corrected here
+   because this block is now the primary element on the surface. */
+.sac-decision .sac-kicker { color:#22634f; }
+.sac-journey .sac-metric-value { font-size:clamp(23px,3.4vw,30px); font-weight:750; }
+
+/* The way back. It sits above the hero so it is the first thing in the content
+   landmark, and it is an ordinary link — a reader never needs the back button
+   to leave this view. */
+.sac-return { padding:20px 0 0; }
+.sac-return-link { display:inline-flex; align-items:center; gap:8px; min-height:44px; border-radius:9px; padding:0 12px 0 10px; color:var(--sac-ink); font-size:14px; font-weight:750; text-decoration:underline; text-underline-offset:4px; }
+.sac-return-link:hover { background:#eeede7; }
+.sac-return-link:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.sac-return-shape { font:800 14px/1 ui-monospace,monospace; }
+
+/* The heading is the transition's focus target, not a tab stop. A mouse click
+   near it must not leave a ring parked on the whole review. */
+.sac-heading h2:focus { outline:none; }
+.sac-heading h2:focus-visible { outline:3px solid var(--focus-ring); outline-offset:4px; }
+
+/* ---------------------------------------------------------------------------
+   Signals.
+
+   The design mirror's chip rule, applied literally: a filled wash for a dynamic
+   signal (impact, confidence, verification all move when the evidence moves), a
+   neutral outline for a static classification (provenance and department are
+   what this review is, not how it is doing).
+
+   Colour is the last channel and never the only one. Each chip carries the name
+   of the thing it reports, the value in words, and a glyph whose shape repeats
+   the direction — ▼ ▲ = for impact, ● ◐ ○ for the confidence bands, ✓ ! for
+   verification. A signal with no evidence behind it is drawn dashed and says
+   so in its value; it is never left blank or tinted into looking answered.
+   --------------------------------------------------------------------------- */
+.sac-signals { display:flex; flex-wrap:wrap; gap:10px; margin:0; padding:20px 36px 4px; list-style:none; }
+.sac-signal { min-width:0; }
+.sac-chip { display:inline-flex; align-items:baseline; flex-wrap:wrap; gap:4px 8px; max-width:100%; border:1px solid transparent; border-radius:8px; padding:8px 12px; background:#eeede7; color:#4b4b45; }
+.sac-chip-shape { flex:none; font:800 11px/1.4 ui-monospace,monospace; }
+.sac-chip-label { flex:none; font:750 10px/1.4 ui-monospace,monospace; letter-spacing:.07em; text-transform:uppercase; }
+.sac-chip-value { min-width:0; font-size:14px; font-weight:700; line-height:1.4; overflow-wrap:anywhere; }
+.sac-chip[data-tone="good"] { background:var(--sac-mint); color:#22634f; }
+.sac-chip[data-tone="caution"] { background:var(--sac-warm); color:#765616; }
+.sac-chip[data-tone="adverse"] { background:var(--sac-red); color:#8a2d24; }
+.sac-chip[data-silhouette="outline"] { border-color:#8b8b85; background:#fff; color:#55554f; }
+/* Not measured is its own silhouette, not a paler version of measured. */
+.sac-chip[data-known="false"] { border-style:dashed; border-color:#8b8b85; background:#fff; color:#55554f; }
+
+/* ---------------------------------------------------------------------------
+   Supporting evidence.
+
+   Subordinate by grouping and by label, not only by size: one named region, one
+   sentence saying what it is for, a recessed ground, and a rule down its inside
+   edge tying the panels to each other rather than to the decision above.
+   --------------------------------------------------------------------------- */
+.sac-support { margin-top:24px; border-top:1px solid #dedcd5; padding:24px 36px 32px; background:#f7f6f2; }
+.sac-support-title { margin:0; color:#55554f; font:750 10px/1.4 ui-monospace,monospace; letter-spacing:.07em; text-transform:uppercase; }
+.sac-support-note { max-width:74ch; margin:8px 0 16px; color:#55554f; font-size:14px; line-height:1.55; }
+.sac-disclosure { border-top:1px solid #dedcd5; }
+.sac-disclosure:last-of-type { border-bottom:1px solid #dedcd5; }
+.sac-disclosure-trigger { display:flex; align-items:center; flex-wrap:wrap; gap:10px; width:100%; min-height:48px; border:0; padding:12px 0; background:none; color:var(--sac-ink); font-size:16px; font-weight:800; text-align:left; cursor:pointer; }
+.sac-disclosure-trigger:focus-visible { outline:3px solid var(--focus-ring); outline-offset:2px; }
+.sac-disclosure-shape { flex:none; font:800 14px/1 ui-monospace,monospace; }
+.sac-disclosure-label { min-width:0; overflow-wrap:anywhere; }
+.sac-disclosure-state { margin-left:auto; color:#55554f; font:750 10px/1.4 ui-monospace,monospace; letter-spacing:.07em; text-transform:uppercase; }
+.sac-disclosure-panel { padding-bottom:8px; }
+.sac-disclosure-panel .sac-calculation { margin:0 0 18px; }
+/* Both of these moved onto the recessed ground, so both are re-measured against
+   it rather than against the white card they used to sit on: #777771 on #f7f6f2
+   is 4.17:1, under AA for body text, and #55554f is 6.94:1. Same shipped ink,
+   one step darker — no new value. */
+.sac-support .sac-caveat,.sac-support .sac-contracts { margin-bottom:0; }
+.sac-support .sac-contracts { color:#55554f; }
 .sac-facts { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0; margin:0; border-bottom:1px solid #dedcd5; }
 .sac-fact { min-width:0; padding:20px 28px; border-right:1px solid #dedcd5; border-top:1px solid #dedcd5; }
 .sac-fact dt { color:#71716a; font:750 10px/1.4 ui-monospace,monospace; letter-spacing:.07em; text-transform:uppercase; }
@@ -69,6 +147,15 @@
   .sac-fact { padding:18px 24px; border-right:0; }
   .sac-calculation { grid-template-columns:1fr; }
   .sac-details summary,.sac-details-body { padding-inline:24px; }
+  /* Nothing reorders on a narrow screen. The single column is already the DOM
+     order — question, recommendation, figure, signals, support — so the primary
+     decision stays above the fold and the tab sequence still matches the page.
+     Each chip takes the full measure rather than being squeezed to an
+     unreadable ellipsis, and the disclosure triggers keep a 48px target. */
+  .sac-signals,.sac-support { padding-inline:24px; }
+  .sac-signals { gap:8px; }
+  .sac-signal { flex:1 1 100%; }
+  .sac-chip { display:flex; width:100%; }
 }
 /* ---------------------------------------------------------------------------
    The reconciliation panel.
