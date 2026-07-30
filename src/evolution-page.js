@@ -199,6 +199,12 @@ import {
 // invented locally so the judgment is readable before a reader has any files.
 import { evaluateSample } from "/portfolio-comparability-samples.js";
 import { bindPortfolioSamples } from "/portfolio-comparability-view.js";
+// The finding the reader's own partial evidence supports. The policy is fed the
+// analysis envelope through its own adapter — the page never assembles the
+// policy's input by hand — so a field added upstream cannot reach a rule until
+// the adapter names it.
+import { evaluatePartialEvidence, partialEvidenceFromAnalysis } from "/partial-evidence.js";
+import { applyPartialEvidence, clearPartialEvidence } from "/partial-evidence-view.js";
 import { initWorkspaceShell } from "/finops-workspace-shell.js";
 import {
   announce as announceStage, applyDatasetProvenance, applyExportPackageGuidance,
@@ -1306,6 +1312,18 @@ function mountLocalFinopsImport() {
     // rather than re-derived by it: a figure this page withheld must not
     // reappear in the briefing built from the same analysis.
     const attributionWithheld = attribution?.confidence === CONFIDENCE.SUPPRESSED;
+    // What this evidence supports, given what is missing from it. Painted here
+    // and not earlier because the policy's last input is the attributed share
+    // decided three lines up: the panel must ask for attribution against the
+    // same ratio the coverage headline printed rather than a second reading of
+    // the same two totals. Peer availability is passed, never a peer figure —
+    // the policy has no branch that can measure one.
+    applyPartialEvidence(document, evaluatePartialEvidence(partialEvidenceFromAnalysis({
+      analysis: next,
+      peer: example ? null : importedPeer(next),
+      attributedShare: attributedFraction,
+      source: example ? "example" : "import",
+    })));
     // One state, four disclosures. The leading finding, the benchmark card, the
     // recommendation evidence and the quantified impact are composed together,
     // from this analysis and the two decisions above it, so a change to an
@@ -1620,6 +1638,11 @@ function mountLocalFinopsImport() {
     // All four panels together, from the model with no import in it. A reload
     // produces exactly this, because nothing here was ever written down.
     clearFinopsProvenance(document);
+    // The finding about the reader's own evidence goes with the evidence. There
+    // is no bundled fallback for it on purpose: a visitor who imported nothing
+    // has no partial evidence, and a synthetic answer to "what do my exports
+    // support" would be the one claim this region exists to refuse.
+    clearPartialEvidence(document);
     repaintBundledAnalysis();
     // The bundled seed answers for the panels again, so they are re-decided from
     // it rather than restored by a flag. A visitor who imports nothing and a

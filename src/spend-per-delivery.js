@@ -35,6 +35,8 @@
  * module is pure, so the same inputs always produce the same record.
  */
 
+import { isCalendarDate } from "./calendar-date.js";
+
 export const SPEND_PER_DELIVERY_SCHEMA_VERSION = "spend-per-delivery/1.0.0";
 
 /** The only currency comparable without an exchange-rate transfer. */
@@ -249,7 +251,6 @@ const invalid = (path, message) => {
   throw new SpendPerDeliveryError(path, message);
 };
 
-const DATE_PATTERN = /^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])$/;
 const DAY_MS = 86_400_000;
 
 /**
@@ -273,8 +274,16 @@ function positive(value) {
 function readPeriod(entry, index) {
   const path = `spendPeriods[${index}]`;
   if (entry === null || typeof entry !== "object") invalid(path, "must be an object.");
-  if (!DATE_PATTERN.test(entry.periodStart ?? "")) invalid(`${path}.periodStart`, "must be YYYY-MM-DD.");
-  if (!DATE_PATTERN.test(entry.periodEnd ?? "")) invalid(`${path}.periodEnd`, "must be YYYY-MM-DD.");
+  // A calendar date, not a `YYYY-MM-DD`-shaped string. "2026-02-29" passed the
+  // shape check this replaced, and `Date.parse` then rolled it into March — so a
+  // period that cannot have been billed acquired a length and joined the ratio.
+  // A day that does not exist is a defect in the export, and is refused here.
+  if (!isCalendarDate(entry.periodStart)) {
+    invalid(`${path}.periodStart`, "must be a real YYYY-MM-DD calendar date.");
+  }
+  if (!isCalendarDate(entry.periodEnd)) {
+    invalid(`${path}.periodEnd`, "must be a real YYYY-MM-DD calendar date.");
+  }
   const days = (dayStart(entry.periodEnd) - dayStart(entry.periodStart)) / DAY_MS;
   if (!Number.isInteger(days) || days <= 0) {
     invalid(`${path}.periodEnd`, "must be a whole number of days after periodStart.");

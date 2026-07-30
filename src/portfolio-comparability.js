@@ -49,6 +49,8 @@
 // stored verdict is only interpretable by the version that produced it. 1.1
 // enforces the closed field set that 1.0 only declared.
 
+import { calendarDate } from "./calendar-date.js";
+
 /** The contract's own identity. Consumers allowlist the exact version. */
 export const PORTFOLIO_COMPARABILITY_KIND = "wawalu.finops.portfolio-comparability";
 export const PORTFOLIO_COMPARABILITY_VERSION = "1.1";
@@ -259,26 +261,15 @@ export function screenPortfolioSample(portfolio) {
 
 // --- reading the declaration ------------------------------------------------
 
-const DATE_SHAPE = /^\d{4}-\d{2}-\d{2}$/;
 const CURRENCY_SHAPE = /^[A-Z]{3}$/;
-const MONTH_LENGTHS = Object.freeze([31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]);
-
-const leapYear = (year) => (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
 
 /**
- * An ISO-8601 calendar date, or null. Validated by hand rather than by `Date`,
- * so this module reads no clock and a "2026-02-30" is a refusal instead of a
- * silent roll into March.
+ * An ISO-8601 calendar date, or null — the shared rule, re-exported so this
+ * contract's own vocabulary still names it. Validated by arithmetic rather than
+ * by `Date`, so this module reads no clock and a "2026-02-30" is a refusal
+ * instead of a silent roll into March.
  */
-export function calendarDate(value) {
-  if (typeof value !== "string" || !DATE_SHAPE.test(value)) return null;
-  const year = Number(value.slice(0, 4));
-  const month = Number(value.slice(5, 7));
-  const day = Number(value.slice(8, 10));
-  if (month < 1 || month > 12 || day < 1) return null;
-  const length = month === 2 && leapYear(year) ? 29 : MONTH_LENGTHS[month - 1];
-  return day > length ? null : value;
-}
+export { calendarDate };
 
 const currencyCode = (value) => {
   if (typeof value !== "string") return null;

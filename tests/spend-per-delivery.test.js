@@ -346,7 +346,24 @@ test("a malformed input is a defect and throws; unusable data never does", () =>
   assert.throws(() => spendPerDeliveryDecision({
     spendPeriods: [{ periodStart: "06/01/2026", periodEnd: "2026-07-01", spendUsd: 1 }],
     deliveries: [],
-  }), /must be YYYY-MM-DD/);
+  }), /must be a real YYYY-MM-DD calendar date/);
+  // The regression: a `YYYY-MM-DD`-shaped string for a day that does not exist.
+  // The shape check this replaced accepted it and `Date.parse` rolled it into
+  // March, so a period nobody could have been billed for acquired a length, a
+  // total, and a place in the ratio. It is a defect in the export, and refused.
+  for (const impossible of ["2026-02-29", "2026-04-31", "2025-02-30"]) {
+    assert.throws(() => spendPerDeliveryDecision({
+      spendPeriods: [{ periodStart: impossible, periodEnd: "2026-07-01", spendUsd: 1 }],
+      deliveries: [],
+    }), /periodStart: must be a real YYYY-MM-DD calendar date/,
+    `${impossible} is not a day and must not be normalized into one`);
+  }
+  // The leap day that does exist still reads, so the fix is a calendar and not a
+  // blanket refusal of February.
+  assert.equal(spendPerDeliveryDecision({
+    spendPeriods: [{ periodStart: "2024-02-29", periodEnd: "2024-03-31", spendUsd: 1 }],
+    deliveries: [],
+  }).schemaVersion, SPEND_PER_DELIVERY_SCHEMA_VERSION);
   // Every fixture, by contrast, is data and returns a state.
   for (const name of Object.keys(SPEND_PER_DELIVERY_FIXTURES)) {
     assert.ok(spendPerDeliveryFixture(name).state);

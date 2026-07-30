@@ -49,6 +49,10 @@ try {
     // definitions behind the verdict, the coverage benchmark, the closed field
     // set, and the rule that picks the single next action.
     "portfolio-comparability-contract.md",
+    // Linked from the partial-evidence finding on the same panel: what makes a
+    // record admissible, how a partial floor is summed, the priority order that
+    // picks the single next action, and why no peer comparison is measured there.
+    "partial-evidence-policy.md",
   ]) {
     await cp(resolve(root, "docs", page), resolve(staging, "docs", page));
   }
