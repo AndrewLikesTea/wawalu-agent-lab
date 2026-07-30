@@ -235,7 +235,8 @@ test("the import announces the new grade, coverage and confidence — once", asy
   assert.equal(live.getAttribute("role"), "status");
   assert.equal(live.getAttribute("aria-atomic"), "true");
   const announced = textOf(live);
-  assert.match(announced, /Example data replaced by your import\./, "it says the example numbers are gone");
+  assert.match(announced, /Bundled synthetic example replaced by your import\./,
+    "it says the example numbers are gone");
   assert.match(announced, /Grade [A-F]/, "the grade");
   assert.match(announced, /30\.0% of imported spend scored/, "the coverage");
   assert.match(announced, /Provisional grade/, "the confidence");
@@ -342,7 +343,8 @@ test("extremes · 100% and 0% coverage are both drawn, and neither is drawn as t
   assert.equal(byId(none, "kpi-row").hidden, true, "a half-filled KPI row would read as graded");
   assert.equal(byId(none, "spend-mix-panel").hidden, true);
   assert.match(textOf(byId(none, "graded-sample-body")), /insufficient coverage/);
-  assert.match(textOf(byId(none, "graded-sample-live")), /Example data replaced by your import\./);
+  assert.match(textOf(byId(none, "graded-sample-live")),
+    /Bundled synthetic example replaced by your import\./);
 
   // The one next action still has to be there — it is the way out of this state.
   const action = none.querySelector(".graded-action");

@@ -170,7 +170,8 @@ test("one instruction stands between the page title and the first control", asyn
   // happened and names both ways on, so the slots under it need not repeat it.
   assert.equal(textOf(byId(document, FIRST_RUN_IDS.answer)), FIRST_RUN_INSTRUCTION);
   assert.match(FIRST_RUN_INSTRUCTION, /^No analysis has run yet\./);
-  assert.match(FIRST_RUN_INSTRUCTION, /Try the bundled example data/);
+  assert.match(FIRST_RUN_INSTRUCTION, /Try the Bundled synthetic example/);
+  assert.match(FIRST_RUN_INSTRUCTION, /without uploading a file/);
   assert.match(FIRST_RUN_INSTRUCTION, /analyze your own export/);
 
   // The hero provenance names the dataset on screen rather than a read that has
@@ -242,7 +243,8 @@ test("one name for the example dataset, on both controls that load it", async ()
   const basis = textOf(entry.querySelector(".local-example-basis"));
   const label = textOf(entry).replace(basis, "").trim();
   assert.equal(label, FIRST_RUN_ACTIONS.demo.label);
-  assert.match(basis, /invented sample, not your spend/);
+  assert.match(basis, /invented data, not your spend/);
+  assert.match(basis, /no file needed/);
 });
 
 test("the no-upload promise sits once, beside the choice that touches a file", async () => {

@@ -349,8 +349,8 @@ test("the bundled example brief is equally undisturbed, and the confirmation say
     assert.deepEqual(resultSnapshot(document), before);
 
     // The example result's own labelling is exactly what it was.
-    assert.equal(shownText(document, "local-metric-label"), "Example data — not your data");
-    assert.match(shownText(document, "local-metric-detail"), /^Computed from a bundled synthetic provider export/);
+    assert.equal(shownText(document, "local-metric-label"), "Bundled synthetic example");
+    assert.match(shownText(document, "local-metric-detail"), /^Computed from an invented provider export/);
   } finally {
     page.restore();
   }
@@ -435,7 +435,7 @@ test("the contact copy claims nothing the page has not shown, and leaves the exi
     // The two labels this change is forbidden to touch, character for character.
     assert.match(html, /<strong>Bundled synthetic sample data<\/strong>\s*<span>This is an illustrative recommendation—not live analysis, customer data, or realized savings\.<\/span>/);
     assert.match(html, /<strong>Your files do not leave this tab\.<\/strong>/);
-    assert.match(html, /Example data — bundled synthetic sample, replaced by your figures only after a local import\./);
+    assert.match(html, /Bundled synthetic example — invented data, not your spend\. Analyze your own export to replace it with your figures\./);
 
     // And the contact section is placed beside the result region, not inside it:
     // nothing in it can be unmounted by a re-render of the analysis.

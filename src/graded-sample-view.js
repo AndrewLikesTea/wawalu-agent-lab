@@ -36,7 +36,7 @@ const PANEL_ID = "graded-subscores-panel";
  * The first words of every announcement. A leader who is not looking at the
  * page needs to know the example numbers are gone before they hear a figure.
  */
-const REPLACED = "Example data replaced by your import.";
+const REPLACED = "Bundled synthetic example replaced by your import.";
 
 const CATEGORY_VARS = {
   highValue: "--cat-high-value",

@@ -170,7 +170,8 @@ test("the pinned briefing says it is invented and says what it left out", async 
     "the sheet is drawn above the notice that says whose figures it holds");
 
   // The synthetic banner and the confidence ceiling the contract owns.
-  assert.match(textOf(root.querySelector(".brief-synthetic")), /Invented sample data/);
+  assert.match(textOf(root.querySelector(".brief-synthetic")), /Bundled synthetic example/);
+  assert.match(textOf(root.querySelector(".brief-synthetic")), /invented data/);
   assert.match(textOf(root), /not a realized saving/i);
 
   // And the way back to the region the reader came from, as a real link.

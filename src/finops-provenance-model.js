@@ -56,10 +56,10 @@ export const FINOPS_PROVENANCE_VERSION = "finops-panel-provenance/1.0.0";
  * versions of one sentence.
  */
 export const SAMPLE_LABEL =
-  "Example data — bundled synthetic sample, replaced by your figures only after a local import.";
+  "Bundled synthetic example — invented data, not your spend. Analyze your own export to replace it with your figures.";
 
 /** The word beside the shape. Neither one is a tint; both survive monochrome. */
-export const SAMPLE_WORD = "Example data";
+export const SAMPLE_WORD = "Bundled synthetic example";
 export const USER_WORD = "Your data";
 const SAMPLE_SHAPE = "◇";
 const USER_SHAPE = "▣";
@@ -105,7 +105,7 @@ export const NO_USER_COHORT_REASON =
   "A local import carries no peer organizations, so the comparison stays the bundled cohort's.";
 
 const COACHING_SAMPLE_ANSWER =
-  "The bundled example's lowest-scoring team, drawn from synthetic prompts.";
+  "The Bundled synthetic example's lowest-scoring team, drawn from invented prompts.";
 
 /** The three processing states the panels have to survive without a half-swap. */
 export const FINOPS_IMPORT_STATUS = Object.freeze({
@@ -113,10 +113,10 @@ export const FINOPS_IMPORT_STATUS = Object.freeze({
 });
 
 const PENDING_MESSAGE =
-  "Reading your file in this tab. The panels below are still the bundled example.";
+  "Reading your file in this tab. The panels below still show the Bundled synthetic example, not your spend.";
 
 const FAILED_MESSAGE =
-  "Your file was not analyzed, so every panel below is the bundled example again. "
+  "Your file was not analyzed, so every panel below shows the Bundled synthetic example again. "
   + "Nothing you selected was uploaded or stored.";
 
 function samplePanel(panel, reason) {
@@ -203,7 +203,7 @@ function headlineFor(verdict, facts) {
       action: Object.freeze({
         kind: verdict?.nextAction?.kind ?? "import_conversation_export",
         text: "Import a prompt export to grade your own departments. "
-          + "Until then every panel on this page is the bundled example.",
+          + "Until then every panel shows the Bundled synthetic example.",
       }),
     });
   }
@@ -424,7 +424,7 @@ export function finopsProvenanceModel({
      */
     returnControl: Object.freeze({
       available: anyUserPanel,
-      label: "Show the bundled example data in all four panels",
+      label: "Show the Bundled synthetic example in all four panels",
     }),
     message: settled ? null
       : (status === FINOPS_IMPORT_STATUS.failed ? FAILED_MESSAGE : PENDING_MESSAGE),

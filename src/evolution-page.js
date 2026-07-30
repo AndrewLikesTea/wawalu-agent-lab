@@ -1247,7 +1247,7 @@ function mountLocalFinopsImport() {
     applyPortfolioBrief(document, next);
     applyDatasetProvenance(document, example, example ? null : importProvenance());
     if (remap) remap.hidden = example || !imports.some((entry) => entry.source === "delimited");
-    setMode(example ? "example-dataset" : "local", example ? "Example data" : "Local import");
+    setMode(example ? "example-dataset" : "local", example ? "Bundled synthetic example" : "Local import");
     setText("finops-intro", example
       ? `${EXAMPLE_DATASET_PROVENANCE.detail} It walks the same translator and analysis an `
         + `imported file walks, so the finding below is computed, not written. `
@@ -1471,14 +1471,16 @@ function mountLocalFinopsImport() {
     });
     resultsNode.hidden = false;
     clear.hidden = false;
-    clear.textContent = example ? "Clear example data" : "Return to example data";
+    clear.textContent = example
+      ? "Clear the Bundled synthetic example"
+      : "Return to the Bundled synthetic example";
     applyFieldDiagnostic(document, null);
     announce("ready", example
       ? `Example finding ready · ${basis.label}.`
       : `Local analysis ready · ${basis.label}.`,
       `${basis.detail} ${example
-        ? "Select your own exports, or clear the example data, at any time."
-        : "Example analysis replaced until refresh or “Return to example data.”"}`);
+        ? "Analyze your own exports, or clear the Bundled synthetic example, at any time."
+        : "The Bundled synthetic example is replaced until refresh or “Return to the Bundled synthetic example.”"}`);
     // Focus lands on the new stage's heading, not on the section wrapper, so a
     // screen reader reads the brief's title rather than a nameless region. A
     // re-import redraws the same stage, and the reader is still owed the move.
@@ -1605,10 +1607,10 @@ function mountLocalFinopsImport() {
     input.value = "";
     resultsNode.hidden = true;
     clear.hidden = true;
-    clear.textContent = "Return to example data";
+    clear.textContent = "Return to the Bundled synthetic example";
     attributedShare = 0;
     attributedFraction = null;
-    setMode("example", "Example data");
+    setMode("example", "Bundled synthetic example");
     applyFieldDiagnostic(document, null);
     // Nothing survives the clear: the example result, its provenance labels, and
     // the finding are all discarded together. Nothing was ever written to
@@ -1671,7 +1673,9 @@ function mountLocalFinopsImport() {
     // The authored hero sentence, from the module that owns it, so a reader who
     // clears an import lands back on the words the page shipped with.
     setText("finops-intro", HERO_INTRO);
-    announce("ready", wasExample ? "Example data cleared." : "Returned to example data.",
+    announce("ready", wasExample
+      ? "Bundled synthetic example cleared."
+      : "Returned to the Bundled synthetic example.",
       wasExample
         ? "The example export, its computed finding, and every provenance label were discarded. "
           + "Nothing was stored, so a reload starts fresh."
@@ -2066,9 +2070,9 @@ function mountLocalFinopsImport() {
       const diagnostic = diagnosticFor({ code: error?.code, message: error?.message });
       applyFieldDiagnostic(document, diagnostic);
       spendPerDeliveryPhase(SPEND_PER_DELIVERY_PHASE.error,
-        "The bundled example could not be analyzed, so no ratio was derived from it."
+        "The Bundled synthetic example could not be analyzed, so no ratio was derived from it."
         + " Your own provider export is still the way to answer this question.");
-      announce("error", "The example data could not be analyzed.",
+      announce("error", "The Bundled synthetic example could not be analyzed.",
         `${diagnostic.text} No analysis is shown.`);
     }
   });

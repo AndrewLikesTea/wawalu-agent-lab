@@ -92,7 +92,7 @@ test("each file-recovery label describes what it leaves behind", async () => {
     "Discard all files and results");
   const note = normalized(doc.getElementById("local-file-recovery-note"));
   assert.match(note, /Choosing again keeps the files that already loaded/);
-  assert.match(note, /puts the example data back/);
+  assert.match(note, /restores the Bundled synthetic example/);
   // The note is hidden and shown with the buttons it explains.
   assert.equal(doc.getElementById("local-file-recovery").hidden, true);
   assert.equal(doc.getElementById("local-file-recovery-note").closest("#local-file-recovery")
@@ -190,7 +190,7 @@ test("each unresolved requirement carries the jump to the control that fixes it"
 // --- the metric is never ambiguous ----------------------------------------
 
 test("every non-real headline condition is stated in words beside the number", () => {
-  assert.deepEqual(metricBasis({ mode: "example" }).label, "Example data");
+  assert.deepEqual(metricBasis({ mode: "example" }).label, "Bundled synthetic example");
   assert.equal(metricBasis({ mode: "example" }).real, false);
   assert.equal(metricBasis({ mode: "failed" }).label, "Import failed");
   assert.equal(metricBasis({ mode: "partial", providers: 1, hris: false }).label, "Incomplete mapping");
@@ -210,9 +210,9 @@ test("every non-real headline condition is stated in words beside the number", (
 test("the example-data case labels the headline metric on a cold load", async () => {
   const doc = await page();
   // Authored state, before any script runs.
-  assert.equal(doc.getElementById("local-metric-label").textContent.trim(), "Example data");
+  assert.equal(doc.getElementById("local-metric-label").textContent.trim(), "Bundled synthetic example");
   assert.equal(doc.getElementById("local-recoverable").dataset.real, "false");
-  assert.match(normalized(doc.getElementById("headline-basis")), /Example data — bundled synthetic sample/);
+  assert.match(normalized(doc.getElementById("headline-basis")), /Bundled synthetic example — invented data, not your spend/);
   assert.equal(doc.getElementById("analysis-mode").dataset.mode, "example");
 
   applyMetricBasis(doc, metricBasis({ mode: "local", departments: 4, joinedRecords: 9 }));

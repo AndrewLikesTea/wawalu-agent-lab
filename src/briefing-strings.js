@@ -50,7 +50,7 @@ export const BRIEFING_STATE_MESSAGE = Object.freeze({
  */
 export const BUNDLED_LOAD_STATE = Object.freeze({
   loading: Object.freeze({
-    title: "Reading the bundled example…",
+    title: "Reading the Bundled synthetic example…",
     detail: "Nothing of yours is imported. The local import tools below are already usable, "
       + "and previously rendered content stays visible while the synthetic fixture is refreshed.",
   }),
@@ -97,7 +97,7 @@ export const DEPARTMENT_DETAIL_STATE = Object.freeze({
   loading: Object.freeze({
     name: "No department selected yet",
     score: "–",
-    sample: "No department is selected until the bundled example has been read.",
+    sample: "No department is selected until the Bundled synthetic example has been read.",
   }),
   noDepartments: Object.freeze({
     name: "No department in this period",

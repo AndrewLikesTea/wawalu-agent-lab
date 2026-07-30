@@ -188,9 +188,9 @@ export function applyWorkspaceDestinations(doc, loaded) {
     const count = loaded?.errors?.length ?? 0;
     body.append(element(doc, "p", "dest-unavailable",
       count > 0
-        ? `No destination is ranked: the bundled example failed ${count} contract`
+        ? `No destination is ranked: the Bundled synthetic example failed ${count} contract`
           + ` check${count === 1 ? "" : "s"}.`
-        : "No destination is ranked from this example."));
+        : "No destination is ranked from the Bundled synthetic example."));
     return null;
   }
 

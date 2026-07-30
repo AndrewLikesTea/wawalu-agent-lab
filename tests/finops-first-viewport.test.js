@@ -114,7 +114,8 @@ test("the brief carries the sample label and both next steps as authored markup"
   const sample = textOf(byId(document, FIRST_RUN_IDS.sample));
   // True before a script runs, because a reader decides what kind of number
   // they are looking at before they read the number.
-  assert.match(sample, /Invented sample data/);
+  assert.match(sample, /Bundled synthetic example/);
+  assert.match(sample, /invented data/);
   assert.match(sample, /not your spend/);
   assert.match(sample, /not .*realized savings/);
 

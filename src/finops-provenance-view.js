@@ -197,12 +197,12 @@ export function applyFinopsProvenance(doc, model, { onReturnToSample = null } = 
  */
 function announcementFor(model) {
   const user = Object.values(model.panels).filter((panel) => panel.source === "user");
-  if (!user.length) return "Every panel on this page is the bundled example data.";
+  if (!user.length) return "Every panel on this page shows the Bundled synthetic example: invented data, not your spend.";
   const sample = Object.values(model.panels).filter((panel) => panel.source === "sample");
   const names = { headline: "the grade", kpis: "the headline metrics", cohort: "the cohort comparison", coaching: "the coaching card" };
   const list = (entries) => entries.map((panel) => names[panel.panel]).join(", ");
   return `Your import now feeds ${list(user)}. `
-    + (sample.length ? `${list(sample)} remain the bundled example. ` : "")
+    + (sample.length ? `${list(sample)} remain the Bundled synthetic example. ` : "")
     + `${model.headline.question} ${model.headline.action.text}`;
 }
 

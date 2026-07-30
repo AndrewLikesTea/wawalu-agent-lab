@@ -163,8 +163,8 @@ export function mappingRequirements({
  * artifacts. A second wording anywhere is a defect, because the two would drift.
  */
 export const EXAMPLE_DATASET_PROVENANCE = Object.freeze({
-  label: "Example data — not your data",
-  detail: "Computed from a bundled synthetic provider export and org roster.",
+  label: "Bundled synthetic example",
+  detail: "Computed from an invented provider export and org roster. It is not your spend.",
   swap: "To replace it, choose your own provider export in the import panel.",
 });
 
@@ -193,8 +193,8 @@ export function metricBasis({
   }
   if (mode === "example") {
     return Object.freeze({
-      label: "Example data", real: false,
-      detail: "Bundled synthetic sample — not your import and not realized savings.",
+      label: "Bundled synthetic example", real: false,
+      detail: "Invented data — not your import, spend, or realized savings.",
     });
   }
   if (mode === "partial") {

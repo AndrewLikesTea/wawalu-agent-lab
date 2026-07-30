@@ -141,6 +141,8 @@ test("the sample label and both next steps survive every unavailable state", () 
     assert.equal(result.actions.demo.targetId, "try-example-dataset", name);
     assert.equal(result.actions.import.targetId, "local-finops-files", name);
   }
+  assert.equal(FIRST_RUN_UNAVAILABLE.notComposed,
+    "No Bundled synthetic example analysis was produced, so no figure is shown here.");
   assert.equal(buildFirstRunResult(() => { throw new Error("x"); }).reason, FIRST_RUN_UNAVAILABLE.failed);
 });
 
@@ -187,7 +189,10 @@ test("the invented-sample sentence is true before any script runs", async () => 
   const document = parseHtml(await readFile(PAGE, "utf8"));
   const sample = byId(document, FIRST_RUN_IDS.sample);
   const authored = textOf(sample);
-  assert.match(authored, /Invented sample data/);
+  assert.match(authored, /Bundled synthetic example/);
+  assert.match(authored, /invented data/);
+  assert.match(authored, /not your spend/i);
+  assert.match(authored, /No file is needed/);
   assert.match(authored, /not your spend/);
   assert.match(authored, /not .*realized savings/);
   // It sits above the figures, not under them: a reader decides what kind of
@@ -264,7 +269,7 @@ test("a visitor with no files meets four resolved slots and one ranked action", 
     // to decide whether to read it: what kind of numbers, and what they say.
     const live = byId(document, FIRST_RUN_IDS.live);
     assert.equal(live.getAttribute("aria-live"), "polite");
-    assert.match(textOf(live), /^Invented sample data\./);
+    assert.match(textOf(live), /^Bundled synthetic example\./);
     assert.match(textOf(live), /% of analyzed AI spend/);
   } finally {
     page.restore();
@@ -364,7 +369,7 @@ test("the view paints an unavailable composition without blanking the block", as
   assert.equal(region.dataset.tone, "error");
   assert.equal(textOf(byId(document, FIRST_RUN_IDS.word)), FIRST_RUN_STATE.unavailable.word);
   assert.equal(textOf(byId(document, FIRST_RUN_IDS.benchmarkValue)), UNAVAILABLE_VALUE);
-  assert.match(textOf(byId(document, FIRST_RUN_IDS.sample)), /Invented sample data/);
+  assert.match(textOf(byId(document, FIRST_RUN_IDS.sample)), /Bundled synthetic example/);
   // Not hidden, not empty: the reason and both next steps are still readable.
   assert.equal(region.hidden, false);
   assert.match(textOf(byId(document, FIRST_RUN_IDS.benchmarkDetail)), /no figure is shown/);
