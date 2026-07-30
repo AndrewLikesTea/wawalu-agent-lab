@@ -161,13 +161,17 @@ test("trace page exposes semantic navigation, synthetic disclosure, and error bo
   assert.match(page, /<article.*aria-labelledby="trace-page-title"/);
   assert.match(page, /Synthetic example\./);
   assert.match(page, /not live customer activity, a private repository transcript, or a record of hidden instructions/i);
-  assert.match(page, /href="\/agents\.html"/);
+  assert.match(page, /href="\/agents\.html#prompt-title"/);
   assert.match(page, /aria-label="Representative prompt trace steps"/);
 
   const trace = createElement("div");
   const root = { querySelector: () => trace };
   await loadPublishedTrace(root, async () => ({ ok: false, status: 500 }));
   assert.equal(trace.getAttribute("aria-busy"), "false");
-  assert.match(trace.textContent, /published representative trace could not be loaded/i);
+  assert.equal(trace.dataset.source, "synthetic-fallback");
+  assert.match(trace.textContent, /showing a built-in synthetic handoff/i);
+  assert.match(trace.textContent, /not customer activity, private-repository activity, or hidden instructions/i);
+  assert.equal(byClass(trace, "prompt-step").length, 4,
+    "a failed static request leaves the complete representative handoff readable");
   assert.equal(tags(trace, "BUTTON")[0].textContent, "Retry trace");
 });

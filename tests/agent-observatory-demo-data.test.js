@@ -144,6 +144,12 @@ test("a file that answered with nothing is empty, and is offered no retry", asyn
   }
   assert.equal(isRecoverableDemoDataState("empty"), false);
   assert.match(page.personas.detail, /nothing failed/i);
+  assert.equal(page.personas.content.dataset.source, "synthetic-fallback");
+  assert.equal(page.personas.content.querySelectorAll("li").length, 4,
+    "the empty file still leaves a useful synthetic team summary");
+  assert.equal(page.trace.content.dataset.source, "synthetic-fallback");
+  assert.equal(page.trace.content.querySelectorAll(".prompt-step").length, 4,
+    "the empty file still leaves a representative synthetic handoff");
 });
 
 /* ------------------------------- error, with a way out --------------------- */
@@ -174,6 +180,14 @@ test("a failed read names each panel's own loss and offers an explicit retry", a
   assert.notEqual(page.personas.detail, page.trace.detail);
   assert.match(page.personas.title, /[Pp]ersona/);
   assert.match(page.trace.title, /prompt trace/);
+  assert.match(page.personas.detail, /not customer or private-repository activity/i);
+  assert.match(page.trace.detail, /not customer or private-repository activity/i);
+  assert.equal(page.personas.content.dataset.source, "synthetic-fallback");
+  assert.equal(page.personas.content.getAttribute("aria-label"), "Synthetic fallback persona summary");
+  assert.equal(page.personas.content.querySelectorAll("li").length, 4);
+  assert.equal(page.trace.content.dataset.source, "synthetic-fallback");
+  assert.equal(page.trace.content.getAttribute("aria-label"), "Synthetic fallback representative handoff");
+  assert.equal(page.trace.content.querySelectorAll(".prompt-step").length, 4);
 });
 
 test("a thrown request is the same failure as a refused one", async (t) => {

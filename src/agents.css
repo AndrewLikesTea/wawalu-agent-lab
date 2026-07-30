@@ -13,6 +13,7 @@
 .activity-panel { min-height:600px; padding:30px; }
 .persona-list,.activity-list { margin:0; padding:0; list-style:none; }
 .persona-list { display:grid; }
+.persona-list[data-source="synthetic-fallback"],.prompt-trace[data-source="synthetic-fallback"] { border:1px dashed #9b998f; border-radius:12px; padding:10px 14px; background:#fcfaf3; }
 .persona-list li { display:grid; grid-template-columns:30px 1fr; gap:12px; padding:14px 0; border-top:1px solid #e1dfd8; }
 .persona-list li>span { color:#8a8982; font:650 10px/1.5 ui-monospace,monospace; }
 .persona-list div { display:grid; gap:4px; }
@@ -74,6 +75,7 @@
 .activity-list>.state-panel { grid-column:1/-1; }
 /* agent-trace.html still fills a .prompt-trace grid through renderState. */
 .prompt-trace>.state-panel { grid-column:1/-1; }
+.trace-fallback-status { grid-column:1/-1; }
 /* The two demo-data panels borrow the activity panel's status treatment rather
    than growing a second vocabulary for the same three states. `[hidden]` needs
    saying because the author `display` above would otherwise beat the browser's
