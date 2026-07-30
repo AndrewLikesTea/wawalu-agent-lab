@@ -60,6 +60,123 @@
         </div>
       </section>
 
+      <!-- WHERE DO WE STAND? — the one decisive screen, above everything.
+
+           THE DEFECT THIS FIXES. Every figure in this view was already correct
+           and already on the page. The peer position — the answer to the only
+           question a FinOps lead actually opens this view with — was the fourth
+           card of a grid whose four cards were drawn at the same weight, below
+           two other cards and beside a confidence score. A lead who wants to
+           know where they stand was being handed four labelled boxes and asked
+           to do the summarising themselves.
+           So the position comes first, and it comes with the four things that
+           make it actionable in the same headline: the metric it is a position
+           ON with its quartile boundaries inline, the recoverable figure beside
+           it rather than in a card of its own, exactly one named lagging team,
+           and exactly one prioritized action. Everything else — how the peer set
+           was built, what the comparison read, the rubric and snapshot versions,
+           the full department list, what was verified, and the destinations that
+           did NOT win rank 1 — is one keystroke away behind six sibling
+           disclosures. Six siblings and no nesting: "reachable from the headline
+           in one interaction" is the requirement, and a details inside a details
+           is two.
+           WHY IT IS DECLARED "evidence" AND NOT "complete". The single-summary
+           contract in src/finops-decision-contract.js allows exactly one visible
+           complete summary, and that is still #finops-first-run below, which
+           carries the canonical decision question, the confidence claim, and
+           both ways on. This region promotes that summary's peer result to the
+           top of reading order; it does not duplicate the summary, and a second
+           region claiming completeness would be the exact competing-headline
+           defect that contract exists to prevent.
+           Every slot is authored in a pending state and no number is written
+           here: src/finops-stand.js composes the figures out of the modules that
+           already own them and src/finops-stand-view.js paints them. The six
+           disclosures are native `details`, so they are focusable, operable by
+           Enter and Space, and state-bearing with no script at all. -->
+      <section class="stand" id="finops-stand" tabindex="-1" data-state="pending" data-position="pending" data-source="example" data-decision-summary="evidence" data-workspace-frame="true" aria-labelledby="finops-stand-question">
+        <div class="stand-head">
+          <p class="eyebrow" id="finops-stand-label">Bundled synthetic example · nothing of yours needed</p>
+          <!-- The highest-ranked heading in this region, and it is the lead's
+               own question rather than a noun phrase describing a panel. -->
+          <h2 id="finops-stand-question">Where do we stand on AI spend?</h2>
+        </div>
+        <p class="stand-answer" id="finops-stand-answer">The bundled example has not been composed on this page yet.</p>
+        <div class="stand-figures">
+          <!-- The position and the recoverable figure are ONE headline, not two
+               cards: they sit in a single group, and at narrow widths the label,
+               the value, and the basis stay three visibly different sizes so the
+               hierarchy survives the reflow instead of collapsing into a stack
+               of equal-weight text. -->
+          <div class="stand-figure stand-figure-position">
+            <h3 class="stand-figure-label">Peer position</h3>
+            <p class="stand-figure-value" id="finops-stand-position-value" data-available="false">Not yet compared</p>
+            <p class="stand-figure-basis" id="finops-stand-position-basis"></p>
+          </div>
+          <div class="stand-figure stand-figure-recoverable">
+            <h3 class="stand-figure-label">Modelled recoverable</h3>
+            <p class="stand-figure-value" id="finops-stand-recoverable-value" data-available="false">Not yet measured</p>
+            <p class="stand-figure-basis" id="finops-stand-recoverable-basis"></p>
+          </div>
+        </div>
+        <!-- One team, named in text. Never a colour, never a bar, never "the top
+             row of the table": the name is a string in its own element and the
+             evidence for naming it is the sentence beside it. Runners-up are in
+             the ranked-department disclosure, which is where a reader who wants
+             a list goes. -->
+        <div class="stand-team" id="finops-stand-team" data-available="false">
+          <h3 class="stand-figure-label">Lagging team</h3>
+          <p class="stand-team-name" id="finops-stand-team-name">No team named yet</p>
+          <p class="stand-team-detail" id="finops-stand-team-detail"></p>
+        </div>
+        <!-- ONE action, and it is a real anchor to a destination this page
+             already owns — operable before any script runs, correct in the
+             address bar, correct when copied. The destinations that did not win
+             rank 1 are not dropped; they are the last disclosure below. -->
+        <div class="stand-next">
+          <a class="stand-action" id="finops-stand-action" href="#recommendation-evidence" aria-describedby="finops-stand-action-basis" hidden>Not yet ranked</a>
+          <p class="stand-action-basis" id="finops-stand-action-basis" hidden></p>
+        </div>
+        <!-- THE WITHHELD POSITION, as a path rather than a dead label.
+             A reader who cannot be given a position is owed two things: the
+             specific attribute or condition that is missing, and one control
+             that resolves it. The sentence for an import is the eligibility
+             contract's own, verbatim; the control is the page's single file
+             picker, delegated to rather than duplicated. -->
+        <div class="stand-withheld" id="finops-stand-withheld" hidden>
+          <h3 class="stand-withheld-heading">What is missing, and what resolves it</h3>
+          <p class="stand-withheld-missing" id="finops-stand-withheld-missing"></p>
+          <button class="stand-withheld-action" id="finops-stand-withheld-action" type="button" aria-describedby="finops-stand-withheld-next">Choose the export files again</button>
+          <p class="stand-withheld-next" id="finops-stand-withheld-next"></p>
+        </div>
+        <div class="stand-disclosures" id="finops-stand-disclosures">
+          <details class="stand-disclosure" id="finops-stand-disclosure-cohort" data-disclosure="collapsed">
+            <summary id="finops-stand-disclosure-cohort-summary" aria-expanded="false"><h3 class="stand-disclosure-heading"><span id="finops-stand-disclosure-cohort-heading">How the peer set was built</span><span class="stand-disclosure-state" id="finops-stand-disclosure-cohort-state" data-disclosure="collapsed"><span class="stand-disclosure-shape" aria-hidden="true">▸</span> Show</span></h3></summary>
+            <dl class="stand-disclosure-list" id="finops-stand-disclosure-cohort-list"></dl>
+          </details>
+          <details class="stand-disclosure" id="finops-stand-disclosure-anonymization" data-disclosure="collapsed">
+            <summary id="finops-stand-disclosure-anonymization-summary" aria-expanded="false"><h3 class="stand-disclosure-heading"><span id="finops-stand-disclosure-anonymization-heading">What this comparison read, and what it never reads</span><span class="stand-disclosure-state" id="finops-stand-disclosure-anonymization-state" data-disclosure="collapsed"><span class="stand-disclosure-shape" aria-hidden="true">▸</span> Show</span></h3></summary>
+            <dl class="stand-disclosure-list" id="finops-stand-disclosure-anonymization-list"></dl>
+          </details>
+          <details class="stand-disclosure" id="finops-stand-disclosure-versions" data-disclosure="collapsed">
+            <summary id="finops-stand-disclosure-versions-summary" aria-expanded="false"><h3 class="stand-disclosure-heading"><span id="finops-stand-disclosure-versions-heading">Rubric and snapshot versions behind these figures</span><span class="stand-disclosure-state" id="finops-stand-disclosure-versions-state" data-disclosure="collapsed"><span class="stand-disclosure-shape" aria-hidden="true">▸</span> Show</span></h3></summary>
+            <dl class="stand-disclosure-list" id="finops-stand-disclosure-versions-list"></dl>
+          </details>
+          <details class="stand-disclosure" id="finops-stand-disclosure-departments" data-disclosure="collapsed">
+            <summary id="finops-stand-disclosure-departments-summary" aria-expanded="false"><h3 class="stand-disclosure-heading"><span id="finops-stand-disclosure-departments-heading">Every department, ranked</span><span class="stand-disclosure-state" id="finops-stand-disclosure-departments-state" data-disclosure="collapsed"><span class="stand-disclosure-shape" aria-hidden="true">▸</span> Show</span></h3></summary>
+            <dl class="stand-disclosure-list" id="finops-stand-disclosure-departments-list"></dl>
+          </details>
+          <details class="stand-disclosure" id="finops-stand-disclosure-verification" data-disclosure="collapsed">
+            <summary id="finops-stand-disclosure-verification-summary" aria-expanded="false"><h3 class="stand-disclosure-heading"><span id="finops-stand-disclosure-verification-heading">How much of this was verified</span><span class="stand-disclosure-state" id="finops-stand-disclosure-verification-state" data-disclosure="collapsed"><span class="stand-disclosure-shape" aria-hidden="true">▸</span> Show</span></h3></summary>
+            <dl class="stand-disclosure-list" id="finops-stand-disclosure-verification-list"></dl>
+          </details>
+          <details class="stand-disclosure" id="finops-stand-disclosure-other-actions" data-disclosure="collapsed">
+            <summary id="finops-stand-disclosure-other-actions-summary" aria-expanded="false"><h3 class="stand-disclosure-heading"><span id="finops-stand-disclosure-other-actions-heading">The other ways on, in priority order</span><span class="stand-disclosure-state" id="finops-stand-disclosure-other-actions-state" data-disclosure="collapsed"><span class="stand-disclosure-shape" aria-hidden="true">▸</span> Show</span></h3></summary>
+            <dl class="stand-disclosure-list" id="finops-stand-disclosure-other-actions-list"></dl>
+          </details>
+        </div>
+        <p class="visually-hidden" id="finops-stand-live" role="status" aria-live="polite" aria-atomic="true"></p>
+      </section>
+
       <!-- THE FIRST-RUN SYNTHETIC RESULT, and why a landing page carries one.
 
            A first-time visitor arrives with no provider export in hand. Before
@@ -120,7 +237,13 @@
            than added by script, so the rail's own doors — plain anchors — place
            focus correctly before any module runs. It adds no tab stop of its
            own. -->
-      <section class="first-run" id="finops-first-run" tabindex="-1" data-state="pending" data-tone="neutral" data-decision-summary="complete" data-workspace-frame="true" aria-labelledby="finops-first-run-title">
+      <!-- `data-subordinate="true"`: this region keeps every word it had, and it
+           is no longer drawn at headline weight. The wall of equal-weight cards
+           was the defect; deleting the cards would have been a different one,
+           because the confidence claim, the method disclosure, and both ways on
+           all live here. So the type scale steps down and #finops-stand above
+           carries the answer. -->
+      <section class="first-run" id="finops-first-run" tabindex="-1" data-state="pending" data-tone="neutral" data-subordinate="true" data-decision-summary="complete" data-workspace-frame="true" aria-labelledby="finops-first-run-title">
         <div class="first-run-head">
           <p class="eyebrow" id="finops-first-run-label"><span class="first-run-shape" id="finops-first-run-shape" aria-hidden="true">◇</span> <span id="finops-first-run-word">Not analyzed</span></p>
           <!-- The heading is the decision question itself, authored here in the

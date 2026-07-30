@@ -992,6 +992,64 @@
 .finops-load-state button:focus-visible { outline:3px solid #2a78d6; outline-offset:3px; }
 .finops-load-state button[disabled] { opacity:.55; cursor:default; }
 
+/* WHERE DO WE STAND? — the headline answer, and the only block on this view
+   drawn at headline weight.
+   The hierarchy is carried by SIZE and WEIGHT inside one bordered block, not by
+   position in a grid: at a narrow width the two figures stack, and when they do
+   the label stays 10px monospace caps, the value stays clamp()-large and 750
+   weight, and the basis stays 13px muted — three visibly different sizes rather
+   than one undifferentiated column. That is what makes the reflow keep the
+   hierarchy instead of flattening it.
+   No transition, no transform, and no animation anywhere in this block, so
+   there is nothing for a reduced-motion query to have to switch off. */
+.stand { display:grid; gap:14px; margin:0 0 14px; border:1px solid var(--import-line); border-left:6px solid var(--import-accent); border-radius:16px; padding:clamp(20px,3.4vw,30px); background:linear-gradient(150deg,var(--import-wash),#fff 52%); }
+.stand[data-position="withheld"] { border-left-color:var(--state-warn-line); }
+.stand-head { display:grid; gap:6px; }
+.stand-head .eyebrow { margin:0; }
+.stand-head h2 { max-width:22ch; margin:0; font-size:clamp(26px,4vw,38px); line-height:1.12; letter-spacing:-.01em; }
+.stand-answer { margin:0; max-width:52ch; color:var(--ink); font-size:clamp(17px,2.2vw,21px); font-weight:700; line-height:1.35; overflow-wrap:anywhere; }
+.stand-figures { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:14px 26px; break-inside:avoid; }
+.stand-figure { display:grid; align-content:start; gap:6px; border-top:3px solid var(--import-accent); padding-top:10px; }
+.stand-figure-label { margin:0; color:var(--import-ink); font:700 10px/1.5 ui-monospace,monospace; letter-spacing:.08em; text-transform:uppercase; }
+.stand-figure-value { margin:0; color:var(--ink); font-size:clamp(22px,3vw,30px); font-weight:750; line-height:1.15; overflow-wrap:anywhere; }
+.stand-figure-value[data-available="false"] { color:var(--state-warn-ink); font-size:clamp(16px,2vw,18px); font-weight:700; }
+.stand-figure:has(>.stand-figure-value[data-available="false"]) { border-top-style:dashed; border-top-color:var(--state-warn-line); }
+.stand-figure-basis { margin:0; max-width:60ch; color:var(--ink-muted); font-size:13px; line-height:1.55; overflow-wrap:anywhere; }
+.stand-team { display:grid; align-content:start; gap:6px; border-top:3px solid var(--import-accent); padding-top:10px; }
+.stand-team[data-available="false"] { border-top-style:dashed; border-top-color:var(--state-warn-line); }
+.stand-team-name { margin:0; color:var(--ink); font-size:clamp(19px,2.5vw,24px); font-weight:750; line-height:1.2; overflow-wrap:anywhere; }
+.stand-team[data-available="false"] .stand-team-name { color:var(--state-warn-ink); font-size:16px; font-weight:700; }
+.stand-team-detail { margin:0; max-width:60ch; color:var(--ink-muted); font-size:13px; line-height:1.55; overflow-wrap:anywhere; }
+.stand-next { display:grid; justify-items:start; gap:6px; }
+.stand-action { display:inline-block; border:1px solid var(--import-accent); border-radius:9px; padding:11px 18px; background:var(--import-accent); color:#fff; font-size:15px; font-weight:700; text-decoration:none; }
+.stand-action:hover { background:var(--import-ink); border-color:var(--import-ink); }
+.stand-action:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.stand-action-basis { margin:0; max-width:64ch; color:var(--ink-muted); font-size:13px; line-height:1.55; }
+.stand-withheld { display:grid; justify-items:start; gap:8px; border:1px dashed var(--state-warn-line); border-radius:12px; padding:14px 16px; background:var(--state-warn-wash,#fdf8ec); }
+.stand-withheld-heading { margin:0; color:var(--state-warn-ink); font:700 11px/1.5 ui-monospace,monospace; letter-spacing:.08em; text-transform:uppercase; }
+.stand-withheld-missing { margin:0; max-width:62ch; color:var(--ink); font-size:16px; font-weight:700; line-height:1.4; overflow-wrap:anywhere; }
+.stand-withheld-action { border:1px solid var(--import-accent); border-radius:9px; padding:10px 16px; background:#fff; color:var(--import-ink); font:inherit; font-size:15px; font-weight:700; cursor:pointer; }
+.stand-withheld-action:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.stand-withheld-next { margin:0; max-width:62ch; color:var(--ink-muted); font-size:13px; line-height:1.55; overflow-wrap:anywhere; }
+/* Six siblings, never nested: every one of them is one interaction away from
+   the headline above. */
+.stand-disclosures { display:grid; gap:6px; }
+.stand-disclosure { border:1px solid var(--panel-border); border-radius:10px; background:#fff; }
+.stand-disclosure>summary { cursor:pointer; list-style:none; padding:9px 13px; }
+.stand-disclosure>summary::-webkit-details-marker { display:none; }
+.stand-disclosure>summary:focus-visible { outline:3px solid var(--focus-ring); outline-offset:2px; border-radius:10px; }
+.stand-disclosure-heading { display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:6px 14px; margin:0; font-size:14px; font-weight:700; line-height:1.4; }
+.stand-disclosure-state { flex:none; color:var(--import-ink); font:700 10px/1.6 ui-monospace,monospace; letter-spacing:.07em; text-transform:uppercase; }
+.stand-disclosure-list { display:grid; gap:9px; margin:0; padding:0 13px 13px; }
+.stand-disclosure-list>div { display:grid; gap:2px; }
+.stand-disclosure-list dt { color:var(--import-ink); font:700 10px/1.5 ui-monospace,monospace; letter-spacing:.07em; text-transform:uppercase; }
+.stand-disclosure-list dd { margin:0; max-width:74ch; color:var(--ink-muted); font-size:13px; line-height:1.55; overflow-wrap:anywhere; }
+/* The demoted first-run block. It keeps every word; it stops competing for the
+   eye with the headline above it. */
+.first-run[data-subordinate="true"] .first-run-head h2 { font-size:clamp(18px,2.2vw,22px); }
+.first-run[data-subordinate="true"] .first-run-answer { font-size:clamp(15px,1.6vw,17px); }
+.first-run[data-subordinate="true"] .first-run-value { font-size:clamp(16px,1.8vw,19px); }
+
 /* The first-run synthetic result: the populated answer a visitor with no export
    meets above the fold. It reads as one block — label, sample marker, three
    slots, the ranked action, the method disclosure, and two next steps — because
