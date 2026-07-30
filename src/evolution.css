@@ -146,6 +146,46 @@
 .guided-result-support>summary:hover { background:var(--import-wash); }
 .guided-result-support-note { margin:10px 0; max-width:70ch; color:var(--ink-muted); font-size:13px; line-height:1.55; }
 
+/* The portfolio-primary brief. Same slot grid as the guided result above — one
+   auto-fitting track list, so a narrow viewport stacks the slots in reading
+   order without a media query and the aligned total keeps the full width it
+   needs. State is a word and a shape in the markup; these rules only tint what
+   the text already says. */
+.portfolio-brief { margin-top:24px; border-left:6px solid #315f50; }
+.portfolio-brief[data-state="partial"] { border-left-color:#8a6a2f; }
+.portfolio-brief[data-state="blocked"] { border-left-color:#8c3a3a; }
+.portfolio-brief h2 { margin:6px 0 10px; font-size:clamp(24px,3.4vw,32px); line-height:1.15; }
+.portfolio-brief-reason:empty { display:none; }
+.portfolio-brief-reason { margin:0 0 12px; max-width:70ch; color:var(--ink-muted); font-size:14px; line-height:1.55; }
+.portfolio-brief-total { margin:0 0 20px; }
+.portfolio-brief-total-label { margin:0 0 4px; color:#65717d; font:700 11px/1.4 ui-monospace,monospace; letter-spacing:.11em; text-transform:uppercase; }
+.portfolio-brief-total-value { margin:0; font-size:clamp(28px,5vw,40px); font-weight:700; line-height:1.1; }
+.portfolio-brief-total-value[data-available="false"] { color:var(--state-warn-ink); font-size:clamp(20px,3vw,26px); }
+.portfolio-brief-slots { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr)); gap:18px; }
+.portfolio-brief-slot { border-top:1px solid var(--panel-border); padding-top:12px; }
+.portfolio-brief-label { margin:0 0 6px; color:#65717d; font:700 11px/1.4 ui-monospace,monospace; letter-spacing:.11em; text-transform:uppercase; }
+.portfolio-brief-value { margin:0; font-size:16px; line-height:1.5; }
+.portfolio-brief-value[data-available="false"] { color:var(--state-warn-ink); }
+.portfolio-brief-detail { margin:6px 0 0; max-width:70ch; color:var(--ink-muted); font-size:13px; line-height:1.5; }
+.portfolio-brief-action { margin-top:20px; border-top:1px solid var(--panel-border); padding-top:12px; }
+.portfolio-brief-action-text { margin:0; max-width:70ch; font-size:17px; line-height:1.5; }
+.portfolio-brief-action-text[data-available="false"] { color:var(--state-warn-ink); }
+.portfolio-brief-provenance { margin-top:20px; }
+.portfolio-brief-provenance-list { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr)); gap:4px 18px; margin:8px 0 0; }
+.portfolio-brief-provenance-term { margin:0; color:#65717d; font:700 11px/1.5 ui-monospace,monospace; letter-spacing:.08em; text-transform:uppercase; }
+.portfolio-brief-provenance-detail { margin:0 0 6px; overflow-wrap:anywhere; color:var(--ink-muted); font-size:13px; line-height:1.5; }
+.portfolio-brief-disclosures { margin-top:20px; display:grid; gap:8px; }
+.portfolio-brief-disclosure { border:1px solid var(--panel-border); border-radius:10px; }
+.portfolio-brief-disclosure-summary { min-height:44px; display:flex; gap:8px; align-items:center; border-radius:9px; padding:8px 10px; cursor:pointer; font-weight:600; }
+.portfolio-brief-disclosure-summary:hover { background:var(--import-wash); }
+.portfolio-brief-disclosure-summary:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.portfolio-brief-disclosure[data-open="true"]>.portfolio-brief-disclosure-summary .portfolio-brief-disclosure-shape { transform:rotate(90deg); }
+.portfolio-brief-disclosure-shape { display:inline-block; }
+.portfolio-brief-disclosure-note, .portfolio-brief-disclosure-empty { margin:0 10px 10px; max-width:70ch; color:var(--ink-muted); font-size:13px; line-height:1.55; }
+.portfolio-brief-disclosure-rows { margin:0 10px 12px; }
+.portfolio-brief-disclosure-term { margin:8px 0 2px; font:700 13px/1.45 inherit; }
+.portfolio-brief-disclosure-detail { margin:0; max-width:70ch; color:var(--ink-muted); font-size:13px; line-height:1.55; }
+
 /* Supporting panels, each behind its own disclosure.
    Benchmark, department, spend mix, savings, and recommendation evidence are
    the questions a leader opens to check the guided finding — not the ones they

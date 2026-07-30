@@ -445,6 +445,14 @@
           <p class="eyebrow">Portable history</p>
           <h2 id="export-title">Export your Shiplog records</h2>
           <p id="export-shiplog-counts" class="hint" aria-live="polite">Counting locally stored records…</p>
+          <p class="filter">
+            <label for="export-shiplog-scope">Records to export:</label>
+            <select id="export-shiplog-scope" aria-describedby="export-shiplog-scope-hint">
+              <option value="browsing" selected>The history I am browsing</option>
+              <option value="stored">Everything stored in this browser</option>
+            </select>
+          </p>
+          <span class="hint" id="export-shiplog-scope-hint">The file follows your history filters by default. Choose the second option to export every stored record, whatever the filters hide.</span>
           <p class="hint">The JSON file includes only decisions, releases, and their preserved links stored in this browser.</p>
           <p class="hint"><a class="text-link" href="/workspace.html">See what this browser is keeping</a> — the retained records, how sure the page is about them, and how to erase them.</p>
           <p id="export-shiplog-status" class="notice" role="status" aria-live="polite"></p>

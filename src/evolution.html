@@ -465,6 +465,63 @@
         <p class="score-peer" id="score-peer">Rubric and arithmetic not read yet</p>
       </section>
 
+      <!-- The portfolio-primary brief. Hidden until the intake contract has
+           actually combined two or more providers into one billing window; at
+           that point it leads the answer destination and the single-provider
+           guided result below it is marked superseded and hidden, so exactly one
+           complete summary is on screen — the same hand-off the bundled example
+           already makes to the reader's own result. Composed in
+           src/finops-portfolio-brief.js and painted by
+           src/finops-portfolio-brief-view.js; nothing here is decided by the
+           markup, and the four disclosures are built into the list at the bottom
+           as native details/summary elements. -->
+      <section class="portfolio-brief finops-panel" id="finops-portfolio-brief" data-state="unavailable" data-decision-summary="complete" data-workspace-region="answer" aria-labelledby="finops-portfolio-brief-question" hidden>
+        <p class="eyebrow" id="finops-portfolio-brief-label"><span class="portfolio-brief-shape" id="finops-portfolio-brief-state-shape" aria-hidden="true">○</span> <span id="finops-portfolio-brief-state">No portfolio combined</span> · every provider in one answer</p>
+        <h2 id="finops-portfolio-brief-question">Across the providers we combined, where is the money going?</h2>
+        <p class="portfolio-brief-reason" id="finops-portfolio-brief-reason"></p>
+        <!-- The aligned total leads. It is the one figure the four slots below
+             qualify, so it is a heading-and-value pair of its own rather than the
+             first cell of a grid. -->
+        <div class="portfolio-brief-total">
+          <h3 class="portfolio-brief-total-label" id="finops-portfolio-brief-total-heading">Total aligned spend</h3>
+          <p class="portfolio-brief-total-value" id="finops-portfolio-brief-total" data-available="false">Not combined yet</p>
+          <p class="portfolio-brief-detail" id="finops-portfolio-brief-total-detail" hidden></p>
+        </div>
+        <div class="portfolio-brief-slots">
+          <div class="portfolio-brief-slot">
+            <h3 class="portfolio-brief-label" id="finops-portfolio-brief-benchmark-heading">Efficiency benchmark</h3>
+            <p class="portfolio-brief-value" id="finops-portfolio-brief-benchmark" data-available="false">Not selected yet</p>
+            <p class="portfolio-brief-detail" id="finops-portfolio-brief-benchmark-detail" hidden></p>
+          </div>
+          <div class="portfolio-brief-slot">
+            <h3 class="portfolio-brief-label" id="finops-portfolio-brief-impact-heading">Estimated impact · routing scenario</h3>
+            <p class="portfolio-brief-value" id="finops-portfolio-brief-impact" data-available="false">Not measured yet</p>
+            <p class="portfolio-brief-detail" id="finops-portfolio-brief-impact-detail" hidden></p>
+          </div>
+          <div class="portfolio-brief-slot">
+            <h3 class="portfolio-brief-label" id="finops-portfolio-brief-confidence-heading">Confidence in this answer</h3>
+            <p class="portfolio-brief-value" id="finops-portfolio-brief-confidence" data-available="false">Not scored yet</p>
+            <p class="portfolio-brief-detail" id="finops-portfolio-brief-confidence-detail" hidden></p>
+          </div>
+        </div>
+        <div class="portfolio-brief-action">
+          <h3 class="eyebrow" id="finops-portfolio-brief-action-heading">Next action · rank 1</h3>
+          <p class="portfolio-brief-action-text" id="finops-portfolio-brief-action" data-available="false">No action is ranked from this portfolio yet.</p>
+          <p class="portfolio-brief-detail" id="finops-portfolio-brief-action-detail" hidden></p>
+        </div>
+        <div class="portfolio-brief-provenance">
+          <h3 class="portfolio-brief-label" id="finops-portfolio-brief-provenance-heading">Provenance</h3>
+          <p class="portfolio-brief-value" id="finops-portfolio-brief-provenance">Not combined yet</p>
+          <dl class="portfolio-brief-provenance-list" id="finops-portfolio-brief-provenance-list" aria-labelledby="finops-portfolio-brief-provenance-heading"></dl>
+        </div>
+        <!-- Provider composition, exclusions, period coverage, and the
+             validation reasons: native disclosures, so they are keyboard- and
+             screen-reader-operable without a key handler of ours, and none of
+             them is on screen before the answer above it. -->
+        <div class="portfolio-brief-disclosures" id="finops-portfolio-brief-disclosures"></div>
+        <p class="visually-hidden" id="finops-portfolio-brief-live" role="status" aria-live="polite" aria-atomic="true"></p>
+      </section>
+
       <!-- The guided result. One question, one benchmark, one action, and the
            required trust verdict, composed in src/finops-guided-result.js. Every
            other executive panel on this page is progressive-disclosure support

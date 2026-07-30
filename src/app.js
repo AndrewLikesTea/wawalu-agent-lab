@@ -7,6 +7,7 @@ import {
 } from "./decision-entry.js";
 import { STORED_DECISION_STATUSES, canonicalDecisionStatus } from "./decision-status.js";
 import { dedupeById } from "./demo-data.js";
+import { publishHistoryScope } from "./history-scope.js";
 import { initLeadCapture } from "./lead-capture.js";
 import { retentionDeclined, retentionRefusal } from "./local-retention.js";
 import { recordsChanged } from "./shiplog-records.js";
@@ -954,6 +955,23 @@ export async function initDecisionLog(root = document, storage = localStorage, o
     const visible = renderHistory(list, count, records, view);
     if (supersedeSummary) supersedeSummary.textContent = supersedeFilterSummary(records, view);
     announce(historyCountMessage(visible, records.length));
+    // The history owns the filter rule, so it states its own selection instead of
+    // letting the export panel re-derive one from the store. Published on every
+    // render, including the first: a surface that mounts later reads the scope
+    // rather than waiting for the next keystroke.
+    publishHistoryScope(root, browsedScope());
+  };
+
+  // What the visitor can see, by kind. Examples are left in: they are visible
+  // records, and the export's own rule — visitor's own records only — is applied
+  // downstream, so this stays a statement about the view and nothing else.
+  const browsedScope = () => {
+    const shown = selectHistory(records, view);
+    return {
+      filtered: shown.length !== records.length,
+      decisionIds: shown.filter((record) => record.type === "decision").map((record) => record.id),
+      releaseIds: shown.filter((record) => record.type === "release").map((record) => record.id),
+    };
   };
 
   // Full refresh: recompose the stream and re-derive owner options (data may
