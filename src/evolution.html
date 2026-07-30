@@ -7,6 +7,9 @@
     <title>AI FinOps · Shiplog</title>
     <link rel="stylesheet" href="/styles.css" />
     <link rel="stylesheet" href="/evolution.css" />
+    <!-- One stylesheet for the consolidated journey region, shared with the
+         Savings Action Center, because the region is one thing on both. -->
+    <link rel="stylesheet" href="/finops-journey-consolidated.css" />
   </head>
   <body>
     <a class="skip-link" href="#main-content">Skip to main content</a>
@@ -303,6 +306,48 @@
         <div id="finops-next-step-body">
           <p class="next-step-headline">No journey records have been read yet, so no next step is recommended.</p>
         </div>
+      </section>
+
+      <!-- THE WHOLE JOURNEY, ON ONE SURFACE.
+
+           The region above answers "where do I start this month?" and stops
+           there — deliberately, because that contract's job is to name one step
+           and nothing else. But the lead who reads it then has to leave: the
+           evidence behind the step is on the import panel, what they already
+           decided is in this browser's retained action, and whether it worked is
+           a checkpoint on another page. Three surfaces for one thought.
+
+           This is that thought in one place: one answerable question, one
+           material figure that answers it, one prioritized action from the same
+           next-step contract above — and then everything else collapsed on this
+           same surface rather than moved to another page. Supporting evidence,
+           per-department detail, prior action results, and the carried
+           provenance are four disclosures, shut on arrival.
+
+           It composes; it does not recompute. src/finops-journey-consolidated.js
+           reads Rowan's carried local snapshot, Theo's recurring comparison,
+           Noor's next-step recommendation, and Iris's signal chips, and derives
+           exactly one field of its own — the verification checkpoint's date and
+           expected figure, read off the retained monthly action record, which is
+           the only place either of them is written down.
+
+           `data-decision-summary="evidence"` — it answers its own question and
+           never restates the brief's, so this page still presents exactly one
+           complete summary. -->
+      <section class="finops-journey" id="finops-journey" data-phase="pending" data-source="unknown" data-decision-summary="evidence" data-workspace-region="answer" aria-labelledby="finops-journey-question">
+        <div class="fjc-head">
+          <p class="eyebrow" id="finops-journey-label">This month · evidence, action, and the checkpoint</p>
+          <h2 id="finops-journey-question">What do I do next, and what will tell me it worked?</h2>
+        </div>
+        <!-- Authored in markup, above the figures rather than under them: a claim
+             about what kind of numbers a reader is looking at has to be true
+             before any script runs. The view repaints the same sentence from the
+             source module once it knows whose records these are. -->
+        <p class="sample-marker" id="finops-journey-sample"><span class="sample-marker-shape" aria-hidden="true">◇</span><strong>Bundled synthetic example</strong> Invented review, action, and verification records for an invented company. Not your spend and not realized savings.</p>
+        <div id="finops-journey-body">
+          <p class="fjc-headline">No journey records have been read yet, so no step is recommended from them.</p>
+        </div>
+        <p class="visually-hidden" id="finops-journey-live" role="status" aria-live="polite" aria-atomic="true"></p>
       </section>
 
       <!-- WHERE THE READER GOES NEXT, and why this region exists at all.

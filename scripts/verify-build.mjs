@@ -196,6 +196,14 @@ export async function verifyArtifact(root) {
     // rejected entry module, and the whole briefing stops painting.
     "finops-next-step.js", "finops-next-step-fixtures.js",
     "finops-next-step-source.js", "finops-next-step-view.js",
+    // The consolidated journey: the model, the view, and the one stylesheet both
+    // surfaces link. Both the AI FinOps entry and the action center entry import
+    // the pair directly, so a narrowed artifact that drops either is not a
+    // missing panel — it is two rejected entry modules, and neither page paints
+    // at all. The stylesheet is what keeps the region a single column that
+    // narrows rather than an unstyled stack of definition lists.
+    "finops-journey-consolidated.js", "finops-journey-consolidated-view.js",
+    "finops-journey-consolidated.css",
   ]);
   const paths = new Set(actual.map(({ path }) => path));
   for (const path of required) if (!paths.has(path)) throw new Error(`missing required UI asset: ${path}`);

@@ -1,0 +1,136 @@
+/* The consolidated FinOps journey region.
+ *
+ * One stylesheet, linked from both surfaces that ship the region, because the
+ * journey is one thing and two copies of these rules is how one surface's
+ * disclosure ends up a different control from the other's.
+ *
+ * DOM order is the reading order at every width: this is a single column that
+ * narrows, never a grid that reorders. Nothing here sets `order` or a `-reverse`
+ * direction, so the tab sequence and the visual sequence cannot come apart. */
+
+.finops-journey {
+  border: 1px solid var(--line, #d8dde5);
+  border-radius: 14px;
+  padding: 24px;
+  margin: 24px 0;
+  background: var(--surface, #fff);
+}
+
+.finops-journey .fjc-kicker,
+.finops-journey .fjc-phase-word {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.finops-journey h2 { margin: 4px 0 8px; }
+.finops-journey h3 { margin: 0 0 4px; font-size: 1rem; }
+
+/* State is a shape and a word first. The tint is the third channel and carries
+ * nothing on its own, so a greyscale print and a colour-blind reading are the
+ * same reading. */
+.fjc-phase { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; margin: 0 0 8px; }
+.fjc-phase-shape { font-size: 1rem; }
+.fjc-phase-copy { flex: 1 1 16rem; font-weight: 400; text-transform: none; letter-spacing: 0; }
+.finops-journey[data-phase="verification_ready"] { border-left: 4px solid #2f6f4f; }
+.finops-journey[data-phase="resumed_review"] { border-left: 4px solid #8a6d1f; }
+.finops-journey[data-phase="new_review"] { border-left: 4px solid #4a5568; }
+.finops-journey[data-phase="degraded"] { border-left: 4px solid #8a2f2f; }
+
+.fjc-headline { font-size: 1.15rem; line-height: 1.45; margin: 0 0 16px; overflow-wrap: anywhere; }
+
+.fjc-metric { margin: 0 0 16px; }
+.fjc-metric-value { display: block; font-size: 1.6rem; line-height: 1.2; overflow-wrap: anywhere; }
+.fjc-metric-comparison { margin: 4px 0 0; font-size: 0.9rem; overflow-wrap: anywhere; }
+
+.fjc-decision { margin: 0 0 16px; }
+.fjc-decision-title { overflow-wrap: anywhere; }
+.fjc-rationale { margin: 8px 0 0; font-size: 0.9rem; overflow-wrap: anywhere; }
+
+/* The prioritized action. A real anchor, sized as a touch target, and it keeps a
+ * ring the keyboard can see rather than borrowing the hover treatment. */
+.fjc-action {
+  display: inline-flex;
+  align-items: center;
+  min-height: 48px;
+  padding: 0 18px;
+  margin-top: 8px;
+  border-radius: 10px;
+  background: #16324f;
+  color: #fff;
+  font-weight: 600;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.fjc-action:focus-visible,
+.fjc-disclosure-trigger:focus-visible {
+  outline: 3px solid #16324f;
+  outline-offset: 2px;
+}
+
+.fjc-checkpoint {
+  border: 1px dashed var(--line, #d8dde5);
+  border-radius: 10px;
+  padding: 16px;
+  margin: 0 0 16px;
+}
+.fjc-checkpoint-date { font-size: 1.1rem; font-weight: 700; margin: 0; }
+.fjc-checkpoint-note,
+.fjc-checkpoint-source { margin: 4px 0 0; font-size: 0.9rem; overflow-wrap: anywhere; }
+
+.fjc-notice { font-size: 0.9rem; margin: 0 0 16px; overflow-wrap: anywhere; }
+
+.fjc-support { border-top: 1px solid var(--line, #d8dde5); padding-top: 16px; }
+.fjc-support-note { margin: 0 0 12px; font-size: 0.9rem; }
+
+.fjc-signals { list-style: none; margin: 0 0 12px; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.fjc-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid var(--line, #d8dde5);
+  border-radius: 999px;
+  font-size: 0.85rem;
+}
+.fjc-chip-label { font-weight: 700; }
+.fjc-chip-value { overflow-wrap: anywhere; }
+.fjc-chip[data-tone="good"] { background: #eaf4ee; }
+.fjc-chip[data-tone="adverse"] { background: #f7ecec; }
+.fjc-chip[data-tone="caution"] { background: #f8f2e3; }
+.fjc-chip[data-known="false"] { border-style: dashed; }
+
+.fjc-disclosure { border-top: 1px solid var(--line, #d8dde5); }
+.fjc-disclosure-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 48px;
+  padding: 8px 0;
+  background: none;
+  border: 0;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.fjc-disclosure-label { flex: 1 1 auto; overflow-wrap: anywhere; }
+.fjc-disclosure-state { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; }
+.fjc-disclosure-panel { padding: 0 0 12px; }
+.fjc-facts { margin: 0; }
+.fjc-term { font-weight: 700; font-size: 0.85rem; }
+.fjc-detail { margin: 0 0 8px; overflow-wrap: anywhere; }
+.fjc-empty { margin: 0; font-size: 0.9rem; }
+
+/* At a narrow viewport the card keeps its inset, every chip takes the full
+ * measure instead of being squeezed under an ellipsis, and long values wrap
+ * rather than scrolling the page sideways. */
+@media (max-width: 760px) {
+  .finops-journey { padding: 16px; }
+  .fjc-signals { display: block; }
+  .fjc-signal { margin-bottom: 8px; }
+  .fjc-chip { display: flex; width: 100%; }
+  .fjc-metric-value { font-size: 1.3rem; }
+  .fjc-action { width: 100%; justify-content: center; }
+}

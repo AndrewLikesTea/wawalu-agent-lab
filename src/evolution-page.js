@@ -92,7 +92,15 @@ import {
   retainCurrentReviewEvidence,
 } from "/recurring-review-readiness.js";
 import { readMonthlyAction } from "/monthly-department-action-store.js";
-import { captureJourneySnapshot, clearJourneySnapshot } from "/finops-journey-snapshot.js";
+import {
+  captureJourneySnapshot, clearJourneySnapshot, restoreJourneySnapshot,
+} from "/finops-journey-snapshot.js";
+// The whole journey on one surface: the evidence this browser carries, the one
+// prioritized step, and the checkpoint that will later say whether it worked.
+// It composes the contracts below rather than recomputing any of them, and it is
+// painted on this page and on the Savings Action Center from the same module.
+import { consolidateJourney } from "/finops-journey-consolidated.js";
+import { renderConsolidatedJourney } from "/finops-journey-consolidated-view.js";
 import { renderRecurringReviewWorkspace } from "/recurring-review-workspace-view.js";
 // The returning lead's question — "where do I start this month?" — and the one
 // answer to it. The contract is pure and clock-free; the clock is injected at
@@ -2823,9 +2831,33 @@ function paintNextStep() {
   const chosen = chooseJourneyState({
     retainedAction: readMonthlyAction(browserFinopsWorkspaceStorage()).record,
   });
-  return renderNextStep(document, selectNextStep(chosen.journeyState, new Date()), {
+  const painted = renderNextStep(document, selectNextStep(chosen.journeyState, new Date()), {
     sample: SAMPLE_LABEL[chosen.source],
   });
+  // And, in the same pass, the consolidated journey directly under it. It reads
+  // the same records through the snapshot the import path already writes, so the
+  // two regions cannot disagree about which step is next; what it adds is the
+  // evidence behind that step and the checkpoint that will judge it, on this
+  // surface rather than one page away.
+  paintConsolidatedJourney();
+  return painted;
+}
+
+/**
+ * The consolidated journey, from whatever this browser holds.
+ *
+ * `new Date()` is read HERE and nowhere else in the chain, for the same reason
+ * it is above: `consolidateJourney` is a pure function of its arguments, and a
+ * clock at the call site is what lets a test pin every phase to a day. A refused
+ * or absent snapshot costs the carried provenance line and nothing else — the
+ * journey still reads this browser's own records.
+ */
+function paintConsolidatedJourney() {
+  return renderConsolidatedJourney(document, consolidateJourney({
+    restored: restoreJourneySnapshot(browserFinopsWorkspaceStorage()),
+    now: new Date(),
+    surface: "briefing",
+  }));
 }
 
 async function init() {
