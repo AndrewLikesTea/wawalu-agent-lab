@@ -556,6 +556,71 @@ function actionSection(briefing) {
   return section;
 }
 
+/* -------------------------------- follow-up ---------------------------------- */
+
+// The one buyer-facing invitation this sheet carries, drawn where the decision
+// is made rather than at the bottom of the page.
+//
+// A leader has just read the figure and the action directly above it; that is
+// the moment they either act or ask, and asking should not require scrolling
+// past the trust verdict, the bounds, and two disclosures to find a form. It is
+// a control, not a section of the document: it opens the page's own follow-up
+// form (`briefing-contact`, wired by src/finops-contact.js) in place, below,
+// with the cursor in the field.
+//
+// It is the *only* invitation in the sheet, and the page it sits on carries one
+// work-email form — the briefing's own. A second, generic "talk to us" form on
+// the same screen asks a reader who has just made a decision to pick which of
+// two identical fields belongs to it.
+//
+// It never prints, and it carries no `data-role`: the reading order the contract
+// pins is the document's, and a control is not a part of the document.
+//
+// It is drawn only when the caller asks for it (`followUp: true`). This view is
+// mounted on the front door as well, by landing-decision-page.js, and that page
+// ships no follow-up panel for the control to open — a button that opens nothing
+// is worse than no button, so the surface that owns the form is the surface that
+// asks for the invitation.
+export const FOLLOW_UP_PREFIX = "briefing-contact";
+export const FOLLOW_UP_CTA_ID = "brief-followup-cta";
+export const FOLLOW_UP_NOTE_ID = "brief-followup-note";
+export const FOLLOW_UP_CTA_LABEL = "Discuss this briefing";
+
+export const FOLLOW_UP_LEAD =
+  "Want to go through this decision — the figure, the action, or your own months — with a person?";
+
+/**
+ * Said at the invitation, before a reader commits to opening anything: the form
+ * below it repeats the same claim in full. Both are true by construction —
+ * `postLeadEmail` builds the whole request body from the typed address.
+ */
+export const FOLLOW_UP_NOTE =
+  "Only the work email address you type is sent. No figure, period, limitation, imported file, or prompt "
+  + "text from this briefing is attached — everything above stays in this browser, and this sheet does not "
+  + "change when you send it.";
+
+function followUpInvitation() {
+  const section = el("section", "brief-followup");
+  section.setAttribute("aria-labelledby", "brief-followup-title");
+  const heading = el("h3", "brief-followup-title", "Take this decision to a person");
+  heading.id = "brief-followup-title";
+  section.append(heading, el("p", "brief-followup-lead", FOLLOW_UP_LEAD));
+
+  const button = el("button", "brief-followup-button", FOLLOW_UP_CTA_LABEL);
+  button.id = FOLLOW_UP_CTA_ID;
+  button.setAttribute("type", "button");
+  // The disclosure this opens lives outside the painted region, so it survives
+  // every repaint of the sheet and this control can name it without ever
+  // pointing at a node that has been replaced.
+  button.setAttribute("data-follow-up-cta", FOLLOW_UP_PREFIX);
+  button.setAttribute("aria-controls", `${FOLLOW_UP_PREFIX}-panel`);
+  button.setAttribute("aria-describedby", FOLLOW_UP_NOTE_ID);
+  const note = el("p", "brief-followup-note", FOLLOW_UP_NOTE);
+  note.id = FOLLOW_UP_NOTE_ID;
+  section.append(button, note);
+  return section;
+}
+
 function trustSection(briefing) {
   const section = el("section", "brief-section brief-trust");
   section.dataset.role = "trust-verdict";
@@ -749,7 +814,9 @@ function methodPanel(briefing) {
  * published synthetic fixture is not the reader's own spend, and says so in the
  * masthead rather than in a footnote.
  */
-export function renderExecutiveBriefingPreview(briefing, { origin, provenanceNote, synthetic } = {}) {
+export function renderExecutiveBriefingPreview(
+  briefing, { origin, provenanceNote, synthetic, followUp = false } = {},
+) {
   const article = el("article", "brief");
   article.dataset.state = briefing?.reportingPeriod ? "briefing" : "absent";
   if (synthetic) article.dataset.synthetic = "true";
@@ -769,7 +836,12 @@ export function renderExecutiveBriefingPreview(briefing, { origin, provenanceNot
     ));
     article.append(absent);
   } else {
+    // The invitation closes the decision summary: figure, action, then the one
+    // way to ask about them. Nothing can be briefed on in the branch above, so
+    // there is no decision there to discuss — that page still carries the form
+    // at the end of the document.
     article.append(metricSection(briefing), actionSection(briefing));
+    if (followUp) article.append(followUpInvitation());
   }
 
   article.append(trustSection(briefing));

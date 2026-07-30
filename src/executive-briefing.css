@@ -220,6 +220,20 @@
 .brief-source-return-link:hover { color:#171713; }
 .brief-source-return-link:focus-visible { outline:3px solid var(--focus-ring,#1f70c1); outline-offset:3px; }
 
+/* ------------------- the invitation inside the sheet ----------------------- */
+/* Where the decision is made: directly under the figure and the action, in the
+   sheet's own rhythm but read as a control rather than as a paragraph of the
+   briefing. One button, the site's link blue, at the 44px target the rest of
+   this repository holds itself to. It is the only invitation in the document,
+   and it never prints — see the print sheet below. */
+.brief-followup { display:grid; justify-items:start; gap:10px; padding:24px 34px; border-bottom:1px solid var(--brief-rule); background:var(--brief-quiet); }
+.brief-followup-title { margin:0; color:#5c5b56; font:750 11px/1.4 ui-monospace,monospace; letter-spacing:.08em; text-transform:uppercase; }
+.brief-followup-lead { max-width:62ch; margin:0; color:var(--brief-ink); font-size:16px; font-weight:650; line-height:1.5; }
+.brief-followup-button { min-height:44px; border:1px solid #1f70c1; border-radius:10px; padding:0 18px; background:#1f70c1; color:#fff; font:700 15px/1.4 inherit; cursor:pointer; }
+.brief-followup-button:hover { background:#17538f; }
+.brief-followup-button:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.brief-followup-note { max-width:66ch; margin:0; color:var(--brief-muted); font-size:12px; line-height:1.55; }
+
 /* ------------------------- the follow-up affordance ------------------------ */
 /* Beneath the document, not inside it: the sheet keeps its own frame and this
    reads as a page control rather than a section of the briefing. Disclosure
@@ -259,6 +273,8 @@
   /* A thumb gets the whole width rather than a target to aim at, and the
      disclosed panel keeps its padding inside the viewport. */
   .brief-contact-trigger { width:100%; }
+  .brief-followup-button { width:100%; }
+  .brief-followup { padding:20px; }
   .brief-contact-actions button { flex:1 1 auto; }
   .brief-contact-panel { padding:16px; border-radius:12px; }
   .brief-hero { padding:44px 0 26px; }
@@ -290,7 +306,7 @@
      on paper is a dead control, and the sheet is the briefing. `.site-nav` is
      named alongside its header so the rule still holds if the header ever
      becomes a print-visible title block. */
-  .site-header,.site-nav,.site-footer,.skip-link,.brief-print-hint,.brief-toggle-mark,.brief-print-control,.brief-contact { display:none !important; }
+  .site-header,.site-nav,.site-footer,.skip-link,.brief-print-hint,.brief-toggle-mark,.brief-print-control,.brief-contact,.brief-followup { display:none !important; }
   /* The notice stays. A sheet that carries a figure without saying whose figure
      it is, is the sheet that gets quoted six weeks later as if it were real. */
   .brief-source-notice { max-width:none; margin:0 0 12px; border:1px solid #171713; border-left:4px solid #171713; border-radius:0; padding:12px 14px; background:none !important; break-inside:avoid; }

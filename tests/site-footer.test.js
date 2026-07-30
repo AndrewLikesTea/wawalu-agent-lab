@@ -20,7 +20,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
-import { IDENTITY, PRIVACY, PURPOSE, siteFooterMarkup } from "../src/site-footer.js";
+import { FOLLOW_UP_REDIRECT, IDENTITY, PRIVACY, PURPOSE, siteFooterMarkup } from "../src/site-footer.js";
 import { loadPage, pressEnter, pressKey, pressTab, tabSequence, textOf, typeText } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 
@@ -45,16 +45,58 @@ const describedBy = (document) => byId(document, "site-footer-email").getAttribu
 
 /* ------------------------------- the markup ------------------------------- */
 
+// The pages whose footer points at a follow-up form of their own instead of
+// carrying the generic one. Kept here rather than inferred from the page, so a
+// page cannot quietly drop the contact affordance: dropping it is a decision
+// this table has to record, and src/site-footer.js has to offer copy for.
+const FOOTER_VARIANT = new Map([
+  ["executive-briefing.html", { redirect: FOLLOW_UP_REDIRECT.briefing }],
+]);
+
 test("every page of the site renders the footer, byte for byte from src/site-footer.js", async () => {
   for (const file of PAGES) {
     const html = await read(file);
     assert.ok(
-      html.includes(siteFooterMarkup()),
+      html.includes(siteFooterMarkup("    ", FOOTER_VARIANT.get(file))),
       `${file} footer markup has drifted from src/site-footer.js`,
     );
     // One footer, not two, and the behaviour that drives it is wired in.
     assert.equal((html.match(/<footer/g) ?? []).length, 1, `${file} renders more than one footer`);
     assert.match(html, /<script type="module" src="\/site-footer-page\.js"><\/script>/, `${file} never loads the footer entry`);
+  }
+});
+
+test("a page with its own follow-up form ships one work-email form, and its footer points at it", async () => {
+  // The executive briefing ends on a decision, and its own form arrives attached
+  // to it. A second generic form on the same screen would ask a reader who has
+  // just decided something to choose between two identical fields.
+  const html = await read("executive-briefing.html");
+  const page = await loadPage(pageUrl("executive-briefing.html"));
+  const { document } = page;
+  try {
+    assert.equal(byId(document, "site-footer-form"), null, "the briefing page ships a second contact form");
+    assert.equal(byId(document, "site-footer-open"), null, "the briefing page ships a second contact disclosure");
+    assert.equal(document.querySelectorAll('input[type="email"]').length, 1,
+      "exactly one work-email field on the page a reader decides from");
+    assert.ok(byId(document, "briefing-contact-form"), "the briefing's own form must be the one that stays");
+
+    // The footer still names who runs Shiplog, and still offers a route to a
+    // person — as a real link, so it works with no script at all.
+    assert.match(textOf(byId(document, "site-footer")), /Wawalu/);
+    const link = document.querySelector(".site-footer-redirect-link");
+    assert.equal(link.tagName, "A");
+    assert.equal(link.getAttribute("href"), "#briefing-contact");
+    assert.ok(tabSequence(document).includes(link), "the footer must stay keyboard reachable");
+    assert.ok(byId(document, "briefing-contact"), "the footer points at a section that exists");
+
+    // And every other page keeps the generic form: this is one page's exception,
+    // not a site-wide removal.
+    for (const other of PAGES.filter((file) => !FOOTER_VARIANT.has(file))) {
+      assert.match(await read(other), /id="site-footer-form"/, `${other} lost its contact form`);
+    }
+    assert.doesNotMatch(html, /id="site-footer-form"/);
+  } finally {
+    page.restore();
   }
 });
 

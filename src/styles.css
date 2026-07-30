@@ -765,7 +765,15 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .site-footer-form[data-state="error"]+.site-footer-status { color:#8a2b2b; }
 .site-footer-recovery { margin:0; border-left:2px solid #8a2b2b; padding-left:11px; color:#4f4f4a; font-size:12px; line-height:1.5; }
 .site-footer-recovery[hidden] { display:none; }
-.site-footer button:focus-visible,.site-footer input:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+/* The variant a page ships when it carries a follow-up form of its own: the
+   sentence that says which form to use, and a real link to it. A link rather
+   than a filled button, because it is a pointer to a control and not the control
+   itself — and it keeps its underline, since a coloured word among coloured
+   words is not something anyone can find. */
+.site-footer-redirect { max-width:66ch; margin:0; color:#4f4f4a; font-size:13px; line-height:1.6; }
+.site-footer-redirect-link { display:inline-block; min-height:44px; padding:11px 0; color:#1f70c1; font-size:14px; font-weight:700; text-decoration:underline; text-underline-offset:3px; }
+.site-footer-redirect-link:hover { color:#171713; }
+.site-footer button:focus-visible,.site-footer input:focus-visible,.site-footer a:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
 /* Narrow: the band keeps the page's own gutter, and every control goes full
    width rather than wrapping into a sliver. */
 @media(max-width:520px) { .site-footer-inner{width:calc(100% - 24px);padding:24px 0 32px}.site-footer-trigger{width:100%}.site-footer-panel{padding:15px}.site-footer-actions button{flex:1 1 auto} }

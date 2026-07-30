@@ -265,6 +265,159 @@ test("the executive briefing carries the same invitation, keyboard-operable, bes
   }
 });
 
+test("the briefing's decision summary carries one buyer CTA, between the action and the verdict", async () => {
+  const page = await openBriefingTab();
+  const { document } = page;
+  try {
+    const article = document.querySelector(".brief");
+    const invitations = article.querySelectorAll("[data-follow-up-cta]");
+    assert.equal(invitations.length, 1, "one invitation in the sheet, not a scattering of them");
+
+    const [cta] = invitations;
+    assert.equal(cta.tagName, "BUTTON", "the invitation must be a real button, not a clickable div");
+    assert.equal(cta.getAttribute("type"), "button");
+    assert.equal(cta.id, "brief-followup-cta");
+    assert.equal(cta.getAttribute("data-follow-up-cta"), "briefing-contact");
+    assert.equal(cta.getAttribute("aria-controls"), "briefing-contact-panel");
+    // Buyer-oriented and about this document, not a generic "get in touch".
+    assert.match(textOf(cta), /^Discuss this briefing$/);
+
+    // Where a decision is made: after what should happen next, before the sheet
+    // turns to how far it may be trusted.
+    const order = [...article.children];
+    const at = (selector) => order.findIndex((node) => node.matches?.(selector));
+    assert.ok(at('[data-role="priority-action"]') < at(".brief-followup"),
+      "the invitation must follow the action it is about");
+    assert.ok(at(".brief-followup") < at('[data-role="trust-verdict"]'),
+      "the invitation must sit in the decision summary, not below the whole document");
+    // The reading order the contract pins is untouched: a control is not a part
+    // of the document.
+    assert.equal(cta.closest("[data-role]"), null);
+
+    // Reached and pressed from the keyboard alone, and it opens the one form.
+    assert.equal(tabTo(document, "brief-followup-cta"), cta);
+    pressEnter(document);
+    assert.equal(byId(document, "briefing-contact-panel").hidden, false, "the CTA must open the form");
+    assert.equal(byId(document, "briefing-contact-open").getAttribute("aria-expanded"), "true",
+      "the disclosure trigger must agree with the panel it controls");
+    assert.equal(document.activeElement?.id, "briefing-contact-email",
+      "the CTA must land the cursor in the field, not merely reveal it");
+
+    // Pressing it again is never a way to lose the form a reader just asked for.
+    cta.click();
+    assert.equal(byId(document, "briefing-contact-panel").hidden, false);
+    assert.equal(document.activeElement?.id, "briefing-contact-email");
+
+    // The same view is mounted on the front door, which ships no follow-up
+    // panel: the invitation is drawn only where a form exists to open, so no
+    // other surface inherits a button that opens nothing.
+    const { renderExecutiveBriefingPreview } = await importPageModule("/executive-briefing-view.js");
+    const elsewhere = renderExecutiveBriefingPreview(BRIEFING_FIXTURE.briefing);
+    assert.equal(elsewhere.querySelectorAll("[data-follow-up-cta]").length, 0,
+      "a surface that did not ask for the invitation must not receive it");
+  } finally {
+    page.restore();
+  }
+});
+
+test("the CTA states what is sent before anything is typed, and claims nothing the sheet has not shown", async () => {
+  const page = await openBriefingTab();
+  const { document } = page;
+  try {
+    const invitation = document.querySelector(".brief-followup");
+    const note = textOf(invitation).toLowerCase();
+    assert.match(note, /only the work email address you type is sent/);
+    for (const attachment of ["figure", "period", "limitation", "imported file", "prompt text"])
+      assert.ok(note.includes(attachment), `the claim must name ${attachment} among what is not attached`);
+    assert.match(note, /stays in this browser/);
+
+    // The note is the button's accessible description, so it is read out with
+    // the control rather than only near it.
+    const cta = byId(document, "brief-followup-cta");
+    assert.equal(cta.getAttribute("aria-describedby"), "brief-followup-note");
+    assert.ok(byId(document, "brief-followup-note"), "the description must name a node that exists");
+
+    for (const claim of [/customers?\b/i, /trusted by/i, /\bROI\b/i, /realized saving/i, /\$\s*\d/])
+      assert.doesNotMatch(textOf(invitation), claim);
+  } finally {
+    page.restore();
+  }
+});
+
+test("the CTA still works after the briefing is repainted under it", async () => {
+  // The sheet is redrawn whole whenever the page rebuilds it; the invitation is
+  // drawn with it. A listener bound to the node that existed at wiring time
+  // would be gone by the reader's first press.
+  const page = await openBriefingTab();
+  const { document } = page;
+  try {
+    const { loadExecutiveBriefingPreview } = await importPageModule("/executive-briefing-page.js");
+    await loadExecutiveBriefingPreview();
+    const cta = document.querySelector(".brief").querySelector("[data-follow-up-cta]");
+    assert.ok(cta, "the repainted sheet must still carry the invitation");
+    cta.click();
+    assert.equal(byId(document, "briefing-contact-panel").hidden, false,
+      "the invitation drawn by the repaint must still open the form");
+    assert.equal(document.activeElement?.id, "briefing-contact-email");
+  } finally {
+    page.restore();
+  }
+});
+
+test("a confirmed request keeps the briefing on screen and its print action within reach", async () => {
+  const page = await openBriefingTab();
+  const { document } = page;
+  interceptLeads(() => jsonReply({ subscribed: true }));
+  try {
+    const figure = textOf(document.querySelector(".brief-figure"));
+    byId(document, "brief-followup-cta").click();
+    submitEmail(document, "briefing-contact", TYPED_EMAIL);
+    await settled(document, "briefing-contact");
+
+    // What happens next, said in words: who replies, by when, and what was sent.
+    const confirmation = shownText(document, "briefing-contact-status");
+    assert.match(confirmation, CAPTURED_OPENING);
+    assert.match(confirmation, /replies within two business days/);
+    assert.match(confirmation, /cannot see your analysis/);
+
+    // The briefing is still the page, unchanged, with its sections intact.
+    assert.equal(textOf(document.querySelector(".brief-figure")), figure);
+    assert.ok(document.querySelector('[data-role="priority-action"]'), "the action must survive a submission");
+
+    // And the primary next action the sheet owns is still there and still
+    // operable: printing or saving the briefing.
+    const print = byId(document, "brief-print");
+    assert.ok(print, "the print control must survive a submission");
+    assert.ok(tabSequence(document).includes(print), "the print control must stay keyboard reachable");
+    // As is the invitation itself, so a second reader can ask again.
+    assert.ok(tabSequence(document).includes(byId(document, "brief-followup-cta")));
+  } finally {
+    page.restore();
+  }
+});
+
+test("the briefing flow offers one work-email form, and the footer points at it rather than repeating it", async () => {
+  const page = await openBriefingTab();
+  const { document } = page;
+  try {
+    assert.equal(document.querySelectorAll("form").length, 1, "two forms is a choice with no right answer");
+    assert.equal(document.querySelectorAll('input[type="email"]').length, 1);
+    assert.equal(byId(document, "site-footer-form"), null, "the generic footer form must not repeat this ask");
+    assert.equal(byId(document, "site-footer-open"), null);
+
+    // The footer still routes a reader to a person — as a link to the form this
+    // page owns, which works whether or not any script ran.
+    const link = byId(document, "site-footer").querySelector(".site-footer-redirect-link");
+    assert.equal(link.tagName, "A");
+    assert.equal(link.getAttribute("href"), "#briefing-contact");
+    assert.ok(tabSequence(document).includes(link));
+    assert.equal(byId(document, "briefing-contact").getAttribute("tabindex"), "-1",
+      "the anchor target must take focus when a reader follows the link");
+  } finally {
+    page.restore();
+  }
+});
+
 test("the briefing form sends the typed address and nothing from the briefing, and says so", async () => {
   const page = await openBriefingTab();
   const { document } = page;
@@ -349,7 +502,12 @@ test("both invitations are usable on a narrow viewport, and the briefing's never
   // Targets are at least the 44px this repository already holds itself to.
   assert.match(evolutionCss, /\.finops-followup-cta-button \{ min-height:44px;/);
   assert.match(briefingCss, /\.brief-contact-trigger \{ min-height:44px;/);
-  // A form on paper is a dead control: it goes with the rest of the chrome.
+  // The CTA inside the sheet is held to the same two rules.
+  assert.match(briefingCss, /\.brief-followup-button \{ width:100%; \}/);
+  assert.match(briefingCss, /\.brief-followup-button \{ min-height:44px;/);
+  // A form on paper is a dead control: it goes with the rest of the chrome, and
+  // so does the button that opens it — the sheet is the briefing.
   const print = briefingCss.slice(briefingCss.indexOf("@media print"));
   assert.match(print, /^[\s\S]*\.brief-contact[^{]*\{ display:none !important; \}/);
+  assert.match(print, /^[\s\S]*\.brief-followup[^{]*\{ display:none !important; \}/);
 });
