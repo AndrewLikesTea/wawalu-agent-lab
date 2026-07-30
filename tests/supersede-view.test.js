@@ -177,6 +177,10 @@ test("the banner wraps a long successor title instead of truncating it", async (
 // --- the history filter, on the shipped page ------------------------------
 
 async function openHistory(t, { decisions = CHAIN, search = "" } = {}) {
+  // A filter change leaves a history entry the Back button can return to, so
+  // this stub records pushes and replacements separately. Replacements are the
+  // page canonicalizing its own URL on boot, which a legal link never triggers.
+  const pushed = [];
   const replaced = [];
   const page = await loadPage(DECISIONS_PAGE, {
     storage: {
@@ -189,10 +193,13 @@ async function openHistory(t, { decisions = CHAIN, search = "" } = {}) {
   await initDecisionLog(page.document, page.storage, {
     seed: NO_DEMO_DATA,
     location: { pathname: "/", search, hash: "" },
-    history: { replaceState: (state, title, url) => replaced.push(url) },
+    history: {
+      pushState: (state, title, url) => pushed.push(url),
+      replaceState: (state, title, url) => replaced.push(url),
+    },
   });
   assert.equal(page.document.documentElement.dataset.shiplog, "ready");
-  return { page, replaced };
+  return { page, pushed, replaced };
 }
 
 const rowTitles = (page) => page.document.querySelector("#decision-list")
@@ -201,7 +208,7 @@ const toggle = (page) => page.document.querySelector("#filter-current-only");
 const summaryText = (page) => textOf(page.document.querySelector("#history-supersede-summary"));
 
 test("the current-only toggle hides superseded decisions and says what it hid", async (t) => {
-  const { page, replaced } = await openHistory(t);
+  const { page, pushed, replaced } = await openHistory(t);
   assert.deepEqual(rowTitles(page), [
     "Move the queue to the edge",
     "Adopt a durable queue",
@@ -215,13 +222,14 @@ test("the current-only toggle hides superseded decisions and says what it hid", 
   assert.deepEqual(rowTitles(page), ["Move the queue to the edge"]);
   assert.equal(toggle(page).getAttribute("aria-pressed"), "true");
   assert.equal(summaryText(page), "1 current, 2 superseded hidden");
-  assert.deepEqual(replaced, ["/?current=only"], "the filter is written into the query string");
+  assert.deepEqual(pushed, ["/?current=only"], "the filter is written into the query string");
+  assert.deepEqual(replaced, [], "a filter change is a history entry, not a rewrite of one");
 
   toggle(page).click();
   assert.equal(rowTitles(page).length, 3);
   assert.equal(toggle(page).getAttribute("aria-pressed"), "false");
   assert.equal(summaryText(page), "");
-  assert.deepEqual(replaced, ["/?current=only", "/"]);
+  assert.deepEqual(pushed, ["/?current=only", "/"]);
 });
 
 test("reopening the page with the filter in the URL restores it", async (t) => {
@@ -233,13 +241,13 @@ test("reopening the page with the filter in the URL restores it", async (t) => {
 });
 
 test("clearing the filters releases the hidden decisions and the query string", async (t) => {
-  const { page, replaced } = await openHistory(t, { search: "?current=only" });
+  const { page, pushed } = await openHistory(t, { search: "?current=only" });
 
   page.document.querySelector("#clear-decision-filters").click();
 
   assert.equal(toggle(page).getAttribute("aria-pressed"), "false");
   assert.equal(rowTitles(page).length, 3);
-  assert.deepEqual(replaced, ["/"]);
+  assert.deepEqual(pushed, ["/"], "clearing the filters is a step the Back button can undo");
 });
 
 test("the toggle is reachable and operable by keyboard alone", async (t) => {

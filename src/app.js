@@ -7,6 +7,18 @@ import {
 } from "./decision-entry.js";
 import { STORED_DECISION_STATUSES, canonicalDecisionStatus } from "./decision-status.js";
 import { dedupeById } from "./demo-data.js";
+import {
+  DEFAULT_HISTORY_FILTERS,
+  RECORD_TYPES,
+  absoluteHistoryUrl,
+  currentOnlySearch,
+  historyFilterPath,
+  historyFilterSearch,
+  normalizeHistoryRange,
+  parseHistoryFilters,
+  readCurrentOnly,
+} from "./history-filters.js";
+import { copyHistoryLink, renderHistoryFilterChips, renderHistorySummary } from "./history-filter-view.js";
 import { publishHistoryScope } from "./history-scope.js";
 import { initLeadCapture } from "./lead-capture.js";
 import { retentionDeclined, retentionRefusal } from "./local-retention.js";
@@ -175,7 +187,11 @@ export function uniqueOwners(decisions) {
 // title, owner, createdAt, status, searchable text — keeps a single filter and
 // sort path for both, so the existing comparators keep working unchanged and a
 // release can never fall through a decision-shaped code path.
-export const RECORD_TYPES = ["all", "decision", "release"];
+//
+// Declared in history-filters.js, because the query-string parser is what has
+// to decide whether a shared `type=` names a record kind this view can render.
+// Re-exported here for the callers that have always read it from this module.
+export { RECORD_TYPES };
 
 // The wording each row uses for its counterparts, and what it says when there
 // are none. Held here so the copy is pinned by a test instead of being spelled
@@ -298,14 +314,29 @@ export function toHistoryRecords(decisions = [], releases = [], options = {}) {
 // orders within each group. A real record is a visitor's own work and must
 // never be pushed below the fold by demo data that is newer or alphabetically
 // earlier; a stream with no examples in it is unaffected.
+//
+// Date range (single rule, applied here): `from`/`to` are calendar days read in
+// UTC, both inclusive, compared against the record's `createdAt` instant. A day
+// that does not exist and an end before the start are not filters — they are a
+// mistyped or hand-edited link — so they degrade to "no bound" rather than to an
+// empty result set for a window a reader believes they asked for.
 export function selectHistory(records, view = {}) {
   const { owner = "all", sort = DEFAULT_SORT } = view;
   const type = RECORD_TYPES.includes(view.type) ? view.type : "all";
   const status = STATUSES.includes(view.status) ? canonicalDecisionStatus(view.status) : "all";
   const query = typeof view.query === "string" ? view.query.trim().toLocaleLowerCase() : "";
+  const { from, to } = normalizeHistoryRange(view.from, view.to);
+  const after = from ? Date.parse(`${from}T00:00:00.000Z`) : null;
+  const before = to ? Date.parse(`${to}T23:59:59.999Z`) : null;
   const compare = (SORTS[sort] ?? SORTS[DEFAULT_SORT]).compare;
   return records
     .filter((record) => {
+      if (after !== null || before !== null) {
+        const at = Date.parse(record.createdAt);
+        if (Number.isNaN(at)) return false;
+        if (after !== null && at < after) return false;
+        if (before !== null && at > before) return false;
+      }
       // "Current only" removes exactly the decisions another decision replaced.
       // A release is never superseded, so it is never removed by this filter.
       if (view.currentOnly === true && record.superseded === true) return false;
@@ -318,30 +349,13 @@ export function selectHistory(records, view = {}) {
     .sort((a, b) => Number(a.example === true) - Number(b.example === true) || compare(a, b));
 }
 
-// The "current only" filter is the one filter whose state has to survive a
-// reload, because a link to a filtered history is worth sharing. It rides in the
-// query string the pages already read with URLSearchParams, so nothing new has
-// to be persisted and an absent parameter is simply the default (off).
-export const CURRENT_ONLY_PARAM = "current";
-export const CURRENT_ONLY_VALUE = "only";
-
-export function readCurrentOnly(search = "") {
-  try {
-    return new URLSearchParams(search).get(CURRENT_ONLY_PARAM) === CURRENT_ONLY_VALUE;
-  } catch {
-    return false;
-  }
-}
-
-// Rewrites only this parameter and leaves every other one in place, so the
-// history filters never clobber an unrelated query string.
-export function currentOnlySearch(search = "", currentOnly = false) {
-  const params = new URLSearchParams(search);
-  if (currentOnly) params.set(CURRENT_ONLY_PARAM, CURRENT_ONLY_VALUE);
-  else params.delete(CURRENT_ONLY_PARAM);
-  const query = params.toString();
-  return query ? `?${query}` : "";
-}
+// Every filter's state survives a reload now, because a link to a filtered
+// history is worth sharing — see history-filters.js, which owns the parameter
+// names and the encoding. These two re-exports are the "current only" toggle's
+// own helpers, which rewrite that one parameter inside an arbitrary query
+// string so a page carrying an `id` keeps it.
+export { CURRENT_ONLY_PARAM, CURRENT_ONLY_VALUE } from "./history-filters.js";
+export { currentOnlySearch, readCurrentOnly };
 
 // States the active filter and what it removed. Empty while the filter is off:
 // there is nothing hidden to account for.
@@ -779,6 +793,14 @@ export async function initDecisionLog(root = document, storage = localStorage, o
   const typeFilter = [...(root.querySelectorAll?.('input[name="record-type"]') ?? [])];
   const statusHint = root.querySelector("#filter-status-hint");
   const currentOnly = root.querySelector("#filter-current-only");
+  const fromFilter = root.querySelector("#filter-from");
+  const toFilter = root.querySelector("#filter-to");
+  const filterSummary = root.querySelector("#history-filter-summary");
+  const filterChips = root.querySelector("#history-filter-chips");
+  const copyLink = root.querySelector("#copy-history-link");
+  // A live region of its own, so "Link copied" and "Showing 3 of 41 records"
+  // cannot overwrite each other mid-announcement.
+  const copyStatus = root.querySelector("#history-copy-status");
   const supersedeSummary = root.querySelector("#history-supersede-summary");
   const overdueSlot = root.querySelector("#overdue-decision");
   const supersedesField = root.querySelector("#supersedes");
@@ -795,6 +817,8 @@ export async function initDecisionLog(root = document, storage = localStorage, o
   }]));
   const locationRef = options.location ?? globalThis.window?.location;
   const historyRef = options.history ?? globalThis.window?.history;
+  const windowRef = options.window ?? globalThis.window;
+  const clipboardRef = options.clipboard ?? globalThis.navigator?.clipboard;
   const announce = createCountAnnouncer(root.querySelector("#history-announcement"), {
     delay: options.announceDelay,
   });
@@ -814,27 +838,92 @@ export async function initDecisionLog(root = document, storage = localStorage, o
   // are badged from, rather than re-deriving it.
   let exampleIds = new Set();
 
-  // Single source of truth for the view. Controls write into it, the render
-  // function reads from it; nothing re-reads filter state out of the DOM.
+  // Single source of truth for the render path. Controls write into it, the
+  // render function reads from it; nothing re-reads filter state out of the DOM.
+  //
+  // The *filters* in it are a projection of the query string and nothing else:
+  // adoptFilters() writes the URL into this object and commit() writes this
+  // object back out, so state → URL → state is one loop rather than two copies
+  // that can disagree. Sort is not a filter and stays out of the URL — it
+  // reorders the same records, it never changes which ones a link resolves to.
   const view = {
     query: "",
     type: "all",
     status: "all",
     owner: "all",
     sort: DEFAULT_SORT,
-    // Restored from the query string, so a reloaded or shared link opens with
-    // the same filter the user left on.
-    currentOnly: readCurrentOnly(locationRef?.search ?? ""),
+    from: "",
+    to: "",
+    currentOnly: false,
   };
 
-  // The query string this page owns, tracked locally because replaceState does
-  // not report back through the same object in every environment.
+  // The query string this page owns, tracked locally because pushState does not
+  // report back through the same object in every environment.
   let queryString = locationRef?.search ?? "";
-  const syncUrl = () => {
-    queryString = currentOnlySearch(queryString, view.currentOnly);
-    const target = `${locationRef?.pathname ?? ""}${queryString}${locationRef?.hash ?? ""}`;
-    if (target) historyRef?.replaceState?.(null, "", target);
+
+  // Reflect the filter state into the controls. Called on boot, on Back, and
+  // after a chip removes a filter — every path that changes the filters without
+  // a person touching the control that owns them.
+  const syncFilterControls = () => {
+    if (search) search.value = view.query;
+    for (const radio of typeFilter) radio.checked = radio.value === view.type;
+    if (statusFilter) statusFilter.value = view.status;
+    if (ownerFilter) {
+      ownerFilter.value = view.owner;
+      // A shared link can name an owner this log has never held. The select
+      // refuses the value; the view follows the control rather than filtering
+      // by a person no option represents.
+      if (ownerFilter.value !== view.owner) {
+        view.owner = "all";
+        ownerFilter.value = "all";
+      }
+    }
+    if (fromFilter) fromFilter.value = view.from;
+    if (toFilter) toFilter.value = view.to;
+    syncCurrentOnlyControl();
+    syncStatusAvailability();
   };
+
+  // Take a parsed filter state as the truth. Only the filter keys are touched:
+  // sort is the visitor's, not the link's.
+  const adoptFilters = (filters) => {
+    for (const key of Object.keys(DEFAULT_HISTORY_FILTERS)) view[key] = filters[key];
+    syncFilterControls();
+  };
+
+  /**
+   * Write the filters back to the URL and re-render.
+   *
+   * `push: true` (a discrete filter change, a dismissed chip) leaves an entry
+   * the Back button can return to; `push: false` (a keystroke in the search
+   * box) rewrites the current one, because stepping back through twenty
+   * keystrokes is not history a person wants. A change that produces the same
+   * query string writes nothing at all — a no-op must not stack a duplicate
+   * entry that Back appears to ignore.
+   */
+  const syncUrl = ({ push = true } = {}) => {
+    const next = historyFilterSearch(view);
+    if (next === queryString) return false;
+    queryString = next;
+    const target = historyFilterPath(locationRef ?? {}, view);
+    if (push) historyRef?.pushState?.(null, "", target);
+    else historyRef?.replaceState?.(null, "", target);
+    return true;
+  };
+
+  const commit = (options) => {
+    syncUrl(options);
+    render();
+  };
+
+  // Going Back is a filter change like any other: re-derive the state from the
+  // URL the browser restored, put it back on the controls, and re-render. The
+  // URL is already correct at this point, so nothing is written.
+  windowRef?.addEventListener?.("popstate", () => {
+    queryString = locationRef?.search ?? "";
+    adoptFilters(parseHistoryFilters(queryString));
+    render();
+  });
 
   const showSupersedesError = (message) => {
     if (supersedesError) {
@@ -951,9 +1040,31 @@ export async function initDecisionLog(root = document, storage = localStorage, o
     if (statusHint) statusHint.textContent = unavailable ? STATUS_HINT_UNAVAILABLE : STATUS_HINT;
   };
 
+  // The chip buttons currently on screen, in render order, so a removal can
+  // hand focus to the one that replaced it.
+  let chipButtons = [];
+
+  // A dismissed chip drops exactly one filter and leaves the rest composed.
+  // Focus moves to the chip that took its place, or to the next control along,
+  // so the keyboard is never returned to the top of the document.
+  const removeFilter = (key, button) => {
+    if (!(key in DEFAULT_HISTORY_FILTERS)) return;
+    const index = chipButtons.indexOf(button);
+    view[key] = DEFAULT_HISTORY_FILTERS[key];
+    syncFilterControls();
+    commit();
+    const landing = chipButtons[index] ?? chipButtons.at(-1) ?? copyLink ?? search;
+    landing?.focus?.({ preventScroll: true });
+  };
+
   const render = () => {
     const visible = renderHistory(list, count, records, view);
     if (supersedeSummary) supersedeSummary.textContent = supersedeFilterSummary(records, view);
+    // The headline of the list, and the filters that produced it. Rendered
+    // before the announcement so a reader who hears the count can already find
+    // the same sentence on screen.
+    renderHistorySummary(filterSummary, { visible, total: records.length, filters: view });
+    chipButtons = renderHistoryFilterChips(filterChips, view, { onRemove: removeFilter });
     announce(historyCountMessage(visible, records.length));
     // The history owns the filter rule, so it states its own selection instead of
     // letting the export panel re-derive one from the store. Published on every
@@ -1017,10 +1128,16 @@ export async function initDecisionLog(root = document, storage = localStorage, o
   // is composed and rendered inside the same synchronous turn that boots the
   // page, so the record count and the rows are already correct on the first
   // paint instead of counting up from the "0 records" in the static markup.
-  syncStatusAvailability();
-  syncCurrentOnlyControl();
+  // The URL is read once, here, and it is the only place the first filter state
+  // comes from: a reload and a pasted link are the same event to this page.
+  adoptFilters(parseHistoryFilters(locationRef?.search ?? ""));
   refresh();
   focusLinkedDecision(root);
+  // Canonicalize what the address bar says, without a history entry: a link
+  // carrying `status=approved`, an owner this log has never held, or a
+  // parameter nothing here reads now shows the state actually on screen. Silent
+  // when the link was already canonical, which is the ordinary case.
+  syncUrl({ push: false });
 
   // The "Representative release" panel. It used to feature releases[0], which is
   // whatever sorts first in the composed log — the newest planned example for a
@@ -1054,61 +1171,86 @@ export async function initDecisionLog(root = document, storage = localStorage, o
   // data itself changes, so we deliberately do not resync them here. Each
   // handler updates one field of `view` and leaves the rest alone, so filters
   // and the search term always compose instead of resetting one another.
+  //
+  // Every filter commits: the change reaches the URL in the same turn it
+  // reaches the list, so the address bar is never a stale description of the
+  // view. Sort is the one control that only re-renders — it is not in the URL.
   for (const radio of typeFilter) {
     radio.addEventListener("change", () => {
       if (!radio.checked) return;
       view.type = RECORD_TYPES.includes(radio.value) ? radio.value : "all";
       syncStatusAvailability();
-      render();
+      commit();
     });
   }
   statusFilter?.addEventListener("change", () => {
     view.status = statusFilter.value;
-    render();
+    commit();
   });
   ownerFilter?.addEventListener("change", () => {
     view.owner = ownerFilter.value;
-    render();
+    commit();
   });
   sortBy?.addEventListener("change", () => {
     view.sort = sortBy.value;
     render();
   });
+  // Typing rewrites the current history entry rather than stacking one per
+  // keystroke; the committed value (blur, or Enter) is what Back steps through.
   search?.addEventListener("input", () => {
     view.query = search.value;
-    render();
+    commit({ push: false });
   });
+  search?.addEventListener("change", () => {
+    view.query = search.value;
+    commit();
+  });
+  for (const control of [fromFilter, toFilter]) {
+    control?.addEventListener("change", () => {
+      view.from = fromFilter?.value ?? "";
+      view.to = toFilter?.value ?? "";
+      // An end before the start is repaired on the way in, so the controls
+      // never describe a window the list is not showing.
+      const range = normalizeHistoryRange(view.from, view.to);
+      view.from = range.from;
+      view.to = range.to;
+      if (fromFilter) fromFilter.value = view.from;
+      if (toFilter) toFilter.value = view.to;
+      commit();
+    });
+  }
   // A pressed toggle, not a checkbox: one control with one visible state, whose
   // pressed-ness is what both the header summary and the query string report.
   currentOnly?.addEventListener("click", () => {
     view.currentOnly = !view.currentOnly;
     syncCurrentOnlyControl();
-    syncUrl();
-    render();
+    commit();
   });
 
   // One reset path, shared by the toolbar control and the empty state's single
-  // primary action, so "reset" always means the same thing. Focus lands on the
-  // search input: a stable node outside the list that is re-rendered away.
+  // primary action, so "clear all" always means the same thing. Focus lands on
+  // the search input: a stable node outside the list that is re-rendered away.
   const resetFilters = () => {
-    view.query = "";
-    view.type = "all";
-    view.status = "all";
-    view.owner = "all";
+    adoptFilters({ ...DEFAULT_HISTORY_FILTERS });
     view.sort = DEFAULT_SORT;
-    view.currentOnly = false;
-    syncCurrentOnlyControl();
-    syncUrl();
-    if (search) search.value = "";
-    for (const radio of typeFilter) radio.checked = radio.value === "all";
-    if (statusFilter) statusFilter.value = "all";
-    if (ownerFilter) ownerFilter.value = "all";
     if (sortBy) sortBy.value = DEFAULT_SORT;
-    syncStatusAvailability();
-    render();
+    // Back to the clean base path: every filter parameter goes, and nothing is
+    // left behind as an empty one.
+    commit();
     search?.focus();
   };
   clearFilters?.addEventListener("click", resetFilters);
+
+  // "Copy link to this view". The message is said in a live region of its own
+  // and is left on screen, so a failure is visible rather than a button that
+  // appears to have done nothing.
+  copyLink?.addEventListener("click", async () => {
+    const { message } = await copyHistoryLink(
+      absoluteHistoryUrl(locationRef ?? {}, view),
+      { clipboard: clipboardRef },
+    );
+    if (copyStatus) copyStatus.textContent = message;
+  });
 
   // Keyboard navigation is delegated to the list container so it survives every
   // re-render without re-binding. Each card is one native-link Tab stop; arrows
