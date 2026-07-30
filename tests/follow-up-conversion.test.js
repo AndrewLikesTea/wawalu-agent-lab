@@ -280,7 +280,7 @@ test("the briefing's decision summary carries one buyer CTA, between the action 
     assert.equal(cta.getAttribute("data-follow-up-cta"), "briefing-contact");
     assert.equal(cta.getAttribute("aria-controls"), "briefing-contact-panel");
     // Buyer-oriented and about this document, not a generic "get in touch".
-    assert.match(textOf(cta), /^Discuss this briefing$/);
+    assert.match(textOf(cta), /^Request a follow-up$/);
 
     // Where a decision is made: after what should happen next, before the sheet
     // turns to how far it may be trusted.

@@ -394,7 +394,7 @@ test("the two work-email forms never describe a failure in the same words", () =
     assert.notEqual(subscribing, contacting, `${code} reads identically in both forms`);
   }
 
-  for (const [copy, purpose] of [[FIELD_NOTE_COPY, /subscribe to field notes\.$/], [CONTACT_COPY, /request a follow-up conversation\.$/]]) {
+  for (const [copy, purpose] of [[FIELD_NOTE_COPY, /subscribe to field notes\.$/], [CONTACT_COPY, /request a Shiplog follow-up\.$/]]) {
     // Both halves of the inline validation, not just the malformed one: an empty
     // field is the state a visitor meets most often.
     assert.match(copy.emptyEmail, purpose);
