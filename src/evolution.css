@@ -2313,6 +2313,23 @@
    third, redundant channel and is deliberately not the only one. */
 .spd-comparison[data-direction="higher"] .spd-delta { color:var(--state-warn-line); }
 .spd-comparison-text { flex:1 1 18rem; }
+/* The paired reading. Boxed rather than tinted by direction: the direction is
+   carried by the word and the shape, and a green/red pair here would label one
+   direction good, which this figure explicitly does not. A withheld or
+   unalignable pair takes the dashed warn edge every other withheld state uses. */
+.spd-aligned { display:grid; gap:7px; border:1px solid var(--import-line); border-left:5px solid var(--import-accent); border-radius:11px; padding:11px 14px; }
+.spd-aligned[data-state="mismatched_window"],
+.spd-aligned[data-state="insufficient_data"] { border-left-style:dashed; border-left-color:var(--state-warn-line); }
+.spd-aligned-title { margin:0; font:750 12px/1.4 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; color:var(--import-ink); }
+.spd-aligned-move { display:flex; flex-wrap:wrap; align-items:baseline; gap:6px 10px; margin:0; }
+.spd-aligned-text { margin:0; font-size:14px; line-height:1.55; overflow-wrap:anywhere; }
+.spd-aligned-pair { display:grid; grid-template-columns:auto 1fr; gap:4px 10px; margin:0; font-size:12px; line-height:1.55; }
+.spd-aligned-term { font-weight:700; color:var(--ink-muted); }
+.spd-aligned-value { margin:0; overflow-wrap:anywhere; }
+.spd-aligned-action { margin:0; color:var(--ink-muted); font-size:12px; line-height:1.55; overflow-wrap:anywhere; }
+/* One column under a narrow viewport: a two-column definition list with a date
+   range in the second cell wraps to one word per line on a phone. */
+@media (max-width:34rem) { .spd-aligned-pair { grid-template-columns:1fr; } .spd-aligned-term { margin-top:4px; } }
 .spd-confidence { display:flex; flex-wrap:wrap; align-items:baseline; gap:6px 10px; margin:0; border-left:5px solid var(--import-accent); padding:2px 0 2px 12px; font-size:13px; line-height:1.55; overflow-wrap:anywhere; }
 .spd-confidence[data-level="medium"] { border-left-style:double; }
 .spd-confidence[data-level="low"],.spd-confidence[data-level="none"] { border-left-style:dashed; border-left-color:var(--state-warn-line); }

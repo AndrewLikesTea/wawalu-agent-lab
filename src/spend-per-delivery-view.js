@@ -40,6 +40,7 @@
 // failure only; a withheld ratio is a finished, honest answer and does not
 // interrupt anyone. Nodes are built with createElement and textContent.
 
+import { ALIGNED_SPEND_PER_RELEASE_STATE } from "./aligned-spend-per-release.js";
 import { deliveryEfficiencyFinding } from "./delivery-efficiency-finding.js";
 import {
   MINIMUM_BASELINE_PERIODS, MINIMUM_DELIVERIES, MINIMUM_PERIOD_DAYS,
@@ -172,6 +173,54 @@ function comparisonBlock(doc, state) {
   return wrap;
 }
 
+/**
+ * The paired reading: the same question asked of two aligned windows.
+ *
+ * The trailing baseline above answers "is this window unusual for us"; this block
+ * answers "did it move since the last comparable window", which is the question a
+ * leader asks out loud and the one the mean cannot answer. Both windows are named
+ * with their lengths, because equal length is the whole reason the pair may be
+ * compared at all — and when the pair was refused, this block says which of the
+ * two windows was refused and why, rather than going quiet.
+ */
+function alignedPairBlock(doc, aligned) {
+  const wrap = element(doc, "div", "spd-aligned");
+  wrap.dataset.state = aligned.state;
+  wrap.dataset.trend = aligned.trend.available ? aligned.trend.direction : "unavailable";
+  if (aligned.reasonCode) wrap.dataset.reason = aligned.reasonCode;
+  wrap.append(element(doc, "h3", "spd-aligned-title",
+    "Against the previous comparable window"));
+  const eligible = aligned.state === ALIGNED_SPEND_PER_RELEASE_STATE.eligible;
+  if (eligible && aligned.trend.available) {
+    const head = element(doc, "p", "spd-aligned-move");
+    head.append(shape(doc, DIRECTION_SHAPE[aligned.trend.direction] ?? "—"));
+    head.append(element(doc, "span", "spd-delta",
+      `${aligned.trend.deltaPercent > 0 ? "+" : ""}`
+      + `${aligned.trend.deltaPercent.toFixed(1)}% · ${aligned.trend.direction}`));
+    wrap.append(head);
+  }
+  wrap.append(element(doc, "p", "spd-aligned-text", eligible
+    ? aligned.trend.interpretation : aligned.statement));
+  // The two windows, with their figures, so the movement can be recomputed from
+  // the line that displays it. Counts are shown in every state; a withheld figure
+  // is named as withheld rather than left as a blank cell.
+  const pair = element(doc, "dl", "spd-aligned-pair");
+  for (const [label, side] of [["Previous", aligned.metric.prior], ["Current", aligned.metric.current]]) {
+    pair.append(element(doc, "dt", "spd-aligned-term", label));
+    pair.append(element(doc, "dd", "spd-aligned-value", side.window
+      ? `${side.window.start} to ${side.window.end} (${side.window.days} days):`
+        + ` ${side.periodSpendUsd === null ? "no spend reported" : usd(side.periodSpendUsd)},`
+        + ` ${side.shippedReleases} release${side.shippedReleases === 1 ? "" : "s"} recorded as`
+        + ` shipped — ${side.spendPerReleaseUsd === null
+          ? "no per-release figure published" : `${usd(side.spendPerReleaseUsd)} per release`}.`
+      : "No comparable window."));
+  }
+  wrap.append(pair);
+  wrap.append(element(doc, "p", "spd-aligned-action",
+    `Next: ${aligned.nextAction.text} (${aligned.nextAction.owner})`));
+  return wrap;
+}
+
 /** Repeated by the classification word beside it, never a substitute for it. */
 const CLASSIFICATION_SHAPE = Object.freeze({
   material_ratio_increase: "▲", material_ratio_decrease: "▼", stable_ratio: "—",
@@ -223,22 +272,34 @@ function actionBlock(doc, state) {
 const heading = (doc, text) => element(doc, "h4", "spd-detail-heading", text);
 
 /** Which period, and whether the two sides of the ratio describe it. */
-function periodAlignmentContent(doc, state) {
-  const aligned = state.state === SPEND_PER_DELIVERY_STATE.eligible;
+function periodAlignmentContent(doc, state, finding, aligned) {
+  const sidesAligned = state.state === SPEND_PER_DELIVERY_STATE.eligible;
   const nodes = [element(doc, "p", "spd-detail-line", state.window
     ? `Billing period ${state.window.start} to ${state.window.end}: ${state.window.days} days,`
       + " start inclusive and end exclusive."
     : "No billing period was read in this tab, so there is no window to align to.")];
   const verdict = element(doc, "p", "spd-alignment");
-  verdict.dataset.aligned = String(aligned);
-  verdict.append(shape(doc, aligned ? "✓" : "✕"));
-  verdict.append(element(doc, "span", "spd-alignment-text", aligned
+  verdict.dataset.aligned = String(sidesAligned);
+  verdict.append(shape(doc, sidesAligned ? "✓" : "✕"));
+  verdict.append(element(doc, "span", "spd-alignment-text", sidesAligned
     ? "Aligned: the spend window and the releases counted against it describe the same period."
     : `Not aligned: this reading is held at "${(state.reasonCode ?? "no reading")
       .replace(/_/g, " ")}", so no window pairs the two sides yet.`));
   nodes.push(verdict);
   nodes.push(element(doc, "p", "spd-rule", SPEND_PER_DELIVERY_RULES.window));
   nodes.push(element(doc, "p", "spd-rule", SPEND_PER_DELIVERY_RULES.headlinePeriod));
+  if (aligned) {
+    // Which pair the block above compared, and — when a candidate was refused —
+    // which window it was and which of the three comparability checks it failed.
+    nodes.push(heading(doc, "The pair compared against the previous window"));
+    nodes.push(list(doc, "spd-aligned-windows", aligned.comparedWindows.map((entry) =>
+      `${entry.start} to ${entry.end}, ${entry.days} days (end exclusive).`)));
+    nodes.push(element(doc, "p", "spd-detail-line", aligned.alignment.note));
+    nodes.push(element(doc, "p", "spd-rule", aligned.exclusions.priorWindowRejectedReason
+      ? `The window before the current one was refused as not comparable:`
+        + ` ${aligned.exclusions.priorWindowRejectedReason.replace(/_/g, " ")}.`
+      : `Alignment basis: ${aligned.alignment.basis ?? "none"}.`));
+  }
   return nodes;
 }
 
@@ -264,7 +325,7 @@ function releaseCountContent(doc, state) {
  * of the counts above: periods the baseline refused, local fields nothing
  * declared, and the source text this panel will not carry at any length.
  */
-function excludedRecordContent(doc, state, finding) {
+function excludedRecordContent(doc, state, finding, aligned) {
   const items = [];
   // Rendered at zero too. "Nothing was excluded" is the answer a reader opening
   // this disclosure came for, and omitting it leaves them unable to tell a clean
@@ -289,6 +350,31 @@ function excludedRecordContent(doc, state, finding) {
   nodes.push(element(doc, "p", "spd-detail-line",
     "Release records the counts above name as uncounted — outside the window, or carrying an"
     + " unreadable completion date — are listed there rather than repeated here."));
+  if (aligned) {
+    // Counted against the pair that was *selected*, in every state. A current
+    // window with no releases and a comparable window before it reports zero
+    // releases outside the pair, because the pair contains them.
+    const { exclusions } = aligned;
+    nodes.push(heading(doc, "Against the compared pair of windows"));
+    nodes.push(list(doc, "spd-aligned-excluded", [
+      `${exclusions.releasesInsideComparedWindows} recorded release`
+      + `${exclusions.releasesInsideComparedWindows === 1 ? " falls" : "s fall"} inside the`
+      + ` compared window${aligned.comparedWindows.length === 1 ? "" : "s"};`
+      + ` ${exclusions.releasesOutsideComparedWindows} fall outside and are not counted here.`,
+      exclusions.unreadableReleaseDates === 0
+        ? "Every release record read here carried a readable completion date."
+        : `${exclusions.unreadableReleaseDates} release record`
+          + `${exclusions.unreadableReleaseDates === 1 ? "" : "s"} carried an unreadable`
+          + " completion date and could not be placed in either window.",
+      exclusions.windowsNotCompared === 0
+        ? "Every billing window read here is part of the compared pair."
+        : `${exclusions.windowsNotCompared} billing window`
+          + `${exclusions.windowsNotCompared === 1 ? " was" : "s were"} read and left out of the`
+          + " pair: the pair is always the two most recent windows, never a window chosen for"
+          + " the movement it would show.",
+    ]));
+    nodes.push(element(doc, "p", "spd-rule", exclusions.rule));
+  }
   return nodes;
 }
 
@@ -333,22 +419,26 @@ function confidenceContent(doc, state, finding) {
  * The framing sentence has its own paragraph in the body above and is dropped
  * from the caveat list here, so the reader is not told the same thing twice.
  */
-function limitContent(doc, state, finding) {
+function limitContent(doc, state, finding, aligned) {
   const nodes = [heading(doc, "What can move this ratio with no change in delivery")];
   nodes.push(list(doc, "spd-confounders", state.confounders));
   nodes.push(heading(doc, "Read this only with"));
   nodes.push(list(doc, "spd-finding-caveats",
     finding.requiredCaveats.filter((caveat) => caveat !== finding.framing.statement)));
+  if (aligned) {
+    nodes.push(heading(doc, "And, for the two-window comparison"));
+    nodes.push(list(doc, "spd-aligned-caveats", aligned.caveats));
+  }
   return nodes;
 }
 
 const DISCLOSURE_CONTENT = Object.freeze({
-  "period-alignment": (doc, state) => periodAlignmentContent(doc, state),
-  "release-counts": (doc, state) => releaseCountContent(doc, state),
-  "excluded-records": (doc, state, finding) => excludedRecordContent(doc, state, finding),
-  provenance: (doc, state) => provenanceContent(doc, state),
-  confidence: (doc, state, finding) => confidenceContent(doc, state, finding),
-  limits: (doc, state, finding) => limitContent(doc, state, finding),
+  "period-alignment": periodAlignmentContent,
+  "release-counts": releaseCountContent,
+  "excluded-records": excludedRecordContent,
+  provenance: provenanceContent,
+  confidence: confidenceContent,
+  limits: limitContent,
 });
 
 /**
@@ -356,7 +446,7 @@ const DISCLOSURE_CONTENT = Object.freeze({
  * it. The group is a labelled region rather than a bare div so a screen-reader
  * user landing in it is told what these six controls are for.
  */
-function disclosureGroup(doc, state, finding, store) {
+function disclosureGroup(doc, state, finding, store, aligned) {
   const group = element(doc, "div", "spd-disclosures");
   group.id = SPEND_PER_DELIVERY_DETAIL_ID;
   group.setAttribute("role", "group");
@@ -370,7 +460,9 @@ function disclosureGroup(doc, state, finding, store) {
     details.dataset.disclosure = key;
     details.open = store.open.has(key);
     details.append(element(doc, "summary", "spd-detail-summary", summary));
-    for (const node of DISCLOSURE_CONTENT[key](doc, state, finding)) details.append(node);
+    for (const node of DISCLOSURE_CONTENT[key](doc, state, finding, aligned)) {
+      details.append(node);
+    }
     details.addEventListener("toggle", () => {
       if (details.open) store.open.add(key);
       else store.open.delete(key);
@@ -459,8 +551,14 @@ export function applySpendPerDeliveryPhase(doc, phase, { detail, announce: live 
  * omitting the classification, the priority, or the caveats it may not be read
  * without. The parameter exists so the page can pass the finding it already built
  * rather than scoring the same state twice.
+ *
+ * `aligned` is the period-aligned pair from `aligned-spend-per-release.js`. It
+ * cannot be derived from `state` — the decision carries one window, and the pair
+ * needs every window that was read — so the page passes it, and when it is absent
+ * the paired block and its three disclosure sections are simply not rendered
+ * rather than rendered empty.
  */
-export function applySpendPerDelivery(doc, state, finding) {
+export function applySpendPerDelivery(doc, state, finding, aligned = null) {
   const section = byId(doc, SPEND_PER_DELIVERY_SECTION_ID);
   if (!section || !state) return null;
   if (state.state === SPEND_PER_DELIVERY_STATE.absent) return clearSpendPerDelivery(doc);
@@ -488,6 +586,12 @@ export function applySpendPerDelivery(doc, state, finding) {
     children.push(element(doc, "p", "spd-withheld",
       `No figure is published for ${state.metric.unit} in this state.`));
   }
+  // The paired reading sits with the figure it qualifies, above the
+  // classification: a reader who has just been shown a ratio asks "compared with
+  // when?" before they ask "how was this classified?".
+  if (aligned && aligned.state !== ALIGNED_SPEND_PER_RELEASE_STATE.absent) {
+    children.push(alignedPairBlock(doc, aligned));
+  }
   children.push(findingBlock(doc, scored));
   const confidence = element(doc, "p", "spd-confidence");
   confidence.dataset.level = state.confidence.level;
@@ -498,7 +602,7 @@ export function applySpendPerDelivery(doc, state, finding) {
   children.push(confidence);
   children.push(element(doc, "p", "spd-framing", state.framing.statement));
   children.push(actionBlock(doc, state));
-  children.push(disclosureGroup(doc, state, scored, store));
+  children.push(disclosureGroup(doc, state, scored, store, aligned));
   body.replaceChildren(...children);
 
   section.hidden = false;
@@ -514,6 +618,17 @@ export function applySpendPerDelivery(doc, state, finding) {
   else delete section.dataset.deliveryEvidence;
   if (state.reasonCode) section.dataset.reason = state.reasonCode;
   else delete section.dataset.reason;
+  // The paired reading is marked on the section so the page and its tests can
+  // assert on it without parsing a sentence, and so a mismatched pair is visible
+  // even when the headline ratio itself was publishable.
+  if (aligned) {
+    section.dataset.alignedState = aligned.state;
+    section.dataset.alignedTrend = aligned.trend.available
+      ? aligned.trend.direction : "unavailable";
+  } else {
+    delete section.dataset.alignedState;
+    delete section.dataset.alignedTrend;
+  }
   announce(doc, `${state.statement} Next: ${state.nextAction.text}`);
   return state;
 }
@@ -533,6 +648,8 @@ export function clearSpendPerDelivery(doc) {
   delete section.dataset.reason;
   delete section.dataset.classification;
   delete section.dataset.deliveryEvidence;
+  delete section.dataset.alignedState;
+  delete section.dataset.alignedTrend;
   byId(doc, SPEND_PER_DELIVERY_BODY_ID)?.replaceChildren();
   const live = byId(doc, SPEND_PER_DELIVERY_LIVE_ID);
   if (live) live.textContent = "";
