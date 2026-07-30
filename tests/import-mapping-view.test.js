@@ -300,7 +300,9 @@ test("the page runs the shipped analysis on the confirmed mapping and can abando
   ]);
   // Confirming runs the shipped normalizer with the reviewed binding — there is
   // no second analysis path, and no parse of a delimited file without one.
-  assert.match(script, /parseLocalImportFile\(file\.text, file\.fileName, file\.mediaType, \{ mapping: binding \}\)/);
+  assert.match(script,
+    /const options = boundedDelimitedOptions\(\{ mapping: binding \}\);[\s\S]*parseLocalImportFile\(file\.text, file\.fileName, file\.mediaType, options\)/);
+  assert.match(script, /sampleOversized: true/);
   assert.match(script, /normalizeLocalFinopsHistory\(\{\s*providers: loaded\.providers/);
   // Back into the step re-uses the retained text and the reader's own state.
   assert.match(script, /remap\?\.addEventListener\("click"/);

@@ -361,6 +361,7 @@ function periodMetadata(provider) {
     // sampled, and it is already classified and excerpt-free by the time it
     // arrives here. This module never sees prompt text.
     querySample: provider.querySample ?? null,
+    importEvidence: provider.importEvidence ?? null,
     start,
     end,
     days: Number.isFinite(start) && Number.isFinite(end)
@@ -445,6 +446,10 @@ export function normalizeLocalFinops({ provider, hris = null }) {
   // by. Only the file that carries the money is required.
   if (!provider) fail("missing_provider", "Add one provider export.");
   const providerDoc = provider.document ?? provider;
+  const importEvidence = Object.freeze(
+    (Array.isArray(provider.importEvidence)
+      ? provider.importEvidence : [provider.importEvidence]).filter(Boolean),
+  );
   const hrisDoc = hris ? (hris.document ?? hris) : null;
   if (providerDoc.kind !== LOCAL_KINDS.provider
     || (hrisDoc && hrisDoc.kind !== LOCAL_KINDS.hris)) {
@@ -513,6 +518,16 @@ export function normalizeLocalFinops({ provider, hris = null }) {
   }
   if (providerDoc.snapshot.issues.length || hrisDoc?.snapshot.issues.length) {
     warnings.push("A source declared data-quality issues; review the source export before acting.");
+  }
+  for (const receipt of importEvidence) {
+    if (receipt.sampling?.mode === "systematic_sample") {
+      warnings.push(`${receipt.rowCounts.analyzed} of ${receipt.rowCounts.source} source rows were `
+        + "analyzed as an evenly spaced bounded sample; totals describe the sample, not the whole file.");
+    }
+  }
+  if (importEvidence.some((receipt) => receipt.exclusions?.some((entry) =>
+    entry.reason === "malformed_or_unsupported_row"))) {
+    warnings.push("Malformed or unsupported rows were excluded; conclusions cover accepted rows only.");
   }
   const ranked = [...grouped.values()]
     .map(({ contractRecords, ...item }) => {
@@ -611,6 +626,10 @@ export function normalizeLocalFinops({ provider, hris = null }) {
         ? `Prompt-quality grades come from an imported query sample of ${literacy.sample.total} `
           + "queries classified in this tab; the excerpts were discarded and never left the browser."
         : "No prompt-quality claim is made: provider content and direct identifiers are excluded.",
+      ...importEvidence.filter((receipt) => receipt.sampling?.mode === "systematic_sample")
+        .map((receipt) => `Oversized export limitation: ${receipt.rowCounts.analyzed} of `
+          + `${receipt.rowCounts.source} rows were sampled by the declared systematic rule; `
+          + "no whole-file spend or date distribution was inferred."),
     ],
     evidence: top ? [
       `${top.records} deduplicated provider aggregate${top.records === 1 ? "" : "s"} joined to ${top.id}.`,
@@ -627,6 +646,7 @@ export function normalizeLocalFinops({ provider, hris = null }) {
       joinedRecords: ranked.reduce((sum, item) => sum + item.records, 0),
       quarantinedRecords: quarantinedRecords + quarantine.length,
       quarantine: Object.freeze(quarantine),
+      importEvidence,
       warnings,
     },
   });
@@ -807,14 +827,16 @@ export function normalizeLocalFinopsHistory({ providers = [], hris = null, deliv
   if (!ordered.length)
     fail("incompatible_periods", "No unique provider period remains after reconciliation.");
 
-  const periods = ordered.map(({ document, modelUsage, querySample, ...metadata }) => ({
+  const periods = ordered.map(({ document, modelUsage, querySample, importEvidence, ...metadata }) => ({
     ...metadata,
     periodStart: document.snapshot.period_start,
     periodEnd: document.snapshot.period_end,
     exportId: document.export_id,
     generatedAt: document.snapshot.generated_at,
     completeness: document.snapshot.completeness,
-    result: normalizeLocalFinops({ provider: { document, modelUsage, querySample }, hris }),
+    result: normalizeLocalFinops({
+      provider: { document, modelUsage, querySample, importEvidence }, hris,
+    }),
   }));
   const current = periods.at(-1);
   const previous = periods.at(-2) ?? null;
@@ -894,6 +916,8 @@ export function normalizeLocalFinopsHistory({ providers = [], hris = null, deliv
       quarantinedRecords: periods.reduce(
         (sum, entry) => sum + entry.result.quality.quarantinedRecords, 0,
       ),
+      importEvidence: Object.freeze(periods
+        .flatMap((entry) => entry.result.quality.importEvidence ?? [])),
     }),
     history: Object.freeze({
       state: historyState,
@@ -974,6 +998,8 @@ export function normalizeLocalFinopsHistory({ providers = [], hris = null, deliv
         processing: "browser_local_ephemeral",
         providerSourceInstanceId: acceptedSource,
         acceptedProviderExportIds: Object.freeze(periods.map((entry) => entry.exportId)),
+        importEvidence: Object.freeze(periods
+          .flatMap((entry) => entry.result.quality.importEvidence ?? [])),
         hrisExportId: hris ? (hris.document?.export_id ?? hris.export_id) : null,
         reconciliationVersion: "local-finops-history/1.0.0",
       }),

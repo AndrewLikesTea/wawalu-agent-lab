@@ -334,8 +334,8 @@ test("the row ceiling fails the import whole and surfaces no partial total", asy
   );
 });
 
-test("the ceilings are defined once and the copy is rendered from them", () => {
-  assert.equal(MAX_IMPORT_BYTES, MAX_DELIMITED_BYTES);
+test("the bounded sampling ceiling and analyzed-row ceiling are rendered from one contract", () => {
+  assert.ok(MAX_IMPORT_BYTES > MAX_DELIMITED_BYTES);
   assert.equal(MAX_IMPORT_ROWS, MAX_DELIMITED_ROWS);
   assert.deepEqual(IMPORT_LIMITS, {
     maxBytes: MAX_IMPORT_BYTES,
@@ -344,9 +344,10 @@ test("the ceilings are defined once and the copy is rendered from them", () => {
     maxSelectionBytes: MAX_IMPORT_SELECTION_BYTES,
   });
   const sentence = importLimitsSentence();
-  assert.match(sentence, /8 MB/);
-  assert.match(sentence, /50,000 rows/);
-  assert.match(sentence, /refused whole/);
+  assert.match(sentence, /32 MB/);
+  assert.match(sentence, /50,000 data rows/);
+  assert.match(sentence, /sampled evenly/);
+  assert.match(sentence, /byte ceiling are refused whole/);
 });
 
 test("the markup carries no ceiling number of its own", async () => {
@@ -357,6 +358,8 @@ test("the markup carries no ceiling number of its own", async () => {
   assert.match(markup, /id="local-file-limits"/);
   assert.doesNotMatch(markup, /8 MB|8,000,000|50,000 rows/);
   assert.match(page, /applyImportLimits\(document\)/);
+  assert.match(page, /sampleOversized: true/);
+  assert.match(page, /readDelimitedText\(file\.text, boundedDelimitedOptions\(\)\)/);
 });
 
 // --- fallback --------------------------------------------------------------

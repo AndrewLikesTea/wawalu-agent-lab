@@ -77,7 +77,9 @@ import { readDelimitedText } from "/delimited-text.js";
 // thread when it does not; the ceilings and the messages are the same either
 // way, and the worker calls the same `parseLocalImportFile` imported above.
 import { CANCELLED_CODE, checkImportCeiling, createImportOffloader } from "/import-offload.js";
-import { checkFileSelectionCeiling, safeDisplayFileName } from "/import-limits.js";
+import {
+  checkFileSelectionCeiling, MAX_IMPORT_BYTES, MAX_IMPORT_ROWS, safeDisplayFileName,
+} from "/import-limits.js";
 // The column-review step. The model owns what every column became; the view
 // owns the surface; this layer owns only when the step opens and closes.
 import { createColumnMapping, mappingBinding, setColumnTarget, setMappingKind } from "/import-column-mapping.js";
@@ -671,6 +673,12 @@ function mountLocalFinopsImport() {
     text: file.text, fileName: file.fileName, mediaType: file.mediaType,
     byteSize: file.byteSize, options, sync,
   }, { onProgress: showProgress });
+  const boundedDelimitedOptions = (extra = {}) => ({
+    maxBytes: MAX_IMPORT_BYTES,
+    maxRows: MAX_IMPORT_ROWS,
+    sampleOversized: true,
+    ...extra,
+  });
   // One flag decides everything the reader is told about where these numbers
   // came from: the badge, the metric basis, every provenance note, and the two
   // download artifacts. Nothing else in this file gets to have an opinion.
@@ -1725,7 +1733,7 @@ function mountLocalFinopsImport() {
   });
 
   const openReview = (file, entry = null) => {
-    const reading = readDelimitedText(file.text);
+    const reading = readDelimitedText(file.text, boundedDelimitedOptions());
     if (!reading.ok) {
       failFile({ code: reading.problem.code, message: reading.problem.code }, file);
       return false;
@@ -1759,8 +1767,9 @@ function mountLocalFinopsImport() {
       // The reviewed mapping runs across the offload seam. The thunk below is
       // the shipped synchronous call, unchanged, and it is what runs when the
       // browser has no module worker.
-      parsed = await runImport(file, { mapping: binding },
-        () => parseLocalImportFile(file.text, file.fileName, file.mediaType, { mapping: binding }));
+      const options = boundedDelimitedOptions({ mapping: binding });
+      parsed = await runImport(file, options,
+        () => parseLocalImportFile(file.text, file.fileName, file.mediaType, options));
     } catch (error) {
       applyImportProgress(document, null);
       // A cancel is the reader's own decision, already announced where they made

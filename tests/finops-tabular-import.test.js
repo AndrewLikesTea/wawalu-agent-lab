@@ -197,6 +197,41 @@ test("the row ceiling is enforced with the limit and the observed count", () => 
   assert.equal(result.problems[0].observed, 41);
 });
 
+test("oversized delimited exports use a deterministic bounded sample without extrapolating totals", () => {
+  const text = [
+    "date,project_name,model,amount,currency",
+    ...Array.from({ length: 6 }, (_, index) =>
+      `2026-07-2${index + 1},Atlas Platform,gpt-4o,${index + 1}.00,USD`),
+  ].join("\n");
+  const result = parseDelimitedFinopsFile(text, "large.csv", {
+    generatedAt: GENERATED_AT, maxRows: 3, sampleOversized: true,
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.evidence.sampling.mode, "systematic_sample");
+  assert.deepEqual(result.evidence.rowCounts, {
+    source: 6, selected: 3, analyzed: 3, coverage: 0.5, excluded: 3,
+  });
+  assert.deepEqual(result.evidence.exclusions,
+    [{ reason: "bounded_systematic_sample", count: 3 }]);
+  // Rows 1, 3, and 6 are selected by the published rule. The 10 USD result is
+  // the observed sample total, never an extrapolated 20 USD whole-file claim.
+  assert.equal(result.totals.amountMinor, 1000);
+  assert.match(result.evidence.sampling.rule, /first and last/);
+  assert.equal(result.evidence.currency, "USD");
+  assert.equal(result.evidence.source.fileName, "large.csv");
+
+  const imported = parseLocalImportFile(text, "large.csv", "text/csv", {
+    generatedAt: GENERATED_AT, maxRows: 3, sampleOversized: true,
+  });
+  const analysis = normalizeLocalFinopsHistory({ providers: [imported] });
+  assert.equal(analysis.spendUsd, 10);
+  assert.match(analysis.warnings.join(" "), /3 of 6 source rows.*sample/s);
+  assert.match(analysis.limits.join(" "), /no whole-file spend.*inferred/s);
+  assert.equal(analysis.quality.importEvidence[0].rowCounts.coverage, 0.5);
+  assert.equal(analysis.decisionInputs.provenance.importEvidence[0].source.fileName, "large.csv");
+});
+
 test("partial success returns the good rows beside the located problems", () => {
   const text = [
     "date,project_name,model,amount,currency",
@@ -214,6 +249,11 @@ test("partial success returns the good rows beside the located problems", () => 
   assert.equal(result.skippedRows, 5);
   assert.equal(result.parsed.document.records.length, 1);
   assert.equal(result.parsed.document.snapshot.completeness, "partial");
+  assert.deepEqual(result.evidence.rowCounts, {
+    source: 6, selected: 6, analyzed: 1, coverage: 1 / 6, excluded: 5,
+  });
+  assert.deepEqual(result.evidence.exclusions,
+    [{ reason: "malformed_or_unsupported_row", count: 5 }]);
 
   const byCode = new Map(result.problems.map((problem) => [problem.code, problem]));
   assert.equal(byCode.get(TABULAR_CODES.UNPARSEABLE_DATE).row, 3);
