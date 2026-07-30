@@ -8,6 +8,9 @@ import {
   monthlyCycle, monthlyDepartmentDecision,
 } from "../src/monthly-department-decision.js";
 import { applyMonthlyDepartmentDecision } from "../src/monthly-department-decision-view.js";
+import {
+  FINOPS_CONSENT, readRetainedCommitments, retainFinopsPeriod, setFinopsConsent,
+} from "../src/finops-workspace.js";
 import { loadPage, textOf } from "./support/browser.js";
 
 const PAGE = new URL("../src/evolution.html", import.meta.url);
@@ -49,6 +52,38 @@ function pack(intervention = lead()) {
     department: "Atlas Platform",
     interventions: Object.freeze([intervention]),
   });
+}
+
+function storageOf() {
+  const values = new Map();
+  return {
+    getItem: (key) => values.get(key) ?? null,
+    setItem: (key, value) => values.set(key, String(value)),
+    removeItem: (key) => values.delete(key),
+  };
+}
+
+function period(month, spend, version = "finops-briefing/1.0.0") {
+  return {
+    periodId: `user:${month}`,
+    period: month,
+    dataset: "user",
+    briefingContractVersion: version,
+    derivedAt: `${month}-28T12:00:00.000Z`,
+    sourceFingerprint: `source-${month}`,
+    analyzedSpendMinor: spend,
+    attributedSpendMinor: spend,
+    recoverableScenarioMinor: 184000,
+    recordsTotal: 10,
+    recordsAnalyzed: 10,
+    coverageRatioPpm: 1_000_000,
+    confidence: "high",
+    missingInputs: [],
+    materialMetricId: "recoverable_scenario",
+    materialMetricMinor: 184000,
+    absenceReason: null,
+    topDepartmentId: "atlas-platform",
+  };
 }
 
 test("ready contract defines every metric field and preserves the four-question order", () => {
@@ -227,10 +262,75 @@ test("the surface states refuse untrackable work and identify existing tracking"
   assert.match(text, /do not create a duplicate/);
 });
 
-test("the integration is static and contains no network or storage behavior", async () => {
+test("track and decline are explicit, consent-gated controls with an honest saved state", async () => {
+  const storage = storageOf();
+  const now = new Date("2026-07-20T12:00:00.000Z");
+  const first = await loadPage(PAGE);
+  applyMonthlyDepartmentDecision(first.document, pack(), { storage, now });
+  const commit = first.document.querySelector(".monthly-decision-commit");
+  const decline = first.document.querySelector(".monthly-decision-decline");
+  assert.equal(commit.textContent, "Track this action");
+  assert.equal(decline.textContent, "Decline for this month");
+
+  commit.click();
+  assert.equal(readRetainedCommitments(storage).length, 0);
+  assert.match(textOf(first.document.querySelector(".monthly-decision-outcome")),
+    /not been asked to remember/i);
+
+  const declined = await loadPage(PAGE);
+  applyMonthlyDepartmentDecision(declined.document, pack(), { storage, now });
+  declined.document.querySelector(".monthly-decision-decline").click();
+  assert.match(textOf(declined.document.querySelector(".monthly-decision-outcome")),
+    /No tracking record was created and no savings are claimed/i);
+
+  setFinopsConsent(storage, FINOPS_CONSENT.granted, { now });
+  const second = await loadPage(PAGE);
+  applyMonthlyDepartmentDecision(second.document, pack(), { storage, now });
+  second.document.querySelector(".monthly-decision-commit").click();
+  assert.equal(readRetainedCommitments(storage).length, 1);
+  assert.match(textOf(second.document.querySelector(".monthly-decision-outcome")),
+    /awaiting a compatible later analysis/i);
+
+});
+
+test("later review ranks comparable movement and refuses incompatible analyses", async () => {
+  const now = new Date("2026-07-20T12:00:00.000Z");
+  const storage = storageOf();
+  setFinopsConsent(storage, FINOPS_CONSENT.granted, { now });
+  let page = await loadPage(PAGE);
+  applyMonthlyDepartmentDecision(page.document, pack(), { storage, now });
+  page.document.querySelector(".monthly-decision-commit").click();
+
+  retainFinopsPeriod(storage, period("2026-07", 500000), { now });
+  retainFinopsPeriod(storage, period("2026-08", 450000), { now });
+  page = await loadPage(PAGE);
+  applyMonthlyDepartmentDecision(page.document, pack(), { storage, now });
+  let review = page.document.querySelector(".monthly-decision-review");
+  assert.equal(review.dataset.state, "comparable");
+  assert.match(textOf(review), /Later review · rank 1/);
+  assert.match(textOf(review), /analyzed spend went down/i);
+  assert.match(textOf(review), /does not measure, attribute, or verify savings/i);
+
+  const incompatible = storageOf();
+  setFinopsConsent(incompatible, FINOPS_CONSENT.granted, { now });
+  page = await loadPage(PAGE);
+  applyMonthlyDepartmentDecision(page.document, pack(), { storage: incompatible, now });
+  page.document.querySelector(".monthly-decision-commit").click();
+  retainFinopsPeriod(incompatible, period("2026-07", 500000), { now });
+  retainFinopsPeriod(incompatible,
+    period("2026-08", 450000, "finops-briefing/2.0.0"), { now });
+  page = await loadPage(PAGE);
+  applyMonthlyDepartmentDecision(page.document, pack(), { storage: incompatible, now });
+  review = page.document.querySelector(".monthly-decision-review");
+  assert.equal(review.dataset.state, "non-comparable");
+  assert.match(textOf(review), /not comparable/i);
+});
+
+test("the integration uses the reviewed local store and contains no network behavior", async () => {
   const source = await readFile(new URL("../src/monthly-department-decision.js", import.meta.url), "utf8")
     + await readFile(new URL("../src/monthly-department-decision-view.js", import.meta.url), "utf8");
-  assert.doesNotMatch(source, /\b(fetch|XMLHttpRequest|WebSocket|localStorage|sessionStorage)\b/);
+  assert.doesNotMatch(source, /\b(fetch|XMLHttpRequest|WebSocket|sessionStorage)\b/);
+  assert.match(source, /retainApprovedCommitment/);
   assert.match(await readFile(new URL("../src/department-evidence-view.js", import.meta.url), "utf8"),
     /applyMonthlyDepartmentDecision\(doc, model\.fixPack/);
 });

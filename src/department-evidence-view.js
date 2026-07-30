@@ -109,7 +109,7 @@ function announce(doc, text) {
  * @returns the model that was painted, so a caller can assert on the state it
  *   asked for rather than on the DOM it got.
  */
-export function applyDepartmentEvidence(doc, model) {
+export function applyDepartmentEvidence(doc, model, options = {}) {
   const section = byId(doc, SECTION_ID);
   if (!section || !model) return null;
   state(section).model = model;
@@ -126,7 +126,7 @@ export function applyDepartmentEvidence(doc, model) {
   applyDepartmentFixPack(doc, model.fixPack ?? null, {
     status: model.state === "loading" ? "loading" : "ready",
   });
-  applyMonthlyDepartmentDecision(doc, model.fixPack ?? null);
+  applyMonthlyDepartmentDecision(doc, model.fixPack ?? null, options);
   return model;
 }
 

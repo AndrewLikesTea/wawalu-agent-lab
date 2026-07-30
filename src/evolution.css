@@ -1683,6 +1683,22 @@ section[data-workspace-current="true"] { box-shadow:-6px 0 0 0 var(--import-wash
 .monthly-decision-metric dt { font-weight:700; }
 .monthly-decision-metric dd { margin:0; color:var(--ink-muted); }
 .monthly-decision-evidence { margin-top:12px; }
+.monthly-decision-controls { display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-top:16px; }
+.monthly-decision-controls button,.monthly-decision-workspace { min-height:44px; }
+.monthly-decision-decline { background:transparent; color:var(--ink); border:1px solid var(--panel-border); }
+.monthly-decision-workspace { display:inline-flex; align-items:center; color:var(--ink-muted); font-weight:700; }
+.monthly-decision-outcome { margin:12px 0 0; padding:12px 14px; border-left:4px solid var(--panel-border); background:rgba(255,255,255,.7); }
+.monthly-decision-outcome:empty { display:none; }
+.monthly-decision-outcome[data-state="saved"] { border-left-color:#17845c; }
+.monthly-decision-review { margin-top:18px; padding:18px; border:1px solid var(--panel-border); border-radius:12px; }
+.monthly-decision-review h4 { margin:4px 0 8px; font-size:18px; }
+.monthly-decision-review p { margin:0; }
+.monthly-decision-review-boundary { margin-top:10px!important; color:var(--ink-muted); font:600 11px/1.5 ui-monospace,monospace; }
+@media (max-width:620px) {
+  .monthly-decision-metric div { grid-template-columns:1fr; gap:2px; }
+  .monthly-decision-controls { align-items:stretch; }
+  .monthly-decision-controls button,.monthly-decision-workspace { width:100%; justify-content:center; }
+}
 /* Provenance hierarchy, in scale and rhythm rather than hue: the reader's own
    finding gets the page's stat-numeral role and a full block of air; the bundled
    sample sits a step down at the card-title role, indented behind a rule. Both
