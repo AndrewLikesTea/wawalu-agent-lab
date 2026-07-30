@@ -28,7 +28,13 @@
       </header>
 
       <main id="main-content" tabindex="-1">
-      <section class="finops-hero" aria-labelledby="page-title">
+      <!-- THE WORKSPACE FRAME. This region, the brief under it, the load status,
+           the rail, and the shell's own controls carry `data-workspace-frame`:
+           they hold the page heading, the one complete answer, and the way
+           between destinations, so they stay on screen in all four. Everything
+           else on this page carries `data-workspace-region` and belongs to
+           exactly one destination — see src/finops-workspace-shell.js. -->
+      <section class="finops-hero" aria-labelledby="page-title" data-workspace-frame="true">
         <div class="hero-copy">
           <p class="eyebrow">AI FinOps</p>
           <h1 id="page-title">Know what your<br />AI spend is buying.</h1>
@@ -111,7 +117,7 @@
            than added by script, so the rail's own doors — plain anchors — place
            focus correctly before any module runs. It adds no tab stop of its
            own. -->
-      <section class="first-run" id="finops-first-run" tabindex="-1" data-state="pending" data-tone="neutral" data-decision-summary="complete" aria-labelledby="finops-first-run-title">
+      <section class="first-run" id="finops-first-run" tabindex="-1" data-state="pending" data-tone="neutral" data-decision-summary="complete" data-workspace-frame="true" aria-labelledby="finops-first-run-title">
         <div class="first-run-head">
           <p class="eyebrow" id="finops-first-run-label"><span class="first-run-shape" id="finops-first-run-shape" aria-hidden="true">◇</span> <span id="finops-first-run-word">Example result pending</span> · nothing of yours needed</p>
           <!-- The heading is the decision question itself, authored here in the
@@ -250,7 +256,7 @@
            It is superseded together with the example brief it belongs to: the
            destinations stay true when a reader imports their own export, but
            the order they are in was ranked from invented data. -->
-      <section class="finops-destinations" id="finops-destinations" data-state="unavailable" data-superseded="false" data-decision-summary="evidence" aria-labelledby="finops-destinations-title">
+      <section class="finops-destinations" id="finops-destinations" data-state="unavailable" data-superseded="false" data-decision-summary="evidence" data-workspace-region="answer" aria-labelledby="finops-destinations-title">
         <div class="finops-destinations-head">
           <p class="eyebrow" id="finops-destinations-label">Next step · one of three doors</p>
           <h2 id="finops-destinations-title">Where do I go next to act on this?</h2>
@@ -296,7 +302,7 @@
            it a name distinct from the site nav above, which is the difference
            between two navigation landmarks a screen-reader user can tell apart
            and two called "navigation". -->
-      <nav class="workspace-nav" id="finops-workspace-nav" data-ranked="false" data-current="answer" aria-labelledby="finops-workspace-nav-title">
+      <nav class="workspace-nav" id="finops-workspace-nav" data-ranked="false" data-current="answer" data-workspace-frame="true" aria-labelledby="finops-workspace-nav-title">
         <div class="workspace-nav-head">
           <h2 class="workspace-nav-title" id="finops-workspace-nav-title">Go to a part of this workspace</h2>
           <p class="workspace-nav-note">Four destinations. The one marked <strong>Current</strong> is the one you last opened; opening a destination moves the keyboard to it and unfolds any supporting panel it sits inside.</p>
@@ -341,13 +347,52 @@
         <p class="visually-hidden" id="finops-workspace-nav-live" role="status" aria-live="polite" aria-atomic="true"></p>
       </nav>
 
+      <!-- THE WORKING-AREA CONTROL, and why it is not the rail above it.
+           The rail names the four parts of this page and says which one to take
+           first; it is an explanation, and its act-and-verify door leaves for
+           another page because that is where the contract points it. This is the
+           control that changes what is on screen here — four doors, four
+           fragments this page owns, one open at a time — including the in-page
+           act-and-verify work the rail's off-page door cannot reach.
+           A group rather than a second navigation landmark: two landmarks called
+           "navigation" on one page is the problem the rail was named to avoid.
+           Every door is a real anchor with a real href, so the fragment lands in
+           the address bar, back and forward walk the destinations, and a copied
+           link opens on the destination it was copied from. -->
+      <div class="workspace-switch" id="finops-workspace-switch" role="group" data-workspace-frame="true" data-workspace-destination="answer" aria-labelledby="finops-workspace-switch-title" aria-describedby="finops-workspace-switch-note">
+        <h2 class="eyebrow" id="finops-workspace-switch-title">Working area</h2>
+        <p class="workspace-switch-note" id="finops-workspace-switch-note">One destination is open at a time. The answer above stays on screen in all four.</p>
+        <ul class="workspace-switch-list" id="finops-workspace-switch-list">
+          <li><a class="workspace-switch-door" data-shell-destination="answer" data-shell-name="The answer" href="#workspace-answer">The answer <span class="workspace-switch-state" data-role="state" hidden></span></a></li>
+          <li><a class="workspace-switch-door" data-shell-destination="evidence" data-shell-name="Evidence" href="#workspace-evidence">Evidence <span class="workspace-switch-state" data-role="state" hidden></span></a></li>
+          <li><a class="workspace-switch-door" data-shell-destination="department" data-shell-name="Departments" href="#workspace-departments">Departments <span class="workspace-switch-state" data-role="state" hidden></span></a></li>
+          <li><a class="workspace-switch-door" data-shell-destination="act-and-verify" data-shell-name="Act and verify" href="#workspace-act-and-verify">Act and verify <span class="workspace-switch-state" data-role="state" hidden></span></a></li>
+        </ul>
+        <!-- One polite status region for the shell, silent on load and silent for
+             a press that changes nothing. It speaks for this control's own doors;
+             the rail's doors are announced by the rail. -->
+        <p class="visually-hidden" id="finops-workspace-switch-live" role="status" aria-live="polite" aria-atomic="true"></p>
+      </div>
+
+      <!-- The five figures a leader is judging every destination against —
+           benchmark, impact, confidence, why it matters, provenance — carried out
+           of the brief so that leaving the answer does not mean leaving them.
+           Authored empty and hidden: it is filled from the same bundled
+           destination record the ranked door reads, and it stays hidden on the
+           answer, where the brief itself is on screen and this would be a second
+           copy of it. -->
+      <section class="workspace-context" id="finops-workspace-context" data-state="unavailable" data-decision-summary="evidence" data-workspace-frame="true" aria-labelledby="finops-workspace-context-title" hidden>
+        <h2 class="eyebrow" id="finops-workspace-context-title">Carried from the answer</h2>
+        <dl class="workspace-context-list" id="finops-workspace-context-list"></dl>
+      </section>
+
       <!-- The conversion moment, after the result and outside the region that
            holds it. It is deliberately quieter than either choice above: a
            reader who has just read a number and wants a person is taking a
            different step, not a third way to start. It opens the follow-up form
            this page already ships rather than adding a second one, so there is
            still exactly one place an email address is typed. -->
-      <aside class="first-run-conversion" id="finops-first-run-conversion" aria-labelledby="finops-first-run-conversion-title">
+      <aside class="first-run-conversion" id="finops-first-run-conversion" data-workspace-region="answer" aria-labelledby="finops-first-run-conversion-title">
         <div>
           <p class="first-run-conversion-title" id="finops-first-run-conversion-title">Want help with your own analysis?</p>
           <p class="first-run-conversion-body">Analyze your provider exports in this browser, or leave your email and we can walk you through the process.</p>
@@ -379,7 +424,7 @@
            export and that is the better next step. Both are real buttons in
            this region's own tab order — no scroll hint, no anchor, nothing a
            keyboard reaches differently. -->
-      <section class="finops-load-state" id="finops-load-state" role="status" aria-live="polite" aria-atomic="true" data-state="loading" data-tone="neutral" aria-labelledby="finops-load-label">
+      <section class="finops-load-state" id="finops-load-state" role="status" aria-live="polite" aria-atomic="true" data-state="loading" data-tone="neutral" data-workspace-frame="true" aria-labelledby="finops-load-label">
         <div>
           <p class="eyebrow" id="finops-load-label"><span class="finops-load-shape" id="finops-load-shape" aria-hidden="true">◌</span> <span id="finops-load-word">Reading</span> · Page status</p>
           <strong id="finops-load-title">Reading the bundled example…</strong>
@@ -405,7 +450,7 @@
            ranked yet" beside the h1 made "not yet" the page's headline claim on
            every cold load. It keeps its prominence relative to the panels it
            belongs with; it no longer outranks a populated result. -->
-      <section class="score-card" id="score-card" data-decision-summary="evidence" aria-labelledby="score-card-title">
+      <section class="score-card" id="score-card" data-decision-summary="evidence" data-workspace-region="evidence" aria-labelledby="score-card-title">
         <p class="eyebrow" id="score-card-title">AI literacy</p>
         <p class="score-grade" id="score-grade" aria-hidden="true">–</p>
         <!-- The letter above is a glyph and a colour band, which is one and a
@@ -426,7 +471,7 @@
            and is listed, in declared rank order, in the closed block at the
            bottom of this section. Nothing here is computed by the page: the
            contract selects, this section displays. -->
-      <section class="guided-result finops-panel" id="guided-result" data-state="unavailable" data-decision-ready="false" data-decision-summary="complete" aria-labelledby="guided-result-question" hidden>
+      <section class="guided-result finops-panel" id="guided-result" data-state="unavailable" data-decision-ready="false" data-decision-summary="complete" data-workspace-region="answer" aria-labelledby="guided-result-question" hidden>
         <p class="eyebrow">FinOps briefing · headline</p>
         <h2 id="guided-result-question">What should we do now?</h2>
         <p class="guided-result-finding" id="guided-result-finding">No next step ranked yet</p>
@@ -461,7 +506,7 @@
         </details>
       </section>
 
-      <section class="local-import finops-panel" aria-labelledby="local-import-title">
+      <section class="local-import finops-panel" data-workspace-region="answer" aria-labelledby="local-import-title">
         <div class="local-import-heading">
           <div class="section-heading">
             <p class="eyebrow">Bring your own exports · browser only</p>
@@ -1111,7 +1156,7 @@
            than as a panel at the foot of one. What stays here is the way to it,
            under the id this section has always carried, so a saved deep link
            still lands on something that says where the workflow went. -->
-      <section class="finops-panel coach-handoff" id="prompt-coaching" aria-labelledby="coach-handoff-title">
+      <section class="finops-panel coach-handoff" id="prompt-coaching" data-workspace-region="act-and-verify" aria-labelledby="coach-handoff-title">
         <div class="section-heading">
           <p class="eyebrow">Coach one prompt · browser only</p>
           <h2 id="coach-handoff-title">Would a model answer one prompt well?</h2>
@@ -1126,7 +1171,7 @@
            bundled analysis on load, the example briefing, or the reader's own
            import — so there is no state in which a visitor who has reached a
            number has no way to ask about it. -->
-      <section class="finops-panel finops-contact" id="finops-contact" aria-labelledby="finops-contact-title">
+      <section class="finops-panel finops-contact" id="finops-contact" data-workspace-region="act-and-verify" aria-labelledby="finops-contact-title">
         <div class="finops-contact-copy">
           <p class="eyebrow">Next step</p>
           <h2 id="finops-contact-title">Questions about this result?</h2>
@@ -1162,7 +1207,7 @@
         </div>
       </section>
 
-      <article class="proof-point" data-basis="illustrative" aria-labelledby="proof-point-title">
+      <article class="proof-point" data-basis="illustrative" data-workspace-region="evidence" aria-labelledby="proof-point-title">
         <!-- Written above the figures, not under them: a leader reads what kind
              of number this is before they read the number. The view sharpens the
              wording once their own — smaller — import is on screen. -->
@@ -1201,7 +1246,7 @@
            visitor meets a coherent headline before any script runs and so the
            surface does not jump when one does. A test pins these strings against
            the model, which is what keeps the two from drifting apart. -->
-      <section class="finops-headline" id="finops-headline" data-decision-summary="evidence" data-status="ready" data-state="sample_only" data-source="sample" aria-labelledby="finops-headline-question" aria-describedby="finops-headline-basis">
+      <section class="finops-headline" id="finops-headline" data-decision-summary="evidence" data-workspace-region="evidence" data-status="ready" data-state="sample_only" data-source="sample" aria-labelledby="finops-headline-question" aria-describedby="finops-headline-basis">
         <p class="eyebrow">Your grade</p>
         <!-- One question, and it is the heading: a reader listing headings meets
              the thing this surface answers, not a styled sentence. -->
@@ -1228,7 +1273,7 @@
         <button class="secondary-button" id="finops-return-to-sample" type="button" hidden>Show the bundled example data in all four panels</button>
       </section>
 
-      <details class="support-disclosure" id="disclosure-grade-comparisons">
+      <details class="support-disclosure" id="disclosure-grade-comparisons" data-workspace-region="evidence">
         <summary class="support-disclosure-summary"><span class="support-disclosure-step" data-role="step">Supporting panel</span> <span class="support-disclosure-question" data-role="question">How does this grade compare — against a cohort, and against the team that needs coaching?</span></summary>
       <section class="finops-comparison" aria-label="Grade comparisons">
         <article class="finops-comparison-card" id="cohort-comparison" data-source="sample" aria-labelledby="cohort-comparison-title" aria-describedby="cohort-comparison-basis">
@@ -1260,7 +1305,7 @@
            grade, its coverage, the disclosed subscores, the cohort statement and
            the one next action are all painted by graded-sample-view.js out of
            the rubric and eligibility results; these are slots, never wording. -->
-      <section class="graded-sample" id="graded-sample" data-state="example" data-expanded="false" aria-labelledby="graded-sample-title" hidden>
+      <section class="graded-sample" id="graded-sample" data-state="example" data-expanded="false" data-workspace-region="evidence" aria-labelledby="graded-sample-title" hidden>
         <!-- A heading, not an eyebrow paragraph: this section is a sibling of the
              page's other h2 panels, and the grade, cohort and next action inside
              it head themselves h3. A reader listing headings reaches their own
@@ -1279,7 +1324,7 @@
            org-query-decision.js selects; these are slots, never wording. No
            prompt text can reach here — the model is built from classified
            records whose eight fields are an allowlist. -->
-      <section class="org-coaching" id="org-coaching" data-state="absent" aria-labelledby="org-coaching-title" hidden>
+      <section class="org-coaching" id="org-coaching" data-state="absent" data-workspace-region="evidence" aria-labelledby="org-coaching-title" hidden>
         <h2 class="eyebrow" id="org-coaching-title">Which department needs coaching now?</h2>
         <div id="org-coaching-body"></div>
         <p class="org-coaching-live" id="org-coaching-live" role="status" aria-live="polite" aria-atomic="true"></p>
@@ -1308,7 +1353,7 @@
            two phases that are not a reading, `loading` and `error`, are the
            view's; no branch here can invent a sixth. Nothing but dates, dollar
            totals and release counts reaches this section. -->
-      <section class="spend-per-delivery" id="spend-per-delivery" data-state="absent" data-phase="ready" data-decision-summary="evidence" role="region" aria-labelledby="spend-per-delivery-title" hidden>
+      <section class="spend-per-delivery" id="spend-per-delivery" data-state="absent" data-phase="ready" data-decision-summary="evidence" data-workspace-region="evidence" role="region" aria-labelledby="spend-per-delivery-title" hidden>
         <p class="eyebrow">Spend against shipped delivery</p>
         <h2 class="spd-question" id="spend-per-delivery-title" tabindex="-1">Is AI spend keeping pace with shipped delivery?</h2>
         <div id="spend-per-delivery-body"></div>
@@ -1322,7 +1367,7 @@
            eligibility verdict. These are slots, never wording — including the
            redaction promise, which is authored once in department-evidence.js so
            the panel and its tests cannot hold two versions of it. -->
-      <section class="department-evidence" id="department-evidence" data-state="empty" data-expanded="false" aria-labelledby="department-evidence-title" hidden>
+      <section class="department-evidence" id="department-evidence" data-state="empty" data-expanded="false" data-workspace-region="department" aria-labelledby="department-evidence-title" hidden>
         <h2 class="eyebrow" id="department-evidence-title">Evidence behind this grade</h2>
         <div id="department-evidence-body"></div>
         <p class="department-evidence-live" id="department-evidence-live" role="status" aria-live="polite" aria-atomic="true"></p>
@@ -1338,13 +1383,13 @@
            isolates it on paper rather than a second copy of the same facts being
            built for the sheet, so the page and the printout cannot describe two
            different departments. -->
-      <section class="department-fix-pack" id="department-fix-pack" data-state="unavailable" data-evidence-expanded="false" data-more-expanded="false" aria-labelledby="department-fix-pack-title" hidden>
+      <section class="department-fix-pack" id="department-fix-pack" data-state="unavailable" data-evidence-expanded="false" data-more-expanded="false" data-workspace-region="department" aria-labelledby="department-fix-pack-title" hidden>
         <h2 class="eyebrow" id="department-fix-pack-title">What this department should do first</h2>
         <div id="department-fix-pack-body"></div>
         <p class="department-evidence-live" id="department-fix-pack-live" role="status" aria-live="polite" aria-atomic="true"></p>
       </section>
 
-      <details class="support-disclosure" id="disclosure-spend-and-recovery" data-panel-id="spend-and-recovery">
+      <details class="support-disclosure" id="disclosure-spend-and-recovery" data-panel-id="spend-and-recovery" data-workspace-region="evidence">
         <summary class="support-disclosure-summary"><span class="support-disclosure-step" data-role="step">Supporting panel</span> <span class="support-disclosure-question" data-role="question">What did we spend this period, and how much of it is recoverable?</span></summary>
       <section class="kpi-row" id="kpi-row" data-source="sample" aria-label="Headline metrics" aria-describedby="headline-basis">
         <!-- These numbers show the bundled sample until an import can fill them.
@@ -1437,7 +1482,7 @@
       </section>
       </details>
 
-      <details class="support-disclosure" id="disclosure-department-priority" data-panel-id="department-priority">
+      <details class="support-disclosure" id="disclosure-department-priority" data-panel-id="department-priority" data-workspace-region="department">
         <summary class="support-disclosure-summary"><span class="support-disclosure-step" data-role="step">Supporting panel</span> <span class="support-disclosure-question" data-role="question">Which department needs help first, and how is it trending?</span></summary>
       <!-- A workspace-rail destination: focusable so the rail can hand it the
            keyboard, and folded inside the disclosure above, which the rail opens
@@ -1523,7 +1568,7 @@
       </section>
       </details>
 
-      <details class="support-disclosure" id="disclosure-spend-mix" data-panel-id="spend-mix">
+      <details class="support-disclosure" id="disclosure-spend-mix" data-panel-id="spend-mix" data-workspace-region="department">
         <summary class="support-disclosure-summary"><span class="support-disclosure-step" data-role="step">Supporting panel</span> <span class="support-disclosure-question" data-role="question">Where does the money go — what was the spend actually asked to do?</span></summary>
       <section class="finops-panel" id="spend-mix-panel" aria-labelledby="mix-title">
         <div class="section-heading">
@@ -1542,7 +1587,7 @@
       </section>
       </details>
 
-      <details class="support-disclosure" id="disclosure-savings-portfolio" data-panel-id="savings-portfolio">
+      <details class="support-disclosure" id="disclosure-savings-portfolio" data-panel-id="savings-portfolio" data-workspace-region="act-and-verify">
         <summary class="support-disclosure-summary"><span class="support-disclosure-step" data-role="step">Supporting panel</span> <span class="support-disclosure-question" data-role="question">Are projected savings turning into verified savings?</span></summary>
       <section class="finops-panel portfolio-panel" id="savings-portfolio-panel" aria-labelledby="portfolio-title">
         <div class="portfolio-intro">
@@ -1596,7 +1641,7 @@
       </section>
       </details>
 
-      <details class="support-disclosure" id="disclosure-recommendation-evidence" data-panel-id="recommendation-evidence">
+      <details class="support-disclosure" id="disclosure-recommendation-evidence" data-panel-id="recommendation-evidence" data-workspace-region="evidence">
         <summary class="support-disclosure-summary"><span class="support-disclosure-step" data-role="step">Supporting panel</span> <span class="support-disclosure-question" data-role="question">How did a recommendation earn the score it was given?</span></summary>
       <!-- A workspace-rail destination, focusable for the same reason as the
            other two: the rail moves the keyboard here, not just the scroll. -->
@@ -1617,7 +1662,7 @@
       </section>
       </details>
 
-      <section class="finops-panel" aria-labelledby="privacy-title">
+      <section class="finops-panel" data-workspace-region="evidence" aria-labelledby="privacy-title">
         <div class="section-heading">
           <p class="eyebrow">Privacy &amp; compliance</p>
           <h2 id="privacy-title">Scored on shape, never on secrets</h2>

@@ -185,6 +185,7 @@ import {
 import {
   applyWorkspaceNav, bindWorkspaceNav, supersedeWorkspaceNavRanking,
 } from "/finops-workspace-nav.js";
+import { initWorkspaceShell } from "/finops-workspace-shell.js";
 import {
   announce as announceStage, applyDatasetProvenance, applyExportPackageGuidance,
   applyFieldDiagnostic, applyImportLimits, applyOrgQuerySources, applyOrgQuerySourceStatus,
@@ -2711,6 +2712,11 @@ async function init() {
   // plain anchor cannot do — unfolding the panel the target sits inside, moving
   // the keyboard there, and saying so once.
   applyWorkspaceNav(document, destinations, { hash: window.location?.hash ?? "" });
+  // The shell goes up before the rail is bound, so the destination a door points
+  // into is on screen by the time the rail moves focus into it: the shell's own
+  // click listener is registered in the capture phase, and a region that is still
+  // hidden cannot take focus.
+  initWorkspaceShell(document, { win: window, loaded: destinations });
   bindWorkspaceNav(document);
   initFinopsContact(document);
   const gateway = createStaticGateway();

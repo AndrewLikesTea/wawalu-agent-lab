@@ -37,6 +37,7 @@ import {
   normalizeExportRecord,
   undeclaredExportFields,
 } from "./shiplog-export-schema.js";
+import { onRecordsChanged } from "./shiplog-records.js";
 
 export { SHIPLOG_EXPORT_SCHEMA, SHIPLOG_EXPORT_VERSION };
 
@@ -157,7 +158,15 @@ export function initShiplogExport(root, storage, options = {}) {
   const status = root.querySelector("#export-shiplog-status");
   if (!button || !counts) return;
 
-  counts.textContent = formatShiplogExportCounts(shiplogExportCounts(storage));
+  // Repainted on every write, not only at load. The button always exported what
+  // the store held; until this subscription the sentence beside it kept
+  // advertising the count from the moment the page opened, so a visitor who had
+  // just recorded a decision was told the file would not contain it.
+  const paintCounts = () => {
+    counts.textContent = formatShiplogExportCounts(shiplogExportCounts(storage));
+  };
+  paintCounts();
+  onRecordsChanged(root, paintCounts);
   button.addEventListener("click", () => {
     try {
       const report = buildShiplogExport(storage, {
