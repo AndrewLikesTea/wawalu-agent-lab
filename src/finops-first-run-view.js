@@ -38,6 +38,43 @@ function paintSlot(doc, valueId, detailId, slot) {
   return value;
 }
 
+/**
+ * Paint a band chip: the glyph, the word, and the state the stylesheet keys off.
+ *
+ * Four channels, and the tint is the last of them. The glyph is `aria-hidden`
+ * because it is a shape beside a word rather than the word itself — the chip's
+ * accessible name is the label, which is also the text a speech-control user
+ * says and the text that survives a greyscale print. `data-band` and
+ * `data-silhouette` carry the state to CSS so no rule has to parse a colour.
+ *
+ * A slot with no band descriptor is one that never carries a position; its chip
+ * is hidden rather than emptied, because an empty chip is a shape that means
+ * nothing.
+ */
+function paintBand(doc, bandId, slot) {
+  const chip = byId(doc, bandId);
+  if (!chip) return null;
+  const band = slot?.band;
+  if (!band?.label) {
+    chip.hidden = true;
+    chip.removeAttribute("data-band");
+    chip.replaceChildren();
+    return chip;
+  }
+  chip.hidden = false;
+  chip.dataset.band = band.state;
+  chip.dataset.silhouette = band.silhouette;
+  const shape = doc.createElement("span");
+  shape.className = "first-run-band-shape";
+  shape.setAttribute("aria-hidden", "true");
+  shape.textContent = band.shape;
+  const word = doc.createElement("span");
+  word.className = "first-run-band-label";
+  word.textContent = band.label;
+  chip.replaceChildren(shape, doc.createTextNode(" "), word);
+  return chip;
+}
+
 /** One `<dt>`/`<dd>` pair, built rather than assigned. */
 function definition(doc, entry) {
   const item = doc.createElement("div");
@@ -102,12 +139,29 @@ export function bindFirstRunDisclosure(doc) {
 /**
  * Apply a composed result to the document.
  *
+ * REPAINT, NEVER REPLACE. Every slot below is written through `textContent` or
+ * `replaceChildren` on a node authored in evolution.html, and nothing here
+ * removes or re-creates a focusable element. That is what keeps a reader who is
+ * standing on the evidence disclosure standing on it when a fresh position
+ * lands: the `<summary>` they focused is the same node afterwards, so the
+ * browser never moves them and `open` never resets. The guard below restores
+ * focus anyway if a caller ever repaints a subtree that did hold it — a
+ * regression here should cost a frame, not a reader's place on the page.
+ *
+ * `announce` is off by default and deliberately so. The live region exists to
+ * say that a number CHANGED; firing it on the first paint reads the whole
+ * headline aloud at page load, over the top of whatever the reader was already
+ * being told. The boot path leaves it off; the import path turns it on.
+ *
  * @returns the region, so a caller can assert on the state it asked for.
  */
-export function applyFirstRunResult(doc, result) {
+export function applyFirstRunResult(doc, result, { announce = false } = {}) {
   const region = byId(doc, FIRST_RUN_IDS.region);
   if (!region || !result) return null;
   const presentation = result.presentation ?? {};
+  // Captured before the first write, restored after the last one.
+  const focused = doc.activeElement;
+  const wasInRegion = Boolean(focused && region.contains?.(focused));
 
   region.dataset.state = presentation.state ?? "pending";
   region.dataset.tone = presentation.tone ?? "neutral";
@@ -142,10 +196,15 @@ export function applyFirstRunResult(doc, result) {
 
   paintSlot(doc, FIRST_RUN_IDS.benchmarkValue, FIRST_RUN_IDS.benchmarkDetail, result.benchmark);
   paintSlot(doc, FIRST_RUN_IDS.impactValue, FIRST_RUN_IDS.impactDetail, result.impact);
+  // The band chip is painted before the value it bands, matching the DOM order
+  // the region authors: a reader meets "Bottom quartile" and then the figure
+  // that put them there, in that order, in speech and on screen alike.
+  paintBand(doc, FIRST_RUN_IDS.peerBand, result.peer);
   paintSlot(doc, FIRST_RUN_IDS.peerValue, FIRST_RUN_IDS.peerDetail, result.peer);
   // The internal drill-down of the position above, painted through the same
   // helper and into the same slot shape: a suppressed finding is a sentence in
   // the value, never an empty panel and never a console warning.
+  paintBand(doc, FIRST_RUN_IDS.internalBand, result.internal);
   paintSlot(doc, FIRST_RUN_IDS.internalValue, FIRST_RUN_IDS.internalDetail, result.internal);
 
   const action = setText(doc, FIRST_RUN_IDS.action, result.action?.value ?? "");
@@ -179,11 +238,23 @@ export function applyFirstRunResult(doc, result) {
 
   // Spoken once, and only what a reader who cannot see the region would need to
   // decide whether to read it: what kind of numbers these are and what they say.
+  //
+  // The band travels with it, because a reader who is told a figure changed and
+  // not which side of the cohort it landed on has been told half the update.
+  // Politely, and only on a repaint: `aria-live="polite"` queues behind whatever
+  // the reader is hearing and never moves the focus ring.
   const live = byId(doc, FIRST_RUN_IDS.live);
-  if (live) {
+  if (live && announce) {
+    const position = result.peer?.band?.label ? `${result.peer.band.label}. ` : "";
     live.textContent = result.benchmark?.available
-      ? `${result.sample.badge}. ${result.answer?.value ?? result.benchmark.value}. ${result.action?.value ?? ""}`
-      : `${result.sample.badge}. ${result.reason ?? ""}`;
+      ? `${result.sample.badge}. ${position}${result.answer?.value ?? result.benchmark.value}. ${result.action?.value ?? ""}`
+      : `${result.sample.badge}. ${position}${result.reason ?? ""}`;
+  }
+
+  // Put the reader back where they were standing. `preventScroll`, because a
+  // repaint they did not ask for should not also move the page under them.
+  if (wasInRegion && doc.activeElement !== focused && focused?.isConnected !== false) {
+    focused?.focus?.({ preventScroll: true });
   }
   return region;
 }
@@ -224,12 +295,24 @@ export function applyExampleBriefingCta(doc) {
  * own follow-up form sits under the result the reader is now reading.
  */
 export function applyFirstRunSupersession(doc, superseded,
-  { conversionId = "finops-first-run-conversion" } = {}) {
+  { conversionId = "finops-first-run-conversion", focusFallbackId = null } = {}) {
   const region = byId(doc, FIRST_RUN_IDS.region);
   if (!region) return null;
   const retired = Boolean(superseded);
+  // Hiding the element a reader is standing on drops focus to `<body>`, which
+  // for a keyboard user means the next Tab starts again at the top of the
+  // document — they imported a file and lost their place on the page. So when
+  // this region is retired out from under the focus ring, focus is moved
+  // deliberately to the surface that replaced it rather than dropped.
+  const focused = doc.activeElement;
+  const heldFocus = retired && !region.hidden && Boolean(focused && region.contains?.(focused));
   region.dataset.superseded = retired ? "true" : "false";
   region.hidden = retired;
+  if (heldFocus) {
+    const fallback = (focusFallbackId ? byId(doc, focusFallbackId) : null)
+      ?? doc.querySelector?.("main");
+    fallback?.focus?.({ preventScroll: true });
+  }
   const conversion = byId(doc, conversionId);
   if (conversion) conversion.hidden = retired;
   return region;

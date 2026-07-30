@@ -51,10 +51,11 @@ import {
 } from "./example-dataset.js";
 import { buildFinopsBriefing, validateBriefing } from "./finops-briefing-contract.js";
 import {
-  costPositionDetail, costPositionHeadline, resolveCostPosition,
+  COST_BAND, costPositionDetail, costPositionHeadline, resolveCostPosition,
 } from "./peer-cost-position.js";
 import {
-  INTERNAL_GAP_STATUS, internalGapDetail, internalGapHeadline, resolveInternalCostGap,
+  bandDistanceWords, INTERNAL_GAP_STATUS, internalGapDetail, internalGapHeadline,
+  resolveInternalCostGap,
 } from "./internal-cost-gap.js";
 import { DECISION_QUESTION, loadCanonicalDecision } from "./finops-decision-contract.js";
 import {
@@ -82,10 +83,14 @@ export const FIRST_RUN_IDS = Object.freeze({
   impactDetail: "finops-first-run-impact-detail",
   peerValue: "finops-first-run-peer-value",
   peerDetail: "finops-first-run-peer-detail",
+  // The band chip, ahead of the value it bands, so the position is the first
+  // thing read in the slot rather than a decoration hung off the end of it.
+  peerBand: "finops-first-run-peer-band",
   // The internal drill-down of that same position: which department is furthest
   // behind which, on the same metric and the same band boundaries.
   internalValue: "finops-first-run-internal-value",
   internalDetail: "finops-first-run-internal-detail",
+  internalBand: "finops-first-run-internal-band",
   action: "finops-first-run-action",
   role: "finops-first-run-role",
   methodList: "finops-first-run-method-list",
@@ -300,7 +305,68 @@ function periodLine(period) {
 }
 
 function slot(available, value, detail) {
-  return Object.freeze({ available, value, detail });
+  return Object.freeze({ available, value, detail, band: null });
+}
+
+// ---------------------------------------------------------------------------
+// BAND STATES — the position and the severity of the internal gap, as something
+// a reader can read rather than a colour they have to decode.
+//
+// A band is four channels or it is nothing: a WORD (the label below), a SHAPE
+// (a glyph that differs per state, not one glyph rotated), a SILHOUETTE, and
+// only then a tint. The Claude Design foundations card sets the silhouette
+// rule this follows — "filled wash = dynamic signal, outline = static
+// classification" — so a measured band is a wash and `withheld`, which is a
+// classification of an *absence*, is an outline. That is also why `withheld` is
+// a state in this table and not a missing entry: a reader who cannot be given a
+// position is owed a labelled chip saying so, in the position's own place.
+
+/** The band states a chip may carry. `withheld` is first-class, never a blank. */
+export const BAND_STATE = Object.freeze({
+  ahead: "ahead",
+  middle: "middle",
+  behind: "behind",
+  critical: "critical",
+  withheld: "withheld",
+});
+
+/**
+ * The non-colour channels for each state.
+ *
+ * `shape` is a distinct glyph per state, so greyscale, a mono printer, and a
+ * screen reader that ignores CSS all still separate them. `silhouette` is what
+ * the stylesheet keys the chip's fill and border weight off.
+ */
+export const BAND_PRESENTATION = Object.freeze({
+  [BAND_STATE.ahead]: Object.freeze({ shape: "▲", silhouette: "wash" }),
+  [BAND_STATE.middle]: Object.freeze({ shape: "◆", silhouette: "wash" }),
+  [BAND_STATE.behind]: Object.freeze({ shape: "▼", silhouette: "wash" }),
+  [BAND_STATE.critical]: Object.freeze({ shape: "▼▼", silhouette: "wash" }),
+  [BAND_STATE.withheld]: Object.freeze({ shape: "◇", silhouette: "outline" }),
+});
+
+/** The peer position's three measured bands, in this module's vocabulary. */
+const PEER_BAND_STATE = Object.freeze({
+  [COST_BAND.top]: BAND_STATE.ahead,
+  [COST_BAND.middle]: BAND_STATE.middle,
+  [COST_BAND.bottom]: BAND_STATE.behind,
+});
+
+/** The label a withheld position carries in place of a band. Never a dash. */
+export const WITHHELD_BAND_LABEL = "Position withheld";
+
+/** The label a suppressed internal comparison carries. Never a dash either. */
+export const WITHHELD_GAP_LABEL = "Gap not compared";
+
+/** A band descriptor: the word, the glyph, the silhouette, and the state key. */
+function band(state, label) {
+  const presentation = BAND_PRESENTATION[state] ?? BAND_PRESENTATION[BAND_STATE.withheld];
+  return Object.freeze({ state, label, ...presentation });
+}
+
+/** A slot that carries a band chip beside its value. */
+function bandedSlot(available, value, detail, bandDescriptor) {
+  return Object.freeze({ available, value, detail, band: bandDescriptor });
 }
 
 /**
@@ -377,8 +443,15 @@ function impactSlot(briefing, notices = []) {
  */
 function peerSlot(analysis, org, tasks) {
   const position = resolveCostPosition({ org, spendUsd: Number(analysis?.spendUsd), tasks });
-  if (!position.available) return slot(false, position.reason, position.metric.definition);
-  return slot(true, costPositionHeadline(position), costPositionDetail(position));
+  // A withheld position is a band state with a label and a silhouette of its
+  // own, painted in the position's place — not a gap in the row.
+  if (!position.available) {
+    return bandedSlot(false, position.reason, position.metric.definition,
+      band(BAND_STATE.withheld, WITHHELD_BAND_LABEL));
+  }
+  const state = PEER_BAND_STATE[position.band] ?? BAND_STATE.middle;
+  return bandedSlot(true, costPositionHeadline(position), costPositionDetail(position),
+    band(state, position.bandLabel));
 }
 
 /**
@@ -400,10 +473,17 @@ function peerSlot(analysis, org, tasks) {
  */
 function internalSlot(gap) {
   if (gap?.status !== INTERNAL_GAP_STATUS.finding) {
-    return slot(false, gap?.suppressedReason ?? FIRST_RUN_UNAVAILABLE.notComposed,
-      gap?.metric?.definition ?? "");
+    return bandedSlot(false, gap?.suppressedReason ?? FIRST_RUN_UNAVAILABLE.notComposed,
+      gap?.metric?.definition ?? "", band(BAND_STATE.withheld, WITHHELD_GAP_LABEL));
   }
-  return slot(true, `${internalGapHeadline(gap)}.`, internalGapDetail(gap));
+  // Severity is the band distance itself, in the rubric's own words: one band
+  // behind is a gap, two or more is a different fact and gets a different chip.
+  const distance = Number(gap.gapBands) || 0;
+  const state = distance >= 2 ? BAND_STATE.critical : BAND_STATE.behind;
+  const words = bandDistanceWords(distance);
+  const label = `${words.charAt(0).toUpperCase()}${words.slice(1)} behind`;
+  return bandedSlot(true, `${internalGapHeadline(gap)}.`, internalGapDetail(gap),
+    band(state, label));
 }
 
 /** The rank-1 action and the role accountable for it, or the reason there is none. */
@@ -641,12 +721,14 @@ function degradedResult(presentation, reason, answerValue) {
     // state. A position is either produced or withheld with a sentence that
     // says what is missing, and a composition that failed outright is still a
     // reason a reader can act on.
-    peer: slot(false, "No peer position: this example could not be composed, so there is "
-      + "no cost per successful task to place.", reason),
+    peer: bandedSlot(false, "No peer position: this example could not be composed, so there is "
+      + "no cost per successful task to place.", reason,
+    band(BAND_STATE.withheld, WITHHELD_BAND_LABEL)),
     // Suppressed, not blank, for the same reason: a comparison that was not made
     // is owed the sentence that says so.
-    internal: slot(false, "No internal comparison: this example could not be composed, so no "
-      + "department was placed against another.", reason),
+    internal: bandedSlot(false, "No internal comparison: this example could not be composed, so no "
+      + "department was placed against another.", reason,
+    band(BAND_STATE.withheld, WITHHELD_GAP_LABEL)),
     internalGap: null,
     action: slot(false, "Recommended action unavailable.", reason),
     confidence: blank,

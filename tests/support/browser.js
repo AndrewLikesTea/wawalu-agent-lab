@@ -526,6 +526,19 @@ export function pressKey(document, key) {
     return next;
   }
 
+  // A `<summary>` is natively operable with both Enter and Space, and both go
+  // through the same path: flip the owning `<details>`, then fire `toggle`.
+  // Modelled here so a keyboard test of a disclosure exercises the page's own
+  // `toggle` binding rather than a click the shim invented.
+  if (target.tagName === "SUMMARY" && (key === "Enter" || key === " ")) {
+    const details = target.closest("details");
+    if (details) {
+      if (details.hasAttribute("open")) details.removeAttribute("open");
+      else details.setAttribute("open", "");
+      details.dispatchEvent(new DomEvent("toggle", { bubbles: false }));
+      return document.activeElement;
+    }
+  }
   if (key === "Enter") {
     if (target.tagName === "A" || target.tagName === "BUTTON") target.click();
     else if (target.tagName === "INPUT" && target.type !== "radio" && target.type !== "checkbox") {
