@@ -133,6 +133,13 @@
 .sac-calculation .sac-fact { padding:0; border:0; }
 .sac-calculation .sac-fact dd { font-size:14px; }
 .sac-caveat { max-width:74ch; color:#55554f; font-size:14px; line-height:1.55; }
+/* Provenance for the evidence above, and the same line when it was discarded.
+   The state travels in the words; the dashed edge only repeats it. */
+.sac-snapshot {
+  margin:0 36px 20px; padding:10px 14px; max-width:74ch;
+  border-left:3px solid #b9b7ae; color:#55554f; font-size:13px; line-height:1.55;
+}
+.sac-snapshot[data-snapshot="rejected"] { border-left-style:dashed; }
 .sac-contracts { color:#777771; font:650 10px/1.5 ui-monospace,monospace; overflow-wrap:anywhere; }
 .sac-state,.sac-rejections { padding:28px 36px; }
 .sac-rejections { margin-bottom:20px; background:var(--sac-red); }

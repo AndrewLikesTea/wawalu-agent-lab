@@ -448,12 +448,26 @@ export async function verifyArtifact(root) {
   const actionCenterEntry = await readFile(
     resolve(root, "savings-action-center-page.js"), "utf8");
   for (const wiring of [
-    "assembleRecurringReview", "readCurrentReviewEvidence", "readMonthlyAction",
+    "assembleRecurringReview", "restoreJourneySnapshot",
     "retainedAction", "currentAnalysis", "theoVerdict",
   ]) {
     if (!actionCenterEntry.includes(wiring)) {
       throw new Error(`the action center entry no longer joins ${wiring} into its review`);
     }
+  }
+  // The entry reads those three inputs through the journey snapshot now, so the
+  // snapshot module is where both record readers have to be — and the import
+  // path is where the snapshot has to be written. A snapshot module nothing
+  // creates from and nothing restores into is a module, not a journey.
+  const snapshotModule = await readFile(resolve(root, "finops-journey-snapshot.js"), "utf8");
+  for (const wiring of ["readCurrentReviewEvidence", "readMonthlyAction"]) {
+    if (!snapshotModule.includes(wiring)) {
+      throw new Error(`the journey snapshot no longer resolves ${wiring} into restored state`);
+    }
+  }
+  const evolutionEntry = await readFile(resolve(root, "evolution-page.js"), "utf8");
+  if (!evolutionEntry.includes("captureJourneySnapshot")) {
+    throw new Error("the AI FinOps import no longer captures a journey snapshot");
   }
 
   // Third, the drift between the static first paint and the module that
