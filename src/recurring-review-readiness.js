@@ -1,5 +1,6 @@
 // Bounded client-side join for reopening one retained monthly FinOps action.
 import { validateMonthlyActionRecord } from "./monthly-department-action-store.js";
+import { coveragePercentOrNull, recurringReviewVerdict } from "./recurring-review-verdict.js";
 
 export const REVIEW_READINESS_VERSION = "finops-recurring-review/2.0.0";
 export const REVIEW_EVIDENCE_KEY = "shiplog.finops.current-review-evidence.v1";
@@ -62,6 +63,14 @@ function reviewResult(state, code, { action = null, current = null, verdict = nu
     verdict_insufficient: "Theo’s verdict does not support an evidence-bounded review.",
     ready: "The retained action and current local evidence are ready for review.",
   }[code];
+  const comparable = state === REVIEW_STATE.ready;
+  const recurringVerdict = recurringReviewVerdict({
+    priorValue: action?.baseline?.value,
+    currentValue: current?.value,
+    comparable,
+    coveragePercent: verdict?.coveragePercent,
+    sampleRows: verdict?.rows,
+  });
   return freeze({
     schemaVersion: REVIEW_READINESS_VERSION,
     question: "Is this month’s review ready to act on?",
@@ -85,8 +94,9 @@ function reviewResult(state, code, { action = null, current = null, verdict = nu
     confidence: freeze({
       action: action?.confidence ?? null,
       theo: verdict?.confidence ?? null,
-      coveragePercent: finite(verdict?.coveragePercent) ? verdict.coveragePercent : null,
+      coveragePercent: coveragePercentOrNull(verdict?.coveragePercent),
     }),
+    verdict: recurringVerdict,
     provenance: freeze({
       actionReferences: freeze([...(action?.provenanceReferences ?? [])]),
       analysisContract: current?.contract ?? null,

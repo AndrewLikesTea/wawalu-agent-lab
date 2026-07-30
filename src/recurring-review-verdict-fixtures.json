@@ -1,0 +1,61 @@
+{
+  "schemaVersion": "finops-recurring-verdict-fixtures/1.0.0",
+  "metadata": {
+    "provenance": "Hand-labelled synthetic derived values; no prompts, source rows, customer data, or live telemetry.",
+    "weightAssumption": "No evidence source is averaged or weighted. Baseline and comparability are hard gates; coverage and sample size select an evidence-completeness band.",
+    "prohibitedWordingPattern": "\\b(caused|because of|delivered|achieved|successful|savings realized)\\b",
+    "prohibitedWordingAssumption": "No verdict may claim the tracked action produced the change. The contract measures direction only, so this wording is prohibited in every fixture, not only where comparability, sampling, or baseline evidence is absent."
+  },
+  "fixtures": [
+    {
+      "id": "improvement-high-confidence",
+      "input": {"priorValue": 1000, "currentValue": 800, "comparable": true, "coveragePercent": 97, "sampleRows": 20},
+      "expectedVerdict": "improvement",
+      "expectedConfidence": "high",
+      "expectedConfidenceBasis": ["attribution_coverage_at_least_95_percent", "minimum_sample_met"],
+      "expectedEvidenceBoundary": {"includes": "derived comparison and completeness facts", "excludes": "causality, significance, source rows, prompts, identifiers"},
+      "permittedWording": "Measured recoverable spend is lower than the prior baseline.",
+      "assumption": "A decrease of at least 5% is material; 95% coverage and ten or more rows meet the high-completeness convention."
+    },
+    {
+      "id": "regression-moderate-confidence",
+      "input": {"priorValue": 1000, "currentValue": 1120, "comparable": true, "coveragePercent": 88, "sampleRows": 14},
+      "expectedVerdict": "regression",
+      "expectedConfidence": "moderate",
+      "expectedConfidenceBasis": ["attribution_coverage_80_to_94_9_percent", "minimum_sample_met"],
+      "expectedEvidenceBoundary": {"includes": "derived comparison and completeness facts", "excludes": "causality, significance, source rows, prompts, identifiers"},
+      "permittedWording": "Measured recoverable spend is higher than the prior baseline.",
+      "assumption": "An increase of at least 5% is material; 80–94.9% coverage is useful but remains explicitly bounded."
+    },
+    {
+      "id": "improvement-with-impossible-coverage",
+      "input": {"priorValue": 1000, "currentValue": 800, "comparable": true, "coveragePercent": 1000000000, "sampleRows": 20},
+      "expectedVerdict": "improvement",
+      "expectedConfidence": "low",
+      "expectedConfidenceBasis": ["attribution_coverage_missing", "minimum_sample_met"],
+      "expectedEvidenceBoundary": {"includes": "derived comparison and completeness facts", "excludes": "causality, significance, source rows, prompts, identifiers"},
+      "permittedWording": "Measured recoverable spend is lower than the prior baseline.",
+      "assumption": "Local evidence is read back from storage a visitor can edit. A coverage figure outside 0–100 is a corrupted record rather than measured attribution, so completeness is reported as missing instead of letting an impossible number buy high confidence."
+    },
+    {
+      "id": "incomparable-periods",
+      "input": {"priorValue": 1000, "currentValue": 800, "comparable": false, "coveragePercent": 100, "sampleRows": 30},
+      "expectedVerdict": "incomparable",
+      "expectedConfidence": "unavailable",
+      "expectedConfidenceBasis": ["comparable_period_evidence_missing"],
+      "expectedEvidenceBoundary": {"includes": "derived comparison and completeness facts", "excludes": "causality, significance, source rows, prompts, identifiers"},
+      "permittedWording": "No directional verdict: the periods are not comparable.",
+      "assumption": "Completeness cannot repair a scope, metric, or period mismatch, so no directional claim is permitted."
+    },
+    {
+      "id": "missing-prior-evidence",
+      "input": {"priorValue": null, "currentValue": 800, "comparable": true, "coveragePercent": 100, "sampleRows": 30},
+      "expectedVerdict": "missing_prior_evidence",
+      "expectedConfidence": "unavailable",
+      "expectedConfidenceBasis": ["prior_baseline_missing"],
+      "expectedEvidenceBoundary": {"includes": "derived comparison and completeness facts", "excludes": "causality, significance, source rows, prompts, identifiers"},
+      "permittedWording": "No directional verdict: prior baseline evidence is missing.",
+      "assumption": "A current observation alone cannot establish change, regardless of its coverage or sample size."
+    }
+  ]
+}

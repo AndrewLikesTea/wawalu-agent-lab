@@ -39,12 +39,11 @@ function disclosure(doc, label, facts) {
 }
 
 const confidenceText = (review) => {
-  const parts = [];
-  if (review.confidence.theo) parts.push(`${review.confidence.theo} evidence confidence`);
+  const parts = [`${review.verdict.confidence.level} verdict confidence`];
   if (review.confidence.coveragePercent !== null) {
     parts.push(`${review.confidence.coveragePercent.toFixed(1)}% attribution coverage`);
   }
-  return parts.length ? parts.join(" · ") : "Confidence unavailable";
+  return parts.join(" · ");
 };
 
 const provenanceText = (review) => {
@@ -83,6 +82,7 @@ const paintKey = (review, action) => [
   review.confidence.theo, review.confidence.coveragePercent,
   review.provenance.analysisContract, review.provenance.verdictState,
   review.provenance.actionReferences.join(","), review.evidenceBoundary.gaps.join(","),
+  review.verdict.schemaVersion, review.verdict.verdict, review.verdict.confidence.level,
   action?.actionLabel, action?.ownerLabel, action?.department,
   action?.target?.value, action?.target?.deadline,
 ].join("");
@@ -144,7 +144,10 @@ export function renderRecurringReviewWorkspace(doc, review, retainedAction = nul
   findingTitle.id = "recurring-review-finding-title";
   finding.append(
     findingTitle,
-    element(doc, "p", "recurring-review-finding-text", findingText(review)),
+    element(doc, "p", "recurring-review-finding-text",
+      review.ready
+        ? `${review.verdict.wording} ${findingText(review)}`
+        : `${review.verdict.wording} ${review.headline}`),
     element(doc, "p", "recurring-review-confidence", confidenceText(review)),
     element(doc, "p", "recurring-review-provenance", provenanceText(review)),
   );
@@ -196,6 +199,16 @@ export function renderRecurringReviewWorkspace(doc, review, retainedAction = nul
       ["Excluded", review.evidenceBoundary.excluded.join(", ")],
       ["Action references", review.provenance.actionReferences.join(", ") || "None retained"],
       ["Contract", review.schemaVersion],
+    ]),
+    disclosure(doc, "Verdict contract and confidence basis", [
+      ["Verdict", review.verdict.verdict],
+      ["Permitted wording", review.verdict.wording],
+      ["Confidence", review.verdict.confidence.level],
+      ["Confidence basis", review.verdict.confidence.basis.join(", ")],
+      ["Confidence assumption", review.verdict.confidence.assumption],
+      ["Verdict contract", review.verdict.schemaVersion],
+      ["Evidence included", review.verdict.evidenceBoundary.included.join(", ")],
+      ["Evidence excluded", review.verdict.evidenceBoundary.excluded.join(", ")],
     ]),
   );
   return root;

@@ -166,11 +166,18 @@ export function renderRecurringReviewReadiness(review, { source = "demo" } = {})
   fact(rows, "Current period", review.current.period ?? "Not available");
   fact(rows, "Theo coverage", review.confidence.coveragePercent === null
     ? "Not available" : `${review.confidence.coveragePercent.toFixed(1)}%`);
+  fact(rows, "Recurring verdict", review.verdict.verdict);
+  fact(rows, "Permitted wording", review.verdict.wording);
+  fact(rows, "Verdict confidence", review.verdict.confidence.level);
+  fact(rows, "Confidence basis", review.verdict.confidence.basis.join(", "));
+  fact(rows, "Confidence assumption", review.verdict.confidence.assumption);
+  fact(rows, "Evidence excluded", review.verdict.evidenceBoundary.excluded.join(", "));
   body.append(rows);
   body.append(el("p", "sac-caveat", review.recommendation
-    ? "Recommendation evidence is available. Positive interpreted deltas mean improvement; negative interpreted deltas mean deterioration."
+    ? "A lower current value is improvement under this contract. The verdict describes measured change, not causal attribution."
     : `Recommendation withheld. Missing or mismatched evidence: ${review.evidenceBoundary.gaps.join(", ")}.`));
-  body.append(el("p", "sac-contracts", review.schemaVersion));
+  body.append(el("p", "sac-contracts",
+    `${review.schemaVersion} · ${review.verdict.schemaVersion}`));
   details.append(body);
   article.append(details);
   return article;
