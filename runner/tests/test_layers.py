@@ -77,6 +77,43 @@ class LayerTests(unittest.TestCase):
         self.assertFalse(self._overload_verdict(json.dumps(
             {"type": "result", "is_error": True, "api_error_status": None})))
 
+    def test_a_stream_broken_mid_response_is_an_overload_not_a_defect(self):
+        """The shape that cost issue #625 a retry: api_error with no status to read.
+
+        When the provider's server dies part-way through the response the CLI has
+        no status code to report, so it ends on a null api_error_status and its own
+        prose. That is still the server breaking, so it must defer, not burn an
+        attempt against work that was never given a fair run.
+        """
+        broken = json.dumps({
+            "type": "result", "subtype": "success", "terminal_reason": "api_error",
+            "api_error_status": None,
+            "result": "API Error: Server error mid-response. The response above may be incomplete.",
+        })
+        self.assertTrue(self._overload_verdict(broken))
+
+    def test_prose_alone_cannot_forge_a_mid_response_overload(self):
+        """Without the CLI-authored terminal_reason, the same wording proves nothing."""
+        forged = json.dumps({
+            "type": "result", "subtype": "success", "api_error_status": None,
+            "result": "the demo prints 'Server error' when an upload fails",
+        })
+        self.assertFalse(self._overload_verdict(forged))
+        product_text = json.dumps({"type": "user", "message": {"content": [
+            {"type": "tool_result", "content": "terminal_reason: api_error / server error"}]}})
+        self.assertFalse(self._overload_verdict(product_text))
+
+    def test_a_mid_response_stop_without_server_breakage_is_a_real_failure(self):
+        """api_error covers refused requests too; only server-breakage defers."""
+        refused = json.dumps({
+            "type": "result", "subtype": "success", "terminal_reason": "api_error",
+            "api_error_status": None, "result": "API Error: invalid request payload"})
+        self.assertFalse(self._overload_verdict(refused))
+        below_500 = json.dumps({
+            "type": "result", "terminal_reason": "api_error", "api_error_status": 400,
+            "result": "API Error: Server error mid-response."})
+        self.assertFalse(self._overload_verdict(below_500))
+
     def test_a_refused_request_stays_on_the_capacity_path(self):
         """429 is the provider turning us away, not its servers breaking."""
         self.assertFalse(self._overload_verdict(json.dumps(
