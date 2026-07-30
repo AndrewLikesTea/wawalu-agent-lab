@@ -126,7 +126,7 @@ test("the brief carries the sample label and both next steps as authored markup"
   assert.equal(chooseOwn.tagName.toLowerCase(), "button");
   assert.equal(chooseOwn.hasAttribute("disabled"), false);
   assert.match(textOf(byId(document, `${FIRST_RUN_IDS.import}-note`)),
-    /stay in this tab and are not uploaded or stored/);
+    /stay in this browser and are not uploaded/);
 });
 
 test("the hero is one column, and the card that left it is still bounded", async () => {

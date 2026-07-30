@@ -30,7 +30,9 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { loadPage, parseHtml, textOf } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
-import { FIRST_RUN_ACTIONS, FIRST_RUN_IDS } from "../src/finops-first-run.js";
+import {
+  FIRST_RUN_ACTIONS, FIRST_RUN_IDS, FIRST_RUN_INSTRUCTION, FIRST_RUN_NOT_YET, FIRST_RUN_STATE,
+} from "../src/finops-first-run.js";
 import { HERO_INTRO, LOAD_NARRATION, SECONDARY_PLACEHOLDER } from "../src/finops-load-status.js";
 
 const PAGE = new URL("../src/evolution.html", import.meta.url);
@@ -148,14 +150,28 @@ test("the hero is one heading and one sentence about the outcome", async () => {
   }
 });
 
-test("one waiting message stands between the page title and the first control", async () => {
+test("one instruction stands between the page title and the first control", async () => {
   const document = parseHtml(await readFile(PAGE, "utf8"));
 
   const lines = waitingLines(document);
-  assert.equal(lines.length, 1,
-    `the region's own state label is the only line above the first control allowed to say `
-    + `something has not happened, and these do: ${JSON.stringify(lines)}`);
-  assert.match(lines[0], /Example result pending/);
+  assert.deepEqual(lines, [],
+    `the first screen should instruct the visitor instead of showing a pending state: ${JSON.stringify(lines)}`);
+
+  // The state label stays a state label. It is `.eyebrow` — 11px uppercase
+  // monospace at .11em tracking — so a two-clause instruction set in it is
+  // shouted rather than read, and it is the half of the word/shape pair that is
+  // swapped on every transition.
+  const word = textOf(byId(document, FIRST_RUN_IDS.word));
+  assert.equal(word, FIRST_RUN_STATE.pending.word);
+  assert.ok(word.split(/\s+/).length <= 3, `a state label, not a sentence: ${JSON.stringify(word)}`);
+
+  // The one plain-language message is the answer slot, which is the region's
+  // largest text and the first line a reader lands on. It says what has
+  // happened and names both ways on, so the slots under it need not repeat it.
+  assert.equal(textOf(byId(document, FIRST_RUN_IDS.answer)), FIRST_RUN_INSTRUCTION);
+  assert.match(FIRST_RUN_INSTRUCTION, /^No analysis has run yet\./);
+  assert.match(FIRST_RUN_INSTRUCTION, /Try the bundled example data/);
+  assert.match(FIRST_RUN_INSTRUCTION, /analyze your own export/);
 
   // The hero provenance names the dataset on screen rather than a read that has
   // not happened, so it no longer competes with the label above.
@@ -170,6 +186,35 @@ test("one waiting message stands between the page title and the first control", 
   }
 });
 
+test("the first screen says nothing has run, never that something failed", async () => {
+  const document = parseHtml(await readFile(PAGE, "utf8"));
+
+  // "Unavailable" is spoken for. `DECISION_STATE.error` is literally
+  // `state: "unavailable", tone: "error"`, and `.first-run-answer
+  // [data-available="false"]` is painted in `--state-warn-ink`. A first screen
+  // that borrows the word tells a visitor their analysis failed before they
+  // have chosen anything, and leaves the page nothing to say when one does.
+  assert.notEqual(FIRST_RUN_STATE.pending.word, FIRST_RUN_STATE.unavailable.word);
+  assert.doesNotMatch(FIRST_RUN_STATE.pending.word, /unavailable/i);
+  assert.doesNotMatch(FIRST_RUN_INSTRUCTION, /unavailable/i);
+
+  // And one shape for the slots, so a reader learns it once rather than
+  // re-reading a differently-worded absence in every panel.
+  const slots = [
+    FIRST_RUN_IDS.benchmarkValue, FIRST_RUN_IDS.impactValue,
+    FIRST_RUN_IDS.confidenceValue, FIRST_RUN_IDS.action,
+  ];
+  const shapes = new Set();
+  for (const id of slots) {
+    const text = textOf(byId(document, id));
+    assert.ok(Object.values(FIRST_RUN_NOT_YET).includes(text),
+      `${id} reads ${JSON.stringify(text)}, which is outside the one absence vocabulary`);
+    shapes.add(text.split(" ").slice(0, 2).join(" "));
+  }
+  assert.deepEqual([...shapes], ["Not yet"],
+    "the slots stopped sharing one grammatical shape, which is what made them scannable");
+});
+
 test("the two choices are told apart by whose data each one uses", async () => {
   const document = parseHtml(await readFile(PAGE, "utf8"));
   const demo = textOf(byId(document, FIRST_RUN_IDS.demo));
@@ -181,7 +226,7 @@ test("the two choices are told apart by whose data each one uses", async () => {
   // Each label carries the distinction on its own, without the note under it:
   // one runs the bundled example, the other reads the reader's export.
   assert.match(demo, /example/i);
-  assert.match(own, /your provider export/i);
+  assert.match(own, /your own export/i);
   assert.doesNotMatch(own, /example/i);
   // "local" is this page's word for where the analysis runs, not for whose file
   // it is, so it is not what tells these two apart.
@@ -209,7 +254,7 @@ test("the no-upload promise sits once, beside the choice that touches a file", a
   assert.equal(promises.length, 1,
     "both choices promised the same thing inches apart, and only one of them reads a file");
   const importNote = textOf(byId(document, `${FIRST_RUN_IDS.import}-note`));
-  assert.match(importNote, /stay in this tab and are not uploaded or stored/);
+  assert.match(importNote, /stay in this browser and are not uploaded/);
   // And it opens with the label of the picker it delegates to, so a reader who
   // follows the choice meets the same words on the control itself.
   const picker = textOf(document.querySelector(`label[for="${FIRST_RUN_ACTIONS.import.targetId}"]`));
