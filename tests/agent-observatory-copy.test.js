@@ -15,6 +15,7 @@ import test from "node:test";
 import {
   ACTIVITY_FALLBACK_REASONS,
   ACTIVITY_STATES,
+  CONNECTION_LABELS,
   loadActivity,
   renderActivityState,
 } from "../src/agents.js";
@@ -108,7 +109,7 @@ test("the three regions that speak at once during a check each say something dif
 
   const spoken = [card, freshness, status, detail];
   assert.equal(new Set(spoken).size, spoken.length, `a loading message is shown twice: ${spoken.join(" | ")}`);
-  assert.equal(card, "Checking");
+  assert.equal(card, CONNECTION_LABELS.loading);
   assert.equal(freshness, "Not updated yet", "the card's second line reports freshness, not the request again");
   assert.notEqual(card, status, "the hero card must not repeat the panel heading");
   // The banner answers "what are these rows", so it must not restate the
@@ -121,6 +122,30 @@ test("the three regions that speak at once during a check each say something dif
   await pending;
 });
 
+// The card is the shortest thing on the page and the first thing read, so it is
+// where a vague word does the most damage. "Checking" did not say what was being
+// checked, and "Synthetic example shown" did not say that GitHub had answered.
+test("the hero card names the check, and says when the rows are a synthetic example", () => {
+  const labels = Object.values(CONNECTION_LABELS);
+  assert.equal(new Set(labels).size, labels.length, "two states share a card label");
+  for (const label of labels) {
+    assert.doesNotMatch(label, /^(checking|loading|unavailable|failed)\.?$/i,
+      `${label}: the card must name the check, not just its verb`);
+    assert.ok(label.length <= 40, `${label}: the card line stays short enough to read at a glance`);
+  }
+
+  // Which source is being checked, in the state where nothing is on screen yet.
+  assert.match(CONNECTION_LABELS.loading, /GitHub/);
+  assert.match(CONNECTION_LABELS.loading, /^Checking/, "a check in flight reads as a check in flight");
+  // Answered-with-nothing and failed are different facts, and the card tells
+  // them apart before the panel below it repeats the distinction.
+  assert.match(CONNECTION_LABELS.empty, /no GitHub events/i);
+  assert.match(CONNECTION_LABELS.empty, /synthetic example/i, "the rows below are named for what they are");
+  assert.match(CONNECTION_LABELS.error, /failed/i);
+  assert.doesNotMatch(CONNECTION_LABELS.error, /synthetic example/i,
+    "a failed check can keep the last live events, so the card must not call them an example");
+});
+
 test("the served markup is the loading state the script would render", async () => {
   const page = parseHtml(await readFile(PAGE_URL, "utf8"));
   const status = page.querySelector("#activity-status");
@@ -129,7 +154,7 @@ test("the served markup is the loading state the script would render", async () 
   assert.equal(textOf(status.querySelector(".activity-state-title")), ACTIVITY_STATES.loading.title);
   assert.equal(textOf(status.querySelector(".activity-state-detail")), ACTIVITY_STATES.loading.detail);
   assert.equal(textOf(page.querySelector("#refresh-activity")), ACTIVITY_STATES.loading.action);
-  assert.equal(textOf(page.querySelector("#connection-label")), "Checking");
+  assert.equal(textOf(page.querySelector("#connection-label")), CONNECTION_LABELS.loading);
   assert.equal(textOf(page.querySelector("#last-updated")), "Not updated yet");
 });
 
