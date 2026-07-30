@@ -54,6 +54,25 @@ import {
   costPositionDetail, costPositionHeadline, resolveCostPosition,
 } from "./peer-cost-position.js";
 import {
+  evaluatePositionReproducibility, POSITION_REFUSAL,
+} from "./finops-position-reproducibility.js";
+
+/**
+ * The two refusals the slots below have to speak for themselves.
+ *
+ * Every other refusal is a pass-through of an eligibility failure the position
+ * and the gap contracts already publish their own sentences for, and restating
+ * those here would give one withholding two wordings. These two are new rules —
+ * a snapshot built for another rubric, and a window under the org-level sample
+ * floor — that neither contract knows about, so nothing else would say them.
+ */
+const REPRODUCIBILITY_OWNED_REFUSALS = new Set([
+  POSITION_REFUSAL.rubricVersionMismatch, POSITION_REFUSAL.sampleBelowFloor,
+]);
+
+const refusalOwnedHere = (reproducibility) => Boolean(reproducibility?.refused)
+  && REPRODUCIBILITY_OWNED_REFUSALS.has(reproducibility.refusal.code);
+import {
   INTERNAL_GAP_STATUS, internalGapDetail, internalGapHeadline, resolveInternalCostGap,
 } from "./internal-cost-gap.js";
 import { DECISION_QUESTION, loadCanonicalDecision } from "./finops-decision-contract.js";
@@ -375,7 +394,16 @@ function impactSlot(briefing, notices = []) {
  * "here is why we cannot say" ask different things of a reader, and only the
  * second one can be acted on.
  */
-function peerSlot(analysis, org, tasks) {
+function peerSlot(analysis, org, tasks, reproducibility) {
+  // The reproducibility guard, honoured HERE as well as in the headline. A page
+  // that withholds a position upstairs and prints one in a supporting slot has
+  // published the figure anyway, so the refusal is checked before the position
+  // is read rather than after it is rendered. With the shipped snapshot nothing
+  // refuses and this slot is unchanged; a snapshot built for another rubric, or
+  // a window below the sample floor, renders the refusal sentence and its remedy.
+  if (refusalOwnedHere(reproducibility)) {
+    return slot(false, reproducibility.refusal.reason, reproducibility.refusal.nextStep);
+  }
   const position = resolveCostPosition({ org, spendUsd: Number(analysis?.spendUsd), tasks });
   if (!position.available) return slot(false, position.reason, position.metric.definition);
   return slot(true, costPositionHeadline(position), costPositionDetail(position));
@@ -398,7 +426,13 @@ function peerSlot(analysis, org, tasks) {
  * withheld reason. It never renders the bare word "Unavailable" and it never
  * renders an empty panel: "we did not compare, here is why" is the answer.
  */
-function internalSlot(gap) {
+function internalSlot(gap, reproducibility) {
+  // A refused position takes the internal gap with it. The gap is banded against
+  // the SAME boundaries the peer position is placed against, so boundaries this
+  // page has refused to score against cannot be allowed to name a lagging team.
+  if (refusalOwnedHere(reproducibility)) {
+    return slot(false, reproducibility.refusal.reason, reproducibility.refusal.nextStep);
+  }
   if (gap?.status !== INTERNAL_GAP_STATUS.finding) {
     return slot(false, gap?.suppressedReason ?? FIRST_RUN_UNAVAILABLE.notComposed,
       gap?.metric?.definition ?? "");
@@ -574,6 +608,9 @@ export function composeFirstRunResult({
   // object, so the sentence a reader checks the finding against cannot drift
   // from the finding.
   const gap = resolveInternalCostGap({ analysis, org, tasks });
+  // Resolved once for both comparison slots, so the peer position and the
+  // internal gap cannot disagree about whether this page may publish a figure.
+  const reproducibility = evaluatePositionReproducibility({ analysis, org, tasks });
   return Object.freeze({
     ...BASE,
     presentation: FIRST_RUN_STATE.ready,
@@ -587,8 +624,8 @@ export function composeFirstRunResult({
     answer: answerSlot(decision, benchmark, impact),
     benchmark,
     impact,
-    peer: peerSlot(analysis, org, tasks),
-    internal: internalSlot(gap),
+    peer: peerSlot(analysis, org, tasks, reproducibility),
+    internal: internalSlot(gap, reproducibility),
     internalGap: gap,
     action: actionSlot(briefing),
     confidence: confidenceSlot(decision, notices),

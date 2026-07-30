@@ -58,6 +58,9 @@ import {
 import {
   loadWorkspaceDestinations, prioritizedDestination, supportingDestinations,
 } from "./finops-destination-contract.js";
+import {
+  evaluatePositionReproducibility, reproducibilityEntries, reproducibilityNote,
+} from "./finops-position-reproducibility.js";
 
 /** Bump when a headline slot, a disclosure, or a withheld sentence changes meaning. */
 export const STAND_VERSION = "finops-stand-headline/1.0.0";
@@ -80,6 +83,8 @@ export const STAND_IDS = Object.freeze({
   teamDetail: "finops-stand-team-detail",
   action: "finops-stand-action",
   actionBasis: "finops-stand-action-basis",
+  /** The lead line inside the existing comparison disclosure, not a panel of its own. */
+  reproducibility: "finops-stand-disclosure-cohort-note",
   withheld: "finops-stand-withheld",
   withheldMissing: "finops-stand-withheld-missing",
   withheldAction: "finops-stand-withheld-action",
@@ -288,7 +293,7 @@ function answerSentence(position, recoverable, team) {
 // headline, and each is built from a result some other module already produced.
 // ---------------------------------------------------------------------------
 
-function cohortEntries(position) {
+function cohortEntries(position, reproducibility) {
   const cohort = position?.cohort ?? null;
   const rows = [
     entry("Question answered", COST_METRIC.label),
@@ -306,6 +311,12 @@ function cohortEntries(position) {
   }
   rows.push(entry("Where the cohorts come from",
     `${PEER_COST_PROVENANCE.label}. ${PEER_COST_PROVENANCE.statement}`));
+  // The reproducibility result belongs in THIS disclosure rather than in a panel
+  // of its own: a reader who has opened "how the peer set was built" is already
+  // asking whether the comparison holds, and rubric version, snapshot date,
+  // confidence and last verification are the four answers to that question. When
+  // a refusal is active these rows carry its reason in place of the figure.
+  rows.push(...reproducibilityEntries(reproducibility));
   return rows;
 }
 
@@ -398,13 +409,18 @@ function disclosure(id, entries) {
  */
 export function composeStandHeadline({
   analysis = null, briefing = null, position = null, finding = null, decision = null,
-  destinations = null, eligibility = null, source = "example",
+  destinations = null, eligibility = null, source = "example", reproducibility = null,
 } = {}) {
   const recoverable = recoverableSlot(analysis);
   const team = teamSlot(finding);
   const action = actionSlot(destinations);
-  const placed = positionSlot(position);
-  const withheld = placed ? null : withheldFrom(position, eligibility, source);
+  // A refusal outranks a computed position, and it does so here rather than in
+  // the view: the headline sentence, the position slot, the answer a reader
+  // repeats in a review, and the disclosure are all composed from `placed`, so
+  // dropping it in one place is what makes "no number reaches the executive view"
+  // true of every one of them at once.
+  const placed = reproducibility?.refused ? null : positionSlot(position);
+  const withheld = placed ? null : withheldFrom(position, eligibility, source, reproducibility);
   return Object.freeze({
     version: STAND_VERSION,
     question: STAND_QUESTION,
@@ -423,8 +439,11 @@ export function composeStandHeadline({
     team,
     action,
     withheld,
+    /** The inspectable result, and the one line the comparison disclosure leads with. */
+    reproducibility,
+    reproducibilityNote: reproducibilityNote(reproducibility),
     disclosures: Object.freeze([
-      disclosure(STAND_DISCLOSURE.cohort, cohortEntries(position)),
+      disclosure(STAND_DISCLOSURE.cohort, cohortEntries(position, reproducibility)),
       disclosure(STAND_DISCLOSURE.anonymization, anonymizationEntries(eligibility?.note ?? null)),
       disclosure(STAND_DISCLOSURE.versions, versionEntries(analysis, briefing, position)),
       disclosure(STAND_DISCLOSURE.departments, departmentEntries(analysis)),
@@ -444,7 +463,20 @@ export function composeStandHeadline({
  * eligibility result, so the reason is the position contract's and the remedy
  * comes from the copy table above.
  */
-function withheldFrom(position, eligibility, source) {
+function withheldFrom(position, eligibility, source, reproducibility = null) {
+  // A refusal is checked first and in both sources. It is the only one of these
+  // paths that can fire while the position itself computed cleanly — a rubric
+  // version mismatch produces perfectly good arithmetic against boundaries that
+  // mean something else — so a later branch reading `position.reason` would
+  // publish the wrong explanation for a withheld figure.
+  if (reproducibility?.refused) {
+    return Object.freeze({
+      reasonCode: reproducibility.refusal.code,
+      missing: reproducibility.refusal.reason,
+      nextStep: reproducibility.refusal.nextStep,
+      actionLabel: STAND_RESOLUTION_ACTION.label,
+    });
+  }
   if (source === "import" && eligibility && eligibility.eligible === false) {
     return Object.freeze({
       reasonCode: eligibility.reason,
@@ -494,6 +526,15 @@ export function buildStandHeadline(loadAnalysis = loadExampleDataset,
       position: resolveCostPosition({
         org: EXAMPLE_ORG_COHORT_PROFILE,
         spendUsd: Number(analysis?.spendUsd),
+        tasks: EXAMPLE_TASK_LEDGER,
+      }),
+      // The same inputs, run through the guard that decides whether the position
+      // above may be published at all. It is computed here rather than inside
+      // `composeStandHeadline` because the composer is total over what it is
+      // handed and does not know how to re-derive an org's ledger.
+      reproducibility: evaluatePositionReproducibility({
+        analysis,
+        org: EXAMPLE_ORG_COHORT_PROFILE,
         tasks: EXAMPLE_TASK_LEDGER,
       }),
       finding: leadingFinding(analysis),

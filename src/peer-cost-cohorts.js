@@ -42,6 +42,23 @@ export { PEER_INDUSTRY } from "./peer-cohort-fixtures.js";
 export const PEER_COST_SNAPSHOT_ID = PEER_COHORT_SNAPSHOT_DATE;
 
 /**
+ * The rubric version these boundaries were computed under.
+ *
+ * A snapshot is a set of quartile boundaries computed by SOME rubric, and the
+ * boundaries are meaningless against a different one: change how the metric
+ * excludes non-terminal tasks and $31.50 stops being this cohort's p75 even
+ * though the number on the record has not moved. So the rubric a snapshot was
+ * built for is published ON the snapshot, beside the date, and the scoring path
+ * refuses rather than scores when the two disagree.
+ *
+ * ASSUMPTION, disputable on the merits: a rubric version is a promise about the
+ * metric definition and the band rule only. Reword a reason sentence or a label
+ * without bumping it; change what reaches the numerator, the denominator, or a
+ * band boundary and it must bump, because that is a re-scoring of the cohort.
+ */
+export const PEER_COST_SNAPSHOT_RUBRIC_VERSION = "finops-cost-rubric/v2";
+
+/**
  * The declared organization size bands. Wire values: reword a label freely,
  * changing a key is a snapshot bump.
  *
@@ -150,4 +167,14 @@ export const PEER_COST_PROVENANCE = Object.freeze({
     + "They contain no customer, tenant, or provider data, they are not derived from any file "
     + "imported by any visitor, and no import can add to, replace, or move them.",
   snapshotId: PEER_COST_SNAPSHOT_ID,
+  rubricVersion: PEER_COST_SNAPSHOT_RUBRIC_VERSION,
+});
+
+/**
+ * The published snapshot as one record, so a caller has a single thing to hand
+ * the version guard and a test has a single thing to vary.
+ */
+export const PEER_COST_SNAPSHOT = Object.freeze({
+  snapshotId: PEER_COST_SNAPSHOT_ID,
+  rubricVersion: PEER_COST_SNAPSHOT_RUBRIC_VERSION,
 });

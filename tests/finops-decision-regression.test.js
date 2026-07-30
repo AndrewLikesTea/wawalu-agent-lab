@@ -547,6 +547,14 @@ const ALLOWED_MODULES = Object.freeze([
   // `peer-cost-position.js` and adds pure arithmetic over the already-normalized
   // envelope — no fetch, storage, clock, or randomness, and no second rubric.
   "internal-cost-gap.js",
+  // Reviewed on: the guard that decides whether that position may be published
+  // at all, its hand-authored expectations, and the redaction it puts every
+  // record-sourced department name through. All three are pure over what they
+  // are handed — no fetch, clock, or randomness — and the one storage path is a
+  // storage object passed in as an argument, never a global: the module reads
+  // nothing this browser holds unless a caller hands it the store.
+  "finops-position-reproducibility.js", "finops-position-fixtures.js",
+  "finops-journey-redaction.js",
   "finops-workspace-contract.js", "finops-workspace-migrations.js", "finops-workspace.js",
   "grade-eligibility.js", "landing-decision-page.js", "landing-decision.js", "local-finops.js",
   "longitudinal-finops-metrics.js", "multi-provider-intake.js", "org-unit-labels.js", "prompt-literacy-scoring.js",

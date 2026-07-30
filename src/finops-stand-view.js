@@ -178,6 +178,12 @@ export function applyStandHeadline(doc, headline) {
   setText(doc, STAND_IDS.withheldAction,
     headline.withheld?.actionLabel ?? STAND_RESOLUTION_ACTION.label);
 
+  // The reproducibility state, on the region and in the comparison disclosure's
+  // own lead line. A refusal is a state a screenshot and a printed page carry,
+  // not a colour: the attribute is what the stylesheet and the tests both read.
+  region.dataset.reproducibility = headline.reproducibility?.status ?? "unchecked";
+  setText(doc, STAND_IDS.reproducibility, headline.reproducibilityNote ?? "");
+
   for (const item of headline.disclosures ?? []) {
     const ids = standDisclosureIds(item.id);
     setText(doc, ids.heading, item.summary ?? "");

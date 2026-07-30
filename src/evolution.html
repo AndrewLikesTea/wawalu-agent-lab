@@ -151,6 +151,18 @@
         <div class="stand-disclosures" id="finops-stand-disclosures">
           <details class="stand-disclosure" id="finops-stand-disclosure-cohort" data-disclosure="collapsed">
             <summary id="finops-stand-disclosure-cohort-summary" aria-expanded="false"><h3 class="stand-disclosure-heading"><span id="finops-stand-disclosure-cohort-heading">How the peer set was built</span><span class="stand-disclosure-state" id="finops-stand-disclosure-cohort-state" data-disclosure="collapsed"><span class="stand-disclosure-shape" aria-hidden="true">▸</span> Show</span></h3></summary>
+            <!-- The reproducibility line, INSIDE the comparison disclosure rather
+                 than in a panel beside it: a reader who opened "how the peer set
+                 was built" is already asking whether the comparison holds, and
+                 the rubric version, the snapshot date, the confidence tier and
+                 the last verification are the answers to that question. When the
+                 scoring path refuses — a rubric the snapshot was not built for,
+                 a sample below the floor, no matched cohort — this line carries
+                 the refusal reason in place of the withheld figure, and the
+                 headline above stops asserting a position. Authored empty: the
+                 sentence is composed by finops-position-reproducibility.js, and
+                 a hand-written one here would be a second claim to keep in step. -->
+            <p class="stand-disclosure-note" id="finops-stand-disclosure-cohort-note"></p>
             <dl class="stand-disclosure-list" id="finops-stand-disclosure-cohort-list"></dl>
           </details>
           <details class="stand-disclosure" id="finops-stand-disclosure-anonymization" data-disclosure="collapsed">
