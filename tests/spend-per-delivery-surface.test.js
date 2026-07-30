@@ -19,9 +19,12 @@ import {
   DELIVERY_FINDING_FIXTURES,
 } from "../src/delivery-efficiency-finding-fixtures.js";
 import {
-  SPEND_PER_DELIVERY_STATE, spendPerDeliveryDecision,
+  SPEND_PER_DELIVERY_STATE, spendPerDeliveryDecision, spendPerDeliveryInput,
 } from "../src/spend-per-delivery.js";
-import { spendPerDeliveryFixture } from "../src/spend-per-delivery-fixtures.js";
+import { alignedSpendPerRelease } from "../src/aligned-spend-per-release.js";
+import {
+  EXAMPLE_DELIVERY_RELEASES, SPEND_PER_DELIVERY_FIXTURES, spendPerDeliveryFixture,
+} from "../src/spend-per-delivery-fixtures.js";
 import {
   SPEND_PER_DELIVERY_BODY_ID, SPEND_PER_DELIVERY_DETAIL_ID, SPEND_PER_DELIVERY_DISCLOSURES,
   SPEND_PER_DELIVERY_LIVE_ID, SPEND_PER_DELIVERY_PHASE, SPEND_PER_DELIVERY_SECTION_ID,
@@ -529,4 +532,156 @@ test("the disclosure group and its controls hold up at any width", async () => {
   assert.match(block, /\.spd-status\[data-phase="error"\] \{[^}]*var\(--state-error-line\)/);
   assert.ok(!/\.spd-status \{[^}]*--state-error/.test(block),
     "a panel that is merely reading must not be drawn as broken");
+});
+
+/* --------------------- the period-aligned pair on the panel ------------------- */
+
+// The paired reading is derived on the page's own path, from the same input the
+// decision came from, so these tests build it the way `paintSpendPerDelivery`
+// does rather than hand-writing a record.
+const alignedFor = (name) => alignedSpendPerRelease(SPEND_PER_DELIVERY_FIXTURES[name]);
+
+async function paintWithPair(name) {
+  const { document } = await loadPage(PAGE);
+  const decision = spendPerDeliveryFixture(name);
+  const aligned = alignedFor(name);
+  applySpendPerDelivery(document, decision, deliveryEfficiencyFinding(decision), aligned);
+  return { document, decision, aligned };
+}
+
+/** Paint one input through both derivations, exactly as the page does. */
+async function paintInput(input) {
+  const { document } = await loadPage(PAGE);
+  const decision = spendPerDeliveryDecision(input);
+  const aligned = alignedSpendPerRelease(input);
+  applySpendPerDelivery(document, decision, deliveryEfficiencyFinding(decision), aligned);
+  return { document, aligned };
+}
+
+const monthlyAnalysis = (periods) => ({
+  period: periods.at(-1).period,
+  spendUsd: periods.at(-1).spendUsd,
+  history: { periods },
+});
+
+test("the panel reports the movement against the previous comparable window", async () => {
+  const { document, aligned } = await paintWithPair("eligible");
+  assert.equal(aligned.state, "eligible");
+  assert.equal(aligned.trend.available, true);
+  const block = pick(document, ".spd-aligned");
+  assert.equal(block.dataset.state, "eligible");
+  assert.equal(block.dataset.trend, aligned.trend.direction);
+  assert.equal(section(document).dataset.alignedState, "eligible");
+  assert.equal(section(document).dataset.alignedTrend, aligned.trend.direction);
+  // The direction is a word beside the shape, never the shape alone, and the
+  // shape is hidden from a screen reader.
+  assert.match(textOf(block), new RegExp(aligned.trend.direction));
+  assert.equal(block.querySelector(".spd-shape").getAttribute("aria-hidden"), "true");
+  // Both windows are named with their lengths and their own figures, so the
+  // movement can be recomputed from the block that reports it.
+  const values = [...block.querySelectorAll(".spd-aligned-value")].map(textOf);
+  assert.equal(values.length, 2);
+  for (const side of [aligned.metric.prior, aligned.metric.current]) {
+    // Matched on the whole range: one window's end is the other's start, so a
+    // single date is ambiguous between the two lines.
+    const range = `${side.window.start} to ${side.window.end}`;
+    const line = values.find((text) => text.includes(range));
+    assert.ok(line, `${range} is named`);
+    assert.match(line, new RegExp(`${side.window.days} days`));
+    assert.match(line, new RegExp(`${side.shippedReleases} releases`));
+  }
+  // It sits with the figure it qualifies, above the classification.
+  const classes = [...body(document).children].map((node) => node.className);
+  assert.ok(classes.indexOf("spd-aligned") < classes.indexOf("spd-finding"));
+  assert.ok(classes.indexOf("spd-aligned") > classes.indexOf("spd-comparison"));
+});
+
+test("the compared pair, its alignment basis, and its exclusions are checkable", async () => {
+  const { document, aligned } = await paintWithPair("eligible");
+  const alignment = textOf(disclosure(document, "period-alignment"));
+  for (const entry of aligned.comparedWindows) {
+    assert.ok(alignment.includes(entry.start), `${entry.start} is disclosed`);
+  }
+  assert.ok(alignment.includes(aligned.alignment.note));
+  // The bundled example's periods are calendar months, so the pair is accepted on
+  // that basis and the day of difference it leaves is disclosed as a limit.
+  assert.equal(aligned.alignment.basis, "calendar_month");
+  assert.ok(textOf(disclosure(document, "limits")).includes(aligned.caveats.at(-1)));
+  const excluded = textOf(disclosure(document, "excluded-records"));
+  assert.match(excluded, new RegExp(
+    `${aligned.exclusions.releasesOutsideComparedWindows} fall outside`));
+  assert.ok(excluded.includes(aligned.exclusions.rule));
+});
+
+test("a current window with no release still reports its prior releases as inside the pair",
+  async () => {
+    // Two comparable months of spend, and releases recorded only in the earlier
+    // one. This is the state the first draft of this derivation got wrong: it
+    // reported the reader's own recorded releases as outside a window that holds
+    // them, because no movement was published.
+    const { document, aligned } = await paintInput(spendPerDeliveryInput({
+      analysis: monthlyAnalysis([
+        { period: "2026-05-01 to 2026-06-01", spendUsd: 98_000, completeness: "complete" },
+        { period: "2026-06-01 to 2026-07-01", spendUsd: 125_500, completeness: "complete" },
+      ]),
+      releases: EXAMPLE_DELIVERY_RELEASES.filter((entry) =>
+        entry.createdAt.startsWith("2026-05")),
+      origin: "example",
+    }));
+
+    assert.equal(aligned.reasonCode, "no_releases_in_current_period");
+    assert.equal(aligned.trend.available, false);
+    assert.equal(aligned.exclusions.releasesOutsideComparedWindows, 0);
+    assert.equal(aligned.exclusions.releasesInsideComparedWindows, 3);
+    assert.equal(section(document).dataset.alignedState, "insufficient_data");
+    assert.equal(section(document).dataset.alignedTrend, "unavailable");
+    const block = pick(document, ".spd-aligned");
+    assert.equal(block.dataset.reason, "no_releases_in_current_period");
+    // The reader is told the window is empty and what to do, not that their three
+    // recorded releases were outside the windows being compared.
+    assert.match(textOf(block), /No release is recorded as shipped inside the latest billing/);
+    assert.match(textOf(block), /release log/);
+    assert.match(textOf(disclosure(document, "excluded-records")), /0 fall outside/);
+  });
+
+test("a mismatched pair is marked on the section rather than left silent", async () => {
+  const { document, aligned } = await paintInput(spendPerDeliveryInput({
+    analysis: monthlyAnalysis([
+      { period: "2026-05-01 to 2026-06-01", spendUsd: 98_000, completeness: "complete" },
+      { period: "2026-06-01 to 2026-06-15", spendUsd: 40_000, completeness: "complete" },
+    ]),
+    releases: EXAMPLE_DELIVERY_RELEASES,
+    origin: "example",
+  }));
+  assert.equal(aligned.state, "mismatched_window");
+  assert.equal(section(document).dataset.alignedState, "mismatched_window");
+  assert.equal(pick(document, ".spd-aligned").dataset.reason,
+    "unequal_reporting_window_lengths");
+  assert.match(textOf(disclosure(document, "period-alignment")), /not comparable/);
+});
+
+test("the panel still paints without a paired reading, and the pair block is not faked",
+  async () => {
+    const { document } = await paint("eligible");
+    assert.equal(pick(document, ".spd-aligned"), null);
+    assert.equal(section(document).dataset.alignedState, undefined);
+    // And a later paint that carries one adds it, then clearing takes it away.
+    const decision = spendPerDeliveryFixture("eligible");
+    applySpendPerDelivery(document, decision, deliveryEfficiencyFinding(decision),
+      alignedFor("eligible"));
+    assert.notEqual(pick(document, ".spd-aligned"), null);
+    clearSpendPerDelivery(document);
+    assert.equal(section(document).dataset.alignedState, undefined);
+  });
+
+test("the paired block holds up at any width and never colours a direction", async () => {
+  const css = await readFile(STYLESHEET, "utf8");
+  const block = css.slice(css.indexOf(".spd-aligned {"));
+  assert.match(block, /\.spd-aligned \{[^}]*display:grid/);
+  assert.match(block, /\.spd-aligned-value \{[^}]*overflow-wrap:anywhere/);
+  assert.match(block, /@media \(max-width:34rem\) \{[^}]*\.spd-aligned-pair/);
+  // A green/red pair here would label one direction good, which this figure does
+  // not do. The direction is carried by the word and the shape only.
+  assert.ok(!/\.spd-aligned\[data-trend="(higher|lower)"\]/.test(css),
+    "no rule tints the block by direction");
 });

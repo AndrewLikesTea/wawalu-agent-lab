@@ -126,6 +126,9 @@ import {
 // sides to it.
 import { deliveryEfficiencyFinding } from "/delivery-efficiency-finding.js";
 import { spendPerDeliveryDecision, spendPerDeliveryInput } from "/spend-per-delivery.js";
+// The same figure asked of two aligned windows instead of a trailing mean, so the
+// panel can answer "and did it move since the last comparable window?".
+import { alignedSpendPerRelease } from "/aligned-spend-per-release.js";
 import {
   applySpendPerDelivery, applySpendPerDeliveryPhase, clearSpendPerDelivery,
   SPEND_PER_DELIVERY_PHASE, SPEND_PER_DELIVERY_SECTION_ID,
@@ -344,16 +347,25 @@ function storedDeliveryReleases() {
  */
 function paintSpendPerDelivery(analysis, { example = false } = {}) {
   if (!analysis) return clearSpendPerDelivery(document);
-  const decision = spendPerDeliveryDecision(spendPerDeliveryInput({
+  // One input, read once, and both derivations take it. Assembling it twice would
+  // be two chances for the two records on screen to describe different releases.
+  const input = spendPerDeliveryInput({
     analysis,
     releases: example ? EXAMPLE_DELIVERY_RELEASES : storedDeliveryReleases(),
     origin: example ? "example" : "import",
-  }));
+  });
+  const decision = spendPerDeliveryDecision(input);
   // The scoring layer runs on the production path, not beside it: the classified,
   // prioritized, caveated finding is generated from the same decision this page
   // paints, so a reading and its classification cannot disagree, and the panel
   // has no state in which the figure appears without them.
-  return applySpendPerDelivery(document, decision, deliveryEfficiencyFinding(decision));
+  //
+  // The period-aligned pair is derived on the same path for the same reason. It
+  // answers the question the trailing baseline cannot — did this move since the
+  // last comparable window — and it is the only place a mismatched pair of
+  // reporting windows or a release outside the compared pair is reported.
+  return applySpendPerDelivery(document, decision, deliveryEfficiencyFinding(decision),
+    alignedSpendPerRelease(input));
 }
 
 /**
