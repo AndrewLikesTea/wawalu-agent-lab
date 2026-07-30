@@ -124,6 +124,7 @@ import {
 // publishable states and the framing that keeps it an observation; this page owns
 // only the pairing — which spend periods and which release log — and hands both
 // sides to it.
+import { deliveryEfficiencyFinding } from "/delivery-efficiency-finding.js";
 import { spendPerDeliveryDecision, spendPerDeliveryInput } from "/spend-per-delivery.js";
 import { applySpendPerDelivery, clearSpendPerDelivery } from "/spend-per-delivery-view.js";
 // Delivery evidence is the release log this site already keeps, read through its
@@ -340,11 +341,16 @@ function storedDeliveryReleases() {
  */
 function paintSpendPerDelivery(analysis, { example = false } = {}) {
   if (!analysis) return clearSpendPerDelivery(document);
-  return applySpendPerDelivery(document, spendPerDeliveryDecision(spendPerDeliveryInput({
+  const decision = spendPerDeliveryDecision(spendPerDeliveryInput({
     analysis,
     releases: example ? EXAMPLE_DELIVERY_RELEASES : storedDeliveryReleases(),
     origin: example ? "example" : "import",
-  })));
+  }));
+  // The scoring layer runs on the production path, not beside it: the classified,
+  // prioritized, caveated finding is generated from the same decision this page
+  // paints, so a reading and its classification cannot disagree, and the panel
+  // has no state in which the figure appears without them.
+  return applySpendPerDelivery(document, decision, deliveryEfficiencyFinding(decision));
 }
 
 function fillTextList(id, values, emptyText) {

@@ -12,7 +12,15 @@ import { readFile } from "node:fs/promises";
 
 import { DomEvent, loadPage, textOf } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
-import { SPEND_PER_DELIVERY_STATE } from "../src/spend-per-delivery.js";
+import {
+  DELIVERY_FINDING_CLASSIFICATIONS, deliveryEfficiencyFinding,
+} from "../src/delivery-efficiency-finding.js";
+import {
+  DELIVERY_FINDING_FIXTURES,
+} from "../src/delivery-efficiency-finding-fixtures.js";
+import {
+  SPEND_PER_DELIVERY_STATE, spendPerDeliveryDecision,
+} from "../src/spend-per-delivery.js";
 import { spendPerDeliveryFixture } from "../src/spend-per-delivery-fixtures.js";
 import {
   SPEND_PER_DELIVERY_BODY_ID, SPEND_PER_DELIVERY_LIVE_ID, SPEND_PER_DELIVERY_SECTION_ID,
@@ -239,4 +247,53 @@ test("stored releases inside the imported window publish a ratio the reader can 
   // Only three months of this browser's log exist inside six billing periods, so
   // there is no trailing baseline and confidence says so rather than implying one.
   assert.equal(pick(document, ".spd-confidence").dataset.level, "medium");
+  // And with no baseline, the classified finding withholds a direction rather than
+  // reading the ratio as a change.
+  assert.equal(pick(document, ".spd-finding").dataset.classification, "insufficient_evidence");
+});
+
+/* --------------------- the classified finding, on the page -------------------- */
+
+test("every painted state carries its classification, priority, and caveats", async () => {
+  // The scoring layer is not optional decoration on this panel: there is no state
+  // in which a reader meets the figure without the classification that qualifies
+  // it, so this walks all three states the surface can paint.
+  for (const name of ["eligible", "insufficient", "mismatched"]) {
+    const { document } = await paint(name);
+    const finding = pick(document, ".spd-finding");
+    assert.ok(finding, `${name} painted no finding`);
+    assert.ok(DELIVERY_FINDING_CLASSIFICATIONS.includes(finding.dataset.classification), name);
+    assert.match(textOf(finding), /Priority \d: /, name);
+    // The thresholds and the rules that fired are on the screen, not only in the
+    // module: a disputed classification can be recomputed from what was rendered.
+    assert.match(textOf(finding), /Material change: 15%/, name);
+    assert.ok(finding.querySelector(".spd-finding-rationale").children.length >= 3, name);
+    assert.ok(finding.querySelector(".spd-finding-caveats").children.length >= 3, name);
+    // The framing sentence has its own paragraph; it is not repeated in the list.
+    assert.doesNotMatch(textOf(finding.querySelector(".spd-finding-caveats")),
+      /not a return on investment/, name);
+  }
+});
+
+test("the panel cannot render a material rise without the direction it published", async () => {
+  const { document } = await loadPage(PAGE);
+  const decision = spendPerDeliveryDecision(DELIVERY_FINDING_FIXTURES.materialIncrease.input);
+  applySpendPerDelivery(document, decision, deliveryEfficiencyFinding(decision));
+  const finding = pick(document, ".spd-finding");
+  assert.equal(finding.dataset.classification, "material_ratio_increase");
+  assert.equal(finding.dataset.priorityRank, "2");
+  assert.match(textOf(finding), /\+50\.0%/);
+  // And it still says, on screen, that this is not evidence either figure moved the
+  // other.
+  assert.match(textOf(finding), /not evidence that spend affected delivery/);
+});
+
+test("an unalignable window renders the top-priority finding and no figure", async () => {
+  const { document } = await loadPage(PAGE);
+  const decision = spendPerDeliveryDecision(DELIVERY_FINDING_FIXTURES.invalidAlignment.input);
+  applySpendPerDelivery(document, decision, deliveryEfficiencyFinding(decision));
+  const finding = pick(document, ".spd-finding");
+  assert.equal(finding.dataset.classification, "invalid_period_alignment");
+  assert.equal(finding.dataset.priorityRank, "1");
+  assert.equal(pick(document, ".spd-figure"), null);
 });

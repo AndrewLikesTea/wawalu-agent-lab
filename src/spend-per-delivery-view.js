@@ -1,7 +1,9 @@
-// Reading order is answer, figure or withheld reason, comparison, confidence,
-// non-causal framing, next action, then a native details disclosure. Nodes use
-// textContent, and every color signal is repeated by a word and shape.
+// Reading order is answer, figure or withheld reason, comparison, the classified
+// finding, confidence, non-causal framing, next action, then a native details
+// disclosure. Nodes use textContent, and every color signal is repeated by a word
+// and shape.
 
+import { deliveryEfficiencyFinding } from "./delivery-efficiency-finding.js";
 import { SPEND_PER_DELIVERY_STATE } from "./spend-per-delivery.js";
 
 export const SPEND_PER_DELIVERY_SECTION_ID = "spend-per-delivery";
@@ -86,6 +88,59 @@ function comparisonBlock(doc, state) {
   return wrap;
 }
 
+/** Repeated by the classification word beside it, never a substitute for it. */
+const CLASSIFICATION_SHAPE = Object.freeze({
+  material_ratio_increase: "▲", material_ratio_decrease: "▼", stable_ratio: "—",
+  insufficient_evidence: "○", invalid_period_alignment: "✕",
+});
+
+/**
+ * The classified finding: what this reading was scored as, where it ranks, why —
+ * as the ordered list of rules that fired — and the caveats it may not be read
+ * without.
+ *
+ * The rationale and the caveats are rendered rather than logged because the
+ * classification is the disputable part: a reader who disagrees with "no material
+ * change" has to be able to see the threshold that produced it and the numbers it
+ * was applied to, on the same screen as the word.
+ */
+function findingBlock(doc, finding) {
+  const wrap = element(doc, "div", "spd-finding");
+  wrap.dataset.classification = finding.classification;
+  wrap.dataset.priorityRank = String(finding.priority.rank);
+  const head = element(doc, "p", "spd-finding-head");
+  head.append(shape(doc, CLASSIFICATION_SHAPE[finding.classification] ?? "○"));
+  head.append(element(doc, "span", "spd-finding-class",
+    finding.classification.replace(/_/g, " ")));
+  head.append(element(doc, "span", "spd-finding-priority",
+    `Priority ${finding.priority.rank}: ${finding.priority.band.replace(/_/g, " ")}`));
+  wrap.append(head);
+  wrap.append(element(doc, "p", "spd-finding-headline", finding.headline));
+  const details = element(doc, "details", "spd-finding-detail");
+  details.append(element(doc, "summary", "spd-finding-summary",
+    "Why this was classified this way, and the thresholds it used"));
+  details.append(element(doc, "h3", "spd-detail-heading", "Rules applied, in order"));
+  details.append(list(doc, "spd-finding-rationale",
+    finding.rationale.map((step) => step.text)));
+  details.append(element(doc, "h3", "spd-detail-heading", "Thresholds, and the assumption behind each"));
+  details.append(list(doc, "spd-finding-thresholds", [
+    `Material change: ${finding.thresholds.materialChangePercent.value}%`
+    + ` (${finding.thresholds.materialChangePercent.unit}). `
+    + finding.thresholds.materialChangePercent.assumption,
+    `Single-release sensitivity: ${finding.thresholds.singleReleaseSensitivity.value}. `
+    + finding.thresholds.singleReleaseSensitivity.assumption,
+    `Priority. ${finding.priority.rule} ${finding.priority.assumption}`,
+  ]));
+  wrap.append(details);
+  wrap.append(element(doc, "h3", "spd-detail-heading", "Read this only with"));
+  // The framing sentence has its own paragraph below this block. It stays on the
+  // finding record — a consumer that only reads the record must still get it — and
+  // is dropped here so the reader is not told the same thing twice in two places.
+  wrap.append(list(doc, "spd-finding-caveats",
+    finding.requiredCaveats.filter((caveat) => caveat !== finding.framing.statement)));
+  return wrap;
+}
+
 function actionBlock(doc, state) {
   const { nextAction } = state;
   const wrap = element(doc, "div", "spd-action");
@@ -126,11 +181,20 @@ function detailBlock(doc, state, open) {
  *
  * Returns the state that was painted so a caller can assert on what it asked for
  * rather than on the DOM it got.
+ *
+ * The classified finding defaults to the one this state scores to, so there is no
+ * way to paint this panel without it: a caller cannot render a ratio while
+ * omitting the classification, the priority, or the caveats it may not be read
+ * without. The parameter exists so the page can pass the finding it already built
+ * rather than scoring the same state twice.
  */
-export function applySpendPerDelivery(doc, state) {
+export function applySpendPerDelivery(doc, state, finding) {
   const section = byId(doc, SPEND_PER_DELIVERY_SECTION_ID);
   if (!section || !state) return null;
   if (state.state === SPEND_PER_DELIVERY_STATE.absent) return clearSpendPerDelivery(doc);
+  // Scored here when the caller did not, and never skipped. The score is derived
+  // from the state, so computing it twice cannot produce two answers.
+  const scored = finding ?? deliveryEfficiencyFinding(state);
   const store = held(section);
   // The disclosure the reader opened stays open across a repaint of the same
   // reading, and is closed for a different one: a panel left open would caption
@@ -153,6 +217,7 @@ export function applySpendPerDelivery(doc, state) {
     children.push(element(doc, "p", "spd-withheld",
       `No figure is published for ${state.metric.unit} in this state.`));
   }
+  children.push(findingBlock(doc, scored));
   const confidence = element(doc, "p", "spd-confidence");
   confidence.dataset.level = state.confidence.level;
   confidence.append(shape(doc, CONFIDENCE_SHAPE[state.confidence.level] ?? "○○○"));
