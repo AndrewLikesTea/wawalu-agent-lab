@@ -14,8 +14,8 @@ import test from "node:test";
 import { parseHtml, tabSequence, textOf } from "./support/browser.js";
 import {
   announce, applyBriefing, applyDatasetProvenance, applyFieldDiagnostic, applyMetricBasis,
-  applyRequirements, applyStage, applyTrustVerdict, diagnosticFor, EXAMPLE_DATASET_PROVENANCE,
-  focusStageHeading, IMPORT_STAGES, importStage, mappingRequirements, metricBasis,
+  applyProviderCoverage, applyRequirements, applyStage, applyTrustVerdict, diagnosticFor,
+  EXAMPLE_DATASET_PROVENANCE, focusStageHeading, IMPORT_STAGES, importStage, mappingRequirements, metricBasis,
   redactDiagnostic, stageProgress,
 } from "../src/local-import-flow.js";
 import { BRIEFING_FIXTURE } from "../src/finops-briefing-contract.js";
@@ -260,6 +260,46 @@ test("stage change moves focus to the new stage's own heading or control", async
   assert.equal(doc.activeElement, doc.getElementById("local-results-title"));
   focusStageHeading(doc, "select");
   assert.equal(doc.activeElement, doc.getElementById("local-finops-files"));
+});
+
+test("provider feedback names accepted evidence, recovery, and clears with the import", async () => {
+  const doc = await page();
+  const secret = "lead@example.com";
+  const summary = {
+    contractVersion: "wawalu.integration.multi-provider-intake/1.0",
+    comparability: {
+      state: "combined_bounded", message: "Two providers were combined.",
+      basis: "Identical billing window and currency.", notes: ["Anthropic is partial."],
+    },
+    providers: [{
+      provider: "openai", label: "OpenAI organization usage export", state: "settled",
+      periods: ["2026-01-01:2026-02-01"], adapterId: "openai-usage",
+      adapterVersion: "1.0", comparabilityNote: "Per-project billed USD.",
+    }],
+    rejections: [{
+      code: "misaligned_period", providerLabel: "Anthropic Console usage export",
+      message: `Export psn_abcdefghijklmnop0123 from /tmp/${secret} overlaps the window.`,
+      action: "Re-export Console usage for the same billing window.",
+    }],
+  };
+
+  applyProviderCoverage(doc, summary);
+  const panel = doc.getElementById("provider-coverage");
+  assert.equal(panel.hidden, false);
+  assert.equal(panel.dataset.contractVersion, summary.contractVersion);
+  assert.match(normalized(panel), /OpenAI organization usage export\s*Settled\s*1 period/);
+  assert.match(normalized(panel), /Anthropic Console usage export/);
+  assert.match(normalized(panel), /Re-export Console usage for the same billing window/);
+  assert.doesNotMatch(normalized(panel), /psn_|lead@example\.com|\/tmp\//);
+
+  panel.querySelector(".provider-coverage-fix").click();
+  assert.equal(doc.activeElement, doc.getElementById("local-finops-files"));
+
+  applyProviderCoverage(doc, null);
+  assert.equal(panel.hidden, true);
+  assert.equal(panel.dataset.state, "empty");
+  assert.equal(normalized(doc.getElementById("provider-coverage-list")), "");
+  assert.equal(normalized(doc.getElementById("provider-coverage-rejections")), "");
 });
 
 // --- redaction -------------------------------------------------------------

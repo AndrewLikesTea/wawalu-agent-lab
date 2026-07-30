@@ -41,6 +41,10 @@ try {
     // the version rule, and what partial, stale, malformed, reordered, and
     // period-incompatible input does, stated before a reader chooses a file.
     "shiplog-delivery-history-contract.md",
+    // Linked from the provider-coverage panel: which providers may be read side
+    // by side, each adapter's schema version, and what partial, stale,
+    // malformed, reordered, and mixed-currency exports do.
+    "multi-provider-intake-contract.md",
   ]) {
     await cp(resolve(root, "docs", page), resolve(staging, "docs", page));
   }
