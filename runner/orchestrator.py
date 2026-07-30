@@ -256,6 +256,31 @@ def discard_generated_artifacts(worktree: pathlib.Path) -> list[str]:
     return discarded
 
 
+def changed_line_count(worktree: pathlib.Path, base: str) -> int:
+    """Count the changed lines the policy gate will count, before it runs.
+
+    Mirrors runner.policy.validate: committed work against the base plus whatever
+    is still unstaged or staged, since the worker leaves its change uncommitted.
+    """
+    numstat = "\n".join((
+        output(["git", "diff", "--numstat", f"{base}...HEAD"], cwd=worktree),
+        output(["git", "diff", "--numstat"], cwd=worktree),
+        output(["git", "diff", "--cached", "--numstat"], cwd=worktree),
+    ))
+    return sum(int(value) for row in numstat.splitlines()
+               for value in row.split("\t")[:2] if value.isdigit())
+
+
+def oversized_only(reasons: str) -> bool:
+    """True when the gate's sole complaint is the changed-line ceiling.
+
+    A trim can fix that. It cannot fix a forbidden path or a file count, and it
+    must never be used to launder either past the gate.
+    """
+    lines = [line.strip() for line in reasons.splitlines() if line.strip()]
+    return bool(lines) and all("changed lines exceeds limit" in line for line in lines)
+
+
 def reclaim_worktree(worktree: pathlib.Path, branch: str) -> None:
     """Clear a worktree a dead run left behind, so a retry is not blocked by its own wreckage.
 
@@ -440,12 +465,28 @@ Do not invoke GitHub yourself and do not request delivery for another branch.
         collaborator_profile = behaviors["personas"][collaborator]
         collaborator_prompt = (ROOT / personas[collaborator]["prompt_file"]).read_text()
         collaborator_prompt += "\n\n" + personality_context(collaborator_profile, False)
+        # The collaborator edits a diff that is already most of the way to the
+        # ceiling, and the gate below judges their combined work. Left unsaid, the
+        # size budget reads as the first engineer's problem alone: three straight
+        # runs were discarded 5-8% over after this pass added to a fitting change.
+        spent = changed_line_count(worktree, base_sha)
+        headroom = policy["max_diff_lines"] - spent
         pairing_prompt = f"""{collaborator_prompt}
 
 You are joining {profile['name']}'s existing pull-request worktree as a second engineer.
 Review the current implementation against this scenario and make concrete improvements
 where your expertise or opinions differ. Preserve sound work, do not merely restyle it,
 and run relevant tests. Do not create or remove the delivery request.
+
+The change in this worktree already spends {spent} of a hard {policy["max_diff_lines"]}
+changed-line ceiling, leaving you about {headroom} lines. That ceiling is enforced
+automatically once you finish and it rejects the combined change whole — your additions
+and {profile['name']}'s work are thrown away together and the whole run is wasted. So
+net-neutral edits are your default: improve this change rather than extend it, and if
+you want something substantial that does not fit, delete or simplify something else to
+pay for it. Check your running total with `git diff --numstat`. If the work is already
+sound and near the ceiling, adding nothing is a correct and useful outcome — say so in
+your summary rather than spending the remaining lines because they are there.
 
 Scenario: {json.dumps(scenario, indent=2)}
 """
@@ -479,6 +520,72 @@ Scenario: {json.dumps(scenario, indent=2)}
         cwd=ROOT, text=True, capture_output=True)
     print(policy_result.stdout, end="")
     print(policy_result.stderr, end="", file=sys.stderr)
+    if policy_result.returncode and oversized_only(
+            (policy_result.stderr or policy_result.stdout).strip()):
+        # Every size rejection so far has been a near miss — 2024, 2143, 2157, 2349
+        # against 2000 — and discarding the run rebuilds the whole change from
+        # scratch for the sake of a few percent. One bounded trim session in the
+        # worktree that already holds the work is far cheaper than a fresh attempt,
+        # and it can only help: the gate below still decides, unchanged.
+        over = changed_line_count(worktree, base_sha) - policy["max_diff_lines"]
+        print(f"change is {over} lines over the ceiling; running one trim pass")
+        metadata["trim_pass"] = {"over_by": over}
+        trim_prompt = f"""{persona_prompt}
+
+The change in this worktree is finished and correct, but it is {over} changed lines over
+the hard ceiling of {policy["max_diff_lines"]} (additions plus deletions, tests and
+fixtures included). The automated gate rejects it whole at that size: none of this work
+ships and the entire run is wasted. Your only job now is to get it under the ceiling
+while keeping it coherent, correct, and reviewable.
+
+Do not start new work and do not re-plan the task. Cut instead, in this order of
+preference: collapse committed fixtures into ones generated in-test; fold duplicated
+test cases into table-driven ones; drop tests for behaviour that is already covered;
+narrow the depth of any new module to the slice the task actually requires; remove
+comments and documentation that restate the code. Cut the depth of new code before you
+cut anything the task named as a surface that must use your work — a change that fits
+but is not wired into the product gets rejected by review instead.
+
+You need to remove more than {over} lines, since deletions themselves count. Verify with
+`git diff --numstat` plus `git status` until the total is comfortably under
+{policy["max_diff_lines"]}, and re-run the relevant tests before you finish so the
+trimmed change still passes. Leave your work uncommitted, and do not create or remove
+the delivery request.
+
+Scenario: {json.dumps(scenario, indent=2)}
+"""
+        trim_exit = run_worker(
+            plan_value["worker"], trim_prompt, worktree, run_dir, persona,
+            personas[persona]["wawalu_token"],
+            runtime["WAWALU_INGEST_ENDPOINT"].rstrip("/"), log_label="trim")
+        metadata["trim_pass"]["exit_code"] = trim_exit
+        if check_command and not trim_exit:
+            # The check already passed before the trim, so this catches a trim that
+            # cut something load-bearing. Failing it means the trim is unusable, not
+            # that the run crashed: fall through to the ordinary size rejection so
+            # the retry gets the same feedback it would have got without the trim.
+            try:
+                run_product_check(check_command, worktree)
+            except subprocess.CalledProcessError:
+                print("trimmed change fails the product check; rejecting on size",
+                      file=sys.stderr)
+                metadata["trim_pass"]["check_failed"] = True
+                trim_exit = trim_exit or 1
+        discard_generated_artifacts(worktree)
+        run(["git", "add", "--intent-to-add", "--all"], cwd=worktree)
+        if not trim_exit:
+            # A trim that errored or broke the check keeps the original rejection:
+            # re-gating it could let a change through on size that no longer passes
+            # the gates the first result already reflected.
+            policy_result = subprocess.run(
+                [sys.executable, "-m", "runner.policy", "--base", base_sha,
+                 "--repo", str(worktree)],
+                cwd=ROOT, text=True, capture_output=True)
+            print(policy_result.stdout, end="")
+            print(policy_result.stderr, end="", file=sys.stderr)
+        metadata["trim_pass"]["lines_after"] = changed_line_count(worktree, base_sha)
+        metadata["trim_pass"]["passed"] = not (trim_exit or policy_result.returncode)
+        (run_dir / "metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")
     if policy_result.returncode:
         reasons = (policy_result.stderr or policy_result.stdout).strip()
         (run_dir / POLICY_REJECTION_FILE).write_text(reasons + "\n", encoding="utf-8")
