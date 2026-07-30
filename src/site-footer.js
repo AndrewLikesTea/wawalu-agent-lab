@@ -83,16 +83,56 @@ const ALREADY_CAPTURED = "That address is already on our list, so nothing new wa
 const SUBMITTING = "Requesting a follow-up — sending your email address…";
 
 /**
+ * The pages that answer a follow-up request better than this footer can, and
+ * therefore ship a pointer to their own form instead of a second one.
+ *
+ * There is exactly one today. The executive briefing ends on a decision, and its
+ * own form arrives attached to it — a request from there says which figure and
+ * which action it is about, which a generic "talk to us about Shiplog" cannot.
+ * Two identical work-email fields on one screen also make a reader who has just
+ * decided something choose between them, and the choice has no right answer.
+ *
+ * The pointer is a real link, not a button: it works with no script at all,
+ * which is the same promise the rest of this footer makes.
+ */
+export const FOLLOW_UP_REDIRECT = Object.freeze({
+  briefing: Object.freeze({
+    statement: "This page carries its own follow-up form, at the end of the briefing. Use that one: it reaches "
+      + "the same Wawalu team, and a request made there arrives attached to the decision you just read. It "
+      + "sends one thing — the work email address you type.",
+    label: "Ask about this briefing",
+    href: "#briefing-contact",
+  }),
+});
+
+/**
  * The footer as it appears in every page's source. `indent` is the indentation
  * of the <footer> element itself; every page places it at body level, so the
  * default is the four spaces the pages already use there.
+ *
+ * `redirect` replaces the disclosure and its form with a pointer to a page's own
+ * follow-up form — see FOLLOW_UP_REDIRECT. The identity paragraph never varies:
+ * every page says who runs Shiplog and where.
  */
-export function siteFooterMarkup(indent = "    ") {
+export function siteFooterMarkup(indent = "    ", { redirect = null } = {}) {
+  const contact = redirect ? [
+    `    <p class="site-footer-redirect">${redirect.statement}</p>`,
+    `    <a class="site-footer-redirect-link" href="${redirect.href}">${redirect.label}</a>`,
+  ] : contactDisclosureLines();
   const lines = [
     '<footer class="site-footer" id="site-footer" aria-labelledby="site-footer-title">',
     '  <div class="site-footer-inner">',
     '    <h2 class="site-footer-title" id="site-footer-title">About Shiplog</h2>',
     `    <p class="site-footer-identity">${IDENTITY}</p>`,
+    ...contact,
+    "  </div>",
+    "</footer>",
+  ];
+  return lines.map((line) => `${indent}${line}`).join("\n");
+}
+
+function contactDisclosureLines() {
+  return [
     '    <button class="site-footer-trigger" id="site-footer-open" type="button" aria-expanded="false" aria-controls="site-footer-panel">',
     "      Talk to us about Shiplog",
     "    </button>",
@@ -117,10 +157,7 @@ export function siteFooterMarkup(indent = "    ") {
     '      <p class="site-footer-status" id="site-footer-status" role="status" aria-live="polite"></p>',
     '      <p class="site-footer-recovery" id="site-footer-recovery" hidden>Your email address is still in the field above, so you can request a follow-up again. Nothing else on this page changed.</p>',
     "    </div>",
-    "  </div>",
-    "</footer>",
   ];
-  return lines.map((line) => `${indent}${line}`).join("\n");
 }
 
 /**

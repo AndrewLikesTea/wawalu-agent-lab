@@ -133,17 +133,22 @@ export function initFinopsContact(
   trigger.addEventListener("click", () => (panel.hidden ? open() : close()));
   dismiss?.addEventListener("click", close);
 
-  // The contextual invitations. They live beside the brief a visitor has just
-  // read — which is a region this module must never render into — and all they
-  // do is bring the reader to this form: open it if it is shut, and land the
-  // cursor in the field either way, so a second press is never a way to close
-  // the form a visitor just asked for.
-  for (const cta of root.querySelectorAll(`[data-follow-up-cta="${prefix}"]`)) {
-    cta.addEventListener("click", () => {
-      open();
-      email.focus();
-    });
-  }
+  // The contextual invitations. They live beside — or inside — the brief a
+  // visitor has just read, which is a region this module must never render into
+  // and, on the executive briefing, a region that is *repainted* whole. So the
+  // listener is delegated from the root rather than bound to the nodes that
+  // happen to exist at wiring time: an invitation drawn into the sheet after
+  // this ran works on its first press, and one a repaint unmounted leaves no
+  // dead listener behind.
+  //
+  // All an invitation does is bring the reader to this form: open it if it is
+  // shut, and land the cursor in the field either way, so a second press is
+  // never a way to close the form a visitor just asked for.
+  root.addEventListener("click", (event) => {
+    if (!event.target?.closest?.(`[data-follow-up-cta="${prefix}"]`)) return;
+    open();
+    email.focus();
+  });
 
   panel.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") return;

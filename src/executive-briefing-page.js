@@ -106,7 +106,7 @@ function paintWorkspaceBriefing({ periods, origin, provenanceNote }) {
     }));
     return null;
   }
-  const article = renderExecutiveBriefingPreview(briefing, { origin, provenanceNote });
+  const article = renderExecutiveBriefingPreview(briefing, { origin, provenanceNote, followUp: true });
   paint(article);
   activate(article);
   return article;
@@ -139,6 +139,7 @@ function paintSampleBriefing({ absence, origin }) {
     origin,
     provenanceNote: SAMPLE_PROVENANCE_NOTE,
     synthetic: { label: SAMPLE_LABEL, disclosure: SAMPLE_DISCLOSURE },
+    followUp: true,
   });
   paint(renderSourceNotice(absence), preview);
   activate(preview);
@@ -189,6 +190,7 @@ function paintExampleBriefing() {
     origin: EXAMPLE_BRIEFING_ORIGIN,
     provenanceNote: EXAMPLE_BRIEFING_PROVENANCE_NOTE,
     synthetic: EXAMPLE_BRIEFING_SYNTHETIC,
+    followUp: true,
   });
   paint(renderExampleContextNotice(EXAMPLE_BRIEFING_NOTICE), preview);
   activate(preview);
