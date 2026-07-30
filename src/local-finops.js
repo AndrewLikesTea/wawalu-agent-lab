@@ -15,6 +15,12 @@ import { analyzeModelRouting, evaluateDownRoutingCandidate } from "./down-routin
 import { CONTRACT_VERSION as BRIEFING_CONTRACT_VERSION } from "./finops-briefing-contract.js";
 import { RUBRIC_VERSION_ID } from "./prompt-literacy-scoring.js";
 import { analyzeQueryLiteracy, missingInputNotice, NOT_GRADEABLE_COPY } from "./query-literacy.js";
+// Which selected exports may be read side by side, and on what terms. The plan
+// runs before reconciliation: two providers covering one billing window are two
+// halves of that window, not the same window supplied twice, and only this
+// contract knows the difference. A single-provider selection passes through it
+// unchanged — see `planMultiProviderIntake`.
+import { planMultiProviderIntake } from "./multi-provider-intake.js";
 import {
   PREVIOUS_PROVIDER_USAGE_SCHEMA_VERSION, PROVIDER_USAGE_SCHEMA_VERSION,
   SUPPORTED_PROVIDER_USAGE_SCHEMA_VERSIONS, USAGE_DETAIL_KEYS, usageDetailProblem,
@@ -715,16 +721,35 @@ function deterministicSourceGroup(entries) {
  * contiguous and equal length. Quarantined inputs never affect totals.
  */
 export function normalizeLocalFinopsHistory({ providers = [], hris = null }) {
-  const list = Array.isArray(providers) ? providers : [providers];
+  const selected = Array.isArray(providers) ? providers : [providers];
   // Same removal as the single-period path: only the file carrying the spend is
   // required, and `hris` is an optional enrichment input on the way through.
-  if (list.length === 0) fail("missing_provider", "Add at least one provider export.");
+  if (selected.length === 0) fail("missing_provider", "Add at least one provider export.");
+
+  // The intake contract first. It decides which of the selected exports are
+  // comparable enough to be added together, folds a billing window covered by
+  // several providers into one period, and hands back everything it held out
+  // with the provider-specific action that recovers it. One provider in means
+  // the same entries back out, so the path below is unchanged for a reader who
+  // imports a single provider's periods.
+  const intake = planMultiProviderIntake({ providers: selected });
+  const list = intake.accepted;
+  if (list.length === 0) {
+    fail("incompatible_providers",
+      "No selected provider export could be combined; every one was held out by the intake contract.");
+  }
 
   const candidates = list.map(periodMetadata).sort((left, right) =>
     left.start - right.start || left.end - right.end
     || left.document.export_id.localeCompare(right.document.export_id));
-  const validations = [];
-  const quarantinedExports = [];
+  // Everything the intake contract held out is a validation result here, in the
+  // same shape and under the same codes the reconciler already emits, so a
+  // surface that renders one renders the other without learning a second model.
+  const validations = intake.rejections.map((held) => validation(
+    held.code, "provider", held.message, held.action,
+    { exportId: held.exportId, period: held.period, provider: held.provider },
+  ));
+  const quarantinedExports = intake.rejections.map((held) => held.exportId);
   const validDates = candidates.filter((entry) => {
     if (Number.isFinite(entry.start) && Number.isFinite(entry.end) && entry.end > entry.start)
       return true;
@@ -882,6 +907,11 @@ export function normalizeLocalFinopsHistory({ providers = [], hris = null }) {
         completeness: entry.completeness,
       }))),
     }),
+    // Who was read, at which adapter version, over which windows — and what the
+    // combined figure is bounded by. Carried whole from the intake contract
+    // rather than restated, so the panel, the provenance block, and the download
+    // are three views of one plan.
+    multiProvider: intake.summary,
     // The benchmark is the current period's, because a cohort is a comparison
     // between departments in one import, not between periods. When no query
     // sample was imported this is byte-for-byte the previous answer, under the

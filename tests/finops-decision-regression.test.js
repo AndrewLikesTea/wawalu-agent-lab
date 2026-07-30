@@ -526,14 +526,15 @@ const codeOf = (source) => source
  * this list; adding one does.
  */
 const ALLOWED_MODULES = Object.freeze([
-  "attribution-units.js", "down-routing-candidates.js", "evolution.js", "example-dataset.js",
+  "attribution-units.js", "dialect-profiles.js", "down-routing-candidates.js", "evolution.js",
+  "example-dataset.js",
   "executive-briefing-sample.js", "executive-briefing-view.js", "executive-finops-briefing.js",
   "finops-attribution-policy.js", "finops-briefing-contract.js", "finops-decision-contract.js",
   "finops-decision-interaction.js", "finops-display.js", "finops-first-run.js",
   "finops-leading-finding.js",
   "finops-workspace-contract.js", "finops-workspace-migrations.js", "finops-workspace.js",
   "grade-eligibility.js", "landing-decision-page.js", "landing-decision.js", "local-finops.js",
-  "longitudinal-finops-metrics.js", "org-unit-labels.js", "prompt-literacy-scoring.js",
+  "longitudinal-finops-metrics.js", "multi-provider-intake.js", "org-unit-labels.js", "prompt-literacy-scoring.js",
   "provider-usage-record.js", "query-classification.js", "query-literacy.js", "query-sample.js",
   "unit-pseudonym.js",
 ]);

@@ -19,6 +19,11 @@ import {
 } from "./dialect-profiles.js";
 import { detectShape } from "./finops-tabular-import.js";
 import { GROUPING_STATUS, detectNativeGrouping } from "./native-grouping.js";
+// The billing adapters' own sensitivity policy. A column an adapter marks
+// sensitive is still listed and still mappable — the reader has to be able to
+// see and correct every column of their file — but its sample is withheld here
+// as well, so a person identifier or a key alias is never printed beside it.
+import { SENSITIVE_INTAKE_HEADERS } from "./multi-provider-intake.js";
 
 /** The target that says, in the reader's words, "this column becomes nothing". */
 export const IGNORED_TARGET = "ignored";
@@ -135,13 +140,21 @@ function sampleFor(rows, index, hasRows) {
  * withheld, because "no prompt text is ever rendered" has to hold on the manual
  * path too or it is not a rule.
  */
-const NEVER_RENDER_HEADERS = new Set(CONVERSATION_DIALECT_PROFILES
-  .flatMap((profile) => neverRenderColumns(profile))
-  .flatMap((entry) => columnNames(entry)));
+const NEVER_RENDER_HEADERS = new Set([
+  ...CONVERSATION_DIALECT_PROFILES
+    .flatMap((profile) => neverRenderColumns(profile))
+    .flatMap((entry) => columnNames(entry)),
+  // The billing adapters' sensitive headers — message bodies, per-person
+  // identity, key aliases, account identifiers — under the same rule. A billing
+  // export is exactly as likely to carry a `user_email` column as a
+  // conversation export is to carry a prompt, and the sample is the one place
+  // either value could reach a screen.
+  ...SENSITIVE_INTAKE_HEADERS.map(normalizeColumnName),
+]);
 
 const WITHHELD_SAMPLE = Object.freeze({
   available: false, value: "", display: "", truncated: false,
-  note: "Prompt text is never shown. This column is measured, not read.",
+  note: "This column is never shown or read. It is listed so you can map or ignore it.",
 });
 
 /** A blank header is still a column; it is named by its position instead. */

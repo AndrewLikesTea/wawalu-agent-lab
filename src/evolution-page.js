@@ -188,7 +188,8 @@ import {
 import {
   announce as announceStage, applyDatasetProvenance, applyExportPackageGuidance,
   applyFieldDiagnostic, applyImportLimits, applyOrgQuerySources, applyOrgQuerySourceStatus,
-  applyBriefing, applyBriefingState, applyImportProgress, applyMetricBasis, applyRequirements, applyRestoreRejection,
+  applyBriefing, applyBriefingState, applyImportProgress, applyMetricBasis, applyProviderCoverage,
+  applyRequirements, applyRestoreRejection,
   applyRestoredBriefing, applyStage, applySupportingDisclosures, applyTrustVerdict, diagnosticFor,
   EXAMPLE_DATASET_PROVENANCE,
   focusStageHeading, importStage, metricBasis, userDatasetProvenance,
@@ -1189,6 +1190,10 @@ function mountLocalFinopsImport() {
       importedDeliveryHistory = outcome.usable ? outcome : null;
     }
     resultsNode.setAttribute("aria-busy", "false");
+    // Which providers are inside this number, and what the intake contract held
+    // out of it. Painted from the plan the analysis carries rather than from a
+    // second read of the selection, so the panel and the total cannot disagree.
+    applyProviderCoverage(document, next.multiProvider ?? null);
     applyDatasetProvenance(document, example, example ? null : importProvenance());
     if (remap) remap.hidden = example || !imports.some((entry) => entry.source === "delimited");
     setMode(example ? "example-dataset" : "local", example ? "Example data" : "Local import");
@@ -1544,6 +1549,9 @@ function mountLocalFinopsImport() {
     // stale "12 warnings" over an emptied list is a count for a file that is no
     // longer loaded, and a "0" would be a claim nothing has measured.
     applySupportingDisclosures(document, {});
+    // The coverage list belongs to one import. Leaving it painted through a
+    // clear would name providers for a total that is no longer on screen.
+    applyProviderCoverage(document, null);
     const trust = document.getElementById("local-trust");
     if (trust) {
       trust.hidden = true;
