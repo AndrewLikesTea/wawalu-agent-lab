@@ -92,6 +92,7 @@ import {
   retainCurrentReviewEvidence,
 } from "/recurring-review-readiness.js";
 import { readMonthlyAction } from "/monthly-department-action-store.js";
+import { captureJourneySnapshot, clearJourneySnapshot } from "/finops-journey-snapshot.js";
 import { renderRecurringReviewWorkspace } from "/recurring-review-workspace-view.js";
 // Whether the letter may be shown at all is decided before it is drawn: the
 // score card is a roll-up of only the departments the rubric actually scored.
@@ -1316,10 +1317,17 @@ function mountLocalFinopsImport() {
     // earn one, and the composition refuses it on that side anyway.
     lastVerdict = example ? null : verdict;
     if (!example) {
-      retainCurrentReviewEvidence(browserFinopsWorkspaceStorage(), {
+      const reviewStorage = browserFinopsWorkspaceStorage();
+      retainCurrentReviewEvidence(reviewStorage, {
         currentAnalysis: next,
         theoVerdict: verdict,
       });
+      // Derived from the record written on the line above and from whatever
+      // tracked action this browser already holds — never from the analysis in
+      // scope here, so the snapshot can only ever reference evidence that was
+      // actually retained. A refusal is silent: the analysis is unaffected, and
+      // the journey view falls back to reading those same records itself.
+      captureJourneySnapshot(reviewStorage, { importSource: importProvenance() });
     }
     // How much of this spend is attributed decides what the recoverable figure
     // above may claim. The verdict has already summed both sides of that ratio;
@@ -1599,6 +1607,10 @@ function mountLocalFinopsImport() {
     if (remap) remap.hidden = true;
     result = null;
     clearCurrentReviewEvidence(browserFinopsWorkspaceStorage());
+    // The snapshot references the evidence cleared on the line above. Leaving it
+    // behind would only make the next journey view read a stale snapshot and say
+    // so; discarding it with its referents keeps the clear total.
+    clearJourneySnapshot(browserFinopsWorkspaceStorage());
     currentBriefing = null;
     exampleActive = false;
     // The reader's own coverage figure goes with the reader's own analysis. A

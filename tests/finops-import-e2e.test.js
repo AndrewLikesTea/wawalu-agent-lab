@@ -26,6 +26,9 @@ import { conversationExampleText } from "../src/conversation-export-example.js";
 import {
   FINOPS_WORKSPACE_KEY, FINOPS_WORKSPACE_VERSION,
 } from "../src/finops-workspace-contract.js";
+import {
+  JOURNEY_SNAPSHOT_KEY, JOURNEY_SNAPSHOT_VERSION, validateJourneySnapshot,
+} from "../src/finops-journey-snapshot.js";
 
 const PAGE = new URL("../src/evolution.html", import.meta.url);
 
@@ -560,6 +563,33 @@ test("an opted-in import adds its canonical derived briefing to the local worksp
     assert.equal(retained.periods[0].materialMetricMinor, 39822);
     assert.equal("provenance" in retained.periods[0], false,
       "the persisted record must be the allowlisted projection, not the briefing envelope");
+  } finally {
+    page.restore();
+  }
+});
+
+test("a completed import leaves a journey snapshot the action center can resume", async () => {
+  const page = await openFinopsTab(consentSeed("granted"));
+  try {
+    await importJoinableExport(page.document);
+
+    const stored = page.storage.getItem(JOURNEY_SNAPSHOT_KEY);
+    assert.notEqual(stored, null, "the import must leave a snapshot to carry");
+    const snapshot = JSON.parse(stored);
+    assert.equal(snapshot.version, JOURNEY_SNAPSHOT_VERSION);
+    assert.equal(validateJourneySnapshot(snapshot).ok, true);
+    assert.equal(snapshot.provenance.fileCount, 2);
+    // The contract the retained evidence recorded, whichever envelope this page
+    // analysed through — a placeholder here would name no version at all.
+    assert.match(snapshot.provenance.analysisContract, /^local-finops[\w-]*\/\d+\.\d+\.\d+$/);
+    assert.equal(snapshot.benchmark.analysisPeriod, "2026-06");
+    assert.ok(snapshot.departmentReferences.length > 0,
+      "the departments this import ranked must be referenced");
+    // This browser has no retained monthly action, so there is no action to
+    // reference and the snapshot says so rather than inventing one.
+    assert.equal(snapshot.trackedAction, null);
+    // References, not payloads: no department name and no file name is in it.
+    assert.doesNotMatch(stored, /Atlas Platform|openai-usage-export|generic-hris-roster/);
   } finally {
     page.restore();
   }
