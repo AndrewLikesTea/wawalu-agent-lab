@@ -271,6 +271,11 @@ import {
   mergeCohortSources, projectCohortSource, validateCohortAttribution,
 } from "/cohort-attribution.js";
 import { applyCohortAttribution } from "/cohort-attribution-view.js";
+// The headline answer this view leads with, and the module that paints it.
+import { buildStandHeadline, standHeadlineForImport } from "/finops-stand.js";
+import {
+  applyStandHeadline, bindStandDisclosures, bindStandResolution,
+} from "/finops-stand-view.js";
 import {
   FINOPS_IMPORT_STATUS, finopsProvenanceModel, promptImportFacts,
 } from "/finops-provenance-model.js";
@@ -1664,6 +1669,10 @@ function mountLocalFinopsImport() {
     // longer loaded, and `imports` has just been emptied, so there is nothing
     // left to derive one from either.
     applyCohortAttribution(document, null);
+    // And the headline goes back to the bundled example with it. A cleared
+    // import must not leave a withheld-position path on screen for a file that
+    // is no longer loaded.
+    applyStandHeadline(document, buildStandHeadline());
     input.value = "";
     resultsNode.hidden = true;
     clear.hidden = true;
@@ -1862,11 +1871,24 @@ function mountLocalFinopsImport() {
    * `asOf` is the analysed period's own end when there is one, never a clock
    * read: an eligibility answer has to be reproducible from the same files.
    */
-  const syncCohortPosition = (analysis = null) => applyCohortAttribution(document,
-    exampleActive || !cohortSources().length ? null : validateCohortAttribution({
-      ...mergeCohortSources(cohortSources()),
-      asOf: spendWindowFromPeriod(analysis?.period)?.end ?? null,
-    }));
+  const syncCohortPosition = (analysis = null) => {
+    const eligibility = exampleActive || !cohortSources().length
+      ? null
+      : validateCohortAttribution({
+        ...mergeCohortSources(cohortSources()),
+        asOf: spendWindowFromPeriod(analysis?.period)?.end ?? null,
+      });
+    applyCohortAttribution(document, eligibility);
+    // The headline follows the file the reader is actually looking at. One
+    // eligibility decision feeds both surfaces, so the panel below and the
+    // headline above can never disagree about whether this import may be
+    // placed — and when it may not, the headline carries that contract's own
+    // sentence and its own next step rather than a second opinion.
+    applyStandHeadline(document, eligibility
+      ? standHeadlineForImport({ analysis, eligibility })
+      : buildStandHeadline());
+    return eligibility;
+  };
 
   const confirmReview = async () => {
     const binding = mappingBinding(review?.state);
@@ -2943,6 +2965,14 @@ async function init() {
   // first, so they are operable in the unavailable state too.
   bindFirstRunActions(document);
   applyFirstRunResult(document, buildFirstRunResult());
+  // The headline answer, painted BEFORE the fixture request and from a module in
+  // the bundle rather than from storage: a lead who lands with cleared storage,
+  // no import, and a failed fetch still reads the complete "where do we stand?"
+  // answer. The disclosures and the resolving control are bound first, so they
+  // are operable in the withheld state too.
+  bindStandDisclosures(document);
+  bindStandResolution(document);
+  applyStandHeadline(document, buildStandHeadline());
   // The way out of the region, repainted from the module that owns the link so
   // the authored href and the hand-off contract cannot drift apart. It needs no
   // binding: it is an anchor, and it worked before this line ran.

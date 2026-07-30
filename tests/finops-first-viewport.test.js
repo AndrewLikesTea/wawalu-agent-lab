@@ -103,8 +103,14 @@ test("nothing that waits on the bundled fixture is authored above the brief", as
   // And nothing above it is a control. "No retry or file selection required"
   // is only true if the reader meets no control at all before the result: the
   // hero is copy, and the first thing to press belongs to the brief.
+  //
+  // A control authored inside a hidden block is not one the reader meets: the
+  // headline region above carries a resolving control for the state where no
+  // peer position can be shown, and that block ships `hidden`. It is revealed
+  // only when there genuinely is nothing to place — which is a result, not a
+  // gate on one — so it is the authored-visible set this rule is about.
   const controls = preceding.filter((node) => ["BUTTON", "INPUT", "SELECT", "TEXTAREA"]
-    .includes(node.tagName));
+    .includes(node.tagName) && !node.closest("[hidden]"));
   assert.deepEqual(controls.map((node) => node.id), [],
     "a control is authored above the result it is not needed for");
 });
