@@ -100,7 +100,17 @@ export const MAX_RETAINED_COMMITMENTS = 50;
  * result to the workspace without gaining direct access to browser persistence.
  */
 export function browserFinopsWorkspaceStorage() {
-  return globalThis.localStorage;
+  // Total, because a blocked browser throws on the *accessor* and not on
+  // `getItem`: with site data disabled, reading `window.localStorage` is a
+  // SecurityError before any caller can guard a call on it. Every reader here
+  // already treats a missing store as "storage_blocked" and says so in words, so
+  // this returns null rather than making an exception the caller's problem — an
+  // entry module that lets it escape leaves its page on a loading state for good.
+  try {
+    return globalThis.localStorage;
+  } catch {
+    return null;
+  }
 }
 
 /**

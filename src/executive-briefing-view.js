@@ -232,7 +232,9 @@ export function renderBriefingLoading(message = "Rebuilding the briefing from it
  * Something stopped the briefing from being built or trusted. The reader is told
  * what failed, what is *not* wrong, and what to do — never a bare apology.
  */
-export function renderBriefingError({ summary, detail, remedy } = {}) {
+export function renderBriefingError({
+  summary, detail, remedy, retryLabel = "Retry briefing", onRetry,
+} = {}) {
   const panel = el("section", "brief-state");
   panel.dataset.state = "error";
   panel.setAttribute("role", "alert");
@@ -246,7 +248,34 @@ export function renderBriefingError({ summary, detail, remedy } = {}) {
     ?? "Nothing was uploaded and nothing was stored. Reload the page to try again; if it keeps "
     + "failing, the published fixture and the contract that validates it disagree, and the figure "
     + "is deliberately withheld rather than shown unverified."));
+  // Only where a caller can actually retry. A button that answers a press with
+  // nothing is a second dead end on a panel the reader only reached because the
+  // first one failed, and this renderer is shared with surfaces whose figure is
+  // derived from the bundle — there, a rebuild cannot reach a different answer
+  // and the honest panel is the one with no control on it.
+  if (typeof onRetry === "function") panel.append(retryControl(retryLabel, onRetry));
   return panel;
+}
+
+/**
+ * The one recovery control an error panel may carry. Held busy for the length of
+ * the attempt only: a retry that fails again leaves a pressable button behind
+ * rather than a control stuck in its waiting state with nothing left to press.
+ */
+function retryControl(label, onRetry) {
+  const retry = el("button", "brief-retry-button", label);
+  retry.setAttribute("type", "button");
+  retry.addEventListener("click", async () => {
+    retry.setAttribute("aria-disabled", "true");
+    try {
+      await onRetry();
+    } catch {
+      // Whatever this repaints says what failed; the control just becomes
+      // pressable again.
+    }
+    retry.removeAttribute("aria-disabled");
+  });
+  return retry;
 }
 
 /**

@@ -37,7 +37,9 @@ import {
   buildExecutiveBriefing, validateExecutiveBriefing,
 } from "/executive-finops-briefing.js";
 import { browserFinopsWorkspaceStorage } from "/finops-workspace.js";
-import { BRIEFING_SOURCE, chooseBriefingSource } from "/executive-briefing-source.js";
+import {
+  BRIEFING_SOURCE, SAMPLE_ORIGIN, chooseBriefingSource,
+} from "/executive-briefing-source.js";
 import {
   SAMPLE_DISCLOSURE, SAMPLE_LABEL, SAMPLE_PROVENANCE_NOTE, sampleRetainedPeriods,
 } from "/executive-briefing-sample.js";
@@ -92,19 +94,33 @@ function activate(article) {
  * quoted, and the reader is told their figures are untouched.
  */
 function paintWorkspaceBriefing({ periods, origin, provenanceNote }) {
-  const briefing = buildExecutiveBriefing(periods);
-  const verdict = validateExecutiveBriefing(briefing);
-  if (!verdict.valid) {
-    const first = verdict.violations[0];
-    paint(renderBriefingError({
+  let briefing;
+  let verdict;
+  try {
+    briefing = buildExecutiveBriefing(periods);
+    verdict = validateExecutiveBriefing(briefing);
+  } catch {
+    briefing = null;
+    verdict = null;
+  }
+  if (!verdict?.valid) {
+    const first = verdict?.violations?.[0];
+    const failure = renderBriefingError({
       summary: "This browser's own briefing failed its contract",
-      detail: `The briefing built from the ${periods.length} period(s) retained here broke `
-        + `${verdict.violations.length} rule(s); the first is ${first.code} at `
-        + `“${first.path || "the briefing itself"}”.`,
-      remedy: "No figure is shown, because a briefing that fails the contract it declares cannot be "
-        + "quoted. Your retained figures were not changed, and nothing was uploaded.",
-    }));
-    return null;
+      detail: first
+        ? `The briefing built from the ${periods.length} period(s) retained here broke `
+          + `${verdict.violations.length} rule(s); the first is ${first.code} at `
+          + `“${first.path || "the briefing itself"}”.`
+        : `The ${periods.length} retained period(s) could not be built into a briefing in this tab.`,
+      remedy: "Your retained figure is withheld because it cannot be quoted safely. Your retained "
+        + "figures were not changed and nothing was uploaded. The explicitly labelled synthetic "
+        + "sample remains below so the decision hierarchy is still readable.",
+      onRetry: loadExecutiveBriefingPreview,
+    });
+    return paintSampleBriefing({
+      origin: SAMPLE_ORIGIN,
+      leadingNodes: [failure],
+    });
   }
   const article = renderExecutiveBriefingPreview(briefing, { origin, provenanceNote, followUp: true });
   paint(article);
@@ -120,17 +136,27 @@ function paintWorkspaceBriefing({ periods, origin, provenanceNote }) {
  * action, verdict, bounds, and both levels — on the first screen rather than a
  * "building…" panel that may never resolve.
  */
-function paintSampleBriefing({ absence, origin }) {
-  const briefing = buildExecutiveBriefing(sampleRetainedPeriods());
-  const verdict = validateExecutiveBriefing(briefing);
-  if (!verdict.valid) {
-    const first = verdict.violations[0];
+function paintSampleBriefing({ absence, origin, leadingNodes = [] }) {
+  let briefing;
+  let verdict;
+  try {
+    briefing = buildExecutiveBriefing(sampleRetainedPeriods());
+    verdict = validateExecutiveBriefing(briefing);
+  } catch {
+    briefing = null;
+    verdict = null;
+  }
+  if (!verdict?.valid) {
+    const first = verdict?.violations?.[0];
     paint(renderBriefingError({
       summary: "The published sample failed its own contract",
-      detail: `${verdict.violations.length} violation(s); the first is ${first.code} at `
-        + `“${first.path || "the briefing itself"}”.`,
+      detail: first
+        ? `${verdict.violations.length} violation(s); the first is ${first.code} at `
+          + `“${first.path || "the briefing itself"}”.`
+        : "The bundled sample could not be built into a briefing in this tab.",
       remedy: "No figure is shown, because a briefing that fails the contract it declares cannot be "
         + "quoted. The contract and the sample it ships with have to agree before this page draws either.",
+      onRetry: loadExecutiveBriefingPreview,
     }));
     return null;
   }
@@ -141,7 +167,7 @@ function paintSampleBriefing({ absence, origin }) {
     synthetic: { label: SAMPLE_LABEL, disclosure: SAMPLE_DISCLOSURE },
     followUp: true,
   });
-  paint(renderSourceNotice(absence), preview);
+  paint(...leadingNodes, renderSourceNotice(absence), preview);
   activate(preview);
   return preview;
 }
@@ -183,6 +209,7 @@ function paintExampleBriefing() {
         + "quoted. Nothing of yours was read and nothing was stored — the AI FinOps page still holds "
         + "the same example result, and this page briefs on your own retained periods without the "
         + "example link.",
+      onRetry: loadExecutiveBriefingPreview,
     }));
     return null;
   }
@@ -198,14 +225,33 @@ function paintExampleBriefing() {
 }
 
 export async function loadExecutiveBriefingPreview() {
-  // The example context is read from the address bar, so it survives a copied
-  // link and a reload — the two ways a reader actually keeps a page.
-  if (readExampleContext(globalThis.window?.location ?? null).pinned) {
-    return paintExampleBriefing();
+  if (!root) return null;
+  try {
+    // The example context is read from the address bar, so it survives a copied
+    // link and a reload — the two ways a reader actually keeps a page.
+    if (readExampleContext(globalThis.window?.location ?? null).pinned) {
+      return paintExampleBriefing();
+    }
+    const chosen = chooseBriefingSource(browserFinopsWorkspaceStorage());
+    if (chosen.source === BRIEFING_SOURCE.workspace) return paintWorkspaceBriefing(chosen);
+    return paintSampleBriefing(chosen);
+  } catch (error) {
+    // This function is awaited at the top level of a module. Anything that
+    // escapes it leaves the markup's own "Reading…" panel and `aria-busy="true"`
+    // on screen permanently — a page that claims to be working forever, which is
+    // the one outcome this surface exists to not produce. Each path above
+    // already handles the failures it can name; this catches the ones it cannot,
+    // and fails in words with a control rather than in the console.
+    paint(renderBriefingError({
+      summary: "The briefing could not be built in this tab",
+      detail: `This browser stopped while choosing what to brief on (${error?.name ?? "error"}).`,
+      remedy: "Nothing was uploaded, nothing was stored, and your retained figures were not changed. "
+        + "Retrying rebuilds from this browser's own periods, and reloading does the same from a "
+        + "clean start.",
+      onRetry: loadExecutiveBriefingPreview,
+    }));
+    return null;
   }
-  const chosen = chooseBriefingSource(browserFinopsWorkspaceStorage());
-  if (chosen.source === BRIEFING_SOURCE.workspace) return paintWorkspaceBriefing(chosen);
-  return paintSampleBriefing(chosen);
 }
 
 // The follow-up affordance is wired before the briefing is built and never
