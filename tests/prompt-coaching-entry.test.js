@@ -38,7 +38,7 @@ test("the journey answers the workflow's own question and validates against itse
 test("the promised value is immediate, private, client-side, and costs nothing", () => {
   const { value } = coachingEntryJourney();
   assert.match(value.arrivesWhen, /same page view/);
-  assert.match(value.computedBy, /bundled client-side rubric modules in this browser tab/);
+  assert.match(value.computedBy, /rubric bundled with this page, run in this browser tab/);
   assert.match(value.costsVisitor, /no sign-in/);
   assert.match(value.keeps, /^nothing\./);
   // The value claim may not promise anything the boundary says is not delivered.
