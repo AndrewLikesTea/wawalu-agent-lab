@@ -262,6 +262,15 @@ import {
 } from "/imported-executive-view.js";
 import { importedPeerBenchmark } from "/imported-peer-benchmark.js";
 import { PEER_COHORT_PROVENANCE } from "/peer-cohort-contract.js";
+// The declared half of the peer comparison. `importedPeerBenchmark` above can
+// only ever see the size of an import; the two attributes that select a
+// *specific* cohort are declared by the reader in their own file, and this pair
+// decides whether what they declared is enough — or says which value is missing
+// or unrecognized, in the reader's own words.
+import {
+  mergeCohortSources, projectCohortSource, validateCohortAttribution,
+} from "/cohort-attribution.js";
+import { applyCohortAttribution } from "/cohort-attribution-view.js";
 import {
   FINOPS_IMPORT_STATUS, finopsProvenanceModel, promptImportFacts,
 } from "/finops-provenance-model.js";
@@ -1276,6 +1285,11 @@ function mountLocalFinopsImport() {
     // import returns `available: false` and the page renders exactly as before.
     applyPortfolioBrief(document, next);
     applyDatasetProvenance(document, example, example ? null : importProvenance());
+    // Where this organization ranks, decided from the same selection this
+    // result was analyzed from. The bundled example declares no cohort
+    // attributes and gets no position: a synthetic file must not be given a
+    // place among real organizations' peers.
+    syncCohortPosition(next);
     if (remap) remap.hidden = example || !imports.some((entry) => entry.source === "delimited");
     setMode(example ? "example-dataset" : "local", example ? "Bundled synthetic example" : "Local import");
     setText("finops-intro", example
@@ -1645,6 +1659,11 @@ function mountLocalFinopsImport() {
     // file that is no longer loaded.
     applyAttributionSplit(document, null);
     applyChangeSummary(document, null);
+    // The ranked position goes with the files it was declared in. A cohort
+    // placement outliving the import is a claim about an export that is no
+    // longer loaded, and `imports` has just been emptied, so there is nothing
+    // left to derive one from either.
+    applyCohortAttribution(document, null);
     input.value = "";
     resultsNode.hidden = true;
     clear.hidden = true;
@@ -1796,6 +1815,11 @@ function mountLocalFinopsImport() {
     review = {
       file,
       entry,
+      // The file's own data rows, header-keyed, kept for the cohort projection
+      // on confirm. This is the one reading of the bytes: the projection below
+      // allowlists them down to a department key and the two declared cohort
+      // attributes before anything else on this page can see them.
+      reading,
       // Re-entering keeps the reader's own choices. Resetting to the detected
       // proposal would silently undo the correction they came back to change.
       state: entry?.state ?? createColumnMapping({ reading, fileName: file.fileName }),
@@ -1811,12 +1835,45 @@ function mountLocalFinopsImport() {
     return true;
   };
 
+  /**
+   * One delimited reading, as header-keyed row objects.
+   *
+   * The header names are the file's own, unchanged, because the cohort contract
+   * resolves a column by normalizing its name rather than by position: a
+   * re-ordered export declares the same attributes.
+   */
+  const rowObjects = (reading) => (reading?.rows ?? []).map((row) => Object.fromEntries(
+    (reading.header ?? []).map((name, index) => [name, row.values?.[index] ?? ""])));
+
+  /**
+   * Every cohort source in this selection, derived rather than accumulated.
+   *
+   * Derived from `imports` for the same reason `rebuildLoaded` is: a re-mapped
+   * file replaces its own earlier projection instead of merging with it, and a
+   * cleared import takes its projection with it. A standing array here could
+   * carry a previous selection's rows — and, because the merge is first-wins,
+   * its declaration too — into the next analysis.
+   */
+  const cohortSources = () => imports.map((entry) => entry.cohortSource).filter(Boolean);
+
+  /**
+   * Paint the ranked-position panel for whatever is loaded right now.
+   *
+   * `asOf` is the analysed period's own end when there is one, never a clock
+   * read: an eligibility answer has to be reproducible from the same files.
+   */
+  const syncCohortPosition = (analysis = null) => applyCohortAttribution(document,
+    exampleActive || !cohortSources().length ? null : validateCohortAttribution({
+      ...mergeCohortSources(cohortSources()),
+      asOf: spendWindowFromPeriod(analysis?.period)?.end ?? null,
+    }));
+
   const confirmReview = async () => {
     const binding = mappingBinding(review?.state);
     // The confirm control is disabled while a blocker stands; this is the second
     // lock, so a stale click can never reach the parser with a half-mapping.
     if (!binding) return;
-    const { file, entry, state } = review;
+    const { file, entry, state, reading } = review;
     let parsed;
     try {
       // The reviewed mapping runs across the offload seam. The thunk below is
@@ -1839,6 +1896,9 @@ function mountLocalFinopsImport() {
     stored.state = state;
     stored.parsed = parsed;
     stored.rows = state.dataRowCount;
+    // The cohort projection travels on the entry, so re-mapping this file
+    // replaces it rather than adding a second reading of the same bytes.
+    stored.cohortSource = projectCohortSource({ objects: rowObjects(reading) });
     if (!entry) imports.push(stored);
     closeReview();
     await processQueue();
@@ -1904,6 +1964,10 @@ function mountLocalFinopsImport() {
     if (!eligibility.eligible) {
       showTransientBasis("partial");
       syncStage({ focus: true });
+      // A selection that cannot be analyzed can still have declared its cohort
+      // attributes, and a reader owed "your export declares an industry we do
+      // not publish" should not have to fix the mapping first to be told.
+      syncCohortPosition(null);
       // A provider export whose rows carry no grouping value at all is the
       // PROVIDER_ONLY state: it can still answer where the money is concentrated,
       // and it must say so rather than leaving the reader at a dead end. The

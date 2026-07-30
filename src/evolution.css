@@ -702,6 +702,15 @@
 .local-trust-action { margin:5px 0 0; font-size:14px; font-weight:700; line-height:1.5; }
 .local-trust-action[data-available="false"] { color:var(--state-warn-ink); font-weight:400; }
 .local-trust-jump { margin-top:10px; padding:7px 13px; border:1px solid #6b5c3e; border-radius:7px; background:#fff; font:700 12px/1.4 inherit; cursor:pointer; }
+/* The ranked position. Withheld is a state with a sentence in it, never a
+   greyed-out card: the warn tint is carried by a word either way. */
+.local-cohort-position { margin-top:20px; border:1px solid #b9b2a4; border-top:5px solid #6b5c3e; border-radius:12px; padding:clamp(18px,3vw,24px); background:#fff; }
+.local-cohort-position h4 { max-width:760px; margin:6px 0 0; font-size:clamp(17px,2.4vw,21px); line-height:1.25; letter-spacing:-.02em; }
+.local-cohort-position[data-state="withheld"] { border-top-color:var(--state-warn-ink,#8a6d2b); }
+.local-cohort-headline { margin:10px 0 0; font-size:15px; font-weight:700; line-height:1.5; }
+.local-cohort-detail { margin:6px 0 0; color:var(--ink-muted); font:600 12px/1.6 ui-monospace,monospace; overflow-wrap:anywhere; }
+.local-cohort-next { margin:10px 0 0; font-size:14px; line-height:1.5; }
+.local-cohort-note { margin:12px 0 0; padding-top:10px; border-top:1px solid #e0dbd0; color:var(--ink-muted); font-size:12px; line-height:1.6; }
 /* The landing surface: the question first, then the one number that answers it. */
 /* The briefing, read top to bottom: the question, the answer block that cannot
    be split, the action and its owner, the disclosed detail, then the two lines

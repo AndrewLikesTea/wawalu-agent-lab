@@ -1110,6 +1110,26 @@
             </div>
             <p class="dataset-provenance" id="dataset-provenance-trust" data-dataset-provenance data-dataset="user" role="note" aria-label="Data provenance" hidden></p>
           </article>
+          <!-- The ranked position, and the only place on this page that says
+               whether this import earned one. Every string in it is painted by
+               applyCohortAttribution() out of cohort-attribution.js: the two
+               declared attributes decide the cohort, and where they are absent
+               or hold a value the contract does not publish, the reason and the
+               single next step that resolves it stand in the position's place.
+               Authored empty on purpose — a hand-written cohort sentence here
+               could disagree with the one the contract selected. -->
+          <article class="local-cohort-position" id="local-cohort-position" data-analysis-surface data-dataset="user" data-state="empty" aria-labelledby="local-cohort-question" hidden>
+            <p class="eyebrow" id="local-cohort-state">—</p>
+            <h4 id="local-cohort-question">Where does this organization rank against its peers?</h4>
+            <p class="local-cohort-headline" id="local-cohort-headline">—</p>
+            <p class="local-cohort-detail" id="local-cohort-detail">—</p>
+            <p class="local-cohort-next" id="local-cohort-next" hidden>—</p>
+            <!-- What was read to produce the line above, carried on the result
+                 rather than authored here, so a position can never appear
+                 without the statement of what left the boundary to select it. -->
+            <p class="local-cohort-note" id="local-cohort-note" role="note" aria-label="What this comparison read">—</p>
+            <p class="dataset-provenance" id="dataset-provenance-cohort" data-dataset-provenance data-dataset="user" role="note" aria-label="Data provenance" hidden></p>
+          </article>
           <!-- The landing surface, and the only place on this page that decides
                the three slots above the fold. Every string in it is painted by
                applyBriefing() out of finops-briefing-contract.js: the question
