@@ -216,6 +216,12 @@
 .recurring-review-complete { min-height:44px; margin-top:8px; border:0; border-radius:8px; padding:10px 16px; background:#315f50; color:#fff; font:700 14px/1.4 inherit; cursor:pointer; }
 .recurring-review-complete:disabled { background:#52645e; cursor:default; }
 .recurring-review-complete:focus-visible,.recurring-review-details>summary:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+/* The door into the consolidated journey. A link, not a button: it goes to
+   another page, and it keeps the same 44px target the control above it has. */
+.recurring-review-journey { display:inline-flex; align-items:center; min-height:44px; margin-top:10px; border:2px solid #315f50; border-radius:8px; padding:0 16px; color:#20443a; font:700 14px/1.4 inherit; text-decoration:underline; text-underline-offset:4px; }
+.recurring-review-journey:hover { background:#e8f1ec; }
+.recurring-review-journey:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.recurring-review-journey-note { margin:12px 0 0; color:var(--ink-muted); font-size:13px; line-height:1.5; }
 .recurring-review-status { min-height:1.5em; margin:6px 0 0; font-weight:600; }
 .recurring-review-details { margin-top:12px; border-top:1px solid var(--panel-border); padding-top:10px; }
 .recurring-review-details>summary { border-radius:6px; padding:6px; cursor:pointer; font-weight:650; }

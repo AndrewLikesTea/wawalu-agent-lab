@@ -340,6 +340,9 @@ test("the page names one next action, and the reader can reach every control by 
       "Remember these figures in this browser",
       "Remember these figures in this browser",
       "Keep using files only",
+      // Last of all, the door out of the FinOps region into the consolidated
+      // journey: it continues that region rather than serving it.
+      "Commit the action and verify it next month",
     ]);
   } finally {
     restore();

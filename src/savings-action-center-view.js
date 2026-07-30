@@ -14,6 +14,7 @@
 
 import { journeyPaintKey, journeySignals, money } from "./finops-journey-signals.js";
 import { journeySnapshotPaintKey } from "./finops-journey-snapshot.js";
+import { journeyStage } from "./finops-journey-stage.js";
 
 const VERDICT_TONE = Object.freeze({
   verified: "verified",
@@ -217,6 +218,95 @@ function carriedRows(snapshot) {
 }
 
 /**
+ * The one prioritized next action, as a control the reader can actually press.
+ *
+ * Nothing about it is authored here. The heading is the destination contract's
+ * label, the control's own text is that destination's call to action, the
+ * target is its href resolved for the page this view is on, and whether it is
+ * operable is the contract's too. A view that hardcoded any of the four would
+ * be a second opinion about what to do next.
+ *
+ * The disabled case is a `button`, not a dead anchor: an anchor with no href is
+ * not focusable, and a step a reader cannot take is exactly the one they need
+ * to be able to reach and hear the reason for.
+ */
+function renderPrimaryAction(journey) {
+  const { nextAction: next } = journey;
+  const decision = el("section", "sac-decision");
+  decision.setAttribute("aria-labelledby", "sac-decision-title");
+  decision.dataset.journeyStage = journey.stage;
+  const title = el("h3", undefined, next.label);
+  title.id = "sac-decision-title";
+  const note = el("p", "sac-decision-note", next.answers
+    ?? "This step has no stated question in the destination contract.");
+  note.id = "sac-decision-note";
+  decision.append(el("p", "sac-kicker", "Do this next · priority 1"), title, note);
+
+  const described = ["sac-decision-note"];
+  let control;
+  if (next.enabled) {
+    control = el("a", "sac-primary-action", next.callToAction);
+    control.setAttribute("href", next.href);
+  } else {
+    control = el("button", "sac-primary-action", next.callToAction);
+    control.type = "button";
+    control.disabled = true;
+    control.setAttribute("aria-disabled", "true");
+  }
+  control.id = "sac-primary-action";
+  control.dataset.enabled = String(next.enabled);
+  decision.append(control);
+
+  if (!next.enabled) {
+    const blocked = el("p", "sac-primary-blocked", next.disabledReason);
+    blocked.id = "sac-primary-blocked";
+    described.push("sac-primary-blocked");
+    decision.append(blocked);
+  }
+  // Named rather than drawn as a blank region: a reader is entitled to know
+  // which part of their own evidence this journey is missing.
+  if (journey.degraded.length) {
+    const degraded = el("p", "sac-degraded",
+      `Missing or mismatched in this browser: ${journey.degraded.join(", ")}. `
+      + "Everything else on this page is still this browser's own record.");
+    degraded.id = "sac-degraded";
+    described.push("sac-degraded");
+    decision.append(degraded);
+  }
+  control.setAttribute("aria-describedby", described.join(" "));
+  return decision;
+}
+
+/**
+ * When this action gets checked, and what the check is waiting on.
+ *
+ * Its own landmark with its own heading, because "did it work?" is a question a
+ * lead comes back for on a different day than the one they acted on. The status
+ * is a word before it is a colour, and the deadline is the retained action's
+ * own rather than a date computed here.
+ */
+function renderCheckpoint(journey, retainedAction) {
+  const { checkpoint } = journey;
+  const section = el("section", "sac-checkpoint");
+  section.id = "sac-checkpoint";
+  section.setAttribute("aria-labelledby", "sac-checkpoint-title");
+  section.dataset.checkpoint = checkpoint.status;
+  const title = el("h3", undefined, "Verification checkpoint");
+  title.id = "sac-checkpoint-title";
+  const state = el("p", "sac-checkpoint-state");
+  state.append(el("span", "sac-checkpoint-word", checkpoint.statusLabel),
+    el("span", "sac-checkpoint-due",
+      checkpoint.due ? `Due ${checkpoint.due}` : "No date set"));
+  section.append(el("p", "sac-kicker", "Verification"), title, state,
+    el("p", "sac-checkpoint-detail", checkpoint.detail));
+  if (retainedAction?.actionLabel) {
+    section.append(el("p", "sac-checkpoint-action",
+      `Tracked action: ${retainedAction.actionLabel}`));
+  }
+  return section;
+}
+
+/**
  * Paint the recurring review: one question, one recommended action, one figure,
  * five signals, and everything else grouped and labelled as support.
  *
@@ -225,18 +315,25 @@ function carriedRows(snapshot) {
  * the tab sequence somewhere else.
  */
 export function renderRecurringReviewReadiness(review, {
-  source = "demo", retainedAction = null, snapshot = null,
+  source = "demo", retainedAction = null, snapshot = null, stage = null,
 } = {}) {
   const signals = journeySignals(review, { retainedAction });
+  // Derived here when the caller did not, so a test that renders this view
+  // directly gets the same journey the page does rather than a second one.
+  const journey = stage ?? journeyStage({ review, retainedAction, snapshot });
   const article = el("article", "sac-focus sac-journey");
   article.setAttribute("aria-labelledby", "sac-question");
   article.dataset.source = source;
   article.dataset.reviewState = review.state;
+  article.dataset.journeyStage = journey.stage;
   article.dataset.reviewKey =
     `${journeyPaintKey(review, retainedAction)} ${journeySnapshotPaintKey(snapshot)}`;
 
   const heading = el("header", "sac-heading");
-  const question = el("h2", undefined, review.question);
+  // The lead question is the journey's, not the assembler's: a lead who has
+  // nothing tracked yet and a lead holding a measured change have arrived to
+  // ask two different things, and one question for both answers neither.
+  const question = el("h2", undefined, journey.question);
   question.id = "sac-question";
   // The transition from the briefing lands the keyboard here, so the heading is
   // programmatically focusable. It is not a tab stop — nobody tabs onto a
@@ -247,22 +344,16 @@ export function renderRecurringReviewReadiness(review, {
   // stylesheet's default is the caution colour, so a ready review painted
   // without this reads as a warning it is not.
   headline.dataset.state = review.ready ? "verified" : "demo";
-  heading.append(el("p", "sac-kicker", source === "demo" ? "Demonstration data" : "Local evidence"),
+  // The stage is named in words beside the source, so the three journeys are
+  // distinguishable without reading a colour off the headline.
+  heading.append(el("p", "sac-kicker",
+    `${source === "demo" ? "Demonstration data" : "Local evidence"} · ${journey.stageLabel}`),
     question, headline);
   article.append(heading);
 
   // First in the DOM, first on screen, and the largest thing on the page after
   // the question itself. Everything below this block exists to justify it.
-  const decision = el("section", "sac-decision");
-  decision.setAttribute("aria-labelledby", "sac-decision-title");
-  const title = el("h3", undefined, review.ready
-    ? "Review the measured change" : "Resolve the evidence boundary");
-  title.id = "sac-decision-title";
-  decision.append(el("p", "sac-kicker", "Do this next · priority 1"), title,
-    el("p", undefined, review.ready
-      ? "Use the benchmark and evidence-bounded current result to decide whether to continue or replace the action."
-      : "Supply only the named missing local evidence; no recommendation is available."));
-  article.append(decision);
+  article.append(renderPrimaryAction(journey));
 
   const metric = el("p", "sac-metric");
   metric.append(
@@ -280,6 +371,8 @@ export function renderRecurringReviewReadiness(review, {
   row.setAttribute("aria-label", "Signals behind this recommendation");
   for (const signal of signals) row.append(chip(signal));
   article.append(row);
+
+  article.append(renderCheckpoint(journey, retainedAction));
 
   // Where the evidence above came from, in one line. A discarded snapshot says so
   // in the same place rather than silently: the review is still the reader's own
@@ -327,6 +420,19 @@ export function renderRecurringReviewReadiness(review, {
       listed(review.provenance.actionReferences, "None retained")],
     ["Analysis contract", review.provenance.analysisContract ?? "Not recorded"],
     ...carriedRows(snapshot),
+  ]));
+
+  // What the last action actually did, kept below the fold: it is the reason
+  // the reader trusts the recommendation above, not the recommendation.
+  support.append(disclosure("sac-prior-result", "Results of prior actions", [
+    ["Tracked action", retainedAction?.actionLabel ?? "None tracked in this browser"],
+    ["Committed", retainedAction?.committedAt ?? "Not recorded"],
+    ["Review target", retainedAction?.target
+      ? `${stated(retainedAction.target.value, retainedAction.target.unit)} by ${retainedAction.target.deadline}`
+      : "Not recorded"],
+    ["Measured change", journey.checkpoint.measuredChange === null
+      ? "Not measured yet" : money(journey.checkpoint.measuredChange)],
+    ["Checkpoint", `${journey.checkpoint.statusLabel} · ${journey.checkpoint.detail}`],
   ]));
 
   support.append(el("p", "sac-caveat", review.recommendation

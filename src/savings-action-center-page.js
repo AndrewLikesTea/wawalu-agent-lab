@@ -9,6 +9,7 @@ import {
   renderSavingsActionCenterLoading,
 } from "/savings-action-center-view.js";
 import { journeyPaintKey } from "/finops-journey-signals.js";
+import { JOURNEY_PAGE, journeyStage } from "/finops-journey-stage.js";
 import { assembleRecurringReview } from "/recurring-review-readiness.js";
 import {
   journeySnapshotPaintKey, restoreJourneySnapshot,
@@ -142,14 +143,18 @@ function renderClaim() {
   // guided workspace already runs on. A review that genuinely moved on does
   // repaint, and losing the open panels is then the honest outcome.
   const key = `${journeyPaintKey(review, retainedAction)} ${journeySnapshotPaintKey(restored)}`;
+  // Which of the three journeys this is, from those same three records. It
+  // decides the lead question, the one control, and the checkpoint region; it
+  // decides nothing about readiness, which stays the assembler's.
+  const stage = journeyStage({ review, retainedAction, snapshot: restored, here: JOURNEY_PAGE });
   if (root.firstChild?.dataset?.reviewKey !== key) {
     paint(renderRecurringReviewReadiness(review, {
-      source: "local", retainedAction, snapshot: restored,
+      source: "local", retainedAction, snapshot: restored, stage,
     }));
   } else {
     root.setAttribute("aria-busy", "false");
   }
-  arrive(review.state, `${review.question} ${review.headline}`);
+  arrive(review.state, `${stage.question} ${review.headline}`);
 }
 
 async function openFiles(list) {

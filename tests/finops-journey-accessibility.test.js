@@ -18,6 +18,7 @@ import { assembleRecurringReview, REVIEW_EVIDENCE_KEY, REVIEW_EVIDENCE_VERSION }
 import { MONTHLY_ACTION_VERSION } from "../src/monthly-department-action-store.js";
 import { renderRecurringReviewReadiness } from "../src/savings-action-center-view.js";
 import { journeySignals } from "../src/finops-journey-signals.js";
+import { STAGE_QUESTION } from "../src/finops-journey-stage.js";
 
 const PAGE = new URL("../src/savings-action-center.html", import.meta.url);
 const ACTION_KEY = "shiplog.finops.monthly-department-action.v1";
@@ -61,7 +62,12 @@ const evidence = (currentAnalysis, theoVerdict) => JSON.stringify({
 
 // The three journey states, as the page's own storage would hold them.
 const STATES = Object.freeze({
-  new: { storage: {}, state: "blocked", title: "Not ready · evidence gap" },
+  new: {
+    storage: {},
+    state: "blocked",
+    title: "Not ready · evidence gap",
+    question: STAGE_QUESTION.new_review,
+  },
   resumed: {
     storage: {
       [ACTION_KEY]: JSON.stringify(action()),
@@ -69,6 +75,7 @@ const STATES = Object.freeze({
     },
     state: "blocked",
     title: "Not ready · evidence gap",
+    question: STAGE_QUESTION.resumed_review,
   },
   verification_ready: {
     storage: {
@@ -77,6 +84,7 @@ const STATES = Object.freeze({
     },
     state: "ready",
     title: "Ready to act on",
+    question: STAGE_QUESTION.verification_ready,
   },
 });
 
@@ -134,8 +142,10 @@ for (const [name, expected] of Object.entries(STATES)) {
       const question = document.getElementById("sac-question");
       assert.equal(question.getAttribute("tabindex"), "-1");
       assert.equal(document.activeElement, question);
-      assert.match(textOf(document.getElementById("sac-journey-live")),
-        /Is this month’s review ready to act on\?/);
+      // The announcement is the question this stage answers, not one sentence
+      // for all three: a reader who lands here hears which journey they are in.
+      assert.ok(textOf(document.getElementById("sac-journey-live")).startsWith(expected.question),
+        `the ${name} journey announces its own question`);
 
       // A heading is not a tab stop: focus was moved there, not inserted there.
       assert.ok(!tabSequence(document).includes(question));
@@ -295,7 +305,9 @@ test("the empty, error, and implausible-extreme states all keep the primary acti
   // Empty: nothing retained, nothing analyzed, no evidence at all.
   const empty = rendered(assembleRecurringReview(), { source: "local" });
   assert.equal(empty.querySelectorAll(".sac-decision").length, 1);
-  assert.match(textOf(empty.querySelector(".sac-decision")), /Resolve the evidence boundary/);
+  // An empty journey still carries an operable step and says what is missing.
+  assert.equal(empty.querySelector("#sac-primary-action").dataset.enabled, "true");
+  assert.match(textOf(empty.querySelector(".sac-degraded")), /Tracked action/);
   assert.match(textOf(empty), /No retained monthly action is available to resume/);
   assert.doesNotMatch(textOf(empty), /undefined|NaN|\[object/);
 
@@ -337,7 +349,8 @@ test("the empty, error, and implausible-extreme states all keep the primary acti
     retainedAction: action({ department: "x".repeat(400) }),
     currentAnalysis: analysis(), theoVerdict: verdict(),
   }), { source: "local" });
-  assert.match(textOf(rejected.querySelector(".sac-decision")), /Resolve the evidence boundary/);
+  assert.equal(rejected.querySelectorAll(".sac-decision").length, 1);
+  assert.equal(rejected.querySelector("#sac-primary-action").dataset.enabled, "true");
   assert.equal(rejected.querySelectorAll('.sac-chip[data-known="false"]').length, 5,
     "every signal reports itself unmeasured rather than showing a stale value");
   assert.doesNotMatch(textOf(rejected), /undefined|NaN|\[object/);
@@ -379,10 +392,11 @@ test("nothing on the journey reorders between the wide and the narrow reading", 
   ]);
   try {
     // DOM order is the reading order: question, recommendation, figure, signals,
-    // then everything grouped as support. The narrow layout is this same column.
+    // the verification checkpoint, then everything grouped as support. The
+    // narrow layout is this same column.
     const view = page.document.querySelector(".sac-journey");
     assert.deepEqual(view.childElements.map((node) => node.className),
-      ["sac-heading", "sac-decision", "sac-metric", "sac-signals", "sac-support"]);
+      ["sac-heading", "sac-decision", "sac-metric", "sac-signals", "sac-checkpoint", "sac-support"]);
 
     // So hierarchy may never be achieved by moving boxes past each other, which
     // is the one thing that would desync the tab order from the page.

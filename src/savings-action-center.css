@@ -38,7 +38,27 @@
    when it led the page — same scale, one step, no new value. */
 .sac-decision { padding:28px 36px; background:var(--sac-mint); }
 .sac-decision h3 { margin:8px 0; color:var(--sac-ink); font-size:clamp(26px,3.6vw,40px); font-weight:800; line-height:1.1; letter-spacing:-.025em; }
-.sac-decision > p:last-child { max-width:60ch; margin:0; line-height:1.55; }
+.sac-decision > p { max-width:60ch; margin:0 0 4px; line-height:1.55; }
+/* The step itself. A real control, at the shipped 48px touch target, with the
+   same focus ring the rest of the page uses. Disabled is not a paler copy of
+   enabled: it loses the fill as well as the contrast, and the reason is printed
+   under it in words rather than implied by the wash. */
+.sac-primary-action { display:inline-flex; align-items:center; justify-content:center; min-height:48px; margin:14px 0 0; border:2px solid var(--sac-ink); border-radius:10px; padding:0 20px; background:var(--sac-ink); color:#fff; font:750 16px/1.2 inherit; text-align:center; text-decoration:none; cursor:pointer; }
+.sac-primary-action:hover { background:#000; }
+.sac-primary-action:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.sac-primary-action[data-enabled="false"] { border-style:dashed; background:transparent; color:#44443f; cursor:not-allowed; }
+.sac-primary-blocked,.sac-degraded { max-width:60ch; margin:10px 0 0; color:#44443f; font-size:14px; line-height:1.5; }
+
+/* The checkpoint is its own region, not a badge on the decision: a lead comes
+   back to it on a different day. The status is a word first; the tint behind it
+   only repeats what the word already said. */
+.sac-checkpoint { padding:20px 36px 24px; border-block-end:1px solid #dedcd5; }
+.sac-checkpoint h3 { margin:4px 0 8px; font-size:19px; font-weight:800; letter-spacing:-.01em; }
+.sac-checkpoint-state { display:flex; flex-wrap:wrap; align-items:baseline; gap:6px 12px; margin:0 0 8px; }
+.sac-checkpoint-word { border-radius:999px; padding:3px 10px; background:#eeede7; color:var(--sac-ink); font:750 13px/1.4 inherit; }
+.sac-checkpoint[data-checkpoint="due"] .sac-checkpoint-word { background:#d8ece2; }
+.sac-checkpoint-due { color:#55554f; font-size:14px; }
+.sac-checkpoint-detail,.sac-checkpoint-action { max-width:66ch; margin:0 0 4px; color:#3a3a35; font-size:15px; line-height:1.55; overflow-wrap:anywhere; }
 /* The kicker's teal is 4.25:1 on the mint wash — under AA for 11px text, which
    is what it is. On the same wash the shipped verified ink is 6.17:1, so the
    decision block uses that one. This is a pre-existing pairing, corrected here
@@ -150,6 +170,10 @@
   .sac-evidence { padding:20px; }
   .sac-evidence-controls { flex-direction:column; align-items:stretch; }
   .sac-heading,.sac-decision,.sac-metric,.sac-month-block,.sac-notes { padding-inline:24px; }
+  /* The lead block and its one control stay usable at ~360px: the step takes
+     the full measure instead of being clipped, and nothing above it collapses. */
+  .sac-checkpoint { padding-inline:24px; }
+  .sac-primary-action { width:100%; }
   .sac-facts { grid-template-columns:1fr; }
   .sac-fact { padding:18px 24px; border-right:0; }
   .sac-calculation { grid-template-columns:1fr; }

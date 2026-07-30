@@ -1,5 +1,11 @@
 // The recurring review inside the guided result. The assembler owns readiness;
 // this view owns reading order and the one explicit completion interaction.
+//
+// It is also this page's door into the consolidated journey: the same three
+// records are read here and there, and a lead who has got this far should not
+// have to find the rail again to carry them across.
+
+import { journeyEntryLink, journeyStage } from "./finops-journey-stage.js";
 
 const byId = (doc, id) => doc.getElementById(id);
 // Built once. A formatter is expensive to construct and free to reuse, and this
@@ -178,6 +184,20 @@ export function renderRecurringReviewWorkspace(doc, review, retainedAction = nul
     });
     action.append(complete, note, status);
   }
+  // One door into the consolidated journey, from the surface that holds the
+  // review it continues. The label is the destination contract's, so this page
+  // and the journey's own controls call it the same thing.
+  const journey = journeyStage({ review, retainedAction, here: "/evolution.html" });
+  const entry = journeyEntryLink();
+  const link = element(doc, "a", "recurring-review-journey", entry.label);
+  link.href = entry.href;
+  link.id = "recurring-review-journey";
+  const journeyNote = element(doc, "p", "recurring-review-journey-note",
+    `${journey.stageLabel}: ${journey.question} The journey carries this review's `
+    + "evidence, its next action, and its verification checkpoint into one view.");
+  journeyNote.id = "recurring-review-journey-note";
+  link.setAttribute("aria-describedby", "recurring-review-journey-note");
+  action.append(journeyNote, link);
   root.append(action);
 
   root.append(

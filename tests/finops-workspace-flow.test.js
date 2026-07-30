@@ -381,7 +381,12 @@ test("the reader can reach every FinOps control by keyboard, in the order they a
     // reached before every Shiplog control has been.
     const all = tabSequence(document).filter((stop) => stop.closest("#main-content"));
     const first = all.findIndex((stop) => stop.closest("#finops-workspace-preview"));
-    assert.equal(all.slice(first).length, labels.length);
+    // Everything from there on is the FinOps flow, and the last stop of all is
+    // the door out of it into the consolidated journey — after the region it
+    // continues, never above the controls that region owns.
+    const tail = all.slice(first);
+    assert.equal(tail.length, labels.length + 1);
+    assert.equal(tail.at(-1).id, "ws-journey-link");
   } finally {
     restore();
   }
