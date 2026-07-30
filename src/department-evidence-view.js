@@ -37,6 +37,7 @@ import { evidenceAnnouncement } from "./department-evidence.js";
 import {
   applyDepartmentFixPack, clearDepartmentFixPack,
 } from "./department-fix-pack-view.js";
+import { applyMonthlyDepartmentDecision } from "./monthly-department-decision-view.js";
 
 const SECTION_ID = "department-evidence";
 const BODY_ID = "department-evidence-body";
@@ -125,6 +126,7 @@ export function applyDepartmentEvidence(doc, model) {
   applyDepartmentFixPack(doc, model.fixPack ?? null, {
     status: model.state === "loading" ? "loading" : "ready",
   });
+  applyMonthlyDepartmentDecision(doc, model.fixPack ?? null);
   return model;
 }
 
@@ -142,6 +144,7 @@ export function clearDepartmentEvidence(doc) {
   const live = byId(doc, LIVE_ID);
   if (live) live.textContent = "";
   clearDepartmentFixPack(doc);
+  applyMonthlyDepartmentDecision(doc, null);
   return null;
 }
 
