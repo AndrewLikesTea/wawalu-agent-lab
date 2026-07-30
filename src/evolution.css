@@ -28,6 +28,37 @@
   --state-error-line:#b4453a;
   --state-error-wash:#fdf4f3;
 }
+/* The portfolio-comparability region on the import panel. Its verdict is
+   carried by the word and the glyph beside it; the tint below is the third
+   redundant carrier, never the first, so the region reads the same to someone
+   who sees no colour at all. */
+.portfolio-comparability { grid-column:1/-1; margin:18px 0 0; border:1px solid var(--import-line); border-left:5px solid var(--import-accent); border-radius:11px; padding:15px 17px; background:#fff; color:var(--import-ink); }
+.portfolio-comparability[data-verdict="not_yet"] { border-left-color:var(--state-warn-line); }
+.portfolio-comparability[data-verdict="no"] { border-left-color:var(--state-error-line); }
+.portfolio-comparability-heading h3 { margin:2px 0 10px; font-size:17px; }
+.portfolio-comparability-chooser { display:flex; flex-wrap:wrap; align-items:baseline; gap:8px; margin:0 0 12px; }
+.portfolio-comparability-chooser label { font:700 11px/1.4 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; }
+.portfolio-comparability-chooser-note { flex-basis:100%; margin:0; color:var(--ink-muted); font-size:12px; line-height:1.5; }
+.portfolio-sample-teaches { margin:0 0 10px; color:var(--ink-muted); font-size:12px; line-height:1.55; }
+.portfolio-contract-defect { margin:0 0 10px; border:1px solid var(--state-error-line); border-left:5px solid var(--state-error-line); border-radius:9px; padding:10px 12px; background:var(--state-error-wash); color:var(--state-error-ink); font-size:12px; line-height:1.55; overflow-wrap:anywhere; }
+.portfolio-verdict { display:flex; align-items:baseline; gap:8px; margin:0 0 10px; font-size:18px; }
+.portfolio-verdict-shape { flex:none; font-weight:750; }
+.portfolio-answers { display:grid; gap:11px; margin:0; padding:0; list-style:none; counter-reset:none; }
+.portfolio-answer { border-top:1px solid var(--import-line); padding:9px 0 0; }
+.portfolio-answer-question { margin:0; color:var(--ink-muted); font:700 10px/1.4 ui-monospace,monospace; letter-spacing:.08em; text-transform:uppercase; }
+.portfolio-answer-headline { margin:4px 0 0; font-size:14px; line-height:1.5; font-weight:650; overflow-wrap:anywhere; }
+.portfolio-answer-detail { margin:3px 0 0; color:var(--ink-muted); font-size:12px; line-height:1.55; overflow-wrap:anywhere; }
+.portfolio-action-jump { margin:12px 0 0; }
+.portfolio-disclosure { margin:12px 0 0; border-top:1px solid var(--import-line); padding:9px 0 0; font-size:12px; }
+.portfolio-disclosure summary { cursor:pointer; font-weight:650; }
+.portfolio-provider-list,.portfolio-errors { display:grid; gap:7px; margin:10px 0 0; padding:0; list-style:none; }
+.portfolio-provider { display:flex; flex-wrap:wrap; gap:2px 10px; border:1px solid var(--import-line); border-radius:8px; padding:7px 10px; background:var(--import-wash); line-height:1.5; }
+.portfolio-provider[data-state="covered"] { background:#fff; }
+.portfolio-provider-name { font-weight:700; }
+.portfolio-provider-state { font-weight:650; }
+.portfolio-provider-window,.portfolio-provider-count,.portfolio-provider-provenance { color:var(--ink-muted); font-size:11px; }
+.portfolio-errors li { color:var(--state-error-ink); line-height:1.55; overflow-wrap:anywhere; }
+.portfolio-basis,.portfolio-comparability-source { margin:10px 0 0; color:var(--ink-muted); font-size:11px; line-height:1.55; overflow-wrap:anywhere; }
 .nav-evolution { display:inline-flex; align-items:center; gap:7px; }
 .nav-evolution::before { content:""; width:6px; height:6px; border-radius:2px; background:#1baf7a; }
 

@@ -731,6 +731,50 @@
           <p class="provider-coverage-source">What each adapter declares, including its schema version and its behaviour for partial, stale, malformed, reordered, and mixed-currency exports: <a href="/docs/multi-provider-intake-contract.md">multi-provider intake contract</a>.</p>
         </section>
 
+        <!-- CAN THIS PORTFOLIO BE COMBINED YET, and why this region exists.
+
+             The panel above answers a question about files: which of the ones
+             you chose were read, and what happened to the ones that were not.
+             A lead paying four providers asks a question one level up, and
+             asks it before they have chosen anything: can I responsibly put
+             these together into one number at all?
+
+             That question has failure modes the intake cannot see. A provider
+             that was never in the selection is not a parse error. Neither is a
+             fortnight that straddles everyone else's month, nor a euro figure
+             among dollars. Each one makes a combined figure indefensible, and
+             each is invisible on a panel that only reports what it read.
+
+             So this region answers four questions in one fixed order —
+             yes/no/not-yet, then coverage, then the evidence, then one action
+             — from src/portfolio-comparability.js. The markup carries no
+             provider name, no percentage, no verdict, and no remediation
+             sentence: all of it is painted, so a change of judgment cannot
+             leave a stale claim here. It deliberately holds no cost figure and
+             no provider ranking; combining spend and comparing providers are
+             different questions and are not answered on this surface.
+
+             It is judged against a bundled sample portfolio, chosen below,
+             because the question is worth reading before a reader has any
+             files at all. The sample marker says so above the answer. A sample
+             carrying any field the contract does not declare is refused whole
+             and the refusal is painted here, because an undeclared field is
+             unbounded input and this region holds counts and labels only. -->
+        <section class="portfolio-comparability" id="portfolio-comparability" data-verdict="unavailable" aria-labelledby="portfolio-comparability-title" hidden>
+          <div class="portfolio-comparability-heading">
+            <p class="eyebrow">Before you combine them</p>
+            <h3 id="portfolio-comparability-title">Can I responsibly combine this portfolio now?</h3>
+          </div>
+          <p class="sample-marker" id="portfolio-comparability-marker"><span class="sample-marker-shape" aria-hidden="true">◇</span><strong>Judged from a bundled sample portfolio</strong> Invented delivery counts and provenance labels — no cost, no account, and nothing of yours. Your own files are judged by the panel above.</p>
+          <div class="portfolio-comparability-chooser">
+            <label for="portfolio-comparability-sample">Sample portfolio</label>
+            <select id="portfolio-comparability-sample" aria-describedby="portfolio-comparability-chooser-note"></select>
+            <p class="portfolio-comparability-chooser-note" id="portfolio-comparability-chooser-note">Three of the four samples cannot be combined. Each one fails differently, and each names the one action that recovers it.</p>
+          </div>
+          <div id="portfolio-comparability-body"></div>
+          <p class="portfolio-comparability-source">Every term above — evaluation unit, period alignment, coverage, comparability, the closed field set a portfolio may carry, and the rule that picks the single next action: <a href="/docs/portfolio-comparability-contract.md">portfolio comparability contract</a>.</p>
+        </section>
+
         <!-- What a chosen Shiplog delivery-history export was found to be. The
              region has exactly three states — accepted, accepted as a floor, and
              not read — and every one of them is a word and a shape as well as a
