@@ -40,6 +40,11 @@ import { NO_NATIVE_GROUPING, detectNativeGrouping } from "./native-grouping.js";
 import {
   ACCEPTED_PACKAGE_EXTENSIONS, PROVIDER_PATTERNS, matchExportPackage,
 } from "./provider-export-package.js";
+// The multi-provider intake contract's sensitivity policy. A column it marks
+// `reject` is refused here, at the header row, before a single cell is read —
+// the one place a refusal can promise that no prompt or completion body was
+// ever parsed, sampled, or rendered.
+import { adapterForShape, adapterRemediation, screenSensitiveColumns } from "./multi-provider-intake.js";
 
 export { MAX_DELIMITED_BYTES, MAX_DELIMITED_ROWS };
 
@@ -56,6 +61,7 @@ export const TABULAR_CODES = Object.freeze({
   NO_USABLE_ROWS: "no_usable_rows",
   GROUP_SIZE_ASSUMED: "group_size_assumed",
   CONTRACT_REJECTED: "contract_rejected",
+  SENSITIVE_FIELD_PRESENT: "sensitive_field_present",
 });
 
 /** Extensions the picker and the validator accept, from the package contract.
@@ -864,6 +870,23 @@ export function parseDelimitedFinopsFile(text, fileName = "export.csv", options 
     : detectShape(reading.header);
   const columns = Object.freeze([...reading.header]);
 
+  // The sensitivity screen, before any row is read. A billing export that
+  // carries prompt or completion bodies is refused whole rather than partly
+  // read: the promise is that no message body was parsed, sampled into the
+  // mapping review, or written anywhere — and that promise can only be kept at
+  // the header row.
+  const screened = screenSensitiveColumns(columns);
+  if (!screened.ok) {
+    return failure([makeProblem(TABULAR_CODES.SENSITIVE_FIELD_PRESENT, {
+      row: reading.headerRow,
+      column: screened.rejected[0],
+      shape: binding.shape?.id ?? null,
+      observed: screened.rejected.length,
+      action: adapterRemediation(adapterForShape(binding.shape?.id),
+        TABULAR_CODES.SENSITIVE_FIELD_PRESENT),
+    })], { columns, shape: binding.shape?.id ?? null });
+  }
+
   // What the export already says about how it is grouped, read off the dialect
   // profiles rather than this module's own alias lists. It is carried out on
   // every result — success or failure — because the review step wants to explain
@@ -1064,6 +1087,11 @@ export function describeProblem(problem) {
       return "No row in the file could be normalized.";
     case TABULAR_CODES.CONTRACT_REJECTED:
       return `The normalized export was rejected by the v1 contract (${problem.reason}).`;
+    case TABULAR_CODES.SENSITIVE_FIELD_PRESENT:
+      // The column name, never a cell from it: the reader needs to know which
+      // column to drop, and nothing in it was read to say so.
+      return `The header carries “${problem.column}”, which this import never reads. `
+        + `${problem.action}`;
     case TABULAR_CODES.GROUP_SIZE_ASSUMED:
       return "The declared minimum group size is asserted by the import; a delimited export cannot prove it.";
     default:

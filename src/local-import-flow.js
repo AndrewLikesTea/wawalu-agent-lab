@@ -235,6 +235,8 @@ export function metricBasis({
 // them help a reader fix a mapping, and all of them are source content.
 const OPAQUE_IDENTIFIER = /\bpsn_[A-Za-z0-9_-]{16,64}\b|\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi;
 const FILE_REFERENCE = /\S*\.(?:json|ndjson|csv|tsv|txt|xlsx?)\b/gi;
+const LOCAL_PATH = /(?:[A-Za-z]:\\|\/)(?:[^\s/\\]+[\/\\])+\S+/g;
+const EMAIL_ADDRESS = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi;
 
 /**
  * Scrub a diagnostic before it is shown or announced. Contract field names in
@@ -243,8 +245,10 @@ const FILE_REFERENCE = /\S*\.(?:json|ndjson|csv|tsv|txt|xlsx?)\b/gi;
  */
 export function redactDiagnostic(text) {
   return String(text ?? "")
+    .replace(LOCAL_PATH, "the selected path")
     .replace(FILE_REFERENCE, "the selected file")
-    .replace(OPAQUE_IDENTIFIER, "a redacted identifier");
+    .replace(OPAQUE_IDENTIFIER, "a redacted identifier")
+    .replace(EMAIL_ADDRESS, "a redacted address");
 }
 
 const RECOVERY_BY_CODE = Object.freeze({
@@ -275,6 +279,14 @@ const RECOVERY_BY_CODE = Object.freeze({
   record_outside_period: "Re-export so every record falls inside the declared period.",
   malformed_period: "Correct period_start and period_end, then choose the files again.",
   incompatible_source: "Choose periods from one source instance, or analyze each source separately.",
+  // Multi-provider intake. Each of these arrives with the failing provider's own
+  // remediation on the rejection itself; these are the sentences for a surface
+  // that has only the code.
+  misaligned_period: "Choose exports covering the identical billing window, or analyze each period separately.",
+  duplicate_export: "Remove the repeated file; the same export was chosen twice.",
+  duplicate_period: "Remove the repeated period for this provider; the first export in id order is kept.",
+  sensitive_field_present: "Re-export without the message columns; this import reads counts, never content.",
+  incompatible_providers: "No selected export could be combined; choose one provider's periods and analyze them on their own.",
   too_many_files: "Choose a smaller set of related exports, then analyze any remaining files separately.",
   selection_too_large: "Choose a smaller set of related exports; no file in this selection was read.",
 });
@@ -1255,6 +1267,122 @@ export function applyOrgQuerySourceStatus(doc, sourceId) {
     ]));
   }
   return compatibility;
+}
+
+// --- multi-provider coverage ------------------------------------------------
+// One region, below the requirement rows, answering the two questions a reader
+// with more than one provider's export has: *which of my files are in this
+// number*, and *what happened to the one that isn't*.
+//
+// Every string here comes off the intake plan — the provider's label, the
+// adapter version that read it, the windows it covered, the reason it was held
+// out, and the action that recovers it. This layer authors no wording of its
+// own, and nothing it paints is derived from a cell: the values are provider
+// ids, adapter versions, export periods, and counts.
+
+const PROVIDER_STATE_SHAPE = Object.freeze({
+  settled: "✓",
+  partial_export: "◐",
+  provisional_export: "◑",
+});
+
+const PROVIDER_STATE_WORD = Object.freeze({
+  settled: "Settled",
+  partial_export: "Partial",
+  provisional_export: "Provisional",
+});
+
+/**
+ * Paint the provider coverage list and the held-out exports.
+ *
+ * @param summary the `multiProvider` block of an analysis result, or null to
+ *   take the region off screen — which is what clearing an import does.
+ * @param onJump called after focus moves to the file chooser, so a caller can
+ *   record that the reader took the remediation offered.
+ */
+export function applyProviderCoverage(doc, summary, { onJump } = {}) {
+  const section = byId(doc, "provider-coverage");
+  if (!section) return null;
+  const list = byId(doc, "provider-coverage-list");
+  const held = byId(doc, "provider-coverage-rejections");
+  const heldSection = byId(doc, "provider-coverage-held");
+  const state = byId(doc, "provider-coverage-state");
+  if (!summary) {
+    section.hidden = true;
+    section.dataset.state = "empty";
+    delete section.dataset.contractVersion;
+    list?.replaceChildren();
+    held?.replaceChildren();
+    if (heldSection) heldSection.hidden = true;
+    if (state) state.textContent = "";
+    return null;
+  }
+  section.hidden = false;
+  section.dataset.state = summary.comparability.state;
+  // The contract that decided this, on the surface it decided: a reviewer
+  // comparing the panel against the download compares two stated versions.
+  section.dataset.contractVersion = summary.contractVersion;
+  if (state) {
+    state.textContent = `${summary.comparability.message} ${summary.comparability.basis}`
+      + (summary.comparability.notes.length ? ` ${summary.comparability.notes.join(" ")}` : "");
+  }
+  if (list) list.replaceChildren(...summary.providers.map((provider) => {
+    const item = doc.createElement("li");
+    item.className = "provider-coverage-item";
+    item.dataset.provider = provider.provider;
+    item.dataset.state = provider.state;
+    const shape = textNode(doc, "span", "provider-coverage-shape",
+      PROVIDER_STATE_SHAPE[provider.state] ?? "○");
+    shape.setAttribute("aria-hidden", "true");
+    const word = PROVIDER_STATE_WORD[provider.state] ?? "Read";
+    const periods = `${provider.periods.length} period`
+      + `${provider.periods.length === 1 ? "" : "s"}`;
+    // The state is a word and a shape before it is a tint, and the word is
+    // inside the row's accessible name.
+    item.setAttribute("aria-label", `${provider.label}. ${word}. ${periods}.`);
+    item.append(
+      shape,
+      textNode(doc, "span", "provider-coverage-name", provider.label),
+      textNode(doc, "span", "provider-coverage-state", word),
+      textNode(doc, "span", "provider-coverage-periods", periods),
+      textNode(doc, "span", "provider-coverage-adapter",
+        provider.adapterId ? `Adapter ${provider.adapterId} v${provider.adapterVersion}`
+          : "No declared adapter"),
+    );
+    // What the provider's cost column means. Two providers' totals are only
+    // addable if a reader can see what each one is a total *of*.
+    if (provider.comparabilityNote) {
+      item.append(textNode(doc, "span", "provider-coverage-basis", provider.comparabilityNote));
+    }
+    return item;
+  }));
+  const rejections = summary.rejections;
+  if (heldSection) heldSection.hidden = rejections.length === 0;
+  if (held) held.replaceChildren(...rejections.map((rejected) => {
+    const item = doc.createElement("li");
+    item.className = "provider-coverage-rejection";
+    item.dataset.code = rejected.code;
+    item.append(
+      textNode(doc, "strong", "provider-coverage-rejection-name", rejected.providerLabel),
+      textNode(doc, "span", "provider-coverage-rejection-text", redactDiagnostic(rejected.message)),
+      // The provider's own remediation, not a generic one: what recovers an
+      // Anthropic window is not what recovers a CUR.
+      textNode(doc, "span", "provider-coverage-rejection-action", rejected.action),
+    );
+    const fix = doc.createElement("button");
+    fix.setAttribute("type", "button");
+    fix.className = "provider-coverage-fix";
+    fix.textContent = "Choose files again";
+    fix.setAttribute("aria-label",
+      `Choose files again for ${rejected.providerLabel} — moves focus to the file chooser`);
+    fix.addEventListener("click", () => {
+      byId(doc, "local-finops-files")?.focus?.();
+      onJump?.(rejected);
+    });
+    item.append(fix);
+    return item;
+  }));
+  return summary;
 }
 
 /** Move focus to the stage a reader has just been moved into. */

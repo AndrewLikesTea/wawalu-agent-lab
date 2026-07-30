@@ -658,6 +658,22 @@
         </div>
         <ul class="mapping-requirements" id="mapping-requirements" aria-label="Required inputs and what is still unresolved"></ul>
 
+        <!-- Which providers are inside the number, and what was held out of it.
+             Painted entirely by local-import-flow.js from the multi-provider
+             intake contract: the markup carries no provider name, no adapter
+             version, and no remediation sentence, so adding an adapter cannot
+             leave a stale claim here. Hidden until an analysis exists. -->
+        <section class="provider-coverage" id="provider-coverage" aria-labelledby="provider-coverage-title" hidden>
+          <h3 class="provider-coverage-title" id="provider-coverage-title">Providers in this analysis</h3>
+          <p class="provider-coverage-state" id="provider-coverage-state"></p>
+          <ul class="provider-coverage-list" id="provider-coverage-list" aria-label="Providers read into this analysis"></ul>
+          <div class="provider-coverage-held" id="provider-coverage-held" hidden>
+            <h4 class="provider-coverage-held-title">Not added to the total</h4>
+            <ul class="provider-coverage-rejections" id="provider-coverage-rejections" aria-label="Exports held out of this analysis and how to recover them"></ul>
+          </div>
+          <p class="provider-coverage-source">What each adapter declares, including its schema version and its behaviour for partial, stale, malformed, reordered, and mixed-currency exports: <a href="/docs/multi-provider-intake-contract.md">multi-provider intake contract</a>.</p>
+        </section>
+
         <!-- What a chosen Shiplog delivery-history export was found to be. The
              region has exactly three states — accepted, accepted as a floor, and
              not read — and every one of them is a word and a shape as well as a
