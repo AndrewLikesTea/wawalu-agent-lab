@@ -143,6 +143,18 @@ export const PEER_COST_COHORTS = Object.freeze(assertPublishableCostCohorts([
   cohort("cost-small-saas", ORG_SIZE_BAND.small, PEER_INDUSTRY.saas, 9.20, 19.80),
 ]));
 
+/**
+ * The rubric version these boundaries were computed for.
+ *
+ * ASSUMPTION: a distribution's quartile boundaries are only meaningful beside
+ * the metric definition they were computed under, so the snapshot carries the
+ * rubric version rather than leaving a scoring path to assume compatibility.
+ * WHO DISPUTES IT: an analyst who wants an older snapshot scored against a newer
+ * rubric to keep a trend unbroken; `ranking-reproducibility.js` refuses it.
+ * Bump this whenever a boundary number above or the metric under it changes.
+ */
+export const PEER_COST_RUBRIC_VERSION = "finops-cost-rubric/v2";
+
 /** What the cohorts are, stated once so no consuming surface restates it. */
 export const PEER_COST_PROVENANCE = Object.freeze({
   label: "Published synthetic cost cohorts",
@@ -150,4 +162,6 @@ export const PEER_COST_PROVENANCE = Object.freeze({
     + "They contain no customer, tenant, or provider data, they are not derived from any file "
     + "imported by any visitor, and no import can add to, replace, or move them.",
   snapshotId: PEER_COST_SNAPSHOT_ID,
+  /** The snapshot travels with the rubric it was built for. See above. */
+  rubricVersion: PEER_COST_RUBRIC_VERSION,
 });

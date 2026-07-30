@@ -53,11 +53,14 @@ import { validateCohortAttribution } from "./cohort-attribution.js";
 import {
   COST_BAND_DIRECTION, COST_METRIC, COST_POSITION_WITHHELD, PEER_COST_COHORTS,
   PEER_COST_PROVENANCE, PEER_COST_SNAPSHOT_ID, displayCostPerSuccessfulTask,
-  resolveCostPosition,
 } from "./peer-cost-position.js";
 import {
   loadWorkspaceDestinations, prioritizedDestination, supportingDestinations,
 } from "./finops-destination-contract.js";
+import {
+  RECORD_FIELDS, REPRODUCIBILITY_REFUSED, RUBRIC_VERSION, SHIPPED_COHORT_SNAPSHOT,
+  evaluateRankingReproducibility, renderableLaggardName,
+} from "./ranking-reproducibility.js";
 
 /** Bump when a headline slot, a disclosure, or a withheld sentence changes meaning. */
 export const STAND_VERSION = "finops-stand-headline/1.0.0";
@@ -99,6 +102,7 @@ export const STAND_DISCLOSURE = Object.freeze({
   cohort: "cohort",
   anonymization: "anonymization",
   versions: "versions",
+  reproducibility: "reproducibility",
   departments: "departments",
   verification: "verification",
   otherActions: "other-actions",
@@ -107,7 +111,8 @@ export const STAND_DISCLOSURE = Object.freeze({
 /** The order the disclosures are authored and painted in. */
 export const STAND_DISCLOSURE_ORDER = Object.freeze([
   STAND_DISCLOSURE.cohort, STAND_DISCLOSURE.anonymization, STAND_DISCLOSURE.versions,
-  STAND_DISCLOSURE.departments, STAND_DISCLOSURE.verification, STAND_DISCLOSURE.otherActions,
+  STAND_DISCLOSURE.reproducibility, STAND_DISCLOSURE.departments, STAND_DISCLOSURE.verification,
+  STAND_DISCLOSURE.otherActions,
 ]);
 
 /** The visible summary of each disclosure, authored once so markup and module agree. */
@@ -115,6 +120,7 @@ export const STAND_DISCLOSURE_SUMMARY = Object.freeze({
   [STAND_DISCLOSURE.cohort]: "How the peer set was built",
   [STAND_DISCLOSURE.anonymization]: "What this comparison read, and what it never reads",
   [STAND_DISCLOSURE.versions]: "Rubric and snapshot versions behind these figures",
+  [STAND_DISCLOSURE.reproducibility]: "Can this ranking be reproduced?",
   [STAND_DISCLOSURE.departments]: "Every department, ranked",
   [STAND_DISCLOSURE.verification]: "How much of this was verified",
   [STAND_DISCLOSURE.otherActions]: "The other ways on, in priority order",
@@ -152,6 +158,20 @@ export const STAND_RESOLUTION = Object.freeze({
   [COST_POSITION_WITHHELD.noSpendTotal]:
     "Include the cost column in the export so a spend total can be attributed, then analyze it "
     + "again.",
+  // The reproducibility gates. Same rule as above: the refusing module publishes
+  // the reason, this table publishes the one step that resolves it.
+  [REPRODUCIBILITY_REFUSED.missingRubricVersion]:
+    "Wait for a cohort snapshot that declares the rubric version it was built for. Nothing in an "
+    + "export can supply it, so there is nothing to change in the file.",
+  [REPRODUCIBILITY_REFUSED.rubricVersionMismatch]:
+    `Wait for a cohort snapshot rebuilt for rubric ${RUBRIC_VERSION}. An older snapshot is not `
+    + "scored against a newer rubric, so re-analyzing the same export will not change this.",
+  [REPRODUCIBILITY_REFUSED.insufficientSample]:
+    "Analyze a window with more completed work in it — a longer period, or one that includes the "
+    + "task ledger for every team — and analyze the export again.",
+  [REPRODUCIBILITY_REFUSED.noMatchedCohort]:
+    "Check the declared size band and industry against the published cohorts listed under "
+    + `"${STAND_DISCLOSURE_SUMMARY[STAND_DISCLOSURE.cohort]}", then analyze the export again.`,
 });
 
 /** The label on the control that resolves a withheld position. One control, both sources. */
@@ -329,6 +349,62 @@ function versionEntries(analysis, briefing, position) {
   ];
 }
 
+/**
+ * Whether a reader can repeat this ranking claim, and what they would check.
+ *
+ * Four things a reader is owed before they repeat a band to a director — the
+ * rubric version, the cohort snapshot it was built for, the confidence in the
+ * sample, and when it was last verified — plus the fingerprint that lets a
+ * second run be compared with this one in a glance. Every value here is read off
+ * the reproducibility result; nothing is recomputed and nothing is a constant
+ * typed twice.
+ *
+ * A refused ranking fills the same disclosure with the refusal, so a reader who
+ * opens it after seeing no band finds the reason rather than an empty list.
+ */
+function reproducibilityEntries(result) {
+  if (!result) {
+    return [
+      entry("Ranking claim", "No cost-per-successful-task ranking was composed on this path, so "
+        + "none is claimed as reproducible. The placement above comes from the import cohort "
+        + "contract, which publishes a matched cohort rather than a quartile band."),
+      entry("Rubric version", `${RUBRIC_VERSION} in use · cohort snapshot `
+        + `${SHIPPED_COHORT_SNAPSHOT.snapshotId} was built for `
+        + `${SHIPPED_COHORT_SNAPSHOT.rubricVersion}.`),
+    ];
+  }
+  const { rubric } = result;
+  const rows = [
+    entry("Rubric version", rubric.snapshot
+      ? `${rubric.inUse} in use · this cohort snapshot was built for ${rubric.snapshot} · `
+        + `${rubric.snapshot === rubric.inUse ? "match" : "mismatch, so no ranking is published"}.`
+      : `${rubric.inUse} in use · this cohort snapshot declares no rubric version, so nothing `
+        + "was scored against it."),
+    entry("Cohort snapshot date",
+      rubric.snapshotId ?? "This cohort snapshot published no date, so none is shown here."),
+    entry("Confidence", result.confidence?.detail
+      ?? `Not claimed: no band was published, so there is no confidence in one. ${result.reason}`),
+    entry("Last verification", result.verification.detail),
+  ];
+  if (!result.reproducible) {
+    rows.push(entry("Ranking withheld", result.reason));
+    return rows;
+  }
+  rows.push(entry("Reproducibility fingerprint", `${result.fingerprint} · a 32-bit digest over `
+    + `${RECORD_FIELDS.length} derived values: the rubric version, the cohort snapshot and id, `
+    + "the band, both quartile boundaries, the metric and the spend in whole cents, the "
+    + "successful-task count, and the department gap. No date and no clock reading is inside it, "
+    + "so two runs over the same inputs produce this same value."));
+  const laggard = renderableLaggardName(result);
+  if (laggard && Number.isInteger(result.record.gapBands)) {
+    rows.push(entry("Widest department gap, as compared", `${laggard} · `
+      + `${result.record.gapBands} band${result.record.gapBands === 1 ? "" : "s"} behind the `
+      + "cheapest eligible department, on the same rubric and the same boundaries as the peer "
+      + "position. The gap is compared on department ids, never on names."));
+  }
+  return rows;
+}
+
 function departmentEntries(analysis) {
   const ranked = Array.isArray(analysis?.rankedDepartments) ? analysis.rankedDepartments : [];
   if (!ranked.length) return [entry("Departments", "This analysis ranked no departments.")];
@@ -398,7 +474,7 @@ function disclosure(id, entries) {
  */
 export function composeStandHeadline({
   analysis = null, briefing = null, position = null, finding = null, decision = null,
-  destinations = null, eligibility = null, source = "example",
+  destinations = null, eligibility = null, source = "example", reproducibility = null,
 } = {}) {
   const recoverable = recoverableSlot(analysis);
   const team = teamSlot(finding);
@@ -423,10 +499,13 @@ export function composeStandHeadline({
     team,
     action,
     withheld,
+    /** The reproducibility result behind the position, or null on a path that has none. */
+    reproducibility,
     disclosures: Object.freeze([
       disclosure(STAND_DISCLOSURE.cohort, cohortEntries(position)),
       disclosure(STAND_DISCLOSURE.anonymization, anonymizationEntries(eligibility?.note ?? null)),
       disclosure(STAND_DISCLOSURE.versions, versionEntries(analysis, briefing, position)),
+      disclosure(STAND_DISCLOSURE.reproducibility, reproducibilityEntries(reproducibility)),
       disclosure(STAND_DISCLOSURE.departments, departmentEntries(analysis)),
       disclosure(STAND_DISCLOSURE.verification, verificationEntries(decision, briefing)),
       disclosure(STAND_DISCLOSURE.otherActions, otherActionEntries(destinations)),
@@ -486,16 +565,23 @@ export function buildStandHeadline(loadAnalysis = loadExampleDataset,
     } catch {
       decision = null;
     }
+    // The position is read through the reproducibility gate rather than beside
+    // it. That is what makes "refusal over a weaker number" structural: a rubric
+    // version the cohort snapshot was not built for, or a sample under the
+    // published floor, has no path to this surface that still carries a band.
+    const reproducibility = evaluateRankingReproducibility({
+      org: EXAMPLE_ORG_COHORT_PROFILE,
+      spendUsd: Number(analysis?.spendUsd),
+      tasks: EXAMPLE_TASK_LEDGER,
+      analysis,
+    });
     return composeStandHeadline({
       analysis,
       briefing,
       decision,
       source: "example",
-      position: resolveCostPosition({
-        org: EXAMPLE_ORG_COHORT_PROFILE,
-        spendUsd: Number(analysis?.spendUsd),
-        tasks: EXAMPLE_TASK_LEDGER,
-      }),
+      reproducibility,
+      position: reproducibility.position,
       finding: leadingFinding(analysis),
       destinations: loadWorkspaceDestinations().record,
       // The bundled example imports nothing, so the eligibility result carries

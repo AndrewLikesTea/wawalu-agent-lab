@@ -1,0 +1,85 @@
+{
+  "fixtureVersion": "ranking-reproducibility-fixtures/1.0.0",
+  "authoring": "Hand-authored. Every number below was written by a person from the published cohort records and the bundled example, not copied out of a run. Money is pinned in whole cents so a float formatting change cannot silently move a pin. No customer, tenant, or provider data, no credential, and nothing fetched.",
+
+  "rubric": {
+    "rubricVersionInUse": "finops-cost-rubric/v2",
+    "cohortSnapshotRubricVersion": "finops-cost-rubric/v2",
+    "cohortSnapshotId": "2026-06-30",
+    "minimumRankedSuccessfulTasks": 30,
+    "confidenceMultipleHigh": 4,
+    "confidenceMultipleModerate": 2
+  },
+
+  "cohorts": [
+    { "cohortId": "cost-enterprise-saas", "p25": 18.40, "p75": 31.50 },
+    { "cohortId": "cost-enterprise-financial-services", "p25": 22.10, "p75": 38.75 },
+    { "cohortId": "cost-mid-saas", "p25": 12.75, "p75": 24.60 },
+    { "cohortId": "cost-small-saas", "p25": 9.20, "p75": 19.80 }
+  ],
+
+  "bandBoundaryCases": [
+    { "cohortId": "cost-enterprise-saas", "value": 18.39, "band": "top_quartile", "at": "just below p25" },
+    { "cohortId": "cost-enterprise-saas", "value": 18.40, "band": "top_quartile", "at": "exactly p25, inclusive on the favorable side" },
+    { "cohortId": "cost-enterprise-saas", "value": 18.41, "band": "middle_range", "at": "just above p25" },
+    { "cohortId": "cost-enterprise-saas", "value": 31.49, "band": "middle_range", "at": "just below p75" },
+    { "cohortId": "cost-enterprise-saas", "value": 31.50, "band": "bottom_quartile", "at": "exactly p75" },
+    { "cohortId": "cost-enterprise-saas", "value": 31.51, "band": "bottom_quartile", "at": "just above p75" },
+
+    { "cohortId": "cost-enterprise-financial-services", "value": 22.09, "band": "top_quartile", "at": "just below p25" },
+    { "cohortId": "cost-enterprise-financial-services", "value": 22.10, "band": "top_quartile", "at": "exactly p25" },
+    { "cohortId": "cost-enterprise-financial-services", "value": 22.11, "band": "middle_range", "at": "just above p25" },
+    { "cohortId": "cost-enterprise-financial-services", "value": 38.74, "band": "middle_range", "at": "just below p75" },
+    { "cohortId": "cost-enterprise-financial-services", "value": 38.75, "band": "bottom_quartile", "at": "exactly p75" },
+    { "cohortId": "cost-enterprise-financial-services", "value": 38.76, "band": "bottom_quartile", "at": "just above p75" },
+
+    { "cohortId": "cost-mid-saas", "value": 12.74, "band": "top_quartile", "at": "just below p25" },
+    { "cohortId": "cost-mid-saas", "value": 12.75, "band": "top_quartile", "at": "exactly p25" },
+    { "cohortId": "cost-mid-saas", "value": 12.76, "band": "middle_range", "at": "just above p25" },
+    { "cohortId": "cost-mid-saas", "value": 24.59, "band": "middle_range", "at": "just below p75" },
+    { "cohortId": "cost-mid-saas", "value": 24.60, "band": "bottom_quartile", "at": "exactly p75" },
+    { "cohortId": "cost-mid-saas", "value": 24.61, "band": "bottom_quartile", "at": "just above p75" },
+
+    { "cohortId": "cost-small-saas", "value": 9.19, "band": "top_quartile", "at": "just below p25" },
+    { "cohortId": "cost-small-saas", "value": 9.20, "band": "top_quartile", "at": "exactly p25" },
+    { "cohortId": "cost-small-saas", "value": 9.21, "band": "middle_range", "at": "just above p25" },
+    { "cohortId": "cost-small-saas", "value": 19.79, "band": "middle_range", "at": "just below p75" },
+    { "cohortId": "cost-small-saas", "value": 19.80, "band": "bottom_quartile", "at": "exactly p75" },
+    { "cohortId": "cost-small-saas", "value": 19.81, "band": "bottom_quartile", "at": "just above p75" }
+  ],
+
+  "bundledExample": {
+    "derivation": "154500 USD attributed spend over the window, divided by 4000 successful tasks, is 38.625 USD per successful task. 38.625 is at or above the cost-enterprise-saas p75 of 31.50, so the band is the bottom quartile — the most expensive quarter of the cohort.",
+    "spendCents": 15450000,
+    "successfulTasks": 4000,
+    "valueCents": 3863,
+    "band": "bottom_quartile",
+    "cohortId": "cost-enterprise-saas",
+    "snapshotId": "2026-06-30",
+    "rubricVersion": "finops-cost-rubric/v2",
+    "confidenceTier": "high",
+    "verifiedAt": "2026-07-01",
+    "fingerprint": "b0ef5412"
+  },
+
+  "departmentWorstGap": {
+    "derivation": "Boreal spends 22000 USD over 900 successful tasks (24.44), the cheapest eligible department; Atlas spends 79000 USD over 1500 successful tasks (52.67), the most expensive. 24.44 is between the boundaries and 52.67 is above p75, so the gap is one full band and 28.22 USD per successful task.",
+    "status": "finding",
+    "gapBands": 1,
+    "gapValueCents": 2822,
+    "leaderId": "psn_example_unit_boreal",
+    "leaderBand": "middle_range",
+    "leaderSuccessfulTasks": 900,
+    "leaderValueCents": 2444,
+    "laggardId": "psn_example_unit_atlas0",
+    "laggardBand": "bottom_quartile",
+    "laggardSuccessfulTasks": 1500,
+    "laggardValueCents": 5267
+  },
+
+  "versionGuardCases": [
+    { "name": "match", "snapshotRubricVersion": "finops-cost-rubric/v2", "refusedCode": null },
+    { "name": "mismatch", "snapshotRubricVersion": "finops-cost-rubric/v3", "refusedCode": "rubric_version_mismatch" },
+    { "name": "missing", "snapshotRubricVersion": null, "refusedCode": "missing_rubric_version" }
+  ]
+}
