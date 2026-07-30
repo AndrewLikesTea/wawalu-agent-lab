@@ -2293,6 +2293,11 @@
    has to be free to wrap. */
 .spend-per-delivery { display:grid; gap:14px; border:1px solid var(--import-line); border-radius:14px; padding:22px; background:#fff; }
 .spend-per-delivery #spend-per-delivery-body { display:grid; gap:14px; }
+.spend-per-delivery > .eyebrow { margin:0; }
+/* The question is the heading and is sized as one. It wraps at every width; a
+   question clipped to one line stops being the thing the panel answers. */
+.spd-question { margin:0; font-size:clamp(19px,2.4vw,24px); line-height:1.25; letter-spacing:-.015em; overflow-wrap:anywhere; }
+.spd-question:focus-visible { outline:3px solid var(--focus-ring); outline-offset:4px; }
 .spd-shape { flex:none; }
 .spd-answer { margin:0; font-size:17px; line-height:1.45; font-weight:750; overflow-wrap:anywhere; }
 .spd-figure { display:grid; gap:2px; margin:0; border-left:5px solid var(--import-accent); padding:2px 0 2px 12px; }
@@ -2321,13 +2326,46 @@
 .spd-action-text { margin:0; font-size:14px; line-height:1.55; font-weight:700; overflow-wrap:anywhere; }
 .spd-action-link { justify-self:start; font-size:13px; font-weight:650; }
 .spd-action-owner,.spd-action-why { margin:0; color:var(--ink-muted); font-size:12px; line-height:1.55; overflow-wrap:anywhere; }
-.spd-detail { border:1px solid var(--import-line); border-radius:11px; padding:12px 14px; }
-.spd-detail-summary { display:flex; align-items:center; min-height:44px; color:var(--import-ink); font:650 13px/1.45 inherit; cursor:pointer; }
+/* THE ONE DISCLOSURE GROUP. Six native disclosures in one bordered stack rather
+   than several loose controls down the panel: a reader checking a disputed
+   figure looks in one place, and the stack reads as support for the finding
+   above it rather than as six peer alerts. The rows share edges so the group is
+   one object at any width, and every summary keeps a 44px target. */
+.spd-disclosures { display:grid; border:1px solid var(--import-line); border-radius:11px; }
+.spd-disclosures-title { margin:0; padding:11px 14px; border-bottom:1px solid var(--import-line); color:var(--ink-muted); font:700 12px/1.4 ui-monospace,monospace; letter-spacing:.08em; text-transform:uppercase; }
+.spd-detail { padding:2px 14px 12px; border-bottom:1px solid var(--import-line); }
+.spd-disclosures .spd-detail:last-child { border-bottom:0; }
+/* An opened row is marked by an inset edge rather than a fill: the panel's one
+   wash means "resolved", and an expanded disclosure resolves nothing. */
+.spd-detail[open] { box-shadow:inset 3px 0 0 var(--import-accent); }
+.spd-detail-summary { display:flex; align-items:center; min-height:44px; color:var(--import-ink); font:650 13px/1.45 inherit; cursor:pointer; overflow-wrap:anywhere; }
 .spd-detail-summary:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
 .spd-detail-heading { margin:12px 0 4px; font-size:12px; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-muted); }
-.spd-evidence,.spd-confounders { margin:0; padding-left:20px; font-size:13px; line-height:1.6; }
-.spd-evidence li,.spd-confounders li { overflow-wrap:anywhere; }
+.spd-detail-line { margin:6px 0 0; font-size:13px; line-height:1.6; overflow-wrap:anywhere; }
+/* A quoted contract rule is set apart from the sentences about this reading, so
+   a reader can tell the policy from the measurement without reading both. */
+.spd-rule { margin:8px 0 0; border-left:3px solid var(--import-line); padding-left:10px; color:var(--ink-muted); font-size:12px; line-height:1.6; overflow-wrap:anywhere; }
+.spd-evidence,.spd-confounders,.spd-excluded { margin:0; padding-left:20px; font-size:13px; line-height:1.6; }
+.spd-evidence li,.spd-confounders li,.spd-excluded li { overflow-wrap:anywhere; }
 .spd-provenance,.spd-provenance-fields { margin:0; color:var(--ink-muted); font-size:12px; line-height:1.55; overflow-wrap:anywhere; }
+/* Alignment is a verdict, so it carries a word and a shape and not a tint alone. */
+.spd-alignment { display:flex; flex-wrap:wrap; align-items:baseline; gap:6px 8px; margin:6px 0 0; font-size:13px; line-height:1.6; }
+.spd-alignment-text { flex:1 1 18rem; overflow-wrap:anywhere; }
+.spd-alignment[data-aligned="false"] { color:var(--state-warn-line); font-weight:650; }
+/* THE TWO PHASES THAT ARE NOT A READING. Loading is drawn in the neutral inks —
+   a panel mid-read is not broken — and only the error phase reaches for the
+   error family. Both sit above the reading they caption. */
+.spd-status { display:grid; gap:4px; border:1px solid var(--import-line); border-left:5px solid var(--import-line); border-radius:11px; padding:10px 13px; }
+.spd-status-line { display:flex; flex-wrap:wrap; align-items:baseline; gap:6px 9px; margin:0; font-size:13px; line-height:1.55; }
+.spd-status-word { font:750 12px/1.4 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; }
+.spd-status-summary { flex:1 1 18rem; overflow-wrap:anywhere; }
+.spd-status-detail { margin:0; color:var(--ink-muted); font-size:12px; line-height:1.55; overflow-wrap:anywhere; }
+.spd-status[data-phase="error"] { border-color:var(--state-error-line); border-left-color:var(--state-error-line); background:var(--state-error-wash); }
+.spd-status[data-phase="error"] .spd-status-word { color:var(--state-error-line); }
+/* The one state the panel is most often in on a real page: an analysis exists
+   and no release has ever been recorded. It is marked, not decorated — the
+   dashed edge repeats what the withheld block and the action already say. */
+.spend-per-delivery[data-delivery-evidence="missing"] { border-left:5px solid var(--state-warn-line); }
 /* The classified finding. Every classification gets the same box: a border that
    changed weight with the outcome would rank the outcomes a second time, in a
    language only a sighted reader can read, and the priority is already a word. */
@@ -2338,8 +2376,6 @@
 .spd-finding-class { font:750 12px/1.4 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; color:var(--import-ink); }
 .spd-finding-priority { color:var(--ink-muted); font-size:12px; }
 .spd-finding-headline { margin:0; font-size:14px; line-height:1.55; font-weight:700; overflow-wrap:anywhere; }
-.spd-finding-detail > summary { display:flex; align-items:center; min-height:44px; color:var(--import-ink); font:650 13px/1.45 inherit; cursor:pointer; }
-.spd-finding-detail > summary:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
 .spd-finding-rationale,.spd-finding-thresholds,.spd-finding-caveats { margin:0; padding-left:20px; font-size:12px; line-height:1.6; color:var(--ink-muted); }
 .spd-finding-rationale li,.spd-finding-thresholds li,.spd-finding-caveats li { overflow-wrap:anywhere; }
 .spend-per-delivery-live { margin:0; font-size:12px; color:var(--ink-muted); }
