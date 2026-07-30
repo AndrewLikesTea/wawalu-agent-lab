@@ -278,6 +278,45 @@ export function renderSourceNotice(absence) {
   return panel;
 }
 
+/**
+ * Why the reader is looking at the bundled AI FinOps example.
+ *
+ * The same shape and the same place as the absence notice above — a reader
+ * should meet one idiom for "these are not your figures, and here is why" — with
+ * one addition it earns: a real anchor back to the region they came from. A
+ * hand-off that only goes one way strands a reader on a page whose figures they
+ * cannot change, and the browser's back button is not a thing a printed sheet or
+ * a copied link can offer.
+ *
+ * The link is the last thing in the panel and the only focusable node in it, so
+ * it never sits between the notice and the briefing in the tab order.
+ */
+export function renderExampleContextNotice(context) {
+  if (!context) return null;
+  const panel = el("section", "brief-source-notice brief-example-notice");
+  panel.dataset.absence = context.code;
+  panel.dataset.exampleContext = "true";
+  panel.setAttribute("role", "status");
+  panel.setAttribute("aria-labelledby", "brief-source-title");
+  const heading = el("h2", "brief-source-title");
+  heading.id = "brief-source-title";
+  heading.append(
+    el("span", "brief-source-label", "Not your figures: "),
+    document.createTextNode(context.summary),
+  );
+  panel.append(heading);
+  panel.append(el("p", "brief-source-statement", context.statement));
+  if (context.remedy) panel.append(el("p", "brief-source-remedy", context.remedy));
+  if (context.returnHref) {
+    const back = el("p", "brief-source-return");
+    const link = el("a", "brief-source-return-link", context.returnLabel ?? "Back");
+    link.setAttribute("href", context.returnHref);
+    back.append(link);
+    panel.append(back);
+  }
+  return panel;
+}
+
 /* ----------------------------------- print ----------------------------------- */
 
 export const PRINT_CONTROL_ID = "brief-print";

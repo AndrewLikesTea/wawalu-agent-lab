@@ -971,6 +971,18 @@
 .first-run-secondary:hover { border-color:var(--import-accent); border-style:solid; }
 .first-run-choice button:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
 .first-run-action-note { margin:0; color:var(--ink-muted); font-size:12px; line-height:1.55; }
+/* The hand-off out of this page: the same answer, formatted as the sheet a
+   reader carries into a meeting. Drawn as a link rather than a third button —
+   the two above put data into this page, this one leaves it, and a reader should
+   be able to tell those apart before they press anything. Full-width at every
+   size, so the row above never becomes three cramped columns on a narrow
+   viewport. */
+.first-run-handoff { display:grid; align-content:start; gap:7px; margin:14px 0 0; border:1px solid var(--import-line); border-radius:11px; padding:13px 16px; background:#fbfcfb; }
+.first-run-handoff-heading { margin:0; color:var(--ink); font-size:13px; font-weight:750; letter-spacing:0.01em; }
+.first-run-handoff-action { justify-self:start; min-height:44px; display:inline-flex; align-items:center; border:1px solid var(--import-line); border-radius:9px; padding:10px 15px; background:#fff; color:var(--import-ink); font-size:13.5px; font-weight:700; text-decoration:none; }
+.first-run-handoff-action:hover { border-color:var(--import-accent); color:var(--import-accent); }
+.first-run-handoff-action:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.first-run-handoff-note { margin:0; max-width:78ch; color:var(--ink-muted); font-size:12px; line-height:1.55; }
 /* The conversion moment. Quieter than either choice above by type scale and by
    having no filled accent at all: it is a different step, not a third way in. */
 .first-run-conversion { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px 22px; margin:0 0 22px; border:1px solid var(--panel-border); border-radius:11px; padding:14px 18px; background:#faf9f5; }
@@ -1308,6 +1320,7 @@ section[data-workspace-current="true"] { box-shadow:-6px 0 0 0 var(--import-wash
   .first-run-slots,.first-run-actions,.first-run-support { grid-template-columns:1fr; }
   .first-run-method-heading { align-items:flex-start; flex-direction:column; }
   .first-run-choice button { width:100%; }
+  .first-run-handoff-action { justify-self:stretch; justify-content:center; text-align:center; }
   .first-run-conversion { align-items:stretch; flex-direction:column; }
   .first-run-conversion-action { width:100%; }
   .proof-point-facts { grid-template-columns:1fr; }
@@ -2399,6 +2412,12 @@ section[data-workspace-current="true"] { box-shadow:-6px 0 0 0 var(--import-wash
      something the reader failed to press. The notes stay: they say what would
      have happened, which is the part that is still true on paper. */
   .first-run-choice button,.first-run-conversion-action { display:none; }
+  /* The hand-off is a link, not a button, so it survives on paper as the address
+     of the sheet it opens — which is exactly what a printed page can still act
+     on. Its heading and note stay with it. */
+  .first-run-handoff { border-color:#767670; background:#fff; }
+  .first-run-handoff-action { border:0; padding:0; background:none; color:#171713; text-decoration:underline; }
+  .first-run-handoff-action::after { content:" (" attr(href) ")"; font-size:10px; }
 }
 
 /* ---------------------------------------------------------------------------

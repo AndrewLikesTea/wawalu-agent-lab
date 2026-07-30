@@ -176,6 +176,7 @@ import {
 // real analysis path, so it needs no network and survives a failed fixture.
 import { buildFirstRunResult } from "/finops-first-run.js";
 import {
+  applyExampleBriefingCta,
   applyFirstRunResult, applyFirstRunSupersession, bindFirstRunActions, bindFirstRunDisclosure,
 } from "/finops-first-run-view.js";
 // Where the reader goes once they have read that result. The contract owns which
@@ -2740,6 +2741,10 @@ async function init() {
   // first, so they are operable in the unavailable state too.
   bindFirstRunActions(document);
   applyFirstRunResult(document, buildFirstRunResult());
+  // The way out of the region, repainted from the module that owns the link so
+  // the authored href and the hand-off contract cannot drift apart. It needs no
+  // binding: it is an anchor, and it worked before this line ran.
+  applyExampleBriefingCta(document);
   // After the paint: the disclosure's state chip counts the evidence entries
   // the paint just wrote, and binding it afterwards is what makes the first
   // chip agree with the list under it.

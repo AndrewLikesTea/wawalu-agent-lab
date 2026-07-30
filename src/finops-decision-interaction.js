@@ -263,11 +263,19 @@ export const FOCUS_SPEC = Object.freeze({
   minOffsetPx: 2,
   /** Focus order is DOM order. A positive tabindex is how that stops being true. */
   forbiddenAttributes: Object.freeze(["tabindex=\"1\""]),
-  /** Every control in the region that must be reachable, in the order it is reached. */
+  /**
+   * Every control in the region that must be reachable, in the order it is
+   * reached: the evidence behind the figure, then the two ways to put data into
+   * this page, then the one way out of it — the same example, rebuilt as the
+   * printable executive sheet. The hand-off is last because leaving the page is
+   * the step after deciding whether to, and it is a link rather than a button
+   * for the same reason.
+   */
   order: Object.freeze([
     "finops-first-run-method-summary",
     "finops-first-run-demo",
     "finops-first-run-import",
+    "finops-first-run-briefing",
   ]),
 });
 

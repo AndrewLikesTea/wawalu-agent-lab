@@ -43,7 +43,12 @@ import {
 } from "/executive-briefing-sample.js";
 import { initFinopsContact } from "/finops-contact.js";
 import {
+  EXAMPLE_BRIEFING_NOTICE, EXAMPLE_BRIEFING_ORIGIN, EXAMPLE_BRIEFING_PROVENANCE_NOTE,
+  EXAMPLE_BRIEFING_SYNTHETIC, exampleBriefingPeriods, readExampleContext,
+} from "/finops-example-briefing.js";
+import {
   renderBriefingError,
+  renderExampleContextNotice,
   renderExecutiveBriefingPreview,
   renderPrintControl,
   renderSourceNotice,
@@ -140,7 +145,62 @@ function paintSampleBriefing({ absence, origin }) {
   return preview;
 }
 
+/**
+ * Draw the bundled AI FinOps example, because the reader arrived from it.
+ *
+ * PINNED, NOT PREFERRED. This path runs *before* the workspace is consulted and
+ * the store is never read on it. A reader who followed "open the executive
+ * briefing for this example" asked for the example: briefing on their own
+ * retained months instead would answer a question they did not ask, under a
+ * heading that looks identical. The notice says the omission out loud, and links
+ * back to the region they came from.
+ *
+ * Synchronous and network-free, like both paths above: the periods are derived
+ * from the dataset this bundle already carries, through the same contract a
+ * reader's own export walks through. A derivation that fails is drawn as the
+ * page's error state rather than silently falling back to the published sample —
+ * two different synthetic datasets under one label is the confusion this
+ * hand-off exists to remove.
+ */
+function paintExampleBriefing() {
+  let briefing;
+  try {
+    briefing = buildExecutiveBriefing(exampleBriefingPeriods());
+  } catch {
+    briefing = null;
+  }
+  const verdict = briefing ? validateExecutiveBriefing(briefing) : null;
+  if (!verdict?.valid) {
+    const first = verdict?.violations?.[0];
+    paint(renderBriefingError({
+      summary: "The bundled example could not be built into a briefing",
+      detail: first
+        ? `The example's periods broke ${verdict.violations.length} rule(s); the first is `
+          + `${first.code} at “${first.path || "the briefing itself"}”.`
+        : "The bundled example dataset could not be analyzed in this browser.",
+      remedy: "No figure is shown, because a briefing that fails the contract it declares cannot be "
+        + "quoted. Nothing of yours was read and nothing was stored — the AI FinOps page still holds "
+        + "the same example result, and this page briefs on your own retained periods without the "
+        + "example link.",
+    }));
+    return null;
+  }
+  const preview = renderExecutiveBriefingPreview(briefing, {
+    origin: EXAMPLE_BRIEFING_ORIGIN,
+    provenanceNote: EXAMPLE_BRIEFING_PROVENANCE_NOTE,
+    synthetic: EXAMPLE_BRIEFING_SYNTHETIC,
+  });
+  paint(renderExampleContextNotice(EXAMPLE_BRIEFING_NOTICE), preview);
+  activate(preview);
+  return preview;
+}
+
 export async function loadExecutiveBriefingPreview() {
+  // The example context is read from the address bar, so it survives a copied
+  // link and a reload — the two ways a reader actually keeps a page.
+  if (readExampleContext(globalThis.window?.location ?? null).pinned) {
+    return paintExampleBriefing();
+  }
   const chosen = chooseBriefingSource(browserFinopsWorkspaceStorage());
   if (chosen.source === BRIEFING_SOURCE.workspace) return paintWorkspaceBriefing(chosen);
   return paintSampleBriefing(chosen);
