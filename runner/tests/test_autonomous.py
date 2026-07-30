@@ -699,14 +699,39 @@ class AutonomousTests(IsolatedDiffBudget):
              mock.patch.object(autonomous, "AUTONOMY", pathlib.Path(tmp) / "autonomy"), \
              mock.patch.object(autonomous, "ROOT", pathlib.Path(tmp)):
             state = self.review_workspace(tmp)
-            github.side_effect = [[dict(self.OWNER_PULL)], [], None]
+            github.side_effect = [[dict(self.OWNER_PULL)], [], [], None]
             approved = autonomous.review_outstanding_prs("token", {}, state, mock.Mock())
             self.assertFalse(state.value["pr_reviews"]["40"]["approved"])
         self.assertEqual(approved, [])
-        commented = github.call_args_list[2]
+        commented = github.call_args_list[3]
         self.assertEqual(commented.args[0], f"/repos/{REPO}/issues/40/comments")
         self.assertIn("Missing tests", commented.args[3]["body"])
         merge.assert_not_called()
+
+    @mock.patch.object(autonomous, "enable_auto_merge")
+    @mock.patch.object(autonomous, "reviewer_token", return_value="reviewer-token")
+    @mock.patch.object(autonomous, "review_pull_request",
+                       return_value={"approved": False, "feedback": "Missing tests", "summary": "No"})
+    @mock.patch.object(autonomous, "fetch_pull_diff", return_value="diff")
+    @mock.patch.object(autonomous, "github")
+    def test_rejection_is_dropped_when_approval_landed_during_the_review(
+            self, github, diff, review, token, merge):
+        pull = dict(self.OWNER_PULL, user={"login": "wawalu-agent-implementer[bot]"},
+                    head={"sha": "abc123", "ref": "agent/backend/issue-9-thing"})
+        journal = mock.Mock()
+        with tempfile.TemporaryDirectory() as tmp, \
+             mock.patch.object(autonomous, "AUTONOMY", pathlib.Path(tmp) / "autonomy"), \
+             mock.patch.object(autonomous, "ROOT", pathlib.Path(tmp)):
+            state = self.review_workspace(tmp)
+            github.side_effect = [[pull], [], [
+                {"state": "APPROVED", "commit_id": "abc123",
+                 "user": {"login": "wawalu-synthetic-reviewer[bot]"}}]]
+            approved = autonomous.review_outstanding_prs("token", {}, state, journal)
+        self.assertEqual(approved, [])
+        self.assertEqual(len(github.call_args_list), 3)
+        self.assertEqual([call.args[0] for call in journal.emit.call_args_list].count(
+            "owner_pr_rejected"), 0)
+        journal.emit.assert_any_call("owner_review_superseded", pull=40, sha="abc123")
 
     @mock.patch.object(autonomous, "review_pull_request")
     @mock.patch.object(autonomous, "github")

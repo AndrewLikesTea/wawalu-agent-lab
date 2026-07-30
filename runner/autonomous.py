@@ -1090,6 +1090,15 @@ def review_owner_pull(pull: dict[str, Any], token: str, config: dict[str, Any],
                 journal.emit("owner_pr_auto_merge_failed", pull=number,
                              error=type(error).__name__, detail=str(error)[:300])
     else:
+        # The reviews list that sent us here was read before the local review ran,
+        # and that review takes minutes. A run's own Reviewer-App approval can land
+        # inside that window, so re-read the list before saying anything: rejecting
+        # a pull request that is already approved and about to merge leaves a
+        # permanent, contradictory comment on shipped work.
+        fresh = github(f"/repos/{REPOSITORY}/pulls/{number}/reviews?per_page=100", token) or []
+        if approved_current_head(fresh, head_sha):
+            journal.emit("owner_review_superseded", pull=number, sha=head_sha)
+            return verdict
         comment(token, number, "changes requested",
                 f"Marcus reviewed `{head_sha[:10]}` and did not approve:\n\n{verdict['feedback'][:2000]}")
         journal.emit("owner_pr_rejected", pull=number, sha=head_sha)
