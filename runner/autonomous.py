@@ -29,8 +29,9 @@ from runner.layers import (CAPACITY_EXIT_CODES, PROVIDER_OVERLOAD_EXIT_CODE, WOR
                            ConsultantCapacityExhausted, capacity_reset_at,
                            consult_next_steps, propose_directive_plan, propose_task,
                            review_pull_request, snapshot_live_site, stakeholder_review)
-from runner.orchestrator import (BUDGET, DIFF_BUDGET_EXIT_CODE, POLICY_REJECTED_EXIT_CODE,
-                                 POLICY_REJECTION_FILE, PRODUCT_ROOT, REPOSITORY,
+from runner.orchestrator import (BUDGET, CHECK_FAILURE_FILE, DIFF_BUDGET_EXIT_CODE,
+                                 POLICY_REJECTED_EXIT_CODE, POLICY_REJECTION_FILE,
+                                 PRODUCT_CHECK_FAILED_EXIT_CODE, PRODUCT_ROOT, REPOSITORY,
                                  REVIEW_REJECTED_EXIT_CODE, checkout_lock, load_personas, load_runtime_env, safe_slug)
 from runner.simulation import choose_collaborator, load_behaviors
 from scripts.check_reviewer_approval import REVIEWER_LOGINS, approved_current_head
@@ -1686,6 +1687,18 @@ def latest_run_policy_rejection() -> str:
     the same size, and loses another paid session to the same ceiling — which is exactly
     how issue #448 spent a full run to fail by ten lines.
     """
+    reasons = latest_run_artifact(POLICY_REJECTION_FILE)
+    if not reasons:
+        return ""
+    return (f"The automated policy gate discarded the previous attempt before review, so none of "
+            f"that work shipped:\n\n{reasons}\n\n"
+            f"Plan this attempt to fit inside the stated limits: deliver the smallest change that "
+            f"satisfies the issue, and leave optional polish, extra fixtures, and adjacent cleanups "
+            f"out rather than exceeding the ceiling again.")
+
+
+def latest_run_artifact(name: str) -> str:
+    """Read a file the run that just finished left behind, or "" if it left none."""
     runs = ROOT / ".agent" / "runs"
     try:
         newest = max((path for path in runs.iterdir() if path.is_dir()),
@@ -1695,16 +1708,28 @@ def latest_run_policy_rejection() -> str:
     if newest is None:
         return ""
     try:
-        reasons = (newest / POLICY_REJECTION_FILE).read_text(encoding="utf-8").strip()
+        return (newest / name).read_text(encoding="utf-8").strip()
     except OSError:
         return ""
+
+
+def latest_run_check_failure() -> str:
+    """What the product check said when it went red, phrased for the retry.
+
+    A red check is the most actionable failure there is — it names the broken suite —
+    and it used to be the least informative: the run died on an uncaught exception and
+    the retry started from the issue body again. Nine of the last forty runs ended
+    without shipping, and paying a second session to rediscover a named failing test
+    is the cheapest waste here to remove.
+    """
+    reasons = latest_run_artifact(CHECK_FAILURE_FILE)
     if not reasons:
         return ""
-    return (f"The automated policy gate discarded the previous attempt before review, so none of "
-            f"that work shipped:\n\n{reasons}\n\n"
-            f"Plan this attempt to fit inside the stated limits: deliver the smallest change that "
-            f"satisfies the issue, and leave optional polish, extra fixtures, and adjacent cleanups "
-            f"out rather than exceeding the ceiling again.")
+    return (f"The previous attempt finished but `npm run check` went red on its worktree, so "
+            f"nothing shipped. The check output ended with:\n\n```\n{reasons}\n```\n\n"
+            f"Start from that failure: reproduce it, and make the change so the whole check "
+            f"passes before you finish. If the work does not fit inside a passing check, deliver "
+            f"the smaller slice that does.")
 
 
 def record_run_outcome(exit_code: int, issue: dict[str, Any], number: int, persona: str,
@@ -1800,6 +1825,8 @@ def record_run_outcome(exit_code: int, issue: dict[str, Any], number: int, perso
             rejection = latest_run_review()
         elif exit_code == POLICY_REJECTED_EXIT_CODE:
             rejection = latest_run_policy_rejection()
+        elif exit_code == PRODUCT_CHECK_FAILED_EXIT_CODE:
+            rejection = latest_run_check_failure()
         else:
             rejection = ""
         max_size_rejections = int(config.get("max_size_rejections", 2))
