@@ -39,6 +39,12 @@ REVIEW_REJECTED_EXIT_CODE = 3
 # otherwise the next attempt rebuilds the same 2000-line change and is discarded again.
 POLICY_REJECTED_EXIT_CODE = 4
 POLICY_REJECTION_FILE = "policy-rejection.txt"
+# The product's own check script went red on the finished worktree. Also specific about
+# the work — a named failing test — so it gets a code and its output rides to the retry.
+# Without it the run died on an uncaught CalledProcessError, the daemon saw a bare exit 1,
+# and the next paid session replanned from the issue body with no idea what it broke.
+PRODUCT_CHECK_FAILED_EXIT_CODE = 5
+CHECK_FAILURE_FILE = "check-failure.txt"
 
 
 CHECKOUT_LOCK = AGENT_DIR / "autonomy" / "checkout.lock"
@@ -79,12 +85,25 @@ def run_product_check(command: list[str], cwd: pathlib.Path) -> None:
     failure throws away a finished worker session and costs a whole retry run, while
     a second attempt costs a couple of minutes — and a change that is genuinely
     broken still fails both times.
+
+    The output is captured rather than streamed so a genuine failure can be carried to
+    the retry as feedback: a red check used to leave nothing behind but a traceback, and
+    the next attempt replanned from the issue body and broke the same suite again.
     """
     try:
-        run(command, cwd=cwd)
-    except subprocess.CalledProcessError:
+        run(command, cwd=cwd, capture_output=True)
+    except subprocess.CalledProcessError as first:
+        print(check_failure_text(first), file=sys.stderr)
         print("product check failed; retrying once before failing the run", file=sys.stderr)
-        run(command, cwd=cwd)
+        run(command, cwd=cwd, capture_output=True)
+
+
+def check_failure_text(error: subprocess.CalledProcessError, limit: int = 4000) -> str:
+    """The tail of a failed check's output, bounded so it fits in an issue comment."""
+    parts = [str(stream).strip() for stream in (error.stdout, error.stderr)
+             if isinstance(stream, str) and stream.strip()]
+    text = "\n".join(parts).strip() or f"{' '.join(error.cmd)} exited {error.returncode}"
+    return text if len(text) <= limit else "…\n" + text[-limit:]
 
 
 def worker_left_work(worktree: pathlib.Path) -> bool:
@@ -506,7 +525,15 @@ Scenario: {json.dumps(scenario, indent=2)}
     (run_dir / "metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")
     check_command = product_check_command(worktree)
     if check_command:
-        run_product_check(check_command, worktree)
+        try:
+            run_product_check(check_command, worktree)
+        except subprocess.CalledProcessError as error:
+            reasons = check_failure_text(error)
+            print(reasons, file=sys.stderr)
+            (run_dir / CHECK_FAILURE_FILE).write_text(reasons + "\n", encoding="utf-8")
+            metadata["product_check"] = "failed"
+            (run_dir / "metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")
+            return PRODUCT_CHECK_FAILED_EXIT_CODE
         gates_passed = "npm run check and agent policy passed"
     else:
         gates_passed = "agent policy passed (product repo defines no check script)"
