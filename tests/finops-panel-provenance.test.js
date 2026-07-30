@@ -210,7 +210,7 @@ test("panels resolve their source one by one, and a mixed surface renders correc
   assert.equal(byId(document, "finops-headline").getAttribute("aria-describedby"),
     "finops-headline-provenance");
   // The distinction is carried by words and a shape, never by colour alone.
-  assert.match(labels.cohort, /◇ Example data/);
+  assert.match(labels.cohort, /◇ Bundled synthetic example/);
   assert.match(labels.headline, /▣Your data/);
 });
 
@@ -276,7 +276,7 @@ test("the way back to the sample is labelled, keyboard operable, and total", asy
   }), { onReturnToSample: () => { returned += 1; } });
   assert.equal(control.hidden, false);
   // The accessible name says what pressing it does, without a title or an icon.
-  assert.equal(textOf(control), "Show the bundled example data in all four panels");
+  assert.equal(textOf(control), "Show the Bundled synthetic example in all four panels");
   assert.ok(tabSequence(document).includes(control), "the control is in the tab sequence");
 
   control.focus();
@@ -292,7 +292,7 @@ test("the way back to the sample is labelled, keyboard operable, and total", asy
   // Focus is not dropped on a control that just disappeared.
   assert.equal(control.hidden, true);
   assert.equal(document.activeElement, byId(document, "finops-headline-question"));
-  assert.match(shown(document, "finops-headline-live"), /bundled example data/);
+  assert.match(shown(document, "finops-headline-live"), /Bundled synthetic example/);
 });
 
 test("the control is reachable by Tab alone from the surface it belongs to", async () => {

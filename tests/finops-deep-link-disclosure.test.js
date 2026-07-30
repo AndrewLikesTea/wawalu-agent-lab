@@ -294,7 +294,7 @@ test("the import panel offers one primary choice and one synthetic alternative",
     "exactly one import choice, plus the labelled way in for a visitor with no export");
 
   const example = doc.getElementById("try-example-dataset");
-  assert.match(example.textContent, /invented sample/i,
+  assert.match(example.textContent, /Bundled synthetic example/,
     "the synthetic path says what it is in the control, not only in a note beside it");
 
   // The three starters that used to compete with the picker are all still here,

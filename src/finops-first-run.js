@@ -95,7 +95,7 @@ export const FIRST_RUN_IDS = Object.freeze({
 });
 
 /** The visible name of the region, so "example" is read rather than inferred. */
-export const FIRST_RUN_LABEL = "Example result · nothing of yours needed";
+export const FIRST_RUN_LABEL = "Bundled synthetic example · nothing of yours needed";
 
 /**
  * The three states this region resolves into, each readable without colour: a
@@ -146,7 +146,7 @@ export const FIRST_RUN_STATE = Object.freeze({
  * they have chosen anything, and leaves nothing to say when one really does.
  */
 export const FIRST_RUN_INSTRUCTION =
-  "No analysis has run yet. Try the bundled example data, or analyze your own export.";
+  "No analysis has run yet. Try the Bundled synthetic example without uploading a file, or analyze your own export.";
 
 /** What a slot says before anything has been analyzed, in one shape. */
 export const FIRST_RUN_NOT_YET = Object.freeze({
@@ -162,10 +162,10 @@ export const FIRST_RUN_NOT_YET = Object.freeze({
  * decides what kind of number they are looking at before they read the number.
  */
 export const SAMPLE_LABEL = Object.freeze({
-  badge: "Invented sample data",
+  badge: "Bundled synthetic example",
   statement:
-    "Every figure below comes from a bundled six-month dataset for an invented company. "
-    + "It is not your spend, customer data, or realized savings.",
+    "Every figure below comes from six months of invented data for an invented company. "
+    + "It is not your spend, customer data, or realized savings. No file is needed.",
 });
 
 /** What a slot says when the analysis produced no value for it. */
@@ -173,12 +173,12 @@ export const UNAVAILABLE_VALUE = "Unavailable";
 
 /** The reasons this region can be unavailable as a whole, in the words it uses. */
 export const FIRST_RUN_UNAVAILABLE = Object.freeze({
-  pending: "The bundled example has not been composed on this page yet.",
-  notComposed: "No example analysis was produced, so no figure is shown here.",
-  invalidBriefing: "The bundled example did not satisfy the briefing contract, so no figure is shown here.",
-  failed: "The bundled example could not be analyzed in this browser, so no figure is shown here.",
+  pending: "The Bundled synthetic example has not been composed on this page yet.",
+  notComposed: "No Bundled synthetic example analysis was produced, so no figure is shown here.",
+  invalidBriefing: "The Bundled synthetic example did not satisfy the briefing contract, so no figure is shown here.",
+  failed: "The Bundled synthetic example could not be analyzed in this browser, so no figure is shown here.",
   empty: DECISION_STATE.empty.statement,
-  outOfRange: "A figure in the bundled example was outside the range it can take, so it is not shown.",
+  outOfRange: "A figure in the Bundled synthetic example was outside the range it can take, so it is not shown.",
 });
 
 /**
@@ -193,8 +193,8 @@ export const FIRST_RUN_UNAVAILABLE = Object.freeze({
  */
 export const FIRST_RUN_ACTIONS = Object.freeze({
   demo: Object.freeze({
-    label: "Try the bundled example data",
-    note: "Fills every panel below with the same six invented months.",
+    label: "Try the Bundled synthetic example",
+    note: "Fills every panel below with six invented months. No file is needed.",
     targetId: "try-example-dataset",
   }),
   import: Object.freeze({

@@ -113,7 +113,7 @@ test("a cold load says nothing of yours is imported, and offers one action", asy
     // Answer first: whose numbers these are. Evidence second: what that costs
     // and what changes it.
     assert.equal(textOf(byId(document, LOAD_STATUS_IDS.title)), IMPORT_PRESENCE.example.title);
-    assert.match(textOf(byId(document, LOAD_STATUS_IDS.copy)), /bundled synthetic example data/);
+    assert.match(textOf(byId(document, LOAD_STATUS_IDS.copy)), /Bundled synthetic example/);
     assert.match(textOf(byId(document, LOAD_STATUS_IDS.copy)), /no upload/i);
     assert.equal(textOf(byId(document, LOAD_STATUS_IDS.word)), LOAD_PRESENTATION.ready.word);
     assert.equal(textOf(byId(document, LOAD_STATUS_IDS.shape)), LOAD_PRESENTATION.ready.shape);

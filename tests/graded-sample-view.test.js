@@ -67,7 +67,7 @@ test("state C · a visitor who imports nothing meets the page unchanged", async 
   };
   assert.equal(before.badgeHidden, false);
   assert.match(before.badge,
-    /^◇ Example data — bundled synthetic sample, replaced by your figures only after a local import\.$/);
+    /^◇ Bundled synthetic example — invented data, not your spend\. Analyze your own export to replace it with your figures\.$/);
   assert.equal(byId(document, "graded-sample").hidden, true, "the graded section ships hidden");
   assert.equal(byId(document, "graded-provenance").hidden, true);
   assert.equal(byId(document, "mix-basis").hidden, true);
@@ -180,7 +180,7 @@ test("clearing hands every slot back to the example surface", async () => {
   assert.equal(byId(document, "mix-basis").hidden, true);
   assert.equal(byId(document, "headline-basis").hidden, false);
   assert.match(shown(document, "headline-basis"),
-    /^◇ Example data — bundled synthetic sample, replaced by your figures only after a local import\.$/);
+    /^◇ Bundled synthetic example — invented data, not your spend\. Analyze your own export to replace it with your figures\.$/);
 });
 
 test("the disclosure reveals the subscores and the unclassified count, from the keyboard", async () => {
