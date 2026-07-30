@@ -136,6 +136,14 @@ import {
 // Delivery evidence is the release log this site already keeps, read through its
 // own loader so the shape it validates is the shape counted here.
 import { browserReleaseStorage, loadReleases } from "/releases.js";
+// …or a Shiplog delivery history a leader was handed as a file, for the common
+// case where the releases live in another install. The parser owns the schema,
+// the version allowlist, and what partial, stale, malformed, reordered, and
+// period-incompatible input does; this page owns only the routing and the pairing.
+import {
+  claimsDeliveryHistory, deliveriesFromDeliveryHistory, parseDeliveryHistory,
+} from "/shiplog-delivery-history.js";
+import { applyDeliveryHistory, clearDeliveryHistory } from "/shiplog-delivery-history-view.js";
 // The bundled example dataset's release evidence, synthetic on both sides: an
 // example analysis paired with a reader's real release log would put one
 // organization's spend over another's deliveries.
@@ -345,15 +353,67 @@ function storedDeliveryReleases() {
  * contract's call — including the common one, where an analysis exists and no
  * release has ever been recorded, and the prioritized action is to record one.
  */
+/**
+ * An accepted delivery-history file, or null. Module-level for the same reason
+ * `importedLiteracyRows` is: the file is read inside the import closure and the
+ * pairing above happens outside it, and a second copy of this fact is a second
+ * chance for the panel and the file to disagree.
+ */
+let importedDeliveryHistory = null;
+/**
+ * The bytes behind that outcome, retained only in this tab. A delivery file can
+ * arrive before the provider period in a multi-file selection; keeping the bytes
+ * lets `renderResult` validate the pair once that period exists instead of
+ * treating an unchecked history as compatible.
+ */
+let selectedDeliveryHistoryText = null;
+
+function spendWindowFromPeriod(period) {
+  const match = /^(\d{4}-\d{2}-\d{2}) to (\d{4}-\d{2}-\d{2})$/.exec(String(period ?? ""));
+  return match ? { start: match[1], end: match[2] } : null;
+}
+
+/**
+ * Swap a delivery-history file's releases in for this browser's release log.
+ *
+ * The file is authoritative when one was accepted rather than merged with the
+ * local log: the same release recorded in both would otherwise be counted twice,
+ * and a denominator that double-counts is worse than either source alone. The
+ * provenance says which of the two answered, so the ratio on screen can never be
+ * read as the local log's when it is not.
+ */
+function withDeliveryHistory(input, history) {
+  const { deliveries, statusDeclared } = deliveriesFromDeliveryHistory(history);
+  return {
+    ...input,
+    deliveries,
+    provenance: {
+      ...input.provenance,
+      source: history.provenance.source,
+      derivedFromFields: [
+        ...input.provenance.derivedFromFields.filter((field) =>
+          !field.startsWith("local.shiplog.release.")),
+        ...(deliveries.length ? ["local.shiplog.release.created_at"] : []),
+        ...(statusDeclared ? ["local.shiplog.release.status"] : []),
+      ],
+    },
+  };
+}
+
 function paintSpendPerDelivery(analysis, { example = false } = {}) {
   if (!analysis) return clearSpendPerDelivery(document);
   // One input, read once, and both derivations take it. Assembling it twice would
   // be two chances for the two records on screen to describe different releases.
-  const input = spendPerDeliveryInput({
+  const base = spendPerDeliveryInput({
     analysis,
     releases: example ? EXAMPLE_DELIVERY_RELEASES : storedDeliveryReleases(),
     origin: example ? "example" : "import",
   });
+  // The example dataset is never paired with a reader's own file, in either
+  // direction: synthetic spend over real releases is the same mislabelling as
+  // real spend over synthetic releases.
+  const input = !example && importedDeliveryHistory?.usable
+    ? withDeliveryHistory(base, importedDeliveryHistory) : base;
   const decision = spendPerDeliveryDecision(input);
   // The scoring layer runs on the production path, not beside it: the classified,
   // prioritized, caveated finding is generated from the same decision this page
@@ -1092,6 +1152,20 @@ function mountLocalFinopsImport() {
   const renderResult = (next, { example = false, inputs = loaded } = {}) => {
     result = next;
     exampleActive = example;
+    // Selection order cannot weaken period validation. If the delivery file was
+    // read before the provider file, parse it again against the now-known spend
+    // window before any ratio is painted. This is replacement, not accumulation,
+    // so replay detection is neither needed nor safe without retaining a source
+    // identifier to scope the sequence to.
+    if (!example && selectedDeliveryHistoryText !== null) {
+      const window = spendWindowFromPeriod(next.period);
+      const outcome = parseDeliveryHistory(selectedDeliveryHistoryText, {
+        asOf: window ? `${window.end}T00:00:00Z` : null,
+        spendWindow: window,
+      });
+      applyDeliveryHistory(document, outcome);
+      importedDeliveryHistory = outcome.usable ? outcome : null;
+    }
     resultsNode.setAttribute("aria-busy", "false");
     applyDatasetProvenance(document, example, example ? null : importProvenance());
     if (remap) remap.hidden = example || !imports.some((entry) => entry.source === "delimited");
@@ -1402,6 +1476,12 @@ function mountLocalFinopsImport() {
     // still there, and a decision block outliving the clear would be answered
     // about a sample the reader can no longer see the source of.
     paintCoachingDecision(null);
+    // The delivery history goes with the files it came in as, sequence included:
+    // a reader who starts over is owed a tab that has read no release evidence,
+    // and a retained high-water mark would make the very same file a replay.
+    importedDeliveryHistory = null;
+    selectedDeliveryHistoryText = null;
+    clearDeliveryHistory(document);
     // And the delivery comparison, for the same reason: its window came from the
     // analysis being discarded, and a ratio with no visible source is exactly the
     // figure this section exists to avoid publishing.
@@ -1695,6 +1775,43 @@ function mountLocalFinopsImport() {
     }));
   };
 
+  /**
+   * The billing period a delivery history will be divided into, if one has been
+   * analyzed in this tab yet. It is the analysis's own window string, parsed
+   * rather than re-derived, so the pair the contract compares is the pair on
+   * screen. Null before any provider export has been read, and the contract
+   * treats that as "no compatibility claim to make" rather than as a mismatch.
+   */
+  const currentSpendWindow = () => {
+    return spendWindowFromPeriod(result?.period);
+  };
+
+  /**
+   * Read one delivery-history file and paint what it turned out to be.
+   *
+   * The three outcomes are all rendered — accepted, accepted-as-a-floor, and not
+   * read — and only a usable one is retained. `asOf` is the analysed period's own
+   * end rather than a clock read: freshness has to be reproducible, and a
+   * delivery export generated long before the period being analyzed is exactly
+   * what the staleness target is for.
+   */
+  const readDeliveryHistory = (text) => {
+    selectedDeliveryHistoryText = text;
+    const window = currentSpendWindow();
+    const outcome = parseDeliveryHistory(text, {
+      asOf: window ? `${window.end}T00:00:00Z` : null,
+      spendWindow: window,
+    });
+    applyDeliveryHistory(document, outcome);
+    // A refused replacement must not leave an older accepted history silently
+    // active under a "Not read" verdict.
+    importedDeliveryHistory = outcome.usable ? outcome : null;
+    // A repaint of whatever reading is already on screen, so an added file
+    // changes the ratio in place instead of waiting for the next import.
+    if (result) paintSpendPerDelivery(result, { example: exampleActive });
+    return outcome;
+  };
+
   const processQueue = async () => {
     let total = imports.length + queue.length;
     while (queue.length) {
@@ -1720,6 +1837,17 @@ function mountLocalFinopsImport() {
         { sourceId: "local-conversation-archive", fileName: file.fileName });
       if (archive.ok) {
         archives.push({ fileName: file.fileName, result: archive });
+        continue;
+      }
+      // The fourth declared source: a Shiplog delivery history, claimed from its
+      // own `kind` rather than its name. A file that claims this contract is
+      // reported against this contract even when it fails it — an unsupported
+      // version or a malformed record has to reach the reader as "this delivery
+      // history was not read, and here is why", not as an unrecognized file. It
+      // is optional evidence, so a refusal states itself in its own region and
+      // leaves the rest of the selection to be analyzed.
+      if (claimsDeliveryHistory(file.text)) {
+        readDeliveryHistory(file.text);
         continue;
       }
       // A delimited file is never analyzed on sight: it goes through the review

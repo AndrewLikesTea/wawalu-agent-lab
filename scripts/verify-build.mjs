@@ -70,6 +70,15 @@ export async function verifyArtifact(root) {
     // load. Treat the set as one deployable surface so a narrowed copy rule
     // fails before Pages can ship a half-static import flow.
     "local-import-flow.js", "finops-load-status.js",
+    // The delivery-history intake: its parser, the substring-run leak detector
+    // the parser refuses identifier-derived labels with, and the view that paints
+    // the accepted, floor, and refused states. The entry imports all three, so a
+    // narrowed artifact would be a rejected entry module rather than one missing
+    // panel — and the published contract is what a reader consults before
+    // choosing a file.
+    "shiplog-delivery-history.js", "shiplog-delivery-history-view.js", "identifier-leak.js",
+    "contracts/integrations/shiplog-delivery-history/v1/manifest.json",
+    "docs/shiplog-delivery-history-contract.md",
     "finops-guided-result.js", "finops-guided-result-view.js",
     // The imported briefing's peer position is evaluated and qualified across
     // these three modules. If any one is absent, the browser rejects the entry

@@ -1,0 +1,108 @@
+{
+  "contract": "shiplog-delivery-history/1.0",
+  "manifest_version": "1.0",
+  "status": "Anya-approved schema, fixtures, and failure semantics. Approval covers this document and the browser consumer that implements it. It does not approve a vendor connection, credential, scheduled transfer, retention exception, or deployment.",
+  "kind": "shiplog.delivery_history",
+  "supported_schema_versions": ["1.0"],
+  "purpose": "Supply the denominator of local AI spend per delivery: how many releases a team recorded as completed inside a declared period, and how much that count can be trusted.",
+  "consumer": {
+    "runtime": "browser tab",
+    "transport": "file chosen with a file input; read with the local Blob text API",
+    "uploads": false,
+    "credentials": false,
+    "storage": false,
+    "network": false
+  },
+  "ceilings": {
+    "max_document_characters": 4000000,
+    "max_records": 20000,
+    "max_version_label_characters": 64,
+    "stale_after_hours": 72
+  },
+  "envelope": {
+    "required": ["schema_version", "kind", "export_id", "snapshot", "privacy", "records"],
+    "additional_properties": false,
+    "export_id": "UUID; makes a retry idempotent"
+  },
+  "snapshot": {
+    "required": ["source_instance_id", "sequence", "generated_at", "mode", "completeness", "omitted_record_count", "period_start", "period_end"],
+    "additional_properties": false,
+    "source_instance_id": "psn_ plus 16 to 64 identifier characters; withheld by the consumer",
+    "sequence": "producer-owned monotonically increasing non-negative integer",
+    "generated_at": "RFC 3339 timestamp on a real calendar date; freshness only, never ordering",
+    "mode": ["full", "partial"],
+    "completeness": ["complete", "partial"],
+    "omitted_record_count": "non-negative integer",
+    "period": "period_start and period_end are ISO calendar dates forming a half-open range"
+  },
+  "privacy": {
+    "required_values": {
+      "classification_site": "browser_tab",
+      "release_notes_retained": false,
+      "direct_identifiers_included": false
+    },
+    "rejected_declaration": "privacy_declaration_rejected"
+  },
+  "record": {
+    "upsert_allowlist": ["delivery_id", "revision", "operation", "completed_at", "status", "version_label", "decision_link_count"],
+    "delete_allowlist": ["delivery_id", "revision", "operation", "completed_at"],
+    "additional_properties": false,
+    "delivery_id": "psn_ plus 16 to 64 identifier characters; withheld by the consumer",
+    "revision": "integer of 1 or more; the greatest revision for a delivery wins",
+    "operation": ["upsert", "delete"],
+    "status": ["completed", "rolled_back", "in_progress", "abandoned"],
+    "counted_status": "completed",
+    "version_label": "optional; at most 64 characters of a short release name, and never derived from a withheld identifier",
+    "decision_link_count": "non-negative integer"
+  },
+  "withheld_fields": ["delivery_id", "snapshot.source_instance_id", "export_id"],
+  "identifier_derived_label_rule": {
+    "minimum_shared_run": 3,
+    "normalization": "case folded; every non-alphanumeric character removed from both sides before comparison",
+    "test": "A version label sharing any contiguous run of 3 or more alphanumeric characters with any withheld identifier is identifier-derived.",
+    "outcome": "identifier_derived_label — the whole document is refused as a privacy violation and no count is taken from it.",
+    "why_containment_is_insufficient": "Neither normalized string need contain the other for a fragment to be published in order: id ABCDEF123456 with version label \"build DEF123\" shares def123 while passing every containment test.",
+    "second_lock": "sanitizeDeliveryLabel re-applies the same test at the forwarding boundary, so a label assembled outside the parser is dropped rather than rendered.",
+    "diagnostics": "A rejection names the run's length and its normalized offset. It never quotes the label, the run, or the identifier."
+  },
+  "prohibited_content": [
+    "release notes, commit messages, descriptions, titles, or any free prose",
+    "author, owner, reviewer, committer, or any human identity",
+    "branch, commit, diff, repository, URL, host, or IP",
+    "credentials, tokens, keys, cookies, or prompt contents"
+  ],
+  "outcomes": {
+    "accepted": "Complete, fresh, every record in period. The count is usable as stated.",
+    "incomplete": "Usable and knowably a floor: partial or stale export, declared omissions, or records quarantined outside the declared period.",
+    "incompatible": "Nothing is derived and no reading is replaced."
+  },
+  "failure_behaviour": {
+    "partial": "Independent valid records are counted; absence never deletes and never implies a release did not ship. Outcome: incomplete, code partial_export.",
+    "stale": "Judged against a caller-supplied timestamp, never a clock inside the parser. Past the freshness target the count is labelled lagging rather than refused. Outcome: incomplete, code stale_export. With no timestamp the outcome states freshness_unknown instead of assuming current.",
+    "malformed": "Invalid JSON, a non-envelope top level, an undeclared or prohibited field, a missing required field, an out-of-range value, an impossible calendar date, or a privacy declaration this contract does not accept refuses the whole document. No partial state is built. Outcome: incompatible.",
+    "reordered": "Arrival order is never authority. The greatest revision for a delivery wins whether it arrives first or last; an identical duplicate collapses; two copies at one revision with different content refuse the document as revision_conflict. The result is independent of array order.",
+    "replayed": "A snapshot sequence at or below one the caller has already accepted is an acknowledged replay: outcome incompatible, code stale_replay, and the existing reading is kept unchanged.",
+    "period_incompatible": "A record outside the declared half-open period is quarantined and counted, not silently dropped; if none remain inside, the document is refused as no_release_in_declared_period. A declared period that cannot overlap the billing period being analyzed is refused as period_incompatible_with_spend."
+  },
+  "fixtures": {
+    "location": "generated in tests/shiplog-delivery-history.test.js from one base document",
+    "why_not_committed": "Every scenario is one field away from the valid case, so a generated set cannot drift from the schema it is checked against, and the large ones cost no repository bytes.",
+    "scenarios": ["valid", "partial", "stale", "malformed", "unsupported_version", "prohibited_field", "identifier_derived_label", "duplicated", "reordered", "revision_conflict", "period_incompatible", "replayed"]
+  },
+  "not_in_scope": [
+    "any live connection, credential, URL, webhook, upload, or polling schedule",
+    "release size, scope, quality, or content",
+    "author or team attribution",
+    "writing anything back to a source instance"
+  ],
+  "versioning": {
+    "scheme": "major.minor",
+    "consumer_rule": "Exact reviewed versions are allowlisted; an unknown version is refused without guessing (unsupported_version).",
+    "minor": "a new optional field or enum value, plus review",
+    "major": "a required field, a removal, a rename, an identifier change, a privacy change, or a semantic change"
+  },
+  "limits": [
+    "A duplicate JSON key collapses in the browser's parser before validation; the last value wins and no code in the consumer can see the first. Producers must not emit one.",
+    "One export is one reading. The parser holds no high-water mark of its own; replay protection is the caller passing back the sequence it last accepted."
+  ]
+}

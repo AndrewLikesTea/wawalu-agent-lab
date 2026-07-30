@@ -15,7 +15,8 @@ try {
   // Ship the reviewed schemas, compatibility metadata, and synthetic fixtures.
   // No integration credential, transport, or live customer/provider data exists.
   for (const integration of ["hris-org", "provider-usage-billing", "query-sample",
-    "conversation-export", "provider-export-package", "org-query-source"]) {
+    "conversation-export", "provider-export-package", "org-query-source",
+    "shiplog-delivery-history"]) {
     await cp(
       resolve(root, "contracts", "integrations", integration, "v1"),
       resolve(staging, "contracts", "integrations", integration, "v1"),
@@ -36,6 +37,10 @@ try {
     // Linked from the source contract above, so it has to travel with it or the
     // deployed copy links into a 404.
     "org-query-aggregate.md",
+    // Linked from the delivery-history region on the import panel: the schema,
+    // the version rule, and what partial, stale, malformed, reordered, and
+    // period-incompatible input does, stated before a reader chooses a file.
+    "shiplog-delivery-history-contract.md",
   ]) {
     await cp(resolve(root, "docs", page), resolve(staging, "docs", page));
   }

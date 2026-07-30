@@ -21,8 +21,14 @@ async function copyDeployableArtifact(directory) {
     resolve(directory, "contracts/integrations/org-query-source/v1"),
     { recursive: true },
   );
+  await cp(
+    new URL("../contracts/integrations/shiplog-delivery-history/v1", import.meta.url),
+    resolve(directory, "contracts/integrations/shiplog-delivery-history/v1"),
+    { recursive: true },
+  );
   await mkdir(resolve(directory, "docs"), { recursive: true });
-  for (const page of ["org-query-source-contract.md", "org-query-aggregate.md"]) {
+  for (const page of ["org-query-source-contract.md", "org-query-aggregate.md",
+    "shiplog-delivery-history-contract.md"]) {
     await cp(new URL(`../docs/${page}`, import.meta.url), resolve(directory, "docs", page));
   }
 }
