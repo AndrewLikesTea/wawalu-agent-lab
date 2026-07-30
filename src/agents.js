@@ -8,6 +8,39 @@ const EVENTS_URLS = [
 ];
 const REFRESH_MS = 90_000;
 const DEMO_DATA_URL = "/agent-demo-data.json";
+// This small, code-owned example keeps the observatory useful when its
+// published JSON cannot be read. It deliberately contains no fetched activity,
+// customer material, private-repository content, or hidden instructions.
+export const SYNTHETIC_FALLBACK_DATA = Object.freeze({
+  personas: Object.freeze([
+    Object.freeze({
+      name: "Sam", role: "Manager", summary: "Scopes the outcome and sequences the handoff.",
+      prompt: "Synthetic summary: turn the outcome into bounded, testable work and make dependencies explicit.",
+    }),
+    Object.freeze({
+      name: "Mina", role: "Frontend engineer", summary: "Builds the accessible, responsive product surface.",
+      prompt: "Synthetic summary: implement the smallest resilient interface and verify its interaction states.",
+    }),
+    Object.freeze({
+      name: "Tess", role: "QA engineer", summary: "Turns user-visible failure modes into repeatable checks.",
+      prompt: "Synthetic summary: test the important flow, including empty, unavailable, retry, and keyboard behavior.",
+    }),
+    Object.freeze({
+      name: "Marcus", role: "Independent reviewer", summary: "Reviews privacy, accessibility, correctness, and scope.",
+      prompt: "Synthetic summary: compare the implementation and evidence with the acceptance criteria before delivery.",
+    }),
+  ]),
+  run: Object.freeze({
+    personaName: "Mina",
+    personaRole: "Frontend engineer",
+    scenarioTitle: "Keep the observatory useful when data is unavailable",
+    worker: "Codex",
+    qwenPlanningPrompt: "Synthetic planning summary: preserve a useful team view, explicit data boundaries, and recovery controls.",
+    qwenHandoff: "Synthetic handoff: build labelled fallback personas and a representative trace without presenting either as live activity.",
+    workerPrompt: "Synthetic worker summary: implement accessible unavailable and retry states, trace navigation, and focused automated tests.",
+    qwenReview: "Synthetic review summary: verify disclosure, separation from public GitHub activity, keyboard recovery, and the return route.",
+  }),
+});
 export const REPRESENTATIVE_ACTIVITY = [
   {
     persona: "Sam · Manager",
@@ -500,11 +533,13 @@ export function renderPromptTrace(trace, data, { full = false } = {}) {
   if (full) trace.classList.add("prompt-trace-full");
 }
 
-export function renderDemoData(root, data) {
+export function renderDemoData(root, data, { fallback = false } = {}) {
   const personas = root.querySelector("#persona-list");
   const trace = root.querySelector("#prompt-trace");
   personas.replaceChildren();
   personas.setAttribute("aria-busy", "false");
+  personas.dataset.source = fallback ? "synthetic-fallback" : "published-demo";
+  personas.setAttribute("aria-label", fallback ? "Synthetic fallback persona summary" : "Published synthetic persona profiles");
   data.personas.forEach((persona, index) => {
     const row = document.createElement("li");
     appendText(row, "span", "", String(index + 1).padStart(2, "0"));
@@ -521,6 +556,8 @@ export function renderDemoData(root, data) {
   });
 
   renderPromptTrace(trace, data);
+  trace.dataset.source = fallback ? "synthetic-fallback" : "published-demo";
+  trace.setAttribute("aria-label", fallback ? "Synthetic fallback representative handoff" : "Published representative prompt trace");
 }
 
 // The personas and the prompt trace come from one published file, and before
@@ -564,11 +601,11 @@ export const DEMO_DATA_PANELS = Object.freeze([
       }),
       empty: Object.freeze({
         title: "No persona profiles published",
-        detail: "The demo file was read and carried no personas — nothing failed, and nothing is hidden. Everything else on this page is unaffected.",
+        detail: "The demo file was read and carried no personas — nothing failed, and nothing is hidden. The clearly labelled profiles below are a built-in synthetic fallback.",
       }),
       error: Object.freeze({
         title: "Persona profiles could not be loaded",
-        detail: "The request for the published demo file failed, so no profiles are listed. Nothing in your browser changed, so trying again is safe.",
+        detail: "The published demo file is unavailable. The profiles below are a built-in synthetic fallback, not customer or private-repository activity; trying again is safe.",
       }),
     }),
   }),
@@ -586,11 +623,11 @@ export const DEMO_DATA_PANELS = Object.freeze([
       }),
       empty: Object.freeze({
         title: "No published prompt trace yet",
-        detail: "The demo file was read and carried no run to trace. The complete representative trace is still published on its own page, linked above.",
+        detail: "The demo file carried no run. A built-in synthetic handoff is shown below and on the representative trace page linked above.",
       }),
       error: Object.freeze({
         title: "The published prompt trace could not be loaded",
-        detail: "The request for the published demo file failed, so no prompts are shown. The complete representative trace is still published on its own page, linked above.",
+        detail: "The published demo file is unavailable. The handoff below is a built-in synthetic fallback, not customer or private-repository activity; its full-page route remains available above.",
       }),
     }),
   }),
@@ -666,12 +703,14 @@ export async function refreshDemoData(root = document, fetcher = fetch, { retryP
     if (!response.ok) throw new Error(`Demo data returned ${response.status}`);
     const data = await response.json();
     if (!Array.isArray(data?.personas) || !data.personas.length || !data?.run) {
+      renderDemoData(root, SYNTHETIC_FALLBACK_DATA, { fallback: true });
       renderDemoDataState(root, "empty");
     } else {
       renderDemoData(root, data);
       renderDemoDataState(root, "ready");
     }
   } catch {
+    renderDemoData(root, SYNTHETIC_FALLBACK_DATA, { fallback: true });
     renderDemoDataState(root, "error");
   }
   // Pressing Retry hides the button the reader was standing on, so a retried
