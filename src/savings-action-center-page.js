@@ -9,10 +9,10 @@ import {
   renderSavingsActionCenterLoading,
 } from "/savings-action-center-view.js";
 import { journeyPaintKey } from "/finops-journey-signals.js";
+import { assembleRecurringReview } from "/recurring-review-readiness.js";
 import {
-  assembleRecurringReview, readCurrentReviewEvidence,
-} from "/recurring-review-readiness.js";
-import { readMonthlyAction } from "/monthly-department-action-store.js";
+  journeySnapshotPaintKey, restoreJourneySnapshot,
+} from "/finops-journey-snapshot.js";
 import { browserFinopsWorkspaceStorage } from "/finops-workspace.js";
 import { loadDecisions } from "/app.js";
 import { loadReleases } from "/releases.js";
@@ -128,17 +128,24 @@ function renderClaim() {
   // uncaught throw in this entry module leaves the page on its "Reconciling
   // monthly savings…" region with aria-busy="true" for good.
   const storage = browserFinopsWorkspaceStorage();
-  const retainedAction = readMonthlyAction(storage).record;
-  const { currentAnalysis, theoVerdict } = readCurrentReviewEvidence(storage);
+  // One read of this browser's own records, through the snapshot the import left
+  // behind. A snapshot that is invalid, stale, or from a version this build does
+  // not support costs the carried provenance line and nothing else: the three
+  // values below are the records' own state either way, which is exactly what
+  // this view showed before any snapshot existed.
+  const restored = restoreJourneySnapshot(storage);
+  const { retainedAction, currentAnalysis, theoVerdict } = restored;
   const review = assembleRecurringReview({ retainedAction, currentAnalysis, theoVerdict });
   // An unchanged review is left standing. Every evidence read repaints this
   // region, and rebuilding a review nothing moved would close the disclosures
   // the reader opened and take the keyboard with them — the same rule the
   // guided workspace already runs on. A review that genuinely moved on does
   // repaint, and losing the open panels is then the honest outcome.
-  const key = journeyPaintKey(review, retainedAction);
+  const key = `${journeyPaintKey(review, retainedAction)} ${journeySnapshotPaintKey(restored)}`;
   if (root.firstChild?.dataset?.reviewKey !== key) {
-    paint(renderRecurringReviewReadiness(review, { source: "local", retainedAction }));
+    paint(renderRecurringReviewReadiness(review, {
+      source: "local", retainedAction, snapshot: restored,
+    }));
   } else {
     root.setAttribute("aria-busy", "false");
   }

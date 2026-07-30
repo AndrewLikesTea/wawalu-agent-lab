@@ -13,6 +13,7 @@
 // with it.
 
 import { journeyPaintKey, journeySignals, money } from "./finops-journey-signals.js";
+import { journeySnapshotPaintKey } from "./finops-journey-snapshot.js";
 
 const VERDICT_TONE = Object.freeze({
   verified: "verified",
@@ -193,6 +194,29 @@ const stated = (number, unit) =>
 const listed = (values, empty) => (values?.length ? values.join(", ") : empty);
 
 /**
+ * The provenance a restored snapshot adds to the panel, and nothing when there
+ * is none: an absent or refused snapshot leaves this disclosure exactly as it
+ * reads for a visitor who never imported.
+ *
+ * The import is named by its own id and its counts. The file names it was hashed
+ * from are not in the snapshot and are not reconstructable from it.
+ */
+function carriedRows(snapshot) {
+  const carried = snapshot?.carried;
+  if (!carried) return [];
+  const { provenance, departmentReferences: departments } = carried;
+  return [
+    ["Carried from import", `${provenance.importSourceId} · ${provenance.fileCount} file`
+      + `${provenance.fileCount === 1 ? "" : "s"}, ${provenance.rows} row`
+      + `${provenance.rows === 1 ? "" : "s"} · ${provenance.importedAt}`],
+    [`Department references (${departments.length})`, listed(departments, "None")],
+    ["Carried verification", carried.verification.state
+      ? `${carried.verification.state} · ${stated(carried.verification.rows, "measured rows")}`
+      : "Not verified"],
+  ];
+}
+
+/**
  * Paint the recurring review: one question, one recommended action, one figure,
  * five signals, and everything else grouped and labelled as support.
  *
@@ -200,13 +224,16 @@ const listed = (values, empty) => (values?.length ? values.join(", ") : empty);
  * is genuinely first, not first-looking through a CSS reorder that would leave
  * the tab sequence somewhere else.
  */
-export function renderRecurringReviewReadiness(review, { source = "demo", retainedAction = null } = {}) {
+export function renderRecurringReviewReadiness(review, {
+  source = "demo", retainedAction = null, snapshot = null,
+} = {}) {
   const signals = journeySignals(review, { retainedAction });
   const article = el("article", "sac-focus sac-journey");
   article.setAttribute("aria-labelledby", "sac-question");
   article.dataset.source = source;
   article.dataset.reviewState = review.state;
-  article.dataset.reviewKey = journeyPaintKey(review, retainedAction);
+  article.dataset.reviewKey =
+    `${journeyPaintKey(review, retainedAction)} ${journeySnapshotPaintKey(snapshot)}`;
 
   const heading = el("header", "sac-heading");
   const question = el("h2", undefined, review.question);
@@ -254,6 +281,16 @@ export function renderRecurringReviewReadiness(review, { source = "demo", retain
   for (const signal of signals) row.append(chip(signal));
   article.append(row);
 
+  // Where the evidence above came from, in one line. A discarded snapshot says so
+  // in the same place rather than silently: the review is still the reader's own
+  // records, and they are entitled to know the carried detail is gone.
+  if (snapshot?.notice) {
+    const carried = el("p", "sac-snapshot", snapshot.notice);
+    carried.dataset.snapshot = snapshot.status;
+    carried.dataset.snapshotReason = snapshot.reason ?? "none";
+    article.append(carried);
+  }
+
   const support = el("section", "sac-support");
   support.setAttribute("aria-labelledby", "sac-support-title");
   const supportTitle = el("h3", "sac-support-title", "Supporting evidence");
@@ -289,6 +326,7 @@ export function renderRecurringReviewReadiness(review, { source = "demo", retain
     [`Action references (${review.provenance.actionReferences.length})`,
       listed(review.provenance.actionReferences, "None retained")],
     ["Analysis contract", review.provenance.analysisContract ?? "Not recorded"],
+    ...carriedRows(snapshot),
   ]));
 
   support.append(el("p", "sac-caveat", review.recommendation
