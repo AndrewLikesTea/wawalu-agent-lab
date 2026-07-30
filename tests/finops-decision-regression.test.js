@@ -542,6 +542,11 @@ const ALLOWED_MODULES = Object.freeze([
   // cohort table is reachable only from module scope, so nothing a visitor
   // imports can move a published boundary.
   "peer-cohort-fixtures.js", "peer-cost-cohorts.js", "peer-cost-position.js",
+  // Reviewed on: the internal drill-down of that same position. It imports the
+  // metric, the band assignment, and the cohort selection from
+  // `peer-cost-position.js` and adds pure arithmetic over the already-normalized
+  // envelope — no fetch, storage, clock, or randomness, and no second rubric.
+  "internal-cost-gap.js",
   "finops-workspace-contract.js", "finops-workspace-migrations.js", "finops-workspace.js",
   "grade-eligibility.js", "landing-decision-page.js", "landing-decision.js", "local-finops.js",
   "longitudinal-finops-metrics.js", "multi-provider-intake.js", "org-unit-labels.js", "prompt-literacy-scoring.js",
