@@ -968,6 +968,40 @@ export function parseDelimitedFinopsFile(text, fileName = "export.csv", options 
 
   const totalMinor = binding.shape.kind === "provider"
     ? normalized.records.reduce((sum, record) => sum + record.cost.amount_minor, 0) : 0;
+  const skippedRows = reading.rows.length - normalized.accepted;
+  const evidence = Object.freeze({
+    version: "local-import-evidence/1.0.0",
+    source: Object.freeze({
+      fileName,
+      exportId: parsed.document.export_id,
+      sourceInstanceId: parsed.document.snapshot.source_instance_id,
+      shape: binding.shape.id,
+    }),
+    rowCounts: Object.freeze({
+      source: reading.sampling.sourceRows,
+      selected: reading.sampling.analyzedRows,
+      analyzed: normalized.accepted,
+      coverage: reading.sampling.sourceRows
+        ? normalized.accepted / reading.sampling.sourceRows : 0,
+      excluded: reading.sampling.excludedRows + skippedRows,
+    }),
+    exclusions: Object.freeze([
+      ...(reading.sampling.excludedRows
+        ? [{ reason: "bounded_systematic_sample", count: reading.sampling.excludedRows }] : []),
+      ...(skippedRows ? [{ reason: "malformed_or_unsupported_row", count: skippedRows }] : []),
+    ].map(Object.freeze)),
+    sampling: reading.sampling,
+    currency: ANALYSIS_CURRENCY,
+    window: Object.freeze({
+      start: parsed.document.snapshot.period_start,
+      end: parsed.document.snapshot.period_end,
+      limitation: "Dates are derived only from analyzed rows; excluded rows are not inferred.",
+    }),
+    duplicateHandling:
+      "Within analyzed rows, latest revision per aggregate ID is retained; repeats are quarantined. "
+      + "Duplicates in unsampled rows are unknown.",
+    processing: "browser_local_ephemeral",
+  });
   return Object.freeze({
     ok: true,
     shape: binding.shape.id,
@@ -980,9 +1014,10 @@ export function parseDelimitedFinopsFile(text, fileName = "export.csv", options 
     delimiter: reading.delimiterName,
     lineEnding: reading.lineEnding,
     hadBom: reading.hadBom,
-    rowCount: reading.rows.length,
+    rowCount: reading.sampling.sourceRows,
     acceptedRows: normalized.accepted,
-    skippedRows: reading.rows.length - normalized.accepted,
+    skippedRows,
+    evidence,
     unrecognizedModelRows: normalized.unrecognizedModelRows ?? 0,
     dateFormats: Object.freeze({ ...normalized.dateFormats }),
     // The versioned grouping contract, republished verbatim. Rowan's attribution
@@ -1048,7 +1083,12 @@ export function parseLocalImportFile(text, fileName = "local.json", mediaType = 
     const blocking = result.problems[0];
     reject(blocking.code, describeProblem(blocking), { problems: result.problems });
   }
-  return Object.freeze({ ...result.parsed, problems: result.problems, shape: result.shape });
+  return Object.freeze({
+    ...result.parsed,
+    problems: result.problems,
+    shape: result.shape,
+    importEvidence: result.evidence,
+  });
 }
 
 /**

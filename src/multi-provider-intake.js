@@ -455,6 +455,7 @@ function mergePeriod(readings) {
     modelUsage: readings.flatMap((reading) => reading.entry?.modelUsage ?? []),
     querySample: readings.map((reading) => reading.entry?.querySample)
       .find((sample) => sample) ?? null,
+    importEvidence: readings.flatMap((reading) => reading.entry?.importEvidence ?? []),
   };
 }
 

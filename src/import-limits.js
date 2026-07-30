@@ -1,28 +1,24 @@
 // The one place the local-import ceilings are named.
 //
-// The numbers live where the reader that enforces them lives
-// (`delimited-text.js`, which has refused an oversized file and an overlong file
-// since the delimited path shipped). This module re-exports them under
-// import-facing names, turns them into the one sentence the file picker and the
-// docs both carry, and answers the single question the offload client asks
-// before it starts any work at all: is this file already too big to read?
+// The analyzed-row bound comes from the delimited reader. This module adds the
+// larger hard byte ceiling for its explicit sampling mode, turns both into the
+// sentence the picker carries, and answers the offload client's up-front check.
 //
 // Two properties matter and are asserted by tests:
 //   1. There is exactly one definition of each number. A second copy in the
 //      markup, the docs, or the worker would drift away from the enforced value
 //      and start promising a ceiling nobody checks.
-//   2. A ceiling is a whole-file refusal, never a truncation. A short total is
-//      indistinguishable from a real one on the surface that renders it, so an
-//      import that hits either limit produces zero records and one message.
+//   2. The byte ceiling is a whole-file refusal. Crossing the row bound selects
+//      a declared sample and carries coverage; it never silently truncates.
 //
 // No DOM, no I/O, no parsing.
 
-import { DELIMITED_CODES, MAX_DELIMITED_BYTES, MAX_DELIMITED_ROWS } from "./delimited-text.js";
+import { DELIMITED_CODES, MAX_DELIMITED_ROWS } from "./delimited-text.js";
 
-/** Largest accepted file, in UTF-8 bytes. Checked before any record is built. */
-export const MAX_IMPORT_BYTES = MAX_DELIMITED_BYTES;
+/** Largest delimited file decoded by the bounded browser-local path. */
+export const MAX_IMPORT_BYTES = 32_000_000;
 
-/** Largest accepted record count, header row included. Checked during parse. */
+/** Largest analyzed data-row count. Larger supported delimited files are sampled. */
 export const MAX_IMPORT_ROWS = MAX_DELIMITED_ROWS;
 
 /** Bound one picker action as well as each individual file. */
@@ -55,9 +51,9 @@ export function formatLimitRows(rows = MAX_IMPORT_ROWS) {
  */
 export function importLimitsSentence(limits = IMPORT_LIMITS) {
   return `Each file may be up to ${formatLimitBytes(limits.maxBytes)} and `
-    + `${formatLimitRows(limits.maxRows)} rows. Select up to ${limits.maxFiles} files totaling `
-    + `${formatLimitBytes(limits.maxSelectionBytes)}. A selection over a ceiling is refused whole — `
-    + "no rows are kept and no total is shown, so a short number can never reach you.";
+    + `${formatLimitRows(limits.maxRows)} data rows are analyzed. Larger supported CSV/TSV exports are `
+    + `sampled evenly and labelled with coverage; select up to ${limits.maxFiles} files totaling `
+    + `${formatLimitBytes(limits.maxSelectionBytes)}. Files over the byte ceiling are refused whole.`;
 }
 
 /**

@@ -165,7 +165,7 @@ function scoreCandidate(records) {
  * @returns {{ok: true, delimiter, delimiterName, header, rows, rowCount, byteSize,
  *   lineEnding, hadBom, quoted}|{ok: false, problem}}
  */
-export function readDelimitedText(text, { maxBytes, maxRows } = {}) {
+export function readDelimitedText(text, { maxBytes, maxRows, sampleOversized = false } = {}) {
   const byteLimit = Number.isInteger(maxBytes) ? maxBytes : MAX_DELIMITED_BYTES;
   const rowLimit = Number.isInteger(maxRows) ? maxRows : MAX_DELIMITED_ROWS;
   const source = String(text ?? "");
@@ -221,7 +221,7 @@ export function readDelimitedText(text, { maxBytes, maxRows } = {}) {
   }
 
   const records = chosen.result.records.filter((record) => !isBlank(record));
-  if (records.length > rowLimit) {
+  if (records.length > rowLimit && !sampleOversized) {
     return {
       ok: false,
       problem: problem(DELIMITED_CODES.TOO_MANY_ROWS, {
@@ -229,7 +229,15 @@ export function readDelimitedText(text, { maxBytes, maxRows } = {}) {
       }),
     };
   }
-  const [header, ...rows] = records;
+  const [header, ...sourceRows] = records;
+  // A fixed systematic sample includes both ends and spaces the remaining rows
+  // across the entire export. Downstream sums the sample only; it never scales
+  // a partial total up to a guessed whole-file total.
+  const sampleCount = Math.max(1, rowLimit);
+  const rows = sourceRows.length > sampleCount
+    ? Array.from({ length: sampleCount }, (_, index) =>
+      sourceRows[Math.floor((index * (sourceRows.length - 1)) / (sampleCount - 1 || 1))])
+    : sourceRows;
   return Object.freeze({
     ok: true,
     delimiter: chosen.character,
@@ -240,7 +248,17 @@ export function readDelimitedText(text, { maxBytes, maxRows } = {}) {
       row: record.row,
       values: Object.freeze(record.values),
     }))),
-    rowCount: records.length,
+    rowCount: sourceRows.length,
+    sampling: Object.freeze({
+      mode: rows.length < sourceRows.length ? "systematic_sample" : "full",
+      sourceRows: sourceRows.length,
+      analyzedRows: rows.length,
+      coverage: sourceRows.length ? rows.length / sourceRows.length : 0,
+      excludedRows: sourceRows.length - rows.length,
+      rule: rows.length < sourceRows.length
+        ? "header plus evenly spaced data rows including the first and last"
+        : "all data rows",
+    }),
     byteSize,
     lineEnding: body.includes("\r\n") ? "CRLF" : body.includes("\r") ? "CR" : "LF",
     hadBom,
