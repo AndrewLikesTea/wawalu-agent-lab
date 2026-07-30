@@ -97,6 +97,23 @@ export function saveReleases(storage, releases) {
   storage.setItem(RELEASE_STORAGE_KEY, JSON.stringify(releases));
 }
 
+/**
+ * This browser's store, or nothing where it is refused outright.
+ *
+ * Acquiring it lives beside the loader that reads it, mirroring
+ * `browserOrgUnitLabelStorage`: the store is a getter that throws in some embedded
+ * contexts, and a page that only wants to *count* releases should not be the layer
+ * that reaches for it. The AI FinOps page in particular is asserted to name no
+ * storage API at all, so this is the seam it reads the release log through.
+ */
+export function browserReleaseStorage(scope = globalThis) {
+  try {
+    return scope?.localStorage ?? null;
+  } catch {
+    return null;
+  }
+}
+
 // Reverse chronological order (newest first). Never mutates the input. Ties fall
 // back to input order via JS sort stability, matching app.js's "newest" sort.
 export function sortReleasesNewestFirst(releases) {

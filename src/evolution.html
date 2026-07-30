@@ -1142,6 +1142,27 @@
         <p class="org-coaching-live" id="org-coaching-live" role="status" aria-live="polite" aria-atomic="true"></p>
       </section>
 
+      <!-- Recorded AI spend against recorded delivery, for a reader who has to
+           answer "is this spend keeping pace with what we shipped, and can I
+           trust the comparison?". It is a sibling panel and not the page's
+           headline: the leading finding above still owns the one decision, and
+           this answers a second question with its own eligibility.
+
+           Authored empty and hidden like the panels around it. The answer
+           sentence, the figure, the baseline comparison, the confidence, the
+           framing line, the one prioritized action and the disclosure are all
+           painted by spend-per-delivery-view.js out of the state
+           spend-per-delivery.js computes; these are slots, never wording. The
+           three states a reader can reach — eligible, insufficient, and a
+           mismatched period — are that module's, so no branch here can invent a
+           fourth. Nothing but dates, dollar totals and release versions reaches
+           this section. -->
+      <section class="spend-per-delivery" id="spend-per-delivery" data-state="absent" aria-labelledby="spend-per-delivery-title" hidden>
+        <h2 class="eyebrow" id="spend-per-delivery-title">Is AI spend keeping pace with shipped delivery?</h2>
+        <div id="spend-per-delivery-body"></div>
+        <p class="spend-per-delivery-live" id="spend-per-delivery-live" role="status" aria-live="polite" aria-atomic="true"></p>
+      </section>
+
       <!-- The evidence behind one department's grade. Authored empty and hidden,
            like the graded sample above it: a visitor with nothing imported never
            meets this section, and every string inside it is painted by

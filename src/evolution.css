@@ -2287,6 +2287,49 @@
   .org-coaching-rows dd { grid-column:2; }
 }
 
+/* Spend per completed release. Same panel frame as .org-coaching above, because it
+   is a sibling question and not a louder one. No fixed width anywhere: the figure
+   is a currency amount that grows with the number, and every sentence beside it
+   has to be free to wrap. */
+.spend-per-delivery { display:grid; gap:14px; border:1px solid var(--import-line); border-radius:14px; padding:22px; background:#fff; }
+.spend-per-delivery #spend-per-delivery-body { display:grid; gap:14px; }
+.spd-shape { flex:none; }
+.spd-answer { margin:0; font-size:17px; line-height:1.45; font-weight:750; overflow-wrap:anywhere; }
+.spd-figure { display:grid; gap:2px; margin:0; border-left:5px solid var(--import-accent); padding:2px 0 2px 12px; }
+.spd-figure-value { font-size:38px; line-height:1; letter-spacing:-.03em; font-weight:750; color:var(--import-ink); overflow-wrap:anywhere; }
+.spd-figure-unit { font-size:14px; font-weight:700; }
+.spd-figure-basis { color:var(--ink-muted); font-size:12px; line-height:1.55; overflow-wrap:anywhere; }
+/* A withheld ratio is a state of its own, and the one a reader must not read as a
+   weak figure: dashed edge and warn wash, never an empty slot where a number was. */
+.spd-withheld { margin:0; border:2px dashed var(--state-warn-line); border-radius:11px; padding:10px 13px; background:var(--state-warn-wash); font-size:13px; line-height:1.6; overflow-wrap:anywhere; }
+.spd-comparison { display:flex; flex-wrap:wrap; align-items:baseline; gap:6px 10px; margin:0; font-size:14px; line-height:1.55; overflow-wrap:anywhere; }
+.spd-delta { font:750 14px/1.45 inherit; }
+/* Direction is carried by the word and the shape in the markup. The tint is a
+   third, redundant channel and is deliberately not the only one. */
+.spd-comparison[data-direction="higher"] .spd-delta { color:var(--state-warn-line); }
+.spd-comparison-text { flex:1 1 18rem; }
+.spd-confidence { display:flex; flex-wrap:wrap; align-items:baseline; gap:6px 10px; margin:0; border-left:5px solid var(--import-accent); padding:2px 0 2px 12px; font-size:13px; line-height:1.55; overflow-wrap:anywhere; }
+.spd-confidence[data-level="medium"] { border-left-style:double; }
+.spd-confidence[data-level="low"],.spd-confidence[data-level="none"] { border-left-style:dashed; border-left-color:var(--state-warn-line); }
+.spd-confidence-level { font-weight:700; }
+.spd-confidence-basis { flex:1 1 18rem; color:var(--ink-muted); }
+/* The framing sits with the figure, at reading size rather than footnote size: it
+   is what the number means, not a caveat about it. */
+.spd-framing { margin:0; border:1px solid var(--import-line); border-left:5px solid var(--import-accent); border-radius:9px; padding:10px 13px; color:var(--import-ink); font-size:13px; line-height:1.6; overflow-wrap:anywhere; }
+.spd-action { display:grid; gap:5px; border-left:5px solid var(--import-accent); padding:2px 0 2px 12px; }
+.spd-action-title { margin:0; color:var(--ink-muted); font:700 12px/1.4 ui-monospace,monospace; letter-spacing:.08em; text-transform:uppercase; }
+.spd-action-text { margin:0; font-size:14px; line-height:1.55; font-weight:700; overflow-wrap:anywhere; }
+.spd-action-link { justify-self:start; font-size:13px; font-weight:650; }
+.spd-action-owner,.spd-action-why { margin:0; color:var(--ink-muted); font-size:12px; line-height:1.55; overflow-wrap:anywhere; }
+.spd-detail { border:1px solid var(--import-line); border-radius:11px; padding:12px 14px; }
+.spd-detail-summary { display:flex; align-items:center; min-height:44px; color:var(--import-ink); font:650 13px/1.45 inherit; cursor:pointer; }
+.spd-detail-summary:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.spd-detail-heading { margin:12px 0 4px; font-size:12px; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-muted); }
+.spd-evidence,.spd-confounders { margin:0; padding-left:20px; font-size:13px; line-height:1.6; }
+.spd-evidence li,.spd-confounders li { overflow-wrap:anywhere; }
+.spd-provenance,.spd-provenance-fields { margin:0; color:var(--ink-muted); font-size:12px; line-height:1.55; overflow-wrap:anywhere; }
+.spend-per-delivery-live { margin:0; font-size:12px; color:var(--ink-muted); }
+
 /* ---------------------------------------------------------------------------
    The one-page department handout.
 
