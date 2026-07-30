@@ -255,6 +255,56 @@
         <p class="visually-hidden" id="finops-first-run-live" role="status" aria-live="polite" aria-atomic="true"></p>
       </section>
 
+      <!-- WHERE DO I START THIS MONTH? — the recurring lead's continuation.
+
+           The brief above answers a first-time visitor's question, "are we
+           wasting money?", from invented data. This region answers the question
+           the *returning* FinOps lead opens this page with once a month, which
+           is a different one: of everything this journey is holding — an open
+           review, an undispositioned finding, an action whose expected effect
+           has come due — which single thing do I do first, and how much do we
+           actually know about it?
+
+           src/finops-next-step.js decides it. Five journey states in one total
+           order, first match wins, evidence sufficiency checked before all of
+           them so a degraded input can never be dressed up as a confident
+           recommendation. The module reads no clock: `now` is injected, which is
+           what makes the same records always produce the same single answer.
+
+           The recommendation, its ONE primary action, the impact, the
+           confidence, the provenance and the evidence boundary are all painted
+           without interaction. They are the trust surface, not detail — a figure
+           whose provenance is one click away asks a leader to decide whether to
+           trust it before they are allowed to see why. Only three things go
+           behind the disclosure: which state matched, the rule that made it win,
+           and how many candidates it outranked. A runner-up that cannot change
+           what the lead does next does not get a widget.
+
+           IT IS NOT AUTHORED ABOVE THE BRIEF, deliberately. The first-viewport
+           contract forbids a control above the bundled result, and a cold
+           visitor with no records of their own would meet "collect the missing
+           evidence" in place of the complete answer this page already holds.
+           This is the first thing after that answer and above every other panel.
+
+           `data-decision-summary="evidence"` — it answers a different question
+           and never restates the brief's, so the page still presents exactly one
+           complete summary. -->
+      <section class="next-step" id="finops-next-step" tabindex="-1" data-state="pending" data-confidence="unknown" data-decision-summary="evidence" data-workspace-region="answer" aria-labelledby="finops-next-step-question">
+        <div class="next-step-head">
+          <p class="eyebrow" id="finops-next-step-label">This month · one next step</p>
+          <h2 id="finops-next-step-question">Where do I start this month?</h2>
+        </div>
+        <!-- Authored in markup, above the figures rather than under them: a
+             claim about what kind of numbers a reader is looking at has to be
+             true before any script runs, or it is a claim they cannot rely on
+             while deciding. The view repaints the same sentence from the module
+             once it knows whether the records are the reader's own. -->
+        <p class="sample-marker" id="finops-next-step-sample"><span class="sample-marker-shape" aria-hidden="true">◇</span><strong>Bundled synthetic example</strong> Invented review, action, and verification records for an invented company. Not your spend and not realized savings.</p>
+        <div id="finops-next-step-body">
+          <p class="next-step-headline">No journey records have been read yet, so no next step is recommended.</p>
+        </div>
+      </section>
+
       <!-- WHERE THE READER GOES NEXT, and why this region exists at all.
 
            The block above answers "are we wasting money?" and stops there. This

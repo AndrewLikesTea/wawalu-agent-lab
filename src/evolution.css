@@ -2807,4 +2807,57 @@ section[data-workspace-current="true"] { box-shadow:-6px 0 0 0 var(--import-wash
   [data-workspace-region][data-workspace-active="false"]:not([hidden]) { display:block; }
   #finops-workspace-switch { display:none; }
   .workspace-context { break-inside:avoid; }
+  /* The recommendation and its grounds travel onto paper together. The
+     disclosure prints in whatever state the reader left it: a closed
+     `<details>` is hidden by a UA rule no author sheet beats, and the four
+     facts that matter — impact, confidence, provenance, boundary — are outside
+     it precisely so nothing load-bearing depends on that. */
+  .next-step { break-inside:avoid; }
 }
+
+/* --------------------------------------------------------------------------
+   WHERE DO I START THIS MONTH? — one recommendation, one primary action.
+
+   Same silhouette as the destination block above it, because it is the same
+   kind of thing: one ranked answer, its grounds beside it, its derivation
+   behind a disclosure. The trust row is a definition list rather than a set of
+   tiles — four labelled facts read in order, not four metrics to compare — so
+   nothing here invites the eye to rank them against each other.
+
+   `data-confidence` is the third channel at most. The word is in the text and
+   a shape is beside it, so the level survives greyscale, a screen reader, and
+   a printed page; the wash only agrees with what the sentence already says.
+   -------------------------------------------------------------------------- */
+.next-step { display:grid; gap:14px; margin:0 0 22px; border:1px solid var(--import-line); border-left:5px solid var(--import-accent); border-radius:13px; padding:clamp(16px,2.6vw,22px); background:#fbfcfb; }
+.next-step[data-confidence="low"] { border-color:var(--state-warn-line); border-left-color:var(--state-warn-ink); border-style:dashed; border-left-style:solid; background:var(--state-warn-wash); }
+.next-step-head { display:grid; gap:5px; }
+.next-step-head h2 { max-width:30ch; margin:0; font-size:clamp(19px,2.5vw,25px); line-height:1.2; }
+.next-step-head .eyebrow { margin:0; }
+#finops-next-step-body { display:grid; justify-items:start; gap:12px; }
+.next-step-headline { margin:0; max-width:62ch; color:var(--ink); font-size:clamp(15px,1.8vw,17px); font-weight:700; line-height:1.4; overflow-wrap:anywhere; }
+/* The one primary action. There is deliberately no second control in here: a
+   screen that answers "what do I do first" and then offers a choice has handed
+   the decision back to the reader it just made it for. */
+.next-step-primary { display:inline-flex; align-items:baseline; gap:8px; min-height:44px; border:1px solid var(--import-accent); border-radius:9px; padding:11px 16px; background:var(--import-accent); color:#fff; font-size:14px; font-weight:750; text-decoration:none; }
+.next-step-primary:hover { background:#25493d; }
+.next-step-primary:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.next-step[data-confidence="low"] .next-step-primary { border-color:var(--state-warn-ink); background:var(--state-warn-ink); }
+/* The trust surface: impact, confidence, provenance, boundary. On the first
+   screen, unconditionally, because the grounds for a figure are not detail. */
+.next-step-trust { display:grid; gap:7px; margin:0; width:100%; }
+.next-step-term { margin:0; color:var(--ink-muted); font:700 11px/1.5 ui-monospace,monospace; letter-spacing:.04em; text-transform:uppercase; }
+.next-step-detail { margin:0 0 5px; max-width:80ch; color:var(--ink); font-size:13px; line-height:1.6; overflow-wrap:anywhere; }
+.next-step-unknowns { display:grid; gap:6px; width:100%; border:1px dashed var(--state-warn-line); border-radius:9px; padding:12px 14px; background:var(--state-warn-wash); color:var(--state-warn-ink); }
+.next-step-unknowns-title { margin:0; font-size:12px; font-weight:750; }
+.next-step-unknown-list { display:grid; gap:4px; margin:0; padding-left:18px; font-size:12.5px; line-height:1.6; }
+/* The same disclosure the recurring review ships: a summary over a definition
+   list. Three facts only — which state matched, the rule that made it win, and
+   how many candidates it outranked. No runner-up gets a widget. */
+.next-step-details>summary { list-style:none; cursor:pointer; color:var(--import-ink); font-size:13px; font-weight:700; }
+.next-step-details>summary::-webkit-details-marker { display:none; }
+.next-step-details>summary::before { content:"▸ "; font-weight:750; }
+.next-step-details[open]>summary::before { content:"▾ "; }
+.next-step-details>summary:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.next-step-facts { display:grid; gap:6px; margin:11px 0 0; }
+.next-step-facts dt { margin:0; color:var(--ink-muted); font:700 11px/1.5 ui-monospace,monospace; letter-spacing:.04em; text-transform:uppercase; }
+.next-step-facts dd { margin:0 0 4px; max-width:80ch; color:var(--ink); font-size:12.5px; line-height:1.6; }

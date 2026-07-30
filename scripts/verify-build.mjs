@@ -190,6 +190,12 @@ export async function verifyArtifact(root) {
     "savings-action-center.html", "savings-action-center-page.js",
     "savings-action-center-view.js", "savings-action-center.css",
     "recurring-review-readiness.js",
+    // The returning lead's one next step. The contract, the two local sources it
+    // reads, and the view are all hard imports of the AI FinOps entry: a
+    // narrowed artifact that drops any of them is not a missing panel, it is a
+    // rejected entry module, and the whole briefing stops painting.
+    "finops-next-step.js", "finops-next-step-fixtures.js",
+    "finops-next-step-source.js", "finops-next-step-view.js",
   ]);
   const paths = new Set(actual.map(({ path }) => path));
   for (const path of required) if (!paths.has(path)) throw new Error(`missing required UI asset: ${path}`);

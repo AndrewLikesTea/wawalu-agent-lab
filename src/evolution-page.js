@@ -94,6 +94,12 @@ import {
 import { readMonthlyAction } from "/monthly-department-action-store.js";
 import { captureJourneySnapshot, clearJourneySnapshot } from "/finops-journey-snapshot.js";
 import { renderRecurringReviewWorkspace } from "/recurring-review-workspace-view.js";
+// The returning lead's question — "where do I start this month?" — and the one
+// answer to it. The contract is pure and clock-free; the clock is injected at
+// the call sites below, which is what makes the same records give one answer.
+import { selectNextStep } from "/finops-next-step.js";
+import { SAMPLE_LABEL, chooseJourneyState } from "/finops-next-step-source.js";
+import { renderNextStep } from "/finops-next-step-view.js";
 // Whether the letter may be shown at all is decided before it is drawn: the
 // score card is a roll-up of only the departments the rubric actually scored.
 import { gradeEligibility } from "/grade-eligibility.js";
@@ -1079,6 +1085,10 @@ function mountLocalFinopsImport() {
       currentAnalysis: evidence.currentAnalysis,
       theoVerdict: evidence.theoVerdict,
     }), retained.record);
+    // The same retained record decides the next step, so committing, clearing,
+    // or importing over one moves both surfaces in the same pass rather than
+    // leaving a recommendation standing over evidence that has changed.
+    paintNextStep();
     // The demotion is written onto the panels themselves, so "support, not
     // primary" is a fact on one element rather than a claim in a document.
     applyDisclosureRoles(document, composed.disclosures);
@@ -2797,6 +2807,27 @@ async function renderEvaluationDemo() {
   target.setAttribute("aria-busy", "false");
 }
 
+/**
+ * The one next step, painted from whichever local source this browser has.
+ *
+ * The reader's own retained monthly action when there is one, the bundled
+ * synthetic journey otherwise, and the region says which either way. No fetch
+ * is involved on either path, so this answers in the first viewport on the run
+ * where the bundled fixture never arrives.
+ *
+ * `new Date()` is read HERE and nowhere else in the chain: `selectNextStep` is
+ * a pure function of its two arguments, and keeping the clock at the call site
+ * is what lets a test pin every state to a day.
+ */
+function paintNextStep() {
+  const chosen = chooseJourneyState({
+    retainedAction: readMonthlyAction(browserFinopsWorkspaceStorage()).record,
+  });
+  return renderNextStep(document, selectNextStep(chosen.journeyState, new Date()), {
+    sample: SAMPLE_LABEL[chosen.source],
+  });
+}
+
 async function init() {
   if (!document.getElementById("department-priority")) return;
   // First, before any panel is painted: a fragment already in the address bar
@@ -2824,6 +2855,11 @@ async function init() {
   // the paint just wrote, and binding it afterwards is what makes the first
   // chip agree with the list under it.
   bindFirstRunDisclosure(document);
+  // Then the returning lead's question, in the same synchronous pass and for
+  // the same reason: a leader who opens this page once a month is not asking
+  // what the example would tell them, they are asking which single thing to do
+  // first out of what this journey is already holding.
+  paintNextStep();
   // And immediately after it, the one place to go next. Painted from the bundled
   // contract in the same synchronous pass as the brief above — it waits on no
   // fetch, so the prioritized destination is actionable in the first viewport
