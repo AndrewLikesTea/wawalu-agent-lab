@@ -103,13 +103,15 @@ function contrast(a, b) {
 
 test("the specification is one ordered spine, decision before supporting detail", () => {
   assert.match(INTERACTION_SPEC_VERSION, /^finops-decision-interaction\/\d+\.\d+\.\d+$/);
-  // Answer, then what sizes it, then what to do, then where that leaves this
-  // org against comparable ones, then how to check it. The peer position sits
-  // directly after the action because it is the fact that justifies it, and a
-  // band a leader has to scroll past the provenance to find is a band they will
-  // quote from memory.
+  // Answer, then what sizes it, then where that leaves this org against
+  // comparable ones, then which of its own teams that is coming from, then what
+  // to do about it, then how to check it. The position and the named lagging
+  // team precede the action because they are the facts that justify it: read
+  // linearly, an action ahead of its evidence is an instruction a reader has no
+  // way to weigh, and a screen-reader user cannot scan back the way a sighted
+  // reader can.
   assert.deepEqual(DECISION_SPINE.slice(3),
-    ["answer", "benchmark", "impact", "action", "peer", "confidence", "provenance"]);
+    ["answer", "benchmark", "impact", "peer", "internal", "action", "confidence", "provenance"]);
   // Steps are numbered in reading order and nothing repeats an id.
   assert.deepEqual(READING_ORDER.map((step) => step.step),
     READING_ORDER.map((_, index) => index + 1));
@@ -472,7 +474,9 @@ test("the answer is one sentence from the canonical record, before any figure", 
   try {
     const { document } = page;
     const result = buildFirstRunResult();
-    applyFirstRunResult(document, result);
+    // `announce` opted into here because this test asserts on the live region's
+    // wording. A repaint announces; the first paint of a page load does not.
+    applyFirstRunResult(document, result, { announce: true });
     const decision = loadCanonicalDecision().decision;
     assert.equal(result.answer.available, true);
     assert.equal(result.answer.value, decision.benchmark.headline);

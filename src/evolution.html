@@ -272,18 +272,20 @@
             <p class="first-run-detail" id="finops-first-run-impact-detail" hidden></p>
           </div>
         </div>
-        <div class="first-run-recommendation">
-          <h3 class="eyebrow" id="finops-first-run-action-heading">Recommended action · rank 1</h3>
-          <p class="first-run-action-text" id="finops-first-run-action" data-available="false">Not yet ranked</p>
-          <!-- A role, never a person, beside the action it owns. -->
-          <p class="first-run-role" id="finops-first-run-role" hidden></p>
-        </div>
-        <!-- WHERE THE SPEND RANKS, beside the action rather than nine screens
-             below it. The slot answers exactly one question — "among comparable
+        <!-- WHERE THE SPEND RANKS, and it is above the recommended action
+             rather than below it — deliberately, and this is a change from the
+             order this region shipped with. A screen reader moving linearly
+             through the headline has to meet the question, then the position
+             and the metric it is based on, then the team that is behind, and
+             only then what to do about it. An action read before the fact that
+             justifies it is an instruction with no argument behind it, and a
+             reader who cannot see the two slots side by side has no way to
+             scan back up for the reason. `READING_ORDER` in
+             `finops-decision-interaction.js` carries the same sequence, and
+             `validateReadingOrder` fails if the document and the spec drift.
+
+             The slot answers exactly one question — "among comparable
              organizations, is this org's cost per successful task high or low?"
-             — and it is authored here, adjacent to the recommended action, so a
-             leader reads the position and the action it justifies in one pass
-             instead of holding a band in their head while they scroll.
 
              The authored value is a pending state, not a figure: every number
              in this region comes out of the analysis path at run time, so
@@ -292,10 +294,21 @@
              `finops-first-run.js` paints it, and when a position is withheld
              the same slot carries that module's reason sentence. The bare word
              "Unavailable" is never painted into it: a reader who cannot be
-             given a position is owed the sentence that says what is missing. -->
+             given a position is owed the sentence that says what is missing.
+
+             THE BAND CHIP, ahead of the value in the DOM so it is ahead of it
+             in speech. It is never a bare colour: a glyph that differs per
+             state, the band's own word, and the figure itself all carry the
+             position, and the tint is the fourth channel rather than the only
+             one. Withheld is a state of this chip like any other — an outline
+             silhouette and the words "Position withheld" — because a reader who
+             is given a blank where a band should be cannot tell "we did not
+             compare" from "the page is broken". Authored empty and hidden: the
+             band, like every figure here, comes out of the analysis path. -->
         <div class="first-run-support">
           <div class="first-run-slot">
             <h3 class="first-run-slot-label" id="finops-first-run-peer-heading">Peer comparison</h3>
+            <p class="first-run-band" id="finops-first-run-peer-band" hidden></p>
             <p class="first-run-value" id="finops-first-run-peer-value" data-available="false">Not yet compared</p>
             <p class="first-run-detail" id="finops-first-run-peer-detail" hidden></p>
           </div>
@@ -313,12 +326,24 @@
                time. When the finding is suppressed — too few departments over
                the sample floor, no department dimension in the records, or a
                spread that never leaves one band — this slot carries that
-               module's own reason sentence, with the real numbers in it. -->
+               module's own reason sentence, with the real numbers in it.
+
+               Its chip carries severity on the same four channels: one band
+               behind and two-or-more bands behind are different facts and get
+               different glyphs, different silhouette weights, and different
+               words — never the same shape in two tints. -->
           <div class="first-run-slot">
             <h3 class="first-run-slot-label" id="finops-first-run-internal-heading">Internal drill-down · widest department gap</h3>
+            <p class="first-run-band" id="finops-first-run-internal-band" hidden></p>
             <p class="first-run-value" id="finops-first-run-internal-value" data-available="false">Not yet compared</p>
             <p class="first-run-detail" id="finops-first-run-internal-detail" hidden></p>
           </div>
+        </div>
+        <div class="first-run-recommendation">
+          <h3 class="eyebrow" id="finops-first-run-action-heading">Recommended action · rank 1</h3>
+          <p class="first-run-action-text" id="finops-first-run-action" data-available="false">Not yet ranked</p>
+          <!-- A role, never a person, beside the action it owns. -->
+          <p class="first-run-role" id="finops-first-run-role" hidden></p>
         </div>
         <!-- A score never appears without the basis for it. An impact figure
              with no statement of how much of it was verified asks the reader to

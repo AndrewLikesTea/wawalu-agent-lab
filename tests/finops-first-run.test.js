@@ -206,16 +206,20 @@ test("the invented-sample sentence is true before any script runs", async () => 
     "the sample label must be authored before the headline figure");
 });
 
-test("the peer position is authored adjacent to the recommended action", async () => {
+test("the peer position is authored directly before the recommended action", async () => {
   const document = parseHtml(await readFile(PAGE, "utf8"));
   const region = byId(document, FIRST_RUN_IDS.region);
-  // Position and action are read together or not at all: a band a leader has to
-  // scroll back to is a band they will quote from memory.
-  const blocks = region.querySelectorAll("div").map((node) => node.className);
+  // Position and action are read together or not at all — and the position goes
+  // first, because it is the evidence the action rests on. Read linearly, an
+  // action ahead of its evidence is an instruction with nothing behind it.
+  // Direct element children only: the slots nested inside each block are not
+  // blocks, and the whitespace between them is not either.
+  const blocks = [...region.children]
+    .filter((node) => node.nodeType === 1).map((node) => node.className);
   const action = blocks.indexOf("first-run-recommendation");
   const position = blocks.indexOf("first-run-support");
   assert.ok(action >= 0 && position >= 0);
-  assert.equal(position, action + 1, "the position block follows the action block directly");
+  assert.equal(action, position + 1, "the action block follows the position block directly");
 
   // The authored default is a pending state, never the bare word "Unavailable"
   // and never a hand-written band: every figure in this region is computed.
@@ -314,12 +318,13 @@ test("a visitor with no files meets four resolved slots and one ranked action", 
     assert.deepEqual(terms,
       ["Inputs", "Path", "Arithmetic", "Coverage", "Limits", "Internal gap", "Where it ran"]);
 
-    // One announcement, carrying what a reader who cannot see the block needs
-    // to decide whether to read it: what kind of numbers, and what they say.
+    // The live region is armed and SILENT on the first paint. A polite region
+    // that is filled during page load reads the whole headline aloud over the
+    // top of the page title a reader is still hearing; it exists to say that a
+    // figure changed, and on load nothing has. The repaint path fills it.
     const live = byId(document, FIRST_RUN_IDS.live);
     assert.equal(live.getAttribute("aria-live"), "polite");
-    assert.match(textOf(live), /^Bundled synthetic example\./);
-    assert.match(textOf(live), /% of analyzed AI spend/);
+    assert.equal(textOf(live), "", "the live region does not announce on initial load");
   } finally {
     page.restore();
   }
@@ -492,12 +497,20 @@ test("hostile result strings stay literal text in the promoted first viewport", 
     sample: { badge: hostile, statement: hostile },
     benchmark: { available: true, value: hostile, detail: hostile },
     impact: { available: true, value: hostile, detail: hostile },
-    peer: { available: false, value: hostile, detail: hostile },
+    // The band label is analysis-derived too — a department name reaches the
+    // internal chip — so it goes through the same proof.
+    peer: {
+      available: false, value: hostile, detail: hostile,
+      band: { state: "withheld", label: hostile, shape: "◇", silhouette: "outline" },
+    },
     action: { available: true, value: hostile, detail: hostile },
     method: [{ term: hostile, detail: hostile }],
   };
 
-  applyFirstRunResult(document, result);
+  applyFirstRunResult(document, result, { announce: true });
+
+  assert.match(textOf(byId(document, FIRST_RUN_IDS.peerBand)), /<img src=x on/,
+    "the band chip did not preserve the hostile label as text");
 
   // Every newly prominent slot receives analysis-derived strings. Prove that
   // the hostile version is neutralized instead of trusting the normal sample.

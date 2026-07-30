@@ -1121,7 +1121,11 @@ function mountLocalFinopsImport() {
     // screen — the reader's import, or the example loaded into every panel —
     // closes that question, so the block retires rather than sitting beside a
     // fuller result with a second synthetic headline in it.
-    applyFirstRunSupersession(document, Boolean(result));
+    // The reader's own briefing heading is where this block's question is
+    // answered next, and it already takes focus programmatically, so it is
+    // where a keyboard user is put if the region retires under their focus ring.
+    applyFirstRunSupersession(document, Boolean(result),
+      { focusFallbackId: "local-results-title" });
     // The destination ranking belongs to that block: the doors stay true, but the
     // order they are in was ranked from the invented dataset, so it retires with
     // the example rather than recommending a first step off data nobody imported.

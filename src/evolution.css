@@ -1085,6 +1085,38 @@
 .first-run-value[data-available="false"] { color:var(--state-warn-ink); font-size:17px; font-weight:700; }
 .first-run-slot:has(>.first-run-value[data-available="false"]) { border-top-style:dashed; border-top-color:var(--state-warn-line); }
 .first-run-detail { margin:0; color:var(--ink-muted); font-size:12.5px; line-height:1.55; overflow-wrap:anywhere; }
+/* THE BAND CHIP. Four channels, and the tint is the last of them: the glyph
+   differs per state, the word names the band, the figure below repeats it, and
+   only then does the fill say it again. Take the colour away — greyscale print,
+   forced colours, a reader who cannot separate green from amber — and the chip
+   still says which band this is.
+
+   The silhouette follows the Claude Design foundations rule: filled wash for a
+   dynamic signal (a measured band, which moves when the data moves), outline
+   for a static classification (withheld — the absence of a position is a
+   category, not a reading). The border weight is a second non-colour channel:
+   1px for a band that is fine, 2px for one that is behind. */
+.first-run-band { display:flex; flex-wrap:wrap; margin:0; }
+.first-run-band[hidden] { display:none; }
+.first-run-band[data-band] { display:inline-flex; align-items:baseline; gap:5px; align-self:start; max-width:100%; border:1px solid var(--import-line); border-radius:99px; padding:3px 11px; background:#fff; color:var(--import-ink); font:750 11px/1.5 ui-monospace,monospace; letter-spacing:.05em; text-transform:uppercase; overflow-wrap:anywhere; }
+.first-run-band-shape { flex:none; font-size:10px; letter-spacing:0; }
+/* Ahead and middle: the panel's own ink on the panel's own wash. Told apart by
+   the glyph (▲ / ◆) and the word, never by the fill alone. */
+.first-run-band[data-band="ahead"] { border-color:var(--import-accent); background:var(--import-wash); color:var(--import-ink); }
+/* `--panel-border` is the token this panel reaches for by habit, and at 1.56:1
+   against the page it is decoration, not an indicator — so the middle band uses
+   `--ink-muted` for its edge instead. Same scale, no new value, and the chip's
+   boundary now carries its 3:1 like every other state's. */
+.first-run-band[data-band="middle"] { border-color:var(--ink-muted); background:#f4f3ee; color:#3b3b35; }
+/* Behind: the warn pair, and a heavier edge than the two above it. */
+.first-run-band[data-band="behind"] { border:2px solid var(--state-warn-line); background:var(--state-warn-wash); color:var(--state-warn-ink); }
+/* Two or more bands behind is a different fact, not a darker shade of the same
+   one: a doubled glyph, the error pair, and the same heavy edge. */
+.first-run-band[data-band="critical"] { border:2px solid var(--state-error-line); background:var(--state-error-wash); color:var(--state-error-ink); }
+/* Withheld: an outline silhouette, a dashed edge, and the words for it. Not a
+   blank, not a dash, and not the same chip greyed out — a reader has to be able
+   to tell "we did not compare" from "this is loading". */
+.first-run-band[data-band="withheld"] { border:2px dashed var(--ink-muted); background:#fff; color:#5b5b55; }
 .first-run-recommendation { display:grid; gap:5px; border-left:3px solid var(--import-accent); padding:2px 0 2px 13px; break-inside:avoid; }
 .first-run-recommendation .eyebrow { margin:0; }
 .first-run-action-text { margin:0; max-width:70ch; color:var(--ink); font-size:16px; font-weight:650; line-height:1.5; }
