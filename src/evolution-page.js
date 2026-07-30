@@ -87,6 +87,9 @@ import {
   closeMappingReview, focusMappingReview, renderMappingReview,
 } from "/import-mapping-view.js";
 import { headlineTrust } from "/finops-display.js";
+import {
+  clearCurrentReviewEvidence, retainCurrentReviewEvidence,
+} from "/recurring-review-readiness.js";
 // Whether the letter may be shown at all is decided before it is drawn: the
 // score card is a roll-up of only the departments the rubric actually scored.
 import { gradeEligibility } from "/grade-eligibility.js";
@@ -1301,6 +1304,12 @@ function mountLocalFinopsImport() {
     // dataset's verdict is deliberately not held: a synthetic dataset cannot
     // earn one, and the composition refuses it on that side anyway.
     lastVerdict = example ? null : verdict;
+    if (!example) {
+      retainCurrentReviewEvidence(browserFinopsWorkspaceStorage(), {
+        currentAnalysis: next,
+        theoVerdict: verdict,
+      });
+    }
     // How much of this spend is attributed decides what the recoverable figure
     // above may claim. The verdict has already summed both sides of that ratio;
     // summing them again here is how two numbers on one screen start
@@ -1576,6 +1585,7 @@ function mountLocalFinopsImport() {
     closeMappingReview(document);
     if (remap) remap.hidden = true;
     result = null;
+    clearCurrentReviewEvidence(browserFinopsWorkspaceStorage());
     currentBriefing = null;
     exampleActive = false;
     // The reader's own coverage figure goes with the reader's own analysis. A

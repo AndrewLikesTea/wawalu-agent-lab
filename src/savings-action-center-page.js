@@ -1,4 +1,3 @@
-import { loadSavingsActionCenter } from "/savings-action-center.js";
 import {
   readEvidenceFiles, savingsEvidenceBundle,
 } from "/savings-evidence.js";
@@ -9,8 +8,10 @@ import {
   renderSavingsActionCenterError,
 } from "/savings-action-center-view.js";
 import {
-  demoRecurringReviewReadiness, recurringReviewReadiness,
+  assembleRecurringReview, readCurrentReviewEvidence,
 } from "/recurring-review-readiness.js";
+import { readMonthlyAction } from "/monthly-department-action-store.js";
+import { browserFinopsWorkspaceStorage } from "/finops-workspace.js";
 import { loadDecisions } from "/app.js";
 import { loadReleases } from "/releases.js";
 import {
@@ -39,7 +40,6 @@ let reconciliation = null;
 // written to storage: a briefing is the visitor's own spend, and this page has
 // no reason to keep a copy of it after they close it.
 let opened = [];
-let demo = null;
 
 function paint(node) {
   root.replaceChildren(node);
@@ -86,16 +86,16 @@ function renderClaim() {
   exportButton.disabled = !importing;
   clearButton.disabled = !importing;
   renderReconciliation();
-  if (importing) {
-    // Saved briefings do not yet retain the complete metric-definition,
-    // currency, scope, and aligned-duration contract required by the recurring
-    // review. Refuse a recommendation instead of translating partial fields.
-    paint(renderRecurringReviewReadiness(recurringReviewReadiness(), { source: "imported" }));
-    return;
-  }
-  paint(demo
-    ? renderRecurringReviewReadiness(demoRecurringReviewReadiness())
-    : renderSavingsActionCenterError());
+  // Both halves of the join are read through the same accessor the analysis page
+  // writes them with. Reading `globalThis.localStorage` directly here would not
+  // be the same thing: with site data blocked the *accessor* throws, and an
+  // uncaught throw in this entry module leaves the page on its "Reconciling
+  // monthly savings…" region with aria-busy="true" for good.
+  const storage = browserFinopsWorkspaceStorage();
+  const retainedAction = readMonthlyAction(storage).record;
+  const { currentAnalysis, theoVerdict } = readCurrentReviewEvidence(storage);
+  const review = assembleRecurringReview({ retainedAction, currentAnalysis, theoVerdict });
+  paint(renderRecurringReviewReadiness(review, { source: "local" }));
 }
 
 async function openFiles(list) {
@@ -157,7 +157,8 @@ clearButton?.addEventListener("click", () => {
   paintNotices([]);
   renderClaim();
   if (saveStatus) saveStatus.textContent = "";
-  say("Imported evidence cleared. The demonstration month is shown again.");
+  say("Imported evidence cleared. The review above still reads this browser's own "
+    + "retained action and analysis; clearing files here removed neither.");
   fileInput?.focus();
 });
 
@@ -173,11 +174,17 @@ saveButton?.addEventListener("click", () => {
   renderReconciliation();
 });
 
+// The first paint is the whole page: everything above is a handler that only
+// runs if this one succeeds. A throw here — a storage accessor a browser refuses,
+// a stored record no reader guards — would otherwise leave the static
+// "Reconciling monthly savings…" region with aria-busy="true" and never resolve,
+// which reads as a page that is still working. This says so instead, in an
+// alert region, and keeps the failure in the console for a deploy to find.
 try {
-  demo = await loadSavingsActionCenter();
+  renderClaim();
 } catch (error) {
   console.error("savings_action_center_unavailable", {
     error: error?.message ?? String(error),
   });
+  paint(renderSavingsActionCenterError());
 }
-renderClaim();

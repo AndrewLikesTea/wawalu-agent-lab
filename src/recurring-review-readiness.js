@@ -1,185 +1,211 @@
-// The decision contract for a recurring FinOps review.
-//
-// It deliberately knows nothing about providers, storage, or UI. Records are
-// comparable only when every declared dimension is equal. A missing dimension
-// is a refusal, never an invitation to infer one.
+// Bounded client-side join for reopening one retained monthly FinOps action.
+import { validateMonthlyActionRecord } from "./monthly-department-action-store.js";
 
-export const REVIEW_READINESS_VERSION = "finops-recurring-review/1.0.0";
-
+export const REVIEW_READINESS_VERSION = "finops-recurring-review/2.0.0";
+export const REVIEW_EVIDENCE_KEY = "shiplog.finops.current-review-evidence.v1";
+// The retained handoff payload carries its own version, deliberately separate
+// from the result contract above. They are two schemas with two reasons to
+// change, and sharing one string means a wording change to the *result* silently
+// discards evidence a visitor already retained: the reader rejects the payload,
+// the assembler reports `analysis_missing`, and nothing anywhere says why.
+export const REVIEW_EVIDENCE_VERSION = "finops-current-review-evidence/1.0.0";
 export const REVIEW_STATE = Object.freeze({
-  first: "first_review",
-  awaiting: "action_awaiting_outcome",
-  ready: "outcome_ready_review",
+  blocked: "blocked", insufficient: "insufficient_evidence", ready: "ready",
 });
 
-export const OPTIMIZATION_DIRECTION = Object.freeze({
-  minimize: "minimize",
-  maximize: "maximize",
+// What the current side of the comparison actually is. The local analysis ranks
+// departments by the down-routing rule's own monthly recoverable figure, which
+// is the same quantity the priced decision takes its baseline from — so the two
+// are comparable, and this names the assumption rather than implying it by
+// borrowing the baseline's label for the current value.
+const CURRENT_METRIC = Object.freeze({
+  unit: "USD/month",
+  definition: "Monthly recoverable spend for the department, from the local down-routing analysis",
 });
 
-const REQUIRED = Object.freeze([
-  "metricDefinition", "unit", "scopeId", "periodDurationDays",
-]);
-
-function finite(value) {
-  return typeof value === "number" && Number.isFinite(value);
-}
-
-/**
- * A value record is `{ value, metricDefinition, unit, currency, scopeId,
- * periodDurationDays, periodEnd }`. Currency is required for monetary units and
- * must otherwise be explicitly null.
- */
-export function comparisonGaps(left, right) {
-  const gaps = [];
-  if (!left || !right) return ["record_missing"];
-  for (const field of REQUIRED) {
-    if (left[field] === undefined || left[field] === null || left[field] === ""
-      || right[field] === undefined || right[field] === null || right[field] === "") {
-      gaps.push(`${field}_missing`);
-    } else if (left[field] !== right[field]) {
-      gaps.push(`${field}_mismatch`);
-    }
+const finite = (value) => typeof value === "number" && Number.isFinite(value);
+const monthOf = (period) => /^(\d{4}-\d{2})/.exec(String(period ?? ""))?.[1] ?? null;
+// Live analyses declare `schemaVersion`; the retained projection below stores it
+// as `version`. Reading only one of the two records a placeholder as provenance.
+const contractOf = (analysis) =>
+  analysis?.schemaVersion ?? analysis?.version ?? null;
+const freeze = Object.freeze;
+function scopeKey(value) {
+  let hash = 0x811c9dc5;
+  for (const character of String(value ?? "")) {
+    hash ^= character.codePointAt(0);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
   }
-  if (!Object.hasOwn(left, "currency") || !Object.hasOwn(right, "currency")) {
-    gaps.push("currency_missing");
-  } else if (left.currency !== right.currency) {
-    gaps.push("currency_mismatch");
-  }
-  if (!finite(left.value) || !finite(right.value)) gaps.push("value_missing");
-  return [...new Set(gaps)];
+  return hash.toString(16).padStart(8, "0");
 }
 
-export function areComparable(left, right) {
-  return comparisonGaps(left, right).length === 0;
+function projectVerdict(verdict) {
+  if (verdict?.measured !== undefined) return verdict;
+  return freeze({
+    state: verdict?.state ?? null,
+    measured: Boolean(verdict?.headline?.available),
+    coveragePercent: verdict?.headline?.coveragePercent ?? null,
+    rows: verdict?.headline?.totalRows ?? null,
+    confidence: verdict?.state === "all_clear" ? "high"
+      : verdict?.headline?.available ? "bounded" : "insufficient",
+  });
 }
 
-function afterReviewPeriod(action) {
-  const end = action?.reviewPeriodEnd;
-  const measured = action?.outcome?.periodEnd;
-  return typeof end === "string" && typeof measured === "string" && measured > end;
-}
-
-function signedDelta(rawDelta, direction) {
-  return direction === OPTIMIZATION_DIRECTION.minimize ? -rawDelta : rawDelta;
-}
-
-const ACTIONS = Object.freeze({
-  [REVIEW_STATE.first]: Object.freeze({
-    label: "Complete and retain the first review",
-    rationale: "There is no comparable completed action yet. Record this period as the baseline; do not claim a recurring-review recommendation.",
-  }),
-  [REVIEW_STATE.awaiting]: Object.freeze({
-    label: "Retain a post-action measurement",
-    rationale: "A prior action exists, but no comparable measurement after its review period is retained locally. Measure the same metric and scope before judging it.",
-  }),
-  [REVIEW_STATE.ready]: Object.freeze({
-    label: "Review the measured outcome before approving the next action",
-    rationale: "The prior action has a comparable post-period outcome and this import uses the same metric contract. The review evidence is ready for an executive decision.",
-  }),
-});
-
-// A measured prior outcome does not by itself make a review actionable: the
-// current import, its benchmark, or the declared direction can still be
-// incomparable. Without this the surface answers "No, not ready" in the headline
-// and then hands the leader an action that says the evidence is ready — the one
-// contradiction that would get a recommendation acted on anyway.
-const BLOCKED_ACTION = Object.freeze({
-  label: "Reconcile the mismatched evidence before recommending",
-  rationale: "The prior action has a measured outcome, but the current import, its benchmark, or the metric's declared direction is not comparable with it. Resolve the dimensions listed below; this review cannot support a recommendation until they agree.",
-});
-
-/**
- * Answer “Is this month’s review ready to act on?”
- *
- * Metric definitions:
- * - current value: `current.value` for the current review period.
- * - benchmark delta: `current.value - benchmark.value`.
- * - prior-action outcome delta: `priorAction.outcome.value -
- *   priorAction.baseline.value`.
- * A positive interpreted delta means improvement; a negative one means
- * deterioration, after applying the metric's declared optimization direction.
- */
-export function recurringReviewReadiness({
-  current = null, benchmark = null, priorAction = null, optimizationDirection = null,
-} = {}) {
-  if (!Object.values(OPTIMIZATION_DIRECTION).includes(optimizationDirection)) {
-    optimizationDirection = null;
-  }
-
-  const outcomeQualifies = Boolean(priorAction?.baseline && priorAction?.outcome
-    && afterReviewPeriod(priorAction)
-    && areComparable(priorAction.baseline, priorAction.outcome));
-  const state = !priorAction
-    ? REVIEW_STATE.first
-    : outcomeQualifies ? REVIEW_STATE.ready : REVIEW_STATE.awaiting;
-
-  const benchmarkGaps = comparisonGaps(current, benchmark);
-  const currentOutcomeGaps = outcomeQualifies
-    ? comparisonGaps(current, priorAction.outcome) : ["qualifying_prior_outcome_missing"];
-  const recommendationGaps = [
-    ...(current ? [] : ["current_import_missing"]),
-    ...(benchmark ? [] : ["benchmark_missing"]),
-    ...benchmarkGaps,
-    ...currentOutcomeGaps,
-    ...(optimizationDirection ? [] : ["optimization_direction_missing"]),
-  ];
-  const comparable = recommendationGaps.length === 0;
-  const ready = state === REVIEW_STATE.ready && comparable;
-
-  const benchmarkDelta = benchmarkGaps.length === 0
-    ? current.value - benchmark.value : null;
-  const outcomeDelta = outcomeQualifies
-    ? priorAction.outcome.value - priorAction.baseline.value : null;
-
-  return Object.freeze({
+function reviewResult(state, code, { action = null, current = null, verdict = null, gaps = [] } = {}) {
+  const headline = {
+    absent_action: "No retained monthly action is available to resume.",
+    analysis_missing: "The retained action is waiting for a current local analysis.",
+    verdict_missing: "The current analysis has no Theo evidence verdict.",
+    department_changed: "The current analysis covers a different department.",
+    period_not_later: "The current analysis is not from a later comparable period.",
+    metric_changed: "The retained benchmark is not stated in the unit this analysis measures.",
+    verdict_insufficient: "Theo’s verdict does not support an evidence-bounded review.",
+    ready: "The retained action and current local evidence are ready for review.",
+  }[code];
+  return freeze({
     schemaVersion: REVIEW_READINESS_VERSION,
     question: "Is this month’s review ready to act on?",
     state,
-    ready,
-    nextAction: state === REVIEW_STATE.ready && !ready ? BLOCKED_ACTION : ACTIONS[state],
-    metrics: Object.freeze({
-      currentValue: finite(current?.value) ? current.value : null,
-      benchmarkDelta,
-      benchmarkDirection: benchmarkDelta === null || !optimizationDirection
-        ? null : signedDelta(benchmarkDelta, optimizationDirection),
-      priorActionOutcomeDelta: outcomeDelta,
-      priorActionOutcomeDirection: outcomeDelta === null || !optimizationDirection
-        ? null : signedDelta(outcomeDelta, optimizationDirection),
-      optimizationDirection,
+    ready: state === REVIEW_STATE.ready,
+    code,
+    headline,
+    benchmark: freeze({
+      value: finite(action?.baseline?.value) ? action.baseline.value : null,
+      unit: action?.baseline?.unit ?? null,
+      period: action?.baseline?.period ?? null,
+      definition: action?.baseline?.calculation ?? null,
     }),
-    evidence: Object.freeze({
-      benchmarkAvailable: benchmarkGaps.length === 0,
-      priorResultAvailable: outcomeQualifies,
-      gaps: Object.freeze([...new Set(recommendationGaps)]),
+    current: freeze({
+      value: finite(current?.value) ? current.value : null,
+      unit: CURRENT_METRIC.unit,
+      definition: CURRENT_METRIC.definition,
+      period: current?.period ?? null,
+      department: current?.department ?? null,
     }),
-    recommendation: comparable
-      ? Object.freeze({ status: "available", basis: "current_benchmark_and_prior_outcome_comparable" })
+    confidence: freeze({
+      action: action?.confidence ?? null,
+      theo: verdict?.confidence ?? null,
+      coveragePercent: finite(verdict?.coveragePercent) ? verdict.coveragePercent : null,
+    }),
+    provenance: freeze({
+      actionReferences: freeze([...(action?.provenanceReferences ?? [])]),
+      analysisContract: current?.contract ?? null,
+      verdictState: verdict?.state ?? null,
+      verdictRows: Number.isInteger(verdict?.rows) ? verdict.rows : null,
+    }),
+    evidenceBoundary: freeze({
+      joined: freeze(["retained_monthly_action", "current_local_analysis", "theo_verdict"]),
+      excluded: freeze(["source_rows", "prompt_text", "file_names", "credentials", "customer_identifiers"]),
+      gaps: freeze([...gaps]),
+    }),
+    recommendation: state === REVIEW_STATE.ready
+      ? freeze({
+        status: "available",
+        change: current.value - action.baseline.value,
+        basis: "same_department_later_period_with_theo_verdict",
+      })
       : null,
   });
 }
 
-const MONTH_DAYS = 30;
-const record = (value, periodEnd) => Object.freeze({
-  value,
-  metricDefinition: "monthly_avoidable_cost_v1",
-  unit: "currency_minor",
-  currency: "USD",
-  scopeId: "demo-routing-action",
-  periodDurationDays: MONTH_DAYS,
-  periodEnd,
-});
+/**
+ * @param {object} input
+ * @param {object|null} input.retainedAction monthly-department-action/1.0.0
+ * @param {object|null} input.currentAnalysis current local-finops analysis
+ * @param {object|null} input.theoVerdict finops-trust-verdict result
+ */
+export function assembleRecurringReview({
+  retainedAction = null, currentAnalysis = null, theoVerdict = null,
+} = {}) {
+  if (!retainedAction || !validateMonthlyActionRecord(retainedAction).ok) {
+    return reviewResult(REVIEW_STATE.blocked, "absent_action", {
+      gaps: ["retained_action_missing"],
+    });
+  }
+  if (!currentAnalysis) {
+    return reviewResult(REVIEW_STATE.blocked, "analysis_missing", {
+      action: retainedAction, gaps: ["current_analysis_missing"],
+    });
+  }
+  if (!theoVerdict) {
+    return reviewResult(REVIEW_STATE.insufficient, "verdict_missing", {
+      action: retainedAction, gaps: ["theo_verdict_missing"],
+    });
+  }
+  const department = (currentAnalysis.rankedDepartments ?? [])
+    .find((entry) => entry?.name === retainedAction.department
+      || entry?.scopeKey === scopeKey(retainedAction.department));
+  const current = department && {
+    value: department.recoverableUsd,
+    department: retainedAction.department,
+    period: monthOf(currentAnalysis.period),
+    contract: contractOf(currentAnalysis),
+  };
+  const verdict = projectVerdict(theoVerdict);
+  if (!current || !finite(current.value)) {
+    return reviewResult(REVIEW_STATE.blocked, "department_changed", {
+      action: retainedAction, current, verdict, gaps: ["department_scope_mismatch"],
+    });
+  }
+  // Two figures in the same unit or no subtraction. A retained baseline written
+  // in some other unit is not a benchmark for this analysis, and differencing it
+  // anyway is how an executive finding ends up defending a number nobody
+  // computed. This blocks rather than converts: the review holds no rate table.
+  if (retainedAction.baseline.unit !== CURRENT_METRIC.unit) {
+    return reviewResult(REVIEW_STATE.blocked, "metric_changed", {
+      action: retainedAction, current, verdict, gaps: ["metric_unit_mismatch"],
+    });
+  }
+  if (!current.period || current.period <= retainedAction.baseline.period) {
+    return reviewResult(REVIEW_STATE.blocked, "period_not_later", {
+      action: retainedAction, current, verdict, gaps: ["later_period_missing"],
+    });
+  }
+  if (!verdict.measured || ["empty", "mixed_currency", "zero_spend"].includes(verdict.state)) {
+    return reviewResult(REVIEW_STATE.insufficient, "verdict_insufficient", {
+      action: retainedAction, current, verdict, gaps: ["theo_evidence_insufficient"],
+    });
+  }
+  return reviewResult(REVIEW_STATE.ready, "ready", { action: retainedAction, current, verdict });
+}
 
-/** Invented, local-only evidence used when no visitor file is open. */
-export function demoRecurringReviewReadiness() {
-  return recurringReviewReadiness({
-    current: record(810000, "2026-07-31"),
-    benchmark: record(900000, "2026-06-30"),
-    priorAction: {
-      reviewPeriodEnd: "2026-05-31",
-      baseline: record(1000000, "2026-05-31"),
-      outcome: record(900000, "2026-06-30"),
+/** Retain only derived fields needed after navigation; never source evidence. */
+export function retainCurrentReviewEvidence(storage, { currentAnalysis, theoVerdict } = {}) {
+  const period = monthOf(currentAnalysis?.period);
+  const rankedDepartments = (currentAnalysis?.rankedDepartments ?? []).map((entry) => ({
+    scopeKey: scopeKey(entry?.name), recoverableUsd: entry?.recoverableUsd,
+  })).filter((entry) => finite(entry.recoverableUsd));
+  if (!period || !rankedDepartments.length || !theoVerdict) return false;
+  const payload = {
+    schemaVersion: REVIEW_EVIDENCE_VERSION,
+    currentAnalysis: {
+      version: contractOf(currentAnalysis), period, rankedDepartments,
     },
-    optimizationDirection: OPTIMIZATION_DIRECTION.minimize,
-  });
+    theoVerdict: projectVerdict(theoVerdict),
+  };
+  try {
+    storage?.setItem(REVIEW_EVIDENCE_KEY, JSON.stringify(payload));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function readCurrentReviewEvidence(storage) {
+  try {
+    const value = JSON.parse(storage?.getItem(REVIEW_EVIDENCE_KEY));
+    return value?.schemaVersion === REVIEW_EVIDENCE_VERSION
+      ? freeze({ currentAnalysis: value.currentAnalysis, theoVerdict: value.theoVerdict })
+      : freeze({ currentAnalysis: null, theoVerdict: null });
+  } catch {
+    return freeze({ currentAnalysis: null, theoVerdict: null });
+  }
+}
+
+export function clearCurrentReviewEvidence(storage) {
+  try {
+    storage?.removeItem(REVIEW_EVIDENCE_KEY);
+  } catch {
+    // Clearing remains total when storage is unavailable.
+  }
 }
