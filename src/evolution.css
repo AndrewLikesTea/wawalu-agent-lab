@@ -939,6 +939,53 @@
 .first-run-conversion-action { flex:none; min-height:44px; border:1px solid #bdbbb3; border-radius:8px; padding:10px 14px; background:#fff; color:#333330; font-size:13px; font-weight:700; cursor:pointer; }
 .first-run-conversion-action:hover { border-color:#1f70c1; }
 .first-run-conversion-action:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+/* WHERE TO GO NEXT. Quieter than the brief above it — no gradient, a single
+   accent rule — because it is not a second answer. The one thing in it drawn at
+   button weight is the rank-1 door, which is the whole point of the region: a
+   reader who takes one action from this block takes the right one. */
+.finops-destinations { display:grid; gap:14px; margin:0 0 22px; border:1px solid var(--import-line); border-left:5px solid var(--import-accent); border-radius:13px; padding:clamp(16px,2.6vw,22px); background:#fbfcfb; }
+/* A ranking nobody could compute is drawn as the withheld state every other
+   figure on this page uses: dashed edge, and the word in the text. */
+.finops-destinations[data-state="unavailable"] { border-style:dashed; border-left-style:solid; border-color:var(--state-warn-line); border-left-color:var(--state-warn-ink); background:var(--state-warn-wash); }
+.finops-destinations-head { display:grid; gap:5px; }
+.finops-destinations-head h2 { max-width:30ch; margin:0; font-size:clamp(19px,2.5vw,25px); line-height:1.2; }
+.finops-destinations-head .eyebrow { margin:0; }
+#finops-destinations-body { display:grid; gap:12px; }
+.dest-unavailable { margin:0; max-width:70ch; color:var(--state-warn-ink); font-size:14px; font-weight:700; line-height:1.5; }
+.dest-finding { margin:0; max-width:62ch; color:var(--ink); font-size:clamp(15px,1.8vw,17px); font-weight:700; line-height:1.4; overflow-wrap:anywhere; }
+.dest-why { margin:0; max-width:74ch; color:var(--ink-muted); font-size:13px; line-height:1.6; overflow-wrap:anywhere; }
+/* The prioritized door. The accent bar, the eyebrow that says "rank 1 of 3",
+   and the filled control are three channels saying the same thing, so the
+   ordering survives greyscale, a screen reader, and a printed page. */
+.dest-primary-block { display:grid; justify-items:start; gap:8px; border-left:3px solid var(--import-accent); padding:2px 0 2px 13px; break-inside:avoid; }
+.dest-primary-eyebrow { margin:0; }
+.dest-primary { display:inline-flex; align-items:baseline; gap:8px; min-height:44px; border:1px solid var(--import-accent); border-radius:9px; padding:11px 16px; background:var(--import-accent); color:#fff; font-size:14px; font-weight:750; text-decoration:none; }
+.dest-primary:hover { background:#25493d; }
+.dest-primary:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.dest-shape { flex:none; font-size:11px; font-weight:750; }
+.dest-primary-label { margin:0; max-width:64ch; color:var(--ink); font-size:14px; font-weight:650; line-height:1.5; }
+.dest-primary-answers { margin:0; max-width:74ch; color:var(--ink-muted); font-size:12.5px; line-height:1.6; }
+.dest-primary-because { margin:0; max-width:74ch; color:var(--import-ink); font-size:12.5px; font-weight:650; line-height:1.6; }
+.dest-confidence { display:flex; align-items:baseline; gap:8px; margin:0; }
+.dest-confidence-value { border:1px solid var(--import-line); border-radius:99px; padding:3px 11px; background:#e2ebe6; color:var(--import-ink); font:700 11px/1.5 ui-monospace,monospace; letter-spacing:.04em; }
+.dest-confidence-basis { margin:0; max-width:80ch; color:var(--ink-muted); font-size:12px; line-height:1.6; }
+/* Both disclosures, same silhouette as the brief's own method disclosure: the
+   summary carries a real heading and a chip whose glyph replaces the UA marker. */
+.dest-disclosure>summary { list-style:none; cursor:pointer; color:var(--import-ink); font-size:13px; font-weight:700; }
+.dest-disclosure>summary::marker { content:""; }
+.dest-disclosure>summary::-webkit-details-marker { display:none; }
+.dest-disclosure>summary:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; border-radius:5px; }
+.dest-disclosure-heading { display:flex; align-items:baseline; flex-wrap:wrap; gap:6px 12px; margin:0; color:var(--import-ink); font-size:13px; font-weight:700; line-height:1.5; }
+.dest-disclosure-state { display:inline-flex; align-items:baseline; gap:5px; flex:none; border-radius:99px; padding:2px 9px; background:#e2ebe6; color:var(--import-ink); font:700 10.5px/1.5 ui-monospace,monospace; letter-spacing:.05em; text-transform:uppercase; }
+.dest-others { display:grid; gap:12px; margin:12px 0 0; padding:0 0 0 20px; }
+.dest-other { color:var(--ink-muted); }
+.dest-other-link { display:inline-flex; align-items:baseline; gap:7px; color:var(--import-ink); font-size:13.5px; font-weight:700; }
+.dest-other-answers { margin:3px 0 0; max-width:76ch; font-size:12.5px; line-height:1.6; }
+/* What the door will not tell you, dashed like every other bounded claim here. */
+.dest-other-limit { margin:4px 0 0; max-width:76ch; border-left:2px dashed var(--state-warn-line); padding-left:9px; color:var(--state-warn-ink); font-size:12px; line-height:1.55; }
+.dest-derivation { display:grid; gap:10px; margin:12px 0 0; }
+.dest-derivation dt { color:var(--ink-muted); font:700 10px/1.5 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; }
+.dest-derivation dd { margin:3px 0 0; max-width:80ch; color:#4c5650; font-size:12.5px; line-height:1.6; overflow-wrap:anywhere; }
 .finops-panel .section-heading>p:last-child { max-width:720px; margin:12px 0 0; color:var(--ink-muted); line-height:1.55; }
 .finops-panel .list-heading { align-items:end; margin-bottom:16px; }
 .finops-panel .list-heading .section-heading { margin-bottom:0; }

@@ -171,6 +171,13 @@ import { buildFirstRunResult } from "/finops-first-run.js";
 import {
   applyFirstRunResult, applyFirstRunSupersession, bindFirstRunActions, bindFirstRunDisclosure,
 } from "/finops-first-run-view.js";
+// Where the reader goes once they have read that result. The contract owns which
+// three destinations exist, which one is prioritized, and the clause that
+// promoted it; this page hands the loaded record to the view and paints it.
+import { loadWorkspaceDestinations } from "/finops-destination-contract.js";
+import {
+  applyWorkspaceDestinations, supersedeWorkspaceDestinations,
+} from "/finops-destination-view.js";
 import {
   announce as announceStage, applyDatasetProvenance, applyExportPackageGuidance,
   applyFieldDiagnostic, applyImportLimits, applyOrgQuerySources, applyOrgQuerySourceStatus,
@@ -1017,6 +1024,10 @@ function mountLocalFinopsImport() {
     // closes that question, so the block retires rather than sitting beside a
     // fuller result with a second synthetic headline in it.
     applyFirstRunSupersession(document, Boolean(result));
+    // The destination ranking belongs to that block: the doors stay true, but the
+    // order they are in was ranked from the invented dataset, so it retires with
+    // the example rather than recommending a first step off data nobody imported.
+    supersedeWorkspaceDestinations(document, Boolean(result));
     const painted = applyPanelFacts(executivePanelFacts(), {
       imported: Boolean(result) && !exampleActive,
     });
@@ -2677,6 +2688,11 @@ async function init() {
   // the paint just wrote, and binding it afterwards is what makes the first
   // chip agree with the list under it.
   bindFirstRunDisclosure(document);
+  // And immediately after it, the one place to go next. Painted from the bundled
+  // contract in the same synchronous pass as the brief above — it waits on no
+  // fetch, so the prioritized destination is actionable in the first viewport
+  // even on the run where the bundled fixture never arrives.
+  applyWorkspaceDestinations(document, loadWorkspaceDestinations());
   initFinopsContact(document);
   const gateway = createStaticGateway();
   const refreshGateway = document.getElementById("integration-gateway-refresh");
