@@ -126,7 +126,10 @@ import {
 // sides to it.
 import { deliveryEfficiencyFinding } from "/delivery-efficiency-finding.js";
 import { spendPerDeliveryDecision, spendPerDeliveryInput } from "/spend-per-delivery.js";
-import { applySpendPerDelivery, clearSpendPerDelivery } from "/spend-per-delivery-view.js";
+import {
+  applySpendPerDelivery, applySpendPerDeliveryPhase, clearSpendPerDelivery,
+  SPEND_PER_DELIVERY_PHASE, SPEND_PER_DELIVERY_SECTION_ID,
+} from "/spend-per-delivery-view.js";
 // Delivery evidence is the release log this site already keeps, read through its
 // own loader so the shape it validates is the shape counted here.
 import { browserReleaseStorage, loadReleases } from "/releases.js";
@@ -351,6 +354,26 @@ function paintSpendPerDelivery(analysis, { example = false } = {}) {
   // paints, so a reading and its classification cannot disagree, and the panel
   // has no state in which the figure appears without them.
   return applySpendPerDelivery(document, decision, deliveryEfficiencyFinding(decision));
+}
+
+/**
+ * The two phases of the delivery panel that are not a reading.
+ *
+ * Both are captions over whatever the panel already holds, never a repaint of
+ * it: a leader who watches the figure they were reading disappear mid-import
+ * concludes the product broke, which is a worse answer than "the reading below
+ * is the previous one". `announce: false` on both, because this page has one
+ * status region and one retry for a failed read, and a second alert for the
+ * same event interrupts a screen-reader user twice for one thing.
+ */
+const spendPerDeliveryPhase = (phase, detail) =>
+  applySpendPerDeliveryPhase(document, phase, { detail, announce: false });
+
+/** Take the "reading…" caption down on any path that never painted a reading. */
+function endSpendPerDeliveryLoading() {
+  const section = document.getElementById(SPEND_PER_DELIVERY_SECTION_ID);
+  if (section?.dataset.phase !== SPEND_PER_DELIVERY_PHASE.loading) return;
+  spendPerDeliveryPhase(SPEND_PER_DELIVERY_PHASE.ready);
 }
 
 function fillTextList(id, values, emptyText) {
@@ -1485,6 +1508,11 @@ function mountLocalFinopsImport() {
     // swapped and the grade stale would be a half-import nobody asked for, and
     // a blank headline would strand the reader on nothing at all.
     paintPanelProvenance({ status: FINOPS_IMPORT_STATUS.failed });
+    // The delivery comparison says so in its own words, beside its own question:
+    // a reader looking at "is spend keeping pace?" has to know the file that
+    // would have answered it was rejected, without scrolling back to the notice.
+    spendPerDeliveryPhase(SPEND_PER_DELIVERY_PHASE.error,
+      `${diagnostic.recovery} No reading here was replaced.`);
     syncStage();
     announce("error", "This file was not analyzed.",
       `${diagnostic.text} ${diagnostic.recovery} Existing analysis was not replaced.`);
@@ -1720,6 +1748,7 @@ function mountLocalFinopsImport() {
     // so in a reserved line. Relabelling them now would caption figures that
     // have not changed with a source that does not yet exist.
     paintPanelProvenance({ status: FINOPS_IMPORT_STATUS.pending });
+    spendPerDeliveryPhase(SPEND_PER_DELIVERY_PHASE.loading);
     try {
       const selectionProblem = checkFileSelectionCeiling(files);
       if (selectionProblem) {
@@ -1749,6 +1778,10 @@ function mountLocalFinopsImport() {
     } finally {
       stateNode.setAttribute("aria-busy", "false");
       resultsNode.setAttribute("aria-busy", "false");
+      // A path that ended without painting a reading — a cancelled import, a
+      // file that carried no provider period — must not leave "reading…" on a
+      // panel that has stopped reading.
+      endSpendPerDeliveryLoading();
       input.value = "";
     }
   });
@@ -1776,6 +1809,9 @@ function mountLocalFinopsImport() {
       // contract moves under it, say so rather than showing a stale surface.
       const diagnostic = diagnosticFor({ code: error?.code, message: error?.message });
       applyFieldDiagnostic(document, diagnostic);
+      spendPerDeliveryPhase(SPEND_PER_DELIVERY_PHASE.error,
+        "The bundled example could not be analyzed, so no ratio was derived from it."
+        + " Your own provider export is still the way to answer this question.");
       announce("error", "The example data could not be analyzed.",
         `${diagnostic.text} No analysis is shown.`);
     }
@@ -2541,6 +2577,10 @@ async function init() {
       const failure = hasRenderedAnalysis
         ? BUNDLED_LOAD_STATE.refreshFailure : BUNDLED_LOAD_STATE.firstFailure;
       setLoadState("error", failure.title, failure.detail);
+      // The delivery panel is deliberately NOT captioned here. Its two inputs are
+      // the example-dataset analysis and the reader's own import, neither of
+      // which this fetch feeds; an error over a question this failure did not
+      // touch is a false alarm, and the panel is still honestly hidden.
       if (hasRenderedAnalysis) return;
       setText("finops-provenance", HEADLINE_BUNDLE_UNAVAILABLE.provenance);
       setText("score-value", HEADLINE_BUNDLE_UNAVAILABLE.score);

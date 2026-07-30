@@ -23,8 +23,9 @@ import {
 } from "../src/spend-per-delivery.js";
 import { spendPerDeliveryFixture } from "../src/spend-per-delivery-fixtures.js";
 import {
-  SPEND_PER_DELIVERY_BODY_ID, SPEND_PER_DELIVERY_LIVE_ID, SPEND_PER_DELIVERY_SECTION_ID,
-  applySpendPerDelivery, clearSpendPerDelivery,
+  SPEND_PER_DELIVERY_BODY_ID, SPEND_PER_DELIVERY_DETAIL_ID, SPEND_PER_DELIVERY_DISCLOSURES,
+  SPEND_PER_DELIVERY_LIVE_ID, SPEND_PER_DELIVERY_PHASE, SPEND_PER_DELIVERY_SECTION_ID,
+  applySpendPerDelivery, applySpendPerDeliveryPhase, clearSpendPerDelivery,
 } from "../src/spend-per-delivery-view.js";
 import { exampleDatasetFiles } from "../src/example-dataset.js";
 
@@ -39,6 +40,21 @@ const section = (document) => document.getElementById(SPEND_PER_DELIVERY_SECTION
 const body = (document) => document.getElementById(SPEND_PER_DELIVERY_BODY_ID);
 const live = (document) => document.getElementById(SPEND_PER_DELIVERY_LIVE_ID);
 const pick = (document, selector) => body(document).querySelector(selector);
+/** The one disclosure group. Every topic a reader can check hangs off it. */
+const group = (document) => document.getElementById(SPEND_PER_DELIVERY_DETAIL_ID);
+const disclosure = (document, key) =>
+  group(document).querySelector(`.spd-detail[data-disclosure="${key}"]`);
+/**
+ * What a keyboard press on a native `summary` does: the browser flips `open` on
+ * the parent `details` and fires `toggle`. The test DOM does not model native
+ * activation, so the two steps are made here — the control itself is asserted to
+ * be a real `summary` inside a real `details`, which is what makes it operable.
+ */
+function toggleDisclosure(details) {
+  details.open = !details.open;
+  details.dispatchEvent(new DomEvent("toggle"));
+  return details;
+}
 
 async function paint(name) {
   const { document } = await loadPage(PAGE);
@@ -110,19 +126,25 @@ test("the mismatched-period state says the windows differ and offers no ratio", 
   assert.equal(pick(document, ".spd-action-link"), null, "no release log to open for this one");
 });
 
-test("every state carries the framing line and the disclosure a reader checks it with", async () => {
+test("every state carries the framing line and one disclosure group to check it with", async () => {
   for (const name of ["eligible", "insufficient", "mismatched"]) {
     const { document, state } = await paint(name);
-    // The framing is in the block itself, not inside the disclosure.
+    // The framing is in the block itself, not inside a disclosure.
     assert.equal(textOf(pick(document, ".spd-framing")), state.framing.statement);
-    const detail = pick(document, ".spd-detail");
-    assert.equal(detail.tagName, "DETAILS");
-    assert.equal(detail.children[0].tagName, "SUMMARY");
-    const text = textOf(detail);
+    // One group, and only one: the evidence for this finding is not scattered
+    // across peer controls down the panel.
+    assert.equal(body(document).querySelectorAll(".spd-disclosures").length, 1, name);
+    const details = group(document).querySelectorAll(".spd-detail");
+    assert.equal(details.length, SPEND_PER_DELIVERY_DISCLOSURES.length, name);
+    const text = textOf(group(document));
     for (const line of state.evidence) assert.ok(text.includes(line), `${name}: ${line}`);
     for (const line of state.confounders) assert.ok(text.includes(line), `${name}: ${line}`);
     assert.ok(text.includes(state.provenance.source));
-    assert.equal(detail.open, false, "closed by default, so it is disclosure and not noise");
+    for (const node of details) {
+      assert.equal(node.tagName, "DETAILS", name);
+      assert.equal(node.children[0].tagName, "SUMMARY", name);
+      assert.equal(node.open, false, "closed by default, so it is disclosure and not noise");
+    }
   }
 });
 
@@ -200,7 +222,7 @@ test("the bundled example dataset answers the question with its own release log"
   // Labelled as the example it is, on the line a reader checks provenance on.
   assert.equal(section(document).dataset.origin, "example");
   assert.match(textOf(pick(document, ".spd-provenance")), /example/i);
-  assert.match(textOf(pick(document, ".spd-detail")), /bundled example release log/);
+  assert.match(textOf(group(document)), /bundled example release log/);
   // A figure, its unit, and the framing that keeps it an observation.
   assert.match(textOf(pick(document, ".spd-figure")), /per completed release/);
   assert.match(textOf(pick(document, ".spd-framing")), /observational ratio/);
@@ -209,7 +231,10 @@ test("the bundled example dataset answers the question with its own release log"
 test("an imported export with an empty release log asks for a release, not for more billing", async () => {
   const { document } = await openFinopsTab();
   chooseExampleExports(document);
-  await waitFor(() => !section(document).hidden, "the delivery comparison to be painted");
+  // Visible is no longer the same as read: the panel unhides to say it is
+  // reading. The reading is the `ready` phase.
+  await waitFor(() => section(document).dataset.phase === SPEND_PER_DELIVERY_PHASE.ready
+    && !section(document).hidden, "the delivery comparison to be painted");
 
   assert.equal(section(document).dataset.state, SPEND_PER_DELIVERY_STATE.insufficient);
   assert.equal(section(document).dataset.reason, "no_delivery_evidence");
@@ -227,19 +252,25 @@ test("stored releases from another window reach the mismatched-period state", as
   // before any of it.
   const { document } = await openFinopsTab(releaseLog("2025-11-04", "2025-11-14", "2025-11-24"));
   chooseExampleExports(document);
-  await waitFor(() => !section(document).hidden, "the delivery comparison to be painted");
+  // Visible is no longer the same as read: the panel unhides to say it is
+  // reading. The reading is the `ready` phase.
+  await waitFor(() => section(document).dataset.phase === SPEND_PER_DELIVERY_PHASE.ready
+    && !section(document).hidden, "the delivery comparison to be painted");
 
   assert.equal(section(document).dataset.state, SPEND_PER_DELIVERY_STATE.mismatched);
   assert.equal(section(document).dataset.reason, "no_delivery_in_spend_window");
   assert.equal(pick(document, ".spd-figure"), null, "no ratio is published for a drifted window");
-  assert.match(textOf(pick(document, ".spd-detail")), /this browser's release log/);
+  assert.match(textOf(group(document)), /this browser's release log/);
 });
 
 test("stored releases inside the imported window publish a ratio the reader can check", async () => {
   const { document } = await openFinopsTab(
     releaseLog("2026-06-03", "2026-06-13", "2026-06-23"));
   chooseExampleExports(document);
-  await waitFor(() => !section(document).hidden, "the delivery comparison to be painted");
+  // Visible is no longer the same as read: the panel unhides to say it is
+  // reading. The reading is the `ready` phase.
+  await waitFor(() => section(document).dataset.phase === SPEND_PER_DELIVERY_PHASE.ready
+    && !section(document).hidden, "the delivery comparison to be painted");
 
   assert.equal(section(document).dataset.state, SPEND_PER_DELIVERY_STATE.eligible);
   assert.equal(section(document).dataset.origin, "import");
@@ -266,11 +297,11 @@ test("every painted state carries its classification, priority, and caveats", as
     assert.match(textOf(finding), /Priority \d: /, name);
     // The thresholds and the rules that fired are on the screen, not only in the
     // module: a disputed classification can be recomputed from what was rendered.
-    assert.match(textOf(finding), /Material change: 15%/, name);
-    assert.ok(finding.querySelector(".spd-finding-rationale").children.length >= 3, name);
-    assert.ok(finding.querySelector(".spd-finding-caveats").children.length >= 3, name);
+    assert.match(textOf(disclosure(document, "confidence")), /Material change: 15%/, name);
+    assert.ok(pick(document, ".spd-finding-rationale").children.length >= 3, name);
+    assert.ok(pick(document, ".spd-finding-caveats").children.length >= 3, name);
     // The framing sentence has its own paragraph; it is not repeated in the list.
-    assert.doesNotMatch(textOf(finding.querySelector(".spd-finding-caveats")),
+    assert.doesNotMatch(textOf(pick(document, ".spd-finding-caveats")),
       /not a return on investment/, name);
   }
 });
@@ -283,9 +314,11 @@ test("the panel cannot render a material rise without the direction it published
   assert.equal(finding.dataset.classification, "material_ratio_increase");
   assert.equal(finding.dataset.priorityRank, "2");
   assert.match(textOf(finding), /\+50\.0%/);
-  // And it still says, on screen, that this is not evidence either figure moved the
-  // other.
-  assert.match(textOf(finding), /not evidence that spend affected delivery/);
+  // And it still says, on screen, that this is not evidence either figure moved
+  // the other — now under the disclosure that owns the limits rather than beside
+  // the classification word.
+  assert.match(textOf(disclosure(document, "limits")),
+    /not evidence that spend affected delivery/);
 });
 
 test("an unalignable window renders the top-priority finding and no figure", async () => {
@@ -296,4 +329,204 @@ test("an unalignable window renders the top-priority finding and no figure", asy
   assert.equal(finding.dataset.classification, "invalid_period_alignment");
   assert.equal(finding.dataset.priorityRank, "1");
   assert.equal(pick(document, ".spd-figure"), null);
+});
+
+/* ----------------------- one finding, one disclosure group -------------------- */
+
+test("the question is the heading, and the answer is the first thing under it", async () => {
+  const { document, state } = await paint("eligible");
+  const heading = document.getElementById("spend-per-delivery-title");
+  assert.equal(heading.tagName, "H2", "a reader listing headings meets the question");
+  assert.match(textOf(heading), /\?$/);
+  // One region, and it supports the page's single complete summary rather than
+  // competing with it.
+  assert.equal(section(document).getAttribute("data-decision-summary"), "evidence");
+  // Answer, then figure, then comparison — a leader who reads one line reads the
+  // answer, and the metric they act on is the second thing on the screen.
+  const order = [...body(document).children].map((child) => child.className);
+  assert.deepEqual(order.slice(0, 3), ["spd-answer", "spd-figure", "spd-comparison"]);
+  assert.equal(textOf(body(document).children[0]), state.statement);
+  // Exactly one prioritized action, and the group is the last thing in the body.
+  assert.equal(body(document).querySelectorAll(".spd-action").length, 1);
+  assert.equal(body(document).children.at(-1).className, "spd-disclosures");
+});
+
+test("the six topics a reader can dispute each have their own disclosure", async () => {
+  const { document, state } = await paint("eligible");
+  assert.deepEqual(
+    [...group(document).querySelectorAll(".spd-detail")].map((node) => node.dataset.disclosure),
+    SPEND_PER_DELIVERY_DISCLOSURES.map((entry) => entry.key));
+
+  // Period alignment names the window and says, in a word, whether the two sides
+  // describe it.
+  const alignment = disclosure(document, "period-alignment");
+  assert.ok(textOf(alignment).includes(state.window.start));
+  assert.ok(textOf(alignment).includes(`${state.window.days} days`));
+  assert.equal(alignment.querySelector(".spd-alignment").dataset.aligned, "true");
+  assert.match(textOf(alignment), /Aligned/);
+  // Release counts carry the derivation's own evidence lines and both floors.
+  const counts = disclosure(document, "release-counts");
+  for (const line of state.evidence) assert.ok(textOf(counts).includes(line), line);
+  assert.match(textOf(counts), /at least 14 days/);
+  assert.match(textOf(counts), /at least 3 releases recorded as completed/);
+  // Excluded records are structured facts, not a re-reading of the counts: the
+  // baseline periods that failed the floor and the source text never carried.
+  const excluded = disclosure(document, "excluded-records");
+  assert.match(textOf(excluded), /excluded from the trailing baseline/,
+    "a clean baseline says so rather than staying silent");
+  assert.match(textOf(excluded), /release\.version/);
+  // Provenance names the source and whether the basis was complete.
+  assert.ok(textOf(disclosure(document, "provenance")).includes(state.provenance.source));
+  // Confidence carries the basis and every threshold the classification used.
+  const confidence = disclosure(document, "confidence");
+  assert.ok(textOf(confidence).includes(state.confidence.basis));
+  assert.match(textOf(confidence), /Single-release sensitivity/);
+  // And the limits are stated as limits, with all six confounders.
+  const limits = disclosure(document, "limits");
+  for (const line of state.confounders) assert.ok(textOf(limits).includes(line), line);
+});
+
+test("a disclosure the reader opened survives a repaint of the same reading", async () => {
+  const { document } = await paint("eligible");
+  const opened = disclosure(document, "excluded-records");
+  // Native control: a summary inside a details, with nothing bolted on top of the
+  // keyboard behaviour the browser already gives it.
+  const summary = opened.children[0];
+  assert.equal(summary.tagName, "SUMMARY");
+  assert.equal(summary.getAttribute("tabindex"), null);
+  assert.equal(summary.getAttribute("role"), null);
+  toggleDisclosure(opened);
+
+  // Same reading, painted again: the reader's open control comes back open and
+  // the five they did not touch stay closed.
+  applySpendPerDelivery(document, spendPerDeliveryFixture("eligible"));
+  assert.equal(disclosure(document, "excluded-records").open, true);
+  assert.equal(disclosure(document, "period-alignment").open, false);
+
+  // A different reading closes it: a panel left open would caption the evidence
+  // of a window that is no longer on screen.
+  applySpendPerDelivery(document, spendPerDeliveryFixture("mismatched"));
+  assert.equal(disclosure(document, "excluded-records").open, false);
+});
+
+test("nothing the panel renders reframes the ratio as a return or a cause", async () => {
+  for (const name of ["eligible", "insufficient", "mismatched"]) {
+    const { document, state } = await paint(name);
+    // Every disclosure is opened so the scan reaches the prose behind them too.
+    for (const node of group(document).querySelectorAll(".spd-detail")) node.open = true;
+    const rendered = textOf(body(document));
+    assert.ok(rendered.length > 2000, `${name}: the panel publishes prose to scan`);
+    for (const claim of state.framing.forbiddenClaims) {
+      const pattern = new RegExp(`\\b${claim.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
+      // The framing sentence is the one string allowed to name the claims,
+      // because it is the sentence that denies them.
+      const offenders = [...body(document).querySelectorAll("p,li,span,h3,h4,summary")]
+        .map(textOf)
+        .filter((text) => pattern.test(text) && !state.framing.statement.includes(text));
+      assert.deepEqual(offenders, [], `${name}: "${claim}" reached the screen`);
+    }
+  }
+});
+
+/* ------------------- loading, missing data, and a failed read ----------------- */
+
+test("the loading phase captions the panel without blanking the reading under it",
+  async () => {
+    const { document, state } = await paint("eligible");
+    const status = applySpendPerDeliveryPhase(document, SPEND_PER_DELIVERY_PHASE.loading);
+    assert.equal(section(document).dataset.phase, SPEND_PER_DELIVERY_PHASE.loading);
+    assert.equal(section(document).getAttribute("aria-busy"), "true");
+    // A wait that ends is worth one polite announcement, not an alert.
+    assert.equal(status.querySelector(".spd-status-line").getAttribute("role"), "status");
+    assert.match(textOf(status), /Reading/);
+    // The figure a reader was already looking at is still there, and is labelled
+    // as the previous one rather than silently left to look current.
+    assert.equal(textOf(pick(document, ".spd-answer")), state.statement);
+    assert.match(textOf(status), /previous one/);
+
+    // And the reading that arrives clears the caption and the busy state.
+    applySpendPerDelivery(document, spendPerDeliveryFixture("eligible"));
+    assert.equal(pick(document, ".spd-status"), null);
+    assert.equal(section(document).dataset.phase, SPEND_PER_DELIVERY_PHASE.ready);
+    assert.equal(section(document).getAttribute("aria-busy"), null);
+  });
+
+test("a failed read is an alert, and says what to do about it", async () => {
+  const { document } = await loadPage(PAGE);
+  const status = applySpendPerDeliveryPhase(document, SPEND_PER_DELIVERY_PHASE.error,
+    { detail: "Choose a provider export for the period you want to compare." });
+  assert.equal(section(document).hidden, false, "the question is still asked");
+  assert.equal(section(document).dataset.phase, SPEND_PER_DELIVERY_PHASE.error);
+  assert.equal(section(document).getAttribute("aria-busy"), null);
+  assert.equal(status.querySelector(".spd-status-line").getAttribute("role"), "alert");
+  // Colour is never the only channel: the word is in the text beside the shape.
+  assert.match(textOf(status), /Not read/);
+  assert.equal(status.querySelector(".spd-shape").getAttribute("aria-hidden"), "true");
+  assert.match(textOf(status), /Choose a provider export/);
+  assert.match(textOf(live(document)), /could not be read/);
+
+  // The page owns the announcement for a failure it already reported once, so the
+  // same caption can step down to a note without losing the word or the tone.
+  const quiet = applySpendPerDeliveryPhase(document, SPEND_PER_DELIVERY_PHASE.error,
+    { detail: "This file was rejected.", announce: false });
+  assert.equal(quiet.querySelector(".spd-status-line").getAttribute("role"), "note");
+  assert.equal(quiet.dataset.phase, SPEND_PER_DELIVERY_PHASE.error);
+});
+
+test("an analysis with no recorded release is marked as missing delivery evidence",
+  async () => {
+    const { document, state } = await paint("insufficient");
+    assert.equal(section(document).dataset.reason, "no_delivery_evidence");
+    assert.equal(section(document).dataset.deliveryEvidence, "missing");
+    // The action is the one that creates the missing denominator, and it is the
+    // only one: an insufficient reading is still one decisive finding.
+    assert.equal(body(document).querySelectorAll(".spd-action").length, 1);
+    assert.equal(state.nextAction.rank, 1);
+    assert.match(textOf(pick(document, ".spd-action")), /release log/);
+    // The alignment disclosure says the two sides are not aligned rather than
+    // implying a window that was never established.
+    assert.equal(disclosure(document, "period-alignment")
+      .querySelector(".spd-alignment").dataset.aligned, "false");
+    // And a later eligible reading takes the marker away with it.
+    applySpendPerDelivery(document, spendPerDeliveryFixture("eligible"));
+    assert.equal(section(document).dataset.deliveryEvidence, undefined);
+  });
+
+test("a rejected import captions the delivery panel instead of leaving it reading",
+  async () => {
+    const { document } = await openFinopsTab();
+    const input = document.getElementById("local-finops-files");
+    input.files = [{
+      name: "not-an-export.json", type: "application/json",
+      text: async () => JSON.stringify({ unrelated: true }),
+    }];
+    input.dispatchEvent(new DomEvent("change", { bubbles: true }));
+    await waitFor(() => section(document).dataset.phase === SPEND_PER_DELIVERY_PHASE.error,
+      "the delivery panel to report the rejected file");
+
+    assert.equal(section(document).getAttribute("aria-busy"), null);
+    assert.match(textOf(pick(document, ".spd-status")), /Not read/);
+    // One alert for one failure: the page's own status region already announced
+    // it, so this caption is a note.
+    assert.equal(pick(document, ".spd-status-line").getAttribute("role"), "note");
+    assert.match(textOf(pick(document, ".spd-status")), /No reading here was replaced/);
+  });
+
+test("the disclosure group and its controls hold up at any width", async () => {
+  const css = await readFile(STYLESHEET, "utf8");
+  const block = css.slice(css.indexOf(".spend-per-delivery {"));
+  // One stacked group rather than a fixed grid: six summaries of different
+  // lengths must not be forced into columns that clip them.
+  assert.match(block, /\.spd-disclosures \{[^}]*display:grid/);
+  assert.ok(!/[^-]width:\s*\d+px/.test(block), "a fixed pixel width would clip a summary");
+  assert.match(block, /\.spd-detail-summary \{[^}]*min-height:44px/);
+  assert.match(block, /\.spd-detail-summary \{[^}]*overflow-wrap:anywhere/);
+  assert.match(block, /\.spd-detail-summary:focus-visible \{[^}]*var\(--focus-ring\)/);
+  // The question wraps and is sized against the viewport rather than pinned.
+  assert.match(block, /\.spd-question \{[^}]*clamp\(/);
+  assert.match(block, /\.spd-question \{[^}]*overflow-wrap:anywhere/);
+  // The error phase is the only one that reaches for the error family.
+  assert.match(block, /\.spd-status\[data-phase="error"\] \{[^}]*var\(--state-error-line\)/);
+  assert.ok(!/\.spd-status \{[^}]*--state-error/.test(block),
+    "a panel that is merely reading must not be drawn as broken");
 });

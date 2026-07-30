@@ -1142,23 +1142,32 @@
         <p class="org-coaching-live" id="org-coaching-live" role="status" aria-live="polite" aria-atomic="true"></p>
       </section>
 
-      <!-- Recorded AI spend against recorded delivery, for a reader who has to
-           answer "is this spend keeping pace with what we shipped, and can I
-           trust the comparison?". It is a sibling panel and not the page's
-           headline: the leading finding above still owns the one decision, and
-           this answers a second question with its own eligibility.
+      <!-- ONE DECISIVE FINDING about recorded AI spend against recorded
+           delivery, for a leader who has to answer "is this spend keeping pace
+           with what we shipped, and can I trust the comparison?".
+
+           The heading IS the question, so a reader listing headings meets the
+           thing this region answers rather than a styled label. It is declared
+           `data-decision-summary="evidence"`: the page's one complete summary
+           still answers "are we wasting money?" above, and a second region
+           claiming a complete answer would break the single-summary rule in
+           finops-decision-contract.js. This one answers its own question
+           completely and supports that one.
 
            Authored empty and hidden like the panels around it. The answer
-           sentence, the figure, the baseline comparison, the confidence, the
-           framing line, the one prioritized action and the disclosure are all
-           painted by spend-per-delivery-view.js out of the state
-           spend-per-delivery.js computes; these are slots, never wording. The
-           three states a reader can reach — eligible, insufficient, and a
-           mismatched period — are that module's, so no branch here can invent a
-           fourth. Nothing but dates, dollar totals and release versions reaches
-           this section. -->
-      <section class="spend-per-delivery" id="spend-per-delivery" data-state="absent" aria-labelledby="spend-per-delivery-title" hidden>
-        <h2 class="eyebrow" id="spend-per-delivery-title">Is AI spend keeping pace with shipped delivery?</h2>
+           sentence, the figure, the prior-period comparison, the classification,
+           the confidence, the framing line, the one prioritized action and the
+           six-topic disclosure group are all painted by
+           spend-per-delivery-view.js out of the state spend-per-delivery.js
+           computes and the finding delivery-efficiency-finding.js scores; these
+           are slots, never wording. The three reading states — eligible,
+           insufficient, and a mismatched period — are the contract's, and the
+           two phases that are not a reading, `loading` and `error`, are the
+           view's; no branch here can invent a sixth. Nothing but dates, dollar
+           totals and release counts reaches this section. -->
+      <section class="spend-per-delivery" id="spend-per-delivery" data-state="absent" data-phase="ready" data-decision-summary="evidence" role="region" aria-labelledby="spend-per-delivery-title" hidden>
+        <p class="eyebrow">Spend against shipped delivery</p>
+        <h2 class="spd-question" id="spend-per-delivery-title" tabindex="-1">Is AI spend keeping pace with shipped delivery?</h2>
         <div id="spend-per-delivery-body"></div>
         <p class="spend-per-delivery-live" id="spend-per-delivery-live" role="status" aria-live="polite" aria-atomic="true"></p>
       </section>
