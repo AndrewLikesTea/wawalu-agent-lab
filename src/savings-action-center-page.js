@@ -13,6 +13,12 @@ import { assembleRecurringReview } from "/recurring-review-readiness.js";
 import {
   journeySnapshotPaintKey, restoreJourneySnapshot,
 } from "/finops-journey-snapshot.js";
+// The whole journey on this surface: evidence, the one prioritized step, and the
+// checkpoint that will judge it. It composes the same restored snapshot this
+// entry already read — nothing is read from storage twice — and it decides
+// nothing the contracts below have not already decided.
+import { consolidateJourney } from "/finops-journey-consolidated.js";
+import { renderConsolidatedJourney } from "/finops-journey-consolidated-view.js";
 import { browserFinopsWorkspaceStorage } from "/finops-workspace.js";
 import { loadDecisions } from "/app.js";
 import { loadReleases } from "/releases.js";
@@ -136,6 +142,13 @@ function renderClaim() {
   const restored = restoreJourneySnapshot(storage);
   const { retainedAction, currentAnalysis, theoVerdict } = restored;
   const review = assembleRecurringReview({ retainedAction, currentAnalysis, theoVerdict });
+  // The consolidated journey, from the same restored snapshot. `new Date()` is
+  // read here, at the edge, and passed in: the model is a pure function of its
+  // arguments, so the same records always produce the same journey. A journey
+  // that has not changed is left standing by the view itself, which is what keeps
+  // an evidence read from closing the disclosures a reader opened.
+  renderConsolidatedJourney(document,
+    consolidateJourney({ restored, now: new Date(), surface: "review" }));
   // An unchanged review is left standing. Every evidence read repaints this
   // region, and rebuilding a review nothing moved would close the disclosures
   // the reader opened and take the keyboard with them — the same rule the

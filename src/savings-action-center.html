@@ -7,6 +7,10 @@
     <title>Monthly Savings Action Center · Shiplog</title>
     <link rel="stylesheet" href="/styles.css" />
     <link rel="stylesheet" href="/savings-action-center.css" />
+    <!-- Shared with the AI FinOps briefing: the consolidated journey region is
+         one thing on both surfaces, and two copies of its rules is how one
+         surface's disclosure becomes a different control from the other's. -->
+    <link rel="stylesheet" href="/finops-journey-consolidated.css" />
   </head>
   <body>
     <a class="skip-link" href="#main-content">Skip to main content</a>
@@ -46,6 +50,33 @@
            which narrates file reads: this one says what view the reader is now
            in and what state it resolved to, once, when it resolves. -->
       <p class="visually-hidden" id="sac-journey-live" role="status" aria-live="polite" aria-atomic="true"></p>
+
+      <!-- THE SAME CONSOLIDATED JOURNEY THE BRIEFING SHIPS, on the surface a
+           lead actually arrives at from it.
+
+           This page answers "is this month's review ready to act on?" and the
+           region below it does that in full. What it never carried is the arc
+           either side of that answer: the one prioritized step from the
+           next-step contract, and the checkpoint that will later say whether the
+           step worked. A lead who wanted those had to go back to the briefing.
+
+           So the journey region is authored here too, identically, and painted
+           by the same module — the entry composes it from this browser's own
+           restored snapshot rather than from a second read of the same records.
+           It sits above "Your own months" because it is the frame the file
+           controls below it belong to, and it takes no focus: the transition
+           still lands the keyboard on the review's own heading. -->
+      <section class="finops-journey" id="finops-journey" data-phase="pending" data-source="unknown" aria-labelledby="finops-journey-question">
+        <div class="fjc-head">
+          <p class="eyebrow" id="finops-journey-label">This month · evidence, action, and the checkpoint</p>
+          <h2 id="finops-journey-question">What do I do next, and what will tell me it worked?</h2>
+        </div>
+        <p class="sample-marker" id="finops-journey-sample">Read from this browser's own retained records. Nothing was uploaded or fetched to build this.</p>
+        <div id="finops-journey-body">
+          <p class="fjc-headline">No journey records have been read yet, so no step is recommended from them.</p>
+        </div>
+        <p class="visually-hidden" id="finops-journey-live" role="status" aria-live="polite" aria-atomic="true"></p>
+      </section>
 
       <section class="sac-evidence" aria-labelledby="sac-evidence-title">
         <h2 id="sac-evidence-title">Your own months</h2>
