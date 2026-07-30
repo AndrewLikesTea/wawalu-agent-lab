@@ -94,9 +94,24 @@ test("every reviewed page exposes exactly one main landmark, and the skip link t
       `${file}: the landmark must not become a tab stop of its own`,
     );
 
-    // The landmark is the content region, so the header and nav sit outside it:
-    // skipping to a <main> that wraps the nav skips nothing.
-    assert.equal(landmark.querySelectorAll("nav").length, 0, `${file}: the site nav is inside the main landmark`);
+    // The landmark is the content region, so the header and the site nav sit
+    // outside it: skipping to a <main> that wraps the site nav skips nothing.
+    //
+    // Written as "no *site* nav" rather than "no nav at all", which is what it
+    // used to say. In-page wayfinding inside the content region is legitimate —
+    // the AI FinOps workspace rail is one — and the requirement for it is not
+    // that it be absent but that a screen-reader user can tell it apart from the
+    // site nav, which means an accessible name of its own.
+    assert.equal(landmark.querySelectorAll(".site-nav").length, 0, `${file}: the site nav is inside the main landmark`);
+    for (const nav of landmark.querySelectorAll("nav")) {
+      const labelledBy = nav.getAttribute("aria-labelledby");
+      const name = labelledBy
+        ? textOf(document.getElementById(labelledBy) ?? { textContent: "" })
+        : (nav.getAttribute("aria-label") ?? "");
+      assert.ok(name, `${file}: a navigation landmark inside <main> has no accessible name`);
+      assert.notEqual(name, document.querySelector(".site-nav")?.getAttribute("aria-label"),
+        `${file}: an in-page nav shares its name with the site nav`);
+    }
     assert.equal(landmark.querySelectorAll(".site-header").length, 0, `${file}: the site header is inside the main landmark`);
   }
 });
