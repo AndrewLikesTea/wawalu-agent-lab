@@ -178,6 +178,13 @@ import { loadWorkspaceDestinations } from "/finops-destination-contract.js";
 import {
   applyWorkspaceDestinations, supersedeWorkspaceDestinations,
 } from "/finops-destination-view.js";
+// And the rail that says where the reader currently is. It consumes the same
+// contract — the hrefs and the promoted door come from that record, not from a
+// second list — but it is navigation rather than a recommendation, so it survives
+// the supersession that retires the ranking.
+import {
+  applyWorkspaceNav, bindWorkspaceNav, supersedeWorkspaceNavRanking,
+} from "/finops-workspace-nav.js";
 import {
   announce as announceStage, applyDatasetProvenance, applyExportPackageGuidance,
   applyFieldDiagnostic, applyImportLimits, applyOrgQuerySources, applyOrgQuerySourceStatus,
@@ -1028,6 +1035,10 @@ function mountLocalFinopsImport() {
     // order they are in was ranked from the invented dataset, so it retires with
     // the example rather than recommending a first step off data nobody imported.
     supersedeWorkspaceDestinations(document, Boolean(result));
+    // The rail keeps its doors — they are places, and a reader who has just
+    // imported their own export needs them more than anyone — and loses only the
+    // "Recommended first" chip, which was ranked from the invented dataset.
+    supersedeWorkspaceNavRanking(document, Boolean(result));
     const painted = applyPanelFacts(executivePanelFacts(), {
       imported: Boolean(result) && !exampleActive,
     });
@@ -2692,7 +2703,15 @@ async function init() {
   // contract in the same synchronous pass as the brief above — it waits on no
   // fetch, so the prioritized destination is actionable in the first viewport
   // even on the run where the bundled fixture never arrives.
-  applyWorkspaceDestinations(document, loadWorkspaceDestinations());
+  const destinations = loadWorkspaceDestinations();
+  applyWorkspaceDestinations(document, destinations);
+  // The wayfinding rail, from the same loaded record and in the same synchronous
+  // pass. Its four doors are authored anchors that already work; this corrects
+  // their hrefs from the contract, marks the promoted one, and binds the part a
+  // plain anchor cannot do — unfolding the panel the target sits inside, moving
+  // the keyboard there, and saying so once.
+  applyWorkspaceNav(document, destinations, { hash: window.location?.hash ?? "" });
+  bindWorkspaceNav(document);
   initFinopsContact(document);
   const gateway = createStaticGateway();
   const refreshGateway = document.getElementById("integration-gateway-refresh");

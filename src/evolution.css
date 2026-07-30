@@ -983,6 +983,69 @@
 .dest-other-answers { margin:3px 0 0; max-width:76ch; font-size:12.5px; line-height:1.6; }
 /* What the door will not tell you, dashed like every other bounded claim here. */
 .dest-other-limit { margin:4px 0 0; max-width:76ch; border-left:2px dashed var(--state-warn-line); padding-left:9px; color:var(--state-warn-ink); font-size:12px; line-height:1.55; }
+/* THE WORKSPACE RAIL. Quieter than both regions above it, and deliberately not
+   drawn as a panel: no gradient, no accent rule down the side, the page's own
+   soft neutral fill. It is wayfinding, and wayfinding that competes with the
+   answer for attention is a fifth thing to read rather than a way around.
+
+   Composed entirely from tokens this stylesheet already declares — the neutral
+   #f7f6f1 the import panel's own sub-surfaces use, --panel-border, --import-ink,
+   --import-accent, --ink-muted, --focus-ring — so it inherits every contrast
+   decision already made on this surface and introduces no sixth hue. */
+.workspace-nav { display:grid; gap:12px; margin:0 0 22px; border:1px solid var(--panel-border); border-radius:13px; padding:clamp(14px,2.2vw,19px); background:#f7f6f1; }
+.workspace-nav-head { display:grid; gap:5px; }
+/* Mono at the nav end of the type scale, which is the role this surface already
+   gives mono: wordmark and navigation. It is a real h2 so the landmark has a
+   visible accessible name, sized so it reads as a label rather than as a third
+   question competing with the two above it. */
+.workspace-nav-title { margin:0; color:var(--import-ink); font:700 12.5px/1.4 ui-monospace,monospace; letter-spacing:.07em; text-transform:uppercase; }
+.workspace-nav-note { margin:0; max-width:76ch; color:var(--ink-muted); font-size:12.5px; line-height:1.6; }
+.workspace-nav-note strong { color:var(--import-ink); }
+/* Wrapping, at every width, with no track that can collapse. Four doors whose
+   labels are two or three words each fit one line on a desktop and stack into
+   two or three rows at 320px; nothing here is a fixed column, nothing is
+   `nowrap`, and every label may break inside a word rather than push the page
+   sideways. A rail a reader has to scroll horizontally to see is a rail that
+   hides half the workspace on the device most likely to need it. */
+.workspace-nav-list { display:flex; flex-wrap:wrap; gap:9px; margin:0; padding:0; list-style:none; }
+.workspace-nav-item { display:flex; min-width:0; }
+.workspace-dest { display:inline-flex; align-items:baseline; flex-wrap:wrap; gap:4px 8px; min-width:0; min-height:44px; border:1px solid var(--import-line); border-radius:9px; padding:10px 14px; background:#fff; color:var(--import-ink); font-size:13.5px; font-weight:700; line-height:1.4; text-decoration:none; overflow-wrap:anywhere; }
+.workspace-dest:hover { border-color:var(--import-accent); }
+.workspace-dest:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+/* THE CURRENT DESTINATION, in four channels at once: a solid left rule, a
+   heavier weight, a filled chip, and the word "Current" inside the link's own
+   accessible name. The fill is the wash the panel above already uses for a live
+   state — filled wash for a dynamic signal, outline for a static classification —
+   and it is deliberately *not* the filled accent of the ranked door above this
+   rail: "where you are" and "where you should go first" are different claims and
+   must not share one silhouette. Colour is the last of the four channels, so
+   greyscale, print, and a screen reader each still carry the state. */
+.workspace-dest[aria-current="true"] { border-color:var(--import-accent); border-left:5px solid var(--import-accent); padding-left:10px; background:var(--import-wash); font-weight:750; }
+.workspace-dest-shape { flex:none; font-size:11px; font-weight:750; }
+.workspace-dest-name { min-width:0; }
+.workspace-dest-state { flex:none; border-radius:99px; padding:2px 8px; background:var(--import-accent); color:#fff; font:700 10px/1.5 ui-monospace,monospace; letter-spacing:.05em; text-transform:uppercase; }
+/* The recommendation, echoing the clause that ranked the door above. Outline
+   rather than filled: it classifies the door, it is not a live state of it. */
+.workspace-dest-recommended { flex:none; border:1px solid var(--import-accent); border-radius:99px; padding:2px 8px; color:var(--import-ink); font:700 10px/1.5 ui-monospace,monospace; letter-spacing:.05em; text-transform:uppercase; }
+/* Leaves the page: a neutral outline, because it is a fact about the door rather
+   than a state of the reader. */
+.workspace-dest-kind { flex:none; border:1px dashed var(--import-line); border-radius:99px; padding:2px 8px; color:var(--import-ink); font:600 10px/1.5 ui-monospace,monospace; letter-spacing:.04em; text-transform:uppercase; }
+.workspace-nav-detail>summary { list-style:none; cursor:pointer; color:var(--import-ink); font-size:13px; font-weight:700; }
+.workspace-nav-detail>summary::marker { content:""; }
+.workspace-nav-detail>summary::-webkit-details-marker { display:none; }
+.workspace-nav-detail>summary:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; border-radius:5px; }
+.workspace-nav-detail-heading { display:flex; align-items:baseline; flex-wrap:wrap; gap:6px 12px; margin:0; color:var(--import-ink); font-size:13px; font-weight:700; line-height:1.5; }
+.workspace-nav-detail-state { display:inline-flex; align-items:baseline; gap:5px; flex:none; border-radius:99px; padding:2px 9px; background:#e2ebe6; color:var(--import-ink); font:700 10.5px/1.5 ui-monospace,monospace; letter-spacing:.05em; text-transform:uppercase; }
+.workspace-nav-detail-state[data-disclosure="expanded"] { background:var(--import-accent); color:#fff; }
+.workspace-nav-detail-list { display:grid; gap:11px; margin:12px 0 0; }
+.workspace-nav-detail-list dt { color:var(--ink-muted); font:700 10px/1.5 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; }
+.workspace-nav-answers { margin:3px 0 0; max-width:80ch; color:#4c5650; font-size:12.5px; line-height:1.6; overflow-wrap:anywhere; }
+/* What a door will not tell you, dashed like every other bounded claim here. */
+.workspace-nav-limit { margin:4px 0 0; max-width:80ch; border-left:2px dashed var(--state-warn-line); padding-left:9px; color:var(--state-warn-ink); font-size:12px; line-height:1.55; overflow-wrap:anywhere; }
+/* The region the rail sent the reader to, marked down its own side so the place
+   they landed agrees with the door they pressed. Decoration only — the state
+   itself is stated in words back in the rail. */
+section[data-workspace-current="true"] { box-shadow:-6px 0 0 0 var(--import-wash); }
 .dest-derivation { display:grid; gap:10px; margin:12px 0 0; }
 .dest-derivation dt { color:var(--ink-muted); font:700 10px/1.5 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; }
 .dest-derivation dd { margin:3px 0 0; max-width:80ch; color:#4c5650; font-size:12.5px; line-height:1.6; overflow-wrap:anywhere; }
