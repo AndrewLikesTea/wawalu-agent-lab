@@ -621,10 +621,10 @@ test("a release can be associated with a decision from the UI", async () => {
   );
 });
 
-// FOLLOW-UP 3: the export panel's count is computed once at page load, so after
-// recording a decision the panel still offers to export the old number while
-// the button downloads the new one.
-test("the export panel count follows the records the user just recorded", { todo: "the export count is only computed at page load" }, async (t) => {
+// FOLLOW-UP 3, now closed: the count used to be computed once at page load, so
+// after recording a decision the panel offered to export the old number while
+// the button downloaded the new one. The panel subscribes to the write instead.
+test("the export panel count follows the records the user just recorded", async (t) => {
   const page = await openHistory(t);
 
   fillDecisionForm(page, NEW_DECISION);

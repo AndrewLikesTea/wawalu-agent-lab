@@ -9,6 +9,7 @@ import { STORED_DECISION_STATUSES, canonicalDecisionStatus } from "./decision-st
 import { dedupeById } from "./demo-data.js";
 import { initLeadCapture } from "./lead-capture.js";
 import { retentionDeclined, retentionRefusal } from "./local-retention.js";
+import { recordsChanged } from "./shiplog-records.js";
 import { overdueDecisionFinding } from "./overdue-decision.js";
 import { renderOverdueFinding } from "./overdue-decision-view.js";
 import { EXAMPLE_LABEL, SAMPLE_RELEASE_ID, SEED_DECISIONS, SEED_RELEASES } from "./seed-records.js";
@@ -1155,6 +1156,10 @@ export async function initDecisionLog(root = document, storage = localStorage, o
     // screen before focus returns to the form — there is nothing to reload and
     // nothing to wait for.
     refresh();
+    // Only when the write landed. Everything downstream — the export panel's
+    // count is the one that exists today — re-reads the store, so announcing a
+    // refused save would advertise a record the file will not contain.
+    if (saved) recordsChanged(root);
     // …unless the visitor's own filters exclude it. A save deliberately does not
     // reset them, so the status line says which of the two happened rather than
     // leaving somebody hunting for a row that was filtered away.
