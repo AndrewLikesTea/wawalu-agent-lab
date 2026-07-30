@@ -181,6 +181,11 @@ export async function verifyArtifact(root) {
     // claim, with nothing on the artifact to say why.
     "finops-decision-contract.js", "finops-decision-fixture.json",
     "finops-first-run.js", "finops-first-run-view.js",
+    // The headline answer the AI FinOps view leads with. Both are hard imports
+    // of the page entry: a narrowed artifact that drops either one is not a
+    // missing panel, it is a rejected entry module and a first viewport whose
+    // headline never leaves "Not yet compared".
+    "finops-stand.js", "finops-stand-view.js",
     // The recurring monthly review: its destination, the entry, the view, the
     // stylesheet the readiness tone is carried in, and the contract that decides
     // whether the review may be acted on. The entry imports the contract and the
