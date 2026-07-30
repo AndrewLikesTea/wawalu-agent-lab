@@ -29,6 +29,6 @@ if (preview) {
   );
   preview.querySelector("#finops-erase-copy").textContent =
     `Complete FinOps erasure removes ${FINOPS_WORKSPACE_KEY} and ${FINOPS_LABELS_KEY}, then reads `
-    + "both keys back to verify they are empty. It returns FinOps consent to never asked. Shiplog "
+    + "every key back to verify it is empty. It returns FinOps consent to never asked. Shiplog "
     + "decisions and releases, and any JSON file you already downloaded, are left alone.";
 }

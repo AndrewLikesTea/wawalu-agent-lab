@@ -540,7 +540,7 @@ const ALLOWED_MODULES = Object.freeze([
   "grade-eligibility.js", "landing-decision-page.js", "landing-decision.js", "local-finops.js",
   "longitudinal-finops-metrics.js", "multi-provider-intake.js", "org-unit-labels.js", "prompt-literacy-scoring.js",
   "provider-usage-record.js", "query-classification.js", "query-literacy.js", "query-sample.js",
-  "unit-pseudonym.js",
+  "unit-pseudonym.js", "monthly-department-action-store.js",
 ]);
 
 /**

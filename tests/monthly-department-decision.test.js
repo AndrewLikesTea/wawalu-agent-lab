@@ -9,8 +9,13 @@ import {
 } from "../src/monthly-department-decision.js";
 import { applyMonthlyDepartmentDecision } from "../src/monthly-department-decision-view.js";
 import {
-  FINOPS_CONSENT, readRetainedCommitments, retainFinopsPeriod, setFinopsConsent,
+  FINOPS_CONSENT, finopsWorkspaceFile, forgetFinopsWorkspace, readRetainedCommitments,
+  retainFinopsPeriod, setFinopsConsent,
 } from "../src/finops-workspace.js";
+import {
+  compareMonthlyAction, MONTHLY_ACTION_KEY, MONTHLY_ACTION_VERSION,
+  projectMonthlyAction, readMonthlyAction, writeMonthlyAction,
+} from "../src/monthly-department-action-store.js";
 import { loadPage, textOf } from "./support/browser.js";
 
 const PAGE = new URL("../src/evolution.html", import.meta.url);
@@ -288,12 +293,13 @@ test("track and decline are explicit, consent-gated controls with an honest save
   applyMonthlyDepartmentDecision(second.document, pack(), { storage, now });
   second.document.querySelector(".monthly-decision-commit").click();
   assert.equal(readRetainedCommitments(storage).length, 1);
+  assert.equal(readMonthlyAction(storage).status, "restored");
   assert.match(textOf(second.document.querySelector(".monthly-decision-outcome")),
     /awaiting a compatible later analysis/i);
 
 });
 
-test("later review ranks comparable movement and refuses incompatible analyses", async () => {
+test("later review compares the committed metric and refuses incompatible analyses", async () => {
   const now = new Date("2026-07-20T12:00:00.000Z");
   const storage = storageOf();
   setFinopsConsent(storage, FINOPS_CONSENT.granted, { now });
@@ -304,13 +310,17 @@ test("later review ranks comparable movement and refuses incompatible analyses",
   retainFinopsPeriod(storage, period("2026-07", 500000), { now });
   retainFinopsPeriod(storage, period("2026-08", 450000), { now });
   page = await loadPage(PAGE);
-  applyMonthlyDepartmentDecision(page.document, pack(), { storage, now });
+  applyMonthlyDepartmentDecision(page.document, pack(lead({ monthlySavingsUsd: 1600 })), {
+    storage,
+    now,
+    cycle: { period: "2026-08", deadline: "2026-08-31", reviewPeriod: "2026-09" },
+  });
   let review = page.document.querySelector(".monthly-decision-review");
   assert.equal(review.dataset.state, "comparable");
   assert.equal(review.getAttribute("aria-label"), "Later monthly review: Comparable result");
-  assert.match(textOf(review), /Earlier analyzed spend\$5,000\.00/);
-  assert.match(textOf(review), /Current analyzed spend\$4,500\.00/);
-  assert.match(textOf(review), /analyzed spend went down/i);
+  assert.match(textOf(review), /Committed baseline\$1,840\.00/);
+  assert.match(textOf(review), /Current result\$1,600\.00/);
+  assert.match(textOf(review), /changed by \$240\.00/i);
   assert.match(textOf(review), /does not measure, attribute, or verify savings/i);
 
   const incompatible = storageOf();
@@ -322,7 +332,11 @@ test("later review ranks comparable movement and refuses incompatible analyses",
   retainFinopsPeriod(incompatible,
     period("2026-08", 450000, "finops-briefing/2.0.0"), { now });
   page = await loadPage(PAGE);
-  applyMonthlyDepartmentDecision(page.document, pack(), { storage: incompatible, now });
+  applyMonthlyDepartmentDecision(page.document, pack(lead({ basis: "signal_share" })), {
+    storage: incompatible,
+    now,
+    cycle: { period: "2026-08", deadline: "2026-08-31", reviewPeriod: "2026-09" },
+  });
   review = page.document.querySelector(".monthly-decision-review");
   assert.equal(review.dataset.state, "non-comparable");
   assert.equal(review.getAttribute("aria-label"), "Later monthly review: Not comparable");
@@ -368,7 +382,7 @@ test("tracked, awaiting, comparable, and non-comparable states announce text, no
   let review = page.document.querySelector(".monthly-decision-review");
   assert.equal(review.dataset.state, "awaiting");
   assert.equal(review.getAttribute("aria-label"), "Later monthly review: Awaiting analysis");
-  assert.match(textOf(review), /○Awaiting analysis.*second compatible retained period/i);
+  assert.match(textOf(review), /○Awaiting analysis.*compatible later monthly analysis/i);
   // Rendered once with the page, so it is a named landmark, not a live region that
   // reads the whole block out on load.
   assert.equal(review.getAttribute("aria-live"), null);
@@ -376,10 +390,63 @@ test("tracked, awaiting, comparable, and non-comparable states announce text, no
   retainFinopsPeriod(storage, period("2026-07", 500000), { now });
   retainFinopsPeriod(storage, period("2026-08", 450000), { now });
   page = await loadPage(PAGE);
-  applyMonthlyDepartmentDecision(page.document, pack(), { storage, now });
+  applyMonthlyDepartmentDecision(page.document, pack(), {
+    storage,
+    now,
+    cycle: { period: "2026-08", deadline: "2026-08-31", reviewPeriod: "2026-09" },
+  });
   review = page.document.querySelector(".monthly-decision-review");
   assert.match(textOf(review), /↔Comparable result/);
   assert.match(textOf(review), /Result type: unproven/);
+});
+
+test("the versioned action record creates, reloads, compares, and rejects drift", () => {
+  const now = new Date("2026-07-20T12:00:00.000Z");
+  const baseline = monthlyDepartmentDecision(pack(), {
+    cycle: { period: "2026-07", deadline: "2026-07-31", reviewPeriod: "2026-08" },
+  });
+  const record = projectMonthlyAction(baseline, { now });
+  assert.equal(record.schemaVersion, MONTHLY_ACTION_VERSION);
+  assert.deepEqual(Object.keys(record).sort(), [
+    "actionId", "actionLabel", "baseline", "committedAt", "confidence", "decisionVersion",
+    "department", "ownerLabel", "provenanceReferences", "reviewPeriod", "schemaVersion", "target",
+  ]);
+
+  const storage = storageOf();
+  assert.equal(writeMonthlyAction(storage, baseline, { now }).ok, true);
+  assert.deepEqual(readMonthlyAction(storage).record, record);
+  assert.deepEqual(finopsWorkspaceFile(storage, { now }).monthlyDepartmentAction, record);
+
+  const later = monthlyDepartmentDecision(pack(lead({ monthlySavingsUsd: 1600 })), {
+    cycle: { period: "2026-08", deadline: "2026-08-31", reviewPeriod: "2026-09" },
+  });
+  assert.deepEqual(compareMonthlyAction(record, later), {
+    status: "comparable", comparable: true, baseline: 1840, current: 1600, change: -240,
+  });
+  const drifted = monthlyDepartmentDecision(pack(lead({ basis: "signal_share" })), {
+    cycle: { period: "2026-08", deadline: "2026-08-31", reviewPeriod: "2026-09" },
+  });
+  assert.deepEqual(compareMonthlyAction(record, drifted), {
+    status: "not_comparable", comparable: false, baseline: 1840, current: null, change: null,
+  });
+  assert.equal(forgetFinopsWorkspace(storage).ok, true);
+  assert.equal(storage.getItem(MONTHLY_ACTION_KEY), null);
+});
+
+test("missing, corrupt, and unsupported action storage recover without inventing tracking", async () => {
+  const storage = storageOf();
+  assert.equal(readMonthlyAction(storage).status, "missing");
+  storage.setItem(MONTHLY_ACTION_KEY, "{broken");
+  assert.equal(readMonthlyAction(storage).status, "malformed");
+  storage.setItem(MONTHLY_ACTION_KEY, JSON.stringify({
+    schemaVersion: "monthly-department-action/99.0.0",
+  }));
+  assert.equal(readMonthlyAction(storage).status, "unsupported");
+
+  const page = await loadPage(PAGE);
+  const decision = applyMonthlyDepartmentDecision(page.document, pack(), { storage });
+  assert.equal(decision.state, MONTHLY_DECISION_STATE.ready);
+  assert.equal(page.document.querySelector(".monthly-decision-commit").disabled, false);
 });
 
 test("one name per concept: the tracked path never calls itself committed or saved", async () => {

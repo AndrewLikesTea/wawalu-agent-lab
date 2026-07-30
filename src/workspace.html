@@ -157,8 +157,8 @@
           <li>Credentials, prompts, raw imports, and network-transfer data are prohibited.</li>
         </ul>
         <h3>How complete erasure works</h3>
-        <p id="finops-erase-copy">Complete FinOps erasure removes both FinOps local-storage keys
-          and verifies that both are empty. It leaves Shiplog decisions, releases, and downloaded
+        <p id="finops-erase-copy">Complete FinOps erasure removes every FinOps local-storage key
+          and verifies that all are empty. It leaves Shiplog decisions, releases, and downloaded
           files alone.</p>
         <p class="ws-finops-limit"><strong>Local means this browser only.</strong> There is no
           account, sync, server copy, or network transfer. Another browser profile and a file you
@@ -169,7 +169,7 @@
         <div id="fw-panel" aria-busy="true">
           <div class="ws-status fw-status" id="fw-status" aria-labelledby="fw-status-title">
             <h3 id="fw-status-title">What FinOps is keeping</h3>
-            <p class="ws-summary" id="fw-summary">Reading this browser's two FinOps keys…</p>
+            <p class="ws-summary" id="fw-summary">Reading this browser's FinOps keys…</p>
             <dl class="ws-facts" id="fw-facts">
               <div class="ws-fact"><dt>FinOps storage</dt><dd>Not read yet</dd></div>
               <div class="ws-fact"><dt>Kept here</dt><dd>Counting…</dd></div>
@@ -234,7 +234,7 @@
                region above. -->
           <div class="ws-control ws-control-danger">
             <h4 id="fw-forget-title">Forget everything</h4>
-            <p class="ws-control-note" id="fw-forget-note">Removes both FinOps keys from this browser and reads them back to check they are empty. Your Shiplog decisions and releases are left alone, and so is any file you already downloaded.</p>
+            <p class="ws-control-note" id="fw-forget-note">Removes every FinOps key from this browser and reads them back to check they are empty. Your Shiplog decisions and releases are left alone, and so is any file you already downloaded.</p>
             <button id="fw-forget" type="button" class="ws-danger-button" aria-describedby="fw-forget-note" aria-expanded="false" aria-controls="fw-confirm" disabled>Forget FinOps figures</button>
             <div class="ws-confirm" id="fw-confirm" role="group" aria-labelledby="fw-confirm-title" hidden>
               <h5 class="ws-confirm-title" id="fw-confirm-title" tabindex="-1">Forget everything FinOps kept?</h5>
