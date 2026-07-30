@@ -91,12 +91,18 @@ function renderBackLink() {
 // the reader pressed a button again, and neither will one that was never named,
 // so those states offer the labelled route back and nothing else — a Retry that
 // cannot change the outcome is a promise the page cannot keep.
-const DETAIL_STATE_COPY = {
+//
+// The loading sentence names what is being read — the record this page's link
+// asks for, and the releases linked to it — and says the reader has nothing to
+// do about it. "We’re finding this decision" left both open: which decision,
+// and whether the wait was theirs to end. It also says where a failure would
+// appear, so the one state that does ask for an action is the only surprise.
+export const DETAIL_STATE_COPY = {
   loading: {
     tone: "neutral",
-    label: "Decision status",
-    title: "Loading decision",
-    description: "We’re finding this decision and its linked releases.",
+    label: "Loading",
+    title: "Loading this decision",
+    description: "Loading the decision record for this page and its linked releases. No action is needed unless this panel reports a failure and offers Retry.",
     recoverable: false,
   },
   empty: {

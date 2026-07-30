@@ -155,7 +155,15 @@ test("a refresh over live events never claims the live rows are synthetic", asyn
     payload: { ref: "refs/heads/agent/frontend/x", commits: [{ message: "Ship it" }] },
   };
   await loadActivity(root, async () => ({ ok: true, json: async () => [event] }));
-  await loadActivity(root, async () => { throw new Error("offline"); });
+  let rejectRefresh;
+  const refresh = loadActivity(root, () => new Promise((resolve, reject) => { rejectRefresh = reject; }));
+
+  assert.equal(root.nodes["#connection-label"].textContent, "Checking GitHub",
+    "the top-level status must not claim a live signal while a refresh is in flight");
+  assert.match(stateOf(root).textContent, /last successful update/i);
+
+  rejectRefresh(new Error("offline"));
+  await refresh;
 
   assert.equal(stateOf(root).dataset.state, "error");
   assert.match(stateOf(root).textContent, /from the last successful update/i);

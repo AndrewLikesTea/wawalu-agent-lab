@@ -408,6 +408,22 @@ export function renderActivityState(root, state, { count = 0, keptEvents = false
   return container;
 }
 
+// The hero card at the top of the page: one line for how the check stands, one
+// for when data last arrived. It is read before the panel below it and must not
+// repeat the panel's heading, so it stays short — but "Checking" alone left the
+// reader to guess what was being checked, and "Synthetic example shown" left out
+// that GitHub had in fact answered. Each label now names the check, and the two
+// states that always show the four synthetic rows say so here as well, for a
+// reader who never scrolls as far as the banner above them. The failed check is
+// the exception: it can keep the last live events on screen, so it reports the
+// failure and lets the panel say what the rows are.
+export const CONNECTION_LABELS = Object.freeze({
+  loading: "Checking GitHub",
+  live: "Live signal",
+  empty: "No GitHub events · synthetic example",
+  error: "GitHub check failed",
+});
+
 export async function loadActivity(root = document, fetcher = fetch) {
   const list = root.querySelector("#activity-list");
   const signal = root.querySelector(".signal-card");
@@ -415,12 +431,9 @@ export async function loadActivity(root = document, fetcher = fetch) {
   const updated = root.querySelector("#last-updated");
   const hasLiveEvents = Boolean(list.querySelector?.(".activity-item:not(.activity-item-representative)"));
   renderActivityState(root, "loading", { keptEvents: hasLiveEvents });
+  label.textContent = CONNECTION_LABELS.loading;
   if (!hasLiveEvents) {
     renderRepresentativeActivity(list, { reason: "loading" });
-    // The hero card is the page-level indicator: connection and freshness. It
-    // must not restate the panel's status sentence, so it never repeats the
-    // status heading — it says how the check stands and when data last arrived.
-    label.textContent = "Checking";
     updated.textContent = "Not updated yet";
   }
   try {
@@ -437,18 +450,18 @@ export async function loadActivity(root = document, fetcher = fetch) {
     if (count) {
       list.setAttribute("aria-label", "Recent public GitHub events");
       renderActivityState(root, "live", { count });
-      label.textContent = "Live signal";
+      label.textContent = CONNECTION_LABELS.live;
     } else {
       renderRepresentativeActivity(list, { reason: "empty" });
       renderActivityState(root, "empty");
-      label.textContent = "Synthetic example shown";
+      label.textContent = CONNECTION_LABELS.empty;
     }
     signal.dataset.connected = "true";
     updated.textContent = `Updated ${new Intl.DateTimeFormat(undefined, { timeStyle: "short" }).format(new Date())}`;
   } catch {
     renderActivityState(root, "error", { keptEvents: hasLiveEvents });
     signal.dataset.connected = "false";
-    label.textContent = "Check failed";
+    label.textContent = CONNECTION_LABELS.error;
     updated.textContent = "Not updated";
     if (!hasLiveEvents) renderRepresentativeActivity(list, { reason: "unavailable" });
   }

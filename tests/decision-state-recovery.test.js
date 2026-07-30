@@ -13,6 +13,7 @@
 
 import assert from "node:assert/strict";
 import test from "node:test";
+import { DETAIL_STATE_COPY } from "../src/decision-detail.js";
 import { initDecisionDetail } from "../src/decision-page.js";
 import { loadPage, pressEnter, pressTab, tabSequence, textOf } from "./support/browser.js";
 
@@ -163,8 +164,26 @@ test("the served first screen is already a labelled loading state with a way bac
 
   const chip = page.document.querySelector(".detail-state-label");
   assert.ok(chip.classList.contains("detail-state-chip"), "the served status label is the same chip the render draws");
-  assert.match(textOf(chip), /Decision status/);
-  assert.match(textOf(page.document.querySelector("#decision-state-title")), /Loading decision/);
+  // The served copy is the copy the renderer would draw for the same state:
+  // decision.html duplicates it so the region is never an empty box before the
+  // module runs, and two copies of one sentence drift apart silently.
+  assert.equal(textOf(chip), DETAIL_STATE_COPY.loading.label);
+  assert.equal(textOf(page.document.querySelector("#decision-state-title")), DETAIL_STATE_COPY.loading.title);
+  assert.equal(textOf(panel.querySelector(".detail-state-guidance")), DETAIL_STATE_COPY.loading.description);
+
+  // What a first-time reader has to get from a first screen that is still
+  // loading: which record is being read, and that the wait is not theirs to end.
+  const guidance = textOf(panel.querySelector(".detail-state-guidance"));
+  assert.match(guidance, /decision record for this page and its linked releases/i);
+  assert.match(guidance, /No action is needed/i);
+  // The one thing that would ask for an action is named, and only that.
+  assert.match(guidance, /unless this panel reports a failure/i);
+  assert.match(guidance, /Retry/);
+  // No promise the page cannot time, and no claim about where the record is not.
+  for (const vague of [/in a moment/i, /appears here/i, /shortly/i, /please wait/i])
+    assert.doesNotMatch(guidance, vague, `the loading sentence hedges: ${guidance}`);
+  assert.doesNotMatch(guidance, /private|customer|credential/i,
+    "the decision log reads records this browser already has");
 
   const back = container.querySelector(".detail-back");
   assert.equal(back.getAttribute("href"), "/");
