@@ -196,6 +196,32 @@
    heavy rule on the page; the readiness note is a word and a border, never a
    colour alone, so it survives monochrome and a screen reader alike. */
 .guided-result { margin-top:24px; border-left:6px solid #315f50; }
+/* An inset card, not a full-bleed band: the panel's own padding is 30px and
+   21px below 760px, so a fixed negative margin lands at a different inset per
+   breakpoint, and one wide enough to actually reach the edge would paint its
+   background outside the panel's 18px rounded corners. */
+.recurring-review-workspace { margin:0 0 26px; border:1px solid var(--panel-border); border-radius:14px; padding:22px 20px 24px; background:#f6faf7; }
+.recurring-review-workspace[data-state="blocked"],.recurring-review-workspace[data-state="insufficient_evidence"] { background:#fff9ec; }
+/* By id: `.guided-result h2` is equally specific and later in the file, so it
+   would otherwise win and this heading would render at the size of the headline
+   it leads rather than above it. */
+#recurring-review-question { margin:4px 0 18px; font-size:clamp(25px,4vw,36px); }
+.recurring-review-metric { padding:16px; border-left:5px solid #315f50; background:#fff; }
+.recurring-review-workspace:not([data-state="ready"]) .recurring-review-metric { border-left-color:#8a6a2f; }
+.recurring-review-label,.recurring-review-period,.recurring-review-confidence,.recurring-review-provenance,.recurring-review-complete-note { margin:0; color:var(--ink-muted); font-size:13px; line-height:1.5; }
+.recurring-review-value { margin:4px 0; font:700 clamp(24px,5vw,38px)/1.15 inherit; letter-spacing:-.02em; }
+.recurring-review-finding,.recurring-review-action { margin-top:20px; max-width:72ch; }
+.recurring-review-finding h3,.recurring-review-action h3 { margin:0 0 6px; font-size:14px; }
+.recurring-review-finding-text,.recurring-review-action p { margin:0 0 8px; line-height:1.55; }
+.recurring-review-complete { min-height:44px; margin-top:8px; border:0; border-radius:8px; padding:10px 16px; background:#315f50; color:#fff; font:700 14px/1.4 inherit; cursor:pointer; }
+.recurring-review-complete:disabled { background:#52645e; cursor:default; }
+.recurring-review-complete:focus-visible,.recurring-review-details>summary:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.recurring-review-status { min-height:1.5em; margin:6px 0 0; font-weight:600; }
+.recurring-review-details { margin-top:12px; border-top:1px solid var(--panel-border); padding-top:10px; }
+.recurring-review-details>summary { border-radius:6px; padding:6px; cursor:pointer; font-weight:650; }
+.recurring-review-facts { margin:10px 6px 0; display:grid; gap:10px; }
+.recurring-review-fact dt { color:var(--ink-muted); font-size:12px; font-weight:700; text-transform:uppercase; }
+.recurring-review-fact dd { margin:2px 0 0; overflow-wrap:anywhere; line-height:1.5; }
 .guided-result[data-decision-ready="false"] { border-left-color:#8a6a2f; }
 .guided-result h2 { margin:6px 0 10px; font-size:clamp(24px,3.4vw,32px); line-height:1.15; }
 .guided-result-finding { margin:0 0 12px; max-width:70ch; font-size:17px; line-height:1.55; color:var(--ink); }

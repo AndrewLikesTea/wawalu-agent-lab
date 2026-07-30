@@ -88,8 +88,11 @@ import {
 } from "/import-mapping-view.js";
 import { headlineTrust } from "/finops-display.js";
 import {
-  clearCurrentReviewEvidence, retainCurrentReviewEvidence,
+  assembleRecurringReview, clearCurrentReviewEvidence, readCurrentReviewEvidence,
+  retainCurrentReviewEvidence,
 } from "/recurring-review-readiness.js";
+import { readMonthlyAction } from "/monthly-department-action-store.js";
+import { renderRecurringReviewWorkspace } from "/recurring-review-workspace-view.js";
 // Whether the letter may be shown at all is decided before it is drawn: the
 // score card is a roll-up of only the departments the rubric actually scored.
 import { gradeEligibility } from "/grade-eligibility.js";
@@ -1067,6 +1070,14 @@ function mountLocalFinopsImport() {
   };
   const syncGuidedResult = () => {
     const composed = composeGuidedResult(guidedInputs());
+    const storage = browserFinopsWorkspaceStorage();
+    const retained = readMonthlyAction(storage);
+    const evidence = readCurrentReviewEvidence(storage);
+    renderRecurringReviewWorkspace(document, assembleRecurringReview({
+      retainedAction: retained.record,
+      currentAnalysis: evidence.currentAnalysis,
+      theoVerdict: evidence.theoVerdict,
+    }), retained.record);
     // The demotion is written onto the panels themselves, so "support, not
     // primary" is a fact on one element rather than a claim in a document.
     applyDisclosureRoles(document, composed.disclosures);
