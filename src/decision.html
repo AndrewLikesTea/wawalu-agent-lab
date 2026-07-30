@@ -54,11 +54,18 @@
           <p class="dout-file-note" id="dout-file-note">The file comes from the AI FinOps page: build a briefing there and press “Export briefing (JSON)”. Choose that saved file here — the briefing for the first full month after this decision shipped. It is read in this tab only: no upload, no credentials, no network transfer.</p>
           <p class="dout-file-status" id="dout-file-status" role="status" aria-live="polite">No briefing opened yet. The decision below reads without one — use “Open a later month’s FinOps briefing” above to add a measured month.</p>
         </div>
+        <!-- The loading state ships in the markup so this region is never an
+             empty box before the module runs. Its blocks are in the order
+             decision-outcome-view.js re-renders them in: the region label, the
+             heading, one compact status chip, then the sentence that explains
+             it. A Retry appears here only in the error state, where a second
+             read could actually change the answer. -->
         <div id="decision-outcome" aria-busy="true" data-state="loading">
-          <section class="dout-state" data-state="loading" role="status">
+          <section class="dout-state" data-state="loading" data-shape="dashed" data-recoverable="false" role="status" tabindex="-1">
             <p class="dout-kicker">Recorded decision outcome</p>
-            <h3 class="dout-state-title">Checking this decision’s outcome</h3>
-            <p class="dout-state-body">Checking what this decision projected and whether a release recorded it as shipped. No file is needed for this step.</p>
+            <h3 class="dout-state-title" id="dout-question">Checking this decision’s outcome</h3>
+            <p class="dout-status" data-status="loading" data-shape="dashed"><span class="dout-cue" aria-hidden="true">◌</span><span class="dout-status-label">Checking records</span></p>
+            <p class="dout-state-body" id="dout-state-detail">Checking what this decision projected and whether a release recorded it as shipped. No file is needed for this step.</p>
           </section>
         </div>
       </section>

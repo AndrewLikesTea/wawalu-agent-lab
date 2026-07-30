@@ -192,6 +192,22 @@
   border-left: 6px dashed #64748b;
 }
 
+/* The three states differ by their word, their glyph, and their border
+   treatment before they differ by colour, so they stay apart in greyscale. */
+.dout-state[data-shape="dotted"] { border-left-style: dotted; border-left-color: #7c3aed; }
+.dout-state[data-shape="double"] { border-left: 6px double #8a2b2b; background: #fdf4f3; }
+.dout-status[data-status="loading"] .dout-status-label,
+.dout-status[data-status="reading"] .dout-status-label { color: #334155; }
+.dout-status[data-status="error"] .dout-status-label { color: #8a2b2b; }
+
+.dout-state-actions { margin: 0.25rem 0 0.1rem; }
+.dout-state-actions .empty-action { margin: 0; }
+.dout-state:focus-visible { outline: 3px solid var(--focus-ring, #155f9e); outline-offset: 4px; }
+
+@media (max-width: 30rem) {
+  .dout-state-actions .empty-action { width: 100%; }
+}
+
 @media (min-width: 48rem) {
   .dout-links,
   .dout-provenance,

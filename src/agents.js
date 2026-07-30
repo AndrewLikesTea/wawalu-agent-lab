@@ -510,30 +510,184 @@ export function renderDemoData(root, data) {
   renderPromptTrace(trace, data);
 }
 
-export async function loadDemoData(root = document, fetcher = fetch) {
-  const response = await fetcher(DEMO_DATA_URL);
-  if (!response.ok) throw new Error(`Demo data returned ${response.status}`);
-  renderDemoData(root, await response.json());
+// The personas and the prompt trace come from one published file, and before
+// this the two panels said the same thing twice — "Demo personas unavailable" /
+// "Published prompt trace unavailable", each followed by the identical sentence
+// "Refresh the page to retry the static demo data." Two copies of one fact, and
+// the only way out of it was reloading the whole page, which also throws away
+// the live activity feed beside them.
+//
+// Each panel now keeps its heading and carries one compact status block instead:
+// a chip word, a state heading, and one sentence of its own. The three states
+// are told apart by that word and by the glyph geometry `data-shape` selects
+// before they are told apart by colour.
+//
+// `recovery` is what the panel's control is for, held here rather than read back
+// off a label. Only a failed request is a recovery — the file is read over the
+// network, so a second attempt could genuinely answer. A file that arrived and
+// carried nothing is a successful read, and no button is offered for it: a Retry
+// that cannot change the answer is a promise the page cannot keep.
+export const DEMO_DATA_STATES = Object.freeze({
+  loading: Object.freeze({ shape: "loading", chip: "Checking", role: "status", recovery: "none" }),
+  empty: Object.freeze({ shape: "empty", chip: "No records", role: "status", recovery: "none" }),
+  error: Object.freeze({ shape: "error", chip: "Request failed", role: "alert", recovery: "retry" }),
+});
+
+// One entry per panel: where its status goes, which control belongs to it, which
+// container it fills, and its own copy. The sentences are per panel on purpose —
+// a reader at the prompt trace should not be told about persona profiles.
+export const DEMO_DATA_PANELS = Object.freeze([
+  Object.freeze({
+    key: "personas",
+    status: "#persona-status",
+    detailId: "persona-status-detail",
+    actions: "#persona-actions",
+    control: "#retry-personas",
+    content: "#persona-list",
+    copy: Object.freeze({
+      loading: Object.freeze({
+        title: "Loading persona profiles",
+        detail: "Nothing is needed from you. The profiles come from a static demo file published with this page.",
+      }),
+      empty: Object.freeze({
+        title: "No persona profiles published",
+        detail: "The demo file was read and carried no personas — nothing failed, and nothing is hidden. Everything else on this page is unaffected.",
+      }),
+      error: Object.freeze({
+        title: "Persona profiles could not be loaded",
+        detail: "The request for the published demo file failed, so no profiles are listed. Nothing in your browser changed, so trying again is safe.",
+      }),
+    }),
+  }),
+  Object.freeze({
+    key: "trace",
+    status: "#trace-status",
+    detailId: "trace-status-detail",
+    actions: "#trace-actions",
+    control: "#retry-trace",
+    content: "#prompt-trace",
+    copy: Object.freeze({
+      loading: Object.freeze({
+        title: "Loading the published prompt trace",
+        detail: "Nothing is needed from you. The trace comes from the same static demo file as the personas.",
+      }),
+      empty: Object.freeze({
+        title: "No published prompt trace yet",
+        detail: "The demo file was read and carried no run to trace. The complete representative trace is still published on its own page, linked above.",
+      }),
+      error: Object.freeze({
+        title: "The published prompt trace could not be loaded",
+        detail: "The request for the published demo file failed, so no prompts are shown. The complete representative trace is still published on its own page, linked above.",
+      }),
+    }),
+  }),
+]);
+
+export function isRecoverableDemoDataState(state) {
+  return DEMO_DATA_STATES[state]?.recovery === "retry";
+}
+
+/**
+ * Paint the demo-data status for both panels.
+ *
+ * `ready` is the one state with no status block: the personas and the prompts
+ * are then on screen and are their own answer, so a fourth box saying "loaded"
+ * would be clutter on the populated page. The block is hidden rather than
+ * removed, so the live region it lives in survives the change and the next
+ * failure is announced in the same place.
+ */
+export function renderDemoDataState(root = document, state = "loading") {
+  const name = state === "ready" || DEMO_DATA_STATES[state] ? state : "loading";
+  const ready = name === "ready";
+  const copy = DEMO_DATA_STATES[name] ?? DEMO_DATA_STATES.loading;
+  const painted = [];
+  for (const panel of DEMO_DATA_PANELS) {
+    const block = root.querySelector(panel.status);
+    const actions = root.querySelector(panel.actions);
+    const control = root.querySelector(panel.control);
+    const content = root.querySelector(panel.content);
+    content?.setAttribute("aria-busy", String(name === "loading"));
+    if (control) control.dataset.recovery = ready ? "none" : copy.recovery;
+    if (actions) actions.hidden = ready ? true : copy.recovery !== "retry";
+    if (!block) continue;
+    block.hidden = ready;
+    block.dataset.state = name;
+    if (ready) {
+      painted.push(block);
+      continue;
+    }
+    // Only a failed read interrupts. A panel that is still reading, or that read
+    // a file with nothing in it, is announced politely where it sits.
+    block.setAttribute("role", copy.role);
+    const words = panel.copy[name];
+    const icon = document.createElement("span");
+    icon.className = "activity-state-icon";
+    icon.dataset.shape = copy.shape;
+    icon.setAttribute("aria-hidden", "true");
+    const body = document.createElement("div");
+    body.className = "activity-state-copy";
+    appendText(body, "p", "activity-state-chip", copy.chip);
+    appendText(body, "h3", "activity-state-title", words.title);
+    const detail = appendText(body, "p", "activity-state-detail", words.detail);
+    // The control's aria-describedby names this sentence, so the id has to
+    // survive every repaint of the block it lives in.
+    detail.id = panel.detailId;
+    block.replaceChildren(icon, body);
+    painted.push(block);
+  }
+  return painted;
+}
+
+/**
+ * Read the published demo file and paint whatever it turns out to be.
+ *
+ * A file that answered with no personas or no run is `empty`, not `error`, and
+ * it never reaches renderDemoData — reading `data.run` out of a payload that has
+ * none is how a missing fixture used to become a thrown error and an "unable to
+ * load" panel for a request that in fact succeeded.
+ */
+export async function refreshDemoData(root = document, fetcher = fetch, { retryPanel = null } = {}) {
+  renderDemoDataState(root, "loading");
+  try {
+    const response = await fetcher(DEMO_DATA_URL);
+    if (!response.ok) throw new Error(`Demo data returned ${response.status}`);
+    const data = await response.json();
+    if (!Array.isArray(data?.personas) || !data.personas.length || !data?.run) {
+      renderDemoDataState(root, "empty");
+    } else {
+      renderDemoData(root, data);
+      renderDemoDataState(root, "ready");
+    }
+  } catch {
+    renderDemoDataState(root, "error");
+  }
+  // Pressing Retry hides the button the reader was standing on, so a retried
+  // read says where focus goes next: the status block that replaced it, which
+  // either explains the second failure or is the panel now holding the data.
+  if (retryPanel) {
+    const panel = DEMO_DATA_PANELS.find(({ key }) => key === retryPanel);
+    const status = panel && root.querySelector(panel.status);
+    const landing = status?.hidden ? root.querySelector(panel.content) : status;
+    landing?.setAttribute?.("tabindex", "-1");
+    landing?.focus?.();
+  }
+}
+
+// Both controls run the same read, and each sits in the panel whose state it
+// recovers: the two panels are at opposite ends of the page, and a reader at one
+// of them must not have to go looking for the button.
+export function wireDemoDataControls(root = document, fetcher) {
+  for (const panel of DEMO_DATA_PANELS) {
+    root.querySelector(panel.control)?.addEventListener("click",
+      () => refreshDemoData(root, fetcher ?? fetch, { retryPanel: panel.key }));
+  }
+  return () => refreshDemoData(root, fetcher ?? fetch);
 }
 
 if (typeof document !== "undefined" && document.querySelector("#activity-list")) {
   const refresh = wireActivityControls();
-  renderState(document.querySelector("#persona-list"), { state: "loading", item: true, title: "Loading demo personas for planning and review" });
-  renderState(document.querySelector("#prompt-trace"), { state: "loading", title: "Loading published prompt trace…" });
+  const readDemoData = wireDemoDataControls();
   refresh();
-  loadDemoData().catch(() => {
-    const personas = document.querySelector("#persona-list");
-    const trace = document.querySelector("#prompt-trace");
-    personas.setAttribute("aria-busy", "false");
-    trace.setAttribute("aria-busy", "false");
-    renderState(personas, {
-      state: "error", item: true, label: "Persona error", value: "Demo personas unavailable.",
-      description: "Refresh the page to retry the static demo data.",
-    });
-    renderState(trace, {
-      state: "error", label: "Prompt error", value: "Published prompt trace unavailable.",
-      description: "Refresh the page to retry the static demo data.",
-    });
-  });
+  readDemoData();
   setInterval(refresh, REFRESH_MS);
 }
