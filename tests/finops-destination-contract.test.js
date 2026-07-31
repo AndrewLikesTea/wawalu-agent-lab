@@ -302,10 +302,10 @@ test("the region is authored in the shipped markup, below the brief and as evide
   assert.ok(byId(document, DESTINATION_BODY_ID), "the region has no body to paint into");
   // The question is the heading, in the words the contract publishes.
   assert.equal(textOf(byId(document, "finops-destinations-title")), DESTINATION_QUESTION);
-  // Below the answer it routes, above the quieter conversion offer.
+  // Below the answer it routes, above the rail that takes its ranking.
   assert.ok(html.indexOf('id="finops-first-run"') < html.indexOf(`id="${DESTINATION_SECTION_ID}"`));
   assert.ok(html.indexOf(`id="${DESTINATION_SECTION_ID}"`)
-    < html.indexOf('id="finops-first-run-conversion"'));
+    < html.indexOf('id="finops-workspace-nav"'));
   // And it says whose data ranked it before it says anything else.
   assert.match(textOf(byId(document, "finops-destinations-sample")), /Bundled synthetic example/);
   assert.equal(textOf(document.querySelector(".dest-unavailable")),

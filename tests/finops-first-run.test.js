@@ -19,7 +19,7 @@ import { readFile } from "node:fs/promises";
 import { loadPage, parseHtml, textOf } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 import {
-  buildFirstRunResult, composeFirstRunResult, FIRST_RUN_ACTIONS, FIRST_RUN_CONVERSION,
+  buildFirstRunResult, composeFirstRunResult, FIRST_RUN_ACTIONS,
   FIRST_RUN_IDS, FIRST_RUN_STATE, FIRST_RUN_UNAVAILABLE, recoverableShare, SAMPLE_LABEL,
   UNAVAILABLE_VALUE,
 } from "../src/finops-first-run.js";
@@ -184,8 +184,6 @@ test("the block is authored above every panel it is meant to replace", async () 
   }
   // And still under the h1: the page leads with what it is.
   assert.ok(html.indexOf('id="page-title"') < html.indexOf(`id="${FIRST_RUN_IDS.region}"`));
-  // And the conversion moment follows the result rather than preceding it.
-  assert.ok(html.indexOf(`id="${FIRST_RUN_IDS.region}"`) < html.indexOf('id="finops-first-run-conversion"'));
 });
 
 test("the invented-sample sentence is true before any script runs", async () => {
@@ -421,7 +419,6 @@ test("the demo action loads the example through the one control that owns it", a
     // headlines on one page is the confusion it exists to remove.
     assert.equal(byId(document, FIRST_RUN_IDS.region).hidden, true);
     assert.equal(byId(document, FIRST_RUN_IDS.region).dataset.superseded, "true");
-    assert.equal(byId(document, "finops-first-run-conversion").hidden, true);
     // The brief the click produced finishes painting before the globals are
     // pulled out from under it; otherwise its tail surfaces in the next test.
     await waitFor(() => byId(document, "local-results").getAttribute("aria-busy") === "false"
@@ -446,24 +443,25 @@ test("the import action stands the reader on the file input", async () => {
   }
 });
 
-test("the conversion moment opens the one follow-up form and never closes it", async () => {
+// The follow-up ask used to be authored twice: once here as a conversion aside
+// that delegated to #finops-contact's trigger, and once in #finops-contact
+// itself with the form, the label, and the privacy line. The answer spine
+// retired the aside and this pass deleted it, so what is left to assert is that
+// the surviving ask still works and that the page still has exactly one place
+// an email address is typed.
+test("one follow-up ask survives, and it is the one that owns the form", async () => {
   const page = await bootedPage();
   const { document } = page;
   try {
-    const contact = byId(document, FIRST_RUN_IDS.contact);
-    assert.equal(contact.dataset.target, FIRST_RUN_CONVERSION.targetId);
+    assert.equal(byId(document, "finops-first-run-contact"), null,
+      "the duplicate ask is deleted, not hidden");
+    const trigger = byId(document, "finops-contact-open");
     assert.equal(byId(document, "finops-contact-panel").hidden, true);
 
-    contact.click();
+    trigger.click();
     assert.equal(byId(document, "finops-contact-panel").hidden, false);
-    assert.equal(document.activeElement?.id, FIRST_RUN_CONVERSION.focusId,
-      "focus lands in the field the reader asked for");
 
-    // A second press must not toggle the form shut: a control labelled "ask us"
-    // that hides the form is worse than no control.
-    contact.click();
-    assert.equal(byId(document, "finops-contact-panel").hidden, false);
-    // And it adds no second place to type an email address.
+    // And the page adds no second place to type an email address.
     assert.equal(document.querySelectorAll("input")
       .filter((node) => node.getAttribute("type") === "email").length, 2,
     "the page keeps exactly its two authored email fields — the panel's and the footer's");
@@ -542,7 +540,7 @@ test("the view is a no-op on a document that has no block in it", () => {
   const document = parseHtml("<html><body><p>nothing here</p></body></html>");
   assert.equal(applyFirstRunResult(document, buildFirstRunResult()), null);
   assert.equal(applyFirstRunSupersession(document, true), null);
-  assert.deepEqual(Object.values(bindFirstRunActions(document)), [null, null, null]);
+  assert.deepEqual(Object.values(bindFirstRunActions(document)), [null, null]);
 });
 
 test("supersession is reversible, so a cleared analysis brings the block back", async () => {
@@ -553,5 +551,4 @@ test("supersession is reversible, so a cleared analysis brings the block back", 
   applyFirstRunSupersession(document, false);
   assert.equal(byId(document, FIRST_RUN_IDS.region).hidden, false);
   assert.equal(byId(document, FIRST_RUN_IDS.region).dataset.superseded, "false");
-  assert.equal(byId(document, "finops-first-run-conversion").hidden, false);
 });
