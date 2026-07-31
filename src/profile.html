@@ -28,22 +28,28 @@
 
       <main id="main-content" tabindex="-1">
       <section class="hero hero-profile" id="top" aria-labelledby="page-title">
-        <p class="eyebrow">Profile · demo</p>
-        <!-- The avatar is decorative: the name beside it is the heading text, so
-             the page has exactly one h1 and it reads as the author's name. -->
+        <p class="eyebrow">People · demo</p>
+        <!-- The page's top-level heading is the destination's name, spelled the
+             way the nav spells it. It used to be the selected persona's name,
+             which told a visitor who had just chosen between two nav items
+             called Social and People nothing about which one they had opened.
+             The persona's name keeps its own heading directly below, so the
+             question "whose posts are these?" is still answered by a heading. -->
+        <h1 id="page-title">People</h1>
+        <p class="profile-lede">Browse the image posts of a single demo persona, newest first; open Social when you want the whole feed, text posts included.</p>
+        <!-- The avatar is decorative: the name beside it is the heading text. -->
         <div class="profile-identity">
           <span class="profile-avatar" id="profile-avatar" aria-hidden="true">AR</span>
           <div class="profile-identity-text">
             <!-- "Ari" is the pre-hydration render of the first demo persona in
                  the seed feed. The picker replaces it once a reader chooses. -->
-            <h1 id="page-title"><span id="profile-name">Ari</span></h1>
+            <h2 id="profile-name-title"><span id="profile-name">Ari</span></h2>
             <!-- These defaults are the pre-hydration render of the empty state.
                  They must stay word-for-word with PROFILE_EMPTY_COPY.summary and
                  the image-post count label in src/profile.js; a test pins it. -->
-            <p class="profile-summary" id="profile-summary">No image posts yet.</p>
+            <p class="profile-summary" id="profile-summary">No image posts from this persona yet.</p>
           </div>
         </div>
-        <p class="profile-lede">Every post with an image from one display name, newest first. Text-only posts stay on Social. Select a post to read it in full.</p>
         <!-- People is a filtered view of Social, and the nav says so by nesting
              them. This says it in words at the destination and keeps the way
              back one link away. -->
@@ -85,17 +91,20 @@
 
           <div class="profile-toolbar">
             <div class="filter">
-              <label for="profile-author">Profile</label>
+              <!-- "Persona", not "Profile": the nav, the heading, and the role
+                   chip below all call these people demo personas, and a control
+                   labelled Profile was the last place the old name survived. -->
+              <label for="profile-author">Persona</label>
               <select id="profile-author" aria-describedby="profile-author-hint"></select>
             </div>
             <p class="hint profile-toolbar-hint" id="profile-author-hint">
-              This demo has no accounts, so a profile is a display name. Yours is the name you last posted under.
+              This demo has no accounts, so a persona is a display name. Yours is the name you last posted under.
             </p>
           </div>
 
           <div class="feed-connection" aria-live="polite">
             <span class="live-dot" aria-hidden="true"></span>
-            <span id="profile-status">Connecting to live feed…</span>
+            <span id="profile-status">Connecting to the Social feed…</span>
           </div>
           <p class="visually-hidden" id="profile-announcer" aria-live="polite" aria-atomic="true"></p>
 

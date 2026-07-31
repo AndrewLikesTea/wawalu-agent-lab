@@ -30,8 +30,14 @@
       <main id="main-content" tabindex="-1">
       <section class="hero hero-social" id="top" aria-labelledby="page-title">
         <p class="eyebrow">Social · demo</p>
-        <h1 id="page-title">Share the small<br />wins as they land.</h1>
-        <p>Social is a shared demo feed of short posts about the work the team ships, each with an optional image. Posts are shared across browsers and use no customer or production data.</p>
+        <!-- The heading is the destination's name, spelled exactly as the nav
+             spells it, because Social and People sit side by side in that nav
+             and a headline about small wins told a first-time visitor nothing
+             about which of the two they had opened. The sentence under it does
+             the rest of that job: what this surface holds, what you can do
+             here, and the one reason to open People instead. -->
+        <h1 id="page-title">Social</h1>
+        <p>Read what the team shipped and post your own update in this demo feed; open People for one persona's image posts only.</p>
         <!-- The publishing path stated as an outcome, at the top of the surface
              that publishes. The composer's media picker and the feed invitation
              both reach Paint too, but only after a reader has scrolled into the
@@ -60,7 +66,7 @@
           <div class="paint-arrival" id="paint-arrival" role="status" tabindex="-1" hidden></div>
 
           <form id="post-form" aria-describedby="post-form-hint">
-            <p class="hint" id="post-form-hint">Write the caption. Add an image if you want one — a post with an image also appears on your profile.</p>
+            <p class="hint" id="post-form-hint">Write the caption. Add an image if you want one — a post with an image also appears on People.</p>
 
             <fieldset class="media-picker">
               <legend>Image <span class="label-optional">(optional)</span></legend>
@@ -156,7 +162,7 @@
           </div>
           <div class="feed-connection" aria-live="polite">
             <span class="live-dot" aria-hidden="true"></span>
-            <span id="feed-status">Connecting to live feed…</span>
+            <span id="feed-status">Connecting to the Social feed…</span>
           </div>
           <p class="hint feed-hint">Use ← and → to move between posts, ↑ and ↓ to move a row, Home and End to jump.</p>
           <p class="visually-hidden" id="feed-announcer" aria-live="polite" aria-atomic="true"></p>

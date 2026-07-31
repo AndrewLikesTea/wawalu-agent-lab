@@ -217,9 +217,11 @@ test("the profile page identifies the selected name as a demo persona", async ()
   // Subordinate, not trapped: the way back to the whole feed is right there.
   assert.match(role[1], /href="\/social\.html"/);
 
-  // A reader who clicked "People" arrives at a heading that names the selected
-  // person, and the same view says that person is a demo persona.
-  assert.match(html, /<h1 id="page-title"><span id="profile-name">Ari<\/span><\/h1>/);
+  // A reader who clicked "People" arrives at a heading that names the
+  // destination they chose, spelled the way the nav spells it, and at a second
+  // heading naming the selected person — who the same view calls a demo persona.
+  assert.match(html, /<h1 id="page-title">People<\/h1>/);
+  assert.match(html, /<h2 id="profile-name-title"><span id="profile-name">Ari<\/span><\/h2>/);
 });
 
 /* --------------------------- the item you are on --------------------------- */

@@ -215,8 +215,9 @@ export function formatDate(iso) {
 // is what produced the duplication in the first place. If accounts ever arrive,
 // branch here — not at four call sites.
 export const PROFILE_EMPTY_COPY = {
-  // The hero description: states the situation, once.
-  summary: "No image posts yet.",
+  // The hero description: states the situation, once. It names the persona
+  // rather than the page, because People is never empty — one demo persona is.
+  summary: "No image posts from this persona yet.",
   // The grid's empty state: the next action, not a second telling of the state.
   guidance: "Make an image in Paint, then use it in a post.",
   actionLabel: "Open Paint",
@@ -353,8 +354,10 @@ function renderEmpty(container, author) {
 
 function renderError(container, onRetry) {
   const failed = el("div", "empty-state empty-state-error");
-  failed.append(el("p", "empty-title", "Posts could not be loaded."));
-  failed.append(el("p", undefined, "The connection to the feed failed. Nothing was lost — try again."));
+  // Named for what is missing here — image posts — and for the feed they come
+  // from, so this panel cannot be mistaken for the one Social renders.
+  failed.append(el("p", "empty-title", "Image posts could not be loaded."));
+  failed.append(el("p", undefined, "The connection to the Social feed failed. Nothing was lost — try again."));
   const retry = el("button", "empty-action", "Try again");
   retry.type = "button";
   if (onRetry) retry.addEventListener("click", onRetry);

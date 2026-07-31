@@ -358,7 +358,10 @@ function renderSkeleton(container, count = 3) {
   container.append(list);
 }
 
-const DEFAULT_EMPTY_MESSAGE = "Write the first post to start the feed.";
+// Every state below names Social. People renders the same posts through its own
+// module, and a panel that only said "No posts yet" left a reader who had just
+// chosen between two nav items unsure which of them was empty.
+const DEFAULT_EMPTY_MESSAGE = "Write the first post to start the Social feed.";
 
 // `state` separates "we have nothing yet because we are still fetching" from
 // "we have nothing because there is nothing" and from "we have nothing because
@@ -375,7 +378,7 @@ export function renderPosts(container, posts, options = {}) {
     if (state === "loading") {
       renderSkeleton(container);
       const loading = document.createElement("div");
-      renderState(loading, { state: "loading", title: "Loading team posts…" });
+      renderState(loading, { state: "loading", title: "Loading the Social feed…" });
       container.append(...loading.children);
       return;
     }
@@ -383,15 +386,15 @@ export function renderPosts(container, posts, options = {}) {
       const panel = renderState(container, {
         state: "error",
         label: "Feed error",
-        value: "Posts could not be loaded.",
-        description: "The feed keeps retrying. Check the connection status above.",
+        value: "Social posts could not be loaded.",
+        description: "The Social feed keeps retrying. Check the connection status above.",
       });
       panel.classList.add("empty-state", "empty-state-error");
     } else {
       const panel = renderState(container, {
         state: "empty",
         label: "Feed status",
-        value: "No posts yet.",
+        value: "No posts on Social yet.",
         description: emptyMessage,
         action: { label: "Write a post", href: "#post-body" },
       });
@@ -452,7 +455,7 @@ export function mountSocialFeed(root, options = {}) {
     const hadFocus = Boolean(feed.querySelector(".post-card:focus"));
     const visible = filterPosts(posts, { author: agentFilter?.value, range: timeFilter?.value });
     const filtering = agentFilter?.value !== "all" || timeFilter?.value !== "all";
-    renderPosts(feed, visible, { state, emptyMessage: filtering ? "No posts match these filters." : undefined });
+    renderPosts(feed, visible, { state, emptyMessage: filtering ? "No posts on Social match these filters." : undefined });
     if (count) count.textContent = filtering ? `${postLabel(visible.length)} of ${posts.length}` : postLabel(visible.length);
 
     const cards = [...feed.querySelectorAll(".post-card")];

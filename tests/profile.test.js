@@ -282,7 +282,7 @@ test("a failed load is offered a retry, not a false empty state", () => {
   const container = createElement("div");
   let retried = 0;
   renderProfileGrid(container, [], { state: "error", author: "Mina", onRetry: () => { retried += 1; } });
-  assert.equal(first(container, "empty-title").textContent, "Posts could not be loaded.");
+  assert.equal(first(container, "empty-title").textContent, "Image posts could not be loaded.");
   const retry = first(container, "empty-action");
   assert.equal(retry.tagName, "BUTTON");
   assert.equal(retry.type, "button");
@@ -344,7 +344,7 @@ test("the header shows who this is and what the counts mean", () => {
 test("an empty header states the situation once, in image-post terms", () => {
   const elements = { avatar: createElement("span"), name: createElement("span"), summary: createElement("p") };
   renderProfileHeader(elements, "Mina Okafor", { total: 0, withImages: 0, likes: 0, latest: null });
-  assert.equal(elements.summary.textContent, "No image posts yet.");
+  assert.equal(elements.summary.textContent, "No image posts from this persona yet.");
   // The description states the state; the grid's empty state gives the action.
   // Neither repeats the other's sentence — that repetition was the bug.
   assert.notEqual(elements.summary.textContent, PROFILE_EMPTY_COPY.guidance);
@@ -383,7 +383,10 @@ test("the empty profile says it once across the whole page", () => {
   assert.equal(onPage.filter((text) => text.includes(PROFILE_EMPTY_COPY.summary)).length, 1);
   assert.equal(onPage.filter((text) => text.includes("Paint")).length, 1);
   assert.equal(spoken[1], "0 image posts", "the heading count is a count, not a sentence");
-  assert.equal(profileAnnouncement("Mina", 0), "No image posts yet. Make an image in Paint, then use it in a post.");
+  assert.equal(
+    profileAnnouncement("Mina", 0),
+    "No image posts from this persona yet. Make an image in Paint, then use it in a post.",
+  );
   assert.equal(profileAnnouncement("Mina", 2), "Showing 2 image posts by Mina.");
 });
 
