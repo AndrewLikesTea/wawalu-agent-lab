@@ -37,7 +37,7 @@
         <div class="observatory-signal">
           <div class="signal-card" aria-label="Public GitHub activity status">
             <span class="signal-dot" aria-hidden="true"></span>
-            <div><strong id="connection-label">Checking GitHub</strong><span id="last-updated">Not updated yet</span></div>
+            <div><strong id="connection-label">Loading the GitHub signal</strong><span id="last-updated">Loading…</span></div>
           </div>
           <!-- The one figure on this site that is not a synthetic example. It is
                counted from the public GitHub events response the page already
@@ -63,7 +63,7 @@
           <section class="merged-figure" id="merged-figure" data-state="loading" aria-labelledby="merged-figure-title">
             <h2 class="merged-figure-title" id="merged-figure-title">Merged pull requests</h2>
             <div class="merged-figure-readout" id="merged-figure-readout" role="status" aria-live="polite">
-              <p class="merged-figure-value">Counting…</p>
+              <p class="merged-figure-value">Loading…</p>
               <p class="merged-figure-source">Counted from public GitHub activity, once GitHub answers.</p>
             </div>
             <!-- Verification, by hand: these are the exact responses the count is
@@ -95,9 +95,9 @@
           <div class="activity-state demo-state" id="persona-status" data-state="loading" role="status" aria-live="polite" tabindex="-1">
             <span class="activity-state-icon" data-shape="loading" aria-hidden="true"></span>
             <div class="activity-state-copy">
-              <p class="activity-state-chip">Checking</p>
+              <p class="activity-state-chip">Loading</p>
               <h3 class="activity-state-title">Loading persona profiles</h3>
-              <p class="activity-state-detail" id="persona-status-detail">Nothing is needed from you. The profiles come from a static demo file published with this page.</p>
+              <p class="activity-state-detail" id="persona-status-detail">The profiles come from a static demo file published with this page.</p>
             </div>
           </div>
           <div class="activity-actions" id="persona-actions" hidden>
@@ -119,16 +119,17 @@
           <div class="activity-state" id="activity-status" data-state="loading" role="status" aria-live="polite">
             <span class="activity-state-icon" data-shape="loading" aria-hidden="true"></span>
             <div class="activity-state-copy">
-              <p class="activity-state-chip">Checking</p>
-              <h3 class="activity-state-title">Checking public GitHub activity</h3>
+              <p class="activity-state-chip">Loading</p>
+              <h3 class="activity-state-title">Loading public GitHub activity</h3>
               <p class="activity-state-detail" id="activity-state-detail">Nothing is needed from you. Until GitHub answers, the steps below are a synthetic example rather than live events.</p>
             </div>
           </div>
           <div class="activity-actions">
             <!-- One control, after the status it acts on. Its label and its
-                 data-recovery marker are rewritten per state by agents.js:
-                 "Retry public GitHub activity" only when a request failed. -->
-            <button class="observatory-refresh" id="refresh-activity" type="button" data-state="loading" data-recovery="refresh" aria-describedby="activity-state-detail">Refresh</button>
+                 data-recovery marker are rewritten per state by agents.js: the
+                 label always names the thing it asks for again, and only a
+                 failed request says "Retry public GitHub activity". -->
+            <button class="observatory-refresh" id="refresh-activity" type="button" data-state="loading" data-recovery="refresh" aria-describedby="activity-state-detail">Refresh public GitHub activity</button>
           </div>
           <ol class="activity-list" id="activity-list" aria-label="Synthetic example activity" aria-busy="true"></ol>
         </section>
@@ -144,9 +145,9 @@
         <div class="activity-state demo-state" id="trace-status" data-state="loading" role="status" aria-live="polite" tabindex="-1">
           <span class="activity-state-icon" data-shape="loading" aria-hidden="true"></span>
           <div class="activity-state-copy">
-            <p class="activity-state-chip">Checking</p>
+            <p class="activity-state-chip">Loading</p>
             <h3 class="activity-state-title">Loading the published prompt trace</h3>
-            <p class="activity-state-detail" id="trace-status-detail">Nothing is needed from you. The trace comes from the same static demo file as the personas.</p>
+            <p class="activity-state-detail" id="trace-status-detail">The trace comes from the same static demo file as the personas.</p>
           </div>
         </div>
         <div class="activity-actions" id="trace-actions" hidden>

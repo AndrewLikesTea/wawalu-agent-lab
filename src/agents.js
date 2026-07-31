@@ -288,7 +288,7 @@ export function renderEvents(list, events) {
 // only control on offer is the button beside the status.
 export const ACTIVITY_FALLBACK_REASONS = Object.freeze({
   loading: Object.freeze({
-    chip: "Synthetic example · checking",
+    chip: "Synthetic example · loading",
     detail: "These four steps are the kind of work public GitHub activity reports. Live events replace them when GitHub answers.",
   }),
   unavailable: Object.freeze({
@@ -347,14 +347,20 @@ export function renderRepresentativeActivity(list, { reason = "loading" } = {}) 
 // request is a recovery: asking GitHub again is what could change the answer.
 // Loading, live, and "the feed carried nothing" are all successful reads, and
 // the same button there is an ordinary refresh, not a way out of a fault.
+//
+// Every `action` names the thing the button asks for again, because a bare
+// verb — "Refresh" — left a reader to guess which of the three panels on this
+// page the control belonged to. The labels are otherwise one word apart, and
+// that word is the state: only the state a second request could fix says
+// "Retry", so the label and `recovery` never disagree.
 export const ACTIVITY_STATES = Object.freeze({
   loading: Object.freeze({
     shape: "loading",
-    chip: "Checking",
-    title: "Checking public GitHub activity",
+    chip: "Loading",
+    title: "Loading public GitHub activity",
     detail: "Nothing is needed from you. Until GitHub answers, the steps below are a synthetic example rather than live events.",
     keptDetail: "Nothing is needed from you. The events below are from the last successful update until GitHub answers again.",
-    action: "Refresh",
+    action: "Refresh public GitHub activity",
     recovery: "refresh",
   }),
   live: Object.freeze({
@@ -362,7 +368,7 @@ export const ACTIVITY_STATES = Object.freeze({
     chip: "Live",
     title: "Live public GitHub activity",
     detail: "Public GitHub activity is shown below. This list refreshes every 90 seconds.",
-    action: "Refresh",
+    action: "Refresh public GitHub activity",
     recovery: "refresh",
   }),
   empty: Object.freeze({
@@ -374,7 +380,7 @@ export const ACTIVITY_STATES = Object.freeze({
       Object.freeze({ label: "Meet the demo personas", href: "#persona-title" }),
       Object.freeze({ label: "Read the published prompt trace", href: "/agent-trace.html" }),
     ]),
-    action: "Check for new activity",
+    action: "Refresh public GitHub activity",
     recovery: "refresh",
   }),
   error: Object.freeze({
@@ -453,13 +459,13 @@ export function renderActivityState(root, state, { count = 0, keptEvents = false
 // for when data last arrived. It is read before the panel below it and must not
 // repeat the panel's heading, so it stays short — but "Checking" alone left the
 // reader to guess what was being checked, and "Synthetic example shown" left out
-// that GitHub had in fact answered. Each label now names the check, and the two
+// that GitHub had in fact answered. Each label now names the signal, and the two
 // states that always show the four synthetic rows say so here as well, for a
 // reader who never scrolls as far as the banner above them. The failed check is
 // the exception: it can keep the last live events on screen, so it reports the
 // failure and lets the panel say what the rows are.
 export const CONNECTION_LABELS = Object.freeze({
-  loading: "Checking GitHub",
+  loading: "Loading the GitHub signal",
   live: "Live signal",
   empty: "No GitHub events · synthetic example",
   error: "GitHub check failed",
@@ -474,7 +480,7 @@ export const CONNECTION_LABELS = Object.freeze({
 //
 // What changed, and why: the page requests that response unauthenticated, so a
 // prospect is routinely rate-limited, and the slot used to answer that with
-// "Counting…" or a sentence — a spinner where the one repeatable proof number
+// "Loading…" or a sentence — a spinner where the one repeatable proof number
 // belongs. It now has three states, each readable from the rendered page alone:
 //
 //   live         GitHub answered. This response's count, and no recorded date.
@@ -599,7 +605,7 @@ export async function readRecordedCount(fetcher = fetch) {
 
 export const MERGED_FIGURE_COPY = Object.freeze({
   loading: Object.freeze({
-    value: "Counting…",
+    value: "Loading…",
     source: "Counted from public GitHub activity, once GitHub answers.",
   }),
   // One plain sentence, and deliberately no second one: this is the state where
@@ -722,7 +728,7 @@ export async function loadActivity(root = document, fetcher = fetch) {
   label.textContent = CONNECTION_LABELS.loading;
   if (!hasLiveEvents) {
     renderRepresentativeActivity(list, { reason: "loading" });
-    updated.textContent = "Not updated yet";
+    updated.textContent = "Loading…";
   }
   // The record is requested first and awaited by nothing on this path. It is a
   // static same-origin file that cannot be rate-limited, so it normally lands
@@ -866,7 +872,7 @@ export function renderDemoData(root, data, { fallback = false } = {}) {
 // carried nothing is a successful read, and no button is offered for it: a Retry
 // that cannot change the answer is a promise the page cannot keep.
 export const DEMO_DATA_STATES = Object.freeze({
-  loading: Object.freeze({ shape: "loading", chip: "Checking", role: "status", recovery: "none" }),
+  loading: Object.freeze({ shape: "loading", chip: "Loading", role: "status", recovery: "none" }),
   empty: Object.freeze({ shape: "empty", chip: "No records", role: "status", recovery: "none" }),
   error: Object.freeze({ shape: "error", chip: "Request failed", role: "alert", recovery: "retry" }),
 });
@@ -885,7 +891,7 @@ export const DEMO_DATA_PANELS = Object.freeze([
     copy: Object.freeze({
       loading: Object.freeze({
         title: "Loading persona profiles",
-        detail: "Nothing is needed from you. The profiles come from a static demo file published with this page.",
+        detail: "The profiles come from a static demo file published with this page.",
       }),
       empty: Object.freeze({
         title: "No persona profiles published",
@@ -907,7 +913,7 @@ export const DEMO_DATA_PANELS = Object.freeze([
     copy: Object.freeze({
       loading: Object.freeze({
         title: "Loading the published prompt trace",
-        detail: "Nothing is needed from you. The trace comes from the same static demo file as the personas.",
+        detail: "The trace comes from the same static demo file as the personas.",
       }),
       empty: Object.freeze({
         title: "No published prompt trace yet",
