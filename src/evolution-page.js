@@ -229,6 +229,10 @@ import { bindPortfolioSamples } from "/portfolio-comparability-view.js";
 import { evaluatePartialEvidence, partialEvidenceFromAnalysis } from "/partial-evidence.js";
 import { applyPartialEvidence, clearPartialEvidence } from "/partial-evidence-view.js";
 import { initWorkspaceShell } from "/finops-workspace-shell.js";
+// What each region of this page is for, declared in reading order. It writes
+// attributes and no copy, so it cannot change what a reader sees today; what it
+// changes is that "headline or support?" has an answer in the repository.
+import { applyAnswerSpine } from "/finops/answer-spine-view.js";
 import {
   announce as announceStage, applyDatasetProvenance, applyExportPackageGuidance,
   applyFieldDiagnostic, applyImportLimits, applyOrgQuerySources, applyOrgQuerySourceStatus,
@@ -2952,6 +2956,13 @@ function paintConsolidatedJourney() {
 
 async function init() {
   if (!document.getElementById("department-priority")) return;
+  // Before anything else touches the document: every top-level region is
+  // stamped with the question it answers and its place in the reading order, so
+  // the classification is true of the DOM a reader receives rather than only of
+  // a manifest beside it. Attributes only, and it tolerates a region that is
+  // not there — nothing below it may depend on this line, because everything
+  // below it would be lost if this line ever threw.
+  applyAnswerSpine(document);
   // First, before any panel is painted: a fragment already in the address bar
   // has to open its way out of the disclosures it points into, and the handlers
   // that keep doing so have to be attached before the reader can click one.

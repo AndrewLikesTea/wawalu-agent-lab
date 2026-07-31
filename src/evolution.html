@@ -37,7 +37,12 @@
            between destinations, so they stay on screen in all four. Everything
            else on this page carries `data-workspace-region` and belongs to
            exactly one destination — see src/finops-workspace-shell.js. -->
-      <section class="finops-hero" aria-labelledby="page-title" data-workspace-frame="true">
+      <!-- The four `id`s added for the answer spine — this one, #local-import,
+           #finops-proof-point, and #finops-privacy — are additive. Every region
+           at this level is declared in src/finops/answer-spine-view.js with the
+           question it answers and its role, and a region with no id cannot be
+           declared; nothing was renamed to get them. -->
+      <section class="finops-hero" id="finops-hero" aria-labelledby="page-title" data-workspace-frame="true">
         <div class="hero-copy">
           <p class="eyebrow">AI FinOps</p>
           <h1 id="page-title">Know what your<br />AI spend is buying.</h1>
@@ -875,7 +880,7 @@
         </details>
       </section>
 
-      <section class="local-import finops-panel" data-workspace-region="answer" aria-labelledby="local-import-title">
+      <section class="local-import finops-panel" id="local-import" data-workspace-region="answer" aria-labelledby="local-import-title">
         <div class="local-import-heading">
           <div class="section-heading">
             <p class="eyebrow">Bring your own exports · browser only</p>
@@ -1711,7 +1716,7 @@
         </div>
       </section>
 
-      <article class="proof-point" data-basis="illustrative" data-workspace-region="evidence" aria-labelledby="proof-point-title">
+      <article class="proof-point" id="finops-proof-point" data-basis="illustrative" data-workspace-region="evidence" aria-labelledby="proof-point-title">
         <!-- Written above the figures, not under them: a leader reads what kind
              of number this is before they read the number. The view sharpens the
              wording once their own — smaller — import is on screen. -->
@@ -2175,7 +2180,7 @@
       </section>
       </details>
 
-      <section class="finops-panel" data-workspace-region="evidence" aria-labelledby="privacy-title">
+      <section class="finops-panel" id="finops-privacy" data-workspace-region="evidence" aria-labelledby="privacy-title">
         <div class="section-heading">
           <p class="eyebrow">Privacy &amp; compliance</p>
           <h2 id="privacy-title">Scored on shape, never on secrets</h2>
