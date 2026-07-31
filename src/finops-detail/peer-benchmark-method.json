@@ -1,0 +1,27 @@
+{
+  "$comment": "Disclosure-only evidence for /evolution.html, moved out of the initial payload by src/finops-deferred-detail.js. Prose only: no figure on the page is composed from this file, and the page's headline finding renders without it. Ordinary build output — scripts/build.mjs copies src/ wholesale, so this ships as a static file at the path the page fetches.",
+  "panel": "peer-benchmark-method",
+  "version": "finops-peer-cohort/1.0.0",
+  "entries": [
+    {
+      "term": "Published contract",
+      "detail": "finops-peer-cohort/1.0.0, synthetic reference snapshot 2026-06-30. It contains no customer data and is not derived from, added to, or changed by a visitor's import."
+    },
+    {
+      "term": "Eligibility",
+      "detail": "Attributed org-unit count selects one inclusive size band; a declared supported industry selects the more specific industry-and-size cohort. The literacy score must use literacy-mix/1.0.0, and each metric needs at least 8 fixed cohort values."
+    },
+    {
+      "term": "Metrics",
+      "detail": "Literacy score (higher is better), high-value share of scored prompts (higher is better), and recoverable share of observed USD (lower is better). Supporting metrics may be unavailable without suppressing a comparable literacy score."
+    },
+    {
+      "term": "Ranking",
+      "detail": "Values are rounded to their declared precision before comparison. Percentile is the share strictly beaten plus half of ties, rounded to a whole number. Quartiles begin at the 25th, 50th, and 75th percentiles."
+    },
+    {
+      "term": "Trust labels and one action",
+      "detail": "Comparability is close for industry plus size, broad for size only, or none. Confidence follows cohort specificity and member count. The single prioritized action is: close a bottom-quartile literacy gap; otherwise close a below-median recoverable-share gap; otherwise raise below-median high-value share; otherwise hold position."
+    }
+  ]
+}
