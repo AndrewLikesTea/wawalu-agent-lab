@@ -32,7 +32,8 @@
 
 import { createFollowUpConfirmation } from "./follow-up-confirmation.js";
 import {
-  CONTACT_COPY, describeWith, emailFieldError, looksLikeEmail, postLeadEmail, SubmissionError,
+  CONTACT_COPY, describeWith, emailFieldError, FOLLOW_UP_PRIVACY, looksLikeEmail, postLeadEmail,
+  SubmissionError,
 } from "./lead-capture.js";
 
 const ERROR_ID = "site-footer-error";
@@ -96,25 +97,10 @@ export const DEMOS = Object.freeze([
 export const INVITATION = "Questions about Shiplog? Ask the Wawalu team that operates it, and a "
   + "person replies by email.";
 
-/**
- * What submitting does, before the note about what it sends. The home page also
- * carries a work-email field that subscribes you to field notes, and the two are
- * a few hundred pixels apart; a visitor should never have to guess which one
- * they are typing into. The line above says who you are talking to, this says
- * what pressing the button asks for.
- */
-export const PURPOSE = "Submitting sends a Shiplog follow-up request.";
-
-/**
- * The privacy claim, in the same register as the AI FinOps form's: it names the
- * one thing that travels, and it names the things that do not. It is true by
- * construction rather than by promise — `postLeadEmail` assembles the whole
- * request body from one argument, the value of the field below, so no other page
- * state has a route to the wire.
- */
-export const PRIVACY = "This form sends one thing: the work email address you type. Nothing else "
-  + "on this page — nothing you have read, filtered, imported, or exported — is read, attached, or "
-  + "transmitted, and the address goes to the Wawalu team that operates Shiplog.";
+// What the field sends is not this footer's sentence to write. It is the same
+// claim the AI FinOps form and the briefing's form make, so all three render one
+// string — FOLLOW_UP_PRIVACY in src/lead-capture.js, beside the transport that
+// makes it true.
 
 // What a visitor is told once the address is stored.
 //
@@ -143,16 +129,18 @@ const SUBMITTING = "Requesting a follow-up — sending your email address…";
  *
  * The pointer is a real link, not a button: it works with no script at all,
  * which is the same promise the rest of this footer makes.
+ *
+ * It is a link and nothing else. It used to be preceded by a paragraph
+ * explaining that the page carries its own form and which of the page's two
+ * forms to use — an explanation a reader only needs if the link is unclear, and
+ * the fix for that is a clear link. So it carries the one label every control
+ * that leads to a follow-up carries, and the target takes focus (see the
+ * `tabindex="-1"` on #briefing-contact) so following it lands a keyboard reader
+ * in the form rather than merely scrolling it into view.
  */
 export const FOLLOW_UP_REDIRECT = Object.freeze({
   briefing: Object.freeze({
-    statement: "This page carries its own follow-up form, at the end of the briefing. Use that one: it reaches "
-      + "the same Wawalu team, and a request made there arrives attached to the decision you just read. It "
-      + "sends one thing — the work email address you type.",
-    // Named for where it goes, not for what it does. It is a jump link, and
-    // giving it the CTA's words would put a second "Request a follow-up" on the
-    // page that submits nothing.
-    label: "Go to the follow-up form",
+    label: "Request a follow-up",
     href: "#briefing-contact",
   }),
 });
@@ -168,7 +156,6 @@ export const FOLLOW_UP_REDIRECT = Object.freeze({
  */
 export function siteFooterMarkup(indent = "    ", { redirect = null } = {}) {
   const contact = redirect ? [
-    `    <p class="site-footer-redirect">${redirect.statement}</p>`,
     `    <a class="site-footer-redirect-link" href="${redirect.href}">${redirect.label}</a>`,
   ] : contactDisclosureLines();
   const lines = [
@@ -220,7 +207,7 @@ function contactDisclosureLines() {
     '          <input id="site-footer-email" name="email" type="email" maxlength="254" inputmode="email" autocomplete="email" placeholder="you@company.com" required aria-describedby="site-footer-note" />',
     "        </div>",
     `        <p class="site-footer-error" id="site-footer-error" hidden></p>`,
-    `        <p class="site-footer-note" id="site-footer-note">${PURPOSE} ${PRIVACY}</p>`,
+    `        <p class="site-footer-note" id="site-footer-note">${FOLLOW_UP_PRIVACY}</p>`,
     '        <div class="site-footer-actions">',
     '          <button type="submit">Request a follow-up</button>',
     '          <button id="site-footer-dismiss" type="button">Close</button>',
