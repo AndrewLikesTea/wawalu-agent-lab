@@ -164,11 +164,17 @@ export const FIRST_RUN_STATE = Object.freeze({
 export const FIRST_RUN_INSTRUCTION =
   "No analysis has run yet. Try the Bundled synthetic example without uploading a file, or analyze your own export.";
 
-/** What a slot says before anything has been analyzed, in one shape. */
+/**
+ * What a slot says before anything has been analyzed, in one shape.
+ *
+ * Three names for three slots, one wording for all of them: a reader learns
+ * "Not read yet" once and recognizes it in whichever slot is empty. The keys
+ * stay distinct because the callers name the slot they are filling.
+ */
 export const FIRST_RUN_NOT_YET = Object.freeze({
-  measured: "Not yet measured",
-  ranked: "Not yet ranked",
-  combined: "Not yet combined",
+  measured: "Not read yet",
+  ranked: "Not read yet",
+  combined: "Not read yet",
 });
 
 /**

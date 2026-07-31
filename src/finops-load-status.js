@@ -17,7 +17,7 @@
 // carries a visible label, a status word, a shape, one sentence, and one
 // immediately available next action — "Choose files". Everything else on the
 // page states what it *does not yet have* rather than narrating a load:
-// "Not scored yet" is an answer, "Loading score…" is a progress bar with no bar.
+// "Not read yet" is an answer, "Loading score…" is a progress bar with no bar.
 //
 // ---------------------------------------------------------------------------
 // THE RULES THIS MODULE ENFORCES
@@ -29,7 +29,7 @@
 //    progress. A test asserts the list is empty.
 //
 // 2. ANSWER FIRST, EVIDENCE SECOND. Every placeholder below opens on the state
-//    ("Not scored yet") rather than on the machinery ("Reading the bundled
+//    ("Not read yet") rather than on the machinery ("Reading the bundled
 //    sample…"). The reason, the input, and the arithmetic follow it; they never
 //    precede it.
 //
@@ -124,9 +124,14 @@ export const HERO_INTRO = "Import a provider export and this page names how much
 /**
  * What a slot says while it has no figure.
  *
- * One vocabulary, so a reader learns it once: every line names the measurement
- * that is missing and ends in "yet", which is the difference between a page
- * that has not been given a file and a page that is broken.
+ * One vocabulary, so a reader learns it once. A bare value slot says "Not read
+ * yet" — the same three words in every slot, because a reader who learns one
+ * absence should not have to learn six. A line that carries its own subject
+ * keeps the subject and ends in the same three words ("Spend mix not read
+ * yet"), so the page never has a second wording for the same state. "Yet" is
+ * what separates a page that has not been given a file from a page that is
+ * broken, and prose that explains a whole unmeasured section names the one
+ * input instead: "Fills in once <input> is read."
  *
  * The hero provenance slot is the one exception, and deliberately so: it names
  * the dataset on screen rather than a measurement that has not happened. It is
@@ -135,10 +140,10 @@ export const HERO_INTRO = "Import a provider export and this page names how much
  */
 export const SECONDARY_PLACEHOLDER = Object.freeze({
   organization: "Bundled synthetic example",
-  score: "Not scored yet",
-  coverage: "Sampled-spend coverage not measured yet",
-  scoreAction: "No action ranked yet",
-  rubric: "Rubric and arithmetic not read yet",
+  score: "Not read yet",
+  coverage: "Sampled-spend coverage not read yet",
+  scoreAction: "Not read yet",
+  rubric: "Fills in once a scored query sample is read.",
   guidedFinding: "No next step ranked yet",
   provenance: "Sample provenance not read yet",
   departmentList: "No department ranked yet",
@@ -148,10 +153,10 @@ export const SECONDARY_PLACEHOLDER = Object.freeze({
   diagnosis: "No diagnosis yet",
   trend: "No comparison yet",
   benchmark: "No peer comparison yet",
-  spendMix: "Spend mix not measured yet",
+  spendMix: "Spend mix not read yet",
   portfolioCount: "No actions counted yet",
   portfolioTitle: "No action portfolio yet",
-  portfolioCopy: "Savings targets and realized results appear once the action lifecycle is read.",
+  portfolioCopy: "Fills in once the action lifecycle is read.",
   evaluation: "No fixture scores read yet",
 });
 

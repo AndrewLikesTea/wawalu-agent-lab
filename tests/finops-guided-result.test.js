@@ -581,7 +581,7 @@ test("an empty slot says findings are not available yet, never a bare dash", () 
   for (const id of SLOT_IDS) {
     const text = textOf(document.getElementById(id));
     assert.doesNotMatch(text, PLACEHOLDER, `${id} must not render a placeholder as its value`);
-    assert.match(text, /[Nn]ot available yet/, `${id} must say it is not available yet`);
+    assert.match(text, /Not read yet/, `${id} must say it has not been read yet`);
   }
   // And the missing input is named where the reader can act on it, rather than
   // left to be inferred from an empty benchmark.
@@ -602,7 +602,7 @@ test("an ungradeable benchmark says it is not available and names what the datas
   }));
   const value = textOf(document.getElementById("guided-result-benchmark"));
   assert.doesNotMatch(value, PLACEHOLDER);
-  assert.match(value, /Not available yet/);
+  assert.match(value, /Not read yet/);
   assert.match(textOf(document.getElementById("guided-result-benchmark-detail")),
     /scored records this benchmark needs/);
 });

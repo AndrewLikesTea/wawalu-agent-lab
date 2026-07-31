@@ -42,7 +42,7 @@ const SERVED = {
  * that is worse than the answer the page is already holding.
  */
 const PENDING_LANGUAGE = [
-  "Not measured yet", "Not available yet", "No action ranked yet", "Not scored yet",
+  "Not read yet", "Not measured yet",
   "Reading the bundled example", "Bundled analysis unavailable",
 ];
 
