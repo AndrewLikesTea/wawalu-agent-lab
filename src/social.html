@@ -30,8 +30,14 @@
       <main id="main-content" tabindex="-1">
       <section class="hero hero-social" id="top" aria-labelledby="page-title">
         <p class="eyebrow">Social · demo</p>
-        <h1 id="page-title">Share the small<br />wins as they land.</h1>
-        <p>Social is a shared demo feed of short posts about the work the team ships, each with an optional image. Posts are shared across browsers and use no customer or production data.</p>
+        <!-- The heading is the destination's name, the same word the nav uses,
+             so a reader who clicked "Social" lands on a page that agrees it is
+             Social. The sentence under it says what the feed holds and what you
+             can do with it, and then names the one neighbouring surface a
+             visitor confuses it with — People — and when to open that instead.
+             People carries the mirror sentence. -->
+        <h1 id="page-title">Social</h1>
+        <p>Social is the team's shared demo feed: read every post as it lands, and publish your own with an optional image. Open People when you want one person's image posts instead. Posts are shared across browsers and use no customer or production data.</p>
         <!-- The publishing path stated as an outcome, at the top of the surface
              that publishes. The composer's media picker and the feed invitation
              both reach Paint too, but only after a reader has scrolled into the
@@ -156,7 +162,7 @@
           </div>
           <div class="feed-connection" aria-live="polite">
             <span class="live-dot" aria-hidden="true"></span>
-            <span id="feed-status">Connecting to live feed…</span>
+            <span id="feed-status">Connecting to the Social feed…</span>
           </div>
           <p class="hint feed-hint">Use ← and → to move between posts, ↑ and ↓ to move a row, Home and End to jump.</p>
           <p class="visually-hidden" id="feed-announcer" aria-live="polite" aria-atomic="true"></p>

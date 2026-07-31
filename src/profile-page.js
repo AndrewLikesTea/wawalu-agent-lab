@@ -37,8 +37,8 @@ async function fetchSeedPosts() {
   }
 }
 
-// The heading answers whose posts are selected. The tab retains the stable
-// destination name so it agrees with the global navigation for every persona.
+// The tab carries the stable destination name, the same word the heading and
+// the nav use, so it agrees with the global navigation for every persona.
 function updateTitle() {
   document.title = recordTitle("People");
 }
