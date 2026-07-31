@@ -11,7 +11,10 @@
 // every node is built with `createElement`, because these strings include
 // department names and reason sentences taken out of a reader's own import.
 
-import { STAND_DISCLOSURE_ORDER, STAND_IDS, STAND_RESOLUTION_ACTION } from "./finops-stand.js";
+import {
+  STAND_DISCLOSURE_ORDER, STAND_DISCLOSURE_SUMMARY, STAND_IDS, STAND_MOUNTED_DISCLOSURES,
+  STAND_RESOLUTION_ACTION,
+} from "./finops-stand.js";
 import { applyFinopsSpine } from "./finops-spine.js";
 
 /** The state chip, in the same two channels the rest of this page uses. */
@@ -77,6 +80,76 @@ function definition(doc, item) {
 }
 
 /**
+ * Build the disclosures the document does not author, in the place the reading
+ * order puts them.
+ *
+ * WHY ANY OF THEM ARE BUILT HERE. `STAND_MOUNTED_DISCLOSURES` names them and
+ * says why: `src/evolution.html` is under a byte budget on the initial payload,
+ * and these carry nothing a reader could use before the modules that fill them
+ * have run anyway. Everything else on this region still ships as markup.
+ *
+ * The node is built to the SAME shape the document authors — same classes, same
+ * derived ids, same `aria-expanded`/`aria-controls` pair, same state chip — so
+ * `paintStandDisclosureState`, the stylesheet, the deep-link handler and the
+ * tests cannot tell a mounted disclosure from an authored one. It is inserted
+ * before the first authored disclosure that follows it in `STAND_DISCLOSURE_ORDER`
+ * rather than appended, so the reading order is the declared one.
+ *
+ * Idempotent: called on every paint, builds at most once, and binds its own
+ * `toggle` listener at creation because `bindStandDisclosures` may already have
+ * run past a container this node was not in yet.
+ */
+export function ensureStandDisclosure(doc, key) {
+  const ids = standDisclosureIds(key);
+  const existing = byId(doc, ids.details);
+  if (existing) return existing;
+  if (!STAND_MOUNTED_DISCLOSURES.includes(key)) return null;
+  const container = byId(doc, STAND_IDS.disclosures);
+  if (!container || !doc.createElement) return null;
+
+  const details = doc.createElement("details");
+  details.className = "stand-disclosure";
+  details.id = ids.details;
+  details.dataset.disclosure = "collapsed";
+  // Which disclosures the document did not author, on the node itself: a
+  // printed page, a test and a support conversation read the same channel.
+  details.dataset.mounted = "true";
+
+  const summary = doc.createElement("summary");
+  summary.id = ids.summary;
+  summary.setAttribute("aria-expanded", "false");
+  summary.setAttribute("aria-controls", ids.list);
+  const heading = doc.createElement("h3");
+  heading.className = "stand-disclosure-heading";
+  const name = doc.createElement("span");
+  name.id = ids.heading;
+  name.textContent = STAND_DISCLOSURE_SUMMARY[key] ?? "";
+  const state = doc.createElement("span");
+  state.className = "stand-disclosure-state";
+  state.id = ids.state;
+  state.dataset.disclosure = "collapsed";
+  heading.append(name, state);
+  summary.append(heading);
+
+  const list = doc.createElement("dl");
+  list.className = "stand-disclosure-list";
+  list.id = ids.list;
+  details.append(summary, list);
+
+  const after = STAND_DISCLOSURE_ORDER
+    .slice(STAND_DISCLOSURE_ORDER.indexOf(key) + 1)
+    .map((following) => byId(doc, standDisclosureIds(following).details))
+    .find(Boolean);
+  if (after) container.insertBefore(details, after);
+  else container.append(details);
+
+  details.addEventListener("toggle", () => paintStandDisclosureState(doc, key));
+  details.dataset.bound = "true";
+  paintStandDisclosureState(doc, key);
+  return details;
+}
+
+/**
  * Write one disclosure's state into the three channels it is owed: the
  * `aria-expanded` mirror assistive technology reads, the `data-disclosure`
  * attribute the stylesheet and the tests read, and the visible word beside the
@@ -110,6 +183,18 @@ export function paintStandDisclosureState(doc, key) {
 }
 
 /**
+ * Build every mounted disclosure, and nothing else.
+ *
+ * Called before `installDeepLinkDisclosure` on the page entry: a boardroom link
+ * that points straight at one of these has to find it in the document, and the
+ * cold-load reveal runs at install time. Binding and painting still happen
+ * later, on the ordinary path.
+ */
+export function mountStandDisclosures(doc) {
+  return STAND_MOUNTED_DISCLOSURES.map((key) => ensureStandDisclosure(doc, key)).filter(Boolean);
+}
+
+/**
  * Keep every disclosure's state channels in step with its own `open`.
  *
  * Bound to `toggle`, which fires for a click, for Enter, for Space, and for a
@@ -121,9 +206,15 @@ export function paintStandDisclosureState(doc, key) {
 export function bindStandDisclosures(doc) {
   const bound = [];
   for (const key of STAND_DISCLOSURE_ORDER) {
-    const details = byId(doc, standDisclosureIds(key).details);
+    // Mounted disclosures are built here rather than found, so the keyboard path
+    // reaches them on the same pass as the authored ones. `ensureStandDisclosure`
+    // binds what it builds; this loop must not bind it a second time.
+    const details = ensureStandDisclosure(doc, key);
     if (!details) continue;
-    details.addEventListener("toggle", () => paintStandDisclosureState(doc, key));
+    if (details.dataset.bound !== "true") {
+      details.addEventListener("toggle", () => paintStandDisclosureState(doc, key));
+      details.dataset.bound = "true";
+    }
     paintStandDisclosureState(doc, key);
     bound.push(details);
   }
@@ -239,6 +330,9 @@ export function applyStandHeadline(doc, headline) {
 
   for (const item of headline.disclosures ?? []) {
     const ids = standDisclosureIds(item.id);
+    // Built before it is filled, for the disclosures the document does not
+    // author. A no-op for every authored one.
+    ensureStandDisclosure(doc, item.id);
     setText(doc, ids.heading, item.summary ?? "");
     const list = byId(doc, ids.list);
     if (list) list.replaceChildren(...item.entries.map((row) => definition(doc, row)));

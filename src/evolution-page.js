@@ -285,7 +285,7 @@ import {
 import { applyCohortAttribution } from "/cohort-attribution-view.js";
 // The headline answer this view leads with, and the module that paints it.
 import {
-  applyStandHeadline, bindStandDisclosures, bindStandResolution,
+  applyStandHeadline, bindStandDisclosures, bindStandResolution, mountStandDisclosures,
 } from "/finops-stand-view.js";
 // …and the one owner of WHICH source that answer came from. The page used to
 // choose between the bundled example and the reader's import at each call site;
@@ -3001,6 +3001,10 @@ async function init() {
   // First, before any panel is painted: a fragment already in the address bar
   // has to open its way out of the disclosures it points into, and the handlers
   // that keep doing so have to be attached before the reader can click one.
+  // …and before THAT, the disclosures finops-stand-view.js mounts rather than
+  // the document authoring. The cold-load reveal below runs at install time, so
+  // a link that points straight into one has to find it already in the DOM.
+  mountStandDisclosures(document);
   installDeepLinkDisclosure(document, window);
   // Immediately after it, and for the same reason: a deep link may have already
   // opened a deferred panel, and the read for that panel is taken at install.
