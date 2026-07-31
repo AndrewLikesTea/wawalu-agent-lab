@@ -365,8 +365,12 @@ test("the same path completes on the keyboard alone, all the way to the saved re
     await t.test("the keyboard traversal produced the same coverage metric", () => {
       assert.equal(shownText(document, "local-trust-coverage"), JOINABLE.coverage);
       assert.equal(shownText(document, "local-trust-inputs"), JOINABLE.inputs);
-      assert.equal(document.activeElement?.id, "local-results-title",
-        "the result stage must take focus so a keyboard user is told where they are");
+      // …and the keyboard lands on the ANSWER, which is what the import
+      // changed, rather than most of a page below it on the brief that supports
+      // it. #744: the reader who imported an export to change the answer used to
+      // be moved past the answer and had to shift-tab back up to read it.
+      assert.equal(document.activeElement?.id, "finops-stand",
+        "the answer must take focus so a keyboard user is told what changed");
     });
 
     await t.test("the decision record is saved from the keyboard too", () => {

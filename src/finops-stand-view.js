@@ -13,9 +13,13 @@
 
 import {
   STAND_DISCLOSURE_ORDER, STAND_DISCLOSURE_SUMMARY, STAND_IDS, STAND_MOUNTED_DISCLOSURES,
-  STAND_RESOLUTION_ACTION,
+  STAND_RESOLUTION_ACTION, STAND_SAMPLE_MARKER,
 } from "./finops-stand.js";
 import { applyFinopsSpine } from "./finops-spine.js";
+// The page's one announcer. Every answer change on /evolution.html is announced
+// from here, in one sentence, because it used to be announced from nine regions
+// at once and a reader heard a queue instead of an answer.
+import { announceAnswer, answerAnnouncement } from "./finops-answer-announcement.js";
 
 /** The state chip, in the same two channels the rest of this page uses. */
 export const STAND_DISCLOSURE_STATE = Object.freeze({
@@ -360,9 +364,30 @@ export function applyStandHeadline(doc, headline) {
     paintStandDisclosureState(doc, item.id);
   }
 
-  // Spoken once, and only what a reader who cannot see the region needs in
-  // order to decide whether to read it.
-  setText(doc, STAND_IDS.live, `${headline.label}. ${headline.answer}`);
+  // WHOSE FIGURES THESE ARE, repainted with them. The marker ships in its
+  // example state and used to stay there: a lead who imported their own export
+  // read their own recoverable figure under a block saying every figure on the
+  // page was invented. Word, shape, and sentence are all repainted together, so
+  // the marker is never half-true, and `data-source` is what the stylesheet
+  // tints — the colour is the third carrier of the fact, never the first.
+  const marker = byId(doc, STAND_IDS.sample);
+  if (marker) {
+    const copy = STAND_SAMPLE_MARKER[headline.source] ?? STAND_SAMPLE_MARKER.example;
+    marker.dataset.source = headline.source === "import" ? "import" : "example";
+    const [shape, word] = [marker.children?.[0] ?? null, marker.children?.[1] ?? null];
+    if (shape) shape.textContent = copy.shape;
+    if (word) word.textContent = copy.word;
+    // The sentence is the marker's own last child, a bare text node authored
+    // beside the two elements above. Rebuilding the trio keeps it a text node.
+    marker.replaceChildren(...[shape, word].filter(Boolean), doc.createTextNode(` ${copy.detail}`));
+  }
+
+  // Spoken once, from the page's one announcer, and it carries the three things
+  // a reader who cannot see this region needs in order to decide whether to
+  // keep listening: the question, the metric with its unit, and the one next
+  // action. Every other region that used to echo this change was silenced at
+  // boot by `silenceEchoedRegions`.
+  announceAnswer(doc, answerAnnouncement(headline));
 
   // THE SPINE, LAST, so it is what the region ends up carrying. It writes the
   // page's one question into this region's heading, the headline metric's name

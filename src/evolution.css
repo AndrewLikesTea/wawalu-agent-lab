@@ -325,6 +325,10 @@
 .sample-badge[data-mode="local"] { border-color:var(--import-accent); background:var(--import-wash); color:var(--import-ink); }
 .sample-marker { display:flex; align-items:baseline; gap:8px; grid-column:1/-1; margin:0 0 4px; border:1px solid var(--state-warn-line); border-left:5px solid var(--state-warn-line); border-radius:9px; padding:10px 13px; background:var(--state-warn-wash); color:var(--state-warn-ink); font-size:12px; line-height:1.5; }
 .sample-marker-shape { flex:none; font-weight:750; }
+/* Imported, in the same three channels the badge above uses and in the roles
+   the import panel already ships: the word and the filled shape carry it, this
+   only tints it. #244c3c on #eef6f2 is 8.8:1, AA at this 12px weight. */
+.sample-marker[data-source="import"] { border-color:var(--import-line); border-left-color:var(--import-accent); background:var(--import-wash); color:var(--import-ink); }
 /* What one provider export answers, before a byte is selected. Three sentences
    in the heading block that already exists — no panel, no border, no expander:
    it is read on the way to the file picker, not opened. */
