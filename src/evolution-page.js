@@ -264,6 +264,12 @@ import {
   classifyQuerySample, parseQuerySample,
 } from "/query-sample-contract.js";
 import { scorePromptLiteracy } from "/prompt-literacy-scoring.js";
+// The question asked before any of the grading above: of the columns later
+// structural grading depends on, which ones does the reader's own export
+// actually carry? Contract and dialect tables in one module, painting in the
+// other, both local-only.
+import { parseCorpusStructure } from "/corpus-structure.js";
+import { applyCorpusStructure } from "/corpus-structure-view.js";
 import { gradedSampleFigures, querySampleEligibility } from "/graded-sample-figures.js";
 import { promptGradingEligibility, promptGradingSignals } from "/prompt-grading-eligibility.js";
 import { applyGradedSample, clearGradedSample } from "/graded-sample-view.js";
@@ -1665,6 +1671,9 @@ function mountLocalFinopsImport() {
     review = null;
     samples.length = 0;
     archives.length = 0;
+    // The detected-columns summary is a statement about a file that no longer
+    // exists here, so it goes with it rather than captioning the next import.
+    applyCorpusStructure(document, null);
     // The drill-down goes back to the bundled sample with everything else. A
     // graded unit outliving the file it was graded from is the same mislabelling
     // the clear exists to prevent, in the other direction.
@@ -2126,6 +2135,15 @@ function mountLocalFinopsImport() {
     while (queue.length) {
       const file = queue.shift();
       total = file.total;
+      // Before anything is graded on a file, say which structural columns it
+      // actually carries. Pure and in memory: it reads the same text the
+      // parsers below read, retains no cell of it, and needs no credential.
+      // It paints only when a supported assistant-export dialect matched from
+      // the header row, so a provider billing export is not captioned with a
+      // summary about turn ordering it was never going to have; a file that
+      // matched nothing says so in its own result and leaves the region alone.
+      const structure = parseCorpusStructure(file.text);
+      if (structure.status === "matched") applyCorpusStructure(document, structure);
       // What a file *is* comes from its bytes, not its name. The query-sample
       // validator is the only thing that accepts a query sample, so asking it
       // first is the whole of the routing: a provider export or roster carries

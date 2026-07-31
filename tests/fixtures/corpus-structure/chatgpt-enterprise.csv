@@ -1,0 +1,4 @@
+conversation_id,message_index,model,created_at,language,message_text,user_email,internal_ticket_ref
+conv-8841,0,gpt-4o,2026-06-01T09:14:00Z,en,"Draft a migration plan, please",ada@example.com,TCK-1
+conv-8841,1,gpt-4o,2026-06-01T09:15:30Z,,"Now compare it to the rollback path",ada@example.com,TCK-1
+conv-9002,0,gpt-4o-mini,2026-06-02T11:02:00Z,de,"Fasse das Protokoll zusammen",bo@example.com,TCK-2
