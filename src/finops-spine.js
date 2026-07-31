@@ -144,6 +144,7 @@ const REGIONS = Object.freeze({
   "finops-contact": REGION_CLASS.evidence,
   "finops-proof-point": REGION_CLASS.evidence,
   "finops-headline": REGION_CLASS.evidence,
+  "classifier-agreement": REGION_CLASS.evidence,
   "disclosure-grade-comparisons": REGION_CLASS.evidence,
   "graded-sample": REGION_CLASS.evidence,
   "org-coaching": REGION_CLASS.evidence,
@@ -208,7 +209,8 @@ const EVIDENCE_LAYERS = Object.freeze([
     id: "how-it-was-worked-out",
     question: "How was this worked out, and can someone else repeat it?",
     regionIds: Object.freeze([
-      "score-card", "finops-headline", "disclosure-grade-comparisons", "graded-sample",
+      "score-card", "finops-headline", "classifier-agreement",
+      "disclosure-grade-comparisons", "graded-sample",
       "disclosure-recommendation-evidence", "prompt-coaching", "finops-proof-point",
       "finops-contact",
     ]),
