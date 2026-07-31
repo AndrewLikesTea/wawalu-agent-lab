@@ -67,9 +67,11 @@ test("the complete headline renders on first load with no import and no stored s
   // The question, and the four things that make it answerable.
   assert.equal(shownText(document, STAND_IDS.question), STAND_QUESTION);
   assert.match(shownText(document, STAND_IDS.positionValue),
-    /Bottom quartile · \$38\.63 per successful task/);
+    /Most expensive quarter · \$38\.63 per successful task/);
   assert.match(shownText(document, STAND_IDS.positionBasis),
-    /quartile boundaries \$18\.40 and \$31\.50 per successful task/);
+    /less than \$18\.40 and a quarter spends more than \$31\.50 per successful task/);
+  // The period the claim covers is on the surface, not only in the module.
+  assert.match(shownText(document, STAND_IDS.positionBasis), /for June 2026/);
   assert.match(shownText(document, STAND_IDS.recoverableValue),
     /\$51,254 · 33% of analyzed spend/);
   assert.equal(shownText(document, STAND_IDS.teamName), "Department …atlas0");

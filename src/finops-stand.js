@@ -51,9 +51,11 @@ import { leadingFinding } from "./finops-leading-finding.js";
 import { recoverableShare } from "./finops-first-run.js";
 import { validateCohortAttribution } from "./cohort-attribution.js";
 import {
-  COST_BAND_DIRECTION, COST_METRIC, COST_POSITION_WITHHELD, PEER_COST_COHORTS,
-  PEER_COST_PROVENANCE, PEER_COST_SNAPSHOT_ID, displayCostPerSuccessfulTask,
+  COST_BAND, COST_BAND_DIRECTION, COST_METRIC, COST_POSITION_WITHHELD, PEER_COST_COHORTS,
+  PEER_COST_PROVENANCE, PEER_COST_SNAPSHOT_ID, PEER_RANK_LABEL, displayCostPerSuccessfulTask,
 } from "./peer-cost-position.js";
+
+export { PEER_RANK_LABEL } from "./peer-cost-position.js";
 import {
   loadWorkspaceDestinations, prioritizedDestination, supportingDestinations,
 } from "./finops-destination-contract.js";
@@ -115,15 +117,38 @@ export const STAND_DISCLOSURE_ORDER = Object.freeze([
   STAND_DISCLOSURE.otherActions,
 ]);
 
-/** The visible summary of each disclosure, authored once so markup and module agree. */
+/**
+ * The visible summary of each disclosure, authored once so markup and module agree.
+ *
+ * Each one is a question or a plain noun phrase a first-time reader can act on.
+ * "Peer set", "rubric", and "the other ways on" were names for the machinery
+ * rather than for what a reader would find inside, so they are gone from every
+ * summary here; the published terms they stood for are still named in the
+ * entries, where there is room to say what they mean.
+ */
 export const STAND_DISCLOSURE_SUMMARY = Object.freeze({
-  [STAND_DISCLOSURE.cohort]: "How the peer set was built",
-  [STAND_DISCLOSURE.anonymization]: "What this comparison read, and what it never reads",
-  [STAND_DISCLOSURE.versions]: "Rubric and snapshot versions behind these figures",
-  [STAND_DISCLOSURE.reproducibility]: "Can this ranking be reproduced?",
+  [STAND_DISCLOSURE.cohort]: "How the organizations you are compared with were chosen",
+  [STAND_DISCLOSURE.anonymization]: "What this comparison reads, and what it never reads",
+  [STAND_DISCLOSURE.versions]: "Which scoring rules and which peer data produced these figures",
+  [STAND_DISCLOSURE.reproducibility]: "Can someone else repeat this ranking?",
   [STAND_DISCLOSURE.departments]: "Every department, ranked",
   [STAND_DISCLOSURE.verification]: "How much of this was verified",
-  [STAND_DISCLOSURE.otherActions]: "The other ways on, in priority order",
+  [STAND_DISCLOSURE.otherActions]: "Other actions, in priority order",
+});
+
+/**
+ * The published band, in words that carry their own direction.
+ *
+ * "Top quartile" is the CHEAPEST quartile, which is exactly backwards for a
+ * reader who has never seen this page and sees a large dollar figure beside the
+ * word "top". The published band name is not renamed — other surfaces and the
+ * reproducibility record still carry it, and it is named in the basis line
+ * below — but the figure a lead reads first says which quarter they are in.
+ */
+export const BAND_IN_WORDS = Object.freeze({
+  [COST_BAND.top]: "cheapest quarter",
+  [COST_BAND.middle]: "middle half",
+  [COST_BAND.bottom]: "most expensive quarter",
 });
 
 /** The eyebrow above the question, per source. */
@@ -131,6 +156,17 @@ export const STAND_LABEL = Object.freeze({
   example: "Bundled synthetic example · nothing of yours needed",
   import: "Your own export · analyzed in this browser",
 });
+
+/**
+ * The one way this region fails that is nobody's data problem: the example
+ * itself could not be read in this browser.
+ *
+ * It gets a reason code of its own so the state reads as what it is. Before
+ * this, a browser that could not load the example was told "this view produced
+ * no comparison" — the same sentence a reader whose export is missing a column
+ * gets, which sends them to fix a file that is not the problem.
+ */
+export const STAND_LOAD_FAILED = "stand_example_unreadable";
 
 /**
  * The remedy for each way `peer-cost-position.js` can withhold a position.
@@ -153,22 +189,28 @@ export const STAND_RESOLUTION = Object.freeze({
     "Include the task ledger for this window — the rows that carry a terminal outcome — and "
     + "analyze the export again.",
   [COST_POSITION_WITHHELD.snapshotMismatch]:
-    `Analyze an export whose window matches cohort snapshot ${PEER_COST_SNAPSHOT_ID}, or wait for `
-    + "the next published snapshot.",
+    "Analyze an export covering the same window as the published peer data "
+    + `(${PEER_COST_SNAPSHOT_ID}), or wait for the next peer data to be published.`,
   [COST_POSITION_WITHHELD.noSpendTotal]:
     "Include the cost column in the export so a spend total can be attributed, then analyze it "
     + "again.",
   // The reproducibility gates. Same rule as above: the refusing module publishes
   // the reason, this table publishes the one step that resolves it.
   [REPRODUCIBILITY_REFUSED.missingRubricVersion]:
-    "Wait for a cohort snapshot that declares the rubric version it was built for. Nothing in an "
-    + "export can supply it, so there is nothing to change in the file.",
+    "Wait for peer data that names the version of the scoring rules it was built for. Nothing in "
+    + "an export can supply that, so there is nothing to change in your file.",
   [REPRODUCIBILITY_REFUSED.rubricVersionMismatch]:
-    `Wait for a cohort snapshot rebuilt for rubric ${RUBRIC_VERSION}. An older snapshot is not `
-    + "scored against a newer rubric, so re-analyzing the same export will not change this.",
+    `Wait for peer data rebuilt for scoring rules ${RUBRIC_VERSION}. Older peer data is not scored `
+    + "against newer rules, so analyzing the same export again will not change this.",
   [REPRODUCIBILITY_REFUSED.insufficientSample]:
-    "Analyze a window with more completed work in it — a longer period, or one that includes the "
-    + "task ledger for every team — and analyze the export again.",
+    "Analyze a window with more finished work in it — a longer period, or one that includes every "
+    + "department's completed tasks — and analyze the export again.",
+  // The load failure. It is not an eligibility decision and never reads like
+  // one: nothing in the reader's file caused it and nothing in their file fixes
+  // it, so the step is the one that has any chance of working.
+  [STAND_LOAD_FAILED]:
+    "Reload the page. If the ranking still does not appear, analyze your own export instead — it "
+    + "is read in this browser and does not depend on the example loading.",
   [REPRODUCIBILITY_REFUSED.noMatchedCohort]:
     "Check the declared size band and industry against the published cohorts listed under "
     + `"${STAND_DISCLOSURE_SUMMARY[STAND_DISCLOSURE.cohort]}", then analyze the export again.`,
@@ -181,13 +223,37 @@ export const STAND_RESOLUTION_ACTION = Object.freeze({
   targetId: "local-finops-files",
 });
 
-/** What the headline says before anything has been composed into it. */
+/**
+ * What the headline says before anything has been composed into it.
+ *
+ * The empty state names the cause — the page is still reading — and says what
+ * happens next without asking the reader to do anything, because there is
+ * nothing for them to do. The three short values keep this page's existing
+ * pending wording, which every other region on it already uses.
+ */
 export const STAND_PENDING = Object.freeze({
-  answer: "The bundled example has not been composed on this page yet.",
+  answer: "This page is still reading the Bundled synthetic example. The ranking appears here as "
+    + "soon as it has been read; nothing is needed from you.",
   position: "Not yet compared",
   recoverable: "Not yet measured",
-  team: "No team named yet",
+  team: "No department named yet",
   action: "Not yet ranked",
+});
+
+/** The load failure, in the reader's terms: what broke, and what it was not. */
+export const STAND_LOAD_FAILURE_REASON =
+  "The Bundled synthetic example could not be read in this browser, so there is no ranking to "
+  + "show. Nothing in your own data caused this.";
+
+/**
+ * The load failure in the shape the withheld path already reads.
+ *
+ * A frozen position-shaped value, not a new branch: `composeStandHeadline`
+ * publishes it through the same slot every other withheld reason goes through.
+ */
+export const STAND_LOAD_FAILURE_POSITION = Object.freeze({
+  available: false, band: null, bandLabel: null, value: null, valueDisplay: null,
+  reasonCode: STAND_LOAD_FAILED, reason: STAND_LOAD_FAILURE_REASON,
 });
 
 const USD = new Intl.NumberFormat("en-US", {
@@ -200,26 +266,60 @@ const entry = (term, detail) => Object.freeze({ term, detail: String(detail) });
 const filled = (value) => typeof value === "string" && value.trim().length > 0;
 
 /**
- * The position line: a band, the metric it is a band ON, and the two quartile
- * boundaries that give the band a denominator.
+ * "2026-06-01 to 2026-07-01" → "June 2026". Null rather than a guess.
  *
- * Never a bare rank. "Bottom quartile" on its own is a word a reader cannot
- * check; "Bottom quartile of 4 published cohorts · $38.63 per successful task,
- * against boundaries $18.40 and $31.50" is a claim they can.
+ * The period a claim covers is half of what makes it repeatable, and the
+ * analysis already carries it in the shape every other window on this page uses.
+ * A window that spans more than one month gets both ends rather than a month
+ * name that would be wrong for most of it.
  */
-function positionSlot(position) {
+const MONTH = Object.freeze(["January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December"]);
+
+export function periodLabel(analysis) {
+  const match = /^(\d{4})-(\d{2})-\d{2} to (\d{4})-(\d{2})-(\d{2})$/
+    .exec(String(analysis?.period ?? "").trim());
+  if (!match) return null;
+  const [, startYear, startMonth, endYear, endMonth, endDay] = match;
+  const month = MONTH[Number(startMonth) - 1];
+  if (!month) return null;
+  // A half-open window ending on the first of the next month is one whole
+  // month, which is how this page's own exports are cut.
+  const wholeMonth = endDay === "01"
+    && (Number(endMonth) === Number(startMonth) + 1 ? endYear === startYear
+      : Number(startMonth) === 12 && Number(endMonth) === 1
+        && Number(endYear) === Number(startYear) + 1);
+  return wholeMonth ? `${month} ${startYear}` : `${analysis.period}`;
+}
+
+/**
+ * The position line: which quarter of comparable organizations, what the metric
+ * is, and the two boundaries that make the quarter checkable.
+ *
+ * Never a bare rank, and never a bare band name. "Bottom quartile" is a word a
+ * first-time reader cannot check and can read backwards; "Most expensive
+ * quarter · $38.63 per successful task", with the boundaries and the published
+ * band name under it, is a claim they can repeat and someone else can verify.
+ */
+function positionSlot(position, period) {
   if (!position?.available) return null;
   const { cohort } = position;
+  const quarter = BAND_IN_WORDS[position.band] ?? "comparison group";
+  const capitalized = quarter.charAt(0).toUpperCase() + quarter.slice(1);
   return Object.freeze({
     available: true,
-    label: "Peer position",
-    value: `${position.bandLabel} · ${position.valueDisplay} per successful task`,
+    label: PEER_RANK_LABEL,
+    value: `${capitalized} · ${position.valueDisplay} per successful task`,
     band: position.band,
-    basis: `${COST_METRIC.label} against the published cohort ${cohort.label} — quartile `
-      + `boundaries ${displayCostPerSuccessfulTask(cohort.p25)} and `
-      + `${displayCostPerSuccessfulTask(cohort.p75)} per successful task, over `
+    /** The metric on its own, for the one sentence the answer repeats. */
+    perTask: position.valueDisplay,
+    basis: `${COST_METRIC.label}${period ? ` for ${period}` : ""}, compared with organizations `
+      + `that declared the same size and industry — ${cohort.label}. A quarter of that group `
+      + `spends less than ${displayCostPerSuccessfulTask(cohort.p25)} and a quarter spends more `
+      + `than ${displayCostPerSuccessfulTask(cohort.p75)} per successful task, so this `
+      + `organization is in the ${quarter}, measured over `
       + `${COUNT.format(position.successfulTasks)} successful tasks. ${COST_BAND_DIRECTION} `
-      + `This organization sits in the ${position.bandMeaning}.`,
+      + `Published band name for this quarter: ${position.bandLabel}.`,
   });
 }
 
@@ -231,16 +331,17 @@ function recoverableSlot(analysis) {
   if (!amount || !analyzed || share === null) {
     return Object.freeze({
       available: false,
-      label: "Modelled recoverable",
+      label: "Recoverable spend",
       value: STAND_PENDING.recoverable,
       basis: "This analysis published no spend total to divide, so no recoverable share is claimed.",
     });
   }
   return Object.freeze({
     available: true,
-    label: "Modelled recoverable",
+    label: "Recoverable spend",
     value: `${amount} · ${Math.round(share * 100)}% of analyzed spend`,
-    basis: `${amount} of ${analyzed} analyzed. A modelled routing ceiling, not a realized saving.`,
+    basis: `${amount} of ${analyzed} analyzed. A modelled ceiling on what re-routing this work `
+      + "could save — not money already saved.",
   });
 }
 
@@ -257,14 +358,20 @@ function teamSlot(finding) {
   if (!finding?.available || !filled(name)) {
     return Object.freeze({
       available: false,
-      label: "Lagging team",
+      label: "Department driving the increase",
       name: STAND_PENDING.team,
       detail: finding?.reason
         ?? "No department increased its spend against the prior month, so none is named here.",
     });
   }
   return Object.freeze({
-    available: true, label: "Lagging team", name, detail: finding.driverSentence,
+    available: true,
+    // "Team" here and "department" in the ranked list below were two names for
+    // one thing. Every rendered surface on this page says department, so this
+    // one does too.
+    label: "Department driving the increase",
+    name,
+    detail: finding.driverSentence,
   });
 }
 
@@ -288,18 +395,29 @@ function actionSlot(record) {
     available: true,
     label: top.callToAction ?? top.label,
     href: top.href,
-    basis: `${top.answers} ${top.selectionBasis}`,
+    // "Do this first" is the only thing added: when, and that there is one. The
+    // question it answers and the clause that ranked it are the destination
+    // contract's own sentences, quoted rather than paraphrased.
+    basis: `Do this first, before any spend cap is set. ${top.answers} ${top.selectionBasis}`,
   });
 }
 
-/** The one sentence a reader who stops at the top has still read. */
-function answerSentence(position, recoverable, team) {
+/**
+ * The one sentence a reader who stops at the top has still read — and the one
+ * they can repeat verbatim.
+ *
+ * Position, comparison set, metric and period in the first clause, so nothing
+ * in it has to be looked up before it can be said out loud.
+ */
+function answerSentence(position, recoverable, team, period) {
   if (!position?.available) return null;
-  const parts = [`This organization is in the ${position.band === "bottom_quartile"
-    ? "most expensive quarter" : position.bandMeaning ?? "cohort"} of its peer cohort at `
-    + `${position.value.split(" · ")[1] ?? position.value}.`];
-  if (recoverable?.available) parts.push(`${recoverable.value.split(" · ")[0]} is modelled recoverable.`);
-  if (team?.available) parts.push(`${team.name} is the department driving it.`);
+  const quarter = BAND_IN_WORDS[position.band] ?? "comparison group";
+  const parts = [`Your AI spend is in the ${quarter} of organizations like yours, at `
+    + `${position.perTask ?? position.value} per successful task${period ? ` for ${period}` : ""}.`];
+  if (recoverable?.available) {
+    parts.push(`${recoverable.value.split(" · ")[0]} of that is modelled as recoverable.`);
+  }
+  if (team?.available) parts.push(`${team.name} is driving the increase.`);
   return parts.join(" ");
 }
 
@@ -342,8 +460,8 @@ function versionEntries(analysis, briefing, position) {
   return [
     entry("Analysis schema", analysis?.schemaVersion ?? "no analysis schema"),
     entry("Briefing contract", briefing?.contractVersion ?? "no briefing contract"),
-    entry("Routing rubric", briefing?.rubricVersion ?? "no rubric"),
-    entry("Cohort snapshot", position?.cohort?.snapshotId ?? PEER_COST_SNAPSHOT_ID),
+    entry("Routing scoring rules", briefing?.rubricVersion ?? "no scoring rules"),
+    entry("Peer data published", position?.cohort?.snapshotId ?? PEER_COST_SNAPSHOT_ID),
     entry("Position contract", position?.version ?? STAND_VERSION),
     entry("Headline contract", STAND_VERSION),
   ];
@@ -365,42 +483,46 @@ function versionEntries(analysis, briefing, position) {
 function reproducibilityEntries(result) {
   if (!result) {
     return [
-      entry("Ranking claim", "No cost-per-successful-task ranking was composed on this path, so "
-        + "none is claimed as reproducible. The placement above comes from the import cohort "
-        + "contract, which publishes a matched cohort rather than a quartile band."),
-      entry("Rubric version", `${RUBRIC_VERSION} in use · cohort snapshot `
+      entry("Ranking claim", "No cost-per-successful-task ranking was worked out on this path, so "
+        + "none is claimed as repeatable. The comparison above names the group this export was "
+        + "matched to, not which quarter of it the spend falls in."),
+      entry("Scoring rules", `${RUBRIC_VERSION} in use · the peer data published on `
         + `${SHIPPED_COHORT_SNAPSHOT.snapshotId} was built for `
         + `${SHIPPED_COHORT_SNAPSHOT.rubricVersion}.`),
     ];
   }
   const { rubric } = result;
   const rows = [
-    entry("Rubric version", rubric.snapshot
-      ? `${rubric.inUse} in use · this cohort snapshot was built for ${rubric.snapshot} · `
-        + `${rubric.snapshot === rubric.inUse ? "match" : "mismatch, so no ranking is published"}.`
-      : `${rubric.inUse} in use · this cohort snapshot declares no rubric version, so nothing `
-        + "was scored against it."),
-    entry("Cohort snapshot date",
-      rubric.snapshotId ?? "This cohort snapshot published no date, so none is shown here."),
-    entry("Confidence", result.confidence?.detail
-      ?? `Not claimed: no band was published, so there is no confidence in one. ${result.reason}`),
-    entry("Last verification", result.verification.detail),
+    entry("Scoring rules", rubric.snapshot
+      ? `${rubric.inUse} in use · this peer data was built for ${rubric.snapshot} · `
+        + `${rubric.snapshot === rubric.inUse ? "they match, so a ranking can be published"
+          : "they do not match, so no ranking is published"}.`
+      : `${rubric.inUse} in use · this peer data names no version of the rules it was built for, `
+        + "so nothing was scored against it."),
+    entry("Peer data published",
+      rubric.snapshotId ?? "This peer data carries no publication date, so none is shown here."),
+    entry("Confidence in this ranking", result.confidence?.detail
+      ?? `Not claimed: no ranking was published, so there is no confidence in one. ${result.reason}`),
+    entry("Last verified", result.verification.detail),
   ];
   if (!result.reproducible) {
-    rows.push(entry("Ranking withheld", result.reason));
+    rows.push(entry("Why no ranking is shown", result.reason));
     return rows;
   }
-  rows.push(entry("Reproducibility fingerprint", `${result.fingerprint} · a 32-bit digest over `
-    + `${RECORD_FIELDS.length} derived values: the rubric version, the cohort snapshot and id, `
-    + "the band, both quartile boundaries, the metric and the spend in whole cents, the "
-    + "successful-task count, and the department gap. No date and no clock reading is inside it, "
-    + "so two runs over the same inputs produce this same value."));
+  rows.push(entry("Repeat-check code", `${result.fingerprint} · run this analysis again over the `
+    + "same figures and you get this same code. It is computed from the "
+    + `${RECORD_FIELDS.length} values the ranking depends on — the scoring rules, the peer data `
+    + "and its id, the quarter, both boundaries, the metric and the spend in whole cents, the "
+    + "successful-task count, and the department gap — and from no date and no clock, so a "
+    + "second run is comparable with this one in a glance. It is a check for changes, not a "
+    + "security digest."));
   const laggard = renderableLaggardName(result);
   if (laggard && Number.isInteger(result.record.gapBands)) {
-    rows.push(entry("Widest department gap, as compared", `${laggard} · `
-      + `${result.record.gapBands} band${result.record.gapBands === 1 ? "" : "s"} behind the `
-      + "cheapest eligible department, on the same rubric and the same boundaries as the peer "
-      + "position. The gap is compared on department ids, never on names."));
+    rows.push(entry("Widest gap between departments", `${laggard} · `
+      + `${result.record.gapBands} quarter${result.record.gapBands === 1 ? "" : "s"} behind the `
+      + "cheapest department that qualified, measured on the same rules and the same boundaries "
+      + `as the ${PEER_RANK_LABEL.toLowerCase()} above. Departments are compared by id, never by `
+      + "name."));
   }
   return rows;
 }
@@ -479,7 +601,8 @@ export function composeStandHeadline({
   const recoverable = recoverableSlot(analysis);
   const team = teamSlot(finding);
   const action = actionSlot(destinations);
-  const placed = positionSlot(position);
+  const period = periodLabel(analysis);
+  const placed = positionSlot(position, period);
   const withheld = placed ? null : withheldFrom(position, eligibility, source);
   return Object.freeze({
     version: STAND_VERSION,
@@ -489,10 +612,10 @@ export function composeStandHeadline({
     positioned: Boolean(placed),
     /** The headline is complete when every one of its five parts is present. */
     available: Boolean(placed && recoverable.available && team.available && action.available),
-    answer: answerSentence(placed, recoverable, team)
+    answer: answerSentence(placed, recoverable, team, period)
       ?? withheld?.missing ?? STAND_PENDING.answer,
     position: placed ?? Object.freeze({
-      available: false, label: "Peer position", value: STAND_PENDING.position, band: null,
+      available: false, label: PEER_RANK_LABEL, value: STAND_PENDING.position, band: null,
       basis: withheld?.missing ?? STAND_PENDING.answer,
     }),
     recoverable,
@@ -536,7 +659,7 @@ function withheldFrom(position, eligibility, source) {
   return Object.freeze({
     reasonCode: code,
     missing: position?.reason
-      ?? "No peer position: this view produced no comparison to place this organization in.",
+      ?? "No ranking: this view produced no comparison to place this organization in.",
     nextStep: STAND_RESOLUTION[code]
       ?? "Analyze a provider export that declares an organization size band and an industry.",
     actionLabel: STAND_RESOLUTION_ACTION.label,
@@ -590,7 +713,9 @@ export function buildStandHeadline(loadAnalysis = loadExampleDataset,
       eligibility: validateCohortAttribution({}),
     });
   } catch {
-    return composeStandHeadline({ source: "example" });
+    // The example could not be read. Same withheld slot, its own reason: a
+    // reader is told what failed and that their own data is not the cause.
+    return composeStandHeadline({ source: "example", position: STAND_LOAD_FAILURE_POSITION });
   }
 }
 
@@ -623,8 +748,8 @@ export function standHeadlineForImport({ analysis = null, eligibility = null } =
   const { position } = eligibility;
   const placed = Object.freeze({
     available: true,
-    label: "Peer position",
-    value: `Compared against ${position.label}`,
+    label: PEER_RANK_LABEL,
+    value: `Compared with ${position.label}`,
     band: null,
     basis: `${COUNT.format(position.memberCount)} organizations in ${position.segmentLabel} · `
       + `declared band ${position.orgSizeBand} · declared industry ${position.industry} · `
@@ -639,9 +764,11 @@ export function standHeadlineForImport({ analysis = null, eligibility = null } =
     position: placed,
     available: Boolean(composed.recoverable.available && composed.team.available
       && composed.action.available),
-    answer: `This export is compared against ${position.label}.`
+    answer: `Your export is compared with ${position.label}`
+      + `${periodLabel(analysis) ? ` for ${periodLabel(analysis)}` : ""}.`
       + (composed.recoverable.available
-        ? ` ${composed.recoverable.value.split(" · ")[0]} is modelled recoverable.` : "")
-      + (composed.team.available ? ` ${composed.team.name} is the department driving it.` : ""),
+        ? ` ${composed.recoverable.value.split(" · ")[0]} of that spend is modelled as `
+          + "recoverable." : "")
+      + (composed.team.available ? ` ${composed.team.name} is driving the increase.` : ""),
   });
 }
