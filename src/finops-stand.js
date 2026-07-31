@@ -63,6 +63,10 @@ import {
   RECORD_FIELDS, REPRODUCIBILITY_REFUSED, RUBRIC_VERSION, SHIPPED_COHORT_SNAPSHOT,
   evaluateRankingReproducibility, renderableLaggardName,
 } from "./ranking-reproducibility.js";
+import { PROVENANCE_KIND, resolveFinding } from "./finops-finding-resolver.js";
+import {
+  FINOPS_SPINE_MANIFEST, SPINE_CLAIM_KIND, SPINE_DIRECTION, SPINE_UNIT,
+} from "./finops-spine-manifest.js";
 
 /** Bump when a headline slot, a disclosure, or a withheld sentence changes meaning. */
 export const STAND_VERSION = "finops-stand-headline/1.0.0";
@@ -402,23 +406,193 @@ function actionSlot(record) {
   });
 }
 
+// ---------------------------------------------------------------------------
+// The candidate findings.
+//
+// WHAT CHANGED AND WHY. This region used to assemble its headline sentence by
+// construction: `answerSentence()` took the peer position, bolted the
+// recoverable figure and the named department onto it, and that was the
+// headline because that is what the function did. There was no ranking, so a
+// stronger finding — a department two quarters behind the rest of the
+// organization, a month where spend moved further than the peer gap — had no
+// way to reach the top of the page.
+//
+// So that function is gone. Each signal this region already had now states
+// itself as a CANDIDATE — a claim, an impact in a declared unit, a confidence
+// level with the reasons behind it, and its provenance — and
+// `finops-finding-resolver.js` ranks them against the spine manifest. The
+// winner's claim is the headline. Nothing below computes a figure: every value
+// is read off a result some other module already published, exactly as before.
+// ---------------------------------------------------------------------------
+
+/** The band, as a distance in quartiles from the cheapest quarter. A lookup, not arithmetic. */
+const BAND_QUARTILES_FROM_CHEAPEST = Object.freeze({
+  [COST_BAND.top]: 0, [COST_BAND.middle]: 1, [COST_BAND.bottom]: 2,
+});
+
+/** The band, as a direction the manifest admits. */
+const BAND_SPINE_DIRECTION = Object.freeze({
+  [COST_BAND.top]: SPINE_DIRECTION.betterThanPeers,
+  [COST_BAND.middle]: SPINE_DIRECTION.atPeers,
+  [COST_BAND.bottom]: SPINE_DIRECTION.worseThanPeers,
+});
+
+/** Reason codes for the confidence a signal states before the resolver adjusts it. */
+export const STAND_CONFIDENCE_REASON = Object.freeze({
+  rankingReproducible: "ranking_reproducible",
+  rankingNotReproducible: "ranking_not_reproducible",
+  analysisCoverage: "analysis_coverage_published",
+  coverageNotPublished: "analysis_coverage_not_published",
+});
+
 /**
- * The one sentence a reader who stops at the top has still read — and the one
- * they can repeat verbatim.
- *
- * Position, comparison set, metric and period in the first clause, so nothing
- * in it has to be looked up before it can be said out loud.
+ * How far to trust a figure that came out of the analysis rather than the peer
+ * cohorts: the coverage confidence the briefing already published, or a stated
+ * "moderate" when it published none. No new measurement is taken here.
  */
-function answerSentence(position, recoverable, team, period) {
-  if (!position?.available) return null;
-  const quarter = BAND_IN_WORDS[position.band] ?? "comparison group";
-  const parts = [`Your AI spend is in the ${quarter} of organizations like yours, at `
-    + `${position.perTask ?? position.value} per successful task${period ? ` for ${period}` : ""}.`];
-  if (recoverable?.available) {
-    parts.push(`${recoverable.value.split(" · ")[0]} of that is modelled as recoverable.`);
+function analysisConfidence(briefing) {
+  const published = briefing?.coverage?.confidence ?? null;
+  return ["high", "moderate", "low"].includes(published)
+    ? { level: published, reasons: [STAND_CONFIDENCE_REASON.analysisCoverage] }
+    : { level: "moderate", reasons: [STAND_CONFIDENCE_REASON.coverageNotPublished] };
+}
+
+/**
+ * The candidate signals, in a fixed authoring order.
+ *
+ * The order here is authoring convenience only — the resolver's tiebreak chain
+ * is total, so shuffling this array cannot change the winner, and a test
+ * asserts exactly that.
+ */
+function standSignals({
+  analysis, briefing, position, cohort, recoverable, team, finding, reproducibility, action,
+  period, source,
+}) {
+  const signals = [];
+  const actionText = action?.available ? action.label : STAND_PENDING.action;
+  // Cohort-derived signals rest on the published synthetic cohorts in every
+  // state, including an import: no file a reader supplies changes those
+  // boundaries. Analysis-derived signals carry the source the page already
+  // resolved for this render.
+  const cohortProvenance = Object.freeze({
+    kind: PROVENANCE_KIND.synthetic,
+    label: PEER_COST_PROVENANCE.label,
+    id: cohort?.snapshotId ?? PEER_COST_SNAPSHOT_ID,
+    detail: reproducibility?.rubric?.inUse ?? RUBRIC_VERSION,
+  });
+  const analysisProvenance = Object.freeze({
+    kind: source === "import" ? PROVENANCE_KIND.imported : PROVENANCE_KIND.synthetic,
+    label: STAND_LABEL[source] ?? STAND_LABEL.example,
+    id: analysis?.period ?? null,
+    detail: analysis?.schemaVersion ?? null,
+  });
+  const cohortConfidence = reproducibility?.confidence?.tier
+    ? { level: reproducibility.confidence.tier,
+      reasons: [STAND_CONFIDENCE_REASON.rankingReproducible] }
+    : { level: "low", reasons: [STAND_CONFIDENCE_REASON.rankingNotReproducible] };
+
+  // 1. Where we stand. The claim is the one a lead repeats verbatim: position,
+  //    comparison set, metric and period in the first clause, then what it is
+  //    worth and who is driving it.
+  if (position?.available && position.band in BAND_QUARTILES_FROM_CHEAPEST) {
+    const quarter = BAND_IN_WORDS[position.band] ?? "comparison group";
+    const parts = [`Your AI spend is in the ${quarter} of organizations like yours, at `
+      + `${position.perTask ?? position.value} per successful task${period ? ` for ${period}` : ""}.`];
+    if (recoverable?.available) {
+      parts.push(`${recoverable.value.split(" · ")[0]} of that is modelled as recoverable.`);
+    }
+    if (team?.available) parts.push(`${team.name} is driving the increase.`);
+    signals.push({
+      id: "peer-position",
+      signalKind: SPINE_CLAIM_KIND.peerPosition,
+      claim: parts.join(" "),
+      impact: {
+        value: BAND_QUARTILES_FROM_CHEAPEST[position.band],
+        unit: SPINE_UNIT.quartilesFromCheapest,
+        direction: BAND_SPINE_DIRECTION[position.band],
+      },
+      confidence: cohortConfidence,
+      provenance: cohortProvenance,
+      recommendedAction: actionText,
+    });
   }
-  if (team?.available) parts.push(`${team.name} is driving the increase.`);
-  return parts.join(" ");
+
+  // 2. Which way spend moved, in the leading finding's own figures.
+  if (finding?.available && Number.isFinite(Number(finding.changeUsd))) {
+    const change = Number(finding.changeUsd);
+    signals.push({
+      id: "spend-trend",
+      signalKind: SPINE_CLAIM_KIND.spendTrend,
+      claim: `Analyzed AI spend moved ${finding.metric}.`,
+      impact: {
+        value: change,
+        unit: SPINE_UNIT.usdPerMonth,
+        direction: change > 0 ? SPINE_DIRECTION.increase
+          : change < 0 ? SPINE_DIRECTION.decrease : SPINE_DIRECTION.flat,
+      },
+      confidence: analysisConfidence(briefing),
+      provenance: analysisProvenance,
+      recommendedAction: actionText,
+    });
+  }
+
+  // 3. The widest internal gap, from the reproducibility record that measured
+  //    it on the same rules and boundaries as the position above.
+  const laggard = renderableLaggardName(reproducibility);
+  if (laggard && Number.isInteger(reproducibility?.record?.gapBands)
+    && reproducibility.record.gapBands > 0) {
+    const bands = reproducibility.record.gapBands;
+    signals.push({
+      id: "department-gap",
+      signalKind: SPINE_CLAIM_KIND.departmentGap,
+      claim: `${laggard} is ${bands} quarter${bands === 1 ? "" : "s"} behind the cheapest `
+        + "department that qualified, measured on the same rules and boundaries as the peer ranking.",
+      impact: {
+        value: bands, unit: SPINE_UNIT.quartilesBehind, direction: SPINE_DIRECTION.behind,
+      },
+      confidence: cohortConfidence,
+      provenance: cohortProvenance,
+      recommendedAction: actionText,
+    });
+  }
+
+  // 4. The department driving the change, in the sentence the finding published.
+  if (team?.available && finding?.driver && Number.isFinite(Number(finding.driver.deltaUsd))) {
+    const delta = Number(finding.driver.deltaUsd);
+    signals.push({
+      id: "department-driver",
+      signalKind: SPINE_CLAIM_KIND.departmentDriver,
+      claim: team.detail,
+      impact: {
+        value: delta,
+        unit: SPINE_UNIT.usdPerMonth,
+        direction: delta < 0 ? SPINE_DIRECTION.decrease : SPINE_DIRECTION.increase,
+      },
+      confidence: analysisConfidence(briefing),
+      provenance: analysisProvenance,
+      recommendedAction: actionText,
+    });
+  }
+
+  // 5. What is modelled as recoverable. A ceiling, and it says so.
+  if (recoverable?.available && Number.isFinite(Number(analysis?.recoverableUsd))) {
+    signals.push({
+      id: "recoverable-spend",
+      signalKind: SPINE_CLAIM_KIND.recoverableSpend,
+      claim: `${recoverable.value.split(" · ")[0]} of ${usd(analysis.spendUsd) ?? "analyzed spend"} `
+        + "analyzed is modelled as recoverable — a ceiling on what re-routing this work could save, "
+        + "not money already saved.",
+      impact: {
+        value: Number(analysis.recoverableUsd),
+        unit: SPINE_UNIT.usdPerMonth,
+        direction: SPINE_DIRECTION.recoverable,
+      },
+      confidence: analysisConfidence(briefing),
+      provenance: analysisProvenance,
+      recommendedAction: actionText,
+    });
+  }
+  return signals;
 }
 
 // ---------------------------------------------------------------------------
@@ -604,6 +778,12 @@ export function composeStandHeadline({
   const period = periodLabel(analysis);
   const placed = positionSlot(position, period);
   const withheld = placed ? null : withheldFrom(position, eligibility, source);
+  // The headline claim is RESOLVED, not assembled: every signal states itself as
+  // a candidate and the ranked winner's claim is what this region asserts.
+  const resolution = resolveFinding(standSignals({
+    analysis, briefing, position: placed, cohort: position?.cohort ?? null, recoverable, team,
+    finding, reproducibility, action, period, source,
+  }), { manifest: FINOPS_SPINE_MANIFEST });
   return Object.freeze({
     version: STAND_VERSION,
     question: STAND_QUESTION,
@@ -612,8 +792,18 @@ export function composeStandHeadline({
     positioned: Boolean(placed),
     /** The headline is complete when every one of its five parts is present. */
     available: Boolean(placed && recoverable.available && team.available && action.available),
-    answer: answerSentence(placed, recoverable, team, period)
-      ?? withheld?.missing ?? STAND_PENDING.answer,
+    /** The winning finding's claim, verbatim. This region asserts nothing else. */
+    answer: resolution.winner?.claim ?? withheld?.missing ?? STAND_PENDING.answer,
+    /** The winning finding, for a surface that wants to trace the claim. */
+    finding: resolution.winner,
+    /**
+     * The rest of the ranking, in order. Returned for progressive disclosure
+     * later; NOTHING renders it today, and no panel, toggle, or expander for it
+     * exists on this page.
+     */
+    runnersUp: resolution.runnersUp,
+    /** Signals that could not become findings, and why. Never silently dropped. */
+    rejectedSignals: resolution.rejected,
     position: placed ?? Object.freeze({
       available: false, label: PEER_RANK_LABEL, value: STAND_PENDING.position, band: null,
       basis: withheld?.missing ?? STAND_PENDING.answer,
@@ -757,6 +947,13 @@ export function standHeadlineForImport({ analysis = null, eligibility = null } =
       + `${position.orgUnits === 1 ? "" : "s"} counted from this export · cohort snapshot `
       + `${position.snapshotDate}`,
   });
+  // The answer is NOT rebuilt here. This path used to compose a second headline
+  // sentence of its own — a placement clause with the recoverable figure and the
+  // named department bolted on — which meant two per-signal headline
+  // computations ran on this page, one per source. There is one now: the
+  // composed resolution above ranked the signals this import supports, and the
+  // placement it was matched to is stated in the position slot, which is where
+  // the import contract publishes it.
   return Object.freeze({
     ...composed,
     positioned: true,
@@ -764,11 +961,5 @@ export function standHeadlineForImport({ analysis = null, eligibility = null } =
     position: placed,
     available: Boolean(composed.recoverable.available && composed.team.available
       && composed.action.available),
-    answer: `Your export is compared with ${position.label}`
-      + `${periodLabel(analysis) ? ` for ${periodLabel(analysis)}` : ""}.`
-      + (composed.recoverable.available
-        ? ` ${composed.recoverable.value.split(" · ")[0]} of that spend is modelled as `
-          + "recoverable." : "")
-      + (composed.team.available ? ` ${composed.team.name} is driving the increase.` : ""),
   });
 }

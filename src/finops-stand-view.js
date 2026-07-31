@@ -138,6 +138,12 @@ export function applyStandHeadline(doc, headline) {
   // screenshot, and a test all read the same attribute the stylesheet does.
   region.dataset.position = headline.positioned ? "placed" : "withheld";
   region.dataset.source = headline.source ?? "example";
+  // Which finding won, on the region itself. An attribute, not a panel: the
+  // runners-up are returned by the resolver and rendered nowhere, and this is
+  // how a test, a printed page, and a support conversation can say which claim
+  // the reader was actually shown.
+  region.dataset.finding = headline.finding?.signalKind ?? "none";
+  region.dataset.findingConfidence = headline.finding?.confidence?.level ?? "unavailable";
 
   setText(doc, STAND_IDS.label, headline.label ?? "");
   setText(doc, STAND_IDS.question, headline.question ?? "");

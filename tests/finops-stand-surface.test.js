@@ -299,3 +299,24 @@ test("the named team and every figure are readable as text", async () => {
   // One live announcement, and it is the answer rather than the machinery.
   assert.match(shownText(document, STAND_IDS.live), /Where do we stand|most expensive quarter/);
 });
+
+test("the shipped page renders the resolver's winning finding, and only that one", async () => {
+  const { document } = await openWithClearedStorage();
+  const region = byId(document, STAND_IDS.region);
+  // Which finding won is on the region, so a printed page and a support
+  // conversation can name the claim the reader was shown.
+  assert.equal(region.dataset.finding, "peer_position");
+  // The bundled path rests on synthetic cohort boundaries, so the level painted
+  // here is the downgraded one, not the tier the reproducibility result stated.
+  assert.equal(region.dataset.findingConfidence, "moderate");
+  // The painted sentence is the winner's claim, taken from the composed model
+  // rather than from a second computation on the page.
+  const headline = composeStandHeadline({ analysis: loadExampleDataset(), source: "example" });
+  assert.ok(headline.finding, "the example supports at least one finding");
+  // And no runner-up claim reached the surface: no panel, toggle, or expander
+  // for them exists in the shipped markup.
+  for (const runnerUp of headline.runnersUp) {
+    assert.ok(!html.includes(runnerUp.claim),
+      `a runner-up claim was authored into the page: ${runnerUp.claim}`);
+  }
+});
