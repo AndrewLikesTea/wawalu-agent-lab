@@ -1082,6 +1082,13 @@ export async function initDecisionLog(root = document, storage = localStorage, o
       filtered: shown.length !== records.length,
       decisionIds: shown.filter((record) => record.type === "decision").map((record) => record.id),
       releaseIds: shown.filter((record) => record.type === "release").map((record) => record.id),
+      // The state that produced those ids, so a downloaded file can name the
+      // filter it came from. `filtered` above is a different fact — it says
+      // records were actually left out — and the two can disagree honestly: an
+      // owner filter every record matches is an active filter that hid nothing.
+      // The ids still decide membership; this is only what the file says about
+      // itself. `sort` is deliberately not in it: it reorders the same records.
+      filters: { ...view },
     };
   };
 

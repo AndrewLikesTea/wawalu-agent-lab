@@ -41,7 +41,15 @@ import { SHIPLOG_EXPORT_SCHEMA, SHIPLOG_EXPORT_VERSION } from "./shiplog-export.
 
 // Everything createShiplogExport writes. Anything else in the file is reported
 // and ignored rather than silently carried into storage.
-export const IMPORT_TOP_LEVEL_KEYS = ["schema", "version", "generatedAt", "decisions", "releases"];
+//
+// `record_count` and `filter` describe the file rather than the records in it:
+// they are listed so a conforming export is not reported back to the visitor as
+// two unknown keys, and they are deliberately not read. The records the file
+// actually carries are the import, and a count or a filter block copied from
+// whoever exported it must never influence what this browser stores.
+export const IMPORT_TOP_LEVEL_KEYS = [
+  "schema", "version", "generatedAt", "record_count", "filter", "decisions", "releases",
+];
 
 function describe(value) {
   if (value === null) return "null";

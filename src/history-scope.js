@@ -17,6 +17,15 @@
 // The scope carries ids, not predicates: the history owns filtering (it composes
 // examples, resolves supersedes, and reads the controls), and the export must not
 // re-derive that rule from the store or the two would drift.
+//
+// It also carries the *filter state* that produced those ids — as data, still not
+// as a predicate. Nothing downstream may filter with it; it exists so a file can
+// say which filter produced it (shiplog-export.js writes it as the export's
+// `filter` block) and so a control can name its own scope. The ids remain the
+// only thing that decides membership, which is what keeps the exported count and
+// the rendered count the same number by construction.
+
+import { DEFAULT_HISTORY_FILTERS, normalizeHistoryFilters } from "./history-filters.js";
 
 const subscribers = new WeakMap();
 const scopes = new WeakMap();
@@ -26,6 +35,7 @@ export const FULL_HISTORY_SCOPE = Object.freeze({
   filtered: false,
   decisionIds: Object.freeze([]),
   releaseIds: Object.freeze([]),
+  filters: DEFAULT_HISTORY_FILTERS,
 });
 
 const idList = (value) => (Array.isArray(value) ? value.filter((id) => typeof id === "string" && id !== "") : []);
@@ -45,6 +55,10 @@ export function normalizeHistoryScope(scope) {
     filtered: scope.filtered === true,
     decisionIds: Object.freeze(idList(scope.decisionIds)),
     releaseIds: Object.freeze(idList(scope.releaseIds)),
+    // Total, like every other reader of a filter state in this codebase: a
+    // rubbish value normalizes back to its default rather than throwing out of
+    // a render or describing the file with a filter nothing was filtered by.
+    filters: Object.freeze(normalizeHistoryFilters(scope.filters ?? {})),
   });
 }
 

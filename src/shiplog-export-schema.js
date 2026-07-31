@@ -23,6 +23,8 @@
 //
 // Nothing here touches the DOM, storage, the clock, or the network.
 
+import { DEFAULT_HISTORY_FILTERS } from "./history-filters.js";
+
 /** The `schema` discriminator every export file carries. */
 export const SHIPLOG_EXPORT_SCHEMA = "shiplog-history";
 
@@ -41,8 +43,35 @@ export const EXPORT_ENVELOPE_FIELDS = Object.freeze({
   schema: "string",
   version: "number",
   generatedAt: "string",
+  // What the file is: how many records it carries, and which filter produced
+  // them. Both are optional here and required by the exporter — a file written
+  // before they existed is still a valid version 1 export, and a reader that
+  // ignores them reads the same `decisions` and `releases` it always did.
+  //
+  // `record_count` is the total across both collections
+  // (`decisions.length + releases.length`); Shiplog's records are of two kinds
+  // and the file keeps them in two arrays, so one count over both is the number
+  // a reader means by "how many records is this".
+  record_count: "number?",
+  // The active filters, keyed and valued exactly as activeHistoryFilters()
+  // states them: present means active, absent means off, `{}` means the file is
+  // the whole browsed history.
+  filter: "object?",
   decisions: "array",
   releases: "array",
+});
+
+// The filter dimensions a `filter` block may name, with the type each value
+// carries. A key outside this set is drift — a new dimension that reached the
+// file without being declared — and is reported rather than passed along.
+export const EXPORT_FILTER_FIELDS = Object.freeze({
+  query: "string",
+  type: "string",
+  status: "string",
+  owner: "string",
+  from: "string",
+  to: "string",
+  currentOnly: "boolean",
 });
 
 export const EXPORT_DECISION_FIELDS = Object.freeze({
@@ -245,6 +274,62 @@ export function linkIntegrityViolations(payload) {
 }
 
 /**
+ * The `filter` block's own contract: every key is a declared filter dimension,
+ * every value has that dimension's type, and no key carries the value that
+ * means "off".
+ *
+ * The last rule is the one worth stating as a check. A block that wrote
+ * `status: "all"` would read as *a status filter for the word "all"* to anybody
+ * who has not read history-filters.js, and it would make `{}` stop being the
+ * only way a file says "no filter was active".
+ */
+export function filterBlockViolations(payload) {
+  const block = payload?.filter;
+  if (block === undefined) return [];
+  if (!isRecordObject(block)) return [`export.filter: expected an object, got ${typeName(block)}`];
+  const violations = [];
+  for (const [key, value] of Object.entries(block)) {
+    const type = EXPORT_FILTER_FIELDS[key];
+    if (!type) {
+      violations.push(`export.filter: undeclared filter ${JSON.stringify(key)}`);
+      continue;
+    }
+    if (typeName(value) !== type) {
+      violations.push(`export.filter.${key}: expected ${type}, got ${typeName(value)}`);
+      continue;
+    }
+    if (value === DEFAULT_HISTORY_FILTERS[key]) {
+      violations.push(
+        `export.filter.${key}: ${JSON.stringify(value)} means this filter was not active; `
+        + "an inactive filter is omitted from the block",
+      );
+    }
+  }
+  return violations;
+}
+
+/**
+ * `record_count` states the size of the file it is in: it must equal the number
+ * of records actually written, across both collections.
+ *
+ * A count that disagrees with the arrays is worse than no count at all — it is
+ * the number a consumer would check the file against — so it is a violation
+ * rather than something reconciled quietly.
+ */
+export function recordCountViolations(payload) {
+  const stated = payload?.record_count;
+  if (stated === undefined) return [];
+  if (typeof stated !== "number" || !Number.isInteger(stated)) {
+    return [`export.record_count: expected an integer, got ${JSON.stringify(stated)}`];
+  }
+  if (!Array.isArray(payload?.decisions) || !Array.isArray(payload?.releases)) return [];
+  const actual = payload.decisions.length + payload.releases.length;
+  return stated === actual
+    ? []
+    : [`export.record_count: states ${stated}, but the file carries ${actual} records`];
+}
+
+/**
  * Every way a payload can fail the contract, collected. An empty array means
  * the file is a valid Shiplog export.
  *
@@ -272,6 +357,8 @@ export function shiplogExportViolations(payload) {
     });
     violations.push(...duplicateIdViolations(kind, payload[kind]));
   }
+  violations.push(...filterBlockViolations(payload));
+  violations.push(...recordCountViolations(payload));
   violations.push(...linkIntegrityViolations(payload));
   violations.push(...orderingViolations(payload));
   return violations;

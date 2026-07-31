@@ -459,7 +459,7 @@ test("a backup downloads the stored records and is recorded as taken", async () 
     await document.querySelector("#ws-export").dispatchEvent(new DomEvent("click", { bubbles: true }));
 
     assert.equal(page.downloads.length, 1);
-    assert.match(page.downloads[0].filename, /^shiplog-history-\d{4}-\d{2}-\d{2}\.json$/);
+    assert.match(page.downloads[0].filename, /^shiplog-history-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}Z\.json$/);
     assert.equal(shown(document, "ws-announcement"), OUTCOME.exported);
     const rows = document.querySelector("#ws-provenance-list").querySelectorAll(".ws-fact");
     const backupRow = rows.find((row) => textOf(row.querySelector("dt")) === "Last backup");

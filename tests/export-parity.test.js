@@ -24,7 +24,7 @@ import assert from "node:assert/strict";
 import { initDecisionLog, STORAGE_KEY } from "../src/app.js";
 import { initShiplogExport } from "../src/shiplog-export.js";
 import { RELEASE_STORAGE_KEY } from "../src/releases.js";
-import { DomEvent, loadPage, textOf } from "./support/browser.js";
+import { DomEvent, loadPage, pressEnter, pressSpace, textOf } from "./support/browser.js";
 import {
   describeViolations,
   parityViolations,
@@ -199,7 +199,7 @@ function exportFromPage(page) {
   const download = page.downloads.at(-1);
   assert.match(
     download.filename,
-    /^shiplog-history-\d{4}-\d{2}-\d{2}\.json$/,
+    /^shiplog-history-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}Z\.json$/,
     "the exported filename shape changed",
   );
   return JSON.parse(download.text);
@@ -417,8 +417,8 @@ test("a filtered export keeps its links resolvable and says which links it left 
   // decision is still there and clearing the filter brings the link back.
   assert.equal(
     textOf(page.document.querySelector("#export-shiplog-status")),
-    "Shiplog history exported. 1 release link to a decision your filters hide was left out.",
-    "the filtered export does not say which link it left out, or blames the wrong cause",
+    "Exported 2 filtered records. 1 release link to a decision your filters hide was left out.",
+    "the filtered export does not say what it wrote and which link it left out, or blames the wrong cause",
   );
 });
 
@@ -561,4 +561,170 @@ test("the pinned shape covers every field the export actually writes", async (t)
       assert.deepEqual(undeclared, [], `export.${kind} writes fields the pinned shape does not declare`);
     }
   }
+});
+
+// --- the envelope a filtered file carries ----------------------------------
+//
+// The claim under test: the file says how many records it holds and which
+// filter produced them, and both agree with what the visitor was looking at
+// when they pressed the button. The count is asserted against the *rendered
+// rows*, not against a second filter run — that is the drift these tests exist
+// to catch, and it is why the exporter follows the ids the history published
+// rather than re-deriving a selection of its own.
+
+// Set a control the visitor types into (search, a date bound) and let the page
+// react the way it does for a person: value, then the event the page binds.
+function setControl(page, selector, value) {
+  const control = page.document.querySelector(selector);
+  assert.ok(control, `the history has no ${selector} control`);
+  control.value = value;
+  control.dispatchEvent(new DomEvent("change", { bubbles: true }));
+  return control;
+}
+
+// How many rows the visitor can actually see, counted off the rendered list.
+function visibleCount(page) {
+  const seen = visibleIds(page);
+  return seen.decisions.length + seen.releases.length;
+}
+
+const exportButton = (page) => page.document.querySelector("#export-shiplog");
+
+test("a filtered file states the filter that produced it and counts its own records", async (t) => {
+  const page = await openHistory(t);
+
+  // Dimension one: status.
+  chooseOption(page, "#filter-status", "accepted");
+  let payload = exportFromPage(page);
+  assert.deepEqual(payload.filter, { status: "accepted" }, "the file names the wrong filter");
+  assert.equal(payload.record_count, visibleCount(page), "the exported count is not the rendered count");
+  assert.equal(payload.record_count, payload.decisions.length + payload.releases.length);
+  assert.equal(countText(page), `${payload.record_count} of ${TOTAL_RECORDS} records`);
+
+  // Dimension two: owner. Chosen after clearing the first, so the block is a
+  // statement about the current view and never accumulates a stale dimension.
+  chooseOption(page, "#filter-status", "all");
+  chooseOption(page, "#filter-owner", "Ari");
+  payload = exportFromPage(page);
+  assert.deepEqual(payload.filter, { owner: "Ari" });
+  assert.equal(payload.record_count, visibleCount(page), "the exported count is not the rendered count");
+
+  // Combined: owner and a date window together, which is where a second filter
+  // implementation would most easily disagree with the first.
+  setControl(page, "#filter-from", "2026-01-04");
+  setControl(page, "#filter-to", "2026-01-07");
+  payload = exportFromPage(page);
+  assert.deepEqual(payload.filter, { owner: "Ari", from: "2026-01-04", to: "2026-01-07" });
+  assert.equal(payload.record_count, visibleCount(page), "the combined filter exported the wrong count");
+  assert.deepEqual(shapeViolations(payload), [], "a filtered export lost its envelope");
+});
+
+test("a search filter rides in the block as the text the visitor typed", async (t) => {
+  const page = await openHistory(t);
+  setControl(page, "#decision-search", "cache");
+
+  const payload = exportFromPage(page);
+  assert.deepEqual(payload.filter, { query: "cache" });
+  assert.equal(payload.record_count, visibleCount(page));
+});
+
+test("an unfiltered file carries an empty filter block and the whole history", async (t) => {
+  const page = await openHistory(t);
+  const payload = exportFromPage(page);
+
+  // `{}` is the only thing a file says to mean "no filter was active": no key
+  // is written as null, "", or "all", so a reader needs no sentinel table.
+  assert.deepEqual(payload.filter, {}, "an unfiltered file claims a filter");
+  assert.equal(payload.record_count, TOTAL_RECORDS);
+  assert.equal(payload.record_count, visibleCount(page));
+  // One level in, the arrays are exactly the pre-existing full export: a
+  // consumer that reads payload.decisions/payload.releases keeps working.
+  assertParity({ decisions: DECISIONS, releases: RELEASES }, payload, "the unfiltered export changed:");
+});
+
+test("a filter matching nothing still downloads a valid, explicitly empty file", async (t) => {
+  const page = await openHistory(t);
+  setControl(page, "#decision-search", "no record says this");
+  assert.equal(visibleCount(page), 0, "the fixture accidentally matches this search");
+
+  // Nothing short-circuits: a zero-result export is a file the visitor asked
+  // for, and a button that silently does nothing reads as broken.
+  const payload = exportFromPage(page);
+  assert.equal(payload.record_count, 0);
+  assert.deepEqual(payload.decisions, []);
+  assert.deepEqual(payload.releases, []);
+  assert.deepEqual(payload.filter, { query: "no record says this" });
+  assert.deepEqual(shapeViolations(payload), [], "the empty filtered file is not a whole export");
+  assert.equal(exportButton(page).disabled, false, "the export control was disabled at zero results");
+  assert.equal(
+    exportButton(page).getAttribute("aria-label"),
+    "Download JSON: export 0 filtered records",
+    "the control does not say it will write an empty file",
+  );
+  assert.equal(
+    textOf(page.document.querySelector("#export-shiplog-status")),
+    "Exported 0 filtered records.",
+    "the empty export was not announced",
+  );
+});
+
+test("the export control names its filtered scope and is operable from the keyboard", async (t) => {
+  const page = await openHistory(t);
+  const button = exportButton(page);
+
+  // Unfiltered, the visible label is the whole name: nothing is added that
+  // could go stale, and the sentence beside the button already says the rest.
+  assert.equal(button.tagName, "BUTTON", "the export control is not a native button");
+  assert.equal(button.getAttribute("aria-label"), null, "an unfiltered export names a scope it does not have");
+
+  chooseOption(page, "#filter-status", "accepted");
+  assert.equal(
+    button.getAttribute("aria-label"),
+    "Download JSON: export 2 filtered records",
+    "the accessible name does not describe the filtered scope",
+  );
+
+  // Clearing the filter takes the name with it rather than leaving the old
+  // count on a button that now writes the whole history.
+  chooseOption(page, "#filter-status", "all");
+  assert.equal(button.getAttribute("aria-label"), null, "the accessible name outlived the filter");
+
+  chooseOption(page, "#filter-owner", "Ari");
+  const before = page.downloads.length;
+  button.focus();
+  assert.equal(page.document.activeElement, button, "the export control cannot take focus");
+  pressEnter(page.document);
+  pressSpace(page.document);
+  assert.equal(page.downloads.length, before + 2, "Enter and Space do not both activate the export control");
+  assert.equal(
+    textOf(page.document.querySelector("#export-shiplog-status")),
+    `Exported ${visibleCount(page)} filtered records.`,
+    "a keyboard-activated export announced the wrong thing",
+  );
+});
+
+test("record text survives the export byte for byte, however it is punctuated", async (t) => {
+  // Every character a serializer that built JSON by concatenation, or a view
+  // that routed a value through innerHTML, would mangle.
+  const hostile = {
+    id: "parity-d-hostile",
+    title: `<script>alert("x")</script> & 'quotes' "both" \\backslash\\`,
+    context: "A </div> in the context, plus a tab\tand a newline\nand <b>markup</b>.",
+    alternatives: "5 > 3 && 3 < 5",
+    owner: "O'Brien & Co <ops>",
+    status: "accepted",
+    createdAt: "2026-01-09T09:00:00.000Z",
+  };
+  const page = await openHistory(t, { decisions: [...DECISIONS, hostile], releases: RELEASES });
+
+  const payload = exportFromPage(page);
+  const exported = payload.decisions.find((decision) => decision.id === hostile.id);
+  assert.deepEqual(exported, hostile, "the record did not round-trip through the file unchanged");
+
+  // And it still round-trips once a filter has narrowed the file to it alone.
+  chooseOption(page, "#filter-owner", hostile.owner);
+  const filtered = exportFromPage(page);
+  assert.deepEqual(filtered.decisions, [hostile]);
+  assert.deepEqual(filtered.filter, { owner: hostile.owner });
+  assert.equal(filtered.record_count, visibleCount(page));
 });

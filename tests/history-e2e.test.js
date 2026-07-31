@@ -370,7 +370,7 @@ test("exporting downloads one JSON record that preserves the decision-release li
   const [download] = page.downloads;
   assert.match(
     download.filename,
-    /^shiplog-history-\d{4}-\d{2}-\d{2}\.json$/,
+    /^shiplog-history-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}Z\.json$/,
     "the exported filename shape changed",
   );
 

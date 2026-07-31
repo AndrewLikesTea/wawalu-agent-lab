@@ -9,10 +9,14 @@ import {
   createShiplogExport,
   describeShiplogExport,
   downloadShiplogExport,
+  exportedRecordSentence,
   formatShiplogExportCounts,
   initShiplogExport,
+  shiplogExportFilename,
+  shiplogExportLabel,
   unresolvedLinkSentence,
 } from "../src/shiplog-export.js";
+import { FULL_HISTORY_SCOPE, publishHistoryScope } from "../src/history-scope.js";
 import {
   linkIntegrityViolations,
   orderingViolations,
@@ -97,6 +101,10 @@ test("populated browser export has an explicit portable contract and only Shiplo
     schema: SHIPLOG_EXPORT_SCHEMA,
     version: SHIPLOG_EXPORT_VERSION,
     generatedAt: GENERATED_AT,
+    record_count: 2,
+    // Nothing was filtered, so the block is empty — the one reading that means
+    // "this file is the whole browsed history".
+    filter: {},
     decisions: [decision],
     // The second id named a decision this browser does not hold, so it is not
     // written into the file: see the link integrity tests below.
@@ -113,6 +121,8 @@ test("empty browser history exports an explicitly empty valid record", () => {
     schema: SHIPLOG_EXPORT_SCHEMA,
     version: SHIPLOG_EXPORT_VERSION,
     generatedAt: GENERATED_AT,
+    record_count: 0,
+    filter: {},
     decisions: [],
     releases: [],
   });
@@ -336,11 +346,14 @@ async function capture(store, options = {}) {
   return { payload, blob, clicks, revoked, text: await blob.text() };
 }
 
-test("the download hands the browser one JSON file named for the export date", async () => {
+test("the download hands the browser one JSON file named for the export instant", async () => {
   const { payload, blob, clicks, revoked, text } = await capture(linkedStorage());
 
   assert.equal(clicks.length, 1);
-  assert.deepEqual(clicks[0], { href: "blob:shiplog-export", download: "shiplog-history-2026-07-26.json" });
+  assert.deepEqual(clicks[0], {
+    href: "blob:shiplog-export",
+    download: "shiplog-history-2026-07-26T18-30-00Z.json",
+  });
   assert.equal(blob.type, "application/json");
   assert.deepEqual(revoked, ["blob:shiplog-export"], "the object URL is released after the click");
   assert.ok(text.endsWith("\n"), "the file ends with a newline");
@@ -418,6 +431,163 @@ test("count copy uses explicit zero and plural labels", () => {
     formatShiplogExportCounts({ decisions: 0, releases: 0 }),
     "Ready to export 0 decisions and 0 releases stored in this browser.",
   );
+});
+
+// --------------------------------------------------------------------------
+// The envelope: what the file says about itself
+// --------------------------------------------------------------------------
+
+test("a scoped export carries the filter that produced it and counts what it wrote", () => {
+  const { payload, filtered, recordCount } = buildShiplogExport(linkedStorage(), {
+    generatedAt: GENERATED_AT,
+    scope: {
+      filtered: true,
+      decisionIds: ["link-d-cache"],
+      releaseIds: [],
+      filters: { owner: "Ari", status: "accepted", sort: "title" },
+    },
+  });
+
+  assert.deepEqual(payload.decisions.map(({ id }) => id), ["link-d-cache"]);
+  assert.deepEqual(payload.releases, []);
+  assert.equal(payload.record_count, 1);
+  assert.equal(recordCount, 1);
+  assert.equal(filtered, true);
+  // `sort` is not a filter — it reorders the same records — so it is not in the
+  // block, and the retired "approved" spelling would arrive here as "accepted".
+  assert.deepEqual(payload.filter, { owner: "Ari", status: "accepted" });
+  assert.deepEqual(shiplogExportViolations(payload), []);
+});
+
+test("a filter matching nothing exports an empty file rather than refusing", () => {
+  const payload = createShiplogExport(linkedStorage(), {
+    generatedAt: GENERATED_AT,
+    scope: { filtered: true, decisionIds: [], releaseIds: [], filters: { query: "nothing matches this" } },
+  });
+
+  assert.equal(payload.record_count, 0);
+  assert.deepEqual(payload.decisions, []);
+  assert.deepEqual(payload.releases, []);
+  assert.deepEqual(payload.filter, { query: "nothing matches this" });
+  assert.deepEqual(shiplogExportViolations(payload), [], "the empty filtered file is still a whole export");
+});
+
+test("a rubbish filter state degrades to an empty block rather than throwing", () => {
+  const payload = createShiplogExport(populatedStorage(), {
+    generatedAt: GENERATED_AT,
+    scope: { filtered: false, filters: { status: "not-a-status", from: "2026-02-31", owner: 12 } },
+  });
+
+  assert.deepEqual(payload.filter, {}, "an unusable filter value was written into the file");
+  assert.equal(payload.record_count, 2);
+});
+
+test("the filename is timestamped, ASCII, and safe on every filesystem", async () => {
+  const { clicks } = await capture(populatedStorage());
+  const [{ download }] = clicks;
+
+  assert.match(download, /^shiplog-history-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}Z\.json$/);
+  // The characters Windows refuses, plus the two macOS and Linux care about.
+  assert.doesNotMatch(download, /[<>:"/\\|?*]/, "the filename holds a character a filesystem refuses");
+  // eslint-disable-next-line no-control-regex
+  assert.doesNotMatch(download, /[^\x20-\x7E]/, "the filename is not plain ASCII");
+  assert.doesNotMatch(download, /[. ]$/, "the filename ends with a dot or a space");
+
+  // Two exports of the same history a second apart are two files, not one that
+  // overwrites the other.
+  const later = await capture(populatedStorage(), { generatedAt: "2026-07-26T18:30:01.000Z" });
+  assert.notEqual(later.clicks[0].download, download);
+
+  // No visitor text reaches the name, so a filter cannot put a slash in it.
+  assert.equal(
+    shiplogExportFilename({ generatedAt: GENERATED_AT, filter: { query: "../etc/passwd", owner: "O'Brien" } }),
+    download,
+  );
+  assert.equal(shiplogExportFilename({ generatedAt: "yesterday" }), "shiplog-history.json");
+  assert.equal(shiplogExportFilename({}), "shiplog-history.json");
+});
+
+test("record text with markup, quotes, and backslashes survives JSON.parse unchanged", async () => {
+  const hostile = {
+    id: "d-hostile",
+    title: `<script>alert("x")</script> & 'quotes' "both" \\backslash\\`,
+    context: "A </div>, a tab\tand a newline\nand <b>markup</b> & an &amp; entity.",
+    alternatives: "5 > 3 && 3 < 5",
+    owner: "O'Brien & Co <ops>",
+    status: "accepted",
+    createdAt: "2026-07-25T10:00:00.000Z",
+  };
+  const { text } = await capture(storage({ [STORAGE_KEY]: JSON.stringify([hostile]) }));
+
+  const parsed = JSON.parse(text);
+  assert.deepEqual(parsed.decisions, [hostile], "a record did not round-trip through the file byte for byte");
+  assert.equal(parsed.record_count, 1);
+  // The bytes are JSON escapes, never HTML entities: nothing on this path
+  // escapes for a document, because nothing on this path writes one.
+  assert.ok(text.includes("\\\\backslash\\\\"), "a backslash was not JSON-escaped");
+  assert.ok(!text.includes("&amp;lt;"), "a value was HTML-escaped on the way into the file");
+});
+
+test("the button's accessible name states the filtered scope, and nothing when unfiltered", () => {
+  assert.equal(shiplogExportLabel({ decisions: 9, releases: 3, filtered: true }),
+    "Download JSON: export 12 filtered records");
+  assert.equal(shiplogExportLabel({ decisions: 1, releases: 0, filtered: true }),
+    "Download JSON: export 1 filtered record");
+  // Zero is a scope like any other: the control still says what it will write.
+  assert.equal(shiplogExportLabel({ decisions: 0, releases: 0, filtered: true }),
+    "Download JSON: export 0 filtered records");
+  assert.equal(shiplogExportLabel({ decisions: 9, releases: 3 }), "",
+    "an unfiltered export restates the visible label instead of leaving it alone");
+  assert.equal(shiplogExportLabel(), "");
+});
+
+test("a filtered download is announced in the visitor's own numbers", () => {
+  assert.equal(exportedRecordSentence({ recordCount: 12, filtered: true }), "Exported 12 filtered records.");
+  assert.equal(exportedRecordSentence({ recordCount: 1, filtered: true }), "Exported 1 filtered record.");
+  assert.equal(exportedRecordSentence({ recordCount: 0, filtered: true }), "Exported 0 filtered records.");
+  assert.equal(exportedRecordSentence({ recordCount: 12 }), EXPORT_STATUS.exported);
+  assert.equal(exportedRecordSentence(), EXPORT_STATUS.exported);
+  assert.equal(
+    describeShiplogExport({ recordCount: 2, filtered: true, excludedLinks: [{}] }),
+    "Exported 2 filtered records. 1 release link to a decision your filters hide was left out.",
+  );
+});
+
+test("the export panel keeps the button's name in step with the filtered scope", () => {
+  const listeners = {};
+  const attributes = {};
+  const button = {
+    addEventListener(type, listener) { listeners[type] = listener; },
+    setAttribute(name, value) { attributes[name] = value; },
+    removeAttribute(name) { delete attributes[name]; },
+  };
+  const status = { textContent: "" };
+  const root = {
+    querySelector(selector) {
+      return {
+        "#export-shiplog": button,
+        "#export-shiplog-counts": { textContent: "" },
+        "#export-shiplog-status": status,
+      }[selector] ?? null;
+    },
+  };
+
+  initShiplogExport(root, populatedStorage(), { now: () => new Date(GENERATED_AT), download() {} });
+  assert.equal(attributes["aria-label"], undefined, "an unfiltered panel names a scope it does not have");
+
+  publishHistoryScope(root, {
+    filtered: true,
+    decisionIds: ["d-queue"],
+    releaseIds: [],
+    filters: { status: "accepted" },
+  });
+  assert.equal(attributes["aria-label"], "Download JSON: export 1 filtered record");
+
+  listeners.click();
+  assert.equal(status.textContent, "Exported 1 filtered record.");
+
+  publishHistoryScope(root, FULL_HISTORY_SCOPE);
+  assert.equal(attributes["aria-label"], undefined, "the filtered name outlived the filter");
 });
 
 test("decision page exposes and initializes the pre-download export summary", async () => {
