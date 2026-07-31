@@ -33,9 +33,14 @@ export const ORG_COACHING_SECTION_ID = "org-coaching";
 export const ORG_COACHING_BODY_ID = "org-coaching-body";
 export const ORG_COACHING_LIVE_ID = "org-coaching-live";
 
+/** The residue review's own disclosure, a sibling of the four above it. */
+export const ORG_COACHING_RESIDUE_ID = "residue-review";
+
 /** Toggle and panel ids, derived from the disclosure id so both agree. */
 export const toggleId = (id) => `org-coaching-${id}-toggle`;
 export const panelId = (id) => `org-coaching-${id}-panel`;
+/** One select per cluster, named by the cluster's rank in the ranked list. */
+export const residueControlId = (rank) => `org-coaching-residue-class-${rank}`;
 
 const byId = (doc, id) => (doc?.getElementById ? doc.getElementById(id) : null);
 
@@ -67,7 +72,9 @@ function announce(doc, text) {
 }
 
 function held(section) {
-  if (!section.__orgCoaching) section.__orgCoaching = { model: null, open: new Set() };
+  if (!section.__orgCoaching) {
+    section.__orgCoaching = { model: null, open: new Set(), review: null, onAssign: null };
+  }
   return section.__orgCoaching;
 }
 
@@ -77,7 +84,7 @@ function held(section) {
  * Returns the state that was painted so a caller can assert on what it asked for
  * rather than on the DOM it got.
  */
-export function applyOrgQueryDecision(doc, state) {
+export function applyOrgQueryDecision(doc, state, { review = null, onAssign = null } = {}) {
   const section = byId(doc, ORG_COACHING_SECTION_ID);
   if (!section || !state) return null;
   if (state.state === ORG_QUERY_DECISION_STATE.absent) return clearOrgQueryDecision(doc);
@@ -86,6 +93,12 @@ export function applyOrgQueryDecision(doc, state) {
   // sample does not: panels left open would be captioned for the old file.
   if (store.model?.provenance?.digest !== state.provenance?.digest) store.open = new Set();
   store.model = state;
+  // The residue review and the callback that applies a label ride beside the
+  // state rather than inside it: `org-query-decision.js` selects data and holds
+  // no function, and a repaint this module triggers itself — opening a panel —
+  // must not drop the control the reader was using.
+  store.review = review;
+  if (onAssign) store.onAssign = onAssign;
   paint(doc, section);
   return state;
 }
@@ -97,6 +110,9 @@ export function clearOrgQueryDecision(doc) {
   const store = held(section);
   store.model = null;
   store.open = new Set();
+  // The lead's own labels go with the reading they qualified. Nothing here
+  // outlives the import: the page drops the label map at the same moment.
+  store.review = null;
   section.hidden = true;
   section.dataset.state = ORG_QUERY_DECISION_STATE.absent;
   delete section.dataset.origin;
@@ -115,18 +131,24 @@ function paint(doc, section) {
   section.dataset.state = state.state;
   section.dataset.origin = state.origin;
 
+  const review = store.review;
   const blocks = [
     state.state === ORG_QUERY_DECISION_STATE.graded
-      ? gradedLead(doc, state) : ungradeableLead(doc, state),
+      ? gradedLead(doc, state, review) : ungradeableLead(doc, state, review),
   ];
   // The coverage line rides with the lead, in the same block and under the same
   // heading, because it qualifies the answer above it: a reader who takes the
   // sentence must take the share of their own corpus it was read from with it.
   // Absent on a sample with no coverage result, rather than printed as a zero.
-  if (state.coverage) blocks.push(coverageBlock(doc, state.coverage));
+  if (state.coverage) blocks.push(coverageBlock(doc, state.coverage, review));
   blocks.push(actionBlock(doc, state.action), disclosureList(doc, section, state));
   body.replaceChildren(...blocks);
-  announce(doc, state.announcement);
+  // One polite region for the whole decision, and the recompute rides in it:
+  // the sentence changes when coverage changes, so a reader who assigns a
+  // cluster hears the new figure and any unlocked letter without hunting for
+  // it. `announce` still writes only on a real change, so opening a panel is
+  // silent.
+  announce(doc, [state.announcement, review?.announcement].filter(Boolean).join(" "));
 
   const focusId = section.dataset.focusTarget;
   if (focusId) {
@@ -141,7 +163,26 @@ function paint(doc, section) {
 // confidence, provenance — so a reader who has seen one state can read the other
 // without relearning the block.
 
-function gradedLead(doc, state) {
+/**
+ * The lead-supplied-label marker, wherever an assisted figure is printed.
+ *
+ * Not a tooltip and not a footnote: a letter grade or a coverage share that
+ * rests on the reader's own labels says so in the same block it is printed in,
+ * with the count and with what the export earned alone. Absent — not empty —
+ * when no label is applied, so an unassisted reading is exactly what it was.
+ */
+function assistMarker(doc, review) {
+  if (!review?.assist?.applied) return null;
+  const note = element(doc, "p", "org-coaching-assist");
+  note.dataset.labelCount = String(review.assist.count);
+  note.setAttribute("role", "note");
+  note.setAttribute("aria-label", "Lead-supplied labels");
+  note.append(shapeSpan(doc, "✎"),
+    element(doc, "span", "org-coaching-assist-text", review.assist.marker));
+  return note;
+}
+
+function gradedLead(doc, state, review) {
   const block = element(doc, "div", "org-coaching-lead");
   block.dataset.gradeStatus = "graded";
 
@@ -161,13 +202,14 @@ function gradedLead(doc, state) {
     element(doc, "p", "org-coaching-rule", state.rule),
     figure,
     element(doc, "p", "org-coaching-benchmark-rule", state.benchmark.rule),
-    confidenceBlock(doc, state.confidence),
-    provenanceBlock(doc, state.provenance),
   );
+  const marker = assistMarker(doc, review);
+  if (marker) block.append(marker);
+  block.append(confidenceBlock(doc, state.confidence), provenanceBlock(doc, state.provenance));
   return block;
 }
 
-function ungradeableLead(doc, state) {
+function ungradeableLead(doc, state, review) {
   const block = element(doc, "div", "org-coaching-lead");
   block.dataset.gradeStatus = "ungradeable";
   const answer = element(doc, "p", "org-coaching-answer");
@@ -177,9 +219,10 @@ function ungradeableLead(doc, state) {
     answer,
     element(doc, "p", "org-coaching-reason-label", state.reason.label),
     element(doc, "p", "org-coaching-reason-detail", state.reason.detail),
-    confidenceBlock(doc, state.confidence),
-    provenanceBlock(doc, state.provenance),
   );
+  const marker = assistMarker(doc, review);
+  if (marker) block.append(marker);
+  block.append(confidenceBlock(doc, state.confidence), provenanceBlock(doc, state.provenance));
   return block;
 }
 
@@ -220,9 +263,10 @@ function provenanceBlock(doc, provenance) {
  * string is written here — this module formats nothing and computes nothing —
  * and the tier sentence beside the number is the published coverage rule.
  */
-function coverageBlock(doc, coverage) {
+function coverageBlock(doc, coverage, review) {
   const block = element(doc, "div", "org-coaching-coverage");
   block.dataset.available = String(coverage.available);
+  block.dataset.assisted = String(review?.assist?.applied === true);
   const line = element(doc, "p", "org-coaching-coverage-line");
   line.append(shapeSpan(doc, coverage.showGrade ? "◧" : "◇"),
     element(doc, "span", "org-coaching-coverage-text", coverage.text));
@@ -231,6 +275,8 @@ function coverageBlock(doc, coverage) {
     element(doc, "p", "org-coaching-coverage-rule", coverage.rule),
     element(doc, "p", "org-coaching-coverage-action", coverage.action),
   );
+  const marker = assistMarker(doc, review);
+  if (marker) block.append(marker);
   return block;
 }
 
@@ -261,7 +307,122 @@ function disclosureList(doc, section, state) {
   for (const disclosure of state.disclosures) {
     list.append(disclosureBlock(doc, section, disclosure));
   }
+  // The one disclosure that is not read-only. It is a sibling of the four
+  // above, in the same group and behind the same kind of toggle: a reader who
+  // has just been told which cluster is holding coverage back reaches the
+  // control that resolves it in the same interaction, and never in a modal, a
+  // second panel, or another page.
+  const review = held(section).review;
+  if (review) list.append(residueBlock(doc, section, review));
   return list;
+}
+
+// --- the residue review -----------------------------------------------------
+//
+// The lead's own labels, applied a cluster at a time. Three rules:
+//
+//   1. **A native `<select>`, one per cluster.** Keyboard-operable, announced as
+//      a combo box, and it refuses a value that is not one of its options —
+//      which a custom listbox would have to be taught to do.
+//   2. **The label IS the row's visible text.** One string names the cluster,
+//      its share and its record count, so the control's accessible name, the
+//      name a speech-control user says, and the name a sighted reader reads are
+//      one string.
+//   3. **Nothing here computes.** Every number and every sentence is composed by
+//      `residue-labeling.js` off `familyCoverage`, so this surface cannot state
+//      a coverage figure the decision above it disagrees with.
+
+function residueBlock(doc, section, review) {
+  const store = held(section);
+  const expanded = store.open.has(ORG_COACHING_RESIDUE_ID);
+  const wrap = element(doc, "div", "org-coaching-disclosure org-coaching-residue");
+  wrap.dataset.disclosure = ORG_COACHING_RESIDUE_ID;
+  wrap.dataset.assisted = String(review.assist.applied);
+
+  const toggle = element(doc, "button", "org-coaching-disclosure-toggle");
+  toggle.id = toggleId(ORG_COACHING_RESIDUE_ID);
+  toggle.setAttribute("type", "button");
+  toggle.setAttribute("aria-expanded", expanded ? "true" : "false");
+  toggle.setAttribute("aria-controls", panelId(ORG_COACHING_RESIDUE_ID));
+  toggle.append(
+    element(doc, "span", "org-coaching-disclosure-question", review.question),
+    element(doc, "span", "org-coaching-disclosure-chip", review.chip),
+  );
+  toggle.addEventListener("click", () => {
+    if (expanded) store.open.delete(ORG_COACHING_RESIDUE_ID);
+    else store.open.add(ORG_COACHING_RESIDUE_ID);
+    section.dataset.focusTarget = toggleId(ORG_COACHING_RESIDUE_ID);
+    paint(doc, section);
+  });
+
+  const panel = element(doc, "div", "org-coaching-disclosure-panel");
+  panel.id = panelId(ORG_COACHING_RESIDUE_ID);
+  panel.hidden = !expanded;
+  panel.setAttribute("role", "region");
+  panel.setAttribute("aria-label", review.question);
+  if (expanded) panel.append(...residueBody(doc, section, review));
+  wrap.append(toggle, panel);
+  return wrap;
+}
+
+function residueBody(doc, section, review) {
+  const parts = [element(doc, "p", "org-coaching-residue-intro", review.intro)];
+  const marker = assistMarker(doc, review);
+  if (marker) parts.push(marker);
+  if (review.assist.unclassifiableText) {
+    parts.push(element(doc, "p", "org-coaching-residue-unclassifiable",
+      review.assist.unclassifiableText));
+  }
+  if (review.empty) {
+    // Zero residue is a state, not an empty panel: a reader who opens this and
+    // finds nothing cannot tell "resolved" from "broken".
+    parts.push(element(doc, "p", "org-coaching-residue-empty", review.empty));
+    return parts;
+  }
+  parts.push(element(doc, "p", "org-coaching-residue-cap", review.cap.text));
+  const list = element(doc, "ul", "org-coaching-residue-list");
+  list.setAttribute("aria-label", "Unclassified clusters, largest share first");
+  for (const row of review.rows) list.append(residueRow(doc, section, review, row));
+  parts.push(list, element(doc, "p", "org-coaching-residue-ceiling", review.ceiling.text));
+  return parts;
+}
+
+function residueRow(doc, section, review, row) {
+  const store = held(section);
+  const item = element(doc, "li", "org-coaching-residue-row");
+  item.dataset.cluster = row.key;
+  item.dataset.assigned = row.assigned === "" ? "none" : row.assigned;
+
+  const id = residueControlId(row.rank);
+  const label = element(doc, "label", "org-coaching-residue-name", row.controlLabel);
+  label.setAttribute("for", id);
+
+  const select = element(doc, "select", "org-coaching-residue-select");
+  select.id = id;
+  for (const choice of review.choices) {
+    const option = element(doc, "option", null, choice.label);
+    option.setAttribute("value", choice.value);
+    if (choice.value === row.assigned) option.setAttribute("selected", "");
+    select.append(option);
+  }
+  select.value = row.assigned;
+  select.addEventListener("change", () => {
+    // Focus returns to the control the reader was in: the whole decision
+    // repaints on a label, and a keyboard user who lost their place after each
+    // assignment could not work down the list.
+    section.dataset.focusTarget = id;
+    store.onAssign?.(row.key, select.value);
+  });
+
+  item.append(
+    label,
+    select,
+    element(doc, "p", "org-coaching-residue-detail", row.detail),
+    // The state in words as well as in the control, because a row a reader has
+    // answered and a row they have not must differ by more than a tint.
+    element(doc, "p", "org-coaching-residue-state", `Assigned: ${row.assignedLabel}`),
+  );
+  return item;
 }
 
 function disclosureBlock(doc, section, disclosure) {

@@ -2799,6 +2799,22 @@ section[data-workspace-current="true"] { box-shadow:-6px 0 0 0 var(--import-wash
 .org-coaching-row-term[data-gradeable="false"]::after { content:" ◇"; }
 .org-coaching-row-detail { margin:0 0 6px; line-height:1.6; overflow-wrap:anywhere; }
 .org-coaching-live { margin:0; font-size:12px; color:var(--ink-muted); }
+/* The lead-supplied-label marker, drawn wherever an assisted figure is. It is a
+   dashed edge AND a glyph AND the sentence: no figure on this page is qualified
+   by a tint alone. */
+.org-coaching-assist { display:flex; flex-wrap:wrap; gap:8px; margin:4px 0 0; border-left:5px dashed var(--import-accent); padding:2px 0 2px 12px; font-size:12px; line-height:1.55; overflow-wrap:anywhere; }
+/* The residue rows REFLOW rather than scroll: the name takes the width it can
+   get down to 15rem and the select drops under it, so a narrow viewport gets a
+   stack of labelled controls instead of a horizontal scrollbar. */
+.org-coaching-residue-list { display:grid; gap:10px; margin:0; padding:0; list-style:none; }
+.org-coaching-residue-row { display:flex; flex-wrap:wrap; align-items:center; gap:6px 14px; border-top:1px solid var(--import-line); padding-top:10px; }
+.org-coaching-residue-name { flex:1 1 15rem; min-width:0; font-size:13px; line-height:1.5; font-weight:650; overflow-wrap:anywhere; }
+.org-coaching-residue-select { flex:0 1 auto; max-width:100%; border:1px solid var(--import-accent); border-radius:8px; padding:6px 9px; background:#fff; color:var(--import-ink); font:650 13px/1.45 inherit; }
+.org-coaching-residue-select:focus-visible { outline:3px solid var(--import-accent); outline-offset:2px; }
+.org-coaching-residue-detail,.org-coaching-residue-state { flex:1 1 100%; margin:0; color:var(--ink-muted); font-size:12px; line-height:1.55; overflow-wrap:anywhere; }
+.org-coaching-residue-row[data-assigned="none"] .org-coaching-residue-state::before { content:"◇ "; }
+.org-coaching-residue-row:not([data-assigned="none"]) .org-coaching-residue-state::before { content:"◧ "; }
+.org-coaching-residue-intro,.org-coaching-residue-cap,.org-coaching-residue-ceiling,.org-coaching-residue-empty,.org-coaching-residue-unclassifiable { margin:0; font-size:12px; line-height:1.6; overflow-wrap:anywhere; }
 @media (min-width:52rem) {
   .org-coaching-figure { grid-template-columns:minmax(0,auto) minmax(0,1fr); }
   .org-coaching-rows { grid-template-columns:minmax(0,14rem) minmax(0,1fr); }
