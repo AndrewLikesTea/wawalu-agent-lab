@@ -161,11 +161,10 @@ test("reading order is focus order: DOM order, and no positive tabindex", () => 
   };
   const reachable = tabSequence(document).filter(inRegion).map((node) => node.id).filter(Boolean);
   // The summary is focusable by being a summary — the browser owns that, and no
-  // attribute here can add or remove it — so the sequence is checked for the
-  // controls this page authors, and the summary's place in it is checked as the
-  // DOM position it is reached from.
-  assert.deepEqual(reachable, FOCUS_SPEC.order.filter((id) => id !== DISCLOSURE_SPEC.summaryId),
-    "every authored control in the region is reachable, in the order it is read");
+  // attribute here can add or remove it — so it takes its own place in the
+  // sequence, at the DOM position it is reached from.
+  assert.deepEqual(reachable, FOCUS_SPEC.order,
+    "every control in the region is reachable, in the order it is read");
   assert.ok(html.indexOf(`id="${DISCLOSURE_SPEC.summaryId}"`) < html.indexOf(`id="${FOCUS_SPEC.order[1]}"`),
     "the evidence control is reached before the two next steps");
   // A positive tabindex is the one way an author makes focus order disagree

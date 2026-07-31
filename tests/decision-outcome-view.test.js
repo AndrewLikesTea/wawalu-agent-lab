@@ -299,7 +299,7 @@ test("the decision page ships the loading state, the control, and the script", a
 
 test("the panel's copy tells a first-time reader what is recorded and what is optional", async () => {
   const html = await readFile(new URL("../src/decision.html", import.meta.url), "utf8");
-  const controls = html.match(/<div class="dout-controls">[\s\S]*?<\/div>/)[0];
+  const controls = html.match(/<details class="dout-controls[\s\S]*?<\/details>/)[0];
 
   // The two headings name the two halves, so a reader arriving with no FinOps
   // context can tell the recorded decision from the file they may never open.

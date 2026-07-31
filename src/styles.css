@@ -452,6 +452,20 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .alternative-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
 .alternative-card { display:flex; flex-direction:column; min-width:0; padding:21px; border:1px solid #d4d2ca; border-radius:13px; background:#fff; box-shadow:0 8px 24px rgba(38,38,31,.035); }
 .alternative-card.is-selected { border-color:#1f70c1; box-shadow:inset 0 0 0 2px #cfe2f7; }
+/* The decision record's wait, drawn rather than described. The skeleton is built
+   from the record's own layout classes — .decision-detail, .decision-detail-header,
+   .detail-meta, .alternative-grid — so it already stands in the right place and
+   these modifiers only have to say how big each block is. The heights are the
+   type sizes the real eyebrow, heading, metadata, and section title carry; the
+   widths are measured in ch off the words they replace. The wash is the shared
+   .skeleton-line gradient the feed and profile placeholders use, so no tint and
+   no spacing value enters the scale here. */
+.decision-detail-skeleton .skeleton-line-eyebrow { width:14ch; height:11px; }
+.decision-detail-skeleton .skeleton-line-title { width:78%; height:clamp(34px,6vw,56px); }
+.decision-detail-skeleton .skeleton-line-label { width:9ch; height:10px; }
+.decision-detail-skeleton .skeleton-line-value { width:14ch; }
+.decision-detail-skeleton .skeleton-line-subtitle { width:34%; height:26px; }
+.alternative-card-skeleton { gap:12px; }
 .alternative-heading { display:flex; align-items:start; justify-content:space-between; gap:14px; }
 .alternative-heading h3 { margin:0; font-size:19px; line-height:1.3; letter-spacing:-.02em; overflow-wrap:anywhere; }
 .comparison-check { display:inline-flex; align-items:center; gap:7px; flex:none; color:#44515d; font:700 11px/1.4 ui-monospace,monospace; cursor:pointer; }

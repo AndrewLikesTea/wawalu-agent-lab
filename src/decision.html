@@ -29,13 +29,34 @@
 
       <main id="main-content" tabindex="-1">
       <section class="list-panel detail-panel decision-detail-panel" aria-label="Decision detail">
+        <!-- The pre-script paint is the same drawn wait renderDecisionDetailSkeleton
+             draws, block for block, so the panel is never an empty box and never
+             jumps when the module takes it over. The shapes are decorative and
+             hidden from assistive tech; the one visually-hidden status line above
+             them is what a screen reader hears. -->
         <div id="decision-detail" aria-busy="true">
           <a class="detail-back" href="/">← Back to Decisions</a>
-          <section class="detail-state detail-state-loading list-state-loading" data-state="loading" data-recoverable="false" role="status" aria-labelledby="decision-state-title" tabindex="-1">
-            <p class="detail-state-label detail-state-chip detail-state-chip-neutral">Loading</p>
-            <h1 class="detail-state-title" id="decision-state-title">Loading this decision</h1>
-            <p class="detail-state-guidance">Loading the decision record for this page and its linked releases. No action is needed unless this panel reports a failure and offers Retry.</p>
-          </section>
+          <div class="detail-skeleton" data-state="loading" data-recoverable="false" aria-busy="true">
+            <div class="visually-hidden" role="status"><h1 id="decision-state-title">Loading decision record</h1></div>
+            <div class="decision-detail decision-detail-skeleton" aria-hidden="true">
+              <div class="decision-detail-header">
+                <div class="skeleton-line skeleton-line-eyebrow"></div>
+                <div class="skeleton-line skeleton-line-title"></div>
+                <div class="detail-meta decision-detail-meta">
+                  <div class="detail-meta-row"><div class="skeleton-line skeleton-line-label"></div><div class="skeleton-line skeleton-line-value"></div></div>
+                  <div class="detail-meta-row"><div class="skeleton-line skeleton-line-label"></div><div class="skeleton-line skeleton-line-value"></div></div>
+                  <div class="detail-meta-row"><div class="skeleton-line skeleton-line-label"></div><div class="skeleton-line skeleton-line-value"></div></div>
+                </div>
+              </div>
+              <div class="decision-alternatives">
+                <div class="skeleton-line skeleton-line-subtitle"></div>
+                <div class="alternative-grid">
+                  <div class="alternative-card alternative-card-skeleton"><div class="skeleton-line skeleton-line-subtitle"></div><div class="skeleton-line"></div><div class="skeleton-line skeleton-line-short"></div></div>
+                  <div class="alternative-card alternative-card-skeleton"><div class="skeleton-line skeleton-line-subtitle"></div><div class="skeleton-line"></div><div class="skeleton-line skeleton-line-short"></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -43,17 +64,15 @@
            projected. The later month is not in storage — the AI FinOps page keeps
            nothing — so it is a decision export the visitor made themselves and
            opens here. The control is in the markup rather than in the render
-           module because the region below is replaced on every read. -->
+           module because the region above it is replaced on every read.
+
+           Order: what is recorded, then the optional tool. A first-time visitor
+           arriving from Decisions came to read a decision, so the record and its
+           recorded outcome are the page; the export is a thing they may never
+           have, and it now waits behind a closed disclosure instead of standing
+           between them and the answer. -->
       <section class="list-panel dout-panel" aria-labelledby="dout-panel-title">
         <h2 class="dout-panel-title" id="dout-panel-title">Recorded outcome and optional evidence</h2>
-        <div class="dout-controls">
-          <h3 class="dout-controls-title">Optional evidence</h3>
-          <p class="dout-file-intro" id="dout-file-intro">Opening a later month’s decision export is optional: it adds what that month actually cost, so the recorded outcome below can be measured against what this decision projected.</p>
-          <label for="dout-file">Open a later month’s decision export</label>
-          <input id="dout-file" type="file" accept="application/json,.json" aria-describedby="dout-file-intro dout-file-note" />
-          <p class="dout-file-note" id="dout-file-note">A decision export is a JSON file you export from the AI FinOps page: build the month there and press “Export briefing (JSON)”. Choose that saved file here — the one for the first full month after this decision shipped. It is read in this tab only: no upload, no credentials, no network transfer.</p>
-          <p class="dout-file-status" id="dout-file-status" role="status" aria-live="polite">No decision export opened yet. The decision below reads without one — use “Open a later month’s decision export” above to add a measured month.</p>
-        </div>
         <!-- The loading state ships in the markup so this region is never an
              empty box before the module runs. Its blocks are in the order
              decision-outcome-view.js re-renders them in: the region label, the
@@ -68,6 +87,21 @@
             <p class="dout-state-body" id="dout-state-detail">Checking what this decision projected and whether a release recorded it as shipped. No file is needed for this step.</p>
           </section>
         </div>
+        <!-- Closed on arrival, and closed on a failed read: nothing here is
+             needed to read the record, and the summary is one line that says
+             what opening it would add. The copy inside is unchanged from when it
+             stood open above the record — it only moved. -->
+        <details class="dout-controls dout-export" id="dout-export">
+          <summary class="dout-summary dout-export-summary">Open a later month’s decision export — see what the month actually cost</summary>
+          <div class="dout-controls-body">
+            <h3 class="dout-controls-title">Optional evidence</h3>
+            <p class="dout-file-intro" id="dout-file-intro">Opening a later month’s decision export is optional: it adds what that month actually cost, so the recorded outcome below can be measured against what this decision projected.</p>
+            <label for="dout-file">Open a later month’s decision export</label>
+            <input id="dout-file" type="file" accept="application/json,.json" aria-describedby="dout-file-intro dout-file-note" />
+            <p class="dout-file-note" id="dout-file-note">A decision export is a JSON file you export from the AI FinOps page: build the month there and press “Export briefing (JSON)”. Choose that saved file here — the one for the first full month after this decision shipped. It is read in this tab only: no upload, no credentials, no network transfer.</p>
+            <p class="dout-file-status" id="dout-file-status" role="status" aria-live="polite">No decision export opened yet. The decision below reads without one — use “Open a later month’s decision export” above to add a measured month.</p>
+          </div>
+        </details>
       </section>
       </main>
     </div>

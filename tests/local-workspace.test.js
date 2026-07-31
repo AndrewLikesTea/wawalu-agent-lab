@@ -327,7 +327,10 @@ test("the page names one next action, and the reader can reach every control by 
       .filter((stop) => stop.closest("#main-content"))
       .map((stop) => textOf(stop) || stop.id);
     // Reading order: the one action first, then the ordinary controls, then the
-    // disclosure. Nothing reachable sits above the action it is subordinate to.
+    // disclosures. Nothing reachable sits above the action it is subordinate to.
+    // The disclosure summaries are stops in their own right — a <summary> is
+    // focusable because it is a summary, and the browser owns that — so they
+    // appear here at the DOM position they are reached from.
     // The FinOps flow follows the whole Shiplog surface rather than interleaving
     // with it — it is a second store with a second question, and its own stops
     // are asserted in tests/finops-workspace-flow.test.js.
@@ -337,9 +340,12 @@ test("the page names one next action, and the reader can reach every control by 
       "Download JSON backup",
       "ws-restore-file",
       "Erase local records",
+      "Where these numbers come from",
+      "Inspect every retained field and sample value",
       "Remember these figures in this browser",
       "Remember these figures in this browser",
       "Keep using files only",
+      "Review what this browser is keeping — nothing, right now",
     ]);
   } finally {
     restore();
