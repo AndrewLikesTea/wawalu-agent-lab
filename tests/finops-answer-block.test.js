@@ -344,7 +344,7 @@ test("every top-level section that existed before the answer block is still on t
   const existing = [
     "finops-stand", "finops-hero", "finops-first-run", "disclosure-next-step",
     "disclosure-journey", "finops-destinations", "finops-workspace-nav",
-    "finops-workspace-switch", "finops-workspace-context", "finops-load-state", "score-card",
+    "finops-workspace-context", "finops-load-state", "score-card",
     "finops-portfolio-brief", "guided-result", "local-import", "prompt-coaching",
     "finops-contact", "finops-proof-point", "finops-headline", "classifier-agreement",
     "disclosure-grade-comparisons", "graded-sample", "org-coaching", "spend-per-delivery",

@@ -273,9 +273,15 @@ export const ANSWER_SPINE = Object.freeze([
   },
   {
     id: "finops-workspace-switch",
-    role: ROLE.detail,
+    role: ROLE.retired,
     question: "Which working area is on screen?",
     headingId: "finops-workspace-switch-title",
+    supersededBy: "finops-workspace-nav",
+    entitledToAssert:
+      "Nothing the rail above it did not already say. It listed the same four "
+      + "destinations in a second vocabulary, with a second live region for one "
+      + "press, and it disagreed with the rail about act-and-verify — so a reader "
+      + "met the same wayfinding twice and the two copies could differ.",
   },
   {
     id: "finops-workspace-context",

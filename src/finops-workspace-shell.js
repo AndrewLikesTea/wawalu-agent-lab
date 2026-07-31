@@ -47,13 +47,20 @@
 // link with a stale or invented hash is a link to this page, not an instruction
 // to empty it.
 
-import { DEFAULT_DESTINATION, WORKSPACE_DESTINATION } from "./finops-workspace-nav.js";
+// ONE CONTROL. This module used to author a second list of the same four
+// destinations — the "working area" switcher — beside the rail that already
+// named them. Two controls, two vocabularies, two live regions for one press,
+// and two different answers for act-and-verify. #819 retired the switcher: the
+// rail in `finops-workspace-nav.js` is now the only control, this module shows
+// and hides behind it, and marking and announcing the current destination is
+// delegated to the rail rather than duplicated here.
+
+import {
+  DEFAULT_DESTINATION, WORKSPACE_DESTINATION, currentDestination, setCurrentDestination,
+} from "./finops-workspace-nav.js";
 
 /** The ids the shipped markup carries, in one place so a test can name them. */
 export const WORKSPACE_SHELL_IDS = Object.freeze({
-  switch: "finops-workspace-switch",
-  switchList: "finops-workspace-switch-list",
-  live: "finops-workspace-switch-live",
   context: "finops-workspace-context",
   contextList: "finops-workspace-context-list",
 });
@@ -73,9 +80,6 @@ export const DESTINATION_FRAGMENT = Object.freeze({
   [WORKSPACE_DESTINATION.department]: "#workspace-departments",
   [WORKSPACE_DESTINATION.actAndVerify]: "#workspace-act-and-verify",
 });
-
-/** The visible word on the control for the destination now on screen. */
-export const SHELL_STATE_LABEL = Object.freeze({ current: "Showing" });
 
 /** The five figures carried into every destination but the answer. */
 export const CONTEXT_TERMS = Object.freeze([
@@ -121,7 +125,7 @@ export function destinationForFragment(doc, hash) {
     .find((key) => DESTINATION_FRAGMENT[key] === raw);
   if (owned) return owned;
 
-  const target = byId(doc, raw.slice(1));
+  const target = fragmentTarget(doc, raw.slice(1));
   if (!target) return null;
   const region = target.closest?.("[data-workspace-region]") ?? null;
   const key = region?.dataset?.workspaceRegion ?? null;
@@ -129,22 +133,34 @@ export function destinationForFragment(doc, hash) {
   return target.closest?.("[data-workspace-frame]") ? DEFAULT_DESTINATION : null;
 }
 
+/**
+ * The element a fragment names, or null.
+ *
+ * `location.hash` is whatever was typed, pasted, or mangled by a mail client on
+ * the way to the reader — `#%%%` is a legal hash and an illegal escape sequence.
+ * A destination that cannot be resolved is a fallback, never a thrown error, so
+ * the decode and the lookup are both allowed to fail into "no such target".
+ */
+function fragmentTarget(doc, id) {
+  try {
+    return byId(doc, decodeURIComponent(id));
+  } catch {
+    return null;
+  }
+}
+
 /** Whether a fragment is one of the four this shell owns. */
 export function ownsFragment(hash) {
   return Object.values(DESTINATION_FRAGMENT).includes(String(hash ?? ""));
 }
 
-/** The destination now on screen, read back off the markup rather than a variable. */
-export function currentWorkspaceDestination(doc) {
-  const marked = switchDoors(doc).find((door) => door.getAttribute("aria-current") === "true");
-  return marked?.dataset?.shellDestination ?? null;
-}
-
-const switchDoors = (doc) =>
-  [...(byId(doc, WORKSPACE_SHELL_IDS.switchList)?.querySelectorAll?.("[data-shell-destination]") ?? [])];
-
-const doorName = (door) => String(door?.dataset?.shellName ?? "").trim()
-  || String(door?.textContent ?? "").replace(/\s+/g, " ").trim();
+/**
+ * The destination now on screen, read back off the markup rather than a variable.
+ *
+ * The rail's marked door *is* that record — there is one control, so there is
+ * one place the answer can come from.
+ */
+export const currentWorkspaceDestination = currentDestination;
 
 /**
  * Show one destination and hide the other three.
@@ -162,47 +178,22 @@ export function applyWorkspaceDestination(doc, key, { announce = false } = {}) {
   const regions = workspaceRegions(doc);
   if (regions.length === 0) return null;
 
-  let shown = 0;
   for (const region of regions) {
-    const active = region.dataset.workspaceRegion === key;
-    region.dataset.workspaceActive = active ? "true" : "false";
-    if (active) shown += 1;
+    region.dataset.workspaceActive = region.dataset.workspaceRegion === key ? "true" : "false";
   }
 
-  const group = byId(doc, WORKSPACE_SHELL_IDS.switch);
-  if (group) group.dataset.workspaceDestination = key;
-  for (const door of switchDoors(doc)) {
-    const current = door.dataset.shellDestination === key;
-    if (current) door.setAttribute("aria-current", "true");
-    else door.removeAttribute("aria-current");
-    door.dataset.shellCurrent = current ? "true" : "false";
-    // The state is a word, never a fill: this survives greyscale, print, and a
-    // screen reader reading the link's name.
-    const slot = door.querySelector?.('[data-role="state"]');
-    if (slot) {
-      slot.replaceChildren();
-      slot.hidden = !current;
-      if (current) slot.append(doc.createTextNode(SHELL_STATE_LABEL.current));
-    }
-  }
+  // The rail owns the marking and the announcement — `aria-current`, the word
+  // "Current", the thickened rule, and one polite sentence when the destination
+  // actually changes. Calling it here rather than repainting a second control is
+  // what makes the two agree by construction instead of by convention.
+  setCurrentDestination(doc, key, { announce });
 
   // The carried figures are a restatement, so they retire the moment the region
   // they restate is on screen.
   const context = byId(doc, WORKSPACE_SHELL_IDS.context);
   if (context) context.hidden = key === DEFAULT_DESTINATION;
 
-  if (announce) announceDestination(doc, key, shown);
   return key;
-}
-
-function announceDestination(doc, key, shown) {
-  const live = byId(doc, WORKSPACE_SHELL_IDS.live);
-  if (!live) return null;
-  const door = switchDoors(doc).find((entry) => entry.dataset.shellDestination === key);
-  const name = doorName(door) || key;
-  live.textContent = `Showing ${name}. ${shown === 1 ? "1 panel" : `${shown} panels`}.`
-    + (key === DEFAULT_DESTINATION ? "" : " The answer stays above it.");
-  return live;
 }
 
 /**
@@ -276,8 +267,15 @@ export function initWorkspaceShell(doc, { win = null, loaded = null } = {}) {
   paintWorkspaceContext(doc, loaded);
 
   const select = (hash, { announce }) => {
-    const key = destinationForFragment(doc, hash);
-    // Unknown fragment: the reader stays exactly where they were.
+    const raw = String(hash ?? "");
+    // A bare or empty fragment is the answer — the same destination a cold load
+    // of the bare URL opens — so stepping back to it never leaves the address
+    // bar describing one destination while another is on screen.
+    const key = raw.length > 1 ? destinationForFragment(doc, raw) : DEFAULT_DESTINATION;
+    // A fragment this page does not own names something it cannot show. The
+    // reader stays exactly where they were: on a cold load that is the answer,
+    // because the caller below falls back to it, and mid-session it is the
+    // destination they were already working in rather than an empty shell.
     if (!key) return null;
     return applyWorkspaceDestination(doc, key, { announce });
   };
@@ -286,10 +284,10 @@ export function initWorkspaceShell(doc, { win = null, loaded = null } = {}) {
     const link = event.target?.closest?.("a");
     const href = link?.getAttribute?.("href");
     if (!href || !href.startsWith("#")) return;
-    // Announced only for the shell's own controls. A rail door and a deep link
-    // both already say what they did, and two live regions describing one press
-    // is how a screen-reader user learns to ignore both.
-    select(href, { announce: ownsFragment(href) });
+    // Never announced from here. The rail's own handler runs on the way back up
+    // from this capture-phase listener and says what it did — including where it
+    // put the keyboard, which this listener does not know.
+    select(href, { announce: false });
   };
 
   const onHashChange = () => select(win?.location?.hash ?? "", { announce: true });

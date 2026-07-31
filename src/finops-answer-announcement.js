@@ -70,7 +70,7 @@ export const ECHOED_LIVE_REGION_IDS = Object.freeze([
   "spend-per-delivery-live",
   "coverage-live",
   // The journey rail, which re-announces the whole trajectory on every import.
-  // The workspace's own switch announcer (`finops-workspace-switch-live`) is
+  // The rail's own destination announcer (`finops-workspace-nav-live`) is
   // untouched, so moving between destinations is still announced.
   "finops-journey-live",
 ]);

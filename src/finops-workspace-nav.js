@@ -31,18 +31,23 @@
 // contract by role. A fourth *contract* role would still be a product decision;
 // this is not one.
 //
-// WHAT THE RAIL WILL NOT DO. It does not hide the rest of the page. A focused
-// workspace on a document this long is a tempting place to put a tab-panel
-// switcher, and it would be the wrong one: every panel here is legitimate
-// reading material, several are printed together, and hiding nine of them behind
-// a control means a reader who scrolls past the rail can no longer find what
-// they came for. So "focused" is achieved by naming the parts, marking the
-// current one, and moving the keyboard — never by removing content from the
-// page. Every door is a real anchor with a real href, so it works before this
+// ONE CONTROL, NOT TWO. This rail and the working-area switcher below it used to
+// list the same four destinations in two places, in two vocabularies, with two
+// live regions describing one press — and they disagreed about act-and-verify,
+// which the rail sent off-page while the switcher opened this page's own
+// commitment work. #819 retired the switcher and left the rail, because the rail
+// is the control the accessibility tests already hold to a bar: `aria-current`,
+// the word "Current", and a thickened rule that is neither colour nor glyph. So
+// the act-and-verify door now opens the destination *on this page*, whose own
+// panel carries the link on to the Savings Action Center, and the shell in
+// finops-workspace-shell.js shows one destination at a time behind it.
+//
+// Every door is still a real anchor with a real href, so it works before this
 // module runs, survives a copy-paste into the address bar, and needs no script
 // to be operable at all.
 
 import { DESTINATION_ROLE, prioritizedDestination } from "./finops-destination-contract.js";
+import { SCREEN_CONTRACT } from "./finops-screen-contract.js";
 import { revealFragmentTarget } from "./deep-link-disclosure.js";
 
 /** The ids the shipped markup carries. Kept in one place so a test can name them. */
@@ -57,7 +62,14 @@ export const WORKSPACE_NAV_IDS = Object.freeze({
   detailList: "finops-workspace-nav-detail-list",
 });
 
-/** The four destination keys, and the only four. */
+/**
+ * The four destination keys, and the only four.
+ *
+ * The values are `shellDestination` from `finops-screen-contract.js` — the
+ * fragment keys already in address bars — so this is an alias table a caller can
+ * name in JS, not a second declaration of what the destinations are. The order
+ * and the names come from the contract below and are never re-typed here.
+ */
 export const WORKSPACE_DESTINATION = Object.freeze({
   answer: "answer",
   evidence: "evidence",
@@ -82,7 +94,6 @@ export const DEFAULT_DESTINATION = WORKSPACE_DESTINATION.answer;
 export const DESTINATION_STATE_LABEL = Object.freeze({
   current: "Current",
   recommended: "Recommended first",
-  offPage: "Opens another page",
 });
 
 /** Collapsed and expanded, for the rail's one disclosure. */
@@ -92,7 +103,13 @@ export const NAV_DISCLOSURE_LABEL = Object.freeze({
 });
 
 /**
- * The four doors as this page authors them.
+ * What this page authors *about* each door, keyed by its contract key.
+ *
+ * The names and the reading order are not here: they are mapped straight off
+ * `SCREEN_CONTRACT` below, so the rail cannot come to say something the screen
+ * contract does not. Only what the contract has no opinion about — which role a
+ * door serves, where it points with no ranking, and what it does and does not
+ * answer — is written down.
  *
  * No `shape`. The rail used to draw ● ◇ ◈ ◆ beside the four names, and at the
  * 11px those marks ship at they are one silhouette with the detail sanded off —
@@ -104,38 +121,44 @@ export const NAV_DISCLOSURE_LABEL = Object.freeze({
  * own answer. `fallbackHref` is what the door points at when the bundled record
  * fails its own contract: the destinations are *places*, and a place does not
  * stop existing because a ranking could not be computed, so the rail stays
- * operable and only the recommendation retires. The three fallbacks are the same
- * three the fixture carries, and `destinationHrefDrift` below is what keeps that
- * duplication honest rather than a second source of truth nobody checks.
+ * operable and only the recommendation retires. The unpinned fallbacks are the
+ * same ones the fixture carries, and `destinationHrefDrift` below is what keeps
+ * that duplication honest rather than a second source of truth nobody checks.
  */
-const AUTHORED_DESTINATIONS = Object.freeze([
-  Object.freeze({
-    key: WORKSPACE_DESTINATION.answer,
+const AUTHORED_DETAIL = Object.freeze({
+  answer: Object.freeze({
     role: null,
-    name: "The answer",
     fallbackHref: "#finops-first-run",
     answers: "Are we wasting money, how much of the spend is recoverable, and what is the one ranked action?",
     doesNotAnswer: "It does not show the workings behind the figure, and it commits to nothing.",
   }),
-  Object.freeze({
-    key: WORKSPACE_DESTINATION.evidence,
+  evidence: Object.freeze({
     role: DESTINATION_ROLE.evidence,
-    name: "Evidence",
     fallbackHref: "#recommendation-evidence",
   }),
-  Object.freeze({
-    key: WORKSPACE_DESTINATION.department,
+  departments: Object.freeze({
     role: DESTINATION_ROLE.departmentDetail,
-    name: "Departments",
     fallbackHref: "#department-decision-panel",
   }),
-  Object.freeze({
-    key: WORKSPACE_DESTINATION.actAndVerify,
+  // PINNED, and the only pinned door. The contract's target for this role is
+  // `/savings-action-center.html` — where the commitment is finally recorded —
+  // but the destination *on this page* is the savings portfolio, the coach
+  // hand-off, and the follow-up ask, and that panel carries the link on to the
+  // action centre itself. A door the reader cannot come back from is not a
+  // destination of this workspace, so this href is authored here and the
+  // contract's is deliberately not written over it.
+  "act-and-verify": Object.freeze({
     role: DESTINATION_ROLE.actAndVerify,
-    name: "Act and verify",
-    fallbackHref: "/savings-action-center.html",
+    fallbackHref: "#savings-portfolio-panel",
+    pinned: true,
   }),
-]);
+});
+
+const AUTHORED_DESTINATIONS = Object.freeze(SCREEN_CONTRACT.map((entry) => Object.freeze({
+  key: entry.shellDestination,
+  name: entry.name,
+  ...AUTHORED_DETAIL[entry.key],
+})));
 
 const byId = (doc, id) => doc?.getElementById?.(id) ?? null;
 const collapse = (text) => String(text ?? "").replace(/\s+/g, " ").trim();
@@ -156,7 +179,7 @@ export function workspaceDestinations(loaded = null) {
   );
   return Object.freeze(AUTHORED_DESTINATIONS.map((authored) => {
     const contract = authored.role ? fromContract.get(authored.role) ?? null : null;
-    const href = contract?.href ?? authored.fallbackHref;
+    const href = authored.pinned ? authored.fallbackHref : contract?.href ?? authored.fallbackHref;
     return Object.freeze({
       ...authored,
       href,
@@ -185,6 +208,9 @@ export function destinationHrefDrift(loaded = null) {
   for (const entry of workspaceDestinations(loaded)) {
     if (!entry.role) continue;
     const authored = AUTHORED_DESTINATIONS.find((door) => door.key === entry.key);
+    // A pinned door has no contract href to drift from — it points at this
+    // page's own destination on purpose, which is a decision, not a stale copy.
+    if (authored.pinned) continue;
     if (authored.fallbackHref !== entry.href) {
       drift.push({ key: entry.key, authored: authored.fallbackHref, contract: entry.href });
     }
