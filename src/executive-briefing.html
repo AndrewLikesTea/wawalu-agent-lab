@@ -35,8 +35,12 @@
       <section class="brief-hero" aria-labelledby="page-title">
         <p class="eyebrow">Executive FinOps briefing</p>
         <h1 id="page-title">One page,<br />one decision.</h1>
-        <p>Read the first screen to act; open the two levels below to challenge it. Every sheet names its source at the top — your own retained FinOps periods, or invented figures that are not your spend — and nothing here is uploaded, stored, or linked.</p>
-        <p class="brief-print-hint">Printing or saving as PDF keeps the whole briefing: both levels open on paper, and the site chrome comes off.</p>
+        <!-- Two sentences: what this is, and what to do first. The sheet below
+             names its own source — the notice above it, and the origin line in
+             its masthead — so this block does not branch over data sources.
+             What is uploaded and what printing does is stated under the sheet,
+             in `.brief-notes`. -->
+        <p>This is a one-page FinOps briefing, built in this browser from figures it already holds. Read the first screen to act; open the two levels below to challenge it.</p>
       </section>
 
       <!-- The briefing is painted here. The state below is what a reader sees
@@ -55,6 +59,17 @@
            export action when navigating by keyboard. It is drawn by the entry
            module because a print button whose script never ran would be dead. -->
       <div id="briefing-actions" class="brief-actions"></div>
+
+      <!-- The two standing statements the masthead used to carry, moved under
+           the sheet: a reader meets them beside the print control they describe
+           rather than ahead of the figure they came for. Plain prose under a
+           heading, not a tooltip — a claim about what leaves this browser has to
+           be readable to be worth making. -->
+      <section class="brief-notes" aria-labelledby="brief-notes-title">
+        <h2 id="brief-notes-title">Printing and privacy</h2>
+        <p>Nothing here is uploaded, stored, or linked. The briefing is built in this tab, and no figure on it is fetched or sent.</p>
+        <p class="brief-print-hint">Printing or saving as PDF keeps the whole briefing: both levels open on paper, and the site chrome comes off.</p>
+      </section>
 
       <!-- The invitation, at the end of the document a leader just read, and
            outside the region the briefing is painted into: nothing here is
