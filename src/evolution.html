@@ -124,6 +124,49 @@
              inside it and must not scroll back to learn whose figures these
              are. -->
         <p class="sample-marker stand-sample" id="finops-stand-sample"><span class="sample-marker-shape" aria-hidden="true">◇</span><strong>Bundled synthetic example</strong> Every figure on this page — here and inside each layer below — was computed from invented data for an invented company. It is not your spend, customer data, or realized savings, and no file is needed to read it.</p>
+        <!-- THE ANSWER BLOCK — the first content on this page that carries a
+             number, and the one a reader decides from. The contract it renders
+             is docs/executive-answer-screen-contract.md, executable as
+             src/finops-screen-contract.js; every string in it is painted from
+             that module by finops-stand-view.js, so the document and the screen
+             cannot say different things.
+
+             WHY IT IS INSIDE THIS REGION, AND WHY ITS QUESTION IS AN h3. The
+             answer spine allows exactly ONE headline region and one h2 in it,
+             and both are this region's — a second answer-shaped top-level
+             section is the defect that manifest exists to catch. And it sits
+             after the provenance marker above rather than before it, because
+             the marker's whole job is to be above every number on this page. So
+             a reader meets, in order: whose data this is, what the page is
+             answering, then this block. Nothing with a figure in it comes
+             sooner.
+
+             FOUR ELEMENTS AND NOTHING ELSE: the question, one figure with its
+             unit and its as-of basis, one confidence sentence, one action. The
+             figure is one paragraph rather than a value beside two captions, so
+             a screen reader announces the number, its unit, and what it is as
+             of together instead of as three orphaned fragments. The named entry
+             points are the sibling group below, kept outside so the block
+             itself stays four things.
+
+             No number is authored here. The percentage, its basis, the
+             confidence sentence, and the action's text and href are all painted
+             from the composed headline's own gradability verdict — the same
+             verdict the gradeability line below already reads, so the two can
+             never disagree about whether this export can be stood behind. -->
+        <div class="answer-block" id="finops-answer" data-state="pending" data-available="false" role="group" aria-labelledby="finops-answer-question">
+          <h3 class="answer-question" id="finops-answer-question">Is our AI spend classification trustworthy enough to act on?</h3>
+          <p class="answer-figure" id="finops-answer-figure"><span class="answer-figure-label" id="finops-answer-label">Spend we can stand behind</span><strong class="answer-figure-value" id="finops-answer-value">Still reading</strong><span class="answer-figure-basis" id="finops-answer-basis">as of the Bundled synthetic example</span></p>
+          <p class="answer-confidence" id="finops-answer-confidence">Nothing has been read yet, so there is no coverage, grade, or residue to report.</p>
+          <a class="answer-action" id="finops-answer-action" href="#local-import">Analyze a provider export — go to the import panel</a>
+        </div>
+        <!-- THE NAMED ENTRY POINTS, one per destination in the contract, in the
+             contract's order. A group rather than a third navigation landmark:
+             the rail further down is this page's navigation. Real anchors with
+             real hrefs, keyboard-reachable in visual order because they are in
+             source order, painted from the contract by finops-stand-view.js so
+             a name here cannot drift from the name in the document. -->
+        <p class="answer-doors" id="finops-answer-doors" role="group" aria-label="Where to go next"></p>
         <p class="stand-answer" id="finops-stand-answer">Still reading the Bundled synthetic example; the numbers below fill in when it finishes.</p>
         <!-- CAN THIS EXPORT BE GRADED — the gate on every figure below, and the
              one place this region says so before a reader quotes one. Three

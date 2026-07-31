@@ -1088,6 +1088,13 @@ export function composeStandHeadline({
     question: STAND_QUESTION,
     source,
     label: STAND_LABEL[source] ?? STAND_LABEL.example,
+    /**
+     * The window every figure in this headline is as of, or null when the
+     * analysis published none. Carried on the headline rather than recomputed
+     * per surface: the answer block prints it beside the figure, and a second
+     * `periodLabel` call at a second call site is a second chance to disagree.
+     */
+    period,
     positioned: Boolean(placed),
     /** The headline is complete when every one of its five parts is present. */
     available: Boolean(placed && recoverable.available && team.available && action.available),
