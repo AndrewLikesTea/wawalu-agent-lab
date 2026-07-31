@@ -739,6 +739,49 @@ class StakeholderReviewTests(unittest.TestCase):
                                 "<p>Grade B</p></body></html>")
         self.assertEqual(text, "Spend Grade B")
 
+    SITE = [
+        ("agent-trace", "<p>trace</p>"),
+        ("agents", "<p>agents</p>"),
+        ("coach", "<p>coach</p>"),
+        ("decision", "<p>decision</p>"),
+        ("evolution", "<p>evolution</p>"),
+        ("executive-briefing", "<p>briefing</p>"),
+        ("index", '<a href="/social.html">Social</a><a href="/profile.html">Profile</a>'
+                  '<a href="/styles.css">css</a><a href="/paint/">Paint</a>'),
+        ("post", "<p>post</p>"),
+        ("profile", "<p>profile</p>"),
+        ("social", "<p>social</p>"),
+    ]
+
+    def test_review_pages_lead_with_the_surfaces_the_lens_names(self):
+        # Filename order handed a copywriter agent-trace and decision while the feed,
+        # the composer and the profile — the pages the lens names — fell off the end.
+        lens = "every word on the social app surfaces first: feed, post composer, profile"
+        names = [name for name, _ in layers.review_pages(self.SITE, lens)]
+        self.assertEqual(set(names[:3]), {"post", "profile", "social"})
+        self.assertIn("index", names)
+
+    def test_review_pages_fall_back_to_the_landing_page_and_what_it_links(self):
+        # A lens naming no page still gets what a visitor actually reaches, not an
+        # alphabetical prefix: the landing page first, then its own links.
+        names = [name for name, _ in layers.review_pages(self.SITE, "sellability and lead gen")]
+        self.assertEqual(names[:3], ["index", "social", "profile"])
+
+    def test_review_pages_never_exceed_the_limit(self):
+        self.assertEqual(len(layers.review_pages(self.SITE, "social profile post", limit=4)), 4)
+
+    def test_stakeholder_prompt_names_the_pages_it_left_out(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            output = pathlib.Path(tmp) / "review.json"
+            with mock.patch.object(layers, "qwen_json",
+                                   return_value={"feedback": "ok", "tasks": []}) as ask:
+                layers.stakeholder_review("You are Jude.", "social feed profile post copy",
+                                          "charter", self.SITE, [], [], ["frontend"], output)
+        prompt = ask.call_args.args[0]
+        self.assertIn("were not included in this review", prompt)
+        self.assertIn("agent-trace", prompt)
+        self.assertIn("--- page: social ---", prompt)
+
     def test_a_diff_carrying_nul_bytes_still_reaches_the_planner(self):
         # A binary fixture in the diff used to raise ValueError inside subprocess
         # and fail a run whose work had already passed the product check.
