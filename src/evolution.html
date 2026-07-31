@@ -161,7 +161,18 @@
         <div class="query-review" id="query-review" role="group" aria-labelledby="query-review-title" hidden>
           <h3 class="query-review-title" id="query-review-title">Correct the classifier on your own queries</h3>
           <p class="query-review-intro" id="query-review-intro"></p>
-          <ul class="query-review-rows" id="query-review-rows"></ul>
+          <!-- WHERE THE REVIEWER IS, and how far through. Secondary meta text,
+               not a heading, and deliberately NOT a live region: it changes on
+               every arrow press, and a region that announced each one would be
+               the chatter this list exists to remove. The same position rides on
+               each row as aria-posinset/aria-setsize, which is what a screen
+               reader speaks when focus lands there. -->
+          <p class="query-review-position" id="query-review-position" hidden><span id="query-review-position-item"></span><span class="query-review-position-done" id="query-review-position-done"></span></p>
+          <!-- ONE TAB STOP. A grid rather than a list because a row carries two
+               operable controls; the rows rove under arrow keys and the controls
+               are reached with Left/Right, so the whole sample costs a keyboard
+               user one Tab instead of fifty. Painted by query-review-view.js. -->
+          <ul class="query-review-rows" id="query-review-rows" role="grid" aria-labelledby="query-review-title" aria-rowcount="0"></ul>
           <p class="query-review-figures" id="query-review-figures"></p>
           <p class="query-review-provenance" id="query-review-provenance" hidden></p>
           <button type="button" class="query-review-revert" id="query-review-revert" hidden></button>

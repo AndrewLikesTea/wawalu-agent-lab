@@ -239,7 +239,12 @@ test("the relabel control offers the model's labels and no others", () => {
   document.getElementById("query-review-open").hidden = false;
   const stops = tabSequence(document).map((node) => node.id);
   assert.ok(stops.includes("query-review-open"), "the open control must be reachable by Tab");
-  assert.ok(stops.includes(select.id), "the per-query control must be reachable by Tab");
+  // NOT by Tab any more, and that is the point of #795: the sample is one tab
+  // stop, and the per-query control is reached from its row with Left/Right.
+  // Reachability by keyboard alone is asserted in query-review-keyboard.test.js.
+  assert.equal(stops.includes(select.id), false,
+    "twenty-five rows must not put fifty controls in the page's tab order");
+  assert.equal(select.getAttribute("tabindex"), "-1");
 });
 
 test("a relabel reaches the model, and the keyboard alone can make one", () => {
@@ -313,13 +318,18 @@ test("a relabel moves the headline number and the recoverable figure on screen",
   assert.equal(document.getElementById("query-review-revert").hidden, true);
 });
 
-test("moving figures are announced politely rather than changing silently", () => {
+test("a correction repaints the figures without speaking over the reviewer", () => {
   const document = doc();
   const live = document.getElementById("query-review-live");
   assert.equal(live.getAttribute("role"), "status");
   assert.equal(live.getAttribute("aria-live"), "polite");
+  // #795: a per-correction figures announcement is twenty-five interruptions in
+  // a twenty-five row pass. The figures still move on screen; the region waits
+  // for the one message the caller decides to make.
   renderQueryReview(document, panelModel(ENTRIES, new Map([["row-30", "outOfScope"]])), {});
-  assert.match(textOf(live), /1 of your corrections included/);
+  assert.equal(textOf(live), "", "a single correction must not announce anything");
+  assert.match(textOf(document.getElementById("query-review-provenance")),
+    /1 of your corrections included/);
   renderQueryReview(document, panelModel(ENTRIES, new Map(), { announcement: REVIEW_COPY.reverted }), {});
   assert.equal(textOf(live), REVIEW_COPY.reverted);
 });

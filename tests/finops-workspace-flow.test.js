@@ -365,7 +365,10 @@ test("the reader can reach every FinOps control by keyboard, in the order they a
   try {
     const labels = tabSequence(document)
       .filter((stop) => stop.closest("#finops-workspace-preview"))
-      .map((stop) => textOf(stop) || stop.id);
+      // The scrollable contract preview is named by its id rather than by the
+      // JSON inside it: it is a tab stop because it scrolls, and a keyboard
+      // reader who cannot focus it cannot read it.
+      .map((stop) => (stop.tagName === "PRE" ? stop.id : textOf(stop) || stop.id));
     // The one action first, then the choice, then the ordinary controls, then
     // the destructive one. Nothing reachable sits above the action it serves.
     // "Remember these figures" is absent because it is already the answer: a
@@ -375,6 +378,7 @@ test("the reader can reach every FinOps control by keyboard, in the order they a
     // summary — so each appears at the DOM position it is reached from.
     assert.deepEqual(labels, [
       "Inspect every retained field and sample value",
+      "finops-preview-json",
       "Open the AI FinOps page",
       "Check the 1 retained period behind this figure",
       "Where every figure above comes from",
