@@ -40,6 +40,12 @@ const read = (file) => readFile(pageUrl(file), "utf8");
 
 const TYPED_EMAIL = "director@example.com";
 
+// The recovery paragraph, in the order a person needs it: what happened, what to
+// do, then what is still safe. Pinned whole rather than by fragment — the order
+// of the three sentences is the point, and a substring match would not see it.
+const RECOVERY_COPY = "We could not send your follow-up request. Try again in a few minutes. "
+  + "Your email address is still in the field above, and nothing else on this page changed.";
+
 const byId = (document, id) => document.getElementById(id);
 const shownText = (document, id) => textOf(byId(document, id));
 const describedBy = (document) => byId(document, "site-footer-email").getAttribute("aria-describedby");
@@ -521,7 +527,7 @@ test("a failed submission keeps the typed address, says it can be retried, and t
     assert.equal(field.value, TYPED_EMAIL, "a failed submission must not clear the address the visitor typed");
     assert.equal(byId(document, "site-footer-recovery").hidden, false);
     assert.match(describedBy(document), /site-footer-recovery/);
-    assert.match(textOf(byId(document, "site-footer-recovery")), /still in the field above, so you can request a follow-up again/);
+    assert.equal(textOf(byId(document, "site-footer-recovery")), RECOVERY_COPY);
     // Copy this repository owns — never the string the response supplied.
     assert.equal(shownText(document, "site-footer-status"),
       "We didn’t get your request because follow-up requests are temporarily offline.");
@@ -543,6 +549,30 @@ test("a failed submission keeps the typed address, says it can be retried, and t
     page.restore();
   }
 });
+
+// The paragraph ships in the markup of every page, so this checks it where a
+// visitor actually meets it: two pages, driven to failure through the shipped
+// entry rather than read out of the source string.
+for (const file of ["agents.html", "decision.html"]) {
+  test(`${file} leads its failure state with what happened, not with the reassurance`, async () => {
+    const page = await openFooterPage(file);
+    const { document } = page;
+    interceptLeads(() => { throw new TypeError("network error"); });
+    try {
+      byId(document, "site-footer-open").click();
+      submitEmail(document, TYPED_EMAIL);
+      await settled(document);
+
+      assert.equal(byId(document, "site-footer-form").dataset.state, "error");
+      assert.equal(byId(document, "site-footer-recovery").hidden, false);
+      assert.equal(shownText(document, "site-footer-recovery"), RECOVERY_COPY);
+      assert.ok(shownText(document, "site-footer-recovery").startsWith("We could not send your follow-up request."),
+        "the outcome sentence must be the first thing read");
+    } finally {
+      page.restore();
+    }
+  });
+}
 
 test("the pending state is announced, not merely spun", async () => {
   const page = await openFooterPage("index.html");
