@@ -120,6 +120,7 @@
 // assertion fails rather than the deployment.
 
 import { STAND_IDS, STAND_QUESTION } from "../finops-stand.js";
+import { FINOPS_SPINE, REGION_CLASS, regionClass } from "../finops-spine.js";
 
 /** Bump when a role changes meaning or the manifest's contract changes. */
 export const ANSWER_SPINE_VERSION = "finops-answer-spine/1.0.0";
@@ -616,12 +617,14 @@ export function auditPageStructure(doc, manifest = ANSWER_SPINE, mainId = MAIN_R
  * exception can throw on a non-empty list.
  *
  * @param {ReadonlyArray<object>} manifest
- * @param {{rendered?: ReadonlyArray<string>|null}} options
+ * @param {{rendered?: ReadonlyArray<string>|null, spine?: object}} options
  *   `rendered` — the page's actual top-level region ids, from
  *   `renderedRegionIds`. Omit it to check the manifest on its own.
+ *   `spine` — the answer spine this census must agree with.
  * @returns {string[]} problems, in the order they were found
  */
-export function validateAnswerSpine(manifest = ANSWER_SPINE, { rendered = null } = {}) {
+export function validateAnswerSpine(manifest = ANSWER_SPINE,
+  { rendered = null, spine = FINOPS_SPINE } = {}) {
   const problems = [];
   const entries = Array.isArray(manifest) ? manifest : [];
   if (entries.length === 0) problems.push("The answer spine is empty; every region must be declared.");
@@ -655,6 +658,24 @@ export function validateAnswerSpine(manifest = ANSWER_SPINE, { rendered = null }
     }
     if (entry.role !== ROLE.retired && entry.supersededBy) {
       problems.push(`Region "${id}" names a superseding region but is not retired.`);
+    }
+
+    // THE CENSUS AND THE SPINE ARE ONE DECISION IN TWO FILES. This file says
+    // what each region is for; src/finops-spine.js says which of them is the
+    // answer, which are evidence beneath it, and which are gone. Neither
+    // imports the other's list, so this is where they are held to each other:
+    // a role added here with no classification there is a region nobody
+    // decided about.
+    const expectedClass = entry.role === ROLE.retired
+      ? REGION_CLASS.removed
+      : (entry.role === ROLE.headline ? REGION_CLASS.answer : REGION_CLASS.evidence);
+    const classified = regionClass(id, spine);
+    if (!classified) {
+      problems.push(`Region "${id}" is declared here but the answer spine classifies it as `
+        + "nothing. Every region is answer, evidence, or removed.");
+    } else if (classified !== expectedClass) {
+      problems.push(`Region "${id}" has role "${entry.role}" here but is classified `
+        + `"${classified}" by the answer spine; it should be "${expectedClass}".`);
     }
 
     const text = entryText(entry).toLowerCase();

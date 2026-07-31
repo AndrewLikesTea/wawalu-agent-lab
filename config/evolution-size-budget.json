@@ -17,8 +17,8 @@
       "label": "evolution-page.js + its static import graph",
       "kind": "module-graph",
       "entry": "/evolution-page.js",
-      "budgetBytes": 2905088,
-      "baseline": "Measured 2,847,199 bytes across 165 modules in dist/ on 2026-07-30 — the page entry and everything it reaches by static import, which is what a browser must fetch and parse before this page is interactive. A module moved behind a dynamic import() leaves this number; a fetched JSON fragment was never in it."
+      "budgetBytes": 2964480,
+      "baseline": "Measured 2,905,706 bytes in dist/ on 2026-07-30, after the answer spine landed — the page entry and everything it reaches by static import, which is what a browser must fetch and parse before this page is interactive. A module moved behind a dynamic import() leaves this number; a fetched JSON fragment was never in it. RAISED ON PURPOSE, by 58 KiB over the previous 2,905,088: src/finops-spine.js is 26,423 bytes in dist/ and the rest is growth that landed against the old headroom since the previous baseline of 2,847,199 was measured. The spine belongs in the initial payload rather than behind a dynamic import because the page reads its region classification and its state before the first paint — src/finops-stand-view.js and the page entry both call applyFinopsSpine() on the path that renders the answer region — so deferring it would defer the answer."
     },
     {
       "id": "footer-entry-graph",
