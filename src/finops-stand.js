@@ -67,6 +67,9 @@ import {
   EVIDENCE_CLASS, PROVENANCE_KIND, resolveFinding,
 } from "./finops-finding-resolver.js";
 import {
+  INPUT_DIGEST_ALGORITHM, INPUT_RUBRIC_VERSION, WEIGHT_ASSUMPTION, buildInputProvenance,
+} from "./finops-input-digest.js";
+import {
   FINOPS_SPINE_MANIFEST, SPINE_CLAIM_KIND, SPINE_DIRECTION, SPINE_UNIT,
 } from "./finops-spine-manifest.js";
 
@@ -116,6 +119,7 @@ export const STAND_DISCLOSURE = Object.freeze({
   anonymization: "anonymization",
   versions: "versions",
   reproducibility: "reproducibility",
+  inputs: "inputs",
   departments: "departments",
   verification: "verification",
   otherActions: "other-actions",
@@ -124,9 +128,27 @@ export const STAND_DISCLOSURE = Object.freeze({
 /** The order the disclosures are authored and painted in. */
 export const STAND_DISCLOSURE_ORDER = Object.freeze([
   STAND_DISCLOSURE.cohort, STAND_DISCLOSURE.anonymization, STAND_DISCLOSURE.versions,
-  STAND_DISCLOSURE.reproducibility, STAND_DISCLOSURE.departments, STAND_DISCLOSURE.verification,
-  STAND_DISCLOSURE.otherActions,
+  STAND_DISCLOSURE.reproducibility, STAND_DISCLOSURE.inputs, STAND_DISCLOSURE.departments,
+  STAND_DISCLOSURE.verification, STAND_DISCLOSURE.otherActions,
 ]);
+
+/**
+ * The disclosures `finops-stand-view.js` MOUNTS rather than the document authoring.
+ *
+ * Every other disclosure ships as markup in `src/evolution.html`, so a reader
+ * whose JavaScript failed still meets an operable control. These do not, for one
+ * measured reason: `evolution.html` is the initial payload this repository holds
+ * a byte budget on (`config/evolution-size-budget.json`), and an eighth authored
+ * `details` block put the document over it. Everything inside this one — the
+ * digest, the row count, the per-row weights — is computed by the same modules
+ * that would have to run to fill it, so there is no state in which the authored
+ * markup would have carried anything a reader could use. The entry graph it
+ * moved to has budget headroom; the document did not.
+ *
+ * A disclosure whose CONTENT would be readable without script does not belong
+ * here. Author that one in the document and pay for it, or take something out.
+ */
+export const STAND_MOUNTED_DISCLOSURES = Object.freeze([STAND_DISCLOSURE.inputs]);
 
 /**
  * The visible summary of each disclosure, authored once so markup and module agree.
@@ -142,6 +164,7 @@ export const STAND_DISCLOSURE_SUMMARY = Object.freeze({
   [STAND_DISCLOSURE.anonymization]: "What this comparison reads, and what it never reads",
   [STAND_DISCLOSURE.versions]: "Which scoring rules and which peer data produced these figures",
   [STAND_DISCLOSURE.reproducibility]: "Can someone else repeat this ranking?",
+  [STAND_DISCLOSURE.inputs]: "Which rows this number came from, and how to check it",
   [STAND_DISCLOSURE.departments]: "Every department, ranked",
   [STAND_DISCLOSURE.verification]: "How much of this was verified",
   [STAND_DISCLOSURE.otherActions]: "Other actions, in priority order",
@@ -769,6 +792,72 @@ function reproducibilityEntries(result) {
   return rows;
 }
 
+/**
+ * Which rows of the reader's OWN file the headline number came from.
+ *
+ * The other disclosures answer "can this ranking be repeated?" — a question
+ * about the rules and the peer data. This one answers the question a director
+ * asks first: which rows is this, how much did each of them put in, and is the
+ * file on my desk the file the number came from. So it states four things and
+ * stops: which source produced the analysis IN PLAIN WORDS, how many rows the
+ * digest covers, the digest itself, and one line per named contribution with
+ * the weight it carries.
+ *
+ * NOTHING HERE IS COMPUTED. `buildInputProvenance` does the normalizing, the
+ * hashing and the division; this turns its record into the reader's sentences.
+ * Every label it hands back originated in an imported file and leaves as plain
+ * text, which is what makes `finops-stand-view.js`'s `textContent` assignment
+ * the only rendering path it can take.
+ *
+ * The weight assumptions are stated BEFORE the rows that carry weights, because
+ * a reader meeting "0.64" for the first time needs to know it is dollars and not
+ * headcount before they read eight of them.
+ */
+function inputEntries(analysis, source) {
+  const provenance = buildInputProvenance({ analysis, source });
+  const rows = [entry("What this number is derived from",
+    provenance.imported
+      ? `Derived from your imported file — ${COUNT.format(provenance.rowCount)} department `
+        + `row${provenance.rowCount === 1 ? "" : "s"}`
+        + `${provenance.recordCount === null ? ""
+          : ` covering ${COUNT.format(provenance.recordCount)} usage records`}. `
+        + "Every figure in this region is your own export's."
+      : `Derived from ${provenance.sourceLabel}. These are invented departments and invented `
+        + "amounts, not your spend — nothing here may be forwarded as your own number. Choose "
+        + "an export to replace it.")];
+  if (!provenance.rowCount) {
+    rows.push(entry("Rows read", "This analysis published no department rows, so there is "
+      + "nothing to name behind the number and no digest to compare."));
+    return rows;
+  }
+  rows.push(entry(`Input digest · ${provenance.digestPrefix}`,
+    `${provenance.digest} · ${INPUT_DIGEST_ALGORITHM} over the `
+    + `${COUNT.format(provenance.rowCount)} normalized rows — each row's attribution key, its `
+    + "analyzed spend and its modelled recoverable, both in whole cents, sorted before hashing. "
+    + "No clock, no file name and no row order enter it, so the same file imported twice gives "
+    + "this same code and a different code means different rows. It is a check for change, not "
+    + "a security digest."));
+  rows.push(entry("Scoring rules for this breakdown", `${INPUT_RUBRIC_VERSION} · named and `
+    + "bumped by hand. A change to which rows are named, to how a weight is defined, or to what "
+    + "enters the digest moves this version; nothing derives it from a build or a date."));
+  rows.push(entry("Assumption behind every weight", WEIGHT_ASSUMPTION.share));
+  rows.push(entry("Assumption behind the recoverable model", WEIGHT_ASSUMPTION.model));
+  for (const row of provenance.named) {
+    rows.push(entry(`${row.displayLabel} · ${usd(row.recoverableUsd)}`,
+      `Weight ${row.weight === null ? "not stated" : row.weight.toFixed(2)} of the `
+      + `${usd(provenance.totalRecoverableUsd)} headline`
+      + `${row.spendUsd === null ? "" : ` · ${usd(row.spendUsd)} analyzed spend in this row`}.`));
+  }
+  if (provenance.remainder) {
+    rows.push(entry(`The remaining ${COUNT.format(provenance.remainder.rows)} row`
+      + `${provenance.remainder.rows === 1 ? "" : "s"} · ${usd(provenance.remainder.recoverableUsd)}`,
+      `Weight ${provenance.remainder.weight === null ? "not stated"
+        : provenance.remainder.weight.toFixed(2)} of the headline, summed rather than named one `
+      + "by one. Every one of them is listed by name under “Every department, ranked”."));
+  }
+  return rows;
+}
+
 function departmentEntries(analysis) {
   const ranked = Array.isArray(analysis?.rankedDepartments) ? analysis.rankedDepartments : [];
   if (!ranked.length) return [entry("Departments", "This analysis ranked no departments.")];
@@ -895,6 +984,7 @@ export function composeStandHeadline({
       disclosure(STAND_DISCLOSURE.anonymization, anonymizationEntries(eligibility?.note ?? null)),
       disclosure(STAND_DISCLOSURE.versions, versionEntries(analysis, briefing, position)),
       disclosure(STAND_DISCLOSURE.reproducibility, reproducibilityEntries(reproducibility)),
+      disclosure(STAND_DISCLOSURE.inputs, inputEntries(analysis, source)),
       disclosure(STAND_DISCLOSURE.departments, departmentEntries(analysis)),
       disclosure(STAND_DISCLOSURE.verification, verificationEntries(decision, briefing)),
       disclosure(STAND_DISCLOSURE.otherActions, otherActionEntries(destinations)),

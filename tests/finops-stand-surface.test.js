@@ -17,8 +17,9 @@ import {
 } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 import {
-  STAND_CONFIDENCE_LABEL, STAND_DISCLOSURE_ORDER, STAND_EVIDENCE_LABEL, STAND_IDS, STAND_QUESTION,
-  STAND_RESOLUTION_ACTION, composeStandHeadline, standHeadlineForImport,
+  STAND_CONFIDENCE_LABEL, STAND_DISCLOSURE_ORDER, STAND_EVIDENCE_LABEL, STAND_IDS,
+  STAND_MOUNTED_DISCLOSURES, STAND_QUESTION, STAND_RESOLUTION_ACTION, composeStandHeadline,
+  standHeadlineForImport,
 } from "../src/finops-stand.js";
 import {
   CONFIDENCE_LEVELS, EVIDENCE_CLASS, SYNTHETIC_CLAIM_QUALIFIER,
@@ -113,10 +114,22 @@ test("the headline is the highest-ranked heading in its region, and it is first 
 // 2. Progressive disclosure: one step, every time.
 // ---------------------------------------------------------------------------
 
+/**
+ * The disclosures the document authors, which is every one of them except the
+ * few `STAND_MOUNTED_DISCLOSURES` names. Those are built by
+ * `finops-stand-view.js` because `evolution.html` is under a byte budget on the
+ * initial payload and they carry nothing before their modules have run — so a
+ * static read of the markup is the wrong place to look for them, and the tests
+ * below that read `src/evolution.html` directly skip them. Every guarantee they
+ * skip is asserted against the BOOTED page instead, in the test that follows.
+ */
+const AUTHORED_DISCLOSURES = STAND_DISCLOSURE_ORDER
+  .filter((key) => !STAND_MOUNTED_DISCLOSURES.includes(key));
+
 test("every disclosure is one interaction from the headline, with no nesting", () => {
   const document = parseHtml(html);
   const region = byId(document, STAND_IDS.region);
-  for (const key of STAND_DISCLOSURE_ORDER) {
+  for (const key of AUTHORED_DISCLOSURES) {
     const ids = standDisclosureIds(key);
     const details = byId(document, ids.details);
     assert.ok(details, `${key} has no disclosure in the shipped markup`);
@@ -131,9 +144,59 @@ test("every disclosure is one interaction from the headline, with no nesting", (
     assert.equal(summary.tagName.toLowerCase(), "summary");
     assert.equal(summary.parentNode.id, ids.details);
   }
-  // All six are siblings of one another in one flat container.
+  // All of them are siblings of one another in one flat container.
   const container = byId(document, STAND_IDS.disclosures);
-  assert.equal(container.querySelectorAll("details").length, STAND_DISCLOSURE_ORDER.length);
+  assert.equal(container.querySelectorAll("details").length, AUTHORED_DISCLOSURES.length);
+});
+
+test("a mounted disclosure is indistinguishable from an authored one once the page has booted", async () => {
+  const { document } = await openWithClearedStorage();
+  const region = byId(document, STAND_IDS.region);
+  const container = byId(document, STAND_IDS.disclosures);
+  assert.ok(STAND_MOUNTED_DISCLOSURES.length > 0,
+    "this assertion is only meaningful while something is mounted rather than authored");
+
+  for (const key of STAND_MOUNTED_DISCLOSURES) {
+    const ids = standDisclosureIds(key);
+    const details = byId(document, ids.details);
+    assert.ok(details, `${key} was never mounted into the booted page`);
+    assert.equal(details.tagName.toLowerCase(), "details");
+    assert.equal(details.dataset.mounted, "true", `${key} does not say it was mounted`);
+    // The same three rules the authored ones are held to: flat, in the region,
+    // and named by a real summary.
+    assert.equal(details.parentNode.closest("details"), null, `${key} is nested`);
+    assert.equal(details.closest(`#${STAND_IDS.region}`), region, `${key} is outside the region`);
+    const summary = byId(document, ids.summary);
+    assert.equal(summary.tagName.toLowerCase(), "summary");
+    assert.equal(summary.parentNode.id, ids.details);
+    assert.equal(summary.getAttribute("aria-controls"), ids.list);
+    assert.equal(summary.getAttribute("tabindex"), null, `${key} overrides its tab stop`);
+    assert.equal(summary.getAttribute("role"), null, `${key} overrides its native role`);
+    assert.ok(textOf(summary).length > 8, `${key} carries no question of its own`);
+    assert.equal(details.className, "stand-disclosure",
+      `${key} would not pick up the shipped stylesheet`);
+  }
+
+  // And the container holds every disclosure exactly once, in the declared order.
+  assert.deepEqual(
+    [...container.querySelectorAll("details")].map((node) => node.id),
+    STAND_DISCLOSURE_ORDER.map((key) => standDisclosureIds(key).details));
+});
+
+test("a mounted disclosure toggles through the same state channels as an authored one", async () => {
+  const { document } = await openWithClearedStorage();
+  const ids = standDisclosureIds(STAND_MOUNTED_DISCLOSURES[0]);
+  const details = byId(document, ids.details);
+  const summary = byId(document, ids.summary);
+  assert.equal(summary.getAttribute("aria-expanded"), "false");
+  assert.match(shownText(document, ids.state), /^▸ Show · \d+$/);
+
+  details.open = true;
+  details.dispatchEvent(new DomEvent("toggle", { bubbles: false }));
+  assert.equal(summary.getAttribute("aria-expanded"), "true",
+    "a mounted disclosure never bound its own toggle");
+  assert.equal(details.dataset.disclosure, "expanded");
+  assert.match(shownText(document, ids.state), /^▾ Hide · \d+$/);
 });
 
 test("each disclosure is filled from the composed headline and reports its own count", async () => {
@@ -154,7 +217,7 @@ test("each disclosure is filled from the composed headline and reports its own c
 
 test("the disclosures are native summaries, keyboard-operable with no script and no tab-stop override", () => {
   const document = parseHtml(html);
-  for (const key of STAND_DISCLOSURE_ORDER) {
+  for (const key of AUTHORED_DISCLOSURES) {
     const summary = byId(document, standDisclosureIds(key).summary);
     // A native summary is focusable, activates on Enter and Space, and toggles
     // its own details — none of which this page re-implements. What it must not

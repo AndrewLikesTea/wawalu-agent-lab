@@ -31,7 +31,8 @@ import {
 import { applyFirstRunResult } from "../src/finops-first-run-view.js";
 import { DECISION_SPINE, READING_ORDER } from "../src/finops-decision-interaction.js";
 import {
-  STAND_DISCLOSURE_ORDER, STAND_IDS, STAND_QUESTION, composeStandHeadline,
+  STAND_DISCLOSURE_ORDER, STAND_IDS, STAND_MOUNTED_DISCLOSURES, STAND_QUESTION,
+  composeStandHeadline,
 } from "../src/finops-stand.js";
 import {
   applyStandHeadline, standClaimSentence, standDisclosureIds,
@@ -444,7 +445,11 @@ test("the claim survives a long question, an extreme figure, and the lowest tier
 
 test("every disclosure names what it reveals and reports its state in both of them", async () => {
   const document = parseHtml(await readFile(PAGE, "utf8"));
-  for (const key of STAND_DISCLOSURE_ORDER) {
+  // `STAND_MOUNTED_DISCLOSURES` are built by finops-stand-view.js rather than
+  // authored here — see the constant for why — so they carry no markup a static
+  // read could check. tests/finops-stand-surface.test.js holds them to the same
+  // naming and state rules against the booted page.
+  for (const key of STAND_DISCLOSURE_ORDER.filter((id) => !STAND_MOUNTED_DISCLOSURES.includes(id))) {
     const ids = standDisclosureIds(key);
     const summary = byId(document, ids.summary);
     const name = textOf(summary);
