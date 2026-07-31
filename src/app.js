@@ -869,14 +869,17 @@ export async function initDecisionLog(root = document, storage = localStorage, o
     for (const radio of typeFilter) radio.checked = radio.value === view.type;
     if (statusFilter) statusFilter.value = view.status;
     if (ownerFilter) {
+      // A shared link can name an owner this log has never held. The option list
+      // is asked directly rather than inferred from what the control did with
+      // the value: a `<select>` silently refuses a value no option carries, so
+      // reading the value back conflates "this log has no such owner" with "the
+      // options are not built yet" — and at boot the owner options, which are
+      // derived from the visitor's own records, are exactly that. The view falls
+      // back to the whole history rather than filtering by a person no option
+      // represents.
+      const offered = [...(ownerFilter.options ?? [])].some((option) => option.value === view.owner);
+      if (!offered) view.owner = "all";
       ownerFilter.value = view.owner;
-      // A shared link can name an owner this log has never held. The select
-      // refuses the value; the view follows the control rather than filtering
-      // by a person no option represents.
-      if (ownerFilter.value !== view.owner) {
-        view.owner = "all";
-        ownerFilter.value = "all";
-      }
     }
     if (fromFilter) fromFilter.value = view.from;
     if (toFilter) toFilter.value = view.to;
@@ -1100,7 +1103,10 @@ export async function initDecisionLog(root = document, storage = localStorage, o
   // importing can only add to the recorded half — it cannot delete, overwrite,
   // or hide either half. dedupeById keeps the first occurrence, so a recorded
   // record that shares an id with an example replaces it and is not badged.
-  const refresh = () => {
+  // `paint: false` composes the log and re-derives the controls without
+  // rendering, which is what boot needs before it adopts a link's filters. Every
+  // other caller is a data change and paints.
+  const refresh = ({ paint = true } = {}) => {
     decisions = dedupeById([...recordedDecisions, ...seedDecisions]);
     releases = dedupeById([...recordedReleases, ...seedReleases]);
     const recordedIds = new Set([...recordedDecisions, ...recordedReleases].map(({ id }) => id));
@@ -1128,7 +1134,7 @@ export async function initDecisionLog(root = document, storage = localStorage, o
     if (ownerFilter) syncOwnerOptions(ownerFilter, records);
     if (supersedesField) syncSupersedesOptions(supersedesField, decisions);
     view.owner = ownerFilter?.value ?? view.owner;
-    render();
+    if (paint) render();
   };
 
   // Nothing is awaited before this point, and nothing needs to be: the history
@@ -1137,8 +1143,18 @@ export async function initDecisionLog(root = document, storage = localStorage, o
   // paint instead of counting up from the "0 records" in the static markup.
   // The URL is read once, here, and it is the only place the first filter state
   // comes from: a reload and a pasted link are the same event to this page.
+  // The log is composed before the link is read, and that order is load-bearing.
+  // The owner options are built from the visitor's own records, and a `<select>`
+  // refuses a value none of its options carries. Reading the link first handed
+  // `?owner=Priya` to a control that still held nothing but "all", so the
+  // control refused it and syncFilterControls dropped the filter to "all": the
+  // reader of a shared link saw every owner's records where the sender had seen
+  // one person's, the export followed that wider view, and syncUrl() below then
+  // rewrote the address bar without the parameter that had gone missing. The
+  // composition pass does not paint, so this is still one render.
+  refresh({ paint: false });
   adoptFilters(parseHistoryFilters(locationRef?.search ?? ""));
-  refresh();
+  render();
   focusLinkedDecision(root);
   // Canonicalize what the address bar says, without a history entry: a link
   // carrying `status=approved`, an owner this log has never held, or a
