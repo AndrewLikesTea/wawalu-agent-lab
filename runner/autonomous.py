@@ -869,6 +869,24 @@ def task_persona(task: dict[str, Any]) -> str:
     return str(task.get("persona") or "staff")
 
 
+def task_dependency(task: dict[str, Any], created: list[dict[str, Any]],
+                    previous: dict[str, int]) -> int | None:
+    """Issue this task must wait for: an explicit cross-persona prerequisite, else its persona's last task.
+
+    The per-persona chain alone only orders one engineer's own work. A program split
+    across six engineers therefore shipped with no encoded ordering at all, and
+    choose_issue -- which skips an issue whose body says "Depends on #N" while N is
+    open -- had nothing to match, so dependents ran before their foundations and
+    spent a paid session each reporting the prerequisite was missing. An explicit
+    depends_on_index from the plan wins; it can only point backwards, so the issue
+    it names has already been created and sits at that position in `created`.
+    """
+    index = task.get("depends_on_index")
+    if isinstance(index, int) and 1 <= index <= len(created):
+        return int(created[index - 1]["number"])
+    return previous.get(task_persona(task))
+
+
 def generate_directive_backlog(token: str, config: dict[str, Any], journal: Journal,
                                directive: dict[str, Any]) -> list[dict[str, Any]]:
     store = DirectiveStore(directive.get("id"))
@@ -893,7 +911,8 @@ def generate_directive_backlog(token: str, config: dict[str, Any], journal: Jour
             previous[persona] = int(issue["number"])
             issues.append(issue)
             continue
-        issue = create_generated_issue(token, task, config["issue_label"], previous.get(persona),
+        issue = create_generated_issue(token, task, config["issue_label"],
+                                       task_dependency(task, issues, previous),
                                        directive_id=directive.get("id"))
         store.record_created_issue(index, issue["number"])
         previous[persona] = int(issue["number"])
@@ -1036,7 +1055,8 @@ def consult_after_directive_mvp(token: str, config: dict[str, Any], journal: Jou
             previous[persona] = int(issue["number"])
             issues.append(issue)
             continue
-        issue = create_generated_issue(token, task, config["issue_label"], previous.get(persona),
+        issue = create_generated_issue(token, task, config["issue_label"],
+                                       task_dependency(task, issues, previous),
                                        directive_id=directive.get("id"))
         store.record_consultation_issue(index, issue["number"])
         previous[persona] = int(issue["number"])

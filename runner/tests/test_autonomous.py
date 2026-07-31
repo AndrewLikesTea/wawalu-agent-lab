@@ -2258,3 +2258,28 @@ class SyncMainTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TaskDependencyTests(unittest.TestCase):
+    """depends_on_index has to resolve to the sibling issue choose_issue will look for."""
+
+    def test_explicit_index_resolves_to_that_siblings_issue_number(self):
+        created = [{"number": 764}, {"number": 765}]
+        task = {"persona": "backend", "depends_on_index": 1}
+        self.assertEqual(autonomous.task_dependency(task, created, {}), 764)
+
+    def test_explicit_index_wins_over_the_persona_chain(self):
+        created = [{"number": 764}, {"number": 765}]
+        task = {"persona": "backend", "depends_on_index": 2}
+        self.assertEqual(autonomous.task_dependency(task, created, {"backend": 700}), 765)
+
+    def test_persona_chain_still_applies_without_an_explicit_index(self):
+        task = {"persona": "backend"}
+        self.assertEqual(autonomous.task_dependency(task, [{"number": 764}], {"backend": 700}), 700)
+
+    def test_unresolvable_index_falls_back_rather_than_inventing_a_number(self):
+        # A forward reference should already be stripped when the plan is normalized;
+        # if one survives, the task must stay runnable instead of pointing anywhere.
+        task = {"persona": "backend", "depends_on_index": 5}
+        self.assertIsNone(autonomous.task_dependency(task, [{"number": 764}], {}))
+        self.assertEqual(autonomous.task_dependency(task, [{"number": 764}], {"backend": 700}), 700)
