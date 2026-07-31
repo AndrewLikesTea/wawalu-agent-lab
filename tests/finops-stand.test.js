@@ -66,11 +66,14 @@ test("the recoverable figure sits in the headline beside the position, not in a 
   const headline = buildStandHeadline();
   assert.match(headline.recoverable.value, /^\$51,254 · 33% of analyzed spend$/);
   assert.match(headline.recoverable.basis, /\$51,254 of \$154,500 analyzed/);
-  // The answer sentence holds the position AND the recoverable AND the team, so
-  // a reader who stops after one line has still read all three.
-  assert.ok(headline.answer.includes("$38.63"));
-  assert.ok(headline.answer.includes("$51,254"));
-  assert.ok(headline.answer.includes(headline.team.name));
+  // The answer sentence is ONE finding, chosen by `finops-finding-resolver.js`,
+  // not the position with the recoverable figure and the team concatenated onto
+  // it. The other two figures stay in their own slots, which is where a reader
+  // who wants them looks.
+  assert.equal(headline.answer, headline.resolution.winner.claim);
+  assert.ok(!headline.answer.includes("$51,254"),
+    "the recoverable figure belongs to its own slot, not to the one claim");
+  assert.ok(headline.recoverable.value.includes("$51,254"));
 });
 
 test("exactly one team is named, and it is the department the existing finding already ranked", () => {

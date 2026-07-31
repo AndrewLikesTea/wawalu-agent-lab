@@ -294,6 +294,9 @@ test("the named team and every figure are readable as text", async () => {
   // attribute the eye cannot read.
   assert.equal(byId(document, STAND_IDS.positionValue).dataset.available, "true");
   assert.equal(byId(document, STAND_IDS.team).dataset.available, "true");
-  // One live announcement, and it is the answer rather than the machinery.
-  assert.match(shownText(document, STAND_IDS.live), /Where do we stand|most expensive quarter/);
+  // One live announcement, and it is the answer rather than the machinery. The
+  // answer is the resolved finding's claim, so this is pinned to the slot that
+  // prints it rather than to a sentence one signal happened to produce.
+  assert.ok(shownText(document, STAND_IDS.live).includes(shownText(document, STAND_IDS.answer)),
+    "the live region must announce the headline answer, not the machinery");
 });

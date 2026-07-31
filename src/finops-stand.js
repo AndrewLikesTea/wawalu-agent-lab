@@ -42,6 +42,9 @@
 // 4. NOTHING BELOW BUILDS A NODE. Every value is plain text;
 //    `finops-stand-view.js` owns the DOM.
 
+import ACTION_OUTCOME_FIXTURES from "./action-outcome-fixtures.json" with { type: "json" };
+import { scoreAndRankActionOutcomes } from "./action-outcome-scoring.js";
+import { resolveHeadlineFinding } from "./finops-finding-resolver.js";
 import {
   EXAMPLE_ORG_COHORT_PROFILE, EXAMPLE_TASK_LEDGER, loadExampleDataset,
 } from "./example-dataset.js";
@@ -292,15 +295,44 @@ function actionSlot(record) {
   });
 }
 
-/** The one sentence a reader who stops at the top has still read. */
-function answerSentence(position, recoverable, team) {
-  if (!position?.available) return null;
-  const parts = [`This organization is in the ${position.band === "bottom_quartile"
-    ? "most expensive quarter" : position.bandMeaning ?? "cohort"} of its peer cohort at `
-    + `${position.value.split(" · ")[1] ?? position.value}.`];
-  if (recoverable?.available) parts.push(`${recoverable.value.split(" · ")[0]} is modelled recoverable.`);
-  if (team?.available) parts.push(`${team.name} is the department driving it.`);
-  return parts.join(" ");
+/**
+ * The one sentence a reader who stops at the top has still read.
+ *
+ * IT IS NOT COMPOSED HERE ANY MORE. This region used to build the sentence by
+ * concatenation — the position, then the recoverable figure, then the lagging
+ * team — which is a hardcoded preference with two footnotes rather than a
+ * choice: on a month where last month's tracked action missed by five figures,
+ * the lead still read a quartile band first. `finops-finding-resolver.js` now
+ * ranks the four already-computed signals against one another and returns the
+ * one finding and its runners-up; this module hands it the signals and prints
+ * `winner.claim`. Nothing is re-ranked, re-scored, or re-worded here.
+ *
+ * `runnersUp` is carried on the returned headline for a later progressive
+ * disclosure. No surface renders it yet, and none is added in this change.
+ */
+function resolutionFor({ position, teamGap, trendMovement, trackedActionResult }) {
+  return resolveHeadlineFinding({
+    peerPosition: position,
+    teamGap,
+    trendMovement,
+    trackedActionResult,
+  });
+}
+
+/**
+ * The rank-1 tracked action from last month, scored by the policy that owns it.
+ *
+ * The fixture and the scoring rule both belong to `action-outcome-scoring.js`;
+ * this reads its top-priority result and nothing else. A fixture that scores to
+ * nothing resolves to null, which the resolver treats as one unusable signal
+ * rather than as an error.
+ */
+function trackedActionResult() {
+  try {
+    return scoreAndRankActionOutcomes(ACTION_OUTCOME_FIXTURES.actions ?? [])[0] ?? null;
+  } catch {
+    return null;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -475,12 +507,19 @@ function disclosure(id, entries) {
 export function composeStandHeadline({
   analysis = null, briefing = null, position = null, finding = null, decision = null,
   destinations = null, eligibility = null, source = "example", reproducibility = null,
+  teamGap = null, trackedAction = null,
 } = {}) {
   const recoverable = recoverableSlot(analysis);
   const team = teamSlot(finding);
   const action = actionSlot(destinations);
   const placed = positionSlot(position);
   const withheld = placed ? null : withheldFrom(position, eligibility, source);
+  const resolution = resolutionFor({
+    position,
+    teamGap: teamGap ?? reproducibility?.gap ?? null,
+    trendMovement: finding,
+    trackedActionResult: trackedAction,
+  });
   return Object.freeze({
     version: STAND_VERSION,
     question: STAND_QUESTION,
@@ -489,8 +528,13 @@ export function composeStandHeadline({
     positioned: Boolean(placed),
     /** The headline is complete when every one of its five parts is present. */
     available: Boolean(placed && recoverable.available && team.available && action.available),
-    answer: answerSentence(placed, recoverable, team)
-      ?? withheld?.missing ?? STAND_PENDING.answer,
+    /**
+     * The winner's claim, and — when no signal had usable evidence — the page's
+     * existing no-data sentence rather than a blank line or an invented one.
+     */
+    answer: resolution.winner?.claim ?? withheld?.missing ?? STAND_PENDING.answer,
+    /** The resolved finding and its runners-up, for a later disclosure. */
+    resolution,
     position: placed ?? Object.freeze({
       available: false, label: "Peer position", value: STAND_PENDING.position, band: null,
       basis: withheld?.missing ?? STAND_PENDING.answer,
@@ -583,6 +627,9 @@ export function buildStandHeadline(loadAnalysis = loadExampleDataset,
       reproducibility,
       position: reproducibility.position,
       finding: leadingFinding(analysis),
+      // Already computed inside the reproducibility gate; read, never re-run.
+      teamGap: reproducibility.gap ?? null,
+      trackedAction: trackedActionResult(),
       destinations: loadWorkspaceDestinations().record,
       // The bundled example imports nothing, so the eligibility result carries
       // no position — but it does carry the anonymization note, which is a
@@ -617,6 +664,12 @@ export function standHeadlineForImport({ analysis = null, eligibility = null } =
     eligibility,
     source: "import",
     finding: analysis ? leadingFinding(analysis) : null,
+    // NO tracked action on this path. The bundled outcome fixture is last
+    // month's action for the INVENTED company, and a reader looking at their own
+    // export must never be handed it as their headline — not even as the last
+    // candidate standing when nothing else is usable. There is no tracked action
+    // for an imported window yet, so this signal is honestly absent here.
+    trackedAction: null,
     destinations: loadWorkspaceDestinations().record,
   });
   if (!eligibility?.eligible || !eligibility.position) return composed;
@@ -639,9 +692,12 @@ export function standHeadlineForImport({ analysis = null, eligibility = null } =
     position: placed,
     available: Boolean(composed.recoverable.available && composed.team.available
       && composed.action.available),
-    answer: `This export is compared against ${position.label}.`
-      + (composed.recoverable.available
-        ? ` ${composed.recoverable.value.split(" · ")[0]} is modelled recoverable.` : "")
-      + (composed.team.available ? ` ${composed.team.name} is the department driving it.` : ""),
+    // The placement sentence this path used to concatenate is gone with the
+    // bundled one: the cohort it was compared against is the POSITION slot's
+    // content, and it is printed there in full. The headline states the one
+    // finding the resolver ranked highest over this import's own signals, and
+    // falls back to the placement only when none of them was usable.
+    answer: composed.resolution.winner?.claim
+      ?? `This export is compared against ${position.label}.`,
   });
 }
