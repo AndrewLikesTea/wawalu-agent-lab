@@ -273,9 +273,17 @@ export const ANSWER_SPINE = Object.freeze([
   },
   {
     id: "finops-workspace-switch",
-    role: ROLE.detail,
+    role: ROLE.retired,
     question: "Which working area is on screen?",
     headingId: "finops-workspace-switch-title",
+    supersededBy: "finops-workspace-nav",
+    entitledToAssert:
+      "Nothing the rail above it did not already say. It listed the same four "
+      + "destinations in the same order, marked its own current one in its own "
+      + "words, and spoke through its own live region — so a reader met every "
+      + "destination twice, tabbed it twice, and could be told two different "
+      + "things about where they were standing. #819 gave the rail's doors the "
+      + "job of changing what is on screen and deleted this control.",
   },
   // One per destination whose module is fetched on demand (#821). Each is on
   // screen only while that module is in flight or after it failed, and each

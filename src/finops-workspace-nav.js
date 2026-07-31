@@ -31,18 +31,40 @@
 // contract by role. A fourth *contract* role would still be a product decision;
 // this is not one.
 //
-// WHAT THE RAIL WILL NOT DO. It does not hide the rest of the page. A focused
-// workspace on a document this long is a tempting place to put a tab-panel
-// switcher, and it would be the wrong one: every panel here is legitimate
-// reading material, several are printed together, and hiding nine of them behind
-// a control means a reader who scrolls past the rail can no longer find what
-// they came for. So "focused" is achieved by naming the parts, marking the
-// current one, and moving the keyboard — never by removing content from the
-// page. Every door is a real anchor with a real href, so it works before this
+// THE ONE CONTROL, since #819. This page used to carry two lists of the same
+// four places: this rail, and a "Working area" switcher underneath it that chose
+// which destination's panels were on screen. Two controls listing one set of
+// destinations is two answers to "where am I?", two tab stops per place, and two
+// entries per place in a screen reader's link list — and they could disagree,
+// because each marked its own current destination in its own vocabulary. The
+// switcher is gone. These four doors are now the only way between destinations,
+// and they both say where the reader is and move the page there: the shell in
+// src/finops-workspace-shell.js watches the fragment each door puts in the
+// address bar and renders that destination.
+//
+// EVERY DOOR STAYS ON THIS PAGE, which is the one thing that had to change with
+// the switcher's removal. The act-and-verify door used to hand the reader to
+// /savings-action-center.html — the contract's href for that role — and the
+// only way to the act-and-verify work *on this page* was the switcher's fourth
+// door. Removing the switcher without moving that door would have left a whole
+// destination with no way in. So the door now opens the commitment panel this
+// page owns, and the contract's off-page href is where it always also was: a
+// link inside that panel, reached after the reader arrives rather than instead
+// of arriving.
+//
+// THE NAMES AND THE ORDER ARE THE SCREEN CONTRACT'S. `SCREEN_CONTRACT` is the
+// executable form of docs/executive-answer-screen-contract.md, and it is
+// imported rather than re-typed: a rail with its own copy of four names is how
+// the page ends up calling one destination two things.
+//
+// WHAT THE RAIL WILL NOT DO. It does not remove content a reader cannot get
+// back. Every door is a real anchor with a real href, so it works before this
 // module runs, survives a copy-paste into the address bar, and needs no script
-// to be operable at all.
+// to be operable at all — with scripting off nothing is hidden and every door is
+// still an in-page link to the panel it names.
 
 import { DESTINATION_ROLE, prioritizedDestination } from "./finops-destination-contract.js";
+import { SCREEN_CONTRACT } from "./finops-screen-contract.js";
 import { revealFragmentTarget } from "./deep-link-disclosure.js";
 
 /** The ids the shipped markup carries. Kept in one place so a test can name them. */
@@ -57,13 +79,19 @@ export const WORKSPACE_NAV_IDS = Object.freeze({
   detailList: "finops-workspace-nav-detail-list",
 });
 
-/** The four destination keys, and the only four. */
-export const WORKSPACE_DESTINATION = Object.freeze({
-  answer: "answer",
-  evidence: "evidence",
-  department: "department",
-  actAndVerify: "act-and-verify",
-});
+const camel = (key) => key.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
+
+/**
+ * The four destination keys, and the only four — read off the screen contract.
+ *
+ * Keyed by `shellDestination` rather than by the contract's own `key`, because
+ * that is the value already in address bars and in this page's markup: the
+ * contract says "departments" where the page has always said "department", and
+ * renaming it would break a link somebody saved.
+ */
+export const WORKSPACE_DESTINATION = Object.freeze(Object.fromEntries(
+  SCREEN_CONTRACT.map((screen) => [camel(screen.shellDestination), screen.shellDestination]),
+));
 
 /**
  * Where a reader is standing when the page opens.
@@ -82,7 +110,10 @@ export const DEFAULT_DESTINATION = WORKSPACE_DESTINATION.answer;
 export const DESTINATION_STATE_LABEL = Object.freeze({
   current: "Current",
   recommended: "Recommended first",
-  offPage: "Opens another page",
+  // Said on the one door whose panel is authored inside a closed disclosure that
+  // the door itself will open. A keyboard reader is about to have the page
+  // change shape around them; the door says so before they press it.
+  folded: "Unfolds a supporting panel",
 });
 
 /** Collapsed and expanded, for the rail's one disclosure. */
@@ -101,41 +132,48 @@ export const NAV_DISCLOSURE_LABEL = Object.freeze({
  * state, and the thick left rule CSS draws is the non-colour cue for it.
  *
  * `role` is the contract role this door corresponds to, or null for the page's
- * own answer. `fallbackHref` is what the door points at when the bundled record
- * fails its own contract: the destinations are *places*, and a place does not
- * stop existing because a ranking could not be computed, so the rail stays
- * operable and only the recommendation retires. The three fallbacks are the same
- * three the fixture carries, and `destinationHrefDrift` below is what keeps that
- * duplication honest rather than a second source of truth nobody checks.
+ * own answer. `screenHref` is the panel on THIS page the door opens, and it is
+ * also what the door points at when the bundled record fails its own contract:
+ * the destinations are *places*, and a place does not stop existing because a
+ * ranking could not be computed, so the rail stays operable and only the
+ * recommendation retires. Three of the four are the same hrefs the fixture
+ * carries, and `destinationHrefDrift` below is what keeps that duplication
+ * honest rather than a second source of truth nobody checks.
+ *
+ * The names and the order are not here at all — they are the screen contract's,
+ * merged in below. What is authored per door is only what the contract does not
+ * say: which role it consumes, and where on this page it lands.
  */
-const AUTHORED_DESTINATIONS = Object.freeze([
-  Object.freeze({
-    key: WORKSPACE_DESTINATION.answer,
+const AUTHORED_BY_KEY = Object.freeze({
+  [WORKSPACE_DESTINATION.answer]: Object.freeze({
     role: null,
-    name: "The answer",
-    fallbackHref: "#finops-first-run",
+    screenHref: "#finops-first-run",
     answers: "Are we wasting money, how much of the spend is recoverable, and what is the one ranked action?",
     doesNotAnswer: "It does not show the workings behind the figure, and it commits to nothing.",
   }),
-  Object.freeze({
-    key: WORKSPACE_DESTINATION.evidence,
+  [WORKSPACE_DESTINATION.evidence]: Object.freeze({
     role: DESTINATION_ROLE.evidence,
-    name: "Evidence",
-    fallbackHref: "#recommendation-evidence",
+    screenHref: "#recommendation-evidence",
   }),
-  Object.freeze({
-    key: WORKSPACE_DESTINATION.department,
+  [WORKSPACE_DESTINATION.department]: Object.freeze({
     role: DESTINATION_ROLE.departmentDetail,
-    name: "Departments",
-    fallbackHref: "#department-decision-panel",
+    screenHref: "#department-decision-panel",
   }),
-  Object.freeze({
-    key: WORKSPACE_DESTINATION.actAndVerify,
+  // The commitment panel this page owns, not the Savings Action Center. The
+  // contract's href for this role leaves the document, and a door that leaves is
+  // a door that cannot be one of four screens on this one — see the header.
+  [WORKSPACE_DESTINATION.actAndVerify]: Object.freeze({
     role: DESTINATION_ROLE.actAndVerify,
-    name: "Act and verify",
-    fallbackHref: "/savings-action-center.html",
+    screenHref: "#savings-portfolio-panel",
+    folded: true,
   }),
-]);
+});
+
+const AUTHORED_DESTINATIONS = Object.freeze(SCREEN_CONTRACT.map((screen) => Object.freeze({
+  key: screen.shellDestination,
+  name: screen.name,
+  ...AUTHORED_BY_KEY[screen.shellDestination],
+})));
 
 const byId = (doc, id) => doc?.getElementById?.(id) ?? null;
 const collapse = (text) => String(text ?? "").replace(/\s+/g, " ").trim();
@@ -156,10 +194,16 @@ export function workspaceDestinations(loaded = null) {
   );
   return Object.freeze(AUTHORED_DESTINATIONS.map((authored) => {
     const contract = authored.role ? fromContract.get(authored.role) ?? null : null;
-    const href = contract?.href ?? authored.fallbackHref;
+    // An in-page contract href is adopted, so the contract can move a panel and
+    // the rail follows. One that leaves the document is carried as
+    // `contractHref` and rendered inside the destination instead: it names where
+    // the work is finished, which is not a screen this rail can show.
+    const contractHref = contract?.href ?? null;
+    const href = contractHref && isInPage(contractHref) ? contractHref : authored.screenHref;
     return Object.freeze({
       ...authored,
       href,
+      contractHref,
       offPage: !isInPage(href),
       targetId: isInPage(href) ? href.slice(1) : null,
       answers: contract?.answers ?? authored.answers ?? null,
@@ -183,10 +227,12 @@ export function destinationHrefDrift(loaded = null) {
   if (!record) return [];
   const drift = [];
   for (const entry of workspaceDestinations(loaded)) {
-    if (!entry.role) continue;
+    // A contract href that leaves the document is not a screen and never
+    // overwrote the door, so it cannot drift from one.
+    if (!entry.role || !entry.contractHref || !isInPage(entry.contractHref)) continue;
     const authored = AUTHORED_DESTINATIONS.find((door) => door.key === entry.key);
-    if (authored.fallbackHref !== entry.href) {
-      drift.push({ key: entry.key, authored: authored.fallbackHref, contract: entry.href });
+    if (authored.screenHref !== entry.href) {
+      drift.push({ key: entry.key, authored: authored.screenHref, contract: entry.href });
     }
   }
   return drift;
@@ -244,7 +290,12 @@ export function setCurrentDestination(doc, key, { announce = false, opened = 0 }
   const nav = byId(doc, WORKSPACE_NAV_IDS.nav);
   const door = doorFor(doc, key);
   if (!nav || !door || door.dataset.destinationOffPage === "true") return null;
-  const changed = currentDestination(doc) !== key;
+  // "Changed" is measured against what was last SAID, not against what is
+  // marked. The shell marks the rail the moment a door is pressed — it has to,
+  // because it renders the destination in the click's capture phase — so by the
+  // time the rail's own handler runs, the mark already agrees and a
+  // marked-state check would silence every announcement there is.
+  const changed = nav.dataset.announcedDestination !== key;
 
   for (const link of doorLinks(doc)) {
     const isCurrent = link === door;
@@ -288,7 +339,10 @@ function announceDestination(doc, door, opened) {
       : `The ${opened} supporting panels it was folded inside are now open.`);
   }
   live.textContent = sentences.join(" ");
-  if (nav) nav.dataset.announcements = String(Number(nav.dataset.announcements ?? 0) + 1);
+  if (nav) {
+    nav.dataset.announcements = String(Number(nav.dataset.announcements ?? 0) + 1);
+    nav.dataset.announcedDestination = door.dataset.destinationKey;
+  }
   return live;
 }
 

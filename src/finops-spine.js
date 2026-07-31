@@ -132,7 +132,9 @@ const REGIONS = Object.freeze({
   "disclosure-journey": REGION_CLASS.evidence,
   "finops-destinations": REGION_CLASS.evidence,
   "finops-workspace-nav": REGION_CLASS.evidence,
-  "finops-workspace-switch": REGION_CLASS.evidence,
+  // The "Working area" switcher, retired by #819: it listed the same four
+  // destinations #finops-workspace-nav lists, and the rail absorbed its job.
+  "finops-workspace-switch": REGION_CLASS.removed,
   // The three on-demand destinations' load states (#821), in document order.
   "destination-load-evidence": REGION_CLASS.evidence,
   "destination-load-department": REGION_CLASS.evidence,
@@ -223,7 +225,7 @@ const EVIDENCE_LAYERS = Object.freeze([
     id: "getting-around",
     question: "Which part of this workspace am I in, and how do I get to another?",
     regionIds: Object.freeze([
-      "finops-workspace-nav", "finops-workspace-switch", "finops-workspace-context",
+      "finops-workspace-nav", "finops-workspace-context",
       "destination-load-evidence", "destination-load-department",
       "destination-load-act-and-verify",
     ]),

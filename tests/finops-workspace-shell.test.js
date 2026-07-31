@@ -26,9 +26,12 @@ import { readFile } from "node:fs/promises";
 import { loadPage, parseHtml, textOf } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 import { loadWorkspaceDestinations } from "../src/finops-destination-contract.js";
-import { WORKSPACE_DESTINATION } from "../src/finops-workspace-nav.js";
 import {
-  CONTEXT_TERMS, DESTINATION_FRAGMENT, SHELL_STATE_LABEL, WORKSPACE_SHELL_IDS,
+  DESTINATION_STATE_LABEL, WORKSPACE_DESTINATION, WORKSPACE_NAV_IDS, applyWorkspaceNav,
+  bindWorkspaceNav,
+} from "../src/finops-workspace-nav.js";
+import {
+  CONTEXT_TERMS, DESTINATION_FRAGMENT, DESTINATION_KEYS, WORKSPACE_SHELL_IDS,
   applyWorkspaceDestination, currentWorkspaceDestination, destinationForFragment,
   initWorkspaceShell, paintWorkspaceContext, regionsFor, workspaceRegions,
 } from "../src/finops-workspace-shell.js";
@@ -36,12 +39,14 @@ import {
 const PAGE = new URL("../src/evolution.html", import.meta.url);
 const html = await readFile(PAGE, "utf8");
 const loaded = loadWorkspaceDestinations();
-const KEYS = Object.values(WORKSPACE_DESTINATION);
+const KEYS = [...DESTINATION_KEYS];
 
 const byId = (doc, id) => doc.getElementById(id);
-const doors = (doc) => byId(doc, WORKSPACE_SHELL_IDS.switchList)
-  .querySelectorAll("[data-shell-destination]");
-const doorFor = (doc, key) => doors(doc).find((door) => door.dataset.shellDestination === key);
+// Since #819 there is one control, and it is the rail's. These read it.
+const doors = (doc) => byId(doc, WORKSPACE_NAV_IDS.list)
+  .querySelectorAll("[data-destination-key]");
+const doorFor = (doc, key) => doors(doc).find((door) => door.dataset.destinationKey === key);
+const live = (doc) => textOf(byId(doc, WORKSPACE_NAV_IDS.live));
 const activeKeys = (doc) => new Set(workspaceRegions(doc)
   .filter((region) => region.dataset.workspaceActive === "true")
   .map((region) => region.dataset.workspaceRegion));
@@ -195,45 +200,63 @@ test("back and forward walk the destinations", async () => {
 
 /* ------------------------------- the controls ------------------------------ */
 
-test("pressing a control switches the destination, in a word and in aria-current", async () => {
+test("pressing the one control switches the destination, in a word and in aria-current", async () => {
   const { document } = await shelled();
   const door = doorFor(document, WORKSPACE_DESTINATION.actAndVerify);
 
   // A real anchor with a real href, so the fragment reaches the address bar and
   // the entry reaches session history.
   assert.equal(door.tagName, "A");
-  assert.equal(door.getAttribute("href"), DESTINATION_FRAGMENT[WORKSPACE_DESTINATION.actAndVerify]);
+  assert.equal(door.getAttribute("href"), "#savings-portfolio-panel");
 
   door.click();
 
   assert.deepEqual([...activeKeys(document)], [WORKSPACE_DESTINATION.actAndVerify],
     "the control did not switch what is on screen");
   assert.equal(door.getAttribute("aria-current"), "true");
-  assert.ok(textOf(door).includes(SHELL_STATE_LABEL.current),
+  assert.ok(textOf(door).includes(DESTINATION_STATE_LABEL.current),
     `the open destination is not stated in words: "${textOf(door)}"`);
   for (const other of doors(document).filter((entry) => entry !== door)) {
     assert.equal(other.getAttribute("aria-current"), null,
       "two controls claim to be the open destination");
-    assert.ok(!textOf(other).includes(SHELL_STATE_LABEL.current));
+    assert.ok(!textOf(other).includes(DESTINATION_STATE_LABEL.current));
   }
-  assert.match(textOf(byId(document, WORKSPACE_SHELL_IDS.live)), /^Showing Act and verify\. \d+ panels?\./);
 });
 
-test("the shell says nothing on load and nothing for a rail door", async () => {
+test("there is exactly one control, and the retired one's fragments still resolve", async () => {
   const { document } = await shelled();
-  assert.equal(textOf(byId(document, WORKSPACE_SHELL_IDS.live)), "",
-    "the shell announced a destination the reader did not choose");
+  // #819 deleted the "Working area" switcher. A second list of the same four
+  // destinations is what this asserts is gone — by id and by the attribute its
+  // doors carried, so reintroducing it under a new id still fails here.
+  assert.equal(byId(document, "finops-workspace-switch"), null,
+    "the second destination control is back");
+  assert.equal(document.querySelectorAll("[data-shell-destination]").length, 0);
+  assert.equal(doors(document).length, 4, "the surviving control lost a door");
 
-  // The rail's doors point at panels rather than at the shell's own fragments.
-  // They still switch — but the rail announces them, and two live regions
-  // describing one press is how a reader learns to ignore both.
-  const railDoor = byId(document, "finops-workspace-nav-list")
-    .querySelectorAll("a").find((link) => link.getAttribute("href") === "#department-decision-panel");
-  assert.ok(railDoor, "the rail no longer carries a door to the department panel");
-  railDoor.click();
+  // Its fragments are still answered, so a link a reader saved from it opens the
+  // destination it was saved from rather than an empty page.
+  for (const key of KEYS) {
+    assert.equal(destinationForFragment(document, DESTINATION_FRAGMENT[key]), key);
+  }
+});
+
+test("one press is announced once, by the control that took it", async () => {
+  const { document } = await shelled();
+  bindWorkspaceNav(document);
+  assert.equal(live(document), "", "a destination the reader did not choose was announced");
+
+  const door = doorFor(document, WORKSPACE_DESTINATION.department);
+  door.click();
   assert.deepEqual([...activeKeys(document)], [WORKSPACE_DESTINATION.department],
-    "a rail door no longer switches the destination it points into");
-  assert.equal(textOf(byId(document, WORKSPACE_SHELL_IDS.live)), "");
+    "the door no longer switches the destination it points into");
+  // One live region, one sentence. The shell renders and the rail speaks: two
+  // regions describing one press is how a reader learns to ignore both.
+  assert.match(live(document), /^Current destination: Departments\./);
+  assert.equal(byId(document, WORKSPACE_NAV_IDS.nav).dataset.announcements, "1");
+
+  door.click();
+  assert.equal(byId(document, WORKSPACE_NAV_IDS.nav).dataset.announcements, "1",
+    "re-pressing the door you are standing in spoke again");
 });
 
 /* --------------------------- the carried figures --------------------------- */
@@ -279,9 +302,12 @@ test("the shipped page entry brings the shell up, before the rail is bound", asy
   assert.ok(shell < rail,
     "the shell is brought up after the rail is bound, so a door moves focus into a hidden region");
 
-  // And the markup it drives is the shipped markup: four controls, four owned
-  // fragments, in the page a reader opens.
+  // And the markup it drives is the shipped markup: one control, four doors, in
+  // the contract's order, every one of them an in-page screen.
   const document = parseHtml(html);
-  assert.deepEqual(doors(document).map((door) => door.getAttribute("href")),
-    KEYS.map((key) => DESTINATION_FRAGMENT[key]));
+  assert.deepEqual(doors(document).map((door) => door.dataset.destinationKey), KEYS);
+  for (const door of doors(document)) {
+    assert.match(door.getAttribute("href"), /^#\S+$/,
+      `${door.dataset.destinationKey} leaves the document, so it is not a screen`);
+  }
 });

@@ -17,7 +17,19 @@
 //
 // THE FOUR DESTINATIONS ARE THE RAIL'S FOUR, deliberately reused rather than
 // re-declared. A shell with its own vocabulary would give a reader two sets of
-// names for one page. `WORKSPACE_DESTINATION` is imported, not copied.
+// names for one page. `WORKSPACE_DESTINATION` is imported, not copied, and the
+// order and the fragments below are derived from `SCREEN_CONTRACT` — the
+// executable form of docs/executive-answer-screen-contract.md — rather than
+// re-typed.
+//
+// AND SINCE #819 THE CONTROL IS THE RAIL'S, TOO. This module used to author a
+// second list of the same four destinations — the "Working area" switcher — with
+// its own doors, its own current mark, its own state word and its own live
+// region. Two controls for one set of screens is two tab stops per screen, two
+// entries per screen in a screen reader's link list, and two marks that can
+// disagree about where the reader is. The switcher is deleted. This module now
+// renders destinations and marks the rail; the rail is the only way between
+// them.
 //
 // WHAT DOES NOT MOVE. The hero, the one complete decision brief, the load status,
 // the rail, and this shell's own controls are the workspace *frame*: they carry
@@ -47,7 +59,10 @@
 // link with a stale or invented hash is a link to this page, not an instruction
 // to empty it.
 
-import { DEFAULT_DESTINATION, WORKSPACE_DESTINATION } from "./finops-workspace-nav.js";
+import {
+  DEFAULT_DESTINATION, WORKSPACE_DESTINATION, currentDestination, setCurrentDestination,
+} from "./finops-workspace-nav.js";
+import { SCREEN_CONTRACT } from "./finops-screen-contract.js";
 import { DESTINATION_LOAD_STATE, createDestinationLoader } from "./finops-destination-loader.js";
 // The page's one status vocabulary. Reused, never extended: a destination that
 // is still fetching its module is a panel in a state this module already draws.
@@ -55,9 +70,6 @@ import { PANEL_STATUS, applyPanelStatus } from "./panel-status-view.js";
 
 /** The ids the shipped markup carries, in one place so a test can name them. */
 export const WORKSPACE_SHELL_IDS = Object.freeze({
-  switch: "finops-workspace-switch",
-  switchList: "finops-workspace-switch-list",
-  live: "finops-workspace-switch-live",
   context: "finops-workspace-context",
   contextList: "finops-workspace-context-list",
 });
@@ -71,22 +83,22 @@ export const WORKSPACE_SHELL_IDS = Object.freeze({
  * shell answers to; every other in-page fragment is resolved by looking up what
  * region actually contains it, so the page's existing deep links keep working.
  */
-export const DESTINATION_FRAGMENT = Object.freeze({
-  [WORKSPACE_DESTINATION.answer]: "#workspace-answer",
-  [WORKSPACE_DESTINATION.evidence]: "#workspace-evidence",
-  [WORKSPACE_DESTINATION.department]: "#workspace-departments",
-  [WORKSPACE_DESTINATION.actAndVerify]: "#workspace-act-and-verify",
-});
-
-/** The visible word on the control for the destination now on screen. */
-export const SHELL_STATE_LABEL = Object.freeze({ current: "Showing" });
+export const DESTINATION_FRAGMENT = Object.freeze(Object.fromEntries(
+  SCREEN_CONTRACT.map((screen) => [screen.shellDestination, `#workspace-${screen.key}`]),
+));
 
 /** The five figures carried into every destination but the answer. */
 export const CONTEXT_TERMS = Object.freeze([
   "Benchmark", "Impact", "Confidence", "Why this matters", "Provenance",
 ]);
 
-const DESTINATION_KEYS = Object.freeze(Object.values(WORKSPACE_DESTINATION));
+/** The four keys in the contract's reading order, and the only four. */
+export const DESTINATION_KEYS = Object.freeze(
+  SCREEN_CONTRACT.map((screen) => screen.shellDestination));
+
+/** A destination's visible name, from the contract the rail's doors are built from. */
+const screenName = (key) =>
+  SCREEN_CONTRACT.find((screen) => screen.shellDestination === key)?.name ?? key;
 
 const byId = (doc, id) => doc?.getElementById?.(id) ?? null;
 const isDestination = (key) => DESTINATION_KEYS.includes(key);
@@ -204,12 +216,6 @@ export const DESTINATION_LOAD_COPY = Object.freeze({
   retryAction: (name) => `Press “Retry ${name}” to try again.`,
 });
 
-/** A destination's visible name, read off its own door so there is one wording. */
-function destinationName(doc, key) {
-  const door = switchDoors(doc).find((entry) => entry.dataset.shellDestination === key);
-  return doorName(door) || key;
-}
-
 /**
  * Paint one destination's load state into its own status region.
  *
@@ -227,7 +233,7 @@ export function paintDestinationLoadState(doc, key, state) {
   const panelId = destinationStatusId(key);
   const panel = byId(doc, panelId);
   if (!panel) return null;
-  const name = destinationName(doc, key);
+  const name = screenName(key);
   const retry = byId(doc, destinationRetryId(key));
 
   if (state !== DESTINATION_LOAD_STATE.loading && state !== DESTINATION_LOAD_STATE.error) {
@@ -315,17 +321,15 @@ export function ownsFragment(hash) {
   return Object.values(DESTINATION_FRAGMENT).includes(String(hash ?? ""));
 }
 
-/** The destination now on screen, read back off the markup rather than a variable. */
+/**
+ * The destination now on screen, read back off the rail rather than a variable.
+ *
+ * One marked control, one answer. Before #819 this read a second control's own
+ * mark, which is exactly the state two controls can disagree about.
+ */
 export function currentWorkspaceDestination(doc) {
-  const marked = switchDoors(doc).find((door) => door.getAttribute("aria-current") === "true");
-  return marked?.dataset?.shellDestination ?? null;
+  return currentDestination(doc);
 }
-
-const switchDoors = (doc) =>
-  [...(byId(doc, WORKSPACE_SHELL_IDS.switchList)?.querySelectorAll?.("[data-shell-destination]") ?? [])];
-
-const doorName = (door) => String(door?.dataset?.shellName ?? "").trim()
-  || String(door?.textContent ?? "").replace(/\s+/g, " ").trim();
 
 /**
  * Show one destination and hide the other three.
@@ -343,29 +347,15 @@ export function applyWorkspaceDestination(doc, key, { announce = false, loader =
   const regions = workspaceRegions(doc);
   if (regions.length === 0) return null;
 
-  let shown = 0;
   for (const region of regions) {
-    const active = region.dataset.workspaceRegion === key;
-    region.dataset.workspaceActive = active ? "true" : "false";
-    if (active) shown += 1;
+    region.dataset.workspaceActive = region.dataset.workspaceRegion === key ? "true" : "false";
   }
 
-  const group = byId(doc, WORKSPACE_SHELL_IDS.switch);
-  if (group) group.dataset.workspaceDestination = key;
-  for (const door of switchDoors(doc)) {
-    const current = door.dataset.shellDestination === key;
-    if (current) door.setAttribute("aria-current", "true");
-    else door.removeAttribute("aria-current");
-    door.dataset.shellCurrent = current ? "true" : "false";
-    // The state is a word, never a fill: this survives greyscale, print, and a
-    // screen reader reading the link's name.
-    const slot = door.querySelector?.('[data-role="state"]');
-    if (slot) {
-      slot.replaceChildren();
-      slot.hidden = !current;
-      if (current) slot.append(doc.createTextNode(SHELL_STATE_LABEL.current));
-    }
-  }
+  // The one control is marked here rather than repainted here: `aria-current`,
+  // the word "Current", and the thick left rule are all the rail's, in the
+  // rail's vocabulary. This module says which door; it does not say it twice in
+  // words of its own.
+  setCurrentDestination(doc, key, { announce });
 
   // The carried figures are a restatement, so they retire the moment the region
   // they restate is on screen.
@@ -378,19 +368,7 @@ export function applyWorkspaceDestination(doc, key, { announce = false, loader =
   // — the loader never rejects, and a destination whose module is still in
   // flight is a region showing the wait, not a paint this one has to block on.
   openDestination(doc, key, { loader });
-
-  if (announce) announceDestination(doc, key, shown);
   return key;
-}
-
-function announceDestination(doc, key, shown) {
-  const live = byId(doc, WORKSPACE_SHELL_IDS.live);
-  if (!live) return null;
-  const door = switchDoors(doc).find((entry) => entry.dataset.shellDestination === key);
-  const name = doorName(door) || key;
-  live.textContent = `Showing ${name}. ${shown === 1 ? "1 panel" : `${shown} panels`}.`
-    + (key === DEFAULT_DESTINATION ? "" : " The answer stays above it.");
-  return live;
 }
 
 /**

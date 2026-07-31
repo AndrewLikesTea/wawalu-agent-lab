@@ -344,7 +344,9 @@ test("every top-level section that existed before the answer block is still on t
   const existing = [
     "finops-stand", "finops-hero", "finops-first-run", "disclosure-next-step",
     "disclosure-journey", "finops-destinations", "finops-workspace-nav",
-    "finops-workspace-switch",
+    // #819 retired "finops-workspace-switch": a second list of the same four
+    // destinations the rail above already lists. Its manifest entry stays behind
+    // as the record of where the control went.
     // #821: one load-state region per on-demand destination, so a module that
     // is in flight or that failed has somewhere named to be read.
     "destination-load-evidence", "destination-load-department",

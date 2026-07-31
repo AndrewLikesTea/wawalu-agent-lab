@@ -771,7 +771,7 @@
       <nav class="workspace-nav" id="finops-workspace-nav" tabindex="-1" data-ranked="false" data-current="answer" data-workspace-frame="true" aria-labelledby="finops-workspace-nav-title">
         <div class="workspace-nav-head">
           <h2 class="workspace-nav-title" id="finops-workspace-nav-title">Go to a part of this workspace</h2>
-          <p class="workspace-nav-note">Four destinations. The one marked <strong>Current</strong> is the one you last opened; opening a destination moves the keyboard to it and unfolds any supporting panel it sits inside.</p>
+          <p class="workspace-nav-note">Four destinations, one on screen at a time. The one marked <strong>Current</strong> is the one you are in; opening a destination puts its panels on screen, moves the keyboard to it, and unfolds any supporting panel it sits inside. The answer above stays on screen in all four, and each destination has its own link you can copy or send.</p>
         </div>
         <!-- An ordered list, because the order is the reading order: the answer,
              then its evidence, then the unit that owns the action, then the
@@ -788,14 +788,17 @@
           <li class="workspace-nav-item">
             <a class="workspace-dest" href="#department-decision-panel" data-destination-key="department" data-destination-name="Departments" data-destination-target="department-decision-panel" data-destination-off-page="false" data-destination-current="false"><span class="workspace-dest-name">Departments</span><span class="workspace-dest-state" hidden></span><span class="workspace-dest-recommended" hidden></span></a>
           </li>
-          <!-- The one door that leaves this document. It is never marked current
-               — a reader who follows it is reading another page, and a rail
-               claiming they are "currently" somewhere they have left is worse
-               than one that claims nothing. The chip says so in words, and it is
-               authored rather than painted because the claim has to be true
-               before any script runs. -->
+          <!-- The commitment panel on THIS page, not the Savings Action Center.
+               It used to be the one door that left the document, and the only
+               way to the act-and-verify work here was a second control below
+               this rail; #819 deleted that control, so this door had to become
+               the way in or the destination would have had none. The Action
+               Center link is where it always also was — inside the panel this
+               door opens. The chip says, before it is pressed, that pressing it
+               unfolds a supporting panel: the target is authored inside a closed
+               disclosure and the page is about to change shape. -->
           <li class="workspace-nav-item">
-            <a class="workspace-dest" href="/savings-action-center.html" data-destination-key="act-and-verify" data-destination-name="Act and verify" data-destination-off-page="true" data-destination-current="false"><span class="workspace-dest-name">Act and verify</span><span class="workspace-dest-kind">Opens another page</span></a>
+            <a class="workspace-dest" href="#savings-portfolio-panel" data-destination-key="act-and-verify" data-destination-name="Act and verify" data-destination-target="savings-portfolio-panel" data-destination-off-page="false" data-destination-current="false"><span class="workspace-dest-name">Act and verify</span><span class="workspace-dest-state" hidden></span><span class="workspace-dest-recommended" hidden></span><span class="workspace-dest-kind">Unfolds a supporting panel</span></a>
           </li>
         </ol>
         <!-- What each door answers and what it will not, from the contract.
@@ -813,32 +816,17 @@
         <p class="visually-hidden" id="finops-workspace-nav-live" role="status" aria-live="polite" aria-atomic="true"></p>
       </nav>
 
-      <!-- THE WORKING-AREA CONTROL, and why it is not the rail above it.
-           The rail names the four parts of this page and says which one to take
-           first; it is an explanation, and its act-and-verify door leaves for
-           another page because that is where the contract points it. This is the
-           control that changes what is on screen here — four doors, four
-           fragments this page owns, one open at a time — including the in-page
-           act-and-verify work the rail's off-page door cannot reach.
-           A group rather than a second navigation landmark: two landmarks called
-           "navigation" on one page is the problem the rail was named to avoid.
-           Every door is a real anchor with a real href, so the fragment lands in
-           the address bar, back and forward walk the destinations, and a copied
-           link opens on the destination it was copied from. -->
-      <div class="workspace-switch" id="finops-workspace-switch" role="group" data-workspace-frame="true" data-workspace-destination="answer" aria-labelledby="finops-workspace-switch-title" aria-describedby="finops-workspace-switch-note">
-        <h2 class="eyebrow" id="finops-workspace-switch-title">Working area</h2>
-        <p class="workspace-switch-note" id="finops-workspace-switch-note">One destination is open at a time. The answer above stays on screen in all four.</p>
-        <ul class="workspace-switch-list" id="finops-workspace-switch-list">
-          <li><a class="workspace-switch-door" data-shell-destination="answer" data-shell-name="The answer" href="#workspace-answer">The answer <span class="workspace-switch-state" data-role="state" hidden></span></a></li>
-          <li><a class="workspace-switch-door" data-shell-destination="evidence" data-shell-name="Evidence" href="#workspace-evidence">Evidence <span class="workspace-switch-state" data-role="state" hidden></span></a></li>
-          <li><a class="workspace-switch-door" data-shell-destination="department" data-shell-name="Departments" href="#workspace-departments">Departments <span class="workspace-switch-state" data-role="state" hidden></span></a></li>
-          <li><a class="workspace-switch-door" data-shell-destination="act-and-verify" data-shell-name="Act and verify" href="#workspace-act-and-verify">Act and verify <span class="workspace-switch-state" data-role="state" hidden></span></a></li>
-        </ul>
-        <!-- One polite status region for the shell, silent on load and silent for
-             a press that changes nothing. It speaks for this control's own doors;
-             the rail's doors are announced by the rail. -->
-        <p class="visually-hidden" id="finops-workspace-switch-live" role="status" aria-live="polite" aria-atomic="true"></p>
-      </div>
+      <!-- DELETED: #finops-workspace-switch, the "Working area" control that used
+           to sit here. It listed the same four destinations the rail above lists,
+           with its own doors, its own current mark, its own state word and its
+           own live region — two tab stops per destination, two entries per
+           destination in a screen reader's link list, and two marks that could
+           disagree about where the reader was standing. #819 consolidated the two
+           into one: the rail's doors are now the control that changes what is on
+           screen, and src/finops-workspace-shell.js renders the destination the
+           fragment in the address bar names. The four fragments this page owned
+           (#workspace-answer and its three siblings) are still answered, so a
+           link a reader saved from the old control still opens its destination. -->
 
       <!-- ONE STATUS REGION PER DESTINATION. src/finops-workspace-shell.js
            fetches these three destinations' modules with a native import() on
@@ -2343,7 +2331,10 @@
 
       <details class="support-disclosure" id="disclosure-savings-portfolio" data-panel-id="savings-portfolio" data-workspace-region="act-and-verify">
         <summary class="support-disclosure-summary"><span class="support-disclosure-step" data-role="step">Supporting panel</span> <span class="support-disclosure-question" data-role="question">Are projected savings turning into verified savings?</span></summary>
-      <section class="finops-panel portfolio-panel" id="savings-portfolio-panel" aria-labelledby="portfolio-title">
+      <!-- tabindex="-1" because the rail's act-and-verify door lands here: a
+           destination the keyboard cannot be moved to is a scroll position, not
+           a destination. Focusable, never a tab stop. -->
+      <section class="finops-panel portfolio-panel" id="savings-portfolio-panel" tabindex="-1" aria-labelledby="portfolio-title">
         <div class="portfolio-intro">
           <div class="section-heading">
             <p class="eyebrow">Finance leader action portfolio</p>

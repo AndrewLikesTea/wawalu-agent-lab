@@ -110,13 +110,16 @@ test("every in-page destination is a named landmark that can take focus", () => 
       `${target.id} cannot take focus, so the door only scrolls`);
     names.push(textOf(label));
   }
-  assert.equal(names.length, 3);
-  assert.equal(new Set(names).size, 3, `two destinations share one name: ${names.join(" / ")}`);
+  // Four, not three: since #819 no door leaves the document, so every one of
+  // them has to land on a named landmark the keyboard can be moved to.
+  assert.equal(names.length, 4);
+  assert.equal(new Set(names).size, 4, `two destinations share one name: ${names.join(" / ")}`);
 
   // Focusable, but never a tab stop of its own: a reader tabbing the page must
-  // not walk three extra empty stops for the privilege.
+  // not walk four extra empty stops for the privilege.
   const sequence = tabSequence(document);
-  for (const id of ["finops-first-run", "recommendation-evidence", "department-decision-panel"]) {
+  for (const id of ["finops-first-run", "recommendation-evidence", "department-decision-panel",
+    "savings-portfolio-panel"]) {
     assert.ok(!sequence.includes(byId(document, id)), `${id} became a tab stop`);
   }
 });
@@ -150,11 +153,16 @@ test("the four doors are the contract's three destinations plus this page's answ
     WORKSPACE_DESTINATION.department, WORKSPACE_DESTINATION.actAndVerify,
   ]);
 
-  // Every href, and every "what does this answer", comes from the record — not
-  // from a second list in the view.
+  // Every "what does this answer" comes from the record — not from a second list
+  // in the view — and so does every href the contract states as a place on this
+  // page. An href that leaves the document is carried as `contractHref` and
+  // rendered inside the destination instead: since #819 all four doors are
+  // screens on this page, and a door to another origin path is not one.
   for (const entry of destinations.filter((door) => door.role)) {
     const contract = loaded.record.destinations.find((door) => door.role === entry.role);
-    assert.equal(entry.href, contract.href);
+    assert.equal(entry.contractHref, contract.href);
+    if (contract.href.startsWith("#")) assert.equal(entry.href, contract.href);
+    else assert.ok(entry.href.startsWith("#"), `${entry.key} still leaves the document`);
     assert.equal(entry.answers, contract.answers);
     assert.equal(entry.doesNotAnswer, contract.doesNotAnswer);
   }
@@ -266,18 +274,37 @@ test("re-pressing the door you are standing in announces nothing new", async () 
   assert.equal(currentDestination(document), WORKSPACE_DESTINATION.department);
 });
 
-test("the door that leaves the page is never marked current and never announced", async () => {
+test("the fourth door opens the commitment panel on this page, not another page", async () => {
   const { document } = await railed();
   const door = doorFor(document, WORKSPACE_DESTINATION.actAndVerify);
-  assert.equal(door.dataset.destinationOffPage, "true");
-  // Said in words on the door itself, before any script runs.
-  assert.ok(textOf(door).includes(DESTINATION_STATE_LABEL.offPage));
+  // #819: it used to hand the reader to /savings-action-center.html, and the
+  // act-and-verify work on THIS page was reachable only from a second control
+  // that no longer exists. It is an in-page door now, and it can be current.
+  assert.equal(door.dataset.destinationOffPage, "false");
+  assert.equal(door.getAttribute("href"), "#savings-portfolio-panel");
+  // Said in words on the door itself, before any script runs: the panel it lands
+  // on is authored inside a closed disclosure that pressing it will open.
+  assert.ok(textOf(door).includes(DESTINATION_STATE_LABEL.folded));
+
+  const target = byId(document, "savings-portfolio-panel");
+  assert.equal(target.closest("details").hasAttribute("open"), false,
+    "this test is worthless if the target is not folded away");
 
   door.focus();
   pressEnter(document);
-  assert.equal(currentDestination(document), DEFAULT_DESTINATION);
-  assert.equal(live(document), "");
-  assert.deepEqual(document.navigations, ["/savings-action-center.html"]);
+
+  assert.equal(target.closest("details").hasAttribute("open"), true);
+  assert.equal(document.activeElement, target, "the keyboard did not move to the destination");
+  assert.equal(currentDestination(document), WORKSPACE_DESTINATION.actAndVerify);
+  assert.match(live(document), /^Current destination: Act and verify\./);
+  assert.deepEqual(document.navigations, ["#savings-portfolio-panel"]);
+
+  // The contract's off-page href did not disappear — it is a link inside the
+  // panel the door just opened, which is where a reader finds it after arriving
+  // rather than instead of arriving.
+  const onward = target.querySelectorAll("a")
+    .filter((link) => link.getAttribute("href") === "/savings-action-center.html");
+  assert.equal(onward.length, 1, "the Savings Action Center is no longer reachable from the page");
 });
 
 test("arriving on a shared fragment marks where the reader actually is", async () => {
