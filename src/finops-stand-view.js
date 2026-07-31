@@ -38,6 +38,20 @@ export function standDisclosureIds(key) {
 
 const byId = (doc, id) => (doc?.getElementById ? doc.getElementById(id) : null);
 
+/**
+ * Reveal the blocks a region withholds until it has figures to put in them.
+ *
+ * The pre-analysis document authors them `hidden` rather than filled with null
+ * placeholders, because `hidden` takes a node out of the layout AND out of the
+ * accessibility tree, and a `visually-hidden` empty tile is still a screen
+ * reader stop on the way to the one action a first-time visitor can take. A
+ * paint is the proof that there is something to show, so this is unconditional
+ * at the top of one: no state flag, and nothing to get out of step.
+ */
+export function revealWithheld(region) {
+  for (const node of region?.querySelectorAll?.(".pre-analysis-withheld") ?? []) node.hidden = false;
+}
+
 /** A fragment closed off as a sentence, so four of them can be read as one line. */
 function sentence(text) {
   const trimmed = String(text ?? "").trim();
@@ -256,6 +270,13 @@ export function bindStandResolution(doc) {
 export function applyStandHeadline(doc, headline) {
   const region = byId(doc, STAND_IDS.region);
   if (!region || !headline) return null;
+
+  // THE FIGURES ARRIVE WITH THEIR FIRST VALUES, NOT BEFORE. Each block is
+  // authored `hidden` so a visitor who has composed nothing meets one drawn
+  // empty state rather than a grid of null placeholders — see the note in
+  // evolution.html. Reaching this line means a headline exists, so every one of
+  // them is revealed here and the populated state is exactly what it was.
+  revealWithheld(region);
 
   region.dataset.state = headline.available ? "ready" : "partial";
   // The withheld path is a state on the region, not a style: a printed page, a

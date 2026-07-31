@@ -15,6 +15,10 @@
 import { FIRST_RUN_ACTIONS, FIRST_RUN_IDS } from "./finops-first-run.js";
 import { EXAMPLE_BRIEFING_CTA, EXAMPLE_BRIEFING_HREF } from "./finops-example-briefing.js";
 import { DISCLOSURE_SPEC, disclosureStateLabel } from "./finops-decision-interaction.js";
+// The `.pre-analysis-withheld` idiom is defined once, in the view that owns the
+// answer region above this one, because both regions share the first screen and
+// therefore have to withhold and reveal on the same rule.
+import { revealWithheld } from "./finops-stand-view.js";
 
 const byId = (doc, id) => (doc?.getElementById ? doc.getElementById(id) : null);
 
@@ -158,6 +162,12 @@ export function bindFirstRunDisclosure(doc) {
 export function applyFirstRunResult(doc, result, { announce = false } = {}) {
   const region = byId(doc, FIRST_RUN_IDS.region);
   if (!region || !result) return null;
+  // The slots, the support pair, the recommendation, the confidence line, and
+  // this region's copy of the sample marker are all authored `hidden`: a
+  // first-time visitor with nothing composed meets one empty state rather than
+  // six metric-shaped boxes reading "Not yet measured". A result exists on this
+  // line, so they are revealed before anything is painted into them.
+  revealWithheld(region);
   const presentation = result.presentation ?? {};
   // Captured before the first write, restored after the last one.
   const focused = doc.activeElement;
