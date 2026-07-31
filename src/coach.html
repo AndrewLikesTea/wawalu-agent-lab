@@ -104,7 +104,7 @@
              only what this workflow does — a second grade from the same bundled
              rubric, in this tab — and never a live provider reading or a record
              that outlives the tab. -->
-        <p class="prompt-coaching-cue" id="prompt-coaching-cue"><strong>You can revise and re-grade in this session.</strong> Grade once, edit, and grade again to see the previous and revised scores, what moved, and one next step. Both grades use the bundled rubric in this tab; no prompt is sent to a model. A text-free result envelope from the previous grade is kept in memory only until you press Clear and start over, or close the tab.</p>
+        <p class="prompt-coaching-cue" id="prompt-coaching-cue"><strong>You can revise and re-grade in this session.</strong> Grade once, edit, and grade again to see the previous and revised scores, what moved, and one next step. Both grades use the bundled rubric in this tab; no prompt is sent to a model. Measurements from the previous grade stay in memory here, never the text you pasted, until you press Clear and start over, or close the tab.</p>
         <form class="prompt-coaching-form" id="prompt-coaching-form" novalidate>
           <div class="prompt-coaching-field">
             <label for="prompt-coaching-input">Your prompt or short conversation</label>
@@ -168,26 +168,26 @@
              never does. The two sentences below are static because a claim
              about privacy that only appears once a script succeeds is a claim a
              visitor cannot rely on. Everything inside the disclosure is
-             rendered from the coaching contract module, which is the module
-             the workflow itself runs on — a claim in there that stopped being
-             true would stop being true for the grading as well. -->
+             rendered from the same grading module the workflow itself runs on
+             — a claim in there that stopped being true would stop being true
+             for the grading as well. -->
         <details class="prompt-coaching-preview" id="prompt-coaching-preview">
           <summary id="prompt-coaching-preview-summary">What this reads, what it returns, and what stays out</summary>
           <p class="prompt-coaching-preview-static">Coaching is computed in this browser from bundled static client-side code. No request is sent for coaching, no persistence is implemented, and no credential, customer record, or live integration is read.</p>
           <div class="prompt-coaching-preview-body" id="prompt-coaching-preview-body">
-            <p class="prompt-coaching-preview-lead">The bundled synthetic example, the field list, and the four states this workflow can return are rendered here from the coaching contract when the page&rsquo;s scripts load.</p>
+            <p class="prompt-coaching-preview-lead">The bundled synthetic example, the field list, and the states this workflow can return are drawn here from the same rules that grade your prompt, when the page&rsquo;s scripts load.</p>
           </div>
         </details>
 
-        <!-- The presentation specimen: every state of a coached result, drawn
-             from the bundled samples, for review before the entry flow above is
-             wired to these primitives. It is a review surface, not a second
-             answer — closed by default, and it never reads the field. -->
+        <!-- Every state of a coached result, drawn from the bundled samples,
+             for review before the entry flow above is wired to these
+             primitives. It is a review surface, not a second answer — closed
+             by default, and it never reads the field. -->
         <details class="coaching-specimen" id="coaching-specimen">
-          <summary id="coaching-specimen-summary">Result presentation specimen &mdash; every state, drawn</summary>
-          <p class="coaching-specimen-static">Seven states of one reading order: the answer first, what it is measured against second, exactly one move third, and the evidence behind a disclosure. Every case below is built from the bundled synthetic example &mdash; nothing you type is read, rendered, or measured here.</p>
+          <summary id="coaching-specimen-summary">What a result looks like in every state</summary>
+          <p class="coaching-specimen-static">Every state reads in the same order: the answer first, what it is measured against second, exactly one move third, and the evidence behind a disclosure. Some states are drawn more than once, and one case is the wait before an answer arrives. Every case below is built from the bundled synthetic example &mdash; nothing you type is read, rendered, or measured here.</p>
           <div class="coaching-specimen-body" id="coaching-specimen-body">
-            <p class="coaching-specimen-lead">The states are rendered here from the coaching contract when the page&rsquo;s scripts load.</p>
+            <p class="coaching-specimen-lead">The states are drawn from the bundled example when this page loads.</p>
           </div>
         </details>
       </section>
