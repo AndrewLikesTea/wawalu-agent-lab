@@ -104,7 +104,40 @@ export const STAND_IDS = Object.freeze({
   evidence: "finops-stand-evidence",
   confidence: "finops-stand-confidence",
   disclosures: "finops-stand-disclosures",
+  /** The provenance marker above every figure in the region. */
+  sample: "finops-stand-sample",
   live: "finops-stand-live",
+});
+
+/**
+ * The provenance marker, in three redundant channels, one per source.
+ *
+ * WHOSE FIGURES ARE THESE is the question a lead has to be able to answer at a
+ * glance and without seeing a colour. The marker carries a WORD ("Bundled
+ * synthetic example" / "Imported"), a SHAPE (hollow diamond / filled circle),
+ * and a sentence saying what the figures were computed from. The stylesheet
+ * adds a tint keyed on `data-source`; it is the third carrier, never the first.
+ *
+ * The example variant is authored in `src/evolution.html` as well, because it
+ * is the state the page ships in and a reader whose JavaScript failed is owed a
+ * true marker. `tests/finops-answer-announcement.test.js` holds the two copies
+ * to the same string, so the pair cannot drift.
+ */
+export const STAND_SAMPLE_MARKER = Object.freeze({
+  example: Object.freeze({
+    shape: "◇",
+    word: "Bundled synthetic example",
+    detail: "Every figure on this page — here and inside each layer below — was computed from"
+      + " invented data for an invented company. It is not your spend, customer data, or realized"
+      + " savings, and no file is needed to read it.",
+  }),
+  import: Object.freeze({
+    shape: "●",
+    word: "Imported",
+    detail: "Every figure in this answer was computed in this browser from the export you"
+      + " selected. Nothing was uploaded, and the bundled synthetic example is no longer what"
+      + " this region is reporting.",
+  }),
 });
 
 /**
