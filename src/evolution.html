@@ -92,8 +92,14 @@
            here: src/finops-stand.js composes the figures out of the modules that
            already own them and src/finops-stand-view.js paints them. The six
            disclosures are native `details`, so they are focusable, operable by
-           Enter and Space, and state-bearing with no script at all. -->
-      <section class="stand" id="finops-stand" tabindex="-1" data-state="pending" data-position="pending" data-source="example" data-decision-summary="evidence" data-workspace-frame="true" aria-labelledby="finops-stand-question">
+           Enter and Space, and state-bearing with no script at all.
+           The answer below is the WINNING FINDING's claim. src/finops-stand.js
+           states each signal this page already computes as a candidate and
+           src/finops-finding-resolver.js ranks them against the headline rules
+           in src/finops-spine-manifest.js; `data-finding` records which one won.
+           The runners-up are returned by the resolver and rendered nowhere —
+           there is no panel, toggle, or expander for them on this page. -->
+      <section class="stand" id="finops-stand" tabindex="-1" data-state="pending" data-position="pending" data-source="example" data-finding="none" data-finding-confidence="unavailable" data-decision-summary="evidence" data-workspace-frame="true" aria-labelledby="finops-stand-question">
         <div class="stand-head">
           <p class="eyebrow" id="finops-stand-label">Bundled synthetic example · nothing of yours needed</p>
           <!-- The highest-ranked heading in this region, and it is the lead's
