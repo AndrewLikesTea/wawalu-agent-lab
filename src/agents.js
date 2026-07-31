@@ -2,7 +2,9 @@ import { renderState } from "./state-ui.js";
 
 // The team now iterates on an external product (paint-lab); the lab repo still
 // carries runner and process activity, so the observatory watches both.
-const EVENTS_URLS = [
+// Exported so the headline figure's verification links can be pinned to the
+// exact responses the page requests, rather than drifting from them.
+export const EVENTS_URLS = [
   "https://api.github.com/repos/AndrewLikesTea/paint-lab/events?per_page=30",
   "https://api.github.com/repos/AndrewLikesTea/wawalu-agent-lab/events?per_page=30",
 ];
@@ -457,6 +459,140 @@ export const CONNECTION_LABELS = Object.freeze({
   error: "GitHub check failed",
 });
 
+// --- The one real number on this page --------------------------------------
+//
+// Everything else this observatory shows about "the team" is a labelled
+// synthetic example. This figure is not: it is counted from the public GitHub
+// events response the page already fetches, from nothing else, and when that
+// response does not arrive the slot shows no number at all. There is no
+// estimate, no remembered previous value, and no zero standing in for a failed
+// request — an unanswered request is a sentence, not a digit.
+//
+// It says "merged pull requests" because the response can actually tell a merge
+// apart: a PullRequestEvent closed with `pull_request.merged === true` is a
+// merge, and a close without it is not. The scope the number is counted over is
+// stated with it rather than implied, because the events endpoint returns a
+// window of recent events and not the repository's whole history.
+
+/** The repositories the figure is counted from, read off the URLs we request. */
+export const SOURCE_REPOSITORIES = EVENTS_URLS.map(
+  (url) => new URL(url).pathname.split("/").slice(2, 4).join("/"),
+);
+
+// Every synthetic record this page can reach, named here so excluding them is a
+// decision in the code and not an accident of where the count happens to be
+// called: the four representative activity rows, the built-in persona and run
+// fallback, and the personas and run read from /agent-demo-data.json. None of
+// them is public GitHub activity, so none of them may reach the count.
+const SYNTHETIC_RECORDS = new Set([
+  ...REPRESENTATIVE_ACTIVITY,
+  ...SYNTHETIC_FALLBACK_DATA.personas,
+  SYNTHETIC_FALLBACK_DATA.run,
+]);
+// The demo file is fetched, so its records are copies rather than the frozen
+// objects above and identity alone would not catch them. These keys belong to
+// persona, run, and representative-step records; a GitHub event carries none of
+// them.
+const SYNTHETIC_RECORD_KEYS = ["persona", "prompt", "phase", "personaName", "scenarioTitle"];
+
+/**
+ * The records from a batch that are live public GitHub events.
+ *
+ * A countable record has to be an event GitHub sent — an object with an event
+ * `type` and a `created_at` — and must be none of the synthetic material above.
+ */
+export function liveGithubEvents(records = []) {
+  const batch = Array.isArray(records) ? records : [];
+  return batch.filter((record) => (
+    record !== null && typeof record === "object"
+    && !SYNTHETIC_RECORDS.has(record)
+    && !SYNTHETIC_RECORD_KEYS.some((key) => key in record)
+    && typeof record.type === "string" && Boolean(record.created_at)
+  ));
+}
+
+/** Merged pull requests among live public GitHub events. Merges only. */
+export function countMergedPullRequests(records = []) {
+  return liveGithubEvents(records).filter((event) => (
+    event.type === "PullRequestEvent"
+    && event.payload?.action === "closed"
+    && event.payload?.pull_request?.merged === true
+  )).length;
+}
+
+/**
+ * When the response the figure was computed from arrived.
+ *
+ * GitHub stamps every response with its own `Date` header; when it is there,
+ * that is the response's time and beats ours. `receivedAt` is read once on the
+ * fetch path, the moment the responses resolved — never at render time, so a
+ * repaint cannot quietly age the figure's provenance.
+ */
+export function responseTimestamp(responses = [], receivedAt) {
+  for (const response of responses) {
+    const stamped = new Date(response?.headers?.get?.("date") ?? NaN);
+    if (!Number.isNaN(stamped.getTime())) return stamped;
+  }
+  return receivedAt;
+}
+
+const formatClockTime = (date) => new Intl.DateTimeFormat(undefined, { timeStyle: "short" }).format(date);
+
+export const MERGED_FIGURE_COPY = Object.freeze({
+  loading: Object.freeze({
+    value: "Counting…",
+    source: "Counted from public GitHub activity, once GitHub answers.",
+  }),
+  unavailable: Object.freeze({
+    value: "No live count right now",
+    source: "Public GitHub activity did not answer, so there is no live count to show. Nothing is estimated or carried over in its place.",
+  }),
+});
+
+/**
+ * Paint the headline figure.
+ *
+ * `live` is the only state that renders a digit, and it renders the count it was
+ * given beside the words for exactly what that count is. `loading` and
+ * `unavailable` are sentences: they say which one they are, and neither of them
+ * leaves a number behind.
+ *
+ * Only the readout is replaced. It is the live region, so one load makes one
+ * announcement, and the heading and the verification links above and below it
+ * stay put and stay keyboard-reachable through every state.
+ */
+export function renderMergedFigure(root = document, state = "loading", { count = 0, total = 0, asOf = null } = {}) {
+  // A count with no response time behind it cannot be sourced, and an unsourced
+  // number is not one this slot may show — so it falls to the empty state rather
+  // than rendering a figure the line beneath it could not account for. Anything
+  // that is not a recognised state falls the same way, never to a number.
+  const sourced = asOf instanceof Date && !Number.isNaN(asOf.getTime());
+  const name = state === "loading" ? "loading" : state === "live" && sourced ? "live" : "unavailable";
+  const section = root.querySelector("#merged-figure");
+  const readout = root.querySelector("#merged-figure-readout");
+  if (!section || !readout) return null;
+  section.dataset.state = name;
+
+  const value = document.createElement("p");
+  value.className = "merged-figure-value";
+  const source = document.createElement("p");
+  source.className = "merged-figure-source";
+
+  if (name === "live") {
+    appendText(value, "strong", "merged-figure-count", String(count));
+    appendText(value, "span", "merged-figure-unit", `merged pull ${count === 1 ? "request" : "requests"}`);
+    appendText(source, "span", "", `Counted from ${total} public GitHub ${total === 1 ? "event" : "events"} in `
+      + `${SOURCE_REPOSITORIES.join(" and ")}, as of `);
+    const time = appendText(source, "time", "merged-figure-time", formatClockTime(asOf));
+    time.dateTime = asOf.toISOString();
+  } else {
+    value.textContent = MERGED_FIGURE_COPY[name].value;
+    source.textContent = MERGED_FIGURE_COPY[name].source;
+  }
+  readout.replaceChildren(value, source);
+  return section;
+}
+
 export async function loadActivity(root = document, fetcher = fetch) {
   const list = root.querySelector("#activity-list");
   const signal = root.querySelector(".signal-card");
@@ -464,6 +600,10 @@ export async function loadActivity(root = document, fetcher = fetch) {
   const updated = root.querySelector("#last-updated");
   const hasLiveEvents = Boolean(list.querySelector?.(".activity-item:not(.activity-item-representative)"));
   renderActivityState(root, "loading", { keptEvents: hasLiveEvents });
+  // Unconditionally, even on a refresh that keeps the events below on screen:
+  // the previous count belongs to the previous response, and holding it there
+  // while a new request is in flight would make a stale number look current.
+  renderMergedFigure(root, "loading");
   label.textContent = CONNECTION_LABELS.loading;
   if (!hasLiveEvents) {
     renderRepresentativeActivity(list, { reason: "loading" });
@@ -473,12 +613,26 @@ export async function loadActivity(root = document, fetcher = fetch) {
     const responses = await Promise.all(EVENTS_URLS.map(
       (url) => fetcher(url, { headers: { Accept: "application/vnd.github+json" } }),
     ));
+    // The moment this response arrived, taken once here rather than at render.
+    const receivedAt = new Date();
     if (!responses.some((response) => response.ok)) throw new Error(`GitHub returned ${responses[0].status}`);
     const payloads = await Promise.all(responses.map((response) => (response.ok ? response.json() : [])));
     const events = payloads
       .flatMap((payload) => (Array.isArray(payload) ? payload : []))
       .sort((a, b) => new Date(b.created_at ?? 0) - new Date(a.created_at ?? 0))
       .slice(0, 30);
+    // Only the live records are countable, and a response that carried none of
+    // them is not a zero — it is nothing to count from, which is the empty
+    // headline, not a figure a reader could mistake for a real one.
+    const asOf = responseTimestamp(responses, receivedAt);
+    const countable = liveGithubEvents(events);
+    if (countable.length) {
+      renderMergedFigure(root, "live", {
+        count: countMergedPullRequests(countable), total: countable.length, asOf,
+      });
+    } else {
+      renderMergedFigure(root, "unavailable");
+    }
     const count = renderEvents(list, events);
     if (count) {
       list.setAttribute("aria-label", "Recent public GitHub events");
@@ -490,9 +644,12 @@ export async function loadActivity(root = document, fetcher = fetch) {
       label.textContent = CONNECTION_LABELS.empty;
     }
     signal.dataset.connected = "true";
-    updated.textContent = `Updated ${new Intl.DateTimeFormat(undefined, { timeStyle: "short" }).format(new Date())}`;
+    // The card and the figure below it report the same response, so they read
+    // the same arrival time in the same format rather than two clocks.
+    updated.textContent = `Updated ${formatClockTime(asOf)}`;
   } catch {
     renderActivityState(root, "error", { keptEvents: hasLiveEvents });
+    renderMergedFigure(root, "unavailable");
     signal.dataset.connected = "false";
     label.textContent = CONNECTION_LABELS.error;
     updated.textContent = "Not updated";

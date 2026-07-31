@@ -34,9 +34,37 @@
           <h1 id="page-title">Agent observatory</h1>
           <p>See how a synthetic engineering team plans, builds, reviews, and delivers work. Follow public GitHub activity, meet each demo persona, and inspect a sample prompt handoff.</p>
         </div>
-        <div class="signal-card" aria-label="Public GitHub activity status">
-          <span class="signal-dot" aria-hidden="true"></span>
-          <div><strong id="connection-label">Checking GitHub</strong><span id="last-updated">Not updated yet</span></div>
+        <div class="observatory-signal">
+          <div class="signal-card" aria-label="Public GitHub activity status">
+            <span class="signal-dot" aria-hidden="true"></span>
+            <div><strong id="connection-label">Checking GitHub</strong><span id="last-updated">Not updated yet</span></div>
+          </div>
+          <!-- The one figure on this site that is not a synthetic example. It is
+               counted from the public GitHub events response the page already
+               fetches, and it sits in the hero — read straight after the h1 —
+               because a prospect should meet the real number before the demo
+               personas and the representative rows below it.
+
+               The readout is the live region: agents.js replaces its two
+               paragraphs once per load, so loading → loaded-or-failed is one
+               announcement. The markup below is the loading state the page
+               starts in, and it deliberately carries no digits: an unanswered
+               request must never leave a number standing in this slot. -->
+          <section class="merged-figure" id="merged-figure" data-state="loading" aria-labelledby="merged-figure-title">
+            <h2 class="merged-figure-title" id="merged-figure-title">Merged pull requests</h2>
+            <div class="merged-figure-readout" id="merged-figure-readout" role="status" aria-live="polite">
+              <p class="merged-figure-value">Counting…</p>
+              <p class="merged-figure-source">Counted from public GitHub activity, once GitHub answers.</p>
+            </div>
+            <!-- Verification, by hand: these are the exact responses the count is
+                 computed from, so a reader can open one and count the merges
+                 themselves. A tests/agent-observatory-merged-figure.test.js case
+                 pins them to the URLs agents.js actually requests. -->
+            <ul class="merged-figure-sources">
+              <li><a href="https://api.github.com/repos/AndrewLikesTea/paint-lab/events?per_page=30">Check the count in the AndrewLikesTea/paint-lab public GitHub event feed</a></li>
+              <li><a href="https://api.github.com/repos/AndrewLikesTea/wawalu-agent-lab/events?per_page=30">Check the count in the AndrewLikesTea/wawalu-agent-lab public GitHub event feed</a></li>
+            </ul>
+          </section>
         </div>
       </section>
 
