@@ -42,6 +42,9 @@ export const panelId = (id) => `org-coaching-${id}-panel`;
 /** One select per cluster, named by the cluster's rank in the ranked list. */
 export const residueControlId = (rank) => `org-coaching-residue-class-${rank}`;
 
+/** The one control that erases what this browser kept. Inside the same panel. */
+export const RESIDUE_CLEAR_ID = "org-coaching-residue-clear";
+
 const byId = (doc, id) => (doc?.getElementById ? doc.getElementById(id) : null);
 
 function element(doc, tag, className, text) {
@@ -73,7 +76,9 @@ function announce(doc, text) {
 
 function held(section) {
   if (!section.__orgCoaching) {
-    section.__orgCoaching = { model: null, open: new Set(), review: null, onAssign: null };
+    section.__orgCoaching = {
+      model: null, open: new Set(), review: null, onAssign: null, retention: null,
+    };
   }
   return section.__orgCoaching;
 }
@@ -84,7 +89,8 @@ function held(section) {
  * Returns the state that was painted so a caller can assert on what it asked for
  * rather than on the DOM it got.
  */
-export function applyOrgQueryDecision(doc, state, { review = null, onAssign = null } = {}) {
+export function applyOrgQueryDecision(doc, state,
+  { review = null, onAssign = null, retention = null } = {}) {
   const section = byId(doc, ORG_COACHING_SECTION_ID);
   if (!section || !state) return null;
   if (state.state === ORG_QUERY_DECISION_STATE.absent) return clearOrgQueryDecision(doc);
@@ -99,6 +105,10 @@ export function applyOrgQueryDecision(doc, state, { review = null, onAssign = nu
   // must not drop the control the reader was using.
   store.review = review;
   if (onAssign) store.onAssign = onAssign;
+  // The retention descriptor is the page's, repainted on every call because the
+  // notice it may carry is a live state: a browser that refuses a write says so
+  // on the next paint rather than on the next import.
+  store.retention = retention;
   paint(doc, section);
   return state;
 }
@@ -113,6 +123,7 @@ export function clearOrgQueryDecision(doc) {
   // The lead's own labels go with the reading they qualified. Nothing here
   // outlives the import: the page drops the label map at the same moment.
   store.review = null;
+  store.retention = null;
   section.hidden = true;
   section.dataset.state = ORG_QUERY_DECISION_STATE.absent;
   delete section.dataset.origin;
@@ -148,7 +159,10 @@ function paint(doc, section) {
   // cluster hears the new figure and any unlocked letter without hunting for
   // it. `announce` still writes only on a real change, so opening a panel is
   // silent.
-  announce(doc, [state.announcement, review?.announcement].filter(Boolean).join(" "));
+  // The clear control's result rides in the same region rather than in one of
+  // its own: it changes the figures above it, so it is the same kind of update.
+  announce(doc, [state.announcement, review?.announcement, store.retention?.announcement]
+    .filter(Boolean).join(" "));
 
   const focusId = section.dataset.focusTarget;
   if (focusId) {
@@ -377,13 +391,50 @@ function residueBody(doc, section, review) {
     // Zero residue is a state, not an empty panel: a reader who opens this and
     // finds nothing cannot tell "resolved" from "broken".
     parts.push(element(doc, "p", "org-coaching-residue-empty", review.empty));
-    return parts;
+    return withRetention(doc, section, parts);
   }
   parts.push(element(doc, "p", "org-coaching-residue-cap", review.cap.text));
   const list = element(doc, "ul", "org-coaching-residue-list");
   list.setAttribute("aria-label", "Unclassified clusters, largest share first");
   for (const row of review.rows) list.append(residueRow(doc, section, review, row));
   parts.push(list, element(doc, "p", "org-coaching-residue-ceiling", review.ceiling.text));
+  return withRetention(doc, section, parts);
+}
+
+/**
+ * What this browser keeps, and the one control that empties it.
+ *
+ * It sits at the foot of the panel the labels are made in — not in a second
+ * panel and not in a dialog — because the reader checking the claim is the
+ * reader using the control. Three parts, in reading order: what is kept in plain
+ * words, a notice when this browser refused to keep it, and a real `button`,
+ * keyboard-operable because it is a button. Present on an empty residue too: a
+ * reviewer verifying the claim must be able to read it whatever the corpus did.
+ */
+function withRetention(doc, section, parts) {
+  const retention = held(section).retention;
+  if (!retention) return parts;
+  const wrap = element(doc, "div", "org-coaching-residue-retention");
+  wrap.dataset.storage = retention.notice ? "unavailable" : "available";
+  wrap.append(element(doc, "p", "org-coaching-residue-retention-text", retention.text));
+  if (retention.notice) {
+    // A note, not an alert: the corrections still hold on screen, and the region
+    // already announces the recompute they caused.
+    const notice = element(doc, "p", "org-coaching-residue-retention-notice", retention.notice);
+    notice.setAttribute("role", "note");
+    wrap.append(notice);
+  }
+  const clear = element(doc, "button", "org-coaching-residue-clear", retention.clearLabel);
+  clear.id = RESIDUE_CLEAR_ID;
+  clear.setAttribute("type", "button");
+  clear.addEventListener("click", () => {
+    // Focus stays on the control, exactly as it does on the selects above: the
+    // whole decision repaints, and this button is rebuilt with the panel.
+    section.dataset.focusTarget = RESIDUE_CLEAR_ID;
+    held(section).retention?.onClear?.();
+  });
+  wrap.append(clear);
+  parts.push(wrap);
   return parts;
 }
 

@@ -2853,12 +2853,16 @@ section[data-workspace-current="true"] { box-shadow:-6px 0 0 0 var(--import-wash
 .org-coaching-residue-list { display:grid; gap:10px; margin:0; padding:0; list-style:none; }
 .org-coaching-residue-row { display:flex; flex-wrap:wrap; align-items:center; gap:6px 14px; border-top:1px solid var(--import-line); padding-top:10px; }
 .org-coaching-residue-name { flex:1 1 15rem; min-width:0; font-size:13px; line-height:1.5; font-weight:650; overflow-wrap:anywhere; }
-.org-coaching-residue-select { flex:0 1 auto; max-width:100%; border:1px solid var(--import-accent); border-radius:8px; padding:6px 9px; background:#fff; color:var(--import-ink); font:650 13px/1.45 inherit; }
-.org-coaching-residue-select:focus-visible { outline:3px solid var(--import-accent); outline-offset:2px; }
+.org-coaching-residue-select,.org-coaching-residue-clear { flex:0 1 auto; max-width:100%; border:1px solid var(--import-accent); border-radius:8px; padding:6px 9px; background:#fff; color:var(--import-ink); font:650 13px/1.45 inherit; }
+.org-coaching-residue-select:focus-visible,.org-coaching-residue-clear:focus-visible { outline:3px solid var(--import-accent); outline-offset:2px; }
 .org-coaching-residue-detail,.org-coaching-residue-state { flex:1 1 100%; margin:0; color:var(--ink-muted); font-size:12px; line-height:1.55; overflow-wrap:anywhere; }
 .org-coaching-residue-row[data-assigned="none"] .org-coaching-residue-state::before { content:"◇ "; }
 .org-coaching-residue-row:not([data-assigned="none"]) .org-coaching-residue-state::before { content:"◧ "; }
-.org-coaching-residue-intro,.org-coaching-residue-cap,.org-coaching-residue-ceiling,.org-coaching-residue-empty,.org-coaching-residue-unclassifiable { margin:0; font-size:12px; line-height:1.6; overflow-wrap:anywhere; }
+.org-coaching-residue-intro,.org-coaching-residue-cap,.org-coaching-residue-ceiling,.org-coaching-residue-empty,.org-coaching-residue-unclassifiable,.org-coaching-residue-retention-text,.org-coaching-residue-retention-notice { margin:0; font-size:12px; line-height:1.6; overflow-wrap:anywhere; }
+/* What this browser keeps, and the control that empties it: the foot of the same
+   panel, on the type and the control styling the panel already declares. */
+.org-coaching-residue-retention { display:grid; gap:8px; justify-items:start; border-top:1px solid var(--import-line); padding-top:10px; }
+.org-coaching-residue-retention-notice { font-weight:650; }
 @media (min-width:52rem) {
   .org-coaching-figure { grid-template-columns:minmax(0,auto) minmax(0,1fr); }
   .org-coaching-rows { grid-template-columns:minmax(0,14rem) minmax(0,1fr); }
