@@ -63,6 +63,11 @@ import {
   RECORD_FIELDS, REPRODUCIBILITY_REFUSED, RUBRIC_VERSION, SHIPPED_COHORT_SNAPSHOT,
   evaluateRankingReproducibility, renderableLaggardName,
 } from "./ranking-reproducibility.js";
+// The declarations only, never the classifier. `query-signal-families.js` holds
+// integers and authored English and imports nothing, so naming the weights on
+// this page costs the initial payload one small module rather than the rubric,
+// the tier table and the segmenter the classifier itself reaches.
+import { signalFamilyDisclosureRows } from "./query-signal-families.js";
 import {
   EVIDENCE_CLASS, PROVENANCE_KIND, resolveFinding,
 } from "./finops-finding-resolver.js";
@@ -778,7 +783,34 @@ function versionEntries(analysis, briefing, position) {
  * A refused ranking fills the same disclosure with the refusal, so a reader who
  * opens it after seeing no band finds the reason rather than an empty list.
  */
+/**
+ * How a query's class was decided, per class, with the weight behind it.
+ *
+ * Appended to the reproducibility disclosure in BOTH of its states, because it
+ * is the one part of this list that does not depend on a result: the families
+ * and their weights are constants, so a reader who opens the disclosure after
+ * seeing no ranking still finds the rule that would produce one. The rows are
+ * composed in `query-signal-families.js` and only shaped here, the same way
+ * every other row on this list is: `entry` and nothing else.
+ *
+ * NOTHING PROMPT-DERIVED PASSES THROUGH HERE. `signalFamilyDisclosureRows`
+ * takes no argument and reads no record; both strings in every row are authored
+ * English or a declared identifier and an integer.
+ */
+function signalFamilyRows() {
+  return signalFamilyDisclosureRows().map((row) => entry(row.term, row.detail));
+}
+
+/**
+ * The disclosure, in one list: the ranking rows this page already published,
+ * then the classification rows. Appended after, in every state and at exactly
+ * one place, so a row cannot reach one branch of the answer and miss another.
+ */
 function reproducibilityEntries(result) {
+  return [...rankingReproducibilityEntries(result), ...signalFamilyRows()];
+}
+
+function rankingReproducibilityEntries(result) {
   if (!result) {
     return [
       entry("Ranking claim", "No cost-per-successful-task ranking was worked out on this path, so "
