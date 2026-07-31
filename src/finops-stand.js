@@ -66,6 +66,7 @@ import {
 import {
   EVIDENCE_CLASS, PROVENANCE_KIND, resolveFinding,
 } from "./finops-finding-resolver.js";
+import { REPRODUCTION_SOURCE, reproductionEntries } from "./answer-reproducibility.js";
 import {
   FINOPS_SPINE_MANIFEST, SPINE_CLAIM_KIND, SPINE_DIRECTION, SPINE_UNIT,
 } from "./finops-spine-manifest.js";
@@ -116,6 +117,8 @@ export const STAND_DISCLOSURE = Object.freeze({
   anonymization: "anonymization",
   versions: "versions",
   reproducibility: "reproducibility",
+  /** Which input produced the headline figure, and the lines that add up to it. */
+  inputs: "inputs",
   departments: "departments",
   verification: "verification",
   otherActions: "other-actions",
@@ -124,8 +127,8 @@ export const STAND_DISCLOSURE = Object.freeze({
 /** The order the disclosures are authored and painted in. */
 export const STAND_DISCLOSURE_ORDER = Object.freeze([
   STAND_DISCLOSURE.cohort, STAND_DISCLOSURE.anonymization, STAND_DISCLOSURE.versions,
-  STAND_DISCLOSURE.reproducibility, STAND_DISCLOSURE.departments, STAND_DISCLOSURE.verification,
-  STAND_DISCLOSURE.otherActions,
+  STAND_DISCLOSURE.reproducibility, STAND_DISCLOSURE.inputs, STAND_DISCLOSURE.departments,
+  STAND_DISCLOSURE.verification, STAND_DISCLOSURE.otherActions,
 ]);
 
 /**
@@ -142,6 +145,7 @@ export const STAND_DISCLOSURE_SUMMARY = Object.freeze({
   [STAND_DISCLOSURE.anonymization]: "What this comparison reads, and what it never reads",
   [STAND_DISCLOSURE.versions]: "Which scoring rules and which peer data produced these figures",
   [STAND_DISCLOSURE.reproducibility]: "Can someone else repeat this ranking?",
+  [STAND_DISCLOSURE.inputs]: "Which input produced this number, line by line",
   [STAND_DISCLOSURE.departments]: "Every department, ranked",
   [STAND_DISCLOSURE.verification]: "How much of this was verified",
   [STAND_DISCLOSURE.otherActions]: "Other actions, in priority order",
@@ -895,6 +899,15 @@ export function composeStandHeadline({
       disclosure(STAND_DISCLOSURE.anonymization, anonymizationEntries(eligibility?.note ?? null)),
       disclosure(STAND_DISCLOSURE.versions, versionEntries(analysis, briefing, position)),
       disclosure(STAND_DISCLOSURE.reproducibility, reproducibilityEntries(reproducibility)),
+      // Which input the figure above came from, and the named lines that sum to
+      // it. `source` is this composer's own word for the two paths; the module
+      // below names them in the reader's terms and refuses to describe an
+      // unrecognized input as theirs.
+      disclosure(STAND_DISCLOSURE.inputs, reproductionEntries({
+        analysis,
+        source: source === "import"
+          ? REPRODUCTION_SOURCE.imported : REPRODUCTION_SOURCE.synthetic,
+      })),
       disclosure(STAND_DISCLOSURE.departments, departmentEntries(analysis)),
       disclosure(STAND_DISCLOSURE.verification, verificationEntries(decision, briefing)),
       disclosure(STAND_DISCLOSURE.otherActions, otherActionEntries(destinations)),
