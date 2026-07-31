@@ -27,21 +27,33 @@
 // and a nav item called Profile promises every visitor a page about themselves.
 // The stable label also remains true when a deep link or the picker selects a
 // persona other than the default, Ari.
+//
+// `section` lists the paths that belong to a destination without being it: a
+// decision detail is still Decisions, an executive briefing is still AI FinOps.
+// It is a prefix list, so the query string a detail page actually arrives with
+// (/decision.html?id=d-3) belongs to its surface too. The root destination
+// carries no prefix of its own on purpose — "/" is a prefix of every path on
+// the site, so matching it that way would mark Decisions current everywhere.
 export const SITE_NAV = [
-  { href: "/", label: "Decisions" },
-  { href: "/social.html", label: "Social", className: "nav-social", group: "social" },
+  { href: "/", label: "Decisions", section: ["/index.html", "/decision.html", "/workspace.html"] },
+  { href: "/social.html", label: "Social", className: "nav-social", group: "social", section: ["/post.html"] },
   { href: "/profile.html", label: "People", className: "nav-profile", group: "social", subordinate: true },
-  { href: "/releases.html", label: "Releases" },
+  { href: "/releases.html", label: "Releases", section: ["/release.html"] },
   { href: "/paint/", label: "Paint" },
-  { href: "/evolution.html", label: "AI FinOps", className: "nav-evolution" },
+  {
+    href: "/evolution.html",
+    label: "AI FinOps",
+    className: "nav-evolution",
+    section: ["/savings-action-center.html", "/savings-commitment.html", "/executive-briefing.html"],
+  },
   // The prompt coach is a destination, not a panel of AI FinOps: it shares no
   // state with the analysis — no import, no workspace, no seed — and answers the
   // question a visitor arrives with before they have any file to analyse. It
   // sits beside AI FinOps because that is the surface it is closest to, and it
   // is a peer rather than a subordinate because neither one is a view of the
   // other.
-  { href: "/coach.html", label: "Prompt coach", className: "nav-coach" },
-  { href: "/agents.html", label: "Agent observatory" },
+  { href: "/coach.html", label: "Prompt coach", className: "nav-coach", section: ["/personal-history.html"] },
+  { href: "/agents.html", label: "Agent observatory", section: ["/agent-trace.html"] },
 ];
 
 export const SITE_NAV_LABELS = SITE_NAV.map((link) => link.label);
@@ -53,9 +65,30 @@ export function navParentOf(href) {
   return SITE_NAV.find((entry) => entry.group === link.group && !entry.subordinate)?.href ?? null;
 }
 
-// `current` is the href of the surface the reader is on. Detail pages pass the
-// surface they belong to — a release detail is still "Releases" — which is how
-// the existing pages already mark themselves.
+// Which destination a URL belongs to, by section rather than by string equality
+// on the pathname. `/decision.html?id=d-3` is a detail page beneath Decisions
+// and marks Decisions current; `/paint/canvas.html` sits under the one
+// destination whose href is a directory. Unknown paths mark nothing, which is
+// better than marking the front door.
+export function navCurrentFor(url) {
+  const path = String(url ?? "/").split(/[?#]/)[0] || "/";
+  const owns = (link) => {
+    if (path === link.href) return true;
+    if (link.href.endsWith("/") && link.href !== "/") return path.startsWith(link.href);
+    return (link.section ?? []).some((prefix) => path === prefix || path.startsWith(`${prefix}/`));
+  };
+  // Longest section prefix first, so a page nested under two destinations is
+  // claimed by the more specific one rather than by list order.
+  const match = [...SITE_NAV]
+    .sort((a, b) => b.href.length - a.href.length)
+    .find(owns);
+  return match?.href ?? null;
+}
+
+// `current` is the href of the surface the reader is on — normally
+// navCurrentFor(location.pathname), resolved when the page is authored because
+// every page here ships static markup. Detail pages resolve to the surface they
+// belong to: a release detail is still "Releases".
 export function siteNavMarkup(current = null, indent = "        ") {
   const anchor = ({ href, label, className }, depth) => {
     const attributes = [
@@ -80,7 +113,10 @@ export function siteNavMarkup(current = null, indent = "        ") {
     lines.push(`${indent}  </span>`);
   }
   return [
-    `${indent}<nav class="site-nav" aria-label="Wawalu Labs">`,
+    // "Site", not the product name: these pages also carry in-page navigation
+    // (the AI FinOps workspace rail) and tab-like controls, and a reader
+    // cycling landmarks needs to hear which one leaves the page they are on.
+    `${indent}<nav class="site-nav" aria-label="Site">`,
     ...lines,
     `${indent}</nav>`,
   ].join("\n");

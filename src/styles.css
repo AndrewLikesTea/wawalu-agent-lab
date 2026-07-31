@@ -26,13 +26,23 @@ main,.page { width:min(1180px,calc(100% - 40px)); margin:auto; padding:24px 0 80
 .brand { display:flex; align-items:center; gap:10px; color:#171713; text-decoration:none; }
 .site-nav { display:flex; align-items:center; justify-content:flex-end; gap:6px; min-width:0; }
 .site-nav a { border-radius:7px; padding:8px 10px; color:#62625d; text-decoration:none; }
-.site-nav a:hover,.site-nav a[aria-current="page"] { background:rgba(255,255,255,.72); color:#171713; }
+/* Hover is the only filled wash in this row. A fill reads as something
+   happening right now; where you are is a standing fact, so it is drawn as a
+   rule instead — the same split the FinOps chips make between a live state and
+   a static classification. */
+.site-nav a:hover { background:rgba(255,255,255,.72); color:#171713; }
 /* The page you are on is marked by weight and a rule under the label, never by
-   colour on its own: hover paints exactly the same background and text colour,
-   so colour alone cannot tell a reader which of the two they are looking at.
-   The rule is an inset shadow in the text colour — no new token, and no box the
-   nav has to make room for, so nothing shifts between pages. */
-.site-nav a[aria-current="page"] { font-weight:750; box-shadow:inset 0 -2px 0 currentColor; }
+   colour on its own: it carries no fill, so the two greys can collapse to one
+   in a grayscale print and the rule still says which item it is. The rule is an
+   inset shadow in the text colour — the neutral ink #171713, not the accent
+   blue, which on these pages already means "link or action" — so it adds no
+   token and no box the nav has to make room for. #171713 on the #f3f1eb page is
+   15.9:1, and 14.2:1 over the blue bloom at the top right corner. */
+.site-nav a[aria-current="page"] { color:#171713; font-weight:750; box-shadow:inset 0 -2px 0 currentColor; }
+/* The ring must not merge with that rule: it is the accent, on all four sides,
+   outside the box, while the current mark is ink, on one side, inside it. The
+   offset clears the rule so a focused current item shows both at once. */
+.site-nav a:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
 /* Social and Profile are not two feeds. Profile is Social narrowed to one
    display name's image posts, so it is rendered inside the Social group, one
    step in and one size down, behind a turn mark. Shape, size, and position
@@ -705,7 +715,7 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .detail-post:focus-visible { outline:3px solid var(--focus-ring); outline-offset:6px; border-radius:8px; }
 .detail-state-feed { margin-top:18px; }
 @media(max-width:800px) { .workspace{grid-template-columns:1fr}.form-panel{position:static}.hero{padding-bottom:52px}.lead-capture{grid-template-columns:1fr}.product-story-intro{grid-template-columns:1fr}.product-story-intro .eyebrow{grid-column:auto}.story-flow{grid-template-columns:1fr}.story-connector{min-height:62px}.story-connector::before{top:10px;bottom:10px;left:50%;right:auto;width:1px;height:auto}.story-connector::after{right:auto;bottom:9px;width:7px;height:7px;border-top:0;border-right:1px solid #8eacc8;border-bottom:1px solid #8eacc8;transform:rotate(45deg)}.story-connector span{writing-mode:horizontal-tb} }
-@media(max-width:520px) { main,.page{width:calc(100% - 24px);padding-top:18px}.site-header{align-items:flex-start;flex-direction:column;gap:14px}.site-nav{justify-content:flex-start;width:100%;overflow-x:auto;padding:2px 2px 8px;scrollbar-width:thin}.site-nav a{flex:none;min-height:44px;display:inline-flex;align-items:center}.form-panel,.list-panel{padding:21px}.hero{padding-top:48px}.hero h1{font-size:clamp(38px,13vw,56px)}form{grid-template-columns:1fr}.field{grid-column:1/-1}.list-heading{align-items:start;flex-direction:column;gap:10px}.filters,.social-toolbar{align-items:stretch;flex-direction:column;gap:14px}.filter{flex:1 1 auto;width:100%;min-width:0}.clear-filters{width:100%;justify-content:center} }
+@media(max-width:520px) { main,.page{width:calc(100% - 24px);padding-top:18px}.site-header{align-items:flex-start;flex-direction:column;gap:14px}.site-nav{justify-content:flex-start;width:100%;overflow-x:auto;padding:8px 2px 10px;scrollbar-width:thin}.site-nav a{flex:none;min-height:44px;display:inline-flex;align-items:center}.form-panel,.list-panel{padding:21px}.hero{padding-top:48px}.hero h1{font-size:clamp(38px,13vw,56px)}form{grid-template-columns:1fr}.field{grid-column:1/-1}.list-heading{align-items:start;flex-direction:column;gap:10px}.filters,.social-toolbar{align-items:stretch;flex-direction:column;gap:14px}.filter{flex:1 1 auto;width:100%;min-width:0}.clear-filters{width:100%;justify-content:center} }
 @media(max-width:520px) { .release-filters{align-items:stretch;flex-direction:column}.release-search-filter{flex:1 1 auto} }
 @media(max-width:520px) { .release-toggle{align-items:flex-start;padding:16px}.release-info{align-items:flex-start;flex-direction:column}.release-chevron{margin-top:5px}.detail-heading{align-items:stretch;flex-direction:column}.share-control{align-items:stretch;flex-direction:column}.share-button{width:100%}.share-status{max-width:none}.detail-decision{align-items:flex-start}.detail-decision-owner{width:100%;padding-left:0}.detail-meta{display:grid;grid-template-columns:1fr;gap:14px}.detail-decision-alternatives{align-items:flex-start;flex-direction:column;gap:3px} }
 @media(max-width:760px) { .alternative-grid{grid-template-columns:1fr}.decision-section-heading{align-items:stretch;flex-direction:column}.comparison-controls{align-items:stretch;flex-direction:column}.comparison-status{max-width:none;text-align:left}.comparison-toggle{width:100%}.decision-context{grid-template-columns:1fr;gap:10px}.proof-relationship li.linked-release{align-items:flex-start;flex-direction:column;gap:6px} }

@@ -8,7 +8,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
-import { SITE_NAV, SITE_NAV_LABELS, navParentOf, siteNavMarkup } from "../src/site-nav.js";
+import { SITE_NAV, SITE_NAV_LABELS, navCurrentFor, navParentOf, siteNavMarkup } from "../src/site-nav.js";
 import { parseHtml, tabSequence, textOf } from "./support/browser.js";
 
 // `current` is the surface the page belongs to, not always its own URL: a
@@ -35,6 +35,8 @@ const PAGES = [
 ];
 
 const pageUrl = (file) => new URL(`../src/${file}`, import.meta.url);
+// The URL a reader actually has in the address bar on that page.
+const pathOf = (file) => (file === "index.html" ? "/" : `/${file}`);
 
 function navMarkup(html, file) {
   const match = html.match(/^[ \t]*<nav class="site-nav"[\s\S]*?<\/nav>/m);
@@ -221,9 +223,10 @@ test("the profile page identifies the selected name as a demo persona", async ()
 });
 
 /* --------------------------- the item you are on --------------------------- */
-// Which destination the reader is already looking at has to survive two things
-// the markup cannot see: a screen reader that never renders the highlight, and
-// a reader who cannot separate the two greys it is drawn in.
+// Which destination the reader is already looking at has to survive three
+// things the markup cannot see: a screen reader that never renders the
+// highlight, a reader who cannot separate the two greys it is drawn in, and a
+// grayscale print of the briefing in which no hue is left at all.
 
 test("every page marks exactly one nav item as the current page, and marks the right one", async () => {
   for (const { file, current } of PAGES) {
@@ -234,24 +237,258 @@ test("every page marks exactly one nav item as the current page, and marks the r
     // A detail page belongs to a surface, so the marked item is that surface's
     // name — "Release · Shiplog" is still under Releases.
     assert.equal(textOf(marked[0]), SITE_NAV.find((link) => link.href === current).label);
+    // And the surface each page belongs to is not a hand-written column in the
+    // table above: it is what navCurrentFor() derives from the page's own URL,
+    // so the markup and the resolver cannot disagree.
+    assert.equal(navCurrentFor(pathOf(file)), current, `${file}: navCurrentFor disagrees with the markup`);
   }
 });
 
-test("the current nav item is distinguishable without colour, on both stylesheets", async () => {
-  for (const sheet of ["styles.css", "agents.css"]) {
-    const css = await readFile(new URL(`../src/${sheet}`, import.meta.url), "utf8");
-    // Hover paints the same background and text colour as the current page, so
-    // colour cannot be the thing that separates them. Weight and a rule under
-    // the label do it, and neither needs the reader to see a hue.
-    // Anchored: the rule of its own, not the one it shares with :hover.
-    const rule = css.match(/^\.site-nav a\[aria-current="page"\] \{([^}]*)\}/m);
-    assert.ok(rule, `${sheet} must give the current nav item a mark of its own`);
-    assert.match(rule[1], /font-weight:/, `${sheet}: the current item must carry weight`);
-    assert.match(rule[1], /box-shadow:inset 0 -2px 0/, `${sheet}: the current item must carry a rule`);
+// Exact-string equality on the pathname is the implementation that passes the
+// four top-level pages and fails the one that matters: a decision detail page is
+// /decision.html?id=d-3, which equals nothing in the nav.
+test("a detail page marks the section it belongs to, and the root marks only itself", () => {
+  assert.equal(navCurrentFor("/decision.html?id=d-3"), "/", "a decision detail is still Decisions");
+  assert.equal(navCurrentFor("/decision.html"), "/");
+  assert.equal(navCurrentFor("/executive-briefing.html?scope=q3"), "/evolution.html");
+  assert.equal(navCurrentFor("/release.html?id=r-9#linked"), "/releases.html");
+  assert.equal(navCurrentFor("/post.html?id=p-2"), "/social.html");
+  assert.equal(navCurrentFor("/agent-trace.html?trace=t-1"), "/agents.html");
+  assert.equal(navCurrentFor("/paint/"), "/paint/", "a directory destination owns its subtree");
+  assert.equal(navCurrentFor("/"), "/");
+  assert.equal(navCurrentFor("/index.html"), "/");
+  // "/" is a prefix of every path on this site. Matching it as one would mark
+  // Decisions current on all eight destinations.
+  for (const path of ["/social.html", "/releases.html", "/evolution.html", "/coach.html", "/agents.html"]) {
+    assert.equal(navCurrentFor(path), path, `${path} must mark itself, not the front door`);
+  }
+  assert.equal(navCurrentFor("/nothing-here.html"), null, "an unknown page marks nothing rather than the front door");
+});
+
+// The five surfaces the live-product review walked, named one at a time: a loop
+// that silently covered none of them would still pass the table test above.
+test("each reviewed page marks its own destination, and only that one", async () => {
+  const reviewed = [
+    ["evolution.html", "AI FinOps"],
+    ["coach.html", "Prompt coach"],
+    ["agents.html", "Agent observatory"],
+    ["executive-briefing.html", "AI FinOps"],
+    ["decision.html", "Decisions"],
+  ];
+  for (const [file, label] of reviewed) {
+    const nav = parseHtml(await readFile(pageUrl(file), "utf8")).querySelector(".site-nav");
+    const marked = nav.querySelectorAll("a").filter((link) => link.getAttribute("aria-current") === "page");
+    assert.equal(marked.length, 1, `${file} marks ${marked.length} nav items as the current page`);
+    assert.equal(textOf(marked[0]), label, `${file} marks the wrong destination`);
+    for (const link of nav.querySelectorAll("a")) {
+      if (link === marked[0]) continue;
+      assert.equal(link.getAttribute("aria-current"), null, `${file}: "${textOf(link)}" also claims to be the page`);
+    }
+  }
+});
+
+test("the site nav landmark is named apart from the in-page navigation", async () => {
+  for (const { file } of PAGES) {
+    const document = parseHtml(await readFile(pageUrl(file), "utf8"));
+    const site = document.querySelector(".site-nav");
+    const name = site.getAttribute("aria-label");
+    assert.equal(name, "Site", `${file}: the site nav must name itself`);
+    // A reader cycling landmarks hears "Site navigation" and, on the AI FinOps
+    // pages, the workspace rail — two names, not two anonymous navigations.
+    for (const other of document.querySelectorAll("nav")) {
+      if (other === site) continue;
+      const label = other.getAttribute("aria-label") ?? other.getAttribute("aria-labelledby");
+      assert.ok(label, `${file}: a second navigation landmark ships with no name`);
+      assert.notEqual(label, name, `${file}: two navigation landmarks answer to "${name}"`);
+    }
+  }
+});
+
+/* ------------------ what the mark measures, not what it claims ------------- */
+
+// The declaration block a selector ships, read by exact selector text so a
+// renamed or deleted rule fails here instead of making an assertion vacuous.
+const sheets = new Map();
+async function sheet(name) {
+  if (!sheets.has(name)) sheets.set(name, await readFile(new URL(`../src/${name}`, import.meta.url), "utf8"));
+  return sheets.get(name);
+}
+const declarations = (css, selector) => {
+  const literal = selector.replace(/[.*+?^${}()|[\]\\]/g, (ch) => `\\${ch}`);
+  const found = css.match(new RegExp(`^${literal} \\{([^}]*)\\}`, "m"));
+  assert.ok(found, `no rule for ${selector}`);
+  return found[1];
+};
+
+function relativeLuminance([r, g, b]) {
+  const [x, y, z] = [r, g, b].map((value) => {
+    const channel = value / 255;
+    return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * x + 0.7152 * y + 0.0722 * z;
+}
+const rgb = (hex) => [1, 3, 5].map((start) => parseInt(hex.slice(start, start + 2), 16));
+function contrastRatio(foreground, background) {
+  const [light, dark] = [relativeLuminance(rgb(foreground)), relativeLuminance(rgb(background))].sort((a, b) => b - a);
+  return (light + 0.05) / (dark + 0.05);
+}
+
+// The two surfaces the header sits on: the page, and the blue bloom the body
+// gradient paints into the top right corner, which is exactly where the nav is.
+const NAV_SURFACES = { page: "#f3f1eb", bloom: "#d6e6fa" };
+
+test("the rule under the current item measures at least 3:1 against the nav background", async () => {
+  for (const name of ["styles.css", "agents.css"]) {
+    const css = await sheet(name);
+    const current = declarations(css, '.site-nav a[aria-current="page"]');
+    // The mark is drawn in currentColor, so the ink this rule sets is the ink
+    // the rule is drawn in — read it rather than assuming it.
+    const ink = current.match(/color:\s*(#[0-9a-f]{3,6})/i)?.[1];
+    assert.ok(ink, `${name}: the current item must set the ink its mark inherits`);
+    // Neutral ink, not the accent: the accent already means "link or action" on
+    // these pages, and a marker drawn in it reads as one.
+    assert.equal(ink.toLowerCase(), "#171713", `${name}: the mark must be drawn in the neutral ink`);
+    for (const [where, background] of Object.entries(NAV_SURFACES)) {
+      const ratio = contrastRatio(ink, background);
+      assert.ok(ratio >= 3, `${name}: the mark is ${ratio.toFixed(2)}:1 against the ${where} (${background})`);
+    }
+  }
+  // The measured numbers, pinned so a token edit that dims the mark fails here
+  // rather than in a screenshot nobody diffs: 15.91:1 and 14.17:1.
+  assert.equal(contrastRatio("#171713", NAV_SURFACES.page).toFixed(2), "15.91");
+  assert.equal(contrastRatio("#171713", NAV_SURFACES.bloom).toFixed(2), "14.17");
+});
+
+// A one-pixel column down a nav item, in device pixels, built only from values
+// read out of the stylesheet: the text band, then the rows the rule occupies.
+// Every ink is forced to one identical grey first — this is the grayscale print
+// and the colour-blind reader at once, with hue *and* lightness removed — so
+// anything still visible in the returned profile is shape or weight, never
+// colour. Delete the box-shadow and the rule rows go back to bare surface.
+const FLAT_GREY = [90, 90, 86];
+const SURFACE = rgb(NAV_SURFACES.page);
+function grayscaleProfile(block) {
+  // Heavier stems cover more of the row. Monotonic in weight; the assertions
+  // below compare profiles, so the exact curve is not load-bearing.
+  const weight = Number(block.match(/font-weight:\s*(\d+)/)?.[1] ?? 400);
+  const shadow = block.match(/box-shadow:\s*inset 0 -(\d+)px 0/);
+  const surface = /background:\s*(?!none)/.test(block) ? [255, 255, 255] : SURFACE;
+  const cover = (coverage, over = surface) => relativeLuminance(
+    FLAT_GREY.map((ink, index) => ink * coverage + over[index] * (1 - coverage)),
+  );
+  const text = cover(0.24 + weight / 2500);
+  const ruleRows = Number(shadow?.[1] ?? 0);
+  return {
+    text,
+    // The rule band is the bottom rows of the item: fully inked where the
+    // shadow reaches, bare surface where it does not.
+    rule: ruleRows > 0 ? cover(1) : relativeLuminance(surface),
+    ruleRows,
+  };
+}
+
+test("with every colour in the nav collapsed to one grey, the current item is still the one you can pick out", async () => {
+  for (const name of ["styles.css", "agents.css"]) {
+    const css = await sheet(name);
+    const rest = grayscaleProfile(declarations(css, ".site-nav a"));
+    const current = grayscaleProfile(declarations(css, '.site-nav a[aria-current="page"]'));
+
+    // Shape: the current item inks rows the other items leave bare. This is the
+    // channel that survives a grayscale print, and it is the one carrying most
+    // of the difference.
+    assert.ok(current.ruleRows >= 2, `${name}: the current item must carry a rule, not a hue`);
+    const shape = Math.abs(current.rule - rest.rule);
+    assert.ok(shape >= 0.25, `${name}: in grayscale the rule band differs by only ${shape.toFixed(3)}`);
+
+    // Weight may supplement the shape but may not be the only differentiator:
+    // in a flat row of eight, a weight-only difference is easy to miss, so the
+    // rule has to be the larger signal.
+    const weight = Math.abs(current.text - rest.text);
+    assert.ok(weight > 0, `${name}: the current item should also carry weight`);
+    assert.ok(shape > weight, `${name}: weight (${weight.toFixed(3)}) is doing more work than the rule (${shape.toFixed(3)})`);
+  }
+});
+
+test("the current item is marked by an outline, never by a filled wash", async () => {
+  for (const name of ["styles.css", "agents.css"]) {
+    const css = await sheet(name);
+    const current = declarations(css, '.site-nav a[aria-current="page"]');
+    assert.match(current, /font-weight:/, `${name}: the current item must carry weight`);
+    assert.match(current, /box-shadow:inset 0 -2px 0/, `${name}: the current item must carry a rule`);
     // currentColor, not a new token: the mark inherits the palette rather than
     // introducing a colour the design system does not have.
-    assert.match(rule[1], /currentColor/, `${sheet}: the mark must reuse the text colour`);
+    assert.match(current, /currentColor/, `${name}: the mark must reuse the text colour`);
+    // A fill says "live, happening now" everywhere else on this site. Where you
+    // are is a standing fact, so hover keeps the wash and the current item does
+    // not — which is also what stops the two from reading as the same state.
+    assert.doesNotMatch(current, /background/, `${name}: the current item must not be a filled wash`);
+    assert.match(declarations(css, ".site-nav a:hover"), /background:rgba\(255,255,255,\.72\)/, `${name}: hover keeps the fill`);
+    assert.doesNotMatch(declarations(css, ".site-nav a:hover"), /box-shadow|font-weight/, `${name}: hover must not borrow the mark`);
   }
+});
+
+test("a focused nav item and the current nav item never collapse into the same mark", async () => {
+  for (const name of ["styles.css", "agents.css"]) {
+    const css = await sheet(name);
+    const focus = declarations(css, ".site-nav a:focus-visible");
+    const current = declarations(css, '.site-nav a[aria-current="page"]');
+    // Different property, different geometry: the ring is an outline on all
+    // four sides, the mark an inset shadow on one. Both draw at once on a
+    // focused current item, and neither hides the other.
+    assert.match(focus, /outline:3px solid/, `${name}: focus must draw a ring`);
+    assert.doesNotMatch(focus, /box-shadow/, `${name}: the ring must not be drawn as the current item's rule`);
+    assert.doesNotMatch(current, /outline/, `${name}: the current item must not draw a ring`);
+    // The ring sits outside the box, clear of the 2px rule inside it, so a
+    // focused non-current item cannot be read as the page you are on.
+    const offset = Number(focus.match(/outline-offset:\s*(\d+)px/)?.[1]);
+    assert.ok(offset >= 3, `${name}: the ring is offset ${offset}px and lands on the current item's rule`);
+    // And in a different colour: the accent for the transient state, the
+    // neutral ink for the standing one.
+    const ring = focus.match(/outline:3px solid (#[0-9a-f]{3,6}|var\(--focus-ring\))/i)?.[1];
+    assert.ok(ring, `${name}: the ring must name its colour`);
+    const resolved = ring.startsWith("var") ? css.match(/--focus-ring:\s*(#[0-9a-f]{3,6})/i)?.[1] : ring;
+    assert.notEqual(resolved.toLowerCase(), "#171713", `${name}: the ring is drawn in the current item's ink`);
+    assert.ok(contrastRatio(resolved, NAV_SURFACES.page) >= 3, `${name}: the ring must clear 3:1 on the page`);
+  }
+});
+
+// A stylesheet carries several blocks at the same width, one per line. The one
+// that lays out the row is the one that mentions the nav.
+function navBreakpoint(css, width) {
+  const body = [...css.matchAll(new RegExp(`@media\\(max-width:${width}px\\) \\{ ([\\s\\S]*?)\\}\\n`, "g"))]
+    .map(([, block]) => block).find((block) => block.includes(".site-nav{"));
+  assert.ok(body, `no ${width}px breakpoint lays out the nav`);
+  return body;
+}
+
+test("at 390px the nav still shows the mark, and the page does not scroll sideways", async () => {
+  const css = await sheet("styles.css");
+  // 390px is inside this breakpoint, which is where the row of eight stops
+  // fitting. The nav scrolls within itself; the page column stays a percentage
+  // of the viewport, so nothing pushes a horizontal scrollbar onto the page.
+  const phone = navBreakpoint(css, 520);
+  assert.match(phone, /main,\.page\{width:calc\(100% - 24px\)/, "the page column must stay inside a 390px viewport");
+  const nav = phone.match(/\.site-nav\{([^}]*)\}/)[1];
+  assert.match(nav, /width:100%/);
+  assert.match(nav, /overflow-x:auto/, "the row scrolls rather than pushing the page wide");
+  assert.doesNotMatch(nav, /overflow:hidden|text-overflow|white-space:nowrap/, "the row must not clip what it cannot fit");
+  // The mark is an *inset* shadow, so it scrolls with its item and no overflow
+  // container can cut it off. What a scroll container can cut off is the focus
+  // ring, which reaches 6px past the box (3px offset + 3px wide), so the
+  // padding has to clear it on both edges.
+  const [top, , bottom] = nav.match(/padding:([^;]*)/)[1].trim().split(/\s+/);
+  for (const [edge, value] of [["top", top], ["bottom", bottom]]) {
+    assert.ok(Number.parseInt(value, 10) >= 6, `the ${edge} padding is ${value}, so the focus ring is clipped at 390px`);
+  }
+  // Nothing in the breakpoint overrides the mark away at phone width.
+  assert.doesNotMatch(phone, /\.site-nav a\[aria-current="page"\]\{/, "the breakpoint must not restyle the current item");
+
+  // The observatory pages take the other stylesheet, where the row stacks
+  // instead of scrolling. Either treatment is fine; the mark survives both.
+  const agents = await sheet("agents.css");
+  const stacked = navBreakpoint(agents, 560);
+  assert.match(stacked.match(/\.site-nav\{([^}]*)\}/)[1], /flex-direction:column/);
+  assert.doesNotMatch(stacked, /\.site-nav a\[aria-current="page"\]\{/, "the breakpoint must not restyle the current item");
 });
 
 test("the nav is reached by keyboard in the order it is displayed", async () => {
