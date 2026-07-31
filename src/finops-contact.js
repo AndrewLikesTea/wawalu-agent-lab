@@ -42,6 +42,7 @@
 // wording a rejection its own way. What it does own is the promise it makes once
 // the address lands, which is more specific than the footer's.
 
+import { createFollowUpConfirmation } from "./follow-up-confirmation.js";
 import {
   CONTACT_COPY, describeWith, emailFieldError, looksLikeEmail, postLeadEmail, SubmissionError,
 } from "./lead-capture.js";
@@ -112,13 +113,34 @@ export function initFinopsContact(
     if (nextStep) nextStep.hidden = !visible;
   }
 
+  // The success state, from the same source as the site footer's, so the two
+  // panels cannot word a landed request differently. It replaces the form and
+  // leaves the next-step paragraph exactly where it is — that paragraph is a
+  // sibling of the form, not part of it, which is what lets a confirmed request
+  // on the executive briefing still offer somewhere to go.
+  const confirmation = createFollowUpConfirmation({
+    form,
+    status,
+    submit,
+    email,
+    // Asking for the form back is saying the last request is not the story any
+    // more: its outcome and the action it left behind both go.
+    onReopen: () => {
+      status.textContent = "";
+      delete form.dataset.state;
+      setNextStepVisible(false);
+    },
+  });
+
   function open() {
     if (!panel.hidden) return;
     panel.hidden = false;
     trigger.setAttribute("aria-expanded", "true");
     // Disclosing a form and leaving focus on the trigger behind it is the whole
-    // failure this control exists to avoid, so focus lands on the first field.
-    email.focus();
+    // failure this control exists to avoid, so focus lands on the first field —
+    // or, once a request has landed and taken the form away, on the receipt.
+    if (confirmation.sent) confirmation.region.focus();
+    else email.focus();
   }
 
   function close() {
@@ -147,7 +169,8 @@ export function initFinopsContact(
   root.addEventListener("click", (event) => {
     if (!event.target?.closest?.(`[data-follow-up-cta="${prefix}"]`)) return;
     open();
-    email.focus();
+    if (confirmation.sent) confirmation.region.focus();
+    else email.focus();
   });
 
   panel.addEventListener("keydown", (event) => {
@@ -168,6 +191,9 @@ export function initFinopsContact(
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
+    // Terminal until the visitor reopens the form: nothing on screen can fire
+    // this once the receipt is up, and this keeps that true for anything else.
+    if (confirmation.sent) return;
     const invalid = emailFieldError(email.value, looksLikeEmail(email.value), CONTACT_COPY);
     if (invalid) {
       // Whatever was typed stays; the field is never cleared to "help".
@@ -189,12 +215,15 @@ export function initFinopsContact(
     status.textContent = SUBMITTING;
 
     try {
+      const address = email.value.trim();
       const body = await postLeadEmail(request, email.value, CONTACT_COPY);
       form.dataset.state = "success";
       status.textContent = body?.subscribed === false ? ALREADY_CAPTURED : CAPTURED;
       // Waiting two business days is not a next action, so the surface offers
       // one: somewhere to go now, in this tab, that does not depend on the reply.
+      // It survives the swap below: the form goes, this stays.
       setNextStepVisible(true);
+      confirmation.show(address);
     } catch (error) {
       // Copy this repository owns, never a string an intermediary supplied, and
       // never a claim that the address was lost when that is not known.
@@ -202,8 +231,12 @@ export function initFinopsContact(
       status.textContent = error instanceof SubmissionError ? error.message : CONTACT_COPY.unconfirmed;
       setRecoveryVisible(true);
     } finally {
-      submit.disabled = false;
-      submit.removeAttribute("aria-disabled");
+      // Retry has to work without a reload — but not on the path where the
+      // request landed and the form went away with it.
+      if (!confirmation.sent) {
+        submit.disabled = false;
+        submit.removeAttribute("aria-disabled");
+      }
     }
   });
 

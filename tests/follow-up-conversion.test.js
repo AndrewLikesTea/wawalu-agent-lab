@@ -186,6 +186,9 @@ test("the AI FinOps confirmation begins with “Follow-up requested”, both tim
     assert.match(confirmation, CAPTURED_OPENING);
     assert.match(confirmation, /within two business days/);
 
+    // The second one only after the form is asked for again: a landed request
+    // takes the form away rather than leaving a button that sends twice.
+    byId(document, "finops-contact-again").click();
     submitEmail(document, "finops-contact", TYPED_EMAIL);
     await waitFor(() => shownText(document, "finops-contact-status").includes("already on our list"),
       "the already-captured confirmation");
@@ -224,6 +227,7 @@ test("a successful request leaves a usable next action, and a failed one leaves 
     // A later failure retracts it: there is nothing to do next after a request
     // that did not land.
     failNext = true;
+    byId(document, "finops-contact-again").click();
     submitEmail(document, "finops-contact", TYPED_EMAIL);
     await settled(document, "finops-contact");
     assert.equal(byId(document, "finops-contact-form").dataset.state, "error");

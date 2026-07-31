@@ -274,6 +274,20 @@
 .brief-contact-recovery[hidden] { display:none; }
 .brief-contact-next { margin:0; border-left:2px solid #1f70c1; padding-left:11px; color:var(--brief-ink); font-size:13px; line-height:1.55; }
 .brief-contact-next[hidden] { display:none; }
+/* The receipt that stands where the form was, once a request lands. It is a
+   filled green card with a check in front of the address; the failure box is a
+   pink strip with a red rule down one edge and no glyph at all, so a reader
+   scanning the panel never has to read either one to know which it is. The
+   address came from the visitor, so it wraps anywhere rather than widening the
+   card past the panel on a phone. */
+.brief-contact-confirmation { display:grid; justify-items:start; gap:10px; width:100%; border:1px solid #9dc4a8; border-radius:12px; padding:15px 16px; background:#eef7f0; }
+.brief-contact-confirmation:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.brief-contact-confirmation-lead { margin:0; color:#1c5c2c; font-size:15px; font-weight:700; line-height:1.55; }
+.brief-contact-confirmation-mark { margin-right:8px; font-size:16px; }
+.brief-contact-confirmation-address { overflow-wrap:anywhere; }
+.brief-contact-confirmation-detail { margin:0; color:var(--brief-ink); font-size:12px; line-height:1.55; }
+.brief-contact-confirmation-again { min-height:44px; border:1px solid #1c5c2c; border-radius:9px; padding:0 16px; background:#fff; color:#1c5c2c; font:650 13px/1.4 inherit; cursor:pointer; }
+.brief-contact-confirmation-again:hover { background:#1c5c2c; color:#fff; }
 .brief-contact button:focus-visible,.brief-contact input:focus-visible,.brief-contact a:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
 
 /* -------------------------------- responsive ------------------------------- */
@@ -286,6 +300,8 @@
   .brief-followup { padding:20px; }
   .brief-contact-actions button { flex:1 1 auto; }
   .brief-contact-panel { padding:16px; border-radius:12px; }
+  .brief-contact-confirmation { padding:13px 14px; }
+  .brief-contact-confirmation-again { width:100%; }
   .brief-hero { padding:44px 0 26px; }
   .brief,.brief-state { border-radius:16px; }
   .brief-masthead,.brief-section { padding:22px 20px; }
