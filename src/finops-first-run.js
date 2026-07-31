@@ -51,7 +51,7 @@ import {
 } from "./example-dataset.js";
 import { buildFinopsBriefing, validateBriefing } from "./finops-briefing-contract.js";
 import {
-  COST_BAND, costPositionDetail, costPositionHeadline, resolveCostPosition,
+  COST_BAND, PEER_RANK_LABEL, costPositionDetail, costPositionHeadline, resolveCostPosition,
 } from "./peer-cost-position.js";
 import {
   bandDistanceWords, INTERNAL_GAP_STATUS, internalGapDetail, internalGapHeadline,
@@ -251,7 +251,10 @@ export const FIRST_RUN_CONVERSION = Object.freeze({
 export const SLOT_LABEL = Object.freeze({
   benchmark: "Headline benchmark · recoverable share of analyzed spend",
   impact: "Quantified impact · routing scenario",
-  peer: "Peer comparison",
+  // One name for one number: the headline region above calls this the same
+  // thing. "Peer position" there and "Peer comparison" here were two names for
+  // the same comparison on the same screen.
+  peer: PEER_RANK_LABEL,
   internal: "Internal drill-down · widest department gap",
   action: "Recommended action · rank 1",
   confidence: "Confidence in this answer",

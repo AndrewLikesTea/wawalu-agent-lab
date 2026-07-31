@@ -181,6 +181,17 @@ export const COST_BAND_LABEL = Object.freeze({
 /** The direction, stated once, so no surface has to infer it. */
 export const COST_BAND_DIRECTION = "Lower cost per successful task is better.";
 
+/**
+ * The one name every surface gives this comparison.
+ *
+ * It lives beside the band it labels because two surfaces render it — the
+ * headline region and the first-run brief below it — and they were calling one
+ * number "Peer position" and "Peer comparison". Neither name told a first-time
+ * reader what they were about to be told; this one does, and there is now only
+ * one place to change it.
+ */
+export const PEER_RANK_LABEL = "Rank against similar organizations";
+
 export const COST_BAND_MEANING = Object.freeze({
   [COST_BAND.top]: "cheapest quarter of the cohort",
   [COST_BAND.middle]: "middle half of the cohort",

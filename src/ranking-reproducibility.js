@@ -186,9 +186,13 @@ function confidenceFor(successfulTasks) {
     // Rounded to one decimal for reading, from integers on both sides, so the
     // sentence a reader repeats is the same sentence on every run.
     multiple: Math.round(multiple * 10) / 10,
-    detail: `${CONFIDENCE_LABEL[tier]} · ${successfulTasks} successful tasks, `
-      + `${Math.round(multiple * 10) / 10}× the ${MINIMUM_RANKED_SUCCESSFUL_TASKS}-successful-task `
-      + "floor this rubric requires before it will publish a band.",
+    // What the tier means for repeating the claim, in the reader's own units:
+    // how much finished work it rests on, against the least this page will
+    // publish a ranking on at all.
+    detail: `${CONFIDENCE_LABEL[tier]} · based on ${successfulTasks} successful tasks, `
+      + `${Math.round(multiple * 10) / 10}× the ${MINIMUM_RANKED_SUCCESSFUL_TASKS} this page needs `
+      + "before it will publish a ranking at all. More finished work means one retried task cannot "
+      + "move which quarter you are in.",
   });
 }
 
@@ -205,17 +209,16 @@ function verificationFor(verifiedAt) {
     return Object.freeze({
       available: false,
       value: null,
-      detail: "This analysis published no window end, so no verification date is claimed. "
-        + "The date shown here is always an analysed window's own end, never the time this page "
-        + "was opened.",
+      detail: "This analysis published no window end, so no date is claimed. The date shown here "
+        + "is always the end of the period being analysed, never the time you opened this page.",
     });
   }
   return Object.freeze({
     available: true,
     value: verifiedAt.trim(),
-    detail: `Verified against the analysed window ending ${verifiedAt.trim()}. This date is `
-      + "outside the compared record on purpose: a value that moves with the clock would make "
-      + "every re-run look like a different result.",
+    detail: `Checked against spend up to ${verifiedAt.trim()}, the end of the period analysed. `
+      + "This date is deliberately left out of the repeat-check code: a value that moves with the "
+      + "clock would make every re-run look like a different result.",
   });
 }
 
@@ -284,16 +287,17 @@ export function evaluateRankingReproducibility({
 
   if (!filled(declared)) {
     return refused(REPRODUCIBILITY_REFUSED.missingRubricVersion,
-      "No ranking published: this cohort snapshot declares no rubric version, so there is no way "
-      + `to tell whether it was built for rubric ${RUBRIC_VERSION}. An unversioned snapshot is `
-      + "scored against nothing, not scored leniently.",
+      "No ranking is shown: this peer data does not say which version of the scoring rules it was "
+      + `built for, so there is no way to tell whether it matches the rules in use `
+      + `(${RUBRIC_VERSION}). Peer data with no version is scored against nothing, not scored `
+      + "leniently.",
       { rubric, verification });
   }
   if (declared !== RUBRIC_VERSION) {
     return refused(REPRODUCIBILITY_REFUSED.rubricVersionMismatch,
-      `No ranking published: cohort snapshot built for rubric ${declared} cannot be scored `
-      + `against rubric ${RUBRIC_VERSION}. The band boundaries and the metric they band are one `
-      + "versioned unit, so no band, percentile, or estimate is published on this path.",
+      `No ranking is shown: peer data built for scoring rules ${declared} cannot be scored against `
+      + `the rules in use (${RUBRIC_VERSION}). The boundaries and the metric they divide are one `
+      + "versioned set, so no quarter, percentile, or estimate is published on this path.",
       { rubric, verification });
   }
 
@@ -308,10 +312,11 @@ export function evaluateRankingReproducibility({
   }
   if (position.successfulTasks < MINIMUM_RANKED_SUCCESSFUL_TASKS) {
     return refused(REPRODUCIBILITY_REFUSED.insufficientSample,
-      `No ranking published: this window has ${position.successfulTasks} successful task`
-      + `${position.successfulTasks === 1 ? "" : "s"} and this rubric requires `
-      + `${MINIMUM_RANKED_SUCCESSFUL_TASKS} before it will publish a band. A wider band over the `
-      + "same thin sample would be the same claim with the evidence removed, so none is offered.",
+      `No ranking is shown: this period has ${position.successfulTasks} successful task`
+      + `${position.successfulTasks === 1 ? "" : "s"} and this page needs `
+      + `${MINIMUM_RANKED_SUCCESSFUL_TASKS} before it will say which quarter you are in. A vaguer `
+      + "ranking over the same thin sample would be the same claim with the evidence removed, so "
+      + "none is offered.",
       { rubric, verification });
   }
 

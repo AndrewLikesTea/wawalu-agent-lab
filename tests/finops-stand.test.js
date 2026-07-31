@@ -13,8 +13,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
-  STAND_DISCLOSURE, STAND_DISCLOSURE_ORDER, STAND_QUESTION, STAND_RESOLUTION,
-  STAND_RESOLUTION_ACTION, buildStandHeadline, composeStandHeadline, standHeadlineForImport,
+  STAND_DISCLOSURE, STAND_DISCLOSURE_ORDER, STAND_LOAD_FAILED, STAND_QUESTION, STAND_RESOLUTION,
+  STAND_RESOLUTION_ACTION, buildStandHeadline, composeStandHeadline, periodLabel,
+  standHeadlineForImport,
 } from "../src/finops-stand.js";
 import {
   EXAMPLE_ORG_COHORT_PROFILE, EXAMPLE_TASK_LEDGER, loadExampleDataset,
@@ -50,16 +51,33 @@ test("the position is never a bare rank: the metric and its band boundaries trav
   const position = resolveCostPosition({
     org: EXAMPLE_ORG_COHORT_PROFILE, spendUsd: analysis.spendUsd, tasks: EXAMPLE_TASK_LEDGER,
   });
-  // The band word and the metric it is a band ON, in the same line.
-  assert.match(headline.position.value, /^Bottom quartile · \$\d+\.\d{2} per successful task$/);
+  // Which quarter, in words that carry their own direction, and the metric it
+  // is a quarter OF, in the same line.
+  assert.match(headline.position.value, /^Most expensive quarter · \$\d+\.\d{2} per successful task$/);
   assert.ok(headline.position.value.includes(position.valueDisplay),
     "the headline value is the position module's own figure");
   // The basis carries the denominator: both quartile boundaries, the cohort it
   // was placed in, the direction, and how many successful tasks it divided by.
-  assert.match(headline.position.basis, /\$18\.40 and \$31\.50 per successful task/);
+  assert.match(headline.position.basis, /less than \$18\.40 and a quarter spends more than \$31\.50/);
   assert.match(headline.position.basis, /4,000 successful tasks/);
   assert.match(headline.position.basis, /Lower cost per successful task is better\./);
   assert.ok(headline.position.basis.includes(position.cohort.label));
+  // The published band name is still on the page for a reader who has to match
+  // this claim to another surface — under the plain words, not instead of them.
+  assert.ok(headline.position.basis.includes(position.bandLabel),
+    "the published band name is not reachable from the headline");
+});
+
+test("the claim states position, comparison set, and period in one repeatable sentence", () => {
+  const headline = buildStandHeadline();
+  // Everything a lead needs to repeat it verbatim, with nothing to expand: the
+  // period comes off the analysis rather than a clock or a literal.
+  assert.equal(periodLabel(analysis), "June 2026");
+  assert.match(headline.answer,
+    /^Your AI spend is in the most expensive quarter of organizations like yours, at \$38\.63 per successful task for June 2026\./);
+  // A window that is not one whole month is quoted rather than renamed.
+  assert.equal(periodLabel({ period: "2026-04-01 to 2026-07-01" }), "2026-04-01 to 2026-07-01");
+  assert.equal(periodLabel({}), null);
 });
 
 test("the recoverable figure sits in the headline beside the position, not in a card of its own", () => {
@@ -131,7 +149,7 @@ test("the disclosures carry the shipped cohort, anonymization, version and verif
   // Rubric and snapshot versions.
   const versions = flatten(find(STAND_DISCLOSURE.versions));
   assert.match(versions, /down-routing-candidate\/1\.0\.0/);
-  assert.match(versions, /Cohort snapshot: 2026-06-30/);
+  assert.match(versions, /Peer data published: 2026-06-30/);
   // Verification: the confidence score and the limit that keeps it below 1.00.
   const verification = flatten(find(STAND_DISCLOSURE.verification));
   assert.match(verification, /0\.85 of 1\.00/);
@@ -221,4 +239,22 @@ test("an unreadable input degrades to a withheld headline rather than throwing",
   // are exactly what is still useful when the figures are not.
   assert.equal(headline.disclosures.length, STAND_DISCLOSURE_ORDER.length);
   assert.ok(headline.withheld.nextStep.trim().length > 0);
+});
+
+test("a load failure reads as a load failure, not as a problem with the reader's data", () => {
+  const thrown = () => { throw new Error("the example could not be loaded"); };
+  const headline = buildStandHeadline(thrown, thrown);
+  assert.equal(headline.withheld.reasonCode, STAND_LOAD_FAILED);
+  // It names the cause and clears the reader of it, so nobody re-exports a file
+  // to fix a page that failed to read its own example.
+  assert.match(headline.withheld.missing, /could not be read in this browser/);
+  assert.match(headline.withheld.missing, /Nothing in your own data caused this/);
+  assert.equal(headline.withheld.nextStep, STAND_RESOLUTION[STAND_LOAD_FAILED]);
+  // And it is a different sentence from the one an ineligible export gets.
+  const ineligible = composeStandHeadline({
+    analysis, source: "example",
+    position: resolveCostPosition({ org: {}, spendUsd: 1000, tasks: EXAMPLE_TASK_LEDGER }),
+  });
+  assert.notEqual(headline.withheld.missing, ineligible.withheld.missing);
+  assert.notEqual(headline.withheld.nextStep, ineligible.withheld.nextStep);
 });

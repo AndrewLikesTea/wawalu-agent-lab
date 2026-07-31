@@ -304,7 +304,7 @@ for (const [name, overrides, code] of REFUSALS) {
   test(`${name} refuses the ranking claim in the rendered disclosure too`, () => {
     const result = bundled(overrides);
     const rendered = renderedDisclosure(result, STAND_DISCLOSURE.reproducibility);
-    assert.ok(rendered.terms.includes("Ranking withheld"),
+    assert.ok(rendered.terms.includes("Why no ranking is shown"),
       `the reproducibility disclosure did not name the withheld ranking for ${name}`);
     assert.ok(rendered.text.includes(result.reason),
       `the rendered disclosure did not carry the refusal reason for ${name}`);
@@ -325,8 +325,8 @@ for (const [name, overrides, code] of REFUSALS) {
 test("the disclosure surfaces rubric version, snapshot date, confidence, and verification", () => {
   const result = bundled();
   const rendered = renderedDisclosure(result, STAND_DISCLOSURE.reproducibility);
-  for (const term of ["Rubric version", "Cohort snapshot date", "Confidence", "Last verification",
-    "Reproducibility fingerprint"]) {
+  for (const term of ["Scoring rules", "Peer data published", "Confidence in this ranking",
+    "Last verified", "Repeat-check code"]) {
     assert.ok(rendered.terms.includes(term),
       `the reproducibility disclosure does not surface "${term}"`);
   }
@@ -357,8 +357,8 @@ test("an unavailable verification date is shown as its reason, never blank or ze
   const result = bundled({ verifiedAt: null });
   assert.equal(result.verification.available, false);
   const rendered = renderedDisclosure(result, STAND_DISCLOSURE.reproducibility);
-  assert.ok(rendered.text.includes("no verification date is claimed"));
-  assert.ok(!/Last verification\s*(0|—|-)?\s*$/.test(rendered.text));
+  assert.ok(rendered.text.includes("no date is claimed"));
+  assert.ok(!/Last verified\s*(0|—|-)?\s*$/.test(rendered.text));
 });
 
 // ---------------------------------------------------------------------------
