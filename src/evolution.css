@@ -1068,6 +1068,31 @@
    produce. */
 .stand[data-state="pending"],.stand[data-state="partial"] { border-left-style:dashed; }
 .stand[data-state="partial"] { border-left-color:var(--state-warn-line); }
+/* THE ANSWER BLOCK. Four rows in one column at every width, so there is no
+   breakpoint at which the figure sits beside anything and no width at which the
+   block scrolls sideways. The figure is `clamp`ed on the large end for a
+   projector and wraps rather than truncates on the small one — no ellipsis, no
+   fixed width, no `white-space:nowrap` anywhere in this block. Nothing here is
+   revealed on hover: every one of the four is on screen in every state. */
+.answer-block { display:grid; gap:10px; margin:0 0 4px; }
+.answer-question { max-width:26ch; margin:0; font-size:clamp(24px,3.6vw,34px); font-weight:750; line-height:1.14; letter-spacing:-.01em; overflow-wrap:anywhere; }
+/* ONE ANNOUNCEMENT. The label, the number with its unit, and the as-of basis
+   are one paragraph, so a screen reader speaks them together rather than as
+   three fragments a reader has to reassemble. */
+.answer-figure { display:grid; gap:4px; margin:0; overflow-wrap:anywhere; }
+.answer-figure-label { color:var(--muted); font-size:13px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; }
+.answer-figure-value { color:var(--ink); font-size:clamp(38px,7vw,68px); font-weight:800; line-height:1.05; }
+.answer-block[data-available="false"] .answer-figure-value { color:var(--state-warn-ink); font-size:clamp(20px,3vw,26px); }
+.answer-figure-basis { color:var(--muted); font-size:14px; font-weight:600; }
+.answer-confidence { max-width:62ch; margin:0; color:var(--ink); font-size:15px; line-height:1.5; overflow-wrap:anywhere; }
+.answer-action { justify-self:start; border:1px solid var(--import-accent); border-radius:9px; padding:11px 18px; background:var(--import-accent); color:#fff; font-size:15px; font-weight:700; text-decoration:none; overflow-wrap:anywhere; }
+.answer-action:hover { background:var(--import-ink); border-color:var(--import-ink); }
+.answer-action:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+/* The four named entry points. Wrapping inline links, in source order, so the
+   keyboard order and the visual order are one order at every width. */
+.answer-doors { display:flex; flex-wrap:wrap; gap:8px 14px; margin:0 0 4px; }
+.answer-door { color:var(--import-ink); font-size:14px; font-weight:650; overflow-wrap:anywhere; }
+.answer-door:focus-visible { outline:3px solid var(--focus-ring); outline-offset:2px; }
 .stand-head { display:grid; gap:6px; }
 .stand-head .eyebrow { margin:0; }
 /* `overflow-wrap` on all three, because the extremes that actually arrive here

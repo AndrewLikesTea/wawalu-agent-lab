@@ -16,6 +16,10 @@ import {
   STAND_RESOLUTION_ACTION, STAND_SAMPLE_MARKER,
 } from "./finops-stand.js";
 import { applyFinopsSpine } from "./finops-spine.js";
+// The screen contract, executable. Every string in the answer block and every
+// door name beside it comes from here rather than from this file, so
+// docs/executive-answer-screen-contract.md and the page cannot drift.
+import { SCREEN_CONTRACT, answerBlock } from "./finops-screen-contract.js";
 // The page's one announcer. Every answer change on /evolution.html is announced
 // from here, in one sentence, because it used to be announced from nine regions
 // at once and a reader heard a queue instead of an answer.
@@ -37,6 +41,68 @@ export function standDisclosureIds(key) {
 }
 
 const byId = (doc, id) => (doc?.getElementById ? doc.getElementById(id) : null);
+
+/** The ids the answer block owns. Authored in evolution.html, written only here. */
+export const ANSWER_BLOCK_IDS = Object.freeze({
+  block: "finops-answer",
+  question: "finops-answer-question",
+  figure: "finops-answer-figure",
+  label: "finops-answer-label",
+  value: "finops-answer-value",
+  basis: "finops-answer-basis",
+  confidence: "finops-answer-confidence",
+  action: "finops-answer-action",
+  doors: "finops-answer-doors",
+});
+
+/**
+ * The four named entry points, from the contract, in the contract's order.
+ * Painted rather than authored so a door's name and the contract's name are one
+ * string. Anchors in source order with no `tabindex`: the keyboard order is the
+ * visual order because it is the DOM order. The accessible name is the name plus
+ * the question, because "Evidence" alone says nothing about what is behind it.
+ */
+export function applyAnswerDoors(doc) {
+  const host = byId(doc, ANSWER_BLOCK_IDS.doors);
+  if (!host) return null;
+  const nodes = [];
+  for (const entry of SCREEN_CONTRACT) {
+    const link = doc.createElement("a");
+    link.className = "answer-door";
+    link.setAttribute("href", entry.target);
+    link.dataset.screenDestination = entry.key;
+    link.textContent = `${entry.name} — ${entry.question}`;
+    nodes.push(link);
+  }
+  host.replaceChildren(...nodes);
+  return host;
+}
+
+/**
+ * The answer block: one question, one figure, one confidence sentence, one
+ * action. Everything it prints comes off `answerBlock()`, which computes nothing
+ * — it reads the headline's own gradability verdict. The state goes on the block
+ * as an attribute so a stylesheet, a printed page, and a test read one channel.
+ */
+export function applyAnswerBlock(doc, headline) {
+  const block = byId(doc, ANSWER_BLOCK_IDS.block);
+  if (!block || !headline) return null;
+  const model = answerBlock(headline);
+  block.dataset.state = model.state;
+  block.dataset.available = String(model.available);
+  setText(doc, ANSWER_BLOCK_IDS.question, model.question);
+  setText(doc, ANSWER_BLOCK_IDS.label, model.metricLabel);
+  setText(doc, ANSWER_BLOCK_IDS.value, model.figure);
+  setText(doc, ANSWER_BLOCK_IDS.basis, model.basis);
+  setText(doc, ANSWER_BLOCK_IDS.confidence, model.confidence);
+  const action = byId(doc, ANSWER_BLOCK_IDS.action);
+  if (action) {
+    action.textContent = model.action.label;
+    action.setAttribute("href", model.action.href);
+  }
+  applyAnswerDoors(doc);
+  return block;
+}
 
 /**
  * Reveal the blocks a region withholds until it has figures to put in them.
@@ -209,6 +275,9 @@ export function paintStandDisclosureState(doc, key) {
  * later, on the ordinary path.
  */
 export function mountStandDisclosures(doc) {
+  // The four named entry points come up with the region, not with the first
+  // figure: they are wayfinding, and they are true before anything is read.
+  applyAnswerDoors(doc);
   return STAND_MOUNTED_DISCLOSURES.map((key) => ensureStandDisclosure(doc, key)).filter(Boolean);
 }
 
@@ -293,6 +362,11 @@ export function applyStandHeadline(doc, headline) {
   // are painted below; this is the same state in the channel a stylesheet, a
   // printed page, and a test can all read.
   region.dataset.evidenceClass = headline.entitlement?.evidenceClass ?? "none";
+
+  // THE ANSWER BLOCK FIRST, because it is what a reader meets first. It shares
+  // this region's paint rather than owning a second one: one paint means the
+  // block and the figures under it can never be as of two different datasets.
+  applyAnswerBlock(doc, headline);
 
   setText(doc, STAND_IDS.label, headline.label ?? "");
   setText(doc, STAND_IDS.question, headline.question ?? "");

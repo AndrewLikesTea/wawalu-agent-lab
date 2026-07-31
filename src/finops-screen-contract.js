@@ -1,0 +1,204 @@
+// The screen contract for /evolution.html, executable.
+//
+// The prose is docs/executive-answer-screen-contract.md; this is the copy the
+// page renders, so the document and the screen cannot say different things.
+// Four destinations, one question each, one metric each.
+//
+// THE HEADLINE METRIC — stand-behind share. Numerator `summarize(scored)
+// .spendUsd`, where a department is scored exactly when `departmentPerformance
+// (d).available`; denominator `summarize(population).spendUsd` over the same
+// analysed set; no filter; ratio raw in [0,1], null (never zero) with no
+// denominator; rendered `formatPercent(ratio, {digits:1})`, the call the score
+// card's coverage line already makes. §1 of the document is the long form.
+//
+// NOTHING IS RECOMPUTED HERE. Every value comes off the composed headline's
+// `gradability` verdict — `gradeExport()` over `gradeEligibility()`. This module
+// divides nothing and reads no dataset, no storage, and no network.
+//
+// The grade threshold is a PUBLICATION GATE, not a numerator filter: there is no
+// per-dollar grade to filter by, and the threshold on this page is itself a
+// coverage threshold, so the figure is published in `graded` and `provisional`
+// and withheld — not printed small — in `below_bar` and `no_baseline`. §5 of the
+// document says why at length, and says it is a departure from the brief.
+
+import { formatPercent, formatUsd } from "./evolution.js";
+import { COVERAGE_TIERS } from "./grade-eligibility.js";
+import { GRADABILITY_STATE } from "./export-gradability.js";
+
+/** Bump when a question, a metric, or a computation below changes meaning. */
+export const SCREEN_CONTRACT_VERSION = "finops-screen-contract/1.0.0";
+
+/** The prose this file is the executable form of. Named so a reader can find it. */
+export const SCREEN_CONTRACT_DOC = "docs/executive-answer-screen-contract.md";
+
+/**
+ * The four destinations, in reading order. `shellDestination` is the key the
+ * working-area control already uses: it says "department" where a leader says
+ * "departments", and renaming it would move a fragment already in address bars.
+ */
+export const SCREEN_CONTRACT = Object.freeze([
+  Object.freeze({
+    key: "answer",
+    shellDestination: "answer",
+    name: "The answer",
+    question: "Is our AI spend classification trustworthy enough to act on?",
+    metricLabel: "Spend we can stand behind",
+    metricUnit: "% of spend in scope",
+    target: "#finops-answer",
+    excludes: "The peer rank band, the recoverable-dollar figure, the letter grade itself, "
+      + "the classifier-agreement rate, and every trend.",
+  }),
+  Object.freeze({
+    key: "evidence",
+    shellDestination: "evidence",
+    name: "Evidence",
+    question: "What was this computed from?",
+    metricLabel: "Sampled-query coverage of the scored sample",
+    metricUnit: "% of spend in scope",
+    target: "#recommendation-evidence",
+    excludes: "Any recommendation, any dollar projection, and any claim about what follows.",
+  }),
+  Object.freeze({
+    key: "departments",
+    shellDestination: "department",
+    name: "Departments",
+    question: "Where is the problem concentrated?",
+    metricLabel: "Unscored spend per department",
+    metricUnit: "USD, ranked descending",
+    target: "#department-decision-panel",
+    excludes: "Per-department letter grades, which no unscored department has, "
+      + "and headcount-normalised spend.",
+  }),
+  Object.freeze({
+    key: "act-and-verify",
+    shellDestination: "act-and-verify",
+    name: "Act and verify",
+    question: "What do I do next, and how will I know it worked?",
+    metricLabel: "Monthly savings committed against monthly savings verified",
+    metricUnit: "USD",
+    target: "/savings-action-center.html",
+    excludes: "Modelled ceilings. A routing scenario is not a realized saving.",
+  }),
+]);
+
+/** One destination by key, or null. Never throws on an unknown key. */
+export function destination(key) {
+  return SCREEN_CONTRACT.find((entry) => entry.key === key) ?? null;
+}
+
+/** The answer destination, which is the one the block below is built from. */
+export const ANSWER_DESTINATION = destination("answer");
+
+/** The states in which the percentage may be printed at all. */
+const PUBLISHED_STATES = Object.freeze([
+  GRADABILITY_STATE.graded, GRADABILITY_STATE.provisional,
+]);
+
+/** The published rule for a coverage tier, so the bar ships beside the figure. */
+const tierRule = (tier) => COVERAGE_TIERS.find((entry) => entry.tier === tier)?.rule ?? null;
+
+/** What the block says instead of a figure, per withholding state. */
+const WITHHELD_FIGURE = Object.freeze({
+  [GRADABILITY_STATE.belowBar]: "Not enough scored to stand behind",
+  [GRADABILITY_STATE.noBaseline]: "No spend baseline",
+});
+
+/**
+ * The one action, and where it is taken.
+ *
+ * Priority when more than one is arguably first: THE LARGEST CORRECTABLE
+ * RESIDUE — the unscored department holding the most unscored spend, ties broken
+ * lexicographically. That ranking is not recomputed here; it is `topCluster()`
+ * in export-gradability.js, already carried as `action.cluster`, so this block
+ * cannot name a different department from the one the verdict named. The two
+ * states with no residue to rank are handled ahead of it.
+ */
+function nextAction(gradability) {
+  const state = gradability?.state ?? null;
+  if (state === GRADABILITY_STATE.noBaseline) {
+    return Object.freeze({
+      label: "Import billing data so coverage has a denominator",
+      href: "#local-import",
+      destinationKey: null,
+    });
+  }
+  if (state === GRADABILITY_STATE.graded) {
+    const act = destination("act-and-verify");
+    return Object.freeze({
+      label: `Record and verify a savings commitment — go to ${act.name}`,
+      href: act.target,
+      destinationKey: act.key,
+    });
+  }
+  const cluster = gradability?.action?.cluster ?? null;
+  const departments = destination("departments");
+  return Object.freeze({
+    label: cluster
+      ? `Widen the scored sample for ${cluster} — go to ${departments.name}`
+      : `Review which departments were scored — go to ${departments.name}`,
+    href: departments.target,
+    destinationKey: departments.key,
+  });
+}
+
+/**
+ * Coverage, grade, residue, and what it is all as of — in that order, naming
+ * only inputs that entered the computation. Classifier agreement is deliberately
+ * absent: it scores `classifyQuery` against a hand-labelled corpus and is not an
+ * input to this figure, so naming it would claim a link that does not exist.
+ */
+function confidenceSentence(gradability, basis) {
+  const covered = Number(gradability?.coveredUsd);
+  const total = Number(gradability?.totalUsd);
+  const parts = [Number.isFinite(total) && total > 0
+    ? `Coverage: ${formatUsd(covered)} of ${formatUsd(total)} of spend in scope sits in `
+      + "departments the rubric scored."
+    : "Coverage: this analysis published no spend total, so there is nothing to measure "
+      + "coverage against."];
+  const rule = tierRule(gradability?.tier);
+  if (rule) parts.push(`Grade: ${gradability.tier} coverage tier — ${rule}`);
+  const residue = Number.isFinite(total) && Number.isFinite(covered) && total > covered
+    ? total - covered : 0;
+  const cluster = gradability?.action?.cluster ?? null;
+  parts.push(residue > 0
+    ? `Residue: ${formatUsd(residue)} of that spend has no scored query`
+      + (cluster ? `, the largest single block of it in ${cluster}.` : ".")
+    : "Residue: none — every department in scope carries a scored query.");
+  parts.push(`All of it as of ${basis}.`);
+  return parts.join(" ");
+}
+
+/** The dataset and period a figure is as of, as one phrase. Never a clock. */
+export function asOfBasis(headline) {
+  const label = String(headline?.label ?? "").trim() || "the current dataset";
+  const period = String(headline?.period ?? "").trim();
+  return period ? `${label} · ${period}` : label;
+}
+
+/**
+ * The whole answer block from a composed stand headline: four values and nothing
+ * else. `figure` is a string in every state — the withheld states say which
+ * state they are in rather than printing a percentage nobody should act on.
+ */
+export function answerBlock(headline) {
+  const gradability = headline?.gradability ?? null;
+  const basis = asOfBasis(headline);
+  const state = gradability?.state ?? null;
+  const ratio = typeof gradability?.coverage === "number" ? gradability.coverage : null;
+  const published = ratio !== null && PUBLISHED_STATES.includes(state);
+  return Object.freeze({
+    version: SCREEN_CONTRACT_VERSION,
+    question: ANSWER_DESTINATION.question,
+    metricLabel: ANSWER_DESTINATION.metricLabel,
+    /** Raw, unrounded, for a caller that wants to check the arithmetic. */
+    ratio: published ? ratio : null,
+    available: published,
+    state: state ?? "unavailable",
+    figure: published
+      ? `${formatPercent(ratio, { digits: 1 })} of spend in scope`
+      : WITHHELD_FIGURE[state] ?? "Not computed yet",
+    basis: `as of ${basis}`,
+    confidence: confidenceSentence(gradability, basis),
+    action: nextAction(gradability),
+  });
+}
