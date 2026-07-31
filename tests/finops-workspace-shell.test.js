@@ -23,9 +23,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-import { loadPage, parseHtml, textOf } from "./support/browser.js";
+import { loadPage, parseHtml, tabSequence, textOf } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 import { loadWorkspaceDestinations } from "../src/finops-destination-contract.js";
+import { SCREEN_CONTRACT } from "../src/finops-screen-contract.js";
 import { WORKSPACE_DESTINATION } from "../src/finops-workspace-nav.js";
 import {
   CONTEXT_TERMS, DESTINATION_FRAGMENT, SHELL_STATE_LABEL, WORKSPACE_SHELL_IDS,
@@ -35,6 +36,8 @@ import {
 
 const PAGE = new URL("../src/evolution.html", import.meta.url);
 const html = await readFile(PAGE, "utf8");
+const cssText = await readFile(new URL("../src/evolution.css", import.meta.url), "utf8");
+const sharedCss = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
 const loaded = loadWorkspaceDestinations();
 const KEYS = Object.values(WORKSPACE_DESTINATION);
 
@@ -234,6 +237,175 @@ test("the shell says nothing on load and nothing for a rail door", async () => {
   assert.deepEqual([...activeKeys(document)], [WORKSPACE_DESTINATION.department],
     "a rail door no longer switches the destination it points into");
   assert.equal(textOf(byId(document, WORKSPACE_SHELL_IDS.live)), "");
+});
+
+/* ------------------------- the keyboard and the voice ---------------------- */
+
+// #822. A switch that only repaints is one a sighted reader has already used and
+// everyone else is still hunting for. Four things are held here, and each one is
+// a way the switch could look correct and be unusable off a mouse.
+
+test("a destination change lands the keyboard on the new screen's heading, and says where", async () => {
+  const { document } = await shelled();
+  const heading = byId(document, WORKSPACE_SHELL_IDS.screenTitle);
+  const contract = SCREEN_CONTRACT.find((entry) => entry.shellDestination
+    === WORKSPACE_DESTINATION.department);
+
+  doorFor(document, WORKSPACE_DESTINATION.department).click();
+
+  // Not `<body>`, not the top of the document, not the control that was pressed:
+  // the heading of the screen that is now on.
+  assert.equal(document.activeElement, heading,
+    `the change left focus on ${document.activeElement?.id || document.activeElement?.tagName
+      || "nothing"}`);
+  assert.equal(textOf(heading), contract.name);
+  assert.equal(textOf(byId(document, WORKSPACE_SHELL_IDS.screenQuestion)), contract.question);
+  assert.equal(byId(document, WORKSPACE_SHELL_IDS.screen).dataset.destination,
+    WORKSPACE_DESTINATION.department);
+
+  // A heading is not a tab stop. Focus was moved there; it was not inserted into
+  // the sequence for everyone to Tab past on every pass.
+  assert.equal(heading.getAttribute("tabindex"), "-1");
+  assert.ok(!tabSequence(document).includes(heading));
+
+  // The live region carries the destination NAME and the question that screen
+  // answers — not a bare "changed", and not a sentence assembled at announce
+  // time in a container that did not exist a moment ago.
+  const live = byId(document, WORKSPACE_SHELL_IDS.live);
+  assert.equal(live.getAttribute("aria-live"), "polite");
+  assert.ok(textOf(live).includes(contract.name), `the destination is not named: "${textOf(live)}"`);
+  assert.ok(textOf(live).includes(contract.question),
+    `the question this screen answers is not announced: "${textOf(live)}"`);
+});
+
+test("the live region and the heading are in the shipped document before anything changes", () => {
+  // A live region created at announce time is one a screen reader was never
+  // watching, and a heading created when data resolves is a focus target that is
+  // not there on the slow load it exists for. Both are asserted against the
+  // authored markup, with no script having run.
+  const document = parseHtml(html);
+  const live = byId(document, WORKSPACE_SHELL_IDS.live);
+  assert.equal(live.getAttribute("aria-live"), "polite");
+  assert.equal(textOf(live), "", "the region ships with a sentence nobody asked for");
+  const heading = byId(document, WORKSPACE_SHELL_IDS.screenTitle);
+  assert.equal(heading.getAttribute("tabindex"), "-1");
+  assert.equal(heading.getAttribute("aria-describedby"), WORKSPACE_SHELL_IDS.screenQuestion);
+  assert.ok(textOf(heading).length > 0, "the authored focus target announces as blank");
+});
+
+test("focus is never left on a control the switch has just unrendered", async () => {
+  const { document } = await shelled(DESTINATION_FRAGMENT[WORKSPACE_DESTINATION.evidence]);
+  // A reader standing inside the outgoing screen — the shape of this is a retry
+  // button, a disclosure summary, any control in a region about to go.
+  const standing = byId(document, "destination-retry-evidence");
+  assert.equal(standing.closest("[data-workspace-region]").dataset.workspaceRegion,
+    WORKSPACE_DESTINATION.evidence);
+  standing.focus();
+
+  applyWorkspaceDestination(document, WORKSPACE_DESTINATION.department);
+
+  assert.equal(document.activeElement, byId(document, WORKSPACE_SHELL_IDS.screenTitle),
+    "focus was left inside a region that is no longer rendered");
+  assert.notEqual(document.activeElement, document.body);
+});
+
+test("the heading names the destination in the loading, empty and errored states alike", async () => {
+  // The heading is painted from the screen contract, which is authored copy —
+  // not from a destination's dataset, which may be in flight, empty, or failed.
+  // So it is asserted with no module loaded at all: the loader below never
+  // resolves, which is exactly the slow load a focus target has to survive.
+  const stalled = {
+    stateOf: () => "loading", value: () => null, readyKeys: () => [], seed: () => {},
+    load: () => new Promise(() => {}),
+  };
+  const document = parseHtml(html);
+  for (const key of KEYS) {
+    applyWorkspaceDestination(document, key, { announce: true, loader: stalled });
+    const contract = SCREEN_CONTRACT.find((entry) => entry.shellDestination === key);
+    const spoken = textOf(byId(document, WORKSPACE_SHELL_IDS.screenTitle));
+    assert.equal(spoken, contract.name, `${key} announces "${spoken}" while it is still loading`);
+    assert.doesNotMatch(spoken, /undefined|null|^\s*$/);
+    assert.ok(textOf(byId(document, WORKSPACE_SHELL_IDS.live)).includes(contract.question),
+      `${key} announced no question while its module was in flight`);
+  }
+  // And the region that reports the wait is on screen, not a blank pane.
+  assert.equal(byId(document, "destination-load-act-and-verify").hidden, false);
+});
+
+test("a forwarded link onto a non-default screen arrives with focus and a sentence", async () => {
+  const { document } = await shelled(DESTINATION_FRAGMENT[WORKSPACE_DESTINATION.actAndVerify]);
+  assert.equal(document.activeElement, byId(document, WORKSPACE_SHELL_IDS.screenTitle),
+    "a link forwarded into a screen opened it and left the keyboard at the document top");
+  assert.ok(textOf(byId(document, WORKSPACE_SHELL_IDS.live)).includes("Act and verify"));
+
+  // An ordinary cold open is still silent and still moves nothing: the reader
+  // did not ask to be anywhere but the top of the page they typed in.
+  const { document: cold } = await shelled();
+  assert.equal(cold.activeElement, null);
+  assert.equal(textOf(byId(cold, WORKSPACE_SHELL_IDS.live)), "");
+});
+
+test("the open destination is told apart by more than a hue, and every door takes a ring", () => {
+  const css = cssText;
+  const rule = (selector) => {
+    const found = css.match(new RegExp(
+      `^${selector.replace(/[.*+?^${}()|[\]\\]/g, (ch) => `\\${ch}`)} \\{([^}]*)\\}`, "m"));
+    assert.ok(found, `evolution.css does not style ${selector}`);
+    return found[1];
+  };
+  const luminance = (hex) => {
+    const channels = (hex.length === 4
+      ? [...hex.slice(1)].map((digit) => parseInt(digit + digit, 16))
+      : [1, 3, 5].map((start) => parseInt(hex.slice(start, start + 2), 16))).map((v) => v / 255);
+    const [r, g, b] = channels.map((c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const ratio = (a, b) => {
+    const [light, dark] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+    return (light + 0.05) / (dark + 0.05);
+  };
+  const token = (name) => {
+    const found = css.match(new RegExp(`--${name}:\\s*(#[0-9a-f]{3,8})`, "i"));
+    assert.ok(found, `evolution.css declares no --${name}`);
+    return found[1];
+  };
+
+  // Weight, a second border, and a rule under the word — three channels beside
+  // the word "Showing" in the markup and `aria-current` in the tree. Take the
+  // hue away and the open destination is still the one that is obviously open.
+  const current = rule('.workspace-switch-door[data-shell-current="true"]');
+  assert.match(current, /font-weight:\s*800/);
+  assert.match(current, /text-decoration:\s*underline/);
+  assert.match(current, /border-width:\s*2px/);
+  // And no rule scopes the ring away from the selected door: it is declared on
+  // the door, not on the unselected door.
+  assert.match(rule(".workspace-switch-door:focus-visible"),
+    /outline:\s*3px solid var\(--focus-ring\)/);
+  assert.match(rule(".workspace-screen-title:focus-visible"),
+    /outline:\s*3px solid var\(--focus-ring\)/);
+  // A 44px target, the size the rail's own doors already ship.
+  assert.match(rule(".workspace-switch-door"), /min-height:\s*44px/);
+  // Four doors on a 320px column wrap and shrink rather than push sideways.
+  assert.match(rule(".workspace-switch-list"), /flex-wrap:\s*wrap/);
+  for (const property of [/min-width:\s*0/, /overflow-wrap:\s*anywhere/]) {
+    assert.match(rule(".workspace-switch-door"), property);
+  }
+
+  // Both states, against the surface each one actually sits on. The ring token
+  // is declared on the shared sheet, so it is resolved from there.
+  const ring = sharedCss.match(/--focus-ring:\s*(#[0-9a-f]{3,8})/i)?.[1];
+  assert.ok(ring, "styles.css declares no --focus-ring");
+  for (const [what, foreground, background, floor] of [
+    ["unselected door", "#22221f", "#fff", 4.5],
+    ["selected door", "#22221f", "#fff", 4.5],
+    ["the Showing chip", token("import-ink"), token("import-wash"), 4.5],
+    ["the screen question", token("ink-muted"), "#fff", 4.5],
+    ["the focus ring", ring, "#fff", 3],
+  ]) {
+    const measured = ratio(foreground, background);
+    assert.ok(measured >= floor,
+      `${what}: ${foreground} on ${background} is ${measured.toFixed(2)}:1, under ${floor}:1`);
+  }
 });
 
 /* --------------------------- the carried figures --------------------------- */

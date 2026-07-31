@@ -42,12 +42,28 @@
 // reader on content the URL no longer describes. Nothing is intercepted, nothing
 // is pushed behind the browser's back, and no route is claimed on the origin.
 //
+// AND THE KEYBOARD GOES WITH IT. A switch that only repaints is a switch a
+// sighted reader has already used and everyone else is still looking for: focus
+// stayed wherever it was, which after a swap is frequently a control that is no
+// longer rendered. So every change the reader made — a door here, a step back, a
+// forwarded link onto a screen other than the answer — settles focus on the
+// screen's own heading BEFORE the outgoing screen is taken down, and writes the
+// destination and the question it answers into a live region that was already in
+// the document. The heading is authored markup rather than a node a resolved
+// dataset creates, so it is there to receive focus while a screen is loading,
+// when it has nothing to draw, and when its module never arrived.
+//
 // UNKNOWN FRAGMENTS CHANGE NOTHING. A fragment this page does not own and cannot
 // resolve to a panel leaves the selected destination exactly as it was. A shared
 // link with a stale or invented hash is a link to this page, not an instruction
 // to empty it.
 
 import { DEFAULT_DESTINATION, WORKSPACE_DESTINATION } from "./finops-workspace-nav.js";
+// The question each screen answers, from the module the answer block is already
+// composed from. Named here rather than re-worded: a destination that announced
+// a different question from the one its screen contract publishes would be a
+// second source of truth for the same sentence.
+import { SCREEN_CONTRACT } from "./finops-screen-contract.js";
 import { DESTINATION_LOAD_STATE, createDestinationLoader } from "./finops-destination-loader.js";
 // The page's one status vocabulary. Reused, never extended: a destination that
 // is still fetching its module is a panel in a state this module already draws.
@@ -58,9 +74,24 @@ export const WORKSPACE_SHELL_IDS = Object.freeze({
   switch: "finops-workspace-switch",
   switchList: "finops-workspace-switch-list",
   live: "finops-workspace-switch-live",
+  screen: "finops-workspace-screen",
+  screenTitle: "finops-workspace-screen-title",
+  screenQuestion: "finops-workspace-screen-question",
   context: "finops-workspace-context",
   contextList: "finops-workspace-context-list",
 });
+
+/**
+ * The screen contract entry behind each shell destination.
+ *
+ * Keyed by `shellDestination` rather than by the contract's own `key`, because
+ * the two disagree on one destination on purpose: the contract says
+ * "departments" where the fragment already in readers' address bars says
+ * "department", and renaming either would break a saved link or a published
+ * question.
+ */
+const SCREEN_BY_DESTINATION = Object.freeze(Object.fromEntries(
+  SCREEN_CONTRACT.map((entry) => [entry.shellDestination, entry])));
 
 /**
  * The fragment each destination owns.
@@ -338,10 +369,29 @@ const doorName = (door) => String(door?.dataset?.shellName ?? "").trim()
  * true at once, and the print rules read the shell's attribute so a printed page
  * is still the whole page.
  */
-export function applyWorkspaceDestination(doc, key, { announce = false, loader = destinationLoader } = {}) {
+export function applyWorkspaceDestination(doc, key, {
+  announce = false, focus = null, loader = destinationLoader,
+} = {}) {
   if (!isDestination(key)) return null;
   const regions = workspaceRegions(doc);
   if (regions.length === 0) return null;
+
+  // BEFORE ANYTHING IS TORN DOWN. Two reasons focus is settled first rather than
+  // after the swap. One: a reader standing on a control inside the outgoing
+  // screen is holding a node this call is about to take out of the layout, and a
+  // browser answers that by dropping focus to `<body>` — the next Tab then
+  // restarts at the top of a fifteen-hundred-line document. Two: the heading is
+  // repainted before it takes the keyboard, so what a screen reader announces on
+  // arrival is the screen being opened and not the one being left.
+  //
+  // `focus` defaults to `announce` because the two describe the same event: a
+  // destination the reader chose. A rail door or a deep link passes neither —
+  // those hand focus to the panel the fragment names, and a shell that also
+  // grabbed it would be the second of two owners fighting over one press.
+  const heading = paintWorkspaceScreen(doc, key);
+  if (heading && ((focus ?? announce) || focusStrandedBy(doc, key))) {
+    heading.focus?.({ preventScroll: true });
+  }
 
   let shown = 0;
   for (const region of regions) {
@@ -388,9 +438,51 @@ function announceDestination(doc, key, shown) {
   if (!live) return null;
   const door = switchDoors(doc).find((entry) => entry.dataset.shellDestination === key);
   const name = doorName(door) || key;
+  // The question is last rather than first because the sentence before it is the
+  // one a reader who pressed on purpose needs; the question is the confirmation
+  // that they landed where they meant to. It is composed from the contract, not
+  // from the screen, so it says the same thing while the screen is still loading,
+  // when it has nothing to draw, and when its module failed to arrive.
+  const question = SCREEN_BY_DESTINATION[key]?.question ?? "";
   live.textContent = `Showing ${name}. ${shown === 1 ? "1 panel" : `${shown} panels`}.`
-    + (key === DEFAULT_DESTINATION ? "" : " The answer stays above it.");
+    + (key === DEFAULT_DESTINATION ? "" : " The answer stays above it.")
+    + (question ? ` It answers: ${question}` : "");
   return live;
+}
+
+/**
+ * Name the screen now on, and hand back the heading focus is moved to.
+ *
+ * The name and the question are the screen contract's own, so this cannot drift
+ * from what the answer block publishes. It never leaves the heading blank: a
+ * destination with no contract entry falls back to the word on its own door, and
+ * a focus target that announces as nothing is a focus target a reader cannot
+ * locate themselves from.
+ */
+export function paintWorkspaceScreen(doc, key) {
+  const screen = byId(doc, WORKSPACE_SHELL_IDS.screen);
+  const title = byId(doc, WORKSPACE_SHELL_IDS.screenTitle);
+  const question = byId(doc, WORKSPACE_SHELL_IDS.screenQuestion);
+  if (!screen || !title || !question) return null;
+  const entry = SCREEN_BY_DESTINATION[key] ?? null;
+  screen.dataset.destination = key;
+  title.textContent = entry?.name || destinationName(doc, key);
+  question.textContent = entry?.question ?? "";
+  question.hidden = !entry?.question;
+  return title;
+}
+
+/**
+ * Whether the keyboard is standing in a region this switch is about to unrender.
+ *
+ * Asked of the live document rather than tracked in a variable: focus moves for
+ * reasons this module never sees — a reader clicked, a disclosure handler moved
+ * it, a browser restored it on back — and the only reading that is true at the
+ * moment of the swap is the one taken at the moment of the swap.
+ */
+function focusStrandedBy(doc, key) {
+  const region = doc?.activeElement?.closest?.("[data-workspace-region]") ?? null;
+  return Boolean(region) && region.dataset.workspaceRegion !== key;
 }
 
 /**
@@ -470,11 +562,11 @@ export function initWorkspaceShell(doc, { win = null, loaded = null, loader = de
   if (loaded) loader.seed(WORKSPACE_DESTINATION.actAndVerify, loaded);
   paintWorkspaceContext(doc, loaded);
 
-  const select = (hash, { announce }) => {
+  const select = (hash, { announce, focus = null }) => {
     const key = destinationForFragment(doc, hash);
     // Unknown fragment: the reader stays exactly where they were.
     if (!key) return null;
-    return applyWorkspaceDestination(doc, key, { announce, loader });
+    return applyWorkspaceDestination(doc, key, { announce, focus, loader });
   };
 
   // The retry, on the region that failed. It re-invokes the import rather than
@@ -504,8 +596,16 @@ export function initWorkspaceShell(doc, { win = null, loaded = null, loader = de
   win?.addEventListener?.("hashchange", onHashChange);
   win?.addEventListener?.("popstate", onHashChange);
 
-  const opened = select(win?.location?.hash ?? "", { announce: false })
-    ?? applyWorkspaceDestination(doc, DEFAULT_DESTINATION, { announce: false });
+  // A FORWARDED LINK IS A DESTINATION CHANGE the reader did not make on this
+  // page, so it gets the same treatment as one they did: the keyboard on the
+  // screen's heading and one polite sentence naming it. Only for a fragment this
+  // shell owns and only when it is not the default — an ordinary cold open still
+  // says nothing and moves nothing, and a deep link into a named panel is still
+  // the deep-link handler's to focus.
+  const hash = win?.location?.hash ?? "";
+  const forwarded = ownsFragment(hash) && destinationForFragment(doc, hash) !== DEFAULT_DESTINATION;
+  const opened = select(hash, { announce: forwarded, focus: forwarded })
+    ?? applyWorkspaceDestination(doc, DEFAULT_DESTINATION, { announce: false, focus: false });
 
   return {
     destination: opened,
