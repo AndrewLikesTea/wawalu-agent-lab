@@ -96,7 +96,7 @@ test("the score card and every KPI ship a shape-and-word flag, not a bare dash",
     const flag = byId(document, id);
     assert.ok(flag, `${id} is missing`);
     assert.equal(flag.hidden, true, `${id} claims a state before anything was measured`);
-    assert.match(textOf(flag), /^◇ unmeasured$/);
+    assert.match(textOf(flag), /^○ unmeasured$/);
   }
 });
 

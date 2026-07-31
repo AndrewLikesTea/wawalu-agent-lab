@@ -90,7 +90,7 @@ const PRESENTATION = Object.freeze({
     summary: "This figure covers part of the imported spend. The uncovered part is not counted against anyone.",
   }),
   [PANEL_STATUS.unavailable]: Object.freeze({
-    word: "Awaiting input", shape: "◇", silhouette: OUTLINE, tone: "neutral", role: "note",
+    word: "Awaiting input", shape: "○", silhouette: OUTLINE, tone: "neutral", role: "note",
     summary: "The question is still on the page. One named input answers it.",
   }),
   [PANEL_STATUS.empty]: Object.freeze({

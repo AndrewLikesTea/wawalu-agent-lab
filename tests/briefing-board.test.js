@@ -639,10 +639,11 @@ test("every shared disclosure says what is behind it before it is pressed", asyn
 
 test("the benchmark card's one non-colour channel tells its two states apart", async () => {
   const script = await readFile(new URL("../src/evolution-page.js", import.meta.url), "utf8");
-  // It shipped as a hard-coded ◇ that read "unavailable" over an established
-  // cohort. The shape is now painted from the same state the card is.
+  // It shipped as a hard-coded mark that read "unavailable" over an established
+  // cohort. The shape is now painted from the same state the card is, on the
+  // status ramp — the diamonds it used to draw are provenance-only now.
   assert.match(html, /id="local-benchmark-shape" aria-hidden="true"/);
-  assert.match(script, /setText\("local-benchmark-shape", guided\.benchmark\.available \? "◆" : "◇"\)/);
+  assert.match(script, /setText\("local-benchmark-shape", guided\.benchmark\.available \? "●" : "○"\)/);
   // …and the state the card writes is a state the stylesheet draws. `available`
   // and `unavailable` had no rule at all, so a bounded claim looked exactly like
   // an established one.
