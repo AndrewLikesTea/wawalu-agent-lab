@@ -850,6 +850,20 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .site-footer-form[data-state="error"]+.site-footer-status { color:#8a2b2b; }
 .site-footer-recovery { margin:0; border-left:2px solid #8a2b2b; padding-left:11px; color:#4f4f4a; font-size:12px; line-height:1.5; }
 .site-footer-recovery[hidden] { display:none; }
+/* The receipt that stands where the form was. Nothing about it repeats the
+   failure box above: that one is a red rule down one edge of a pink strip, this
+   is a filled green card with a check in front of the address, so the two are
+   told apart at a glance and never by reading. The address is the one string
+   here a visitor supplied, so it wraps anywhere rather than pushing the card
+   wider than the panel on a phone. */
+.site-footer-confirmation { display:grid; gap:10px; justify-items:start; border:1px solid #9dc4a8; border-radius:11px; padding:14px 15px; background:#eef7f0; }
+.site-footer-confirmation:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.site-footer-confirmation-lead { margin:0; color:#1c5c2c; font:700 14px/1.55 inherit; }
+.site-footer-confirmation-mark { margin-right:8px; font-size:15px; }
+.site-footer-confirmation-address { overflow-wrap:anywhere; }
+.site-footer-confirmation-detail { margin:0; color:#2c2c28; font-size:12px; line-height:1.55; }
+.site-footer-confirmation-again { min-height:44px; border:1px solid #1c5c2c; border-radius:9px; padding:0 16px; background:#fff; color:#1c5c2c; font:650 13px/1.4 inherit; cursor:pointer; }
+.site-footer-confirmation-again:hover { background:#1c5c2c; color:#fff; }
 /* The variant a page ships when it carries a follow-up form of its own: the
    sentence that says which form to use, and a real link to it. A link rather
    than a filled button, because it is a pointer to a control and not the control
@@ -861,7 +875,7 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .site-footer button:focus-visible,.site-footer input:focus-visible,.site-footer a:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
 /* Narrow: the band keeps the page's own gutter, and every control goes full
    width rather than wrapping into a sliver. */
-@media(max-width:520px) { .site-footer-inner{width:calc(100% - 24px);padding:24px 0 32px}.site-footer-trigger{width:100%}.site-footer-panel{padding:15px}.site-footer-actions button{flex:1 1 auto} }
+@media(max-width:520px) { .site-footer-inner{width:calc(100% - 24px);padding:24px 0 32px}.site-footer-trigger{width:100%}.site-footer-panel{padding:15px}.site-footer-actions button{flex:1 1 auto}.site-footer-confirmation{padding:13px}.site-footer-confirmation-again{width:100%} }
 /* Release recorder. The decision picker is a native checkbox group: the visual
    work here is only making a long list scannable and scrollable inside the form
    panel, never replacing a control. Each option keeps a 44px-tall hit area that

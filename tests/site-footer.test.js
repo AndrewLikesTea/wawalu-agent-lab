@@ -424,7 +424,9 @@ test("a submission goes through the shared capture path, and the confirmation sa
     assert.equal(byId(document, "site-footer-status").getAttribute("aria-live"), "polite");
     assert.equal(byId(document, "site-footer-status").getAttribute("role"), "status");
 
-    // A repeat submission is still a success, and still claims nothing more.
+    // A repeat submission is still a success, and still claims nothing more —
+    // but it has to be asked for: the landed request took the form away.
+    byId(document, "site-footer-again").click();
     submitEmail(document, TYPED_EMAIL);
     // It opens on the same three words as the first confirmation: the live
     // region announces this sentence alone, out of the context of the button
@@ -561,7 +563,12 @@ test("the pending state is announced, not merely spun", async () => {
 
     release();
     await settled(document);
-    assert.equal(submit.disabled, false);
+    // The request landed, so the control does not come back with it: the receipt
+    // has taken the form's place, and a second send has to be asked for.
+    assert.equal(submit.disabled, true, "a landed request must leave nothing to press again");
+    assert.equal(byId(document, "site-footer-form").hidden, true);
+    byId(document, "site-footer-again").click();
+    assert.equal(submit.disabled, false, "reopening the form must give the control back");
   } finally {
     page.restore();
   }
