@@ -192,7 +192,7 @@ test("no number survives a GitHub failure, whatever the failure is", async () =>
     assert.doesNotMatch(readout.textContent, /\d/, `${name}: no digit may stand in the headline slot`);
     assert.match(readout.textContent, /no count has been recorded/i,
       `${name}: it says GitHub did not answer and nothing was recorded before`);
-    assert.doesNotMatch(readout.textContent, /Counting/, `${name}: a failure is not still loading`);
+    assert.doesNotMatch(readout.textContent, /Loading/, `${name}: a failure is not still loading`);
   }
 });
 
@@ -215,7 +215,7 @@ test("loading says it is loading, without a number and without claiming failure"
   const readout = root.nodes["#merged-figure-readout"];
 
   assert.equal(root.nodes["#merged-figure"].dataset.state, "loading");
-  assert.match(readout.textContent, /Counting/);
+  assert.match(readout.textContent, /Loading/);
   assert.doesNotMatch(readout.textContent, /\d/, "loading may say so, but must not show a number");
   assert.doesNotMatch(readout.textContent, /did not answer/i);
 });

@@ -110,7 +110,10 @@ test("the three regions that speak at once during a check each say something dif
   const spoken = [card, freshness, status, detail];
   assert.equal(new Set(spoken).size, spoken.length, `a loading message is shown twice: ${spoken.join(" | ")}`);
   assert.equal(card, CONNECTION_LABELS.loading);
-  assert.equal(freshness, "Not updated yet", "the card's second line reports freshness, not the request again");
+  // "Not updated yet" read as a verdict on stale data in the one state where
+  // nothing had been fetched yet. The line reports freshness, so while the
+  // request is in flight it reports the request, in the page's one loading verb.
+  assert.equal(freshness, "Loading…", "the freshness line says a fetch is in flight, not that the data is stale");
   assert.notEqual(card, status, "the hero card must not repeat the panel heading");
   // The banner answers "what are these rows", so it must not restate the
   // request status the block above it already gave.
@@ -125,7 +128,7 @@ test("the three regions that speak at once during a check each say something dif
 // The card is the shortest thing on the page and the first thing read, so it is
 // where a vague word does the most damage. "Checking" did not say what was being
 // checked, and "Synthetic example shown" did not say that GitHub had answered.
-test("the hero card names the check, and says when the rows are a synthetic example", () => {
+test("the hero card names the signal, and says when the rows are a synthetic example", () => {
   const labels = Object.values(CONNECTION_LABELS);
   assert.equal(new Set(labels).size, labels.length, "two states share a card label");
   for (const label of labels) {
@@ -136,7 +139,7 @@ test("the hero card names the check, and says when the rows are a synthetic exam
 
   // Which source is being checked, in the state where nothing is on screen yet.
   assert.match(CONNECTION_LABELS.loading, /GitHub/);
-  assert.match(CONNECTION_LABELS.loading, /^Checking/, "a check in flight reads as a check in flight");
+  assert.match(CONNECTION_LABELS.loading, /^Loading/, "a request in flight reads as a request in flight");
   // Answered-with-nothing and failed are different facts, and the card tells
   // them apart before the panel below it repeats the distinction.
   assert.match(CONNECTION_LABELS.empty, /no GitHub events/i);
@@ -155,7 +158,7 @@ test("the served markup is the loading state the script would render", async () 
   assert.equal(textOf(status.querySelector(".activity-state-detail")), ACTIVITY_STATES.loading.detail);
   assert.equal(textOf(page.querySelector("#refresh-activity")), ACTIVITY_STATES.loading.action);
   assert.equal(textOf(page.querySelector("#connection-label")), CONNECTION_LABELS.loading);
-  assert.equal(textOf(page.querySelector("#last-updated")), "Not updated yet");
+  assert.equal(textOf(page.querySelector("#last-updated")), "Loading…");
 });
 
 test("every section label describes what is in the section", async () => {
