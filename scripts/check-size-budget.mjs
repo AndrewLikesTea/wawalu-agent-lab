@@ -141,6 +141,53 @@ export function formatReport(results, config) {
   return lines.join("\n");
 }
 
+// ---------------------------------------------------------------------------
+// THE FIRST-SCREEN FIGURE.
+// ---------------------------------------------------------------------------
+//
+// WHAT IT MEASURES: the bytes a browser must fetch off this origin before the
+// answer block on /evolution.html is readable. It is a `sum` artifact — the
+// total of tracked artifacts already measured above — so it can never disagree
+// with the parts a reviewer is reading beside it.
+//
+// WHAT COUNTS, and why each one gates the answer:
+//
+//   • evolution.html — the document. The answer block's markup is in it.
+//   • evolution.css, styles.css, finops-journey-consolidated.css — all three are
+//     render-blocking <link>s in the document head, so the browser will not
+//     paint the answer until it has them.
+//   • evolution-page.js and its STATIC import graph — the entry that calls
+//     applyAnswerBlock(). Everything it reaches by static import is fetched,
+//     parsed and evaluated before that call runs.
+//
+// WHAT DOES NOT COUNT, and why:
+//
+//   • Anything behind a native `import()`. As of #821 that is the three
+//     destination modules src/finops-workspace-shell.js fetches on the first
+//     open of Evidence, Departments and Act and verify. They leave the static
+//     graph above by construction — see THE STATIC GRAPH IS THE POINT — which
+//     is what makes this figure move when a module is genuinely deferred rather
+//     than merely described as deferred.
+//   • site-footer-page.js and its graph. It is the document's second module
+//     script and it is tracked on its own budget above, but it paints the About
+//     Shiplog band at the foot of the page; the answer block does not wait on
+//     it, and folding it in here would make this figure answer a different
+//     question from the one it is named for.
+//   • Anything `fetch()`ed at runtime — the bundled fixture among it. The answer
+//     block is painted from src/finops-answer-summary.js before that request is
+//     even made, which is the whole point of #819.
+//
+// The sum is null — and therefore a FAILURE, not a pass — if any part it names
+// could not be measured. A renamed entry must not quietly shrink this number.
+function sumOfParts(artifact, sizes) {
+  let total = 0;
+  for (const id of artifact.parts) {
+    if (!Number.isFinite(sizes[id])) return null;
+    total += sizes[id];
+  }
+  return total;
+}
+
 /** Measure one tracked artifact against the built output. */
 async function measure(artifact, distRoot) {
   if (artifact.kind === "module-graph") {
@@ -163,8 +210,18 @@ async function measure(artifact, distRoot) {
 export async function checkSizeBudget(distRoot, configPath = CONFIG_PATH) {
   const config = JSON.parse(await readFile(configPath, "utf8"));
   const sizes = {};
+  // Two passes: a `sum` is a total of parts measured off the build, so every
+  // part has to have been measured before it can be added up. The order of the
+  // artifacts in the config therefore carries no meaning, which is one less
+  // thing for a reviewer raising a budget to get wrong.
   for (const artifact of config.artifacts) {
+    if (artifact.kind === "sum") continue;
     const measured = await measure(artifact, distRoot);
+    if (measured !== null) sizes[artifact.id] = measured;
+  }
+  for (const artifact of config.artifacts) {
+    if (artifact.kind !== "sum") continue;
+    const measured = sumOfParts(artifact, sizes);
     if (measured !== null) sizes[artifact.id] = measured;
   }
   const results = evaluateBudgets(config, sizes);

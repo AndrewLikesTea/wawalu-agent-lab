@@ -277,6 +277,28 @@ export const ANSWER_SPINE = Object.freeze([
     question: "Which working area is on screen?",
     headingId: "finops-workspace-switch-title",
   },
+  // One per destination whose module is fetched on demand (#821). Each is on
+  // screen only while that module is in flight or after it failed, and each
+  // answers for its own destination — a shared region would make "which one
+  // failed?" a question the reader had to work out.
+  {
+    id: "destination-load-evidence",
+    role: ROLE.detail,
+    question: "Is the Evidence destination still opening?",
+    headingId: "destination-load-evidence-title",
+  },
+  {
+    id: "destination-load-department",
+    role: ROLE.detail,
+    question: "Is the Departments destination still opening?",
+    headingId: "destination-load-department-title",
+  },
+  {
+    id: "destination-load-act-and-verify",
+    role: ROLE.detail,
+    question: "Is the Act and verify destination still opening?",
+    headingId: "destination-load-act-and-verify-title",
+  },
   {
     id: "finops-workspace-context",
     role: ROLE.detail,

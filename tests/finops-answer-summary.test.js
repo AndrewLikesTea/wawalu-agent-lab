@@ -35,6 +35,7 @@ import { gradeExport } from "../src/export-gradability.js";
 import { ANSWER_BLOCK_IDS, applyAnswerBlock } from "../src/finops-stand-view.js";
 import {
   applyWorkspaceDestination, computedDestinationDatasets, destinationDataset,
+  destinationOpening,
 } from "../src/finops-workspace-shell.js";
 import { WORKSPACE_DESTINATION } from "../src/finops-workspace-nav.js";
 
@@ -49,45 +50,54 @@ const byId = (document, id) => document.getElementById(id);
 // 1. The memo: first open computes, every open after it reads.
 // ---------------------------------------------------------------------------
 
-test("nothing is computed before a destination is opened", () => {
+test("nothing is fetched before a destination is opened", () => {
   assert.deepEqual(computedDestinationDatasets(), [],
-    "importing the shell must not compute any destination's dataset");
+    "importing the shell must not fetch any destination's module");
 });
 
-test("opening evidence computes evidence, and neither of the other two", () => {
+test("opening evidence fetches evidence, and neither of the other two", async () => {
   const document = parseHtml(html);
   const opened = applyWorkspaceDestination(document, WORKSPACE_DESTINATION.evidence);
+  // The open is synchronous and the fetch is not: the destination is on screen
+  // before its module is, which is the property #821 exists to hold.
   assert.equal(opened, WORKSPACE_DESTINATION.evidence);
+  assert.deepEqual(computedDestinationDatasets(), [],
+    "the destination's module resolved on the synchronous open path");
+
+  await destinationOpening(WORKSPACE_DESTINATION.evidence);
   assert.deepEqual(computedDestinationDatasets(), [WORKSPACE_DESTINATION.evidence],
-    "opening one destination computed another destination's dataset");
+    "opening one destination fetched another destination's module");
   assert.ok(destinationDataset(WORKSPACE_DESTINATION.evidence),
     "the evidence dataset must be a real briefing, not an empty state");
 });
 
-test("opening a destination twice computes once: the second open is the same object", () => {
+test("opening a destination twice fetches once: the second open is the same object", async () => {
   const document = parseHtml(html);
   const first = destinationDataset(WORKSPACE_DESTINATION.evidence);
   applyWorkspaceDestination(document, WORKSPACE_DESTINATION.answer);
-  const second = applyWorkspaceDestination(document, WORKSPACE_DESTINATION.evidence)
-    && destinationDataset(WORKSPACE_DESTINATION.evidence);
+  applyWorkspaceDestination(document, WORKSPACE_DESTINATION.evidence);
+  await destinationOpening(WORKSPACE_DESTINATION.evidence);
+  const second = destinationDataset(WORKSPACE_DESTINATION.evidence);
   // Identity, not equality: a second computation would produce an equal object
   // and pass a deepEqual, which is exactly the regression this must catch.
-  assert.equal(second, first, "the second open recomputed the evidence dataset");
-  // …and the answer destination still has no dataset of its own to compute.
+  assert.equal(second, first, "the second open re-fetched the evidence module");
+  // …and the answer destination still has no module of its own to fetch.
   assert.equal(destinationDataset(WORKSPACE_DESTINATION.answer), null);
   assert.deepEqual(computedDestinationDatasets(), [WORKSPACE_DESTINATION.evidence]);
 });
 
-test("each destination's dataset is independent and cached on its own first open", () => {
+test("each destination's dataset is independent and cached on its own first open", async () => {
   const document = parseHtml(html);
   applyWorkspaceDestination(document, WORKSPACE_DESTINATION.department);
+  await destinationOpening(WORKSPACE_DESTINATION.department);
   assert.deepEqual(computedDestinationDatasets(),
     [WORKSPACE_DESTINATION.evidence, WORKSPACE_DESTINATION.department],
-    "opening departments must not have computed act-and-verify");
+    "opening departments must not have fetched act-and-verify");
   const finding = destinationDataset(WORKSPACE_DESTINATION.department);
   assert.equal(destinationDataset(WORKSPACE_DESTINATION.department), finding);
 
   applyWorkspaceDestination(document, WORKSPACE_DESTINATION.actAndVerify);
+  await destinationOpening(WORKSPACE_DESTINATION.actAndVerify);
   assert.deepEqual(computedDestinationDatasets(), [
     WORKSPACE_DESTINATION.evidence, WORKSPACE_DESTINATION.department,
     WORKSPACE_DESTINATION.actAndVerify,

@@ -133,6 +133,10 @@ const REGIONS = Object.freeze({
   "finops-destinations": REGION_CLASS.evidence,
   "finops-workspace-nav": REGION_CLASS.evidence,
   "finops-workspace-switch": REGION_CLASS.evidence,
+  // The three on-demand destinations' load states (#821), in document order.
+  "destination-load-evidence": REGION_CLASS.evidence,
+  "destination-load-department": REGION_CLASS.evidence,
+  "destination-load-act-and-verify": REGION_CLASS.evidence,
   "finops-workspace-context": REGION_CLASS.evidence,
   "finops-first-run-conversion": REGION_CLASS.removed,
   "finops-load-state": REGION_CLASS.evidence,
@@ -220,6 +224,8 @@ const EVIDENCE_LAYERS = Object.freeze([
     question: "Which part of this workspace am I in, and how do I get to another?",
     regionIds: Object.freeze([
       "finops-workspace-nav", "finops-workspace-switch", "finops-workspace-context",
+      "destination-load-evidence", "destination-load-department",
+      "destination-load-act-and-verify",
     ]),
   }),
 ]);

@@ -344,7 +344,12 @@ test("every top-level section that existed before the answer block is still on t
   const existing = [
     "finops-stand", "finops-hero", "finops-first-run", "disclosure-next-step",
     "disclosure-journey", "finops-destinations", "finops-workspace-nav",
-    "finops-workspace-switch", "finops-workspace-context", "finops-load-state", "score-card",
+    "finops-workspace-switch",
+    // #821: one load-state region per on-demand destination, so a module that
+    // is in flight or that failed has somewhere named to be read.
+    "destination-load-evidence", "destination-load-department",
+    "destination-load-act-and-verify",
+    "finops-workspace-context", "finops-load-state", "score-card",
     "finops-portfolio-brief", "guided-result", "local-import", "prompt-coaching",
     "finops-contact", "finops-proof-point", "finops-headline", "classifier-agreement",
     "disclosure-grade-comparisons", "graded-sample", "org-coaching", "spend-per-delivery",
