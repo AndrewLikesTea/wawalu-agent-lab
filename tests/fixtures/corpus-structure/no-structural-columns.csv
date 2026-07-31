@@ -1,0 +1,4 @@
+message_text,user_email,role,department
+"Draft a migration plan",ada@example.com,user,Platform
+"Here is a plan",ada@example.com,assistant,Platform
+"Summarise the review",bo@example.com,user,Finance
