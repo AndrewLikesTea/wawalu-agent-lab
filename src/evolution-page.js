@@ -141,6 +141,12 @@ import { familyCoverage } from "/corpus-family-coverage.js";
 // rather than beside it: `residueReview` re-invokes `familyCoverage` with the
 // labels written into the records, so coverage keeps one definition.
 import { isResidueLabel, residueReview } from "/residue-labeling.js";
+// The lead's own reading of individual queries, applied as an override layer on
+// the records BEFORE the cluster labels above — same seam, same `familyCoverage`,
+// so a correction and a cluster label compose instead of forking the arithmetic.
+import {
+  applyQueryCorrections, isCorrectionValue, queryCorrectionReview,
+} from "/query-correction-review.js";
 import {
   orgQueryDecisionData, orgQueryDecisionDepartments, orgQueryDepartmentLiteracy,
   orgQueryDepartmentRows,
@@ -2053,6 +2059,12 @@ function mountLocalFinopsImport() {
    * label is a statement about the corpus it was made on.
    */
   const leadResidueLabels = new Map();
+  /**
+   * The lead's own per-query corrections, by the record's index in the imported
+   * array. Same closure, same lifetime, same rules as the cluster labels above:
+   * in memory, in this tab, dropped by `reset()` and by a different export.
+   */
+  const leadQueryCorrections = new Map();
   /** The last coaching input, so a label can re-run the same paint it came from. */
   let lastCoachingInput = null;
 
@@ -2061,6 +2073,7 @@ function mountLocalFinopsImport() {
     if (!literacy) {
       lastCoachingInput = null;
       leadResidueLabels.clear();
+      leadQueryCorrections.clear();
       return clearOrgQueryDecision(document);
     }
     // A label is a statement about one corpus. The moment the corpus changes —
@@ -2068,15 +2081,31 @@ function mountLocalFinopsImport() {
     // labels go, so no figure is ever assisted by an answer given about an
     // export that is no longer loaded.
     const corpus = `${origin}::${fileNames.join("|")}::${records.length}`;
-    if (lastCoachingInput?.corpus !== corpus) leadResidueLabels.clear();
+    if (lastCoachingInput?.corpus !== corpus) {
+      leadResidueLabels.clear();
+      leadQueryCorrections.clear();
+    }
     lastCoachingInput = { literacy, origin, fileNames, records, corpus };
+    // THE REVIEW-AND-CORRECT PASS IS THE READER'S OWN EXPORT ONLY. `origin` is
+    // the page's existing flag for whose records these are, and the bundled
+    // example path passes "example": it gets a null pass, so the disclosure, its
+    // rows and its revert control are absent from the tree entirely rather than
+    // rendered empty. No control, no container, no layout shift, same numbers.
+    const corrections = origin === "import" && records.length
+      ? queryCorrectionReview(records, leadQueryCorrections) : null;
+    // The corrections are the FIRST override layer, and the cluster labels apply
+    // on top of the corrected records. Both write into the same `category` field
+    // a provider export would have declared, and both are read by the one
+    // `familyCoverage` — there is no second scoring path for either to fork into.
+    const corrected = corrections
+      ? applyQueryCorrections(records, leadQueryCorrections) : records;
     // The review runs the same aggregation the coverage line already reads —
     // `familyCoverage` — once on the records as imported and once with the
     // lead's labels written in, so there is still exactly one definition of
     // coverage on this page. With no label set the two are the same object and
     // the surface is exactly what it was.
-    const review = records.length
-      ? residueReview(records, leadResidueLabels) : null;
+    const review = corrected.length
+      ? residueReview(corrected, leadResidueLabels) : null;
     return applyOrgQueryDecision(document, orgQueryCoachingDecision(literacy, {
       origin,
       fileNames,
@@ -2085,9 +2114,44 @@ function mountLocalFinopsImport() {
       // English keywords alone. That is what decides the coverage number and
       // the residue clusters this surface now leads with. In memory, in this
       // tab, and nothing derived from an excerpt comes back out.
-      familyCoverage: review ? review.assisted : (records.length ? familyCoverage(records) : null),
-    }), { review, onAssign: assignResidueLabel });
+      familyCoverage: review ? review.assisted
+        : (corrected.length ? familyCoverage(corrected) : null),
+    }), {
+      review,
+      onAssign: assignResidueLabel,
+      corrections,
+      onCorrect: correctQuery,
+      onRevert: revertQueryCorrections,
+    });
   };
+
+  /**
+   * One query corrected, and the whole decision recomposed from it.
+   *
+   * The answer is validated against the published choices before it is kept:
+   * the control offers exactly those, and a value from anywhere else drops the
+   * row back to unreviewed rather than being carried into the arithmetic. Held
+   * by index, so relabelling the same row twice REPLACES one answer and the
+   * provenance count never double-counts it.
+   */
+  function correctQuery(index, value) {
+    if (!lastCoachingInput || !Number.isInteger(index) || index < 0) return;
+    if (isCorrectionValue(value)) leadQueryCorrections.set(index, value);
+    else leadQueryCorrections.delete(index);
+    paintCoachingDecision(lastCoachingInput.literacy, lastCoachingInput);
+  }
+
+  /**
+   * Back to classifier-only output, exactly. The answers are dropped and the
+   * same paint runs on the same untouched records — `applyQueryCorrections`
+   * copies rather than mutates, so this restores the prior numbers rather than
+   * recomputing an approximation of them.
+   */
+  function revertQueryCorrections() {
+    if (!lastCoachingInput) return;
+    leadQueryCorrections.clear();
+    paintCoachingDecision(lastCoachingInput.literacy, lastCoachingInput);
+  }
 
   /**
    * One cluster labelled, and the whole decision recomposed from it.

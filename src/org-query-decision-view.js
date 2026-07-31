@@ -36,11 +36,29 @@ export const ORG_COACHING_LIVE_ID = "org-coaching-live";
 /** The residue review's own disclosure, a sibling of the four above it. */
 export const ORG_COACHING_RESIDUE_ID = "residue-review";
 
+/**
+ * The per-query correction pass, a sibling of the residue review beside it.
+ *
+ * Not a second summary of gradeability and not a second panel: the residue
+ * disclosure answers "can I classify the residue myself?" a cluster at a time,
+ * and this one answers "did the classifier read my queries correctly?" a query
+ * at a time. Both are progressive disclosures of the same area, both are shut on
+ * arrival, and only one of them can be open on the reader's screen at a cost.
+ */
+export const ORG_COACHING_CORRECTIONS_ID = "query-corrections";
+
 /** Toggle and panel ids, derived from the disclosure id so both agree. */
 export const toggleId = (id) => `org-coaching-${id}-toggle`;
 export const panelId = (id) => `org-coaching-${id}-panel`;
 /** One select per cluster, named by the cluster's rank in the ranked list. */
 export const residueControlId = (rank) => `org-coaching-residue-class-${rank}`;
+/** One select per sampled query, named by the row's rank in the sample order. */
+export const correctionControlId = (rank) => `org-coaching-correction-class-${rank}`;
+/** The nodes the row control is named by: what it does, and which query it is about. */
+export const correctionPurposeId = (rank) => `org-coaching-correction-purpose-${rank}`;
+export const correctionQueryId = (rank) => `org-coaching-correction-query-${rank}`;
+/** The one control back to classifier-only output. */
+export const CORRECTION_REVERT_ID = "org-coaching-correction-revert";
 
 const byId = (doc, id) => (doc?.getElementById ? doc.getElementById(id) : null);
 
@@ -73,7 +91,10 @@ function announce(doc, text) {
 
 function held(section) {
   if (!section.__orgCoaching) {
-    section.__orgCoaching = { model: null, open: new Set(), review: null, onAssign: null };
+    section.__orgCoaching = {
+      model: null, open: new Set(), review: null, onAssign: null,
+      corrections: null, onCorrect: null, onRevert: null,
+    };
   }
   return section.__orgCoaching;
 }
@@ -84,7 +105,9 @@ function held(section) {
  * Returns the state that was painted so a caller can assert on what it asked for
  * rather than on the DOM it got.
  */
-export function applyOrgQueryDecision(doc, state, { review = null, onAssign = null } = {}) {
+export function applyOrgQueryDecision(doc, state, {
+  review = null, onAssign = null, corrections = null, onCorrect = null, onRevert = null,
+} = {}) {
   const section = byId(doc, ORG_COACHING_SECTION_ID);
   if (!section || !state) return null;
   if (state.state === ORG_QUERY_DECISION_STATE.absent) return clearOrgQueryDecision(doc);
@@ -99,6 +122,12 @@ export function applyOrgQueryDecision(doc, state, { review = null, onAssign = nu
   // must not drop the control the reader was using.
   store.review = review;
   if (onAssign) store.onAssign = onAssign;
+  // The per-query pass rides the same way and for the same reason. Null is the
+  // bundled-example path saying it has no pass: the disclosure, its rows and its
+  // revert control are absent from the tree entirely, not rendered empty.
+  store.corrections = corrections;
+  if (onCorrect) store.onCorrect = onCorrect;
+  if (onRevert) store.onRevert = onRevert;
   paint(doc, section);
   return state;
 }
@@ -113,6 +142,7 @@ export function clearOrgQueryDecision(doc) {
   // The lead's own labels go with the reading they qualified. Nothing here
   // outlives the import: the page drops the label map at the same moment.
   store.review = null;
+  store.corrections = null;
   section.hidden = true;
   section.dataset.state = ORG_QUERY_DECISION_STATE.absent;
   delete section.dataset.origin;
@@ -132,15 +162,17 @@ function paint(doc, section) {
   section.dataset.origin = state.origin;
 
   const review = store.review;
+  const corrections = store.corrections;
   const blocks = [
     state.state === ORG_QUERY_DECISION_STATE.graded
-      ? gradedLead(doc, state, review) : ungradeableLead(doc, state, review),
+      ? gradedLead(doc, state, review, corrections)
+      : ungradeableLead(doc, state, review, corrections),
   ];
   // The coverage line rides with the lead, in the same block and under the same
   // heading, because it qualifies the answer above it: a reader who takes the
   // sentence must take the share of their own corpus it was read from with it.
   // Absent on a sample with no coverage result, rather than printed as a zero.
-  if (state.coverage) blocks.push(coverageBlock(doc, state.coverage, review));
+  if (state.coverage) blocks.push(coverageBlock(doc, state.coverage, review, corrections));
   blocks.push(actionBlock(doc, state.action), disclosureList(doc, section, state));
   body.replaceChildren(...blocks);
   // One polite region for the whole decision, and the recompute rides in it:
@@ -148,7 +180,12 @@ function paint(doc, section) {
   // cluster hears the new figure and any unlocked letter without hunting for
   // it. `announce` still writes only on a real change, so opening a panel is
   // silent.
-  announce(doc, [state.announcement, review?.announcement].filter(Boolean).join(" "));
+  // ONE live region for the whole decision, and the two recomputes ride in it.
+  // A correction moves the answer, the coverage figure, the next action and the
+  // provenance line at once; four live regions would announce four fragments
+  // over each other, so the summary is composed here and announced once.
+  announce(doc, [state.announcement, review?.announcement, corrections?.announcement]
+    .filter(Boolean).join(" "));
 
   const focusId = section.dataset.focusTarget;
   if (focusId) {
@@ -182,7 +219,25 @@ function assistMarker(doc, review) {
   return note;
 }
 
-function gradedLead(doc, state, review) {
+/**
+ * The lead's-own-corrections provenance line, wherever a corrected figure is
+ * printed. Same rule as the marker above and for the same reason: a number that
+ * rests on the reader's own relabelling says so in the block it is printed in,
+ * with the count and with what the export earned alone. Absent — not empty —
+ * when nothing is corrected, so an uncorrected reading is exactly what it was.
+ */
+function correctionMarker(doc, corrections) {
+  if (!corrections?.corrections?.applied) return null;
+  const note = element(doc, "p", "org-coaching-correction-marker");
+  note.dataset.correctionCount = String(corrections.corrections.count);
+  note.setAttribute("role", "note");
+  note.setAttribute("aria-label", "Your corrections");
+  note.append(shapeSpan(doc, "✎"),
+    element(doc, "span", "org-coaching-correction-marker-text", corrections.corrections.marker));
+  return note;
+}
+
+function gradedLead(doc, state, review, corrections) {
   const block = element(doc, "div", "org-coaching-lead");
   block.dataset.gradeStatus = "graded";
 
@@ -205,11 +260,13 @@ function gradedLead(doc, state, review) {
   );
   const marker = assistMarker(doc, review);
   if (marker) block.append(marker);
+  const correction = correctionMarker(doc, corrections);
+  if (correction) block.append(correction);
   block.append(confidenceBlock(doc, state.confidence), provenanceBlock(doc, state.provenance));
   return block;
 }
 
-function ungradeableLead(doc, state, review) {
+function ungradeableLead(doc, state, review, corrections) {
   const block = element(doc, "div", "org-coaching-lead");
   block.dataset.gradeStatus = "ungradeable";
   const answer = element(doc, "p", "org-coaching-answer");
@@ -222,6 +279,14 @@ function ungradeableLead(doc, state, review) {
   );
   const marker = assistMarker(doc, review);
   if (marker) block.append(marker);
+  const correction = correctionMarker(doc, corrections);
+  if (correction) block.append(correction);
+  // Corrections landed and the verdict still withheld. Said here, over the
+  // refusal it qualifies, rather than leaving the withheld copy standing alone
+  // over a lead who has just done the work and cannot tell whether it counted.
+  if (corrections?.shortfall) {
+    block.append(element(doc, "p", "org-coaching-correction-shortfall", corrections.shortfall));
+  }
   block.append(confidenceBlock(doc, state.confidence), provenanceBlock(doc, state.provenance));
   return block;
 }
@@ -263,7 +328,7 @@ function provenanceBlock(doc, provenance) {
  * string is written here — this module formats nothing and computes nothing —
  * and the tier sentence beside the number is the published coverage rule.
  */
-function coverageBlock(doc, coverage, review) {
+function coverageBlock(doc, coverage, review, corrections) {
   const block = element(doc, "div", "org-coaching-coverage");
   block.dataset.available = String(coverage.available);
   block.dataset.assisted = String(review?.assist?.applied === true);
@@ -277,6 +342,11 @@ function coverageBlock(doc, coverage, review) {
   );
   const marker = assistMarker(doc, review);
   if (marker) block.append(marker);
+  const correction = correctionMarker(doc, corrections);
+  if (correction) {
+    block.dataset.corrected = "true";
+    block.append(correction);
+  }
   return block;
 }
 
@@ -312,9 +382,166 @@ function disclosureList(doc, section, state) {
   // has just been told which cluster is holding coverage back reaches the
   // control that resolves it in the same interaction, and never in a modal, a
   // second panel, or another page.
-  const review = held(section).review;
-  if (review) list.append(residueBlock(doc, section, review));
+  const store = held(section);
+  if (store.review) list.append(residueBlock(doc, section, store.review));
+  // The per-query pass, last, because it is the finest grain: a reader who is
+  // going to dispute one query has usually already read the cluster list above
+  // it. Absent entirely on the bundled example — see `applyOrgQueryDecision`.
+  if (store.corrections) list.append(correctionBlock(doc, section, store.corrections));
   return list;
+}
+
+// --- the per-query correction pass ------------------------------------------
+//
+// The lead's own reading, applied a query at a time. Four rules:
+//
+//   1. **The query text is inert text.** Every node here is built with
+//      createElement and written with textContent. There is no markup string, no
+//      innerHTML, no insertAdjacentHTML and no interpolation into an attribute
+//      that can execute or navigate, so a query containing a tag renders as the
+//      characters a reader typed and creates no element.
+//   2. **A native `<select>` over the classifier's own class list.** Keyboard-
+//      operable, announced as a combo box, and it refuses a value that is not
+//      one of its options. The options are `residue-labeling.js`'s neighbour
+//      idiom: composed upstream from the rubric, never authored here.
+//   3. **The control is named for the query it is about.** `aria-labelledby`
+//      points at two nodes — what the control does, and the row's own query text
+//      — so no row's control is a bare "Agree" repeated N times, and the name is
+//      built by reference rather than by string concatenation.
+//   4. **Nothing here computes.** Every number and every sentence is composed by
+//      `query-correction-review.js` off `familyCoverage`, so this surface cannot
+//      state a figure the decision above it disagrees with.
+
+function correctionBlock(doc, section, corrections) {
+  const store = held(section);
+  const expanded = store.open.has(ORG_COACHING_CORRECTIONS_ID);
+  const wrap = element(doc, "div", "org-coaching-disclosure org-coaching-corrections");
+  wrap.dataset.disclosure = ORG_COACHING_CORRECTIONS_ID;
+  wrap.dataset.corrected = String(corrections.corrections.applied);
+
+  const toggle = element(doc, "button", "org-coaching-disclosure-toggle");
+  toggle.id = toggleId(ORG_COACHING_CORRECTIONS_ID);
+  toggle.setAttribute("type", "button");
+  toggle.setAttribute("aria-expanded", expanded ? "true" : "false");
+  toggle.setAttribute("aria-controls", panelId(ORG_COACHING_CORRECTIONS_ID));
+  toggle.append(
+    element(doc, "span", "org-coaching-disclosure-question", corrections.question),
+    element(doc, "span", "org-coaching-disclosure-chip", corrections.chip),
+  );
+  toggle.addEventListener("click", () => {
+    if (expanded) store.open.delete(ORG_COACHING_CORRECTIONS_ID);
+    else store.open.add(ORG_COACHING_CORRECTIONS_ID);
+    section.dataset.focusTarget = toggleId(ORG_COACHING_CORRECTIONS_ID);
+    paint(doc, section);
+  });
+
+  const panel = element(doc, "div", "org-coaching-disclosure-panel");
+  panel.id = panelId(ORG_COACHING_CORRECTIONS_ID);
+  panel.hidden = !expanded;
+  panel.setAttribute("role", "region");
+  panel.setAttribute("aria-label", corrections.question);
+  if (expanded) panel.append(...correctionBody(doc, section, corrections));
+  wrap.append(toggle, panel);
+  return wrap;
+}
+
+function correctionBody(doc, section, corrections) {
+  const store = held(section);
+  const parts = [element(doc, "p", "org-coaching-corrections-intro", corrections.intro)];
+  const marker = correctionMarker(doc, corrections);
+  if (marker) parts.push(marker);
+  if (corrections.corrections.agreedText) {
+    parts.push(element(doc, "p", "org-coaching-corrections-agreed",
+      corrections.corrections.agreedText));
+  }
+  if (corrections.empty) {
+    parts.push(element(doc, "p", "org-coaching-corrections-empty", corrections.empty));
+    return parts;
+  }
+  parts.push(
+    element(doc, "p", "org-coaching-corrections-cap", corrections.cap.text),
+    element(doc, "p", "org-coaching-corrections-order", corrections.orderRule),
+  );
+  const list = element(doc, "ul", "org-coaching-corrections-list");
+  list.setAttribute("aria-label", "Your queries, in review order");
+  for (const row of corrections.rows) list.append(correctionRow(doc, section, corrections, row));
+  parts.push(list);
+  if (corrections.complete) {
+    // Every row answered is a state, not the end of the panel: it stays open so
+    // the reader can change an answer they have thought better of.
+    parts.push(element(doc, "p", "org-coaching-corrections-complete", corrections.complete));
+  }
+  if (corrections.revert.available) {
+    const revert = element(doc, "button", "org-coaching-corrections-revert",
+      corrections.revert.label);
+    revert.id = CORRECTION_REVERT_ID;
+    revert.setAttribute("type", "button");
+    revert.setAttribute("aria-describedby", `${CORRECTION_REVERT_ID}-note`);
+    revert.addEventListener("click", () => {
+      // Focus stays on the control the reader pressed. The whole decision
+      // repaints, and a keyboard user thrown to the top of the region after
+      // reverting could not find their way back to the pass.
+      section.dataset.focusTarget = CORRECTION_REVERT_ID;
+      store.onRevert?.();
+    });
+    const note = element(doc, "p", "org-coaching-corrections-revert-note", corrections.revert.text);
+    note.id = `${CORRECTION_REVERT_ID}-note`;
+    parts.push(revert, note);
+  }
+  return parts;
+}
+
+function correctionRow(doc, section, corrections, row) {
+  const store = held(section);
+  const item = element(doc, "li", "org-coaching-corrections-row");
+  item.dataset.index = String(row.index);
+  item.dataset.answer = row.answer === "" ? "none" : row.answer;
+  item.dataset.classified = String(row.classified);
+
+  // THE READER'S OWN QUERY, as characters and nothing else. `textContent` on a
+  // node this module created: a tag in the text is a `<` and a `>` on screen and
+  // never an element, and the value never reaches an attribute that can execute
+  // or navigate.
+  const queryId = correctionQueryId(row.rank);
+  const query = element(doc, "p", "org-coaching-corrections-query");
+  query.id = queryId;
+  query.textContent = row.text;
+
+  const purposeId = correctionPurposeId(row.rank);
+  const purpose = element(doc, "span", "org-coaching-corrections-purpose", row.controlLabel);
+  purpose.id = purposeId;
+
+  const select = element(doc, "select", "org-coaching-corrections-select");
+  select.id = correctionControlId(row.rank);
+  // Named by what it does AND by the query it is about, by reference to the two
+  // nodes above. Not "Agree" repeated N times, and not a concatenated string.
+  select.setAttribute("aria-labelledby", `${purposeId} ${queryId}`);
+  for (const choice of corrections.choices) {
+    const option = element(doc, "option", null, choice.label);
+    option.setAttribute("value", choice.value);
+    if (choice.value === row.answer) option.setAttribute("selected", "");
+    select.append(option);
+  }
+  select.value = row.answer;
+  select.addEventListener("change", () => {
+    section.dataset.focusTarget = select.id;
+    store.onCorrect?.(row.index, select.value);
+  });
+
+  item.append(
+    query,
+    element(doc, "p", "org-coaching-corrections-class", row.classText),
+    // The signal that produced the class, in the classifier's own ids. This is
+    // what a lead is actually disputing when they relabel a row.
+    element(doc, "p", "org-coaching-corrections-signal", `Matched signal: ${row.signalText}`),
+    purpose,
+    select,
+    element(doc, "p", "org-coaching-corrections-detail", row.detail),
+    // The state in words as well as in the control, because a row a reader has
+    // answered and a row they have not must differ by more than a tint.
+    element(doc, "p", "org-coaching-corrections-state", `Your answer: ${row.answerLabel}`),
+  );
+  return item;
 }
 
 // --- the residue review -----------------------------------------------------

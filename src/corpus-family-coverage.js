@@ -160,7 +160,7 @@ const spendReaderFor = (unit) => (unit === SPEND_UNIT.usd ? usdOf : billedTokens
  * lines, code fences, length and the model tier it ran on, which is four of the
  * five — and the fifth (thread repeat) simply does not fire on a single turn.
  */
-function turnsOf(record) {
+export function recordTurns(record) {
   if (Array.isArray(record?.turns)) return record.turns;
   const excerpt = typeof record?.promptExcerpt === "string" ? record.promptExcerpt
     : typeof record?.excerpt === "string" ? record.excerpt : "";
@@ -185,9 +185,13 @@ export function classifyCorpusRecord(record, spendOf = billedTokensOf) {
     return Object.freeze({
       key, spend, classified: true, category: declared, families: Object.freeze(["declared"]),
       reason: null,
+      // No signal voted: the source declared this class and nothing re-decided
+      // it. An empty row list is the honest answer, never a fabricated signal.
+      signals: Object.freeze([]),
+      confidence: null,
     });
   }
-  const verdict = classifyThread({ turns: turnsOf(record), model: record?.model ?? null });
+  const verdict = classifyThread({ turns: recordTurns(record), model: record?.model ?? null });
   return Object.freeze({
     key,
     spend,
@@ -198,7 +202,33 @@ export function classifyCorpusRecord(record, spendOf = billedTokensOf) {
     category: verdict.classified ? verdict.category : null,
     families: Object.freeze([...(verdict.families ?? [])]),
     reason: verdict.reason ?? null,
+    /**
+     * The signal rows the classifier voted with, carried out unchanged.
+     *
+     * `classifyThread` already names every signal behind a class — family,
+     * signal id, the class it voted for, and its integer weight — and a
+     * surface that shows a lead "why was this called out-of-scope?" must show
+     * THAT list rather than matching the patterns a second time. Nothing is
+     * derived from an excerpt here: a row is a family name, an id this
+     * repository authored, a class key, and a number.
+     */
+    signals: Object.freeze([...(verdict.signals ?? [])]),
+    confidence: typeof verdict.confidence === "number" ? verdict.confidence : null,
   });
+}
+
+/**
+ * The unit one corpus is weighted in, and the reader that measures a row in it.
+ *
+ * Exported so a surface ranking the same records — the per-query correction
+ * panel, for instance — weighs a row exactly as `familyCoverage` weighs it,
+ * rather than picking its own unit and ordering rows by a number the coverage
+ * figure never saw.
+ */
+export function corpusSpendReader(records = []) {
+  const list = (Array.isArray(records) ? records : []).filter(Boolean);
+  const unit = unitFor(list);
+  return Object.freeze({ unit, spendOf: spendReaderFor(unit) });
 }
 
 /**
@@ -277,8 +307,7 @@ function residueAction(clusters, unit) {
  */
 export function familyCoverage(records = []) {
   const list = (Array.isArray(records) ? records : []).filter(Boolean);
-  const unit = unitFor(list);
-  const spendOf = spendReaderFor(unit);
+  const { unit, spendOf } = corpusSpendReader(list);
   const decided = list.map((record) => classifyCorpusRecord(record, spendOf));
   const scoredDenominator = decided.reduce((sum, entry) => sum + entry.spend, 0);
   const scoredSpend = decided.reduce((sum, entry) => sum + (entry.classified ? entry.spend : 0), 0);

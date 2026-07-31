@@ -2859,6 +2859,31 @@ section[data-workspace-current="true"] { box-shadow:-6px 0 0 0 var(--import-wash
 .org-coaching-residue-row[data-assigned="none"] .org-coaching-residue-state::before { content:"◇ "; }
 .org-coaching-residue-row:not([data-assigned="none"]) .org-coaching-residue-state::before { content:"◧ "; }
 .org-coaching-residue-intro,.org-coaching-residue-cap,.org-coaching-residue-ceiling,.org-coaching-residue-empty,.org-coaching-residue-unclassifiable { margin:0; font-size:12px; line-height:1.6; overflow-wrap:anywhere; }
+/* The per-query correction pass. Same marker treatment as the cluster labels
+   above, because it qualifies figures the same way: a dashed edge AND a glyph
+   AND the sentence, never a tint alone. */
+.org-coaching-correction-marker { display:flex; flex-wrap:wrap; gap:8px; margin:4px 0 0; border-left:5px dashed var(--import-accent); padding:2px 0 2px 12px; font-size:12px; line-height:1.55; overflow-wrap:anywhere; }
+.org-coaching-correction-shortfall { margin:6px 0 0; font-size:12px; line-height:1.6; overflow-wrap:anywhere; }
+/* Rows STACK rather than tabulate. A query is a sentence of arbitrary length, so
+   a table column would force horizontal scrolling at 320px; every part of a row
+   is full width and wraps, and the control sits under the text it is about. */
+.org-coaching-corrections-list { display:grid; gap:14px; margin:0; padding:0; list-style:none; }
+.org-coaching-corrections-row { display:grid; gap:4px; border-top:1px solid var(--import-line); padding-top:10px; min-width:0; }
+.org-coaching-corrections-query { margin:0; font-size:13px; line-height:1.5; font-weight:650; overflow-wrap:anywhere; white-space:pre-wrap; }
+.org-coaching-corrections-class,.org-coaching-corrections-signal,.org-coaching-corrections-detail,.org-coaching-corrections-state { margin:0; color:var(--ink-muted); font-size:12px; line-height:1.55; overflow-wrap:anywhere; }
+.org-coaching-corrections-purpose { font-size:12px; font-weight:650; line-height:1.5; }
+/* 44px of target at every width, and a focus ring that is three channels of
+   difference from the resting state rather than a colour swap. */
+.org-coaching-corrections-select { justify-self:start; max-width:100%; min-height:44px; border:1px solid var(--import-accent); border-radius:8px; padding:8px 9px; background:#fff; color:var(--import-ink); font:650 13px/1.45 inherit; }
+.org-coaching-corrections-select:focus-visible { outline:3px solid var(--import-accent); outline-offset:2px; }
+.org-coaching-corrections-row[data-answer="none"] .org-coaching-corrections-state::before { content:"◇ "; }
+.org-coaching-corrections-row:not([data-answer="none"]) .org-coaching-corrections-state::before { content:"◧ "; }
+.org-coaching-corrections-revert { justify-self:start; min-height:44px; margin-top:4px; border:1px solid var(--import-accent); border-radius:8px; padding:8px 14px; background:#fff; color:var(--import-ink); font:650 13px/1.45 inherit; cursor:pointer; transition:background-color 120ms ease; }
+.org-coaching-corrections-revert:focus-visible { outline:3px solid var(--import-accent); outline-offset:2px; }
+.org-coaching-corrections-revert:hover { background:var(--import-line); }
+.org-coaching-corrections-intro,.org-coaching-corrections-cap,.org-coaching-corrections-order,.org-coaching-corrections-empty,.org-coaching-corrections-complete,.org-coaching-corrections-agreed,.org-coaching-corrections-revert-note { margin:0; font-size:12px; line-height:1.6; overflow-wrap:anywhere; }
+/* The one transition this pass adds is dropped for a reader who asked for that. */
+@media (prefers-reduced-motion:reduce) { .org-coaching-corrections-revert { transition:none; } }
 @media (min-width:52rem) {
   .org-coaching-figure { grid-template-columns:minmax(0,auto) minmax(0,1fr); }
   .org-coaching-rows { grid-template-columns:minmax(0,14rem) minmax(0,1fr); }
