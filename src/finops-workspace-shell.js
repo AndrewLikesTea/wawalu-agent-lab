@@ -48,6 +48,11 @@
 // to empty it.
 
 import { DEFAULT_DESTINATION, WORKSPACE_DESTINATION } from "./finops-workspace-nav.js";
+// The three heavy per-destination datasets, reached only through the memo below.
+import { loadExampleDataset } from "./example-dataset.js";
+import { buildFinopsBriefing } from "./finops-briefing-contract.js";
+import { leadingFinding } from "./finops-leading-finding.js";
+import { loadWorkspaceDestinations } from "./finops-destination-contract.js";
 
 /** The ids the shipped markup carries, in one place so a test can name them. */
 export const WORKSPACE_SHELL_IDS = Object.freeze({
@@ -89,6 +94,83 @@ const isDestination = (key) => DESTINATION_KEYS.includes(key);
 const usd = (value) => (typeof value === "number" && Number.isFinite(value)
   ? `${Math.round(value).toLocaleString("en-US")} USD`
   : "unavailable");
+
+// ---------------------------------------------------------------------------
+// The per-destination datasets, computed on first open.
+// ---------------------------------------------------------------------------
+//
+// Each destination's dataset is a computation over the bundled fixture that only
+// that destination has any use for: the evidence panels read the briefing, the
+// department drill-down reads the leading finding, and the act-and-verify loop
+// reads the workspace-destination record. Composing all three on boot meant a
+// reader who never left the answer paid for all three.
+//
+// THE CACHE IS A MAP AND NOTHING ELSE. Keyed by destination key, scoped to this
+// module, and filled once per key for the life of the page. No invalidation, no
+// window global, no reactive wrapper, and no eviction: every loader below is a
+// pure read of a fixture generated in this process, so a second computation
+// could only ever produce an equal value, and a repeated open therefore returns
+// the same object identity. A loader that throws caches `null` rather than
+// throwing on every open — the destination still opens; it just has no dataset.
+
+/** The shared fixture read. Not a destination's dataset — it is every one's input. */
+let bundledAnalysisMemo;
+
+function bundledAnalysis() {
+  if (bundledAnalysisMemo === undefined) {
+    try {
+      bundledAnalysisMemo = loadExampleDataset();
+    } catch {
+      bundledAnalysisMemo = null;
+    }
+  }
+  return bundledAnalysisMemo;
+}
+
+/**
+ * One loader per destination, and each one independent: nothing here reads
+ * another destination's entry, so opening evidence computes the briefing and
+ * neither of the other two. The answer has no entry on purpose — it is the
+ * default destination, and the figure it prints is precomputed in
+ * src/finops-answer-summary.js rather than composed on open.
+ */
+const DESTINATION_DATASET_SOURCE = Object.freeze({
+  [WORKSPACE_DESTINATION.evidence]: () => buildFinopsBriefing(bundledAnalysis()),
+  [WORKSPACE_DESTINATION.department]: () => leadingFinding(bundledAnalysis()),
+  [WORKSPACE_DESTINATION.actAndVerify]: () => loadWorkspaceDestinations(),
+});
+
+const DESTINATION_DATASETS = new Map();
+
+/**
+ * One destination's dataset, computed on the first call and read from the memo
+ * on every call after it. Null for a key with no dataset and for a loader that
+ * threw; never throws.
+ */
+export function destinationDataset(key) {
+  if (DESTINATION_DATASETS.has(key)) return DESTINATION_DATASETS.get(key);
+  const load = DESTINATION_DATASET_SOURCE[key];
+  if (!load) return null;
+  let dataset = null;
+  try {
+    dataset = load();
+  } catch {
+    dataset = null;
+  }
+  DESTINATION_DATASETS.set(key, dataset);
+  return dataset;
+}
+
+/**
+ * Which destinations have computed their dataset, in first-open order.
+ *
+ * The memo is observable rather than inferred: a test asserts that opening one
+ * destination left the other two uncomputed, and a support conversation can ask
+ * the same question of a live page without guessing from a timing profile.
+ */
+export function computedDestinationDatasets() {
+  return [...DESTINATION_DATASETS.keys()];
+}
 
 /** Every region the shell may show or hide, in document order. */
 export function workspaceRegions(doc) {
@@ -191,6 +273,11 @@ export function applyWorkspaceDestination(doc, key, { announce = false } = {}) {
   const context = byId(doc, WORKSPACE_SHELL_IDS.context);
   if (context) context.hidden = key === DEFAULT_DESTINATION;
 
+  // FIRST OPEN COMPUTES, every open after it reads the memo. It is deliberately
+  // after the regions are marked and the doors repainted: the destination is on
+  // screen whether or not its dataset resolves, and this call cannot throw.
+  destinationDataset(key);
+
   if (announce) announceDestination(doc, key, shown);
   return key;
 }
@@ -218,7 +305,11 @@ export function paintWorkspaceContext(doc, loaded = null) {
   const section = byId(doc, WORKSPACE_SHELL_IDS.context);
   const list = byId(doc, WORKSPACE_SHELL_IDS.contextList);
   if (!section || !list) return null;
-  const record = loaded?.valid ? loaded.record : null;
+  // The page entry hands its own loaded record in, because it already holds one
+  // for the rail. A caller that does not gets the act-and-verify destination's
+  // memo instead — the same load, one copy of it.
+  const held = loaded ?? destinationDataset(WORKSPACE_DESTINATION.actAndVerify);
+  const record = held?.valid ? held.record : null;
   list.replaceChildren();
 
   if (!record) {
@@ -273,6 +364,11 @@ function pair(doc, term, detail) {
  */
 export function initWorkspaceShell(doc, { win = null, loaded = null } = {}) {
   if (workspaceRegions(doc).length === 0) return null;
+  // Seed rather than recompute: the entry already loaded this record for the
+  // rail, so the first open of act-and-verify must not read the fixture twice.
+  if (loaded && !DESTINATION_DATASETS.has(WORKSPACE_DESTINATION.actAndVerify)) {
+    DESTINATION_DATASETS.set(WORKSPACE_DESTINATION.actAndVerify, loaded);
+  }
   paintWorkspaceContext(doc, loaded);
 
   const select = (hash, { announce }) => {

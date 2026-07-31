@@ -20,6 +20,9 @@ import { applyFinopsSpine } from "./finops-spine.js";
 // door name beside it comes from here rather than from this file, so
 // docs/executive-answer-screen-contract.md and the page cannot drift.
 import { SCREEN_CONTRACT, answerBlock } from "./finops-screen-contract.js";
+// The bundled answer, precomputed. `applyAnswerBlock` paints from this by
+// default, so the first thing a reader meets needs no panel dataset composed.
+import { FINOPS_ANSWER_SUMMARY } from "./finops-answer-summary.js";
 // The page's one announcer. Every answer change on /evolution.html is announced
 // from here, in one sentence, because it used to be announced from nine regions
 // at once and a reader heard a queue instead of an answer.
@@ -80,25 +83,31 @@ export function applyAnswerDoors(doc) {
 
 /**
  * The answer block: one question, one figure, one confidence sentence, one
- * action. Everything it prints comes off `answerBlock()`, which computes nothing
- * — it reads the headline's own gradability verdict. The state goes on the block
- * as an attribute so a stylesheet, a printed page, and a test read one channel.
+ * action. The state goes on the block as an attribute so a stylesheet, a printed
+ * page, and a test read one channel.
+ *
+ * IT COMPOSES NOTHING NOW. It used to take a composed stand headline and call
+ * `answerBlock()` on it, which meant the block's first figure could not be
+ * painted until every panel dataset the headline reaches had been computed. It
+ * takes a summary — the four values and nothing else — and the default is
+ * `FINOPS_ANSWER_SUMMARY`, derived straight from the fixture. `applyStandHeadline`
+ * passes a summary of its own for the path that matters: a reader's own import,
+ * whose figures are theirs and are composed from their file.
  */
-export function applyAnswerBlock(doc, headline) {
+export function applyAnswerBlock(doc, summary = FINOPS_ANSWER_SUMMARY) {
   const block = byId(doc, ANSWER_BLOCK_IDS.block);
-  if (!block || !headline) return null;
-  const model = answerBlock(headline);
-  block.dataset.state = model.state;
-  block.dataset.available = String(model.available);
-  setText(doc, ANSWER_BLOCK_IDS.question, model.question);
-  setText(doc, ANSWER_BLOCK_IDS.label, model.metricLabel);
-  setText(doc, ANSWER_BLOCK_IDS.value, model.figure);
-  setText(doc, ANSWER_BLOCK_IDS.basis, model.basis);
-  setText(doc, ANSWER_BLOCK_IDS.confidence, model.confidence);
+  if (!block || !summary) return null;
+  block.dataset.state = summary.state;
+  block.dataset.available = String(summary.available);
+  setText(doc, ANSWER_BLOCK_IDS.question, summary.question);
+  setText(doc, ANSWER_BLOCK_IDS.label, summary.metricLabel);
+  setText(doc, ANSWER_BLOCK_IDS.value, summary.figure);
+  setText(doc, ANSWER_BLOCK_IDS.basis, summary.basis);
+  setText(doc, ANSWER_BLOCK_IDS.confidence, summary.confidence);
   const action = byId(doc, ANSWER_BLOCK_IDS.action);
   if (action) {
-    action.textContent = model.action.label;
-    action.setAttribute("href", model.action.href);
+    action.textContent = summary.action.label;
+    action.setAttribute("href", summary.action.href);
   }
   applyAnswerDoors(doc);
   return block;
@@ -366,7 +375,10 @@ export function applyStandHeadline(doc, headline) {
   // THE ANSWER BLOCK FIRST, because it is what a reader meets first. It shares
   // this region's paint rather than owning a second one: one paint means the
   // block and the figures under it can never be as of two different datasets.
-  applyAnswerBlock(doc, headline);
+  // The block takes a summary, so this headline is reduced to one here — the
+  // same three fields `FINOPS_ANSWER_SUMMARY` is built from, through the same
+  // composer, so the bundled paint and an imported one cannot disagree.
+  applyAnswerBlock(doc, answerBlock(headline));
 
   setText(doc, STAND_IDS.label, headline.label ?? "");
   setText(doc, STAND_IDS.question, headline.question ?? "");

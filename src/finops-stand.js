@@ -54,6 +54,7 @@ import { validateCohortAttribution } from "./cohort-attribution.js";
 // It owns the coverage bar, the four states, and the sentence for each; nothing
 // about gradability is decided here.
 import { gradeExport } from "./export-gradability.js";
+import { STAND_LABEL, periodLabel } from "./finops-screen-contract.js";
 import {
   COST_BAND, COST_BAND_DIRECTION, COST_METRIC, COST_POSITION_WITHHELD, PEER_COST_COHORTS,
   PEER_COST_PROVENANCE, PEER_COST_SNAPSHOT_ID, PEER_RANK_LABEL, displayCostPerSuccessfulTask,
@@ -248,10 +249,14 @@ export const BAND_IN_WORDS = Object.freeze({
 });
 
 /** The eyebrow above the question, per source. */
-export const STAND_LABEL = Object.freeze({
-  example: "Bundled synthetic example · nothing of yours needed",
-  import: "Your own export · analyzed in this browser",
-});
+/**
+ * Whose figures these are, and the window they cover. Both now live in
+ * `finops-screen-contract.js` and are re-exported here for this module's callers:
+ * the answer block's own summary needs them and may not reach this composer, so
+ * one definition beside the block that prints them is the only way the label a
+ * summary carries and the label a composed headline carries stay one string.
+ */
+export { STAND_LABEL, periodLabel };
 
 /**
  * The one way this region fails that is nobody's data problem: the example
@@ -423,32 +428,6 @@ function entitlementSlot(winner) {
 const entry = (term, detail) => Object.freeze({ term, detail: String(detail) });
 const filled = (value) => typeof value === "string" && value.trim().length > 0;
 
-/**
- * "2026-06-01 to 2026-07-01" → "June 2026". Null rather than a guess.
- *
- * The period a claim covers is half of what makes it repeatable, and the
- * analysis already carries it in the shape every other window on this page uses.
- * A window that spans more than one month gets both ends rather than a month
- * name that would be wrong for most of it.
- */
-const MONTH = Object.freeze(["January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December"]);
-
-export function periodLabel(analysis) {
-  const match = /^(\d{4})-(\d{2})-\d{2} to (\d{4})-(\d{2})-(\d{2})$/
-    .exec(String(analysis?.period ?? "").trim());
-  if (!match) return null;
-  const [, startYear, startMonth, endYear, endMonth, endDay] = match;
-  const month = MONTH[Number(startMonth) - 1];
-  if (!month) return null;
-  // A half-open window ending on the first of the next month is one whole
-  // month, which is how this page's own exports are cut.
-  const wholeMonth = endDay === "01"
-    && (Number(endMonth) === Number(startMonth) + 1 ? endYear === startYear
-      : Number(startMonth) === 12 && Number(endMonth) === 1
-        && Number(endYear) === Number(startYear) + 1);
-  return wholeMonth ? `${month} ${startYear}` : `${analysis.period}`;
-}
 
 /**
  * The position line: which quarter of comparable organizations, what the metric
