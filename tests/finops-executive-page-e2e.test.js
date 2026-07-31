@@ -248,10 +248,18 @@ test("an import lands on the whole executive page, survives a replacement, and c
         "the comparison surface must expose the published contract version");
       assert.doesNotMatch(shownText(document, "cohort-comparison"), /stays the bundled cohort/,
         "the legacy bundled-only explanation must not contradict the imported benchmark");
+      // The method prose itself is deferred to /finops-detail/ and fetched on
+      // first expand — see tests/finops-deferred-detail.test.js, which drives
+      // the load, the failure, and the cache. What this flow test still owns is
+      // that an import leaves the panel readable without one: the fallback is
+      // server-rendered, names what it stands for, and links to the source.
       const method = shownText(document, "peer-benchmark-method");
-      assert.match(method, /half of ties/);
-      assert.match(method, /close for industry plus size, broad for size only/);
+      assert.match(method, /comparable-peer method/);
+      assert.match(method, /finops-peer-cohort\/1\.0\.0/);
       assert.match(method, /single prioritized action/);
+      assert.equal(byId(document, "peer-benchmark-method-body")
+        .dataset.deferredState, "fallback",
+        "an import must not put the deferred panel into a loading state it never leaves");
 
       assert.equal(byId(document, "spend-mix-panel").hidden, false);
       assert.equal(byId(document, "mix-legend").children.length, 4,

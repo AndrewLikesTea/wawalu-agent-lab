@@ -1,0 +1,56 @@
+{
+  "$comment": "Size budget for what /evolution.html sends a reader before they interact with anything. Enforced by scripts/check-size-budget.mjs against dist/, wired into `npm run verify:build` and therefore into `npm run check`. Every budgetBytes below is a MEASUREMENT of the post-collapse page as built on 2026-07-30 from this branch, plus the stated headroom — not a target anyone hopes to reach.",
+  "headroom": "2% over the measured baseline, rounded up to the next whole KiB",
+  "$headroomRationale": "Small on purpose. The value of this check is that it notices an unplanned addition, so wide headroom would let a module-sized regression land silently and no headroom would fail on a comment. 2% is roughly a paragraph of prose on the document and roughly one small module on the entry graph, which is the granularity worth arguing about in review.",
+  "$deferralNote": "Honest accounting of the deferral that landed with this file, because the numbers did not come out the way the change was scoped to. Moving the comparable-peer method prose out of evolution.html took 2,343 bytes out of the document; the fallback paragraph and the comment explaining it put 2,125 back, so the document is 177,349 bytes against 177,567 before — a net 218 bytes. The loader that makes the deferral work, src/finops-deferred-detail.js, is a hard import of the page entry, so the entry graph is about 8 KiB LARGER than before. The initial payload therefore grew, not shrank. The reason is that this page has no evidence MODULE that is disclosure-only: every figure on it, including the seven headline disclosures, is composed eagerly by modules the headline itself depends on (ranking-reproducibility.js, for instance, also supplies the headline's laggard name and provenance), so none of them can leave the initial payload without moving a figure the answer rests on. What is deferrable here is authored prose, and one panel of prose does not pay for its own loader. The mechanism is in place and the marginal cost of the next panel is only the prose it removes; these baselines record where the page actually is today rather than where a second panel would put it.",
+  "artifacts": [
+    {
+      "id": "evolution-html",
+      "label": "evolution.html (document)",
+      "kind": "file",
+      "path": "evolution.html",
+      "budgetBytes": 181248,
+      "baseline": "Measured 177,349 bytes in dist/ on 2026-07-30, after Mina's retirement pass, Iris's progressive-disclosure markup, and the comparable-peer method deferral in this change. Was 177,567 bytes immediately before it."
+    },
+    {
+      "id": "evolution-entry-graph",
+      "label": "evolution-page.js + its static import graph",
+      "kind": "module-graph",
+      "entry": "/evolution-page.js",
+      "budgetBytes": 2905088,
+      "baseline": "Measured 2,847,199 bytes across 165 modules in dist/ on 2026-07-30 — the page entry and everything it reaches by static import, which is what a browser must fetch and parse before this page is interactive. A module moved behind a dynamic import() leaves this number; a fetched JSON fragment was never in it."
+    },
+    {
+      "id": "footer-entry-graph",
+      "label": "site-footer-page.js + its static import graph",
+      "kind": "module-graph",
+      "entry": "/site-footer-page.js",
+      "budgetBytes": 27648,
+      "baseline": "Measured 26,505 bytes in dist/ on 2026-07-30. The second module script /evolution.html loads, tracked because it is part of the same initial payload and grows independently of the page entry."
+    },
+    {
+      "id": "evolution-css",
+      "label": "evolution.css",
+      "kind": "file",
+      "path": "evolution.css",
+      "budgetBytes": 265216,
+      "baseline": "Measured 259,456 bytes in dist/ on 2026-07-30. Render-blocking on this page, so it is initial payload in the strictest sense."
+    },
+    {
+      "id": "styles-css",
+      "label": "styles.css",
+      "kind": "file",
+      "path": "styles.css",
+      "budgetBytes": 86016,
+      "baseline": "Measured 83,838 bytes in dist/ on 2026-07-30. Shared across the site and render-blocking here; tracked so growth landed for another page still shows up against this one's budget."
+    },
+    {
+      "id": "journey-consolidated-css",
+      "label": "finops-journey-consolidated.css",
+      "kind": "file",
+      "path": "finops-journey-consolidated.css",
+      "budgetBytes": 6144,
+      "baseline": "Measured 5,695 bytes in dist/ on 2026-07-30. The third render-blocking stylesheet /evolution.html links, shared with the Savings Action Center."
+    }
+  ]
+}
