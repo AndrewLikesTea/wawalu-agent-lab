@@ -106,7 +106,12 @@
              headline announces the claim WITH what it rests on. Composed by
              finops-stand-view.js from the values the visible slots carry; it
              invents nothing. Authored pending, so it is never empty. -->
-        <p class="visually-hidden" id="finops-stand-claim">Where do we stand on AI spend? This page is still reading the Bundled synthetic example. Confidence not stated. Nothing has been read yet, so this claim rests on nothing.</p>
+        <!-- No confidence tier in the authored sentence, deliberately. Before
+             anything is read there is no claim to be confident about, so a tier
+             spoken into the region's own description announces a null figure to
+             a reader who has not asked for one. `standClaimSentence()` writes
+             the tier back in the moment a headline composes one. -->
+        <p class="visually-hidden" id="finops-stand-claim">Where do we stand on AI spend? This page is still reading the Bundled synthetic example. Nothing has been read yet, so this claim rests on nothing.</p>
         <div class="stand-head">
           <p class="eyebrow" id="finops-stand-label">Bundled synthetic example · nothing of yours needed</p>
           <!-- The highest-ranked heading in this region, and it is the lead's
@@ -131,9 +136,23 @@
              but the entitlement itself is never a click away. -->
         <p class="stand-entitlement" id="finops-stand-entitlement" data-available="false" data-evidence="none" data-confidence="unavailable">
           <span class="stand-entitlement-item" id="finops-stand-evidence">Nothing has been read yet, so this claim rests on nothing.</span>
-          <span class="stand-entitlement-item" id="finops-stand-confidence">Confidence not stated</span>
+          <!-- WITHHELD UNTIL THERE IS A CLAIM TO QUALIFY. See the note on
+               `.pre-analysis-withheld` below: a confidence chip over no figure
+               is a tier for a sentence nobody has said yet. -->
+          <span class="stand-entitlement-item pre-analysis-withheld" id="finops-stand-confidence" hidden></span>
         </p>
-        <div class="stand-figures">
+        <!-- WITHHELD UNTIL IT HAS VALUES, and removed from the tree rather than
+             dimmed. Every `.pre-analysis-withheld` block on this first screen
+             ships `hidden`, which is what takes it out of the layout AND out of
+             the accessibility tree; the views below reveal each one on the
+             paint that gives it a figure, so the populated state is unchanged.
+             It replaces eleven authored null placeholders across this region and
+             #finops-first-run, which drew a full grid of metric-shaped boxes
+             that said nothing to a first-time visitor and gave a screen reader
+             eleven stops on the way to the one action worth taking. A
+             `visually-hidden` node would still have been those eleven stops.
+             tests/finops-pre-analysis-empty-state.test.js holds the count. -->
+        <div class="stand-figures pre-analysis-withheld" hidden>
           <!-- The position and the recoverable figure are ONE headline, not two
                cards: they sit in a single group, and at narrow widths the label,
                the value, and the basis stay three visibly different sizes so the
@@ -141,7 +160,7 @@
                of equal-weight text. -->
           <div class="stand-figure stand-figure-position">
             <h3 class="stand-figure-label">Rank against similar organizations</h3>
-            <p class="stand-figure-value" id="finops-stand-position-value" data-available="false">Not yet compared</p>
+            <p class="stand-figure-value" id="finops-stand-position-value" data-available="false"></p>
             <p class="stand-figure-basis" id="finops-stand-position-basis"></p>
           </div>
           <!-- The headline metric's label is RENDERED, not authored:
@@ -152,7 +171,7 @@
                definition it belongs to. -->
           <div class="stand-figure stand-figure-recoverable">
             <h3 class="stand-figure-label" id="finops-stand-metric-label">Recoverable spend</h3>
-            <p class="stand-figure-value" id="finops-stand-recoverable-value" data-available="false">Not yet measured</p>
+            <p class="stand-figure-value" id="finops-stand-recoverable-value" data-available="false"></p>
             <p class="stand-figure-basis" id="finops-stand-recoverable-basis"></p>
           </div>
         </div>
@@ -161,9 +180,9 @@
              evidence for naming it is the sentence beside it. Runners-up are in
              the ranked-department disclosure, which is where a reader who wants
              a list goes. -->
-        <div class="stand-team" id="finops-stand-team" data-available="false">
+        <div class="stand-team pre-analysis-withheld" id="finops-stand-team" data-available="false" hidden>
           <h3 class="stand-figure-label">Department driving the increase</h3>
-          <p class="stand-team-name" id="finops-stand-team-name">No department named yet</p>
+          <p class="stand-team-name" id="finops-stand-team-name"></p>
           <p class="stand-team-detail" id="finops-stand-team-detail"></p>
         </div>
         <!-- ONE action, and it is a real anchor to a destination this page
@@ -171,7 +190,7 @@
              address bar, correct when copied. The destinations that did not win
              rank 1 are not dropped; they are the last disclosure below. -->
         <div class="stand-next">
-          <a class="stand-action" id="finops-stand-action" href="#recommendation-evidence" aria-describedby="finops-stand-action-basis" hidden>Not yet ranked</a>
+          <a class="stand-action" id="finops-stand-action" href="#recommendation-evidence" aria-describedby="finops-stand-action-basis" hidden></a>
           <p class="stand-action-basis" id="finops-stand-action-basis" hidden></p>
           <!-- IS THIS A ONE-OFF? The period comparison that answers it was two
                interactions away — switch destination, then unfold the panel it
@@ -342,7 +361,14 @@
                same words `finops-decision-contract.js` publishes. -->
           <h2 id="finops-first-run-title">Are we wasting money?</h2>
         </div>
-        <p class="sample-marker first-run-sample" id="finops-first-run-sample"><span class="sample-marker-shape" aria-hidden="true">◇</span><strong>Bundled synthetic example</strong> Every figure below comes from six months of invented data for an invented company. It is not your spend, customer data, or realized savings. No file is needed.</p>
+        <!-- ONE DISCLAIMER ON THE FIRST SCREEN, not two. #finops-stand-sample
+             above already tells a first-time visitor that every figure on this
+             page is invented data for an invented company, and this copy sat
+             one screen under it qualifying figures that had not been drawn yet.
+             It is withheld with the figures it labels and revealed on the same
+             paint, so a reader who has an example result still meets the marker
+             inside the region it belongs to. -->
+        <p class="sample-marker first-run-sample pre-analysis-withheld" id="finops-first-run-sample" hidden><span class="sample-marker-shape" aria-hidden="true">◇</span><strong>Bundled synthetic example</strong> Every figure below comes from six months of invented data for an invented company. It is not your spend, customer data, or realized savings. No file is needed.</p>
         <!-- THE ANSWER, and why it is a sentence rather than a grid.
              `src/finops-decision-interaction.js` publishes the reading order
              this block keeps in every medium: answer, then the benchmark that
@@ -352,15 +378,15 @@
              print order; nothing below reorders in CSS. -->
         <p class="first-run-answer" id="finops-first-run-answer" data-available="false">No analysis has run yet. Try the Bundled synthetic example without uploading a file, or analyze your own export.</p>
         <p class="first-run-answer-detail" id="finops-first-run-answer-detail" hidden></p>
-        <div class="first-run-slots">
+        <div class="first-run-slots pre-analysis-withheld" hidden>
           <div class="first-run-slot">
             <h3 class="first-run-slot-label" id="finops-first-run-benchmark-heading">Potentially recoverable share</h3>
-            <p class="first-run-value" id="finops-first-run-benchmark-value" data-available="false">Not yet measured</p>
+            <p class="first-run-value" id="finops-first-run-benchmark-value" data-available="false"></p>
             <p class="first-run-detail" id="finops-first-run-benchmark-detail" hidden></p>
           </div>
           <div class="first-run-slot">
             <h3 class="first-run-slot-label" id="finops-first-run-impact-heading">Potential impact · routing scenario</h3>
-            <p class="first-run-value" id="finops-first-run-impact-value" data-available="false">Not yet measured</p>
+            <p class="first-run-value" id="finops-first-run-impact-value" data-available="false"></p>
             <p class="first-run-detail" id="finops-first-run-impact-detail" hidden></p>
           </div>
         </div>
@@ -397,11 +423,11 @@
              is given a blank where a band should be cannot tell "we did not
              compare" from "the page is broken". Authored empty and hidden: the
              band, like every figure here, comes out of the analysis path. -->
-        <div class="first-run-support">
+        <div class="first-run-support pre-analysis-withheld" hidden>
           <div class="first-run-slot">
             <h3 class="first-run-slot-label" id="finops-first-run-peer-heading">Rank against similar organizations</h3>
             <p class="first-run-band" id="finops-first-run-peer-band" hidden></p>
-            <p class="first-run-value" id="finops-first-run-peer-value" data-available="false">Not yet compared</p>
+            <p class="first-run-value" id="finops-first-run-peer-value" data-available="false"></p>
             <p class="first-run-detail" id="finops-first-run-peer-detail" hidden></p>
           </div>
           <!-- THE DRILL-DOWN OF THAT SAME POSITION, one slot to its right: the
@@ -427,13 +453,13 @@
           <div class="first-run-slot">
             <h3 class="first-run-slot-label" id="finops-first-run-internal-heading">Internal drill-down · widest department gap</h3>
             <p class="first-run-band" id="finops-first-run-internal-band" hidden></p>
-            <p class="first-run-value" id="finops-first-run-internal-value" data-available="false">Not yet compared</p>
+            <p class="first-run-value" id="finops-first-run-internal-value" data-available="false"></p>
             <p class="first-run-detail" id="finops-first-run-internal-detail" hidden></p>
           </div>
         </div>
-        <div class="first-run-recommendation">
+        <div class="first-run-recommendation pre-analysis-withheld" hidden>
           <h3 class="eyebrow" id="finops-first-run-action-heading">Recommended action · rank 1</h3>
-          <p class="first-run-action-text" id="finops-first-run-action" data-available="false">Not yet ranked</p>
+          <p class="first-run-action-text" id="finops-first-run-action" data-available="false"></p>
           <!-- A role, never a person, beside the action it owns. -->
           <p class="first-run-role" id="finops-first-run-role" hidden></p>
         </div>
@@ -441,9 +467,9 @@
              with no statement of how much of it was verified asks the reader to
              take the number on faith, which is the one thing this region is not
              allowed to do. -->
-        <div class="first-run-confidence">
+        <div class="first-run-confidence pre-analysis-withheld" hidden>
           <h3 class="first-run-slot-label" id="finops-first-run-confidence-heading">Confidence in this answer</h3>
-          <p class="first-run-value" id="finops-first-run-confidence-value" data-available="false">Not yet measured</p>
+          <p class="first-run-value" id="finops-first-run-confidence-value" data-available="false"></p>
           <p class="first-run-detail" id="finops-first-run-confidence-detail" hidden></p>
         </div>
         <!-- Provenance directly off the headline, one keystroke away and never
