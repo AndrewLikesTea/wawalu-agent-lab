@@ -12,6 +12,7 @@
 // department names and reason sentences taken out of a reader's own import.
 
 import { STAND_DISCLOSURE_ORDER, STAND_IDS, STAND_RESOLUTION_ACTION } from "./finops-stand.js";
+import { applyFinopsSpine } from "./finops-spine.js";
 
 /** The state chip, in the same two channels the rest of this page uses. */
 export const STAND_DISCLOSURE_STATE = Object.freeze({
@@ -247,5 +248,15 @@ export function applyStandHeadline(doc, headline) {
   // Spoken once, and only what a reader who cannot see the region needs in
   // order to decide whether to read it.
   setText(doc, STAND_IDS.live, `${headline.label}. ${headline.answer}`);
+
+  // THE SPINE, LAST, so it is what the region ends up carrying. It writes the
+  // page's one question into this region's heading, the headline metric's name
+  // into the label for it, the classification of every top-level region, and
+  // which of the spine's two states — nothing imported, or the reader's own
+  // export read — this paint is in. Everything above composed figures; this
+  // line is where the page says what it is answering and what everything else
+  // on it is for. `headline.source` is the only input it needs: "import" means
+  // the figures just painted are the reader's own.
+  applyFinopsSpine(doc, { imported: headline.source === "import" });
   return region;
 }
