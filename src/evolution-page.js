@@ -241,6 +241,10 @@ import { applyAnswerSpine } from "/finops/answer-spine-view.js";
 // The answer spine itself — one question, one metric, one action, one artifact,
 // and the classification of every other top-level region as evidence or gone.
 import { applyFinopsSpine } from "/finops-spine.js";
+// The page's one announcer, and the list of regions that had to stop echoing it.
+import {
+  announceAnswer, importFailureAnnouncement, silenceEchoedRegions,
+} from "/finops-answer-announcement.js";
 import {
   announce as announceStage, applyDatasetProvenance, applyExportPackageGuidance,
   applyFieldDiagnostic, applyImportLimits, applyOrgQuerySources, applyOrgQuerySourceStatus,
@@ -750,9 +754,19 @@ function mountLocalFinopsImport() {
   // One announcement per commit. A file input only commits on change, so there
   // is no keystroke to debounce; what matters is that a single message goes to
   // exactly one region, chosen by severity.
-  const announce = (state, title, copy) => announceStage(document, {
-    severity: state === "error" ? "assertive" : "polite", state, title, copy,
-  });
+  const announce = (state, title, copy) => {
+    const painted = announceStage(document, {
+      severity: state === "error" ? "assertive" : "polite", state, title, copy,
+    });
+    // The two regions this paints were silenced at boot, because every OUTCOME
+    // they carry is said again by the answer's own sentence a moment later and a
+    // reader should hear it once. An import that is still reading is not an
+    // outcome and has no answer sentence behind it, so that one message is
+    // forwarded to the same announcer rather than lost: one region, one message,
+    // one per event.
+    if (state === "loading") announceAnswer(document, `${title} ${copy}`);
+    return painted;
+  };
 
   /**
    * Repaint the restored briefing against whatever is on screen right now.
@@ -1561,11 +1575,16 @@ function mountLocalFinopsImport() {
       `${basis.detail} ${example
         ? "Analyze your own exports, or clear the Bundled synthetic example, at any time."
         : "The Bundled synthetic example is replaced until refresh or “Return to the Bundled synthetic example.”"}`);
-    // Focus lands on the new stage's heading, not on the section wrapper, so a
-    // screen reader reads the brief's title rather than a nameless region. A
-    // re-import redraws the same stage, and the reader is still owed the move.
+    // Focus lands on THE ANSWER, which is the thing that just changed. It used
+    // to land on the decision brief's own heading, most of a page below — so a
+    // keyboard or screen-reader user who imported an export to change the
+    // answer was moved past the answer to the evidence for it, and had to
+    // shift-tab back up to read what they came for. The region already ships
+    // `tabindex="-1"`, is labelled by the question and described by the claim
+    // sentence, and is never added to the tab order. The stage still advances;
+    // it just does not take the focus with it.
     syncStage({ hasResult: true });
-    focusStageHeading(document, "read");
+    document.getElementById("finops-stand")?.focus?.({ preventScroll: true });
     void paintModelOverspend(example).then(syncPanels);
     const graded = paintGradedSample();
     // The reader's own grade, confidence, record count, KPI figures and query
@@ -1816,6 +1835,13 @@ function mountLocalFinopsImport() {
     syncStage();
     announce("error", "This file was not analyzed.",
       `${diagnostic.text} ${diagnostic.recovery} Existing analysis was not replaced.`);
+    // A rejection does not repaint the answer, so it does not reach the answer
+    // region's own announcer — this is the one path that has to speak for
+    // itself. One sentence: what went wrong, what to do about it, and the fact
+    // that the answer they were reading is still the answer on screen. Focus
+    // stays on the picker below, which is a control they can act from and is
+    // not about to be removed.
+    announceAnswer(document, importFailureAnnouncement(diagnostic));
     input.focus?.();
   };
 
@@ -2998,6 +3024,13 @@ async function init() {
   // so the page cannot hold an order the spine no longer declares. Attributes
   // and one label; it tolerates every region being absent.
   applyFinopsSpine(document);
+  // …and, before a single region is painted, the voice is taken away from every
+  // one that only echoes the answer. Nine polite regions used to be repainted on
+  // the tick an import lands, so a screen-reader user was read a queue where a
+  // sighted reader saw one page settle. They keep their text and their place;
+  // the announcement moves to the answer region's own announcer, which is the
+  // only region on this page that speaks about the answer now.
+  silenceEchoedRegions(document);
   // First, before any panel is painted: a fragment already in the address bar
   // has to open its way out of the disclosures it points into, and the handlers
   // that keep doing so have to be attached before the reader can click one.
