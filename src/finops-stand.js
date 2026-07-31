@@ -318,18 +318,19 @@ export const STAND_RESOLUTION_ACTION = Object.freeze({
 /**
  * What the headline says before anything has been composed into it.
  *
- * The empty state names the cause — the page is still reading — and says what
- * happens next without asking the reader to do anything, because there is
- * nothing for them to do. The three short values keep this page's existing
- * pending wording, which every other region on it already uses.
+ * One sentence, and it does both jobs: it names the cause — the page is still
+ * reading — and says what replaces it, without asking the reader to do
+ * anything, because there is nothing for them to do. It used to be followed by
+ * "Nothing has been read yet, so this claim rests on nothing", which read as an
+ * integrity warning about a claim nobody had made and contradicted the sentence
+ * before it. The four short values carry this page's one empty-slot wording.
  */
 export const STAND_PENDING = Object.freeze({
-  answer: "This page is still reading the Bundled synthetic example. The ranking appears here as "
-    + "soon as it has been read; nothing is needed from you.",
-  position: "Not yet compared",
-  recoverable: "Not yet measured",
-  team: "No department named yet",
-  action: "Not yet ranked",
+  answer: "Still reading the Bundled synthetic example; the numbers below fill in when it finishes.",
+  position: "Not read yet",
+  recoverable: "Not read yet",
+  team: "Not read yet",
+  action: "Not read yet",
 });
 
 /** The load failure, in the reader's terms: what broke, and what it was not. */

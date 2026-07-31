@@ -322,11 +322,11 @@ test("a withheld metric and an unranked action are announced as what they are", 
   const said = answerAnnouncement({
     question: STAND_QUESTION,
     label: "Bundled synthetic example · nothing of yours needed",
-    recoverable: { available: false, label: "Recoverable spend", value: "Not yet measured" },
-    action: { available: false, label: "Not yet ranked" },
+    recoverable: { available: false, label: "Recoverable spend", value: "Not read yet" },
+    action: { available: false, label: "Not read yet" },
     withheld: { nextStep: "Choose a provider export to rank one." },
   });
-  assert.match(said, /Recoverable spend: Not yet measured\./,
+  assert.match(said, /Recoverable spend: Not read yet\./,
     "an unavailable metric is announced as a gap rather than as the reason it is unavailable");
   assert.match(said, /Do this next: Choose a provider export to rank one\./);
 });

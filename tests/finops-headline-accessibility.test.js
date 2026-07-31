@@ -388,8 +388,14 @@ test("the headline is announced as one claim: question, number, confidence, evid
   // paint below writes the real tier in the moment there is one.
   assert.doesNotMatch(authored, /Confidence not stated/,
     "the pre-analysis description announces a null confidence tier");
-  assert.match(authored, /Nothing has been read yet/,
-    "the pre-analysis description no longer says that nothing has been read");
+  // One sentence after the question, and it both names the read in progress and
+  // says what replaces it. The sentence it replaced — "Nothing has been read
+  // yet, so this claim rests on nothing" — contradicted the line above it and
+  // announced an integrity warning to a visitor who had claimed nothing.
+  assert.match(authored, /Still reading the Bundled synthetic example; the numbers below fill in when it finishes\.$/,
+    "the pre-analysis description no longer says what is being read and what replaces it");
+  assert.doesNotMatch(authored, /rests on nothing/,
+    "the pre-analysis description contradicts the sentence before it");
 
   // And after a real paint it is the four values the visible slots carry.
   const headline = composeStandHeadline({ analysis: loadExampleDataset(), source: "example" });
