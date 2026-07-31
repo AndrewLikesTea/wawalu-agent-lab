@@ -48,6 +48,17 @@
   fail a deploy or block a rollback. Alert on `auth: "degraded"` and the
   `binding_health` log rather than on the probe's status code. Provisioning the
   bindings stays operations-owned. See `docs/auth-storage-bindings.md`.
+- `npm run record:merged-count` refreshes the observatory's fallback figure. It
+  reads the public GitHub event feeds `/agents.html` links to and writes the
+  count and its ISO-8601 timestamp to `src/merged-pull-request-count.json`, which
+  the built artifact publishes. It is the only writer of that file, and it writes
+  only after GitHub answers: a failed, rate-limited, unreadable, or empty
+  response leaves the previous record byte-for-byte intact and exits 1 with the
+  reason on stderr. Nothing estimates or carries a number forward, so the date
+  the page shows beside the count is always the date it was taken. It is safe to
+  run at any time, needs no credential, and touches no deployment path; run it
+  before a release if the published figure has gone stale. It is deliberately
+  not part of `npm run build` — the build must not depend on a third-party API.
 - Releases are immutable commit artifacts. To roll back, use the established
   protected release process to redeploy the last known-good commit artifact,
   verify its manifest, then smoke-test `/healthz`. Do not edit an artifact in

@@ -10,6 +10,12 @@ export const EVENTS_URLS = [
 ];
 const REFRESH_MS = 90_000;
 const DEMO_DATA_URL = "/agent-demo-data.json";
+// The last count that was actually taken from the responses above, published
+// with the page as a static same-origin file — the same way every other durable
+// value on this site is stored and read. Nothing writes it in the browser:
+// scripts/record-merged-count.mjs is the only writer, and it writes only after
+// GitHub has answered.
+export const RECORDED_COUNT_URL = "/merged-pull-request-count.json";
 // This small, code-owned example keeps the observatory useful when its
 // published JSON cannot be read. It deliberately contains no fetched activity,
 // customer material, private-repository content, or hidden instructions.
@@ -462,11 +468,25 @@ export const CONNECTION_LABELS = Object.freeze({
 // --- The one real number on this page --------------------------------------
 //
 // Everything else this observatory shows about "the team" is a labelled
-// synthetic example. This figure is not: it is counted from the public GitHub
-// events response the page already fetches, from nothing else, and when that
-// response does not arrive the slot shows no number at all. There is no
-// estimate, no remembered previous value, and no zero standing in for a failed
-// request — an unanswered request is a sentence, not a digit.
+// synthetic example. This figure is not: every number this slot can show was
+// counted from a public GitHub events response, from nothing else. There is no
+// estimate, no extrapolation, and no zero standing in for a failed request.
+//
+// What changed, and why: the page requests that response unauthenticated, so a
+// prospect is routinely rate-limited, and the slot used to answer that with
+// "Counting…" or a sentence — a spinner where the one repeatable proof number
+// belongs. It now has three states, each readable from the rendered page alone:
+//
+//   live         GitHub answered. This response's count, and no recorded date.
+//   recorded     GitHub did not answer. The last count that was taken from it,
+//                with the date it was taken shown as text beside the number.
+//   unavailable  GitHub did not answer and no count has ever been recorded. One
+//                sentence, no digit.
+//
+// The recorded count is a durable record, not a remembered render: it is read
+// from RECORDED_COUNT_URL, and only scripts/record-merged-count.mjs writes it,
+// only from a response GitHub actually returned. A stale number is therefore
+// always dated, and an undated number can only ever be a live one.
 //
 // It says "merged pull requests" because the response can actually tell a merge
 // apart: a PullRequestEvent closed with `pull_request.merged === true` is a
@@ -537,37 +557,96 @@ export function responseTimestamp(responses = [], receivedAt) {
 }
 
 const formatClockTime = (date) => new Intl.DateTimeFormat(undefined, { timeStyle: "short" }).format(date);
+// The recorded count's date, as the calendar date it was taken on. ISO-8601,
+// not a locale format: it is the same string the record itself holds, so what a
+// reader sees and what the file says cannot drift, and it stays unambiguous for
+// a reader who is not in the writer's locale.
+export const formatRecordedDate = (date) => date.toISOString().slice(0, 10);
+
+/**
+ * A recorded count, or `null` when nothing has ever been recorded.
+ *
+ * "Never recorded" is a state of its own, so it is `null` here and never a zero
+ * or an empty string: a count of 0 is a real answer GitHub can give, and the
+ * two must not collapse into each other. A record is only usable when it
+ * carries both halves — a whole non-negative count, and the timestamp that
+ * count was taken at — because a number this page cannot date is a number it
+ * may not show.
+ */
+export function parseRecordedCount(payload) {
+  const count = payload?.count;
+  const takenAt = payload?.takenAt;
+  if (!Number.isInteger(count) || count < 0 || typeof takenAt !== "string") return null;
+  const taken = new Date(takenAt);
+  if (Number.isNaN(taken.getTime())) return null;
+  return { count, takenAt: taken };
+}
+
+/**
+ * Read the published record. Never throws and never rejects: this is the path
+ * that exists because the other one failed, so its own failure is simply "no
+ * record", which the page already knows how to say.
+ */
+export async function readRecordedCount(fetcher = fetch) {
+  try {
+    const response = await fetcher(RECORDED_COUNT_URL);
+    if (!response?.ok) return null;
+    return parseRecordedCount(await response.json());
+  } catch {
+    return null;
+  }
+}
 
 export const MERGED_FIGURE_COPY = Object.freeze({
   loading: Object.freeze({
     value: "Counting…",
     source: "Counted from public GitHub activity, once GitHub answers.",
   }),
+  // One plain sentence, and deliberately no second one: this is the state where
+  // there is nothing to qualify. It renders alone, so the slot holds a sentence
+  // and the verification links, and no dash, blank, or zero standing in for a
+  // number that does not exist.
   unavailable: Object.freeze({
-    value: "No live count right now",
-    source: "Public GitHub activity did not answer, so there is no live count to show. Nothing is estimated or carried over in its place.",
+    value: "Public GitHub activity did not answer, and no count has been recorded from it yet.",
+    source: "",
   }),
 });
+
+/** The count and unit, the two of them always rendered together. */
+function appendCount(value, count) {
+  appendText(value, "strong", "merged-figure-count", String(count));
+  appendText(value, "span", "merged-figure-unit", `merged pull ${count === 1 ? "request" : "requests"}`);
+}
 
 /**
  * Paint the headline figure.
  *
- * `live` is the only state that renders a digit, and it renders the count it was
- * given beside the words for exactly what that count is. `loading` and
- * `unavailable` are sentences: they say which one they are, and neither of them
- * leaves a number behind.
+ * `live` and `recorded` render a digit, each beside the words for exactly what
+ * that count is and where it came from. They are told apart by text, not by
+ * styling: only `recorded` carries a date, and it always carries one, so "this
+ * number is from today's response" and "this number is from the 14th" are two
+ * different sentences rather than the same sentence in two colours. `loading`
+ * and `unavailable` are sentences with no number in them at all.
  *
  * Only the readout is replaced. It is the live region, so one load makes one
  * announcement, and the heading and the verification links above and below it
- * stay put and stay keyboard-reachable through every state.
+ * stay put and stay keyboard-reachable through every state — including both
+ * fallbacks, where a reader most needs to check the source by hand.
  */
-export function renderMergedFigure(root = document, state = "loading", { count = 0, total = 0, asOf = null } = {}) {
+export function renderMergedFigure(root = document, state = "loading",
+  { count = 0, total = 0, asOf = null, takenAt = null } = {}) {
   // A count with no response time behind it cannot be sourced, and an unsourced
   // number is not one this slot may show — so it falls to the empty state rather
-  // than rendering a figure the line beneath it could not account for. Anything
-  // that is not a recognised state falls the same way, never to a number.
+  // than rendering a figure the line beneath it could not account for. A record
+  // is held to the same rule, plus a whole count: a half-written record is not a
+  // number either. Anything unrecognised falls the same way, never to a number.
   const sourced = asOf instanceof Date && !Number.isNaN(asOf.getTime());
-  const name = state === "loading" ? "loading" : state === "live" && sourced ? "live" : "unavailable";
+  const dated = takenAt instanceof Date && !Number.isNaN(takenAt.getTime())
+    && Number.isInteger(count) && count >= 0;
+  const name = state === "loading" ? "loading"
+    : state === "live" && sourced ? "live"
+      : state === "recorded" && dated ? "recorded"
+        : "unavailable";
   const section = root.querySelector("#merged-figure");
   const readout = root.querySelector("#merged-figure-readout");
   if (!section || !readout) return null;
@@ -579,18 +658,52 @@ export function renderMergedFigure(root = document, state = "loading", { count =
   source.className = "merged-figure-source";
 
   if (name === "live") {
-    appendText(value, "strong", "merged-figure-count", String(count));
-    appendText(value, "span", "merged-figure-unit", `merged pull ${count === 1 ? "request" : "requests"}`);
+    appendCount(value, count);
     appendText(source, "span", "", `Counted from ${total} public GitHub ${total === 1 ? "event" : "events"} in `
       + `${SOURCE_REPOSITORIES.join(" and ")}, as of `);
     const time = appendText(source, "time", "merged-figure-time", formatClockTime(asOf));
     time.dateTime = asOf.toISOString();
+  } else if (name === "recorded") {
+    appendCount(value, count);
+    appendText(source, "span", "", "Public GitHub activity did not answer just now, so this is the last count "
+      + `taken from ${SOURCE_REPOSITORIES.join(" and ")}, as of `);
+    const date = appendText(source, "time", "merged-figure-recorded-date", formatRecordedDate(takenAt));
+    date.dateTime = takenAt.toISOString();
   } else {
     value.textContent = MERGED_FIGURE_COPY[name].value;
     source.textContent = MERGED_FIGURE_COPY[name].source;
   }
-  readout.replaceChildren(value, source);
+  // The empty state's sentence stands alone rather than trailing an empty
+  // paragraph, so what is on screen is one sentence and not a sentence and a gap.
+  readout.replaceChildren(...(source.textContent ? [value, source] : [value]));
   return section;
+}
+
+/**
+ * The figure when GitHub did not answer: the recorded count if one exists, and
+ * otherwise the one sentence saying none does. Both keep the verification links
+ * beside them, and neither of them is a spinner.
+ */
+function renderFallbackFigure(root, recorded) {
+  return recorded
+    ? renderMergedFigure(root, "recorded", recorded)
+    : renderMergedFigure(root, "unavailable");
+}
+
+/**
+ * Paint a record that has just arrived, if it is still the best thing to show.
+ *
+ * The two no-number states are what it may replace: `loading`, which is the
+ * whole point — a rate-limited reader gets the dated count while the live
+ * request is still in flight, instead of a spinner — and `unavailable`, which is
+ * what a live request that failed before the record arrived leaves behind. It
+ * never replaces a live count, and never replaces a record with itself.
+ */
+function paintRecordedFigure(root, record) {
+  if (!record) return null;
+  const state = root.querySelector("#merged-figure")?.dataset.state;
+  if (state !== "loading" && state !== "unavailable") return null;
+  return renderMergedFigure(root, "recorded", record);
 }
 
 export async function loadActivity(root = document, fetcher = fetch) {
@@ -602,13 +715,29 @@ export async function loadActivity(root = document, fetcher = fetch) {
   renderActivityState(root, "loading", { keptEvents: hasLiveEvents });
   // Unconditionally, even on a refresh that keeps the events below on screen:
   // the previous count belongs to the previous response, and holding it there
-  // while a new request is in flight would make a stale number look current.
+  // while a new request is in flight would make a stale number look current. It
+  // is the state's only undated number, so it may not outlive its response —
+  // what replaces it below is either the next response's count or a dated one.
   renderMergedFigure(root, "loading");
   label.textContent = CONNECTION_LABELS.loading;
   if (!hasLiveEvents) {
     renderRepresentativeActivity(list, { reason: "loading" });
     updated.textContent = "Not updated yet";
   }
+  // The record is requested first and awaited by nothing on this path. It is a
+  // static same-origin file that cannot be rate-limited, so it normally lands
+  // long before GitHub's unauthenticated feed and the reader gets the dated
+  // count while the live request is still in flight, rather than a spinner that
+  // is about to fail. Not awaiting it is deliberate in the other direction too:
+  // this one file must never be able to hold up the live count, the activity
+  // rows, or the status card, however slowly it answers. `recorded` is therefore
+  // read as "the record, if it is here yet", and the paint below catches up the
+  // case where it was not.
+  let recorded = null;
+  readRecordedCount(fetcher).then((record) => {
+    recorded = record;
+    paintRecordedFigure(root, record);
+  });
   try {
     const responses = await Promise.all(EVENTS_URLS.map(
       (url) => fetcher(url, { headers: { Accept: "application/vnd.github+json" } }),
@@ -631,7 +760,9 @@ export async function loadActivity(root = document, fetcher = fetch) {
         count: countMergedPullRequests(countable), total: countable.length, asOf,
       });
     } else {
-      renderMergedFigure(root, "unavailable");
+      // A response that carried nothing countable is not a live count, so the
+      // slot falls back rather than showing a zero this response did not say.
+      renderFallbackFigure(root, recorded);
     }
     const count = renderEvents(list, events);
     if (count) {
@@ -649,7 +780,7 @@ export async function loadActivity(root = document, fetcher = fetch) {
     updated.textContent = `Updated ${formatClockTime(asOf)}`;
   } catch {
     renderActivityState(root, "error", { keptEvents: hasLiveEvents });
-    renderMergedFigure(root, "unavailable");
+    renderFallbackFigure(root, recorded);
     signal.dataset.connected = "false";
     label.textContent = CONNECTION_LABELS.error;
     updated.textContent = "Not updated";
