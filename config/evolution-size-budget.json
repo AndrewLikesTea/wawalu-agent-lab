@@ -9,8 +9,8 @@
       "label": "evolution.html (document)",
       "kind": "file",
       "path": "evolution.html",
-      "budgetBytes": 181248,
-      "baseline": "Measured 177,349 bytes in dist/ on 2026-07-30, after Mina's retirement pass, Iris's progressive-disclosure markup, and the comparable-peer method deferral in this change. Was 177,567 bytes immediately before it."
+      "budgetBytes": 185344,
+      "baseline": "Measured 181,449 bytes in dist/ on 2026-07-30. RAISED ON PURPOSE, by 4 KiB over the previous 181,248: #745 added the collapsed data-guarantee block to the import panel — what is processed locally, what is stored and how to clear it, what is never transmitted — which is 4,100 bytes of authored prose and markup. It belongs in the initial payload rather than behind the deferred-detail loader for the reason the deferral note below gives: one panel of prose does not pay for its own loader, and this one has to be readable and copyable by a reviewer who has JavaScript off, which is exactly the reader the claim is being defended to. It was trimmed twice before the budget was raised. Was 177,349 bytes immediately before it, after Mina's retirement pass, Iris's progressive-disclosure markup, and the comparable-peer method deferral."
     },
     {
       "id": "evolution-entry-graph",

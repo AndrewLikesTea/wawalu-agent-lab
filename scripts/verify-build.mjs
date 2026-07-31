@@ -20,6 +20,31 @@ function digest(content) {
   return createHash("sha256").update(content).digest("hex");
 }
 
+/**
+ * The headers a static host would attach to one path, read out of a `_headers`
+ * file: a rule is an unindented path line followed by indented `Name: value`
+ * lines, and `#` starts a comment. Returns `null` when no rule declares `path`.
+ *
+ * Exported so a test can assert on the artifact's real policy rather than on a
+ * regular expression over the whole file, which passes on a directive that
+ * shipped under some other path's rule.
+ */
+export function headerRule(headers, path) {
+  let rule = null;
+  for (const line of headers.split("\n")) {
+    if (line.trim() === "" || line.trimStart().startsWith("#")) continue;
+    if (!/^\s/.test(line)) {
+      if (rule) return rule;
+      rule = line.trim() === path ? {} : null;
+      continue;
+    }
+    if (!rule) continue;
+    const separator = line.indexOf(":");
+    if (separator > 0) rule[line.slice(0, separator).trim()] = line.slice(separator + 1).trim();
+  }
+  return rule;
+}
+
 async function inventory(root) {
   return Promise.all((await artifactFiles(root)).map(async (path) => {
     const content = await readFile(path);
@@ -519,6 +544,15 @@ export async function verifyArtifact(root) {
   const headers = await readFile(resolve(root, "_headers"), "utf8");
   if (!headers.includes("default-src 'none'") || !headers.includes("Permissions-Policy: camera=(), geolocation=(), microphone=()")) {
     throw new Error("least-privilege security headers are missing");
+  }
+  // The AI FinOps page's own connection policy, checked in the artifact rather
+  // than in the source, because the artifact is what a browser is served.
+  const finopsPolicy = headerRule(headers, "/evolution.html")?.["Content-Security-Policy"];
+  for (const directive of ["default-src 'self'", "connect-src 'self'",
+    "form-action 'none'", "frame-ancestors 'none'"]) {
+    if (!finopsPolicy?.includes(directive)) {
+      throw new Error(`the AI FinOps connection policy no longer ships "${directive}"`);
+    }
   }
   return manifest;
 }

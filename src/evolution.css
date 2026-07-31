@@ -447,6 +447,18 @@
 .coverage-upgrade-jump:focus-visible,.coverage-upgrade-more summary:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
 .privacy-boundary { display:grid; gap:3px; margin:22px 0; border:1px solid #b9cec4; border-left:5px solid #315f50; border-radius:10px; padding:14px 16px; background:#eef6f2; font-size:13px; line-height:1.5; }
 .privacy-boundary span { color:#496056; }
+/* The forwardable form of the boundary above (#745). Three labelled rows, sized
+   to be copied out of the page and pasted into a review thread, and tinted with
+   the same pair as the note it backs so the two read as one claim. */
+.data-guarantee { margin:0 0 22px; }
+.data-guarantee-body { display:grid; gap:10px; padding:4px 2px 2px; }
+.data-guarantee-body h3 { margin:0; font-size:14px; }
+.data-guarantee-list { display:grid; gap:4px; margin:0; font-size:13px; line-height:1.55; }
+.data-guarantee-list dt { font-weight:750; color:#244c3c; }
+.data-guarantee-list dt:not(:first-of-type) { margin-top:8px; }
+.data-guarantee-list dd { margin:0; color:#496056; }
+.data-guarantee-list code { font-size:12px; word-break:break-all; }
+.data-guarantee-source { margin:0; color:var(--ink-muted); font-size:11px; line-height:1.5; }
 /* Wraps, because the row now holds one picker, one clearly-synthetic exit, and
    one full-width disclosure holding every other way to start. Without the wrap
    the disclosure would be squeezed into a column beside the picker and stop

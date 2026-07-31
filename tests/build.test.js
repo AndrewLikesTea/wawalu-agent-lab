@@ -4,7 +4,7 @@ import { cp, mkdir, mkdtemp, readdir, readFile, writeFile } from "node:fs/promis
 import { tmpdir } from "node:os";
 import { relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createManifest, verifyArtifact } from "../scripts/verify-build.mjs";
+import { createManifest, headerRule, verifyArtifact } from "../scripts/verify-build.mjs";
 import {
   SAMPLE_DECISION_ID,
   SAMPLE_RELEASE_ID,
@@ -273,6 +273,45 @@ test("security headers ship with the site", async () => {
   assert.match(headers, /frame-ancestors 'none'/);
   assert.match(headers, /connect-src 'self' https:\/\/api\.github\.com/);
   assert.match(headers, /X-Content-Type-Options: nosniff/);
+});
+
+test("the built artifact carries the AI FinOps connection policy", async (t) => {
+  // Asserted on the artifact a host would serve, not on src/: a policy that
+  // exists in the repository and not in dist/ protects nobody. The build copies
+  // src/ into the artifact, so this is the same file that reaches the edge —
+  // and `npm run verify:build` makes the same assertion against the real dist/.
+  const directory = await mkdtemp(resolve(tmpdir(), "shiplog-policy-artifact-test-"));
+  t.after(async () => (await import("node:fs/promises")).rm(directory, { recursive: true, force: true }));
+  await copyDeployableArtifact(directory);
+  await createManifest(directory);
+  await verifyArtifact(directory);
+
+  const rule = headerRule(await readFile(resolve(directory, "_headers"), "utf8"), "/evolution.html");
+  assert.ok(rule, "the artifact declares no header rule for the AI FinOps page");
+  const policy = rule["Content-Security-Policy"];
+  assert.match(policy, /(^|; )default-src 'self'(;|$)/);
+  // The outbound boundary. 'self' rather than 'none' because the page boots by
+  // fetching its own bundled fixtures; every cross-origin destination is still
+  // refused, and tests/finops-import-egress.test.js is what proves the import
+  // path opens no connection at all.
+  assert.match(policy, /(^|; )connect-src 'self'(;|$)/,
+    "the page must not be allowed to reach any origin but its own");
+  assert.match(policy, /(^|; )form-action 'none'(;|$)/);
+  assert.match(policy, /(^|; )frame-ancestors 'none'(;|$)/);
+  assert.ok(!/connect-src[^;]*(https?:|\*)/.test(policy),
+    `a remote destination was added to connect-src: ${policy}`);
+});
+
+test("artifact verification rejects a build whose FinOps connection policy went missing", async (t) => {
+  const directory = await mkdtemp(resolve(tmpdir(), "shiplog-policy-removal-test-"));
+  t.after(async () => (await import("node:fs/promises")).rm(directory, { recursive: true, force: true }));
+  await copyDeployableArtifact(directory);
+
+  const headers = await readFile(resolve(directory, "_headers"), "utf8");
+  await writeFile(resolve(directory, "_headers"),
+    headers.replace("connect-src 'self';", "connect-src https://telemetry.example;"));
+  await createManifest(directory);
+  await assert.rejects(verifyArtifact(directory), /connect-src 'self'/);
 });
 
 test("build manifest is reproducible and detects artifact mutation", async (t) => {
