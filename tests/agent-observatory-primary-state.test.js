@@ -139,5 +139,6 @@ test("the escape links a quiet feed offers are met before the refresh control", 
     assert.ok(sequence.indexOf(link) < sequence.indexOf(control),
       `${textOf(link)} is read with the message, before the control`);
   }
-  assert.match(textOf(control), /^Check for new activity$/, "a quiet feed is not a fault, so this is not a retry");
+  assert.match(textOf(control), /^Refresh public GitHub activity$/,
+    "a quiet feed is not a fault, so this asks the named source again rather than offering a retry");
 });

@@ -145,7 +145,7 @@ test("retry runs the same load, and a recovered request reaches the live state",
   assert.match(titleOf(root), /Live public GitHub activity/i);
   assert.match(stateOf(root).textContent, /1 recent public GitHub event/);
   assert.equal(byClass(root.nodes["#activity-list"], "activity-item-representative").length, 0);
-  assert.equal(root.nodes["#refresh-activity"].textContent, "Refresh");
+  assert.equal(root.nodes["#refresh-activity"].textContent, "Refresh public GitHub activity");
 });
 
 test("a refresh over live events never claims the live rows are synthetic", async () => {
@@ -158,7 +158,7 @@ test("a refresh over live events never claims the live rows are synthetic", asyn
   let rejectRefresh;
   const refresh = loadActivity(root, () => new Promise((resolve, reject) => { rejectRefresh = reject; }));
 
-  assert.equal(root.nodes["#connection-label"].textContent, "Checking GitHub",
+  assert.equal(root.nodes["#connection-label"].textContent, "Loading the GitHub signal",
     "the top-level status must not claim a live signal while a refresh is in flight");
   assert.match(stateOf(root).textContent, /last successful update/i);
 
@@ -181,7 +181,7 @@ test("status is the first thing after the panel heading, before the control and 
   assert.equal(status.getAttribute("role"), "status");
   assert.equal(status.getAttribute("aria-live"), "polite");
   assert.equal(status.dataset.state, "loading", "the served markup is already the loading state");
-  assert.match(textOf(status), /Checking public GitHub activity/);
+  assert.match(textOf(status), /Loading public GitHub activity/);
   // The personas link target has to be reachable, and focusable when reached.
   const personas = document.querySelector("#persona-title");
   assert.equal(personas.getAttribute("tabindex"), "-1");
