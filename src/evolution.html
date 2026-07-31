@@ -834,9 +834,33 @@
           <li><a class="workspace-switch-door" data-shell-destination="department" data-shell-name="Departments" href="#workspace-departments">Departments <span class="workspace-switch-state" data-role="state" hidden></span></a></li>
           <li><a class="workspace-switch-door" data-shell-destination="act-and-verify" data-shell-name="Act and verify" href="#workspace-act-and-verify">Act and verify <span class="workspace-switch-state" data-role="state" hidden></span></a></li>
         </ul>
-        <!-- One polite status region for the shell, silent on load and silent for
-             a press that changes nothing. It speaks for this control's own doors;
-             the rail's doors are announced by the rail. -->
+        <!-- WHICH SCREEN THE READER IS STANDING IN, and the question it answers.
+             The list above says what may be pressed; this says what is open, and
+             it is the node the keyboard is handed on every destination change.
+
+             `tabindex="-1"` makes it programmatically focusable without adding a
+             tab stop — a heading a reader Tabs onto is a heading that has to be
+             Tabbed past on every pass. `aria-describedby` puts the question in
+             the same utterance as the name, so landing here says both.
+
+             AUTHORED, NOT PAINTED FROM DATA. This is the focus target in the
+             loading, empty and error states as much as in the resolved one: a
+             heading that only exists once a destination's module lands would
+             drop the keyboard on a slow fetch and strand it on a failed one. The
+             text is replaced from src/finops-screen-contract.js on every change,
+             before the swap, so it never names the screen the reader just left. -->
+        <div class="workspace-screen" id="finops-workspace-screen" data-destination="answer">
+          <p class="eyebrow workspace-screen-eyebrow">Now showing</p>
+          <h3 class="workspace-screen-title" id="finops-workspace-screen-title" tabindex="-1" aria-describedby="finops-workspace-screen-question">The answer</h3>
+          <p class="workspace-screen-question" id="finops-workspace-screen-question">Is our AI spend classification trustworthy enough to act on?</p>
+        </div>
+        <!-- One polite status region for the shell, and it is here in the markup
+             rather than created when there is something to say — a live region
+             inserted at the moment it is written into is one a screen reader was
+             not watching and does not read. Silent on an ordinary cold open and
+             silent for a press that changes nothing; it speaks for a forwarded
+             link that opens somewhere other than the answer, and for this
+             control's own doors. The rail's doors are announced by the rail. -->
         <p class="visually-hidden" id="finops-workspace-switch-live" role="status" aria-live="polite" aria-atomic="true"></p>
       </div>
 
