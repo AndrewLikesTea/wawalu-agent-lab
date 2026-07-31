@@ -302,7 +302,7 @@ export function renderSourceNotice(absence) {
   panel.append(el("p", "brief-source-statement", absence.statement));
   if (absence.remedy) panel.append(el("p", "brief-source-remedy", absence.remedy));
   const actions = el("p", "brief-source-actions");
-  const example = el("a", "brief-source-return-link", "Open the bundled example");
+  const example = el("a", "brief-source-return-link", "Open the Bundled synthetic example");
   example.setAttribute("href", "/executive-briefing.html?example=ai-finops-bundled");
   const own = el("a", "brief-source-return-link", "Analyze your own export");
   own.setAttribute("href", "/evolution.html#local-finops-files");
@@ -451,7 +451,7 @@ function masthead(briefing, origin, synthetic) {
   const header = el("header", "brief-masthead");
   const question = briefing.questions?.[0]?.question ?? "Where should we act first?";
   if (synthetic) header.append(syntheticBanner(synthetic));
-  header.append(el("p", "eyebrow", "Executive briefing · AI FinOps"));
+  header.append(el("p", "eyebrow", "Executive FinOps briefing"));
 
   const title = el("h2", "brief-question");
   title.id = "brief-question";

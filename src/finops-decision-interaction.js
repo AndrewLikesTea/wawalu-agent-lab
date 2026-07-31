@@ -179,7 +179,7 @@ export const DECISION_STATE = Object.freeze({
   ready: Object.freeze({
     state: "ready", word: "Example result", shape: "▣", tone: "resolved",
     owner: DECISION_REGION_ID,
-    statement: "Every figure below was composed from the bundled invented dataset.",
+    statement: "Every figure below was composed from the Bundled synthetic example.",
   }),
   empty: Object.freeze({
     state: "empty", word: "Example result has no records", shape: "◻", tone: "neutral",

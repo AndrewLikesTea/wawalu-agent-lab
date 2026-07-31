@@ -296,7 +296,7 @@ test("a browser with nothing retained says so first, then shows the labelled sam
   assert.match(textOf(notice), /published synthetic sample is shown below/);
   const links = [...notice.querySelectorAll("a")];
   assert.deepEqual(links.map((link) => textOf(link)),
-    ["Open the bundled example", "Analyze your own export"]);
+    ["Open the Bundled synthetic example", "Analyze your own export"]);
   assert.deepEqual(links.map((link) => link.getAttribute("href")), [
     "/executive-briefing.html?example=ai-finops-bundled",
     "/evolution.html#local-finops-files",

@@ -41,18 +41,18 @@
 
       <!-- The outcome of the decision above: whether what shipped saved what was
            projected. The later month is not in storage — the AI FinOps page keeps
-           nothing — so it is a briefing file the visitor exported themselves and
+           nothing — so it is a decision export the visitor made themselves and
            opens here. The control is in the markup rather than in the render
            module because the region below is replaced on every read. -->
       <section class="list-panel dout-panel" aria-labelledby="dout-panel-title">
         <h2 class="dout-panel-title" id="dout-panel-title">Recorded outcome and optional evidence</h2>
         <div class="dout-controls">
           <h3 class="dout-controls-title">Optional evidence</h3>
-          <p class="dout-file-intro" id="dout-file-intro">Opening a later month’s FinOps briefing is optional: it adds what that month actually cost, so the recorded outcome below can be measured against what this decision projected.</p>
-          <label for="dout-file">Open a later month’s FinOps briefing</label>
+          <p class="dout-file-intro" id="dout-file-intro">Opening a later month’s decision export is optional: it adds what that month actually cost, so the recorded outcome below can be measured against what this decision projected.</p>
+          <label for="dout-file">Open a later month’s decision export</label>
           <input id="dout-file" type="file" accept="application/json,.json" aria-describedby="dout-file-intro dout-file-note" />
-          <p class="dout-file-note" id="dout-file-note">The file comes from the AI FinOps page: build a briefing there and press “Export briefing (JSON)”. Choose that saved file here — the briefing for the first full month after this decision shipped. It is read in this tab only: no upload, no credentials, no network transfer.</p>
-          <p class="dout-file-status" id="dout-file-status" role="status" aria-live="polite">No briefing opened yet. The decision below reads without one — use “Open a later month’s FinOps briefing” above to add a measured month.</p>
+          <p class="dout-file-note" id="dout-file-note">A decision export is a JSON file you export from the AI FinOps page: build the month there and press “Export briefing (JSON)”. Choose that saved file here — the one for the first full month after this decision shipped. It is read in this tab only: no upload, no credentials, no network transfer.</p>
+          <p class="dout-file-status" id="dout-file-status" role="status" aria-live="polite">No decision export opened yet. The decision below reads without one — use “Open a later month’s decision export” above to add a measured month.</p>
         </div>
         <!-- The loading state ships in the markup so this region is never an
              empty box before the module runs. Its blocks are in the order

@@ -328,8 +328,8 @@ export const DECISION_OUTCOME_STATE_COPY = Object.freeze({
     word: "Reading your file",
     glyph: "◍",
     shape: "dotted",
-    title: "Reading the FinOps briefing you opened",
-    body: "Checking that this file is a FinOps briefing Shiplog can compare with this decision.",
+    title: "Reading the decision export you opened",
+    body: "Checking that this file is a decision export Shiplog can compare with this decision.",
     recoverable: false,
   },
   error: {

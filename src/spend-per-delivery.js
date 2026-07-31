@@ -756,7 +756,7 @@ export function spendPerDeliveryInput({ analysis, releases, origin = "import", s
     provenance: {
       origin,
       source: source ?? (origin === "example"
-        ? "Bundled synthetic example dataset, analysed in this tab."
+        ? "Bundled synthetic example, analysed in this tab."
         : "Your provider export and this browser's release log, read in this tab."),
       derivedFromFields,
     },

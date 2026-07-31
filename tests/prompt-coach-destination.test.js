@@ -167,7 +167,7 @@ test("a visitor who types nothing reads one complete result on arrival", async (
 
   // Whose text it is, beside the figures rather than under them.
   const attribution = textOf(document.querySelector(".prompt-coach-sample-attribution"));
-  assert.match(attribution, /worked example, not of your text/);
+  assert.match(attribution, /bundled synthetic example, not of your text/);
 
   // Supporting evidence stays disclosed rather than spent on a first read.
   const toggle = result.querySelector(".coaching-result-toggle");
@@ -262,10 +262,10 @@ test("the destination reads as one page about one thing", async () => {
   // Said once. A page that repeats the same promise four times teaches a
   // visitor to skip all four.
   assert.equal(document.querySelectorAll(".prompt-coaching-privacy").length, 1);
-  // The example is named the same way the rest of the site names one — "worked
-  // example" — and says what it is made of in the same breath.
+  // The example is named the same way the rest of the site names one —
+  // "bundled synthetic example" — and says what it is made of in the same breath.
   const sample = textOf(document.querySelector(".prompt-coach-sample-static"));
-  assert.match(sample, /worked example/);
+  assert.match(sample, /bundled synthetic example/);
   assert.match(sample, /bundled synthetic text/);
 
   // One purpose statement, at the top: what a visitor does here and what comes
@@ -303,8 +303,8 @@ test("the first screen names the result and the next action, before any script r
   assert.equal(grade, "Grade this prompt");
   assert.ok(start.includes(grade), `"Start here" must name the ${grade} button it points at`);
 
-  // And it points only at controls that exist without scripts: the worked
-  // example is offered by the block the entry module paints, beside the button
+  // And it points only at controls that exist without scripts: the bundled
+  // synthetic example is offered by the block the entry module paints, beside the button
   // that loads it, rather than promised here to a reader who has none.
   assert.equal(byId(document, "prompt-coaching-example"), null,
     "the example control is painted, so the static copy must not send a reader to it");
@@ -312,20 +312,20 @@ test("the first screen names the result and the next action, before any script r
     "the field and the button the static copy names are in the shipped markup");
 
   const sampleFallback = textOf(document.querySelector(".prompt-coach-sample-lead"));
-  assert.match(sampleFallback, /Loading the graded worked example/);
+  assert.match(sampleFallback, /Loading the graded bundled synthetic example/);
   assert.match(sampleFallback, /paste your own prompt below while it loads/);
 });
 
 test("one name per concept: the example, the grade button, and the clear button", async () => {
   const { document } = await openCoach();
 
-  // The site calls a bundled demonstration a "worked example" everywhere else,
-  // so this page does too — not "supplied example" in one region and "our
-  // example" in the next.
+  // The site calls a bundled demonstration a "bundled synthetic example"
+  // everywhere else, so this page does too — not "supplied example" in one
+  // region and "our example" in the next.
   const text = textOf(document.querySelector("main"));
   assert.doesNotMatch(text, /supplied example|our example/i,
-    "the bundled demonstration is a worked example on every surface that names it");
-  assert.match(textOf(byId(document, "prompt-coaching-example")), /Grade the worked example/);
+    "the bundled demonstration is a bundled synthetic example on every surface that names it");
+  assert.match(textOf(byId(document, "prompt-coaching-example")), /Grade the bundled synthetic example/);
 
   // The clear control is referred to by its own label wherever copy points at
   // it, rather than by a name for the region it clears.

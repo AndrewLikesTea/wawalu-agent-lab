@@ -325,17 +325,17 @@ test("the panel's copy tells a first-time reader what is recorded and what is op
   // own label rather than saying "try again".
   const status = controls.match(/id="dout-file-status"[^>]*>([^<]*)</)[1];
   assert.match(status, /reads without one/);
-  assert.match(status, /Open a later month’s FinOps briefing/);
+  assert.match(status, /Open a later month’s decision export/);
 });
 
 test("the two waiting states describe their own region and nothing else", () => {
   const { loading, reading } = DECISION_OUTCOME_STATE_COPY;
   // The recorded half never claims to be reading a file, and the file half
   // never restates the recorded half.
-  assert.doesNotMatch(loading.body, /briefing|month you have opened/i);
+  assert.doesNotMatch(loading.body, /briefing|decision export|month you have opened/i);
   assert.match(loading.body, /No file is needed for this step/);
-  assert.match(reading.title, /FinOps briefing/);
-  assert.match(reading.body, /FinOps briefing/);
+  assert.match(reading.title, /decision export/);
+  assert.match(reading.body, /decision export/);
   assert.doesNotMatch(reading.body, /savings-commitment contract/);
   assert.notEqual(loading.title, reading.title);
 });

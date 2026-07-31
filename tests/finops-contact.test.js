@@ -433,7 +433,7 @@ test("the contact copy claims nothing the page has not shown, and leaves the exi
     ]) assert.doesNotMatch(copy, claim, `the contact copy must not make this claim: ${claim}`);
 
     // The two labels this change is forbidden to touch, character for character.
-    assert.match(html, /<strong>Bundled synthetic sample data<\/strong>\s*<span>This is an illustrative recommendation—not live analysis, customer data, or realized savings\.<\/span>/);
+    assert.match(html, /<strong>Bundled synthetic example<\/strong>\s*<span>This is an illustrative recommendation—not live analysis, customer data, or realized savings\.<\/span>/);
     assert.match(html, /<strong>Your files do not leave this tab\.<\/strong>/);
     assert.match(html, /Bundled synthetic example — invented data, not your spend\. Analyze your own export to replace it with your figures\./);
 

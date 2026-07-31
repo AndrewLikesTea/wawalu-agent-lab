@@ -229,7 +229,7 @@ test("the AI FinOps proof point is supporting, explicit, and linked to its evide
   assert.match(proofPoint, /Projected savings[\s\S]*\$5,200 \/ month/);
   assert.match(proofPoint, /Accountable role[\s\S]*Core Services platform director/);
   assert.match(proofPoint, /Confidence[\s\S]*High · 760-query scored sample/);
-  assert.match(proofPoint, /Bundled synthetic sample data/);
+  assert.match(proofPoint, /Bundled synthetic example/);
   assert.match(proofPoint, /not live analysis, customer data, or realized savings/i);
   assert.match(proofPoint, /href="#recommendation-evidence"/);
   assert.match(page, /id="recommendation-evidence"[\s\S]*aria-labelledby="evaluation-title"/);
