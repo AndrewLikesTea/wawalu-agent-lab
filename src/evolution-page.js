@@ -328,7 +328,8 @@ import {
 import { applyCohortAttribution } from "/cohort-attribution-view.js";
 // The headline answer this view leads with, and the module that paints it.
 import {
-  applyStandHeadline, bindStandDisclosures, bindStandResolution, mountStandDisclosures,
+  applyAnswerBlock, applyStandHeadline, bindStandDisclosures, bindStandResolution,
+  mountStandDisclosures,
 } from "/finops-stand-view.js";
 // …and the one owner of WHICH source that answer came from. The page used to
 // choose between the bundled example and the reader's import at each call site;
@@ -3417,6 +3418,14 @@ async function init() {
   // the document authoring. The cold-load reveal below runs at install time, so
   // a link that points straight into one has to find it already in the DOM.
   mountStandDisclosures(document);
+  // …and immediately after them, the answer itself. This is the first figure a
+  // reader meets and it is painted from src/finops-answer-summary.js — one
+  // object derived straight from the fixture — so it is on screen before any
+  // panel dataset has been composed, and it stays on screen if one of them
+  // later throws. The full headline paint below repaints the same four slots
+  // with the same four values; this line is what makes the answer independent
+  // of it rather than a consequence of it.
+  applyAnswerBlock(document);
   installDeepLinkDisclosure(document, window);
   // Immediately after it, and for the same reason: a deep link may have already
   // opened a deferred panel, and the read for that panel is taken at install.

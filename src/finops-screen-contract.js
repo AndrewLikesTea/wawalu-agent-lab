@@ -176,9 +176,51 @@ export function asOfBasis(headline) {
 }
 
 /**
+ * Whose figures these are, per source. Moved here from finops-stand.js, which
+ * re-exports it: `asOfBasis` above and `src/finops-answer-summary.js` both need
+ * it, and neither may reach the headline composer to get it.
+ */
+export const STAND_LABEL = Object.freeze({
+  example: "Bundled synthetic example · nothing of yours needed",
+  import: "Your own export · analyzed in this browser",
+});
+
+const MONTH = Object.freeze(["January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December"]);
+
+/**
+ * "2026-06-01 to 2026-07-01" → "June 2026". Null rather than a guess.
+ *
+ * The period a claim covers is half of what makes it repeatable, and the
+ * analysis already carries it in the shape every other window on this page uses.
+ * A window that spans more than one month gets both ends rather than a month
+ * name that would be wrong for most of it. Here rather than in finops-stand.js
+ * for the reason above: it is half of the as-of phrase this module composes.
+ */
+export function periodLabel(analysis) {
+  const match = /^(\d{4})-(\d{2})-\d{2} to (\d{4})-(\d{2})-(\d{2})$/
+    .exec(String(analysis?.period ?? "").trim());
+  if (!match) return null;
+  const [, startYear, startMonth, endYear, endMonth, endDay] = match;
+  const month = MONTH[Number(startMonth) - 1];
+  if (!month) return null;
+  // A half-open window ending on the first of the next month is one whole
+  // month, which is how this page's own exports are cut.
+  const wholeMonth = endDay === "01"
+    && (Number(endMonth) === Number(startMonth) + 1 ? endYear === startYear
+      : Number(startMonth) === 12 && Number(endMonth) === 1
+        && Number(endYear) === Number(startYear) + 1);
+  return wholeMonth ? `${month} ${startYear}` : `${analysis.period}`;
+}
+
+/**
  * The whole answer block from a composed stand headline: four values and nothing
  * else. `figure` is a string in every state — the withheld states say which
  * state they are in rather than printing a percentage nobody should act on.
+ *
+ * It reads three fields — `label`, `period`, `gradability` — and nothing else,
+ * which is why `src/finops-answer-summary.js` can hand it a small object derived
+ * straight from the fixture instead of a fully composed headline.
  */
 export function answerBlock(headline) {
   const gradability = headline?.gradability ?? null;
