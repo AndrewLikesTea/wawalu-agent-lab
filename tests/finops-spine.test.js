@@ -294,9 +294,11 @@ test("the region census agrees with the spine, region for region", () => {
 
 test("a census role with no classification in the spine fails", () => {
   const problems = validateAnswerSpine(ANSWER_SPINE, {
-    spine: { ...FINOPS_SPINE, regions: { ...FINOPS_SPINE.regions, "finops-journey": undefined } },
+    // The id is the census's, and the census declares the journey layer by its
+    // disclosure wrapper since #742 folded the section inside one.
+    spine: { ...FINOPS_SPINE, regions: { ...FINOPS_SPINE.regions, "disclosure-journey": undefined } },
   });
-  assert.ok(problems.some((line) => line.includes("finops-journey")),
+  assert.ok(problems.some((line) => line.includes("disclosure-journey")),
     `expected a classification failure, got: ${problems.join(" | ") || "no problems"}`);
 });
 

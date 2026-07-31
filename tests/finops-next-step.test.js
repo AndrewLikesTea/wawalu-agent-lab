@@ -277,7 +277,10 @@ test("the region ships in the briefing as evidence, not as a second answer", () 
   const section = byId(doc, NEXT_STEP_IDS.region);
   assert.ok(section, "the briefing does not carry #finops-next-step");
   assert.equal(section.dataset.decisionSummary, "evidence");
-  assert.equal(section.dataset.workspaceRegion, "answer");
+  // #742 folded this section into a `support-disclosure`, and the destination a
+  // fragment resolves to is whichever ancestor carries the attribute — so the
+  // owner is asserted the way the shell reads it, not off this element alone.
+  assert.equal(section.closest("[data-workspace-region]")?.dataset.workspaceRegion, "answer");
   assert.match(textOf(byId(doc, "finops-next-step-question")), /Where do I start this month\?/);
   // Authored above the figures, so the claim is true before a script runs.
   assert.match(textOf(byId(doc, "finops-next-step-sample")), /Bundled synthetic example/);

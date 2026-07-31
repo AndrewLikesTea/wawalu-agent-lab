@@ -121,8 +121,15 @@ const REGIONS = Object.freeze({
   "finops-stand": REGION_CLASS.answer,
   "finops-hero": REGION_CLASS.evidence,
   "finops-first-run": REGION_CLASS.evidence,
-  "finops-next-step": REGION_CLASS.evidence,
-  "finops-journey": REGION_CLASS.evidence,
+  // Two of the three "this month" regions are top-level as their DISCLOSURE,
+  // not as their section: #742 folded each into the page's `support-disclosure`
+  // idiom so an evidence region no longer opens at the answer's weight. The
+  // section keeps its own id and its own view; the wrapper is what the document
+  // holds at this level, so it is the id classified here.
+  // `finops-destinations` is deliberately NOT folded: its rank-1 door must stay
+  // in the tab order without a reader opening anything first.
+  "disclosure-next-step": REGION_CLASS.evidence,
+  "disclosure-journey": REGION_CLASS.evidence,
   "finops-destinations": REGION_CLASS.evidence,
   "finops-workspace-nav": REGION_CLASS.evidence,
   "finops-workspace-switch": REGION_CLASS.evidence,
@@ -179,7 +186,7 @@ const EVIDENCE_LAYERS = Object.freeze([
     id: "what-to-do-this-month",
     question: "What do I do first, and what will tell me it worked?",
     regionIds: Object.freeze([
-      "finops-next-step", "finops-journey", "finops-destinations",
+      "disclosure-next-step", "disclosure-journey", "finops-destinations",
       "monthly-department-decision",
     ]),
   }),
