@@ -137,6 +137,10 @@ import { orgQuerySampleResult, validateOrgQuerySource } from "/org-query-source.
 // families rather than on English keywords alone, plus the unclassified residue
 // ranked by how much coverage resolving it would return.
 import { familyCoverage } from "/corpus-family-coverage.js";
+// The lead's own labels for that residue, applied through the same aggregation
+// rather than beside it: `residueReview` re-invokes `familyCoverage` with the
+// labels written into the records, so coverage keeps one definition.
+import { isResidueLabel, residueReview } from "/residue-labeling.js";
 import {
   orgQueryDecisionData, orgQueryDecisionDepartments, orgQueryDepartmentLiteracy,
   orgQueryDepartmentRows,
@@ -2029,20 +2033,65 @@ function mountLocalFinopsImport() {
    * the section back to the example surface rather than leaving a stale answer
    * about a file that is no longer loaded.
    */
+  /**
+   * The lead's own labels for the unclassified clusters, by cluster key.
+   *
+   * A plain Map in this closure, which is the same place the parsed samples,
+   * the archives and the mapping choices already live: in memory, in this tab,
+   * for this session. Nothing is written to storage — `reset()` empties it with
+   * the files it belongs to, and a different export empties it too, because a
+   * label is a statement about the corpus it was made on.
+   */
+  const leadResidueLabels = new Map();
+  /** The last coaching input, so a label can re-run the same paint it came from. */
+  let lastCoachingInput = null;
+
   const paintCoachingDecision = (literacy,
-    { origin = "import", fileNames = [], records = [] } = {}) =>
-    (literacy
-      ? applyOrgQueryDecision(document, orgQueryCoachingDecision(literacy, {
-        origin,
-        fileNames,
-        // The same records the literacy model was built from, classified a
-        // second way: on the five structural signal families rather than on
-        // English keywords alone. That is what decides the coverage number and
-        // the residue clusters this surface now leads with. In memory, in this
-        // tab, and nothing derived from an excerpt comes back out.
-        familyCoverage: records.length ? familyCoverage(records) : null,
-      }))
-      : clearOrgQueryDecision(document));
+    { origin = "import", fileNames = [], records = [] } = {}) => {
+    if (!literacy) {
+      lastCoachingInput = null;
+      leadResidueLabels.clear();
+      return clearOrgQueryDecision(document);
+    }
+    // A label is a statement about one corpus. The moment the corpus changes —
+    // a different file, a different set of files, the bundled example — the
+    // labels go, so no figure is ever assisted by an answer given about an
+    // export that is no longer loaded.
+    const corpus = `${origin}::${fileNames.join("|")}::${records.length}`;
+    if (lastCoachingInput?.corpus !== corpus) leadResidueLabels.clear();
+    lastCoachingInput = { literacy, origin, fileNames, records, corpus };
+    // The review runs the same aggregation the coverage line already reads —
+    // `familyCoverage` — once on the records as imported and once with the
+    // lead's labels written in, so there is still exactly one definition of
+    // coverage on this page. With no label set the two are the same object and
+    // the surface is exactly what it was.
+    const review = records.length
+      ? residueReview(records, leadResidueLabels) : null;
+    return applyOrgQueryDecision(document, orgQueryCoachingDecision(literacy, {
+      origin,
+      fileNames,
+      // The same records the literacy model was built from, classified a
+      // second way: on the five structural signal families rather than on
+      // English keywords alone. That is what decides the coverage number and
+      // the residue clusters this surface now leads with. In memory, in this
+      // tab, and nothing derived from an excerpt comes back out.
+      familyCoverage: review ? review.assisted : (records.length ? familyCoverage(records) : null),
+    }), { review, onAssign: assignResidueLabel });
+  };
+
+  /**
+   * One cluster labelled, and the whole decision recomposed from it.
+   *
+   * The label is validated against the published choices before it is kept: the
+   * control offers exactly those, and a value from anywhere else is dropped
+   * rather than carried into the arithmetic.
+   */
+  function assignResidueLabel(clusterKey, value) {
+    if (!lastCoachingInput || typeof clusterKey !== "string" || !clusterKey) return;
+    if (isResidueLabel(value)) leadResidueLabels.set(clusterKey, value);
+    else leadResidueLabels.delete(clusterKey);
+    paintCoachingDecision(lastCoachingInput.literacy, lastCoachingInput);
+  }
 
   const finishSelection = (total) => {
     rebuildLoaded();
