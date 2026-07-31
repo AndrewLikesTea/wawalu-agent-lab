@@ -300,6 +300,18 @@ import { applyGradedSample, clearGradedSample } from "/graded-sample-view.js";
 // a human label lands on the headline by the same path the classifier's does
 // rather than through a second, quieter one.
 import { applyOverrides } from "/query-label-overrides.js";
+// …and the rest of that one seam. The review panel writes a correction, counts
+// what is actually inside the numbers, reverts, and ranks the next action
+// through these rather than through arithmetic of its own — extending the model
+// is the only way this page is allowed to grow a correction feature.
+import {
+  OVERRIDE_LABELS, applyCorrection, correctionProvenance, prioritizedRecovery, revertToClassifier,
+} from "/query-label-overrides.js";
+// The rows a human is handed, and the panel that shows them. The sampler is the
+// model's own; this pair only pairs a row with the key the model files it under
+// and renders the reader's own text as text.
+import { reviewSample } from "/query-review-sample.js";
+import { REVIEW_COPY, bindQueryReview, renderQueryReview } from "/query-review-view.js";
 import {
   applyImportedExecutive, clearImportedExecutive, importedExecutiveFigures,
 } from "/imported-executive-view.js";
@@ -1288,6 +1300,62 @@ function mountLocalFinopsImport() {
   );
   const importedCorpus = (entries = classifiedSamples()) => overriddenCorpus(entries).corpusGrade;
   /**
+   * The review panel, painted from the same `applyOverrides` result the hero
+   * grade above it is painted from.
+   *
+   * Nothing is recomputed here: the grade, the coverage share, the recoverable
+   * figure, the count of corrections actually folded in and the one prioritized
+   * action all come off the model. `classifiedSamples()` is empty on the bundled
+   * example path, so this reduces to "no panel" there and the demo numbers are
+   * untouched.
+   */
+  let reviewAnnouncement = null;
+  const syncQueryReview = () => {
+    const entries = classifiedSamples();
+    const corrected = overriddenCorpus(entries);
+    const painted = renderQueryReview(document, {
+      available: entries.length > 0,
+      sample: reviewSample(entries),
+      grade: corrected.grade,
+      coverage: corrected.coverage,
+      recoverableSpend: corrected.recoverableSpend,
+      included: corrected.overridesApplied,
+      provenance: correctionProvenance(corrected.overridesApplied),
+      nextAction: prioritizedRecovery(corrected.mix, { spendUsd: result?.spendUsd ?? null }),
+      labels: OVERRIDE_LABELS,
+      selected: queryLabelOverrides,
+      announcement: reviewAnnouncement,
+    }, { onCorrect: correctQueryLabel });
+    reviewAnnouncement = null;
+    return painted;
+  };
+  /**
+   * One correction, and every figure it moves.
+   *
+   * The model validates the label — a value the control never offered is refused
+   * there rather than trusted here — and then the executive slots above are
+   * repainted from the same corpus call they always used, so a human label lands
+   * on the headline by the classifier's own path.
+   */
+  function correctQueryLabel(key, label) {
+    const outcome = applyCorrection(queryLabelOverrides, key, label);
+    if (!outcome.ok && outcome.reason === "unknown_label") return outcome;
+    repaintCorrectedFigures();
+    return outcome;
+  }
+  function revertQueryLabels() {
+    revertToClassifier(queryLabelOverrides);
+    reviewAnnouncement = REVIEW_COPY.reverted;
+    repaintCorrectedFigures();
+  }
+  /** The reader's own figures, redrawn. Nothing else on the page is touched. */
+  let lastFigureSync = null;
+  function repaintCorrectedFigures() {
+    if (lastFigureSync) syncImportedFigures(lastFigureSync);
+    paintGradedSample();
+    syncQueryReview();
+  }
+  /**
    * The executive figures above the import panel, filled from that corpus.
    *
    * Called after the graded surface, because when a sample clears the
@@ -1651,13 +1719,19 @@ function mountLocalFinopsImport() {
     // under their own cohort's snapshot.
     if (example) clearImportedExecutive(document);
     else {
-      syncImportedFigures({
+      // Retained so a correction can redraw these slots from the same inputs
+      // rather than from a second, differently-argued call.
+      lastFigureSync = {
         analysis: next,
         plausible: resultPlausible,
         withheld: attributionWithheld,
         gradedMix: graded?.state === "graded",
-      });
+      };
+      syncImportedFigures(lastFigureSync);
     }
+    // The review panel follows the corpus it corrects. On the example path
+    // `classifiedSamples()` is empty, so this takes the panel off the page.
+    syncQueryReview();
     // After the graded view, and after every slot above it: the panels a leader
     // may read are decided once, from the contract, out of what this import
     // actually contains. Nothing before this line hides an executive panel.
@@ -1740,6 +1814,12 @@ function mountLocalFinopsImport() {
     closeMappingReview(document);
     if (remap) remap.hidden = true;
     result = null;
+    // The corrections go with the file they were corrections about. A label
+    // outliving its corpus would attach a human's judgement to a row that is no
+    // longer loaded, which is the mislabelling this whole seam exists to end.
+    revertToClassifier(queryLabelOverrides);
+    lastFigureSync = null;
+    syncQueryReview();
     clearCurrentReviewEvidence(browserFinopsWorkspaceStorage());
     // The snapshot references the evidence cleared on the line above. Leaving it
     // behind would only make the next journey view read a stale snapshot and say
@@ -2299,7 +2379,13 @@ function mountLocalFinopsImport() {
       // A query sample with no invoice beside it still grades: the hero says so,
       // and the two money cards say plainly that no provider export was
       // selected rather than keeping the bundled sample's totals.
-      if (samples.length) syncImportedFigures({ gradedMix: graded?.state === "graded" });
+      if (samples.length) {
+        lastFigureSync = { gradedMix: graded?.state === "graded" };
+        syncImportedFigures(lastFigureSync);
+      }
+      // A query sample with no invoice beside it is exactly the withheld verdict
+      // this panel exists to move, so it is painted on this branch too.
+      syncQueryReview();
       announce("ready", `${total} compatible file${total === 1 ? "" : "s"} ready.`,
         graded?.message
           ? `${graded.message.label}. ${graded.nextAction.text}`
@@ -2427,6 +2513,11 @@ function mountLocalFinopsImport() {
     applyImportProgress(document, null);
     finishSelection(total || imports.length);
   };
+
+  // The disclosure and the one revert control, bound once. Both are operable
+  // before any file is read; the button stays hidden until there is a sample to
+  // review, so a visitor on the bundled example never meets either.
+  bindQueryReview(document, { onRevert: revertQueryLabels });
 
   input.addEventListener("change", async () => {
     const files = [...input.files];
