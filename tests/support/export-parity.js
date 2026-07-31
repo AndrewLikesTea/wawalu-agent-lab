@@ -169,6 +169,12 @@ export const SHIPLOG_EXPORT_SHAPE = Object.freeze({
     schema: "string",
     version: "number",
     generatedAt: "string",
+    // The file says how many records it holds and which filter produced them.
+    // Pinned as required rather than optional: the exporter writes both on
+    // every file, and a file that stopped carrying them would be a consumer's
+    // regression, not a variation.
+    record_count: "number",
+    filter: "object",
     decisions: "array",
     releases: "array",
   },

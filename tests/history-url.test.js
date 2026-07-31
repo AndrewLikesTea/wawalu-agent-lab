@@ -12,6 +12,7 @@ import assert from "node:assert/strict";
 import {
   DEFAULT_HISTORY_FILTERS,
   absoluteHistoryUrl,
+  activeHistoryFilters,
   historyFilterChips,
   historyFilterSearch,
   historyFiltersActive,
@@ -282,4 +283,40 @@ test("copying the link confirms, and every clipboard failure says so instead of 
   assert.deepEqual(await copyHistoryLink("/", { clipboard: {} }), { copied: false, message: COPY_LINK_FAILURE });
   assert.deepEqual(await copyHistoryLink("/", { clipboard: null }), { copied: false, message: COPY_LINK_FAILURE });
   assert.match(COPY_LINK_FAILURE, /address bar/, "the failure has to leave the visitor a way through");
+});
+
+test("the active-filter block names every live filter and omits every dead one", () => {
+  // The convention a downloaded file carries out of the browser: present means
+  // active, absent means off, and `{}` is the only way to say "nothing was
+  // filtered". No key is ever written as null, "", or "all".
+  assert.deepEqual(activeHistoryFilters(DEFAULT_HISTORY_FILTERS), {});
+  assert.deepEqual(activeHistoryFilters(), {});
+  assert.deepEqual(activeHistoryFilters({ status: "all", owner: "all", query: "", currentOnly: false }), {});
+
+  assert.deepEqual(
+    activeHistoryFilters({
+      query: "  queue  ", type: "decision", status: "approved", owner: "Kai",
+      from: "2026-04-01", to: "2026-06-30", currentOnly: true, sort: "title",
+    }),
+    {
+      // Normalized, not echoed: the query is trimmed, the retired "approved"
+      // spelling is the word the view filtered by, and `sort` is not a filter.
+      query: "queue",
+      type: "decision",
+      status: "accepted",
+      owner: "Kai",
+      from: "2026-04-01",
+      to: "2026-06-30",
+      currentOnly: true,
+    },
+  );
+
+  // Unusable values are off, not present-and-broken.
+  assert.deepEqual(activeHistoryFilters({ status: "invented", from: "2026-02-31", owner: 12 }), {});
+  // Every key it produces is one the block's declared dimensions cover, and the
+  // block agrees with the query string about what "active" means.
+  const filters = { owner: "Kai", to: "2026-06-30" };
+  assert.deepEqual(Object.keys(activeHistoryFilters(filters)), ["owner", "to"]);
+  assert.equal(historyFiltersActive(filters), Object.keys(activeHistoryFilters(filters)).length > 0);
+  assert.equal(historyFiltersActive({}), Object.keys(activeHistoryFilters({})).length > 0);
 });

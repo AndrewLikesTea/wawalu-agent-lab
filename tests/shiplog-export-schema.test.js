@@ -13,8 +13,10 @@ import {
   SHIPLOG_EXPORT_VERSION,
   canonicalExportOrder,
   compareExportRecords,
+  filterBlockViolations,
   normalizeExportRecord,
   orderingViolations,
+  recordCountViolations,
   shiplogExportViolations,
   undeclaredExportFields,
 } from "../src/shiplog-export-schema.js";
@@ -156,6 +158,42 @@ test("a reordered file is named as out of canonical order", () => {
   assert.deepEqual(orderingViolations(file({ decisions: [older, decision] })), [],
     "the same two records in canonical order pass");
   assert.deepEqual(orderingViolations({}), [], "a payload with no collections has no order to violate");
+});
+
+test("the filter block declares its dimensions, and never states one that was off", () => {
+  assert.deepEqual(shiplogExportViolations(file({ filter: {}, record_count: 2 })), [],
+    "an empty block — the file saying no filter was active — is valid");
+  assert.deepEqual(
+    shiplogExportViolations(file({ filter: { status: "accepted", currentOnly: true }, record_count: 2 })),
+    [],
+  );
+  assert.deepEqual(filterBlockViolations(file()), [], "a file with no block at all predates it and is valid");
+
+  assert.deepEqual(filterBlockViolations({ filter: { owner: 7 } }),
+    ["export.filter.owner: expected string, got number"]);
+  assert.deepEqual(filterBlockViolations({ filter: { sort: "title" } }),
+    ['export.filter: undeclared filter "sort"']);
+  assert.deepEqual(filterBlockViolations({ filter: [] }),
+    ["export.filter: expected an object, got array"]);
+  // The rule that keeps `{}` the only way to say "nothing was filtered".
+  assert.deepEqual(filterBlockViolations({ filter: { status: "all" } }), [
+    'export.filter.status: "all" means this filter was not active; '
+    + "an inactive filter is omitted from the block",
+  ]);
+  assert.deepEqual(filterBlockViolations({ filter: { query: "", currentOnly: false } }).length, 2);
+});
+
+test("record_count states the size of the file it is in, or it is a violation", () => {
+  assert.deepEqual(recordCountViolations(file({ record_count: 2 })), []);
+  assert.deepEqual(recordCountViolations(file({ decisions: [], releases: [], record_count: 0 })), [],
+    "an empty file counting zero records is correct, not degenerate");
+  assert.deepEqual(recordCountViolations(file()), [], "a file with no count predates it and is valid");
+  assert.deepEqual(recordCountViolations(file({ record_count: 5 })),
+    ["export.record_count: states 5, but the file carries 2 records"]);
+  assert.deepEqual(recordCountViolations(file({ record_count: 1.5 })),
+    ["export.record_count: expected an integer, got 1.5"]);
+  assert.ok(shiplogExportViolations(file({ record_count: 5 })).some((violation) => violation.includes("record_count")),
+    "the whole-contract check carries the record count rule");
 });
 
 test("a non-object is refused rather than treated as an empty export", () => {

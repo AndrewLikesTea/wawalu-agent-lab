@@ -168,6 +168,32 @@ export function normalizeHistoryFilters(filters = {}) {
 }
 
 /**
+ * Just the filters that are doing something: `{ status: "accepted", owner: "Kai" }`.
+ *
+ * THE CONVENTION, stated once because a file carries it out of the browser (see
+ * the `filter` block in shiplog-export.js): a filter dimension appears **only
+ * when it is active**, and an inactive one is *omitted* rather than written as
+ * `null`, `""`, or `"all"`. So `{}` — and nothing else — means "no filter was
+ * active", and a reader never has to know which sentinel each dimension uses to
+ * mean "off". The keys are the canonical filter names this module already owns
+ * (`query`, `type`, `status`, `owner`, `from`, `to`, `currentOnly`), so the
+ * block, the query string, and the chips all name a dimension the same way.
+ *
+ * Values are the normalized ones: a link carrying `status=approved` describes
+ * itself as `accepted`, which is the word the view actually filtered by.
+ * `currentOnly` is the one boolean, and it is present only when true.
+ */
+export function activeHistoryFilters(filters = {}) {
+  const active = normalizeHistoryFilters(filters);
+  const block = {};
+  for (const key of FILTER_ORDER) {
+    if (active[key] === DEFAULT_HISTORY_FILTERS[key]) continue;
+    block[key] = active[key];
+  }
+  return block;
+}
+
+/**
  * The query string for a filter state: `?q=queue&owner=Kai`, or "" when nothing
  * is filtered.
  *

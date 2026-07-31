@@ -386,7 +386,7 @@ test("the journey exports as one JSON file carrying the decision, the release, a
   assert.equal(page.downloads.length, 1, "the export button produced no download");
 
   const [download] = page.downloads;
-  assert.match(download.filename, /^shiplog-history-\d{4}-\d{2}-\d{2}\.json$/, "the exported filename shape changed");
+  assert.match(download.filename, /^shiplog-history-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}Z\.json$/, "the exported filename shape changed");
   const payload = JSON.parse(download.text);
   assert.equal(payload.schema, "shiplog-history", "the export schema name changed");
 

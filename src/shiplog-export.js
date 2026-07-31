@@ -49,6 +49,7 @@ import {
   readHistoryScope,
   withinHistoryScope,
 } from "./history-scope.js";
+import { activeHistoryFilters } from "./history-filters.js";
 import { onRecordsChanged } from "./shiplog-records.js";
 
 export { SHIPLOG_EXPORT_SCHEMA, SHIPLOG_EXPORT_VERSION };
@@ -113,17 +114,34 @@ export function buildShiplogExport(storage, options = {}) {
       return release;
     });
 
+  const filter = activeHistoryFilters(scope.filters);
   return {
     payload: {
       schema: SHIPLOG_EXPORT_SCHEMA,
       version: SHIPLOG_EXPORT_VERSION,
       generatedAt,
+      // The file states its own size and its own provenance, before the records
+      // rather than after them, so a reader knows what they are holding without
+      // counting it: `record_count` is both arrays together, and `filter` names
+      // the filters that produced them ({} when none were active).
+      //
+      // Neither is derived from the store a second time. The count is the length
+      // of what was actually written, and the filter block is the state the
+      // history published with the very ids above — so a file cannot claim a
+      // count or a filter that disagrees with its own records.
+      record_count: decisions.length + releases.length,
+      filter,
       decisions,
       releases,
     },
     unresolvedLinks,
     excludedLinks,
     droppedFields,
+    // The two facts the panel says out loud after a download. `filtered` is
+    // "records were left out", which is the promise the button made — not
+    // "a filter was set", which the block above already states.
+    filtered: scope.filtered,
+    recordCount: decisions.length + releases.length,
   };
 }
 
@@ -154,6 +172,32 @@ export function formatShiplogExportCounts({ decisions, releases, filtered = fals
   return filtered
     ? `Ready to export ${counted} matching your history filters.`
     : `Ready to export ${counted} stored in this browser.`;
+}
+
+const recordWord = (count) => (count === 1 ? "record" : "records");
+
+/** The visible words on the download button, which never change. */
+export const EXPORT_BUTTON_LABEL = "Download JSON";
+
+/**
+ * The button's accessible name, or "" when the visible label already says it.
+ *
+ * "Download JSON" is a fine label for a button that downloads the history and a
+ * poor one for a button that downloads *eleven of the forty records* — the
+ * sentence carrying that fact sits above the button, and a screen reader reading
+ * the button alone would not hear it. So the scope rides on the control itself
+ * when the file is narrower than the store, and the count is the same number the
+ * history's own summary shows because both come from one selection.
+ *
+ * The visible label is kept at the front of the name: a speech-input user says
+ * the words they can see, and a name that drops them stops answering to them.
+ * Unfiltered returns "" so the caller *removes* the attribute rather than
+ * restating the visible label in a second place that can go stale.
+ */
+export function shiplogExportLabel({ decisions = 0, releases = 0, filtered = false } = {}) {
+  if (!filtered) return "";
+  const total = decisions + releases;
+  return `${EXPORT_BUTTON_LABEL}: export ${total} filtered ${recordWord(total)}`;
 }
 
 export const EXPORT_STATUS = Object.freeze({
@@ -195,23 +239,68 @@ export function excludedLinkSentence({ excludedLinks = [] } = {}) {
     : `${count} release links to decisions your filters hide were left out.`;
 }
 
+/**
+ * What just landed on disk, in the visitor's own numbers.
+ *
+ * A filtered download says how many records it wrote, because "Shiplog history
+ * exported" is the one sentence that would let a filtered visitor believe they
+ * had backed up their history. Unfiltered keeps the sentence it always had:
+ * the count is already beside the button and the file is everything.
+ */
+export function exportedRecordSentence({ recordCount, filtered = false } = {}) {
+  if (filtered !== true || !Number.isInteger(recordCount)) return EXPORT_STATUS.exported;
+  return `Exported ${recordCount} filtered ${recordWord(recordCount)}.`;
+}
+
 /** What the export panel's status line says after a successful download. */
 export function describeShiplogExport(report) {
-  return [EXPORT_STATUS.exported, unresolvedLinkSentence(report), excludedLinkSentence(report)]
+  return [exportedRecordSentence(report), unresolvedLinkSentence(report), excludedLinkSentence(report)]
     .filter(Boolean)
     .join(" ");
+}
+
+/**
+ * The name the file lands under: `shiplog-history-2026-07-26T18-30-00Z.json`.
+ *
+ * Named for the *instant* rather than the day, because two exports of the same
+ * history an hour apart — the whole store, then the filtered view — are two
+ * different files, and a name that collides makes the second one silently
+ * overwrite or become "(1)". Seconds are enough to separate two downloads a
+ * person made; milliseconds would be noise in a name they have to read.
+ *
+ * Cross-platform safe by construction, not by sanitizing after the fact: the
+ * whole name is a constant prefix plus digits, `T`, `-`, and `Z` derived from
+ * the timestamp. The ISO colons are replaced, which is what Windows refuses and
+ * what macOS shows back to a visitor as a slash. No visitor text reaches it —
+ * not the search box, not an owner's name — so there is no user string to
+ * escape, no length to cap, and no filter that can name the file something
+ * embarrassing or something the filesystem rejects.
+ *
+ * An unparseable stamp drops the suffix rather than writing "Invalid Date" or
+ * "NaN" into a filename. buildShiplogExport refuses one on the way in, so this
+ * only answers for a hand-built payload.
+ */
+export function shiplogExportFilename(payload = {}) {
+  const parsed = Date.parse(payload?.generatedAt);
+  if (Number.isNaN(parsed)) return "shiplog-history.json";
+  const stamp = new Date(parsed).toISOString().slice(0, 19).replace(/:/g, "-");
+  return `shiplog-history-${stamp}Z.json`;
 }
 
 export function downloadShiplogExport(payload, options = {}) {
   const documentRef = options.document ?? document;
   const urlApi = options.urlApi ?? URL;
+  // One serialization of one plain object. The payload is data all the way
+  // down — no record text is ever concatenated into this string, and nothing
+  // here or in the filename above is markup — so a record holding `<`, `&`, or a
+  // quote survives as those characters and re-parses to the record it came from.
   const blob = new Blob([`${JSON.stringify(payload, null, 2)}\n`], {
     type: "application/json",
   });
   const href = urlApi.createObjectURL(blob);
   const link = documentRef.createElement("a");
   link.href = href;
-  link.download = `shiplog-history-${payload.generatedAt.slice(0, 10)}.json`;
+  link.download = shiplogExportFilename(payload);
   link.click();
   urlApi.revokeObjectURL(href);
 }
@@ -237,7 +326,15 @@ export function initShiplogExport(root, storage, options = {}) {
   // opened, so a visitor who had just recorded a decision was told the file
   // would not contain it.
   const paintCounts = () => {
-    counts.textContent = formatShiplogExportCounts(shiplogExportCounts(storage, activeScope()));
+    const scoped = shiplogExportCounts(storage, activeScope());
+    counts.textContent = formatShiplogExportCounts(scoped);
+    // The button's own name follows the same numbers, repainted on the same
+    // events. A visitor reading the button by itself — with a screen reader, or
+    // with voice control — hears the scope of the file it will write, and the
+    // attribute is removed rather than left behind when the filters clear.
+    const label = shiplogExportLabel(scoped);
+    if (label) button.setAttribute?.("aria-label", label);
+    else button.removeAttribute?.("aria-label");
   };
   paintCounts();
   onRecordsChanged(root, paintCounts);
