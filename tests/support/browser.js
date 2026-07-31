@@ -18,7 +18,7 @@ const VOID_TAGS = new Set([
   "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track", "wbr",
 ]);
 
-const FOCUSABLE_TAGS = new Set(["A", "BUTTON", "INPUT", "SELECT", "TEXTAREA"]);
+const FOCUSABLE_TAGS = new Set(["A", "BUTTON", "INPUT", "SELECT", "TEXTAREA", "SUMMARY"]);
 
 const ENTITIES = {
   amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: "\u00a0",
@@ -465,9 +465,21 @@ function hasHiddenAncestor(element) {
 // group is untouched) is in the sequence, and the arrow keys move within it.
 // Modelling this matters — a test that tabbed to every radio would pass on a
 // page a real keyboard user cannot operate.
+//
+// Known gap, stated rather than silently wrong: a real browser takes everything
+// inside a *closed* `<details>` out of the tab sequence, and this does not. So a
+// control that a test reaches by Tab from inside a collapsed disclosure is
+// reachable here and would not be in a browser. Closing that gap changes the
+// answer for several pages at once and is not this harness's to decide alone.
 function isTabbable(element, document) {
   if (!FOCUSABLE_TAGS.has(element.tagName)) return element.getAttribute("tabindex") !== null
     && element.getAttribute("tabindex") !== "-1";
+  // Only a `<details>`'s own summary is a control; a stray `<summary>` is not.
+  if (element.tagName === "SUMMARY") {
+    return element.getAttribute("tabindex") !== "-1"
+      && !hasHiddenAncestor(element)
+      && element.parentNode?.tagName === "DETAILS";
+  }
   if (element.disabled || hasHiddenAncestor(element)) return false;
   if (element.getAttribute("tabindex") === "-1") return false;
   if (element.tagName === "A" && !element.href) return false;
@@ -481,7 +493,7 @@ function isTabbable(element, document) {
 }
 
 export function tabSequence(document) {
-  return document.querySelectorAll("a,button,input,select,textarea")
+  return document.querySelectorAll("a,button,input,select,textarea,summary")
     .filter((element) => isTabbable(element, document));
 }
 

@@ -13,7 +13,7 @@
 
 import assert from "node:assert/strict";
 import test from "node:test";
-import { DETAIL_STATE_COPY } from "../src/decision-detail.js";
+import { renderDecisionDetailSkeleton } from "../src/decision-detail.js";
 import { initDecisionDetail } from "../src/decision-page.js";
 import { loadPage, pressEnter, pressTab, tabSequence, textOf } from "./support/browser.js";
 
@@ -151,41 +151,74 @@ test("arriving with no id names the route back as the way on, and offers nothing
   assert.equal(page.back.getAttribute("href"), "/");
 });
 
-test("the served first screen is already a labelled loading state with a way back", async (t) => {
+test("the served first screen is a drawn skeleton in the record's slot, with a way back", async (t) => {
   const page = await loadPage(DECISION_PAGE, { storage: {}, location: { search: "?id=anything" } });
   t.after(() => page.restore());
 
   const container = page.document.querySelector("#decision-detail");
-  const panel = container.querySelector(".detail-state");
-  assert.equal(panel.dataset.state, "loading");
-  assert.equal(panel.dataset.recoverable, "false", "nothing has failed yet, so nothing offers a retry");
-  assert.equal(panel.getAttribute("role"), "status");
+  const skeleton = container.querySelector(".detail-skeleton");
+  assert.ok(skeleton, "the wait is drawn, not described");
+  assert.equal(skeleton.dataset.state, "loading");
+  assert.equal(skeleton.dataset.recoverable, "false", "nothing has failed yet, so nothing offers a retry");
+  assert.equal(skeleton.getAttribute("aria-busy"), "true");
   assert.equal(page.document.querySelectorAll(".detail-retry").length, 0);
+  assert.equal(container.querySelector(".detail-state"), null, "no prose state stands in for the record");
 
-  const chip = page.document.querySelector(".detail-state-label");
-  assert.ok(chip.classList.contains("detail-state-chip"), "the served status label is the same chip the render draws");
-  // The served copy is the copy the renderer would draw for the same state:
-  // decision.html duplicates it so the region is never an empty box before the
-  // module runs, and two copies of one sentence drift apart silently.
-  assert.equal(textOf(chip), DETAIL_STATE_COPY.loading.label);
-  assert.equal(textOf(page.document.querySelector("#decision-state-title")), DETAIL_STATE_COPY.loading.title);
-  assert.equal(textOf(panel.querySelector(".detail-state-guidance")), DETAIL_STATE_COPY.loading.description);
+  // The reassurance that used to be the first words on the page is gone. A
+  // visitor arriving from Decisions came to read a decision, not a paragraph
+  // about a failure that has not happened.
+  const rendered = textOf(container);
+  assert.doesNotMatch(rendered, /No action is needed/i);
+  assert.doesNotMatch(rendered, /Loading this decision/i);
 
-  // What a first-time reader has to get from a first screen that is still
-  // loading: which record is being read, and that the wait is not theirs to end.
-  const guidance = textOf(panel.querySelector(".detail-state-guidance"));
-  assert.match(guidance, /decision record for this page and its linked releases/i);
-  assert.match(guidance, /No action is needed/i);
-  // The one thing that would ask for an action is named, and only that.
-  assert.match(guidance, /unless this panel reports a failure/i);
-  assert.match(guidance, /Retry/);
-  // No promise the page cannot time, and no claim about where the record is not.
-  for (const vague of [/in a moment/i, /appears here/i, /shortly/i, /please wait/i])
-    assert.doesNotMatch(guidance, vague, `the loading sentence hedges: ${guidance}`);
-  assert.doesNotMatch(guidance, /private|customer|credential/i,
-    "the decision log reads records this browser already has");
+  // One thing is said out loud, politely, and it names the region. It is also
+  // the page's one heading until the record's own arrives, so a screen-reader
+  // user can still navigate by headings while the shapes are on screen.
+  const status = skeleton.querySelector("[role=status]");
+  assert.equal(textOf(status), "Loading decision record");
+  assert.ok(status.classList.contains("visually-hidden"));
+  const headings = container.querySelectorAll("h1");
+  assert.equal(headings.length, 1, "one heading, offscreen, and no second thing to read");
+  assert.equal(headings[0].parentNode, status);
+
+  // The shapes themselves announce nothing: a screen reader hears the line
+  // above, not a list of empty boxes.
+  const shapes = skeleton.querySelector(".decision-detail-skeleton");
+  assert.equal(shapes.getAttribute("aria-hidden"), "true");
+  assert.ok(shapes.querySelectorAll(".skeleton-line").length >= 8,
+    "blocks stand in for the heading, the metadata line, and the alternatives");
+  assert.equal(textOf(shapes), "", "a drawn block carries no words to read");
+  // Drawn in the record's own layout, so nothing jumps when the record lands.
+  assert.ok(shapes.classList.contains("decision-detail"));
+  assert.ok(shapes.querySelector(".decision-detail-header"));
+  assert.ok(shapes.querySelector(".detail-meta"));
+  assert.equal(shapes.querySelectorAll(".alternative-card").length, 2);
+
+  // Nothing in the skeleton is a keyboard stop of its own.
+  const sequence = tabSequence(page.document);
+  assert.equal(sequence.filter((node) => node.closest?.(".detail-skeleton")).length, 0);
 
   const back = container.querySelector(".detail-back");
   assert.equal(back.getAttribute("href"), "/");
-  assert.ok(tabSequence(page.document).includes(back), "the route back works before any script runs");
+  assert.ok(sequence.includes(back), "the route back works before any script runs");
+});
+
+test("the served skeleton and the rendered one are the same drawing", async (t) => {
+  const page = await loadPage(DECISION_PAGE, { storage: {}, location: { search: "?id=anything" } });
+  t.after(() => page.restore());
+
+  const container = page.document.querySelector("#decision-detail");
+  const shapeOf = (node) => ({
+    tag: node.tagName,
+    className: node.className,
+    text: textOf(node),
+    children: node.childElements.map(shapeOf),
+  });
+  const served = shapeOf(container.querySelector(".detail-skeleton"));
+
+  // decision.html duplicates the skeleton so the panel is never an empty box
+  // before the module runs, and two hand-kept copies of one drawing drift apart
+  // silently. This is the assertion that notices.
+  renderDecisionDetailSkeleton(container);
+  assert.deepEqual(shapeOf(container.querySelector(".detail-skeleton")), served);
 });

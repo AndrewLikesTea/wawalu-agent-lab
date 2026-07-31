@@ -76,6 +76,11 @@ test("direct proof pages include an initial accessible loading state", async () 
   for (const html of [decisionHtml, releaseHtml]) {
     assert.match(html, /aria-busy="true"/);
     assert.match(html, /role="status"/);
-    assert.match(html, /list-state-loading/);
   }
+  // Two ways to draw a served wait, both announced. The release page still
+  // spins a described state; the decision page draws a skeleton in the record's
+  // own layout and says one line out loud instead of three.
+  assert.match(releaseHtml, /list-state-loading/);
+  assert.match(decisionHtml, /class="detail-skeleton"/);
+  assert.match(decisionHtml, /role="status"><h1[^>]*>Loading decision record</);
 });

@@ -13,15 +13,26 @@
 .dout-panel { margin-top: 1.5rem; }
 .dout-panel-title { margin: 0 0 0.75rem; font-size: 1.05rem; }
 
+/* The export tool, second and closed. It is the same bordered box it was when it
+   stood above the record; only the flex column moved inward onto the body, so
+   the summary is one line on its own and the padding stays where it was. */
 .dout-controls {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
   padding: 0.85rem;
-  margin-bottom: 1rem;
+  margin-top: 1rem;
   border: 1px solid rgba(15, 23, 42, 0.12);
   border-radius: 0.6rem;
 }
+
+.dout-controls-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-top: 0.6rem;
+}
+
+/* Wide enough to hit and read at the width the summary line already occupies —
+   the marker is the browser's, so the disclosure needs no glyph of its own. */
+.dout-export-summary { line-height: 1.4; }
 
 .dout-controls-title { margin: 0; font-size: 0.95rem; }
 .dout-controls label { font-weight: 600; }
@@ -213,7 +224,7 @@
   .dout-provenance,
   .dout-periods { grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); }
 
-  .dout-controls { flex-direction: row; flex-wrap: wrap; align-items: center; }
+  .dout-controls-body { flex-direction: row; flex-wrap: wrap; align-items: center; }
   .dout-controls-title,
   .dout-file-intro,
   .dout-file-note,
