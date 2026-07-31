@@ -203,6 +203,42 @@ test("the decision surface leads with the number and names the top cluster", () 
   assert.equal(orgQueryCoachingDecision(literacy, { origin: "example" }).coverage, null);
 });
 
+test("crossing from a withheld letter to a published one is one sentence carrying both figures", () => {
+  const sample = orgQuerySampleResult(loadExampleOrgQuerySample());
+  const literacy = orgQueryDepartmentLiteracy({ results: [sample] });
+
+  // Before: 10 scored tokens of 100, so the letter is withheld and the spoken
+  // refusal is the coverage figure itself — that is what the reader must fix.
+  const thin = familyCoverage([classifiable("acme", 10), residual("beta", 90)]);
+  const withheld = orgQueryCoachingDecision(literacy, { origin: "import", familyCoverage: thin });
+  assert.equal(withheld.state, "ungradeable");
+  assert.ok(withheld.announcement.includes(withheld.coverage.text),
+    "a withheld letter is announced with the coverage that withheld it");
+
+  // After: the same corpus read over the bar. One sentence, and it carries the
+  // letter AND the coverage the letter rests on — the visible block prints both
+  // and a screen-reader user was hearing only the first.
+  const covered = familyCoverage(sample.records);
+  const graded = orgQueryCoachingDecision(literacy, { origin: "import", familyCoverage: covered });
+  assert.equal(graded.state, "graded");
+  const letter = `grade ${graded.benchmark.grade}`;
+  assert.ok(graded.announcement.includes(letter), "the letter is spoken");
+  assert.ok(graded.announcement.includes(graded.coverage.text), "the coverage is spoken");
+  // Not a second reading of the corpus: the announced figure is the string the
+  // coverage block paints, character for character.
+  assert.equal(graded.coverage.text, coverageHeadline(covered).text);
+
+  // Spoken in the order the block is read: letter, then coverage, then action.
+  const at = (needle) => graded.announcement.indexOf(needle);
+  assert.ok(at(letter) < at(graded.coverage.text), "the letter leads");
+  assert.ok(at(graded.coverage.text) < at("Prioritized action"), "the action stays last");
+
+  // And a sample with no coverage result gains no qualifier it cannot support.
+  const plain = orgQueryCoachingDecision(literacy, { origin: "import" });
+  assert.equal(plain.coverage, null);
+  assert.equal(/classified on structural evidence/.test(plain.announcement), false);
+});
+
 test("the bundled demo dataset's headline is unchanged", () => {
   // The demo billing seed is graded by the department path, which this change
   // does not touch: no query corpus is read for it and its tier, coverage and

@@ -270,8 +270,16 @@ function graded(literacy, { confidence, provenance, disclosures, origin, coverag
         + "from token counts.",
     }),
     disclosures,
+    // Spoken in the order the block is read: answer, letter, the coverage the
+    // letter rests on, then the one action. The coverage sentence is
+    // `coverage.text` verbatim — the same string `coverageBlock` paints under
+    // the letter — so a reader who hears the grade hears the share of their own
+    // corpus it was read from, exactly as a reader who sees it does. Without a
+    // coverage result there is no such qualifier on screen either, and the
+    // sentence is what it was.
     announcement: `${originPrefix(origin)} ${named.department} needs coaching first, `
-      + `grade ${named.grade}, ${confidence.word.toLowerCase()}. ${gap.signalLabel
+      + `grade ${named.grade}, ${confidence.word.toLowerCase()}.`
+      + `${coverage ? ` ${coverage.text}.` : ""} ${gap.signalLabel
         ? `Prioritized action: prompt clinic on ${gap.signalLabel}.`
         : "Prioritized action: review the query mix with its lead."}`,
   });
