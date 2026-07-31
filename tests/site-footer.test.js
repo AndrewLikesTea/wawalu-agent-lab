@@ -20,7 +20,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
-import { DEMOS, FOLLOW_UP_REDIRECT, IDENTITY, INVITATION, PRIVACY, PURPOSE, siteFooterMarkup } from "../src/site-footer.js";
+import { DEMOS, FOLLOW_UP_REDIRECT, IDENTITY, INVITATION, siteFooterMarkup } from "../src/site-footer.js";
+import { FOLLOW_UP_PRIVACY } from "../src/lead-capture.js";
 import { SITE_NAV } from "../src/site-nav.js";
 import { loadPage, pressEnter, pressKey, pressTab, tabSequence, textOf, typeText } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
@@ -95,6 +96,14 @@ test("a page with its own follow-up form ships one work-email form, and its foot
     assert.equal(link.getAttribute("href"), "#briefing-contact");
     assert.ok(tabSequence(document).includes(link), "the footer must stay keyboard reachable");
     assert.ok(byId(document, "briefing-contact"), "the footer points at a section that exists");
+
+    // The link is the whole pointer. It used to be preceded by a paragraph
+    // explaining that the page carries its own form and which of the two to
+    // use; a clear label does that job, and the paragraph must not come back.
+    assert.equal(textOf(link), "Request a follow-up", "the pointer carries the site's one follow-up label");
+    assert.equal(document.querySelector(".site-footer-redirect"), null,
+      "the About block must explain the link with the link, not with a paragraph");
+    assert.doesNotMatch(textOf(byId(document, "site-footer")), /carries its own follow-up form/);
 
     // And every other page keeps the generic form: this is one page's exception,
     // not a site-wide removal.
@@ -248,13 +257,14 @@ test("the footer form says what submitting asks for, on the page that carries bo
   const page = await loadPage(pageUrl("index.html"));
   const { document } = page;
   try {
+    // One sentence between the field and the button — the site's, not this
+    // footer's. Pinned whole: a substring match would pass on any prose.
     const note = textOf(byId(document, "site-footer-note"));
-    assert.match(note, /^Submitting sends a Shiplog follow-up request\./,
-      "the purpose comes before the note about what is sent");
-    assert.ok(note.includes(PRIVACY), "the purpose must not have displaced the privacy claim");
-    assert.equal(note, `${PURPOSE} ${PRIVACY}`);
-    // Only the entered address travels, said where the field is.
-    assert.match(note, /sends one thing: the work email address you type/);
+    assert.equal(note, FOLLOW_UP_PRIVACY);
+    // It names what is sent, who receives it, and that nothing else goes.
+    assert.match(note, /work email address you type here/);
+    assert.match(note, /Wawalu team that operates Shiplog/);
+    assert.match(note, /nothing else on this page is sent/);
 
     // The control the visitor presses says the same thing the note does.
     const submit = byId(document, "site-footer-panel").querySelector('button[type="submit"]');
@@ -452,8 +462,7 @@ test("the privacy sentence beside the field is what the request body actually do
   const { document } = page;
   const calls = interceptLeads(() => jsonReply({ subscribed: true }));
   try {
-    assert.equal(shownText(document, "site-footer-note"), `${PURPOSE} ${PRIVACY}`);
-    assert.match(PRIVACY, /sends one thing: the work email address you type/);
+    assert.equal(shownText(document, "site-footer-note"), FOLLOW_UP_PRIVACY);
 
     byId(document, "site-footer-open").click();
     submitEmail(document, TYPED_EMAIL);

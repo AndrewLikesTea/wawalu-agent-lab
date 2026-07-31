@@ -864,12 +864,11 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .site-footer-confirmation-detail { margin:0; color:#2c2c28; font-size:12px; line-height:1.55; }
 .site-footer-confirmation-again { min-height:44px; border:1px solid #1c5c2c; border-radius:9px; padding:0 16px; background:#fff; color:#1c5c2c; font:650 13px/1.4 inherit; cursor:pointer; }
 .site-footer-confirmation-again:hover { background:#1c5c2c; color:#fff; }
-/* The variant a page ships when it carries a follow-up form of its own: the
-   sentence that says which form to use, and a real link to it. A link rather
-   than a filled button, because it is a pointer to a control and not the control
-   itself — and it keeps its underline, since a coloured word among coloured
-   words is not something anyone can find. */
-.site-footer-redirect { max-width:66ch; margin:0; color:#4f4f4a; font-size:13px; line-height:1.6; }
+/* The variant a page ships when it carries a follow-up form of its own: a real
+   link to that form, and nothing else. A link rather than a filled button,
+   because it is a pointer to a control and not the control itself — and it keeps
+   its underline, since a coloured word among coloured words is not something
+   anyone can find. */
 .site-footer-redirect-link { display:inline-block; min-height:44px; padding:11px 0; color:#1f70c1; font-size:14px; font-weight:700; text-decoration:underline; text-underline-offset:3px; }
 .site-footer-redirect-link:hover { color:#171713; }
 .site-footer button:focus-visible,.site-footer input:focus-visible,.site-footer a:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }

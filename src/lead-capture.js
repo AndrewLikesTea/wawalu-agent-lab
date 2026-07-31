@@ -82,6 +82,27 @@ export const CONTACT_COPY = Object.freeze({
   unconfirmed: "We couldn’t send your request, so we can’t confirm it reached us. Please try again in a few minutes.",
 });
 
+/**
+ * The one privacy sentence every follow-up form shows between its field and its
+ * submit button — the footer's, the AI FinOps result's, and the executive
+ * briefing's.
+ *
+ * It used to be three paragraphs of about ninety words each, worded differently
+ * on every surface, each one listing the particular things that page holds. A
+ * reader who moved between two of them had to work out whether two different
+ * lists meant two different promises. They did not: `postLeadEmail` below builds
+ * the whole request body from one argument, the typed address, so no page state
+ * has a route to the wire on any surface. One claim, one sentence, one string.
+ *
+ * It names the three things a reader is deciding on: what is sent, who receives
+ * it, and that nothing else goes with it. The pages are static HTML and the
+ * build copies src/ verbatim, so each form embeds the rendered text rather than
+ * asking a script for it; tests/follow-up-privacy.test.js reads this constant
+ * and requires every form to render it exactly.
+ */
+export const FOLLOW_UP_PRIVACY = "The work email address you type here goes to the Wawalu team that "
+  + "operates Shiplog; nothing else on this page is sent.";
+
 // The field-note form's own pending and success states. They stay here rather
 // than in FIELD_NOTE_COPY because the contact forms make different promises
 // about what happens next, and each of them owns that sentence.

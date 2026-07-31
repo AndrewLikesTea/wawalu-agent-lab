@@ -23,6 +23,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { DomEvent, loadPage, pressEnter, pressKey, pressTab, tabSequence, textOf, typeText } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
+import { FOLLOW_UP_PRIVACY } from "../src/lead-capture.js";
 
 const PAGE = new URL("../src/evolution.html", import.meta.url);
 
@@ -272,10 +273,9 @@ test("the request body carries the typed address and nothing from the leader's i
     assert.ok(!transmitted.includes(department.replace("Department ", "")),
       "the department identifier on screen must not be in the request");
 
-    // The visible claim beside the form says exactly this, in words.
-    const note = shownText(document, "finops-contact-note");
-    assert.match(note, /sends one thing: the work email address you type/);
-    assert.match(note, /No figure, file name, column value, or department name from your import/);
+    // The visible claim beside the form says exactly this, in words — the site's
+    // one sentence, pinned whole rather than by fragment.
+    assert.equal(shownText(document, "finops-contact-note"), FOLLOW_UP_PRIVACY);
   } finally {
     page.restore();
   }
