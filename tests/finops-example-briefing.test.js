@@ -223,7 +223,7 @@ test("the notice states what was left out, not only what is shown", () => {
 });
 
 test("the CTA names the destination and whose figures are on the other end", () => {
-  assert.match(EXAMPLE_BRIEFING_CTA.label, /executive briefing/i);
+  assert.match(EXAMPLE_BRIEFING_CTA.label, /Executive FinOps briefing/);
   assert.match(EXAMPLE_BRIEFING_CTA.label, /example/i);
   assert.match(EXAMPLE_BRIEFING_CTA.note, /not your spend/i);
   assert.match(EXAMPLE_BRIEFING_CTA.note, /not read, uploaded, or stored|uploaded/i);

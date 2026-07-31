@@ -82,21 +82,22 @@ export const EXAMPLE_BRIEFING_MONTHS = 3;
  * real place in the region's heading outline rather than a floating link.
  */
 export const EXAMPLE_BRIEFING_CTA = Object.freeze({
-  heading: "Read this example as a one-page briefing",
-  label: "Open the executive briefing for this example",
-  note: "Opens the Executive FinOps briefing on this same bundled six-month dataset — the printable "
-    + "one-page sheet, with the same recoverable share and scenario. Invented figures, not your "
-    + "spend; nothing of yours is read, uploaded, or stored.",
+  heading: "Read this example as an Executive FinOps briefing",
+  label: "Open the Executive FinOps briefing for this example",
+  note: "Opens the printable one-page sheet on this same Bundled synthetic example, with the same "
+    + "recoverable share and scenario. Invented figures, not your spend; nothing of yours is read, "
+    + "uploaded, or stored.",
 });
 
 /** How the briefing masthead names where these figures came from. */
 export const EXAMPLE_BRIEFING_ORIGIN =
-  "The bundled AI FinOps example — invented figures for an invented company, rebuilt in this tab. "
+  "The Bundled synthetic example from AI FinOps — invented figures for an invented company, rebuilt "
+  + "in this tab. "
   + "Not your spend, not an import, and contains no visitor data.";
 
 /** What the reader is owed about how the sheet was produced. */
 export const EXAMPLE_BRIEFING_PROVENANCE_NOTE =
-  "Rebuilt in this tab from the last three months of the bundled example dataset. Each month was "
+  "Rebuilt in this tab from the last three months of the Bundled synthetic example. Each month was "
   + "analyzed by the same translator, analysis, and briefing contract your own provider export walks "
   + "through, then projected into the retained-period shape this briefing reads — so the recoverable "
   + "share here is the same arithmetic as the one on the AI FinOps page, not a second copy of it. No "
@@ -113,14 +114,15 @@ export const EXAMPLE_BRIEFING_PROVENANCE_NOTE =
  */
 export const EXAMPLE_BRIEFING_NOTICE = Object.freeze({
   code: "ai_finops_bundled_example",
-  summary: "You opened the bundled AI FinOps example",
-  statement: "Every figure below is rebuilt in this tab from the same invented dataset the AI FinOps "
-    + "example brief is composed from — its last three months, run through the same contract your own "
+  summary: "You opened the Bundled synthetic example from AI FinOps",
+  statement: "Every figure below is rebuilt in this tab from the same Bundled synthetic example the "
+    + "AI FinOps page briefs on — its last three months of invented figures, run through the same "
+    + "contract your own "
     + "export would walk through. It is not your spend, not an import, and not a realized saving.",
   remedy: "Any FinOps periods this browser holds of its own were deliberately left out, so the example "
     + "stays the example and nothing of yours is mixed into it. Open this page without the example "
     + "link to brief on your own retained periods instead.",
-  returnLabel: "Back to the AI FinOps example",
+  returnLabel: "Back to the Bundled synthetic example on AI FinOps",
   returnHref: EXAMPLE_RETURN_HREF,
 });
 

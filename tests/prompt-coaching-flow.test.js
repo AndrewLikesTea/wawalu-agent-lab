@@ -563,7 +563,7 @@ test("grading the supplied example is classified bundled_sample and said so on t
     const attribution = byId(document, "prompt-coaching-entry-source");
     assert.equal(attribution.hidden, false);
     assert.equal(attribution.getAttribute("role"), "status");
-    assert.match(textOf(attribution), /worked example, not of your text/);
+    assert.match(textOf(attribution), /bundled synthetic example, not of your text/);
 
     // And the result is the real one the example grades to, not a canned figure.
     assert.equal(byId(document, "prompt-coaching").dataset.grade,

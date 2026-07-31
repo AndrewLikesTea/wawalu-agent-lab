@@ -385,7 +385,7 @@ function provenanceContent(doc, state) {
     ? "Every local field this comparison requires was present."
     : `Missing local fields: ${state.provenance.missingFields.join(", ")}.`));
   nodes.push(element(doc, "p", "spd-detail-line", state.provenance.origin === "example"
-    ? "Origin: the bundled synthetic example dataset. These are invented records, not your spend."
+    ? "Origin: the bundled synthetic example. These are invented records, not your spend."
     : "Origin: files you chose in this tab and this browser's own release log. Nothing was"
       + " uploaded, and nothing is stored after the tab closes."));
   nodes.push(element(doc, "p", "spd-detail-line",
