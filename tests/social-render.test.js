@@ -168,9 +168,11 @@ test("the grid keeps list semantics and one roving tab stop", () => {
 
 test("empty, loading, and error states are three distinct renders", () => {
   const empty = createElement("div");
-  renderPosts(empty, [], { emptyMessage: "No posts match these filters." });
+  renderPosts(empty, [], { emptyMessage: "No Social posts match these filters." });
   assert.equal(empty.getAttribute("aria-busy"), "false");
-  assert.match(first(empty, "empty-state").textContent, /No posts yet\..*No posts match these filters\./);
+  // Both halves name the surface: an empty screen is the worst place to leave a
+  // reader guessing whether they are on Social or on People.
+  assert.match(first(empty, "empty-state").textContent, /No posts on Social yet\..*No Social posts match these filters\./);
 
   const loading = createElement("div");
   renderPosts(loading, [], { state: "loading" });

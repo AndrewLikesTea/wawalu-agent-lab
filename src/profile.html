@@ -28,22 +28,32 @@
 
       <main id="main-content" tabindex="-1">
       <section class="hero hero-profile" id="top" aria-labelledby="page-title">
-        <p class="eyebrow">Profile · demo</p>
-        <!-- The avatar is decorative: the name beside it is the heading text, so
-             the page has exactly one h1 and it reads as the author's name. -->
+        <p class="eyebrow">People · demo</p>
+        <!-- The heading is the destination's name, the same word the nav uses.
+             It used to be the selected persona's name, which left the page with
+             no heading a first-time visitor could match to the link they
+             clicked — the exact confusion between this surface and Social that
+             this copy has to end. Which person is selected is a filter on this
+             surface, not the surface's name, so it moved down to the identity
+             line below and is still the first thing under the description.
+             The sentence under the heading names Social once and says when to
+             open it; Social carries the mirror sentence. -->
+        <h1 id="page-title">People</h1>
+        <p class="profile-lede">People shows one demo persona's image posts, newest first; select a post to read it in full. Open Social when you want the whole feed, including posts with no image.</p>
+        <!-- The avatar is decorative: the name beside it is the first line of
+             the identity block, so nothing here is announced twice. -->
         <div class="profile-identity">
           <span class="profile-avatar" id="profile-avatar" aria-hidden="true">AR</span>
           <div class="profile-identity-text">
             <!-- "Ari" is the pre-hydration render of the first demo persona in
                  the seed feed. The picker replaces it once a reader chooses. -->
-            <h1 id="page-title"><span id="profile-name">Ari</span></h1>
+            <p class="profile-summary" id="profile-name">Ari</p>
             <!-- These defaults are the pre-hydration render of the empty state.
                  They must stay word-for-word with PROFILE_EMPTY_COPY.summary and
                  the image-post count label in src/profile.js; a test pins it. -->
-            <p class="profile-summary" id="profile-summary">No image posts yet.</p>
+            <p class="profile-summary" id="profile-summary">No image posts on People yet.</p>
           </div>
         </div>
-        <p class="profile-lede">Every post with an image from one display name, newest first. Text-only posts stay on Social. Select a post to read it in full.</p>
         <!-- People is a filtered view of Social, and the nav says so by nesting
              them. This says it in words at the destination and keeps the way
              back one link away. -->
@@ -95,7 +105,7 @@
 
           <div class="feed-connection" aria-live="polite">
             <span class="live-dot" aria-hidden="true"></span>
-            <span id="profile-status">Connecting to live feed…</span>
+            <span id="profile-status">Connecting to the Social feed…</span>
           </div>
           <p class="visually-hidden" id="profile-announcer" aria-live="polite" aria-atomic="true"></p>
 

@@ -217,9 +217,42 @@ test("the profile page identifies the selected name as a demo persona", async ()
   // Subordinate, not trapped: the way back to the whole feed is right there.
   assert.match(role[1], /href="\/social\.html"/);
 
-  // A reader who clicked "People" arrives at a heading that names the selected
-  // person, and the same view says that person is a demo persona.
-  assert.match(html, /<h1 id="page-title"><span id="profile-name">Ari<\/span><\/h1>/);
+  // A reader who clicked "People" arrives at a heading that says People, so the
+  // link and the page agree on one name for this surface. The selected person is
+  // a filter on it, not its name, so the name renders in the identity line under
+  // the description — still present, still the pre-hydration default.
+  assert.match(html, /<h1 id="page-title">People<\/h1>/);
+  assert.match(html, /<p class="profile-summary" id="profile-name">Ari<\/p>/);
+});
+
+// The two surfaces a visitor mixes up. Each page's first sentence has to say
+// what it holds AND name the other one with a reason to open it instead, or the
+// nav's two adjacent labels are the only thing telling them apart.
+test("Social and People each disambiguate the other in the sentence under the heading", async () => {
+  const pages = [
+    { file: "social.html", heading: "Social", other: "People", lede: /<h1 id="page-title">Social<\/h1>\s*<p>([^<]*)<\/p>/ },
+    { file: "profile.html", heading: "People", other: "Social", lede: /<h1 id="page-title">People<\/h1>\s*<p class="profile-lede">([^<]*)<\/p>/ },
+  ];
+
+  const descriptions = [];
+  for (const { file, heading, other, lede } of pages) {
+    const html = await readFile(pageUrl(file), "utf8");
+    // The heading noun is the nav label, so no synonym drifts between the link
+    // and the page it opens.
+    const label = SITE_NAV.find((entry) => entry.label === heading);
+    assert.ok(label, `${file}: the heading must be a destination name the nav uses`);
+
+    const match = html.match(lede);
+    assert.ok(match, `${file}: the heading must be followed by one sentence of description`);
+    const description = match[1];
+    descriptions.push(description);
+
+    const mentions = description.split(other).length - 1;
+    assert.equal(mentions, 1, `${file}: the description must name ${other} exactly once, not ${mentions} times`);
+    assert.match(description, new RegExp(`Open ${other} when`), `${file}: it must say when to open ${other} instead`);
+  }
+
+  assert.notEqual(descriptions[0], descriptions[1], "the two descriptions must not be the same sentence");
 });
 
 /* --------------------------- the item you are on --------------------------- */
