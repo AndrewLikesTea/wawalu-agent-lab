@@ -93,10 +93,16 @@ test("the headline is the highest-ranked heading in its region, and it is first 
   const region = byId(document, STAND_IDS.region);
   const headings = region.querySelectorAll("h1,h2,h3,h4,h5,h6");
   assert.equal(headings[0].id, STAND_IDS.question, "the headline is not the first heading");
-  assert.equal(headings[0].tagName.toLowerCase(), "h2");
-  // One h2 in the region and no h1: everything else is subordinate to it.
-  assert.equal(headings.filter((node) => node.tagName.toLowerCase() === "h2").length, 1);
-  assert.equal(headings.filter((node) => node.tagName.toLowerCase() === "h1").length, 0);
+  // The page's h1 since #727, and the only one: the finding outranks the hero's
+  // promise in the heading tree as well as in type. Its parts moved up a level
+  // with it, because h1 followed by h3 is a skipped level — hierarchy is carried
+  // by the type ramp, structure by the level, and neither may be bought with the
+  // other.
+  assert.equal(headings[0].tagName.toLowerCase(), "h1");
+  assert.equal(headings.filter((node) => node.tagName.toLowerCase() === "h1").length, 1);
+  assert.equal(headings.filter((node) => node.tagName.toLowerCase() === "h3").length, 0,
+    "a part of the answer is an h2 under its h1; nothing in the region skips to h3");
+  assert.equal(document.querySelectorAll("h1").length, 1, "a second h1 makes two claims");
   // And the region itself is named by that heading.
   assert.equal(region.getAttribute("aria-labelledby"), STAND_IDS.question);
 
@@ -107,6 +113,130 @@ test("the headline is the highest-ranked heading in its region, and it is first 
   assert.ok(order.indexOf(STAND_IDS.region) < order.indexOf("finops-first-run"),
     "the headline must precede the region it summarises");
   assert.equal(byId(document, "finops-first-run").dataset.subordinate, "true");
+});
+
+// ---------------------------------------------------------------------------
+// 1b. Announcement order and one coherent claim (#727).
+// ---------------------------------------------------------------------------
+
+/** The element children of `<main>`, in document order. */
+const regionsOf = (document) => [...(byId(document, "main-content").children ?? [])]
+  .filter((node) => node?.nodeType === 1);
+
+test("the headline is the first content a reader meets after the page landmark", () => {
+  const document = parseHtml(html);
+  const first = regionsOf(document)[0];
+  assert.equal(first.id, STAND_IDS.region,
+    `the first region inside <main> is #${first.id}; a screen-reader user who takes `
+    + "the skip link must meet the finding, not the preamble before it");
+  // The hero keeps every word it had, one region down and marked subordinate.
+  const order = regionsOf(document).map((node) => node.id);
+  assert.ok(order.indexOf(STAND_IDS.region) < order.indexOf("finops-hero"));
+  assert.equal(byId(document, "finops-hero").dataset.subordinate, "true");
+  // The skip link still targets the landmark the headline now opens, rather than
+  // a competing mechanism added beside it.
+  const skip = document.querySelector(".skip-link");
+  assert.equal(skip.getAttribute("href"), "#main-content");
+  assert.equal(document.querySelectorAll(".skip-link").length, 1);
+});
+
+test("no source-order laundering: the visual order is the DOM order", async () => {
+  const css = await readFile(new URL("../src/evolution.css", import.meta.url), "utf8");
+  // Reordering in CSS would put the answer first for the eye and leave it second
+  // for the keyboard and the screen reader, which is the defect this restructure
+  // exists to fix rather than to move.
+  for (const line of css.split("\n").filter((row) => /\.stand|\.finops-hero|data-subordinate/.test(row))) {
+    assert.doesNotMatch(line, /(^|[;{ ])order\s*:\s*-?\d/, `a rule reorders visually: ${line}`);
+    assert.doesNotMatch(line, /(flex|grid-auto)-flow?\s*:\s*[a-z-]*reverse/, `a rule reverses: ${line}`);
+    assert.doesNotMatch(line, /flex-direction\s*:\s*[a-z-]*reverse/, `a rule reverses: ${line}`);
+  }
+  // And nothing forces a tab stop out of document order.
+  assert.doesNotMatch(html, /tabindex="[1-9]/, "a positive tabindex desynchronizes focus from source order");
+});
+
+test("every spine step that is not the headline is drawn one tier down", async () => {
+  const document = parseHtml(html);
+  const css = await readFile(new URL("../src/evolution.css", import.meta.url), "utf8");
+  // The five supporting steps of the collapsed page, each authored subordinate
+  // before any script runs.
+  for (const id of ["finops-hero", "finops-first-run", "finops-next-step",
+    "finops-journey", "finops-destinations"]) {
+    assert.equal(byId(document, id).dataset.subordinate, "true",
+      `#${id} is a spine step that is not the headline and must read as one`);
+  }
+  assert.equal(byId(document, STAND_IDS.region).dataset.subordinate, undefined,
+    "the headline is never subordinate to itself");
+  // Three tiers, and each one is a ramp step the page already shipped.
+  assert.match(css, /\.stand-head h1 \{[^}]*font-size:clamp\(26px,4vw,38px\)/);
+  assert.match(css, /\.finops-hero h2 \{[^}]*font-size:clamp\(22px,3\.2vw,31px\)/);
+  assert.match(css, /\[data-subordinate="true"\] \.next-step-head h2[^{]*\{[^}]*font-size:clamp\(18px,2\.2vw,22px\)/);
+  // The container carries the same rank in a second, non-colour channel: the
+  // headline keeps a 6px accent rule and the filled wash, a supporting step gets
+  // a 3px neutral rule on flat white. (Claude Design foundations: "filled wash =
+  // dynamic signal, outline = static classification".)
+  assert.match(css, /\.stand \{[^}]*border-left:6px solid var\(--import-accent\)/);
+  assert.match(css, /\[data-subordinate="true"\] \{ border-left-width:3px; border-left-color:var\(--import-accent\); background:#fff; \}/);
+  // The hue is the same on both tiers, so nothing about rank is carried by
+  // colour: the width, the level, the type step, and the fill all move together.
+  assert.doesNotMatch(css, /\[data-subordinate="true"\] \{[^}]*border-left-color:var\(--import-line\)/);
+});
+
+test("the entitlement is announced as part of the claim, not as a stray badge", () => {
+  const document = parseHtml(html);
+  const answer = byId(document, STAND_IDS.answer);
+  assert.equal(answer.getAttribute("aria-describedby"), STAND_IDS.entitlement,
+    "the confidence tier and the evidence class describe THIS claim");
+  // The description points at copy that is already on screen and already in the
+  // reading order — no visually-hidden duplicate of what is announced anyway.
+  const entitlement = byId(document, STAND_IDS.entitlement);
+  assert.ok(entitlement, "the described element exists");
+  assert.equal(entitlement.getAttribute("aria-hidden"), null);
+  assert.ok(!String(entitlement.getAttribute("class") ?? "").includes("visually-hidden"));
+  // Both halves of it are inside the described element, so the description is
+  // the whole entitlement rather than one of its two indicators.
+  for (const id of [STAND_IDS.evidence, STAND_IDS.confidence]) {
+    assert.equal(byId(document, id).closest(`#${STAND_IDS.entitlement}`), entitlement);
+  }
+});
+
+test("every disclosure names what it reveals and exposes its own state", async () => {
+  const { document } = await openWithClearedStorage();
+  // A bare "Show more" is a control a screen-reader user cannot tell from the
+  // five beside it. Each name has to carry the question it opens.
+  const bare = /^\s*(show|show more|hide|more|details|expand)\s*$/i;
+  for (const key of STAND_DISCLOSURE_ORDER) {
+    const ids = standDisclosureIds(key);
+    const summary = byId(document, ids.summary);
+    const name = textOf(summary).replace(/\s+/g, " ").trim();
+    assert.doesNotMatch(name, bare, `${key} is named "${name}"`);
+    assert.ok(name.length > 20, `${key}'s name does not say what it reveals: "${name}"`);
+    assert.equal(summary.getAttribute("aria-expanded"), "false");
+    assert.equal(summary.getAttribute("aria-label"), null,
+      "the visible text is the accessible name, so speech control can say it");
+  }
+  // The other two disclosure controls a reader meets on the collapsed page.
+  for (const id of ["finops-first-run-method-summary", "finops-workspace-nav-detail-summary"]) {
+    const summary = byId(document, id);
+    assert.doesNotMatch(textOf(summary).replace(/\s+/g, " ").trim(), bare);
+    assert.equal(summary.getAttribute("aria-expanded"), "false");
+  }
+});
+
+test("expanding a supporting step leaves the reader standing on the answer", async () => {
+  const { document } = await openWithClearedStorage();
+  const action = byId(document, STAND_IDS.action);
+  action.focus();
+  assert.equal(document.activeElement, action);
+
+  // A supporting disclosure opens; nothing moves the keyboard off the answer.
+  const ids = standDisclosureIds("departments");
+  const details = byId(document, ids.details);
+  details.open = true;
+  details.dispatchEvent(new DomEvent("toggle", { bubbles: false }));
+
+  assert.equal(byId(document, ids.summary).getAttribute("aria-expanded"), "true");
+  assert.equal(document.activeElement, action,
+    "opening supporting detail took the reader away from the answer");
 });
 
 // ---------------------------------------------------------------------------

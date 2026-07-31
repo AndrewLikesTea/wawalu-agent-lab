@@ -128,10 +128,16 @@ async function bootedPage() {
 test("the hero is one heading and one sentence about the outcome", async () => {
   const document = parseHtml(await readFile(PAGE, "utf8"));
 
-  // One primary heading on the page, and it is the hero's.
+  // One primary heading on the page. Since #727 it is the headline finding's
+  // question rather than the hero's promise: the hero was set at
+  // clamp(44px,7.3vw,82px) directly above an answer at clamp(26px,4vw,38px), so
+  // the largest type in the first viewport was the line that answered nothing.
+  // The hero keeps every word and is now the h2 under it.
   const headings = document.querySelectorAll("h1");
   assert.equal(headings.length, 1, "a second h1 makes two claims on the reader's first read");
-  assert.equal(headings[0].id, "page-title");
+  assert.equal(headings[0].id, "finops-stand-question");
+  assert.equal(byId(document, "page-title").tagName.toLowerCase(), "h2",
+    "the hero's promise is subordinate to the finding, in the heading tree as well as in type");
 
   const intro = byId(document, "finops-intro");
   assert.equal(textOf(intro), HERO_INTRO,

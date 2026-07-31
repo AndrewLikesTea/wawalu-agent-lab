@@ -102,8 +102,14 @@
 /* One column at every width. The score card used to sit in a second column
    here; it now follows the populated example result, so the hero is copy only
    and the first thing under it is an answer rather than a pending card. */
-.finops-hero { display:grid; gap:48px; padding:clamp(60px,8vw,104px) 0 40px; }
-.finops-hero h1 { margin-bottom:22px; }
+/* THE HERO, SECOND. Its 104px top pad was the pad of the first thing inside the
+   landmark; the headline holds that place now, so the hero opens the supporting
+   half of the page instead and is spaced like a region rather than like a cover.
+   Its heading is the h2 under the headline's h1, at clamp(22px,3.2vw,31px) — the
+   step #finops-first-run's question already used before it was demoted, so no
+   new ramp step is introduced to seat it. */
+.finops-hero { display:grid; gap:48px; padding:clamp(20px,3.4vw,34px) 0 34px; }
+.finops-hero h2 { max-width:20ch; margin:0 0 18px; font-size:clamp(22px,3.2vw,31px); line-height:1.15; letter-spacing:-.02em; }
 /* Still scoped to the copy block rather than to `.finops-hero>div>p`: the rule
    sizes body copy, and the hero has carried other children before. */
 .finops-hero .hero-copy>p { max-width:680px; margin:0; color:#555550; font-size:18px; line-height:1.65; }
@@ -1002,11 +1008,17 @@
    hierarchy instead of flattening it.
    No transition, no transform, and no animation anywhere in this block, so
    there is nothing for a reduced-motion query to have to switch off. */
-.stand { display:grid; gap:14px; margin:0 0 14px; border:1px solid var(--import-line); border-left:6px solid var(--import-accent); border-radius:16px; padding:clamp(20px,3.4vw,30px); background:linear-gradient(150deg,var(--import-wash),#fff 52%); }
+.stand { display:grid; gap:14px; margin:0 0 26px; border:1px solid var(--import-line); border-left:6px solid var(--import-accent); border-radius:16px; padding:clamp(20px,3.4vw,30px); background:linear-gradient(150deg,var(--import-wash),#fff 52%); }
 .stand[data-position="withheld"] { border-left-color:var(--state-warn-line); }
 .stand-head { display:grid; gap:6px; }
 .stand-head .eyebrow { margin:0; }
-.stand-head h2 { max-width:22ch; margin:0; font-size:clamp(26px,4vw,38px); line-height:1.12; letter-spacing:-.01em; }
+/* The page's h1 since #727. It is set at clamp(26px,4vw,38px) — the step this
+   heading already occupied as an h2 — and NOT at the site h1's
+   clamp(44px,7.3vw,82px), which is a display size for a two-word promise and
+   would make a nine-word question the only thing in the first viewport. The
+   base h1 rule's line-height:.96 and letter-spacing:-.055em are both overridden
+   here for the same reason: this heading is read, not glanced at. */
+.stand-head h1 { max-width:22ch; margin:0; font-size:clamp(26px,4vw,38px); line-height:1.12; letter-spacing:-.01em; }
 .stand-answer { margin:0; max-width:52ch; color:var(--ink); font-size:clamp(17px,2.2vw,21px); font-weight:700; line-height:1.35; overflow-wrap:anywhere; }
 /* The entitlement line. Both indicators are words, so the colour and the border
    are decoration on a state the reader can already read, hear, and print. */
@@ -1027,7 +1039,12 @@
 .stand-team[data-available="false"] .stand-team-name { color:var(--state-warn-ink); font-size:16px; font-weight:700; }
 .stand-team-detail { margin:0; max-width:60ch; color:var(--ink-muted); font-size:13px; line-height:1.55; overflow-wrap:anywhere; }
 .stand-next { display:grid; justify-items:start; gap:6px; }
-.stand-action { display:inline-block; border:1px solid var(--import-accent); border-radius:9px; padding:11px 18px; background:var(--import-accent); color:#fff; font-size:15px; font-weight:700; text-decoration:none; }
+/* The one ranked action. `inline-flex` with a 44px floor rather than a bare
+   inline-block: the label is composed from a destination name at run time, so
+   the control has to keep a 24×24 minimum target — and comfortably clear it —
+   whether the label is two words or a wrapped sentence. `overflow-wrap:anywhere`
+   is what keeps an unbroken token inside the panel instead of widening it. */
+.stand-action { display:inline-flex; align-items:center; min-height:44px; max-width:100%; border:1px solid var(--import-accent); border-radius:9px; padding:11px 18px; background:var(--import-accent); color:#fff; font-size:15px; font-weight:700; line-height:1.35; text-decoration:none; overflow-wrap:anywhere; }
 .stand-action:hover { background:var(--import-ink); border-color:var(--import-ink); }
 .stand-action:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
 .stand-action-basis { margin:0; max-width:64ch; color:var(--ink-muted); font-size:13px; line-height:1.55; }
@@ -1051,7 +1068,9 @@
 .stand-disclosure-list dt { color:var(--import-ink); font:700 10px/1.5 ui-monospace,monospace; letter-spacing:.07em; text-transform:uppercase; }
 .stand-disclosure-list dd { margin:0; max-width:74ch; color:var(--ink-muted); font-size:13px; line-height:1.55; overflow-wrap:anywhere; }
 /* The demoted first-run block. It keeps every word; it stops competing for the
-   eye with the headline above it. */
+   eye with the headline above it. The other spine steps now sit on the same
+   tier — see "ONE SUBORDINATE TIER" at the foot of this file, which has to come
+   after the per-region rules it steps down. */
 .first-run[data-subordinate="true"] .first-run-head h2 { font-size:clamp(18px,2.2vw,22px); }
 .first-run[data-subordinate="true"] .first-run-answer { font-size:clamp(15px,1.6vw,17px); }
 .first-run[data-subordinate="true"] .first-run-value { font-size:clamp(16px,1.8vw,19px); }
@@ -2958,3 +2977,120 @@ section[data-workspace-current="true"] { box-shadow:-6px 0 0 0 var(--import-wash
 .next-step-facts { display:grid; gap:6px; margin:11px 0 0; }
 .next-step-facts dt { margin:0; color:var(--ink-muted); font:700 11px/1.5 ui-monospace,monospace; letter-spacing:.04em; text-transform:uppercase; }
 .next-step-facts dd { margin:0 0 4px; max-width:80ch; color:var(--ink); font-size:12.5px; line-height:1.6; }
+
+/* ===========================================================================
+   ONE SUBORDINATE TIER FOR EVERY SPINE STEP THAT IS NOT THE HEADLINE (#727)
+   ===========================================================================
+
+   THE DEFECT. src/finops/answer-spine-view.js declares which region answers the
+   page's opening question and which regions support it, and on the collapsed
+   page that is one headline (#finops-stand) and five supporting steps. Nothing
+   in this stylesheet knew that. Each step had been drawn by whoever shipped it,
+   at whatever size looked right on its own, so a CTO scanning the first screen
+   met SIX region headings in four different sizes — 82px (hero), 38px (the
+   answer), 22px (the brief, already demoted), 25px (this month), base h2 (the
+   journey), 25px (destinations) — and the largest of them answered nothing.
+   "Which of these is the answer?" was a question the page made the reader work
+   out, every time.
+
+   THE RULE. Three tiers, all of them steps this page already ships, and no new
+   token, hue, or ramp step is introduced:
+
+     tier 1  the finding      clamp(26px,4vw,38px)   #finops-stand, h1
+     tier 2  the page promise clamp(22px,3.2vw,31px) #finops-hero, h2
+     tier 3  every other step clamp(18px,2.2vw,22px) h2, flat
+
+   and the container carries the same three-tier answer in a second channel, per
+   the Claude Design foundations rule "filled wash = dynamic signal, outline =
+   static classification" (design-system/claude-design/review-08-foundations.html):
+   the headline is the live finding and keeps the 6px accent rule and the
+   gradient wash; a supporting step is a static part of the journey and gets a
+   3px neutral rule on flat white. Colour is never the difference on its own —
+   the size, the weight, the border width, and the heading level all move
+   together, so the hierarchy survives greyscale, a print, and a zoomed reflow.
+
+   SPECIFICITY, DELIBERATELY LOW. The container rules below are matched on the
+   attribute alone, (0,1,0), so every STATE rule already in this file —
+   `.next-step[data-confidence="low"]`, `.first-run[data-state="unavailable"]`,
+   `.finops-destinations[data-state="unavailable"]`, and the journey sheet's
+   `.finops-journey[data-phase="…"]` — is (0,2,0) and still wins. A step that is
+   degraded, unavailable, or low-confidence keeps saying so; subordination
+   changes its rank, never its state. They sit at the foot of the file because
+   the per-region rules they step down are (0,1,0) too, and source order is what
+   separates two selectors of equal weight.
+
+   The attribute is AUTHORED in evolution.html, not stamped by applyAnswerSpine:
+   a hierarchy that only exists once a module has run is a hierarchy the reader
+   does not have on a cold load or on a page whose JavaScript failed. */
+/* The rule keeps `--import-accent` and only halves its width. Swapping it for
+   the lighter `--import-line` was the first draft and it was wrong: that token
+   is 1.86:1 against the page wash and 2.11:1 against white, so the boundary of
+   a whole region would have been carried by something a reader may not see at
+   all. Same hue, half the width, no wash — which also means COLOUR CARRIES
+   NOTHING here. Rank is the border width, the heading level, the type step, and
+   the presence or absence of the fill; a greyscale print reads it identically. */
+[data-subordinate="true"] { border-left-width:3px; border-left-color:var(--import-accent); background:#fff; }
+.finops-journey[data-subordinate="true"] { border-left-width:3px; border-left-color:var(--import-accent); background:#fff; }
+/* The hero is tier 2 and carries no container of its own, so it takes the type
+   step and nothing else. */
+.finops-hero[data-subordinate="true"] { border:0; background:none; }
+
+/* Tier 3: one question size across every supporting step. Each selector is
+   (0,2,1) against a (0,1,1) per-region rule, so it wins on weight rather than
+   on where it sits — including across the journey's own stylesheet, which is
+   linked after this one. */
+[data-subordinate="true"] .next-step-head h2,
+[data-subordinate="true"] .fjc-head h2,
+[data-subordinate="true"] .finops-destinations-head h2 { max-width:34ch; font-size:clamp(18px,2.2vw,22px); line-height:1.25; }
+/* And one size for the sentence each of them leads with, matching the brief's
+   demoted answer line so the three read as one tier rather than three. */
+[data-subordinate="true"] .next-step-headline,
+[data-subordinate="true"] .fjc-headline,
+[data-subordinate="true"] .dest-finding,
+[data-subordinate="true"] .dest-unavailable { font-size:clamp(15px,1.6vw,17px); line-height:1.45; }
+/* Vertical rhythm is the third channel. The headline owns 26px of clear space
+   below it; the supporting steps sit closer together, so the eye reads them as
+   one group under the answer rather than as five more answers. */
+[data-subordinate="true"] { margin-top:0; margin-bottom:14px; }
+.finops-journey[data-subordinate="true"] { margin:0 0 14px; }
+
+/* ---------------------------------------------------------------------------
+   THE HEADLINE UNDER PRESSURE — the states that are not the demo.
+
+   Every one of these is reachable from data this page already composes: a
+   pending region before the example is read (`data-state="pending"`, authored),
+   a partial one where some slot could not be filled (`"partial"`), a withheld
+   position (`data-position="withheld"`, which is also how an unreadable example
+   arrives — STAND_LOAD_FAILED in finops-stand.js resolves to a withheld
+   position with a reason and a control, not to a region-level error), and a
+   slot whose value is absent (`data-available="false"`, already drawn above in
+   warn ink at a smaller size with a dashed rule).
+
+   What is drawn here is what those states do to the LAYOUT when the strings are
+   hostile: a finding sentence that runs to a paragraph, a next-action label
+   built from a long destination name, a metric with an extreme magnitude, and a
+   department name with no spaces in it. None of them may push the panel
+   sideways, ellipse the answer, or flatten the three sizes into one. */
+.stand-answer,.stand-figure-value,.stand-team-name,.stand-action-basis { overflow-wrap:anywhere; hyphens:auto; }
+/* A ten-digit currency figure is still a figure. It shrinks by one ramp step
+   rather than overflowing, and it never drops below the basis line under it. */
+.stand-figure-value { min-width:0; }
+.stand[data-state="pending"] .stand-figure,.stand[data-state="pending"] .stand-team { border-top-style:dashed; border-top-color:var(--ink-muted); }
+/* A partial headline says so on the container as well as in the slot that is
+   missing: a dashed left rule, matching the dashed slot rules above, so "some
+   of this could not be filled" is legible without reading every slot. */
+.stand[data-state="partial"] { border-left-style:dashed; }
+
+/* ---------------------------------------------------------------------------
+   NARROW (~360px). The hierarchy has to survive the reflow, which means the
+   three sizes stay three sizes: the clamp() minimums above are the tier floors
+   (38→26, 31→22, 22→18), and they stay 8px and 4px apart rather than collapsing
+   into one column of equal-weight text. Only the spacing and the figure grid
+   change here. */
+@media(max-width:520px) {
+  .finops-hero { gap:24px; padding:14px 0 24px; }
+  .stand { margin-bottom:20px; padding:18px 16px; }
+  .stand-figures { grid-template-columns:1fr; gap:14px; }
+  .stand-action { width:100%; justify-content:center; text-align:center; }
+  [data-subordinate="true"] { margin-bottom:12px; }
+}

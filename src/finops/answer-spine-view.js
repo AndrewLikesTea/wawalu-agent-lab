@@ -194,15 +194,14 @@ const PEER_CLAIM_TERMS = Object.freeze(["peer", "cohort", "percentile"]);
  *   supersededBy       Retired entries only: the live region that took over.
  */
 export const ANSWER_SPINE = Object.freeze([
-  {
-    id: "finops-hero",
-    role: ROLE.step,
-    question: "What can this page tell me, and what does it need from me?",
-    headingId: "page-title",
-    entitledToAssert:
-      "What the page will name once it has read something, and the one input it "
-      + "needs. It carries no figure, so it cannot compete with the headline below it.",
-  },
+  // THE HEADLINE IS STEP 1, and it is the first region inside the landmark.
+  // It used to be second, under the hero: a screen-reader user who took the
+  // skip link met an eyebrow, a marketing headline, a sentence about what the
+  // page would do once given something, and a provenance line before they met
+  // the finding. Declaration order is the reading order and the reading order
+  // is the document's, so moving the answer to the front is this one edit plus
+  // the matching move in evolution.html — and `validateAnswerSpine` fails if
+  // only one of the two happens.
   {
     id: HEADLINE_REGION_ID,
     role: ROLE.headline,
@@ -213,6 +212,15 @@ export const ANSWER_SPINE = Object.freeze([
       + "recoverable figure beside it, one named lagging department, and one "
       + "ranked action — every one of them from the bundled synthetic example "
       + `unless the reader's own import replaced it. ${SYNTHETIC_COHORT_BASIS}`,
+  },
+  {
+    id: "finops-hero",
+    role: ROLE.step,
+    question: "What can this page tell me, and what does it need from me?",
+    headingId: "page-title",
+    entitledToAssert:
+      "What the page will name once it has read something, and the one input it "
+      + "needs. It carries no figure, so it cannot compete with the headline above it.",
   },
   {
     id: "finops-first-run",
