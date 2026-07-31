@@ -23,7 +23,6 @@ import assert from "node:assert/strict";
 import { loadPage, textOf } from "./support/browser.js";
 import { CONTACT_COPY } from "../src/lead-capture.js";
 import { INVITATION, PRIVACY, PURPOSE } from "../src/site-footer.js";
-import { FIRST_RUN_CONVERSION } from "../src/finops-first-run.js";
 
 /** The one label. Written out here so a rename has to be a decision, not a diff. */
 const CTA = "Request a follow-up";
@@ -47,9 +46,12 @@ const SURFACES = [
   {
     page: "evolution.html",
     what: "AI FinOps result",
-    buttons: ["finops-contact-open", "finops-first-run-contact", "finops-followup-cta"],
+    // #finops-first-run-contact was the second copy of this ask. The answer
+    // spine retired the region it sat in and the deletion took the control with
+    // it; the two that remain are the form's own trigger and the result's.
+    buttons: ["finops-contact-open", "finops-followup-cta"],
     forms: ["finops-contact-form"],
-    context: ["finops-contact", "finops-first-run-conversion", "finops-result-followup"],
+    context: ["finops-contact", "finops-result-followup"],
   },
   {
     page: "executive-briefing.html",
@@ -91,11 +93,8 @@ test("every control that opens or submits a follow-up form reads exactly the one
     }
   }
 
-  // The AI FinOps conversion control is re-labelled from this constant when the
-  // first-run view repaints, so the constant and the shipped markup above have
-  // to agree. The briefing's in-sheet invitation is painted rather than shipped;
+  // The briefing's in-sheet invitation is painted rather than shipped;
   // tests/follow-up-conversion.test.js pins its rendered label.
-  assert.equal(FIRST_RUN_CONVERSION.label, CTA);
 });
 
 test("the footer's follow-up control reads the same on every page that carries it", async () => {

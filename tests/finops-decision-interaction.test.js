@@ -446,7 +446,7 @@ test("paper keeps the reading order, and drops only the dead controls", () => {
       `${selectors} visually reorders the printed decision`);
   }
   assert.match(PRINT_RULES, /\.first-run-answer \{ break-after:avoid; \}/);
-  assert.match(PRINT_RULES, /\.first-run-choice button,\.first-run-conversion-action \{ display:none; \}/);
+  assert.match(PRINT_RULES, /\.first-run-choice button \{ display:none; \}/);
   // The action notes are not controls, and they say what the buttons would have
   // done, so they stay.
   assert.ok(!PRINT_RULES.includes(".first-run-action-note { display:none"));

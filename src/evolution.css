@@ -1182,14 +1182,8 @@
 .first-run-handoff-action:hover { border-color:var(--import-accent); color:var(--import-accent); }
 .first-run-handoff-action:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
 .first-run-handoff-note { margin:0; max-width:78ch; color:var(--ink-muted); font-size:12px; line-height:1.55; }
-/* The conversion moment. Quieter than either choice above by type scale and by
-   having no filled accent at all: it is a different step, not a third way in. */
-.first-run-conversion { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px 22px; margin:0 0 22px; border:1px solid var(--panel-border); border-radius:11px; padding:14px 18px; background:#faf9f5; }
-.first-run-conversion-title { margin:0; color:var(--ink); font-size:15px; font-weight:700; }
-.first-run-conversion-body { margin:4px 0 0; max-width:66ch; color:var(--ink-muted); font-size:12.5px; line-height:1.55; }
-.first-run-conversion-action { flex:none; min-height:44px; border:1px solid #bdbbb3; border-radius:8px; padding:10px 14px; background:#fff; color:#333330; font-size:13px; font-weight:700; cursor:pointer; }
-.first-run-conversion-action:hover { border-color:#1f70c1; }
-.first-run-conversion-action:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+/* The .first-run-conversion rules were deleted with the region the answer spine
+   retired. #finops-contact carries the ask and has its own rules below. */
 /* WHERE TO GO NEXT. Quieter than the brief above it — no gradient, a single
    accent rule — because it is not a second answer. The one thing in it drawn at
    button weight is the rank-1 door, which is the whole point of the region: a
@@ -1520,8 +1514,6 @@ section[data-workspace-current="true"] { box-shadow:-6px 0 0 0 var(--import-wash
   .first-run-method-heading { align-items:flex-start; flex-direction:column; }
   .first-run-choice button { width:100%; }
   .first-run-handoff-action { justify-self:stretch; justify-content:center; text-align:center; }
-  .first-run-conversion { align-items:stretch; flex-direction:column; }
-  .first-run-conversion-action { width:100%; }
   .proof-point-facts { grid-template-columns:1fr; }
   .proof-point-boundary { align-items:start; flex-direction:column; }
   .local-import-heading,.local-import-controls,.local-result-heading { align-items:stretch; flex-direction:column; }
@@ -2657,7 +2649,7 @@ section[data-workspace-current="true"] { box-shadow:-6px 0 0 0 var(--import-wash
   /* Interactive-only affordances. A dead button on a printed page reads as
      something the reader failed to press. The notes stay: they say what would
      have happened, which is the part that is still true on paper. */
-  .first-run-choice button,.first-run-conversion-action { display:none; }
+  .first-run-choice button { display:none; }
   /* The hand-off is a link, not a button, so it survives on paper as the address
      of the sheet it opens — which is exactly what a printed page can still act
      on. Its heading and note stay with it. */

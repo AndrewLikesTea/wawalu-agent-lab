@@ -107,7 +107,6 @@ export const FIRST_RUN_IDS = Object.freeze({
   briefing: "finops-first-run-briefing",
   briefingHeading: "finops-first-run-briefing-heading",
   briefingNote: "finops-first-run-briefing-note",
-  contact: "finops-first-run-contact",
   live: "finops-first-run-live",
 });
 
@@ -227,25 +226,11 @@ export const FIRST_RUN_ACTIONS = Object.freeze({
   }),
 });
 
-/**
- * The conversion moment that follows the result.
- *
- * Deliberately after the two choices above and deliberately quieter than both:
- * it is the step for a reader who has read a number and wants a person, not a
- * third way to start. It opens the follow-up form this page already ships
- * rather than adding a second one.
- */
-export const FIRST_RUN_CONVERSION = Object.freeze({
-  heading: "Want help with your own analysis?",
-  // The label is the one CTA label every follow-up form on this site uses, with
-  // no page-specific qualification on it, so this line is where the context
-  // lives: whose numbers, and what pressing it eventually sends.
-  body: "Analyze your provider exports in this browser, or ask the Wawalu team to go through your numbers "
-    + "with you. Requesting a follow-up sends one thing: the work email address you type.",
-  label: "Request a follow-up",
-  targetId: "finops-contact-open",
-  focusId: "finops-contact-email",
-});
+// DELETED: FIRST_RUN_CONVERSION, the copy and the delegation target for
+// #finops-first-run-conversion. The answer spine retired that region in favour
+// of #finops-contact, which asks the same thing and owns the form, the label,
+// and the privacy line; a second copy of the ask had nothing of its own to say.
+// See src/finops/answer-spine-view.js for the retirement and its record.
 
 /** The slot labels, so the region and its tests cannot disagree. */
 export const SLOT_LABEL = Object.freeze({
@@ -703,7 +688,6 @@ const BASE = Object.freeze({
   label: FIRST_RUN_LABEL,
   sample: SAMPLE_LABEL,
   actions: FIRST_RUN_ACTIONS,
-  conversion: FIRST_RUN_CONVERSION,
 });
 
 function degradedResult(presentation, reason, answerValue) {

@@ -293,9 +293,16 @@ test("the shipped page carries its roles and its reading order after init", asyn
   assert.equal(stepOf(HEADLINE_REGION_ID), "2", "the answer is the second thing on the page");
   assert.equal(roleOf("finops-privacy"), ROLE.detail);
   assert.equal(stepOf("finops-privacy"), null, "a supporting region takes no place in the reading order");
-  assert.equal(roleOf("finops-first-run-conversion"), ROLE.retired);
-  assert.equal(document.getElementById("finops-first-run-conversion")
-    .getAttribute(SUPERSEDED_BY_ATTRIBUTE), "finops-contact");
+  // A retired region is not stamped, because it is not there to stamp: the mark
+  // is a deletion instruction and the deletion happened. What must still be on
+  // the page is the region that took its question.
+  assert.equal(document.getElementById("finops-first-run-conversion"), null,
+    "a retired region is deleted, not stamped and shipped");
+  assert.equal(roleOf("finops-contact"), ROLE.detail,
+    "the region that took the retired ask is live and classified");
+  assert.equal(document.getElementById("finops-contact")
+    .getAttribute(SUPERSEDED_BY_ATTRIBUTE), null,
+  "the successor carries no supersession mark of its own");
 
   // The paints that run after the spine, which a throw on the first line of
   // init() would have skipped: the headline's own answer slot, and the shell.
