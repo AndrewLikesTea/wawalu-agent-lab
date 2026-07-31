@@ -298,6 +298,35 @@ export function applyStandHeadline(doc, headline) {
   setText(doc, STAND_IDS.question, headline.question ?? "");
   setText(doc, STAND_IDS.answer, headline.answer ?? "");
 
+  // CAN THIS EXPORT BE GRADED — the gate on everything under it, in three
+  // slots: the question, the verdict with the figure that decided it, and the
+  // one next step. Each slot is hidden exactly when it has no text, so a state
+  // that names no next step leaves no empty line behind rather than a blank
+  // stop for a screen reader.
+  const gradability = byId(doc, STAND_IDS.gradability);
+  if (gradability) {
+    gradability.dataset.state = headline.gradability?.state ?? "unavailable";
+    gradability.dataset.figures = headline.figuresSuppressed ? "suppressed" : "shown";
+  }
+  for (const [id, text] of [
+    [STAND_IDS.gradabilityQuestion, headline.gradability?.question ?? ""],
+    [STAND_IDS.gradabilityMetric, headline.gradability?.answer ?? ""],
+    [STAND_IDS.gradabilityAction, headline.gradability?.action?.text ?? ""],
+  ]) {
+    const slot = setText(doc, id, text);
+    if (slot) slot.hidden = text === "";
+  }
+
+  // …AND THE FIGURES THAT VERDICT GOVERNS. Assigned from the state on every
+  // paint, never latched: an import far below the bar takes the figures and the
+  // named department off the screen, and the next export that clears the bar —
+  // or a cleared import returning to the bundled example — puts them back. A
+  // one-way `hidden = true` here is how a repainted region ends up asserting
+  // "this export can be graded" over a gutted headline.
+  for (const node of region.querySelectorAll?.(".stand-figures, .stand-team") ?? []) {
+    node.hidden = Boolean(headline.figuresSuppressed);
+  }
+
   // The entitlement line: two indicators, both words, immediately under the
   // claim. Neither is a colour and neither is behind a disclosure — a lead who
   // is about to repeat this sentence should not have to open anything to learn
