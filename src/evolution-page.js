@@ -311,7 +311,7 @@ import {
 // model's own; this pair only pairs a row with the key the model files it under
 // and renders the reader's own text as text.
 import { reviewSample } from "/query-review-sample.js";
-import { REVIEW_COPY, bindQueryReview, renderQueryReview } from "/query-review-view.js";
+import { REVIEW_COPY, bindQueryReview, renderQueryReview, reviewPassSummary } from "/query-review-view.js";
 import {
   applyImportedExecutive, clearImportedExecutive, importedExecutiveFigures,
 } from "/imported-executive-view.js";
@@ -1310,12 +1310,31 @@ function mountLocalFinopsImport() {
    * untouched.
    */
   let reviewAnnouncement = null;
+  /**
+   * Whether a correction has landed that no consolidated message has covered.
+   *
+   * One message per pass, not one per row: the panel used to announce every
+   * figure on every correction, which is twenty-five interruptions for a
+   * twenty-five row sample. The row's own state chip carries the per-item change
+   * — it is part of the row's accessible name, under the reader's focus — and
+   * this flag is what makes the end of the pass, or leaving it, say the one
+   * thing worth saying.
+   */
+  let unannouncedCorrections = false;
+  const reviewPassLine = (corrected) => reviewPassSummary(corrected.overridesApplied,
+    { grade: corrected.grade, coverage: corrected.coverage });
   const syncQueryReview = () => {
     const entries = classifiedSamples();
     const corrected = overriddenCorpus(entries);
+    const sample = reviewSample(entries);
+    if (sample.rows.length > 0 && unannouncedCorrections
+      && sample.rows.every((row) => queryLabelOverrides.has(row.key))) {
+      unannouncedCorrections = false;
+      reviewAnnouncement = reviewPassLine(corrected);
+    }
     const painted = renderQueryReview(document, {
       available: entries.length > 0,
-      sample: reviewSample(entries),
+      sample,
       grade: corrected.grade,
       coverage: corrected.coverage,
       recoverableSpend: corrected.recoverableSpend,
@@ -1340,11 +1359,20 @@ function mountLocalFinopsImport() {
   function correctQueryLabel(key, label) {
     const outcome = applyCorrection(queryLabelOverrides, key, label);
     if (!outcome.ok && outcome.reason === "unknown_label") return outcome;
+    unannouncedCorrections = true;
     repaintCorrectedFigures();
     return outcome;
   }
+  /** Closing the panel with the pass unfinished still earns the one message. */
+  function announceReviewPass() {
+    if (!unannouncedCorrections) return;
+    unannouncedCorrections = false;
+    reviewAnnouncement = reviewPassLine(overriddenCorpus());
+    syncQueryReview();
+  }
   function revertQueryLabels() {
     revertToClassifier(queryLabelOverrides);
+    unannouncedCorrections = false;
     reviewAnnouncement = REVIEW_COPY.reverted;
     repaintCorrectedFigures();
   }
@@ -2517,7 +2545,7 @@ function mountLocalFinopsImport() {
   // The disclosure and the one revert control, bound once. Both are operable
   // before any file is read; the button stays hidden until there is a sample to
   // review, so a visitor on the bundled example never meets either.
-  bindQueryReview(document, { onRevert: revertQueryLabels });
+  bindQueryReview(document, { onRevert: revertQueryLabels, onLeave: announceReviewPass });
 
   input.addEventListener("change", async () => {
     const files = [...input.files];

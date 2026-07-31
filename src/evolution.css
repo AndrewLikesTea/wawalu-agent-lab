@@ -3124,23 +3124,55 @@ section[data-workspace-current="true"] { box-shadow:-6px 0 0 0 var(--import-wash
    whole prompt, and an ellipsis hides the words a class turns on — and every row
    is a single grid column, so at a phone width the text, the classifier's
    reading and the two controls stack instead of scrolling sideways. Nothing here
-   is a fixed width and nothing sets `overflow:hidden`. */
-.stand-review-open { justify-self:start; margin:2px 0 0; border:1px solid var(--import-line); border-radius:8px; padding:8px 13px; background:var(--surface); color:var(--import-ink); font:inherit; font-size:13px; font-weight:700; cursor:pointer; }
+   is a fixed width and nothing sets `overflow:hidden`.
+
+   `--surface` was never declared on this page — only src/paint/paint.css
+   defines it, and /evolution.html does not link that sheet — so every
+   `background:var(--surface)` below computed to `transparent` and the panel,
+   its entry point, its buttons and its select had no card surface at all. They
+   are `#fff` now, which is the value every other card on this sheet already
+   ships, and it is what the contrast ratios on the state chips below are
+   measured against. No new token, and no new hue. */
+.stand-review-open { justify-self:start; margin:2px 0 0; border:1px solid var(--import-line); border-radius:8px; padding:8px 13px; background:#fff; color:var(--import-ink); font:inherit; font-size:13px; font-weight:700; cursor:pointer; }
 .stand-review-open:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
-.query-review { display:grid; gap:12px; margin:10px 0 0; border:1px solid var(--import-line); border-radius:11px; padding:14px; background:var(--surface); }
+.query-review { display:grid; gap:12px; margin:10px 0 0; border:1px solid var(--import-line); border-radius:11px; padding:14px; background:#fff; }
 .query-review-title { margin:0; font-size:14px; }
 .query-review-intro { margin:0; max-width:80ch; color:var(--ink-muted); font-size:12.5px; line-height:1.6; }
+/* Meta text on the existing caption rung, not a heading and not a figure. */
+.query-review-position { display:flex; flex-wrap:wrap; gap:2px 14px; margin:0; color:var(--ink-muted); font:700 11px/1.5 ui-monospace,monospace; letter-spacing:.04em; text-transform:uppercase; }
+.query-review-position-done { color:#4a4a44; }
 .query-review-rows { display:grid; gap:11px; margin:0; padding:0; list-style:none; }
 .query-review-row { display:grid; gap:7px; border:1px solid var(--import-line); border-radius:9px; padding:11px 12px; }
+/* The roving row is focused programmatically, so it takes `:focus` and not
+   `:focus-visible` — several engines withhold `:focus-visible` from a scripted
+   focus() on a non-input element, and a roving item with no ring is the bug this
+   whole pattern is supposed to fix. Same token as every other control here. */
+.query-review-row:focus { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.query-review-cell { display:grid; gap:7px; }
+.query-review-actions { display:flex; flex-wrap:wrap; align-items:center; gap:7px 10px; }
+/* The three row states, in three channels. The WORD is first and is inside the
+   row's accessible name; the SILHOUETTE is second — dashed outline for the
+   classification that has not moved, filled wash for the two a human just made,
+   and a left rule on the corrected one — and the tint is third. Measured against
+   the #fff panel above: chip text 8.9:1 (still unclassified), 8.8:1 (agreed),
+   8.1:1 (corrected); the dashed edge 5.1:1 and the corrected rule 3.9:1, both
+   over the 3:1 floor for a non-text element that carries meaning. The
+   silhouettes follow the foundations card: outline = static classification,
+   filled wash = live signal. No new value is introduced. */
+.query-review-state { flex:none; display:inline-flex; align-items:baseline; border-radius:5px; padding:2px 9px; font:750 10px/1.6 ui-monospace,monospace; letter-spacing:.05em; text-transform:uppercase; white-space:nowrap; }
+.query-review-state[data-state="unreviewed"] { border:1px dashed var(--ink-muted); color:#4a4a44; }
+.query-review-state[data-state="agreed"] { background:var(--import-wash); color:var(--import-ink); }
+.query-review-state[data-state="corrected"] { border-left:3px solid var(--state-warn-line); background:var(--state-warn-wash); color:var(--state-warn-ink); }
 /* `overflow-wrap:anywhere` and not `nowrap`: an export can carry one unbroken
    400-character token, and it must reflow rather than widen the page. */
 .query-review-text { margin:0; max-width:80ch; color:var(--ink); font-size:13px; line-height:1.6; overflow-wrap:anywhere; white-space:pre-wrap; }
 .query-review-read { display:flex; flex-wrap:wrap; gap:5px 14px; margin:0; color:var(--ink-muted); font-size:12px; line-height:1.6; }
 .query-review-signal { overflow-wrap:anywhere; }
-.query-review-agree, .query-review-revert { justify-self:start; border:1px solid var(--import-line); border-radius:8px; padding:6px 11px; background:var(--surface); color:var(--import-ink); font:inherit; font-size:12.5px; font-weight:700; cursor:pointer; }
-.query-review-agree:focus-visible, .query-review-revert:focus-visible, .query-review-select:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.query-review-agree, .query-review-revert { justify-self:start; border:1px solid var(--import-line); border-radius:8px; padding:6px 11px; background:#fff; color:var(--import-ink); font:inherit; font-size:12.5px; font-weight:700; cursor:pointer; }
+/* Reached with Left/Right rather than Tab, so they are focused by script too. */
+.query-review-agree:focus, .query-review-revert:focus-visible, .query-review-select:focus { outline:3px solid var(--focus-ring); outline-offset:3px; }
 .query-review-label { color:var(--ink-muted); font:700 11px/1.5 ui-monospace,monospace; letter-spacing:.04em; text-transform:uppercase; }
-.query-review-select { max-width:100%; border:1px solid var(--import-line); border-radius:8px; padding:7px 9px; background:var(--surface); color:var(--ink); font:inherit; font-size:13px; }
+.query-review-select { max-width:100%; border:1px solid var(--import-line); border-radius:8px; padding:7px 9px; background:#fff; color:var(--ink); font:inherit; font-size:13px; }
 .query-review-figures { display:flex; flex-wrap:wrap; gap:5px 14px; margin:0; color:var(--ink); font-size:13px; font-weight:700; line-height:1.6; }
 .query-review-action { flex-basis:100%; font-weight:600; overflow-wrap:anywhere; }
 .query-review-provenance { margin:0; color:var(--import-ink); font-size:12.5px; font-weight:700; }

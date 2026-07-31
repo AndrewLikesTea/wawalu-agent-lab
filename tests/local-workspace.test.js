@@ -325,7 +325,10 @@ test("the page names one next action, and the reader can reach every control by 
     // header and footer stops are the site's, asserted in their own suites.
     const labels = tabSequence(document)
       .filter((stop) => stop.closest("#main-content"))
-      .map((stop) => textOf(stop) || stop.id);
+      // The scrollable contract preview is named by its id rather than by the
+      // JSON inside it: it is a tab stop because it scrolls, and a keyboard
+      // reader who cannot focus it cannot read it.
+      .map((stop) => (stop.tagName === "PRE" ? stop.id : textOf(stop) || stop.id));
     // Reading order: the one action first, then the ordinary controls, then the
     // disclosures. Nothing reachable sits above the action it is subordinate to.
     // The disclosure summaries are stops in their own right — a <summary> is
@@ -342,6 +345,7 @@ test("the page names one next action, and the reader can reach every control by 
       "Erase local records",
       "Where these numbers come from",
       "Inspect every retained field and sample value",
+      "finops-preview-json",
       "Remember these figures in this browser",
       "Remember these figures in this browser",
       "Keep using files only",

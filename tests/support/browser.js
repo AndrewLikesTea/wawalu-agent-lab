@@ -472,8 +472,14 @@ function hasHiddenAncestor(element) {
 // reachable here and would not be in a browser. Closing that gap changes the
 // answer for several pages at once and is not this harness's to decide alone.
 function isTabbable(element, document) {
+  // A non-control in the tab order is a composite widget's roving item (a grid
+  // row, a listbox option). It is a tab stop when it carries a non-negative
+  // tabindex AND nothing above it is hidden — without the second half a roving
+  // item inside a closed disclosure would count, and "the list is one tab stop"
+  // would pass on a panel nobody can see.
   if (!FOCUSABLE_TAGS.has(element.tagName)) return element.getAttribute("tabindex") !== null
-    && element.getAttribute("tabindex") !== "-1";
+    && element.getAttribute("tabindex") !== "-1"
+    && !hasHiddenAncestor(element);
   // Only a `<details>`'s own summary is a control; a stray `<summary>` is not.
   if (element.tagName === "SUMMARY") {
     return element.getAttribute("tabindex") !== "-1"
@@ -493,7 +499,12 @@ function isTabbable(element, document) {
 }
 
 export function tabSequence(document) {
-  return document.querySelectorAll("a,button,input,select,textarea,summary")
+  // `[tabindex]` is in the selector so a composite widget's roving item — the
+  // one row of a grid that carries `tabindex="0"` — is counted as the single tab
+  // stop it is. Everything else on this site that declares a tabindex declares
+  // `-1` (skip-link targets, headings a script focuses), which isTabbable above
+  // still refuses, so this widens the sequence by exactly the roving items.
+  return document.querySelectorAll("a,button,input,select,textarea,summary,[tabindex]")
     .filter((element) => isTabbable(element, document));
 }
 
