@@ -359,6 +359,12 @@ export const ANSWER_SPINE = Object.freeze([
     headingId: "finops-headline-question",
   },
   {
+    id: "classifier-agreement",
+    role: ROLE.detail,
+    question: "How often does the classifier agree with a human reviewer?",
+    headingId: "classifier-agreement-title",
+  },
+  {
     id: "disclosure-grade-comparisons",
     role: ROLE.detail,
     question: "How does this grade compare — against a cohort, and against the team that needs coaching?",

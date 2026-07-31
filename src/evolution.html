@@ -1889,6 +1889,26 @@
         <button class="secondary-button" id="finops-return-to-sample" type="button" hidden>Show the Bundled synthetic example in all four panels</button>
       </section>
 
+      <!-- The one figure on this page that was measured rather than invented,
+           and it measures the tool, not a customer. Every number below is
+           computed in this browser by finops-classifier-agreement.js over
+           /finops-classifier-agreement-corpus.json, so nothing here is authored
+           copy: these are slots, and a run that did not load paints the
+           unavailable sentence rather than a rounded guess. Both the corpus and
+           the scorer are named in the basis line because a figure a reader
+           cannot recompute is one they have to take on trust. -->
+      <section class="finops-panel" id="classifier-agreement" data-workspace-region="evidence" aria-labelledby="classifier-agreement-title">
+        <p class="eyebrow">Classifier agreement</p>
+        <h2 id="classifier-agreement-title">How often does the classifier agree with a human reviewer?</h2>
+        <p class="finops-comparison-answer" id="classifier-agreement-headline">Scoring the labelled sample…</p>
+        <p class="finops-comparison-answer" id="classifier-agreement-caveat"></p>
+        <details class="local-provenance-detail" id="classifier-agreement-confusion">
+          <summary>Where it disagrees, class by class</summary>
+          <dl class="data-guarantee-list" id="classifier-agreement-confusion-list"></dl>
+        </details>
+        <p class="data-guarantee-source"><span id="classifier-agreement-basis"></span> Recompute it: the labelled queries are in <a href="/finops-classifier-agreement-corpus.json">the published corpus</a>, which states who labelled them and how, and they are scored by <code>src/finops-classifier-agreement.js</code>. <span id="classifier-agreement-tie-break"></span></p>
+      </section>
+
       <details class="support-disclosure" id="disclosure-grade-comparisons" data-workspace-region="evidence">
         <summary class="support-disclosure-summary"><span class="support-disclosure-step" data-role="step">Supporting panel</span> <span class="support-disclosure-question" data-role="question">How does this grade compare — against a cohort, and against the team that needs coaching?</span></summary>
       <section class="finops-comparison" aria-label="Grade comparisons">
