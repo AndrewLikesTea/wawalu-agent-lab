@@ -34,6 +34,11 @@ import { applyDisclosureRoles, applyGuidedResult } from "/finops-guided-result-v
 // into them. Without this a copied `#recommendation-evidence` lands a reader at
 // the top of the page with the evidence still collapsed.
 import { installDeepLinkDisclosure } from "/deep-link-disclosure.js";
+// Disclosure-only method prose, fetched from a static fragment on first expand
+// rather than shipped in this page's initial payload. It carries no figure and
+// gates nothing: the panels it fills are readable before it runs and readable
+// again if its fetch never lands.
+import { installDeferredDetails } from "/finops-deferred-detail.js";
 import { PANEL_STATUS } from "/panel-status-view.js";
 import { formatIntegrationProvenance } from "/integration-contracts.js";
 import { createStaticGateway } from "/static-gateway.js";
@@ -2967,6 +2972,11 @@ async function init() {
   // has to open its way out of the disclosures it points into, and the handlers
   // that keep doing so have to be attached before the reader can click one.
   installDeepLinkDisclosure(document, window);
+  // Immediately after it, and for the same reason: a deep link may have already
+  // opened a deferred panel, and the read for that panel is taken at install.
+  // Nothing below this line waits on it — the returned promises are the tests'
+  // handle, not a gate on the boot.
+  installDeferredDetails(document);
   mountLocalFinopsImport();
   // The page's one next action, operable before any fixture resolves: it stands
   // the reader on the file input and opens the picker. Bound here rather than

@@ -6,7 +6,7 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "benchmark:paint": "node scripts/benchmark-paint.mjs",
-    "verify:build": "node scripts/verify-build.mjs dist",
+    "verify:build": "node scripts/verify-build.mjs dist && node scripts/check-size-budget.mjs dist",
     "test": "node --test",
     "test:e2e": "node --test tests/history-e2e.test.js tests/release-manager-journey-e2e.test.js tests/finops-import-e2e.test.js",
     "check": "npm test && npm run build && npm run verify:build"

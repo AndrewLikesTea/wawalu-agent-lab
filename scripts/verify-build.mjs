@@ -56,6 +56,13 @@ export async function verifyArtifact(root) {
     // artifact omits it, the browser rejects the entire entry module before any
     // destination can be painted or bound.
     "finops-workspace-nav.js",
+    // Disclosure-only evidence that is fetched rather than shipped in the page's
+    // initial payload. The loader is a hard import of the entry, and the
+    // fragment is the file the panel's own fallback links to — a narrowed
+    // artifact that omitted either would leave a reader on the failure sentence
+    // with a dead link under it.
+    "finops-deferred-detail.js",
+    "finops-detail/peer-benchmark-method.json",
     // Organizational artifacts are parsed, minimized, aggregated, and scored in
     // the browser. Treat that chain and its published contracts as one deployable
     // unit: a partial artifact would only fail after a reader selected a file.
