@@ -800,6 +800,10 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .site-footer-inner { display:grid; justify-items:start; gap:13px; width:min(1180px,calc(100% - 40px)); margin:auto; padding:30px 0 44px; }
 .site-footer-title { margin:0; color:#65717d; font:700 11px/1.4 ui-monospace,monospace; letter-spacing:.11em; text-transform:uppercase; }
 .site-footer-identity { max-width:66ch; margin:0; color:#555550; font-size:14px; line-height:1.6; }
+.site-footer-demos { display:grid; gap:5px; max-width:66ch; margin:0; padding:0; list-style:none; color:#555550; font-size:14px; line-height:1.6; }
+.site-footer-demos strong { color:#2c2c28; }
+.site-footer-demos a { color:#1f70c1; font-weight:700; text-decoration:underline; text-underline-offset:3px; }
+.site-footer-demos a:hover { color:#171713; }
 .site-footer-invitation { max-width:66ch; margin:0; color:#2c2c28; font-size:14px; line-height:1.6; }
 .site-footer-trigger { min-height:44px; border:1px solid #171713; border-radius:9px; padding:0 17px; background:#171713; color:#fff; font:750 14px/1.4 inherit; cursor:pointer; }
 .site-footer-trigger:hover { border-color:#1f70c1; background:#1f70c1; }

@@ -20,7 +20,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
-import { FOLLOW_UP_REDIRECT, IDENTITY, INVITATION, PRIVACY, PURPOSE, siteFooterMarkup } from "../src/site-footer.js";
+import { DEMOS, FOLLOW_UP_REDIRECT, IDENTITY, INVITATION, PRIVACY, PURPOSE, siteFooterMarkup } from "../src/site-footer.js";
+import { SITE_NAV } from "../src/site-nav.js";
 import { loadPage, pressEnter, pressKey, pressTab, tabSequence, textOf, typeText } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 
@@ -144,6 +145,75 @@ test("the footer is a contentinfo landmark with an accessible name, after the co
     } finally {
       page.restore();
     }
+  }
+});
+
+test("the footer says what a visitor can do here before it says what Shiplog is", async () => {
+  // The band used to open by defining Shiplog as a decision and release log,
+  // which is not what this site leads with: the home page's title, heading, and
+  // first call to action are all AI FinOps. A visitor who reads only this block
+  // has to come away knowing what they can do, not just what to call it.
+  const page = await loadPage(pageUrl("index.html"));
+  const { document } = page;
+  try {
+    const identity = textOf(document.querySelector(".site-footer-identity"));
+    const [opening] = identity.split(". ");
+    assert.match(opening, /^On this site you can /, "the first sentence must name what a visitor can do");
+    assert.ok(!opening.includes("Shiplog is"), "the definition must not be the opening sentence");
+    // The three things it promises are the three things the demo list points at.
+    for (const verb of ["analyze your own AI spend", "check a prompt", "decisions and releases"])
+      assert.ok(identity.includes(verb), `the opening must name "${verb}"`);
+  } finally {
+    page.restore();
+  }
+});
+
+test("the footer names the demos a visitor would try first, and links the one the site leads with", async () => {
+  const page = await loadPage(pageUrl("index.html"));
+  const { document } = page;
+  try {
+    const list = document.querySelector(".site-footer-demos");
+    assert.equal(list.tagName, "UL", "the destinations must be a real list, so a screen reader gets the count");
+    const items = [...list.querySelectorAll("li")];
+    assert.equal(items.length, DEMOS.length, "one row per destination");
+    assert.ok(items.length >= 3 && items.length <= 4, "three or four doors; more is a directory, not positioning");
+
+    const navLabels = new Set(SITE_NAV.map((link) => link.label));
+    for (const [index, demo] of DEMOS.entries()) {
+      const row = textOf(items[index]);
+      // One name per concept: the footer calls a destination what the nav calls it.
+      assert.ok(navLabels.has(demo.label), `"${demo.label}" is not what the navigation calls that destination`);
+      assert.ok(row.startsWith(demo.label), `${demo.label} must be named first in its row`);
+      // The visitor's question, not a feature label.
+      assert.match(demo.question, /\?$/, `${demo.label} must answer a question the visitor arrives with`);
+      assert.ok(row.includes(demo.question), `${demo.label} must show its question`);
+    }
+
+    // Exactly one link, to the demo the home page's title, heading, and primary
+    // call to action all lead with.
+    const links = list.querySelectorAll("a");
+    assert.equal(links.length, 1, "one way in, not a second copy of the navigation");
+    const [primary] = links;
+    assert.equal(textOf(primary), "AI FinOps");
+    assert.equal(primary.getAttribute("href"), "/evolution.html");
+    // Root-relative, the convention every cross-page link in src/site-nav.js
+    // uses: this band ships on every page, and a bare relative path would
+    // resolve against a page in a subdirectory instead of against the site.
+    assert.ok(primary.getAttribute("href").startsWith("/"), "the link must resolve from any page depth");
+    assert.ok(SITE_NAV.some((link) => link.href === primary.getAttribute("href")),
+      "the link must go to a destination the navigation also offers");
+    assert.ok(tabSequence(document).includes(primary), "the way in must be keyboard reachable");
+    assert.match(textOf(items[0]), /Start here/, "the list must say where to start");
+
+    // And it is the same list on every page, including the one whose footer
+    // swaps the contact form for a pointer.
+    for (const file of PAGES) {
+      const html = await read(file);
+      for (const demo of DEMOS) assert.ok(html.includes(demo.question), `${file} is missing "${demo.label}"`);
+      assert.ok(html.includes('<li><a href="/evolution.html">AI FinOps</a>'), `${file} is missing the way in`);
+    }
+  } finally {
+    page.restore();
   }
 });
 
@@ -510,7 +580,13 @@ test("both stylesheets that the site's pages load style the footer, and agree ab
     for (const selector of [
       ".site-footer", ".site-footer-inner", ".site-footer-trigger", ".site-footer-panel",
       ".site-footer-actions button", ".site-footer-status", ".site-footer-recovery",
+      ".site-footer-demos", ".site-footer-demos a",
     ]) assert.ok(css.includes(`${selector} {`), `${file} must style ${selector}`);
+
+    // The band's link is keyboard-visible on every page that ships it. This rule
+    // covered buttons and inputs alone in agents.css, which was survivable while
+    // nothing in the band was a link on those two pages.
+    assert.match(css, /\.site-footer a:focus-visible \{/, `${file}: the footer's link has no focus ring`);
 
     // A collapsed panel is collapsed, not merely transparent.
     assert.match(css, /\.site-footer-panel\[hidden\] \{ display:none; \}/, `${file}: the hidden panel must not occupy the band`);
@@ -537,7 +613,7 @@ test("both stylesheets that the site's pages load style the footer, and agree ab
   // And the band itself is one design, not two: the shared declarations are
   // identical in both files.
   const [[, base], [, observatory]] = sheets;
-  for (const selector of [".site-footer", ".site-footer-inner", ".site-footer-panel", ".site-footer-trigger"]) {
+  for (const selector of [".site-footer", ".site-footer-inner", ".site-footer-panel", ".site-footer-trigger", ".site-footer-demos"]) {
     const rule = (css) => css.match(new RegExp(`^\\${selector} \\{([^}]*)\\}`, "m"))[1];
     assert.equal(rule(observatory), rule(base), `${selector} has drifted between styles.css and agents.css`);
   }

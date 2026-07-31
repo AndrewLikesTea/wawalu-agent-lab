@@ -354,14 +354,15 @@ test("the post page's tab order is skip link, then the nav, then the one exit", 
   const walked = Array.from({ length: FRAME_STOPS }, () => textOf(pressTab(document)));
   assert.deepEqual(walked, sequence.slice(0, FRAME_STOPS).map((stop) => textOf(stop)));
 
-  // After the exit, the next stop a keyboard reader reaches is the footer form's
-  // trigger. Nothing the shipped post markup contains sits between them: the
-  // image and the caption are rendered by post-detail.js and carry no links of
-  // their own (a caption is text, never markup — PRODUCT.md), so the order the
-  // review asked for — exit, image link, caption links, footer — holds with its
-  // middle two steps empty.
+  // After the exit, the next stops a keyboard reader reaches are the footer's:
+  // its way in to the demo the site leads with, then the contact trigger.
+  // Nothing the shipped post markup contains sits between them — the image and
+  // the caption are rendered by post-detail.js and carry no links of their own
+  // (a caption is text, never markup — PRODUCT.md), so the order the review
+  // asked for — exit, image link, caption links, footer — holds with its middle
+  // two steps empty.
   const afterExit = sequence.slice(FRAME_STOPS).map((stop) => textOf(stop));
-  assert.equal(afterExit[0], "Request a follow-up");
+  assert.deepEqual(afterExit.slice(0, 2), ["AI FinOps", "Request a follow-up"]);
   assert.ok(
     sequence.slice(FRAME_STOPS).every((stop) => stop.closest("#site-footer")),
     "a control on the post page sits between the exit and the footer",
