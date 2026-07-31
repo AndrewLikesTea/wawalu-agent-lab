@@ -154,7 +154,8 @@ test("no two top-level regions of the shipped page ask the same visible question
 
 test("two manifest entries asking one question fail before the second heading is authored", () => {
   const problems = validateAnswerSpine(
-    withEntry("finops-next-step", { question: "Where do we stand on AI spend?" }));
+    // #742 folded this region into a disclosure; the census declares the wrapper.
+    withEntry("disclosure-next-step", { question: "Where do we stand on AI spend?" }));
   assert.ok(problems.some((problem) => problem.includes("same question")),
     `expected a duplicate-question problem, got: ${problems.join(" | ")}`);
 });

@@ -113,6 +113,12 @@
                own question rather than a noun phrase describing a panel. -->
           <h2 id="finops-stand-question">Where do we stand on AI spend?</h2>
         </div>
+        <!-- THE MARKER FOR THE ANSWER, above every number rather than beside
+             them, and authored in markup so it is true before a script runs.
+             The evidence layers keep theirs: a reader who opens one lands
+             inside it and must not scroll back to learn whose figures these
+             are. -->
+        <p class="sample-marker stand-sample" id="finops-stand-sample"><span class="sample-marker-shape" aria-hidden="true">◇</span><strong>Bundled synthetic example</strong> Every figure on this page — here and inside each layer below — was computed from invented data for an invented company. It is not your spend, customer data, or realized savings, and no file is needed to read it.</p>
         <p class="stand-answer" id="finops-stand-answer">This page is still reading the Bundled synthetic example. The ranking appears here as soon as it has been read; nothing is needed from you.</p>
         <!-- WHAT THE CLAIM ABOVE RESTS ON, in words, at the headline.
              Two indicators, both painted from the winning finding's own
@@ -167,6 +173,12 @@
         <div class="stand-next">
           <a class="stand-action" id="finops-stand-action" href="#recommendation-evidence" aria-describedby="finops-stand-action-basis" hidden>Not yet ranked</a>
           <p class="stand-action-basis" id="finops-stand-action-basis" hidden></p>
+          <!-- IS THIS A ONE-OFF? The period comparison that answers it was two
+               interactions away — switch destination, then unfold the panel it
+               sits in. One real anchor with a real href makes it one, reusing
+               the existing view: the shell brings the destination up and
+               deep-link-disclosure.js unfolds and focuses, in that order. -->
+          <a class="stand-trajectory" id="finops-stand-trajectory" href="#trend-title">Is the trend a one-off? See the period-over-period comparison</a>
         </div>
         <!-- THE WITHHELD POSITION, as a path rather than a dead label.
              A reader who cannot be given a position is owed two things: the
@@ -515,41 +527,24 @@
         <p class="visually-hidden" id="finops-first-run-live" role="status" aria-live="polite" aria-atomic="true"></p>
       </section>
 
-      <!-- WHERE DO I START THIS MONTH? — the recurring lead's continuation.
+      <!-- WHERE DO I START THIS MONTH? — the recurring lead's continuation, and
+           now an EVIDENCE LAYER rather than a full-weight peer of the answer.
 
-           The brief above answers a first-time visitor's question, "are we
-           wasting money?", from invented data. This region answers the question
-           the *returning* FinOps lead opens this page with once a month, which
-           is a different one: of everything this journey is holding — an open
-           review, an undispositioned finding, an action whose expected effect
-           has come due — which single thing do I do first, and how much do we
-           actually know about it?
+           src/finops-spine.js classifies this region `evidence`, and until #742
+           the markup did not say so: it opened at the answer's weight, so a lead
+           met a second question before finishing the first. Same region, same
+           module, same painted figures — inside the page's established
+           `support-disclosure` idiom, shut on arrival. The summary is what a
+           skeptic opens it to check, not a section label, and a native `summary`
+           is the control, so Enter and Space are the browser's and `open` is the
+           exposed state. src/finops-next-step.js still decides the
+           recommendation and still reads no clock.
 
-           src/finops-next-step.js decides it. Five journey states in one total
-           order, first match wins, evidence sufficiency checked before all of
-           them so a degraded input can never be dressed up as a confident
-           recommendation. The module reads no clock: `now` is injected, which is
-           what makes the same records always produce the same single answer.
-
-           The recommendation, its ONE primary action, the impact, the
-           confidence, the provenance and the evidence boundary are all painted
-           without interaction. They are the trust surface, not detail — a figure
-           whose provenance is one click away asks a leader to decide whether to
-           trust it before they are allowed to see why. Only three things go
-           behind the disclosure: which state matched, the rule that made it win,
-           and how many candidates it outranked. A runner-up that cannot change
-           what the lead does next does not get a widget.
-
-           IT IS NOT AUTHORED ABOVE THE BRIEF, deliberately. The first-viewport
-           contract forbids a control above the bundled result, and a cold
-           visitor with no records of their own would meet "collect the missing
-           evidence" in place of the complete answer this page already holds.
-           This is the first thing after that answer and above every other panel.
-
-           `data-decision-summary="evidence"` — it answers a different question
-           and never restates the brief's, so the page still presents exactly one
-           complete summary. -->
-      <section class="next-step" id="finops-next-step" tabindex="-1" data-subordinate="true" data-state="pending" data-confidence="unknown" data-decision-summary="evidence" data-workspace-region="answer" aria-labelledby="finops-next-step-question">
+           `data-workspace-region` moved onto the disclosure with the region: the
+           destination a fragment resolves to is whichever ancestor carries it. -->
+      <details class="support-disclosure" id="disclosure-next-step" data-subordinate="true" data-workspace-region="answer">
+        <summary class="support-disclosure-summary"><span class="support-disclosure-step" data-role="step">Evidence layer</span> <span class="support-disclosure-question" data-role="question">If I only do one thing this month, is this the right one?</span></summary>
+      <section class="next-step" id="finops-next-step" tabindex="-1" data-subordinate="true" data-state="pending" data-confidence="unknown" data-decision-summary="evidence" aria-labelledby="finops-next-step-question">
         <div class="next-step-head">
           <p class="eyebrow" id="finops-next-step-label">This month · one next step</p>
           <h2 id="finops-next-step-question">Where do I start this month?</h2>
@@ -564,34 +559,21 @@
           <p class="next-step-headline">No journey records have been read yet, so no next step is recommended.</p>
         </div>
       </section>
+      </details>
 
-      <!-- THE WHOLE JOURNEY, ON ONE SURFACE.
+      <!-- THE WHOLE JOURNEY, ON ONE SURFACE — the second evidence layer.
 
-           The region above answers "where do I start this month?" and stops
-           there — deliberately, because that contract's job is to name one step
-           and nothing else. But the lead who reads it then has to leave: the
-           evidence behind the step is on the import panel, what they already
-           decided is in this browser's retained action, and whether it worked is
-           a checkpoint on another page. Three surfaces for one thought.
-
-           This is that thought in one place: one answerable question, one
-           material figure that answers it, one prioritized action from the same
-           next-step contract above — and then everything else collapsed on this
-           same surface rather than moved to another page. Supporting evidence,
-           per-department detail, prior action results, and the carried
-           provenance are four disclosures, shut on arrival.
-
-           It composes; it does not recompute. src/finops-journey-consolidated.js
-           reads Rowan's carried local snapshot, Theo's recurring comparison,
-           Noor's next-step recommendation, and Iris's signal chips, and derives
-           exactly one field of its own — the verification checkpoint's date and
-           expected figure, read off the retained monthly action record, which is
-           the only place either of them is written down.
-
-           `data-decision-summary="evidence"` — it answers its own question and
-           never restates the brief's, so this page still presents exactly one
-           complete summary. -->
-      <section class="finops-journey" id="finops-journey" data-subordinate="true" data-phase="pending" data-source="unknown" data-decision-summary="evidence" data-workspace-region="answer" aria-labelledby="finops-journey-question">
+           The layer above names one step. This is the rest of that thought in
+           one place — the evidence behind the step, what this browser already
+           decided, and the checkpoint that would close it, which used to be
+           three surfaces. It composes; it does not recompute:
+           src/finops-journey-consolidated.js derives exactly one field of its
+           own, the checkpoint's date and expected figure. Collapsed for the same
+           reason as the layer above — `evidence` is a claim about weight, and a
+           region that opens at the answer's weight contradicts it. -->
+      <details class="support-disclosure" id="disclosure-journey" data-subordinate="true" data-workspace-region="answer">
+        <summary class="support-disclosure-summary"><span class="support-disclosure-step" data-role="step">Evidence layer</span> <span class="support-disclosure-question" data-role="question">If I take that step, what will tell me it actually worked?</span></summary>
+      <section class="finops-journey" id="finops-journey" data-subordinate="true" data-phase="pending" data-source="unknown" data-decision-summary="evidence" aria-labelledby="finops-journey-question">
         <div class="fjc-head">
           <p class="eyebrow" id="finops-journey-label">This month · evidence, action, and the checkpoint</p>
           <h2 id="finops-journey-question">What do I do next, and what will tell me it worked?</h2>
@@ -606,31 +588,25 @@
         </div>
         <p class="visually-hidden" id="finops-journey-live" role="status" aria-live="polite" aria-atomic="true"></p>
       </section>
+      </details>
 
-      <!-- WHERE THE READER GOES NEXT, and why this region exists at all.
+      <!-- WHERE THE READER GOES NEXT — the third evidence layer.
 
-           The block above answers "are we wasting money?" and stops there. This
-           page has always had the follow-on surfaces — an in-page evidence
-           panel, a department drill-down, and a monthly act-and-verify loop on
-           its own page — but they were authored a thousand lines apart, and the
-           act-and-verify links sit inside a collapsed supporting disclosure near
-           the foot of the document. Three equally-presented doors scattered
-           through a monolith is not a recommendation: it hands the routing
-           decision back to a reader the page had just told it made for them.
-
-           So the ranking is stated here, as data, by
-           src/finops-destination-contract.js: three allowed destinations, one
-           per role, exactly one prioritized, and a named clause saying why that
-           one. The rank-1 door and the reason it won are visible; the other two
-           doors and the whole derivation are behind the two disclosures this
-           region's body paints. `data-decision-summary="evidence"` — it answers
-           a different question from the brief above and never restates that
-           one, so the page still presents exactly one complete summary.
+           The ranking is stated as data by src/finops-destination-contract.js:
+           three allowed destinations, one per role, exactly one prioritized, and
+           a named clause saying why that one. The rank-1 door and the reason it
+           won are painted here; the other two doors and the whole derivation are
+           behind the two disclosures this region's body paints.
 
            It is superseded together with the example brief it belongs to: the
-           destinations stay true when a reader imports their own export, but
-           the order they are in was ranked from invented data. -->
-      <section class="finops-destinations" id="finops-destinations" data-state="unavailable" data-superseded="false" data-decision-summary="evidence" data-workspace-region="answer" aria-labelledby="finops-destinations-title">
+           destinations stay true when a reader imports their own export, but the
+           order they are in was ranked from invented data. Collapsed with the
+           other two layers? IT IS NOT, DELIBERATELY. The rank-1 door has to be
+           reachable by keyboard without opening anything — that is the contract
+           tests/finops-destination-contract.test.js holds this region to, and a
+           door behind a disclosure is a door a reader has to be told about
+           first. It stays open and stays subordinate. -->
+      <section class="finops-destinations" id="finops-destinations" data-subordinate="true" data-state="unavailable" data-superseded="false" data-decision-summary="evidence" data-workspace-region="answer" aria-labelledby="finops-destinations-title">
         <div class="finops-destinations-head">
           <p class="eyebrow" id="finops-destinations-label">Next step · one of three doors</p>
           <h2 id="finops-destinations-title">Where do I go next to act on this?</h2>
@@ -643,46 +619,30 @@
 
       <!-- THE WORKSPACE RAIL, and why it is navigation rather than a panel.
 
-           The regions above it answer the reader's questions — where we stand,
-           are we wasting money, where do I start, what will tell me it worked,
-           where do I go to act. None of them tells a reader *where they are*,
-           and on a document this long that was a real omission rather than a
-           nicety:
-           position was carried by scroll offset and nothing else, so a keyboard
-           or screen-reader user had no way to ask which part of the workspace
-           they were in and no way to move between parts except walking every
-           control in between. Both in-page destinations here are also authored
-           inside collapsed supporting disclosures a thousand lines below, which
-           is why the rail hands each click to deep-link-disclosure.js: the panel
-           unfolds before the keyboard lands in it.
+           The regions above answer the reader's questions; none of them says
+           *where they are*. On a document this long position was carried by
+           scroll offset alone, so a keyboard or screen-reader user could not ask
+           which part of the workspace they were in or move between parts except
+           by walking every control in between. Its in-page destinations sit
+           inside collapsed disclosures, which is why each click is handed to
+           deep-link-disclosure.js: the panel unfolds before the keyboard lands.
 
-           IT SITS HERE, third, and not first. The reading order this page is
-           built on is question, then the metric that sizes it, then the one
-           ranked action — and a rail of four equal doors above that order would
-           be a menu offered to a reader who has not yet been given an answer.
-           Navigation earns its place after the decision, not in front of it.
+           IT SITS HERE, after the answer, not before it. A rail of four equal
+           doors above the decision is a menu offered to a reader who has not yet
+           been given one.
 
-           THE FOUR DOORS ARE AUTHORED HERE, not painted. Every one is a real
-           anchor with a real href, so the rail is operable before any script
-           runs, survives a copy-paste into the address bar, and needs no
-           JavaScript to be keyboard-reachable. src/finops-workspace-nav.js then
-           corrects each href from the destination contract, moves the
-           "Recommended first" chip onto whichever door that contract's priority
-           clause promoted, fills the disclosure with what each door answers, and
-           marks the current one. A test fails if an authored href and the
-           contract's disagree, which is what keeps two sources of truth from
-           becoming two answers.
+           THE FOUR DOORS ARE AUTHORED HERE, not painted — real anchors with real
+           hrefs, operable before any script runs and copy-pasteable into the
+           address bar. src/finops-workspace-nav.js then corrects each href from
+           the destination contract, moves the "Recommended first" chip onto the
+           promoted door, fills the disclosure, and marks the current one; a test
+           fails if an authored href and the contract's disagree.
 
-           It carries no figure and answers no decision question, so it is not a
-           summary of anything and is not marked as one. `aria-labelledby` gives
-           it a name distinct from the site nav above, which is the difference
-           between two navigation landmarks a screen-reader user can tell apart
-           and two called "navigation". -->
-      <!-- `tabindex="-1"` makes this landmark the return path's destination: the
-           Savings Action Center is opened from the "Act and verify" destination
-           below, and its "Back to the AI FinOps briefing" link targets this id,
-           so returning puts the keyboard back on the control that left rather
-           than at the top of a long page. It is not a tab stop. -->
+           It carries no figure and answers no decision question, so it is not
+           marked as a summary. `aria-labelledby` gives it a name distinct from
+           the site nav above. `tabindex="-1"` makes it the return path's
+           destination — the Savings Action Center's back link targets this id —
+           without making it a tab stop. -->
       <nav class="workspace-nav" id="finops-workspace-nav" tabindex="-1" data-ranked="false" data-current="answer" data-workspace-frame="true" aria-labelledby="finops-workspace-nav-title">
         <div class="workspace-nav-head">
           <h2 class="workspace-nav-title" id="finops-workspace-nav-title">Go to a part of this workspace</h2>

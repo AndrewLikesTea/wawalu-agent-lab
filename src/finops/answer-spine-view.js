@@ -233,7 +233,11 @@ export const ANSWER_SPINE = Object.freeze([
       + "confidence score with its basis. Estimated, never invoiced.",
   },
   {
-    id: "finops-next-step",
+    // The three "this month" regions are declared by their DISCLOSURE id: #742
+    // folded each section into the page's `support-disclosure` idiom, so the
+    // element `main` holds at this level is the wrapper. The section, its
+    // heading, and its view are unchanged inside it.
+    id: "disclosure-next-step",
     role: ROLE.step,
     question: "Where do I start this month?",
     headingId: "finops-next-step-question",
@@ -242,7 +246,7 @@ export const ANSWER_SPINE = Object.freeze([
       + "holding, and the confidence it was ranked at. A list is not an answer here.",
   },
   {
-    id: "finops-journey",
+    id: "disclosure-journey",
     role: ROLE.step,
     question: "What do I do next, and what will tell me it worked?",
     headingId: "finops-journey-question",
@@ -251,6 +255,8 @@ export const ANSWER_SPINE = Object.freeze([
       + "would close it. No claim about anyone else's progress.",
   },
   {
+    // Not folded into a disclosure with the two layers above it: the rank-1
+    // door has to stay in the tab order without a reader opening anything.
     id: "finops-destinations",
     role: ROLE.step,
     question: "Where do I go next to act on this?",
