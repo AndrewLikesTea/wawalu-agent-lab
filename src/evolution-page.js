@@ -286,7 +286,11 @@ import { applyGradedSample, clearGradedSample } from "/graded-sample-view.js";
 // pair decides what the figure says once it may. Without them an import leaves
 // the hero grade, the KPI row and the mix holding the BUNDLED sample's numbers
 // under a provenance line that reads "Your data".
-import { gradeImportedCorpus } from "/imported-corpus-grade.js";
+// The corrections seam. Every grade, coverage share and recoverable figure this
+// page publishes off the reader's own import goes through `applyOverrides`, so
+// a human label lands on the headline by the same path the classifier's does
+// rather than through a second, quieter one.
+import { applyOverrides } from "/query-label-overrides.js";
 import {
   applyImportedExecutive, clearImportedExecutive, importedExecutiveFigures,
 } from "/imported-executive-view.js";
@@ -1255,11 +1259,25 @@ function mountLocalFinopsImport() {
    * as an empty record so they land in `unclassified` rather than quietly
    * shrinking the denominator. Nothing from an unreadable row is copied.
    */
-  const importedCorpus = (entries = classifiedSamples()) => gradeImportedCorpus(
+  /**
+   * The human corrections standing over the classifier, in this tab only.
+   *
+   * A `Map`, empty until a reviewer disagrees with a class, and never persisted:
+   * a correction is a claim about a row in the file currently on screen, and a
+   * restored one would attach a label to a row that may not be there. The
+   * headline reads it on every recomputation, so the number moves the moment an
+   * entry lands here rather than on a later refresh.
+   */
+  const queryLabelOverrides = new Map();
+  const overriddenCorpus = (entries = classifiedSamples()) => applyOverrides(
     entries.flatMap(({ classified }) => [
       ...classified.records,
       ...classified.unclassified.map(() => ({ category: null })),
-    ]));
+    ]),
+    queryLabelOverrides,
+    { spendUsd: result?.spendUsd ?? null },
+  );
+  const importedCorpus = (entries = classifiedSamples()) => overriddenCorpus(entries).corpusGrade;
   /**
    * The executive figures above the import panel, filled from that corpus.
    *

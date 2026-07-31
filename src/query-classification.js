@@ -20,9 +20,20 @@
 //
 // PRIVACY. The excerpt is a function argument. It is lower-cased into a local,
 // tested against the patterns, and dropped when this function returns. Nothing
-// derived from it but a category key, a number, and rule ids leaves this module,
-// and no result field ever carries a substring of it. See `query-sample.js` for
+// derived from it but a category key, a number, rule ids, and the matched
+// pattern token described next leaves this module. See `query-sample.js` for
 // the type-level half of the same guarantee.
+//
+// THE ONE THING THAT IS NOT A NAME: `evidence.signal`. A director disputing a
+// class asks "on what?", and a rule id answers it only for a reader holding this
+// file. So a result now also carries the token that fired — and it is bounded by
+// construction, not by hope: `matchedSignal` republishes the match only when the
+// token *itself* still fires the rule that produced it, so nothing can be
+// published that is not already in the language of a pattern authored in this
+// file, and it is capped at `MAX_SIGNAL_LENGTH` so a pathological export cannot
+// grow one. Every alternative in every pattern below is a literal English
+// phrase; a signal is therefore one of those phrases, never a span of the
+// requester's own text around one. Anything holding a signal renders it as text.
 
 // SCOPE, AND THE MODULE THAT OWNS THE REST OF IT. This module grades one short
 // gateway-log excerpt into one rubric category, and that is all it does. A
@@ -184,6 +195,53 @@ for (const rule of QUERY_CLASSIFICATION_RULES) {
   }
 }
 
+/**
+ * The longest signal token this module will publish.
+ *
+ * The authored patterns cannot match anything near this — "definition of done"
+ * is the longest of them at nineteen characters — so the cap never fires on a
+ * well-formed rule. It exists for the rule somebody adds later with an
+ * unbounded quantifier in it: a bound stated once here is cheaper than trusting
+ * every future pattern to be bounded on its own.
+ */
+export const MAX_SIGNAL_LENGTH = 40;
+
+/**
+ * The token that fired a rule, or null.
+ *
+ * Two guards, in this order. The match is trimmed of the leading non-word
+ * character some patterns capture with `(^|\W)` and capped; then it is tested
+ * against the rule that produced it, and republished only if it still fires.
+ * That second test is the whole containment argument — a token that does not
+ * match an authored pattern is not published at all, so the only strings that
+ * can leave here are strings this file's own rule table describes.
+ */
+function matchedSignal(rule, text) {
+  const match = rule.pattern.exec(text);
+  if (!match) return null;
+  const token = match[0].replace(/^[^\w]+/, "").trim().slice(0, MAX_SIGNAL_LENGTH);
+  return token && rule.pattern.test(token) ? token : null;
+}
+
+/**
+ * The evidence record, one shape for every result this module returns.
+ *
+ * `class` is the published category, `unclassified` included — a reader
+ * switching on it never has to also read `classified`. `signal` and `patternId`
+ * are both null exactly when nothing was assigned, and `unclassifiedReason` is
+ * null exactly when something was. `confidence` is the same number the result
+ * publishes beside it, produced by the rule weights and never per call.
+ */
+function evidenceRecord({ category, signal = null, patternId = null, confidence, reason = null }) {
+  return Object.freeze({
+    class: category,
+    signal,
+    patternId,
+    confidence,
+    unclassifiedReason: reason,
+  });
+}
+
 /** Confidence is reported to four places, the rubric's own share precision. */
 function roundShare(value) {
   const factor = 10 ** PROMPT_LITERACY_RUBRIC.reporting.shareDecimals;
@@ -229,6 +287,11 @@ function unclassified(reason, category = null, ruleIds = []) {
     // one a director argues about, so it is the one that most needs its numbers.
     signals,
     families: familiesOf(signals),
+    // Additive, and never a substitute for the fields above: every existing
+    // caller destructures what it already destructured. A refusal publishes the
+    // reason and no signal, which is the shape a surface can print without
+    // first asking whether a class was assigned.
+    evidence: evidenceRecord({ category: UNCLASSIFIED_CATEGORY, confidence: 0, reason }),
   });
 }
 
@@ -270,6 +333,13 @@ export function classifyQuery({ excerpt, model } = {}) {
     return unclassified(UNCLASSIFIED_REASONS.belowConfidenceFloor, category, matched);
   }
   const signals = signalRows(matched);
+  // The rule that carried the decision: the first, in declaration order, that
+  // voted for the winning category. Declaration order and not match order, so
+  // the published pattern id does not depend on where in the excerpt a phrase
+  // happened to appear.
+  const decidingRule = QUERY_CLASSIFICATION_RULES.find(
+    (rule) => matched.includes(rule.id) && rule.category === category,
+  );
   return Object.freeze({
     category,
     classified: true,
@@ -279,6 +349,12 @@ export function classifyQuery({ excerpt, model } = {}) {
     matchedRuleIds: Object.freeze(matched),
     signals,
     families: familiesOf(signals),
+    evidence: evidenceRecord({
+      category,
+      signal: decidingRule ? matchedSignal(decidingRule, text) : null,
+      patternId: decidingRule?.id ?? null,
+      confidence,
+    }),
   });
 }
 
@@ -502,5 +578,14 @@ export function classifyThread({ turns, model } = {}) {
     // above is arithmetic a reader can repeat rather than a number to trust.
     weight,
     totalWeight: total,
+    // The same evidence shape the excerpt classifier publishes, with `signal`
+    // null: four of the five families here are counted from structure — turn
+    // roles, character totals, fenced blocks — and there is no token to name.
+    // The id of the signal that carried the class is named all the same.
+    evidence: evidenceRecord({
+      category,
+      patternId: signals.find((row) => row.category === category)?.signal ?? null,
+      confidence,
+    }),
   });
 }
