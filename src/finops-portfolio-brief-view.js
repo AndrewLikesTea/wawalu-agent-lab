@@ -12,12 +12,15 @@
 //     `portfolioBrief`'s answers. This layer paints slots and holds no flag.
 //   * Author a sentence a reader acts on. Every value and every reason arrives on
 //     the brief.
-//   * Leave two complete answers on screen. A portfolio brief supersedes the
+//   * Leave two answers on screen. A portfolio brief supersedes the
 //     single-provider one the same way the reader's own result already supersedes
-//     the bundled example: the superseded region is marked and hidden, so
-//     `countCompleteSummaries` still finds exactly one. Restored — unhidden, mark
-//     cleared — the moment a portfolio stops being available, so clearing an
-//     import cannot strand the page on an answer for evidence it no longer holds.
+//     the bundled example: the superseded region is marked and hidden. Neither is
+//     the page's complete summary any more — src/finops-answer-spine.js gives
+//     that role to #finops-stand and this region role `evidence` — but two
+//     visible answers to the same question are still two too many. Restored —
+//     unhidden, mark cleared — the moment a portfolio stops being available, so
+//     clearing an import cannot strand the page on an answer for evidence it no
+//     longer holds.
 //
 // ACCESSIBILITY, STATED RATHER THAN IMPLIED.
 //

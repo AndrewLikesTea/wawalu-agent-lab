@@ -238,6 +238,12 @@ import { initWorkspaceShell } from "/finops-workspace-shell.js";
 // attributes and no copy, so it cannot change what a reader sees today; what it
 // changes is that "headline or support?" has an answer in the repository.
 import { applyAnswerSpine } from "/finops/answer-spine-view.js";
+// The answer spine itself: the one question, the one metric definition, the one
+// action, the one forwardable file, and the role every region holds beneath
+// them. src/finops-answer-spine.js is the single source of truth for all five;
+// this view paints its strings into the answer region and stamps every region
+// with the spine's role and order.
+import { applyAnswerSpineContract } from "/finops-answer-spine-view.js";
 import {
   announce as announceStage, applyDatasetProvenance, applyExportPackageGuidance,
   applyFieldDiagnostic, applyImportLimits, applyOrgQuerySources, applyOrgQuerySourceStatus,
@@ -2968,6 +2974,13 @@ async function init() {
   // not there — nothing below it may depend on this line, because everything
   // below it would be lost if this line ever threw.
   applyAnswerSpine(document);
+  // Immediately after, and for the same reason: the answer region states the
+  // page's one question, the label and the unavailable wording of its one
+  // metric, the one action, and the one file to forward — all read from the
+  // spine at runtime rather than hard-coded here or in the markup. It runs
+  // before any panel paints so a reader who never gets a figure still meets the
+  // spine's honest no-data wording rather than an empty slot.
+  applyAnswerSpineContract(document);
   // First, before any panel is painted: a fragment already in the address bar
   // has to open its way out of the disclosures it points into, and the handlers
   // that keep doing so have to be attached before the reader can click one.

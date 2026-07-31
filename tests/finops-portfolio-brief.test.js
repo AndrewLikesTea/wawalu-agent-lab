@@ -22,7 +22,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { parseHtml } from "./support/browser.js";
-import { countCompleteSummaries } from "../src/finops-decision-contract.js";
+import { answerRegionId, completeSummaries } from "../src/finops-answer-spine.js";
 import {
   PORTFOLIO_DISCLOSURES,
   PORTFOLIO_STATE,
@@ -282,9 +282,13 @@ test("a portfolio leads the answer destination and leaves exactly one complete s
   assert.equal(region.dataset.state, "trusted");
   assert.equal(guided.hidden, true, "the single-provider answer stayed on screen beside the portfolio");
   assert.equal(guided.dataset.superseded, "true");
-  const summaries = countCompleteSummaries(doc);
-  assert.deepEqual(summaries.visibleIds, ["finops-portfolio-brief"]);
+  // The portfolio brief supersedes the single-provider answer beneath it, and
+  // it does not become the page's complete summary by doing so: that role is
+  // the answer spine's to give, and it stays with the spine's answer region.
+  const summaries = completeSummaries(doc);
+  assert.deepEqual(summaries.visibleIds, [answerRegionId()]);
   assert.equal(summaries.visible, 1);
+  assert.equal(region.getAttribute("data-decision-summary"), "evidence");
 
   // Every slot a lead is judged on is filled from the brief, in text.
   assert.equal(doc.getElementById("finops-portfolio-brief-total").textContent, "240,000 USD");

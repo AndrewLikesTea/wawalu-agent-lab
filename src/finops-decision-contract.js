@@ -15,6 +15,11 @@
 // with evidence. It may not do both, and exactly one region on the page may do
 // the former. That is `SUMMARY_ROLE` and `countCompleteSummaries` below.
 //
+// WHICH region that is, is no longer decided here. `src/finops-answer-spine.js`
+// owns the page's answer spine and names the one region with role `answer`;
+// `countCompleteSummaries` takes those ids as an argument and holds no
+// precedence table of its own.
+//
 // ---------------------------------------------------------------------------
 // THE SEVEN FIELDS, AND WHY EACH ONE IS REQUIRED
 // ---------------------------------------------------------------------------
@@ -120,17 +125,23 @@ export const REQUIRED_FIELDS = Object.freeze([
  * `complete` — answers the decision question on its own.
  * `evidence`  — supports an answer given elsewhere and must not restate it.
  *
- * Regions declare their role in markup with `data-decision-summary`, so the
- * single-summary rule is checkable against the shipped document rather than
- * against a description of it.
+ * Regions still label themselves in markup with `data-decision-summary`, and
+ * the label is still worth reading. It is no longer what *decides*: see
+ * `countCompleteSummaries`.
  */
 export const SUMMARY_ROLE = Object.freeze({ complete: "complete", evidence: "evidence" });
 
-/** The markup attribute that carries a region's role. */
+/** The markup attribute that carries a region's label. */
 export const SUMMARY_ATTRIBUTE = "data-decision-summary";
 
-/** The region that carries the complete summary before anything is imported. */
-export const FRONT_DOOR_SUMMARY_ID = "finops-first-run";
+// NOTE — `FRONT_DOOR_SUMMARY_ID` used to live here as a hard-coded string
+// ("finops-first-run"). It was a second precedence table: this module said one
+// region was the front door's summary while src/finops/answer-spine-view.js
+// said another region was the page's headline, and nothing reconciled them. The
+// table is deleted rather than duplicated. `src/finops-answer-spine.js` is the
+// single source of truth for which region answers the page's question, and it
+// exports `answerRegionId()` and `completeSummaries(doc)` for callers that used
+// to read the constant.
 
 /** The only source a decision record on this page may claim. */
 export const SYNTHETIC_SOURCE = "synthetic-local";
@@ -521,17 +532,27 @@ function isRetired(element) {
 }
 
 /**
- * Every region claiming to answer the decision question on its own, split into
- * the ones a reader can currently see and the ones the page has retired.
+ * The regions authorized to answer the decision question on their own, split
+ * into the ones a reader can currently see and the ones the page has retired.
  *
- * The rule is about what is *presented*, not what is authored: the front door
- * ships its own complete summary and the reader's own result is also a complete
- * summary, but the page retires the first the moment the second appears. One
- * visible complete summary at a time; everything else is evidence.
+ * NO REGION MAY PROMOTE ITSELF. This used to select on
+ * `[data-decision-summary="complete"]`, which made the markup the referee: any
+ * region became "the" summary by editing one attribute, and four of them had.
+ * The authorization now comes in as `answerRegionIds`, and this module holds no
+ * list of its own. The only caller that supplies them is `completeSummaries`
+ * in src/finops-answer-spine.js, which reads them off the answer spine.
+ *
+ * The rule is still about what is *presented*, not what is authored: an
+ * authorized region that is hidden or superseded does not count.
+ *
+ * @param doc a Document.
+ * @param answerRegionIds the ids the spine authorizes. Empty means no region is
+ *   authorized, which is a failure state, not a default.
  */
-export function countCompleteSummaries(doc) {
-  const selector = `[${SUMMARY_ATTRIBUTE}="${SUMMARY_ROLE.complete}"]`;
-  const all = Array.from(doc?.querySelectorAll?.(selector) ?? []);
+export function countCompleteSummaries(doc, answerRegionIds = []) {
+  const all = (Array.isArray(answerRegionIds) ? answerRegionIds : [])
+    .map((id) => doc?.getElementById?.(id))
+    .filter(Boolean);
   const visible = all.filter((element) => !isRetired(element));
   return Object.freeze({
     total: all.length,

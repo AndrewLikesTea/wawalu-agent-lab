@@ -94,7 +94,7 @@
            in src/finops-spine-manifest.js; `data-finding` records which one won.
            The runners-up are returned by the resolver and rendered nowhere —
            there is no panel, toggle, or expander for them on this page. -->
-      <section class="stand" id="finops-stand" tabindex="-1" data-state="pending" data-position="pending" data-source="example" data-finding="none" data-finding-confidence="unavailable" data-decision-summary="evidence" data-workspace-frame="true" aria-labelledby="finops-stand-question" aria-describedby="finops-stand-claim">
+      <section class="stand" id="finops-stand" tabindex="-1" data-state="pending" data-position="pending" data-source="example" data-finding="none" data-finding-confidence="unavailable" data-decision-summary="complete" data-workspace-frame="true" aria-labelledby="finops-stand-question" aria-describedby="finops-stand-claim">
         <!-- ONE ANNOUNCEMENT, NOT FOUR. The question, the claim, the confidence
              tier and the evidence class are four visible nodes, and the two
              entitlement chips read as stray badges some distance after the
@@ -136,7 +136,7 @@
             <p class="stand-figure-basis" id="finops-stand-position-basis"></p>
           </div>
           <div class="stand-figure stand-figure-recoverable">
-            <h3 class="stand-figure-label">Recoverable spend</h3>
+            <h3 class="stand-figure-label" id="finops-stand-recoverable-label">Recoverable spend</h3>
             <p class="stand-figure-value" id="finops-stand-recoverable-value" data-available="false">Not yet measured</p>
             <p class="stand-figure-basis" id="finops-stand-recoverable-basis"></p>
           </div>
@@ -159,6 +159,15 @@
           <a class="stand-action" id="finops-stand-action" href="#recommendation-evidence" aria-describedby="finops-stand-action-basis" hidden>Not yet ranked</a>
           <p class="stand-action-basis" id="finops-stand-action-basis" hidden></p>
         </div>
+        <!-- THE ANSWER SPINE, IN ONE LINE: what the lead does next and the one
+             thing they forward, both from src/finops-answer-spine.js — which
+             also gives THIS region the page's single `answer` role. Authored
+             here so it reads with no script, repainted from the spine by
+             src/finops-answer-spine-view.js. It carries no figure. -->
+        <p class="stand-spine" id="finops-stand-spine" data-spine="authored">
+          <span class="stand-spine-item" id="finops-stand-spine-action">Do next: pilot the rank-1 routing change on the department named above.</span>
+          <span class="stand-spine-item" id="finops-stand-spine-artifact">Forward: <a id="finops-stand-spine-artifact-link" href="#export-local-json">Export briefing (JSON)</a> — <span id="finops-stand-spine-artifact-note">the same metric, its numerator, its denominator, and its window.</span></span>
+        </p>
         <!-- THE WITHHELD POSITION, as a path rather than a dead label.
              A reader who cannot be given a position is owed two things: the
              specific attribute or condition that is missing, and one control
@@ -294,13 +303,13 @@
            reader's own export. Both delegate to the single control that already
            owns each behaviour, so there is still exactly one way into the
            example dataset and one file input on this page. -->
-      <!-- The page's one complete decision summary, declared as such in markup.
-           `data-decision-summary="complete"` means this region answers the
-           canonical question on its own; every other decision-bearing region on
-           this page is marked "evidence" and supports an answer given here.
-           Exactly one complete summary may be visible at a time — this one is
-           retired the moment the reader's own result appears, and
-           tests/finops-decision-contract.test.js holds that rule. -->
+      <!-- EVIDENCE, NOT THE ANSWER. This carried `complete` while the region
+           above it — the one a first-time lead reads first — called itself
+           evidence. src/finops-answer-spine.js ends that: #finops-stand holds
+           role `answer`, this holds `evidence`, and the label below is written
+           from the spine at runtime. What this still owns is the canonical
+           decision record of src/finops-decision-contract.js in full: support
+           for the answer above, not a second answer. -->
       <!-- `tabindex="-1"` on this and the other two in-page destinations of the
            workspace rail below: a fragment whose target cannot take focus moves
            the scroll position and leaves the keyboard where it was, so the reader
@@ -314,7 +323,7 @@
            because the confidence claim, the method disclosure, and both ways on
            all live here. So the type scale steps down and #finops-stand above
            carries the answer. -->
-      <section class="first-run" id="finops-first-run" tabindex="-1" data-state="pending" data-tone="neutral" data-subordinate="true" data-decision-summary="complete" data-workspace-frame="true" aria-labelledby="finops-first-run-title">
+      <section class="first-run" id="finops-first-run" tabindex="-1" data-state="pending" data-tone="neutral" data-subordinate="true" data-decision-summary="evidence" data-workspace-frame="true" aria-labelledby="finops-first-run-title">
         <div class="first-run-head">
           <p class="eyebrow" id="finops-first-run-label"><span class="first-run-shape" id="finops-first-run-shape" aria-hidden="true">◇</span> <span id="finops-first-run-word">Not analyzed</span></p>
           <!-- The heading is the decision question itself, authored here in the
@@ -842,7 +851,7 @@
            src/finops-portfolio-brief-view.js; nothing here is decided by the
            markup, and the four disclosures are built into the list at the bottom
            as native details/summary elements. -->
-      <section class="portfolio-brief finops-panel" id="finops-portfolio-brief" data-state="unavailable" data-decision-summary="complete" data-workspace-region="answer" aria-labelledby="finops-portfolio-brief-question" hidden>
+      <section class="portfolio-brief finops-panel" id="finops-portfolio-brief" data-state="unavailable" data-decision-summary="evidence" data-workspace-region="answer" aria-labelledby="finops-portfolio-brief-question" hidden>
         <p class="eyebrow" id="finops-portfolio-brief-label"><span class="portfolio-brief-shape" id="finops-portfolio-brief-state-shape" aria-hidden="true">○</span> <span id="finops-portfolio-brief-state">No portfolio combined</span> · every provider in one answer</p>
         <h2 id="finops-portfolio-brief-question">Across the providers we combined, where is the money going?</h2>
         <p class="portfolio-brief-reason" id="finops-portfolio-brief-reason"></p>
@@ -895,7 +904,7 @@
            and is listed, in declared rank order, in the closed block at the
            bottom of this section. Nothing here is computed by the page: the
            contract selects, this section displays. -->
-      <section class="guided-result finops-panel" id="guided-result" data-state="unavailable" data-decision-ready="false" data-decision-summary="complete" data-workspace-region="answer" aria-labelledby="guided-result-question" hidden>
+      <section class="guided-result finops-panel" id="guided-result" data-state="unavailable" data-decision-ready="false" data-decision-summary="evidence" data-workspace-region="answer" aria-labelledby="guided-result-question" hidden>
         <section class="recurring-review-workspace" id="recurring-review-workspace"
           aria-labelledby="recurring-review-question" hidden></section>
         <p class="eyebrow">FinOps briefing · headline</p>

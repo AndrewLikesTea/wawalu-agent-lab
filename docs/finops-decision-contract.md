@@ -92,20 +92,29 @@ Stated so that two engineers compute the same number.
 
 ## The single-summary rule
 
-Every decision-bearing region on the page declares its role in markup with
-`data-decision-summary`:
+**The answer spine decides, and no region may promote itself.**
+`src/finops-answer-spine.js` classifies every top-level region of
+`/evolution.html` as `answer`, `evidence`, or `removed`. Exactly one region
+holds `answer` — `#finops-stand`, the first region of `main` and the one a
+first-time lead reads before anything else — and `completeSummaries(doc)` there
+is the only caller that hands those ids to `countCompleteSummaries` here.
 
-- `complete` — answers the question on its own.
-- `evidence` — supports an answer given elsewhere, and must not restate it.
+Regions still label themselves in markup with `data-decision-summary`
+(`complete` / `evidence`), and the label is written from the spine at runtime.
+It is a label, not an authorization: this module used to select on
+`[data-decision-summary="complete"]` and hold its own
+`FRONT_DOOR_SUMMARY_ID = "finops-first-run"`, which meant two modules had a
+precedence table and four regions could each claim to be the answer by editing
+one attribute. That table is deleted. `countCompleteSummaries(doc, ids)` now
+takes the authorization as an argument and holds no list.
 
-**At most one `complete` summary may be visible at a time.** The front door
-ships one (`#finops-first-run`, the bundled example). The reader's own headline
-(`#guided-result`) is the other, and the page retires the example the moment the
-reader's own result appears. Panels such as the score card, the local results
-detail, the headline grade card, and the restored briefing are `evidence`.
+`#finops-first-run` — the canonical decision record in full — `#guided-result`,
+and `#finops-portfolio-brief` are `evidence`. The supersession chain among them
+still runs: two visible answers to the same question are two too many, even when
+neither is the page's complete summary.
 
 The rule is checked against the shipped document, not against a description of
-it, so adding a second full summary fails a test rather than a design review.
+it, so a second `answer` region fails a test rather than a design review.
 
 ## The privacy boundary
 

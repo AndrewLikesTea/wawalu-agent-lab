@@ -27,12 +27,16 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { parseHtml } from "./support/browser.js";
 import {
-  confidenceBand, confidenceScore, countCompleteSummaries, deriveDecisionRecord,
-  DECISION_CONTRACT_VERSION, DECISION_QUESTION, FRONT_DOOR_SUMMARY_ID, IMPACT_KIND,
+  confidenceBand, confidenceScore, deriveDecisionRecord,
+  DECISION_CONTRACT_VERSION, DECISION_QUESTION, IMPACT_KIND,
   loadCanonicalDecision, privacyViolations, recoverableShare, REQUIRED_FIELDS,
   roundHalfUp, SUMMARY_ATTRIBUTE, SUMMARY_ROLE, SYNTHETIC_SOURCE,
   validateDecisionRecord,
 } from "../src/finops-decision-contract.js";
+// The single-summary rule is no longer decided here: src/finops-answer-spine.js
+// names the one region with role `answer`, and `completeSummaries` is the only
+// caller that supplies those ids to the contract's referee.
+import { answerRegionId, completeSummaries } from "../src/finops-answer-spine.js";
 import { loadExampleDataset } from "../src/example-dataset.js";
 import { buildFinopsBriefing, BRIEFING_CONFIDENCE } from "../src/finops-briefing-contract.js";
 import { buildFirstRunResult } from "../src/finops-first-run.js";
@@ -377,10 +381,10 @@ const html = await readFile(PAGE, "utf8");
 
 test("the initial FinOps view presents exactly one complete decision summary", () => {
   const document = parseHtml(html);
-  const summaries = countCompleteSummaries(document);
+  const summaries = completeSummaries(document);
   assert.equal(summaries.visible, 1,
     `expected one visible complete summary, found ${summaries.visibleIds.join(", ") || "none"}`);
-  assert.deepEqual(summaries.visibleIds, [FRONT_DOOR_SUMMARY_ID]);
+  assert.deepEqual(summaries.visibleIds, [answerRegionId()]);
 });
 
 test("every other decision-bearing region declares itself as evidence", () => {
@@ -398,31 +402,40 @@ test("every other decision-bearing region declares itself as evidence", () => {
   assert.ok(evidence.length >= 3, "the supporting panels are not declared as evidence");
 });
 
+// A region used to become "the" summary by setting `data-decision-summary` to
+// `complete` on itself, and four regions had. The referee no longer reads the
+// markup's opinion of itself: the authorization comes from the answer spine.
 test("a competing full summary is a failure, not a layout choice", () => {
   const document = parseHtml(html);
   const rival = document.createElement("section");
   rival.id = "rival-summary";
   rival.setAttribute(SUMMARY_ATTRIBUTE, SUMMARY_ROLE.complete);
   document.body.append(rival);
-  const summaries = countCompleteSummaries(document);
-  assert.equal(summaries.visible, 2);
-  assert.ok(summaries.visibleIds.includes("rival-summary"));
+  const summaries = completeSummaries(document);
+  assert.equal(summaries.visible, 1);
+  assert.ok(!summaries.visibleIds.includes("rival-summary"),
+    "a region promoted itself to the complete summary by editing one attribute");
 });
 
-test("the reader's own result replaces the example summary rather than joining it", () => {
+test("the reader's own result supports the answer rather than becoming a second one", () => {
   const document = parseHtml(html);
-  const front = document.getElementById(FRONT_DOOR_SUMMARY_ID);
+  const front = document.getElementById("finops-first-run");
   const guided = document.getElementById("guided-result");
-  assert.equal(guided.getAttribute(SUMMARY_ATTRIBUTE), SUMMARY_ROLE.complete);
+  // Both are evidence now: the answer the page opens with is the spine's answer
+  // region, and these two are the example decision and the reader's own result
+  // beneath it.
+  assert.equal(front.getAttribute(SUMMARY_ATTRIBUTE), SUMMARY_ROLE.evidence);
+  assert.equal(guided.getAttribute(SUMMARY_ATTRIBUTE), SUMMARY_ROLE.evidence);
 
   // What the page does once a real result exists: the example is superseded and
-  // the reader's own headline is revealed. Exactly one, still.
+  // the reader's own headline is revealed. Still exactly one complete summary,
+  // and it is neither of them.
   front.dataset.superseded = "true";
   front.hidden = true;
   guided.hidden = false;
-  const summaries = countCompleteSummaries(document);
+  const summaries = completeSummaries(document);
   assert.equal(summaries.visible, 1);
-  assert.deepEqual(summaries.visibleIds, ["guided-result"]);
+  assert.deepEqual(summaries.visibleIds, [answerRegionId()]);
 });
 
 // ---------------------------------------------------------------------------
