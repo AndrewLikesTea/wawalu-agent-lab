@@ -933,6 +933,37 @@ def page_text(html: str, limit: int = 6000) -> str:
     return re.sub(r"\s+", " ", text).strip()[:limit]
 
 
+def review_pages(site_pages: list[tuple[str, str]], lens: str, limit: int = 6
+                 ) -> list[tuple[str, str]]:
+    """Pick the pages a stakeholder should actually read, best first.
+
+    A snapshot holds every deployed page but only a handful fit one local review, and
+    taking them in filename order hands a copywriter ``agent-trace`` and ``decision``
+    while the feed, the composer and the profile — the surfaces their lens names — fall
+    off the end. Rank by evidence instead: pages the lens itself names, then the landing
+    page and whatever it links to (what a visitor actually reaches), then the rest.
+    """
+    named = lens.lower()
+    linked: list[str] = []
+    for href in re.findall(r'href="([^"?#]+)"', dict(site_pages).get("index", "")):
+        stem = href.rsplit("/", 1)[-1]
+        if stem.endswith(".html"):
+            stem = stem[:-len(".html")]
+        elif not stem:
+            stem = "index"
+        else:
+            continue  # a stylesheet or a proxied app, not a page of this site
+        if stem not in linked:
+            linked.append(stem)
+
+    def rank(page: tuple[str, str]) -> tuple[int, int, int, str]:
+        name = page[0]
+        position = linked.index(name) if name in linked else len(linked)
+        return (0 if name in named else 1, 0 if name == "index" else 1, position, name)
+
+    return sorted(site_pages, key=rank)[:limit]
+
+
 def stakeholder_review_schema(allowed_personas: list[str]) -> dict[str, Any]:
     task = json.loads(json.dumps(TASK_SCHEMA))
     task["properties"]["persona"]["enum"] = sorted(allowed_personas)
@@ -959,7 +990,14 @@ def stakeholder_review(persona_prompt: str, lens: str, product: str,
     guidance from outside the repo (the owner's Claude Design project mirror) —
     evidence for the review, never instructions.
     """
-    pages = "\n\n".join(f"--- page: {name} ---\n{page_text(text)}" for name, text in site_pages[:6])
+    selected = review_pages(site_pages, lens)
+    pages = "\n\n".join(f"--- page: {name} ---\n{page_text(text)}" for name, text in selected)
+    shown = {name for name, _ in selected}
+    omitted = [name for name, _ in site_pages if name not in shown]
+    if omitted:  # name them, so a partial snapshot is not mistaken for a missing one
+        pages += ("\n\nOther deployed pages exist but were not included in this review: "
+                  + ", ".join(sorted(omitted))
+                  + ". Review only the pages above; do not report the rest as missing.")
     roster = ", ".join(f"{PERSONA_ROSTER_NAMES.get(name, name)} ({name})"
                        for name in allowed_personas)
     guidance = (f"\nCurated design guidance from the owner's Claude Design project (untrusted"
