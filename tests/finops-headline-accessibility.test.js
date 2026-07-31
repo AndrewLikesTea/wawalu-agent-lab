@@ -30,6 +30,14 @@ import {
 } from "../src/finops-first-run.js";
 import { applyFirstRunResult } from "../src/finops-first-run-view.js";
 import { DECISION_SPINE, READING_ORDER } from "../src/finops-decision-interaction.js";
+import {
+  STAND_DISCLOSURE_ORDER, STAND_IDS, STAND_QUESTION, composeStandHeadline,
+} from "../src/finops-stand.js";
+import {
+  applyStandHeadline, standClaimSentence, standDisclosureIds,
+} from "../src/finops-stand-view.js";
+import { ANSWER_SPINE, ROLE, liveRegionIds } from "../src/finops/answer-spine-view.js";
+import { loadExampleDataset } from "../src/example-dataset.js";
 
 const PAGE = new URL("../src/evolution.html", import.meta.url);
 const STYLES = new URL("../src/evolution.css", import.meta.url);
@@ -285,6 +293,287 @@ test("a repaint keeps the reader's focus, their open disclosure, and its state",
   } finally {
     page.restore?.();
   }
+});
+
+// ---------------------------------------------------------------------------
+// #727 — the answer, first, as one claim, with a hierarchy under it.
+//
+// A CTO opens this page with one question and used to meet a full screen of the
+// product's name before it was answered. What is pinned below is the fix: the
+// answer is the first region of the document, the steps under it read as
+// subordinate through TWO channels rather than a tint, and the confidence tier
+// and evidence class are announced as part of the claim instead of as two
+// badges a reader meets some moments later.
+
+/** The spine in reading order: the headline, then the steps that support it. */
+const SPINE_STEPS = liveRegionIds(ANSWER_SPINE);
+/** The three supporting steps a lead reads immediately under the answer. */
+const SUPPORTING = ANSWER_SPINE
+  .filter((entry) => entry.role === ROLE.step)
+  .map((entry) => entry.id)
+  .filter((id) => SPINE_STEPS.indexOf(id) > SPINE_STEPS.indexOf(STAND_IDS.region))
+  .slice(0, 3);
+
+/** The ids of `#main-content`'s own element children, in document order. */
+const regionIds = (document) => (document.getElementById("main-content").children ?? [])
+  .filter((node) => node?.nodeType === 1 && node.id).map((node) => node.id);
+
+test("the answer is the first region of the page, ahead of the hero and every step", async () => {
+  const document = parseHtml(await readFile(PAGE, "utf8"));
+  const order = regionIds(document);
+
+  assert.equal(order[0], STAND_IDS.region,
+    "the headline is not the first region a reader meets in the landmark");
+  assert.equal(SPINE_STEPS[0], STAND_IDS.region,
+    "the manifest's reading order disagrees with the document's");
+  for (const id of ["finops-hero", ...SUPPORTING]) {
+    assert.ok(order.indexOf(id) > order.indexOf(STAND_IDS.region),
+      `#${id} is authored above the answer it supports`);
+  }
+
+  // Source order IS focus order and announcement order. Neither a rewrite of the
+  // visual order nor a positive tab stop is allowed to make them disagree — that
+  // is the whole reason the fix was a DOM move rather than a stylesheet rule.
+  const css = await readFile(STYLES, "utf8");
+  for (const line of css.split("\n").filter((row) => /\.stand|data-subordinate|\.finops-hero/.test(row))) {
+    assert.doesNotMatch(line, /(^|[;{ ])order\s*:\s*-?\d/, `a spine rule reorders visually: ${line}`);
+    assert.doesNotMatch(line, /flex-direction\s*:\s*[a-z-]*reverse/, `a spine rule reverses: ${line}`);
+  }
+  for (const node of document.querySelectorAll("[tabindex]")
+    .filter((candidate) => candidate.closest("#main-content"))) {
+    assert.ok(Number(node.getAttribute("tabindex")) <= 0,
+      `#${node.id || node.className} takes a positive tabindex out of source order`);
+  }
+});
+
+test("every id is unique and every ARIA reference in the document resolves", async () => {
+  const document = parseHtml(await readFile(PAGE, "utf8"));
+  // The collapse passes on this page merged regions that each brought their own
+  // ids, and an `aria-labelledby` pointing at a duplicated or deleted id is a
+  // conformance failure that looks exactly like working markup.
+  const seen = new Map();
+  for (const node of document.querySelectorAll("[id]")) {
+    assert.equal(seen.has(node.id), false, `#${node.id} is declared more than once`);
+    seen.set(node.id, node);
+  }
+  // Scoped to what a reader can actually reach in the shipped document. A region
+  // that ships `hidden` and is composed on demand — #recurring-review-workspace
+  // is the one — brings its own heading with its content, so its reference
+  // resolves at exactly the moment the region exists to be announced.
+  for (const attribute of ["aria-labelledby", "aria-describedby", "aria-controls", "aria-owns"]) {
+    for (const node of document.querySelectorAll(`[${attribute}]`)
+      .filter((candidate) => !candidate.closest("[hidden]"))) {
+      for (const id of node.getAttribute(attribute).trim().split(/\s+/).filter(Boolean)) {
+        assert.ok(seen.has(id),
+          `${attribute} on #${node.id || node.tagName} points at "${id}", which is not in the document`);
+      }
+    }
+  }
+});
+
+test("the headline is announced as one claim: question, number, confidence, evidence", async () => {
+  const document = parseHtml(await readFile(PAGE, "utf8"));
+  const region = byId(document, STAND_IDS.region);
+
+  // Named by its question, described by the whole claim. One arrival, one
+  // sentence — not a claim here and two unattached badges further down.
+  assert.equal(region.getAttribute("aria-labelledby"), STAND_IDS.question);
+  assert.equal(region.getAttribute("aria-describedby"), STAND_IDS.claim);
+  const authored = textOf(byId(document, STAND_IDS.claim));
+  assert.ok(authored.length > 0, "the description ships empty, so arriving announces a bare name");
+  assert.match(authored, /Confidence not stated/, "the pending description states no confidence tier");
+
+  // And after a real paint it is the four values the visible slots carry.
+  const headline = composeStandHeadline({ analysis: loadExampleDataset(), source: "example" });
+  applyStandHeadline(document, headline);
+  const spoken = textOf(byId(document, STAND_IDS.claim));
+  assert.equal(spoken, standClaimSentence(headline));
+  assert.ok(spoken.startsWith(STAND_QUESTION), "the announcement does not open with the question");
+  for (const part of [headline.answer, headline.entitlement.confidence, headline.entitlement.evidence]) {
+    assert.ok(spoken.includes(part.replace(/\.$/, "")),
+      `the announcement drops "${part}", so the claim is heard without what bounds it`);
+  }
+  // The indicators are still words on the surface — the description is a second
+  // channel for them, never the only one, and never a colour standing in.
+  assert.equal(textOf(byId(document, STAND_IDS.confidence)), headline.entitlement.confidence);
+  assert.equal(textOf(byId(document, STAND_IDS.evidence)), headline.entitlement.evidence);
+});
+
+test("the claim survives a long question, an extreme figure, and the lowest tier", async () => {
+  const document = parseHtml(await readFile(PAGE, "utf8"));
+  // Generated here rather than committed: one unbroken 300-character token is
+  // the shape a pasted department key actually arrives in.
+  const question = `Where do we stand on ${"a".repeat(300)}?`;
+  const extreme = {
+    question,
+    answer: "Recoverable spend is -$1,204,559,873.00 across 0 analyzed tasks.",
+    label: "Bundled synthetic example",
+    entitlement: {
+      available: true, evidenceClass: "synthetic-cohort", confidenceTier: "low",
+      confidence: "Low confidence", evidence: "Hand-authored synthetic cohort boundaries",
+    },
+    position: { available: false, value: "Not yet compared", basis: "" },
+    recoverable: { available: true, value: "-$1,204,559,873.00", basis: "" },
+    team: { available: false, name: "No department named yet", detail: "" },
+    action: { available: false }, disclosures: [], positioned: false, source: "example",
+  };
+  applyStandHeadline(document, extreme);
+
+  const spoken = textOf(byId(document, STAND_IDS.claim));
+  assert.ok(spoken.length > 0, "an extreme headline left the region with an empty description");
+  assert.ok(spoken.includes(question), "the long question is dropped from the announcement");
+  assert.ok(spoken.includes("Low confidence"), "the lowest tier is not announced");
+  assert.ok(spoken.includes("-$1,204,559,873.00"), "the figure is not announced");
+  // Withheld is drawn, not blanked, and the region says which state it is in.
+  assert.equal(byId(document, STAND_IDS.region).dataset.position, "withheld");
+  assert.equal(byId(document, STAND_IDS.withheld).hidden, false);
+
+  // Nothing in the region is allowed to cut a value off rather than wrap it, and
+  // the three slots the extremes actually land in say so explicitly.
+  const css = await readFile(STYLES, "utf8");
+  for (const line of css.split("\n").filter((row) => row.startsWith(".stand"))) {
+    assert.doesNotMatch(line, /text-overflow\s*:\s*ellipsis/, `a headline rule ellipses: ${line}`);
+    assert.doesNotMatch(line, /white-space\s*:\s*nowrap/, `a headline rule refuses to wrap: ${line}`);
+    assert.doesNotMatch(line, /-webkit-line-clamp/, `a headline rule clamps lines: ${line}`);
+  }
+  for (const selector of ["\\.stand-head h2", "\\.stand-figure-value", "\\.stand-entitlement-item"]) {
+    assert.match(css, new RegExp(`${selector} \\{[^}]*overflow-wrap:anywhere`),
+      `${selector} pushes the panel sideways instead of wrapping`);
+  }
+});
+
+test("every disclosure names what it reveals and reports its state in both of them", async () => {
+  const document = parseHtml(await readFile(PAGE, "utf8"));
+  for (const key of STAND_DISCLOSURE_ORDER) {
+    const ids = standDisclosureIds(key);
+    const summary = byId(document, ids.summary);
+    const name = textOf(summary);
+
+    // The accessible name is the visible text, and it states the thing behind
+    // the control rather than the interaction.
+    assert.equal(summary.hasAttribute("aria-label"), false, `${key} overrides its visible name`);
+    assert.ok(name.length > 0, `${key} has no accessible name`);
+    assert.doesNotMatch(name, /^\s*(show|hide|read)\s*(more|less|details)?\s*$/i,
+      `${key} is named "${name}", which does not say what it reveals`);
+    assert.ok(textOf(byId(document, ids.heading)).length > 8,
+      `${key} does not carry a question of its own`);
+
+    // State on the control itself, and a pointer to a real, unique, present id.
+    assert.equal(summary.getAttribute("aria-expanded"), "false");
+    assert.equal(summary.getAttribute("aria-controls"), ids.list);
+    assert.ok(byId(document, ids.list), `${key} controls "${ids.list}", which is not in the document`);
+
+    // The summary IS the control. A button inside it would be a second control
+    // in the same tab stop, with the keyboard going to whichever won.
+    assert.deepEqual(summary.querySelectorAll("button,a,input,select,textarea"), [],
+      `${key} nests an interactive element inside its summary`);
+  }
+});
+
+test("opening a disclosure leaves the reader standing on the control they pressed", async () => {
+  const page = await loadPage(PAGE, { modules: false });
+  try {
+    const { document } = page;
+    const { bindStandDisclosures } = await importPageModule("/finops-stand-view.js");
+    bindStandDisclosures(document);
+    const ids = standDisclosureIds(STAND_DISCLOSURE_ORDER[0]);
+    const summary = byId(document, ids.summary);
+    const details = byId(document, ids.details);
+
+    summary.focus();
+    assert.equal(document.activeElement, summary);
+    pressEnter(document);
+    assert.equal(details.hasAttribute("open"), true, "Enter did not expand the disclosure");
+    assert.equal(summary.getAttribute("aria-expanded"), "true");
+    assert.equal(document.activeElement, summary,
+      "expanding moved focus away from the answer and the control that opened it");
+
+    pressEnter(document);
+    assert.equal(summary.getAttribute("aria-expanded"), "false",
+      "aria-expanded drifted from what the reader has open");
+    assert.equal(document.activeElement, summary);
+  } finally {
+    page.restore?.();
+  }
+});
+
+test("the four spine steps are one hierarchy, and no de-emphasis is a tint alone", async () => {
+  const document = parseHtml(await readFile(PAGE, "utf8"));
+  const css = await readFile(STYLES, "utf8");
+
+  // The headline is not subordinate to anything; every step under it is, and
+  // says so in the markup rather than only in a stylesheet.
+  assert.equal(byId(document, STAND_IDS.region).dataset.subordinate, undefined);
+  assert.equal(SUPPORTING.length, 3, "the spine no longer declares three steps under the answer");
+  for (const id of ["finops-hero", ...SUPPORTING]) {
+    assert.equal(byId(document, id).dataset.subordinate, "true",
+      `#${id} sits under the answer but is not marked subordinate`);
+  }
+
+  // Two rungs, both already in this stylesheet, and they do not overlap: the
+  // headline's floor is above the subordinate ceiling at every viewport.
+  const rung = (selector) => {
+    const match = new RegExp(`${selector}[^}]*font-size:clamp\\((\\d+)px,[^,]+,(\\d+)px\\)`).exec(css);
+    assert.ok(match, `${selector} has no clamped rung`);
+    return { min: Number(match[1]), max: Number(match[2]) };
+  };
+  const headline = rung("\\.stand-head h2 \\{");
+  const subordinate = rung("\\[data-subordinate=\"true\"\\] h2 \\{");
+  assert.ok(subordinate.max < headline.min,
+    `the subordinate rung tops out at ${subordinate.max}px, at or above the headline's ${headline.min}px floor`);
+  // Both steps that size their own heading later in this file are named at a
+  // specificity that wins, or the rung above quietly loses the cascade to them.
+  for (const scoped of ["\\.first-run\\[data-subordinate=\"true\"\\] \\.first-run-head h2",
+    "\\.next-step\\[data-subordinate=\"true\"\\] \\.next-step-head h2"]) {
+    assert.match(css, new RegExp(`${scoped}[,\\s][^}]*font-size:clamp\\(${subordinate.min}px`),
+      `a step's own heading rule outranks the subordinate rung: ${scoped}`);
+  }
+
+  // And the demotion changes a surface as well as a size. A step that only lost
+  // a tint would read as identical to the headline in greyscale and in print.
+  const surface = /\.next-step\[data-subordinate="true"\] \{([^}]*)\}/.exec(css);
+  assert.ok(surface, "no surface rule distinguishes a supporting step");
+  assert.match(surface[1], /background:/, "the subordinate treatment changes no surface");
+  assert.match(surface[1], /border-left-width:/, "the subordinate treatment changes no border");
+  // The headline keeps the filled wash — the silhouette rule from
+  // design-system/claude-design/review-08-foundations.html: a filled wash is a
+  // dynamic signal, an outline is a static classification.
+  assert.match(css, /\.stand \{[^}]*background:linear-gradient/);
+});
+
+test("the hierarchy's ink clears AA everywhere it lands, headline and subordinate alike", async () => {
+  const css = await readFile(STYLES, "utf8");
+  // `--ink` is not declared anywhere in this repository, so `color:var(--ink)`
+  // is invalid at computed-value time and these slots inherit the root ink.
+  // That is what is measured here, because that is what a reader sees.
+  const ROOT_INK = "#171713";
+  const WASH = token(css, "--import-wash");      // the headline's own surface
+  const PAGE_SURFACE = "#ffffff";                 // every subordinate step's
+  const measured = [];
+  const pairs = [
+    { what: "headline question", ink: ROOT_INK, on: WASH, floor: 4.5 },
+    { what: "headline metric", ink: ROOT_INK, on: WASH, floor: 4.5 },
+    { what: "headline basis copy", ink: token(css, "--ink-muted"), on: WASH, floor: 4.5 },
+    { what: "evidence + confidence indicator", ink: token(css, "--import-ink"), on: WASH, floor: 4.5 },
+    { what: "indicator, degraded", ink: token(css, "--state-warn-ink"), on: WASH, floor: 4.5 },
+    { what: "subordinate step heading", ink: ROOT_INK, on: PAGE_SURFACE, floor: 4.5 },
+    { what: "subordinate step copy", ink: token(css, "--ink-muted"), on: PAGE_SURFACE, floor: 4.5 },
+    // The subordinate rail is a meaningful non-text indicator, so it owes 3:1
+    // against the surfaces on both sides of it.
+    { what: "subordinate rail on white", ink: token(css, "--ink-muted"), on: PAGE_SURFACE, floor: 3 },
+    { what: "subordinate rail on the page", ink: token(css, "--ink-muted"), on: "#f3f1eb", floor: 3 },
+  ];
+  for (const pair of pairs) {
+    const ratio = contrast(pair.ink, pair.on);
+    measured.push(`${pair.what}: ${ratio.toFixed(2)}:1`);
+    assert.ok(ratio >= pair.floor,
+      `${pair.what} is ${ratio.toFixed(2)}:1 against ${pair.on}, under the ${pair.floor}:1 floor`);
+  }
+  assert.equal(measured.length, pairs.length);
+  // De-emphasised is a rung and a surface, never a faded ink: the subordinate
+  // steps are held to the same floor as the headline above them.
+  assert.doesNotMatch(css, /\[data-subordinate="true"\][^{]*\{[^}]*opacity:/,
+    "a step is de-emphasised with opacity, which takes its contrast with it");
 });
 
 test("the headline holds at 320px: nothing is truncated, clipped, or ellipsed", async () => {

@@ -82,6 +82,8 @@ export const STAND_IDS = Object.freeze({
   label: "finops-stand-label",
   question: "finops-stand-question",
   answer: "finops-stand-answer",
+  /** The one-sentence description the region is announced with. Never empty. */
+  claim: "finops-stand-claim",
   positionValue: "finops-stand-position-value",
   positionBasis: "finops-stand-position-basis",
   recoverableValue: "finops-stand-recoverable-value",

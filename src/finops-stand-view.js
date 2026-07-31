@@ -30,6 +30,34 @@ export function standDisclosureIds(key) {
 
 const byId = (doc, id) => (doc?.getElementById ? doc.getElementById(id) : null);
 
+/** A fragment closed off as a sentence, so four of them can be read as one line. */
+function sentence(text) {
+  const trimmed = String(text ?? "").trim();
+  if (trimmed === "") return "";
+  return /[.?!]$/.test(trimmed) ? trimmed : `${trimmed}.`;
+}
+
+/**
+ * The whole claim as one sentence: question, answer, confidence, evidence class.
+ *
+ * WHY IT EXISTS. Those four things are four separate nodes on the surface, and
+ * the two entitlement indicators sit after the sentence they qualify. A reader
+ * using a screen reader therefore met the claim first and the two things that
+ * bound it some moments later, as unattached badges — which is exactly the
+ * reading a figure gets quoted out of. The region names this node in
+ * `aria-describedby`, so arriving at the headline announces the claim WITH what
+ * it rests on, once.
+ *
+ * It composes; it computes nothing. Every part is a string the visible slots are
+ * painted from, so the announcement cannot drift from what is on screen, and a
+ * part that is missing is dropped rather than rendered as an empty gap. The
+ * markup ships a pending sentence, so the description is never empty.
+ */
+export function standClaimSentence(headline) {
+  return [headline?.question, headline?.answer, headline?.entitlement?.confidence,
+    headline?.entitlement?.evidence].map(sentence).filter(Boolean).join(" ");
+}
+
 function setText(doc, id, text) {
   const node = byId(doc, id);
   if (node && typeof text === "string") node.textContent = text;
@@ -165,6 +193,13 @@ export function applyStandHeadline(doc, headline) {
   }
   setText(doc, STAND_IDS.evidence, headline.entitlement?.evidence ?? "");
   setText(doc, STAND_IDS.confidence, headline.entitlement?.confidence ?? "");
+
+  // …and the same four values as one sentence, for the one announcement the
+  // region is described by. Only written when there is something to say: a
+  // headline that composed nothing leaves the authored pending sentence in
+  // place rather than blanking the region's description.
+  const claim = standClaimSentence(headline);
+  if (claim) setText(doc, STAND_IDS.claim, claim);
 
   const position = setText(doc, STAND_IDS.positionValue, headline.position?.value ?? "");
   if (position) position.dataset.available = headline.position?.available ? "true" : "false";
