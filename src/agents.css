@@ -158,6 +158,10 @@ button:focus-visible,.brand:focus-visible { outline:3px solid #155f9e; outline-o
 .site-footer-inner { display:grid; justify-items:start; gap:13px; width:min(1180px,calc(100% - 40px)); margin:auto; padding:30px 0 44px; }
 .site-footer-title { margin:0; color:#65717d; font:700 11px/1.4 ui-monospace,monospace; letter-spacing:.11em; text-transform:uppercase; }
 .site-footer-identity { max-width:66ch; margin:0; color:#555550; font-size:14px; line-height:1.6; }
+.site-footer-demos { display:grid; gap:5px; max-width:66ch; margin:0; padding:0; list-style:none; color:#555550; font-size:14px; line-height:1.6; }
+.site-footer-demos strong { color:#2c2c28; }
+.site-footer-demos a { color:#1f70c1; font-weight:700; text-decoration:underline; text-underline-offset:3px; }
+.site-footer-demos a:hover { color:#171713; }
 .site-footer-trigger { min-height:44px; border:1px solid #171713; border-radius:9px; padding:0 17px; background:#171713; color:#fff; font:750 14px/1.4 inherit; cursor:pointer; }
 .site-footer-trigger:hover { border-color:#1f70c1; background:#1f70c1; }
 .site-footer-panel { display:grid; gap:13px; width:100%; max-width:620px; border:1px solid #c2d2e0; border-radius:13px; padding:18px; background:rgba(255,255,255,.88); animation:site-footer-reveal .18s ease-out; }
@@ -179,6 +183,9 @@ button:focus-visible,.brand:focus-visible { outline:3px solid #155f9e; outline-o
 .site-footer-form[data-state="error"]+.site-footer-status { color:#8a2b2b; }
 .site-footer-recovery { margin:0; border-left:2px solid #8a2b2b; padding-left:11px; color:#4f4f4a; font-size:12px; line-height:1.5; }
 .site-footer-recovery[hidden] { display:none; }
-.site-footer button:focus-visible,.site-footer input:focus-visible { outline:3px solid #155f9e; outline-offset:3px; }
+/* `a` is in here because the band now carries a link on these two pages too; a
+   focus ring that exists in styles.css and not in this file is an invisible
+   keyboard focus on the observatory. */
+.site-footer button:focus-visible,.site-footer input:focus-visible,.site-footer a:focus-visible { outline:3px solid #155f9e; outline-offset:3px; }
 @media(max-width:520px) { .site-footer-inner{width:calc(100% - 24px);padding:24px 0 32px}.site-footer-trigger{width:100%}.site-footer-panel{padding:15px}.site-footer-actions button{flex:1 1 auto} }
 @media(prefers-reduced-motion:reduce) { .site-footer-panel{animation:none} }

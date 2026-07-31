@@ -25,8 +25,8 @@
       "label": "site-footer-page.js + its static import graph",
       "kind": "module-graph",
       "entry": "/site-footer-page.js",
-      "budgetBytes": 27648,
-      "baseline": "Measured 26,505 bytes in dist/ on 2026-07-30. The second module script /evolution.html loads, tracked because it is part of the same initial payload and grows independently of the page entry."
+      "budgetBytes": 29696,
+      "baseline": "Measured 29,083 bytes in dist/ on 2026-07-31. The second module script /evolution.html loads, tracked because it is part of the same initial payload and grows independently of the page entry. RAISED ON PURPOSE, by 2 KiB over the previous 27,648: #757 rewrote the About Shiplog band so it opens with what a visitor can do here and names the four demos with the question each one answers, and src/site-footer.js is the single source of truth those strings live in — src/site-footer-page.js imports it for initSiteFooter(), so the copy rides in this graph whether or not the disclosure is ever opened. The bytes are the copy and its rationale, not a new module: the comments were cut back twice before the budget was raised, and stripping every remaining one still leaves the graph over the old number. Splitting the strings into a module the entry does not import would take them out of this payload, but it would also end the guarantee that the markup on all sixteen pages and the copy the tests pin come from one file, which is the property that keeps the band identical everywhere."
     },
     {
       "id": "evolution-css",
