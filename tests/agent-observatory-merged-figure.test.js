@@ -5,7 +5,12 @@
 // so what has to be pinned is not that it renders — it is that it can only ever
 // be honest: the label agrees with what was counted, the provenance is the
 // response's own arrival time, the verification links are the exact responses
-// the count came from, and an unanswered request leaves no digit behind.
+// the count came from, and an unanswered request leaves no undated digit behind.
+//
+// The fetchers below answer only the GitHub feeds, so the published record is
+// unreadable in this file and every fallback lands on the never-recorded
+// sentence. The recorded count, its date, and the recorder that writes it have
+// their own file: tests/agent-observatory-recorded-count.test.js.
 //
 // The browser harness is permissive about control values, so everything here is
 // asserted on rendered text and DOM structure.
@@ -185,7 +190,8 @@ test("no number survives a GitHub failure, whatever the failure is", async () =>
     assert.equal(root.nodes["#merged-figure"].dataset.state, "unavailable", name);
     assert.equal(first(readout, "merged-figure-count"), null, `${name}: no figure element`);
     assert.doesNotMatch(readout.textContent, /\d/, `${name}: no digit may stand in the headline slot`);
-    assert.match(readout.textContent, /no live count/i, `${name}: it says the live count is unavailable`);
+    assert.match(readout.textContent, /no count has been recorded/i,
+      `${name}: it says GitHub did not answer and nothing was recorded before`);
     assert.doesNotMatch(readout.textContent, /Counting/, `${name}: a failure is not still loading`);
   }
 });
@@ -211,7 +217,7 @@ test("loading says it is loading, without a number and without claiming failure"
   assert.equal(root.nodes["#merged-figure"].dataset.state, "loading");
   assert.match(readout.textContent, /Counting/);
   assert.doesNotMatch(readout.textContent, /\d/, "loading may say so, but must not show a number");
-  assert.doesNotMatch(readout.textContent, /no live count/i);
+  assert.doesNotMatch(readout.textContent, /did not answer/i);
 });
 
 test("a count that cannot be sourced is not rendered as a number", () => {

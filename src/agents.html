@@ -45,11 +45,21 @@
                because a prospect should meet the real number before the demo
                personas and the representative rows below it.
 
-               The readout is the live region: agents.js replaces its two
-               paragraphs once per load, so loading → loaded-or-failed is one
-               announcement. The markup below is the loading state the page
-               starts in, and it deliberately carries no digits: an unanswered
-               request must never leave a number standing in this slot. -->
+               The readout is the live region: agents.js replaces its contents
+               once per load, so loading → loaded-or-failed is one announcement.
+               The markup below is the loading state the page starts in, and it
+               deliberately carries no digits: this file is static, so any
+               number written here would be a number nothing had counted.
+
+               The request is unauthenticated and is routinely rate-limited, so
+               it is not the only source of a figure. agents.js reads the last
+               recorded count from /merged-pull-request-count.json first — a
+               same-origin file no rate limit can touch — and paints it, dated,
+               while GitHub is still deciding. A live response replaces it. The
+               undated number is always the live one. -->
+          <!-- Only scripts/record-merged-count.mjs writes that file, and only
+               from a response GitHub actually returned. -->
+
           <section class="merged-figure" id="merged-figure" data-state="loading" aria-labelledby="merged-figure-title">
             <h2 class="merged-figure-title" id="merged-figure-title">Merged pull requests</h2>
             <div class="merged-figure-readout" id="merged-figure-readout" role="status" aria-live="polite">
