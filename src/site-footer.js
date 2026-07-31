@@ -38,14 +38,50 @@ const ERROR_ID = "site-footer-error";
 const RECOVERY_ID = "site-footer-recovery";
 
 /**
- * Who runs this, what it is, and where it lives — in one sentence, on every
- * page. It names an organisation and a hosting claim, both of which are checkable
- * from outside. It claims no customer, no usage, no funding, and no result,
- * because this repository has no evidence for any of those and a footer is a
- * strange place to start inventing some.
+ * What a visitor can do here, then who runs it and where — on every page.
+ *
+ * The doing sentence comes first on purpose. This band used to open by defining
+ * Shiplog as a decision and release log, which describes one section of one page
+ * and contradicts what the site leads with: the home page's title, heading, and
+ * first call to action are all AI FinOps.
+ *
+ * The second sentence still names an organisation and a hosting claim, both
+ * checkable from outside. Between them they claim no customer, no usage, no
+ * funding, and no result — there is no evidence here for any of those. Every
+ * verb in the first sentence is something a page this site ships today does,
+ * and DEMOS says which page.
  */
-export const IDENTITY = "Shiplog is a demonstration engineering decision and release log, "
-  + "built and operated by Wawalu at labs.wawalu.org.";
+export const IDENTITY = "On this site you can analyze your own AI spend, check a prompt before you send "
+  + "it, and read the decisions and releases behind it. Shiplog is a demonstration product, built and "
+  + "operated by Wawalu at labs.wawalu.org.";
+
+/**
+ * Where to start, and what each destination answers.
+ *
+ * Four of the site's eight nav doors: a visitor reading a footer wants a way in,
+ * and the full directory is the nav's job. Each is phrased as the question the
+ * visitor arrives with rather than as a feature label, and each `label` is the
+ * word src/site-nav.js already uses — one name per concept, so the door here and
+ * the door up there are visibly the same one.
+ *
+ * AI FinOps is first and is the only link: it is what the site leads with. The
+ * href is root-relative for the reason every link in site-nav.js is — this band
+ * ships on every page, and a bare relative path would resolve against a page in
+ * a subdirectory rather than against the site.
+ */
+export const DEMOS = Object.freeze([
+  Object.freeze({
+    label: "AI FinOps",
+    href: "/evolution.html",
+    question: "where is our AI spend going, and what should we do first?",
+    // The only row that says "start here": four doors with no order is the same
+    // problem as no list at all.
+    note: "Start here: it reads your own provider export in this browser tab.",
+  }),
+  Object.freeze({ label: "Prompt coach", question: "is this prompt worth sending?" }),
+  Object.freeze({ label: "Decisions", question: "why did we decide this, and what did we rule out?" }),
+  Object.freeze({ label: "Releases", question: "what shipped, and which decision led to it?" }),
+]);
 
 /**
  * The context the button no longer carries.
@@ -139,11 +175,30 @@ export function siteFooterMarkup(indent = "    ", { redirect = null } = {}) {
     '  <div class="site-footer-inner">',
     '    <h2 class="site-footer-title" id="site-footer-title">About Shiplog</h2>',
     `    <p class="site-footer-identity">${IDENTITY}</p>`,
+    ...demoListLines(),
     ...contact,
     "  </div>",
     "</footer>",
   ];
   return lines.map((line) => `${indent}${line}`).join("\n");
+}
+
+/**
+ * The demo list: a real <ul>, so the destinations arrive as a list rather than a
+ * run-on sentence and a screen reader gets the count. Only the primary demo is a
+ * link — the other three are named as the nav names them, and that is where a
+ * visitor reaches them. A second copy of the nav here is a directory, not
+ * positioning.
+ */
+function demoListLines() {
+  return [
+    '    <ul class="site-footer-demos">',
+    ...DEMOS.map(({ label, href, question, note }) => {
+      const name = href ? `<a href="${href}">${label}</a>` : `<strong>${label}</strong>`;
+      return `      <li>${name} — ${question}${note ? ` ${note}` : ""}</li>`;
+    }),
+    "    </ul>",
+  ];
 }
 
 function contactDisclosureLines() {
