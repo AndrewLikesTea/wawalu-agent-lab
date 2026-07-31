@@ -96,6 +96,13 @@ TASK_SCHEMA = {
         "title": {"type": "string"},
         "outcome": {"type": "string"},
         "acceptance_criteria": {"type": "array", "items": {"type": "string"}, "minItems": 2, "maxItems": 8},
+        # 1-based position of the task in this same program that must merge first.
+        # Cross-persona sequencing has no other channel: the per-persona chain in
+        # create_generated_issue only orders one engineer's own tasks, so a program
+        # split across six engineers encoded its dependencies in prose alone and the
+        # queue ran the dependents first -- each one burning a paid session to report
+        # that its prerequisite had not landed.
+        "depends_on_index": {"type": "integer", "minimum": 1, "maximum": 6},
     },
     "required": ["persona", "title", "outcome", "acceptance_criteria"],
     "additionalProperties": False,
@@ -473,6 +480,12 @@ def propose_directive_plan(manager_prompt: str, product: str, recent_titles: lis
         "A single task must fit one reviewable PR under 2,000 changed lines, but the overall "
         "directive does not need to. Put foundations before dependent UI or integration work and "
         "include dependency expectations in outcomes or acceptance criteria. "
+        "When a task cannot be started until another task in this same program has merged, you "
+        "must also set its `depends_on_index` to that prerequisite's 1-based position in your "
+        "tasks array — naming the prerequisite only in prose is not enough, because the queue "
+        "reads `depends_on_index` and would otherwise start the dependent first. Only refer "
+        "backwards: a task's `depends_on_index` must be smaller than its own position. Leave "
+        "`depends_on_index` unset for work that can start immediately. "
         "Default to product-moving vertical slices: each task must name the user who benefits and "
         "the new decision, workflow, or trustworthy product behavior it enables. Outcomes such as "
         "‘define a rubric,’ ‘document a contract,’ or ‘design a system’ are insufficient by "
@@ -537,13 +550,33 @@ def _directive_plan_draw(prompt: str, output_path: pathlib.Path,
         outcome = str(task.get("outcome", "")).strip()
         if persona not in allowed or not title or not outcome or len(criteria) < 2:
             raise ValueError("Qwen directive task is incomplete")
-        normalized.append({"persona": persona, "title": title[:100], "outcome": outcome,
-                           "acceptance_criteria": criteria[:8]})
+        task_entry = {"persona": persona, "title": title[:100], "outcome": outcome,
+                      "acceptance_criteria": criteria[:8]}
+        # A task may only depend on one authored earlier in the program; a forward or
+        # self reference would deadlock the queue, so drop it rather than encode it.
+        depends = task.get("depends_on_index")
+        if isinstance(depends, int) and 1 <= depends <= len(normalized):
+            task_entry["depends_on_index"] = depends
+        normalized.append(task_entry)
     shipped = [title_fingerprint(item) for item in (delivered or [])]
     if shipped:
         # Prompting alone does not stop a small model from re-decomposing a stale directive
         # into work the team already merged, so drop the repeats before they become issues.
-        normalized = [task for task in normalized if not restates_shipped_work(task["title"], shipped)]
+        survivors = [index for index, task in enumerate(normalized)
+                     if not restates_shipped_work(task["title"], shipped)]
+        # Dropping a task renumbers the ones after it, so every surviving dependency has
+        # to be re-pointed at its prerequisite's new position -- and cleared outright when
+        # the prerequisite itself was the shipped work that got dropped.
+        moved = {original: position for position, original in enumerate(survivors)}
+        kept = [normalized[index] for index in survivors]
+        for task in kept:
+            if "depends_on_index" in task:
+                target = moved.get(task["depends_on_index"] - 1)
+                if target is None:
+                    task.pop("depends_on_index")
+                else:
+                    task["depends_on_index"] = target + 1
+        normalized = kept
     if not 2 <= len(normalized) <= 6:
         raise ValueError("Qwen directive plan requires 2-6 tasks")
     # Scoped directives can have fewer than three eligible engineers; requiring three

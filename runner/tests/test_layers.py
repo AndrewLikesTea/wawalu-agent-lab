@@ -756,3 +756,57 @@ class StakeholderReviewTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class DirectiveDependencyOrderTests(unittest.TestCase):
+    """A program split across personas has to encode its ordering, not just describe it."""
+
+    def _plan(self, tasks: list[dict], delivered: list[str] | None = None) -> list[dict]:
+        with tempfile.TemporaryDirectory() as tmp:
+            output = pathlib.Path(tmp) / "plan.json"
+            with mock.patch.object(layers, "qwen_json", return_value={"tasks": tasks}):
+                return layers._directive_plan_draw("prompt", output, delivered, None)
+
+    def _task(self, persona: str, title: str, **extra) -> dict:
+        return {"persona": persona, "title": title, "outcome": f"{title} outcome",
+                "acceptance_criteria": ["renders on /evolution.html", "covered by a test"], **extra}
+
+    def test_backward_dependency_is_kept(self):
+        plan = self._plan([
+            self._task("integrations", "import contract"),
+            self._task("evaluation", "classifier", depends_on_index=1),
+            self._task("backend", "residue"),
+        ])
+        self.assertEqual(plan[1]["depends_on_index"], 1)
+        self.assertNotIn("depends_on_index", plan[0])
+        self.assertNotIn("depends_on_index", plan[2])
+
+    def test_forward_and_self_reference_are_dropped(self):
+        # Either one would make the queue skip the issue until an issue that never
+        # precedes it closes, stalling the persona for the life of the program.
+        plan = self._plan([
+            self._task("integrations", "import contract", depends_on_index=1),
+            self._task("evaluation", "classifier", depends_on_index=3),
+            self._task("backend", "residue"),
+        ])
+        self.assertNotIn("depends_on_index", plan[0])
+        self.assertNotIn("depends_on_index", plan[1])
+
+    def test_dependency_follows_a_task_the_dedupe_filter_renumbers(self):
+        plan = self._plan([
+            self._task("qa", "already shipped work"),
+            self._task("integrations", "import contract"),
+            self._task("evaluation", "classifier", depends_on_index=2),
+        ], delivered=["already shipped work"])
+        self.assertEqual([task["title"] for task in plan], ["import contract", "classifier"])
+        self.assertEqual(plan[1]["depends_on_index"], 1)
+
+    def test_dependency_on_dropped_prerequisite_is_cleared(self):
+        # The prerequisite was already delivered, so the dependent is runnable now;
+        # leaving the stale index would point it at an unrelated task.
+        plan = self._plan([
+            self._task("qa", "already shipped work"),
+            self._task("evaluation", "classifier", depends_on_index=1),
+            self._task("backend", "residue"),
+        ], delivered=["already shipped work"])
+        self.assertNotIn("depends_on_index", plan[0])
