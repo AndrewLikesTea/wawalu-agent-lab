@@ -17,6 +17,7 @@ import { importPageModule, waitFor } from "./support/page-module.js";
 import {
   DISCLOSURE_IDS, ORG_QUERY_DECISION_STATE, orgQueryCoachingDecision,
 } from "../src/org-query-decision.js";
+import { familyCoverage } from "../src/corpus-family-coverage.js";
 import {
   ORG_COACHING_BODY_ID, ORG_COACHING_LIVE_ID, ORG_COACHING_SECTION_ID,
   applyOrgQueryDecision, clearOrgQueryDecision, panelId, toggleId,
@@ -219,6 +220,42 @@ test("one announcement per decision, and a disclosure toggle does not repeat it"
   // again because the reader opened a panel.
   assert.equal(live(document).textContent, before);
 });
+
+test("the withheld-to-letter transition is one announcement, carrying the grade and the coverage",
+  async () => {
+    const { document } = await openPage();
+    const sample = orgQuerySampleResult(loadExampleOrgQuerySample());
+    const graded = orgQueryCoachingDecision(literacyOf(loadExampleOrgQuerySample()),
+      { origin: "import", familyCoverage: familyCoverage(sample.records) });
+
+    // The reader arrives with a sample no letter may be published for.
+    applyOrgQueryDecision(document, ungradeableState());
+    assert.equal(section(document).dataset.state, ORG_QUERY_DECISION_STATE.ungradeable);
+
+    // Then the letter lands. Every write to the region is recorded, because two
+    // writes is two announcements however alike the strings are.
+    const region = live(document);
+    const writes = [];
+    let current = region.textContent;
+    Object.defineProperty(region, "textContent", {
+      configurable: true,
+      get: () => current,
+      set: (value) => { writes.push(value); current = value; },
+    });
+    applyOrgQueryDecision(document, graded);
+    delete region.textContent;
+
+    assert.deepEqual(writes, [graded.announcement], "one transition, one utterance");
+    assert.ok(writes[0].includes(`grade ${graded.benchmark.grade}`), "the grade is in it");
+    assert.ok(writes[0].includes(graded.coverage.text), "and the coverage it rests on");
+
+    // One region said it. The coaching section adds no second announcer on the
+    // way — a grade announced beside a coverage announcement is two utterances.
+    const announcers = section(document).querySelectorAll("[aria-live]")
+      .concat(section(document).querySelectorAll('[role="status"]'))
+      .concat(section(document).querySelectorAll('[role="alert"]'));
+    assert.deepEqual([...new Set(announcers.map((node) => node.id))], [ORG_COACHING_LIVE_ID]);
+  });
 
 /* -------------------------------- redaction ---------------------------------- */
 
