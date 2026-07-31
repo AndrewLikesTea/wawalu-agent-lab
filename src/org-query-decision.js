@@ -120,6 +120,10 @@ export const DISCLOSURE_ORDER = Object.freeze([
     id: DISCLOSURE_IDS.evidence,
     question: "What is behind each department's grade?",
   }),
+  // The limits disclosure is where the residue already lives — the clusters, the
+  // points each one holds, and now the control that lets a lead resolve them. It
+  // is one panel, not two: a reader who has just been told what is limiting this
+  // sample is the reader who can say what the largest limit actually is.
   Object.freeze({
     id: DISCLOSURE_IDS.sampling,
     question: "What are the limits of this sample?",
@@ -145,7 +149,7 @@ const plural = (count, one, many) => `${count} ${count === 1 ? one : many}`;
  *   mislabelling the per-panel provenance exists to end.
  */
 export function orgQueryCoachingDecision(literacy,
-  { origin = "import", fileNames = [], familyCoverage = null } = {}) {
+  { origin = "import", fileNames = [], familyCoverage = null, residueReview = null } = {}) {
   if (!literacy) return Object.freeze({
     version: ORG_QUERY_DECISION_VERSION,
     state: ORG_QUERY_DECISION_STATE.absent,
@@ -154,17 +158,35 @@ export function orgQueryCoachingDecision(literacy,
   });
   const confidence = confidenceOf(literacy);
   const provenance = provenanceOf(literacy, origin, fileNames);
-  const coverage = coverageSlot(familyCoverage);
-  const disclosures = disclosuresOf(literacy, coverage);
-  const parts = { confidence, provenance, disclosures, origin, coverage };
+  const coverage = coverageSlot(familyCoverage, residueReview);
+  const disclosures = disclosuresOf(literacy, coverage, residueReview);
+  const parts = { confidence, provenance, disclosures, origin, coverage, review: residueReview };
   // The coverage gate runs BEFORE the letter, and it is the same gate the
   // department path uses: `COVERAGE_TIERS` decides whether enough of this
   // corpus was classified for a letter to mean anything, and a corpus under
   // the floor is refused with that table's own published words. A sample with
   // no coverage result attached is unaffected — the floors only apply to a
   // reading that was actually measured against them.
-  if (coverage && coverage.showGrade === false) return coverageWithheld(literacy, parts);
-  return literacy.gradeable ? graded(literacy, parts) : ungradeable(literacy, parts);
+  if (coverage && coverage.showGrade === false) return withReview(coverageWithheld(literacy, parts),
+    residueReview);
+  return withReview(literacy.gradeable ? graded(literacy, parts) : ungradeable(literacy, parts),
+    residueReview);
+}
+
+/**
+ * The lead's own labels, on the state they changed.
+ *
+ * The announcement is extended rather than replaced, and only when a label is
+ * active: the view writes the live region only on a CHANGED sentence, so a
+ * recompute that moved no figure and no count says nothing a second time, and
+ * one that moved either says the new number with the count that produced it.
+ */
+function withReview(state, review) {
+  if (!review || !review.count) return state;
+  return Object.freeze({
+    ...state,
+    announcement: `${state.announcement} ${review.announcement}`,
+  });
 }
 
 /**
@@ -174,7 +196,7 @@ export function orgQueryCoachingDecision(literacy,
  * strings and the tier verdict behind them, and this states which cluster
  * detail the sampling disclosure carries.
  */
-function coverageSlot(result) {
+function coverageSlot(result, review = null) {
   if (!result) return null;
   const headline = coverageHeadline(result);
   return Object.freeze({
@@ -185,7 +207,14 @@ function coverageSlot(result) {
     share: headline.number,
     text: headline.text,
     rule: headline.rule,
-    action: headline.action,
+    // The review's action when the lead has ruled on part of the residue —
+    // still composed from this same result's ranked clusters, so it cannot name
+    // a cluster the reader has already called unclassifiable.
+    action: review?.action ?? headline.action,
+    /** Visible provenance for a corrected reading. Null when no label is active. */
+    leadLabels: review?.count ? Object.freeze({
+      count: review.count, marker: review.marker, unassisted: review.unassisted,
+    }) : null,
     unitLabel: result.unitLabel,
     clusters: Object.freeze((result.residue ?? []).map((cluster) => Object.freeze({
       key: cluster.key,
@@ -363,7 +392,7 @@ function provenanceOf(literacy, origin, fileNames) {
   });
 }
 
-function disclosuresOf(literacy, coverage = null) {
+function disclosuresOf(literacy, coverage = null, review = null) {
   const rows = Object.freeze({
     [DISCLOSURE_IDS.mix]: mixRows(literacy),
     [DISCLOSURE_IDS.evidence]: evidenceRows(literacy),
@@ -382,6 +411,10 @@ function disclosuresOf(literacy, coverage = null) {
     question: entry.question,
     chip: counts[entry.id],
     rows: rows[entry.id],
+    // Only the limits panel carries one, and only when there is a coverage
+    // result to recompute: it is a control the reader operates rather than
+    // another list of rows, so the view paints it beside them, not among them.
+    review: entry.id === DISCLOSURE_IDS.sampling ? review : null,
   })));
 }
 

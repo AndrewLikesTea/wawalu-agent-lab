@@ -137,6 +137,9 @@ import { orgQuerySampleResult, validateOrgQuerySource } from "/org-query-source.
 // families rather than on English keywords alone, plus the unclassified residue
 // ranked by how much coverage resolving it would return.
 import { familyCoverage } from "/corpus-family-coverage.js";
+// The lead's own labels over that residue, folded back into the SAME coverage
+// call rather than patched onto its output.
+import { applyLeadLabels, leadLabelCount, residueReview } from "/residue-review.js";
 import {
   orgQueryDecisionData, orgQueryDecisionDepartments, orgQueryDepartmentLiteracy,
   orgQueryDepartmentRows,
@@ -2030,19 +2033,36 @@ function mountLocalFinopsImport() {
    * about a file that is no longer loaded.
    */
   const paintCoachingDecision = (literacy,
-    { origin = "import", fileNames = [], records = [] } = {}) =>
-    (literacy
-      ? applyOrgQueryDecision(document, orgQueryCoachingDecision(literacy, {
+    { origin = "import", fileNames = [], records = [] } = {}) => {
+    if (!literacy) return clearOrgQueryDecision(document);
+    // The same records the literacy model was built from, classified a second
+    // way: on the five structural signal families rather than on English
+    // keywords alone. That is what decides the coverage number and the residue
+    // clusters this surface now leads with. In memory, in this tab, and nothing
+    // derived from an excerpt comes back out.
+    //
+    // Computed once, unlabelled, and kept: it is what this import earned on its
+    // own, and every recomputed reading is shown beside it.
+    const unassisted = records.length ? familyCoverage(records) : null;
+    /**
+     * The decision for one set of lead labels, and the ONLY way a recomputed
+     * figure is produced. `familyCoverage` is re-entered with the labels folded
+     * into its input, so coverage, the tier, grade eligibility and the ranked
+     * residue all come back from the published path rather than from arithmetic
+     * this page did to its own output.
+     */
+    const decisionFor = (labels = {}) => {
+      const labeled = unassisted && leadLabelCount(labels)
+        ? familyCoverage(applyLeadLabels(records, labels)) : unassisted;
+      return orgQueryCoachingDecision(literacy, {
         origin,
         fileNames,
-        // The same records the literacy model was built from, classified a
-        // second way: on the five structural signal families rather than on
-        // English keywords alone. That is what decides the coverage number and
-        // the residue clusters this surface now leads with. In memory, in this
-        // tab, and nothing derived from an excerpt comes back out.
-        familyCoverage: records.length ? familyCoverage(records) : null,
-      }))
-      : clearOrgQueryDecision(document));
+        familyCoverage: labeled,
+        residueReview: residueReview({ records, unassisted, labeled, labels }),
+      });
+    };
+    return applyOrgQueryDecision(document, decisionFor(), { recompute: decisionFor });
+  };
 
   const finishSelection = (total) => {
     rebuildLoaded();

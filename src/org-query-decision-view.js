@@ -36,6 +36,16 @@ export const ORG_COACHING_LIVE_ID = "org-coaching-live";
 /** Toggle and panel ids, derived from the disclosure id so both agree. */
 export const toggleId = (id) => `org-coaching-${id}-toggle`;
 export const panelId = (id) => `org-coaching-${id}-panel`;
+/**
+ * The assignment control for the nth residue cluster.
+ *
+ * Indexed off the UNASSISTED residue ranking, which does not move as the lead
+ * assigns rows, so the id a control had before a recompute is the id it has
+ * after one — which is what makes focus restoration below land on the control
+ * the reader just used rather than on whatever is now in that position.
+ */
+export const residueSelectId = (index) => `org-coaching-residue-${index}`;
+const residueLabelId = (index) => `${residueSelectId(index)}-label`;
 
 const byId = (doc, id) => (doc?.getElementById ? doc.getElementById(id) : null);
 
@@ -66,8 +76,17 @@ function announce(doc, text) {
   return node;
 }
 
+/**
+ * Per-sample reader state, in memory on the section node and nowhere else.
+ *
+ * `labels` is the lead's own residue assignments — cluster key to rubric class,
+ * and nothing more. No row identifier, no excerpt, no file name, no storage
+ * layer: this page writes nothing to the browser and this does not change that.
+ */
 function held(section) {
-  if (!section.__orgCoaching) section.__orgCoaching = { model: null, open: new Set() };
+  if (!section.__orgCoaching) {
+    section.__orgCoaching = { model: null, open: new Set(), labels: {}, recompute: null };
+  }
   return section.__orgCoaching;
 }
 
@@ -77,14 +96,21 @@ function held(section) {
  * Returns the state that was painted so a caller can assert on what it asked for
  * rather than on the DOM it got.
  */
-export function applyOrgQueryDecision(doc, state) {
+export function applyOrgQueryDecision(doc, state, { recompute = null } = {}) {
   const section = byId(doc, ORG_COACHING_SECTION_ID);
   if (!section || !state) return null;
   if (state.state === ORG_QUERY_DECISION_STATE.absent) return clearOrgQueryDecision(doc);
   const store = held(section);
   // A repaint of the same sample keeps the panels the reader opened. A different
-  // sample does not: panels left open would be captioned for the old file.
-  if (store.model?.provenance?.digest !== state.provenance?.digest) store.open = new Set();
+  // sample does not: panels left open would be captioned for the old file — and
+  // neither would a lead label, which is a statement about clusters in a corpus
+  // that is no longer loaded. Re-import therefore clears them, here, rather than
+  // through a second code path the import handler would have to remember.
+  if (store.model?.provenance?.digest !== state.provenance?.digest) {
+    store.open = new Set();
+    store.labels = {};
+  }
+  store.recompute = typeof recompute === "function" ? recompute : null;
   store.model = state;
   paint(doc, section);
   return state;
@@ -97,6 +123,11 @@ export function clearOrgQueryDecision(doc) {
   const store = held(section);
   store.model = null;
   store.open = new Set();
+  // The reset control reaches this through the page's own clear. A lead label
+  // outliving the corpus it described is the mislabelling this clear exists to
+  // prevent, so the labels go with the model.
+  store.labels = {};
+  store.recompute = null;
   section.hidden = true;
   section.dataset.state = ORG_QUERY_DECISION_STATE.absent;
   delete section.dataset.origin;
@@ -226,11 +257,21 @@ function coverageBlock(doc, coverage) {
   const line = element(doc, "p", "org-coaching-coverage-line");
   line.append(shapeSpan(doc, coverage.showGrade ? "◧" : "◇"),
     element(doc, "span", "org-coaching-coverage-text", coverage.text));
-  block.append(
-    line,
-    element(doc, "p", "org-coaching-coverage-rule", coverage.rule),
-    element(doc, "p", "org-coaching-coverage-action", coverage.action),
-  );
+  block.append(line, element(doc, "p", "org-coaching-coverage-rule", coverage.rule));
+  // Visible text, in the flow, never a title attribute: a corrected reading has
+  // to say so where the number is read. It is absent at zero labels rather than
+  // printed as "0", and the unassisted figure rides with it so a reader can
+  // always see what the import earned on its own.
+  if (coverage.leadLabels) {
+    const marker = element(doc, "div", "org-coaching-coverage-lead");
+    marker.dataset.leadLabels = String(coverage.leadLabels.count);
+    marker.append(
+      element(doc, "p", "org-coaching-coverage-marker", coverage.leadLabels.marker),
+      element(doc, "p", "org-coaching-coverage-unassisted", coverage.leadLabels.unassisted),
+    );
+    block.append(marker);
+  }
+  block.append(element(doc, "p", "org-coaching-coverage-action", coverage.action));
   return block;
 }
 
@@ -294,9 +335,82 @@ function disclosureBlock(doc, section, disclosure) {
   panel.setAttribute("aria-label", disclosure.question);
   // Built only when open. A hidden panel holding forty rows is forty nodes a
   // screen reader's element search still walks past.
-  if (expanded) panel.append(rowList(doc, disclosure));
+  if (expanded) {
+    panel.append(rowList(doc, disclosure));
+    // The control rides with the rows that named the residue, in the same panel.
+    if (disclosure.review) panel.append(residueReviewList(doc, section, disclosure.review));
+  }
   wrap.append(toggle, panel);
   return wrap;
+}
+
+// --- the residue review control ---------------------------------------------
+//
+// A real list, a real heading, and one real `<select>` per cluster, each with a
+// real `<label for>` naming the cluster it belongs to. Nothing here is a div
+// with a role: a keyboard user gets the platform's own listbox behaviour and a
+// screen-reader user gets "Assign a class to 6 rows sharing model x" rather than
+// the sixth "Class" on the page.
+
+function residueReviewList(doc, section, review) {
+  const wrap = element(doc, "div", "org-coaching-residue");
+  const heading = element(doc, "h4", "org-coaching-residue-heading", review.heading);
+  heading.id = "org-coaching-residue-heading";
+  wrap.append(heading, element(doc, "p", "org-coaching-residue-intro", review.intro));
+  if (review.marker) {
+    wrap.append(element(doc, "p", "org-coaching-residue-marker", review.marker));
+  }
+  // No rows means nothing to review, and an empty list with a caption reads as a
+  // control that failed rather than as a corpus with no residue.
+  if (!review.rows.length) return wrap;
+
+  const list = element(doc, "ul", "org-coaching-residue-list");
+  list.setAttribute("aria-labelledby", heading.id);
+  review.rows.forEach((row, index) => list.append(residueRow(doc, section, review, row, index)));
+  wrap.append(list);
+  return wrap;
+}
+
+function residueRow(doc, section, review, row, index) {
+  const store = held(section);
+  const item = element(doc, "li", "org-coaching-residue-item");
+  item.dataset.cluster = String(index);
+  item.dataset.assigned = row.assigned;
+
+  const description = element(doc, "p", "org-coaching-residue-description", row.description);
+  const share = element(doc, "p", "org-coaching-residue-share",
+    `${row.amount} · ${row.percent} of the scored denominator · ${row.points}`);
+
+  // The accessible name carries the cluster, so no two controls on this page
+  // share one. It is visually hidden because the description is already visible
+  // in the row above it and reading it twice is noise, not redundancy.
+  const label = element(doc, "label", "visually-hidden",
+    `Assign a class to ${row.description}`);
+  label.id = residueLabelId(index);
+  label.setAttribute("for", residueSelectId(index));
+
+  const select = element(doc, "select", "org-coaching-residue-select");
+  select.id = residueSelectId(index);
+  for (const option of review.options) {
+    const node = element(doc, "option", null, option.label);
+    node.setAttribute("value", option.value);
+    if (option.value === row.assigned) node.setAttribute("selected", "");
+    select.append(node);
+  }
+  select.value = row.assigned;
+  // On committed change only — a `<select>` fires `change` when the reader
+  // settles on a value, not per arrow key in an open listbox, which is exactly
+  // the granularity the live region should announce at.
+  select.addEventListener("change", (event) => {
+    if (!store.recompute) return;
+    store.labels = { ...store.labels, [row.key]: String(event?.target?.value ?? select.value) };
+    store.model = store.recompute(store.labels);
+    section.dataset.focusTarget = residueSelectId(index);
+    paint(doc, section);
+  });
+
+  item.append(description, share, label, select);
+  return item;
 }
 
 function rowList(doc, disclosure) {
