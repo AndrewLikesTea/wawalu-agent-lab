@@ -343,8 +343,13 @@ test("every top-level section that existed before the answer block is still on t
   // did not quietly become a deletion.
   const existing = [
     "finops-stand", "finops-hero", "finops-first-run", "disclosure-next-step",
+    // `finops-workspace-switch` is deliberately absent: the working-area
+    // switcher was a second list of the rail's own four destinations, and #819
+    // consolidated the two into one control. It is a retirement on the record in
+    // src/finops/answer-spine-view.js, not a region that went missing in a
+    // reorder — which is the only thing this list is guarding against.
     "disclosure-journey", "finops-destinations", "finops-workspace-nav",
-    "finops-workspace-switch", "finops-workspace-context", "finops-load-state", "score-card",
+    "finops-workspace-context", "finops-load-state", "score-card",
     "finops-portfolio-brief", "guided-result", "local-import", "prompt-coaching",
     "finops-contact", "finops-proof-point", "finops-headline", "classifier-agreement",
     "disclosure-grade-comparisons", "graded-sample", "org-coaching", "spend-per-delivery",

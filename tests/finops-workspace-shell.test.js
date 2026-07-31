@@ -26,9 +26,9 @@ import { readFile } from "node:fs/promises";
 import { loadPage, parseHtml, textOf } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 import { loadWorkspaceDestinations } from "../src/finops-destination-contract.js";
-import { WORKSPACE_DESTINATION } from "../src/finops-workspace-nav.js";
+import { DESTINATION_STATE_LABEL, WORKSPACE_DESTINATION } from "../src/finops-workspace-nav.js";
 import {
-  CONTEXT_TERMS, DESTINATION_FRAGMENT, SHELL_STATE_LABEL, WORKSPACE_SHELL_IDS,
+  CONTEXT_TERMS, DESTINATION_FRAGMENT, WORKSPACE_SHELL_IDS,
   applyWorkspaceDestination, currentWorkspaceDestination, destinationForFragment,
   initWorkspaceShell, paintWorkspaceContext, regionsFor, workspaceRegions,
 } from "../src/finops-workspace-shell.js";
@@ -39,9 +39,11 @@ const loaded = loadWorkspaceDestinations();
 const KEYS = Object.values(WORKSPACE_DESTINATION);
 
 const byId = (doc, id) => doc.getElementById(id);
-const doors = (doc) => byId(doc, WORKSPACE_SHELL_IDS.switchList)
-  .querySelectorAll("[data-shell-destination]");
-const doorFor = (doc, key) => doors(doc).find((door) => door.dataset.shellDestination === key);
+// The rail is the page's one control now; the working-area switcher it used to
+// share the job with is retired, so these read the rail's doors.
+const doors = (doc) => byId(doc, WORKSPACE_SHELL_IDS.navList)
+  .querySelectorAll("[data-destination-key]");
+const doorFor = (doc, key) => doors(doc).find((door) => door.dataset.destinationKey === key);
 const activeKeys = (doc) => new Set(workspaceRegions(doc)
   .filter((region) => region.dataset.workspaceActive === "true")
   .map((region) => region.dataset.workspaceRegion));
@@ -162,15 +164,24 @@ test("an owned fragment opens its destination on a cold load", async () => {
   }
 });
 
-test("a fragment this page does not own leaves the destination alone", async () => {
+test("a fragment this page does not own falls back to the answer and renders it", async () => {
+  // The rule changed with the second control's retirement, deliberately. While
+  // a switcher owned what was on screen, an unresolvable fragment could be
+  // ignored and the reader left where they were. With one control the address
+  // bar *is* the state, so an address that describes nothing has to render
+  // something — and the answer is the only screen every reader can act on. It
+  // falls back and renders; it never rewrites the URL, so there is no loop.
   const { document, win } = await shelled("#not-a-thing-on-this-page");
   assert.deepEqual([...activeKeys(document)], [WORKSPACE_DESTINATION.answer],
-    "an unknown fragment changed what was on screen");
+    "an unknown fragment opened no screen at all");
 
   applyWorkspaceDestination(document, WORKSPACE_DESTINATION.evidence);
   win.go("#also-not-a-thing");
-  assert.deepEqual([...activeKeys(document)], [WORKSPACE_DESTINATION.evidence],
-    "an unknown fragment emptied the destination the reader was working in");
+  assert.deepEqual([...activeKeys(document)], [WORKSPACE_DESTINATION.answer],
+    "an unknown fragment left the reader on a screen the URL does not describe");
+
+  // The resolver still says "nothing here" — the fallback is the router's rule,
+  // not a claim that the fragment resolved.
   assert.equal(destinationForFragment(document, "#also-not-a-thing"), null);
   assert.equal(destinationForFragment(document, "/savings-action-center.html"), null,
     "an off-page href was read as a destination");
@@ -189,8 +200,8 @@ test("back and forward walk the destinations", async () => {
   win.go(DESTINATION_FRAGMENT[WORKSPACE_DESTINATION.department], "popstate");
   assert.deepEqual([...activeKeys(document)], [WORKSPACE_DESTINATION.department]);
   win.go("", "popstate");
-  assert.deepEqual([...activeKeys(document)], [WORKSPACE_DESTINATION.department],
-    "returning to the bare page emptied the destination instead of leaving it");
+  assert.deepEqual([...activeKeys(document)], [WORKSPACE_DESTINATION.answer],
+    "the bare page opened something other than the answer");
 });
 
 /* ------------------------------- the controls ------------------------------ */
@@ -209,30 +220,28 @@ test("pressing a control switches the destination, in a word and in aria-current
   assert.deepEqual([...activeKeys(document)], [WORKSPACE_DESTINATION.actAndVerify],
     "the control did not switch what is on screen");
   assert.equal(door.getAttribute("aria-current"), "true");
-  assert.ok(textOf(door).includes(SHELL_STATE_LABEL.current),
+  assert.ok(textOf(door).includes(DESTINATION_STATE_LABEL.current),
     `the open destination is not stated in words: "${textOf(door)}"`);
   for (const other of doors(document).filter((entry) => entry !== door)) {
     assert.equal(other.getAttribute("aria-current"), null,
-      "two controls claim to be the open destination");
-    assert.ok(!textOf(other).includes(SHELL_STATE_LABEL.current));
+      "two doors claim to be the open destination");
+    assert.ok(!textOf(other).includes(DESTINATION_STATE_LABEL.current));
   }
-  assert.match(textOf(byId(document, WORKSPACE_SHELL_IDS.live)), /^Showing Act and verify\. \d+ panels?\./);
 });
 
-test("the shell says nothing on load and nothing for a rail door", async () => {
+test("the shell says nothing on load, and leaves the press to the rail to announce", async () => {
   const { document } = await shelled();
   assert.equal(textOf(byId(document, WORKSPACE_SHELL_IDS.live)), "",
     "the shell announced a destination the reader did not choose");
 
-  // The rail's doors point at panels rather than at the shell's own fragments.
-  // They still switch — but the rail announces them, and two live regions
-  // describing one press is how a reader learns to ignore both.
-  const railDoor = byId(document, "finops-workspace-nav-list")
-    .querySelectorAll("a").find((link) => link.getAttribute("href") === "#department-decision-panel");
-  assert.ok(railDoor, "the rail no longer carries a door to the department panel");
-  railDoor.click();
+  // One control, one live region, one announcement. The shell repaints on a
+  // press and stays silent; the rail's own binding is what speaks, because it
+  // knows the extra half — where the keyboard landed and what it unfolded to
+  // put it there. Two live regions describing one press is how a screen-reader
+  // user learns to ignore both.
+  doorFor(document, WORKSPACE_DESTINATION.department).click();
   assert.deepEqual([...activeKeys(document)], [WORKSPACE_DESTINATION.department],
-    "a rail door no longer switches the destination it points into");
+    "a door no longer switches the destination it opens");
   assert.equal(textOf(byId(document, WORKSPACE_SHELL_IDS.live)), "");
 });
 

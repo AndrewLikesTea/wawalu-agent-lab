@@ -44,6 +44,7 @@
 
 import { DESTINATION_ROLE, prioritizedDestination } from "./finops-destination-contract.js";
 import { revealFragmentTarget } from "./deep-link-disclosure.js";
+import { SCREEN_CONTRACT } from "./finops-screen-contract.js";
 
 /** The ids the shipped markup carries. Kept in one place so a test can name them. */
 export const WORKSPACE_NAV_IDS = Object.freeze({
@@ -66,6 +67,38 @@ export const WORKSPACE_DESTINATION = Object.freeze({
 });
 
 /**
+ * The order, read off the screen contract rather than re-typed here.
+ *
+ * `SCREEN_CONTRACT` (issue #818) is the one place the four destinations are
+ * named and sequenced. This module authors the rail and the shell renders the
+ * screens, and both derive from that list, so a rename or a reorder there moves
+ * the markup, the control, and the router together instead of leaving one of
+ * them saying something the other three do not. A test asserts the two key
+ * vocabularies above and below agree.
+ */
+export const DESTINATION_ORDER = Object.freeze(
+  SCREEN_CONTRACT.map((screen) => screen.shellDestination),
+);
+
+/**
+ * The address of each destination — the URL a reader can copy, forward, or open
+ * cold, and the one the single control's doors point at.
+ *
+ * Named for the contract's own key, so `#workspace-departments` reads the way
+ * the contract says "departments" even though the shell key stayed `department`
+ * to keep fragments already in address bars resolving.
+ */
+export const DESTINATION_URL = Object.freeze(Object.fromEntries(
+  SCREEN_CONTRACT.map((screen) => [screen.shellDestination, `#workspace-${screen.key}`]),
+));
+
+/** The destination one of those addresses names, or null for anything else. */
+export function destinationForUrl(url) {
+  const raw = String(url ?? "");
+  return DESTINATION_ORDER.find((key) => DESTINATION_URL[key] === raw) ?? null;
+}
+
+/**
  * Where a reader is standing when the page opens.
  *
  * The brief is the first thing in the content region and the one region marked
@@ -82,7 +115,12 @@ export const DEFAULT_DESTINATION = WORKSPACE_DESTINATION.answer;
 export const DESTINATION_STATE_LABEL = Object.freeze({
   current: "Current",
   recommended: "Recommended first",
-  offPage: "Opens another page",
+  // Act and verify is a destination *on this page* now that one control both
+  // names the parts and opens them — its commitment loop was unreachable while
+  // the rail's door left for the Savings Action Center. The centre is still
+  // there, linked from inside the destination, and the chip says so rather than
+  // letting a reader think the door leaves.
+  alsoOffPage: "Also its own page",
 });
 
 /** Collapsed and expanded, for the rail's one disclosure. */
@@ -108,34 +146,42 @@ export const NAV_DISCLOSURE_LABEL = Object.freeze({
  * three the fixture carries, and `destinationHrefDrift` below is what keeps that
  * duplication honest rather than a second source of truth nobody checks.
  */
-const AUTHORED_DESTINATIONS = Object.freeze([
-  Object.freeze({
-    key: WORKSPACE_DESTINATION.answer,
+const AUTHORED_BY_KEY = Object.freeze({
+  [WORKSPACE_DESTINATION.answer]: Object.freeze({
     role: null,
-    name: "The answer",
     fallbackHref: "#finops-first-run",
+    landingId: "finops-first-run",
     answers: "Are we wasting money, how much of the spend is recoverable, and what is the one ranked action?",
     doesNotAnswer: "It does not show the workings behind the figure, and it commits to nothing.",
   }),
-  Object.freeze({
-    key: WORKSPACE_DESTINATION.evidence,
+  [WORKSPACE_DESTINATION.evidence]: Object.freeze({
     role: DESTINATION_ROLE.evidence,
-    name: "Evidence",
     fallbackHref: "#recommendation-evidence",
+    landingId: "recommendation-evidence",
   }),
-  Object.freeze({
-    key: WORKSPACE_DESTINATION.department,
+  [WORKSPACE_DESTINATION.department]: Object.freeze({
     role: DESTINATION_ROLE.departmentDetail,
-    name: "Departments",
     fallbackHref: "#department-decision-panel",
+    landingId: "department-decision-panel",
   }),
-  Object.freeze({
-    key: WORKSPACE_DESTINATION.actAndVerify,
+  [WORKSPACE_DESTINATION.actAndVerify]: Object.freeze({
     role: DESTINATION_ROLE.actAndVerify,
-    name: "Act and verify",
+    // The contract points this role at the Savings Action Center, and that is
+    // still where `destinationHrefDrift` holds it. The door opens the in-page
+    // destination; `landingId` is where the keyboard lands inside it, and the
+    // link to the centre ships in the panel it lands on.
     fallbackHref: "/savings-action-center.html",
+    landingId: "savings-portfolio-panel",
   }),
-]);
+});
+
+/** The names and the order come from the contract; everything else is authored. */
+const AUTHORED_DESTINATIONS = Object.freeze(SCREEN_CONTRACT.map((screen) => Object.freeze({
+  key: screen.shellDestination,
+  name: screen.name,
+  url: DESTINATION_URL[screen.shellDestination],
+  ...AUTHORED_BY_KEY[screen.shellDestination],
+})));
 
 const byId = (doc, id) => doc?.getElementById?.(id) ?? null;
 const collapse = (text) => String(text ?? "").replace(/\s+/g, " ").trim();
@@ -160,8 +206,11 @@ export function workspaceDestinations(loaded = null) {
     return Object.freeze({
       ...authored,
       href,
+      // `offPage` describes the contract's target, not the door: every door
+      // opens a destination on this page now. It is what puts the "Also its own
+      // page" chip on act-and-verify and nothing else.
       offPage: !isInPage(href),
-      targetId: isInPage(href) ? href.slice(1) : null,
+      targetId: isInPage(href) ? href.slice(1) : authored.landingId ?? null,
       answers: contract?.answers ?? authored.answers ?? null,
       doesNotAnswer: contract?.doesNotAnswer ?? authored.doesNotAnswer ?? null,
       recommended: Boolean(primary && contract && primary.role === contract.role),
@@ -236,14 +285,14 @@ export function currentDestination(doc) {
  * word "Current" for everyone reading the rail, and a data attribute for the
  * fill and the rule CSS draws. Nothing here is carried by colour.
  *
- * An off-page door is never marked. A reader who follows it is on another
- * document, and a rail claiming they are "currently" in a place they have left
- * is worse than a rail that claims nothing.
+ * Every door is markable now that this is the page's one control: all four
+ * open a destination on this document, so there is no door a reader can follow
+ * and leave the rail describing a place they are no longer in.
  */
 export function setCurrentDestination(doc, key, { announce = false, opened = 0 } = {}) {
   const nav = byId(doc, WORKSPACE_NAV_IDS.nav);
   const door = doorFor(doc, key);
-  if (!nav || !door || door.dataset.destinationOffPage === "true") return null;
+  if (!nav || !door) return null;
   const changed = currentDestination(doc) !== key;
 
   for (const link of doorLinks(doc)) {
@@ -273,13 +322,20 @@ export function setCurrentDestination(doc, key, { announce = false, opened = 0 }
   return door;
 }
 
-function announceDestination(doc, door, opened) {
+export function announceDestination(doc, door, opened = 0) {
   const live = byId(doc, WORKSPACE_NAV_IDS.live);
   const nav = byId(doc, WORKSPACE_NAV_IDS.nav);
   if (!live) return null;
   const name = destinationLandmarkName(doc, door.dataset.destinationTarget);
   const sentences = [`Current destination: ${collapse(door.dataset.destinationName)}.`];
   if (name) sentences.push(`The keyboard is on “${name}”.`);
+  // How much of the page this destination put on screen, counted off the markup
+  // the shell just repainted. One live region says the whole thing: what the
+  // reader is now in, where the keyboard went, and how much is under it.
+  const shown = [...(doc.querySelectorAll?.('[data-workspace-region][data-workspace-active="true"]') ?? [])];
+  if (shown.length > 0) {
+    sentences.push(shown.length === 1 ? "1 panel is on screen." : `${shown.length} panels are on screen.`);
+  }
   // A disclosure this rail opened is a change the reader did not ask for, so it
   // is stated rather than left for them to discover on the way back out.
   if (opened > 0) {
@@ -340,10 +396,14 @@ export function applyWorkspaceNav(doc, loaded = null, { hash = "" } = {}) {
   for (const entry of destinations) {
     const link = doorFor(doc, entry.key);
     if (!link) continue;
-    link.setAttribute("href", entry.href);
+    // The door's href is the destination's own address, never a panel's: a
+    // panel can be renamed, merged, or moved to another destination, and a link
+    // a reader forwarded to "the evidence" should survive all three. The
+    // contract's href stays the *landing* — where the keyboard goes once the
+    // destination is on screen.
+    link.setAttribute("href", entry.url);
     link.dataset.destinationName = entry.name;
     link.dataset.destinationRole = entry.role ?? "answer";
-    link.dataset.destinationOffPage = entry.offPage ? "true" : "false";
     if (entry.targetId) link.dataset.destinationTarget = entry.targetId;
 
     // The recommendation, in the same words and from the same clause as the
@@ -362,9 +422,13 @@ export function applyWorkspaceNav(doc, loaded = null, { hash = "" } = {}) {
 
   // A fragment already in the address bar wins over the default: a reader who
   // arrived on a shared link to the department panel is standing there, and the
-  // rail saying "answer" would be the first thing it got wrong.
-  const arrived = destinations.find((entry) => entry.targetId && `#${entry.targetId}` === String(hash));
-  setCurrentDestination(doc, arrived?.key ?? DEFAULT_DESTINATION, { announce: false });
+  // rail saying "answer" would be the first thing it got wrong. A destination
+  // address is read first; one of today's panel anchors is read second; and
+  // anything else falls back to the answer rather than marking nothing.
+  const arrived = destinationForUrl(hash)
+    ?? destinations.find((entry) => entry.targetId && `#${entry.targetId}` === String(hash))?.key
+    ?? null;
+  setCurrentDestination(doc, arrived ?? DEFAULT_DESTINATION, { announce: false });
   return destinations;
 }
 
@@ -419,8 +483,12 @@ export function bindWorkspaceNav(doc, { reveal = revealFragmentTarget } = {}) {
 
   list.addEventListener("click", (event) => {
     const link = event.target?.closest?.("[data-destination-key]");
-    if (!link || link.dataset.destinationOffPage === "true") return;
-    const revealed = reveal(doc, link.getAttribute("href"), { scroll: true, focus: true });
+    if (!link) return;
+    // The landing, not the href: the href is the destination's address and names
+    // no element, and what a reader needs revealed and focused is the panel the
+    // destination opens on.
+    const landing = link.dataset.destinationTarget;
+    const revealed = landing ? reveal(doc, `#${landing}`, { scroll: true, focus: true }) : null;
     setCurrentDestination(doc, link.dataset.destinationKey, {
       announce: true,
       opened: revealed?.opened?.length ?? 0,

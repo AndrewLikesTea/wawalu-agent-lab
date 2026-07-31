@@ -47,18 +47,30 @@
 // link with a stale or invented hash is a link to this page, not an instruction
 // to empty it.
 
-import { DEFAULT_DESTINATION, WORKSPACE_DESTINATION } from "./finops-workspace-nav.js";
+import {
+  DEFAULT_DESTINATION, DESTINATION_ORDER, DESTINATION_URL, WORKSPACE_DESTINATION,
+  WORKSPACE_NAV_IDS, announceDestination as announceOnRail, destinationForUrl,
+  setCurrentDestination,
+} from "./finops-workspace-nav.js";
 // The three heavy per-destination datasets, reached only through the memo below.
 import { loadExampleDataset } from "./example-dataset.js";
 import { buildFinopsBriefing } from "./finops-briefing-contract.js";
 import { leadingFinding } from "./finops-leading-finding.js";
 import { loadWorkspaceDestinations } from "./finops-destination-contract.js";
 
-/** The ids the shipped markup carries, in one place so a test can name them. */
+/**
+ * The ids the shipped markup carries, in one place so a test can name them.
+ *
+ * The shell owns no control of its own any more. `#finops-workspace-switch` and
+ * its live region are gone: the page had two lists of the same four names, one
+ * of which said "Current" and the other "Showing", and a reader had no way to
+ * know which one meant what was on screen. The rail is the single control, so
+ * these ids point at the rail's markup and the shell paints through it.
+ */
 export const WORKSPACE_SHELL_IDS = Object.freeze({
-  switch: "finops-workspace-switch",
-  switchList: "finops-workspace-switch-list",
-  live: "finops-workspace-switch-live",
+  nav: WORKSPACE_NAV_IDS.nav,
+  navList: WORKSPACE_NAV_IDS.list,
+  live: WORKSPACE_NAV_IDS.live,
   context: "finops-workspace-context",
   contextList: "finops-workspace-context-list",
 });
@@ -72,22 +84,47 @@ export const WORKSPACE_SHELL_IDS = Object.freeze({
  * shell answers to; every other in-page fragment is resolved by looking up what
  * region actually contains it, so the page's existing deep links keep working.
  */
-export const DESTINATION_FRAGMENT = Object.freeze({
-  [WORKSPACE_DESTINATION.answer]: "#workspace-answer",
-  [WORKSPACE_DESTINATION.evidence]: "#workspace-evidence",
-  [WORKSPACE_DESTINATION.department]: "#workspace-departments",
-  [WORKSPACE_DESTINATION.actAndVerify]: "#workspace-act-and-verify",
-});
+export const DESTINATION_FRAGMENT = DESTINATION_URL;
 
-/** The visible word on the control for the destination now on screen. */
-export const SHELL_STATE_LABEL = Object.freeze({ current: "Showing" });
+/**
+ * The mid-page anchors this page shipped before it had addresses, and the
+ * destination each one now opens.
+ *
+ * Enumerated rather than derived, because that is the promise being kept: a
+ * link a FinOps lead pasted into a ticket last month has to open something, and
+ * a table a test can read is the only way to know none of them was missed. It
+ * is a floor, not the whole rule — `destinationForFragment` resolves any other
+ * in-page anchor through the region that contains it, and anything left over
+ * falls back to the answer.
+ */
+export const LEGACY_ANCHOR = Object.freeze({
+  "#finops-first-run": WORKSPACE_DESTINATION.answer,
+  "#finops-destinations": WORKSPACE_DESTINATION.answer,
+  "#finops-stand": WORKSPACE_DESTINATION.answer,
+  "#local-import": WORKSPACE_DESTINATION.answer,
+  "#guided-result": WORKSPACE_DESTINATION.answer,
+  "#finops-workspace-nav": WORKSPACE_DESTINATION.answer,
+  "#score-card": WORKSPACE_DESTINATION.evidence,
+  "#finops-headline": WORKSPACE_DESTINATION.evidence,
+  "#recommendation-evidence": WORKSPACE_DESTINATION.evidence,
+  "#graded-sample": WORKSPACE_DESTINATION.evidence,
+  "#spend-per-delivery": WORKSPACE_DESTINATION.evidence,
+  "#finops-privacy": WORKSPACE_DESTINATION.evidence,
+  "#department-decision-panel": WORKSPACE_DESTINATION.department,
+  "#department-evidence": WORKSPACE_DESTINATION.department,
+  "#department-fix-pack": WORKSPACE_DESTINATION.department,
+  "#spend-mix-panel": WORKSPACE_DESTINATION.department,
+  "#savings-portfolio-panel": WORKSPACE_DESTINATION.actAndVerify,
+  "#prompt-coaching": WORKSPACE_DESTINATION.actAndVerify,
+  "#finops-contact": WORKSPACE_DESTINATION.actAndVerify,
+});
 
 /** The five figures carried into every destination but the answer. */
 export const CONTEXT_TERMS = Object.freeze([
   "Benchmark", "Impact", "Confidence", "Why this matters", "Provenance",
 ]);
 
-const DESTINATION_KEYS = Object.freeze(Object.values(WORKSPACE_DESTINATION));
+const DESTINATION_KEYS = DESTINATION_ORDER;
 
 const byId = (doc, id) => doc?.getElementById?.(id) ?? null;
 const isDestination = (key) => DESTINATION_KEYS.includes(key);
@@ -199,9 +236,10 @@ export function regionsFor(doc, key) {
 export function destinationForFragment(doc, hash) {
   const raw = String(hash ?? "");
   if (!raw.startsWith("#") || raw.length < 2) return null;
-  const owned = Object.keys(DESTINATION_FRAGMENT)
-    .find((key) => DESTINATION_FRAGMENT[key] === raw);
+  const owned = destinationForUrl(raw);
   if (owned) return owned;
+  const legacy = LEGACY_ANCHOR[raw];
+  if (legacy) return legacy;
 
   const target = byId(doc, raw.slice(1));
   if (!target) return null;
@@ -211,22 +249,39 @@ export function destinationForFragment(doc, hash) {
   return target.closest?.("[data-workspace-frame]") ? DEFAULT_DESTINATION : null;
 }
 
-/** Whether a fragment is one of the four this shell owns. */
+/** Whether a fragment is one of the four addresses this shell owns. */
 export function ownsFragment(hash) {
-  return Object.values(DESTINATION_FRAGMENT).includes(String(hash ?? ""));
+  return destinationForUrl(hash) !== null;
+}
+
+/**
+ * The destination an address names, always. Never null and never a throw.
+ *
+ * THE URL IS THE STATE, so an address that resolves to nothing has to resolve
+ * to *something*: an unknown fragment, a malformed one, and a bare URL with no
+ * fragment at all are all the answer. This is the rule the page ships with,
+ * replacing the older one where an unresolvable fragment left whatever was on
+ * screen in place — that was defensible while a second control owned the
+ * switching, but with one control the address bar and the screen have to agree,
+ * and "the reader is somewhere the URL does not describe" is the state a
+ * forwarded link must never open in. The fallback renders; it never redirects,
+ * so there is no loop to get into.
+ */
+export function destinationForAddress(doc, hash) {
+  return destinationForFragment(doc, hash) ?? DEFAULT_DESTINATION;
 }
 
 /** The destination now on screen, read back off the markup rather than a variable. */
 export function currentWorkspaceDestination(doc) {
-  const marked = switchDoors(doc).find((door) => door.getAttribute("aria-current") === "true");
-  return marked?.dataset?.shellDestination ?? null;
+  const marked = navDoors(doc).find((door) => door.getAttribute("aria-current") === "true");
+  return marked?.dataset?.destinationKey ?? null;
 }
 
-const switchDoors = (doc) =>
-  [...(byId(doc, WORKSPACE_SHELL_IDS.switchList)?.querySelectorAll?.("[data-shell-destination]") ?? [])];
+const navDoors = (doc) =>
+  [...(byId(doc, WORKSPACE_SHELL_IDS.navList)?.querySelectorAll?.("[data-destination-key]") ?? [])];
 
-const doorName = (door) => String(door?.dataset?.shellName ?? "").trim()
-  || String(door?.textContent ?? "").replace(/\s+/g, " ").trim();
+const doorFor = (doc, key) =>
+  navDoors(doc).find((door) => door.dataset.destinationKey === key) ?? null;
 
 /**
  * Show one destination and hide the other three.
@@ -243,30 +298,16 @@ export function applyWorkspaceDestination(doc, key, { announce = false } = {}) {
   if (!isDestination(key)) return null;
   const regions = workspaceRegions(doc);
   if (regions.length === 0) return null;
+  const previous = currentWorkspaceDestination(doc);
 
-  let shown = 0;
   for (const region of regions) {
-    const active = region.dataset.workspaceRegion === key;
-    region.dataset.workspaceActive = active ? "true" : "false";
-    if (active) shown += 1;
+    region.dataset.workspaceActive = region.dataset.workspaceRegion === key ? "true" : "false";
   }
 
-  const group = byId(doc, WORKSPACE_SHELL_IDS.switch);
-  if (group) group.dataset.workspaceDestination = key;
-  for (const door of switchDoors(doc)) {
-    const current = door.dataset.shellDestination === key;
-    if (current) door.setAttribute("aria-current", "true");
-    else door.removeAttribute("aria-current");
-    door.dataset.shellCurrent = current ? "true" : "false";
-    // The state is a word, never a fill: this survives greyscale, print, and a
-    // screen reader reading the link's name.
-    const slot = door.querySelector?.('[data-role="state"]');
-    if (slot) {
-      slot.replaceChildren();
-      slot.hidden = !current;
-      if (current) slot.append(doc.createTextNode(SHELL_STATE_LABEL.current));
-    }
-  }
+  // The one control is the rail, and the rail already knows how to say where the
+  // reader is — `aria-current`, the word "Current", and the thickened left rule.
+  // The shell asks it rather than painting a second state of its own.
+  setCurrentDestination(doc, key, { announce: false });
 
   // The carried figures are a restatement, so they retire the moment the region
   // they restate is on screen.
@@ -278,18 +319,13 @@ export function applyWorkspaceDestination(doc, key, { announce = false } = {}) {
   // screen whether or not its dataset resolves, and this call cannot throw.
   destinationDataset(key);
 
-  if (announce) announceDestination(doc, key, shown);
+  // One live region, and the rail owns it. A destination reached with the
+  // keyboard is announced by the door that was pressed; this path is for the
+  // ones no control was pressed for — back, forward, and an edited address —
+  // where nothing else would say the page had changed underneath the reader.
+  const door = doorFor(doc, key);
+  if (announce && door && previous !== key) announceOnRail(doc, door, 0);
   return key;
-}
-
-function announceDestination(doc, key, shown) {
-  const live = byId(doc, WORKSPACE_SHELL_IDS.live);
-  if (!live) return null;
-  const door = switchDoors(doc).find((entry) => entry.dataset.shellDestination === key);
-  const name = doorName(door) || key;
-  live.textContent = `Showing ${name}. ${shown === 1 ? "1 panel" : `${shown} panels`}.`
-    + (key === DEFAULT_DESTINATION ? "" : " The answer stays above it.");
-  return live;
 }
 
 /**
@@ -371,38 +407,93 @@ export function initWorkspaceShell(doc, { win = null, loaded = null } = {}) {
   }
   paintWorkspaceContext(doc, loaded);
 
-  const select = (hash, { announce }) => {
-    const key = destinationForFragment(doc, hash);
-    // Unknown fragment: the reader stays exactly where they were.
-    if (!key) return null;
-    return applyWorkspaceDestination(doc, key, { announce });
+  // The browser's own scroll restoration works on one long document; this page
+  // is four, and it would put the reader at last week's offset in a destination
+  // that is no longer on screen. The shell restores from its own history state.
+  if (win?.history && "scrollRestoration" in win.history) win.history.scrollRestoration = "manual";
+
+  const scrollOf = () => (typeof win?.scrollY === "number" ? win.scrollY : 0);
+  const stateFor = (key, scrollY) => ({ workspaceDestination: key, scrollY });
+
+  /**
+   * Stamp how far down the destination being left was read.
+   *
+   * `replaceState` on the *outgoing* entry, before the new one is pushed: that
+   * is the only moment the offset and the entry that owns it are both current,
+   * and it is what makes back return a reader to the paragraph they were on
+   * rather than to the top of a screen they have already read.
+   */
+  const stampDeparture = () => {
+    const key = currentWorkspaceDestination(doc) ?? DEFAULT_DESTINATION;
+    win?.history?.replaceState?.(stateFor(key, scrollOf()), "");
   };
+
+  const select = (hash, { announce }) =>
+    applyWorkspaceDestination(doc, destinationForAddress(doc, hash), { announce });
 
   const onClick = (event) => {
     const link = event.target?.closest?.("a");
     const href = link?.getAttribute?.("href");
     if (!href || !href.startsWith("#")) return;
-    // Announced only for the shell's own controls. A rail door and a deep link
-    // both already say what they did, and two live regions describing one press
-    // is how a screen-reader user learns to ignore both.
-    select(href, { announce: ownsFragment(href) });
+    const key = destinationForAddress(doc, href);
+
+    // A door onto a destination is routed here so the entry carries state; every
+    // other in-page link keeps the browser's own behaviour, and so does a
+    // middle-click, a modified click, and a click something else already
+    // handled — those are a reader asking for a new tab or a new window, and a
+    // router that swallowed them would be taking the page hostage.
+    const routable = ownsFragment(href) && win?.history?.pushState && !event.defaultPrevented
+      && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey
+      && (event.button === undefined || event.button === 0);
+    if (routable) {
+      event.preventDefault();
+      stampDeparture();
+      // `pushState` is what moves the address bar; the fragment reaches
+      // `location.hash` through it, which is why nothing here assigns the hash
+      // and pushes a second entry for one press.
+      win.history.pushState(stateFor(key, 0), "", href);
+      win.scrollTo?.(0, 0);
+    }
+    // Announced by the rail, which says the same thing with more in it: the
+    // destination, where the keyboard landed, and what it had to unfold to put
+    // it there. Two live regions describing one press is how a screen-reader
+    // user learns to ignore both.
+    applyWorkspaceDestination(doc, key, { announce: false });
+  };
+
+  // Back and forward. The destination comes from the address — the URL is the
+  // state — and the offset comes from the entry's own state, so a step back
+  // lands where the reader left off. Focus is deliberately not moved: a reader
+  // who pressed back asked for the previous page, not for the keyboard to jump.
+  const onPopState = (event) => {
+    const key = select(win?.location?.hash ?? "", { announce: true });
+    const restored = Number((event?.state ?? win?.history?.state ?? null)?.scrollY);
+    if (Number.isFinite(restored)) win?.scrollTo?.(0, restored);
+    return key;
   };
 
   const onHashChange = () => select(win?.location?.hash ?? "", { announce: true });
 
   doc.addEventListener?.("click", onClick, true);
   win?.addEventListener?.("hashchange", onHashChange);
-  win?.addEventListener?.("popstate", onHashChange);
+  win?.addEventListener?.("popstate", onPopState);
 
-  const opened = select(win?.location?.hash ?? "", { announce: false })
-    ?? applyWorkspaceDestination(doc, DEFAULT_DESTINATION, { announce: false });
+  // The cold open. A destination address opens that destination; one of today's
+  // mid-page anchors opens the destination it now lives in, with the anchor left
+  // in the address bar so the page's deep-link handler can still unfold and
+  // reveal the panel it names; anything else opens the answer. No focus is
+  // moved and nothing is announced — the reader asked for this page, and a page
+  // that announces itself on load is one that talks over its own heading.
+  const hash = win?.location?.hash ?? "";
+  const opened = select(hash, { announce: false });
+  win?.history?.replaceState?.(stateFor(opened, scrollOf()), "");
 
   return {
     destination: opened,
     dispose() {
       doc.removeEventListener?.("click", onClick, true);
       win?.removeEventListener?.("hashchange", onHashChange);
-      win?.removeEventListener?.("popstate", onHashChange);
+      win?.removeEventListener?.("popstate", onPopState);
     },
   };
 }

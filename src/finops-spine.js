@@ -132,7 +132,9 @@ const REGIONS = Object.freeze({
   "disclosure-journey": REGION_CLASS.evidence,
   "finops-destinations": REGION_CLASS.evidence,
   "finops-workspace-nav": REGION_CLASS.evidence,
-  "finops-workspace-switch": REGION_CLASS.evidence,
+  // The second list of the same four destinations. Consolidated into the rail
+  // above, which now carries the destination addresses and the state.
+  "finops-workspace-switch": REGION_CLASS.removed,
   "finops-workspace-context": REGION_CLASS.evidence,
   "finops-first-run-conversion": REGION_CLASS.removed,
   "finops-load-state": REGION_CLASS.evidence,
@@ -219,7 +221,7 @@ const EVIDENCE_LAYERS = Object.freeze([
     id: "getting-around",
     question: "Which part of this workspace am I in, and how do I get to another?",
     regionIds: Object.freeze([
-      "finops-workspace-nav", "finops-workspace-switch", "finops-workspace-context",
+      "finops-workspace-nav", "finops-workspace-context",
     ]),
   }),
 ]);

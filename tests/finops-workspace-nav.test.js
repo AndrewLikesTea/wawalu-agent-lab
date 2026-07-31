@@ -35,7 +35,8 @@ import { DomEvent, loadPage, parseHtml, pressEnter, pressTab, tabSequence, textO
 import { importPageModule, waitFor } from "./support/page-module.js";
 import { loadWorkspaceDestinations, prioritizedDestination } from "../src/finops-destination-contract.js";
 import {
-  DEFAULT_DESTINATION, DESTINATION_STATE_LABEL, NAV_DISCLOSURE_LABEL, WORKSPACE_DESTINATION,
+  DEFAULT_DESTINATION, DESTINATION_STATE_LABEL, DESTINATION_URL,
+  NAV_DISCLOSURE_LABEL, WORKSPACE_DESTINATION,
   WORKSPACE_NAV_IDS, applyWorkspaceNav, bindWorkspaceNav, currentDestination,
   destinationHrefDrift, supersedeWorkspaceNavRanking, workspaceDestinations,
 } from "../src/finops-workspace-nav.js";
@@ -94,11 +95,13 @@ test("the rail is a named navigation landmark, distinct from the site nav", () =
   assert.equal(nav.getAttribute("data-decision-summary"), null);
 });
 
-test("every in-page destination is a named landmark that can take focus", () => {
+test("every destination is a named landmark that can take focus", () => {
   const document = parseHtml(html);
   const names = [];
+  // All four, now that the rail is the page's one control: the act-and-verify
+  // door used to leave for the Savings Action Center, which left the commitment
+  // panels on this page with no door at all.
   for (const link of doors(document)) {
-    if (link.dataset.destinationOffPage === "true") continue;
     const target = byId(document, link.dataset.destinationTarget);
     assert.ok(target, `${link.dataset.destinationKey} points at no element on this page`);
     assert.equal(target.getAttribute("href"), null);
@@ -110,13 +113,14 @@ test("every in-page destination is a named landmark that can take focus", () => 
       `${target.id} cannot take focus, so the door only scrolls`);
     names.push(textOf(label));
   }
-  assert.equal(names.length, 3);
-  assert.equal(new Set(names).size, 3, `two destinations share one name: ${names.join(" / ")}`);
+  assert.equal(names.length, 4);
+  assert.equal(new Set(names).size, 4, `two destinations share one name: ${names.join(" / ")}`);
 
   // Focusable, but never a tab stop of its own: a reader tabbing the page must
-  // not walk three extra empty stops for the privilege.
+  // not walk four extra empty stops for the privilege.
   const sequence = tabSequence(document);
-  for (const id of ["finops-first-run", "recommendation-evidence", "department-decision-panel"]) {
+  for (const id of ["finops-first-run", "recommendation-evidence", "department-decision-panel",
+    "savings-portfolio-panel"]) {
     assert.ok(!sequence.includes(byId(document, id)), `${id} became a tab stop`);
   }
 });
@@ -266,18 +270,25 @@ test("re-pressing the door you are standing in announces nothing new", async () 
   assert.equal(currentDestination(document), WORKSPACE_DESTINATION.department);
 });
 
-test("the door that leaves the page is never marked current and never announced", async () => {
+test("the act-and-verify door opens the destination here, and says the centre is also a page", async () => {
+  // It used to be the one door that left this document, and the commitment
+  // panels on this page were reachable only through a second control that has
+  // since been retired. One control means every door opens a destination here.
   const { document } = await railed();
   const door = doorFor(document, WORKSPACE_DESTINATION.actAndVerify);
-  assert.equal(door.dataset.destinationOffPage, "true");
-  // Said in words on the door itself, before any script runs.
-  assert.ok(textOf(door).includes(DESTINATION_STATE_LABEL.offPage));
+  assert.equal(door.getAttribute("href"), DESTINATION_URL[WORKSPACE_DESTINATION.actAndVerify]);
+  // Said in words on the door itself, before any script runs: the Savings Action
+  // Center is still a page of its own, linked from inside this destination.
+  assert.ok(textOf(door).includes(DESTINATION_STATE_LABEL.alsoOffPage));
+  assert.match(html, /href="\/savings-action-center\.html"/,
+    "the destination no longer links the centre it names");
 
   door.focus();
   pressEnter(document);
-  assert.equal(currentDestination(document), DEFAULT_DESTINATION);
-  assert.equal(live(document), "");
-  assert.deepEqual(document.navigations, ["/savings-action-center.html"]);
+  assert.equal(currentDestination(document), WORKSPACE_DESTINATION.actAndVerify);
+  assert.match(live(document), /^Current destination: Act and verify\./);
+  assert.deepEqual(document.navigations, [door.getAttribute("href")],
+    "the door stopped being an ordinary anchor a reader can copy or middle-click");
 });
 
 test("arriving on a shared fragment marks where the reader actually is", async () => {

@@ -273,9 +273,15 @@ export const ANSWER_SPINE = Object.freeze([
   },
   {
     id: "finops-workspace-switch",
-    role: ROLE.detail,
+    role: ROLE.retired,
     question: "Which working area is on screen?",
     headingId: "finops-workspace-switch-title",
+    supersededBy: "finops-workspace-nav",
+    entitledToAssert:
+      "Nothing the rail above it does not already say. It was a second list of "
+      + "the same four destinations, marking the open one with the word "
+      + "\"Showing\" while the rail marked it \"Current\", so the page named one "
+      + "state twice and a reader had to guess which control moved them.",
   },
   {
     id: "finops-workspace-context",
