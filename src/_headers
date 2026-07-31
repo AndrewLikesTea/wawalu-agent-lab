@@ -4,3 +4,18 @@
   X-Frame-Options: DENY
   Referrer-Policy: no-referrer
   Permissions-Policy: camera=(), geolocation=(), microphone=()
+
+# The AI FinOps page reads a leader's own provider export in the tab. That claim
+# is enforced by tests/finops-import-egress.test.js — this rule is the second,
+# independent control: even a future script that tried to transmit an imported
+# row would be refused by the browser rather than by review.
+#
+# connect-src is 'self', not 'none'. 'none' would break the shipped page: it
+# boots by fetching three bundled same-origin JSON fixtures
+# (evolution-demo-data.json, finops-evaluation-fixtures.json, the model-overspend
+# finding) and the contact form POSTs to /api/leads. 'self' still refuses every
+# cross-origin destination, which is the boundary the guarantee claims. The
+# behavioural egress test, not this header, is what proves the import path opens
+# no connection at all.
+/evolution.html
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'

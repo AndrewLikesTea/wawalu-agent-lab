@@ -926,6 +926,26 @@
                stricter than the one above — no sample value, ever. -->
           <span id="prompt-privacy-note"><strong>Prompt text is never one of them.</strong> A conversation or audit export is parsed in memory only to count its characters and estimate its tokens. The prompt itself is never rendered on this page, never exported, never stored in this browser, and never uploaded — see the <a href="/docs/conversation-export-import-contract.md">conversation-export contract</a>.</span>
         </div>
+        <!-- The forwardable form of the note above (#745). Checked, not
+             asserted: tests/finops-import-egress.test.js enforces "never
+             transmitted", the /evolution.html rule in src/_headers the policy.
+             No script and no live region here — the answer's single number
+             stays the only thing a screen reader is interrupted for. -->
+        <details class="support-disclosure data-guarantee" id="disclosure-data-guarantee" data-workspace-region="answer">
+          <summary class="support-disclosure-summary"><span class="support-disclosure-step" data-role="step">Evidence layer</span> <span class="support-disclosure-question" data-role="question">Can I prove to a security reviewer that my export never left this browser?</span></summary>
+          <div class="data-guarantee-body">
+            <h3 id="data-guarantee-title">What happens to the file you choose</h3>
+            <dl class="data-guarantee-list">
+              <dt>Processed locally</dt>
+              <dd>Read with the browser's own File API, then parsed, mapped, joined, and scored by scripts in this tab. The analysis needs no account, no key, and no connection.</dd>
+              <dt>Stored</dt>
+              <dd>Nothing, unless you save a review. The rows are held in memory and are gone on refresh. Saving writes two <code>localStorage</code> keys on this origin: <code>shiplog.finops.workspace.v1</code> (consent, periods, commitments) and <code>shiplog.finops.journey-snapshot.v1</code> (derived figures and references — never raw rows or prompt text). Clear them with <strong>Discard all files and results</strong> above, or by clearing this site's data.</dd>
+              <dt>Never transmitted</dt>
+              <dd>Your file, any cell in it, any prompt text, any figure derived from it. The import path opens no connection of any kind — no upload, no <code>fetch</code>, no beacon, no socket, no form post — and the page is served with <code>connect-src 'self'</code>, so the browser refuses cross-origin requests from it.</dd>
+            </dl>
+            <p class="data-guarantee-source">Enforced, not promised: a test drives this import with every browser transport replaced by a recorder and fails the build if one is called.</p>
+          </div>
+        </details>
         <!-- The three stages this flow already walked, now said out loud. The
              list is authored empty and painted by local-import-flow.js so the
              current step carries aria-current and a word, not only a tint. -->
