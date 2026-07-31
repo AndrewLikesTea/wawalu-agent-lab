@@ -560,6 +560,13 @@ const ALLOWED_MODULES = Object.freeze([
   "longitudinal-finops-metrics.js", "multi-provider-intake.js", "org-unit-labels.js", "prompt-literacy-scoring.js",
   "provider-usage-record.js", "query-classification.js", "query-literacy.js", "query-sample.js",
   "unit-pseudonym.js", "monthly-department-action-store.js",
+  // Reviewed on with #765, which added the structural signal families.
+  // `query-signal-families.js` is integers and authored English and imports
+  // nothing; `prompt-prose-segmentation.js` is the counter the prose classifier
+  // already used, reached now by query-classification.js so that "a code block"
+  // means one thing on both surfaces. Both are pure functions over an in-memory
+  // string: no storage, no clock, no network, and nothing retained.
+  "query-signal-families.js", "prompt-prose-segmentation.js",
 ]);
 
 /**
