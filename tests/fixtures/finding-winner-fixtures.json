@@ -1,0 +1,200 @@
+{
+  "fixtureVersion": "finding-winner-fixtures/1.0.0",
+  "authoring": "Hand-authored, in the same convention as ranking-reproducibility-fixtures.json. Every signal below was written by a person to exercise one ranking rule; none was captured from a run, and none carries a department name, a tenant, a provider, a prompt, or any text out of a reader's file. The claims are invented sentences with invented figures. Nothing here is fetched and nothing is stored.",
+  "oracle": "These fixtures are an ORACLE over src/finops-finding-resolver.js, not a second implementation of it. Each one pins WHICH finding wins, its confidence tier after the provenance rule, its evidence class, the claim template that class selects, and the exact sentence the headline would assert. The ranking rules themselves are asserted nowhere here — a fixture that restated them would agree with a broken resolver.",
+
+  "assumptions": {
+    "materialityThresholds": "The per-kind majorAt values in src/finops-spine-manifest.js: 1 quartile for a peer position, 1 band for a department gap, $5,000 a month for a spend trend or a department driver, $10,000 a month for recoverable spend. ASSUMPTION: a threshold is stated in the kind's own unit because that is the only way a dollar figure and a quartile distance are comparable at all. WHAT WOULD INVALIDATE IT: a currency or a period other than USD per month, which would make $5,000 a different size of thing.",
+    "confidenceLadder": "unavailable < low < moderate < high, in src/finops-finding-resolver.js. ASSUMPTION: the index in that list IS the rank, so a downgrade is exactly one step and 'drops a level' has one meaning in this codebase.",
+    "syntheticDowngrade": "A finding drawn from synthetic cohort boundaries loses one level of confidence. ASSUMPTION: a quartile against invented peers is a real comparison against a made-up peer set, and a lead about to repeat it is owed that in the tier and not only in a badge. WHAT WOULD INVALIDATE IT: cohort boundaries derived from a measured population, which would be a new provenance kind rather than a change to this one.",
+    "evidenceClassDefault": "Anything not positively marked as the reader's own import is synthetic-cohort evidence. ASSUMPTION: the two errors are not symmetric — understating your own export is a smaller harm than telling a lead they measured something they did not.",
+    "provenanceTiebreak": "Own-export evidence outranks synthetic evidence, but only after materiality, confidence, and the manifest's claim-kind order have all tied. ASSUMPTION: what the finding is worth and whether the page can stand behind it both matter more than whose data it came from."
+  },
+
+  "fixtures": [
+    {
+      "name": "clear-own-export-winner",
+      "pins": "A material, high-confidence finding from the reader's own imported export wins outright, and its claim is asserted verbatim because own-export evidence selects no qualifier.",
+      "signals": [
+        {
+          "id": "peer-position",
+          "signalKind": "peer_position",
+          "claim": "Analyzed AI spend sits two quarters above the cheapest quarter of the comparison group, at $41.00 per successful task.",
+          "impact": { "value": 2, "unit": "quartiles_from_cheapest", "direction": "worse_than_peers" },
+          "confidence": { "level": "high", "reasons": ["ranking_reproducible"] },
+          "provenance": { "kind": "synthetic_cohort", "label": "Bundled synthetic cohorts", "id": "2026-06-30" },
+          "recommendedAction": "Review the routing rules for the most expensive workload."
+        },
+        {
+          "id": "spend-trend",
+          "signalKind": "spend_trend",
+          "claim": "Analyzed AI spend moved up $42,000 against the prior period.",
+          "impact": { "value": 42000, "unit": "usd_per_month", "direction": "increase" },
+          "confidence": { "level": "high", "reasons": ["analysis_coverage_published"] },
+          "provenance": { "kind": "imported_export", "label": "Your own export", "id": "2026-06-01 to 2026-07-01" },
+          "recommendedAction": "Review the routing rules for the most expensive workload."
+        }
+      ],
+      "expected": {
+        "winnerId": "spend-trend",
+        "confidenceTier": "high",
+        "evidenceClass": "own-export",
+        "claimTemplate": "measured-from-own-export",
+        "assertedClaim": "Analyzed AI spend moved up $42,000 against the prior period.",
+        "why": "Both findings are material. The peer position states high confidence but is drawn from synthetic cohort boundaries, so it is downgraded to moderate; the imported trend keeps high and separates on the confidence rule before the manifest's claim-kind order is ever consulted."
+      }
+    },
+    {
+      "name": "near-tie-provenance-tiebreak",
+      "pins": "Two findings level on materiality, confidence, claim kind, and magnitude. The provenance rule decides, and the fixture is authored so the id tiebreak below it would have chosen the other one.",
+      "signals": [
+        {
+          "id": "trend-alpha",
+          "signalKind": "spend_trend",
+          "claim": "Analyzed AI spend moved up $8,000 against the prior period.",
+          "impact": { "value": 8000, "unit": "usd_per_month", "direction": "increase" },
+          "confidence": { "level": "high", "reasons": ["ranking_reproducible"] },
+          "provenance": { "kind": "synthetic_cohort", "label": "Bundled synthetic cohorts", "id": "2026-06-30" },
+          "recommendedAction": "Review the routing rules for the most expensive workload."
+        },
+        {
+          "id": "trend-zeta",
+          "signalKind": "spend_trend",
+          "claim": "Analyzed AI spend moved up $8,000 against the prior period, in the export you imported.",
+          "impact": { "value": 8000, "unit": "usd_per_month", "direction": "increase" },
+          "confidence": { "level": "moderate", "reasons": ["analysis_coverage_published"] },
+          "provenance": { "kind": "imported_export", "label": "Your own export", "id": "2026-06-01 to 2026-07-01" },
+          "recommendedAction": "Review the routing rules for the most expensive workload."
+        }
+      ],
+      "expected": {
+        "winnerId": "trend-zeta",
+        "confidenceTier": "moderate",
+        "evidenceClass": "own-export",
+        "claimTemplate": "measured-from-own-export",
+        "assertedClaim": "Analyzed AI spend moved up $8,000 against the prior period, in the export you imported.",
+        "why": "trend-alpha states high but is synthetic, so it lands on moderate — the same tier trend-zeta states and keeps. Same kind, same unit, same magnitude. Provenance separates them in favour of the reader's own export. 'trend-alpha' sorts before 'trend-zeta', so the id rule underneath would have inverted this answer: the tiebreak is doing real work here, not agreeing with an accident of naming."
+      }
+    },
+    {
+      "name": "synthetic-only-degrades-the-wording",
+      "pins": "Every available signal rests on synthetic cohort boundaries, so the winning claim is asserted behind the qualifier rather than as a measured peer position.",
+      "signals": [
+        {
+          "id": "peer-position",
+          "signalKind": "peer_position",
+          "claim": "Analyzed AI spend sits two quarters above the cheapest quarter of the comparison group, at $41.00 per successful task.",
+          "impact": { "value": 2, "unit": "quartiles_from_cheapest", "direction": "worse_than_peers" },
+          "confidence": { "level": "high", "reasons": ["ranking_reproducible"] },
+          "provenance": { "kind": "synthetic_cohort", "label": "Bundled synthetic cohorts", "id": "2026-06-30" },
+          "recommendedAction": "Review the routing rules for the most expensive workload."
+        },
+        {
+          "id": "recoverable-spend",
+          "signalKind": "recoverable_spend",
+          "claim": "$12,000 of analyzed spend is modelled as recoverable — a ceiling on what re-routing this work could save, not money already saved.",
+          "impact": { "value": 12000, "unit": "usd_per_month", "direction": "recoverable" },
+          "confidence": { "level": "moderate", "reasons": ["analysis_coverage_published"] },
+          "provenance": { "kind": "synthetic_cohort", "label": "Bundled synthetic cohorts", "id": "2026-06-30" },
+          "recommendedAction": "Review the routing rules for the most expensive workload."
+        }
+      ],
+      "expected": {
+        "winnerId": "peer-position",
+        "confidenceTier": "moderate",
+        "evidenceClass": "synthetic-cohort",
+        "claimTemplate": "illustrative-from-synthetic-cohort",
+        "assertedClaim": "Illustrative only, from hand-authored synthetic cohort boundaries rather than your own export: Analyzed AI spend sits two quarters above the cheapest quarter of the comparison group, at $41.00 per successful task.",
+        "why": "Both are material and both are downgraded one level for synthetic provenance, so the position's stated high lands on moderate and the recoverable figure's stated moderate lands on low. The position separates on confidence. Because its evidence class is synthetic-cohort, the claim template qualifies the sentence: the number is unchanged and the peer position is no longer asserted as measured."
+      }
+    },
+    {
+      "name": "materiality-outranks-own-export",
+      "pins": "An immaterial finding from the reader's own export loses to a material synthetic one, and the reader is told the winner is synthetic rather than being handed a stronger-sounding claim.",
+      "signals": [
+        {
+          "id": "peer-position",
+          "signalKind": "peer_position",
+          "claim": "Analyzed AI spend sits two quarters above the cheapest quarter of the comparison group, at $41.00 per successful task.",
+          "impact": { "value": 2, "unit": "quartiles_from_cheapest", "direction": "worse_than_peers" },
+          "confidence": { "level": "high", "reasons": ["ranking_reproducible"] },
+          "provenance": { "kind": "synthetic_cohort", "label": "Bundled synthetic cohorts", "id": "2026-06-30" },
+          "recommendedAction": "Review the routing rules for the most expensive workload."
+        },
+        {
+          "id": "spend-trend",
+          "signalKind": "spend_trend",
+          "claim": "Analyzed AI spend moved up $400 against the prior period.",
+          "impact": { "value": 400, "unit": "usd_per_month", "direction": "increase" },
+          "confidence": { "level": "high", "reasons": ["analysis_coverage_published"] },
+          "provenance": { "kind": "imported_export", "label": "Your own export", "id": "2026-06-01 to 2026-07-01" },
+          "recommendedAction": "Review the routing rules for the most expensive workload."
+        }
+      ],
+      "expected": {
+        "winnerId": "peer-position",
+        "confidenceTier": "moderate",
+        "evidenceClass": "synthetic-cohort",
+        "claimTemplate": "illustrative-from-synthetic-cohort",
+        "assertedClaim": "Illustrative only, from hand-authored synthetic cohort boundaries rather than your own export: Analyzed AI spend sits two quarters above the cheapest quarter of the comparison group, at $41.00 per successful task.",
+        "why": "$400 a month is below the $5,000 threshold for a spend trend, so it is minor; two quartiles is at or above the peer position's threshold of 1, so it is major. Materiality is the first rule and it separates them there, before confidence and before provenance. The lead still leads with the synthetic finding, so the entitlement indicator is what stops it reading as measured."
+      }
+    },
+    {
+      "name": "insufficient-signal",
+      "pins": "Nothing qualified. There is no winner, no tier, and no evidence class — a state, not an error — and every signal that could not become a finding is reported with its reason.",
+      "signals": [
+        {
+          "id": "vendor-gossip",
+          "signalKind": "vendor_gossip",
+          "claim": "A vendor said most organizations like yours overspend.",
+          "impact": { "value": 3, "unit": "usd_per_month", "direction": "increase" },
+          "confidence": { "level": "high", "reasons": [] },
+          "provenance": { "kind": "imported_export", "label": "Your own export", "id": "2026-06-01 to 2026-07-01" },
+          "recommendedAction": "Review the routing rules for the most expensive workload."
+        },
+        {
+          "id": "spend-trend",
+          "signalKind": "spend_trend",
+          "claim": "   ",
+          "impact": { "value": 42000, "unit": "usd_per_month", "direction": "increase" },
+          "confidence": { "level": "high", "reasons": ["analysis_coverage_published"] },
+          "provenance": { "kind": "imported_export", "label": "Your own export", "id": "2026-06-01 to 2026-07-01" },
+          "recommendedAction": "Review the routing rules for the most expensive workload."
+        },
+        {
+          "id": "peer-position",
+          "available": false,
+          "signalKind": "peer_position",
+          "claim": "Analyzed AI spend sits two quarters above the cheapest quarter of the comparison group.",
+          "impact": { "value": 2, "unit": "quartiles_from_cheapest", "direction": "worse_than_peers" },
+          "confidence": { "level": "high", "reasons": ["ranking_reproducible"] },
+          "provenance": { "kind": "synthetic_cohort", "label": "Bundled synthetic cohorts", "id": "2026-06-30" },
+          "recommendedAction": "Review the routing rules for the most expensive workload."
+        },
+        {
+          "id": "department-gap",
+          "signalKind": "department_gap",
+          "claim": "One department is a quarter behind the cheapest department that qualified.",
+          "impact": { "value": 1, "unit": "quartiles_behind", "direction": "behind" },
+          "confidence": { "level": "moderate", "reasons": ["ranking_reproducible"] },
+          "provenance": { "kind": "synthetic_cohort", "label": "Bundled synthetic cohorts", "id": "2026-06-30" },
+          "recommendedAction": ""
+        }
+      ],
+      "expected": {
+        "winnerId": null,
+        "confidenceTier": null,
+        "evidenceClass": null,
+        "claimTemplate": null,
+        "assertedClaim": null,
+        "rejected": [
+          { "id": "vendor-gossip", "code": "claim_kind_not_permitted" },
+          { "id": "spend-trend", "code": "no_claim_sentence" },
+          { "id": "department-gap", "code": "no_recommended_action" }
+        ],
+        "why": "The headline may not assert a kind the manifest does not declare, may not assert an empty sentence, and may not assert a claim with no action behind it. The one signal that would have qualified declared itself unavailable, which is skipped rather than rejected — it is not evidence that failed, it is evidence that was not there. With no finding the entitlement slot claims no tier, because a tier for a claim nobody made is exactly the unexplainable number this page must never show."
+      }
+    }
+  ]
+}

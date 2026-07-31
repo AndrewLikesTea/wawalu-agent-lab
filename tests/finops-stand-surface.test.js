@@ -17,11 +17,16 @@ import {
 } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 import {
-  STAND_DISCLOSURE_ORDER, STAND_IDS, STAND_QUESTION, STAND_RESOLUTION_ACTION,
-  composeStandHeadline, standHeadlineForImport,
+  STAND_CONFIDENCE_LABEL, STAND_DISCLOSURE_ORDER, STAND_EVIDENCE_LABEL, STAND_IDS, STAND_QUESTION,
+  STAND_RESOLUTION_ACTION, composeStandHeadline, standHeadlineForImport,
 } from "../src/finops-stand.js";
+import {
+  CONFIDENCE_LEVELS, EVIDENCE_CLASS, SYNTHETIC_CLAIM_QUALIFIER,
+} from "../src/finops-finding-resolver.js";
 import { applyStandHeadline, standDisclosureIds } from "../src/finops-stand-view.js";
-import { loadExampleDataset } from "../src/example-dataset.js";
+import {
+  EXAMPLE_ORG_COHORT_PROFILE, EXAMPLE_TASK_LEDGER, loadExampleDataset,
+} from "../src/example-dataset.js";
 import { resolveCostPosition } from "../src/peer-cost-position.js";
 import { validateCohortAttribution } from "../src/cohort-attribution.js";
 
@@ -282,6 +287,42 @@ test("the resolving control is tab-reachable and delegates to the page's one fil
 // ---------------------------------------------------------------------------
 // 5. The figures are text, and the hierarchy is not carried by position alone.
 // ---------------------------------------------------------------------------
+
+test("a lead can tell what the claim rests on without opening anything", async () => {
+  const { document } = await openWithClearedStorage();
+  const region = byId(document, STAND_IDS.region);
+  const entitlement = byId(document, STAND_IDS.entitlement);
+  // The bundled path is hand-authored synthetic cohorts, and the region says so
+  // in the same two channels every other state on it uses.
+  assert.equal(region.dataset.evidenceClass, EVIDENCE_CLASS.syntheticCohort);
+  assert.equal(entitlement.dataset.evidence, EVIDENCE_CLASS.syntheticCohort);
+  assert.equal(entitlement.dataset.available, "true");
+  // And in words, which is the channel that survives greyscale, print, and a
+  // screen reader. Both come from the resolver's winning finding.
+  assert.equal(shownText(document, STAND_IDS.evidence),
+    STAND_EVIDENCE_LABEL[EVIDENCE_CLASS.syntheticCohort]);
+  // The tier rendered is one the resolver published, never a number this view
+  // worked out: the word, the attribute beside it, and the winning finding's own
+  // post-downgrade level are the same value in three channels.
+  const tier = entitlement.dataset.confidence;
+  assert.ok(CONFIDENCE_LEVELS.includes(tier),
+    `the headline rendered "${tier}", which is not a tier the resolver publishes`);
+  assert.equal(tier, region.dataset.findingConfidence);
+  assert.equal(shownText(document, STAND_IDS.confidence), STAND_CONFIDENCE_LABEL[tier]);
+  // Neither indicator is behind a disclosure — no `details` ancestor at all.
+  for (const id of [STAND_IDS.evidence, STAND_IDS.confidence]) {
+    let node = byId(document, id)?.parentNode ?? null;
+    while (node && node !== region) {
+      assert.notEqual(node.tagName?.toLowerCase(), "details",
+        `#${id} is inside a disclosure; the entitlement must be readable at a glance`);
+      node = node.parentNode;
+    }
+  }
+  // The claim above them is the degraded one, so the sentence and the indicator
+  // cannot disagree about what this rests on.
+  assert.ok(shownText(document, STAND_IDS.answer).startsWith(SYNTHETIC_CLAIM_QUALIFIER),
+    "the headline asserted a synthetic-cohort claim without qualifying it");
+});
 
 test("the named team and every figure are readable as text", async () => {
   const { document } = await openWithClearedStorage();

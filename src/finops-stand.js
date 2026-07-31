@@ -63,7 +63,9 @@ import {
   RECORD_FIELDS, REPRODUCIBILITY_REFUSED, RUBRIC_VERSION, SHIPPED_COHORT_SNAPSHOT,
   evaluateRankingReproducibility, renderableLaggardName,
 } from "./ranking-reproducibility.js";
-import { PROVENANCE_KIND, resolveFinding } from "./finops-finding-resolver.js";
+import {
+  EVIDENCE_CLASS, PROVENANCE_KIND, resolveFinding,
+} from "./finops-finding-resolver.js";
 import {
   FINOPS_SPINE_MANIFEST, SPINE_CLAIM_KIND, SPINE_DIRECTION, SPINE_UNIT,
 } from "./finops-spine-manifest.js";
@@ -93,6 +95,9 @@ export const STAND_IDS = Object.freeze({
   withheldMissing: "finops-stand-withheld-missing",
   withheldAction: "finops-stand-withheld-action",
   withheldNext: "finops-stand-withheld-next",
+  entitlement: "finops-stand-entitlement",
+  evidence: "finops-stand-evidence",
+  confidence: "finops-stand-confidence",
   disclosures: "finops-stand-disclosures",
   live: "finops-stand-live",
 });
@@ -266,6 +271,67 @@ const USD = new Intl.NumberFormat("en-US", {
 const COUNT = new Intl.NumberFormat("en-US");
 
 const usd = (value) => (Number.isFinite(Number(value)) ? USD.format(Number(value)) : null);
+// ---------------------------------------------------------------------------
+// WHAT THE WINNING CLAIM RESTS ON, at the headline rather than in a panel.
+//
+// A lead glancing at this region has to be able to tell, without opening
+// anything, whether the sentence rests on their own imported export or on
+// hand-authored synthetic cohort boundaries, and how far the page will stand
+// behind it. Both values are read off the resolver's finding — `evidenceClass`
+// and `confidenceTier` — and neither is re-derived here. This table is COPY for
+// values that module owns, in the same way the withheld sentences are copy for
+// reasons the position contract owns.
+// ---------------------------------------------------------------------------
+
+/** How each evidence class is named on the surface. */
+export const STAND_EVIDENCE_LABEL = Object.freeze({
+  [EVIDENCE_CLASS.ownExport]: "Your own imported export",
+  [EVIDENCE_CLASS.syntheticCohort]: "Hand-authored synthetic cohort boundaries",
+});
+
+/**
+ * How each confidence tier is named on the surface.
+ *
+ * The four names are `CONFIDENCE_LEVELS` in the resolver, and the floor is
+ * spelled out rather than shown as a bare word: "Unavailable" beside a headline
+ * claim reads as a broken widget, while "Confidence not stated" is what
+ * actually happened. No tier is rendered that the resolver did not publish.
+ */
+export const STAND_CONFIDENCE_LABEL = Object.freeze({
+  high: "High confidence",
+  moderate: "Moderate confidence",
+  low: "Low confidence",
+  unavailable: "Confidence not stated",
+});
+
+/**
+ * The entitlement slot: one evidence indicator and one confidence indicator.
+ *
+ * Total, like every other slot here. With no winning finding there is nothing
+ * to be entitled to, so it says that rather than showing a tier for a claim
+ * that was never made.
+ */
+function entitlementSlot(winner) {
+  if (!winner) {
+    return Object.freeze({
+      available: false,
+      evidenceClass: null,
+      confidenceTier: null,
+      evidence: "No finding was resolved, so nothing is claimed about what one would rest on.",
+      confidence: STAND_CONFIDENCE_LABEL.unavailable,
+    });
+  }
+  return Object.freeze({
+    available: true,
+    evidenceClass: winner.evidenceClass,
+    confidenceTier: winner.confidenceTier,
+    evidence: STAND_EVIDENCE_LABEL[winner.evidenceClass]
+      ?? STAND_EVIDENCE_LABEL[EVIDENCE_CLASS.syntheticCohort],
+    confidence: STAND_CONFIDENCE_LABEL[winner.confidenceTier]
+      ?? STAND_CONFIDENCE_LABEL.unavailable,
+  });
+}
+
 const entry = (term, detail) => Object.freeze({ term, detail: String(detail) });
 const filled = (value) => typeof value === "string" && value.trim().length > 0;
 
@@ -792,10 +858,18 @@ export function composeStandHeadline({
     positioned: Boolean(placed),
     /** The headline is complete when every one of its five parts is present. */
     available: Boolean(placed && recoverable.available && team.available && action.available),
-    /** The winning finding's claim, verbatim. This region asserts nothing else. */
-    answer: resolution.winner?.claim ?? withheld?.missing ?? STAND_PENDING.answer,
+    /**
+     * The winning finding's claim AS IT MAY BE ASSERTED. This region asserts
+     * nothing else. On own-export evidence that is the claim verbatim; on
+     * synthetic cohort boundaries the resolver's claim template qualifies it,
+     * so the degradation is a property of the ranked finding rather than a
+     * string this composer or the view special-cases.
+     */
+    answer: resolution.winner?.assertedClaim ?? withheld?.missing ?? STAND_PENDING.answer,
     /** The winning finding, for a surface that wants to trace the claim. */
     finding: resolution.winner,
+    /** What that claim rests on, and how far this page stands behind it. */
+    entitlement: entitlementSlot(resolution.winner),
     /**
      * The rest of the ranking, in order. Returned for progressive disclosure
      * later; NOTHING renders it today, and no panel, toggle, or expander for it

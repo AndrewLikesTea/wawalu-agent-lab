@@ -29,7 +29,8 @@ import {
 } from "../src/finops-destination-contract.js";
 import { validateCohortAttribution } from "../src/cohort-attribution.js";
 import {
-  CONFIDENCE_LEVELS, CONFIDENCE_REASON, PROVENANCE_KIND,
+  CONFIDENCE_LEVELS, CONFIDENCE_REASON, EVIDENCE_CLASS, PROVENANCE_KIND,
+  SYNTHETIC_CLAIM_QUALIFIER,
 } from "../src/finops-finding-resolver.js";
 import { SPINE_CLAIM_KIND } from "../src/finops-spine-manifest.js";
 import { PEER_COST_SNAPSHOT_ID } from "../src/peer-cost-position.js";
@@ -79,8 +80,13 @@ test("the claim states position, comparison set, and period in one repeatable se
   // Everything a lead needs to repeat it verbatim, with nothing to expand: the
   // period comes off the analysis rather than a clock or a literal.
   assert.equal(periodLabel(analysis), "June 2026");
-  assert.match(headline.answer,
+  assert.match(headline.finding.claim,
     /^Your AI spend is in the most expensive quarter of organizations like yours, at \$38\.63 per successful task for June 2026\./);
+  // The bundled path rests on hand-authored synthetic cohort boundaries, so the
+  // sentence the region ASSERTS is that claim behind the resolver's qualifier.
+  // The figures are unchanged; what changes is that it is not offered as a
+  // measured peer position. See tests/finops-finding-winner-fixtures.test.js.
+  assert.equal(headline.answer, `${SYNTHETIC_CLAIM_QUALIFIER} ${headline.finding.claim}`);
   // A window that is not one whole month is quoted rather than renamed.
   assert.equal(periodLabel({ period: "2026-04-01 to 2026-07-01" }), "2026-04-01 to 2026-07-01");
   assert.equal(periodLabel({}), null);
@@ -169,9 +175,13 @@ test("the disclosures carry the shipped cohort, anonymization, version and verif
 // replaced it is wired to this region and agrees with what the region renders.
 // ---------------------------------------------------------------------------
 
-test("the answer is the winning finding's claim, verbatim", () => {
+test("the answer is the winning finding's claim, as that finding may assert it", () => {
   const headline = buildStandHeadline();
-  assert.equal(headline.answer, headline.finding.claim);
+  assert.equal(headline.answer, headline.finding.assertedClaim);
+  // The bundled path is synthetic, so the assertion is the claim qualified —
+  // never a rewrite of it and never a different figure.
+  assert.equal(headline.entitlement.evidenceClass, EVIDENCE_CLASS.syntheticCohort);
+  assert.ok(headline.answer.endsWith(headline.finding.claim));
   // On the bundled example the position is material, reproducible, and the
   // manifest's first claim kind, so it leads.
   assert.equal(headline.finding.signalKind, SPINE_CLAIM_KIND.peerPosition);
@@ -236,7 +246,11 @@ test("an import with no placeable position still leads with its strongest findin
   const headline = standHeadlineForImport({ analysis, eligibility });
   assert.equal(headline.positioned, false);
   assert.notEqual(headline.finding, null);
+  // Own-export evidence selects the unqualified template, so the reader's own
+  // finding is asserted verbatim rather than degraded.
+  assert.equal(headline.answer, headline.finding.assertedClaim);
   assert.equal(headline.answer, headline.finding.claim);
+  assert.equal(headline.entitlement.evidenceClass, EVIDENCE_CLASS.ownExport);
   // Nothing cohort-derived can win here: there is no position and no ranking.
   assert.notEqual(headline.finding.signalKind, SPINE_CLAIM_KIND.peerPosition);
   // The reader's own export is the evidence, so no synthetic downgrade applies.
