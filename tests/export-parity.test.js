@@ -13,6 +13,14 @@
 // and the data is exercised rather than the serializer alone. No test here
 // calls createShiplogExport() to produce an assertion.
 //
+// The guarantee every assertion below protects, stated once so nobody has to
+// infer it from a failure: the history a visitor is looking at and the file they
+// download list the same records — same set, and each collection in the one
+// order this contract pins. These assertions were `todo` for part of their life,
+// which is how a mismatch stayed shipped while `npm test` exited 0; they run for
+// real now, and the same guarantee is asserted from the shared-link entry point
+// in tests/history-share-export-parity.test.js.
+//
 // Determinism: fixed ids, fixed past timestamps, no network (the harness throws
 // on an undeclared request), no sleeps — the page marks itself ready
 // synchronously and every assertion waits on that state. The fixture ids are
