@@ -99,7 +99,9 @@
               <input id="briefing-contact-email" name="email" type="email" maxlength="254" inputmode="email" autocomplete="email" placeholder="you@company.com" required aria-describedby="briefing-contact-note" />
             </div>
             <p class="field-error brief-contact-error" id="briefing-contact-error" hidden></p>
-            <p class="brief-contact-note" id="briefing-contact-note">This form sends one thing: the work email address you type. No figure, period, limitation, file, or prompt text from this briefing is read, attached, or transmitted — this form cannot reach what your browser holds, and the briefing above does not change when you send it. The briefing figures on this page and any files you imported on the AI FinOps page are never transmitted, by this form or by anything else on this site: they stay in this browser.</p>
+            <!-- One sentence, and the same one every follow-up form on this site
+                 shows: src/lead-capture.js, FOLLOW_UP_PRIVACY. -->
+            <p class="brief-contact-note" id="briefing-contact-note">The work email address you type here goes to the Wawalu team that operates Shiplog; nothing else on this page is sent.</p>
             <div class="brief-contact-actions">
               <button type="submit">Request a follow-up</button>
               <button id="briefing-contact-dismiss" type="button">Close</button>
@@ -128,8 +130,7 @@
           <li><strong>Decisions</strong> — why did we decide this, and what did we rule out?</li>
           <li><strong>Releases</strong> — what shipped, and which decision led to it?</li>
         </ul>
-        <p class="site-footer-redirect">This page carries its own follow-up form, at the end of the briefing. Use that one: it reaches the same Wawalu team, and a request made there arrives attached to the decision you just read. It sends one thing — the work email address you type.</p>
-        <a class="site-footer-redirect-link" href="#briefing-contact">Go to the follow-up form</a>
+        <a class="site-footer-redirect-link" href="#briefing-contact">Request a follow-up</a>
       </div>
     </footer>
     <script type="module" src="/executive-briefing-page.js"></script>

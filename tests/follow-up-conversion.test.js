@@ -30,6 +30,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { loadPage, pressEnter, pressKey, pressTab, tabSequence, textOf, typeText } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
+import { FOLLOW_UP_PRIVACY } from "../src/lead-capture.js";
 
 const EVOLUTION_PAGE = new URL("../src/evolution.html", import.meta.url);
 const BRIEFING_PAGE = new URL("../src/executive-briefing.html", import.meta.url);
@@ -432,14 +433,13 @@ test("the briefing form sends the typed address and nothing from the briefing, a
     const figure = textOf(document.querySelector(".brief-figure"));
     assert.ok(figure.length > 0, "the briefing must be showing a figure for this test to mean anything");
 
+    // One sentence, the site's, pinned whole. It used to be ninety words of
+    // this page's own, listing the particular things this page holds; the claim
+    // is the same on every form, so it is the same sentence on every form.
     const note = shownText(document, "briefing-contact-note");
-    assert.match(note, /This form sends one thing: the work email address you type/);
-    assert.match(note, /No figure, period, limitation, file, or prompt text from this briefing/);
-    // Named outright rather than left to be inferred from "nothing else": the
-    // two things a reader is actually worried about are the figures they just
-    // read and the export they opened on the AI FinOps page.
-    assert.match(note, /briefing figures on this page and any files you imported[^.]*are never transmitted/i);
-    assert.match(note, /they stay in this browser/i);
+    assert.equal(note, FOLLOW_UP_PRIVACY);
+    assert.doesNotMatch(note, /No figure, period, limitation, file, or prompt text/);
+    assert.doesNotMatch(note, /cannot reach what your browser holds/);
 
     byId(document, "briefing-contact-open").click();
     submitEmail(document, "briefing-contact", TYPED_EMAIL);

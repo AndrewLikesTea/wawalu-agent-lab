@@ -21,8 +21,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { loadPage, textOf } from "./support/browser.js";
-import { CONTACT_COPY } from "../src/lead-capture.js";
-import { INVITATION, PRIVACY, PURPOSE } from "../src/site-footer.js";
+import { CONTACT_COPY, FOLLOW_UP_PRIVACY } from "../src/lead-capture.js";
+import { INVITATION } from "../src/site-footer.js";
 
 /** The one label. Written out here so a rename has to be a decision, not a diff. */
 const CTA = "Request a follow-up";
@@ -137,23 +137,21 @@ test("no follow-up surface calls the same errand a walkthrough, a discussion, or
 
 test("each surface says beside its button that submitting sends only the work email typed", async () => {
   // The label carries no context, so this is the copy that has to carry it: what
-  // the button asks for, and the one thing that leaves the browser.
-  const sends = /sends? one thing[:,] the work email address you type/i;
-
+  // the button asks for, and the one thing that leaves the browser. Every
+  // surface now says it in the same sentence — see tests/follow-up-privacy.test.js
+  // for the identity check; here it only has to be present beside each control.
   for (const { page: file, what, context } of SURFACES) {
     const page = await loadPage(pageUrl(file));
     try {
       const copy = context.map((id) => textOf(byId(page.document, id))).join(" ");
-      assert.match(copy, sends, `${what}: nothing beside the button says what is sent`);
+      assert.ok(copy.includes(FOLLOW_UP_PRIVACY), `${what}: nothing beside the button says what is sent`);
       assert.match(copy, /follow-up/i, `${what}: nothing beside the button names what is being asked for`);
     } finally {
       page.restore();
     }
   }
 
-  // The footer's is split in two on purpose: the invitation is readable before
-  // the panel is opened, the note is the field's accessible description.
+  // The invitation outside the footer's panel is readable before the panel is
+  // opened, and it is what names who a visitor would be talking to.
   assert.match(INVITATION, /Shiplog/);
-  assert.match(PURPOSE, /^Submitting sends a Shiplog follow-up request\./);
-  assert.match(PRIVACY, sends);
 });
