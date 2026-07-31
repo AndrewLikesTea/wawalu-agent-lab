@@ -96,8 +96,8 @@ export const WORKSPACE_ABSENCE_COPY = Object.freeze({
 
 /** How the masthead names the origin of what is drawn, for screen and paper. */
 export const WORKSPACE_ORIGIN =
-  "Your own retained FinOps periods, read from this browser and rebuilt in this tab. Not uploaded, "
-  + "not shared, and not linkable.";
+  "Your own retained FinOps periods, read from this browser and rebuilt in this tab — not uploaded, "
+  + "not shared, not linkable.";
 
 export const SAMPLE_ORIGIN =
   "Published synthetic sample — no import, no customer data, and not your workspace's figures.";

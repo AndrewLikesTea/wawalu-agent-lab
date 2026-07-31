@@ -177,6 +177,12 @@
  * It remains visually distinct from the document rather than looking like
  * another recommendation inside the briefing. */
 .brief-actions:empty { display:none; }
+/* The standing statements about upload and printing, under the sheet and beside
+   the control they describe. Same quiet register as the rest of the page chrome:
+   the section title borrows the mono label the sheet's own sections use. */
+.brief-notes { max-width:66ch; margin:26px 0 0; }
+.brief-notes h2 { margin:0 0 10px; color:#5c5b56; font:750 11px/1.4 ui-monospace,monospace; letter-spacing:.08em; text-transform:uppercase; }
+.brief-notes p { margin:0 0 8px; color:#55554f; font-size:14px; line-height:1.55; }
 .brief-print-control { max-width:900px; margin:22px 0 0; }
 .brief-print-button { display:inline-flex; align-items:center; gap:8px; min-height:44px; border:1px solid var(--brief-ink); border-radius:10px; padding:11px 20px; background:var(--brief-ink); color:#fff; font:700 15px/1.2 inherit; letter-spacing:-.01em; cursor:pointer; }
 /* Decorative only, and declared with the empty alternative text so a reader
@@ -309,7 +315,7 @@
      on paper is a dead control, and the sheet is the briefing. `.site-nav` is
      named alongside its header so the rule still holds if the header ever
      becomes a print-visible title block. */
-  .site-header,.site-nav,.site-footer,.skip-link,.brief-print-hint,.brief-toggle-mark,.brief-print-control,.brief-contact,.brief-followup { display:none !important; }
+  .site-header,.site-nav,.site-footer,.skip-link,.brief-print-hint,.brief-toggle-mark,.brief-print-control,.brief-contact,.brief-followup,.brief-notes { display:none !important; }
   /* The notice stays. A sheet that carries a figure without saying whose figure
      it is, is the sheet that gets quoted six weeks later as if it were real. */
   .brief-source-notice { max-width:none; margin:0 0 12px; border:1px solid #171713; border-left:4px solid #171713; border-radius:0; padding:12px 14px; background:none !important; break-inside:avoid; }

@@ -92,8 +92,7 @@ export const EXAMPLE_BRIEFING_CTA = Object.freeze({
 /** How the briefing masthead names where these figures came from. */
 export const EXAMPLE_BRIEFING_ORIGIN =
   "The Bundled synthetic example from AI FinOps — invented figures for an invented company, rebuilt "
-  + "in this tab. "
-  + "Not your spend, not an import, and contains no visitor data.";
+  + "in this tab; not your spend, not an import, and no visitor data.";
 
 /** What the reader is owed about how the sheet was produced. */
 export const EXAMPLE_BRIEFING_PROVENANCE_NOTE =
