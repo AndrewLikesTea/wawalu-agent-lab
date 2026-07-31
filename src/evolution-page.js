@@ -377,9 +377,18 @@ import { browserOrgUnitLabelStorage as labelStorage } from "/org-unit-labels.js"
 // access to anything above: it reads its own form fields and nothing else, so
 // the "only what you type is sent" claim beside it holds by construction.
 import { initFinopsContact } from "/finops-contact.js";
+// The agreement figure is COMPUTED HERE, in this browser, on every visit — the
+// corpus is fetched and scored rather than a recorded number being read out of
+// a file. That is deliberate: it makes drift between the published figure and
+// the shipped classifier impossible, because there is no stored figure to
+// drift. The scorer is pure and the corpus is the same public file the basis
+// line links to, so a reader who runs it themselves gets these bytes.
+import { scoreAgreementCorpus } from "/finops-classifier-agreement.js";
+import { renderClassifierAgreement } from "/finops-classifier-agreement-view.js";
 
 const DATA_URL = "/evolution-demo-data.json";
 const EVALUATION_URL = "/finops-evaluation-fixtures.json";
+const AGREEMENT_CORPUS_URL = "/finops-classifier-agreement-corpus.json";
 const MODEL_OVERSPEND_URL = "/model-overspend-finding-fixture.json";
 // Repainting the bundled headline and mix, from the last analysis that loaded.
 // "Return to example data" has to put the example figures back into the same
@@ -3023,6 +3032,21 @@ async function loadData() {
   return response.json();
 }
 
+async function renderAgreementFigure() {
+  try {
+    const response = await fetch(AGREEMENT_CORPUS_URL, {
+      cache: "no-store", headers: { accept: "application/json" },
+    });
+    if (!response.ok) throw new Error(`Agreement corpus returned ${response.status}`);
+    renderClassifierAgreement(document, scoreAgreementCorpus(await response.json()));
+  } catch {
+    // No corpus, no figure. There is nothing to estimate from and nothing
+    // cached to fall back on, and a number this page cannot recompute is one
+    // it has no business showing.
+    renderClassifierAgreement(document, null);
+  }
+}
+
 async function renderEvaluationDemo() {
   const target = document.getElementById("finops-evaluation-result");
   if (!target) return;
@@ -3210,6 +3234,7 @@ async function init() {
   refreshGateway?.addEventListener("click", () => gateway.refresh());
   gateway.refresh();
   renderEvaluationDemo();
+  renderAgreementFigure();
 
   const retryData = document.getElementById("finops-data-retry");
   retryData?.addEventListener("click", () => loadAndRender());
