@@ -11,7 +11,7 @@
 // and no figure is transcribed — every string comes from the validated record.
 
 import {
-  DESTINATION_ROLE, MATERIALITY, PRIORITY_RULE_VERSION,
+  MATERIALITY, PRIORITY_RULE_VERSION,
   prioritizedDestination, supportingDestinations,
 } from "./finops-destination-contract.js";
 
@@ -24,15 +24,12 @@ export const DESTINATION_STATE = Object.freeze({
   ranked: "ranked",
 });
 
-/**
- * The shapes are redundant with the words beside them, never a substitute: a
- * reader who cannot see the glyph loses nothing.
- */
-const ROLE_SHAPE = Object.freeze({
-  [DESTINATION_ROLE.evidence]: "◇",
-  [DESTINATION_ROLE.departmentDetail]: "◈",
-  [DESTINATION_ROLE.actAndVerify]: "◆",
-});
+// The three role marks (◇ ◈ ◆) are gone. They were redundant with the words
+// beside them by their own design note, and redundant is the best case: at the
+// 11px they rendered at, an outline diamond, a diamond-in-diamond and a filled
+// diamond are one silhouette, and ◇ was simultaneously this page's provenance
+// badge. A destination is named, not glyphed. `shape()` below survives for the
+// one mark that is still doing work — the disclosure triangle.
 
 const byId = (doc, id) => doc.getElementById(id);
 
@@ -44,7 +41,7 @@ function element(doc, tag, className, text) {
 }
 
 function shape(doc, glyph) {
-  const node = element(doc, "span", "dest-shape", glyph ?? "◇");
+  const node = element(doc, "span", "dest-shape", glyph);
   node.setAttribute("aria-hidden", "true");
   return node;
 }
@@ -98,7 +95,6 @@ function primaryBlock(doc, destination, clauseReason) {
   link.dataset.destinationId = destination.id;
   link.dataset.destinationRole = destination.role;
   link.dataset.destinationRank = String(destination.rank);
-  link.append(shape(doc, ROLE_SHAPE[destination.role]));
   link.append(element(doc, "span", null, destination.callToAction));
   wrap.append(link);
 
@@ -120,7 +116,6 @@ function othersBlock(doc, destinations) {
     const link = element(doc, "a", "dest-other-link");
     link.setAttribute("href", entry.href);
     link.dataset.destinationId = entry.id;
-    link.append(shape(doc, ROLE_SHAPE[entry.role]));
     link.append(element(doc, "span", null, entry.label));
     item.append(link);
     item.append(element(doc, "p", "dest-other-answers", entry.answers));

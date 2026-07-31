@@ -168,7 +168,10 @@ export const SECONDARY_PLACEHOLDER = Object.freeze({
  * keeps. The shapes match `panel-status-view.js` so ▲ never means two things.
  */
 export const METRIC_FLAG = Object.freeze({
-  unmeasured: Object.freeze({ shape: "◇", word: "unmeasured" }),
+  // ○ and not ◇: ◇ is the provenance silhouette on this page and carries no
+  // status. "Unmeasured" is the empty end of the circle ramp — see the glyph
+  // role table at the top of `evolution.css`.
+  unmeasured: Object.freeze({ shape: "○", word: "unmeasured" }),
   notLoaded: Object.freeze({ shape: "▢", word: "not loaded" }),
   needsReview: Object.freeze({ shape: "▲", word: "needs review" }),
 });

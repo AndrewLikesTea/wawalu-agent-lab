@@ -614,10 +614,14 @@ function arithmeticText(arithmetic) {
  * greyscale screenshot, and a reader who cannot tell the four tints apart. It is
  * `aria-hidden`: the word beside it is what a screen reader reads.
  */
+// ◆ ◈ ◇ were three diamonds that only separate above caption size — at the 11px
+// this chip actually ships at, the inner stroke of ◈ closes up and all three
+// read as one mark. Fill area is the channel that survives that size, so the
+// levels ride the circle ramp instead. × stays: a refusal is not a low grade.
 const CONFIDENCE_SHAPE = Object.freeze({
-  high: "◆",
-  moderate: "◈",
-  low: "◇",
+  high: "●",
+  moderate: "◐",
+  low: "◔",
   insufficient: "×",
 });
 
@@ -808,7 +812,7 @@ export function applyBriefingState(doc, state, message = BRIEFING_STATE_MESSAGE[
   write("local-lead-metric", "—");
   write("local-lead-grade-value", "—");
   write("local-lead-grade-label", BRIEFING_CONFIDENCE_LABEL[state] ?? BRIEFING_CONFIDENCE_LABEL.loading);
-  write("local-lead-grade-shape", "◇");
+  write("local-lead-grade-shape", "○");
   write("local-lead-coverage", "—");
   write("local-lead-arithmetic", "");
   write("local-lead-action", "—");

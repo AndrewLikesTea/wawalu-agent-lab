@@ -174,7 +174,9 @@ test("importing an export announces the answer once, and stands the reader on it
     await t.test("the provenance marker says Imported, in a word and a shape", () => {
       const marker = byId(document, STAND_IDS.sample);
       assert.equal(marker.dataset.source, "import");
-      assert.match(textOf(marker), /^●\s?Imported\b/,
+      // ◆ is the filled half of the provenance diamond: same family as the ◇
+      // this marker carried before the import, opposite fill.
+      assert.match(textOf(marker), /^◆\s?Imported\b/,
         "the marker still claims every figure in the answer is invented");
       assert.match(textOf(marker), /computed in this browser from the export you selected/);
       assert.doesNotMatch(textOf(marker), /Bundled synthetic example/);

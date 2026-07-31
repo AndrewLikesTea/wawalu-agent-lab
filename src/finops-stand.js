@@ -132,7 +132,7 @@ export const STAND_IDS = Object.freeze({
  *
  * WHOSE FIGURES ARE THESE is the question a lead has to be able to answer at a
  * glance and without seeing a colour. The marker carries a WORD ("Bundled
- * synthetic example" / "Imported"), a SHAPE (hollow diamond / filled circle),
+ * synthetic example" / "Imported"), a SHAPE (hollow diamond / filled diamond),
  * and a sentence saying what the figures were computed from. The stylesheet
  * adds a tint keyed on `data-source`; it is the third carrier, never the first.
  *
@@ -150,7 +150,11 @@ export const STAND_SAMPLE_MARKER = Object.freeze({
       + " savings, and no file is needed to read it.",
   }),
   import: Object.freeze({
-    shape: "●",
+    // ◆ and not ●: the filled circle is the status ramp's "measured", and a
+    // marker saying where a figure came from must not borrow a mark that says
+    // how well it is known. Both provenance states are diamonds — outline for
+    // the bundled classification, filled for the file the reader brought.
+    shape: "◆",
     word: "Imported",
     detail: "Every figure in this answer was computed in this browser from the export you"
       + " selected. Nothing was uploaded, and the bundled synthetic example is no longer what"

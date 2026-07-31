@@ -179,7 +179,7 @@ export function applyFirstRunResult(doc, result, { announce = false } = {}) {
   // sentence in the slot, so a printed page, a screenshot, and a test all agree
   // that this result is holding something it would not draw.
   region.dataset.figures = (result.notices?.length ?? 0) > 0 ? "out-of-range" : "in-range";
-  setText(doc, FIRST_RUN_IDS.shape, presentation.shape ?? "◇");
+  setText(doc, FIRST_RUN_IDS.shape, presentation.shape ?? "○");
   setText(doc, FIRST_RUN_IDS.word, presentation.word ?? "");
 
   // The sample label is repainted rather than assumed: the authored copy and

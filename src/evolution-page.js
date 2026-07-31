@@ -1547,11 +1547,12 @@ function mountLocalFinopsImport() {
       benchmarkState.dataset.source = guided.benchmark.provenance.source;
     }
     // The shape is the non-colour channel this card was missing: it shipped as a
-    // hard-coded ◇ that read "unavailable" over a cohort that was available, so
-    // the one signal a greyscale reader had was the wrong one. ◆ / ◇ is the same
-    // filled-versus-outline grammar the confidence chips on this page use, and
-    // the answer line beside it says the state in words either way.
-    setText("local-benchmark-shape", guided.benchmark.available ? "◆" : "◇");
+    // hard-coded mark that read "unavailable" over a cohort that was available,
+    // so the one signal a greyscale reader had was the wrong one. ● / ○ is the
+    // filled-versus-empty circle ramp every status chip on this page now uses —
+    // the diamonds it used to draw belong to provenance — and the answer line
+    // beside it says the state in words either way.
+    setText("local-benchmark-shape", guided.benchmark.available ? "●" : "○");
     setText("local-benchmark-answer", guided.benchmark.answer);
     setText("local-benchmark-summary", guided.benchmark.summary);
     setText("local-benchmark-why", guided.benchmark.why);
