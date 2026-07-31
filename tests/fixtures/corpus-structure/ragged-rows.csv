@@ -1,0 +1,6 @@
+conversation_id,message_index,model,created_at,language,message_text,user_email
+conv-1,0,gpt-4o,2026-06-01T09:00:00Z,en,"A well formed row",ada@example.com
+conv-1,1,gpt-4o,2026-06-01T09:05:00Z,en
+conv-2,first,gpt-4o,2026-06-02T09:00:00Z,en,"An undecodable turn ordinal",bo@example.com
+conv-3,0,gpt-4o,2026-06-03T09:00:00Z,en,"Another well formed row",cy@example.com,extra
+conv-4,2,gpt-4o,2026-06-04T09:00:00Z,fr,"Une ligne correcte",dee@example.com

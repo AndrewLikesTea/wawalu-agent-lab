@@ -1,0 +1,4 @@
+conversation_ref,event_time,prompt_content,actor_email
+sess-01,2026-06-07T07:45:00Z,"Check the quarterly numbers",gus@example.com
+sess-01,last Tuesday,"And the prior quarter",gus@example.com
+sess-02,2026-06-08T09:00:00Z,"Draft the board update",hal@example.com

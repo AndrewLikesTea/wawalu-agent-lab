@@ -1,0 +1,4 @@
+conversation_uuid,parent_message_uuid,model_slug,started_at,prompt_text,account_email
+chat-4f2a,,claude-sonnet-4,2026-06-03T14:00:00Z,"Summarise this incident review",cy@example.com
+chat-4f2a,msg-1,claude-sonnet-4,2026-06-03T14:06:00Z,"What did we not test",cy@example.com
+chat-77bd,msg-9,claude-opus-4,2026-06-04T08:30:00Z,"Rewrite the customer note",dee@example.com

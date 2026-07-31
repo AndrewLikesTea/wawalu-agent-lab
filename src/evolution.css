@@ -607,6 +607,17 @@
 .import-mapping-sample-note,.import-mapping-sample-empty { display:block; color:var(--ink-muted); font-size:12px; }
 .import-mapping-status { margin:12px 0 0; color:var(--import-ink); font-size:13px; font-weight:700; }
 .import-mapping-actions { display:flex; flex-wrap:wrap; gap:10px; margin-top:14px; }
+/* Detected structural columns. The tint reads data-detected; the glyph and the
+   sentence inside every row say the same thing, so color carries nothing alone. */
+.corpus-structure { margin:18px 0; border:1px solid var(--import-line); border-radius:12px; padding:18px; background:#fff; }
+.corpus-structure-heading h3 { margin:4px 0 6px; font-size:19px; }
+.corpus-structure-dialect,.corpus-structure-counts { margin:0 0 6px; color:var(--ink-muted); font-size:13px; }
+.corpus-structure-fields { display:grid; gap:8px; margin:12px 0; padding:0; list-style:none; }
+.corpus-structure-field { display:grid; grid-template-columns:18px 1fr; gap:8px; font-size:14px; }
+.corpus-structure-field[data-detected="false"] { color:var(--ink-muted); }
+.corpus-structure-shape { font-weight:750; }
+.corpus-structure-action { margin:12px 0 0; color:var(--import-ink); font-size:13px; font-weight:700; }
+.corpus-structure-source { margin:8px 0 0; color:var(--ink-muted); font-size:12px; }
 .import-mapping-actions button { min-height:44px; border:1px solid var(--import-line); border-radius:9px; padding:10px 16px; background:#fff; font:inherit; font-weight:750; }
 .import-mapping-actions #import-mapping-confirm { border-color:var(--import-accent); background:var(--import-accent); color:#fff; }
 .import-mapping-actions button[disabled] { border-color:var(--import-line); background:var(--import-wash); color:var(--ink-muted); cursor:not-allowed; }

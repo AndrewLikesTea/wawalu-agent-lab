@@ -1275,6 +1275,27 @@
             <button id="import-mapping-cancel" type="button">Cancel this import</button>
           </div>
         </section>
+        <!-- Which structural columns the reader's own export carries, answered
+             before anything is graded on them. Every row, the dialect line, the
+             counts and the single next action are painted by
+             corpus-structure-view.js from src/corpus-structure.js; the markup
+             carries no field name and no vendor name, so a change of judgment
+             cannot leave a stale claim here. -->
+        <section class="corpus-structure" id="corpus-structure" aria-labelledby="corpus-structure-title" hidden>
+          <div class="corpus-structure-heading">
+            <p class="eyebrow">Step 1 · what your export carries</p>
+            <h3 id="corpus-structure-title" tabindex="-1">Which structural columns your export actually carries.</h3>
+            <p class="corpus-structure-dialect" id="corpus-structure-dialect"></p>
+            <p class="corpus-structure-counts" id="corpus-structure-counts"></p>
+          </div>
+          <ul class="corpus-structure-fields" id="corpus-structure-fields" aria-label="Structural columns in your export"></ul>
+          <p class="corpus-structure-action" id="corpus-structure-action"></p>
+          <p class="corpus-structure-source">Read in this tab from the file you chose. No credential, no account, and no connection: nothing here needs a live provider login, and no cell of your file is shown, exported, or stored.</p>
+        </section>
+        <!-- Outside the section for the reason the partial-evidence region gives:
+             its ancestor is `hidden` until a file is read. This one is always in
+             the rendered tree, so the first import is announced too. -->
+        <p class="visually-hidden" id="corpus-structure-live" role="status" aria-live="polite" aria-atomic="true"></p>
         <!-- A large export is parsed in a worker, so this region reports a real
              fraction and the cancel below actually stops the work. Where no
              worker is available the same region says the parse is running on the
