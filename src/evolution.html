@@ -125,6 +125,22 @@
              are. -->
         <p class="sample-marker stand-sample" id="finops-stand-sample"><span class="sample-marker-shape" aria-hidden="true">◇</span><strong>Bundled synthetic example</strong> Every figure on this page — here and inside each layer below — was computed from invented data for an invented company. It is not your spend, customer data, or realized savings, and no file is needed to read it.</p>
         <p class="stand-answer" id="finops-stand-answer">This page is still reading the Bundled synthetic example. The ranking appears here as soon as it has been read; nothing is needed from you.</p>
+        <!-- CAN THIS EXPORT BE GRADED — the gate on every figure below, and the
+             one place this region says so before a reader quotes one. Three
+             slots and no panel: the question, the verdict with the coverage
+             figure that decided it, and the one next step. Painted by
+             finops-stand-view.js from the verdict in src/export-gradability.js,
+             which derives its bar from the coverage tiers in
+             src/grade-eligibility.js rather than restating a threshold. Each
+             slot ships empty and hidden and is hidden again on any paint that
+             gives it no text, so no empty line and no blank screen-reader stop
+             is left behind. It is a supporting line, not a second headline: the
+             region's one heading is the question above it. -->
+        <p class="stand-gradability" id="finops-stand-gradability" data-state="unavailable" data-figures="shown">
+          <span class="stand-figure-label" id="finops-stand-gradability-question" hidden></span>
+          <span id="finops-stand-gradability-metric" hidden></span>
+          <span class="stand-figure-basis" id="finops-stand-gradability-action" hidden></span>
+        </p>
         <!-- WHAT THE CLAIM ABOVE RESTS ON, in words, at the headline.
              Two indicators, both painted from the winning finding's own
              `evidenceClass` and `confidenceTier` in

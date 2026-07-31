@@ -567,6 +567,14 @@ const ALLOWED_MODULES = Object.freeze([
   // means one thing on both surfaces. Both are pure functions over an in-memory
   // string: no storage, no clock, no network, and nothing retained.
   "query-signal-families.js", "prompt-prose-segmentation.js",
+  // Reviewed on with #767, the gradability gate on the answer region.
+  // `export-gradability.js` reads the coverage verdict the analysis already
+  // carries and the tiers `grade-eligibility.js` publishes; it takes no second
+  // measurement. `query-gradeability-reasons.js` is the not-gradeable codes and
+  // their English, split out of `query-literacy.js` so rendering a reason does
+  // not drag the rubric and the classifier onto this payload. Neither opens a
+  // request, reads storage, or reads a clock.
+  "export-gradability.js", "query-gradeability-reasons.js",
 ]);
 
 /**

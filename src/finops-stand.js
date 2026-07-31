@@ -50,6 +50,10 @@ import { loadCanonicalDecision } from "./finops-decision-contract.js";
 import { leadingFinding } from "./finops-leading-finding.js";
 import { recoverableShare } from "./finops-first-run.js";
 import { validateCohortAttribution } from "./cohort-attribution.js";
+// The gate this region reads before it quotes a figure out of a reader's file.
+// It owns the coverage bar, the four states, and the sentence for each; nothing
+// about gradability is decided here.
+import { gradeExport } from "./export-gradability.js";
 import {
   COST_BAND, COST_BAND_DIRECTION, COST_METRIC, COST_POSITION_WITHHELD, PEER_COST_COHORTS,
   PEER_COST_PROVENANCE, PEER_COST_SNAPSHOT_ID, PEER_RANK_LABEL, displayCostPerSuccessfulTask,
@@ -105,6 +109,15 @@ export const STAND_IDS = Object.freeze({
   withheldMissing: "finops-stand-withheld-missing",
   withheldAction: "finops-stand-withheld-action",
   withheldNext: "finops-stand-withheld-next",
+  /**
+   * The gradability line: the question, the verdict with its figure, and the one
+   * next step. Three slots, not a panel — it is the gate on the answer above it,
+   * and each slot is hidden when it has nothing to say.
+   */
+  gradability: "finops-stand-gradability",
+  gradabilityQuestion: "finops-stand-gradability-question",
+  gradabilityMetric: "finops-stand-gradability-metric",
+  gradabilityAction: "finops-stand-gradability-action",
   entitlement: "finops-stand-entitlement",
   evidence: "finops-stand-evidence",
   confidence: "finops-stand-confidence",
@@ -153,6 +166,7 @@ export const STAND_SAMPLE_MARKER = Object.freeze({
  * requirement, and a details inside a details is two.
  */
 export const STAND_DISCLOSURE = Object.freeze({
+  gradability: "gradability",
   cohort: "cohort",
   anonymization: "anonymization",
   versions: "versions",
@@ -165,6 +179,9 @@ export const STAND_DISCLOSURE = Object.freeze({
 
 /** The order the disclosures are authored and painted in. */
 export const STAND_DISCLOSURE_ORDER = Object.freeze([
+  // First, because it is the gate: whether this export can be graded at all
+  // decides what the figures above are worth reading.
+  STAND_DISCLOSURE.gradability,
   STAND_DISCLOSURE.cohort, STAND_DISCLOSURE.anonymization, STAND_DISCLOSURE.versions,
   STAND_DISCLOSURE.reproducibility, STAND_DISCLOSURE.inputs, STAND_DISCLOSURE.departments,
   STAND_DISCLOSURE.verification, STAND_DISCLOSURE.otherActions,
@@ -186,7 +203,9 @@ export const STAND_DISCLOSURE_ORDER = Object.freeze([
  * A disclosure whose CONTENT would be readable without script does not belong
  * here. Author that one in the document and pay for it, or take something out.
  */
-export const STAND_MOUNTED_DISCLOSURES = Object.freeze([STAND_DISCLOSURE.inputs]);
+export const STAND_MOUNTED_DISCLOSURES = Object.freeze([
+  STAND_DISCLOSURE.gradability, STAND_DISCLOSURE.inputs,
+]);
 
 /**
  * The visible summary of each disclosure, authored once so markup and module agree.
@@ -198,6 +217,7 @@ export const STAND_MOUNTED_DISCLOSURES = Object.freeze([STAND_DISCLOSURE.inputs]
  * entries, where there is room to say what they mean.
  */
 export const STAND_DISCLOSURE_SUMMARY = Object.freeze({
+  [STAND_DISCLOSURE.gradability]: "Can this export be graded?",
   [STAND_DISCLOSURE.cohort]: "How the organizations you are compared with were chosen",
   [STAND_DISCLOSURE.anonymization]: "What this comparison reads, and what it never reads",
   [STAND_DISCLOSURE.versions]: "Which scoring rules and which peer data produced these figures",
@@ -729,6 +749,54 @@ function standSignals({
 // headline, and each is built from a result some other module already produced.
 // ---------------------------------------------------------------------------
 
+const SHARE = new Intl.NumberFormat("en-US", { style: "percent", maximumFractionDigits: 0 });
+
+/**
+ * Whether this export can be graded, and every number behind that verdict.
+ *
+ * The headline states the verdict in one sentence; this is where a reader who
+ * disputes it finds the metric, the bar, the two amounts the ratio was taken
+ * over, and how much was read to get there. Nothing is computed:
+ * `export-gradability.js` published all of it, including the bar, which is
+ * itself derived from the tiers in `grade-eligibility.js` rather than typed
+ * anywhere on this page.
+ */
+function gradabilityEntries(gradability) {
+  if (!gradability) {
+    return [entry(STAND_DISCLOSURE_SUMMARY[STAND_DISCLOSURE.gradability],
+      "No export has been read on this path, so no gradability verdict was worked out.")];
+  }
+  const rows = [
+    entry(gradability.question, gradability.answer),
+    entry("Metric definition", "Sampled spend coverage — the analyzed spend of departments the "
+      + "rubric scored, divided by the analyzed spend of every department in the export. Both "
+      + "amounts are read through the same accessor over the same set, so the two cannot be "
+      + "measured differently, and the ratio is compared before it is rounded."),
+    entry("The bar", `${SHARE.format(gradability.bar)} of analyzed spend must sit in scored `
+      + "departments before this page will stand behind a grade. The bar is the lowest published "
+      + "coverage floor that still grades, so it moves when those thresholds move and is not a "
+      + "second number typed on this page."),
+    entry("Coverage measured", gradability.coverage === null
+      ? "None. This export publishes no positive spend total, so coverage has no denominator — "
+        + "that is not a coverage of zero, and no percentage is shown for it."
+      : `${SHARE.format(gradability.coverage)} · ${usd(gradability.coveredUsd) ?? "no scored spend"}`
+        + ` of ${usd(gradability.totalUsd) ?? "no analyzed spend"} analyzed.`),
+    // Every row the export carried, not the rows that counted: a count that
+    // silently meant "scored rows" would make a thin import look thorough.
+    entry("Rows read", `${COUNT.format(gradability.provenance.rows)} department row`
+      + `${gradability.provenance.rows === 1 ? "" : "s"} read — `
+      + `${COUNT.format(gradability.provenance.scored)} scored, `
+      + `${COUNT.format(gradability.provenance.unscored)} not scored, `
+      + `${COUNT.format(gradability.provenance.unpriced)} carrying no spend.`),
+    entry("What to do next", gradability.action.text),
+  ];
+  // The named missing input, when the evaluator named one. The action above says
+  // what to do; this says which input it supplies, in that evaluator's own
+  // words. Nothing on this page invents a column, header, or field name for it.
+  if (gradability.missingInput) rows.push(entry("Missing input", gradability.missingInput));
+  return rows;
+}
+
 function cohortEntries(position) {
   const cohort = position?.cohort ?? null;
   const rows = [
@@ -994,6 +1062,10 @@ export function composeStandHeadline({
   analysis = null, briefing = null, position = null, finding = null, decision = null,
   destinations = null, eligibility = null, source = "example", reproducibility = null,
 } = {}) {
+  // THE GATE, BEFORE THE FIGURES. Whether this export can be graded decides
+  // whether the figures below may be quoted at all, so it is resolved first and
+  // read by the view rather than re-derived per slot.
+  const gradability = gradeExport({ analysis, source });
   const recoverable = recoverableSlot(analysis);
   const team = teamSlot(finding);
   const action = actionSlot(destinations);
@@ -1042,9 +1114,21 @@ export function composeStandHeadline({
     team,
     action,
     withheld,
+    /** The gradability verdict: question, state, coverage, bar, one action. */
+    gradability,
+    /**
+     * Whether the figures and the named department may be on screen at all.
+     *
+     * Derived from the verdict on every compose, never latched: an import far
+     * below the bar takes them off, and the next export that clears the bar puts
+     * them back. The view assigns `hidden` from this on every paint for exactly
+     * that reason.
+     */
+    figuresSuppressed: gradability.figuresSuppressed,
     /** The reproducibility result behind the position, or null on a path that has none. */
     reproducibility,
     disclosures: Object.freeze([
+      disclosure(STAND_DISCLOSURE.gradability, gradabilityEntries(gradability)),
       disclosure(STAND_DISCLOSURE.cohort, cohortEntries(position)),
       disclosure(STAND_DISCLOSURE.anonymization, anonymizationEntries(eligibility?.note ?? null)),
       disclosure(STAND_DISCLOSURE.versions, versionEntries(analysis, briefing, position)),

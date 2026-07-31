@@ -18,8 +18,8 @@ import {
 import { importPageModule, waitFor } from "./support/page-module.js";
 import {
   STAND_CONFIDENCE_LABEL, STAND_DISCLOSURE_ORDER, STAND_EVIDENCE_LABEL, STAND_IDS,
-  STAND_MOUNTED_DISCLOSURES, STAND_QUESTION, STAND_RESOLUTION_ACTION, composeStandHeadline,
-  standHeadlineForImport,
+  STAND_MOUNTED_DISCLOSURES, STAND_QUESTION, STAND_RESOLUTION_ACTION, buildStandHeadline,
+  composeStandHeadline, standHeadlineForImport,
 } from "../src/finops-stand.js";
 import {
   CONFIDENCE_LEVELS, EVIDENCE_CLASS, SYNTHETIC_CLAIM_QUALIFIER,
@@ -30,6 +30,8 @@ import {
 } from "../src/example-dataset.js";
 import { resolveCostPosition } from "../src/peer-cost-position.js";
 import { validateCohortAttribution } from "../src/cohort-attribution.js";
+import { createAnswerState } from "../src/answer-state.js";
+import { gradeEligibilityFromCoverage, sampledSpendCoverage } from "../src/grade-eligibility.js";
 
 const PAGE = new URL("../src/evolution.html", import.meta.url);
 const html = await readFile(PAGE, "utf8");
@@ -345,6 +347,129 @@ test("the resolving control is tab-reachable and delegates to the page's one fil
   assert.equal(opened, 1);
   assert.equal(document.activeElement, picker,
     "focus was left on a button that did nothing the reader can see");
+});
+
+// ---------------------------------------------------------------------------
+// 4b. The gradability gate is repainted, not latched.
+//
+// A region that suppresses its figures once and never restores them is a region
+// that will assert "this export can be graded" over an empty headline. Both
+// tests below drive ONE document through two states and read what a lead would
+// see: the visible sentences, and whether the blocks are on the screen.
+// ---------------------------------------------------------------------------
+
+/**
+ * A literacy verdict at a chosen coverage, generated here rather than committed
+ * as a fixture. One scored department and one unscored one, so the ratio is the
+ * only thing that changes between the two states below.
+ */
+function literacyAt({ coveredUsd, uncoveredUsd }) {
+  return {
+    departments: [
+      {
+        departmentId: "dept-scored", name: "Platform", gradeable: true, reason: null,
+        spend: { totalUsd: coveredUsd },
+      },
+      {
+        departmentId: "dept-unscored", name: "Support", gradeable: false,
+        reason: "no_sampled_queries", spend: { totalUsd: uncoveredUsd },
+      },
+    ],
+    eligibility: gradeEligibilityFromCoverage(
+      sampledSpendCoverage({ coveredUsd, totalUsd: coveredUsd + uncoveredUsd }),
+      { groups: [{ key: "Support", uncoveredUsd }] }),
+    missingInput: null,
+  };
+}
+
+const importedAnalysis = (literacy) => ({
+  schemaVersion: "finops-analysis/test",
+  period: "2026-06-01 to 2026-07-01",
+  spendUsd: literacy.departments.reduce((sum, row) => sum + row.spend.totalUsd, 0),
+  recoverableUsd: 1200,
+  rankedDepartments: [{ id: "dept-scored", name: "Platform", spendUsd: 900 }],
+  literacy,
+});
+
+/** An import the rubric barely touched: 5% of its spend is scored. */
+const farBelowBar = () => importedAnalysis(literacyAt({ coveredUsd: 50, uncoveredUsd: 950 }));
+/** …and one that clears the 50% bar comfortably. */
+const overBar = () => importedAnalysis(literacyAt({ coveredUsd: 900, uncoveredUsd: 100 }));
+
+const gradabilityText = (document) => ({
+  question: shownText(document, STAND_IDS.gradabilityQuestion),
+  metric: shownText(document, STAND_IDS.gradabilityMetric),
+  action: shownText(document, STAND_IDS.gradabilityAction),
+});
+
+const figuresOnScreen = (document) => ({
+  figures: document.querySelectorAll(".stand-figures").map((node) => node.hidden),
+  team: byId(document, STAND_IDS.team).hidden,
+});
+
+test("a second import that clears the bar brings the figures and the named team back", () => {
+  const document = parseHtml(html);
+  const eligibility = validateCohortAttribution({
+    rows: [{ department_key: "atlas-platform", cost: "10" }],
+  });
+
+  // Far below the bar: the figures and the named department come off the screen,
+  // because a headline computed over 5% of the spend is a claim about a sample.
+  applyStandHeadline(document,
+    standHeadlineForImport({ analysis: farBelowBar(), eligibility }));
+  assert.deepEqual(figuresOnScreen(document), { figures: [true], team: true });
+  assert.match(gradabilityText(document).metric, /^This export cannot be graded\./);
+
+  // The same DOM, repainted with an export that clears the bar. Everything the
+  // suppressed state took away has to come back, or the sentence beside it is
+  // talking about figures nobody can see.
+  applyStandHeadline(document, standHeadlineForImport({ analysis: overBar(), eligibility }));
+  assert.deepEqual(figuresOnScreen(document), { figures: [false], team: false },
+    "the suppressed figures were latched hidden and never restored");
+  const graded = gradabilityText(document);
+  assert.equal(graded.question, "Can this export be graded?");
+  assert.equal(graded.metric,
+    "This export can be graded. 90% of imported spend sits in departments the rubric scored; "
+    + "the bar is 50%.");
+  assert.match(graded.action, /^Read the answer above\./);
+  for (const id of [STAND_IDS.gradabilityQuestion, STAND_IDS.gradabilityMetric,
+    STAND_IDS.gradabilityAction]) {
+    assert.equal(byId(document, id).hidden, false, `#${id} says nothing in the graded state`);
+  }
+});
+
+test("clearing a suppressed import renders the bundled example exactly as a fresh load does", () => {
+  // What a lead who never imported anything sees.
+  const fresh = parseHtml(html);
+  applyStandHeadline(fresh, buildStandHeadline());
+
+  // …and what a lead sees after an import that suppressed the figures is
+  // discarded. `clearImport()` restores the same bundled answer, so the two
+  // renderings have to be indistinguishable — not a gutted version of one.
+  const cleared = parseHtml(html);
+  const answerState = createAnswerState();
+  const outcome = answerState.setImport({
+    analysis: farBelowBar(),
+    eligibility: validateCohortAttribution({
+      rows: [{ department_key: "atlas-platform", cost: "10" }],
+    }),
+  });
+  assert.equal(outcome.committed, true, "this assertion needs the suppressing import to commit");
+  applyStandHeadline(cleared, answerState.getHeadline());
+  assert.deepEqual(figuresOnScreen(cleared), { figures: [true], team: true },
+    "this assertion is only meaningful once the import has suppressed something");
+
+  answerState.clearImport();
+  applyStandHeadline(cleared, answerState.getHeadline());
+
+  assert.deepEqual(figuresOnScreen(cleared), figuresOnScreen(fresh));
+  assert.deepEqual(gradabilityText(cleared), gradabilityText(fresh));
+  for (const id of [STAND_IDS.question, STAND_IDS.answer, STAND_IDS.recoverableValue,
+    STAND_IDS.teamName, STAND_IDS.action, STAND_IDS.sample]) {
+    assert.equal(shownText(cleared, id), shownText(fresh, id), `#${id} came back different`);
+  }
+  assert.equal(byId(cleared, STAND_IDS.region).dataset.source,
+    byId(fresh, STAND_IDS.region).dataset.source);
 });
 
 // ---------------------------------------------------------------------------

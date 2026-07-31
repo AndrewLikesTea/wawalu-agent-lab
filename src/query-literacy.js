@@ -66,21 +66,21 @@ import {
 } from "./prompt-literacy-scoring.js";
 import { ABSENT, carryableModelString, readUsageDetail } from "./provider-usage-record.js";
 import { QUERY_CLASSIFIER_VERSION } from "./query-classification.js";
+import {
+  MIN_JOINED_RECORDS_FOR_GRADE, NOT_GRADEABLE_REASONS,
+} from "./query-gradeability-reasons.js";
 import { QUERY_SAMPLE_VERSION } from "./query-sample.js";
 
 /** Bump when a reason code or the gradeability rule changes meaning. */
 export const QUERY_LITERACY_VERSION = "query-literacy/1.0.0";
 
-/**
- * The fewest classified-and-joined records a department may be graded on.
- *
- * Five, because the rubric's composite is a share-of-queries number: under five
- * records a single query moves the composite by twenty points or more, so the
- * letter would describe the sample rather than the department. This is a
- * judgement about sampling noise, not a measured confidence interval, and it is
- * stated here rather than buried in a branch so it can be argued with.
- */
-export const MIN_JOINED_RECORDS_FOR_GRADE = 5;
+// The minimum sample and the not-gradeable codes are declared in a leaf beside
+// this module so a surface can render a reason without importing the rubric,
+// the classifier and the sampler to do it. They are still this module's values,
+// and they are re-exported here so every existing importer is unaffected.
+export {
+  MIN_JOINED_RECORDS_FOR_GRADE, NOT_GRADEABLE_COPY, NOT_GRADEABLE_REASONS,
+} from "./query-gradeability-reasons.js";
 
 /**
  * A cohort needs a subject and at least two peers, so the median it is compared
@@ -201,30 +201,6 @@ export function resolveJoinKeySpace({ grouping = null, departments = [] } = {}) 
     declaredUnitKeys,
   });
 }
-
-/** Why a department is not gradeable. Closed, machine-readable, never prose. */
-export const NOT_GRADEABLE_REASONS = Object.freeze({
-  noSampledQueries: "no_sampled_queries",
-  noClassifiedQueries: "no_classified_queries",
-  noBillingMatch: "no_billing_match",
-  insufficientJoinedSample: "insufficient_joined_sample",
-});
-
-/**
- * Human copy per not-gradeable code. Held beside the code so a surface renders a
- * sentence it did not assemble, and so the code stays the thing consumers branch
- * on. Reword freely; changing what a code *means* is a version bump.
- */
-export const NOT_GRADEABLE_COPY = Object.freeze({
-  [NOT_GRADEABLE_REASONS.noSampledQueries]:
-    "No imported query sampled this department.",
-  [NOT_GRADEABLE_REASONS.noClassifiedQueries]:
-    "Every sampled query for this department fell below the classification confidence floor.",
-  [NOT_GRADEABLE_REASONS.noBillingMatch]:
-    "No sampled query names a department and model the billing export also bills.",
-  [NOT_GRADEABLE_REASONS.insufficientJoinedSample]:
-    `Fewer than ${MIN_JOINED_RECORDS_FOR_GRADE} classified queries joined to billing for this department.`,
-});
 
 /**
  * Why a benchmark is or is not available. `no_compatible_cohort` is retained
