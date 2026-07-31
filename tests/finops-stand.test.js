@@ -28,6 +28,12 @@ import {
   loadWorkspaceDestinations, prioritizedDestination, supportingDestinations,
 } from "../src/finops-destination-contract.js";
 import { validateCohortAttribution } from "../src/cohort-attribution.js";
+import {
+  CONFIDENCE_LEVELS, CONFIDENCE_REASON, PROVENANCE_KIND,
+} from "../src/finops-finding-resolver.js";
+import { SPINE_CLAIM_KIND } from "../src/finops-spine-manifest.js";
+import { PEER_COST_SNAPSHOT_ID } from "../src/peer-cost-position.js";
+import { evaluateRankingReproducibility } from "../src/ranking-reproducibility.js";
 
 const analysis = loadExampleDataset();
 
@@ -155,6 +161,100 @@ test("the disclosures carry the shipped cohort, anonymization, version and verif
   assert.match(verification, /0\.85 of 1\.00/);
   assert.match(verification, /15 of 15 records analyzed/);
   assert.match(verification, /Not verified · missing_request_counts/);
+});
+
+// ---------------------------------------------------------------------------
+// The headline is RESOLVED, not assembled. `answerSentence()` — which made the
+// peer position the headline by construction — is gone; these assert that what
+// replaced it is wired to this region and agrees with what the region renders.
+// ---------------------------------------------------------------------------
+
+test("the answer is the winning finding's claim, verbatim", () => {
+  const headline = buildStandHeadline();
+  assert.equal(headline.answer, headline.finding.claim);
+  // On the bundled example the position is material, reproducible, and the
+  // manifest's first claim kind, so it leads.
+  assert.equal(headline.finding.signalKind, SPINE_CLAIM_KIND.peerPosition);
+  assert.equal(headline.finding.id, "peer-position");
+  // The finding recommends exactly one action, and it is the one this region
+  // actually renders. A headline that recommends an action the page does not
+  // offer is a claim nobody can act on.
+  assert.equal(headline.finding.recommendedAction, headline.action.label);
+});
+
+test("the bundled example's ranking confesses that it rests on synthetic cohorts", () => {
+  const headline = buildStandHeadline();
+  // The reproducibility result states the tier; the resolver drops it a level
+  // because the quartile boundaries are published synthetic ones, not the
+  // reader's own export.
+  const reproducibility = evaluateRankingReproducibility({
+    org: EXAMPLE_ORG_COHORT_PROFILE,
+    spendUsd: Number(analysis.spendUsd),
+    tasks: EXAMPLE_TASK_LEDGER,
+    analysis,
+  });
+  assert.equal(headline.finding.confidence.statedLevel, reproducibility.confidence.tier);
+  assert.equal(CONFIDENCE_LEVELS.indexOf(headline.finding.confidence.statedLevel)
+    - CONFIDENCE_LEVELS.indexOf(headline.finding.confidence.level), 1);
+  assert.ok(headline.finding.confidence.reasons
+    .includes(CONFIDENCE_REASON.syntheticCohortBoundaries));
+  // Traceable back to the snapshot that produced the boundaries.
+  assert.equal(headline.finding.provenance.kind, PROVENANCE_KIND.synthetic);
+  assert.equal(headline.finding.provenance.id, PEER_COST_SNAPSHOT_ID);
+});
+
+test("the runners-up are returned in rank order and rendered by nothing", () => {
+  const headline = buildStandHeadline();
+  assert.ok(headline.runnersUp.length > 0, "the example supports more than one finding");
+  // Ordered, distinct, and none of them is the winner.
+  const ids = headline.runnersUp.map((row) => row.id);
+  assert.equal(new Set(ids).size, ids.length);
+  assert.ok(!ids.includes(headline.finding.id));
+  // No runner-up claim is on the surface: the region asserts one claim.
+  for (const runnerUp of headline.runnersUp) {
+    assert.notEqual(headline.answer, runnerUp.claim);
+  }
+  // And every signal that did not become a finding is reported, never dropped.
+  assert.ok(Array.isArray(headline.rejectedSignals));
+});
+
+test("the same headline resolves to the same winner on every build", () => {
+  const first = buildStandHeadline();
+  const second = buildStandHeadline();
+  assert.equal(first.finding.id, second.finding.id);
+  assert.equal(first.answer, second.answer);
+  assert.deepEqual(first.runnersUp.map((row) => row.id), second.runnersUp.map((row) => row.id));
+});
+
+test("an import with no placeable position still leads with its strongest finding", () => {
+  // The reader's export is ineligible for a cohort, so the position is withheld
+  // — and the region still answers with the best finding their own data
+  // supports rather than with the reason it cannot place them.
+  const eligibility = validateCohortAttribution({
+    rows: [{ department_key: "atlas-platform", cost: "10" }],
+  });
+  const headline = standHeadlineForImport({ analysis, eligibility });
+  assert.equal(headline.positioned, false);
+  assert.notEqual(headline.finding, null);
+  assert.equal(headline.answer, headline.finding.claim);
+  // Nothing cohort-derived can win here: there is no position and no ranking.
+  assert.notEqual(headline.finding.signalKind, SPINE_CLAIM_KIND.peerPosition);
+  // The reader's own export is the evidence, so no synthetic downgrade applies.
+  assert.equal(headline.finding.provenance.kind, PROVENANCE_KIND.imported);
+  assert.ok(!headline.finding.confidence.reasons
+    .includes(CONFIDENCE_REASON.syntheticCohortBoundaries));
+  // The withheld position is still explained; the finding did not replace it.
+  assert.equal(headline.withheld.missing, eligibility.reasonText);
+});
+
+test("a headline with no evidence at all carries no finding and keeps its placeholder", () => {
+  const thrown = () => { throw new Error("the example could not be loaded"); };
+  const headline = buildStandHeadline(thrown, thrown);
+  assert.equal(headline.finding, null);
+  assert.deepEqual(headline.runnersUp, []);
+  // The region's existing empty convention: the withheld sentence, not a blank
+  // and not the word "Unavailable".
+  assert.equal(headline.answer, headline.withheld.missing);
 });
 
 // ---------------------------------------------------------------------------
