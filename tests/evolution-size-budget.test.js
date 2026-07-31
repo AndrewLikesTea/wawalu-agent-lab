@@ -79,6 +79,45 @@ test("the module graph follows static imports and stops at a dynamic one", async
   assert.deepEqual(missing, []);
 });
 
+test("the first-screen figure is a sum of tracked parts, and every part is tracked", () => {
+  const ids = new Set(config.artifacts.map((artifact) => artifact.id));
+  const firstScreen = config.artifacts.find((artifact) => artifact.id === "first-screen");
+  assert.ok(firstScreen, "the report must carry a first-screen figure");
+  assert.equal(firstScreen.kind, "sum");
+  // Derived, never hand-typed: a sum over ids measured off the same build
+  // cannot disagree with the parts printed beside it in the report.
+  for (const part of firstScreen.parts) {
+    assert.ok(ids.has(part), `first-screen sums ${part}, which nothing measures`);
+  }
+  // What it counts, asserted rather than only described: the document, the three
+  // render-blocking stylesheets, and the page entry's static graph.
+  assert.deepEqual([...firstScreen.parts].sort(), [
+    "evolution-css", "evolution-entry-graph", "evolution-html",
+    "journey-consolidated-css", "styles-css",
+  ]);
+  // And what it does not: the footer entry, which the answer block never waits
+  // on, and by construction anything behind a dynamic import().
+  assert.ok(!firstScreen.parts.includes("footer-entry-graph"));
+  assert.match(firstScreen.baseline, /import\(\)/,
+    "the baseline must say what is excluded because it is dynamically imported");
+});
+
+test("a sum whose part could not be measured fails rather than summing to less", () => {
+  const fixture = {
+    headroom: "2%",
+    artifacts: [
+      { id: "page", label: "page.html", kind: "file", path: "page.html", budgetBytes: 1000 },
+      { id: "first", label: "first screen", kind: "sum", parts: ["page"], budgetBytes: 1000 },
+    ],
+  };
+  // The part is missing, so the sum is unmeasured — never 0, which would read
+  // as a page that suddenly got smaller.
+  const results = evaluateBudgets(fixture, {});
+  const sum = results.find((result) => result.id === "first");
+  assert.equal(sum.unmeasured, true);
+  assert.equal(sum.over, true);
+});
+
 test("the checked-in budget config is a real measurement, not a placeholder", () => {
   assert.ok(config.artifacts.length > 0);
   assert.match(config.headroom, /\S/, "the config must state the headroom it chose");

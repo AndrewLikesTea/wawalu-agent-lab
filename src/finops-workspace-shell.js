@@ -48,11 +48,10 @@
 // to empty it.
 
 import { DEFAULT_DESTINATION, WORKSPACE_DESTINATION } from "./finops-workspace-nav.js";
-// The three heavy per-destination datasets, reached only through the memo below.
-import { loadExampleDataset } from "./example-dataset.js";
-import { buildFinopsBriefing } from "./finops-briefing-contract.js";
-import { leadingFinding } from "./finops-leading-finding.js";
-import { loadWorkspaceDestinations } from "./finops-destination-contract.js";
+import { DESTINATION_LOAD_STATE, createDestinationLoader } from "./finops-destination-loader.js";
+// The page's one status vocabulary. Reused, never extended: a destination that
+// is still fetching its module is a panel in a state this module already draws.
+import { PANEL_STATUS, applyPanelStatus } from "./panel-status-view.js";
 
 /** The ids the shipped markup carries, in one place so a test can name them. */
 export const WORKSPACE_SHELL_IDS = Object.freeze({
@@ -96,7 +95,7 @@ const usd = (value) => (typeof value === "number" && Number.isFinite(value)
   : "unavailable");
 
 // ---------------------------------------------------------------------------
-// The per-destination datasets, computed on first open.
+// The per-destination modules, fetched on first open.
 // ---------------------------------------------------------------------------
 //
 // Each destination's dataset is a computation over the bundled fixture that only
@@ -105,71 +104,171 @@ const usd = (value) => (typeof value === "number" && Number.isFinite(value)
 // reads the workspace-destination record. Composing all three on boot meant a
 // reader who never left the answer paid for all three.
 //
-// THE CACHE IS A MAP AND NOTHING ELSE. Keyed by destination key, scoped to this
-// module, and filled once per key for the life of the page. No invalidation, no
-// window global, no reactive wrapper, and no eviction: every loader below is a
-// pure read of a fixture generated in this process, so a second computation
-// could only ever produce an equal value, and a repeated open therefore returns
-// the same object identity. A loader that throws caches `null` rather than
-// throwing on every open — the destination still opens; it just has no dataset.
-
-/** The shared fixture read. Not a destination's dataset — it is every one's input. */
-let bundledAnalysisMemo;
-
-function bundledAnalysis() {
-  if (bundledAnalysisMemo === undefined) {
-    try {
-      bundledAnalysisMemo = loadExampleDataset();
-    } catch {
-      bundledAnalysisMemo = null;
-    }
-  }
-  return bundledAnalysisMemo;
-}
+// THE OPEN WAS ALREADY LAZY; THE PAYLOAD WAS NOT. These three were static
+// imports of this module until #821, so a browser fetched, parsed and evaluated
+// all three before the answer block could paint, no matter which destination the
+// reader wanted. They are `import()` calls now — the native form, which the
+// served origin already supports and `scripts/check-size-budget.mjs` already
+// declines to count, so nothing here needs a bundler plugin, a build step, or a
+// dependency. The cache, the in-flight state and the retry-after-failure rule
+// all live in src/finops-destination-loader.js; this file only says which module
+// each destination needs and paints what the loader is doing.
+//
+// The answer has no source on purpose. It is the default destination and the
+// figure it prints is precomputed in src/finops-answer-summary.js, so the answer
+// screen renders with none of the three below ever fetched.
 
 /**
- * One loader per destination, and each one independent: nothing here reads
- * another destination's entry, so opening evidence computes the briefing and
- * neither of the other two. The answer has no entry on purpose — it is the
- * default destination, and the figure it prints is precomputed in
- * src/finops-answer-summary.js rather than composed on open.
+ * One dynamic import per destination, each one independent: nothing here reads
+ * another destination's module, so opening evidence fetches the briefing
+ * contract and neither of the other two.
+ *
+ * The specifiers are literals rather than a computed string so a reader — and
+ * any tool that walks this file — can see exactly which three modules left the
+ * initial payload and what brings each one back.
  */
-const DESTINATION_DATASET_SOURCE = Object.freeze({
-  [WORKSPACE_DESTINATION.evidence]: () => buildFinopsBriefing(bundledAnalysis()),
-  [WORKSPACE_DESTINATION.department]: () => leadingFinding(bundledAnalysis()),
-  [WORKSPACE_DESTINATION.actAndVerify]: () => loadWorkspaceDestinations(),
+export const DESTINATION_MODULE_SOURCE = Object.freeze({
+  [WORKSPACE_DESTINATION.evidence]: async () => {
+    const [{ buildFinopsBriefing }, { loadExampleDataset }] = await Promise.all([
+      import("./finops-briefing-contract.js"),
+      import("./example-dataset.js"),
+    ]);
+    return buildFinopsBriefing(loadExampleDataset());
+  },
+  [WORKSPACE_DESTINATION.department]: async () => {
+    const [{ leadingFinding }, { loadExampleDataset }] = await Promise.all([
+      import("./finops-leading-finding.js"),
+      import("./example-dataset.js"),
+    ]);
+    return leadingFinding(loadExampleDataset());
+  },
+  [WORKSPACE_DESTINATION.actAndVerify]: async () => {
+    const { loadWorkspaceDestinations } = await import("./finops-destination-contract.js");
+    return loadWorkspaceDestinations();
+  },
 });
 
-const DESTINATION_DATASETS = new Map();
+/** The page's loader. A test passes its own through `loader` instead. */
+export const destinationLoader = createDestinationLoader(DESTINATION_MODULE_SOURCE);
 
 /**
- * One destination's dataset, computed on the first call and read from the memo
- * on every call after it. Null for a key with no dataset and for a loader that
- * threw; never throws.
+ * The promise for the open now in flight for one destination, so a caller that
+ * did not start it — a test, or the retry control's own handler — can wait for
+ * the paint rather than for the fetch and then guess at the ordering.
  */
-export function destinationDataset(key) {
-  if (DESTINATION_DATASETS.has(key)) return DESTINATION_DATASETS.get(key);
-  const load = DESTINATION_DATASET_SOURCE[key];
-  if (!load) return null;
-  let dataset = null;
-  try {
-    dataset = load();
-  } catch {
-    dataset = null;
-  }
-  DESTINATION_DATASETS.set(key, dataset);
-  return dataset;
+const OPENING = new Map();
+
+export function destinationOpening(key) {
+  return OPENING.get(key) ?? null;
 }
 
 /**
- * Which destinations have computed their dataset, in first-open order.
+ * One destination's dataset once it has loaded, and null before that.
+ *
+ * A memo read, never a fetch: nothing on the synchronous paint path may start a
+ * network request as a side effect of being asked a question.
+ */
+export function destinationDataset(key, loader = destinationLoader) {
+  return loader.value(key);
+}
+
+/**
+ * Which destinations have loaded their dataset, in first-ready order.
  *
  * The memo is observable rather than inferred: a test asserts that opening one
- * destination left the other two uncomputed, and a support conversation can ask
+ * destination left the other two unfetched, and a support conversation can ask
  * the same question of a live page without guessing from a timing profile.
  */
-export function computedDestinationDatasets() {
-  return [...DESTINATION_DATASETS.keys()];
+export function computedDestinationDatasets(loader = destinationLoader) {
+  return loader.readyKeys();
+}
+
+// ---------------------------------------------------------------------------
+// What the reader sees while it loads, and when it does not.
+// ---------------------------------------------------------------------------
+
+/** The element ids the shipped markup carries for one destination's status. */
+export const destinationStatusId = (key) => `destination-load-${key}`;
+export const destinationRetryId = (key) => `destination-retry-${key}`;
+
+/**
+ * The copy, in the page's existing vocabulary and naming the destination.
+ *
+ * "Could not load Evidence" and not "Could not compute": the reader pressed a
+ * door, and the thing that failed is the one they can name and retry.
+ */
+export const DESTINATION_LOAD_COPY = Object.freeze({
+  loading: (name) => `Opening ${name}. The answer above is already on screen.`,
+  error: (name) => `Could not load ${name}. Nothing on the answer above changed,`
+    + " and nothing of yours was uploaded or stored.",
+  retryAction: (name) => `Press “Retry ${name}” to try again.`,
+});
+
+/** A destination's visible name, read off its own door so there is one wording. */
+function destinationName(doc, key) {
+  const door = switchDoors(doc).find((entry) => entry.dataset.shellDestination === key);
+  return doorName(door) || key;
+}
+
+/**
+ * Paint one destination's load state into its own status region.
+ *
+ * Never an empty pane: the region is on screen for the whole of `loading` and
+ * `error`, and only retires once the module is in hand. The retry control is
+ * authored in the markup and toggled here — the same shape `#finops-data-retry`
+ * already has for the bundled fixture, so a reader meets one retry idiom.
+ *
+ * `announce: false` on the loading line is deliberate. `#finops-load-state` is
+ * this page's one narrating region; a second polite region describing a second
+ * fetch is how a screen-reader user learns to ignore both. The failure keeps its
+ * `role="alert"`, because it is the one state that needs an answer.
+ */
+export function paintDestinationLoadState(doc, key, state) {
+  const panelId = destinationStatusId(key);
+  const panel = byId(doc, panelId);
+  if (!panel) return null;
+  const name = destinationName(doc, key);
+  const retry = byId(doc, destinationRetryId(key));
+
+  if (state !== DESTINATION_LOAD_STATE.loading && state !== DESTINATION_LOAD_STATE.error) {
+    panel.hidden = true;
+    if (retry) retry.hidden = true;
+    return panel;
+  }
+
+  panel.hidden = false;
+  const failed = state === DESTINATION_LOAD_STATE.error;
+  if (retry) retry.hidden = !failed;
+  applyPanelStatus(doc, {
+    panelId,
+    status: failed ? PANEL_STATUS.error : PANEL_STATUS.loading,
+    summary: failed ? DESTINATION_LOAD_COPY.error(name) : DESTINATION_LOAD_COPY.loading(name),
+    action: failed ? { label: "Needed next", text: DESTINATION_LOAD_COPY.retryAction(name) } : null,
+    announce: failed,
+  });
+  return panel;
+}
+
+/**
+ * Open one destination's module: paint the wait, fetch it, paint the outcome.
+ *
+ * Resolves to the state it painted and never rejects, so the synchronous paint
+ * path can start it and walk away. A destination with no module — the answer —
+ * resolves immediately and paints nothing.
+ */
+export function openDestination(doc, key, { loader = destinationLoader } = {}) {
+  if (!DESTINATION_MODULE_SOURCE[key]) return Promise.resolve(DESTINATION_LOAD_STATE.idle);
+  if (loader.stateOf(key) !== DESTINATION_LOAD_STATE.ready) {
+    paintDestinationLoadState(doc, key, DESTINATION_LOAD_STATE.loading);
+  }
+  const opening = loader.load(key).then((outcome) => {
+    const state = outcome.status === DESTINATION_LOAD_STATE.error
+      ? DESTINATION_LOAD_STATE.error : DESTINATION_LOAD_STATE.ready;
+    paintDestinationLoadState(doc, key, state);
+    return state;
+  });
+  OPENING.set(key, opening);
+  return opening;
 }
 
 /** Every region the shell may show or hide, in document order. */
@@ -239,7 +338,7 @@ const doorName = (door) => String(door?.dataset?.shellName ?? "").trim()
  * true at once, and the print rules read the shell's attribute so a printed page
  * is still the whole page.
  */
-export function applyWorkspaceDestination(doc, key, { announce = false } = {}) {
+export function applyWorkspaceDestination(doc, key, { announce = false, loader = destinationLoader } = {}) {
   if (!isDestination(key)) return null;
   const regions = workspaceRegions(doc);
   if (regions.length === 0) return null;
@@ -273,10 +372,12 @@ export function applyWorkspaceDestination(doc, key, { announce = false } = {}) {
   const context = byId(doc, WORKSPACE_SHELL_IDS.context);
   if (context) context.hidden = key === DEFAULT_DESTINATION;
 
-  // FIRST OPEN COMPUTES, every open after it reads the memo. It is deliberately
+  // FIRST OPEN FETCHES, every open after it reads the memo. It is deliberately
   // after the regions are marked and the doors repainted: the destination is on
-  // screen whether or not its dataset resolves, and this call cannot throw.
-  destinationDataset(key);
+  // screen whether or not its module ever arrives. Started and walked away from
+  // — the loader never rejects, and a destination whose module is still in
+  // flight is a region showing the wait, not a paint this one has to block on.
+  openDestination(doc, key, { loader });
 
   if (announce) announceDestination(doc, key, shown);
   return key;
@@ -362,20 +463,28 @@ function pair(doc, term, detail) {
  * not land on a region that is still hidden — so the order is not a preference,
  * it is the difference between a door that works and one that silently does not.
  */
-export function initWorkspaceShell(doc, { win = null, loaded = null } = {}) {
+export function initWorkspaceShell(doc, { win = null, loaded = null, loader = destinationLoader } = {}) {
   if (workspaceRegions(doc).length === 0) return null;
-  // Seed rather than recompute: the entry already loaded this record for the
+  // Seed rather than re-fetch: the entry already loaded this record for the
   // rail, so the first open of act-and-verify must not read the fixture twice.
-  if (loaded && !DESTINATION_DATASETS.has(WORKSPACE_DESTINATION.actAndVerify)) {
-    DESTINATION_DATASETS.set(WORKSPACE_DESTINATION.actAndVerify, loaded);
-  }
+  if (loaded) loader.seed(WORKSPACE_DESTINATION.actAndVerify, loaded);
   paintWorkspaceContext(doc, loaded);
 
   const select = (hash, { announce }) => {
     const key = destinationForFragment(doc, hash);
     // Unknown fragment: the reader stays exactly where they were.
     if (!key) return null;
-    return applyWorkspaceDestination(doc, key, { announce });
+    return applyWorkspaceDestination(doc, key, { announce, loader });
+  };
+
+  // The retry, on the region that failed. It re-invokes the import rather than
+  // reloading the page: the loader dropped the failed cache entry when it
+  // failed, so the second attempt is a real second attempt.
+  const onRetry = (event) => {
+    const button = event.target?.closest?.("[data-destination-retry]");
+    const key = button?.dataset?.destinationRetry;
+    if (!key) return;
+    openDestination(doc, key, { loader });
   };
 
   const onClick = (event) => {
@@ -391,6 +500,7 @@ export function initWorkspaceShell(doc, { win = null, loaded = null } = {}) {
   const onHashChange = () => select(win?.location?.hash ?? "", { announce: true });
 
   doc.addEventListener?.("click", onClick, true);
+  doc.addEventListener?.("click", onRetry);
   win?.addEventListener?.("hashchange", onHashChange);
   win?.addEventListener?.("popstate", onHashChange);
 
@@ -401,6 +511,7 @@ export function initWorkspaceShell(doc, { win = null, loaded = null } = {}) {
     destination: opened,
     dispose() {
       doc.removeEventListener?.("click", onClick, true);
+      doc.removeEventListener?.("click", onRetry);
       win?.removeEventListener?.("hashchange", onHashChange);
       win?.removeEventListener?.("popstate", onHashChange);
     },

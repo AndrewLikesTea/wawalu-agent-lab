@@ -840,6 +840,28 @@
         <p class="visually-hidden" id="finops-workspace-switch-live" role="status" aria-live="polite" aria-atomic="true"></p>
       </div>
 
+      <!-- ONE STATUS REGION PER DESTINATION. src/finops-workspace-shell.js
+           fetches these three destinations' modules with a native import() on
+           first open, so the answer block above renders without them and a fetch
+           in flight or failed has to be readable somewhere. Authored empty and
+           hidden; painted with the page's existing panel-status treatment only
+           while loading or after a failure, and retired once the module lands.
+           The retry is a real button in this region's tab order, the same shape
+           #finops-data-retry has, and it re-invokes the import — the loader
+           drops a failed module from its cache so the second press can work. -->
+      <section class="finops-panel" id="destination-load-evidence" data-workspace-region="evidence" aria-labelledby="destination-load-evidence-title" hidden>
+        <p class="eyebrow" id="destination-load-evidence-title">Evidence · destination</p>
+        <button id="destination-retry-evidence" type="button" data-destination-retry="evidence" hidden>Retry Evidence</button>
+      </section>
+      <section class="finops-panel" id="destination-load-department" data-workspace-region="department" aria-labelledby="destination-load-department-title" hidden>
+        <p class="eyebrow" id="destination-load-department-title">Departments · destination</p>
+        <button id="destination-retry-department" type="button" data-destination-retry="department" hidden>Retry Departments</button>
+      </section>
+      <section class="finops-panel" id="destination-load-act-and-verify" data-workspace-region="act-and-verify" aria-labelledby="destination-load-act-and-verify-title" hidden>
+        <p class="eyebrow" id="destination-load-act-and-verify-title">Act and verify · destination</p>
+        <button id="destination-retry-act-and-verify" type="button" data-destination-retry="act-and-verify" hidden>Retry Act and verify</button>
+      </section>
+
       <!-- The five figures a leader is judging every destination against —
            benchmark, impact, confidence, why it matters, provenance — carried out
            of the brief so that leaving the answer does not mean leaving them.
