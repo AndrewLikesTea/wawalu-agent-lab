@@ -1862,6 +1862,20 @@ section[data-workspace-current="true"] { box-shadow:-6px 0 0 0 var(--import-wash
    written, not a second ask competing with the confirmation above it. */
 .finops-contact-next { margin:0; border-left:2px solid var(--import-accent); padding-left:11px; color:var(--import-ink); font-size:13px; line-height:1.55; }
 .finops-contact-next[hidden] { display:none; }
+/* The receipt that stands where the form was once a request lands. It is the
+   panel's own green — no new hue — as a filled card with a check in front of the
+   address; the rejected-input box beside it is the red family with a heavy left
+   rule and no glyph, so the two are told apart without reading either. The
+   address is a visitor's string, so it wraps anywhere rather than widening the
+   card past the panel on a phone. */
+.finops-contact-confirmation { display:grid; justify-items:start; gap:10px; width:100%; border:1px solid var(--import-line); border-radius:12px; padding:15px 16px; background:var(--import-wash); }
+.finops-contact-confirmation:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.finops-contact-confirmation-lead { margin:0; color:var(--import-ink); font-size:15px; font-weight:700; line-height:1.55; }
+.finops-contact-confirmation-mark { margin-right:8px; font-size:16px; }
+.finops-contact-confirmation-address { overflow-wrap:anywhere; }
+.finops-contact-confirmation-detail { margin:0; color:var(--import-ink); font-size:12px; line-height:1.55; }
+.finops-contact-confirmation-again { min-height:44px; border:1px solid var(--import-accent); border-radius:9px; padding:0 16px; background:#fff; color:var(--import-ink); font:650 13px/1.4 inherit; cursor:pointer; }
+.finops-contact-confirmation-again:hover { background:var(--import-accent); color:#fff; }
 .finops-contact button:focus-visible,.finops-contact input:focus-visible,.finops-contact a:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
 
 /* The contextual invitation, beside the brief rather than at the foot of the
@@ -1878,6 +1892,8 @@ section[data-workspace-current="true"] { box-shadow:-6px 0 0 0 var(--import-wash
   .finops-contact { padding:18px; }
   .finops-contact-trigger { width:100%; }
   .finops-contact-actions button { flex:1 1 auto; }
+  .finops-contact-confirmation { padding:13px 14px; }
+  .finops-contact-confirmation-again { width:100%; }
   .finops-followup-cta-button { width:100%; }
 
   /* The table keeps its shape and scrolls inside its own labelled, focusable

@@ -30,6 +30,7 @@
 // The promise it makes once an address lands is still its own — see the note on
 // CAPTURED about what it is willing to say.
 
+import { createFollowUpConfirmation } from "./follow-up-confirmation.js";
 import {
   CONTACT_COPY, describeWith, emailFieldError, looksLikeEmail, postLeadEmail, SubmissionError,
 } from "./lead-capture.js";
@@ -267,13 +268,28 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
     describeWith(email, RECOVERY_ID, visible);
   }
 
+  // The success state. Once a request lands the form goes away and this receipt
+  // takes its place, so there is nothing left to press a second time; the
+  // announcement stays in the live region below, where the failure's does.
+  const confirmation = createFollowUpConfirmation({
+    form,
+    status,
+    submit,
+    email,
+    // Coming back to the form clears the outcome of the last request: it reports
+    // something that happened, and the visitor has just said they are not done.
+    onReopen: () => { status.textContent = ""; delete form.dataset.state; },
+  });
+
   function open() {
     if (!panel.hidden) return;
     panel.hidden = false;
     trigger.setAttribute("aria-expanded", "true");
     // Revealing a form and leaving focus on the trigger above it strands a
-    // keyboard user at the very moment they asked for the form.
-    email.focus();
+    // keyboard user at the very moment they asked for the form. After a request
+    // has landed there is no form to land in, so the receipt takes the focus.
+    if (confirmation.sent) confirmation.region.focus();
+    else email.focus();
   }
 
   function close() {
@@ -305,6 +321,10 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
+    // A request that landed is the end of this form's work. Nothing reachable
+    // can fire this handler once the receipt is up, and this is the guarantee
+    // that stays true even if something synthetic tries.
+    if (confirmation.sent) return;
     const invalid = emailFieldError(email.value, looksLikeEmail(email.value), CONTACT_COPY);
     if (invalid) {
       // Whatever was typed stays; the field is never cleared to "help".
@@ -326,9 +346,13 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
     status.textContent = SUBMITTING;
 
     try {
+      const address = email.value.trim();
       const body = await postLeadEmail(request, email.value, CONTACT_COPY);
       form.dataset.state = "success";
       status.textContent = body?.subscribed === false ? ALREADY_CAPTURED : CAPTURED;
+      // The form is replaced from here, so the control that would send again is
+      // gone before the `finally` below could bring it back.
+      confirmation.show(address);
     } catch (error) {
       // Copy this repository owns, never a string an intermediary supplied, and
       // never a claim that the address was lost when that is not known.
@@ -339,9 +363,12 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
       setRecoveryVisible(true);
     } finally {
       // Retry has to work without a reload, so the control comes back on every
-      // path out of the request.
-      submit.disabled = false;
-      submit.removeAttribute("aria-disabled");
+      // path out of the request — except the one where the request landed and
+      // the form it belongs to is no longer on screen.
+      if (!confirmation.sent) {
+        submit.disabled = false;
+        submit.removeAttribute("aria-disabled");
+      }
     }
   });
 

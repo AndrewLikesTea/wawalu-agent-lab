@@ -303,6 +303,8 @@ test("the imported result stays on screen while the form opens, succeeds, fails,
     assert.deepEqual(resultSnapshot(document), before, "a successful submission must not unmount the analysis");
 
     failNext = true;
+    // A landed request replaces the form, so trying again is a deliberate act.
+    byId(document, "finops-contact-again").click();
     submitEmail(document, TYPED_EMAIL);
     await settled(document);
     assert.equal(byId(document, "finops-contact-form").dataset.state, "error");
@@ -340,7 +342,9 @@ test("the bundled example brief is equally undisturbed, and the confirmation say
     assert.deepEqual(resultSnapshot(document), before,
       "the example brief must survive the submission exactly as the imported one does");
 
-    // A repeat submission is still a success, and still claims nothing more.
+    // A repeat submission is still a success, and still claims nothing more —
+    // after the visitor asks for the form back, which is the only way to one.
+    byId(document, "finops-contact-again").click();
     submitEmail(document, TYPED_EMAIL);
     await waitFor(() => shownText(document, "finops-contact-status").includes("already on our list"),
       "the already-captured confirmation");
