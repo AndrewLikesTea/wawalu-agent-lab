@@ -372,7 +372,10 @@
            carries the answer. -->
       <section class="first-run" id="finops-first-run" tabindex="-1" data-state="pending" data-tone="neutral" data-subordinate="true" data-decision-summary="complete" data-workspace-frame="true" aria-labelledby="finops-first-run-title">
         <div class="first-run-head">
-          <p class="eyebrow" id="finops-first-run-label"><span class="first-run-shape" id="finops-first-run-shape" aria-hidden="true">◇</span> <span id="finops-first-run-word">Not analyzed</span></p>
+          <!-- ○ and not ◇: the diamond is this page's provenance silhouette and
+               nothing else. Band state is a live signal, so it is drawn on the
+               circle ramp — ○ nothing yet, ◌ reading, ◐ part, ● measured. -->
+          <p class="eyebrow" id="finops-first-run-label"><span class="first-run-shape" id="finops-first-run-shape" aria-hidden="true">○</span> <span id="finops-first-run-word">Not analyzed</span></p>
           <!-- The heading is the decision question itself, authored here in the
                same words `finops-decision-contract.js` publishes. -->
           <h2 id="finops-first-run-title">Are we wasting money?</h2>
@@ -697,13 +700,13 @@
              speech-control user says are both the name a sighted reader sees. -->
         <ol class="workspace-nav-list" id="finops-workspace-nav-list">
           <li class="workspace-nav-item">
-            <a class="workspace-dest" href="#finops-first-run" aria-current="true" data-destination-key="answer" data-destination-name="The answer" data-destination-target="finops-first-run" data-destination-off-page="false" data-destination-current="true"><span class="workspace-dest-shape" aria-hidden="true">●</span><span class="workspace-dest-name">The answer</span><span class="workspace-dest-state">Current</span><span class="workspace-dest-recommended" hidden></span></a>
+            <a class="workspace-dest" href="#finops-first-run" aria-current="true" data-destination-key="answer" data-destination-name="The answer" data-destination-target="finops-first-run" data-destination-off-page="false" data-destination-current="true"><span class="workspace-dest-name">The answer</span><span class="workspace-dest-state">Current</span><span class="workspace-dest-recommended" hidden></span></a>
           </li>
           <li class="workspace-nav-item">
-            <a class="workspace-dest" href="#recommendation-evidence" data-destination-key="evidence" data-destination-name="Evidence" data-destination-target="recommendation-evidence" data-destination-off-page="false" data-destination-current="false"><span class="workspace-dest-shape" aria-hidden="true">◇</span><span class="workspace-dest-name">Evidence</span><span class="workspace-dest-state" hidden></span><span class="workspace-dest-recommended" hidden></span></a>
+            <a class="workspace-dest" href="#recommendation-evidence" data-destination-key="evidence" data-destination-name="Evidence" data-destination-target="recommendation-evidence" data-destination-off-page="false" data-destination-current="false"><span class="workspace-dest-name">Evidence</span><span class="workspace-dest-state" hidden></span><span class="workspace-dest-recommended" hidden></span></a>
           </li>
           <li class="workspace-nav-item">
-            <a class="workspace-dest" href="#department-decision-panel" data-destination-key="department" data-destination-name="Departments" data-destination-target="department-decision-panel" data-destination-off-page="false" data-destination-current="false"><span class="workspace-dest-shape" aria-hidden="true">◈</span><span class="workspace-dest-name">Departments</span><span class="workspace-dest-state" hidden></span><span class="workspace-dest-recommended" hidden></span></a>
+            <a class="workspace-dest" href="#department-decision-panel" data-destination-key="department" data-destination-name="Departments" data-destination-target="department-decision-panel" data-destination-off-page="false" data-destination-current="false"><span class="workspace-dest-name">Departments</span><span class="workspace-dest-state" hidden></span><span class="workspace-dest-recommended" hidden></span></a>
           </li>
           <!-- The one door that leaves this document. It is never marked current
                — a reader who follows it is reading another page, and a rail
@@ -712,7 +715,7 @@
                authored rather than painted because the claim has to be true
                before any script runs. -->
           <li class="workspace-nav-item">
-            <a class="workspace-dest" href="/savings-action-center.html" data-destination-key="act-and-verify" data-destination-name="Act and verify" data-destination-off-page="true" data-destination-current="false"><span class="workspace-dest-shape" aria-hidden="true">◆</span><span class="workspace-dest-name">Act and verify</span><span class="workspace-dest-kind">Opens another page</span></a>
+            <a class="workspace-dest" href="/savings-action-center.html" data-destination-key="act-and-verify" data-destination-name="Act and verify" data-destination-off-page="true" data-destination-current="false"><span class="workspace-dest-name">Act and verify</span><span class="workspace-dest-kind">Opens another page</span></a>
           </li>
         </ol>
         <!-- What each door answers and what it will not, from the contract.
@@ -720,7 +723,7 @@
              state-bearing with no script; the summary carries a real heading and
              a state chip whose glyph replaces the UA marker. -->
         <details class="workspace-nav-detail" id="finops-workspace-nav-detail" data-disclosure="collapsed">
-          <summary id="finops-workspace-nav-detail-summary" aria-expanded="false"><h3 class="workspace-nav-detail-heading"><span>What each destination answers, and what it will not</span><span class="workspace-nav-detail-state" id="finops-workspace-nav-detail-state" data-disclosure="collapsed"><span class="workspace-dest-shape" aria-hidden="true">▸</span> Show detail</span></h3></summary>
+          <summary id="finops-workspace-nav-detail-summary" aria-expanded="false"><h3 class="workspace-nav-detail-heading"><span>What each destination answers, and what it will not</span><span class="workspace-nav-detail-state" id="finops-workspace-nav-detail-state" data-disclosure="collapsed"><span class="workspace-nav-detail-shape" aria-hidden="true">▸</span> Show detail</span></h3></summary>
           <dl class="workspace-nav-detail-list" id="finops-workspace-nav-detail-list"></dl>
         </details>
         <!-- One polite status region for the whole rail, and it says nothing on
@@ -836,7 +839,7 @@
              and a shape a greyscale screenshot keeps, so "no grade" and "a
              grade that failed its plausibility check" are told apart without
              the amber. Painted by finops-load-status.js. -->
-        <p class="kpi-flag" id="score-flag" hidden><span class="kpi-flag-shape" aria-hidden="true">◇</span> unmeasured</p>
+        <p class="kpi-flag" id="score-flag" hidden><span class="kpi-flag-shape" aria-hidden="true">○</span> unmeasured</p>
         <p class="score-value" id="score-value">Not read yet</p>
         <p class="score-coverage" id="score-coverage">Sampled-spend coverage not read yet</p>
         <p class="score-action" id="score-action" data-available="false">Not read yet</p>
@@ -1473,7 +1476,7 @@
                    greyscale screenshot each still get the grade. -->
               <p class="local-lead-grade" id="local-lead-grade" data-confidence="">
                 <span class="local-lead-grade-chip" id="local-lead-grade-chip" data-confidence="">
-                  <span class="local-lead-grade-shape" id="local-lead-grade-shape" aria-hidden="true">◇</span>
+                  <span class="local-lead-grade-shape" id="local-lead-grade-shape" aria-hidden="true">○</span>
                   <span class="local-lead-grade-label" id="local-lead-grade-label">Confidence unavailable</span>
                 </span>
                 <span class="local-lead-grade-value" id="local-lead-grade-value">—</span>
@@ -1547,7 +1550,7 @@
                 <p class="eyebrow">Recommended department action</p>
                 <h4 id="local-action">Waiting for a supported pair…</h4>
               </div>
-              <span class="local-finding-status" id="local-confidence"><span class="status-shape" aria-hidden="true">◆</span> <span id="local-confidence-label">Confidence unavailable</span></span>
+              <span class="local-finding-status" id="local-confidence"><span class="status-shape" aria-hidden="true">○</span> <span id="local-confidence-label">Confidence unavailable</span></span>
             </header>
             <dl class="local-finding-facts" aria-label="Finding decision facts">
               <!-- Coverage before the number, in the DOM and not with `order`: a
@@ -1629,7 +1632,7 @@
                    non-colour channel on this card wrong in the state that matters. -->
               <article id="local-benchmark-state" aria-labelledby="local-benchmark-title" aria-describedby="local-benchmark-why" data-state="unavailable">
                 <p class="eyebrow">Peer benchmark</p>
-                <h4 id="local-benchmark-title"><span id="local-benchmark-shape" aria-hidden="true">◇</span> <span id="local-benchmark-answer">Not compared yet</span></h4>
+                <h4 id="local-benchmark-title"><span id="local-benchmark-shape" aria-hidden="true">○</span> <span id="local-benchmark-answer">Not compared yet</span></h4>
                 <p id="local-benchmark-why"></p>
               </article>
             </div>
@@ -2035,13 +2038,13 @@
              not read as a figure someone measured. -->
         <article class="kpi" id="kpi-spend">
           <p class="kpi-label">AI spend · period</p>
-          <p class="kpi-flag" id="kpi-spend-flag" hidden><span class="kpi-flag-shape" aria-hidden="true">◇</span> unmeasured</p>
+          <p class="kpi-flag" id="kpi-spend-flag" hidden><span class="kpi-flag-shape" aria-hidden="true">○</span> unmeasured</p>
           <p class="kpi-value" id="kpi-spend-value">–</p>
           <p class="kpi-note" id="kpi-spend-note">Across all providers</p>
         </article>
         <article class="kpi kpi-alert" id="kpi-recoverable">
           <p class="kpi-label">Recoverable spend</p>
-          <p class="kpi-flag" id="kpi-recoverable-flag" hidden><span class="kpi-flag-shape" aria-hidden="true">◇</span> unmeasured</p>
+          <p class="kpi-flag" id="kpi-recoverable-flag" hidden><span class="kpi-flag-shape" aria-hidden="true">○</span> unmeasured</p>
           <!-- Authored before the numeral, so how much of the money this covers
                is read before what it is worth. -->
           <p class="coverage-lead" id="kpi-recoverable-coverage" data-confidence="" hidden></p>
@@ -2050,13 +2053,13 @@
         </article>
         <article class="kpi" id="kpi-productive">
           <p class="kpi-label">High-value share</p>
-          <p class="kpi-flag" id="kpi-productive-flag" hidden><span class="kpi-flag-shape" aria-hidden="true">◇</span> unmeasured</p>
+          <p class="kpi-flag" id="kpi-productive-flag" hidden><span class="kpi-flag-shape" aria-hidden="true">○</span> unmeasured</p>
           <p class="kpi-value" id="kpi-productive-value">–</p>
           <p class="kpi-note" id="kpi-productive-note">Of scored spend</p>
         </article>
         <article class="kpi" id="kpi-peer">
           <p class="kpi-label">Peer position</p>
-          <p class="kpi-flag" id="kpi-peer-flag" hidden><span class="kpi-flag-shape" aria-hidden="true">◇</span> unmeasured</p>
+          <p class="kpi-flag" id="kpi-peer-flag" hidden><span class="kpi-flag-shape" aria-hidden="true">○</span> unmeasured</p>
           <p class="kpi-value" id="kpi-peer-value">–</p>
           <p class="kpi-note" id="kpi-peer-note">Published synthetic peer cohort</p>
           <!-- What qualifies the numeral above, authored empty and hidden and

@@ -44,12 +44,18 @@ export const JOURNEY_IDS = Object.freeze({
   examples: "finops-journey-example-controls",
 });
 
-/** A shape beside the word, so the phase survives greyscale and a screen reader. */
+/**
+ * A shape beside the word, so the phase survives greyscale and a screen reader.
+ *
+ * The circle ramp, like every other status chip on /evolution.html: fill is how
+ * far this journey has got. The two diamonds this used to draw are the page's
+ * provenance badges and said nothing about a phase.
+ */
 const PHASE_SHAPE = Object.freeze({
   [JOURNEY_PHASE.new]: "○",
   [JOURNEY_PHASE.resumed]: "◐",
-  [JOURNEY_PHASE.verificationReady]: "◆",
-  [JOURNEY_PHASE.degraded]: "◇",
+  [JOURNEY_PHASE.verificationReady]: "●",
+  [JOURNEY_PHASE.degraded]: "◔",
 });
 
 function element(doc, tag, className, text) {
@@ -220,7 +226,7 @@ export function renderConsolidatedJourney(doc, journey) {
   // The phase, as a shape and a word before any tint is read.
   const phase = element(doc, "p", "fjc-phase");
   const phaseShape = element(doc, "span", "fjc-phase-shape",
-    PHASE_SHAPE[journey.phase] ?? "◇");
+    PHASE_SHAPE[journey.phase] ?? "○");
   phaseShape.setAttribute("aria-hidden", "true");
   phase.append(phaseShape, element(doc, "span", "fjc-phase-word", journey.phaseLabel),
     element(doc, "span", "fjc-phase-copy", journey.phaseCopy));

@@ -206,7 +206,7 @@ test("a KPI the import could not fill says so in a word and a shape, not only a 
 
   assert.equal(byId(document, "kpi-peer").dataset.available, "false");
   assert.equal(byId(document, "kpi-peer-flag").hidden, false);
-  assert.match(textOf(byId(document, "kpi-peer-flag")), /^◇ unmeasured$/);
+  assert.match(textOf(byId(document, "kpi-peer-flag")), /^○ unmeasured$/);
   assert.equal(byId(document, "kpi-peer-value").textContent, "Unavailable");
 
   // A card that does have a figure carries no marker at all.
@@ -216,7 +216,7 @@ test("a KPI the import could not fill says so in a word and a shape, not only a 
   // The cohort statement carries the same distinction on its own block.
   const cohort = document.querySelector(".graded-cohort");
   assert.equal(cohort.dataset.available, "false");
-  assert.equal(textOf(cohort.querySelector(".graded-shape")), "◇");
+  assert.equal(textOf(cohort.querySelector(".graded-shape")), "○");
   assert.match(textOf(cohort), /No peer cohort in your import\./);
   assert.match(declared('.graded-cohort[data-available="false"]', "border-left-style"), /dashed/);
 

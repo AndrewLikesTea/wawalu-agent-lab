@@ -250,7 +250,7 @@ function actionBlock(doc, action) {
   block.dataset.available = String(action.available);
   block.dataset.kind = action.kind;
   const text = element(doc, "p", "graded-action-text");
-  text.append(shapeSpan(doc, action.available ? "▶" : "◇"),
+  text.append(shapeSpan(doc, action.available ? "▶" : "○"),
     element(doc, "span", "graded-action-words", action.text));
   block.append(element(doc, "h3", "eyebrow", "Prioritized next action"), text);
   return block;
@@ -263,7 +263,7 @@ function cohortBlock(doc, cohort) {
   // a reader must not mistake for a weak-but-real comparison. Shape, border
   // style and the sentence itself all carry it; the tint only agrees with them.
   const answer = element(doc, "p", "graded-cohort-answer");
-  answer.append(shapeSpan(doc, cohort.available ? "●" : "◇"),
+  answer.append(shapeSpan(doc, cohort.available ? "●" : "○"),
     element(doc, "span", "graded-cohort-words", cohort.answer));
   block.append(
     element(doc, "h3", "eyebrow", "Cohort comparison"),

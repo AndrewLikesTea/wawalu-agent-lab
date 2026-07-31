@@ -2,6 +2,31 @@
    Layers on styles.css: the header, nav, eyebrow, filter, hint, and focus tokens
    are shared so this tab reads as one system with Decisions and Releases.
 
+   GLYPH ROLES — one silhouette family per job, and no glyph does two jobs.
+   These marks are rendered type at 10–13px. At that size a reader separates
+   them by *outer silhouette and fill area*, not by interior detail: the inner
+   stroke of ◈ closes up, and ◇/◈/◆ collapse into one mark. So the vocabulary is
+   two families, and the mirror rule decides fill inside each:
+
+     OUTLINE = a static classification.  FILLED WASH = a live signal.
+
+     DIAMOND = PROVENANCE — where a figure came from.
+       ◇ bundled synthetic example (a classification that never changes)
+       ◆ computed from the file this reader brought (their live data)
+     CIRCLE = STATUS — how much this page currently knows. Fill is the ramp,
+     because fill area is the channel that survives caption size:
+       ○ nothing yet · ◌ reading · ◔ a little · ◐ part · ● measured
+     TRIANGLE = DIRECTION or an available action (▲ ▼ ▶ ▸ ▾); × = refused.
+
+   WORKSPACE DESTINATIONS CARRY NO GLYPH. Four geometric marks at 11px asked a
+   reader to disambiguate silhouettes in order to learn what four words already
+   said. The name is the identity, "Current" is the state, and the thick left
+   rule below is the non-colour cue for it.
+
+   `tests/evolution-glyph-roles.test.js` holds this table to the page: a glyph
+   that appears in two roles, or a chip whose label does not survive its glyph
+   being deleted, fails there rather than shipping.
+
    The four category colors are a validated categorical set for this surface
    (#f3f1eb): every adjacent pair clears the CVD and normal-vision separation
    floors. Two of them sit below 3:1 contrast against the page, so identity is
@@ -1360,7 +1385,10 @@
    must not share one silhouette. Colour is the last of the four channels, so
    greyscale, print, and a screen reader each still carry the state. */
 .workspace-dest[aria-current="true"] { border-color:var(--import-accent); border-left:5px solid var(--import-accent); padding-left:10px; background:var(--import-wash); font-weight:750; }
-.workspace-dest-shape { flex:none; font-size:11px; font-weight:750; }
+/* No `.workspace-dest-shape`: the four doors carry no glyph. See the rail's own
+   note in finops-workspace-nav.js. This is the disclosure triangle beside the
+   rail's one summary, which is an affordance and not a destination mark. */
+.workspace-nav-detail-shape { flex:none; font-size:11px; font-weight:750; }
 .workspace-dest-name { min-width:0; }
 .workspace-dest-state { flex:none; border-radius:99px; padding:2px 8px; background:var(--import-accent); color:#fff; font:700 10px/1.5 ui-monospace,monospace; letter-spacing:.05em; text-transform:uppercase; }
 /* The recommendation, echoing the clause that ranked the door above. Outline

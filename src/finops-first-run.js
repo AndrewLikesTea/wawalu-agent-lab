@@ -333,10 +333,12 @@ export const BAND_STATE = Object.freeze({
  */
 export const BAND_PRESENTATION = Object.freeze({
   [BAND_STATE.ahead]: Object.freeze({ shape: "▲", silhouette: "wash" }),
-  [BAND_STATE.middle]: Object.freeze({ shape: "◆", silhouette: "wash" }),
+  [BAND_STATE.middle]: Object.freeze({ shape: "●", silhouette: "wash" }),
   [BAND_STATE.behind]: Object.freeze({ shape: "▼", silhouette: "wash" }),
   [BAND_STATE.critical]: Object.freeze({ shape: "▼▼", silhouette: "wash" }),
-  [BAND_STATE.withheld]: Object.freeze({ shape: "◇", silhouette: "outline" }),
+  // Neither diamond: ◇ and ◆ are provenance on this page and say nothing about
+  // a band. A measured middle is the full circle, a withheld band the empty one.
+  [BAND_STATE.withheld]: Object.freeze({ shape: "○", silhouette: "outline" }),
 });
 
 /** The peer position's three measured bands, in this module's vocabulary. */

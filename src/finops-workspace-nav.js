@@ -94,6 +94,12 @@ export const NAV_DISCLOSURE_LABEL = Object.freeze({
 /**
  * The four doors as this page authors them.
  *
+ * No `shape`. The rail used to draw ● ◇ ◈ ◆ beside the four names, and at the
+ * 11px those marks ship at they are one silhouette with the detail sanded off —
+ * the reader was disambiguating four near-identical diamonds to learn something
+ * the four words already say. The names are the vocabulary now, "Current" is the
+ * state, and the thick left rule CSS draws is the non-colour cue for it.
+ *
  * `role` is the contract role this door corresponds to, or null for the page's
  * own answer. `fallbackHref` is what the door points at when the bundled record
  * fails its own contract: the destinations are *places*, and a place does not
@@ -107,7 +113,6 @@ const AUTHORED_DESTINATIONS = Object.freeze([
     key: WORKSPACE_DESTINATION.answer,
     role: null,
     name: "The answer",
-    shape: "●",
     fallbackHref: "#finops-first-run",
     answers: "Are we wasting money, how much of the spend is recoverable, and what is the one ranked action?",
     doesNotAnswer: "It does not show the workings behind the figure, and it commits to nothing.",
@@ -116,21 +121,18 @@ const AUTHORED_DESTINATIONS = Object.freeze([
     key: WORKSPACE_DESTINATION.evidence,
     role: DESTINATION_ROLE.evidence,
     name: "Evidence",
-    shape: "◇",
     fallbackHref: "#recommendation-evidence",
   }),
   Object.freeze({
     key: WORKSPACE_DESTINATION.department,
     role: DESTINATION_ROLE.departmentDetail,
     name: "Departments",
-    shape: "◈",
     fallbackHref: "#department-decision-panel",
   }),
   Object.freeze({
     key: WORKSPACE_DESTINATION.actAndVerify,
     role: DESTINATION_ROLE.actAndVerify,
     name: "Act and verify",
-    shape: "◆",
     fallbackHref: "/savings-action-center.html",
   }),
 ]);
@@ -204,7 +206,7 @@ function stateChip(doc, className, word, shape = null) {
   chip.className = className;
   if (shape) {
     const glyph = doc.createElement("span");
-    glyph.className = "workspace-dest-shape";
+    glyph.className = "workspace-nav-detail-shape";
     glyph.setAttribute("aria-hidden", "true");
     glyph.textContent = shape;
     chip.append(glyph);
