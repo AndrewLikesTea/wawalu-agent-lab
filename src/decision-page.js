@@ -2,6 +2,7 @@ import {
   decisionDetailState,
   resolveDecisionDetail,
   renderDecisionDetail,
+  renderDecisionDetailSkeleton,
   renderDecisionDetailState,
 } from "./decision-detail.js";
 import { loadReleaseData } from "./releases-data.js";
@@ -52,6 +53,13 @@ export async function initDecisionDetail(options = {}) {
   const load = ({ fromRetry = false } = {}) => {
     const retry = { onRetry: () => load({ fromRetry: true }) };
     container.setAttribute("aria-busy", "true");
+    // The record's slot holds the drawn wait for the length of the read, on the
+    // first load and on every retry alike, so a reader who presses Retry sees
+    // the same shapes the page opened with rather than the failure they just
+    // acted on. There is no branch here and no timer: the read below is
+    // synchronous, so this is always replaced before the tick ends, which is why
+    // it cannot strand anyone the way a conditional loading state could.
+    renderDecisionDetailSkeleton(container);
     try {
       const result = loadDecisionDetail(id, localStorage, options);
       if (result.state === "available") {

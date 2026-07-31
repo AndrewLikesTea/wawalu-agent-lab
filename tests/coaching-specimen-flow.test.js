@@ -124,8 +124,10 @@ test("a keyboard user opens a disclosure and keeps their place", async () => {
 test("closed panels are out of the tab order, and open ones stay in document order", async () => {
   const page = await openSpecimen();
   const { document } = page;
+  // The page's own <summary> is a tab stop too — the browser owns that — but it
+  // is not one of the disclosure controls this compares, so it is not folded in.
   const reachable = tabSequence(document).map((node) => node.id)
-    .filter((id) => id.startsWith("coaching-specimen-"));
+    .filter((id) => id.startsWith("coaching-specimen-") && id.endsWith("-toggle"));
   const drawn = body(document).querySelectorAll(".coaching-result-toggle").map((node) => node.id);
   // Every disclosure control is reachable, in the order it is read: a case's
   // evidence before its rubric detail, and each case before the next.

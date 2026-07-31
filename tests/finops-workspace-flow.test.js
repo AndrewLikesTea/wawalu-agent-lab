@@ -370,12 +370,18 @@ test("the reader can reach every FinOps control by keyboard, in the order they a
     // the destructive one. Nothing reachable sits above the action it serves.
     // "Remember these figures" is absent because it is already the answer: a
     // disabled control is not a tab stop, so a keyboard reader is not walked
-    // through a button that would change nothing.
+    // through a button that would change nothing. The disclosure summaries are
+    // stops in their own right — a <summary> is focusable because it is a
+    // summary — so each appears at the DOM position it is reached from.
     assert.deepEqual(labels, [
+      "Inspect every retained field and sample value",
       "Open the AI FinOps page",
+      "Check the 1 retained period behind this figure",
+      "Where every figure above comes from",
       "Keep using files only",
       "Download FinOps JSON",
       "Forget FinOps figures",
+      "Review the 1 record this browser is keeping",
     ]);
     // The Shiplog half of the page still leads: nothing in the FinOps flow is
     // reached before every Shiplog control has been.

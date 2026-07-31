@@ -92,19 +92,12 @@ function renderBackLink() {
 // so those states offer the labelled route back and nothing else — a Retry that
 // cannot change the outcome is a promise the page cannot keep.
 //
-// The loading sentence names what is being read — the record this page's link
-// asks for, and the releases linked to it — and says the reader has nothing to
-// do about it. "We’re finding this decision" left both open: which decision,
-// and whether the wait was theirs to end. It also says where a failure would
-// appear, so the one state that does ask for an action is the only surprise.
+// Loading is not in this table. A wait is not a message: three lines of prose
+// about what is being read, and about a failure that has not happened, were the
+// first words a first-time visitor met, and they said nothing the reader could
+// act on. The wait is drawn instead — see renderDecisionDetailSkeleton — and the
+// only thing said out loud is the one line a screen reader needs.
 export const DETAIL_STATE_COPY = {
-  loading: {
-    tone: "neutral",
-    label: "Loading",
-    title: "Loading this decision",
-    description: "Loading the decision record for this page and its linked releases. No action is needed unless this panel reports a failure and offers Retry.",
-    recoverable: false,
-  },
   empty: {
     tone: "neutral",
     label: "No decision selected",
@@ -130,15 +123,80 @@ export const DETAIL_STATE_COPY = {
 
 export const DECISION_RETRY_LABEL = "Retry loading this decision";
 
+// The whole of what the wait says out loud. It names the region, not the
+// mechanics, and it is the page's existing live-region convention — one polite
+// `role="status"` line — rather than a second thing to read.
+export const DECISION_SKELETON_STATUS = "Loading decision record";
+
 export function isRecoverableDecisionState(state) {
   return DETAIL_STATE_COPY[state]?.recoverable === true;
 }
 
+const skeletonLine = (modifier) => el("div", modifier ? `skeleton-line ${modifier}` : "skeleton-line");
+
+// The wait, drawn in the record's own layout.
+//
+// The shapes are built out of the classes the loaded record uses — the header
+// grid, the metadata row, the alternatives grid — so the blocks stand where the
+// heading, the status/owner line, and the alternative cards are about to be, and
+// the panel does not jump when they arrive. They carry no words at all: they are
+// `aria-hidden`, and the single visually-hidden status line above them is what a
+// screen reader hears, the same way the feed and profile skeletons already work.
+export function renderDecisionDetailSkeleton(container) {
+  container.replaceChildren(renderBackLink());
+  const panel = el("div", "detail-skeleton");
+  panel.dataset.state = "loading";
+  panel.dataset.recoverable = "false";
+  panel.setAttribute("aria-busy", "true");
+
+  // Offscreen, not absent. The record's own <h1> arrives with the record, and a
+  // page that has no heading until then is a page a screen-reader user cannot
+  // navigate by headings; the live region wraps it rather than repeating it, so
+  // the wait is announced once and the document still has its one heading.
+  const status = el("div", "visually-hidden");
+  status.setAttribute("role", "status");
+  const heading = el("h1", undefined, DECISION_SKELETON_STATUS);
+  heading.id = "decision-state-title";
+  status.append(heading);
+  panel.append(status);
+
+  const shapes = el("div", "decision-detail decision-detail-skeleton");
+  shapes.setAttribute("aria-hidden", "true");
+
+  const header = el("div", "decision-detail-header");
+  header.append(skeletonLine("skeleton-line-eyebrow"), skeletonLine("skeleton-line-title"));
+  const meta = el("div", "detail-meta decision-detail-meta");
+  // Status, Owner, Recorded: the three rows the loaded header always draws.
+  for (let index = 0; index < 3; index += 1) {
+    const row = el("div", "detail-meta-row");
+    row.append(skeletonLine("skeleton-line-label"), skeletonLine("skeleton-line-value"));
+    meta.append(row);
+  }
+  header.append(meta);
+
+  const alternatives = el("div", "decision-alternatives");
+  alternatives.append(skeletonLine("skeleton-line-subtitle"));
+  const grid = el("div", "alternative-grid");
+  for (let index = 0; index < 2; index += 1) {
+    const card = el("div", "alternative-card alternative-card-skeleton");
+    card.append(skeletonLine("skeleton-line-subtitle"), skeletonLine(), skeletonLine("skeleton-line-short"));
+    grid.append(card);
+  }
+  alternatives.append(grid);
+
+  shapes.append(header, alternatives);
+  panel.append(shapes);
+  container.append(panel);
+  return panel;
+}
+
 export function renderDecisionDetailState(container, state, { onRetry } = {}) {
+  // One rendering of the wait, whichever door it is reached through: a caller
+  // asking for "loading" gets the drawn skeleton, never a paragraph about it.
+  if (state === "loading") return renderDecisionDetailSkeleton(container);
   const copy = DETAIL_STATE_COPY[state] ?? DETAIL_STATE_COPY.error;
   container.replaceChildren(renderBackLink());
-  const loadingHook = state === "loading" ? " list-state-loading" : "";
-  const panel = el("section", `detail-state detail-state-${state}${loadingHook}`);
+  const panel = el("section", `detail-state detail-state-${state}`);
   panel.dataset.state = state;
   panel.dataset.recoverable = String(copy.recoverable === true);
   panel.setAttribute("aria-labelledby", "decision-state-title");

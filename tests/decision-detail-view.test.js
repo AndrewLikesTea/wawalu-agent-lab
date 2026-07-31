@@ -18,7 +18,9 @@ import {
   resolveDecisionDetail,
 } from "../src/decision-detail.js";
 
-const DETAIL_STATES = ["loading", "empty", "not-found", "error"];
+// Loading is not one of these. It is not a message with a chip, a heading, and a
+// sentence — it is a drawn skeleton, checked on its own below.
+const DETAIL_STATES = ["empty", "not-found", "error"];
 
 const alternatives = normalizeAlternatives({ alternatives: [
   { id: "a", name: "Queue", summary: "Durable", pros: ["Retries", ""], cons: ["Cost"], effort: "Medium", risk: "Low", selected: true },
@@ -70,9 +72,8 @@ test("derives available, absent, not-found, and error states without conflating 
   assert.equal(decisionDetailState({ id: "stale", unavailable: true }), "error");
 });
 
-test("loading, absent, not-found, and error states explain the outcome and keep return navigation first", () => {
+test("absent, not-found, and error states explain the outcome and keep return navigation first", () => {
   const expected = {
-    loading: /decision record for this page and its linked releases/i,
     empty: /No decision was specified/i,
     "not-found": /may have been removed/i,
     error: /temporarily unavailable/i,
@@ -241,10 +242,14 @@ test("detail page uses semantic landmarks and safe DOM rendering", async () => {
   assert.match(component, /role", state === "error" \? "alert" : "status"/);
   assert.match(component, /el\("table"/);
   assert.doesNotMatch(`${component}\n${page}`, /innerHTML/);
-  // Resolution is synchronous, so the page must never enter a loading branch:
-  // that branch is exactly how a visitor got stranded on "Loading decision".
-  // The static loading state in decision.html stays as the pre-script paint.
+  // Resolution is synchronous, so the wait must never be something the page can
+  // be left *in*: that is how a visitor got stranded on "Loading decision". The
+  // skeleton is therefore drawn unconditionally at the top of the read — no
+  // branch, no timer, always replaced before the same tick ends — and the page
+  // still has no conditional loading state to strand anyone in.
   assert.doesNotMatch(page, /renderDecisionDetailState\(container, "loading"\)/);
+  assert.match(page, /renderDecisionDetailSkeleton\(container\);/);
+  assert.doesNotMatch(page, /if[^\n]*renderDecisionDetailSkeleton/);
   assert.match(page, /renderDecisionDetailState\(container, "error", retry\)/);
   assert.match(html, /href="\/">← Back to Decisions<\/a>/);
   assert.match(css, /@media\(max-width:760px\)/);
