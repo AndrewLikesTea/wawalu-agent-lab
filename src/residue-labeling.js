@@ -85,6 +85,41 @@ export const RESIDUE_LABEL_CHOICES = Object.freeze([
   Object.freeze({ value: RESIDUE_UNCLASSIFIABLE, label: "Genuinely unclassifiable" }),
 ]);
 
+/**
+ * The three states a row can be in, as a word and a shape — never as a tint.
+ *
+ * The shapes are the page's own square vocabulary, with the meanings
+ * `panel-status-view.js` already publishes: ▢ nothing yet, ▣ resolved, ◧ partly.
+ * A reviewed-but-unplaceable cluster is genuinely "partly": the reader answered,
+ * and the answer moved no coverage. Nothing here is a diamond — those are
+ * provenance on this page and a review state is not provenance.
+ */
+export const RESIDUE_STATES = Object.freeze({
+  unreviewed: Object.freeze({ key: "unreviewed", label: "Not reviewed", shape: "▢" }),
+  labelled: Object.freeze({ key: "labelled", label: "Labelled", shape: "▣" }),
+  unclassifiable: Object.freeze({ key: "unclassifiable", label: "Unclassifiable", shape: "◧" }),
+});
+
+/** The state one assigned value puts a row in. Total: every value maps. */
+export function residueRowState(assigned) {
+  if (assigned === RESIDUE_UNCLASSIFIABLE) return RESIDUE_STATES.unclassifiable;
+  return CLASS_VALUES.has(assigned) ? RESIDUE_STATES.labelled : RESIDUE_STATES.unreviewed;
+}
+
+/**
+ * "Item 3 of 12", and what a list with nothing in it says instead.
+ *
+ * Composed here rather than in the view for the same reason every other string
+ * on this surface is: an empty residue must never render "Item 0 of 0", and the
+ * one place that decision is made is the one place it can be tested.
+ */
+export function residueProgressText(position, total) {
+  const size = Number.isFinite(total) ? Math.max(0, Math.trunc(total)) : 0;
+  if (!size) return "No clusters to review.";
+  const at = Math.min(Math.max(1, Math.trunc(position) || 1), size);
+  return `Item ${at} of ${size}`;
+}
+
 /** The rubric class keys, for deciding whether a label moves coverage. */
 const CLASS_VALUES = new Set(PROMPT_LITERACY_RUBRIC.categories.map((entry) => entry.key));
 
@@ -212,6 +247,10 @@ export function residueReview(records = [], labels = new Map(),
       assigned,
       assignedLabel: RESIDUE_LABEL_CHOICES
         .find((choice) => choice.value === assigned)?.label ?? "Not assigned",
+      // The row's state as a word and a shape, so "answered" and "not answered"
+      // differ by more than a tint at 12px. The view renders both and adds no
+      // third carrier of its own.
+      state: residueRowState(assigned),
       // The control's accessible name, and it is also the row's visible text:
       // one string, so the name a speech-control user says is the name a
       // sighted reader reads and the name a screen reader announces.
@@ -305,13 +344,30 @@ export function residueReview(records = [], labels = new Map(),
           + `${percentText(ceilingResult.scoredShare)} — still under the bar, so no letter grade `
           + "would appear from this control alone. " + ceilingHeadline.rule,
     }),
-    /** What the polite region says after a recompute. Null when nothing is assisted. */
+    /**
+     * The ONE sentence the polite region says at the end of a review pass.
+     *
+     * Not per row. A reader working down twenty-five clusters must not be
+     * interrupted twenty-five times with a re-reading of the whole coverage
+     * figure — the row's own state carries the per-item change, and this is what
+     * the pass adds up to: how many corrections were applied and the figure they
+     * produced. Null when the reader touched nothing, so leaving an untouched
+     * list is silent rather than announcing an empty result.
+     *
+     * A pass that only marked clusters unclassifiable still has a summary: the
+     * reader answered, and "your answers moved nothing" is the result they need
+     * to hear rather than silence they have to interpret.
+     */
     announcement: classCount > 0
       ? `Coverage is now ${percentText(assisted.scoredShare)} of scored ${assisted.unitLabel} `
         + `with ${plural(classCount, "lead-supplied label", "lead-supplied labels")}. `
         + `${assistedHeadline.showGrade
           ? "A letter grade is shown." : "That is still under the bar for a letter grade."} `
         + `Your export alone: ${percentText(unassisted.scoredShare)}.`
-      : null,
+      : (unclassifiableCount > 0
+        ? `${plural(unclassifiableCount, "cluster", "clusters")} marked genuinely `
+          + "unclassifiable, which adds nothing to coverage. Coverage is "
+          + `${percentText(unassisted.scoredShare)} of scored ${unassisted.unitLabel}.`
+        : null),
   });
 }

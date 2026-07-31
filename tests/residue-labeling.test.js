@@ -351,7 +351,7 @@ test("each cluster has a keyboard-operable control named for the cluster it assi
   assert.equal(label.getAttribute("for"), select.id);
   assert.equal(textOf(label), review.rows[0].controlLabel);
   assert.match(textOf(label), /Billed vendor · alpha/);
-  assert.equal(textOf(rows[0].querySelector(".org-coaching-residue-state")),
+  assert.equal(textOf(rows[0].querySelector(".org-coaching-residue-state-text")),
     "Assigned: Not assigned");
 });
 
@@ -375,17 +375,25 @@ test("assigning a cluster recomputes coverage, the headline, and the next action
   assert.ok(textOf(body(document).querySelector(".org-coaching-letter")).length > 0,
     "the letter grade appears in the same region");
   assert.match(textOf(body(document).querySelector(".org-coaching-coverage-action")), /beta/);
-  // The recompute is announced in the region that already exists for it, and it
-  // names the new figure and the unlock.
-  assert.match(live(document).textContent, /Coverage is now 70\.0% of scored billed tokens/);
-  assert.match(live(document).textContent, /A letter grade is shown/);
+  // ONE label is not an announcement. Two clusters are still open, so the pass
+  // is not over and the polite region says nothing — the change reached the
+  // reader through the row they are standing in, not through an interruption.
+  assert.doesNotMatch(live(document).textContent, /Coverage is now 70\.0%/,
+    "a per-item label must not write the whole coverage paragraph into the live region");
 
   // The panel stayed open and the keyboard stayed on the control it was on.
   assert.equal(residuePanel(document).hidden, false);
   assert.equal(document.activeElement?.id, residueControlId(1));
   assert.equal(document.getElementById(residueControlId(1)).value, FIRST_CLASS);
-  assert.equal(textOf(residuePanel(document).querySelector(".org-coaching-residue-state")),
+  assert.equal(textOf(residuePanel(document).querySelector(".org-coaching-residue-state-text")),
     "Assigned: High-value");
+
+  // Leaving the pass — collapsing the panel — is where the one summary lands,
+  // and it carries the count and the figure it produced.
+  residueToggle(document).click();
+  assert.match(live(document).textContent, /Coverage is now 70\.0% of scored billed tokens/);
+  assert.match(live(document).textContent, /1 lead-supplied label/);
+  assert.match(live(document).textContent, /A letter grade is shown/);
 });
 
 test("the keyboard alone can assign a cluster", async () => {
@@ -441,7 +449,7 @@ test("a cluster called unclassifiable is shown as answered and inflates nothing"
     "there is no assisted figure to mark");
   const row = residuePanel(document).querySelector(".org-coaching-residue-row");
   assert.equal(row.dataset.assigned, RESIDUE_UNCLASSIFIABLE);
-  assert.equal(textOf(row.querySelector(".org-coaching-residue-state")),
+  assert.equal(textOf(row.querySelector(".org-coaching-residue-state-text")),
     "Assigned: Genuinely unclassifiable");
   assert.match(textOf(residuePanel(document).querySelector(".org-coaching-residue-unclassifiable")),
     /1 cluster is marked genuinely unclassifiable/);
@@ -531,6 +539,10 @@ test("the shipped page carries the control, recomputes on it, and drops it on di
     assert.ok(markers.length >= 3, "every assisted figure in the region carries the marker");
     assert.equal(markers[0].dataset.labelCount, "1");
     assert.match(textOf(markers[0]), /Your export alone: 96\.4%/);
+    // Silent per row, one sentence on the way out: the figures above moved
+    // without the region re-reading the whole paragraph at the reader.
+    assert.doesNotMatch(live(document).textContent, /1 lead-supplied label/);
+    residueToggle(document).click();
     assert.match(live(document).textContent, /1 lead-supplied label/);
 
     // Discarding everything hands the section back, and reading the same corpus

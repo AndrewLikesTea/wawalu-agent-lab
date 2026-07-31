@@ -28,6 +28,7 @@
 //      replace it with.** `absent` hides this section and writes nothing.
 
 import { ORG_QUERY_DECISION_STATE } from "./org-query-decision.js";
+import { residueProgressText } from "./residue-labeling.js";
 
 export const ORG_COACHING_SECTION_ID = "org-coaching";
 export const ORG_COACHING_BODY_ID = "org-coaching-body";
@@ -41,9 +42,25 @@ export const toggleId = (id) => `org-coaching-${id}-toggle`;
 export const panelId = (id) => `org-coaching-${id}-panel`;
 /** One select per cluster, named by the cluster's rank in the ranked list. */
 export const residueControlId = (rank) => `org-coaching-residue-class-${rank}`;
+/** The row itself, which is what the roving tab stop moves between. */
+export const residueItemId = (rank) => `org-coaching-residue-item-${rank}`;
+/** The row's visible name and its visible state chip, in that order. */
+export const residueNameId = (rank) => `org-coaching-residue-name-${rank}`;
+export const residueStateId = (rank) => `org-coaching-residue-state-${rank}`;
+
+/** The list itself, and the visible "Item N of M" line above it. */
+export const RESIDUE_LIST_ID = "org-coaching-residue-list";
+export const RESIDUE_PROGRESS_ID = "org-coaching-residue-progress";
 
 /** The one control that erases what this browser kept. Inside the same panel. */
 export const RESIDUE_CLEAR_ID = "org-coaching-residue-clear";
+
+/**
+ * Elements whose own keys are theirs. The list's arrow handler steps aside for
+ * every one of them, so ArrowDown in a `<select>` still opens and walks the
+ * options rather than jumping the reader to the next cluster.
+ */
+const COMPOSITE_TAGS = new Set(["SELECT", "INPUT", "TEXTAREA", "BUTTON", "OPTION", "A"]);
 
 const byId = (doc, id) => (doc?.getElementById ? doc.getElementById(id) : null);
 
@@ -78,6 +95,10 @@ function held(section) {
   if (!section.__orgCoaching) {
     section.__orgCoaching = {
       model: null, open: new Set(), review: null, onAssign: null, retention: null,
+      // The review pass: which cluster holds the list's single tab stop, whether
+      // the paint about to run was caused by one label (and so must stay quiet),
+      // and whether anything was labelled since the region last spoke.
+      active: null, quiet: false, dirty: false,
     };
   }
   return section.__orgCoaching;
@@ -97,7 +118,13 @@ export function applyOrgQueryDecision(doc, state,
   const store = held(section);
   // A repaint of the same sample keeps the panels the reader opened. A different
   // sample does not: panels left open would be captioned for the old file.
-  if (store.model?.provenance?.digest !== state.provenance?.digest) store.open = new Set();
+  if (store.model?.provenance?.digest !== state.provenance?.digest) {
+    store.open = new Set();
+    // A different sample is a different list. The row the reader was standing in
+    // does not exist in it, so the tab stop goes back to the first row.
+    store.active = null;
+    store.dirty = false;
+  }
   store.model = state;
   // The residue review and the callback that applies a label ride beside the
   // state rather than inside it: `org-query-decision.js` selects data and holds
@@ -124,6 +151,9 @@ export function clearOrgQueryDecision(doc) {
   // outlives the import: the page drops the label map at the same moment.
   store.review = null;
   store.retention = null;
+  store.active = null;
+  store.quiet = false;
+  store.dirty = false;
   section.hidden = true;
   section.dataset.state = ORG_QUERY_DECISION_STATE.absent;
   delete section.dataset.origin;
@@ -161,15 +191,55 @@ function paint(doc, section) {
   // silent.
   // The clear control's result rides in the same region rather than in one of
   // its own: it changes the figures above it, so it is the same kind of update.
-  announce(doc, [state.announcement, review?.announcement, store.retention?.announcement]
-    .filter(Boolean).join(" "));
+  //
+  // THE ANNOUNCEMENT BUDGET. One label is not an announcement. A reader working
+  // down twenty-five clusters would otherwise hear the whole coverage paragraph
+  // twenty-five times, each one interrupting the row they are reading — so a
+  // paint caused by a single label writes nothing here at all. The change
+  // reaches them through the row instead: focus stays inside the row they just
+  // answered and the row's accessible name carries its new state. What is owed
+  // at the end of the pass is one sentence — how many corrections were applied
+  // and the figure they produced — and it is written on the paint that ends the
+  // pass: the last open cluster answered, the panel collapsed, or the labels
+  // cleared. `announce` writes only on a real change, so that is one write and
+  // one polite update, never a burst the reader's screen reader has to queue.
+  const quiet = store.quiet && (review?.assist?.pending ?? 0) > 0;
+  store.quiet = false;
+  if (quiet) store.dirty = true;
+  else {
+    store.dirty = false;
+    announce(doc, [state.announcement, review?.announcement, store.retention?.announcement]
+      .filter(Boolean).join(" "));
+  }
 
+  // Focus is re-established by CLUSTER, not by position: the row a reader just
+  // answered is the row they must still be standing in, even if a future ranking
+  // moves it up the list under them.
+  const cluster = section.dataset.focusCluster;
+  if (cluster) {
+    const part = section.dataset.focusPart;
+    delete section.dataset.focusCluster;
+    delete section.dataset.focusPart;
+    const item = residueItemFor(doc, cluster);
+    const target = part === "select" ? item?.querySelector(".org-coaching-residue-select") : item;
+    if (target) target.focus?.();
+  }
   const focusId = section.dataset.focusTarget;
   if (focusId) {
     delete section.dataset.focusTarget;
     byId(doc, focusId)?.focus?.();
   }
 }
+
+/** The rendered row for one cluster key, found by its own data rather than by rank. */
+function residueItemFor(doc, key) {
+  const list = byId(doc, RESIDUE_LIST_ID);
+  if (!list) return null;
+  return residueItems(list).find((row) => row.dataset.cluster === key) ?? null;
+}
+
+/** The rows of the list, as a real array in both a browser and the test harness. */
+const residueItems = (list) => [...(list?.querySelectorAll(".org-coaching-residue-row") ?? [])];
 
 // --- the lead block ---------------------------------------------------------
 //
@@ -365,6 +435,8 @@ function residueBlock(doc, section, review) {
   toggle.addEventListener("click", () => {
     if (expanded) store.open.delete(ORG_COACHING_RESIDUE_ID);
     else store.open.add(ORG_COACHING_RESIDUE_ID);
+    // Collapsing the panel IS leaving the pass. Whatever was labelled quietly
+    // while it was open is summed up on the paint below, in one sentence.
     section.dataset.focusTarget = toggleId(ORG_COACHING_RESIDUE_ID);
     paint(doc, section);
   });
@@ -389,16 +461,106 @@ function residueBody(doc, section, review) {
   }
   if (review.empty) {
     // Zero residue is a state, not an empty panel: a reader who opens this and
-    // finds nothing cannot tell "resolved" from "broken".
-    parts.push(element(doc, "p", "org-coaching-residue-empty", review.empty));
+    // finds nothing cannot tell "resolved" from "broken". The progress line is
+    // drawn on this state too, and it says so in words rather than counting to
+    // "Item 0 of 0" — a position in a list that does not exist.
+    const progress = element(doc, "p", "org-coaching-residue-progress",
+      residueProgressText(0, 0));
+    progress.id = RESIDUE_PROGRESS_ID;
+    parts.push(element(doc, "p", "org-coaching-residue-empty", review.empty), progress);
     return withRetention(doc, section, parts);
   }
   parts.push(element(doc, "p", "org-coaching-residue-cap", review.cap.text));
+
+  // Where the reader is in the pass, in the panel and not only in the accessible
+  // tree: "Item 12 of 25" beside a list of twenty-five is the difference between
+  // a task with a shape and a scroll with no end. Meta type, not a heading — it
+  // is on the panel's own caption size and muted ink, under the sentence that
+  // introduces the list rather than over it.
+  const store = held(section);
+  const activeIndex = Math.max(0,
+    review.rows.findIndex((row) => row.key === store.active));
+  store.active = review.rows[activeIndex].key;
+  const progress = element(doc, "p", "org-coaching-residue-progress",
+    residueProgressText(activeIndex + 1, review.rows.length));
+  progress.id = RESIDUE_PROGRESS_ID;
+
   const list = element(doc, "ul", "org-coaching-residue-list");
+  list.id = RESIDUE_LIST_ID;
+  // Declared rather than implied: `list-style:none` takes list semantics off a
+  // `ul` in Safari, and the position each row publishes is only meaningful
+  // inside a list that still calls itself one.
+  list.setAttribute("role", "list");
   list.setAttribute("aria-label", "Unclassified clusters, largest share first");
-  for (const row of review.rows) list.append(residueRow(doc, section, review, row));
-  parts.push(list, element(doc, "p", "org-coaching-residue-ceiling", review.ceiling.text));
+  for (const [index, row] of review.rows.entries()) {
+    list.append(residueRow(doc, section, review, row, index === activeIndex));
+  }
+  list.addEventListener("keydown", (event) => residueKeydown(doc, section, event));
+  parts.push(progress, list,
+    element(doc, "p", "org-coaching-residue-ceiling", review.ceiling.text));
   return withRetention(doc, section, parts);
+}
+
+/**
+ * The list's one tab stop, moved with the arrow keys.
+ *
+ * Roving tabindex, because the alternative on a twenty-five row list is
+ * twenty-five tab stops between the panel and the control under it. Tab reaches
+ * the row the reader left off at; the arrows move between rows; Tab from there
+ * reaches that row's own `<select>`, and Tab again leaves the panel. The number
+ * of stops the list adds to the page is fixed at two and does not grow with the
+ * corpus.
+ *
+ * Traversal does NOT wrap. Home and End are the way to the ends, and ArrowDown
+ * on the last row does nothing rather than silently teleporting a reader who
+ * cannot see the list back to the top. The horizontal pair is accepted too
+ * because the rows reflow to a row-per-line at narrow widths and to name-then-
+ * control across the line at wide ones, so a reader may reasonably try either.
+ */
+function residueKeydown(doc, section, event) {
+  const target = event.target;
+  // A composite control owns its own keys. ArrowDown in the class `<select>`
+  // walks its options; it does not move the reader to the next cluster.
+  if (target && (COMPOSITE_TAGS.has(target.tagName) || target.isContentEditable)) return;
+  const list = byId(doc, RESIDUE_LIST_ID);
+  const rows = residueItems(list);
+  if (!rows.length) return;
+  const from = rows.findIndex((row) => row === target || row.contains?.(target));
+  const at = from === -1 ? rows.findIndex((row) => row.getAttribute("tabindex") === "0") : from;
+  let next = null;
+  if (event.key === "ArrowDown" || event.key === "ArrowRight") next = Math.min(at + 1, rows.length - 1);
+  else if (event.key === "ArrowUp" || event.key === "ArrowLeft") next = Math.max(at - 1, 0);
+  else if (event.key === "Home") next = 0;
+  else if (event.key === "End") next = rows.length - 1;
+  else return;
+  event.preventDefault?.();
+  moveResidueFocus(doc, section, rows, next);
+}
+
+/**
+ * Move the tab stop and the focus together, without repainting the panel.
+ *
+ * A repaint would rebuild the node under the reader's own focus on every arrow
+ * press. The four things that change on a move — two tabindex values, the row's
+ * marker, and the visible position — are written in place instead.
+ */
+function moveResidueFocus(doc, section, rows, index) {
+  const target = rows[index];
+  if (!target) return;
+  for (const row of rows) {
+    const active = row === target;
+    row.setAttribute("tabindex", active ? "0" : "-1");
+    row.dataset.active = String(active);
+    // The row's own control follows its row out of the tab order, so Tab past
+    // the active row leaves the list instead of walking every remaining select.
+    row.querySelector(".org-coaching-residue-select")?.setAttribute("tabindex", active ? "0" : "-1");
+  }
+  held(section).active = target.dataset.cluster;
+  const progress = byId(doc, RESIDUE_PROGRESS_ID);
+  // Not a live region: the position follows focus, and a screen reader already
+  // reads `aria-posinset` when it lands on the row.
+  if (progress) progress.textContent = residueProgressText(index + 1, rows.length);
+  target.focus?.();
 }
 
 /**
@@ -438,18 +600,36 @@ function withRetention(doc, section, parts) {
   return parts;
 }
 
-function residueRow(doc, section, review, row) {
+function residueRow(doc, section, review, row, active) {
   const store = held(section);
   const item = element(doc, "li", "org-coaching-residue-row");
+  item.id = residueItemId(row.rank);
   item.dataset.cluster = row.key;
   item.dataset.assigned = row.assigned === "" ? "none" : row.assigned;
+  item.dataset.state = row.state.key;
+  item.dataset.active = String(active);
+  item.setAttribute("role", "listitem");
+  // Position, programmatically. `listitem` is the role that carries these; they
+  // are not bolted onto a `div`, and the count is the list's own length rather
+  // than the corpus's — the cap sentence above the list owns that difference.
+  item.setAttribute("aria-posinset", String(row.rank));
+  item.setAttribute("aria-setsize", String(review.rows.length));
+  item.setAttribute("tabindex", active ? "0" : "-1");
+  // The name a reader hears when focus lands here is the cluster AND its state,
+  // composed from the two visible elements below rather than from a second copy
+  // of their text: a row's state reaches assistive technology as words, not only
+  // as a chip.
+  item.setAttribute("aria-labelledby",
+    `${residueNameId(row.rank)} ${residueStateId(row.rank)}`);
 
   const id = residueControlId(row.rank);
   const label = element(doc, "label", "org-coaching-residue-name", row.controlLabel);
+  label.id = residueNameId(row.rank);
   label.setAttribute("for", id);
 
   const select = element(doc, "select", "org-coaching-residue-select");
   select.id = id;
+  select.setAttribute("tabindex", active ? "0" : "-1");
   for (const choice of review.choices) {
     const option = element(doc, "option", null, choice.label);
     option.setAttribute("value", choice.value);
@@ -458,20 +638,34 @@ function residueRow(doc, section, review, row) {
   }
   select.value = row.assigned;
   select.addEventListener("change", () => {
-    // Focus returns to the control the reader was in: the whole decision
-    // repaints on a label, and a keyboard user who lost their place after each
-    // assignment could not work down the list.
-    section.dataset.focusTarget = id;
+    // Focus returns to the control the reader was in — by cluster, so the row
+    // they answered is the row they are still standing in even if the ranking
+    // moves it. The whole decision repaints on a label, and a keyboard user who
+    // lost their place after each assignment could not work down the list.
+    store.active = row.key;
+    store.quiet = true;
+    section.dataset.focusCluster = row.key;
+    section.dataset.focusPart = "select";
     store.onAssign?.(row.key, select.value);
   });
+
+  // The state chip: a shape, a word, and — where there is one — the class the
+  // reader chose. A filled wash because this is a live state rather than a
+  // static classification, and never a tint on its own: delete the colour and
+  // the row still reads "Not reviewed" against "Assigned: High-value".
+  const state = element(doc, "p", "org-coaching-residue-state");
+  state.id = residueStateId(row.rank);
+  state.dataset.state = row.state.key;
+  state.append(
+    shapeSpan(doc, row.state.shape),
+    element(doc, "span", "org-coaching-residue-state-text", `Assigned: ${row.assignedLabel}`),
+  );
 
   item.append(
     label,
     select,
     element(doc, "p", "org-coaching-residue-detail", row.detail),
-    // The state in words as well as in the control, because a row a reader has
-    // answered and a row they have not must differ by more than a tint.
-    element(doc, "p", "org-coaching-residue-state", `Assigned: ${row.assignedLabel}`),
+    state,
   );
   return item;
 }
