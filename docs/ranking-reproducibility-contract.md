@@ -69,3 +69,57 @@ Department names, org unit labels, and any other free text out of a reader's own
 export. The compared record is keyed on department ids; names are neutralized by
 `finops-journey-redaction.js` at the point they are rendered. Redacting a name
 therefore cannot move a band, and a hostile one could not have raised one.
+
+## What the headline itself asserts (#726)
+
+The gates above make the ranking *behind* the headline reproducible. Since #731
+the sentence a lead repeats is a *resolved winner* rather than a composed one,
+so a change to a weight, a threshold, or a claim template could move that
+sentence without failing any gate. `tests/fixtures/finding-winner-fixtures.json`
+closes that: five labelled input sets, each pinning which finding wins, its
+confidence tier after the provenance rule, its evidence class, and the exact
+sentence the headline would assert. The reproducibility suite recomputes all
+five and fails by name — fixture, field, pinned value, produced value — when any
+of them drifts.
+
+The fixtures are an **oracle over `finops-finding-resolver.js`, not a second
+implementation of it**. No ranking rule, comparator, or threshold is restated in
+the fixture file or the test; a fixture that re-derived the winner would agree
+with a broken resolver.
+
+### The two entitlement values, and where they are derived
+
+| Value | Owner | Rendered as |
+| --- | --- | --- |
+| `evidenceClass` | `evidenceClassOf(provenance)` | `#finops-stand-evidence`, `data-evidence-class` on the region |
+| `confidenceTier` | `confidence.level`, after the provenance downgrade | `#finops-stand-confidence`, `data-finding-confidence` |
+
+Both are structured output on the winning finding. The view renders them and the
+fixtures assert them; neither re-derives either.
+
+### Assumptions behind every weight the fixtures depend on
+
+- **Materiality thresholds** (`majorAt`, `finops-spine-manifest.js`): 1 quartile
+  for a peer position, 1 band for a department gap, $5,000/month for a spend
+  trend or a department driver, $10,000/month for recoverable spend. Each is
+  stated in its kind's own unit, because that is the only way a dollar figure and
+  a quartile distance are comparable at all. *Invalidated by* a currency or a
+  period other than USD per month.
+- **Confidence ladder** (`CONFIDENCE_LEVELS`): the index in
+  `unavailable < low < moderate < high` **is** the rank, so "drops a level" has
+  exactly one meaning.
+- **Synthetic downgrade**: a finding drawn from synthetic cohort boundaries loses
+  one level. A quartile against invented peers is a real comparison against a
+  made-up peer set. *Invalidated by* boundaries derived from a measured
+  population — that would be a new `PROVENANCE_KIND`, not a change to this one.
+- **Evidence-class default**: anything not positively marked as the reader's own
+  import is `synthetic-cohort`. The two errors are not symmetric — understating
+  the reader's own export is a smaller harm than telling a lead they measured
+  something they did not.
+- **Provenance tiebreak**: own-export evidence outranks synthetic evidence, but
+  only after materiality, confidence, and the manifest's claim-kind order have
+  all tied. What a finding is worth, and whether the page can stand behind it,
+  both matter more than whose data it came from.
+- **Degradation, not suppression**: for synthetic evidence the wording degrades
+  and the number does not widen. A vaguer number over the same invented
+  boundaries is the same claim with the evidence for it removed.

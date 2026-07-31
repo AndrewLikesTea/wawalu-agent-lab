@@ -112,6 +112,19 @@
           <h2 id="finops-stand-question">Where do we stand on AI spend?</h2>
         </div>
         <p class="stand-answer" id="finops-stand-answer">This page is still reading the Bundled synthetic example. The ranking appears here as soon as it has been read; nothing is needed from you.</p>
+        <!-- WHAT THE CLAIM ABOVE RESTS ON, in words, at the headline.
+             Two indicators, both painted from the winning finding's own
+             `evidenceClass` and `confidenceTier` in
+             src/finops-finding-resolver.js: whether the sentence came from the
+             reader's own imported export or from hand-authored synthetic cohort
+             boundaries, and how far this page will stand behind it. Neither is
+             computed in the view and neither is behind a disclosure — the
+             detail is one step down in "Can someone else repeat this ranking?",
+             but the entitlement itself is never a click away. -->
+        <p class="stand-entitlement" id="finops-stand-entitlement" data-available="false" data-evidence="none" data-confidence="unavailable">
+          <span class="stand-entitlement-item" id="finops-stand-evidence">Nothing has been read yet, so this claim rests on nothing.</span>
+          <span class="stand-entitlement-item" id="finops-stand-confidence">Confidence not stated</span>
+        </p>
         <div class="stand-figures">
           <!-- The position and the recoverable figure are ONE headline, not two
                cards: they sit in a single group, and at narrow widths the label,

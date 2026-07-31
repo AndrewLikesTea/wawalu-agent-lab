@@ -82,6 +82,84 @@ const PROVENANCE_RANK = Object.freeze({
 });
 
 /**
+ * What class of evidence a finding rests on, in the two words a reader uses.
+ *
+ * This is `provenance.kind` said the way the page says it, and it is derived
+ * HERE rather than in a view or a test so there is one answer to "is this mine
+ * or is it invented?" — the surface renders it, the fixtures assert it, and
+ * neither one re-derives it.
+ *
+ * ASSUMPTION: anything not positively marked as the reader's own import is
+ * synthetic-cohort evidence. The two failures are not symmetric — labelling the
+ * reader's own export as synthetic understates a claim they can check, while
+ * labelling synthetic cohort boundaries as their own export tells a lead they
+ * measured something they did not. So an unknown, absent, or unrecognised
+ * provenance kind falls to `syntheticCohort`.
+ * WHAT WOULD INVALIDATE IT: a third provenance that is neither — a customer's
+ * measured peer panel, say. That is a new `PROVENANCE_KIND` and a new evidence
+ * class declared beside these two, not a silent reuse of either.
+ */
+export const EVIDENCE_CLASS = Object.freeze({
+  ownExport: "own-export",
+  syntheticCohort: "synthetic-cohort",
+});
+
+/** The evidence class of a provenance record. Total: every input has an answer. */
+export function evidenceClassOf(provenance) {
+  return provenance?.kind === PROVENANCE_KIND.imported
+    ? EVIDENCE_CLASS.ownExport
+    : EVIDENCE_CLASS.syntheticCohort;
+}
+
+/**
+ * The lead-in a synthetic-cohort claim is asserted behind.
+ *
+ * A quartile drawn against invented peers is a real comparison against a
+ * made-up peer set. The claim sentence itself is authored by the module that
+ * owns the figure and is NOT rewritten here; what changes with the evidence
+ * class is what the claim is asserted AS, and this clause is that. It carries
+ * no terminator, so it qualifies the sentence rather than becoming a second one.
+ *
+ * ASSUMPTION: degrading the wording is the whole obligation for synthetic
+ * evidence — the number is not withheld and not widened, because a vaguer
+ * number over the same invented boundaries is the same claim with the evidence
+ * for it removed. WHO DISPUTES IT: a reviewer who would rather show no peer
+ * position at all on the bundled path. They would also remove the only thing
+ * this page can demonstrate before a reader imports anything.
+ */
+export const SYNTHETIC_CLAIM_QUALIFIER =
+  "Illustrative only, from hand-authored synthetic cohort boundaries rather than your own export:";
+
+/** The claim template ids. Stable strings; asserted by the fixtures. */
+export const CLAIM_TEMPLATE = Object.freeze({
+  ownExport: "measured-from-own-export",
+  syntheticCohort: "illustrative-from-synthetic-cohort",
+});
+
+/**
+ * Which template an evidence class selects, as a table rather than an `if` in a
+ * view. A surface that wants to know why the headline reads the way it does
+ * reads this; it never special-cases a string.
+ */
+const CLAIM_TEMPLATES = Object.freeze({
+  [EVIDENCE_CLASS.ownExport]: Object.freeze({
+    id: CLAIM_TEMPLATE.ownExport,
+    qualifier: null,
+    render: (claim) => claim,
+  }),
+  [EVIDENCE_CLASS.syntheticCohort]: Object.freeze({
+    id: CLAIM_TEMPLATE.syntheticCohort,
+    qualifier: SYNTHETIC_CLAIM_QUALIFIER,
+    render: (claim) => `${SYNTHETIC_CLAIM_QUALIFIER} ${claim}`,
+  }),
+});
+
+/** The template for an evidence class, falling to the qualified one when unknown. */
+export function claimTemplateFor(evidenceClass) {
+  return CLAIM_TEMPLATES[evidenceClass] ?? CLAIM_TEMPLATES[EVIDENCE_CLASS.syntheticCohort];
+}
+
+/**
  * Why a finding's confidence is what it is. Codes, not sentences: they are
  * asserted in tests, logged, and rendered through copy the surface owns.
  */
@@ -285,6 +363,8 @@ function normalize(signal, index, manifest) {
   });
   const confidence = applyProvenanceConfidence(signal?.confidence, provenance);
   const materiality = materialityOf(impact, spec);
+  const evidenceClass = evidenceClassOf(provenance);
+  const template = claimTemplateFor(evidenceClass);
   return {
     finding: Object.freeze({
       id,
@@ -295,6 +375,22 @@ function normalize(signal, index, manifest) {
       provenance,
       recommendedAction,
       materiality,
+      /**
+       * Entitlement, as structured output rather than as something a surface
+       * infers from `provenance.kind` and a level buried in an object. These
+       * three fields are what the labelled fixtures pin and what the headline
+       * renders; nothing downstream re-derives any of them.
+       *
+       * `confidenceTier` is `confidence.level` AFTER the provenance downgrade —
+       * the tier the reader is actually entitled to, not the one the signal
+       * asked for. `confidence.statedLevel` still holds what was asked for, so
+       * the downgrade stays traceable.
+       */
+      evidenceClass,
+      confidenceTier: confidence.level,
+      claimTemplate: template.id,
+      /** The claim as the headline may assert it, under this evidence class. */
+      assertedClaim: template.render(claim),
       /** Ranking inputs, published so a winner can be explained without re-deriving it. */
       materialityRank: MATERIALITY_LEVELS.indexOf(materiality),
       confidenceRank: confidenceRank(confidence.level),

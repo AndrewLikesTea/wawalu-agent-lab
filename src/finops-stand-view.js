@@ -144,10 +144,27 @@ export function applyStandHeadline(doc, headline) {
   // the reader was actually shown.
   region.dataset.finding = headline.finding?.signalKind ?? "none";
   region.dataset.findingConfidence = headline.finding?.confidence?.level ?? "unavailable";
+  // What the claim rests on, on the region itself, beside the tier. The words
+  // are painted below; this is the same state in the channel a stylesheet, a
+  // printed page, and a test can all read.
+  region.dataset.evidenceClass = headline.entitlement?.evidenceClass ?? "none";
 
   setText(doc, STAND_IDS.label, headline.label ?? "");
   setText(doc, STAND_IDS.question, headline.question ?? "");
   setText(doc, STAND_IDS.answer, headline.answer ?? "");
+
+  // The entitlement line: two indicators, both words, immediately under the
+  // claim. Neither is a colour and neither is behind a disclosure — a lead who
+  // is about to repeat this sentence should not have to open anything to learn
+  // that it rests on invented peers.
+  const entitlement = byId(doc, STAND_IDS.entitlement);
+  if (entitlement) {
+    entitlement.dataset.available = headline.entitlement?.available ? "true" : "false";
+    entitlement.dataset.evidence = headline.entitlement?.evidenceClass ?? "none";
+    entitlement.dataset.confidence = headline.entitlement?.confidenceTier ?? "unavailable";
+  }
+  setText(doc, STAND_IDS.evidence, headline.entitlement?.evidence ?? "");
+  setText(doc, STAND_IDS.confidence, headline.entitlement?.confidence ?? "");
 
   const position = setText(doc, STAND_IDS.positionValue, headline.position?.value ?? "");
   if (position) position.dataset.available = headline.position?.available ? "true" : "false";
