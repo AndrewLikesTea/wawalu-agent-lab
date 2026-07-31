@@ -199,21 +199,32 @@ test("the first screen says nothing has run, never that something failed", async
   assert.doesNotMatch(FIRST_RUN_STATE.pending.word, /unavailable/i);
   assert.doesNotMatch(FIRST_RUN_INSTRUCTION, /unavailable/i);
 
-  // And one shape for the slots, so a reader learns it once rather than
-  // re-reading a differently-worded absence in every panel.
+  // …and the slots say nothing at all, because they are not drawn yet.
+  //
+  // THIS SUPERSEDES A NARROWER RULE. Until #755 the four slots were required to
+  // carry one shared absence vocabulary — "Not yet measured", "Not yet ranked"
+  // — on the theory that one grammatical shape learned once is scannable. It is,
+  // and that was the right rule for a screen that draws the boxes. This screen
+  // does not draw them: six metric-shaped boxes holding six null placeholders
+  // was six answers to "what does this tell me?" that are worse than the one
+  // instruction above them, and six screen-reader stops before the one action a
+  // visitor can take. The vocabulary is still the module's and still what a
+  // withheld figure reads *after* an analysis — tests/finops-first-run.test.js
+  // holds that — so it is checked here as the thing the empty screen is free of.
   const slots = [
     FIRST_RUN_IDS.benchmarkValue, FIRST_RUN_IDS.impactValue,
     FIRST_RUN_IDS.confidenceValue, FIRST_RUN_IDS.action,
   ];
-  const shapes = new Set();
   for (const id of slots) {
-    const text = textOf(byId(document, id));
-    assert.ok(Object.values(FIRST_RUN_NOT_YET).includes(text),
-      `${id} reads ${JSON.stringify(text)}, which is outside the one absence vocabulary`);
-    shapes.add(text.split(" ").slice(0, 2).join(" "));
+    const node = byId(document, id);
+    assert.equal(textOf(node), "", `${id} is authored with a placeholder rather than empty`);
+    assert.ok(node.closest("[hidden]"),
+      `${id} is empty but still drawn, which is a metric-shaped box with nothing in it`);
   }
-  assert.deepEqual([...shapes], ["Not yet"],
-    "the slots stopped sharing one grammatical shape, which is what made them scannable");
+  for (const value of Object.values(FIRST_RUN_NOT_YET)) {
+    assert.ok(!textOf(byId(document, FIRST_RUN_IDS.region)).includes(value),
+      `the pre-analysis region still reads ${JSON.stringify(value)}`);
+  }
 });
 
 test("the two choices are told apart by whose data each one uses", async () => {

@@ -382,7 +382,14 @@ test("the headline is announced as one claim: question, number, confidence, evid
   assert.equal(region.getAttribute("aria-describedby"), STAND_IDS.claim);
   const authored = textOf(byId(document, STAND_IDS.claim));
   assert.ok(authored.length > 0, "the description ships empty, so arriving announces a bare name");
-  assert.match(authored, /Confidence not stated/, "the pending description states no confidence tier");
+  // …and it states no confidence tier, because before anything is read there is
+  // no claim to be confident about. A null tier in the region's own description
+  // announces a placeholder figure to a reader who has not asked for one; the
+  // paint below writes the real tier in the moment there is one.
+  assert.doesNotMatch(authored, /Confidence not stated/,
+    "the pre-analysis description announces a null confidence tier");
+  assert.match(authored, /Nothing has been read yet/,
+    "the pre-analysis description no longer says that nothing has been read");
 
   // And after a real paint it is the four values the visible slots carry.
   const headline = composeStandHeadline({ analysis: loadExampleDataset(), source: "example" });

@@ -212,10 +212,13 @@ test("the peer position is authored directly before the recommended action", asy
   // action ahead of its evidence is an instruction with nothing behind it.
   // Direct element children only: the slots nested inside each block are not
   // blocks, and the whitespace between them is not either.
-  const blocks = [...region.children]
-    .filter((node) => node.nodeType === 1).map((node) => node.className);
-  const action = blocks.indexOf("first-run-recommendation");
-  const position = blocks.indexOf("first-run-support");
+  // By class membership, not by the whole `class` string: these blocks also
+  // carry `pre-analysis-withheld`, the marker that keeps them out of the tree
+  // until they have figures in them.
+  const blocks = [...region.children].filter((node) => node.nodeType === 1);
+  const at = (name) => blocks.findIndex((node) => node.classList.contains(name));
+  const action = at("first-run-recommendation");
+  const position = at("first-run-support");
   assert.ok(action >= 0 && position >= 0);
   assert.equal(action, position + 1, "the action block follows the position block directly");
 
