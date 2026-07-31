@@ -31,6 +31,7 @@
 import {
   ORG_QUERY_REDACTION_STATEMENT, ORG_QUERY_SCORING_CODES, ORG_CLASSIFIED_RECORD_KEYS,
 } from "./org-query-scoring.js";
+import { coverageHeadline } from "./corpus-family-coverage.js";
 import { safeDisplayFileName } from "./import-limits.js";
 
 export const ORG_QUERY_DECISION_VERSION = "org-query-decision/1.0.0";
@@ -143,7 +144,8 @@ const plural = (count, one, many) => `${count} ${count === 1 ? one : many}`;
  *   nothing else — an example graded as the reader's own would be exactly the
  *   mislabelling the per-panel provenance exists to end.
  */
-export function orgQueryCoachingDecision(literacy, { origin = "import", fileNames = [] } = {}) {
+export function orgQueryCoachingDecision(literacy,
+  { origin = "import", fileNames = [], familyCoverage = null } = {}) {
   if (!literacy) return Object.freeze({
     version: ORG_QUERY_DECISION_VERSION,
     state: ORG_QUERY_DECISION_STATE.absent,
@@ -152,13 +154,63 @@ export function orgQueryCoachingDecision(literacy, { origin = "import", fileName
   });
   const confidence = confidenceOf(literacy);
   const provenance = provenanceOf(literacy, origin, fileNames);
-  const disclosures = disclosuresOf(literacy);
-  return literacy.gradeable
-    ? graded(literacy, { confidence, provenance, disclosures, origin })
-    : ungradeable(literacy, { confidence, provenance, disclosures, origin });
+  const coverage = coverageSlot(familyCoverage);
+  const disclosures = disclosuresOf(literacy, coverage);
+  const parts = { confidence, provenance, disclosures, origin, coverage };
+  // The coverage gate runs BEFORE the letter, and it is the same gate the
+  // department path uses: `COVERAGE_TIERS` decides whether enough of this
+  // corpus was classified for a letter to mean anything, and a corpus under
+  // the floor is refused with that table's own published words. A sample with
+  // no coverage result attached is unaffected — the floors only apply to a
+  // reading that was actually measured against them.
+  if (coverage && coverage.showGrade === false) return coverageWithheld(literacy, parts);
+  return literacy.gradeable ? graded(literacy, parts) : ungradeable(literacy, parts);
 }
 
-function graded(literacy, { confidence, provenance, disclosures, origin }) {
+/**
+ * The number and the one action, from the multi-family coverage result.
+ *
+ * Selection only, like everything else here: `coverageHeadline` composed both
+ * strings and the tier verdict behind them, and this states which cluster
+ * detail the sampling disclosure carries.
+ */
+function coverageSlot(result) {
+  if (!result) return null;
+  const headline = coverageHeadline(result);
+  return Object.freeze({
+    available: headline.available,
+    showGrade: headline.showGrade,
+    reason: result.eligibility.reason,
+    tier: result.eligibility.tier,
+    share: headline.number,
+    text: headline.text,
+    rule: headline.rule,
+    action: headline.action,
+    unitLabel: result.unitLabel,
+    clusters: Object.freeze((result.residue ?? []).map((cluster) => Object.freeze({
+      key: cluster.key,
+      records: cluster.records,
+      share: cluster.share,
+      coveragePoints: cluster.coveragePoints,
+    }))),
+  });
+}
+
+/**
+ * A corpus under the coverage floor. No letter, and the refusal is the tier
+ * table's own label and rule — not a sentence this module wrote, so the words a
+ * reader meets here are the words every other coverage refusal on this page uses.
+ */
+function coverageWithheld(literacy, parts) {
+  return ungradeable(literacy, parts, Object.freeze({
+    code: parts.coverage.reason,
+    label: parts.coverage.text,
+    detail: parts.coverage.rule,
+    action: parts.coverage.action,
+  }));
+}
+
+function graded(literacy, { confidence, provenance, disclosures, origin, coverage }) {
   const gap = literacy.coachingGap ?? {};
   const rows = literacy.departments.filter((row) => row.gradeable === true);
   // The named unit is the coaching gap's, because that is the ranking the rule
@@ -199,6 +251,8 @@ function graded(literacy, { confidence, provenance, disclosures, origin }) {
     }),
     confidence,
     provenance,
+    /** The share of this corpus the multi-family classifier placed, and the residue. */
+    coverage,
     action: Object.freeze({
       available: true,
       title: gap.signalLabel
@@ -223,8 +277,9 @@ function graded(literacy, { confidence, provenance, disclosures, origin }) {
   });
 }
 
-function ungradeable(literacy, { confidence, provenance, disclosures, origin }) {
-  const reason = UNGRADEABLE[literacy.reasonCode] ?? FALLBACK_UNGRADEABLE;
+function ungradeable(literacy, { confidence, provenance, disclosures, origin, coverage },
+  reasonOverride = null) {
+  const reason = reasonOverride ?? UNGRADEABLE[literacy.reasonCode] ?? FALLBACK_UNGRADEABLE;
   return Object.freeze({
     version: ORG_QUERY_DECISION_VERSION,
     state: ORG_QUERY_DECISION_STATE.ungradeable,
@@ -233,9 +288,12 @@ function ungradeable(literacy, { confidence, provenance, disclosures, origin }) 
     // The answer to the question is that it cannot be answered yet. Saying so in
     // the answer slot is the point: an empty slot reads as a page that broke.
     answer: "No department can be named yet.",
+    // The override's own code wins when there is one: a letter withheld for
+    // coverage carries the coverage verdict's reason, not the scorer's.
     reason: Object.freeze({ code: literacy.reasonCode, ...reason }),
     confidence,
     provenance,
+    coverage,
     action: Object.freeze({
       available: false,
       title: reason.action,
@@ -305,11 +363,11 @@ function provenanceOf(literacy, origin, fileNames) {
   });
 }
 
-function disclosuresOf(literacy) {
+function disclosuresOf(literacy, coverage = null) {
   const rows = Object.freeze({
     [DISCLOSURE_IDS.mix]: mixRows(literacy),
     [DISCLOSURE_IDS.evidence]: evidenceRows(literacy),
-    [DISCLOSURE_IDS.sampling]: samplingRows(literacy),
+    [DISCLOSURE_IDS.sampling]: samplingRows(literacy, coverage),
     [DISCLOSURE_IDS.redaction]: redactionRows(literacy),
   });
   const counts = Object.freeze({
@@ -366,8 +424,37 @@ function evidenceRows(literacy) {
   })));
 }
 
+/**
+ * The residue, cluster by cluster, in the ranked order the module published.
+ *
+ * This is where the per-cluster detail behind the headline number lives: the
+ * limit disclosure already answers "what are the limits of this sample?", and
+ * the largest thing limiting it is the spend the classifier could not place.
+ * Ranked order is `corpus-family-coverage.js`'s and is not re-sorted here.
+ */
+function residueRows(coverage) {
+  if (!coverage) return [];
+  const header = Object.freeze({
+    term: "Coverage, on structural evidence",
+    detail: `${coverage.text}. ${coverage.rule}`,
+  });
+  if (!coverage.clusters.length) {
+    return [header, Object.freeze({
+      term: "Unclassified residue",
+      detail: "None. Every record in this corpus was placed by a declared category or by a "
+        + "signal family, so no cluster is holding coverage back.",
+    })];
+  }
+  return [header, ...coverage.clusters.map((cluster, index) => Object.freeze({
+    term: `Residue ${index + 1} · ${cluster.key}`,
+    detail: `${plural(cluster.records, "unclassified record", "unclassified records")} · `
+      + `${percent(cluster.share)} of the scored denominator in ${coverage.unitLabel} · `
+      + `resolving it returns ${cluster.coveragePoints.toFixed(1)} points of coverage.`,
+  }))];
+}
+
 /** What this sample cannot support, said before a reader over-reads it. */
-function samplingRows(literacy) {
+function samplingRows(literacy, coverage = null) {
   const summary = literacy.summary ?? {};
   const factors = (literacy.confidence?.factors ?? []).map((factor) => Object.freeze({
     term: `${FACTOR_LABELS[factor.key] ?? factor.key} — ${factor.level}`,
@@ -375,6 +462,7 @@ function samplingRows(literacy) {
   }));
   return Object.freeze([
     ...factors,
+    ...residueRows(coverage),
     Object.freeze({
       term: "Sample size",
       detail: `${plural(summary.recordCount ?? 0, "row", "rows")} across `
