@@ -1163,6 +1163,50 @@ def requeue_conflicted_pull(pull: dict[str, Any], token: str, config: dict[str, 
     return True
 
 
+class _DropAuthRedirect(urllib.request.HTTPRedirectHandler):
+    """Follow a redirect without carrying the GitHub token to the new host.
+
+    The Actions log endpoint answers with a redirect to signed blob storage, which
+    rejects a request that still carries an ``Authorization`` header meant for the
+    API host.
+    """
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        request = super().redirect_request(req, fp, code, msg, headers, newurl)
+        if request is not None:
+            request.headers.pop("Authorization", None)
+            request.unredirected_hdrs.pop("Authorization", None)
+        return request
+
+
+def check_failure_log(details_url: str, token: str, lines: int = 40) -> str:
+    """Return the tail of a failing Actions job log, or ``""`` if it cannot be read.
+
+    A check run reports no ``output`` for a GitHub Actions job, so the summary
+    below would otherwise hand the retry a bare job URL — pull #736 requeued issue
+    #727 with nothing but a link, and the next paid session had to rediscover the
+    failure from scratch. The last lines of the job log carry the assertion or gate
+    message that actually failed, which is the part the retry needs.
+    """
+    match = re.search(r"/actions/runs/\d+/job/(\d+)", details_url or "")
+    if not match:
+        return ""
+    request = urllib.request.Request(
+        f"https://api.github.com/repos/{REPOSITORY}/actions/jobs/{match.group(1)}/logs",
+        headers={"Authorization": "Bearer " + current_token(token),
+                 "Accept": "application/vnd.github+json",
+                 "X-GitHub-Api-Version": "2022-11-28", "User-Agent": "wawalu-autonomous-team"})
+    try:
+        with urllib.request.build_opener(_DropAuthRedirect).open(request, timeout=30) as response:
+            text = response.read(4_000_000).decode("utf-8", "replace")
+    except Exception:
+        return ""
+    # Every log line is prefixed with an ISO timestamp that costs the retry context
+    # without telling it anything.
+    stripped = [re.sub(r"^\S+Z ", "", line).rstrip() for line in text.splitlines()]
+    return "\n".join([line for line in stripped if line.strip()][-lines:])
+
+
 def failed_check_summary(sha: str, token: str, config: dict[str, Any]) -> str:
     """Describe the settled, failing checks on ``sha``, or ``""`` if it is not red.
 
@@ -1191,8 +1235,13 @@ def failed_check_summary(sha: str, token: str, config: dict[str, Any]) -> str:
         output = run.get("output") or {}
         detail = " — ".join(part for part in (str(output.get("title") or "").strip(),
                                               str(output.get("summary") or "").strip()) if part)
-        failures.append(f"`{run.get('name')}` {run.get('conclusion')}: "
-                        f"{detail[:1500] or run.get('details_url') or 'no output reported'}")
+        details_url = str(run.get("details_url") or "")
+        tail = check_failure_log(details_url, token) if config.get("check_failure_logs", True) else ""
+        summary = f"`{run.get('name')}` {run.get('conclusion')}: " \
+                  f"{detail[:1500] or details_url or 'no output reported'}"
+        if tail:
+            summary += f"\n\nLast lines of the failing job log:\n\n```\n{tail[:2500]}\n```"
+        failures.append(summary)
     return "\n\n".join(failures)
 
 

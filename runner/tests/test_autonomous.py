@@ -952,6 +952,42 @@ class AutonomousTests(IsolatedDiffBudget):
             self.assertEqual(github.call_count, 1)
             github.reset_mock()
 
+    @staticmethod
+    def job_log(text):
+        """An opener whose response reads back as a GitHub Actions job log."""
+        response = mock.MagicMock()
+        response.read.return_value = text.encode()
+        response.__enter__.return_value = response
+        opener = mock.Mock()
+        opener.open.return_value = response
+        return opener
+
+    @mock.patch.object(autonomous, "github")
+    def test_the_failing_job_log_rides_back_as_the_review_feedback(self, github):
+        details = f"https://github.com/{REPO}/actions/runs/30604262782/job/91073207026"
+        log = ("2026-07-31T04:29:50.4Z verified dist\n"
+               "2026-07-31T04:29:50.4Z \n"
+               "2026-07-31T04:29:50.4Z Over budget: evolution-page.js.\n")
+        with mock.patch.object(autonomous.urllib.request, "build_opener",
+                               return_value=self.job_log(log)) as opener:
+            _, record, _ = self.red_pull_after(
+                github, {"attempts": 1, "total_runs": 1}, {},
+                checks=self.check_runs({"details_url": details, "output": {}}))
+        self.assertIn(f"/repos/{REPO}/actions/jobs/91073207026/logs",
+                      opener.return_value.open.call_args.args[0].full_url)
+        # The timestamps and the blank lines are stripped; the gate message is not.
+        self.assertIn("Over budget: evolution-page.js.", record["review_feedback"])
+        self.assertNotIn("2026-07-31T04", record["review_feedback"])
+
+    def test_a_log_that_cannot_be_read_leaves_the_summary_alone(self):
+        details = f"https://github.com/{REPO}/actions/runs/1/job/2"
+        opener = mock.Mock()
+        opener.open.side_effect = urllib.error.HTTPError(details, 404, "gone", {}, None)
+        with mock.patch.object(autonomous.urllib.request, "build_opener", return_value=opener):
+            self.assertEqual(autonomous.check_failure_log(details, "token"), "")
+        # A check run that is not a GitHub Actions job never reaches the network.
+        self.assertEqual(autonomous.check_failure_log("https://example.test/build", "token"), "")
+
     @mock.patch.object(autonomous, "github")
     def test_a_fresh_failure_waits_out_the_grace_window_for_a_rerun(self, github):
         checks = self.check_runs({"completed_at": autonomous.utc_now().isoformat()})
