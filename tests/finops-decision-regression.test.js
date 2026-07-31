@@ -532,6 +532,14 @@ const ALLOWED_MODULES = Object.freeze([
   "finops-attribution-policy.js", "finops-briefing-contract.js", "finops-decision-contract.js",
   "finops-decision-interaction.js", "finops-display.js", "finops-first-run.js",
   "finops-leading-finding.js",
+  // Reviewed on: the answer spine. It is a frozen declaration — the page's one
+  // question, the headline metric's definition and its accessor, the one action,
+  // the one artifact, and a class for every top-level region — with no imports
+  // of its own. No fetch, storage, clock, or randomness, and the one function
+  // that computes anything divides two fields of a record it is handed. It is on
+  // the path because `finops-decision-contract.js` now reads which region is
+  // entitled to carry the complete summary from it instead of naming one itself.
+  "finops-spine.js",
   // Reviewed on: pure arithmetic over already-accepted period documents. No
   // fetch, no storage, no clock, no randomness — it is on the path because
   // `local-finops.js` aggregates the portfolio during reconciliation.

@@ -75,14 +75,17 @@
            disclosures. Six siblings and no nesting: "reachable from the headline
            in one interaction" is the requirement, and a details inside a details
            is two.
-           WHY IT IS DECLARED "evidence" AND NOT "complete". The single-summary
-           contract in src/finops-decision-contract.js allows exactly one visible
-           complete summary, and that is still #finops-first-run below, which
-           carries the canonical decision question, the confidence claim, and
-           both ways on. This region promotes that summary's peer result to the
-           top of reading order; it does not duplicate the summary, and a second
-           region claiming completeness would be the exact competing-headline
-           defect that contract exists to prevent.
+           WHY IT IS DECLARED "evidence" AND NOT "complete". This is the ANSWER
+           region — src/finops-spine.js classifies it `answer` and every other
+           top-level region `evidence` or `removed` — and the answer region is
+           what ENTITLES a region to carry the complete decision record rather
+           than carrying it itself. The entitlement is the ordered claimant list
+           in `FINOPS_SPINE.answerRegion.completeSummary`: the reader's own
+           combined portfolio, then their own single-provider result, then
+           #finops-first-run below, which holds it before anything is imported.
+           No region self-declares any more; a region whose markup claims
+           `complete` without being on that list is a violation
+           `refereeCompleteSummaries()` reports by name.
            Every slot is authored in a pending state and no number is written
            here: src/finops-stand.js composes the figures out of the modules that
            already own them and src/finops-stand-view.js paints them. The six
@@ -135,8 +138,14 @@
             <p class="stand-figure-value" id="finops-stand-position-value" data-available="false">Not yet compared</p>
             <p class="stand-figure-basis" id="finops-stand-position-basis"></p>
           </div>
+          <!-- The headline metric's label is RENDERED, not authored:
+               `applyFinopsSpine()` writes it from `FINOPS_SPINE.metric.name` in
+               src/finops-spine.js, where the metric's numerator, denominator,
+               window, unit, and accessor are defined. A metric whose title is
+               typed here as well is a title that can disagree with the
+               definition it belongs to. -->
           <div class="stand-figure stand-figure-recoverable">
-            <h3 class="stand-figure-label">Recoverable spend</h3>
+            <h3 class="stand-figure-label" id="finops-stand-metric-label">Recoverable spend</h3>
             <p class="stand-figure-value" id="finops-stand-recoverable-value" data-available="false">Not yet measured</p>
             <p class="stand-figure-basis" id="finops-stand-recoverable-basis"></p>
           </div>

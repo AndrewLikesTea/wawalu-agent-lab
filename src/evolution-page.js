@@ -238,6 +238,9 @@ import { initWorkspaceShell } from "/finops-workspace-shell.js";
 // attributes and no copy, so it cannot change what a reader sees today; what it
 // changes is that "headline or support?" has an answer in the repository.
 import { applyAnswerSpine } from "/finops/answer-spine-view.js";
+// The answer spine itself — one question, one metric, one action, one artifact,
+// and the classification of every other top-level region as evidence or gone.
+import { applyFinopsSpine } from "/finops-spine.js";
 import {
   announce as announceStage, applyDatasetProvenance, applyExportPackageGuidance,
   applyFieldDiagnostic, applyImportLimits, applyOrgQuerySources, applyOrgQuerySourceStatus,
@@ -2988,6 +2991,13 @@ async function init() {
   // not there — nothing below it may depend on this line, because everything
   // below it would be lost if this line ever threw.
   applyAnswerSpine(document);
+  // And with it, the answer spine's own classification: which single region is
+  // the answer, which are evidence beneath it and in what order a lead needs
+  // them, and the state the page is in — nothing imported, at this point. Read
+  // from src/finops-spine.js at runtime rather than authored into the markup,
+  // so the page cannot hold an order the spine no longer declares. Attributes
+  // and one label; it tolerates every region being absent.
+  applyFinopsSpine(document);
   // First, before any panel is painted: a fragment already in the address bar
   // has to open its way out of the disclosures it points into, and the handlers
   // that keep doing so have to be attached before the reader can click one.

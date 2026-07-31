@@ -95,6 +95,9 @@
 // record hides the code path that put the value there.
 
 import { COVERAGE_THRESHOLDS, BRIEFING_CONFIDENCE } from "./finops-briefing-contract.js";
+import {
+  FINOPS_SPINE, answerRegionId, completeSummaryClaimantIds, defaultCompleteSummaryId,
+} from "./finops-spine.js";
 import CANONICAL_DECISION_FIXTURE from "./finops-decision-fixture.json" with { type: "json" };
 
 /** Bump when a field, a metric rule, or a boundary rule changes meaning. */
@@ -129,8 +132,22 @@ export const SUMMARY_ROLE = Object.freeze({ complete: "complete", evidence: "evi
 /** The markup attribute that carries a region's role. */
 export const SUMMARY_ATTRIBUTE = "data-decision-summary";
 
-/** The region that carries the complete summary before anything is imported. */
-export const FRONT_DOOR_SUMMARY_ID = "finops-first-run";
+/**
+ * The region that carries the complete summary before anything is imported.
+ *
+ * READ FROM THE SPINE, not decided here. Which region may claim to be the
+ * complete answer is a property of the page's answer region, and the answer
+ * region declares it once in src/finops-spine.js. This contract used to name
+ * the front door itself, which is how the page ended up with two places that
+ * both believed they were the answer.
+ */
+export const FRONT_DOOR_SUMMARY_ID = defaultCompleteSummaryId(FINOPS_SPINE);
+
+/**
+ * Every region the spine's answer region entitles to the complete claim, in
+ * precedence order — the reader's own result before the bundled example's.
+ */
+export const ENTITLED_SUMMARY_IDS = Object.freeze(completeSummaryClaimantIds(FINOPS_SPINE));
 
 /** The only source a decision record on this page may claim. */
 export const SYNTHETIC_SOURCE = "synthetic-local";
@@ -538,5 +555,53 @@ export function countCompleteSummaries(doc) {
     visible: visible.length,
     visibleIds: Object.freeze(visible.map((element) => element.id)),
     ids: Object.freeze(all.map((element) => element.id)),
+  });
+}
+
+/**
+ * The referee: who is allowed to say "I am the complete answer", and did the
+ * shipped document respect it.
+ *
+ * `countCompleteSummaries` above counts what regions SAY about themselves. That
+ * was the whole rule once, and it could only catch the symptom — two visible
+ * complete summaries — after a region had already declared itself one. The
+ * entitlement is now the spine's: `FINOPS_SPINE.answerRegion.completeSummary`
+ * lists the regions the answer region delegates the complete decision record
+ * to, in precedence order, and a region outside that list claiming `complete`
+ * is a violation whether or not anything else is visible beside it.
+ *
+ * Returns problems as plain sentences and never throws.
+ *
+ * @returns {{violations: string[], entitled: string[], visibleIds: string[], holder: string|null}}
+ *   `holder` — the highest-precedence entitled region currently visible, which
+ *   is the one region a reader is being given as the complete answer.
+ */
+export function refereeCompleteSummaries(doc, spine = FINOPS_SPINE) {
+  const entitled = completeSummaryClaimantIds(spine);
+  const summaries = countCompleteSummaries(doc);
+  const violations = [];
+  const answerId = answerRegionId(spine);
+
+  for (const id of summaries.ids) {
+    if (!entitled.includes(id)) {
+      violations.push(`Region "${id || "(no id)"}" claims to be the complete decision summary, but `
+        + `the answer region "${answerId}" entitles only: ${entitled.join(", ")}. A region cannot `
+        + "declare itself the answer.");
+    }
+  }
+
+  const visible = summaries.visibleIds.filter((id) => entitled.includes(id));
+  if (visible.length > 1) {
+    violations.push(`${visible.length} entitled regions are showing a complete summary at once `
+      + `(${visible.join(", ")}). Precedence is ${entitled.join(" > ")}; the ones it outranks are `
+      + "superseded, not shown beside it.");
+  }
+
+  const holder = entitled.find((id) => summaries.visibleIds.includes(id)) ?? null;
+  return Object.freeze({
+    violations: Object.freeze(violations),
+    entitled: Object.freeze([...entitled]),
+    visibleIds: summaries.visibleIds,
+    holder,
   });
 }
