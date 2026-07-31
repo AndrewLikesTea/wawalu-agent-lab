@@ -141,6 +141,32 @@
           <span id="finops-stand-gradability-metric" hidden></span>
           <span class="stand-figure-basis" id="finops-stand-gradability-action" hidden></span>
         </p>
+        <!-- TEACH THE CLASSIFIER, from the gradeability line rather than from a
+             section of its own: the question this disclosure answers is the one
+             immediately above it — "can this export be graded, and if not, what
+             would make it gradeable?". The control ships hidden and is revealed
+             by evolution-page.js only when the reader has imported their own
+             export and it holds rows the classifier declined; the bundled
+             synthetic example never reveals it, so the demo path's numbers and
+             its next action are byte-for-byte what they were.
+
+             Every slot below is authored empty. The queries, the class the
+             classifier assigned, the token that fired, the corrected figures and
+             the provenance count are all painted by query-review-view.js out of
+             the override model in query-label-overrides.js — these are slots,
+             never wording, and no figure ships in these bytes. Query text
+             reaches this region through `textContent` only; nothing here is ever
+             parsed as markup, and nothing in this feature makes a request. -->
+        <button type="button" class="stand-review-open" id="query-review-open" aria-expanded="false" aria-controls="query-review" hidden>Review a sample of your own queries</button>
+        <div class="query-review" id="query-review" role="group" aria-labelledby="query-review-title" hidden>
+          <h3 class="query-review-title" id="query-review-title">Correct the classifier on your own queries</h3>
+          <p class="query-review-intro" id="query-review-intro"></p>
+          <ul class="query-review-rows" id="query-review-rows"></ul>
+          <p class="query-review-figures" id="query-review-figures"></p>
+          <p class="query-review-provenance" id="query-review-provenance" hidden></p>
+          <button type="button" class="query-review-revert" id="query-review-revert" hidden></button>
+          <p class="query-review-live" id="query-review-live" role="status" aria-live="polite" aria-atomic="true"></p>
+        </div>
         <!-- WHAT THE CLAIM ABOVE RESTS ON, in words, at the headline.
              Two indicators, both painted from the winning finding's own
              `evidenceClass` and `confidenceTier` in

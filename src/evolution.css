@@ -3116,3 +3116,32 @@ section[data-workspace-current="true"] { box-shadow:-6px 0 0 0 var(--import-wash
 .next-step-facts { display:grid; gap:6px; margin:11px 0 0; }
 .next-step-facts dt { margin:0; color:var(--ink-muted); font:700 11px/1.5 ui-monospace,monospace; letter-spacing:.04em; text-transform:uppercase; }
 .next-step-facts dd { margin:0 0 4px; max-width:80ch; color:var(--ink); font-size:12.5px; line-height:1.6; }
+
+/* The review-and-correct panel, opened from the gradeability line.
+
+   Two layout rules matter and the rest is type: the query text WRAPS rather
+   than truncating — a reviewer deciding whether a class is right has to read the
+   whole prompt, and an ellipsis hides the words a class turns on — and every row
+   is a single grid column, so at a phone width the text, the classifier's
+   reading and the two controls stack instead of scrolling sideways. Nothing here
+   is a fixed width and nothing sets `overflow:hidden`. */
+.stand-review-open { justify-self:start; margin:2px 0 0; border:1px solid var(--import-line); border-radius:8px; padding:8px 13px; background:var(--surface); color:var(--import-ink); font:inherit; font-size:13px; font-weight:700; cursor:pointer; }
+.stand-review-open:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.query-review { display:grid; gap:12px; margin:10px 0 0; border:1px solid var(--import-line); border-radius:11px; padding:14px; background:var(--surface); }
+.query-review-title { margin:0; font-size:14px; }
+.query-review-intro { margin:0; max-width:80ch; color:var(--ink-muted); font-size:12.5px; line-height:1.6; }
+.query-review-rows { display:grid; gap:11px; margin:0; padding:0; list-style:none; }
+.query-review-row { display:grid; gap:7px; border:1px solid var(--import-line); border-radius:9px; padding:11px 12px; }
+/* `overflow-wrap:anywhere` and not `nowrap`: an export can carry one unbroken
+   400-character token, and it must reflow rather than widen the page. */
+.query-review-text { margin:0; max-width:80ch; color:var(--ink); font-size:13px; line-height:1.6; overflow-wrap:anywhere; white-space:pre-wrap; }
+.query-review-read { display:flex; flex-wrap:wrap; gap:5px 14px; margin:0; color:var(--ink-muted); font-size:12px; line-height:1.6; }
+.query-review-signal { overflow-wrap:anywhere; }
+.query-review-agree, .query-review-revert { justify-self:start; border:1px solid var(--import-line); border-radius:8px; padding:6px 11px; background:var(--surface); color:var(--import-ink); font:inherit; font-size:12.5px; font-weight:700; cursor:pointer; }
+.query-review-agree:focus-visible, .query-review-revert:focus-visible, .query-review-select:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.query-review-label { color:var(--ink-muted); font:700 11px/1.5 ui-monospace,monospace; letter-spacing:.04em; text-transform:uppercase; }
+.query-review-select { max-width:100%; border:1px solid var(--import-line); border-radius:8px; padding:7px 9px; background:var(--surface); color:var(--ink); font:inherit; font-size:13px; }
+.query-review-figures { display:flex; flex-wrap:wrap; gap:5px 14px; margin:0; color:var(--ink); font-size:13px; font-weight:700; line-height:1.6; }
+.query-review-action { flex-basis:100%; font-weight:600; overflow-wrap:anywhere; }
+.query-review-provenance { margin:0; color:var(--import-ink); font-size:12.5px; font-weight:700; }
+.query-review-live { margin:0; color:var(--ink-muted); font-size:12px; }

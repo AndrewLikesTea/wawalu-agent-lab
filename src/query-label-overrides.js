@@ -19,7 +19,7 @@
 // key rather than its position — under any ordering of the input.
 
 import { gradeImportedCorpus } from "./imported-corpus-grade.js";
-import { QUERY_CATEGORIES, recoverableSpendUsd } from "./evolution.js";
+import { QUERY_CATEGORIES, categorySpendUsd, recoverableSpendUsd } from "./evolution.js";
 import { MINIMUM_CLASSIFICATION_CONFIDENCE } from "./query-classification.js";
 
 /** Bump when a stratum weight, the seed, or the returned shape changes meaning. */
@@ -251,4 +251,122 @@ export function applyOverrides(records = [], overrides = {}, { spendUsd = null }
     overridesIgnored: ignored + (lookup.size - matched.size),
     records: corpusGrade.records,
   });
+}
+
+/* --------------------------- the correction seam ---------------------------- */
+//
+// A surface that lets a reviewer disagree with the classifier needs four things
+// this module already had the parts for: the label set a control may offer, a
+// validated way to record one choice, a way to take every choice back, and an
+// honest count of how many of them are actually inside the numbers on screen.
+// They live here rather than in the page so that a correction, the grade it
+// moves, and the recoverable figure beside it are one definition — the page
+// calls; it does not decide.
+
+/**
+ * The classes a correction control may offer, in the rubric's own order and with
+ * the rubric's own words. A control built from anything else can offer a label
+ * `applyOverrides` would then silently discard.
+ */
+export const OVERRIDE_LABELS = Object.freeze(QUERY_CATEGORIES.map((category) => Object.freeze({
+  key: category.key, label: category.label, description: category.description,
+})));
+
+/** Whether a value is a class this model will actually apply. */
+export function isOverrideLabel(value) {
+  return typeof value === "string" && CATEGORY_KEYS.includes(value);
+}
+
+/**
+ * Record one reviewer's correction, or take it back.
+ *
+ * The rejection is the point: a control that offers an unlisted value — or a
+ * harness whose control double accepts one — must not be able to put it into the
+ * arithmetic. An empty label clears the row rather than storing a blank, and
+ * every refusal names itself so a caller can say what happened.
+ *
+ * @param overrides the live `Map` the page hands `applyOverrides`. Mutated here,
+ *   which is why this is the only writer.
+ * @returns frozen `{ ok, reason, applied }` — `applied` is the label now
+ *   standing for the row, or null when the row was cleared.
+ */
+export function applyCorrection(overrides, key, label) {
+  if (!(overrides instanceof Map)) return Object.freeze({ ok: false, reason: "no_store", applied: null });
+  if (typeof key !== "string" || !key || FORBIDDEN_OVERRIDE_KEYS.includes(key)) {
+    return Object.freeze({ ok: false, reason: "unknown_row", applied: null });
+  }
+  if (label === null || label === undefined || label === "") {
+    const had = overrides.delete(key);
+    return Object.freeze({ ok: true, reason: had ? "cleared" : "unchanged", applied: null });
+  }
+  if (!isOverrideLabel(label)) {
+    return Object.freeze({ ok: false, reason: "unknown_label", applied: overrides.get(key) ?? null });
+  }
+  if (overrides.size >= MAX_OVERRIDE_KEYS && !overrides.has(key)) {
+    return Object.freeze({ ok: false, reason: "at_ceiling", applied: null });
+  }
+  overrides.set(key, label);
+  return Object.freeze({ ok: true, reason: "applied", applied: label });
+}
+
+/**
+ * Back to classifier-only output. One control, one call: the corrections go and
+ * the next `applyOverrides` reproduces the numbers the export earned on its own.
+ */
+export function revertToClassifier(overrides) {
+  const cleared = overrides instanceof Map ? overrides.size : 0;
+  if (overrides instanceof Map) overrides.clear();
+  return Object.freeze({ ok: true, reason: cleared ? "reverted" : "unchanged", cleared });
+}
+
+/**
+ * How many corrections are actually folded into the current numbers.
+ *
+ * Not the number of times a control was used: a correction naming a row this
+ * corpus does not hold changes nothing, and a provenance line counting it would
+ * overstate what a reader is looking at. Derived from `applyOverrides` rather
+ * than counted beside it, so the two can never disagree.
+ */
+export function includedCorrectionCount(records, overrides, options) {
+  return applyOverrides(records, overrides, options).overridesApplied;
+}
+
+/**
+ * The provenance line for a corrected figure, or null when nothing is corrected.
+ * Null rather than "0 of your corrections included": a reader looking at the
+ * classifier's own output is owed no sentence about corrections at all.
+ */
+export function correctionProvenance(count) {
+  const included = Number(count);
+  if (!Number.isInteger(included) || included <= 0) return null;
+  return `${included} of your corrections included`;
+}
+
+/**
+ * The one slice worth acting on next, under the corrections now applied.
+ *
+ * Both halves are published figures called rather than copied: `categorySpendUsd`
+ * for what a class costs, and the rubric's own `recoverableShare` for how much of
+ * that is reclaimable. This ranks; it does not invent. Ties break on the category
+ * key so two runs over one corpus name the same action.
+ *
+ * @returns frozen `{ key, label, action, recoverableUsd }`, or null when there is
+ *   no spend to divide or nothing recoverable in the mix.
+ */
+export function prioritizedRecovery(mix, { spendUsd = null } = {}) {
+  const spend = Number(spendUsd);
+  if (!Number.isFinite(spend) || spend <= 0) return null;
+  const ranked = QUERY_CATEGORIES
+    .filter((category) => category.recoverableShare > 0)
+    .map((category) => Object.freeze({
+      key: category.key,
+      label: category.label,
+      action: category.systemAction,
+      recoverableUsd: Math.round(
+        categorySpendUsd({ mix, spendUsd: spend }, category.key) * category.recoverableShare,
+      ),
+    }))
+    .sort((left, right) => right.recoverableUsd - left.recoverableUsd
+      || (left.key < right.key ? -1 : 1));
+  return ranked[0] && ranked[0].recoverableUsd > 0 ? ranked[0] : null;
 }
