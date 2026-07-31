@@ -287,10 +287,14 @@ import {
 } from "/cohort-attribution.js";
 import { applyCohortAttribution } from "/cohort-attribution-view.js";
 // The headline answer this view leads with, and the module that paints it.
-import { buildStandHeadline, standHeadlineForImport } from "/finops-stand.js";
 import {
   applyStandHeadline, bindStandDisclosures, bindStandResolution,
 } from "/finops-stand-view.js";
+// …and the one owner of WHICH source that answer came from. The page used to
+// choose between the bundled example and the reader's import at each call site;
+// it now reads a single held answer, so the headline, the action, the position
+// and the department drill-down can never come from two different sources.
+import { createAnswerState } from "/answer-state.js";
 import {
   FINOPS_IMPORT_STATUS, finopsProvenanceModel, promptImportFacts,
 } from "/finops-provenance-model.js";
@@ -367,6 +371,10 @@ const MODEL_OVERSPEND_URL = "/model-overspend-finding-fixture.json";
 // slots a graded sample borrowed, and re-running the two renderers is the only
 // way to do that without a second copy of them.
 let repaintBundledAnalysis = () => {};
+// The page's one answer. Module scope because the import flow and `init()` are
+// two closures that must agree on what is currently on screen; nothing is
+// composed until something reads it, and nothing here touches storage.
+const answerState = createAnswerState();
 const CATEGORY_VARS = {
   highValue: "--cat-high-value",
   overProvisioned: "--cat-over-provisioned",
@@ -1690,8 +1698,10 @@ function mountLocalFinopsImport() {
     applyCohortAttribution(document, null);
     // And the headline goes back to the bundled example with it. A cleared
     // import must not leave a withheld-position path on screen for a file that
-    // is no longer loaded.
-    applyStandHeadline(document, buildStandHeadline());
+    // is no longer loaded. The state restores the synthetic answer — marker
+    // included — and every slot painted below comes from that one restore.
+    answerState.clearImport();
+    applyStandHeadline(document, answerState.getHeadline());
     input.value = "";
     resultsNode.hidden = true;
     clear.hidden = true;
@@ -1903,9 +1913,19 @@ function mountLocalFinopsImport() {
     // headline above can never disagree about whether this import may be
     // placed — and when it may not, the headline carries that contract's own
     // sentence and its own next step rather than a second opinion.
-    applyStandHeadline(document, eligibility
-      ? standHeadlineForImport({ analysis, eligibility })
-      : buildStandHeadline());
+    // …and the answer state decides the source once. A rejected export is a
+    // no-op on it: the answer already on screen stays exactly as it was, and
+    // the reason is announced through the affordance every other file defect
+    // uses rather than a second, cleverer one.
+    if (!eligibility) {
+      answerState.clearImport();
+    } else {
+      const outcome = answerState.setImport({ analysis, eligibility });
+      if (!outcome.committed) {
+        announce("error", "This export did not replace the answer on screen.", outcome.message);
+      }
+    }
+    applyStandHeadline(document, answerState.getHeadline());
     return eligibility;
   };
 
@@ -3010,7 +3030,9 @@ async function init() {
   // are operable in the withheld state too.
   bindStandDisclosures(document);
   bindStandResolution(document);
-  applyStandHeadline(document, buildStandHeadline());
+  // Nothing has been imported at boot, so the held answer is the bundled
+  // synthetic example with its marker intact — composed on this first read.
+  applyStandHeadline(document, answerState.getHeadline());
   // The way out of the region, repainted from the module that owns the link so
   // the authored href and the hand-off contract cannot drift apart. It needs no
   // binding: it is an anchor, and it worked before this line ran.
