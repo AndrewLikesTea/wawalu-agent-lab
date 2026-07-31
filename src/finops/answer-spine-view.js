@@ -194,15 +194,13 @@ const PEER_CLAIM_TERMS = Object.freeze(["peer", "cohort", "percentile"]);
  *   supersededBy       Retired entries only: the live region that took over.
  */
 export const ANSWER_SPINE = Object.freeze([
-  {
-    id: "finops-hero",
-    role: ROLE.step,
-    question: "What can this page tell me, and what does it need from me?",
-    headingId: "page-title",
-    entitledToAssert:
-      "What the page will name once it has read something, and the one input it "
-      + "needs. It carries no figure, so it cannot compete with the headline below it.",
-  },
+  // THE ANSWER IS STEP ONE, AND IT IS FIRST IN THE DOCUMENT.
+  // The hero held this place until #727. A leader who opens this page opens it
+  // with a question, and met a full screen of what the page is for before the
+  // page answered it — so the headline is now the first region of `main`, which
+  // makes it the first thing announced, the first thing read, and the first
+  // thing reached by Tab, all from one source order rather than from `order` or
+  // a positive `tabindex`. The hero follows it as orientation.
   {
     id: HEADLINE_REGION_ID,
     role: ROLE.headline,
@@ -213,6 +211,15 @@ export const ANSWER_SPINE = Object.freeze([
       + "recoverable figure beside it, one named lagging department, and one "
       + "ranked action — every one of them from the bundled synthetic example "
       + `unless the reader's own import replaced it. ${SYNTHETIC_COHORT_BASIS}`,
+  },
+  {
+    id: "finops-hero",
+    role: ROLE.step,
+    question: "What can this page tell me, and what does it need from me?",
+    headingId: "page-title",
+    entitledToAssert:
+      "What the page will name once it has read something, and the one input it "
+      + "needs. It carries no figure, so it cannot compete with the headline above it.",
   },
   {
     id: "finops-first-run",

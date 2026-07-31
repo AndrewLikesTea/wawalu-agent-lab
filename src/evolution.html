@@ -37,7 +37,7 @@
            between destinations, so they stay on screen in all four. Everything
            else on this page carries `data-workspace-region` and belongs to
            exactly one destination — see src/finops-workspace-shell.js. -->
-      <!-- The four `id`s added for the answer spine — this one, #local-import,
+      <!-- The four `id`s added for the answer spine — #finops-hero, #local-import,
            #finops-proof-point, and #finops-privacy — are additive. Every region
            at this level is declared in src/finops/answer-spine-view.js with the
            question it answers and its role, and a region with no id cannot be
@@ -55,29 +55,6 @@
            region the manifest retires is DELETED — markup, the code that paints
            it, the rules that style it — and `tests/finops-page-structure.test.js`
            fails while any retired one is still here. -->
-      <section class="finops-hero" id="finops-hero" aria-labelledby="page-title" data-workspace-frame="true">
-        <div class="hero-copy">
-          <p class="eyebrow">AI FinOps</p>
-          <h1 id="page-title">Know what your<br />AI spend is buying.</h1>
-          <!-- One sentence, and it is the outcome rather than the machinery.
-               The copy is authored here and in finops-load-status.js as
-               HERO_INTRO, because evolution-page.js repaints this slot when a
-               reader returns to the example data. -->
-          <p id="finops-intro">Import a provider export and this page names how much of your AI spend is recoverable, what to do first, and how far to trust the number.</p>
-          <!-- Every slot on this page states what it does not have yet rather
-               than narrating the fetch. Exactly one region — #finops-load-state
-               below — is allowed to say a load is in progress; a test walks the
-               document and fails on any second one. -->
-          <!-- Provenance, not progress. This slot used to read "organization not
-               read yet", which put a second waiting-message above the example
-               result's own state label — two lines competing to tell a reader
-               what has not happened, over an answer that was already composed.
-               It names the dataset instead, and the fetch replaces it with the
-               organization line the moment there is one. -->
-          <p class="finops-provenance" id="finops-provenance">Bundled synthetic example</p>
-        </div>
-      </section>
-
       <!-- WHERE DO WE STAND? — the one decisive screen, above everything.
 
            THE DEFECT THIS FIXES. Every figure in this view was already correct
@@ -117,7 +94,16 @@
            in src/finops-spine-manifest.js; `data-finding` records which one won.
            The runners-up are returned by the resolver and rendered nowhere —
            there is no panel, toggle, or expander for them on this page. -->
-      <section class="stand" id="finops-stand" tabindex="-1" data-state="pending" data-position="pending" data-source="example" data-finding="none" data-finding-confidence="unavailable" data-decision-summary="evidence" data-workspace-frame="true" aria-labelledby="finops-stand-question">
+      <section class="stand" id="finops-stand" tabindex="-1" data-state="pending" data-position="pending" data-source="example" data-finding="none" data-finding-confidence="unavailable" data-decision-summary="evidence" data-workspace-frame="true" aria-labelledby="finops-stand-question" aria-describedby="finops-stand-claim">
+        <!-- ONE ANNOUNCEMENT, NOT FOUR. The question, the claim, the confidence
+             tier and the evidence class are four visible nodes, and the two
+             entitlement chips read as stray badges some distance after the
+             sentence they qualify. This is the same four values as one sentence,
+             named by the region's `aria-describedby`, so arriving at the
+             headline announces the claim WITH what it rests on. Composed by
+             finops-stand-view.js from the values the visible slots carry; it
+             invents nothing. Authored pending, so it is never empty. -->
+        <p class="visually-hidden" id="finops-stand-claim">Where do we stand on AI spend? This page is still reading the Bundled synthetic example. Confidence not stated. Nothing has been read yet, so this claim rests on nothing.</p>
         <div class="stand-head">
           <p class="eyebrow" id="finops-stand-label">Bundled synthetic example · nothing of yours needed</p>
           <!-- The highest-ranked heading in this region, and it is the lead's
@@ -185,17 +171,24 @@
           <button class="stand-withheld-action" id="finops-stand-withheld-action" type="button" aria-describedby="finops-stand-withheld-next">Choose the export files again</button>
           <p class="stand-withheld-next" id="finops-stand-withheld-next"></p>
         </div>
+        <!-- EVERY CONTROL SAYS WHAT IT REVEALS. Each summary's accessible name
+             is its own visible text — the question it opens, then Show/Hide and
+             how many entries are behind it. None of them is "Show more". State
+             is on the control (`aria-expanded`, mirrored from native `open` by
+             finops-stand-view.js) and `aria-controls` names the list it
+             discloses. No button inside a summary: the summary IS the control,
+             so Enter and Space are the browser's and focus never moves. -->
         <div class="stand-disclosures" id="finops-stand-disclosures">
           <details class="stand-disclosure" id="finops-stand-disclosure-cohort" data-disclosure="collapsed">
-            <summary id="finops-stand-disclosure-cohort-summary" aria-expanded="false"><h3 class="stand-disclosure-heading"><span id="finops-stand-disclosure-cohort-heading">How the organizations you are compared with were chosen</span><span class="stand-disclosure-state" id="finops-stand-disclosure-cohort-state" data-disclosure="collapsed"><span class="stand-disclosure-shape" aria-hidden="true">▸</span> Show</span></h3></summary>
+            <summary id="finops-stand-disclosure-cohort-summary" aria-expanded="false" aria-controls="finops-stand-disclosure-cohort-list"><h3 class="stand-disclosure-heading"><span id="finops-stand-disclosure-cohort-heading">How the organizations you are compared with were chosen</span><span class="stand-disclosure-state" id="finops-stand-disclosure-cohort-state" data-disclosure="collapsed"><span class="stand-disclosure-shape" aria-hidden="true">▸</span> Show</span></h3></summary>
             <dl class="stand-disclosure-list" id="finops-stand-disclosure-cohort-list"></dl>
           </details>
           <details class="stand-disclosure" id="finops-stand-disclosure-anonymization" data-disclosure="collapsed">
-            <summary id="finops-stand-disclosure-anonymization-summary" aria-expanded="false"><h3 class="stand-disclosure-heading"><span id="finops-stand-disclosure-anonymization-heading">What this comparison reads, and what it never reads</span><span class="stand-disclosure-state" id="finops-stand-disclosure-anonymization-state" data-disclosure="collapsed"><span class="stand-disclosure-shape" aria-hidden="true">▸</span> Show</span></h3></summary>
+            <summary id="finops-stand-disclosure-anonymization-summary" aria-expanded="false" aria-controls="finops-stand-disclosure-anonymization-list"><h3 class="stand-disclosure-heading"><span id="finops-stand-disclosure-anonymization-heading">What this comparison reads, and what it never reads</span><span class="stand-disclosure-state" id="finops-stand-disclosure-anonymization-state" data-disclosure="collapsed"><span class="stand-disclosure-shape" aria-hidden="true">▸</span> Show</span></h3></summary>
             <dl class="stand-disclosure-list" id="finops-stand-disclosure-anonymization-list"></dl>
           </details>
           <details class="stand-disclosure" id="finops-stand-disclosure-versions" data-disclosure="collapsed">
-            <summary id="finops-stand-disclosure-versions-summary" aria-expanded="false"><h3 class="stand-disclosure-heading"><span id="finops-stand-disclosure-versions-heading">Which scoring rules and which peer data produced these figures</span><span class="stand-disclosure-state" id="finops-stand-disclosure-versions-state" data-disclosure="collapsed"><span class="stand-disclosure-shape" aria-hidden="true">▸</span> Show</span></h3></summary>
+            <summary id="finops-stand-disclosure-versions-summary" aria-expanded="false" aria-controls="finops-stand-disclosure-versions-list"><h3 class="stand-disclosure-heading"><span id="finops-stand-disclosure-versions-heading">Which scoring rules and which peer data produced these figures</span><span class="stand-disclosure-state" id="finops-stand-disclosure-versions-state" data-disclosure="collapsed"><span class="stand-disclosure-shape" aria-hidden="true">▸</span> Show</span></h3></summary>
             <dl class="stand-disclosure-list" id="finops-stand-disclosure-versions-list"></dl>
           </details>
           <!-- CAN THIS RANKING BE REPRODUCED? A sibling, never nested: a reader
@@ -206,23 +199,53 @@
                src/finops-stand-view.js; no number is authored here, and a value
                that is unavailable is painted as the reason it is. -->
           <details class="stand-disclosure" id="finops-stand-disclosure-reproducibility" data-disclosure="collapsed">
-            <summary id="finops-stand-disclosure-reproducibility-summary" aria-expanded="false"><h3 class="stand-disclosure-heading"><span id="finops-stand-disclosure-reproducibility-heading">Can someone else repeat this ranking?</span><span class="stand-disclosure-state" id="finops-stand-disclosure-reproducibility-state" data-disclosure="collapsed"><span class="stand-disclosure-shape" aria-hidden="true">▸</span> Show</span></h3></summary>
+            <summary id="finops-stand-disclosure-reproducibility-summary" aria-expanded="false" aria-controls="finops-stand-disclosure-reproducibility-list"><h3 class="stand-disclosure-heading"><span id="finops-stand-disclosure-reproducibility-heading">Can someone else repeat this ranking?</span><span class="stand-disclosure-state" id="finops-stand-disclosure-reproducibility-state" data-disclosure="collapsed"><span class="stand-disclosure-shape" aria-hidden="true">▸</span> Show</span></h3></summary>
             <dl class="stand-disclosure-list" id="finops-stand-disclosure-reproducibility-list"></dl>
           </details>
           <details class="stand-disclosure" id="finops-stand-disclosure-departments" data-disclosure="collapsed">
-            <summary id="finops-stand-disclosure-departments-summary" aria-expanded="false"><h3 class="stand-disclosure-heading"><span id="finops-stand-disclosure-departments-heading">Every department, ranked</span><span class="stand-disclosure-state" id="finops-stand-disclosure-departments-state" data-disclosure="collapsed"><span class="stand-disclosure-shape" aria-hidden="true">▸</span> Show</span></h3></summary>
+            <summary id="finops-stand-disclosure-departments-summary" aria-expanded="false" aria-controls="finops-stand-disclosure-departments-list"><h3 class="stand-disclosure-heading"><span id="finops-stand-disclosure-departments-heading">Every department, ranked</span><span class="stand-disclosure-state" id="finops-stand-disclosure-departments-state" data-disclosure="collapsed"><span class="stand-disclosure-shape" aria-hidden="true">▸</span> Show</span></h3></summary>
             <dl class="stand-disclosure-list" id="finops-stand-disclosure-departments-list"></dl>
           </details>
           <details class="stand-disclosure" id="finops-stand-disclosure-verification" data-disclosure="collapsed">
-            <summary id="finops-stand-disclosure-verification-summary" aria-expanded="false"><h3 class="stand-disclosure-heading"><span id="finops-stand-disclosure-verification-heading">How much of this was verified</span><span class="stand-disclosure-state" id="finops-stand-disclosure-verification-state" data-disclosure="collapsed"><span class="stand-disclosure-shape" aria-hidden="true">▸</span> Show</span></h3></summary>
+            <summary id="finops-stand-disclosure-verification-summary" aria-expanded="false" aria-controls="finops-stand-disclosure-verification-list"><h3 class="stand-disclosure-heading"><span id="finops-stand-disclosure-verification-heading">How much of this was verified</span><span class="stand-disclosure-state" id="finops-stand-disclosure-verification-state" data-disclosure="collapsed"><span class="stand-disclosure-shape" aria-hidden="true">▸</span> Show</span></h3></summary>
             <dl class="stand-disclosure-list" id="finops-stand-disclosure-verification-list"></dl>
           </details>
           <details class="stand-disclosure" id="finops-stand-disclosure-other-actions" data-disclosure="collapsed">
-            <summary id="finops-stand-disclosure-other-actions-summary" aria-expanded="false"><h3 class="stand-disclosure-heading"><span id="finops-stand-disclosure-other-actions-heading">Other actions, in priority order</span><span class="stand-disclosure-state" id="finops-stand-disclosure-other-actions-state" data-disclosure="collapsed"><span class="stand-disclosure-shape" aria-hidden="true">▸</span> Show</span></h3></summary>
+            <summary id="finops-stand-disclosure-other-actions-summary" aria-expanded="false" aria-controls="finops-stand-disclosure-other-actions-list"><h3 class="stand-disclosure-heading"><span id="finops-stand-disclosure-other-actions-heading">Other actions, in priority order</span><span class="stand-disclosure-state" id="finops-stand-disclosure-other-actions-state" data-disclosure="collapsed"><span class="stand-disclosure-shape" aria-hidden="true">▸</span> Show</span></h3></summary>
             <dl class="stand-disclosure-list" id="finops-stand-disclosure-other-actions-list"></dl>
           </details>
         </div>
         <p class="visually-hidden" id="finops-stand-live" role="status" aria-live="polite" aria-atomic="true"></p>
+      </section>
+
+      <!-- THE PAGE'S OWN NAME, AND IT COMES AFTER THE ANSWER. This region used
+           to open the document: an 82px h1 and a promise, one full screen of
+           "what this page is" ahead of the one thing a CTO opened it for. The
+           answer is the first region of `main` now, so this is what it always
+           was — orientation — and `data-subordinate` draws it that way. Moved in
+           source, never with `order` or a `tabindex`, so the visual order, the
+           focus order, and the announced order stay one order. -->
+      <section class="finops-hero" id="finops-hero" data-subordinate="true" aria-labelledby="page-title" data-workspace-frame="true">
+        <div class="hero-copy">
+          <p class="eyebrow">AI FinOps</p>
+          <h1 id="page-title">Know what your<br />AI spend is buying.</h1>
+          <!-- One sentence, and it is the outcome rather than the machinery.
+               The copy is authored here and in finops-load-status.js as
+               HERO_INTRO, because evolution-page.js repaints this slot when a
+               reader returns to the example data. -->
+          <p id="finops-intro">Import a provider export and this page names how much of your AI spend is recoverable, what to do first, and how far to trust the number.</p>
+          <!-- Every slot on this page states what it does not have yet rather
+               than narrating the fetch. Exactly one region — #finops-load-state
+               below — is allowed to say a load is in progress; a test walks the
+               document and fails on any second one. -->
+          <!-- Provenance, not progress. This slot used to read "organization not
+               read yet", which put a second waiting-message above the example
+               result's own state label — two lines competing to tell a reader
+               what has not happened, over an answer that was already composed.
+               It names the dataset instead, and the fetch replaces it with the
+               organization line the moment there is one. -->
+          <p class="finops-provenance" id="finops-provenance">Bundled synthetic example</p>
+        </div>
       </section>
 
       <!-- THE FIRST-RUN SYNTHETIC RESULT, and why a landing page carries one.
@@ -517,7 +540,7 @@
            `data-decision-summary="evidence"` — it answers a different question
            and never restates the brief's, so the page still presents exactly one
            complete summary. -->
-      <section class="next-step" id="finops-next-step" tabindex="-1" data-state="pending" data-confidence="unknown" data-decision-summary="evidence" data-workspace-region="answer" aria-labelledby="finops-next-step-question">
+      <section class="next-step" id="finops-next-step" tabindex="-1" data-subordinate="true" data-state="pending" data-confidence="unknown" data-decision-summary="evidence" data-workspace-region="answer" aria-labelledby="finops-next-step-question">
         <div class="next-step-head">
           <p class="eyebrow" id="finops-next-step-label">This month · one next step</p>
           <h2 id="finops-next-step-question">Where do I start this month?</h2>
@@ -559,7 +582,7 @@
            `data-decision-summary="evidence"` — it answers its own question and
            never restates the brief's, so this page still presents exactly one
            complete summary. -->
-      <section class="finops-journey" id="finops-journey" data-phase="pending" data-source="unknown" data-decision-summary="evidence" data-workspace-region="answer" aria-labelledby="finops-journey-question">
+      <section class="finops-journey" id="finops-journey" data-subordinate="true" data-phase="pending" data-source="unknown" data-decision-summary="evidence" data-workspace-region="answer" aria-labelledby="finops-journey-question">
         <div class="fjc-head">
           <p class="eyebrow" id="finops-journey-label">This month · evidence, action, and the checkpoint</p>
           <h2 id="finops-journey-question">What do I do next, and what will tell me it worked?</h2>

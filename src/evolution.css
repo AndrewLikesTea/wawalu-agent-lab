@@ -1004,14 +1004,30 @@
    there is nothing for a reduced-motion query to have to switch off. */
 .stand { display:grid; gap:14px; margin:0 0 14px; border:1px solid var(--import-line); border-left:6px solid var(--import-accent); border-radius:16px; padding:clamp(20px,3.4vw,30px); background:linear-gradient(150deg,var(--import-wash),#fff 52%); }
 .stand[data-position="withheld"] { border-left-color:var(--state-warn-line); }
+/* EVERY STATE THIS REGION CAN REACH, DRAWN.
+   `pending` is the authored state before the composer has run; `partial` is a
+   headline that composed with a figure missing; `withheld` is a position the
+   data does not entitle the page to state. All three break the rail's line
+   rather than only tinting it, because a solid rail in a lighter colour is a
+   state a reader in greyscale cannot see. There is deliberately no error state
+   drawn here: this headline composes from bundled modules and never waits on a
+   fetch, so the one region allowed to report a failed load is #finops-load-state
+   below — inventing an error silhouette here would draw a state the data cannot
+   produce. */
+.stand[data-state="pending"],.stand[data-state="partial"] { border-left-style:dashed; }
+.stand[data-state="partial"] { border-left-color:var(--state-warn-line); }
 .stand-head { display:grid; gap:6px; }
 .stand-head .eyebrow { margin:0; }
-.stand-head h2 { max-width:22ch; margin:0; font-size:clamp(26px,4vw,38px); line-height:1.12; letter-spacing:-.01em; }
+/* `overflow-wrap` on all three, because the extremes that actually arrive here
+   are long: a question carrying a department name with no spaces in it, a
+   currency figure with many digits, and a confidence label at its lowest class
+   spelled out in full. They wrap; nothing is clamped, ellipsed, or cut off. */
+.stand-head h2 { max-width:22ch; margin:0; font-size:clamp(26px,4vw,38px); line-height:1.12; letter-spacing:-.01em; overflow-wrap:anywhere; }
 .stand-answer { margin:0; max-width:52ch; color:var(--ink); font-size:clamp(17px,2.2vw,21px); font-weight:700; line-height:1.35; overflow-wrap:anywhere; }
 /* The entitlement line. Both indicators are words, so the colour and the border
    are decoration on a state the reader can already read, hear, and print. */
 .stand-entitlement { display:flex; flex-wrap:wrap; gap:6px 10px; margin:0; }
-.stand-entitlement-item { border:1px solid var(--import-line); border-radius:999px; padding:3px 10px; color:var(--import-ink); font:700 10px/1.6 ui-monospace,monospace; letter-spacing:.08em; text-transform:uppercase; }
+.stand-entitlement-item { max-width:100%; border:1px solid var(--import-line); border-radius:999px; padding:3px 10px; color:var(--import-ink); font:700 10px/1.6 ui-monospace,monospace; letter-spacing:.08em; text-transform:uppercase; overflow-wrap:anywhere; }
 .stand-entitlement[data-evidence="synthetic-cohort"] .stand-entitlement-item,
 .stand-entitlement[data-confidence="unavailable"] .stand-entitlement-item { border-style:dashed; border-color:var(--state-warn-line); color:var(--state-warn-ink); }
 .stand-figures { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:14px 26px; break-inside:avoid; }
@@ -1050,9 +1066,45 @@
 .stand-disclosure-list>div { display:grid; gap:2px; }
 .stand-disclosure-list dt { color:var(--import-ink); font:700 10px/1.5 ui-monospace,monospace; letter-spacing:.07em; text-transform:uppercase; }
 .stand-disclosure-list dd { margin:0; max-width:74ch; color:var(--ink-muted); font-size:13px; line-height:1.55; overflow-wrap:anywhere; }
+/* ONE HIERARCHY ACROSS THE SPINE.
+   Four regions open this page — the headline that answers it and the three
+   steps under it — and until #727 all four wore the same silhouette: a 5–6px
+   accent rail over the same wash, told apart only by type size. The page's own
+   h1 sat above all of them at 82px, so the largest thing on screen was the
+   product's name and the answer was third.
+
+   The rule now, and it is the one from design-system/claude-design's
+   foundations card: FILLED WASH = DYNAMIC SIGNAL, OUTLINE = STATIC
+   CLASSIFICATION. The headline is this page's live claim, so it keeps the wash
+   and the 6px accent rail. A supporting step classifies evidence behind that
+   claim, so it takes the outline — a flat white surface behind a neutral 3px
+   rail — and its heading drops to the subordinate rung. The rail is
+   `--ink-muted` rather than `--panel-border`: it is a meaningful indicator, so
+   it owes 3:1, and the hairline panel edge measures 1.55:1 on white.
+
+   NO DE-EMPHASIS RESTS ON TINT. Every step changes TWO channels at once: a type
+   rung AND a surface, both of which survive greyscale, print, and a 320px
+   column. Nothing is dimmed to achieve it — the ink stays `--ink` and
+   `--ink-muted`, which measure 14.6:1 and 5.0:1 on white, so subordinate is a
+   position in the hierarchy and never a contrast concession. Every size, colour
+   and rail width below already ships elsewhere in this file; no rung, hex, or
+   spacing step is introduced. */
+[data-subordinate="true"] h1,
+[data-subordinate="true"] h2 { font-size:clamp(18px,2.2vw,22px); line-height:1.2; }
+/* Two steps size their own heading further down this file, at the same
+   specificity as the rule above and therefore later in the cascade. Named
+   explicitly so the rung wins where it has to, rather than silently losing to a
+   rule three thousand lines away. */
+.first-run[data-subordinate="true"] .first-run-head h2,
+.next-step[data-subordinate="true"] .next-step-head h2 { font-size:clamp(18px,2.2vw,22px); }
+.first-run[data-subordinate="true"],
+.next-step[data-subordinate="true"] { border-left-width:3px; border-left-color:var(--ink-muted); background:#fff; }
+/* The hero's leading space was the space above a page title. It is orientation
+   under the answer now, so the space goes and the copy stays exactly as it was. */
+.finops-hero[data-subordinate="true"] { padding-top:0; }
+
 /* The demoted first-run block. It keeps every word; it stops competing for the
    eye with the headline above it. */
-.first-run[data-subordinate="true"] .first-run-head h2 { font-size:clamp(18px,2.2vw,22px); }
 .first-run[data-subordinate="true"] .first-run-answer { font-size:clamp(15px,1.6vw,17px); }
 .first-run[data-subordinate="true"] .first-run-value { font-size:clamp(16px,1.8vw,19px); }
 
