@@ -133,6 +133,10 @@ import { applyDepartmentEvidence } from "/department-evidence-view.js";
 // and the scoring module turns it into the same per-unit rows the drill-down's
 // evidence panel and fix pack already consume.
 import { orgQuerySampleResult, validateOrgQuerySource } from "/org-query-source.js";
+// Coverage over that same sample, decided on the five structural signal
+// families rather than on English keywords alone, plus the unclassified residue
+// ranked by how much coverage resolving it would return.
+import { familyCoverage } from "/corpus-family-coverage.js";
 import {
   orgQueryDecisionData, orgQueryDecisionDepartments, orgQueryDepartmentLiteracy,
   orgQueryDepartmentRows,
@@ -2005,14 +2009,16 @@ function mountLocalFinopsImport() {
    * this surface does not have. A file whose dialect no declared source reads
    * yields null and is filtered out rather than guessed at.
    */
-  const importedOrgLiteracy = () => ((samples.length || archives.length) && !exampleActive
-    ? orgQueryDepartmentLiteracy({
-      results: [
-        ...samples.map((entry) => orgQuerySampleResult(entry.parsed)),
-        ...archives.map((entry) => entry.result),
-      ].filter(Boolean),
-    })
-    : null);
+  const importedOrgResults = () => ((samples.length || archives.length) && !exampleActive
+    ? [
+      ...samples.map((entry) => orgQuerySampleResult(entry.parsed)),
+      ...archives.map((entry) => entry.result),
+    ].filter(Boolean)
+    : []);
+  const importedOrgLiteracy = () => {
+    const results = importedOrgResults();
+    return results.length ? orgQueryDepartmentLiteracy({ results }) : null;
+  };
 
   /**
    * The coaching decision from a local sample, or the surface handed back.
@@ -2023,10 +2029,19 @@ function mountLocalFinopsImport() {
    * the section back to the example surface rather than leaving a stale answer
    * about a file that is no longer loaded.
    */
-  const paintCoachingDecision = (literacy, { origin = "import", fileNames = [] } = {}) =>
+  const paintCoachingDecision = (literacy,
+    { origin = "import", fileNames = [], records = [] } = {}) =>
     (literacy
-      ? applyOrgQueryDecision(document,
-        orgQueryCoachingDecision(literacy, { origin, fileNames }))
+      ? applyOrgQueryDecision(document, orgQueryCoachingDecision(literacy, {
+        origin,
+        fileNames,
+        // The same records the literacy model was built from, classified a
+        // second way: on the five structural signal families rather than on
+        // English keywords alone. That is what decides the coverage number and
+        // the residue clusters this surface now leads with. In memory, in this
+        // tab, and nothing derived from an excerpt comes back out.
+        familyCoverage: records.length ? familyCoverage(records) : null,
+      }))
       : clearOrgQueryDecision(document));
 
   const finishSelection = (total) => {
@@ -2043,6 +2058,7 @@ function mountLocalFinopsImport() {
     paintCoachingDecision(literacy, {
       origin: "import",
       fileNames: [...samples, ...archives].map((entry) => entry.fileName),
+      records: importedOrgResults().flatMap((entry) => entry.records ?? []),
     });
     // The one gate, and it is the policy's. `analysisEligibility` reads the same
     // three input states that classify every finding, so a provider export on
@@ -2347,7 +2363,9 @@ function mountLocalFinopsImport() {
       return;
     }
     paintCoachingDecision(orgQueryDepartmentLiteracy({ results: [sample] }), {
-      origin: "example", fileNames: [EXAMPLE_ORG_QUERY_SAMPLE_FILE.fileName],
+      origin: "example",
+      fileNames: [EXAMPLE_ORG_QUERY_SAMPLE_FILE.fileName],
+      records: sample.records ?? [],
     });
   });
   // The conversation-export examples, one per dialect the profile registry

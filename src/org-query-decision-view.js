@@ -115,12 +115,17 @@ function paint(doc, section) {
   section.dataset.state = state.state;
   section.dataset.origin = state.origin;
 
-  body.replaceChildren(
+  const blocks = [
     state.state === ORG_QUERY_DECISION_STATE.graded
       ? gradedLead(doc, state) : ungradeableLead(doc, state),
-    actionBlock(doc, state.action),
-    disclosureList(doc, section, state),
-  );
+  ];
+  // The coverage line rides with the lead, in the same block and under the same
+  // heading, because it qualifies the answer above it: a reader who takes the
+  // sentence must take the share of their own corpus it was read from with it.
+  // Absent on a sample with no coverage result, rather than printed as a zero.
+  if (state.coverage) blocks.push(coverageBlock(doc, state.coverage));
+  blocks.push(actionBlock(doc, state.action), disclosureList(doc, section, state));
+  body.replaceChildren(...blocks);
   announce(doc, state.announcement);
 
   const focusId = section.dataset.focusTarget;
@@ -204,6 +209,28 @@ function provenanceBlock(doc, provenance) {
       `Selected ${provenance.files.length === 1 ? "file" : "files"}: `
       + provenance.files.join(", ")));
   }
+  return block;
+}
+
+/**
+ * One number and one next action, both composed upstream.
+ *
+ * The number is the share of this corpus the multi-family classifier placed;
+ * the action names the residue cluster holding the most coverage back. Neither
+ * string is written here — this module formats nothing and computes nothing —
+ * and the tier sentence beside the number is the published coverage rule.
+ */
+function coverageBlock(doc, coverage) {
+  const block = element(doc, "div", "org-coaching-coverage");
+  block.dataset.available = String(coverage.available);
+  const line = element(doc, "p", "org-coaching-coverage-line");
+  line.append(shapeSpan(doc, coverage.showGrade ? "◧" : "◇"),
+    element(doc, "span", "org-coaching-coverage-text", coverage.text));
+  block.append(
+    line,
+    element(doc, "p", "org-coaching-coverage-rule", coverage.rule),
+    element(doc, "p", "org-coaching-coverage-action", coverage.action),
+  );
   return block;
 }
 
