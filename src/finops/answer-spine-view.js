@@ -37,19 +37,50 @@
 //                     answer lives on another page is a detail here, not a
 //                     step — the handoff is support for the step above it.
 //
-//   retired           A region that no longer earns its place, kept only until
-//                     a deletion pass removes it. Every retired entry names the
-//                     live region that superseded it in `supersededBy`, and the
-//                     validator refuses a pointer that does not resolve to a
-//                     region still on the page. That is what makes the deletion
-//                     mechanical: the person doing it never has to decide where
-//                     the question went.
+//   retired           A region that no longer earns its place. Every retired
+//                     entry names the live region that took its question in
+//                     `supersededBy`, and the validator refuses a pointer that
+//                     does not resolve to a region still on the page. That is
+//                     what makes the deletion mechanical: the person doing it
+//                     never has to decide where the question went.
 //
 // Declaring a region retired is a product judgement, not an observation that
 // nothing paints it. Exactly one region is retired today
 // (`finops-first-run-conversion`, whose ask is `finops-contact`'s ask), and the
 // role exists so the next one is declared here rather than argued about in a
 // review thread.
+//
+// ---------------------------------------------------------------------------
+// RETIREMENT IS DELETION, AND THE MANIFEST IS WHAT ENFORCES IT
+// ---------------------------------------------------------------------------
+//
+// A retired entry used to be held to the same rule as a live one — "declared
+// here, therefore it must be on the page" — which meant flipping a role to
+// `retired` changed precisely nothing. The role was a label on a region that
+// went on shipping. It is now the opposite rule, and it is the one mechanism
+// this file offers a deletion pass:
+//
+//   * a LIVE entry must be a top-level region of the shipped page;
+//   * a RETIRED entry must NOT be. Hiding it with `hidden`, demoting its
+//     heading, or moving it inside another region all still fail, because the
+//     check is over `renderedRegionIds(doc)` — the document's actual top-level
+//     children — and not over anything the markup asserts about itself.
+//
+// So `renderedRegionIds(doc)` equals `liveRegionIds(manifest)`, in order, and
+// flipping one entry to `retired` turns the suite red until the markup, the
+// code that paints it, and the rules that style it are gone. The retired entry
+// stays here afterwards as a tombstone: it is the record of where the question
+// went, and `supersededBy` keeps that record checkable.
+//
+// NOTED BACK TO NOOR — regions this manifest would retire that were kept.
+// `finops-destinations` is a step, not a retirement, and it stays a step. Its
+// ranked doors — three destinations, one per role, exactly one promoted with
+// the named clause that promoted it — have no equivalent anywhere else on the
+// page. `finops-workspace-nav` renders the same three doors but takes their
+// order FROM this region's contract rather than producing one, so retiring the
+// region would delete the ranking and leave a rail with nothing to rank by.
+// A retirement whose behaviour is orphaned is a deletion of behaviour, and this
+// file will not launder one as a move.
 //
 // ---------------------------------------------------------------------------
 // WHAT A REGION IS ENTITLED TO ASSERT
@@ -421,6 +452,154 @@ export function renderedRegionIds(doc, mainId = MAIN_REGION_ID) {
     .map((node) => node.id);
 }
 
+/** Entries with an id and a role, in declaration order. Bad rows are the validator's. */
+const usableEntries = (manifest) => (Array.isArray(manifest) ? manifest : [])
+  .filter((entry) => typeof entry?.id === "string" && entry.id !== "");
+
+/**
+ * The regions that must be on the page, in reading order.
+ *
+ * This is the set `renderedRegionIds` is held to. It is DERIVED from the roles
+ * above rather than hand-authored beside them: a second list of "the regions
+ * that ship" is a second thing to keep true, and the first thing to go stale.
+ */
+export function liveRegionIds(manifest = ANSWER_SPINE) {
+  return usableEntries(manifest).filter((entry) => entry.role !== ROLE.retired).map((entry) => entry.id);
+}
+
+/** The regions that must NOT be on the page. Absent is the passing state. */
+export function retiredRegionIds(manifest = ANSWER_SPINE) {
+  return usableEntries(manifest).filter((entry) => entry.role === ROLE.retired).map((entry) => entry.id);
+}
+
+/**
+ * A question reduced to what it asks, so two spellings of one question compare
+ * equal. Case, punctuation, and run-together whitespace are not the difference
+ * between two questions; nothing else is folded, because "where do I start" and
+ * "where do I go" are genuinely two.
+ */
+export function normalizeQuestion(text) {
+  return String(text ?? "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+const HEADING_TAGS = new Set(["H1", "H2", "H3", "H4", "H5", "H6"]);
+
+/**
+ * Containers a region's own naming heading is never inside. A heading in a
+ * disclosure labels the disclosure, and a heading in a nested landmark labels
+ * that landmark; neither is the question the top-level region asks.
+ */
+const OPAQUE_TAGS = new Set(["DETAILS", "SUMMARY", "SECTION", "NAV", "ASIDE", "ARTICLE"]);
+
+/** Hidden to everyone, or hidden to sighted readers. Either way, not visible copy. */
+function invisible(node) {
+  if (node?.hasAttribute?.("hidden")) return true;
+  const classes = String(node?.getAttribute?.("class") ?? "").split(/\s+/);
+  return classes.includes("visually-hidden");
+}
+
+/** The first visible heading a region owns, not counting anything it delegates. */
+function ownHeading(node) {
+  for (const child of [...(node?.children ?? [])]) {
+    if (child?.nodeType !== 1 || invisible(child)) continue;
+    if (HEADING_TAGS.has(child.tagName)) return child;
+    if (OPAQUE_TAGS.has(child.tagName)) continue;
+    const nested = ownHeading(child);
+    if (nested) return nested;
+  }
+  return null;
+}
+
+/**
+ * The heading that names a region, or null when it is named by something that
+ * is not a heading — an eyebrow paragraph, an `aria-label`. A region with no
+ * heading asks no question in the reading order, so it cannot collide with one.
+ */
+export function namingHeading(region, doc) {
+  const labelled = String(region?.getAttribute?.("aria-labelledby") ?? "").trim().split(/\s+/)[0];
+  if (labelled) {
+    const node = doc?.getElementById?.(labelled) ?? null;
+    if (node && HEADING_TAGS.has(node.tagName) && !invisible(node)) return node;
+  }
+  return ownHeading(region);
+}
+
+/** Enough of an element to find it in the markup when the audit names it. */
+function describe(region) {
+  if (region?.id) return `"${region.id}"`;
+  const classes = String(region?.getAttribute?.("class") ?? "").trim();
+  return `<${String(region?.tagName ?? "element").toLowerCase()}${classes ? ` class="${classes}"` : ""}>`;
+}
+
+/** Every `h1` under a node, counted by walking rather than by selector. */
+function countH1(node) {
+  let total = 0;
+  for (const child of [...(node?.children ?? [])]) {
+    if (child?.nodeType !== 1) continue;
+    if (child.tagName === "H1") total += 1;
+    total += countH1(child);
+  }
+  return total;
+}
+
+/**
+ * Audit the page a reader actually gets.
+ *
+ * `validateAnswerSpine` checks a LIST of ids against the manifest, which is
+ * exactly as good as the list it was handed. This walks the document instead:
+ * every element child of `#main-content`, whether or not it has an id, whether
+ * or not anything declared it. That is the difference that matters — a section
+ * nobody declared is invisible to a check that iterates the declarations, and
+ * an undeclared section carrying an answer-shaped heading is the specific way
+ * this page grew a second headline three times.
+ *
+ * It reports:
+ *   * a top-level region the manifest gives no role to, id or no id;
+ *   * a region the manifest retired that is still in the document;
+ *   * two visible region headings asking the same question;
+ *   * an `h1` count other than one.
+ *
+ * Returns problems as sentences and never throws.
+ */
+export function auditPageStructure(doc, manifest = ANSWER_SPINE, mainId = MAIN_REGION_ID) {
+  const main = doc?.getElementById?.(mainId) ?? null;
+  if (!main) return [`There is no "#${mainId}", so the page has no top-level regions to audit.`];
+
+  const problems = [];
+  const declared = new Map(usableEntries(manifest).map((entry) => [entry.id, entry]));
+  const askedBy = new Map();
+
+  for (const region of [...(main.children ?? [])]) {
+    if (region?.nodeType !== 1) continue;
+    const entry = region.id ? declared.get(region.id) : null;
+    if (!entry) {
+      problems.push(`A top-level region ${describe(region)} is on the page but the answer spine `
+        + "gives it no role. Every region a reader meets is declared, or it is not shipped.");
+    } else if (entry.role === ROLE.retired) {
+      problems.push(`Region "${region.id}" is declared retired but is still on the page. `
+        + "Retirement here is deletion: the markup, the code that paints it, and the rules that "
+        + "style it all go.");
+    }
+
+    const heading = namingHeading(region, doc);
+    const asked = String(heading?.textContent ?? "").trim();
+    const key = normalizeQuestion(asked);
+    if (!key) continue;
+    const owner = askedBy.get(key);
+    if (owner) {
+      problems.push(`Two visible headings ask the same question ("${asked}"): ${owner} and `
+        + `${describe(region)}. A reader cannot tell which one is the answer.`);
+    } else {
+      askedBy.set(key, describe(region));
+    }
+  }
+
+  const h1s = countH1(main);
+  if (h1s !== 1) problems.push(`The page's main content carries ${h1s} h1 elements; it must carry exactly one.`);
+
+  return problems;
+}
+
 /**
  * Check the manifest, and optionally check it against the shipped page.
  *
@@ -504,17 +683,40 @@ export function validateAnswerSpine(manifest = ANSWER_SPINE, { rendered = null }
     }
   }
 
+  // Two regions that ask one question are the defect this manifest exists to
+  // catch, and the manifest is where it is cheapest to catch: a duplicate here
+  // fails before the second heading is ever authored.
+  const askedBy = new Map();
+  for (const entry of entries) {
+    if (typeof entry?.id !== "string" || entry.id === "" || entry.role === ROLE.retired) continue;
+    const key = normalizeQuestion(entry.question);
+    if (!key) continue;
+    const owner = askedBy.get(key);
+    if (owner) {
+      problems.push(`Regions "${owner}" and "${entry.id}" ask the same question `
+        + `("${entry.question}"). One question, one region.`);
+    } else {
+      askedBy.set(key, entry.id);
+    }
+  }
+
   if (Array.isArray(rendered)) {
+    // The live set, not the declared set: a retired entry stays declared as the
+    // record of where its question went, and must be gone from the document.
+    const live = new Set(liveRegionIds(entries));
     for (const id of rendered) {
       if (!seen.has(id)) {
         problems.push(`Region "${id}" is rendered on the page but is not declared here; every region needs a role.`);
+      } else if (!live.has(id)) {
+        problems.push(`Region "${id}" is declared retired but is still on the page. Retirement here is `
+          + "deletion: remove the markup, the code that paints it, and the rules that style it.");
       }
     }
-    for (const id of seen) {
+    for (const id of live) {
       if (!rendered.includes(id)) problems.push(`Region "${id}" is declared here but is not on the page.`);
     }
-    const declaredAndRendered = [...seen].filter((id) => rendered.includes(id));
-    const renderedAndDeclared = rendered.filter((id) => seen.has(id));
+    const declaredAndRendered = [...live].filter((id) => rendered.includes(id));
+    const renderedAndDeclared = rendered.filter((id) => live.has(id));
     if (declaredAndRendered.join(">") !== renderedAndDeclared.join(">")) {
       problems.push("The declaration order does not match the page's reading order.");
     }
@@ -550,6 +752,10 @@ export function applyAnswerSpine(doc, manifest = ANSWER_SPINE) {
   let step = 0;
 
   for (const entry of Array.isArray(manifest) ? manifest : []) {
+    // A retired entry is a tombstone, not an instruction to paint anything. It
+    // is skipped rather than reported missing: its absence is the requirement,
+    // and `validateAnswerSpine` is what fails when it is still there.
+    if (entry?.role === ROLE.retired) continue;
     const ordered = inReadingOrder(entry?.role);
     if (ordered) step += 1;
 

@@ -136,6 +136,37 @@ test("a nested target opens the whole chain and a second reveal is a no-op", asy
   assert.equal(second.target, leaf);
 });
 
+test("the installed handler walks the whole ancestor chain, not just the nearest one", async () => {
+  // The regression this pins. A drawer inside a container disclosure has TWO
+  // details above it, and a walk that stops at the nearest one opens the drawer
+  // inside a container that is still shut — a reader following the link lands on
+  // a target the browser is not rendering, which is the exact bug this module
+  // exists for. Progressive disclosure keeps producing this shape: any pass that
+  // groups a step's drawers under one top-level disclosure creates it again.
+  const doc = await page();
+  const container = doc.createElement("details");
+  container.id = "step-detail";
+  const drawer = doc.createElement("details");
+  drawer.id = "step-drawer";
+  const leaf = doc.createElement("dl");
+  leaf.id = "step-drawer-list";
+  drawer.append(leaf);
+  container.append(drawer);
+  doc.getElementById("main-content").append(container);
+
+  const win = fakeWindow("#step-drawer-list");
+  const teardown = installDeepLinkDisclosure(doc, win, { scroll: false });
+  try {
+    assert.equal(container.hasAttribute("open"), true, "the container is left shut");
+    assert.equal(drawer.hasAttribute("open"), true, "the nested drawer is left shut");
+    // Through the attribute, not only the property: that is the state the
+    // stylesheet and a serialized page both agree on.
+    assert.equal(drawer.open, true);
+  } finally {
+    teardown();
+  }
+});
+
 test("a hidden panel is revealed by state, never by a fragment", async () => {
   const doc = await page();
   const guided = doc.getElementById("guided-result");

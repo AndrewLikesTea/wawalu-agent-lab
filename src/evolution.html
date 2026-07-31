@@ -41,7 +41,20 @@
            #finops-proof-point, and #finops-privacy — are additive. Every region
            at this level is declared in src/finops/answer-spine-view.js with the
            question it answers and its role, and a region with no id cannot be
-           declared; nothing was renamed to get them. -->
+           declared; nothing was renamed to get them.
+
+           ROLE AND STEP NUMBER ARE AUTHORED AT RUNTIME, IN ONE PLACE — the
+           `data-answer-role` and `data-answer-step` attributes are written by
+           `applyAnswerSpine()` from that manifest and by nothing else. They are
+           deliberately NOT stamped in this markup as well: a step number in two
+           places is a step number that can disagree with itself, and the
+           manifest is the copy a test can hold the document to. Read them in
+           the shipped DOM, never author them here.
+
+           The set of regions at this level equals the manifest's live set. A
+           region the manifest retires is DELETED — markup, the code that paints
+           it, the rules that style it — and `tests/finops-page-structure.test.js`
+           fails while any retired one is still here. -->
       <section class="finops-hero" id="finops-hero" aria-labelledby="page-title" data-workspace-frame="true">
         <div class="hero-copy">
           <p class="eyebrow">AI FinOps</p>
@@ -596,11 +609,13 @@
         </div>
       </section>
 
-      <!-- THE WORKSPACE RAIL, and why it is navigation rather than a fifth panel.
+      <!-- THE WORKSPACE RAIL, and why it is navigation rather than a panel.
 
-           The two regions above answer "are we wasting money?" and "where do I
-           go next?". Neither of them tells a reader *where they are*, and on a
-           document this long that was a real omission rather than a nicety:
+           The regions above it answer the reader's questions — where we stand,
+           are we wasting money, where do I start, what will tell me it worked,
+           where do I go to act. None of them tells a reader *where they are*,
+           and on a document this long that was a real omission rather than a
+           nicety:
            position was carried by scroll offset and nothing else, so a keyboard
            or screen-reader user had no way to ask which part of the workspace
            they were in and no way to move between parts except walking every
@@ -720,19 +735,14 @@
         <dl class="workspace-context-list" id="finops-workspace-context-list"></dl>
       </section>
 
-      <!-- The conversion moment, after the result and outside the region that
-           holds it. It is deliberately quieter than either choice above: a
-           reader who has just read a number and wants a person is taking a
-           different step, not a third way to start. It opens the follow-up form
-           this page already ships rather than adding a second one, so there is
-           still exactly one place an email address is typed. -->
-      <aside class="first-run-conversion" id="finops-first-run-conversion" data-workspace-region="answer" aria-labelledby="finops-first-run-conversion-title">
-        <div>
-          <p class="first-run-conversion-title" id="finops-first-run-conversion-title">Want help with your own analysis?</p>
-          <p class="first-run-conversion-body">Analyze your provider exports in this browser, or ask the Wawalu team to go through your numbers with you. Requesting a follow-up sends one thing: the work email address you type.</p>
-        </div>
-        <button class="first-run-conversion-action" id="finops-first-run-contact" type="button">Request a follow-up</button>
-      </aside>
+      <!-- DELETED: #finops-first-run-conversion, the second copy of the
+           follow-up ask. src/finops/answer-spine-view.js declared it retired
+           and superseded by #finops-contact, which asks the same thing and
+           ships the form and the privacy line that make the ask answerable.
+           This is what a retirement mark now buys: the markup, the binding in
+           finops-first-run-view.js, and the .first-run-conversion rules in
+           evolution.css are gone, and the manifest entry stays behind only as
+           the record of where the ask went. -->
 
       <!-- THE ONE STATUS REGION, and the reason it is here rather than at the
            foot of the page where it used to sit — or above the result, where it

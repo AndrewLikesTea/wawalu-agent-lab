@@ -12,7 +12,7 @@
 // every node is built with createElement, because the strings below include a
 // contract's own operation line and a department label taken out of an analysis.
 
-import { FIRST_RUN_ACTIONS, FIRST_RUN_CONVERSION, FIRST_RUN_IDS } from "./finops-first-run.js";
+import { FIRST_RUN_ACTIONS, FIRST_RUN_IDS } from "./finops-first-run.js";
 import { EXAMPLE_BRIEFING_CTA, EXAMPLE_BRIEFING_HREF } from "./finops-example-briefing.js";
 import { DISCLOSURE_SPEC, disclosureStateLabel } from "./finops-decision-interaction.js";
 
@@ -291,11 +291,11 @@ export function applyExampleBriefingCta(doc) {
  * question is closed the moment a real result — the reader's import, or the
  * example loaded into every panel — is on screen. Leaving it there would put a
  * second synthetic headline beside a live one, which is the exact confusion
- * this region exists to remove. The conversion aside goes with it: the page's
- * own follow-up form sits under the result the reader is now reading.
+ * this region exists to remove. There is no longer a conversion aside to retire
+ * alongside it: the answer spine retired that region, and #finops-contact —
+ * which is not first-run-specific and stays on screen — carries the ask.
  */
-export function applyFirstRunSupersession(doc, superseded,
-  { conversionId = "finops-first-run-conversion", focusFallbackId = null } = {}) {
+export function applyFirstRunSupersession(doc, superseded, { focusFallbackId = null } = {}) {
   const region = byId(doc, FIRST_RUN_IDS.region);
   if (!region) return null;
   const retired = Boolean(superseded);
@@ -313,8 +313,6 @@ export function applyFirstRunSupersession(doc, superseded,
       ?? doc.querySelector?.("main");
     fallback?.focus?.({ preventScroll: true });
   }
-  const conversion = byId(doc, conversionId);
-  if (conversion) conversion.hidden = retired;
   return region;
 }
 
@@ -329,7 +327,7 @@ export function applyFirstRunSupersession(doc, superseded,
  * loading the dataset itself: there is exactly one way into the example data on
  * this page, and a second code path would be a second product to keep correct.
  */
-export function bindFirstRunActions(doc, { panelId = "finops-contact-panel" } = {}) {
+export function bindFirstRunActions(doc) {
   const delegate = (buttonId, targetId) => {
     const button = byId(doc, buttonId);
     if (!button) return null;
@@ -344,28 +342,12 @@ export function bindFirstRunActions(doc, { panelId = "finops-contact-panel" } = 
     return button;
   };
 
-  // The conversion action is not a plain delegate: `#finops-contact-open` is a
-  // toggle, so forwarding a click to an already-open panel would close it. A
-  // control labelled "ask us" that hides the form is worse than no control.
-  const contact = byId(doc, FIRST_RUN_IDS.contact);
-  if (contact) {
-    contact.dataset.target = FIRST_RUN_CONVERSION.targetId;
-    contact.addEventListener("click", () => {
-      const trigger = byId(doc, FIRST_RUN_CONVERSION.targetId);
-      const panel = byId(doc, panelId);
-      if (!trigger) return;
-      if (panel?.hidden !== false) trigger.click?.();
-      // Focus lands on the field, not the trigger: the reader asked for the
-      // form, so the next keystroke should go into it.
-      const field = byId(doc, FIRST_RUN_CONVERSION.focusId);
-      if (field && !field.disabled) field.focus?.();
-      else trigger.focus?.({ preventScroll: true });
-    });
-  }
-
+  // The third binding here used to be the conversion button, which opened
+  // #finops-contact's form from a duplicate ask two thousand lines above it.
+  // The ask is retired; the form it opened is unchanged and still the only
+  // place on this page an email address is typed.
   return {
     demo: delegate(FIRST_RUN_IDS.demo, FIRST_RUN_ACTIONS.demo.targetId),
     import: delegate(FIRST_RUN_IDS.import, FIRST_RUN_ACTIONS.import.targetId),
-    contact,
   };
 }
