@@ -136,11 +136,20 @@ import { orgQuerySampleResult, validateOrgQuerySource } from "/org-query-source.
 // Coverage over that same sample, decided on the five structural signal
 // families rather than on English keywords alone, plus the unclassified residue
 // ranked by how much coverage resolving it would return.
-import { familyCoverage } from "/corpus-family-coverage.js";
+import { familyCoverage, residueClusterKey } from "/corpus-family-coverage.js";
 // The lead's own labels for that residue, applied through the same aggregation
 // rather than beside it: `residueReview` re-invokes `familyCoverage` with the
 // labels written into the records, so coverage keeps one definition.
 import { isResidueLabel, residueReview } from "/residue-labeling.js";
+// The only thing on this page that survives a reload of a lead's own reading:
+// a digest of each labelled cluster and the class they chose, under one key,
+// scoped to a digest of the corpus it was stated about. Nothing it stores can be
+// read back into a query, a vendor name or a dollar.
+import {
+  OVERRIDE_CLEARED_ANNOUNCEMENT, OVERRIDE_CLEAR_LABEL, OVERRIDE_RETENTION_TEXT,
+  OVERRIDE_UNAVAILABLE_NOTICE, browserQueryOverrideStorage, clearOverrides, hashText,
+  readOverrides, writeOverrides,
+} from "/query-override-store.js";
 import {
   orgQueryDecisionData, orgQueryDecisionDepartments, orgQueryDepartmentLiteracy,
   orgQueryDepartmentRows,
@@ -2066,19 +2075,37 @@ function mountLocalFinopsImport() {
    *
    * A plain Map in this closure, which is the same place the parsed samples,
    * the archives and the mapping choices already live: in memory, in this tab,
-   * for this session. Nothing is written to storage — `reset()` empties it with
-   * the files it belongs to, and a different export empties it too, because a
-   * label is a statement about the corpus it was made on.
+   * for the session. `reset()` empties it with the files it belongs to, and a
+   * different corpus empties it too, because a label is a statement about the
+   * corpus it was made on.
+   *
+   * What outlives the tab is a digest of each key in it and the class chosen —
+   * see `/query-override-store.js` for the whole artifact. The map here is still
+   * the only thing the arithmetic reads: storage restores into it, never past it.
    */
   const leadResidueLabels = new Map();
   /** The last coaching input, so a label can re-run the same paint it came from. */
   let lastCoachingInput = null;
+  /**
+   * What this browser refused, per corpus. Two flags rather than one sentence:
+   * a browser that reads but will not write, and one that writes but will not
+   * read back, both leave the reader with corrections that do not survive a
+   * reload, and a successful write must not clear a notice the failed read
+   * earned. Re-probed when the corpus changes.
+   */
+  const residueStorageRefusals = { read: false, write: false };
+  const residueStorageNotice = () =>
+    (residueStorageRefusals.read || residueStorageRefusals.write
+      ? OVERRIDE_UNAVAILABLE_NOTICE : null);
+  /** One-shot: the clear control's result, spoken by the region that recomputed. */
+  let residueClearAnnouncement = null;
 
   const paintCoachingDecision = (literacy,
     { origin = "import", fileNames = [], records = [] } = {}) => {
     if (!literacy) {
       lastCoachingInput = null;
       leadResidueLabels.clear();
+      residueClearAnnouncement = null;
       return clearOrgQueryDecision(document);
     }
     // A label is a statement about one corpus. The moment the corpus changes —
@@ -2086,8 +2113,19 @@ function mountLocalFinopsImport() {
     // labels go, so no figure is ever assisted by an answer given about an
     // export that is no longer loaded.
     const corpus = `${origin}::${fileNames.join("|")}::${records.length}`;
-    if (lastCoachingInput?.corpus !== corpus) leadResidueLabels.clear();
+    const changed = lastCoachingInput?.corpus !== corpus;
+    if (changed) {
+      leadResidueLabels.clear();
+      residueClearAnnouncement = null;
+      residueStorageRefusals.read = false;
+      residueStorageRefusals.write = false;
+    }
     lastCoachingInput = { literacy, origin, fileNames, records, corpus };
+    // A new corpus asks this browser whether it is holding labels for THIS one.
+    // Asynchronous because the digest is: the paint below happens now, with no
+    // labels, and a restore repaints on top of it if any matched. Nothing here
+    // rejects, so a refusing store cannot escape as an unhandled rejection.
+    if (changed) restoreResidueLabels(corpus, records);
     // The review runs the same aggregation the coverage line already reads —
     // `familyCoverage` — once on the records as imported and once with the
     // lead's labels written in, so there is still exactly one definition of
@@ -2104,7 +2142,20 @@ function mountLocalFinopsImport() {
       // the residue clusters this surface now leads with. In memory, in this
       // tab, and nothing derived from an excerpt comes back out.
       familyCoverage: review ? review.assisted : (records.length ? familyCoverage(records) : null),
-    }), { review, onAssign: assignResidueLabel });
+    }), {
+      review,
+      onAssign: assignResidueLabel,
+      // What this browser keeps, said in the panel the labels are made in, with
+      // the one control that empties it. The strings are the store's own, so the
+      // claim on screen and the bytes under the key are written down once.
+      retention: {
+        text: OVERRIDE_RETENTION_TEXT,
+        notice: residueStorageNotice(),
+        clearLabel: OVERRIDE_CLEAR_LABEL,
+        announcement: residueClearAnnouncement,
+        onClear: clearResidueLabels,
+      },
+    });
   };
 
   /**
@@ -2118,6 +2169,87 @@ function mountLocalFinopsImport() {
     if (!lastCoachingInput || typeof clusterKey !== "string" || !clusterKey) return;
     if (isResidueLabel(value)) leadResidueLabels.set(clusterKey, value);
     else leadResidueLabels.delete(clusterKey);
+    // The figures move now; the write happens after, and its only visible effect
+    // is the notice a refusal turns on. A correction that cannot be stored is
+    // still a correction.
+    residueClearAnnouncement = null;
+    paintCoachingDecision(lastCoachingInput.literacy, lastCoachingInput);
+    persistResidueLabels(lastCoachingInput.corpus);
+  }
+
+  /**
+   * The digest of the corpus on screen, and of every cluster key in it.
+   *
+   * One helper for both directions, so the string a label is filed under on the
+   * way out is the string it is looked up by on the way back — including which
+   * hash mode produced it. `hashText` never rejects.
+   */
+  async function residueDigests(corpus, keys) {
+    const fingerprint = await hashText(corpus);
+    const pairs = await Promise.all([...keys].map(async (key) => [key, (await hashText(key)).hex]));
+    return { fingerprint, pairs };
+  }
+
+  /** The labels this browser holds for this corpus, if it is holding any. */
+  function restoreResidueLabels(corpus, records) {
+    const clusters = new Set((Array.isArray(records) ? records : []).map(residueClusterKey));
+    return residueDigests(corpus, clusters).then(({ fingerprint, pairs }) => {
+      // The reader may have moved on — discarded the files, read another export
+      // — while the digest was computing. Their corpus wins over this answer.
+      if (lastCoachingInput?.corpus !== corpus) return;
+      const stored = readOverrides(browserQueryOverrideStorage(), {
+        fingerprint: fingerprint.hex, mode: fingerprint.mode,
+      });
+      residueStorageRefusals.read = !stored.available;
+      let applied = 0;
+      for (const [key, digest] of pairs) {
+        const label = stored.entries.get(digest);
+        // A label the reader has already given in this tab is not overwritten by
+        // a stored one, and a digest that names no cluster in this corpus is
+        // simply not found — never matched to the nearest thing.
+        if (leadResidueLabels.has(key) || !isResidueLabel(label)) continue;
+        leadResidueLabels.set(key, label);
+        applied += 1;
+      }
+      if (applied || residueStorageRefusals.read) {
+        paintCoachingDecision(lastCoachingInput.literacy, lastCoachingInput);
+      }
+    }).catch(() => {
+      // Nothing above throws by design. If something does, the page keeps the
+      // reading it already painted rather than losing it to a storage feature.
+      residueStorageRefusals.read = true;
+    });
+  }
+
+  /** Every label now held, written under this corpus's fingerprint. */
+  function persistResidueLabels(corpus) {
+    return residueDigests(corpus, leadResidueLabels.keys()).then(({ fingerprint, pairs }) => {
+      if (lastCoachingInput?.corpus !== corpus) return;
+      const outcome = writeOverrides(browserQueryOverrideStorage(), {
+        fingerprint: fingerprint.hex,
+        mode: fingerprint.mode,
+        entries: pairs.map(([key, digest]) => [digest, leadResidueLabels.get(key)]),
+      });
+      const before = residueStorageNotice();
+      residueStorageRefusals.write = !outcome.ok;
+      if (residueStorageNotice() === before) return;
+      paintCoachingDecision(lastCoachingInput.literacy, lastCoachingInput);
+    }).catch(() => {
+      residueStorageRefusals.write = true;
+    });
+  }
+
+  /**
+   * The lead's own erase. The only destructive path in this feature: a corpus
+   * that does not match its fingerprint is ignored, never deleted, because the
+   * reader may go back to the export it belongs to.
+   */
+  function clearResidueLabels() {
+    if (!lastCoachingInput) return;
+    leadResidueLabels.clear();
+    const outcome = clearOverrides(browserQueryOverrideStorage());
+    residueStorageRefusals.write = !outcome.ok;
+    residueClearAnnouncement = OVERRIDE_CLEARED_ANNOUNCEMENT;
     paintCoachingDecision(lastCoachingInput.literacy, lastCoachingInput);
   }
 
