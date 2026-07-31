@@ -1047,6 +1047,12 @@
 .stand-action:hover { background:var(--import-ink); border-color:var(--import-ink); }
 .stand-action:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
 .stand-action-basis { margin:0; max-width:64ch; color:var(--ink-muted); font-size:13px; line-height:1.55; }
+/* The one-press route to the trajectory view. Secondary to the ranked action
+   beside it — a link, not a second filled button — and it wraps rather than
+   overflowing at narrow widths, where `.stand-next` is already a single column. */
+.stand-trajectory { justify-self:start; max-width:44ch; color:var(--import-accent); font-size:14px; font-weight:650; line-height:1.45; text-decoration:underline; text-underline-offset:3px; }
+.stand-trajectory:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.stand-sample { max-width:72ch; }
 .stand-withheld { display:grid; justify-items:start; gap:8px; border:1px dashed var(--state-warn-line); border-radius:12px; padding:14px 16px; background:var(--state-warn-wash,#fdf8ec); }
 .stand-withheld-heading { margin:0; color:var(--state-warn-ink); font:700 11px/1.5 ui-monospace,monospace; letter-spacing:.08em; text-transform:uppercase; }
 .stand-withheld-missing { margin:0; max-width:62ch; color:var(--ink); font-size:16px; font-weight:700; line-height:1.4; overflow-wrap:anywhere; }
