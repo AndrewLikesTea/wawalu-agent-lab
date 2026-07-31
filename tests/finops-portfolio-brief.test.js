@@ -156,7 +156,7 @@ test("exactly one next action reaches the brief, with the role accountable for i
 
   const unranked = portfolioBrief(analysis({ action: "", topDepartment: null }));
   assert.equal(unranked.nextAction.available, false);
-  assert.equal(unranked.nextAction.text, "Not yet ranked.");
+  assert.equal(unranked.nextAction.text, "Not read yet.");
   assert.equal(unranked.state, PORTFOLIO_STATE.partial, "an unranked action still claimed a trusted brief");
 });
 

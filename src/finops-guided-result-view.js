@@ -89,7 +89,7 @@ function applyActionControl(doc, action) {
  * as required, so the page asks for one thing in one way. The org mapping is an
  * optional precision upgrade there and is not asked for here either.
  */
-const NOT_AVAILABLE = "Not available yet";
+const NOT_AVAILABLE = "Not read yet";
 const CHOOSE_FILES = "Choose one provider period export below";
 
 /** The one word beside the composition that says how far it may be taken. */

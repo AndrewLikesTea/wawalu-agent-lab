@@ -158,7 +158,7 @@ function selectNextAction(analysis) {
   if (!text) {
     return Object.freeze({
       available: false,
-      text: "Not yet ranked.",
+      text: "Not read yet.",
       accountable: null,
       rank: null,
     });

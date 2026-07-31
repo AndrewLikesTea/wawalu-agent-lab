@@ -152,7 +152,7 @@ test("finance leader UI has labelled native filters, resilient states, and non-c
   // runs, and it states an absence rather than a placeholder figure — or a
   // second "Loading…", which only #finops-load-state may say.
   assert.match(html, /aria-busy="true"[\s\S]*?data-state="loading" role="status"/);
-  assert.match(html, /Savings targets and realized results appear/);
+  assert.match(html, /Fills in once the action lifecycle is read\./);
   assert.doesNotMatch(html.split("portfolio-list")[1].split("</ol>")[0], /\$0|\$—/);
   assert.match(css, /border-left-style:dashed/);
   assert.match(css, /border-left-style:double/);
