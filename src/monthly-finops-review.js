@@ -126,6 +126,9 @@ export function buildMonthlyFinopsReview(fixture) {
   const candidates = (fixture.followUpActions ?? []).filter((candidate) => candidate.outcome === outcome);
   if (candidates.length !== 1) throw new TypeError(`exactly one ${outcome} follow-up action is required`);
   const followUp = candidates[0];
+  if (!["continue", "adjust", "retire"].includes(followUp.disposition)) {
+    throw new TypeError("follow-up disposition must be continue, adjust, or retire");
+  }
   const finding = varianceMinor > 0
     ? `${action.name} exceeded its next-period savings expectation.`
     : varianceMinor === 0
@@ -165,7 +168,8 @@ export function buildMonthlyFinopsReview(fixture) {
       periodLabels: freeze([observation.baselinePeriod.label, observation.verificationPeriod.label]),
       boundary: "Bundled synthetic data only; no credentials, customer data, prompts, storage, or live integrations.",
     }),
-    nextAction: freeze({ rank: 1, id: followUp.id, statement: followUp.statement, evidence: followUp.evidence }),
+    nextAction: freeze({ rank: 1, id: followUp.id, disposition: followUp.disposition,
+      statement: followUp.statement, evidence: followUp.evidence }),
   });
 }
 
@@ -186,6 +190,15 @@ export function validateOperatingCycleSelection(value) {
 }
 
 const ID = /^[a-z0-9][a-z0-9_-]{0,63}$/i;
+
+// An offered action becomes a DOM id, a stored id, and a formatted amount before
+// anyone can act on it, so it clears all three gates here rather than in three
+// places later. An id the selection validator would reject turns Confirm into a
+// silent no-op; an amount or currency Intl cannot format throws out of the render
+// and blanks the workspace instead of showing the choice.
+const offerable = (action, currency) => ID.test(action?.id ?? "")
+  && Number.isSafeInteger(action?.expectedSavingsMinor) && action.expectedSavingsMinor >= 0
+  && /^[a-z]{3}$/i.test(currency ?? "");
 
 export function readOperatingCycleSelection(storage) {
   if (!storage) return freeze({ status: "unavailable", selection: null });
@@ -227,16 +240,23 @@ export function clearOperatingCycleSelection(storage) {
 /** Resolve a selected bundled action to its declared, immediately subsequent period. */
 export function projectOperatingCycle(fixture, selectionResult) {
   const base = { schemaVersion: OPERATING_CYCLE_VERSION, sourceType: "bundled_synthetic_fixture" };
-  if (selectionResult?.status !== "selected") {
-    return freeze({ ...base, status: selectionResult?.status ?? "empty", review: null,
-      actions: freeze((fixture?.actions ?? []).map(({ id, name, scope }) => freeze({ id, name, scope }))) });
-  }
+  // Version first, for every status: the offer below reads amounts and a currency
+  // out of the fixture, so a fixture this build cannot vouch for must not reach it.
   if (fixture?.schemaVersion !== MONTHLY_FINOPS_FIXTURE_VERSION) {
     return freeze({ ...base, status: "incompatible", review: null, actions: freeze([]) });
   }
+  if (selectionResult?.status !== "selected") {
+    const recommended = (fixture.actions ?? [])
+      .filter((action) => action.selected === true && offerable(action, fixture.currency));
+    return freeze({ ...base, status: selectionResult?.status ?? "empty", review: null,
+      actions: freeze(recommended.map(({ id, name, scope, expectedSavingsMinor, verificationPeriodId }) =>
+        freeze({ id, name, scope, expectedSavingsMinor, verificationPeriodId,
+          currency: fixture.currency, evidence: "Highest bundled expected one-period savings with an eligible subsequent period." }))) });
+  }
+  // No choices on an incompatible cycle: the view only offers a reset here, and a
+  // list it must not act on is an unvalidated one waiting to be rendered later.
   const action = fixture.actions?.find(({ id }) => id === selectionResult.selection.actionId);
-  if (!action) return freeze({ ...base, status: "incompatible", review: null,
-    actions: freeze(fixture.actions.map(({ id, name, scope }) => freeze({ id, name, scope }))) });
+  if (!action) return freeze({ ...base, status: "incompatible", review: null, actions: freeze([]) });
   const baseline = fixture.observation?.baselinePeriod;
   const verification = fixture.observation?.verificationPeriod;
   const baselineMonth = /^synthetic-(\d{4})-(\d{2})$/.exec(action.baselinePeriodId ?? "");
