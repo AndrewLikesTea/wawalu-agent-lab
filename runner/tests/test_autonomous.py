@@ -213,6 +213,23 @@ class AutonomousTests(IsolatedDiffBudget):
             self.assertIsNone(autonomous.choose_issue(issues, state, self.config(), now))
             self.assertEqual(autonomous.choose_issue([issues[1]], state, self.config(), now)["number"], 21)
 
+    def test_program_task_waits_for_every_declared_dependency(self):
+        """A re-planned task can carry more than one dependency section; the first
+        one closing must not release the task while a later one is still open."""
+        with tempfile.TemporaryDirectory() as tmp:
+            state = autonomous.State(pathlib.Path(tmp) / "state.json")
+            now = dt.datetime(2026, 7, 14, tzinfo=dt.UTC)
+            dependent = {"number": 22,
+                         "body": "## Dependency\n\nDepends on #20.\n\n## Dependency\n\nDepends on #21.",
+                         "labels": [{"name": "persona:frontend"}]}
+            issues = [
+                {"number": 21, "body": "later foundation", "labels": [{"name": "persona:backend"}]},
+                dependent,
+            ]
+            state.value["issues"]["21"] = {"status": "submitted"}
+            self.assertIsNone(autonomous.choose_issue(issues, state, self.config(), now))
+            self.assertEqual(autonomous.choose_issue([dependent], state, self.config(), now)["number"], 22)
+
     def test_scenario_and_persona_label_are_bounded(self):
         issue = {"number": 9, "title": "Add release filters", "body": "Outcome body",
                  "labels": [{"name": "persona:frontend"}]}

@@ -1502,8 +1502,8 @@ def choose_issue(issues: list[dict[str, Any]], state: State, config: dict[str, A
             continue
         if PAUSED_LABEL in label_names(issue):
             continue
-        dependency = __import__("re").search(r"Depends on #(\d+)", str(issue.get("body") or ""))
-        if dependency and int(dependency.group(1)) in open_numbers:
+        dependencies = re.findall(r"Depends on #(\d+)", str(issue.get("body") or ""))
+        if any(int(number) in open_numbers for number in dependencies):
             continue
         persona = issue_label(issue, "persona:") or "staff"
         if not within_persona_window(persona, config, now):
