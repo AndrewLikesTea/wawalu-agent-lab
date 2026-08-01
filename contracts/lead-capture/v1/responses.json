@@ -5,7 +5,10 @@
   "endpoint": "POST /api/leads",
   "request": {
     "content_type": "application/json",
-    "body": { "email": "string, trimmed and lowercased server-side, max 254 chars" }
+    "body": {
+      "email": "string, trimmed and lowercased server-side, max 254 chars",
+      "purpose": "field_notes or follow_up; no additional fields are accepted"
+    }
   },
   "response_headers": {
     "content-type": "application/json; charset=utf-8",
@@ -21,19 +24,37 @@
     {
       "id": "created",
       "status": 201,
-      "body": { "subscribed": true },
+      "body": { "captured": true, "created": true, "purpose": "field_notes" },
       "captured": true,
-      "meaning": "First time this address was seen; a row was inserted."
+      "meaning": "First time this address and purpose were seen; a row was inserted. The purpose echoes the request."
     },
     {
       "id": "already_subscribed",
       "status": 200,
-      "body": { "subscribed": false },
+      "body": { "captured": true, "created": false, "purpose": "field_notes" },
       "captured": true,
-      "meaning": "Address was already on the list. Still a success for the visitor; `subscribed:false` reports insert-vs-noop, not failure."
+      "meaning": "Address was already captured for this purpose. Still a success; `created:false` reports insert-vs-noop, not failure."
     }
   ],
   "errors": [
+    {
+      "id": "invalid_request",
+      "code": "invalid_request",
+      "status": 400,
+      "origin": "application",
+      "captured": false,
+      "retryable": true,
+      "meaning": "Body was not an object containing exactly email and purpose."
+    },
+    {
+      "id": "invalid_purpose",
+      "code": "invalid_purpose",
+      "status": 422,
+      "origin": "application",
+      "captured": false,
+      "retryable": true,
+      "meaning": "Purpose was not field_notes or follow_up."
+    },
     {
       "id": "invalid_email",
       "code": "invalid_email",

@@ -1,4 +1,5 @@
 export const MAX_EMAIL_LENGTH = 254;
+export const LEAD_PURPOSES = Object.freeze(["field_notes", "follow_up"]);
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function normalizeEmail(value) {
@@ -21,23 +22,24 @@ function json(body, status, requestId, headers = {}) {
 }
 
 export function createMemoryLeadStore() {
-  const emails = new Set();
+  const submissions = new Set();
   return {
-    async subscribe(email) {
-      const subscribed = !emails.has(email);
-      emails.add(email);
-      return subscribed;
+    async capture(email, purpose) {
+      const key = `${purpose}:${email}`;
+      const created = !submissions.has(key);
+      submissions.add(key);
+      return created;
     },
-    has: (email) => emails.has(email),
+    has: (email, purpose = "field_notes") => submissions.has(`${purpose}:${email}`),
   };
 }
 
 export function createD1LeadStore(db) {
   return {
-    async subscribe(email, createdAt) {
+    async capture(email, purpose, createdAt) {
       const result = await db.prepare(
-        "INSERT OR IGNORE INTO leads (email, created_at) VALUES (?, ?)",
-      ).bind(email, createdAt).run();
+        "INSERT OR IGNORE INTO lead_submissions (email, purpose, created_at) VALUES (?, ?, ?)",
+      ).bind(email, purpose, createdAt).run();
       return Number(result.meta?.changes ?? 0) > 0;
     },
   };
@@ -61,15 +63,26 @@ export async function handleLeadRequest(request, {
   } catch {
     return json({ error: { code: "invalid_json", message: "Request body must be valid JSON.", request_id: requestId } }, 400, requestId);
   }
-  const email = normalizeEmail(input?.email);
+  const isObject = input !== null && typeof input === "object" && !Array.isArray(input);
+  const keys = isObject ? Object.keys(input) : [];
+  if (!isObject || keys.length !== 2 || !keys.includes("email") || !keys.includes("purpose")) {
+    return json({ error: { code: "invalid_request", message: "Body must contain only email and purpose.", request_id: requestId } }, 400, requestId);
+  }
+  const email = normalizeEmail(input.email);
   if (!email) {
     return json({ error: { code: "invalid_email", message: "Enter a valid email address.", request_id: requestId } }, 422, requestId);
   }
+  if (!LEAD_PURPOSES.includes(input.purpose)) {
+    return json({ error: { code: "invalid_purpose", message: "Purpose must be field_notes or follow_up.", request_id: requestId } }, 422, requestId);
+  }
 
   try {
-    const subscribed = await store.subscribe(email, now());
-    return json({ subscribed }, subscribed ? 201 : 200, requestId);
+    const created = await store.capture(email, input.purpose, now());
+    return json({ captured: true, created, purpose: input.purpose }, created ? 201 : 200, requestId);
   } catch {
+    // Correlatable in platform logs without copying a driver message that may
+    // contain connection or schema detail into the event.
+    console.error("lead_capture_storage_error", { requestId, purpose: input.purpose });
     return json({ error: { code: "storage_error", message: "We couldn’t save your email. Please try again.", request_id: requestId } }, 500, requestId);
   }
 }

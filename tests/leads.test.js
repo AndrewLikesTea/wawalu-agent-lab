@@ -51,26 +51,43 @@ test("normalizes valid email addresses and rejects unsafe or malformed input", (
 test("subscribes an email and treats a repeated submission as success", async () => {
   const store = createMemoryLeadStore();
   const dependencies = { store, requestId: "lead-1", now: () => "2026-07-25T12:00:00.000Z" };
-  const first = await handleLeadRequest(request({ email: "Mina@Example.com" }), dependencies);
-  const duplicate = await handleLeadRequest(request({ email: "mina@example.com" }), dependencies);
+  const first = await handleLeadRequest(request({ email: "Mina@Example.com", purpose: "field_notes" }), dependencies);
+  const duplicate = await handleLeadRequest(request({ email: "mina@example.com", purpose: "field_notes" }), dependencies);
 
   assert.equal(first.status, 201);
-  assert.deepEqual(await first.json(), { subscribed: true });
+  assert.deepEqual(await first.json(), { captured: true, created: true, purpose: "field_notes" });
   assert.equal(duplicate.status, 200);
-  assert.deepEqual(await duplicate.json(), { subscribed: false });
+  assert.deepEqual(await duplicate.json(), { captured: true, created: false, purpose: "field_notes" });
   assert.equal(store.has("mina@example.com"), true);
   assert.equal(first.headers.get("cache-control"), "no-store");
 });
 
+test("stores field-note and follow-up intent independently for the same address", async () => {
+  const store = createMemoryLeadStore();
+  const dependencies = { store, requestId: "lead-purpose", now: () => "2026-08-01T12:00:00.000Z" };
+
+  const subscription = await handleLeadRequest(request({
+    email: "mina@example.com", purpose: "field_notes",
+  }), dependencies);
+  const followUp = await handleLeadRequest(request({
+    email: "mina@example.com", purpose: "follow_up",
+  }), dependencies);
+
+  assert.equal(subscription.status, 201);
+  assert.equal(followUp.status, 201, "an existing subscription must not swallow a follow-up request");
+  assert.equal(store.has("mina@example.com", "field_notes"), true);
+  assert.equal(store.has("mina@example.com", "follow_up"), true);
+});
+
 test("returns actionable client errors and opaque storage errors", async () => {
-  assert.equal((await handleLeadRequest(request({ email: "not-an-email" }), { store: createMemoryLeadStore() })).status, 422);
+  assert.equal((await handleLeadRequest(request({ email: "not-an-email", purpose: "field_notes" }), { store: createMemoryLeadStore() })).status, 422);
   assert.equal((await handleLeadRequest(request("{", { raw: true }), { store: createMemoryLeadStore() })).status, 400);
   assert.equal((await handleLeadRequest(request({}, { headers: { "content-type": "text/plain" } }), { store: createMemoryLeadStore() })).status, 415);
   const method = await handleLeadRequest(request(undefined, { method: "GET" }), { store: createMemoryLeadStore() });
   assert.equal(method.status, 405);
   assert.equal(method.headers.get("allow"), "POST");
-  const failed = await handleLeadRequest(request({ email: "mina@example.com" }), {
-    store: { subscribe: async () => { throw new Error("database password"); } },
+  const failed = await handleLeadRequest(request({ email: "mina@example.com", purpose: "follow_up" }), {
+    store: { capture: async () => { throw new Error("database password"); } },
     requestId: "trace-1",
   });
   assert.equal(failed.status, 500);
@@ -81,9 +98,10 @@ test("D1 store persists normalized leads and deduplicates atomically", async (t)
   const db = await createTestD1();
   t.after(() => db.close());
   const store = createD1LeadStore(db);
-  assert.equal(await store.subscribe("mina@example.com", "2026-07-25T12:00:00.000Z"), true);
-  assert.equal(await store.subscribe("mina@example.com", "2026-07-25T12:01:00.000Z"), false);
-  assert.equal(db.raw.prepare("SELECT count(*) AS count FROM leads").get().count, 1);
+  assert.equal(await store.capture("mina@example.com", "field_notes", "2026-07-25T12:00:00.000Z"), true);
+  assert.equal(await store.capture("mina@example.com", "follow_up", "2026-07-25T12:01:00.000Z"), true);
+  assert.equal(await store.capture("mina@example.com", "follow_up", "2026-07-25T12:02:00.000Z"), false);
+  assert.equal(db.raw.prepare("SELECT count(*) AS count FROM lead_submissions").get().count, 2);
 });
 
 test("homepage ships the labelled lead form and its deployment adapter", async () => {
@@ -161,14 +179,14 @@ test("client submits once, announces success, and restores the control", async (
   initLeadCapture(harness.root, async (_url, options) => {
     payload = JSON.parse(options.body);
     assert.equal(harness.button.disabled, true);
-    return new Response(JSON.stringify({ subscribed: true }), {
+    return new Response(JSON.stringify({ captured: true, created: true, purpose: "field_notes" }), {
       status: 201,
       headers: { "content-type": "application/json" },
     });
   });
   await harness.listeners.submit({ preventDefault() {} });
 
-  assert.deepEqual(payload, { email: "Mina@Example.com" });
+  assert.deepEqual(payload, { email: "Mina@Example.com", purpose: "field_notes" });
   assert.equal(harness.form.dataset.state, "success");
   assert.equal(
     harness.status.textContent,
@@ -219,6 +237,26 @@ test("client makes delivery-unavailable recovery explicit without claiming captu
   assert.equal(harness.form.dataset.state, undefined);
   assert.equal(harness.status.textContent, "");
   assert.equal(harness.recovery.hidden, true);
+});
+
+test("field-note retry replaces an unavailable failure with a truthful success", async () => {
+  const harness = leadFormHarness();
+  let attempt = 0;
+  initLeadCapture(harness.root, async () => {
+    attempt += 1;
+    return attempt === 1
+      ? jsonResponse({ error: { code: "storage_unavailable" } }, 503)
+      : jsonResponse({ captured: true, created: true, purpose: "field_notes" }, 201);
+  });
+
+  await harness.listeners.submit({ preventDefault() {} });
+  assert.equal(harness.recovery.hidden, false);
+  await harness.listeners.submit({ preventDefault() {} });
+
+  assert.equal(harness.form.dataset.state, "success");
+  assert.equal(harness.recovery.hidden, true);
+  assert.match(harness.status.textContent, /^You’re subscribed\./);
+  assert.doesNotMatch(harness.status.textContent, /offline|couldn’t|not subscribed/);
 });
 
 test("recovery copy is described to the field only after a submission has failed", async () => {
@@ -322,15 +360,17 @@ test("client aborts a hung request instead of stranding the visitor on Submittin
 
 test("the endpoint still returns every response the published contract documents", async () => {
   const cases = [
-    ["invalid_email", () => handleLeadRequest(request({ email: "not-an-email" }), { store: createMemoryLeadStore() })],
+    ["invalid_request", () => handleLeadRequest(request({ email: "mina@example.com" }), { store: createMemoryLeadStore() })],
+    ["invalid_purpose", () => handleLeadRequest(request({ email: "mina@example.com", purpose: "marketing" }), { store: createMemoryLeadStore() })],
+    ["invalid_email", () => handleLeadRequest(request({ email: "not-an-email", purpose: "field_notes" }), { store: createMemoryLeadStore() })],
     ["invalid_json", () => handleLeadRequest(request("{", { raw: true }), { store: createMemoryLeadStore() })],
     ["unsupported_media_type", () => handleLeadRequest(request({}, { headers: { "content-type": "text/plain" } }), { store: createMemoryLeadStore() })],
     ["method_not_allowed", () => handleLeadRequest(request(undefined, { method: "GET" }), { store: createMemoryLeadStore() })],
-    ["storage_error", () => handleLeadRequest(request({ email: "mina@example.com" }), {
-      store: { subscribe: async () => { throw new Error("database password"); } },
+    ["storage_error", () => handleLeadRequest(request({ email: "mina@example.com", purpose: "field_notes" }), {
+      store: { capture: async () => { throw new Error("database password"); } },
     })],
     // Emitted by the Pages adapter, not the handler, when the D1 binding is absent.
-    ["storage_unavailable", () => leadsOnRequest({ request: request({ email: "mina@example.com" }), env: {} })],
+    ["storage_unavailable", () => leadsOnRequest({ request: request({ email: "mina@example.com", purpose: "field_notes" }), env: {} })],
   ];
 
   assert.deepEqual(
@@ -352,7 +392,7 @@ test("the endpoint still returns every response the published contract documents
   const store = createMemoryLeadStore();
   const dependencies = { store, requestId: "lead-1", now: () => "2026-07-25T12:00:00.000Z" };
   for (const documented of CONTRACT.success) {
-    const response = await handleLeadRequest(request({ email: "mina@example.com" }), dependencies);
+    const response = await handleLeadRequest(request({ email: "mina@example.com", purpose: documented.body.purpose }), dependencies);
     assert.equal(response.status, documented.status, `${documented.id} status drifted from the contract`);
     assert.deepEqual(await response.json(), documented.body, `${documented.id} body drifted from the contract`);
     assert.equal(documented.captured, true, `${documented.id} means the address is on the list`);

@@ -238,7 +238,7 @@ test("the form opens on the keyboard, takes focus, and hands it back on dismissa
 test("the request body carries the typed address and nothing from the leader's import", async () => {
   const page = await openFinopsTab();
   const { document } = page;
-  const calls = interceptLeads(() => jsonReply({ subscribed: true }));
+  const calls = interceptLeads(() => jsonReply({ captured: true, created: true, purpose: "follow_up" }));
   try {
     await completeImport(document);
 
@@ -258,8 +258,8 @@ test("the request body carries the typed address and nothing from the leader's i
     assert.equal(options.method, "POST");
 
     // The body is the whole claim: one key, the typed value, nothing else.
-    assert.deepEqual(JSON.parse(options.body), { email: TYPED_EMAIL });
-    assert.deepEqual(Object.keys(JSON.parse(options.body)), ["email"]);
+    assert.deepEqual(JSON.parse(options.body), { email: TYPED_EMAIL, purpose: "follow_up" });
+    assert.deepEqual(Object.keys(JSON.parse(options.body)), ["email", "purpose"]);
 
     // And nothing derived from the import reached the wire by any other route —
     // headers, query string, or a field added later.
@@ -287,7 +287,7 @@ test("the imported result stays on screen while the form opens, succeeds, fails,
   let failNext = false;
   interceptLeads(() => (failNext
     ? jsonReply({ error: { code: "storage_unavailable", message: "unavailable" } }, 503)
-    : jsonReply({ subscribed: true })));
+    : jsonReply({ captured: true, created: true, purpose: "follow_up" })));
   try {
     await completeImport(document);
     const before = resultSnapshot(document);
@@ -320,7 +320,7 @@ test("the imported result stays on screen while the form opens, succeeds, fails,
 test("the bundled example brief is equally undisturbed, and the confirmation says what happens next", async () => {
   const page = await openFinopsTab();
   const { document } = page;
-  interceptLeads((call) => jsonReply({ subscribed: call === 1 }, call === 1 ? 201 : 200));
+  interceptLeads((call) => jsonReply({ captured: true, created: call === 1, purpose: "follow_up" }, call === 1 ? 201 : 200));
   try {
     // The other result a visitor can reach: the bundled example analysis, run
     // through the same translator and rendered into the same region.
@@ -363,7 +363,7 @@ test("the bundled example brief is equally undisturbed, and the confirmation say
 test("an empty or malformed address is diagnosed at the field, and keeps what was typed", async () => {
   const page = await openFinopsTab();
   const { document } = page;
-  const calls = interceptLeads(() => jsonReply({ subscribed: true }));
+  const calls = interceptLeads(() => jsonReply({ captured: true, created: true, purpose: "follow_up" }));
   try {
     byId(document, "finops-contact-open").click();
     const field = byId(document, "finops-contact-email");
