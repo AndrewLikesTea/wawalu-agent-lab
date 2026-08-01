@@ -90,7 +90,7 @@ test("the shipped evolution surface renders the validated projection contract", 
   const root = renderMonthlyReviewProjection(doc, review);
   assert.equal(root.hidden, false);
   assert.equal(root.dataset.state, "improving");
-  assert.match(textOf(root), /15\.0% current vs 20\.0% retained baseline/);
+  assert.match(textOf(root), /Current recoverable share · 15\.0%\. Baseline · 20\.0%/);
   assert.match(textOf(root), /Department evidencesyn-support/);
   assert.match(textOf(root), /Prior commitmentcandidate_supported/);
   assert.match(textOf(root), /Next action · priority 1/);
@@ -120,14 +120,29 @@ test("evidence disclosure is named, keyboard operable, stateful, and announced",
   const html = await readFile(new URL("../src/evolution.html", import.meta.url), "utf8");
   const doc = parseHtml(html);
   const root = renderMonthlyReviewProjection(doc, buildMonthlyReviewProjection(input(period("2026-07", 150_000))));
-  root.closest("#guided-result").hidden = false;
+  root.hidden = false;
   const details = root.querySelector("details");
   const summary = root.querySelector("summary");
   const live = root.querySelector('[aria-live="polite"]');
-  assert.equal(textOf(summary), "Evidence and provenance boundary");
+  assert.equal(textOf(summary), "Trend, department, commitment, confidence, and provenance");
   assert.equal(summary.getAttribute("aria-controls"), "monthly-review-provenance-content");
   assert.equal(summary.getAttribute("aria-expanded"), "false");
   assert.ok(tabSequence(doc).includes(summary));
+
+  // The five deferred details are terms and values, so they ship inside a real
+  // `dl`. Loose `dt`/`dd` in a `div` is invalid markup that no browser exposes
+  // as a term/value pair, and it is what this disclosure had after the facts
+  // moved behind it. The boundary sentence is prose about the whole set, so it
+  // is the one thing outside the list.
+  const facts = details.querySelector("dl.monthly-review-evidence");
+  assert.ok(facts, "the deferred details are not a description list");
+  assert.deepEqual([...facts.querySelectorAll("dt")].map(textOf),
+    ["Trend", "Department evidence", "Prior commitment", "Confidence", "Source", "Periods"]);
+  assert.equal(facts.querySelectorAll("dd").length, 6);
+  for (const orphan of details.querySelectorAll("dt")) {
+    assert.equal(orphan.closest("dl"), facts, "a term ships outside the description list");
+  }
+  assert.equal(details.querySelector(".monthly-review-boundary").closest("dl"), null);
 
   summary.focus();
   pressEnter(doc);
@@ -139,6 +154,21 @@ test("evidence disclosure is named, keyboard operable, stateful, and announced",
   assert.equal(summary.getAttribute("aria-expanded"), "false");
   assert.equal(details.dataset.disclosure, "collapsed");
   assert.match(textOf(live), /collapsed/);
+});
+
+test("leading department evidence has a keyboard-operable return to the review heading", async () => {
+  const html = await readFile(new URL("../src/evolution.html", import.meta.url), "utf8");
+  const doc = parseHtml(html);
+  const root = renderMonthlyReviewProjection(doc,
+    buildMonthlyReviewProjection(input(period("2026-07", 260_000))));
+  const link = root.querySelector(".monthly-review-department-link");
+  link.focus();
+  pressEnter(doc);
+  const back = doc.getElementById("monthly-review-return");
+  assert.ok(back, "opening department evidence did not expose a return path");
+  assert.equal(back.getAttribute("href"), "#monthly-review-projection-title");
+  assert.ok(tabSequence(doc).includes(back));
+  assert.equal(root.querySelector("h2").getAttribute("tabindex"), "-1");
 });
 
 test("loading, empty, error, and implausible extremes withhold unsupported decisions", async () => {

@@ -64,12 +64,13 @@ export const WORKSPACE_NAV_IDS = Object.freeze({
   detailList: "finops-workspace-nav-detail-list",
 });
 
-/** The four destination keys, and the only four. */
+/** The workspace destination keys. The first four preserve the original screens. */
 export const WORKSPACE_DESTINATION = Object.freeze({
   answer: "answer",
   evidence: "evidence",
   department: "department",
   actAndVerify: "act-and-verify",
+  monthlyReview: "monthly-review",
 });
 
 /**
@@ -96,6 +97,7 @@ export const DESTINATION_FRAGMENT = Object.freeze({
   [WORKSPACE_DESTINATION.evidence]: "#workspace-evidence",
   [WORKSPACE_DESTINATION.department]: "#workspace-departments",
   [WORKSPACE_DESTINATION.actAndVerify]: "#workspace-act-and-verify",
+  [WORKSPACE_DESTINATION.monthlyReview]: "#workspace-monthly-review",
 });
 
 /**
@@ -152,6 +154,12 @@ const DOOR_PLUMBING = Object.freeze({
   [WORKSPACE_DESTINATION.actAndVerify]: Object.freeze({
     role: DESTINATION_ROLE.actAndVerify,
     fallbackHref: "/savings-action-center.html",
+  }),
+  [WORKSPACE_DESTINATION.monthlyReview]: Object.freeze({
+    role: null,
+    fallbackHref: "#monthly-review-projection",
+    answers: "What changed against the retained month, and what is the next action?",
+    doesNotAnswer: "It does not claim that a prior action caused the observed change.",
   }),
 });
 

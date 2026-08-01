@@ -241,8 +241,9 @@
 .monthly-review-projection-action { margin-top:20px; border-left:5px solid var(--import-accent); padding:15px 16px; background:#fff; }
 .monthly-review-action-statement { margin:0; font-size:17px; font-weight:700; }
 .monthly-review-department-link { display:inline-flex; min-height:44px; align-items:center; margin-top:12px; color:#1f70c1; font-weight:750; text-underline-offset:4px; }
-.monthly-review-department-link:focus-visible,.monthly-review-projection-provenance summary:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
-.monthly-review-evidence { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr)); gap:14px; margin:20px 0 0; }
+.monthly-review-department-link:focus-visible,.monthly-review-return:focus-visible,.monthly-review-projection-provenance summary:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.monthly-review-return { display:inline-flex; min-height:44px; align-items:center; margin-bottom:16px; color:#1f70c1; font-weight:750; text-underline-offset:4px; }
+.monthly-review-evidence { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr)); gap:14px; margin:0; }
 .monthly-review-fact { min-width:0; border-top:1px solid var(--panel-border); padding-top:10px; }
 .monthly-review-fact dt { color:var(--ink-muted); font:700 10px/1.4 ui-monospace,monospace; letter-spacing:.08em; text-transform:uppercase; }
 .monthly-review-fact dd { margin:4px 0 0; line-height:1.5; overflow-wrap:anywhere; }

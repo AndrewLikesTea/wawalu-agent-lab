@@ -2,7 +2,8 @@
 //
 // The prose is docs/executive-answer-screen-contract.md; this is the copy the
 // page renders, so the document and the screen cannot say different things.
-// Four destinations, one question each, one metric each.
+// Five destinations, one question each, one metric each. The original four
+// remain stable; monthly review is the retained-period decision workspace.
 //
 // THE HEADLINE METRIC — stand-behind share. Numerator `summarize(scored)
 // .spendUsd`, where a department is scored exactly when `departmentPerformance
@@ -82,6 +83,16 @@ export const SCREEN_CONTRACT = Object.freeze([
     metricUnit: "USD",
     target: "/savings-action-center.html",
     excludes: "Modelled ceilings. A routing scenario is not a realized saving.",
+  }),
+  Object.freeze({
+    key: "monthly-review",
+    shellDestination: "monthly-review",
+    name: "Monthly review",
+    question: "What changed this month, and what should we do next?",
+    metricLabel: "Recoverable share against the retained baseline",
+    metricUnit: "% of analyzed spend",
+    target: "#monthly-review-projection",
+    excludes: "Causal attribution. A retained-period comparison does not prove an action caused the change.",
   }),
 ]);
 

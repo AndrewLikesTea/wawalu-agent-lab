@@ -53,6 +53,23 @@ function bindDisclosure(details, summary, live) {
   details.addEventListener("toggle", sync);
 }
 
+function bindDepartmentRoundTrip(doc, link, reviewHeading) {
+  const department = doc.getElementById("department-decision-panel");
+  if (!department) return;
+  link.addEventListener("click", () => {
+    let back = doc.getElementById("monthly-review-return");
+    if (!back) {
+      back = text(doc, "a", "monthly-review-return", "Return to monthly review");
+      back.id = "monthly-review-return";
+      back.href = "#monthly-review-projection-title";
+      department.prepend(back);
+    }
+  });
+  // The shell exposes the review before the fragment focus handler runs. Keeping
+  // the target on the heading makes the return announce context, not a card edge.
+  reviewHeading.setAttribute("tabindex", "-1");
+}
+
 /** Paint one browser-local monthly decision, including its non-ideal states. */
 export function renderMonthlyReviewProjection(doc, review) {
   const root = doc.getElementById("monthly-review-projection");
@@ -114,26 +131,32 @@ export function renderMonthlyReviewProjection(doc, review) {
       `Review ${review.strongestDepartmentContributor.departmentId} department evidence`);
     link.href = "#department-decision-panel";
     action.append(link);
+    bindDepartmentRoundTrip(doc, link, heading);
   }
 
-  const evidence = text(doc, "dl", "monthly-review-evidence", "");
-  evidence.append(
-    labelled(doc, "Benchmark", `${percent(review.materialBenchmark.currentSharePpm)} current vs ${percent(review.materialBenchmark.baselineSharePpm)} retained baseline`),
-    labelled(doc, "Confidence", `${review.confidence.level}. ${review.confidence.basis}`),
-    labelled(doc, "Prior commitment", `${review.priorCommitmentVerification.status}. ${review.priorCommitmentVerification.basis}`),
-  );
-
   const details = text(doc, "details", "monthly-review-projection-provenance", "");
-  const summary = text(doc, "summary", undefined, "Evidence and provenance boundary");
+  const summary = text(doc, "summary", undefined, "Trend, department, commitment, confidence, and provenance");
   summary.setAttribute("aria-controls", "monthly-review-provenance-content");
   const content = text(doc, "div", "monthly-review-provenance-content", "");
   content.id = "monthly-review-provenance-content";
-  content.append(
+  // A real `dl`, not a div of loose `dt`/`dd`. Every fact behind this disclosure
+  // is a term and its value, and a browser only announces them as a pair — and
+  // only lays them out as the responsive grid `.monthly-review-evidence` draws —
+  // when a list element encloses them. The boundary sentence is prose about the
+  // whole set, so it sits after the list rather than inside it.
+  const facts = text(doc, "dl", "monthly-review-evidence", "");
+  facts.append(
+    labelled(doc, "Trend", `${state.label}. Change ${direction} ${percent(Math.abs(change))}.`),
     labelled(doc, "Department evidence", review.strongestDepartmentContributor
       ? `${review.strongestDepartmentContributor.departmentId}. ${review.strongestDepartmentContributor.basis}`
       : "No department contributor available."),
+    labelled(doc, "Prior commitment", `${review.priorCommitmentVerification.status}. ${review.priorCommitmentVerification.basis}`),
+    labelled(doc, "Confidence", `${review.confidence.level}. ${review.confidence.basis}`),
     labelled(doc, "Source", `${review.schemaVersion} · ${review.inputVersion}`),
     labelled(doc, "Periods", review.provenance.periodIds.join(", ") || "None"),
+  );
+  content.append(
+    facts,
     text(doc, "p", "monthly-review-boundary", "Browser-local retained derived periods only. No raw import is retained, and no causal attribution is claimed."),
   );
   const live = text(doc, "p", "visually-hidden", "");
@@ -145,7 +168,7 @@ export function renderMonthlyReviewProjection(doc, review) {
 
   root.append(
     text(doc, "p", "eyebrow", "Local monthly review · decision"), heading,
-    status, benchmark, action, evidence, details, live,
+    status, benchmark, action, details, live,
   );
   return root;
 }

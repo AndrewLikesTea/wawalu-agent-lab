@@ -338,6 +338,14 @@ export const ANSWER_SPINE = Object.freeze([
       + "comparability verdict allowed those exports to be combined at all.",
   },
   {
+    id: "monthly-review-projection",
+    role: ROLE.step,
+    question: "What changed this month, and what should we do next?",
+    headingId: "monthly-review-projection-title",
+    entitledToAssert:
+      "A comparison projected directly from retained derived periods, with no causal claim.",
+  },
+  {
     id: "guided-result",
     role: ROLE.step,
     question: "What should we do now?",

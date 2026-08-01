@@ -272,6 +272,12 @@ export async function verifyArtifact(root) {
     // takes on its way to the screen. Both are hard imports of the action center
     // entry, so a narrowed artifact that drops either stops the page painting.
     "finops-journey-fixtures.js", "finops-journey-redaction.js",
+    // The monthly-review destination. Its region ships as one heading and
+    // `hidden` — every word a reader sees there is drawn by these two at
+    // runtime — and both are hard imports of the AI FinOps entry, so a narrowed
+    // artifact that drops either is a rejected entry module rather than an empty
+    // fifth door.
+    "monthly-review-projection.js", "monthly-review-projection-view.js",
   ]);
   const paths = new Set(actual.map(({ path }) => path));
   for (const path of required) if (!paths.has(path)) throw new Error(`missing required UI asset: ${path}`);
@@ -429,6 +435,43 @@ export async function verifyArtifact(root) {
   // required for the production build to fail before deployment.
   const finopsHtml = await readFile(resolve(root, "evolution.html"), "utf8");
   verifyEvolutionStructure(finopsHtml);
+
+  // EVERY DOOR ON THE RAIL, AGAINST THE ARTIFACT IT OPENS INTO. A destination is
+  // three facts kept in three files: a screen-contract entry that names the
+  // question, a `data-workspace-region` the shell shows, and — for the doors
+  // that lead into one panel — a target element the fragment resolves to. Nothing
+  // makes them agree; a door added to the markup and left out of the contract, or
+  // pointed at an id some later edit renamed, still parses, still styles, still
+  // takes focus, and still ships. It fails at a reader, once, as a press that
+  // scrolls nowhere. Checked here and not in a source test because the artifact is
+  // what a browser is served, and build selection is one of the ways a region
+  // stops being carried.
+  const finopsDoc = parseHtml(finopsHtml);
+  const { SCREEN_CONTRACT: shippedScreens } = await import(
+    pathToFileURL(resolve(root, "finops-screen-contract.js")).href
+  );
+  const contractKeys = new Set(shippedScreens.map((entry) => entry.shellDestination));
+  const regionKeys = new Set([...finopsDoc.querySelectorAll("[data-workspace-region]")]
+    .map((region) => region.dataset.workspaceRegion));
+  const doors = [...finopsDoc.querySelectorAll("[data-shell-destination]")];
+  if (doors.length !== contractKeys.size) {
+    throw new Error(`the AI FinOps rail ships ${doors.length} doors for ${contractKeys.size} screens`);
+  }
+  for (const door of doors) {
+    const key = door.dataset.shellDestination;
+    if (!contractKeys.has(key)) {
+      throw new Error(`the "${key}" door names a destination the screen contract does not`);
+    }
+    if (!regionKeys.has(key)) {
+      throw new Error(`the "${key}" door opens a destination this artifact carries no region for`);
+    }
+    // Act and verify names no single panel — its screen is several — so a door
+    // with no target is a door that leads to a whole screen, not a broken one.
+    const target = door.dataset.destinationTarget;
+    if (target && !finopsDoc.getElementById(target)) {
+      throw new Error(`the "${key}" door points at #${target}, which this artifact does not carry`);
+    }
+  }
   const { FIRST_RUN_ACTIONS, FIRST_RUN_IDS } = await import(
     pathToFileURL(resolve(root, "finops-first-run.js")).href
   );
@@ -567,6 +610,75 @@ export async function verifyArtifact(root) {
     ?.replaceAll(/<br\s*\/?>/g, " ").replaceAll(/\s+/g, " ").trim();
   if (heroQuestion !== emptyReview.question) {
     throw new Error(`the action center's first paint asks "${heroQuestion}" but its contract answers "${emptyReview.question}"`);
+  }
+
+  // Fourth, the monthly-review destination, probed the same three ways. It is
+  // the one screen on this page whose region ships with no content at all — a
+  // heading and `hidden` — so nothing in the artifact says whether its door leads
+  // to a decision or to an empty box until a reader presses it.
+  const { buildMonthlyReviewProjection, MONTHLY_REVIEW_INPUT_VERSION } = await import(
+    pathToFileURL(resolve(root, "monthly-review-projection.js")).href
+  );
+  // The screen a visitor with nothing retained actually gets. It must stay an
+  // explicit refusal with no benchmark, no contributor, and no invented history.
+  const noHistory = buildMonthlyReviewProjection({
+    schemaVersion: MONTHLY_REVIEW_INPUT_VERSION, retainedPeriods: [],
+  });
+  if (noHistory.status !== "missing_comparison_evidence"
+    || noHistory.materialBenchmark.status !== "unavailable"
+    || noHistory.strongestDepartmentContributor !== null
+    || noHistory.provenance.periodIds.length !== 0) {
+    throw new Error(`a monthly review with no retained history did not withhold its comparison: ${
+      noHistory.status}/${noHistory.materialBenchmark.status}`);
+  }
+
+  // And the same contract must still be able to reach a comparison. A refusal
+  // that can never be anything else passes the probe above while the destination
+  // is inert — a fifth door onto "not enough history yet", forever. So walk the
+  // join the page is wired through: the projector that writes a retained period
+  // is the only writer of the shape this review reads, and the two agreeing is
+  // otherwise only observable after a deploy, in one browser, with retained
+  // months nobody has.
+  const { projectRetainedPeriod } = await import(
+    pathToFileURL(resolve(root, "finops-workspace.js")).href
+  );
+  const probePeriod = (month, recoverableUsd) => projectRetainedPeriod({
+    briefing: {
+      contractVersion: "finops-briefing/1.0.0",
+      coverage: { recordsAnalyzed: 20, recordsTotal: 20, coverageRatio: 1, confidence: "high" },
+      materialMetric: { candidate: "recoverable_scenario", value: recoverableUsd },
+    },
+    analysis: {
+      period: `${month}-01 to ${month}-28`,
+      spendUsd: 10_000,
+      recoverableUsd,
+      rankedDepartments: [{ name: "Atlas Platform", spendUsd: 9_600 }],
+      topDepartment: { id: "atlas-platform" },
+    },
+    now: new Date(`${month}-28T12:00:00.000Z`),
+  });
+  const comparable = buildMonthlyReviewProjection({
+    schemaVersion: MONTHLY_REVIEW_INPUT_VERSION,
+    retainedPeriods: [
+      probePeriod("2026-05", 2_000), probePeriod("2026-06", 2_000), probePeriod("2026-07", 1_500),
+    ],
+  });
+  if (comparable.status !== "improving" || comparable.materialBenchmark.status === "unavailable"
+    || comparable.nextAction?.rank !== 1
+    || comparable.strongestDepartmentContributor?.departmentId !== "atlas-platform") {
+    throw new Error(`retained months cannot reach a monthly decision: ${
+      comparable.status} ${comparable.materialBenchmark.reason ?? ""}`);
+  }
+
+  // And the entry must be the thing that performs that join. A contract that
+  // reaches a decision in this file and a page that never hands it this browser's
+  // retained periods is a green build and a destination that is always empty.
+  for (const wiring of [
+    "readRetainedPeriodInputs", "buildMonthlyReviewProjection", "renderMonthlyReviewProjection",
+  ]) {
+    if (!evolutionEntry.includes(wiring)) {
+      throw new Error(`the AI FinOps entry no longer joins ${wiring} into its monthly review`);
+    }
   }
 
   const headers = await readFile(resolve(root, "_headers"), "utf8");

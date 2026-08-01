@@ -5,7 +5,7 @@
 **Surface:** `/evolution.html`
 
 A CTO opens `/evolution.html` to settle one thing and then leave. This document
-names the four destinations that page has, the single question each one answers,
+names the five destinations that page has, the single question each one answers,
 and the single metric that answers it. The strings a reader sees are exported
 from the module above and painted from it, so this document and the screen
 cannot say different things.
@@ -156,7 +156,21 @@ for the same period).
 
 ---
 
-## 5. Where this contract departs from the brief, and why
+## 5. `monthly-review` — what changed this month?
+
+> **Question.** What changed this month, and what should we do next?
+
+**The single metric: Recoverable share against the retained baseline.** The
+percentage of analyzed spend marked recoverable in the newest retained derived
+month, compared with the immediately preceding comparable retained month. Its
+unit is percent of analyzed spend. The executable projection owns comparison
+selection, direction, materiality, and the ranked next action.
+
+**Deliberately excluded.** Causal attribution. A retained-period comparison does not prove an action caused the change.
+
+---
+
+## 6. Where this contract departs from the brief, and why
 
 The brief asked for a headline figure defined as *"classified spend that meets
 the current grade threshold, over total spend in scope."* The page's existing
