@@ -172,9 +172,9 @@ export const FIRST_RUN_INSTRUCTION =
  * stay distinct because the callers name the slot they are filling.
  */
 export const FIRST_RUN_NOT_YET = Object.freeze({
-  measured: "Not read yet",
-  ranked: "Not read yet",
-  combined: "Not read yet",
+  measured: "Not available yet",
+  ranked: "Not available yet",
+  combined: "Not available yet",
 });
 
 /**

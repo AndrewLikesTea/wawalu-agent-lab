@@ -631,7 +631,7 @@ test("the authored markup states the absence and ships no placeholder slot value
   // answer rather than this module's internals — and rather than narrating a
   // load, which only #finops-load-state is allowed to do.
   const finding = textOf(document.getElementById("guided-result-finding"));
-  assert.match(finding, /^No next step ranked yet$/);
+  assert.match(finding, /^Next step not available yet$/);
   assert.doesNotMatch(finding, /Composing|Loading/);
 
   for (const id of SLOT_IDS) {

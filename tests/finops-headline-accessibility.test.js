@@ -405,8 +405,9 @@ test("the headline is announced as one claim: question, number, confidence, evid
   // says what replaces it. The sentence it replaced — "Nothing has been read
   // yet, so this claim rests on nothing" — contradicted the line above it and
   // announced an integrity warning to a visitor who had claimed nothing.
-  assert.match(authored, /Still reading the Bundled synthetic example; the numbers below fill in when it finishes\.$/,
-    "the pre-analysis description no longer says what is being read and what replaces it");
+  assert.match(authored,
+    /The Bundled synthetic example uses invented data\. Results will appear when preparation is complete\.$/,
+    "the pre-analysis description must name what is being prepared without implying an error");
   assert.doesNotMatch(authored, /rests on nothing/,
     "the pre-analysis description contradicts the sentence before it");
 

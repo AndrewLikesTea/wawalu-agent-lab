@@ -270,8 +270,8 @@ test("the headline metric names its value, unit, direction, and period without c
     "finops-answer-direction", "finops-answer-basis"]);
   const spoken = parts.map((node) => textOf(node)).join(" ");
   assert.match(spoken, /Spend we can stand behind/);
-  assert.match(spoken, /Still reading/);
-  assert.match(spoken, /no direction is available/i);
+  assert.match(spoken, /Results will appear here/);
+  assert.match(spoken, /Results will appear when preparation is complete/);
   assert.match(spoken, /as of/);
 });
 

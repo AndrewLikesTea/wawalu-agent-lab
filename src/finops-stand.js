@@ -332,11 +332,11 @@ export const STAND_RESOLUTION_ACTION = Object.freeze({
  * before it. The four short values carry this page's one empty-slot wording.
  */
 export const STAND_PENDING = Object.freeze({
-  answer: "Still reading the Bundled synthetic example; the numbers below fill in when it finishes.",
-  position: "Not read yet",
-  recoverable: "Not read yet",
-  team: "Not read yet",
-  action: "Not read yet",
+  answer: "The Bundled synthetic example uses invented data. Results will appear when preparation is complete.",
+  position: "Not available yet",
+  recoverable: "Not available yet",
+  team: "Not available yet",
+  action: "Not available yet",
 });
 
 /** The load failure, in the reader's terms: what broke, and what it was not. */
