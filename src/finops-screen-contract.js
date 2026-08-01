@@ -94,8 +94,67 @@ const PUBLISHED_STATES = Object.freeze([
   GRADABILITY_STATE.graded, GRADABILITY_STATE.provisional,
 ]);
 
+/** The published coverage tier this verdict landed in, or null. */
+const tierOf = (tier) => COVERAGE_TIERS.find((entry) => entry.tier === tier) ?? null;
+
 /** The published rule for a coverage tier, so the bar ships beside the figure. */
-const tierRule = (tier) => COVERAGE_TIERS.find((entry) => entry.tier === tier)?.rule ?? null;
+const tierRule = (tier) => tierOf(tier)?.rule ?? null;
+
+/**
+ * WHICH SUPPORTING PANEL BACKS THE HEADLINE FIGURE, declared once.
+ *
+ * The answer screen puts three supporting layers under the block: the two
+ * folded evidence disclosures (#disclosure-next-step, #disclosure-journey) and
+ * #finops-destinations, which is the one that publishes a confidence WITH its
+ * basis and a provenance for the finding the headline rests on —
+ * finops-destination-contract.js carries both on its `finding` record, and the
+ * other two carry neither. It is also the only one of the three that is not a
+ * `details`, which is what lets the promoted panel be expanded by default
+ * without unfolding a layer tests/finops-answer-evidence-collapse.test.js
+ * requires to ship shut.
+ *
+ * It is ONE field on the payload rather than a panel index in the template, so
+ * the surface reads the link instead of knowing it. Exactly one element may
+ * carry the marking; `applyAnswerEvidence` in finops-stand-view.js clears every
+ * marking before it sets this one, and refuses to set any when the id does not
+ * resolve.
+ *
+ * HONEST LIMIT. This panel is where the headline's confidence and provenance are
+ * READABLE; it is not where the percentage is DIVIDED. That arithmetic is
+ * `gradeExport()` over the analysis, which no panel on this screen owns. Naming
+ * a panel that computed the figure would need a per-panel lineage the data model
+ * does not publish, and inventing one here would be a claim nothing could check.
+ */
+export const ANSWER_EVIDENCE_PANEL = Object.freeze({
+  /** The stable id `aria-describedby` and the promotion both resolve against. */
+  panelId: "finops-destinations",
+  /** The persistent text label. Read aloud on its own, it states the relationship. */
+  label: "Evidence for the headline figure",
+});
+
+/**
+ * The confidence and the provenance behind the figure, as one line.
+ *
+ * NEITHER VALUE IS INVENTED. The confidence is the coverage tier's OWN published
+ * label — `COVERAGE_TIERS[].label`, already the words "high confidence",
+ * "moderate confidence", "provisional grade", "insufficient coverage" — read off
+ * the same verdict the figure came from. The provenance is the as-of basis this
+ * module already composes. A verdict in a tier this module cannot name (a
+ * baseline-less import, whose tier is not in the published table) gets the
+ * provenance ALONE rather than a confidence word nothing measured.
+ */
+function answerEvidence(gradability, basis) {
+  const confidence = tierOf(gradability?.tier)?.label ?? null;
+  return Object.freeze({
+    panelId: ANSWER_EVIDENCE_PANEL.panelId,
+    label: ANSWER_EVIDENCE_PANEL.label,
+    confidence,
+    provenance: basis,
+    line: confidence
+      ? `Confidence: ${confidence}. Source: ${basis}.`
+      : `Source: ${basis}. No coverage tier was established, so this figure carries no confidence level.`,
+  });
+}
 
 /** What the block says instead of a figure, per withholding state. */
 const WITHHELD_FIGURE = Object.freeze({
@@ -241,6 +300,8 @@ export function answerBlock(headline) {
       : WITHHELD_FIGURE[state] ?? "Not computed yet",
     basis: `as of ${basis}`,
     confidence: confidenceSentence(gradability, basis),
+    /** Which supporting panel backs this figure, and the one line that says so. */
+    evidence: answerEvidence(gradability, basis),
     action: nextAction(gradability),
   });
 }

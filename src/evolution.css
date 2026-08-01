@@ -1337,6 +1337,27 @@
    button weight is the rank-1 door, which is the whole point of the region: a
    reader who takes one action from this block takes the right one. */
 .finops-destinations { display:grid; gap:14px; margin:0 0 22px; border:1px solid var(--import-line); border-left:5px solid var(--import-accent); border-radius:13px; padding:clamp(16px,2.6vw,22px); background:#fbfcfb; }
+/* THE PROMOTED EVIDENCE PANEL — the one supporting panel that backs the figure
+   at the top of this screen. Composed from scales already on this sheet: this
+   panel's own --import-accent rule one step thicker at the 6px .proof-point
+   uses, white instead of its tint, and the elevation .score-card already
+   carries. No new hue, radius, type size, or spacing step. It sits ABOVE the
+   withheld-state rule deliberately — a ranking nobody could compute keeps the
+   amber edge and wash, and the promotion contributes structure, never a state
+   colour. */
+.finops-destinations[data-headline-evidence="true"] { background:#fff; border-left-width:6px; box-shadow:0 14px 40px rgba(38,38,31,.04); }
+/* The confidence-and-provenance line, in the metadata type role this sheet
+   already uses for a basis sentence. `min-width:0` with `overflow-wrap:anywhere`
+   is what holds a 400-character provenance inside the panel at 320px instead of
+   pushing the page sideways; the chip never shrinks, so the label survives. */
+.dest-headline-evidence { display:flex; flex-wrap:wrap; align-items:baseline; gap:6px 10px; margin:0; }
+.dest-headline-evidence-chip { flex:none; border:1px solid var(--import-line); border-radius:99px; padding:3px 11px; background:#e2ebe6; color:var(--import-ink); font:700 11px/1.5 ui-monospace,monospace; letter-spacing:.04em; }
+.dest-headline-evidence-text { min-width:0; max-width:80ch; color:var(--ink-muted); font-size:12px; line-height:1.6; overflow-wrap:anywhere; }
+/* The layers the promoted panel outranks: flat wash, no elevation, and they
+   stay shut. Weight is the only thing that changes — every word, control, and
+   figure in them is untouched. */
+.support-disclosure[data-headline-evidence="false"] { background:#faf9f5; }
+.support-disclosure[data-headline-evidence="false"]>summary:hover { background:#f3f1eb; }
 /* A ranking nobody could compute is drawn as the withheld state every other
    figure on this page uses: dashed edge, and the word in the text. */
 .finops-destinations[data-state="unavailable"] { border-style:dashed; border-left-style:solid; border-color:var(--state-warn-line); border-left-color:var(--state-warn-ink); background:var(--state-warn-wash); }

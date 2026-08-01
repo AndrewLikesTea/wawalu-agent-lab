@@ -667,7 +667,11 @@
 
            `data-workspace-region` moved onto the disclosure with the region: the
            destination a fragment resolves to is whichever ancestor carries it. -->
-      <details class="support-disclosure" id="disclosure-next-step" data-subordinate="true" data-workspace-region="answer">
+      <!-- `data-headline-evidence="false"`: a supporting layer that does NOT
+           back the headline figure, drawn one step down from the panel that
+           does and shut on arrival. The attribute is authored so the claim is
+           checkable in the document rather than only after a paint. -->
+      <details class="support-disclosure" id="disclosure-next-step" data-subordinate="true" data-headline-evidence="false" data-workspace-region="answer">
         <summary class="support-disclosure-summary"><span class="support-disclosure-step" data-role="step">Evidence layer</span> <span class="support-disclosure-question" data-role="question">If I only do one thing this month, is this the right one?</span></summary>
       <section class="next-step" id="finops-next-step" tabindex="-1" data-subordinate="true" data-state="pending" data-confidence="unknown" data-decision-summary="evidence" aria-labelledby="finops-next-step-question">
         <div class="next-step-head">
@@ -696,7 +700,7 @@
            own, the checkpoint's date and expected figure. Collapsed for the same
            reason as the layer above — `evidence` is a claim about weight, and a
            region that opens at the answer's weight contradicts it. -->
-      <details class="support-disclosure" id="disclosure-journey" data-subordinate="true" data-workspace-region="answer">
+      <details class="support-disclosure" id="disclosure-journey" data-subordinate="true" data-headline-evidence="false" data-workspace-region="answer">
         <summary class="support-disclosure-summary"><span class="support-disclosure-step" data-role="step">Evidence layer</span> <span class="support-disclosure-question" data-role="question">If I take that step, what will tell me it actually worked?</span></summary>
       <section class="finops-journey" id="finops-journey" data-subordinate="true" data-phase="pending" data-source="unknown" data-decision-summary="evidence" aria-labelledby="finops-journey-question">
         <div class="fjc-head">
@@ -731,7 +735,29 @@
            tests/finops-destination-contract.test.js holds this region to, and a
            door behind a disclosure is a door a reader has to be told about
            first. It stays open and stays subordinate. -->
-      <section class="finops-destinations" id="finops-destinations" data-subordinate="true" data-state="unavailable" data-superseded="false" data-decision-summary="evidence" data-workspace-region="answer" aria-labelledby="finops-destinations-title">
+      <section class="finops-destinations" id="finops-destinations" data-subordinate="true" data-headline-evidence="true" data-state="unavailable" data-superseded="false" data-decision-summary="evidence" data-workspace-region="answer" aria-labelledby="finops-destinations-title">
+        <!-- WHICH PANEL BACKS THE NUMBER AT THE TOP OF THIS SCREEN.
+             `data-headline-evidence` is authored here, not only set by script,
+             so the promotion is true with JavaScript off — and exactly one
+             element in this document carries "true". finops-stand-view.js
+             clears every marking on each paint and re-sets this one only when
+             `FINOPS_ANSWER_SUMMARY.evidence.panelId` resolves to a real node,
+             so an empty or malformed payload takes the promotion down rather
+             than leaving a half-promoted panel over a figure it no longer
+             describes. The answer figure's `aria-describedby` is pointed at the
+             line below on the same paint, and removed on the same failure, so
+             it can never dangle at an id nothing resolves.
+             THE CHIP IS FILLED WASH, NOT AN OUTLINE. Which panel is the
+             evidence is a dynamic signal rather than a static classification,
+             and that is the rule in
+             design-system/claude-design/review-08-foundations.html. Colour
+             carries none of it on its own: the words are the label, the chip
+             keeps its silhouette in greyscale, and the promotion is also a
+             thicker rule and an elevation the other layers do not have.
+             The sentence authored into the text slot is the LOADING state — one
+             row at every width this page supports, so nothing moves when the
+             confidence and the source land in it. -->
+        <p class="dest-headline-evidence" id="finops-answer-evidence"><span class="dest-headline-evidence-chip" id="finops-answer-evidence-chip">Evidence for the headline figure</span><span class="dest-headline-evidence-text" id="finops-answer-evidence-text">Confidence and source fill in when the Bundled synthetic example finishes reading.</span></p>
         <div class="finops-destinations-head">
           <p class="eyebrow" id="finops-destinations-label">Next step · one of three doors</p>
           <h2 id="finops-destinations-title">Where do I go next to act on this?</h2>
