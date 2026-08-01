@@ -236,6 +236,45 @@ test("the one decision summary names its question, its number, and its one next 
     part("action").href, "the one action is operable before any script runs");
 });
 
+test("the visible answer is a landmark named exactly by its visible question", () => {
+  const document = parseHtml(html);
+  const answer = document.getElementById(DECISION_SUMMARY.regionId);
+  const question = document.getElementById(answer.getAttribute("aria-labelledby"));
+
+  assert.equal(answer.getAttribute("role"), "region");
+  assert.equal(textOf(question), textOf(document.getElementById("finops-answer-question")));
+  assert.equal(answer.hasAttribute("aria-label"), false,
+    "a hidden label overrides the visible question");
+});
+
+test("the hero, answer, and disclosure group keep a gap-free heading hierarchy", () => {
+  const document = parseHtml(html);
+  const hero = document.getElementById("finops-hero");
+  const stand = document.getElementById("finops-stand");
+  const group = document.getElementById("finops-stand-disclosures");
+  assert.equal(hero.querySelector("h1")?.id, "page-title");
+  assert.equal(stand.querySelector("h2")?.id, "finops-stand-question");
+  assert.equal(document.getElementById("finops-answer-question").tagName, "H3");
+  for (const heading of group.querySelectorAll("h1,h2,h3,h4,h5,h6")) {
+    assert.equal(heading.tagName, "H3", `${heading.id || textOf(heading)} skips a heading level`);
+  }
+});
+
+test("the headline metric names its value, unit, direction, and period without colour", () => {
+  const document = parseHtml(html);
+  const figure = document.getElementById("finops-answer-figure");
+  // What a screen reader speaks on reaching the paragraph is its own children in
+  // source order — no ARIA in between, so what is announced is what is on screen.
+  const parts = [...figure.children].filter((node) => node.nodeType === 1);
+  assert.deepEqual(parts.map((node) => node.id), ["finops-answer-label", "finops-answer-value",
+    "finops-answer-direction", "finops-answer-basis"]);
+  const spoken = parts.map((node) => textOf(node)).join(" ");
+  assert.match(spoken, /Spend we can stand behind/);
+  assert.match(spoken, /Still reading/);
+  assert.match(spoken, /no direction is available/i);
+  assert.match(spoken, /as of/);
+});
+
 test("a decision summary that lost a part is a reported problem", () => {
   // Deleting the confidence sentence is the regression that reads best: the
   // number stays, the action stays, and the reader is no longer told how far to
