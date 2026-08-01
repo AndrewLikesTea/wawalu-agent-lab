@@ -3,9 +3,12 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import {
-  buildMonthlyFinopsReview, MONTHLY_FINOPS_METRIC_CONTRACTS, MONTHLY_FINOPS_REVIEW_VERSION, roundOne,
+  buildMonthlyFinopsReview, clearOperatingCycleSelection, MONTHLY_FINOPS_METRIC_CONTRACTS,
+  MONTHLY_FINOPS_REVIEW_VERSION, OPERATING_CYCLE_STORAGE_KEY, projectOperatingCycle,
+  readOperatingCycleSelection, roundOne, validateOperatingCycleSelection,
+  writeOperatingCycleSelection,
 } from "../src/monthly-finops-review.js";
-import { renderMonthlyFinopsReview } from "../src/monthly-finops-review-view.js";
+import { renderMonthlyFinopsReview, renderOperatingCycle } from "../src/monthly-finops-review-view.js";
 import { parseHtml, textOf } from "./support/browser.js";
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
@@ -141,8 +144,8 @@ test("the existing AI FinOps monthly-review workspace imports and renders one ac
   const doc = parseHtml(html);
   const root = renderMonthlyFinopsReview(doc, buildMonthlyFinopsReview(await fixture()));
 
-  assert.match(page, /import \{ buildMonthlyFinopsReview \} from "\/monthly-finops-review\.js"/);
-  assert.match(page, /renderMonthlyFinopsReview\(document/);
+  assert.match(page, /projectOperatingCycle/);
+  assert.match(page, /renderOperatingCycle\(document/);
   assert.match(textOf(root.querySelector("h2")), /Did our last action deliver the expected savings\?/);
   assert.match(textOf(root.querySelector(".monthly-review-benchmark")), /Expected savings.*\$10,272/s);
   assert.match(textOf(root.querySelector(".monthly-review-benchmark")), /Observed savings.*\$12,906/s);
@@ -158,4 +161,63 @@ test("the existing AI FinOps monthly-review workspace imports and renders one ac
     "Finding",
     "Prioritized follow-up · rank 1",
   ]);
+});
+
+const memoryStorage = () => {
+  const values = new Map();
+  return {
+    getItem: (key) => values.has(key) ? values.get(key) : null,
+    setItem: (key, value) => values.set(key, value),
+    removeItem: (key) => values.delete(key),
+  };
+};
+
+test("identical bundled period and selected-action inputs produce an identical cycle", async () => {
+  const input = await fixture();
+  const selected = { status: "selected", selection: {
+    schemaVersion: "finops-operating-cycle-selection/1.0.0", actionId: "platform-routing-policy",
+  } };
+  assert.deepEqual(projectOperatingCycle(structuredClone(input), structuredClone(selected)),
+    projectOperatingCycle(structuredClone(input), structuredClone(selected)));
+  const cycle = projectOperatingCycle(input, selected);
+  assert.equal(cycle.status, "ready");
+  assert.equal(cycle.review.benchmark.expectedSavingsMinor, 1_027_200);
+  assert.equal(cycle.review.benchmark.observedSavingsMinor, 1_290_600);
+  assert.equal(cycle.review.benchmark.varianceMinor, 263_400);
+  assert.equal(cycle.review.confidence.level, "high");
+  assert.deepEqual(cycle.review.provenance.periodIds,
+    ["synthetic-2026-06", "synthetic-2026-07"]);
+});
+
+test("cycle storage accepts only an action id and reset clears all local cycle state", () => {
+  const storage = memoryStorage();
+  assert.equal(readOperatingCycleSelection(storage).status, "empty");
+  assert.equal(writeOperatingCycleSelection(storage, "platform-routing-policy").ok, true);
+  assert.deepEqual(JSON.parse(storage.getItem(OPERATING_CYCLE_STORAGE_KEY)), {
+    schemaVersion: "finops-operating-cycle-selection/1.0.0", actionId: "platform-routing-policy",
+  });
+  assert.equal(validateOperatingCycleSelection({ schemaVersion: "finops-operating-cycle-selection/1.0.0",
+    actionId: "platform-routing-policy", prompt: "forbidden" }).valid, false);
+  assert.equal(clearOperatingCycleSelection(storage).ok, true);
+  assert.equal(storage.getItem(OPERATING_CYCLE_STORAGE_KEY), null);
+  assert.equal(readOperatingCycleSelection(storage).status, "empty");
+});
+
+test("empty, incompatible, and no-comparison cycles never imply verification", async () => {
+  const input = await fixture();
+  const doc = parseHtml(await read("src/evolution.html"));
+  const empty = projectOperatingCycle(input, { status: "empty", selection: null });
+  assert.match(textOf(renderOperatingCycle(doc, empty)), /No verification exists/);
+  const incompatible = projectOperatingCycle(input, { status: "selected", selection: {
+    schemaVersion: "finops-operating-cycle-selection/1.0.0", actionId: "removed-action",
+  } });
+  assert.equal(incompatible.status, "incompatible");
+  assert.match(textOf(renderOperatingCycle(doc, incompatible)), /cannot be read/);
+  const unsupported = projectOperatingCycle(input, { status: "selected", selection: {
+    schemaVersion: "finops-operating-cycle-selection/1.0.0", actionId: "support-cache-policy",
+  } });
+  assert.equal(unsupported.status, "no_valid_comparison");
+  const text = textOf(renderOperatingCycle(doc, unsupported));
+  assert.match(text, /not verified/);
+  assert.doesNotMatch(text, /Observed savings/);
 });

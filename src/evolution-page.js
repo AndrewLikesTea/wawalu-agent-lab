@@ -110,8 +110,11 @@ import { renderConsolidatedJourney } from "/finops-journey-consolidated-view.js"
 import { renderRecurringReviewWorkspace } from "/recurring-review-workspace-view.js";
 import { buildMonthlyReviewProjection, MONTHLY_REVIEW_INPUT_VERSION } from "/monthly-review-projection.js";
 import { renderMonthlyReviewProjection } from "/monthly-review-projection-view.js";
-import { buildMonthlyFinopsReview } from "/monthly-finops-review.js";
-import { renderMonthlyFinopsReview } from "/monthly-finops-review-view.js";
+import {
+  clearOperatingCycleSelection, projectOperatingCycle, readOperatingCycleSelection,
+  writeOperatingCycleSelection,
+} from "/monthly-finops-review.js";
+import { renderOperatingCycle } from "/monthly-finops-review-view.js";
 // The returning lead's question — "where do I start this month?" — and the one
 // answer to it. The contract is pure and clock-free; the clock is injected at
 // the call sites below, which is what makes the same records give one answer.
@@ -3505,10 +3508,24 @@ async function init() {
     try {
       const response = await fetch("/monthly-finops-review-fixture.json", { cache: "no-store" });
       if (!response.ok) throw new Error(`fixture unavailable: ${response.status}`);
-      renderMonthlyFinopsReview(document, buildMonthlyFinopsReview(await response.json()));
+      const fixture = await response.json();
+      const storage = browserFinopsWorkspaceStorage();
+      const paintCycle = () => renderOperatingCycle(document,
+        projectOperatingCycle(fixture, readOperatingCycleSelection(storage)), {
+          onSelect(actionId) {
+            writeOperatingCycleSelection(storage, actionId);
+            paintCycle();
+          },
+          onReset() {
+            clearOperatingCycleSelection(storage);
+            paintCycle();
+          },
+        });
+      paintCycle();
       document.querySelector('[data-shell-destination="monthly-review"]')?.click();
     } catch {
-      renderMonthlyReviewProjection(document, {});
+      renderOperatingCycle(document, { schemaVersion: "finops-operating-cycle/1.0.0",
+        status: "incompatible", review: null, actions: [] });
       document.querySelector('[data-shell-destination="monthly-review"]')?.click();
     } finally {
       monthlyPreviewEntry.disabled = false;

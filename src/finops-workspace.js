@@ -55,7 +55,7 @@ import {
   FINOPS_COMMITMENT_ACTION_FIELDS, FINOPS_COMMITMENT_CLAIM_FIELDS,
   FINOPS_COMMITMENT_CONFIDENCE_FIELDS, FINOPS_COMMITMENT_ENVELOPE_FIELDS,
   FINOPS_COMMITMENT_PROVENANCE_FIELDS, FINOPS_COMMITMENT_STATUSES, FINOPS_LABELS_KEY,
-  FINOPS_PERIOD_FIELDS, FINOPS_WORKSPACE_KEY, FINOPS_WORKSPACE_VERSION,
+  FINOPS_PERIOD_FIELDS, FINOPS_WORKSPACE_KEY, FINOPS_WORKSPACE_VERSION, OPERATING_CYCLE_STORAGE_KEY,
 } from "./finops-workspace-contract.js";
 import { MIGRATION_STATUS, migrateFinopsWorkspace } from "./finops-workspace-migrations.js";
 import { ORG_UNIT_LABEL_STORAGE_KEY, readOrgUnitLabels } from "./org-unit-labels.js";
@@ -763,7 +763,8 @@ const KEY_CLEARED = (storage, key) => {
  * promised. Shiplog decisions and releases are not touched.
  */
 export function forgetFinopsWorkspace(storage) {
-  const keys = [FINOPS_WORKSPACE_KEY, ORG_UNIT_LABEL_STORAGE_KEY, MONTHLY_ACTION_KEY];
+  const keys = [FINOPS_WORKSPACE_KEY, ORG_UNIT_LABEL_STORAGE_KEY, MONTHLY_ACTION_KEY,
+    OPERATING_CYCLE_STORAGE_KEY];
   try {
     for (const key of keys) clearKey(storage, key);
     if (!keys.every((key) => KEY_CLEARED(storage, key))) {
