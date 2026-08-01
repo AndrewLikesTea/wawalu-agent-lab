@@ -845,16 +845,13 @@
         </details>
       </nav>
 
-      <!-- THE SCREEN HEADER, which is what is left of the "Working area" control
-           after #819 collapsed its four doors into the one navigation above. The
-           rail listed the destinations and this listed them again; a reader had to
-           learn which of two identical lists changed what was on screen. The doors
-           are the rail's now. What stays here is the thing the rail cannot say —
-           which screen is open, and the question it answers — plus the one live
-           region that speaks when it changes. -->
+      <!-- The rail owns destination controls; this header names the open screen,
+           its question, and announces changes. -->
       <div class="workspace-switch" id="finops-workspace-switch" role="group" data-workspace-frame="true" data-workspace-destination="answer" aria-labelledby="finops-workspace-switch-title" aria-describedby="finops-workspace-switch-note">
         <h2 class="eyebrow" id="finops-workspace-switch-title">Working area</h2>
         <p class="workspace-switch-note" id="finops-workspace-switch-note">One destination is open at a time. The answer above stays on screen in all four.</p>
+        <button id="monthly-finops-entry" type="button" aria-expanded="false" aria-controls="monthly-finops-review">Monthly review preview</button>
+        <section id="monthly-finops-review" hidden></section>
         <!-- WHICH SCREEN THE READER IS STANDING IN, and the question it answers.
              The navigation above says what may be pressed; this says what is
              open, and it is the node the keyboard is handed on every change.

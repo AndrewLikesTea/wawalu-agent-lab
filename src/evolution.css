@@ -3147,6 +3147,23 @@ section[data-workspace-current="true"] { box-shadow:-6px 0 0 0 var(--import-wash
 
 .workspace-switch { margin:18px 0 0; border:1px solid var(--panel-border); border-radius:12px; padding:14px 16px; background:#fff; }
 .workspace-switch-note { margin:6px 0 0; max-width:70ch; color:var(--ink-muted); font-size:13px; line-height:1.55; }
+#monthly-finops-entry { margin-top:12px; min-height:44px; }
+.monthly-finops-review { margin-top:16px; border-top:1px solid var(--panel-border); padding-top:18px; }
+.monthly-finops-review:focus-visible { outline:3px solid var(--focus-ring); outline-offset:4px; }
+.monthly-finops-review h2 { margin:5px 0 8px; font-size:clamp(24px,4vw,36px); }
+.monthly-finops-finding { margin:0; max-width:62ch; font-size:19px; font-weight:700; line-height:1.4; }
+.monthly-finops-change { margin:8px 0 0; color:var(--ink-muted); }
+.monthly-finops-decision { margin-top:18px; border-left:3px solid var(--import-accent); padding-left:14px; }
+.monthly-finops-decision h3 { margin:0 0 6px; font-size:17px; }
+.monthly-finops-verdict,.monthly-finops-action { margin:0; font-weight:700; }
+.monthly-finops-support { margin-top:18px; }
+.monthly-finops-support summary { cursor:pointer; font-weight:700; }
+.monthly-finops-support summary:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.monthly-finops-support dl { display:grid; grid-template-columns:minmax(120px,.3fr) 1fr; gap:7px 14px; }
+.monthly-finops-support dt { font-weight:700; }
+.monthly-finops-support dd { margin:0; color:var(--ink-muted); overflow-wrap:anywhere; }
+.monthly-finops-boundary { color:var(--ink-muted); font-size:12px; }
+@media (max-width:620px) { .monthly-finops-support dl { grid-template-columns:1fr; gap:3px; } }
 /* #819: no `.workspace-switch-list` or `.workspace-switch-door`. The shell's copy
    of the four doors is gone; the one list is the rail's, styled as
    `.workspace-dest` above, and its open state is marked there. */

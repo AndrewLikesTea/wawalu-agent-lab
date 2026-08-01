@@ -3397,6 +3397,25 @@ function paintConsolidatedJourney() {
 }
 
 async function init() {
+  const monthlyEntry = document.getElementById("monthly-finops-entry");
+  monthlyEntry?.addEventListener("click", async () => {
+    const open = monthlyEntry.getAttribute("aria-expanded") === "true";
+    if (open) {
+      document.getElementById("monthly-finops-review").hidden = true;
+      monthlyEntry.setAttribute("aria-expanded", "false");
+      monthlyEntry.textContent = "Monthly review preview";
+      return;
+    }
+    const [{ buildMonthlyFinopsReview }, { MONTHLY_FINOPS_REVIEW_FIXTURE }, { renderMonthlyFinopsReview }]
+      = await Promise.all([
+        import("/monthly-finops-review.js"),
+        import("/monthly-finops-review-fixture.js"),
+        import("/monthly-finops-review-view.js"),
+      ]);
+    renderMonthlyFinopsReview(document, buildMonthlyFinopsReview(MONTHLY_FINOPS_REVIEW_FIXTURE));
+    monthlyEntry.setAttribute("aria-expanded", "true");
+    monthlyEntry.textContent = "Close monthly review preview";
+  });
   if (!document.getElementById("department-priority")) return;
   // Preserve bookmarks to deleted summary regions. This is a local fragment
   // replacement only: no redirect, request, storage, or server coupling.
