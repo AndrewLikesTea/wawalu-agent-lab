@@ -270,6 +270,9 @@ test("social page is wired, labeled, and linked from the other pages", async () 
   assert.match(page, /id="post-image"[^>]*type="file"[^>]*accept="image\/png,image\/jpeg,image\/gif,image\/webp"/);
   assert.match(page, /href="\/paint\/"/);
   assert.match(page, /id="compose-preview-image" alt=""/);
+  const previewFailure = "We couldn’t create a preview of the uploaded image. Remove the image, upload the file again, and check the preview before publishing.";
+  assert.ok(page.includes(`<p id="compose-preview-error" hidden>${previewFailure}</p>`));
+  assert.ok(wiring.includes(`setStatus("${previewFailure}", true);`));
   assert.match(page, /id="post-image-alt"/);
   assert.match(page, /id="post-media-status" role="status" aria-live="polite"/);
   assert.match(page, /id="post-submit"[^>]*aria-describedby="social-notice"/);
