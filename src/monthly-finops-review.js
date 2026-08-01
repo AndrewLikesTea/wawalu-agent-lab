@@ -1,127 +1,164 @@
-// Executive monthly review contract. Pure, clock-free, and integer-based until
-// display rounding so the same versioned fixture always produces one answer.
-export const MONTHLY_FINOPS_FIXTURE_VERSION = "monthly-finops-review-fixture/1.0.0";
-export const MONTHLY_FINOPS_REVIEW_VERSION = "monthly-finops-review/1.0.0";
+// Verification brief contract. This module owns the definitions before the UI:
+// it is pure, clock-free, and uses integer minor currency units until display.
+export const MONTHLY_FINOPS_FIXTURE_VERSION = "monthly-finops-review-fixture/2.0.0";
+export const MONTHLY_FINOPS_REVIEW_VERSION = "monthly-finops-review/2.0.0";
 
 export const MONTHLY_FINOPS_METRIC_CONTRACTS = Object.freeze({
-  spendChange: Object.freeze({
-    question: "How did total invoiced spend change between the two named periods?",
-    formula: "changeMinor = currentPeriod.spendMinor - priorPeriod.spendMinor; changePercent = changeMinor / priorPeriod.spendMinor * 100",
-    population: "All invoiced spend represented by each fixture period, in the fixture currency.",
-    rounding: "Round changePercent to one decimal, with exact half-ties away from zero; do not round changeMinor.",
-    excluded: "Forecasts, annualization, currency conversion, and attribution of the change to an action.",
+  selectedAction: Object.freeze({
+    question: "Which recorded savings action are we verifying?",
+    definition: "The sole action with selected=true in the bundled fixture.",
+    excluded: "Unselected opportunities and actions inferred from spend movement.",
   }),
-  priorCommitment: Object.freeze({
-    question: "Did the recorded prior commitment hold?",
-    formula: "verified iff both comparison period IDs occur in evidencePeriodIds and observedReductionTenthsPercent >= targetReductionTenthsPercent",
-    population: "Only the commitment's recorded scope and its two named evidence periods.",
-    excluded: "Causal attribution and any unrecorded or differently scoped commitment.",
+  expectedSavings: Object.freeze({
+    question: "What savings did the selected action commit to deliver next period?",
+    formula: "selectedAction.expectedSavingsMinor, in fixture currency minor units",
+    population: "The selected action's named scope in its verificationPeriodId only.",
+    excluded: "Annualization, forecasts beyond that period, and unselected actions.",
+  }),
+  observedSavings: Object.freeze({
+    question: "What savings were observed for that same scope and period?",
+    formula: "observation.baselinePeriod.spendMinor - observation.verificationPeriod.spendMinor",
+    population: "observation.scope, compared across the action's baselinePeriodId and verificationPeriodId. A scope that does not equal the action's own scope is reported as a failed confidence signal, not a like-for-like benchmark.",
+    excluded: "Causal attribution: the result is associated with, not proved caused by, the action.",
+  }),
+  variance: Object.freeze({
+    question: "How far above or below expectation did the result land?",
+    formula: "observedSavingsMinor - expectedSavingsMinor",
+    rounding: "No rounding; calculate in integer minor currency units.",
+  }),
+  attainment: Object.freeze({
+    question: "What share of expected savings was observed?",
+    formula: "observedSavingsMinor / expectedSavingsMinor; null when expectedSavingsMinor is zero",
+    rounding: "Store the ratio unrounded; display as a percentage rounded to one decimal, half away from zero.",
   }),
   confidence: Object.freeze({
-    question: "Is the conclusion supported by enough comparable records to act?",
-    formula: "coveragePercent = recordsComparable / recordsExpected * 100; high iff rounded coveragePercent >= minimumCoverageTenthsPercent / 10",
-    population: "Expected records in the two-period comparison; comparable means present in both periods under the fixture's methodVersion.",
-    excluded: "Statistical significance, forecast confidence, and evidence outside the fixture.",
+    question: "How strong are the bundled signals behind this comparison?",
+    formula: "Count three booleans: complete observation; coverage >= threshold; observation scope equals the selected action's scope. high=3, moderate=2, low=0 or 1.",
+    population: "Only signals encoded in this bundled synthetic fixture.",
+    excluded: "Statistical significance, causal confidence, customer data, and external evidence.",
   }),
   provenance: Object.freeze({
-    question: "What exactly produced this answer?",
-    formula: "The immutable tuple sourceType + methodVersion + generatedAt + ordered periodIds.",
-    excluded: "Credentials, raw customer rows, prompts, and live integrations.",
+    question: "Which synthetic source periods produced the benchmark?",
+    definition: "Ordered baselinePeriodId and verificationPeriodId plus fixture sourceType and methodVersion.",
+    excluded: "Credentials, raw customer rows, prompts, storage, and live integrations.",
   }),
-  nextAction: Object.freeze({
-    question: "What is the one action leadership should take next?",
-    formula: "Select the sole candidate whose integer priority equals 1; reject zero or multiple winners.",
-    excluded: "Every candidate below priority 1 and any action not encoded in the fixture.",
+  followUp: Object.freeze({
+    question: "What is the single highest-priority follow-up?",
+    formula: "Select exactly one candidate whose outcome equals met when variance >= 0, otherwise missed.",
+    excluded: "Equal-weight alerts, secondary recommendations, and actions not bundled in the fixture.",
   }),
 });
 
 const freeze = Object.freeze;
 
-/** One decimal, with an exact half rounded away from zero in both directions. */
+const integer = (value, name) => {
+  if (!Number.isSafeInteger(value) || value < 0) {
+    throw new TypeError(`${name} must be a non-negative safe integer`);
+  }
+  return value;
+};
+
+/** One decimal, with exact half-ties away from zero. */
 export function roundOne(value) {
   if (typeof value !== "number" || !Number.isFinite(value)) return null;
   const magnitude = Math.abs(value) * 10;
-  // Scaling a decimal such as 10.05 can land one ulp below 100.5. The tolerance
-  // corrects representation error only; floor still decides every non-half.
   const tolerance = Number.EPSILON * Math.max(1, magnitude) * 2;
   return Math.sign(value) * (Math.floor(magnitude + 0.5 + tolerance) / 10);
 }
 
-const requiredInteger = (value, name) => {
-  if (!Number.isSafeInteger(value) || value < 0) throw new TypeError(`${name} must be a non-negative safe integer`);
-  return value;
-};
-
-const percentChange = (current, prior) => {
-  if (prior === 0) return null;
-  return roundOne(((current - prior) * 100) / prior);
-};
-
 /**
- * Questions, in order:
- * 1. How did total invoiced spend change between the two named periods?
- * 2. Did the recorded, scoped prior commitment meet its threshold?
- * 3. Is comparable-record coverage sufficient to act?
- * 4. What exactly produced the answer?
- * 5. What is the single highest-priority next action?
+ * Answers, in order:
+ * 1. What action and one-period expectation are being verified?
+ * 2. What was observed in that exact scope and period?
+ * 3. Did it meet expectation, by how much, and with what confidence?
+ * 4. Which bundled periods produced the answer?
+ * 5. What is the one follow-up action?
  *
- * Deliberately excluded: forecasts, annualization, causal attribution, customer
- * data, unrecorded commitments, and every action below priority one.
+ * Deliberately leaves out causal claims, annualization, live data, alert lists,
+ * and any recommendation other than the one selected by the documented rule.
  */
 export function buildMonthlyFinopsReview(fixture) {
   if (fixture?.schemaVersion !== MONTHLY_FINOPS_FIXTURE_VERSION) {
     throw new TypeError("unsupported monthly FinOps fixture version");
   }
-  const prior = requiredInteger(fixture.priorPeriod?.spendMinor, "priorPeriod.spendMinor");
-  const current = requiredInteger(fixture.currentPeriod?.spendMinor, "currentPeriod.spendMinor");
-  const changeMinor = current - prior;
-  const changePercent = percentChange(current, prior);
-  const comparable = requiredInteger(fixture.confidence?.recordsComparable, "confidence.recordsComparable");
-  const expected = requiredInteger(fixture.confidence?.recordsExpected, "confidence.recordsExpected");
-  const coveragePercent = expected === 0 ? null : roundOne((comparable * 100) / expected);
-  const threshold = requiredInteger(fixture.confidence?.minimumCoverageTenthsPercent,
-    "confidence.minimumCoverageTenthsPercent") / 10;
-  const confident = coveragePercent !== null && coveragePercent >= threshold;
 
-  const commitment = fixture.commitment;
-  const periodsMatch = [fixture.priorPeriod.id, fixture.currentPeriod.id]
-    .every((id) => commitment?.evidencePeriodIds?.includes(id));
-  const commitmentMet = periodsMatch
-    && Number.isSafeInteger(commitment.targetReductionTenthsPercent)
-    && Number.isSafeInteger(commitment.observedReductionTenthsPercent)
-    && commitment.observedReductionTenthsPercent >= commitment.targetReductionTenthsPercent;
+  const selected = (fixture.actions ?? []).filter((action) => action.selected === true);
+  if (selected.length !== 1) throw new TypeError("exactly one selected savings action is required");
+  const action = selected[0];
+  const observation = fixture.observation;
+  const periodsAligned = action.baselinePeriodId === observation?.baselinePeriod?.id
+    && action.verificationPeriodId === observation?.verificationPeriod?.id;
+  if (!periodsAligned) throw new TypeError("selected action and observation periods must match");
 
-  const winners = (fixture.candidateActions ?? []).filter((candidate) => candidate.priority === 1);
-  if (winners.length !== 1) throw new TypeError("exactly one priority-1 action is required");
-  const action = winners[0];
-  const direction = changeMinor < 0 ? "fell" : changeMinor > 0 ? "rose" : "held steady";
-  const finding = changePercent === null
-    ? `Spend ${direction}, but percentage change is unavailable because prior spend was zero.`
-    : `Spend ${direction} ${Math.abs(changePercent).toFixed(1)}%; the prior commitment ${commitmentMet ? "met" : "did not meet"} its recorded target.`;
+  const expectedSavingsMinor = integer(action.expectedSavingsMinor, "expectedSavingsMinor");
+  const baselineSpendMinor = integer(observation.baselinePeriod.spendMinor, "baselineSpendMinor");
+  const observedSpendMinor = integer(observation.verificationPeriod.spendMinor, "observedSpendMinor");
+  const observedSavingsMinor = baselineSpendMinor - observedSpendMinor;
+  const varianceMinor = observedSavingsMinor - expectedSavingsMinor;
+  const attainment = expectedSavingsMinor === 0 ? null : observedSavingsMinor / expectedSavingsMinor;
+
+  const comparable = integer(fixture.confidence.recordsComparable, "recordsComparable");
+  const expectedRecords = integer(fixture.confidence.recordsExpected, "recordsExpected");
+  const threshold = integer(fixture.confidence.minimumCoverageTenthsPercent,
+    "minimumCoverageTenthsPercent") / 10;
+  if (comparable > expectedRecords) throw new TypeError("comparable records cannot exceed expected records");
+  const coveragePercent = expectedRecords === 0 ? null : roundOne((comparable * 100) / expectedRecords);
+  // Matching periods are a precondition, not a signal: they are already enforced
+  // above, so counting them would pin one of three signals permanently true and
+  // make the documented low level unreachable. Scope is the claim that is still
+  // open here — expected savings are scoped to the action, so an observation that
+  // does not name that same scope is not a like-for-like benchmark.
+  const signals = freeze({
+    observationComplete: observation.complete === true,
+    coverageMeetsThreshold: coveragePercent !== null && coveragePercent >= threshold,
+    scopeMatches: observation.scope === action.scope,
+  });
+  const signalCount = Object.values(signals).filter(Boolean).length;
+  const confidenceLevel = signalCount === 3 ? "high" : signalCount === 2 ? "moderate" : "low";
+
+  const outcome = varianceMinor >= 0 ? "met" : "missed";
+  const candidates = (fixture.followUpActions ?? []).filter((candidate) => candidate.outcome === outcome);
+  if (candidates.length !== 1) throw new TypeError(`exactly one ${outcome} follow-up action is required`);
+  const followUp = candidates[0];
+  const finding = varianceMinor > 0
+    ? `${action.name} exceeded its next-period savings expectation.`
+    : varianceMinor === 0
+      ? `${action.name} met its next-period savings expectation exactly.`
+      : `${action.name} missed its next-period savings expectation.`;
 
   return freeze({
     schemaVersion: MONTHLY_FINOPS_REVIEW_VERSION,
     reviewId: fixture.reviewId,
-    finding: freeze({ statement: finding, changeMinor, changePercent, direction }),
-    commitment: freeze({
-      status: commitmentMet ? "verified" : "not_verified",
-      statement: commitment.statement,
-      targetPercent: commitment.targetReductionTenthsPercent / 10,
-      observedPercent: commitment.observedReductionTenthsPercent / 10,
-      basis: periodsMatch ? "Both named comparison periods match the commitment evidence."
-        : "The commitment does not name both comparison periods.",
+    question: "Did our last action deliver the expected savings?",
+    selectedAction: freeze({ id: action.id, name: action.name, scope: action.scope }),
+    benchmark: freeze({
+      currency: fixture.currency,
+      observedScope: observation.scope ?? null,
+      expectedSavingsMinor,
+      observedSavingsMinor,
+      varianceMinor,
+      attainment,
+      baselineSpendMinor,
+      observedSpendMinor,
+      verificationPeriodLabel: observation.verificationPeriod.label,
     }),
+    finding: freeze({ outcome, statement: finding }),
     confidence: freeze({
-      level: confident ? "high" : "insufficient", coveragePercent, thresholdPercent: threshold,
-      basis: `${comparable} of ${expected} expected records are comparable.`,
+      level: confidenceLevel,
+      signalCount,
+      signalTotal: 3,
+      coveragePercent,
+      thresholdPercent: threshold,
+      signals,
+      basis: `${signalCount} of 3 bundled verification signals pass.`,
     }),
     provenance: freeze({
       sourceType: fixture.provenance.sourceType,
       methodVersion: fixture.provenance.methodVersion,
-      generatedAt: fixture.provenance.generatedAt,
-      periodIds: freeze([fixture.priorPeriod.id, fixture.currentPeriod.id]),
-      boundary: "Bundled synthetic fixture; no customer data, credentials, storage, or live integration.",
+      periodIds: freeze([action.baselinePeriodId, action.verificationPeriodId]),
+      periodLabels: freeze([observation.baselinePeriod.label, observation.verificationPeriod.label]),
+      boundary: "Bundled synthetic data only; no credentials, customer data, prompts, storage, or live integrations.",
     }),
-    nextAction: freeze({ rank: 1, id: action.id, statement: action.statement, evidence: action.evidence }),
+    nextAction: freeze({ rank: 1, id: followUp.id, statement: followUp.statement, evidence: followUp.evidence }),
   });
 }
