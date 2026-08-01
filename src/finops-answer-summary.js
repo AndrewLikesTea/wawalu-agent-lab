@@ -34,8 +34,14 @@
 //    the block says before anything has been imported, which is the state every
 //    reader lands in.
 //
-// 4. NO STORAGE, NO NETWORK, NO CLOCK. The fixture is generated in-process by
-//    example-dataset.js and the as-of phrase is the analysis's own window.
+// 4. NO STORAGE AND NO NETWORK. The fixture is generated in-process by
+//    example-dataset.js and the as-of phrase is the analysis's own window —
+//    still never a clock. The one clock read on this path is `answerBlock`'s
+//    own, stamped into each figure's provenance record as `computedAt`, and this
+//    module is where the bundled figure is in fact computed: evaluating it IS
+//    the moment the record reports. `answerBlock` takes the clock as an option
+//    and calls it, so a test injects its own; nothing is captured at import in
+//    the contract module itself.
 
 import { loadExampleDataset } from "./example-dataset.js";
 import { gradeExport } from "./export-gradability.js";
@@ -64,8 +70,9 @@ const analysis = bundledAnalysis();
  *
  * Carries `figure` and its raw `ratio`, the `unit` that figure is in, the
  * confidence/provenance fields (`confidence`, `basis`, `state`, `available`),
- * and the next action with the destination it targets. `answerBlock()` freezes
- * its own result; this re-freezes the two fields added beside it.
+ * the next action with the destination it targets, and one `provenance` record
+ * per published figure — inputs, sample, method, computed-at. `answerBlock()`
+ * freezes its own result; this re-freezes the two fields added beside it.
  */
 export const FINOPS_ANSWER_SUMMARY = Object.freeze({
   ...answerBlock({

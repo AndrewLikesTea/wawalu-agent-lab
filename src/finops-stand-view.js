@@ -66,6 +66,135 @@ export const ANSWER_EVIDENCE_IDS = Object.freeze({
 const EVIDENCE_MARK = "headlineEvidence";
 
 /**
+ * WHERE THE ONE NUMBER CAME FROM, one step down from the number.
+ *
+ * A disclosure key, not a member of `STAND_DISCLOSURE_ORDER`: this one lives
+ * INSIDE `#finops-answer` rather than in the disclosure container further down
+ * the region, because it explains the answer block's own two figures and a
+ * reader who has to scroll past four other layers to find it is being asked to
+ * go looking. It is built to the same shape as every other disclosure on this
+ * region — same class, same derived ids, same `aria-expanded`/`aria-controls`
+ * pair, same state chip painted by `paintStandDisclosureState` — so it is one
+ * disclosure mechanism on this page, not two.
+ *
+ * IT CARRIES NO LINK. tests/finops-page-structure.test.js requires the decision
+ * summary to hold exactly one anchor, which is the one next action; a second
+ * operable destination in here would be the ranking decision handed back.
+ */
+export const ANSWER_PROVENANCE_KEY = "answer-provenance";
+
+/** The trigger names what is behind it. "Details" would name nothing. */
+export const ANSWER_PROVENANCE_LABEL =
+  "Where these numbers came from — inputs, sample size, method, and when";
+
+/** The figures the disclosure explains, in the order the block states them. */
+const PROVENANCE_FIGURES = Object.freeze(["headlineMetric", "nextAction"]);
+
+/** The same formatters the rest of this page reads counts and instants with. */
+const PROVENANCE_COUNT = new Intl.NumberFormat("en-US");
+const PROVENANCE_INSTANT = new Intl.DateTimeFormat(undefined, {
+  dateStyle: "medium", timeStyle: "short",
+});
+
+/** An instant a reader can check a meeting against, or null. Never epoch millis. */
+function readableInstant(iso) {
+  const date = iso ? new Date(iso) : null;
+  return date && Number.isFinite(date.getTime()) ? PROVENANCE_INSTANT.format(date) : null;
+}
+
+/**
+ * One figure's record as `<dt>`/`<dd>` rows.
+ *
+ * EVERY DEGENERATE CASE IS A SENTENCE. A figure that read no input and no row
+ * gets ONE row saying so — not an empty list, not a bare "0", and not a
+ * timestamp attached to nothing. A figure that has inputs but read no rows says
+ * that in the sample row, in words, and keeps the other three.
+ */
+function provenanceRows(record) {
+  const name = record?.label ?? record?.figure ?? "This figure";
+  if (!record || record.empty) {
+    return [{ term: name, detail: "Nothing has been read for this figure yet, so there is no "
+      + "input, no sample, no method, and no time to report behind it." }];
+  }
+  const count = record.samples?.count ?? null;
+  const unit = record.samples?.unit ?? "record";
+  const instant = readableInstant(record.computedAt);
+  return [
+    { term: `${name} · inputs`,
+      detail: record.inputs.length
+        ? record.inputs.join(", ")
+        : "No named input reached this figure; it was decided from the export's state alone." },
+    { term: `${name} · sample`,
+      detail: count === null
+        ? "No sample count was recorded for this figure."
+        : count === 0
+          ? `No ${unit}s were read for this figure, so nothing was counted into it.`
+          : `${PROVENANCE_COUNT.format(count)} ${unit}${count === 1 ? "" : "s"}` },
+    { term: `${name} · method`,
+      detail: record.method?.label ?? "No published rule states how this figure was computed." },
+    { term: `${name} · computed`,
+      detail: instant ?? "No computation time was recorded for this figure." },
+  ];
+}
+
+/**
+ * Build and fill the provenance disclosure inside the answer block.
+ *
+ * Collapsed on every build and never re-opened by a repaint: a reader who opened
+ * it keeps it open because the node is built once and only its list is replaced.
+ * Keyboard operation is the native `details`/`summary` pair's — Enter and Space
+ * both toggle it, and the `toggle` listener mirrors the state into
+ * `aria-expanded`, `data-disclosure`, and the visible word, exactly as every
+ * other disclosure on this region does.
+ */
+export function applyAnswerProvenance(doc, summary) {
+  const block = byId(doc, ANSWER_BLOCK_IDS.block);
+  if (!block || !doc.createElement) return null;
+  const ids = standDisclosureIds(ANSWER_PROVENANCE_KEY);
+  let details = byId(doc, ids.details);
+  if (!details) {
+    details = doc.createElement("details");
+    details.className = "stand-disclosure answer-provenance";
+    details.id = ids.details;
+    details.dataset.disclosure = "collapsed";
+    details.dataset.mounted = "true";
+    const trigger = doc.createElement("summary");
+    trigger.id = ids.summary;
+    trigger.setAttribute("aria-expanded", "false");
+    trigger.setAttribute("aria-controls", ids.list);
+    // h4: the block's own question is the h3 above it, so this is the level
+    // below it rather than a second peer heading inside the same region.
+    const heading = doc.createElement("h4");
+    heading.className = "stand-disclosure-heading";
+    const name = doc.createElement("span");
+    name.id = ids.heading;
+    name.textContent = ANSWER_PROVENANCE_LABEL;
+    const state = doc.createElement("span");
+    state.className = "stand-disclosure-state";
+    state.id = ids.state;
+    state.dataset.disclosure = "collapsed";
+    heading.append(name, state);
+    trigger.append(heading);
+    const list = doc.createElement("dl");
+    list.className = "stand-disclosure-list";
+    list.id = ids.list;
+    details.append(trigger, list);
+    block.append(details);
+    details.addEventListener("toggle", () => paintStandDisclosureState(doc, ANSWER_PROVENANCE_KEY));
+  }
+  const list = byId(doc, ids.list);
+  const records = summary?.provenance ?? null;
+  if (list) {
+    const rows = records
+      ? PROVENANCE_FIGURES.flatMap((key) => provenanceRows(records[key]))
+      : provenanceRows(null);
+    list.replaceChildren(...rows.map((row) => definition(doc, row)));
+  }
+  paintStandDisclosureState(doc, ANSWER_PROVENANCE_KEY);
+  return details;
+}
+
+/**
  * PROMOTE THE ONE PANEL THAT BACKS THE FIGURE, and only ever one.
  *
  * `summary.evidence.panelId` names it; this resolves that id against the real
@@ -152,6 +281,10 @@ export function applyAnswerBlock(doc, summary = FINOPS_ANSWER_SUMMARY) {
   // malformed has to take the promotion DOWN, not leave the authored one
   // standing over a figure it no longer describes.
   applyAnswerEvidence(doc, summary);
+  // …and the record behind each figure, one step down from it. Unconditional for
+  // the same reason: a block with no payload must say it has nothing behind its
+  // numbers rather than leave the last payload's provenance standing under them.
+  applyAnswerProvenance(doc, summary);
   if (!summary) return null;
   block.dataset.state = summary.state ?? "unavailable";
   block.dataset.available = String(summary.available === true);
