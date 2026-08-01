@@ -222,12 +222,12 @@ test("the peer position is authored directly before the recommended action", asy
   assert.ok(action >= 0 && position >= 0);
   assert.equal(action, position + 1, "the action block follows the position block directly");
 
-  // The authored default is a pending state, never the bare word "Unavailable"
-  // and never a hand-written band: every figure in this region is computed.
+  // The authored default is the same complete bundled result as the runtime
+  // composition, so the first render never waits on JavaScript to become useful.
   const value = byId(document, FIRST_RUN_IDS.peerValue);
-  assert.equal(value.dataset.available, "false");
-  assert.notEqual(textOf(value), "Unavailable");
-  assert.doesNotMatch(textOf(value), /quartile|\$/i);
+  assert.equal(value.dataset.available, "true");
+  assert.equal(textOf(value), buildFirstRunResult().peer.value);
+  assert.equal(value.closest("[hidden]"), null);
 });
 
 test("the internal drill-down is authored in the same area as the peer position", async () => {
@@ -244,12 +244,10 @@ test("the internal drill-down is authored in the same area as the peer position"
   assert.equal(textOf(heading), "Internal drill-down · widest department gap");
   const value = byId(document, FIRST_RUN_IDS.internalValue);
   assert.equal(value.className, "first-run-value");
-  assert.equal(value.dataset.available, "false");
-  // Authored as a pending state: no hand-written band, no department name, and
-  // never the bare word "Unavailable".
-  assert.notEqual(textOf(value), "Unavailable");
-  assert.doesNotMatch(textOf(value), /quartile|band|\$/i);
-  assert.equal(byId(document, FIRST_RUN_IDS.internalDetail).hasAttribute("hidden"), true);
+  assert.equal(value.dataset.available, "true");
+  assert.match(textOf(value), /Invented Department/);
+  assert.match(textOf(value), /full band behind/);
+  assert.equal(byId(document, FIRST_RUN_IDS.internalDetail).hasAttribute("hidden"), false);
   // No new control, so no new tab stop and no new focus trap in this area.
   assert.equal(support.querySelectorAll("button").length, 0);
   assert.equal(support.querySelectorAll("a").length, 0);

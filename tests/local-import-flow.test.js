@@ -599,7 +599,11 @@ test("clearing example data leaves no residue in state, storage, or the URL", as
   // "clear" still means one thing here.
   const pageSource = await readFile(new URL("../src/evolution-page.js", import.meta.url), "utf8");
   assert.match(pageSource, /clearModelOverspendFinding\(document, \{ storage: labelStorage\(\) \}\)/);
-  // And the markup ships no example numbers of its own to fall back on.
+  // The markup now ships the explicitly labelled bundled result so the first
+  // render is useful without waiting for JavaScript. Those bytes are invented
+  // fixture output, not persisted import state or customer savings.
   const html = await readFile(PAGE, "utf8");
-  assert.doesNotMatch(html, /atlas0|39200|154500/);
+  assert.match(html, /33% of analyzed AI spend is recoverable/);
+  assert.match(html, /Bundled synthetic example/);
+  assert.match(html, /not your spend, customer data, or realized savings/);
 });
