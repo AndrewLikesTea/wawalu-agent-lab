@@ -1,4 +1,13 @@
-// The workspace destination rail: four doors, one of them marked as where you are.
+// The workspace navigation: four destinations, one of them marked as where you are.
+//
+// #819. THIS IS NOW THE PAGE'S ONE NAVIGATION CONTROL. It used to be half of one:
+// this rail listed the four destinations and pointed each door at a *panel* inside
+// them, and `finops-workspace-shell.js` shipped a second list — the "Working area"
+// switcher — naming the same four and pointing at the *destination*. Every
+// destination was named twice and only one copy changed what was on screen. There
+// is one list now, here; the shell reads its doors rather than authoring a rival
+// set. `data-destination-target` survives as the panel a door's *contract* names,
+// which keeps the landmark marking and the drift check honest.
 //
 // WHAT THIS FIXES, AND WHY IT IS NOT THE REGION ABOVE IT.
 //
@@ -31,26 +40,24 @@
 // contract by role. A fourth *contract* role would still be a product decision;
 // this is not one.
 //
-// WHAT THE RAIL WILL NOT DO. It does not hide the rest of the page. A focused
-// workspace on a document this long is a tempting place to put a tab-panel
-// switcher, and it would be the wrong one: every panel here is legitimate
-// reading material, several are printed together, and hiding nine of them behind
-// a control means a reader who scrolls past the rail can no longer find what
-// they came for. So "focused" is achieved by naming the parts, marking the
-// current one, and moving the keyboard — never by removing content from the
-// page. Every door is a real anchor with a real href, so it works before this
-// module runs, survives a copy-paste into the address bar, and needs no script
-// to be operable at all.
+// EVERY DOOR IS A REAL ANCHOR with a real href, so it works before this module
+// runs, survives a copy-paste into the address bar, and needs no script to be
+// operable at all. What the doors no longer do is announce: one press changes one
+// screen, and the shell — which owns the screen, its heading and its question —
+// says so once, in one live region. Two regions describing one press is how a
+// screen-reader user learns to ignore both.
 
 import { DESTINATION_ROLE, prioritizedDestination } from "./finops-destination-contract.js";
-import { revealFragmentTarget } from "./deep-link-disclosure.js";
+// The destination names and their reading order, from the executable screen
+// contract rather than re-typed here. A rail that spelled "Departments" itself
+// would be the second place this page decides what a destination is called.
+import { SCREEN_CONTRACT } from "./finops-screen-contract.js";
 
 /** The ids the shipped markup carries. Kept in one place so a test can name them. */
 export const WORKSPACE_NAV_IDS = Object.freeze({
   nav: "finops-workspace-nav",
   title: "finops-workspace-nav-title",
   list: "finops-workspace-nav-list",
-  live: "finops-workspace-nav-live",
   detail: "finops-workspace-nav-detail",
   detailSummary: "finops-workspace-nav-detail-summary",
   detailState: "finops-workspace-nav-detail-state",
@@ -75,14 +82,34 @@ export const WORKSPACE_DESTINATION = Object.freeze({
 export const DEFAULT_DESTINATION = WORKSPACE_DESTINATION.answer;
 
 /**
+ * The fragment each destination owns, and the href each door carries.
+ *
+ * It lives here rather than in the shell because the doors are authored here and
+ * a control cannot point at a vocabulary it does not hold; the shell re-exports
+ * it, so there is still exactly one list of the four fragments. Named for the
+ * destination rather than for a panel inside it: a panel can be renamed, merged,
+ * or moved to another destination, and a link a reader saved to "the evidence"
+ * should survive all three.
+ */
+export const DESTINATION_FRAGMENT = Object.freeze({
+  [WORKSPACE_DESTINATION.answer]: "#workspace-answer",
+  [WORKSPACE_DESTINATION.evidence]: "#workspace-evidence",
+  [WORKSPACE_DESTINATION.department]: "#workspace-departments",
+  [WORKSPACE_DESTINATION.actAndVerify]: "#workspace-act-and-verify",
+});
+
+/**
  * The visible state words. Text, never a colour and never a glyph alone: the
  * shapes beside them are `aria-hidden` decoration, so a reader in greyscale, on
- * paper, or in a screen reader gets the same three words a sighted reader does.
+ * paper, or in a screen reader gets the same two words a sighted reader does.
+ *
+ * "Opens another page" is gone with the door that carried it: act-and-verify is
+ * an in-page destination now, and the Savings Action Center it also has a page
+ * for is still linked from the ranked door above this control.
  */
 export const DESTINATION_STATE_LABEL = Object.freeze({
   current: "Current",
   recommended: "Recommended first",
-  offPage: "Opens another page",
 });
 
 /** Collapsed and expanded, for the rail's one disclosure. */
@@ -92,53 +119,57 @@ export const NAV_DISCLOSURE_LABEL = Object.freeze({
 });
 
 /**
- * The four doors as this page authors them.
+ * What each door needs beyond its name, keyed by the destination it belongs to.
  *
- * No `shape`. The rail used to draw ● ◇ ◈ ◆ beside the four names, and at the
- * 11px those marks ship at they are one silhouette with the detail sanded off —
- * the reader was disambiguating four near-identical diamonds to learn something
- * the four words already say. The names are the vocabulary now, "Current" is the
- * state, and the thick left rule CSS draws is the non-colour cue for it.
+ * The NAME AND THE ORDER ARE NOT HERE. They are `SCREEN_CONTRACT`'s, read below,
+ * because a destination's name is a published product decision and a control that
+ * spelled it a second time is a control that can disagree with the screen it
+ * opens. What is here is the plumbing the contract has no opinion about.
  *
- * `role` is the contract role this door corresponds to, or null for the page's
- * own answer. `fallbackHref` is what the door points at when the bundled record
- * fails its own contract: the destinations are *places*, and a place does not
- * stop existing because a ranking could not be computed, so the rail stays
- * operable and only the recommendation retires. The three fallbacks are the same
- * three the fixture carries, and `destinationHrefDrift` below is what keeps that
- * duplication honest rather than a second source of truth nobody checks.
+ * `role` is the workspace-destination contract role this door corresponds to, or
+ * null for the page's own answer. `fallbackHref` is the panel that contract
+ * points its role at when the bundled record fails validation: the destinations
+ * are *places*, and a place does not stop existing because a ranking could not be
+ * computed. The three fallbacks are the same three the fixture carries, and
+ * `destinationHrefDrift` below is what keeps that duplication honest rather than a
+ * second source of truth nobody checks.
  */
-const AUTHORED_DESTINATIONS = Object.freeze([
-  Object.freeze({
-    key: WORKSPACE_DESTINATION.answer,
+const DOOR_PLUMBING = Object.freeze({
+  [WORKSPACE_DESTINATION.answer]: Object.freeze({
     role: null,
-    name: "The answer",
     fallbackHref: "#finops-first-run",
     answers: "Are we wasting money, how much of the spend is recoverable, and what is the one ranked action?",
     doesNotAnswer: "It does not show the workings behind the figure, and it commits to nothing.",
   }),
-  Object.freeze({
-    key: WORKSPACE_DESTINATION.evidence,
+  [WORKSPACE_DESTINATION.evidence]: Object.freeze({
     role: DESTINATION_ROLE.evidence,
-    name: "Evidence",
     fallbackHref: "#recommendation-evidence",
   }),
-  Object.freeze({
-    key: WORKSPACE_DESTINATION.department,
+  [WORKSPACE_DESTINATION.department]: Object.freeze({
     role: DESTINATION_ROLE.departmentDetail,
-    name: "Departments",
     fallbackHref: "#department-decision-panel",
   }),
-  Object.freeze({
-    key: WORKSPACE_DESTINATION.actAndVerify,
+  [WORKSPACE_DESTINATION.actAndVerify]: Object.freeze({
     role: DESTINATION_ROLE.actAndVerify,
-    name: "Act and verify",
     fallbackHref: "/savings-action-center.html",
   }),
-]);
+});
+
+/**
+ * The four doors, in the screen contract's own order and under its own names.
+ *
+ * `shellDestination` is the join: the contract says "departments" where the
+ * fragment already in readers' address bars says "department", and it publishes
+ * both so neither has to move.
+ */
+const AUTHORED_DESTINATIONS = Object.freeze(SCREEN_CONTRACT.map((screen) => Object.freeze({
+  key: screen.shellDestination,
+  name: screen.name,
+  fragment: DESTINATION_FRAGMENT[screen.shellDestination],
+  ...DOOR_PLUMBING[screen.shellDestination],
+})));
 
 const byId = (doc, id) => doc?.getElementById?.(id) ?? null;
-const collapse = (text) => String(text ?? "").replace(/\s+/g, " ").trim();
 const isInPage = (href) => String(href ?? "").startsWith("#");
 
 /**
@@ -192,15 +223,6 @@ export function destinationHrefDrift(loaded = null) {
   return drift;
 }
 
-/** The accessible name of a destination's landmark, as a reader would hear it. */
-export function destinationLandmarkName(doc, targetId) {
-  const target = targetId ? byId(doc, targetId) : null;
-  if (!target) return null;
-  const labelledBy = target.getAttribute("aria-labelledby");
-  const label = labelledBy ? byId(doc, labelledBy) : null;
-  return collapse(label?.textContent ?? target.getAttribute("aria-label") ?? "") || null;
-}
-
 function stateChip(doc, className, word, shape = null) {
   const chip = doc.createElement("span");
   chip.className = className;
@@ -233,18 +255,18 @@ export function currentDestination(doc) {
  * Mark one door as the current destination.
  *
  * Three channels, deliberately: `aria-current` for the accessibility tree, the
- * word "Current" for everyone reading the rail, and a data attribute for the
+ * word "Current" for everyone reading the control, and a data attribute for the
  * fill and the rule CSS draws. Nothing here is carried by colour.
  *
- * An off-page door is never marked. A reader who follows it is on another
- * document, and a rail claiming they are "currently" in a place they have left
- * is worse than a rail that claims nothing.
+ * It says nothing. The shell calls this on every destination change — a door, a
+ * forwarded link, a step back — and announces the change once itself, with the
+ * screen's name and the question it answers. Marking and announcing are one act
+ * now, and one act gets one voice.
  */
-export function setCurrentDestination(doc, key, { announce = false, opened = 0 } = {}) {
+export function setCurrentDestination(doc, key) {
   const nav = byId(doc, WORKSPACE_NAV_IDS.nav);
   const door = doorFor(doc, key);
-  if (!nav || !door || door.dataset.destinationOffPage === "true") return null;
-  const changed = currentDestination(doc) !== key;
+  if (!nav || !door) return null;
 
   for (const link of doorLinks(doc)) {
     const isCurrent = link === door;
@@ -264,32 +286,7 @@ export function setCurrentDestination(doc, key, { announce = false, opened = 0 }
     if (target) target.dataset.workspaceCurrent = isCurrent ? "true" : "false";
   }
   nav.dataset.current = key;
-
-  // Announce the *change*, never the state. Re-activating the door you are
-  // already standing in repaints nothing and says nothing: a live region that
-  // speaks on every press teaches a screen-reader user to tune it out, and then
-  // the one announcement that mattered is the one they missed.
-  if (announce && changed) announceDestination(doc, door, opened);
   return door;
-}
-
-function announceDestination(doc, door, opened) {
-  const live = byId(doc, WORKSPACE_NAV_IDS.live);
-  const nav = byId(doc, WORKSPACE_NAV_IDS.nav);
-  if (!live) return null;
-  const name = destinationLandmarkName(doc, door.dataset.destinationTarget);
-  const sentences = [`Current destination: ${collapse(door.dataset.destinationName)}.`];
-  if (name) sentences.push(`The keyboard is on “${name}”.`);
-  // A disclosure this rail opened is a change the reader did not ask for, so it
-  // is stated rather than left for them to discover on the way back out.
-  if (opened > 0) {
-    sentences.push(opened === 1
-      ? "The supporting panel it was folded inside is now open."
-      : `The ${opened} supporting panels it was folded inside are now open.`);
-  }
-  live.textContent = sentences.join(" ");
-  if (nav) nav.dataset.announcements = String(Number(nav.dataset.announcements ?? 0) + 1);
-  return live;
 }
 
 /**
@@ -340,10 +337,13 @@ export function applyWorkspaceNav(doc, loaded = null, { hash = "" } = {}) {
   for (const entry of destinations) {
     const link = doorFor(doc, entry.key);
     if (!link) continue;
-    link.setAttribute("href", entry.href);
+    // The DESTINATION, not the panel. The href is what a reader copies out of the
+    // address bar and what the shell resolves back into a screen; the contract's
+    // panel href rides along as `data-destination-target`, which is what marks the
+    // landmark a door leads to and what `destinationHrefDrift` checks.
+    link.setAttribute("href", entry.fragment);
     link.dataset.destinationName = entry.name;
     link.dataset.destinationRole = entry.role ?? "answer";
-    link.dataset.destinationOffPage = entry.offPage ? "true" : "false";
     if (entry.targetId) link.dataset.destinationTarget = entry.targetId;
 
     // The recommendation, in the same words and from the same clause as the
@@ -363,8 +363,9 @@ export function applyWorkspaceNav(doc, loaded = null, { hash = "" } = {}) {
   // A fragment already in the address bar wins over the default: a reader who
   // arrived on a shared link to the department panel is standing there, and the
   // rail saying "answer" would be the first thing it got wrong.
-  const arrived = destinations.find((entry) => entry.targetId && `#${entry.targetId}` === String(hash));
-  setCurrentDestination(doc, arrived?.key ?? DEFAULT_DESTINATION, { announce: false });
+  const arrived = destinations.find((entry) => String(hash) === entry.fragment
+    || (entry.targetId && `#${entry.targetId}` === String(hash)));
+  setCurrentDestination(doc, arrived?.key ?? DEFAULT_DESTINATION);
   return destinations;
 }
 
@@ -402,30 +403,21 @@ function paintNavDetail(doc, destinations) {
 }
 
 /**
- * Bind the rail.
+ * Bind the control's one disclosure.
  *
- * The links are never intercepted: the default is allowed to run, so the address
- * bar ends up holding the fragment a reader can copy, the back button returns
- * them, and a middle-click or a modifier still opens a new tab. What this adds
- * is the part the browser cannot do — unfolding the disclosure the target is
- * inside, moving the keyboard to it, marking where the reader now is, and saying
- * so once — by way of `revealFragmentTarget`, which is the same rule the page's
- * deep-link handler already applies to every in-page link.
+ * THE DOORS ARE NOT BOUND HERE ANY MORE, and that is the point of the collapse.
+ * A door is an ordinary anchor pointing at the destination it opens; the shell
+ * listens for the press, swaps the screen, marks this control through
+ * `setCurrentDestination`, hands the keyboard to the new screen's heading and
+ * says so once. This module used to do a rival version of all four for the same
+ * press — unfold the panel the old href named, focus *that*, mark, and announce
+ * into a second live region — and the two disagreed about where the keyboard went
+ * and what the reader was told. One press, one handler.
  */
-export function bindWorkspaceNav(doc, { reveal = revealFragmentTarget } = {}) {
+export function bindWorkspaceNav(doc) {
   const nav = byId(doc, WORKSPACE_NAV_IDS.nav);
   const list = byId(doc, WORKSPACE_NAV_IDS.list);
   if (!nav || !list) return null;
-
-  list.addEventListener("click", (event) => {
-    const link = event.target?.closest?.("[data-destination-key]");
-    if (!link || link.dataset.destinationOffPage === "true") return;
-    const revealed = reveal(doc, link.getAttribute("href"), { scroll: true, focus: true });
-    setCurrentDestination(doc, link.dataset.destinationKey, {
-      announce: true,
-      opened: revealed?.opened?.length ?? 0,
-    });
-  });
 
   const details = byId(doc, WORKSPACE_NAV_IDS.detail);
   details?.addEventListener("toggle", () => paintNavDisclosureState(doc));

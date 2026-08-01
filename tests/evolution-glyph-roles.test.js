@@ -289,8 +289,10 @@ test("at 390px every chip renders its whole label instead of clipping it", () =>
   // actually decided: the declarations that would cause it. A chip clips when it
   // refuses to wrap, ellipsises, or hides its overflow — and a row of chips
   // pushes the page sideways when its items cannot shrink below their content.
+  // No `.workspace-dest-kind`: the "Opens another page" chip retired with the
+  // off-page door when #819 collapsed the two navigation controls into one.
   const CHIPS = [".workspace-dest", ".workspace-dest-name", ".workspace-dest-state",
-    ".workspace-dest-recommended", ".workspace-dest-kind", ".workspace-nav-list"];
+    ".workspace-dest-recommended", ".workspace-nav-list"];
 
   for (const selector of CHIPS) {
     for (const property of ["text-overflow", "white-space"]) {

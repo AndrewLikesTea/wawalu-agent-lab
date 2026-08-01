@@ -35,10 +35,14 @@ import { DomEvent, loadPage, parseHtml, pressEnter, pressTab, tabSequence, textO
 import { importPageModule, waitFor } from "./support/page-module.js";
 import { loadWorkspaceDestinations, prioritizedDestination } from "../src/finops-destination-contract.js";
 import {
-  DEFAULT_DESTINATION, DESTINATION_STATE_LABEL, NAV_DISCLOSURE_LABEL, WORKSPACE_DESTINATION,
-  WORKSPACE_NAV_IDS, applyWorkspaceNav, bindWorkspaceNav, currentDestination,
-  destinationHrefDrift, supersedeWorkspaceNavRanking, workspaceDestinations,
+  DEFAULT_DESTINATION, DESTINATION_FRAGMENT, DESTINATION_STATE_LABEL, NAV_DISCLOSURE_LABEL,
+  WORKSPACE_DESTINATION, WORKSPACE_NAV_IDS, applyWorkspaceNav, bindWorkspaceNav,
+  currentDestination, destinationHrefDrift, supersedeWorkspaceNavRanking, workspaceDestinations,
 } from "../src/finops-workspace-nav.js";
+// #819 collapsed the rail and the working-area switcher into this one control, so
+// the module that drives a door press is the shell. The behaviour a reader meets
+// on a press is asserted here against both, because one press is now one act.
+import { WORKSPACE_SHELL_IDS, initWorkspaceShell } from "../src/finops-workspace-shell.js";
 
 const PAGE = new URL("../src/evolution.html", import.meta.url);
 const CSS = new URL("../src/evolution.css", import.meta.url);
@@ -58,12 +62,25 @@ const loaded = loadWorkspaceDestinations();
 const byId = (doc, id) => doc.getElementById(id);
 const doors = (doc) => byId(doc, WORKSPACE_NAV_IDS.list).querySelectorAll("[data-destination-key]");
 const doorFor = (doc, key) => doors(doc).find((link) => link.dataset.destinationKey === key);
-const live = (doc) => textOf(byId(doc, WORKSPACE_NAV_IDS.live));
+// THE PAGE'S ONE LIVE REGION. The rail used to own a second, and a press wrote
+// into both; #819 left one, and it is the shell's, because the shell is what
+// knows which screen opened and what question it answers.
+const live = (doc) => textOf(byId(doc, WORKSPACE_SHELL_IDS.live));
 
-/** The rail, painted from the shipped contract and bound, with nothing else run. */
+/** The control, painted from the shipped contract and bound, with nothing else run. */
 async function railed() {
   const page = await loadPage(PAGE);
   applyWorkspaceNav(page.document, loaded);
+  bindWorkspaceNav(page.document);
+  return page;
+}
+
+/** The control with the shell behind it, which is what a reader actually presses. */
+async function worked(hash = "") {
+  const page = await loadPage(PAGE);
+  const win = { location: { hash }, addEventListener() {}, removeEventListener() {} };
+  applyWorkspaceNav(page.document, loaded, { hash });
+  initWorkspaceShell(page.document, { win, loaded });
   bindWorkspaceNav(page.document);
   return page;
 }
@@ -98,7 +115,9 @@ test("every in-page destination is a named landmark that can take focus", () => 
   const document = parseHtml(html);
   const names = [];
   for (const link of doors(document)) {
-    if (link.dataset.destinationOffPage === "true") continue;
+    // Act and verify names no single panel: its screen is several. The other
+    // three each lead into one named region, and that region has to be reachable.
+    if (!link.dataset.destinationTarget) continue;
     const target = byId(document, link.dataset.destinationTarget);
     assert.ok(target, `${link.dataset.destinationKey} points at no element on this page`);
     assert.equal(target.getAttribute("href"), null);
@@ -217,67 +236,101 @@ test("the current destination is a word and an aria state, on exactly one door",
   }
   // Nothing is announced on load: the reader arrived, they did not move.
   assert.equal(live(document), "");
-  assert.equal(byId(document, WORKSPACE_NAV_IDS.nav).dataset.announcements, undefined);
 });
 
-test("Enter on a door unfolds its panel, moves the keyboard there, and says so once", async () => {
-  const { document } = await railed();
+test("this page lists each destination exactly once, in one navigation landmark", () => {
+  // #819's whole point. There used to be two lists — this one and the working-area
+  // switcher — so every destination on the page was named twice and only one of
+  // the two copies changed what was on screen. The assertion is on the shipped
+  // markup, with nothing having run: a reader meets one list before any script.
+  const document = parseHtml(html);
+  const keys = doors(document).map((link) => link.dataset.destinationKey);
+  assert.deepEqual(keys, Object.values(WORKSPACE_DESTINATION),
+    "the one navigation does not list the four destinations in reading order");
+  assert.equal(new Set(keys).size, keys.length, "a destination is listed twice");
+
+  // And no second list of the same doors survives anywhere in the document.
+  const everyDoor = document.querySelectorAll("[data-shell-destination]");
+  assert.equal(everyDoor.length, 4,
+    `${everyDoor.length} destination controls ship, so the page still names a destination twice`);
+  for (const door of everyDoor) {
+    assert.equal(door.closest("nav")?.id, WORKSPACE_NAV_IDS.nav,
+      "a destination control ships outside the navigation landmark");
+  }
+  // Exactly one is marked, and it is marked in words as well as in the tree.
+  const marked = doors(document).filter((link) => link.getAttribute("aria-current") === "true");
+  assert.equal(marked.length, 1);
+  assert.equal(marked[0].dataset.destinationKey, DEFAULT_DESTINATION);
+  assert.ok(textOf(marked[0]).includes(DESTINATION_STATE_LABEL.current));
+
+  // Every door carries the destination it opens, not a panel inside it: that is
+  // what makes the href a forwardable link to a screen.
+  assert.deepEqual(doors(document).map((link) => link.getAttribute("href")),
+    Object.values(WORKSPACE_DESTINATION).map((key) => DESTINATION_FRAGMENT[key]));
+});
+
+test("Enter on a door opens its screen, moves the keyboard to it, and says so once", async () => {
+  const { document } = await worked();
   const door = doorFor(document, WORKSPACE_DESTINATION.evidence);
-  const target = byId(document, door.dataset.destinationTarget);
-  const disclosure = target.closest("details");
-  assert.ok(disclosure, "this test is worthless if the target is not folded away");
-  assert.equal(disclosure.hasAttribute("open"), false);
 
   door.focus();
   pressEnter(document);
 
-  // The panel is open, so focus lands on something the reader can see.
-  assert.equal(disclosure.hasAttribute("open"), true);
-  assert.equal(document.activeElement, target, "the keyboard did not move to the destination");
+  // The screen is on, marked here, and the keyboard is on its heading — not on
+  // the door that was pressed and not on a region that is no longer rendered.
   assert.equal(currentDestination(document), WORKSPACE_DESTINATION.evidence);
-  assert.equal(target.dataset.workspaceCurrent, "true");
-  assert.equal(byId(document, "finops-first-run").dataset.workspaceCurrent, "false");
+  assert.equal(document.activeElement, byId(document, WORKSPACE_SHELL_IDS.screenTitle),
+    "the keyboard did not move to the screen that opened");
+  assert.equal(byId(document, "recommendation-evidence")
+    .closest("[data-workspace-region]").dataset.workspaceActive, "true");
 
-  // One announcement, naming the destination, the landmark focus is now in, and
-  // the panel the rail opened on the reader's behalf.
-  const announced = live(document);
-  assert.match(announced, /^Current destination: Evidence\./);
-  assert.ok(announced.includes(textOf(byId(document, "evaluation-title"))));
-  assert.match(announced, /supporting panel/i);
-  assert.equal(byId(document, WORKSPACE_NAV_IDS.nav).dataset.announcements, "1");
+  // ONE announcement, in ONE region, naming the screen and the question it
+  // answers. The rail used to write a rival sentence into a second live region
+  // for the same press; a reader who hears two learns to ignore both.
+  assert.match(live(document), /^Showing Evidence\./);
+  assert.match(live(document), /It answers: /);
 
   // The default is never prevented, so the address bar still ends up holding the
   // fragment the reader can copy and the back button still returns them.
-  assert.deepEqual(document.navigations, [door.getAttribute("href")]);
+  assert.deepEqual(document.navigations, [DESTINATION_FRAGMENT[WORKSPACE_DESTINATION.evidence]]);
 });
 
-test("re-pressing the door you are standing in announces nothing new", async () => {
-  const { document } = await railed();
+test("re-pressing the door you are standing in changes nothing", async () => {
+  const { document } = await worked();
   const door = doorFor(document, WORKSPACE_DESTINATION.department);
   door.focus();
   pressEnter(document);
   const first = live(document);
-  assert.equal(byId(document, WORKSPACE_NAV_IDS.nav).dataset.announcements, "1");
+  assert.match(first, /^Showing Departments\./);
 
   door.focus();
   pressEnter(document);
-  assert.equal(live(document), first, "the live region was rewritten for an unchanged destination");
-  assert.equal(byId(document, WORKSPACE_NAV_IDS.nav).dataset.announcements, "1");
+  assert.equal(live(document), first, "the live region said something new for an unchanged screen");
   assert.equal(currentDestination(document), WORKSPACE_DESTINATION.department);
+  const marked = doors(document).filter((link) => link.getAttribute("aria-current") === "true");
+  assert.equal(marked.length, 1);
 });
 
-test("the door that leaves the page is never marked current and never announced", async () => {
-  const { document } = await railed();
+test("act and verify is a destination on this page, and is markable like the rest", async () => {
+  // It used to be the one off-page door, pointing at /savings-action-center.html
+  // and refusing to be marked current. The shell has an in-page act-and-verify
+  // screen, so the collapsed control opens that; the Action Center is still
+  // reachable from the ranked door above, which is where the contract points it.
+  const { document } = await worked();
   const door = doorFor(document, WORKSPACE_DESTINATION.actAndVerify);
-  assert.equal(door.dataset.destinationOffPage, "true");
-  // Said in words on the door itself, before any script runs.
-  assert.ok(textOf(door).includes(DESTINATION_STATE_LABEL.offPage));
+  assert.equal(door.getAttribute("href"),
+    DESTINATION_FRAGMENT[WORKSPACE_DESTINATION.actAndVerify]);
+  assert.ok(!textOf(door).includes("another page"));
 
   door.focus();
   pressEnter(document);
-  assert.equal(currentDestination(document), DEFAULT_DESTINATION);
-  assert.equal(live(document), "");
-  assert.deepEqual(document.navigations, ["/savings-action-center.html"]);
+  assert.equal(currentDestination(document), WORKSPACE_DESTINATION.actAndVerify);
+  assert.ok(textOf(door).includes(DESTINATION_STATE_LABEL.current));
+  assert.match(live(document), /^Showing Act and verify\./);
+
+  // And the page a leader is sent to for the commitment itself is still linked.
+  assert.ok(html.includes('href="/savings-action-center.html"'),
+    "collapsing the door dropped the only link to the Savings Action Center");
 });
 
 test("arriving on a shared fragment marks where the reader actually is", async () => {
@@ -470,9 +523,9 @@ test("the shipped page entry paints and binds the rail, and the brief still answ
     const door = doorFor(document, WORKSPACE_DESTINATION.department);
     door.focus();
     pressEnter(document);
-    assert.equal(document.activeElement, byId(document, "department-decision-panel"));
+    assert.equal(document.activeElement, byId(document, WORKSPACE_SHELL_IDS.screenTitle));
     assert.equal(currentDestination(document), WORKSPACE_DESTINATION.department);
-    assert.match(live(document), /^Current destination: Departments\./);
+    assert.match(live(document), /^Showing Departments\./);
 
     // And the work above the rail is untouched: the brief still answers the
     // question, and the ranked region still ranks a door.
