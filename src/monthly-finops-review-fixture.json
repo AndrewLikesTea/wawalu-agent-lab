@@ -1,0 +1,47 @@
+{
+  "schemaVersion": "monthly-finops-review-fixture/1.0.0",
+  "reviewId": "synthetic-2026-07",
+  "currency": "USD",
+  "priorPeriod": {
+    "id": "synthetic-2026-06",
+    "label": "June 2026",
+    "spendMinor": 12840000
+  },
+  "currentPeriod": {
+    "id": "synthetic-2026-07",
+    "label": "July 2026",
+    "spendMinor": 11549400
+  },
+  "commitment": {
+    "id": "commitment-platform-routing-01",
+    "statement": "Reduce monthly Platform model-routing spend by at least 8.0%.",
+    "scope": "Platform model-routing spend",
+    "targetReductionTenthsPercent": 80,
+    "observedReductionTenthsPercent": 101,
+    "evidencePeriodIds": ["synthetic-2026-06", "synthetic-2026-07"]
+  },
+  "confidence": {
+    "recordsExpected": 240,
+    "recordsComparable": 228,
+    "minimumCoverageTenthsPercent": 900
+  },
+  "provenance": {
+    "sourceType": "bundled_synthetic_fixture",
+    "generatedAt": "2026-07-31T00:00:00.000Z",
+    "methodVersion": "monthly-finops-review/1.0.0"
+  },
+  "candidateActions": [
+    {
+      "id": "extend-platform-routing",
+      "priority": 1,
+      "statement": "Extend the verified Platform routing policy to Support for the August review.",
+      "evidence": "The prior scoped reduction cleared its target with comparable coverage above the confidence threshold."
+    },
+    {
+      "id": "audit-low-volume-models",
+      "priority": 2,
+      "statement": "Audit low-volume models.",
+      "evidence": "Secondary opportunity; lower priority than extending the verified policy."
+    }
+  ]
+}
