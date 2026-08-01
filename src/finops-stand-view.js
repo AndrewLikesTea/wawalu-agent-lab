@@ -471,10 +471,20 @@ export function ensureStandDisclosure(doc, key) {
   list.id = ids.list;
   details.append(summary, list);
 
+  // What this one mounts in front of: the next disclosure in the declared order
+  // that is already in the container — or, when this key is the LAST of them,
+  // the first follow-on question. #832 moved the two follow-ons into this same
+  // group, below every evidence disclosure, so a bare `append()` would mount the
+  // last evidence layer underneath the two questions it is evidence for. The
+  // class is read off `className` rather than through `classList`/`matches` for
+  // the reason the note at the top of this file gives about the element API.
+  const isFollowOn = (node) => typeof node?.className === "string"
+    && node.className.split(" ").includes("support-disclosure");
   const after = STAND_DISCLOSURE_ORDER
     .slice(STAND_DISCLOSURE_ORDER.indexOf(key) + 1)
     .map((following) => byId(doc, standDisclosureIds(following).details))
-    .find(Boolean);
+    .find(Boolean)
+    ?? [...(container.children ?? [])].find(isFollowOn);
   if (after) container.insertBefore(details, after);
   else container.append(details);
 

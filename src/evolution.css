@@ -1160,6 +1160,13 @@
 /* Six siblings, never nested: every one of them is one interaction away from
    the headline above. */
 .stand-disclosures { display:grid; gap:6px; }
+/* The two follow-on questions moved into this group in #832. `.support-disclosure`
+   carries `margin:22px 0` for the standalone sections it wraps elsewhere; inside
+   a grid those margins do not collapse, so each one would sit 44px+6px from its
+   neighbour and read as two loose blocks appended to a tight stack. The group
+   owns the rhythm, so the member gives its margins up and keeps everything else
+   — border, summary, open state, hover — exactly as it ships everywhere else. */
+.stand-disclosures>.support-disclosure { margin:0; }
 .stand-disclosure { border:1px solid var(--panel-border); border-radius:10px; background:#fff; }
 .stand-disclosure>summary { cursor:pointer; list-style:none; padding:9px 13px; }
 .stand-disclosure>summary::-webkit-details-marker { display:none; }
@@ -1201,11 +1208,30 @@
    rule three thousand lines away. */
 .first-run[data-subordinate="true"] .first-run-head h2,
 .next-step[data-subordinate="true"] .next-step-head h2 { font-size:clamp(18px,2.2vw,22px); }
+/* #832 moved the two follow-on questions inside the answer region, so their
+   headings dropped from h2 to h3 — an h2 in there would open a second top-rung
+   section inside the section it belongs to. The rung they are DRAWN at does not
+   change: this is the same clamp the rule above gives every subordinate heading,
+   named for those two headings rather than for `h3`, so no other h3 on the page
+   moves a pixel. */
+.next-step[data-subordinate="true"] .next-step-head h3,
+.finops-journey[data-subordinate="true"] .fjc-head h3 { font-size:clamp(18px,2.2vw,22px); line-height:1.2; }
 .first-run[data-subordinate="true"],
 .next-step[data-subordinate="true"] { border-left-width:3px; border-left-color:var(--ink-muted); background:#fff; }
-/* The hero's leading space was the space above a page title. It is orientation
-   under the answer now, so the space goes and the copy stays exactly as it was. */
-.finops-hero[data-subordinate="true"] { padding-top:0; }
+/* THE HERO'S LEADING SPACE, BUDGETED IN THE PIXELS IT COSTS THE ANSWER.
+   This rule read `padding-top:0` while the hero sat UNDER the answer, where the
+   region above it supplied the separation. #832 puts the hero back at the top of
+   `<main>`, and zero there is a real defect rather than a saving: `.site-header`
+   ends in a 1px rule and `.eyebrow` is `margin:0`, so the page's first line of
+   type would sit flush on that hairline.
+   The unmodified `.finops-hero` step is `clamp(60px,8vw,104px)`. Restoring it
+   would spend up to 104px of a ~640-720px first viewport — 14% of the fold — on
+   space above a title, which is the cost this issue exists to stop paying. 24px
+   is the trade: it is `main,.page`'s own top-padding step, already shipping in
+   styles.css, it clears the header rule by 24px, and it costs under 4% of the
+   fold instead of 14%. The whole hero measures about 210px at a 1440px width,
+   so the answer region's heading and first figure still open the first screen. */
+.finops-hero[data-subordinate="true"] { padding-top:24px; }
 
 /* The demoted first-run block. It keeps every word; it stops competing for the
    eye with the headline above it. */
@@ -3147,7 +3173,8 @@ section[data-workspace-current="true"] { box-shadow:-6px 0 0 0 var(--import-wash
 .next-step { display:grid; gap:14px; margin:0 0 22px; border:1px solid var(--import-line); border-left:5px solid var(--import-accent); border-radius:13px; padding:clamp(16px,2.6vw,22px); background:#fbfcfb; }
 .next-step[data-confidence="low"] { border-color:var(--state-warn-line); border-left-color:var(--state-warn-ink); border-style:dashed; border-left-style:solid; background:var(--state-warn-wash); }
 .next-step-head { display:grid; gap:5px; }
-.next-step-head h2 { max-width:30ch; margin:0; font-size:clamp(19px,2.5vw,25px); line-height:1.2; }
+.next-step-head h2,
+.next-step-head h3 { max-width:30ch; margin:0; font-size:clamp(19px,2.5vw,25px); line-height:1.2; }
 .next-step-head .eyebrow { margin:0; }
 #finops-next-step-body { display:grid; justify-items:start; gap:12px; }
 .next-step-headline { margin:0; max-width:62ch; color:var(--ink); font-size:clamp(15px,1.8vw,17px); font-weight:700; line-height:1.4; overflow-wrap:anywhere; }

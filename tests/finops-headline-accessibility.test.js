@@ -297,12 +297,12 @@ test("a repaint keeps the reader's focus, their open disclosure, and its state",
 });
 
 // ---------------------------------------------------------------------------
-// #727 — the answer, first, as one claim, with a hierarchy under it.
+// The page name first, then the answer as one claim, with a hierarchy under it.
 //
 // A CTO opens this page with one question and used to meet a full screen of the
 // product's name before it was answered. What is pinned below is the fix: the
-// answer is the first region of the document, the steps under it read as
-// subordinate through TWO channels rather than a tint, and the confidence tier
+// answer is the first content region after the h1 hero, the steps under it read
+// as subordinate through TWO channels rather than a tint, and the confidence tier
 // and evidence class are announced as part of the claim instead of as two
 // badges a reader meets some moments later.
 
@@ -319,16 +319,24 @@ const SUPPORTING = ANSWER_SPINE
 const regionIds = (document) => (document.getElementById("main-content").children ?? [])
   .filter((node) => node?.nodeType === 1 && node.id).map((node) => node.id);
 
-test("the answer is the first region of the page, ahead of the hero and every step", async () => {
+test("the h1 hero is first and the answer is the first content region after it", async () => {
   const document = parseHtml(await readFile(PAGE, "utf8"));
   const order = regionIds(document);
 
-  assert.equal(order[0], STAND_IDS.region,
-    "the headline is not the first region a reader meets in the landmark");
-  assert.equal(SPINE_STEPS[0], STAND_IDS.region,
+  assert.deepEqual(order.slice(0, 2), ["finops-hero", STAND_IDS.region],
+    "orientation and the single answer are not the first two regions");
+  assert.equal(SPINE_STEPS[0], "finops-hero",
     "the manifest's reading order disagrees with the document's");
-  for (const id of ["finops-hero", ...SUPPORTING]) {
-    assert.ok(order.indexOf(id) > order.indexOf(STAND_IDS.region),
+  // Source position rather than an index into `<main>`'s children: since #832
+  // two of the supporting steps are folded INTO the answer's disclosure group,
+  // so they are no longer siblings of the answer. What has to stay true is what
+  // it always was — a reader meets the answer's own heading before any step that
+  // supports it — and that is a claim about where the bytes are in the file.
+  const html = await readFile(PAGE, "utf8");
+  const answerAt = html.indexOf(`id="${STAND_IDS.question}"`);
+  assert.ok(answerAt > 0, "the answer's own heading is no longer authored on the page");
+  for (const id of SUPPORTING) {
+    assert.ok(html.indexOf(`id="${id}"`) > answerAt,
       `#${id} is authored above the answer it supports`);
   }
 
@@ -345,6 +353,11 @@ test("the answer is the first region of the page, ahead of the hero and every st
     assert.ok(Number(node.getAttribute("tabindex")) <= 0,
       `#${node.id || node.className} takes a positive tabindex out of source order`);
   }
+
+  const headings = document.querySelectorAll("h1, h2");
+  assert.equal(headings[0]?.tagName, "H1", "an h2 is emitted before the page h1");
+  assert.equal(headings.filter((heading) => heading.tagName === "H1").length, 1,
+    "the page must expose one h1");
 });
 
 test("every id is unique and every ARIA reference in the document resolves", async () => {

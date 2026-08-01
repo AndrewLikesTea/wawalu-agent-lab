@@ -195,13 +195,17 @@ const PEER_CLAIM_TERMS = Object.freeze(["peer", "cohort", "percentile"]);
  *   supersededBy       Retired entries only: the live region that took over.
  */
 export const ANSWER_SPINE = Object.freeze([
-  // THE ANSWER IS STEP ONE, AND IT IS FIRST IN THE DOCUMENT.
-  // The hero held this place until #727. A leader who opens this page opens it
-  // with a question, and met a full screen of what the page is for before the
-  // page answered it — so the headline is now the first region of `main`, which
-  // makes it the first thing announced, the first thing read, and the first
-  // thing reached by Tab, all from one source order rather than from `order` or
-  // a positive `tabindex`. The hero follows it as orientation.
+  // The page name comes first so its h1 precedes every subordinate heading.
+  // It carries orientation only; the single answer follows immediately.
+  {
+    id: "finops-hero",
+    role: ROLE.step,
+    question: "What can this page tell me, and what does it need from me?",
+    headingId: "page-title",
+    entitledToAssert:
+      "What the page will name once it has read something, and the one input it "
+      + "needs. It carries no figure, so it cannot compete with the headline below it.",
+  },
   {
     id: HEADLINE_REGION_ID,
     role: ROLE.headline,
@@ -214,29 +218,14 @@ export const ANSWER_SPINE = Object.freeze([
       + `unless the reader's own import replaced it. ${SYNTHETIC_COHORT_BASIS}`,
   },
   {
-    id: "finops-hero",
-    role: ROLE.step,
-    question: "What can this page tell me, and what does it need from me?",
-    headingId: "page-title",
-    entitledToAssert:
-      "What the page will name once it has read something, and the one input it "
-      + "needs. It carries no figure, so it cannot compete with the headline above it.",
-  },
-  {
-    id: "finops-first-run",
-    role: ROLE.step,
-    question: "Are we wasting money?",
-    headingId: "finops-first-run-title",
-    entitledToAssert:
-      "The canonical complete decision summary of src/finops-decision-contract.js: "
-      + "one benchmark, one prioritized action, one estimated impact, one bounded "
-      + "confidence score with its basis. Estimated, never invoiced.",
-  },
-  {
-    // The three "this month" regions are declared by their DISCLOSURE id: #742
+    // The two follow-on questions are declared by their DISCLOSURE id: #742
     // folded each section into the page's `support-disclosure` idiom, so the
-    // element `main` holds at this level is the wrapper. The section, its
-    // heading, and its view are unchanged inside it.
+    // element the document holds is the wrapper. The section, its heading, and
+    // its view are unchanged inside it.
+    // They are declared HERE, above the brief, because #832 moved them inside
+    // the answer region's one disclosure group — and this list is document
+    // order, so a reader who opens the answer's group meets them before the
+    // brief that follows the answer.
     id: "disclosure-next-step",
     role: ROLE.step,
     question: "Where do I start this month?",
@@ -253,6 +242,16 @@ export const ANSWER_SPINE = Object.freeze([
     entitledToAssert:
       "The phase this browser's own records put the reader in, and the check that "
       + "would close it. No claim about anyone else's progress.",
+  },
+  {
+    id: "finops-first-run",
+    role: ROLE.step,
+    question: "Are we wasting money?",
+    headingId: "finops-first-run-title",
+    entitledToAssert:
+      "The canonical complete decision summary of src/finops-decision-contract.js: "
+      + "one benchmark, one prioritized action, one estimated impact, one bounded "
+      + "confidence score with its basis. Estimated, never invoiced.",
   },
   {
     // Not folded into a disclosure with the two layers above it: the rank-1
@@ -479,19 +478,45 @@ function entryText(entry) {
 }
 
 /**
- * The ids of the page's top-level regions, in document order.
+ * The ids of the regions this manifest addresses, in document order.
  *
- * Only element children with an id: a region with no id cannot be linked to,
- * cannot be classified, and is not something this manifest can hold an opinion
- * about. `[...]` rather than a direct array method, because `main.children` is
- * a live `HTMLCollection` in a browser — see the note at the top of this file.
+ * Element children of `<main>` with an id, plus any descendant marked
+ * `data-spine-region`. Only nodes with an id: a region with no id cannot be
+ * linked to, cannot be classified, and is not something this manifest can hold
+ * an opinion about. `[...]` rather than a direct array method, because
+ * `main.children` is a live `HTMLCollection` in a browser — see the note at the
+ * top of this file.
+ *
+ * WHY THE SECOND SET EXISTS. This census used to be `<main>`'s own children and
+ * nothing else, which held while every region this manifest names was a sibling
+ * of the answer. #832 folded two of them — the follow-on questions — inside the
+ * answer's one disclosure group, and a census that could not see them would have
+ * reported two regions "classified but not on the page" while both were on the
+ * page, complete, one keystroke from the reader.
+ * The marker is deliberately the WEAKEST claim markup can make here: it says
+ * "the manifest addresses this node", nothing about its class, its role, or its
+ * rank. Those still come from the manifest, and the audit still fails loudly on
+ * a region that is declared and genuinely absent, or present and unclassified.
+ * Nothing about being nested is inferred from the nesting, so this cannot become
+ * a way for markup to grade itself.
+ * The walk is depth-first and pushes a parent before its descendants, so the
+ * returned order is document order whatever the depth. It is a full subtree
+ * scan and it runs in tests only — no caller on a paint path reaches it.
  */
 export function renderedRegionIds(doc, mainId = MAIN_REGION_ID) {
   const main = doc?.getElementById?.(mainId) ?? null;
   if (!main) return [];
-  return [...(main.children ?? [])]
-    .filter((node) => node?.nodeType === 1 && node.id)
-    .map((node) => node.id);
+  const ids = [];
+  const visit = (node, top) => {
+    for (const child of [...(node.children ?? [])]) {
+      if (child?.nodeType !== 1) continue;
+      const marked = child.hasAttribute?.("data-spine-region") ?? false;
+      if (child.id && (top || marked)) ids.push(child.id);
+      visit(child, false);
+    }
+  };
+  visit(main, true);
+  return ids;
 }
 
 /** Entries with an id and a role, in declaration order. Bad rows are the validator's. */

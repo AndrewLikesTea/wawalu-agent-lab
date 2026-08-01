@@ -146,9 +146,20 @@ test("every disclosure is one interaction from the headline, with no nesting", (
     assert.equal(summary.tagName.toLowerCase(), "summary");
     assert.equal(summary.parentNode.id, ids.details);
   }
-  // All of them are siblings of one another in one flat container.
+  // All of them are siblings of one another in one flat container — and since
+  // #832 that container is the answer's ONE progressive-disclosure group, so the
+  // two follow-on questions are siblings in it too. Counting `.stand-disclosure`
+  // rather than every `details` keeps the guard that says none of these went
+  // missing or grew a nested one, without asserting that nothing else may join
+  // the group; the assertion below names exactly what else is allowed to.
   const container = byId(document, STAND_IDS.disclosures);
-  assert.equal(container.querySelectorAll("details").length, AUTHORED_DISCLOSURES.length);
+  assert.equal(container.querySelectorAll("details.stand-disclosure").length,
+    AUTHORED_DISCLOSURES.length);
+  assert.deepEqual(
+    [...container.children].filter((node) => node?.nodeType === 1
+      && !node.className.split(" ").includes("stand-disclosure")).map((node) => node.id),
+    ["disclosure-next-step", "disclosure-journey"],
+    "the answer's disclosure group holds something other than its evidence layers and its two follow-ons");
 });
 
 test("a mounted disclosure is indistinguishable from an authored one once the page has booted", async () => {
@@ -179,10 +190,18 @@ test("a mounted disclosure is indistinguishable from an authored one once the pa
       `${key} would not pick up the shipped stylesheet`);
   }
 
-  // And the container holds every disclosure exactly once, in the declared order.
+  // And the container holds every disclosure exactly once, in the declared
+  // order. A mounted one is inserted rather than appended, so this holds for the
+  // LAST key in the order too — the one with no authored disclosure to go in
+  // front of, which since #832 has the two follow-on questions behind it.
   assert.deepEqual(
-    [...container.querySelectorAll("details")].map((node) => node.id),
+    [...container.querySelectorAll("details.stand-disclosure")].map((node) => node.id),
     STAND_DISCLOSURE_ORDER.map((key) => standDisclosureIds(key).details));
+  // Evidence first, then the two questions it is evidence for. Every evidence
+  // layer is above both, whether it was authored or mounted.
+  const order = [...container.children].filter((node) => node?.nodeType === 1).map((node) => node.id);
+  assert.deepEqual(order.slice(-2), ["disclosure-next-step", "disclosure-journey"],
+    "a disclosure mounted into the group landed under the follow-on questions");
 });
 
 test("a mounted disclosure toggles through the same state channels as an authored one", async () => {

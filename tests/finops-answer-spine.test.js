@@ -289,10 +289,9 @@ test("the shipped page carries its roles and its reading order after init", asyn
   const stepOf = (id) => document.getElementById(id)?.getAttribute(STEP_ATTRIBUTE);
 
   assert.equal(roleOf(HEADLINE_REGION_ID), ROLE.headline);
-  // #727 swapped these two. The answer is step one and the first region of the
-  // document; the hero states the promise underneath it, as orientation.
-  assert.equal(stepOf(HEADLINE_REGION_ID), "1", "the answer is the first thing on the page");
-  assert.equal(stepOf("finops-hero"), "2", "the hero states the promise, below the answer");
+  // The hero owns the page h1; the answer is the first content region after it.
+  assert.equal(stepOf("finops-hero"), "1", "the page name does not come first");
+  assert.equal(stepOf(HEADLINE_REGION_ID), "2", "the answer does not immediately follow the hero");
   assert.equal(roleOf("finops-privacy"), ROLE.detail);
   assert.equal(stepOf("finops-privacy"), null, "a supporting region takes no place in the reading order");
   // A retired region is not stamped, because it is not there to stamp: the mark

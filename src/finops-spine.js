@@ -118,18 +118,23 @@ function computeRecoverableShare(data) {
  * a diff of the markup.
  */
 const REGIONS = Object.freeze({
-  "finops-stand": REGION_CLASS.answer,
   "finops-hero": REGION_CLASS.evidence,
-  "finops-first-run": REGION_CLASS.evidence,
-  // Two of the three "this month" regions are top-level as their DISCLOSURE,
+  "finops-stand": REGION_CLASS.answer,
+  // Two of the three "this month" regions are addressed as their DISCLOSURE,
   // not as their section: #742 folded each into the page's `support-disclosure`
   // idiom so an evidence region no longer opens at the answer's weight. The
   // section keeps its own id and its own view; the wrapper is what the document
-  // holds at this level, so it is the id classified here.
+  // holds, so it is the id classified here.
+  // #832 moved both wrappers OUT of `<main>`'s own children and into the answer
+  // region's one disclosure group, so these two are the entries in this map that
+  // are no longer top-level. They are still classified, still stamped and still
+  // found the same way — applyFinopsSpine() resolves every id with
+  // getElementById, which does not care how deep a region sits.
   // `finops-destinations` is deliberately NOT folded: its rank-1 door must stay
   // in the tab order without a reader opening anything first.
   "disclosure-next-step": REGION_CLASS.evidence,
   "disclosure-journey": REGION_CLASS.evidence,
+  "finops-first-run": REGION_CLASS.evidence,
   "finops-destinations": REGION_CLASS.evidence,
   "finops-workspace-nav": REGION_CLASS.evidence,
   "finops-workspace-switch": REGION_CLASS.evidence,

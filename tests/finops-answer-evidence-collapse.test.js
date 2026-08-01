@@ -60,18 +60,61 @@ function fakeWindow(hash = "") {
 // 1. One region answers, and it is the only one open.
 // ---------------------------------------------------------------------------
 
-test("the answer region is first in the document and is not itself a disclosure", () => {
+test("the answer follows only the h1 hero and is not itself a disclosure", () => {
   const document = doc();
   const answer = byId(document, answerRegionId());
 
-  assert.equal(topLevelIds(document)[0], answerRegionId(),
-    "the answer is not the first region a reader meets in the landmark");
+  assert.deepEqual(topLevelIds(document).slice(0, 2), ["finops-hero", answerRegionId()],
+    "the answer is not the first content region after the hero");
   assert.equal(answer.tagName, "SECTION",
     "the answer is behind a disclosure, so the page's one answer has to be asked for");
   assert.equal(answer.closest("details"), null,
     "the answer is nested inside a disclosure somewhere above it");
   assert.equal(answer.dataset.subordinate, undefined,
     "the answer is marked subordinate to something else");
+});
+
+test("all answer disclosures and both follow-on questions form one collapsed group", () => {
+  const document = doc();
+  const group = byId(document, "finops-stand-disclosures");
+  assert.equal(group.getAttribute("role"), "group");
+  assert.ok(group.getAttribute("aria-label")?.length > 0, "the disclosure group has no name");
+  assert.ok(group.closest(`#${answerRegionId()}`), "the group is not attached to the answer region");
+
+  // CONTAINED, NOT `aria-owns`ed. `aria-owns` re-parents a node in the
+  // accessibility tree only: a virtual cursor would read the follow-ons inside
+  // this group while Tab and the eye still found them a region further down, and
+  // that is the announced-order/focus-order split this page refuses everywhere
+  // else. So the assertion is DOM containment, and the absence of the shortcut.
+  assert.equal(group.getAttribute("aria-owns"), null,
+    "the group claims members it does not contain, so reading order leaves focus order behind");
+  const members = group.children.filter((node) => node?.nodeType === 1);
+  for (const id of ["disclosure-next-step", "disclosure-journey"]) {
+    assert.ok(members.some((node) => node.id === id),
+      `#${id} is not a member of the answer's one disclosure group`);
+  }
+  assert.ok(members.length >= 9,
+    `the group holds ${members.length} controls; the six evidence disclosures and both follow-ons belong to it`);
+  for (const details of members) {
+    assert.equal(details.tagName, "DETAILS", `${details.id} in the group is not a native disclosure`);
+    assert.equal(details.hasAttribute("open"), false, `${details.id} does not ship collapsed`);
+  }
+});
+
+test("the group's headings sit under the answer's h2 rather than beside it", () => {
+  const document = doc();
+  // One h1 on the page, and it is the hero's. Inside the answer region the
+  // answer's own question is the h2; every control folded under it — the six
+  // evidence disclosures and both follow-ons — is an h3, so consolidating two
+  // top-level regions into the answer did not put a second top rung inside it.
+  const answer = byId(document, answerRegionId());
+  assert.deepEqual(answer.querySelectorAll("h2").map((node) => node.id), ["finops-stand-question"],
+    "a second h2 is authored inside the single answer region");
+  for (const id of ["finops-next-step-question", "finops-journey-question"]) {
+    const heading = byId(document, id);
+    assert.equal(heading.tagName, "H3", `#${id} outranks the answer it now sits inside`);
+    assert.ok(heading.closest(`#${answerRegionId()}`), `#${id} is not inside the answer region`);
+  }
 });
 
 test("every evidence layer folded into a disclosure ships closed, and none is open", () => {
