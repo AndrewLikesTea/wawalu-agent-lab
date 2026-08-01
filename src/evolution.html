@@ -155,21 +155,25 @@
              sooner.
 
              FOUR ELEMENTS AND NOTHING ELSE: the question, one figure with its
-             unit and its as-of basis, one confidence sentence, one action. The
-             figure is one paragraph rather than a value beside two captions, so
-             a screen reader announces the number, its unit, and what it is as
-             of together instead of as three orphaned fragments. The named entry
-             points are the sibling group below, kept outside so the block
-             itself stays four things.
+             unit, direction and as-of basis, one confidence sentence, one
+             action. The figure is one paragraph holding those four slots in
+             the order they are spoken, so the plain document reading IS the
+             announcement — no ARIA on it, because a paragraph is one of the
+             roles ARIA prohibits naming on and an aria-labelledby pointing at
+             its own children speaks the number twice wherever it is honoured
+             anyway. The one naming attribute here is on the region, where
+             naming is allowed and where it names the visible question. The
+             named entry points are the sibling group below, kept outside so
+             the block itself stays four things.
 
              No number is authored here. The percentage, its basis, the
              confidence sentence, and the action's text and href are all painted
              from the composed headline's own gradability verdict — the same
              verdict the gradeability line below already reads, so the two can
              never disagree about whether this export can be stood behind. -->
-        <div class="answer-block" id="finops-answer" data-decision-summary-region="authored" data-state="pending" data-available="false" role="group" aria-labelledby="finops-answer-question">
+        <div class="answer-block" id="finops-answer" data-decision-summary-region="authored" data-state="pending" data-available="false" role="region" aria-labelledby="finops-answer-question">
           <h3 class="answer-question" id="finops-answer-question">Is our AI spend classification trustworthy enough to act on?</h3>
-          <p class="answer-figure" id="finops-answer-figure"><span class="answer-figure-label" id="finops-answer-label">Spend we can stand behind</span><strong class="answer-figure-value" id="finops-answer-value">Still reading</strong><span class="answer-figure-basis" id="finops-answer-basis">as of the Bundled synthetic example</span></p>
+          <p class="answer-figure" id="finops-answer-figure"><span class="answer-figure-label" id="finops-answer-label">Spend we can stand behind</span><strong class="answer-figure-value" id="finops-answer-value">Still reading</strong><span class="answer-figure-direction" id="finops-answer-direction">Analysis pending; no direction is available yet</span><span class="answer-figure-basis" id="finops-answer-basis">as of the Bundled synthetic example</span></p>
           <p class="answer-confidence" id="finops-answer-confidence">Nothing has been read yet, so there is no coverage, grade, or residue to report.</p>
           <a class="answer-action" id="finops-answer-action" href="#local-import">Analyze a provider export — go to the import panel</a>
         </div>

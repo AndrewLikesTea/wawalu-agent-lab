@@ -242,6 +242,33 @@ test("a summary that failed to load, or arrived malformed, throws nothing and pr
   }
 });
 
+test("a repaint that states no direction clears the last one rather than keep it", () => {
+  // The reading a stale direction produces is the dangerous one: this paint's
+  // number under the previous paint's "a higher share is better". Every slot
+  // that qualifies the number is checked the same way, because a label or an
+  // as-of phrase left over from a different export misreads just as badly.
+  const document = doc();
+  applyAnswerBlock(document);
+  for (const key of ["label", "value", "direction", "basis"]) {
+    assert.ok(textOf(byId(document, ANSWER_BLOCK_IDS[key])).length > 0,
+      `#${ANSWER_BLOCK_IDS[key]} did not paint, so this test would pass vacuously`);
+  }
+
+  for (const missing of [undefined, null, 0, {}, ["a higher share is better"]]) {
+    const document = doc();
+    applyAnswerBlock(document);
+    const painted = textOf(byId(document, ANSWER_BLOCK_IDS.direction));
+    applyAnswerBlock(document, { ...FINOPS_ANSWER_SUMMARY, direction: missing });
+
+    const now = textOf(byId(document, ANSWER_BLOCK_IDS.direction));
+    assert.notEqual(now, painted,
+      `direction ${JSON.stringify(missing) ?? "undefined"} left the last paint's direction standing`);
+    assert.match(now, /no direction is available/i,
+      "the slot says something other than the authored pending wording");
+    assert.equal(now.includes("[object Object]"), false, "a non-string was stringified onto the page");
+  }
+});
+
 test("a verdict with no coverage tier gets the provenance alone, never an invented confidence", () => {
   const withheld = answerBlock({ label: "Your own export · analyzed in this browser",
     period: null, gradability: { state: "no_baseline", tier: "no_baseline", coverage: null } });

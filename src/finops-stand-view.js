@@ -19,7 +19,9 @@ import { applyFinopsSpine } from "./finops-spine.js";
 // The screen contract, executable. Every string in the answer block and every
 // door name beside it comes from here rather than from this file, so
 // docs/executive-answer-screen-contract.md and the page cannot drift.
-import { DECISION_SUMMARY_IDS, SCREEN_CONTRACT, answerBlock } from "./finops-screen-contract.js";
+import {
+  DECISION_SUMMARY, DECISION_SUMMARY_IDS, SCREEN_CONTRACT, answerBlock,
+} from "./finops-screen-contract.js";
 // The bundled answer, precomputed. `applyAnswerBlock` paints from this by
 // default, so the first thing a reader meets needs no panel dataset composed.
 import { FINOPS_ANSWER_SUMMARY } from "./finops-answer-summary.js";
@@ -57,6 +59,11 @@ const byId = (doc, id) => (doc?.getElementById ? doc.getElementById(id) : null);
  * does not declare cannot be painted from this file.
  */
 export const ANSWER_BLOCK_IDS = DECISION_SUMMARY_IDS;
+
+/** The figure's authored pending wording per slot, so a paint can fall back to it. */
+const FIGURE_AUTHORED = Object.freeze(Object.fromEntries(
+  Object.entries(DECISION_SUMMARY.parts.find((part) => part.role === "metric")?.slots ?? {})
+    .map(([key, { authored }]) => [key, authored])));
 
 /** The reproduction line's id. Authored in evolution.html, written only here. */
 export const ANSWER_REPRODUCTION_ID = "finops-answer-reproduction";
@@ -339,9 +346,19 @@ export function applyAnswerBlock(doc, summary = FINOPS_ANSWER_SUMMARY) {
   block.dataset.state = summary.state ?? "unavailable";
   block.dataset.available = String(summary.available === true);
   setText(doc, ANSWER_BLOCK_IDS.question, summary.question);
-  setText(doc, ANSWER_BLOCK_IDS.label, summary.metricLabel);
-  setText(doc, ANSWER_BLOCK_IDS.value, summary.figure);
-  setText(doc, ANSWER_BLOCK_IDS.basis, summary.basis);
+  // THE FIGURE'S FOUR SLOTS FALL BACK TOGETHER. `setText` skips a non-string, so
+  // a payload stating no direction leaves the LAST paint's direction standing
+  // under THIS paint's number — a reader told which way is better by a sentence
+  // that measured something else. Each slot goes back to the contract's authored
+  // pending wording instead: saying nothing here is honest, and saying the
+  // previous answer is not. Same rule for the label, the value and the basis,
+  // which qualify the number in exactly the same way.
+  const slot = (key, stated) => setText(doc, ANSWER_BLOCK_IDS[key],
+    typeof stated === "string" ? stated : FIGURE_AUTHORED[key]);
+  slot("label", summary.metricLabel);
+  slot("value", summary.figure);
+  slot("direction", summary.direction);
+  slot("basis", summary.basis);
   setText(doc, ANSWER_BLOCK_IDS.confidence, summary.confidence);
   // A payload with no action is a malformed payload, not a crash: the authored
   // pending action stays on screen rather than taking the whole block down with

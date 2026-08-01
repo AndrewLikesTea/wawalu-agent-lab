@@ -119,15 +119,24 @@ test("the answer block holds one question heading, one figure, one confidence se
     "no figure may be authored into the markup; it is painted from the verdict");
 });
 
-test("the figure, its unit, and its as-of basis are one announcement, not three fragments", () => {
+test("the figure, unit, direction, and as-of basis are one announcement", () => {
   const document = parseHtml(html);
   const figure = byId(document, ANSWER_BLOCK_IDS.figure);
   assert.equal(figure.tagName.toLowerCase(), "p");
-  // All three live inside the one paragraph, so a screen reader speaks them
-  // together rather than as three stops with nothing joining them.
+  // All four live inside the one paragraph, so a screen reader speaks the
+  // number with what it means rather than as disconnected fragments.
   const inside = [...figure.children].filter((node) => node.nodeType === 1).map((node) => node.id);
   assert.deepEqual(inside,
-    [ANSWER_BLOCK_IDS.label, ANSWER_BLOCK_IDS.value, ANSWER_BLOCK_IDS.basis]);
+    [ANSWER_BLOCK_IDS.label, ANSWER_BLOCK_IDS.value, ANSWER_BLOCK_IDS.direction,
+      ANSWER_BLOCK_IDS.basis]);
+  // Source order IS the announcement, and it may not be re-stated in ARIA. A
+  // <p> is role="paragraph", which ARIA prohibits naming on, so an
+  // aria-label(ledby) here is ignored where it is honoured correctly and speaks
+  // the number twice where it is not.
+  for (const attribute of ["aria-labelledby", "aria-label"]) {
+    assert.equal(figure.hasAttribute(attribute), false,
+      `${attribute} on the figure paragraph: naming is prohibited on role="paragraph"`);
+  }
   assert.equal(figure.querySelectorAll("h1,h2,h3,h4,h5,h6").length, 0);
 });
 

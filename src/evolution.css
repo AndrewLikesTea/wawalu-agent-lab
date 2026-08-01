@@ -1083,6 +1083,7 @@
 .answer-figure-label { color:var(--muted); font-size:13px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; }
 .answer-figure-value { color:var(--ink); font-size:clamp(38px,7vw,68px); font-weight:800; line-height:1.05; }
 .answer-block[data-available="false"] .answer-figure-value { color:var(--state-warn-ink); font-size:clamp(20px,3vw,26px); }
+.answer-figure-direction { max-width:62ch; color:var(--ink); font-size:15px; font-weight:650; line-height:1.5; overflow-wrap:anywhere; }
 /* THE RANK: the numeral clamp, the 15px body step for the confidence sentence,
    that step inside a control for the action — a descent at 320px and at 200%
    zoom. The basis joins the label on the caption step; at 14px it read as a

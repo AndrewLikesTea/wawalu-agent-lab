@@ -205,6 +205,8 @@ test("the answer region carries one provenance disclosure, collapsed, that opens
   assert.equal(details.hasAttribute("open"), false);
   assert.equal(summary.getAttribute("aria-expanded"), "false");
   assert.equal(details.dataset.disclosure, "collapsed");
+  assert.match(textOf(summary), /Show/,
+    "the collapsed state is not reported in the control's visible name");
   assert.equal(textOf(byId(document, ids.heading)), ANSWER_PROVENANCE_LABEL);
   assert.ok(!/^details$/i.test(textOf(byId(document, ids.heading))));
 
@@ -217,6 +219,8 @@ test("the answer region carries one provenance disclosure, collapsed, that opens
   assert.equal(details.hasAttribute("open"), true, "Enter did not expand the disclosure");
   assert.equal(summary.getAttribute("aria-expanded"), "true");
   assert.equal(details.dataset.disclosure, "expanded");
+  assert.match(textOf(summary), /Hide/,
+    "the expanded state is not reported in the control's visible name");
   assert.equal(document.activeElement, summary);
 
   // …and what it now shows is the headline metric's own sample count and method.

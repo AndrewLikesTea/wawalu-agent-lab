@@ -156,6 +156,10 @@ export const DECISION_SUMMARY = Object.freeze({
           elementId: "finops-answer-label", authored: ANSWER_DESTINATION.metricLabel,
         }),
         value: Object.freeze({ elementId: "finops-answer-value", authored: "Still reading" }),
+        direction: Object.freeze({
+          elementId: "finops-answer-direction",
+          authored: "Analysis pending; no direction is available yet",
+        }),
         basis: Object.freeze({
           elementId: "finops-answer-basis", authored: "as of the Bundled synthetic example",
         }),
@@ -494,6 +498,9 @@ export function answerBlock(headline, { now = () => new Date() } = {}) {
     figure: published
       ? `${formatPercent(ratio, { digits: 1 })} of spend in scope`
       : WITHHELD_FIGURE[state] ?? "Not computed yet",
+    direction: published
+      ? "This is the share of spend classified reliably enough to act on; a higher share is better."
+      : "No directional comparison is available until enough spend can be classified.",
     basis: `as of ${basis}`,
     confidence,
     /** Which supporting panel backs this figure, and the one line that says so. */
