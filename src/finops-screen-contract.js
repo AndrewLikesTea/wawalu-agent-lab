@@ -155,10 +155,10 @@ export const DECISION_SUMMARY = Object.freeze({
         label: Object.freeze({
           elementId: "finops-answer-label", authored: ANSWER_DESTINATION.metricLabel,
         }),
-        value: Object.freeze({ elementId: "finops-answer-value", authored: "Still reading" }),
+        value: Object.freeze({ elementId: "finops-answer-value", authored: "Results will appear here" }),
         direction: Object.freeze({
           elementId: "finops-answer-direction",
-          authored: "Analysis pending; no direction is available yet",
+          authored: "Results will appear when preparation is complete",
         }),
         basis: Object.freeze({
           elementId: "finops-answer-basis", authored: "as of the Bundled synthetic example",

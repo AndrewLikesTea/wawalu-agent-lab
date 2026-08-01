@@ -189,7 +189,7 @@ test("the loading state draws the line rather than reserving a blank row", () =>
   assert.ok(line, "the evidence line is not in the document before data arrives");
   assert.equal(line.hidden, false, "the line is hidden until data lands, so the panel jumps");
   assert.match(textOf(line), /^Evidence for the headline figure/);
-  assert.match(textOf(byId(document, ANSWER_EVIDENCE_IDS.text)), /fill in/,
+  assert.match(textOf(byId(document, ANSWER_EVIDENCE_IDS.text)), /not available until .* is prepared/,
     "the pending line says nothing about why it has no figures yet");
 });
 
@@ -263,7 +263,7 @@ test("a repaint that states no direction clears the last one rather than keep it
     const now = textOf(byId(document, ANSWER_BLOCK_IDS.direction));
     assert.notEqual(now, painted,
       `direction ${JSON.stringify(missing) ?? "undefined"} left the last paint's direction standing`);
-    assert.match(now, /no direction is available/i,
+    assert.match(now, /Results will appear when preparation is complete/i,
       "the slot says something other than the authored pending wording");
     assert.equal(now.includes("[object Object]"), false, "a non-string was stringified onto the page");
   }

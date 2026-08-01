@@ -115,7 +115,7 @@ test("the bundled decision surface explains empty evidence and unavailable sampl
   // The authored rationale states what is missing rather than narrating a read:
   // only #finops-load-state may say a load is in progress. See
   // tests/finops-load-status.test.js.
-  assert.match(page, /No intervention has been prioritized from the Bundled synthetic example yet\. No live analysis is running\./);
+  assert.match(page, /A recommended intervention will be available after the Bundled synthetic example is prepared\./);
   assert.ok(page.indexOf("Which department needs help?")
     < page.indexOf("Is cost/performance worsening?"));
   assert.ok(page.indexOf("Is cost/performance worsening?")

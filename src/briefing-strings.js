@@ -50,9 +50,9 @@ export const BRIEFING_STATE_MESSAGE = Object.freeze({
  */
 export const BUNDLED_LOAD_STATE = Object.freeze({
   loading: Object.freeze({
-    title: "Reading the Bundled synthetic example…",
-    detail: "Nothing of yours is imported. The local import tools below are already usable, "
-      + "and previously rendered content stays visible while the synthetic fixture is refreshed.",
+    title: "Preparing the Bundled synthetic example…",
+    detail: "Invented example data is being prepared. No personal file is needed. "
+      + "You can wait, or choose files to analyze your own provider export.",
   }),
   // Scoped deliberately to the panels that actually wait on the fixture. The
   // example decision above this region is composed from a module in the bundle
@@ -78,8 +78,8 @@ export const BUNDLED_LOAD_STATE = Object.freeze({
  * "unavailable" are different claims: one is still coming, the other is not.
  */
 export const BRIEFING_CONFIDENCE_LABEL = Object.freeze({
-  loading: "Confidence pending",
-  empty: "Confidence pending",
+  loading: "Confidence not available yet",
+  empty: "Confidence not available yet",
   error: "Confidence unavailable",
 });
 
@@ -95,9 +95,9 @@ export const NOT_GRADED = "Not graded";
  */
 export const DEPARTMENT_DETAIL_STATE = Object.freeze({
   loading: Object.freeze({
-    name: "No department selected yet",
+    name: "Department result not available yet",
     score: "–",
-    sample: "No department is selected until the Bundled synthetic example has been read.",
+    sample: "Department results will be available after the Bundled synthetic example is prepared.",
   }),
   noDepartments: Object.freeze({
     name: "No department in this period",

@@ -80,7 +80,7 @@ export const CHOOSE_FILES_ACTION = Object.freeze({
  * colour: a word, a shape, and the tone family that only repeats them.
  */
 export const LOAD_PRESENTATION = Object.freeze({
-  loading: Object.freeze({ state: "loading", word: "Reading", shape: "◌", tone: "neutral" }),
+  loading: Object.freeze({ state: "loading", word: "Preparing", shape: "◌", tone: "neutral" }),
   ready: Object.freeze({ state: "ready", word: "Ready", shape: "▣", tone: "resolved" }),
   error: Object.freeze({ state: "error", word: "Could not load", shape: "▲", tone: "error" }),
 });
@@ -140,24 +140,24 @@ export const HERO_INTRO = "Import a provider export and this page names how much
  */
 export const SECONDARY_PLACEHOLDER = Object.freeze({
   organization: "Bundled synthetic example",
-  score: "Not read yet",
-  coverage: "Sampled-spend coverage not read yet",
-  scoreAction: "Not read yet",
-  rubric: "Fills in once a scored query sample is read.",
-  guidedFinding: "No next step ranked yet",
-  provenance: "Sample provenance not read yet",
-  departmentList: "No department ranked yet",
-  actionTitle: "No intervention prioritized yet",
-  actionStatus: "Not prioritized yet",
-  actionRationale: "No intervention has been prioritized from the Bundled synthetic example yet.",
-  diagnosis: "No diagnosis yet",
-  trend: "No comparison yet",
-  benchmark: "No peer comparison yet",
-  spendMix: "Spend mix not read yet",
-  portfolioCount: "No actions counted yet",
-  portfolioTitle: "No action portfolio yet",
-  portfolioCopy: "Fills in once the action lifecycle is read.",
-  evaluation: "No fixture scores read yet",
+  score: "Score not available yet",
+  coverage: "Sampled-spend coverage not available yet",
+  scoreAction: "Action not available yet",
+  rubric: "Rubric results will be available after a scored query sample is prepared.",
+  guidedFinding: "Next step not available yet",
+  provenance: "Sample provenance not available yet",
+  departmentList: "Department ranking not available yet",
+  actionTitle: "Recommended intervention not available yet",
+  actionStatus: "Recommendation not available yet",
+  actionRationale: "A recommended intervention will be available after the Bundled synthetic example is prepared.",
+  diagnosis: "Diagnosis not available yet",
+  trend: "Comparison not available yet",
+  benchmark: "Peer comparison not available yet",
+  spendMix: "Spend mix not available yet",
+  portfolioCount: "Action count not available yet",
+  portfolioTitle: "Action portfolio not available yet",
+  portfolioCopy: "The action portfolio will be available after the action lifecycle is prepared.",
+  evaluation: "Fixture scores not available yet",
 });
 
 /**

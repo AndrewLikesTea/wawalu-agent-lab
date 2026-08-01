@@ -87,6 +87,15 @@ test("the region carries a visible label, a shape, and a word beside its state",
   assert.equal(textOf(byId(document, LOAD_STATUS_IDS.shape)), LOAD_PRESENTATION.loading.shape);
   assert.equal(byId(document, LOAD_STATUS_IDS.shape).getAttribute("aria-hidden"), "true");
   assert.equal(textOf(byId(document, LOAD_STATUS_IDS.word)), LOAD_PRESENTATION.loading.word);
+  assert.equal(LOAD_PRESENTATION.loading.word, "Preparing",
+    "the initial state uses the page's one term for active work");
+  const title = textOf(byId(document, LOAD_STATUS_IDS.title));
+  const copy = textOf(byId(document, LOAD_STATUS_IDS.copy));
+  assert.match(title, /^Preparing the Bundled synthetic example/);
+  assert.match(copy, /Invented example data is being prepared/);
+  assert.match(copy, /No personal file is needed/);
+  assert.match(copy, /You can wait/);
+  assert.match(copy, /analyze your own provider export/);
 });
 
 test("the score card and every KPI ship a shape-and-word flag, not a bare dash", async () => {
@@ -253,6 +262,8 @@ test("every placeholder states an absence rather than a wait", () => {
     assert.doesNotMatch(copy, /\b(loading|counting|computing|connecting)\b/i,
       `${key} narrates a load that only #finops-load-state may narrate`);
     assert.notEqual(copy.trim(), "Unavailable", `${key} falls back to a bare "Unavailable"`);
+    assert.doesNotMatch(copy, /\bpending\b/i,
+      `${key} uses a status term that can imply an error or queued work`);
   }
 });
 
