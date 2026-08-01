@@ -111,7 +111,7 @@ import { renderRecurringReviewWorkspace } from "/recurring-review-workspace-view
 import { buildMonthlyReviewProjection, MONTHLY_REVIEW_INPUT_VERSION } from "/monthly-review-projection.js";
 import { renderMonthlyReviewProjection } from "/monthly-review-projection-view.js";
 import { buildMonthlyFinopsReview } from "/monthly-finops-review.js";
-import { renderMonthlyFinopsReview } from "/monthly-finops-review-view.js";
+import { renderMonthlyFinopsContinuation } from "/monthly-finops-review-view.js";
 // The returning lead's question — "where do I start this month?" — and the one
 // answer to it. The contract is pure and clock-free; the clock is injected at
 // the call sites below, which is what makes the same records give one answer.
@@ -3505,7 +3505,7 @@ async function init() {
     try {
       const response = await fetch("/monthly-finops-review-fixture.json", { cache: "no-store" });
       if (!response.ok) throw new Error(`fixture unavailable: ${response.status}`);
-      renderMonthlyFinopsReview(document, buildMonthlyFinopsReview(await response.json()));
+      renderMonthlyFinopsContinuation(document, buildMonthlyFinopsReview(await response.json()));
       document.querySelector('[data-shell-destination="monthly-review"]')?.click();
     } catch {
       renderMonthlyReviewProjection(document, {});
