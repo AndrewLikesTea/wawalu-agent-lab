@@ -221,3 +221,100 @@ test("empty, incompatible, and no-comparison cycles never imply verification", a
   assert.match(text, /not verified/);
   assert.doesNotMatch(text, /Observed savings/);
 });
+
+test("recommended action confirms into Rowan's next-period result and reset restores focus", async () => {
+  const input = await fixture();
+  const doc = parseHtml(await read("src/evolution.html"));
+  const storage = memoryStorage();
+  const paint = () => renderOperatingCycle(doc,
+    projectOperatingCycle(input, readOperatingCycleSelection(storage)), {
+      onSelect(actionId) {
+        writeOperatingCycleSelection(storage, actionId);
+        paint();
+      },
+      onReset() {
+        clearOperatingCycleSelection(storage);
+        paint();
+      },
+    });
+
+  let root = paint();
+  const choice = root.querySelector('input[name="monthly-review-action"]');
+  const confirm = root.querySelector('button[type="submit"]');
+  assert.equal(root.querySelectorAll('input[name="monthly-review-action"]').length, 1,
+    "only the prioritized eligible action is offered");
+  assert.equal(confirm.disabled, true);
+  assert.match(choice.getAttribute("aria-describedby"), /-evidence$/);
+  choice.click();
+  assert.equal(confirm.disabled, false);
+  confirm.click();
+
+  root = doc.getElementById("monthly-review-projection");
+  assert.equal(root.dataset.state, "met");
+  assert.match(textOf(root), /Platform routing policy exceeded.*Expected savings.*Observed savings/s);
+  assert.match(textOf(root), /Continue.*Extend the verified routing policy/s);
+  assert.equal(doc.activeElement?.id, "monthly-review-projection-title");
+  const reset = root.querySelector("button");
+  assert.match(reset.getAttribute("aria-label"), /Reset Platform routing policy/);
+  reset.click();
+
+  root = doc.getElementById("monthly-review-projection");
+  assert.equal(root.dataset.state, "empty");
+  assert.match(textOf(root), /Choose one bundled demo action/);
+  assert.doesNotMatch(textOf(root), /Observed savings/);
+  assert.equal(doc.activeElement?.id, "monthly-review-projection-title");
+  assert.equal(readOperatingCycleSelection(storage).status, "empty");
+});
+
+test("an action the cycle cannot store or format is never offered as a choice", async () => {
+  const doc = parseHtml(await read("src/evolution.html"));
+  const noSelection = { status: "empty", selection: null };
+
+  // Offering an id the selection validator rejects makes Confirm a silent no-op:
+  // the write fails, the repaint returns the same form, and focus jumps away.
+  const badId = await fixture();
+  badId.actions.find((action) => action.selected).id = "routing policy!";
+  assert.equal(writeOperatingCycleSelection(memoryStorage(), "routing policy!").ok, false);
+  assert.deepEqual(projectOperatingCycle(badId, noSelection).actions, []);
+
+  // A currency Intl cannot parse throws a RangeError out of the render, blanking
+  // the workspace; reset repaints outside the page's try, so it would not recover.
+  const badCurrency = await fixture();
+  badCurrency.currency = "US$";
+  assert.deepEqual(projectOperatingCycle(badCurrency, noSelection).actions, []);
+
+  // A fixture version this build cannot vouch for must not reach the offer at all.
+  const badVersion = await fixture();
+  badVersion.schemaVersion = "monthly-finops-review-fixture/9.9.9";
+  assert.equal(projectOperatingCycle(badVersion, noSelection).status, "incompatible");
+
+  // Counts, never the node itself: asserting an element equals null makes the
+  // runner inspect it to build a diff, and these nodes link back to the whole
+  // parsed page, so the assertion hangs instead of failing.
+  const root = renderOperatingCycle(doc, projectOperatingCycle(badCurrency, noSelection));
+  assert.match(textOf(root), /No bundled demo action is offerable/);
+  assert.equal(root.querySelectorAll('input[name="monthly-review-action"]').length, 0);
+  assert.equal(root.querySelectorAll("button").length, 0, "no dead Confirm control is left behind");
+});
+
+test("confirming follows the checked action, not the first one rendered", async () => {
+  const doc = parseHtml(await read("src/evolution.html"));
+  const offer = (id, name) => ({ id, name, scope: `${name} spend`, expectedSavingsMinor: 100,
+    verificationPeriodId: "synthetic-2026-07", currency: "USD", evidence: "Bundled synthetic." });
+  const confirmed = [];
+  const root = renderOperatingCycle(doc, { schemaVersion: "finops-operating-cycle/1.0.0",
+    status: "empty", review: null,
+    actions: [offer("first-action", "First"), offer("second-action", "Second")] },
+  { onSelect: (actionId) => confirmed.push(actionId) });
+
+  const [first, second] = root.querySelectorAll('input[name="monthly-review-action"]');
+  const confirm = root.querySelector('button[type="submit"]');
+  assert.equal(confirm.disabled, true);
+  second.click();
+  assert.equal(first.checked, false);
+  assert.equal(confirm.disabled, false, "a checked second choice enables Confirm");
+  confirm.click();
+  assert.deepEqual(confirmed, ["second-action"]);
+  assert.equal(root.querySelector("form").getAttribute("aria-labelledby"),
+    "monthly-review-recommendation-title");
+});
