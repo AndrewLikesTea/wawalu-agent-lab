@@ -7,7 +7,7 @@ import {
   MONTHLY_REVIEW_VERSION, validateMonthlyReviewInput, validateMonthlyReviewProjection,
 } from "../src/monthly-review-projection.js";
 import { renderMonthlyReviewProjection } from "../src/monthly-review-projection-view.js";
-import { parseHtml, textOf } from "./support/browser.js";
+import { parseHtml, pressEnter, pressSpace, tabSequence, textOf } from "./support/browser.js";
 
 const period = (month, recoverableScenarioMinor, overrides = {}) => Object.freeze({
   periodId: `user:${month}`,
@@ -90,10 +90,85 @@ test("the shipped evolution surface renders the validated projection contract", 
   const root = renderMonthlyReviewProjection(doc, review);
   assert.equal(root.hidden, false);
   assert.equal(root.dataset.state, "improving");
-  assert.match(textOf(root), /15\.0% current recoverable share vs 20\.0% baseline/);
-  assert.match(textOf(root), /Strongest department contributor: syn-support/);
-  assert.match(textOf(root), /Prior commitment verification: candidate_supported/);
-  assert.match(textOf(root), /Next action · rank 1/);
+  assert.match(textOf(root), /15\.0% current vs 20\.0% retained baseline/);
+  assert.match(textOf(root), /Department evidencesyn-support/);
+  assert.match(textOf(root), /Prior commitmentcandidate_supported/);
+  assert.match(textOf(root), /Next action · priority 1/);
   assert.match(textOf(root), new RegExp(MONTHLY_REVIEW_VERSION.replaceAll(".", "\\.")));
   assert.equal(root.querySelectorAll(".monthly-review-projection-action").length, 1);
+});
+
+test("monthly decision orders its heading, finding, benchmark, action, and evidence", async () => {
+  const html = await readFile(new URL("../src/evolution.html", import.meta.url), "utf8");
+  const doc = parseHtml(html);
+  const root = renderMonthlyReviewProjection(doc, buildMonthlyReviewProjection(input(period("2026-07", 260_000))));
+  const headings = root.querySelectorAll("h2,h3").map((node) => `${node.tagName}:${textOf(node)}`);
+  assert.deepEqual(headings, [
+    "H2:What changed this month, and what should we do next?",
+    "H3:Headline finding",
+    "H3:Next action · priority 1",
+  ]);
+  assert.match(textOf(root.querySelector(".monthly-review-status")), /▲ Worsening/);
+  const action = root.querySelector(".monthly-review-projection-action");
+  assert.match(textOf(action), /Revise the action/);
+  const link = root.querySelector(".monthly-review-department-link");
+  assert.equal(textOf(link), "Review syn-support department evidence");
+  assert.equal(link.href, "#department-decision-panel");
+});
+
+test("evidence disclosure is named, keyboard operable, stateful, and announced", async () => {
+  const html = await readFile(new URL("../src/evolution.html", import.meta.url), "utf8");
+  const doc = parseHtml(html);
+  const root = renderMonthlyReviewProjection(doc, buildMonthlyReviewProjection(input(period("2026-07", 150_000))));
+  root.closest("#guided-result").hidden = false;
+  const details = root.querySelector("details");
+  const summary = root.querySelector("summary");
+  const live = root.querySelector('[aria-live="polite"]');
+  assert.equal(textOf(summary), "Evidence and provenance boundary");
+  assert.equal(summary.getAttribute("aria-controls"), "monthly-review-provenance-content");
+  assert.equal(summary.getAttribute("aria-expanded"), "false");
+  assert.ok(tabSequence(doc).includes(summary));
+
+  summary.focus();
+  pressEnter(doc);
+  assert.equal(doc.activeElement, summary);
+  assert.equal(summary.getAttribute("aria-expanded"), "true");
+  assert.equal(details.dataset.disclosure, "expanded");
+  assert.match(textOf(live), /expanded/);
+  pressSpace(doc);
+  assert.equal(summary.getAttribute("aria-expanded"), "false");
+  assert.equal(details.dataset.disclosure, "collapsed");
+  assert.match(textOf(live), /collapsed/);
+});
+
+test("loading, empty, error, and implausible extremes withhold unsupported decisions", async () => {
+  const html = await readFile(new URL("../src/evolution.html", import.meta.url), "utf8");
+  const draw = (review) => {
+    const doc = parseHtml(html);
+    return renderMonthlyReviewProjection(doc, review);
+  };
+  const loading = draw(null);
+  assert.equal(loading.dataset.state, "loading");
+  assert.equal(loading.getAttribute("aria-busy"), "true");
+  assert.match(textOf(loading), /◌ Loading/);
+
+  const empty = draw(buildMonthlyReviewProjection(input(period("2026-07", 150_000), [])));
+  assert.equal(empty.dataset.state, "empty");
+  assert.match(textOf(empty), /○ Empty/);
+  assert.equal(empty.querySelector(".monthly-review-projection-action"), null);
+
+  const invalid = structuredClone(buildMonthlyReviewProjection(input(period("2026-07", 150_000))));
+  invalid.nextAction.rank = 2;
+  const error = draw(invalid);
+  assert.equal(error.dataset.state, "error");
+  assert.match(textOf(error), /× Error/);
+
+  const extreme = structuredClone(buildMonthlyReviewProjection(input(period("2026-07", 150_000))));
+  extreme.materialBenchmark.currentSharePpm = 1_200_000;
+  extreme.materialBenchmark.changeSharePpm = 1_000_000;
+  extreme.materialBenchmark.status = "worsening";
+  const implausible = draw(extreme);
+  assert.equal(implausible.dataset.state, "implausible_extreme");
+  assert.match(textOf(implausible), /outside 0%–100%/);
+  assert.equal(implausible.querySelector(".monthly-review-projection-action"), null);
 });
