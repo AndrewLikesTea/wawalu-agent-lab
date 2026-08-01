@@ -98,7 +98,7 @@ for (const { name, open, prefix } of SURFACES) {
   test(`${name} answers a landed request with a receipt naming the address`, async () => {
     const page = await open();
     const { document } = page;
-    interceptLeads(() => jsonReply({ subscribed: true }));
+    interceptLeads(() => jsonReply({ captured: true, created: true, purpose: "follow_up" }));
     try {
       byId(document, `${prefix}-open`).click();
       assert.equal(byId(document, `${prefix}-confirmation`), null,
@@ -133,7 +133,7 @@ for (const { name, open, prefix } of SURFACES) {
   test(`${name} cannot send twice: the receipt replaces the form`, async () => {
     const page = await open();
     const { document } = page;
-    const calls = interceptLeads(() => jsonReply({ subscribed: true }));
+    const calls = interceptLeads(() => jsonReply({ captured: true, created: true, purpose: "follow_up" }));
     try {
       byId(document, `${prefix}-open`).click();
       const submit = byId(document, `${prefix}-form`).querySelector('button[type="submit"]');
@@ -177,7 +177,7 @@ for (const { name, open, prefix } of SURFACES) {
   test(`${name} moves focus to the receipt and announces it the way it announces a failure`, async () => {
     const page = await open();
     const { document } = page;
-    interceptLeads(() => jsonReply({ subscribed: true }));
+    interceptLeads(() => jsonReply({ captured: true, created: true, purpose: "follow_up" }));
     try {
       byId(document, `${prefix}-open`).click();
       submitEmail(document, prefix, LONG_EMAIL);
@@ -244,7 +244,7 @@ for (const { name, open, prefix } of SURFACES) {
   test(`${name} renders a typed address as text, never as markup`, async () => {
     const page = await open();
     const { document } = page;
-    interceptLeads(() => jsonReply({ subscribed: true }));
+    interceptLeads(() => jsonReply({ captured: true, created: true, purpose: "follow_up" }));
     try {
       byId(document, `${prefix}-open`).click();
       submitEmail(document, prefix, MARKUP_EMAIL);
@@ -262,7 +262,7 @@ for (const { name, open, prefix } of SURFACES) {
 test("the briefing's next step survives the swap and stays operable beside the receipt", async () => {
   const page = await openBriefingPage();
   const { document } = page;
-  interceptLeads(() => jsonReply({ subscribed: true }));
+  interceptLeads(() => jsonReply({ captured: true, created: true, purpose: "follow_up" }));
   try {
     byId(document, "briefing-contact-open").click();
     submitEmail(document, "briefing-contact", LONG_EMAIL);

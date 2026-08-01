@@ -13,8 +13,8 @@
 //      synthetic can either. Coming back is the reopen button, a deliberate act.
 //   2. The address is rendered as text. `textContent` is all this module writes,
 //      so nothing a visitor types can become a node.
-//   3. It says only what the request carried. `postLeadEmail` builds the whole
-//      body from the address in the field, so the receipt names the address and
+//   3. It says only what the visitor supplied. `postLeadEmail` builds the body
+//      from the address and a fixed routing label, so the receipt names the address and
 //      repeats the form's own privacy vocabulary — no figure, file, filter, or
 //      page identity — and promises no response time, because nobody here has
 //      committed to one.
