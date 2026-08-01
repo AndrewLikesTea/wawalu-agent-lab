@@ -3390,6 +3390,16 @@ function paintConsolidatedJourney() {
 }
 
 async function init() {
+  const monthlyReviewOpen = document.getElementById("monthly-review-open");
+  monthlyReviewOpen?.addEventListener("click", async () => {
+    const [{ MONTHLY_REVIEW_FIXTURE }, { monthlyReview }, { renderMonthlyReview }] = await Promise.all([
+      import("/monthly-review-fixture.js"), import("/monthly-review.js"), import("/monthly-review-view.js"),
+    ]);
+    renderMonthlyReview(document, monthlyReview(MONTHLY_REVIEW_FIXTURE));
+    monthlyReviewOpen.setAttribute("aria-expanded", "true");
+    monthlyReviewOpen.textContent = "Monthly review preview open";
+    monthlyReviewOpen.disabled = true;
+  });
   if (!document.getElementById("department-priority")) return;
   // Preserve bookmarks to deleted summary regions. This is a local fragment
   // replacement only: no redirect, request, storage, or server coupling.

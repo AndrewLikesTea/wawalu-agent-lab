@@ -221,6 +221,23 @@
    heavy rule on the page; the readiness note is a word and a border, never a
    colour alone, so it survives monochrome and a screen reader alike. */
 .guided-result { margin-top:24px; border-left:6px solid #315f50; }
+.monthly-review-entry { margin:0 0 20px; border-bottom:1px solid var(--panel-border); padding:0 0 20px; }
+.monthly-review-entry p { margin:0 0 10px; line-height:1.5; }
+.monthly-review-entry button { min-height:44px; border:0; border-radius:8px; padding:10px 16px; background:#315f50; color:#fff; font:700 14px/1.4 inherit; cursor:pointer; }
+.monthly-review-entry button:focus-visible,.monthly-review-details>summary:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.monthly-review-preview { margin:0 0 26px; border:1px solid var(--panel-border); border-radius:14px; padding:22px 20px 24px; background:#f6faf7; }
+.monthly-review-heading h2 { margin:4px 0 8px; font-size:clamp(25px,4vw,36px); }
+.monthly-review-provenance,.monthly-review-support { color:var(--ink-muted); font-size:13px; line-height:1.5; }
+.monthly-review-decision { margin-top:20px; border-top:1px solid var(--panel-border); padding-top:16px; }
+.monthly-review-decision h3 { margin:0 0 6px; font-size:16px; }
+.monthly-review-value,.monthly-review-outcome,.monthly-review-action { margin:0; font-size:clamp(21px,3vw,28px); font-weight:750; line-height:1.25; }
+.monthly-review-support { margin:6px 0 0; }
+.monthly-review-finding { margin:22px 0 0; border-left:5px solid #315f50; padding:14px; background:#fff; font-weight:650; line-height:1.55; }
+.monthly-review-details { margin-top:14px; }
+.monthly-review-details>summary { border-radius:6px; padding:6px; cursor:pointer; font-weight:650; }
+.monthly-review-facts { display:grid; gap:12px; margin:12px 6px 0; }
+.monthly-review-fact dt { color:var(--ink-muted); font-size:12px; font-weight:700; text-transform:uppercase; }
+.monthly-review-fact dd { margin:2px 0 0; line-height:1.5; overflow-wrap:anywhere; }
 /* An inset card, not a full-bleed band: the panel's own padding is 30px and
    21px below 760px, so a fixed negative margin lands at a different inset per
    breakpoint, and one wide enough to actually reach the edge would paint its

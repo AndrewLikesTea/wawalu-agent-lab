@@ -1050,21 +1050,17 @@
         <p class="visually-hidden" id="finops-portfolio-brief-live" role="status" aria-live="polite" aria-atomic="true"></p>
       </section>
 
-      <!-- The guided result. One question, one benchmark, one action, and the
-           required trust verdict, composed in src/finops-guided-result.js. Every
-           other executive panel on this page is progressive-disclosure support
-           and is listed, in declared rank order, in the closed block at the
-           bottom of this section. Nothing here is computed by the page: the
-           contract selects, this section displays. -->
       <section class="guided-result finops-panel" id="guided-result" data-state="unavailable" data-decision-ready="false" data-decision-summary="complete" data-workspace-region="answer" aria-labelledby="guided-result-question" hidden>
+        <div class="monthly-review-entry">
+          <p><strong>Returning for the monthly review?</strong> Open a two-period synthetic preview of the three decisions an executive needs.</p>
+          <button type="button" id="monthly-review-open" aria-expanded="false" aria-controls="monthly-review-preview">Open monthly review preview</button>
+        </div>
+        <section class="monthly-review-preview" id="monthly-review-preview" aria-labelledby="monthly-review-title" hidden></section>
         <section class="recurring-review-workspace" id="recurring-review-workspace"
           aria-labelledby="recurring-review-question" hidden></section>
         <p class="eyebrow">FinOps briefing · headline</p>
         <h2 id="guided-result-question">What should we do now?</h2>
         <p class="guided-result-finding" id="guided-result-finding">Next step not available yet</p>
-        <!-- How far this composition may be taken, written beside it rather than
-             in a footnote: a synthetic sample and an unattributable import are
-             both readable and neither is a basis for a decision. -->
         <p class="guided-result-readiness" id="guided-result-readiness" role="note" data-ready="false">Not decision-ready</p>
         <div class="guided-result-slots">
           <div class="guided-result-slot">
