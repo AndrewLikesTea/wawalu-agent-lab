@@ -138,7 +138,11 @@ function baselineOf(pack, lead, cycle) {
  * and action id; a same-named action elsewhere is not a duplicate.
  */
 export function monthlyDepartmentDecision(pack, {
-  cycle = monthlyCycle(),
+  // A caller that states its own `now` gets a cycle derived from it. Falling back
+  // to the real clock here made the answer depend on the wall month, so the same
+  // inputs read "comparable" in one month and "awaiting" in the next.
+  now = null,
+  cycle = monthlyCycle(now instanceof Date ? now : undefined),
   tracking = null,
 } = {}) {
   const lead = pack?.state === "ready" ? list(pack.interventions)[0] : null;
