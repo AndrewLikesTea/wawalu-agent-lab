@@ -110,6 +110,8 @@ import { renderConsolidatedJourney } from "/finops-journey-consolidated-view.js"
 import { renderRecurringReviewWorkspace } from "/recurring-review-workspace-view.js";
 import { buildMonthlyReviewProjection, MONTHLY_REVIEW_INPUT_VERSION } from "/monthly-review-projection.js";
 import { renderMonthlyReviewProjection } from "/monthly-review-projection-view.js";
+import { buildMonthlyFinopsReview } from "/monthly-finops-review.js";
+import { renderMonthlyFinopsReview } from "/monthly-finops-review-view.js";
 // The returning lead's question — "where do I start this month?" — and the one
 // answer to it. The contract is pure and clock-free; the clock is injected at
 // the call sites below, which is what makes the same records give one answer.
@@ -3497,6 +3499,21 @@ async function init() {
   // hidden cannot take focus.
   initWorkspaceShell(document, { win: window, loaded: destinations });
   bindWorkspaceNav(document);
+  const monthlyPreviewEntry = document.getElementById("monthly-review-preview-entry");
+  monthlyPreviewEntry?.addEventListener("click", async () => {
+    monthlyPreviewEntry.disabled = true;
+    try {
+      const response = await fetch("/monthly-finops-review-fixture.json", { cache: "no-store" });
+      if (!response.ok) throw new Error(`fixture unavailable: ${response.status}`);
+      renderMonthlyFinopsReview(document, buildMonthlyFinopsReview(await response.json()));
+      document.querySelector('[data-shell-destination="monthly-review"]')?.click();
+    } catch {
+      renderMonthlyReviewProjection(document, {});
+      document.querySelector('[data-shell-destination="monthly-review"]')?.click();
+    } finally {
+      monthlyPreviewEntry.disabled = false;
+    }
+  });
   // The comparability judgment on the import panel. Same synchronous pass and
   // the same reason: it depends on no fetch, no file, and no adapter, so the
   // question "may these be combined at all?" is readable and its next action is
