@@ -28,6 +28,7 @@ import { initReleaseDetail } from "../src/release-page.js";
 import { initDecisionDetail } from "../src/decision-page.js";
 import { initShiplogExport } from "../src/shiplog-export.js";
 import { loadReleaseData } from "../src/releases-data.js";
+import { onRequest as healthz } from "../functions/healthz.js";
 import {
   DomEvent,
   loadPage,
@@ -52,11 +53,18 @@ const DECISION_DETAIL_PAGE = new URL("../src/decision.html", import.meta.url);
 const NO_DEMO_DATA = { decisions: [], releases: [] };
 const EMPTY_BROWSER = { [STORAGE_KEY]: "[]", [RELEASE_STORAGE_KEY]: "[]" };
 
+// This is authored content, not a fixture smuggled directly into storage. If a
+// view ever starts interpolating stored fields into HTML, these elements will
+// appear in the page (and a real browser would run their handlers). Keeping the
+// sentinel in the core journey makes the no-user-HTML rule travel through the
+// same persistence, relationship, history, and export seams as ordinary text.
+const HOSTILE_HTML = '<img src=x onerror="globalThis.shiplogPwned=true"><script>globalThis.shiplogPwned=true</script>';
+
 // What the manager types. The decision's owner and the release's owner differ
 // on purpose: the history's owner filter has to tell the two records apart.
 const DECISION = {
   title: "Adopt a durable job queue",
-  context: "Background work was lost on deploys; move to an at-least-once queue.",
+  context: `Background work was lost on deploys; move to an at-least-once queue. ${HOSTILE_HTML}`,
   alternatives: "Database polling and in-process retries.",
   owner: "Ari",
   status: "accepted",
@@ -147,6 +155,13 @@ const decisionRows = (page) => page.document.querySelector("#decision-list").que
 const decisionRowTitles = (page) => decisionRows(page).map((card) => textOf(card.querySelector("h3")));
 const historyCount = (page) => textOf(page.document.querySelector("#decision-count"));
 
+function assertAuthoredHtmlStayedText(root, label) {
+  assert.equal(root.querySelector("script"), null, `${label} created a script element from authored text`);
+  assert.equal(root.querySelector("img"), null, `${label} created an image element from authored text`);
+  assert.match(textOf(root), /<img src=x onerror=/, `${label} did not preserve authored HTML as literal text`);
+  assert.match(textOf(root), /<script>globalThis\.shiplogPwned=true<\/script>/, `${label} did not preserve the script string as data`);
+}
+
 // Record the decision with the keyboard alone, then hand back what the browser
 // is holding. Storage is read rather than the form, because the id the rest of
 // the journey follows is the one that was persisted.
@@ -234,6 +249,10 @@ test("a release manager records a decision, ships it, and reaches it again from 
   assert.equal(decision.status, DECISION.status, "the recorded decision lost its status");
   assert.ok(typeof decision.id === "string" && decision.id.trim() !== "", "the recorded decision has no id");
   assert.deepEqual(decisionRowTitles(decisionsPage), [DECISION.title], "the recorded decision is not in the history");
+  assertAuthoredHtmlStayedText(
+    decisionsPage.document.querySelector("#decision-list"),
+    "the decision history",
+  );
 
   const afterDecision = browserState(decisionsPage);
   decisionsPage.restore();
@@ -310,6 +329,10 @@ test("a release manager records a decision, ships it, and reaches it again from 
   // 5. And the loop closes: the decision the manager landed on names the
   //    release that shipped it, so the association reads in both directions.
   const decisionDetail = await openDecisionDetail(t, state, decision.id);
+  assertAuthoredHtmlStayedText(
+    decisionDetail.document.querySelector("#decision-detail"),
+    "the decision detail view",
+  );
   const back = decisionDetail.document.querySelector(".linked-release-link");
   assert.ok(back, "the decision does not name the release that shipped it");
   assert.match(textOf(back), new RegExp(RELEASE.version.replace(".", "\\.")), "the linked release is not named by version");
@@ -394,6 +417,7 @@ test("the journey exports as one JSON file carrying the decision, the release, a
   assert.ok(exportedDecision, "the decision the manager recorded is missing from the export");
   assert.equal(exportedDecision.title, DECISION.title);
   assert.equal(exportedDecision.context, DECISION.context, "the exported decision lost its context");
+  assert.match(exportedDecision.context, /<script>/, "the export rewrote authored HTML instead of preserving it as data");
   assert.equal(exportedDecision.alternatives, DECISION.alternatives, "the exported decision lost its alternatives");
   assert.equal(exportedDecision.owner, DECISION.owner, "the exported decision lost its owner");
   assert.equal(exportedDecision.status, DECISION.status, "the exported decision lost its status");
@@ -417,6 +441,31 @@ test("the journey exports as one JSON file carrying the decision, the release, a
     "Shiplog history exported.",
     "the export confirmation copy changed",
   );
+});
+
+test("GET /healthz returns a successful health response without credentials or external services", async () => {
+  const statements = [];
+  const db = {
+    prepare(sql) {
+      statements.push(sql);
+      return { async first() { return { healthy: 1 }; } };
+    },
+  };
+
+  const response = await healthz({
+    request: new Request("https://shiplog.test/healthz", { headers: { "cf-ray": "shiplog-e2e" } }),
+    env: { DB: db },
+  });
+
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("cache-control"), "no-store");
+  assert.equal(response.headers.get("x-request-id"), "shiplog-e2e");
+  assert.deepEqual(await response.json(), {
+    status: "ok",
+    storage: "available",
+    auth: "unconfigured",
+  });
+  assert.deepEqual(statements, ["SELECT 1 AS healthy"], "the health probe performed work beyond its read-only query");
 });
 
 test("a reload between the steps loses nothing the manager recorded", async (t) => {
