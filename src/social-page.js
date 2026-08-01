@@ -130,7 +130,7 @@ function mountMediaComposer(root) {
     frame.dataset.state = "error";
     preview.hidden = true;
     fallback.hidden = false;
-    setStatus("Preview unavailable. Remove this image and choose it again.", true);
+    setStatus("We couldn’t create a preview of the uploaded image. Remove the image, upload the file again, and check the preview before publishing.", true);
   });
   input.addEventListener("change", async () => {
     const generation = ++selectionGeneration;
