@@ -588,6 +588,10 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .social-clear { min-height:41px; }
 .feed-connection { display:flex; align-items:center; gap:8px; margin:0 0 9px; color:#62625d; font:650 11px/1.4 ui-monospace,monospace; }
 .live-dot { width:8px; height:8px; border-radius:50%; background:#3a8a4b; box-shadow:0 0 0 4px #e4f2e6; }
+/* A failed refresh cannot keep wearing the live indicator. The diamond shape
+   distinguishes the degraded connection even when colour is unavailable; the
+   adjacent status text names the state in words. */
+.feed-connection[data-state="degraded"] .live-dot { border:2px solid #8a6d0a; border-radius:1px; background:#fff; box-shadow:none; transform:rotate(45deg); }
 .visually-hidden { position:absolute!important; width:1px!important; height:1px!important; padding:0!important; margin:-1px!important; overflow:hidden!important; clip:rect(0,0,0,0)!important; white-space:nowrap!important; border:0!important; }
 /* Responsive post grid: one column when the panel is narrow, filling to more
    columns as space allows (mobile → tablet → desktop) without media queries.

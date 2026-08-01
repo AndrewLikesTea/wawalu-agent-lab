@@ -235,12 +235,13 @@ test("a rejected image drops the image, never the post", () => {
 
 test("social page is wired, labeled, and linked from the other pages", async () => {
   const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
-  const [home, releases, page, wiring, component] = await Promise.all([
+  const [home, releases, page, wiring, component, styles] = await Promise.all([
     read("src/index.html"),
     read("src/releases.html"),
     read("src/social.html"),
     read("src/social-page.js"),
     read("src/social.js"),
+    read("src/styles.css"),
   ]);
 
   // Reachable from the existing navigation (agents.html is out of scope/forbidden).
@@ -254,6 +255,10 @@ test("social page is wired, labeled, and linked from the other pages", async () 
   assert.match(page, /id="feed-announcer"[^>]*aria-live="polite"/);
   assert.match(wiring, /\/api\/social-posts\?limit=100/);
   assert.match(wiring, /method: "POST"/);
+  assert.match(wiring, /connection\.dataset\.state = "live"/);
+  assert.match(wiring, /connection\.dataset\.state = "degraded"/);
+  assert.match(styles, /\.feed-connection\[data-state="degraded"\] \.live-dot \{[^}]*border-radius:1px;[^}]*transform:rotate\(45deg\)/,
+    "an unavailable live service changes the connection marker's shape, not only its colour");
   assert.doesNotMatch(wiring, /localStorage/);
   assert.match(page, /src="\/social-page\.js"/);
   // Compose inputs carry explicit labels + describedby wiring.
