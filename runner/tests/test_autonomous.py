@@ -873,6 +873,19 @@ class AutonomousTests(IsolatedDiffBudget):
         self.assertNotIn("agent-blocked", relabeled.args[3]["labels"])
 
     @mock.patch.object(autonomous, "github")
+    def test_conflict_refunds_the_session_it_discarded(self, github):
+        # total_runs retires an issue no worker can finish. A lost merge race is
+        # contention on a hot file, not that evidence, so the discarded session is
+        # handed back — three races on one busy file spent half of #819's budget.
+        record = self.conflict_after(github, {"attempts": 1, "total_runs": 3}, {})
+        self.assertEqual(record["total_runs"], 2)
+
+    @mock.patch.object(autonomous, "github")
+    def test_conflict_refund_never_goes_negative(self, github):
+        record = self.conflict_after(github, {"attempts": 0, "total_runs": 0}, {})
+        self.assertEqual(record["total_runs"], 0)
+
+    @mock.patch.object(autonomous, "github")
     def test_repeated_conflicts_still_stop_at_their_own_budget(self, github):
         record = self.conflict_after(github, {"attempts": 0, "conflict_requeues": 2},
                                      {"max_conflict_requeues": 2})
