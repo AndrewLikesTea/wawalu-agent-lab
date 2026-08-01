@@ -329,6 +329,10 @@
 /* The panels inside already carry their own padding and heading; the wrapper
    only has to stop them re-drawing a second border inside this one. */
 .support-disclosure>section { margin:0; border:0; border-radius:0 0 11px 11px; }
+/* One group can hold more than one layer (#832 put both "this month" sections
+   in one). A rule between them, so the two are visibly two things rather than
+   one run of prose, and only the last one closes the wrapper's corners. */
+.support-disclosure>section:not(:last-of-type) { border-bottom:1px solid var(--panel-border); border-radius:0; }
 .guided-result-disclosures { margin:0; padding-left:22px; display:grid; gap:10px; }
 .guided-disclosure-question { display:block; font-weight:600; }
 .guided-disclosure-note { display:block; color:var(--ink-muted); font-size:13px; line-height:1.5; }

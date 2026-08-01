@@ -233,26 +233,27 @@ export const ANSWER_SPINE = Object.freeze([
       + "confidence score with its basis. Estimated, never invoiced.",
   },
   {
-    // The three "this month" regions are declared by their DISCLOSURE id: #742
-    // folded each section into the page's `support-disclosure` idiom, so the
-    // element `main` holds at this level is the wrapper. The section, its
-    // heading, and its view are unchanged inside it.
-    id: "disclosure-next-step",
+    // ONE STEP, NOT TWO (#832). #742 folded each "this month" section into the
+    // page's `support-disclosure` idiom, so the element `main` held at this
+    // level was the wrapper — but there were two wrappers asking two questions
+    // a stranger reads as one, between the answer and the way out of it. They
+    // are one group now. Both sections are inside it, unchanged: same ids, same
+    // headings, same views. What the manifest lost is a second entry in the
+    // reading order, which is exactly what a reader lost from the page.
+    //
+    // `headingId` is null for the same reason it is on
+    // `disclosure-grade-comparisons`: the element `main` holds is a `details`,
+    // and the question is on its `summary`, which is not a heading. The two
+    // headings inside it name the two sections, not the group.
+    id: "disclosure-this-month",
     role: ROLE.step,
-    question: "Where do I start this month?",
-    headingId: "finops-next-step-question",
+    question: "If I only do one thing this month, is it the right one — and what will tell me it worked?",
+    headingId: null,
     entitledToAssert:
       "The single highest-ranked action out of what this browser is already "
-      + "holding, and the confidence it was ranked at. A list is not an answer here.",
-  },
-  {
-    id: "disclosure-journey",
-    role: ROLE.step,
-    question: "What do I do next, and what will tell me it worked?",
-    headingId: "finops-journey-question",
-    entitledToAssert:
-      "The phase this browser's own records put the reader in, and the check that "
-      + "would close it. No claim about anyone else's progress.",
+      + "holding and the confidence it was ranked at, then the phase those same "
+      + "records put the reader in and the check that would close it. A list is "
+      + "not an answer here, and no claim about anyone else's progress.",
   },
   {
     // Not folded into a disclosure with the two layers above it: the rank-1
@@ -304,6 +305,32 @@ export const ANSWER_SPINE = Object.freeze([
     role: ROLE.detail,
     question: "What did I carry here from the answer?",
     headingId: "finops-workspace-context-title",
+  },
+  // The two wrappers #832 consolidated, kept as the record of where their
+  // questions went. Neither question was dropped: both sections are inside
+  // `disclosure-this-month`, and the group's summary asks the one question the
+  // two were circling. What was retired is the wrapper and the second ask.
+  {
+    id: "disclosure-next-step",
+    role: ROLE.retired,
+    question: "Where do I start this month?",
+    headingId: "finops-next-step-question",
+    supersededBy: "disclosure-this-month",
+    entitledToAssert:
+      "The single highest-ranked action out of what this browser is already "
+      + "holding, and the confidence it was ranked at. Still asserted, by "
+      + "#finops-next-step, which is now the first layer inside the group.",
+  },
+  {
+    id: "disclosure-journey",
+    role: ROLE.retired,
+    question: "What do I do next, and what will tell me it worked?",
+    headingId: "finops-journey-question",
+    supersededBy: "disclosure-this-month",
+    entitledToAssert:
+      "The phase this browser's own records put the reader in, and the check "
+      + "that would close it. Still asserted, by #finops-journey, which is now "
+      + "the second layer inside the same group.",
   },
   {
     id: "finops-first-run-conversion",

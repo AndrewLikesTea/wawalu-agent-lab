@@ -121,15 +121,16 @@ const REGIONS = Object.freeze({
   "finops-stand": REGION_CLASS.answer,
   "finops-hero": REGION_CLASS.evidence,
   "finops-first-run": REGION_CLASS.evidence,
-  // Two of the three "this month" regions are top-level as their DISCLOSURE,
-  // not as their section: #742 folded each into the page's `support-disclosure`
-  // idiom so an evidence region no longer opens at the answer's weight. The
-  // section keeps its own id and its own view; the wrapper is what the document
-  // holds at this level, so it is the id classified here.
+  // The two "this month" regions are top-level as ONE DISCLOSURE, not as their
+  // sections: #742 folded each into the page's `support-disclosure` idiom so an
+  // evidence region no longer opens at the answer's weight, and #832 folded the
+  // two wrappers into one group so a stranger meets one follow-on question
+  // between the answer and the workspace rail instead of two near-duplicates.
+  // Each section keeps its own id and its own view; the group is what the
+  // document holds at this level, so it is the id classified here.
   // `finops-destinations` is deliberately NOT folded: its rank-1 door must stay
   // in the tab order without a reader opening anything first.
-  "disclosure-next-step": REGION_CLASS.evidence,
-  "disclosure-journey": REGION_CLASS.evidence,
+  "disclosure-this-month": REGION_CLASS.evidence,
   "finops-destinations": REGION_CLASS.evidence,
   "finops-workspace-nav": REGION_CLASS.evidence,
   "finops-workspace-switch": REGION_CLASS.evidence,
@@ -138,6 +139,10 @@ const REGIONS = Object.freeze({
   "destination-load-department": REGION_CLASS.evidence,
   "destination-load-act-and-verify": REGION_CLASS.evidence,
   "finops-workspace-context": REGION_CLASS.evidence,
+  // The two wrappers #832 folded into `disclosure-this-month`. Their sections
+  // are still on the page inside it; what was removed is the wrapper.
+  "disclosure-next-step": REGION_CLASS.removed,
+  "disclosure-journey": REGION_CLASS.removed,
   "finops-first-run-conversion": REGION_CLASS.removed,
   "finops-load-state": REGION_CLASS.evidence,
   "score-card": REGION_CLASS.evidence,
@@ -191,7 +196,7 @@ const EVIDENCE_LAYERS = Object.freeze([
     id: "what-to-do-this-month",
     question: "What do I do first, and what will tell me it worked?",
     regionIds: Object.freeze([
-      "disclosure-next-step", "disclosure-journey", "finops-destinations",
+      "disclosure-this-month", "finops-destinations",
       "monthly-department-decision",
     ]),
   }),

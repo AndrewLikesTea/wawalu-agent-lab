@@ -77,7 +77,10 @@ test("the answer region is first in the document and is not itself a disclosure"
 test("every evidence layer folded into a disclosure ships closed, and none is open", () => {
   const document = doc();
   const wrappers = document.querySelectorAll("details.support-disclosure");
-  assert.ok(wrappers.length >= 8,
+  // Was >= 8 until #832 folded the two near-duplicate "this month" wrappers
+  // into one group. The layers inside are unchanged, so what went is one
+  // CONTROL, not one layer — the count below is the count of controls.
+  assert.ok(wrappers.length >= 7,
     `only ${wrappers.length} supporting layers ship as disclosures`);
 
   for (const wrapper of wrappers) {
@@ -85,9 +88,9 @@ test("every evidence layer folded into a disclosure ships closed, and none is op
       `${wrapper.id} is open on load, so the answer is not the only open region`);
   }
 
-  // The layers #742 folded, named rather than counted: a later pass that
-  // silently unfolds one of them fails here rather than in a screenshot.
-  for (const id of ["disclosure-next-step", "disclosure-journey"]) {
+  // The group #742 folded and #832 consolidated, named rather than counted: a
+  // later pass that silently unfolds it fails here rather than in a screenshot.
+  for (const id of ["disclosure-this-month"]) {
     const wrapper = byId(document, id);
     assert.ok(wrapper, `${id} is no longer on the page`);
     assert.equal(wrapper.tagName, "DETAILS", `${id} is not a native disclosure`);
@@ -100,7 +103,7 @@ test("every evidence layer folded into a disclosure ships closed, and none is op
 
 test("each folded layer names what a skeptic opens it to check, not a section label", () => {
   const document = doc();
-  for (const id of ["disclosure-next-step", "disclosure-journey"]) {
+  for (const id of ["disclosure-this-month"]) {
     const summary = byId(document, id).querySelector("summary");
     const question = summary.querySelector(".support-disclosure-question");
     assert.ok(question, `${id} has no question on its control`);
@@ -133,8 +136,9 @@ test("a folded layer keeps its own synthetic marker, and the answer carries one 
     "a reader meets the first figure before the disclaimer that qualifies it");
 
   // And a reader who opens a layer lands inside it, so the layer keeps its own.
-  for (const [id, markerId] of [["disclosure-next-step", "finops-next-step-sample"],
-    ["disclosure-journey", "finops-journey-sample"]]) {
+  // Both layers keep their own marker, and both resolve to the ONE group now.
+  for (const [id, markerId] of [["disclosure-this-month", "finops-next-step-sample"],
+    ["disclosure-this-month", "finops-journey-sample"]]) {
     assert.equal(byId(document, markerId).closest(`#${id}`)?.id, id,
       `${id} lost the marker that says whose figures it holds`);
   }

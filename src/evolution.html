@@ -649,27 +649,26 @@
         <p class="visually-hidden" id="finops-first-run-live" role="status" aria-live="polite" aria-atomic="true"></p>
       </section>
 
-      <!-- WHERE DO I START THIS MONTH? — the recurring lead's continuation, and
-           now an EVIDENCE LAYER rather than a full-weight peer of the answer.
+      <!-- THIS MONTH — ONE GROUP, ONE CONTROL, TWO LAYERS INSIDE IT (#832).
+           This was two top-level disclosures asking two questions a stranger
+           reads as one — "is this the right one thing?" and "what will tell me
+           it worked?" — so the screenful the answer is meant to own carried two
+           more asks before the workspace rail. One group now, shut on arrival,
+           asking the single question the two were circling. NOTHING WAS
+           DROPPED: both sections are inside it unchanged, same ids, headings,
+           markers and views. What went is one wrapper, control and question.
 
-           src/finops-spine.js classifies this region `evidence`, and until #742
-           the markup did not say so: it opened at the answer's weight, so a lead
-           met a second question before finishing the first. Same region, same
-           module, same painted figures — inside the page's established
-           `support-disclosure` idiom, shut on arrival. The summary is what a
-           skeptic opens it to check, not a section label, and a native `summary`
-           is the control, so Enter and Space are the browser's and `open` is the
-           exposed state. src/finops-next-step.js still decides the
-           recommendation and still reads no clock.
-
-           `data-workspace-region` moved onto the disclosure with the region: the
-           destination a fragment resolves to is whichever ancestor carries it. -->
-      <!-- `data-headline-evidence="false"`: a supporting layer that does NOT
-           back the headline figure, drawn one step down from the panel that
-           does and shut on arrival. The attribute is authored so the claim is
-           checkable in the document rather than only after a paint. -->
-      <details class="support-disclosure" id="disclosure-next-step" data-subordinate="true" data-headline-evidence="false" data-workspace-region="answer">
-        <summary class="support-disclosure-summary"><span class="support-disclosure-step" data-role="step">Evidence layer</span> <span class="support-disclosure-question" data-role="question">If I only do one thing this month, is this the right one?</span></summary>
+           `data-workspace-region` is on the group, because the destination a
+           fragment resolves to is whichever ancestor carries it — a deep link
+           into either section unfolds this one control and lands there.
+           `data-headline-evidence="false"`: a layer that does NOT back the
+           headline figure, authored so the claim is checkable with no script.
+           `aria-expanded` is AUTHORED, not written on first press: a control
+           that gains its state only after a reader presses it was unlabelled
+           at the moment they were deciding whether to. `bindAnswerSupportGroup`
+           in src/finops-stand-view.js mirrors `open` onto it every toggle. -->
+      <details class="support-disclosure" id="disclosure-this-month" data-subordinate="true" data-headline-evidence="false" data-workspace-region="answer" data-disclosure="collapsed">
+        <summary class="support-disclosure-summary" id="disclosure-this-month-summary" aria-expanded="false"><span class="support-disclosure-step" data-role="step">Evidence layer</span> <span class="support-disclosure-question" data-role="question">If I only do one thing this month, is it the right one — and what will tell me it worked?</span></summary>
       <section class="next-step" id="finops-next-step" tabindex="-1" data-subordinate="true" data-state="pending" data-confidence="unknown" data-decision-summary="evidence" aria-labelledby="finops-next-step-question">
         <div class="next-step-head">
           <p class="eyebrow" id="finops-next-step-label">This month · one next step</p>
@@ -685,20 +684,14 @@
           <p class="next-step-headline">No journey records have been read yet, so no next step is recommended.</p>
         </div>
       </section>
-      </details>
-
-      <!-- THE WHOLE JOURNEY, ON ONE SURFACE — the second evidence layer.
-
-           The layer above names one step. This is the rest of that thought in
-           one place — the evidence behind the step, what this browser already
-           decided, and the checkpoint that would close it, which used to be
-           three surfaces. It composes; it does not recompute:
-           src/finops-journey-consolidated.js derives exactly one field of its
-           own, the checkpoint's date and expected figure. Collapsed for the same
-           reason as the layer above — `evidence` is a claim about weight, and a
-           region that opens at the answer's weight contradicts it. -->
-      <details class="support-disclosure" id="disclosure-journey" data-subordinate="true" data-headline-evidence="false" data-workspace-region="answer">
-        <summary class="support-disclosure-summary"><span class="support-disclosure-step" data-role="step">Evidence layer</span> <span class="support-disclosure-question" data-role="question">If I take that step, what will tell me it actually worked?</span></summary>
+      <!-- THE WHOLE JOURNEY — the second layer in the same group, and why the
+           group's question has two halves. The layer above names one step; this
+           is the rest of that thought in one place, and it composes rather than
+           recomputes: src/finops-journey-consolidated.js derives exactly one
+           field of its own, the checkpoint's date and expected figure. It keeps
+           its own heading and marker — a reader who opens the group lands
+           inside it and must not scroll back to learn whose figures these
+           are. -->
       <section class="finops-journey" id="finops-journey" data-subordinate="true" data-phase="pending" data-source="unknown" data-decision-summary="evidence" aria-labelledby="finops-journey-question">
         <div class="fjc-head">
           <p class="eyebrow" id="finops-journey-label">This month · evidence, action, and the checkpoint</p>

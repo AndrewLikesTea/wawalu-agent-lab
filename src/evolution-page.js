@@ -328,8 +328,8 @@ import {
 import { applyCohortAttribution } from "/cohort-attribution-view.js";
 // The headline answer this view leads with, and the module that paints it.
 import {
-  applyAnswerBlock, applyStandHeadline, bindStandDisclosures, bindStandResolution,
-  mountStandDisclosures,
+  applyAnswerBlock, applyStandHeadline, bindAnswerSupportGroup, bindStandDisclosures,
+  bindStandResolution, mountStandDisclosures,
 } from "/finops-stand-view.js";
 // …and the one owner of WHICH source that answer came from. The page used to
 // choose between the bundled example and the reader's import at each call site;
@@ -3451,6 +3451,11 @@ async function init() {
   // answer. The disclosures and the resolving control are bound first, so they
   // are operable in the withheld state too.
   bindStandDisclosures(document);
+  // …and the one group the answer's follow-on detail sits in (#832). It ships
+  // shut with `aria-expanded="false"` already authored, so this only keeps the
+  // attribute from drifting out of step with `open`; the control is operable
+  // whether or not this line ever runs.
+  bindAnswerSupportGroup(document);
   bindStandResolution(document);
   // Nothing has been imported at boot, so the held answer is the bundled
   // synthetic example with its marker intact — composed on this first read.

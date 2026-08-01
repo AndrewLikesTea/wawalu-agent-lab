@@ -377,6 +377,60 @@ export function bindStandDisclosures(doc) {
 }
 
 /**
+ * The one progressive-disclosure group the answer's follow-on detail lives in.
+ *
+ * #832 replaced two top-level `support-disclosure` wrappers — "is this the
+ * right one thing this month?" and "what will tell me it worked?" — with one
+ * group holding both sections, so a stranger meets the answer, one follow-on
+ * ask, and then the workspace rail instead of two near-duplicate asks in
+ * between. The ids are here rather than inline so the markup, this binding and
+ * the tests read the same names.
+ */
+export const ANSWER_SUPPORT_IDS = Object.freeze({
+  group: "disclosure-this-month",
+  summary: "disclosure-this-month-summary",
+});
+
+/**
+ * Mirror the group's own `open` onto the two channels that are not it.
+ *
+ * `aria-expanded` is AUTHORED "false" in the markup, not written for the first
+ * time here: a control that gains its state only once a reader has pressed it
+ * was unlabelled at the one moment they were deciding whether to press it, and
+ * a reader whose JavaScript never ran would never get it at all. What this does
+ * is keep it from drifting — an `aria-expanded` that disagrees with `open` is
+ * worse than none, so `open` is the single source and both channels are written
+ * from it on every toggle, by one function rather than at each call site.
+ *
+ * `data-disclosure` is the same state for the stylesheet and for a test that
+ * wants to read it without knowing about ARIA. Nothing here intercepts a key:
+ * the native summary already handles Enter and Space, and focus stays on it.
+ */
+export function paintAnswerSupportState(doc) {
+  const details = byId(doc, ANSWER_SUPPORT_IDS.group);
+  const summary = byId(doc, ANSWER_SUPPORT_IDS.summary);
+  if (!details || !summary) return null;
+  const open = Boolean(details.open ?? details.hasAttribute?.("open"));
+  summary.setAttribute("aria-expanded", open ? "true" : "false");
+  details.dataset.disclosure = open ? "expanded" : "collapsed";
+  return summary;
+}
+
+/** Bind the group's `toggle` once, and paint the state it is already in. */
+export function bindAnswerSupportGroup(doc) {
+  const details = byId(doc, ANSWER_SUPPORT_IDS.group);
+  if (!details) return null;
+  if (details.dataset.bound !== "true") {
+    details.addEventListener("toggle", () => paintAnswerSupportState(doc));
+    details.dataset.bound = "true";
+  }
+  // A deep link may already have opened it before this line ran, so the first
+  // paint is a read of the DOM rather than an assumption that it is shut.
+  paintAnswerSupportState(doc);
+  return details;
+}
+
+/**
  * Delegate the withheld-state action to the control that already owns it.
  *
  * There is exactly one file picker on this page, and this button does not

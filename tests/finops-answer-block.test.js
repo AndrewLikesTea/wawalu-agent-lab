@@ -342,8 +342,12 @@ test("every top-level section that existed before the answer block is still on t
   // rather than derived, because the point of the assertion is that a reorder
   // did not quietly become a deletion.
   const existing = [
-    "finops-stand", "finops-hero", "finops-first-run", "disclosure-next-step",
-    "disclosure-journey", "finops-destinations", "finops-workspace-nav",
+    "finops-stand", "finops-hero", "finops-first-run",
+    // #832: one group where two near-duplicate "this month" wrappers were.
+    // #finops-next-step and #finops-journey are both still authored on the
+    // page inside it, asserted by id below, so a consolidation of the wrappers
+    // cannot quietly become a deletion of either section.
+    "disclosure-this-month", "finops-destinations", "finops-workspace-nav",
     "finops-workspace-switch",
     // #821: one load-state region per on-demand destination, so a module that
     // is in flight or that failed has somewhere named to be read.

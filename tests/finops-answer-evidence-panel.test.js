@@ -48,8 +48,13 @@ const doc = () => parseHtml(html);
 const byId = (document, id) => document.getElementById(id);
 const marked = (document) => document.querySelectorAll('[data-headline-evidence="true"]');
 
-/** The two supporting layers on the answer screen that are NOT the evidence. */
-const OTHER_SUPPORT_PANELS = ["disclosure-next-step", "disclosure-journey"];
+/**
+ * The supporting layer on the answer screen that is NOT the evidence. It was
+ * two until #832 folded both "this month" wrappers into one group; the two
+ * sections inside it are unchanged, so this is one wrapper fewer rather than
+ * one layer fewer.
+ */
+const OTHER_SUPPORT_PANELS = ["disclosure-this-month"];
 
 // ---------------------------------------------------------------------------
 // 1. Exactly one panel is the evidence, in the document and after a paint.
@@ -157,7 +162,7 @@ test("expanding a non-evidence layer leaves the marking on the same panel", () =
   applyAnswerBlock(document);
   const before = marked(document)[0];
 
-  const layer = byId(document, "disclosure-next-step");
+  const layer = byId(document, "disclosure-this-month");
   const summary = layer.querySelector("summary");
   summary.focus();
   pressEnter(document);
