@@ -58,6 +58,61 @@ export const ANSWER_BLOCK_IDS = Object.freeze({
   doors: "finops-answer-doors",
 });
 
+/** The evidence line's own ids. Authored in evolution.html, written only here. */
+export const ANSWER_EVIDENCE_IDS = Object.freeze({
+  /** The line the answer figure's `aria-describedby` resolves to. */
+  line: "finops-answer-evidence",
+  chip: "finops-answer-evidence-chip",
+  text: "finops-answer-evidence-text",
+});
+
+/** The attribute exactly one supporting panel may carry, as a dataset key. */
+const EVIDENCE_MARK = "headlineEvidence";
+
+/**
+ * PROMOTE THE ONE PANEL THAT BACKS THE FIGURE, and only ever one.
+ *
+ * `summary.evidence.panelId` names it; this resolves that id against the real
+ * document and refuses to mark anything when it does not resolve. The marking is
+ * cleared from every element that carries it FIRST, so "exactly one" is a
+ * property of this function rather than of the order paints happen in — and so a
+ * payload that names no panel leaves no half-promoted panel behind.
+ *
+ * EXPANSION STATE IS NOT TOUCHED HERE. Which panel is the evidence and which
+ * panels a reader has opened are two independent facts: the marking lives on
+ * `data-headline-evidence` and the open/shut state lives on the native `details`
+ * elements, so unfolding a supporting layer cannot move, transfer, or clear it.
+ *
+ * The association is dropped rather than pointed at a missing node: an
+ * `aria-describedby` that resolves to nothing is announced as nothing, and a
+ * reader is told the figure has a description they can never reach.
+ */
+export function applyAnswerEvidence(doc, summary = FINOPS_ANSWER_SUMMARY) {
+  const figure = byId(doc, ANSWER_BLOCK_IDS.figure);
+  const line = byId(doc, ANSWER_EVIDENCE_IDS.line);
+  for (const node of doc?.querySelectorAll?.("[data-headline-evidence]") ?? []) {
+    node.dataset[EVIDENCE_MARK] = "false";
+  }
+  const panelId = summary?.evidence?.panelId ?? null;
+  const panel = typeof panelId === "string" && panelId !== "" ? byId(doc, panelId) : null;
+  // The line has to be INSIDE the panel it promotes, or the description a reader
+  // is sent to is not the evidence panel's own words — and the panel has to be
+  // on screen. `supersedeWorkspaceDestinations` hides this section when a reader
+  // imports their own export, and `hidden` takes a node out of the accessibility
+  // tree, so a description pointing into it is announced as nothing.
+  if (!panel || panel.hidden || !line || line.closest?.(`#${panelId}`) !== panel) {
+    figure?.removeAttribute("aria-describedby");
+    if (line) line.hidden = true;
+    return null;
+  }
+  panel.dataset[EVIDENCE_MARK] = "true";
+  setText(doc, ANSWER_EVIDENCE_IDS.chip, summary.evidence.label);
+  setText(doc, ANSWER_EVIDENCE_IDS.text, summary.evidence.line);
+  line.hidden = false;
+  figure?.setAttribute("aria-describedby", ANSWER_EVIDENCE_IDS.line);
+  return panel;
+}
+
 /**
  * The four named entry points, from the contract, in the contract's order.
  * Painted rather than authored so a door's name and the contract's name are one
@@ -96,16 +151,24 @@ export function applyAnswerDoors(doc) {
  */
 export function applyAnswerBlock(doc, summary = FINOPS_ANSWER_SUMMARY) {
   const block = byId(doc, ANSWER_BLOCK_IDS.block);
-  if (!block || !summary) return null;
-  block.dataset.state = summary.state;
-  block.dataset.available = String(summary.available);
+  if (!block) return null;
+  // Before the four values, and unconditionally: a summary that arrived empty or
+  // malformed has to take the promotion DOWN, not leave the authored one
+  // standing over a figure it no longer describes.
+  applyAnswerEvidence(doc, summary);
+  if (!summary) return null;
+  block.dataset.state = summary.state ?? "unavailable";
+  block.dataset.available = String(summary.available === true);
   setText(doc, ANSWER_BLOCK_IDS.question, summary.question);
   setText(doc, ANSWER_BLOCK_IDS.label, summary.metricLabel);
   setText(doc, ANSWER_BLOCK_IDS.value, summary.figure);
   setText(doc, ANSWER_BLOCK_IDS.basis, summary.basis);
   setText(doc, ANSWER_BLOCK_IDS.confidence, summary.confidence);
+  // A payload with no action is a malformed payload, not a crash: the authored
+  // pending action stays on screen rather than taking the whole block down with
+  // a TypeError on the first paint of the page's first figure.
   const action = byId(doc, ANSWER_BLOCK_IDS.action);
-  if (action) {
+  if (action && summary.action) {
     action.textContent = summary.action.label;
     action.setAttribute("href", summary.action.href);
   }
