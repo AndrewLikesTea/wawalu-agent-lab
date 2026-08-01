@@ -4,7 +4,9 @@ import { cp, mkdir, mkdtemp, readdir, readFile, writeFile } from "node:fs/promis
 import { tmpdir } from "node:os";
 import { relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createManifest, headerRule, verifyArtifact } from "../scripts/verify-build.mjs";
+import {
+  createManifest, headerRule, verifyArtifact, verifyEvolutionStructure,
+} from "../scripts/verify-build.mjs";
 import {
   SAMPLE_DECISION_ID,
   SAMPLE_RELEASE_ID,
@@ -54,6 +56,26 @@ test("product has a health endpoint and accessible title", async () => {
   }
   assert.match(html, /<legend>Record type<\/legend>\s*<div class="filter-options">/);
   assert.match(html, /<label for="filter-owner">Filter by owner:<\/label>\s*<select id="filter-owner">\s*<option value="all">all<\/option>/);
+});
+
+test("evolution structural verification accepts valid parsed structure", () => {
+  assert.doesNotThrow(() => verifyEvolutionStructure(
+    '<main><h1>Answer</h1><section data-decision-summary-region="authored"><h2>Detail</h2></section></main>'));
+});
+
+test("evolution structural verification rejects duplicate summaries and h2 before h1", () => {
+  assert.throws(() => verifyEvolutionStructure(
+    '<main><h1>Answer</h1><section data-decision-summary-region="authored"></section>'
+      + '<aside data-decision-summary-region="authored"></aside></main>'), /2 decision-summary/);
+  assert.throws(() => verifyEvolutionStructure("<main><h2>Detail</h2><h1>Answer</h1></main>"),
+    /h1 must precede/);
+});
+
+test("evolution structural verification ignores tag-like comments and script text", () => {
+  assert.doesNotThrow(() => verifyEvolutionStructure(
+    '<main><h1>Answer</h1><!-- <h2 data-decision-summary-region="authored">fake</h2> -->'
+      + '<script>const fake = `<h2 data-decision-summary-region="authored">fake</h2>`;</script>'
+      + '<section data-decision-summary-region="authored"><h2>Detail</h2></section></main>'));
 });
 
 test("homepage explains the decision-to-release value and links to live examples", async () => {
