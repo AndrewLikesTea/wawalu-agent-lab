@@ -19,7 +19,7 @@ import { applyFinopsSpine } from "./finops-spine.js";
 // The screen contract, executable. Every string in the answer block and every
 // door name beside it comes from here rather than from this file, so
 // docs/executive-answer-screen-contract.md and the page cannot drift.
-import { SCREEN_CONTRACT, answerBlock } from "./finops-screen-contract.js";
+import { DECISION_SUMMARY_IDS, SCREEN_CONTRACT, answerBlock } from "./finops-screen-contract.js";
 // The bundled answer, precomputed. `applyAnswerBlock` paints from this by
 // default, so the first thing a reader meets needs no panel dataset composed.
 import { FINOPS_ANSWER_SUMMARY } from "./finops-answer-summary.js";
@@ -45,18 +45,14 @@ export function standDisclosureIds(key) {
 
 const byId = (doc, id) => (doc?.getElementById ? doc.getElementById(id) : null);
 
-/** The ids the answer block owns. Authored in evolution.html, written only here. */
-export const ANSWER_BLOCK_IDS = Object.freeze({
-  block: "finops-answer",
-  question: "finops-answer-question",
-  figure: "finops-answer-figure",
-  label: "finops-answer-label",
-  value: "finops-answer-value",
-  basis: "finops-answer-basis",
-  confidence: "finops-answer-confidence",
-  action: "finops-answer-action",
-  doors: "finops-answer-doors",
-});
+/**
+ * The ids the answer block owns. Authored in evolution.html, written only here,
+ * and DECLARED in the screen contract — `DECISION_SUMMARY` names the one region
+ * that may answer on its own and the four parts it answers with, so this map is
+ * derived from that declaration rather than restating it. A slot the contract
+ * does not declare cannot be painted from this file.
+ */
+export const ANSWER_BLOCK_IDS = DECISION_SUMMARY_IDS;
 
 /** The evidence line's own ids. Authored in evolution.html, written only here. */
 export const ANSWER_EVIDENCE_IDS = Object.freeze({
@@ -447,26 +443,13 @@ export function applyStandHeadline(doc, headline) {
   setText(doc, STAND_IDS.question, headline.question ?? "");
   setText(doc, STAND_IDS.answer, headline.answer ?? "");
 
-  // CAN THIS EXPORT BE GRADED — the gate on everything under it, in three
-  // slots: the question, the verdict with the figure that decided it, and the
-  // one next step. Each slot is hidden exactly when it has no text, so a state
-  // that names no next step leaves no empty line behind rather than a blank
-  // stop for a screen reader.
-  const gradability = byId(doc, STAND_IDS.gradability);
-  if (gradability) {
-    gradability.dataset.state = headline.gradability?.state ?? "unavailable";
-    gradability.dataset.figures = headline.figuresSuppressed ? "suppressed" : "shown";
-  }
-  for (const [id, text] of [
-    [STAND_IDS.gradabilityQuestion, headline.gradability?.question ?? ""],
-    [STAND_IDS.gradabilityMetric, headline.gradability?.answer ?? ""],
-    [STAND_IDS.gradabilityAction, headline.gradability?.action?.text ?? ""],
-  ]) {
-    const slot = setText(doc, id, text);
-    if (slot) slot.hidden = text === "";
-  }
+  // CAN THIS EXPORT BE GRADED — stated in the answer block above, whose
+  // confidence sentence is this verdict's coverage, tier, rule and residue, and
+  // at length in the "Can this export be graded?" disclosure below. It no longer
+  // has a question, a figure and a next step of its own beside the answer: two
+  // renderings of one verdict were two decision summaries (#831).
 
-  // …AND THE FIGURES THAT VERDICT GOVERNS. Assigned from the state on every
+  // THE FIGURES THAT VERDICT GOVERNS. Assigned from the state on every
   // paint, never latched: an import far below the bar takes the figures and the
   // named department off the screen, and the next export that clears the bar —
   // or a cleared import returning to the bundled example — puts them back. A

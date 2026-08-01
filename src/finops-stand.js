@@ -110,15 +110,12 @@ export const STAND_IDS = Object.freeze({
   withheldMissing: "finops-stand-withheld-missing",
   withheldAction: "finops-stand-withheld-action",
   withheldNext: "finops-stand-withheld-next",
-  /**
-   * The gradability line: the question, the verdict with its figure, and the one
-   * next step. Three slots, not a panel — it is the gate on the answer above it,
-   * and each slot is hidden when it has nothing to say.
-   */
-  gradability: "finops-stand-gradability",
-  gradabilityQuestion: "finops-stand-gradability-question",
-  gradabilityMetric: "finops-stand-gradability-metric",
-  gradabilityAction: "finops-stand-gradability-action",
+  // NO GRADABILITY SLOTS (#831). The verdict had a question, a figure and a next
+  // step of its own in this region, beside an answer block painted from the same
+  // verdict. The verdict is unchanged — `gradability` below still carries it, the
+  // answer block's confidence sentence states it, and the "Can this export be
+  // graded?" disclosure carries it in full — but it is stated once at headline
+  // weight, not twice.
   entitlement: "finops-stand-entitlement",
   evidence: "finops-stand-evidence",
   confidence: "finops-stand-confidence",

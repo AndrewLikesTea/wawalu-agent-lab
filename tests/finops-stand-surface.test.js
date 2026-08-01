@@ -24,7 +24,7 @@ import {
 import {
   CONFIDENCE_LEVELS, EVIDENCE_CLASS, SYNTHETIC_CLAIM_QUALIFIER,
 } from "../src/finops-finding-resolver.js";
-import { applyStandHeadline, standDisclosureIds } from "../src/finops-stand-view.js";
+import { ANSWER_BLOCK_IDS, applyStandHeadline, standDisclosureIds } from "../src/finops-stand-view.js";
 import {
   EXAMPLE_ORG_COHORT_PROFILE, EXAMPLE_TASK_LEDGER, loadExampleDataset,
 } from "../src/example-dataset.js";
@@ -396,10 +396,17 @@ const farBelowBar = () => importedAnalysis(literacyAt({ coveredUsd: 50, uncovere
 /** …and one that clears the 50% bar comfortably. */
 const overBar = () => importedAnalysis(literacyAt({ coveredUsd: 900, uncoveredUsd: 100 }));
 
-const gradabilityText = (document) => ({
-  question: shownText(document, STAND_IDS.gradabilityQuestion),
-  metric: shownText(document, STAND_IDS.gradabilityMetric),
-  action: shownText(document, STAND_IDS.gradabilityAction),
+/**
+ * WHERE THE GRADABILITY VERDICT IS READ NOW. #831 deleted the three-slot
+ * gradability line from this region: it restated, twenty lines under the answer
+ * block, the same verdict that block is painted from. The verdict did not move —
+ * it is the answer block's own figure and confidence sentence, which is where
+ * these assertions read it, and it is carried in full by the "Can this export be
+ * graded?" disclosure.
+ */
+const verdictText = (document) => ({
+  figure: shownText(document, ANSWER_BLOCK_IDS.value),
+  confidence: shownText(document, ANSWER_BLOCK_IDS.confidence),
 });
 
 const figuresOnScreen = (document) => ({
@@ -418,7 +425,9 @@ test("a second import that clears the bar brings the figures and the named team 
   applyStandHeadline(document,
     standHeadlineForImport({ analysis: farBelowBar(), eligibility }));
   assert.deepEqual(figuresOnScreen(document), { figures: [true], team: true });
-  assert.match(gradabilityText(document).metric, /^This export cannot be graded\./);
+  // The answer withholds its percentage rather than printing one nobody should
+  // act on, and says which state it is in.
+  assert.equal(verdictText(document).figure, "Not enough scored to stand behind");
 
   // The same DOM, repainted with an export that clears the bar. Everything the
   // suppressed state took away has to come back, or the sentence beside it is
@@ -426,16 +435,14 @@ test("a second import that clears the bar brings the figures and the named team 
   applyStandHeadline(document, standHeadlineForImport({ analysis: overBar(), eligibility }));
   assert.deepEqual(figuresOnScreen(document), { figures: [false], team: false },
     "the suppressed figures were latched hidden and never restored");
-  const graded = gradabilityText(document);
-  assert.equal(graded.question, "Can this export be graded?");
-  assert.equal(graded.metric,
-    "This export can be graded. 90% of imported spend sits in departments the rubric scored; "
-    + "the bar is 50%.");
-  assert.match(graded.action, /^Read the answer above\./);
-  for (const id of [STAND_IDS.gradabilityQuestion, STAND_IDS.gradabilityMetric,
-    STAND_IDS.gradabilityAction]) {
-    assert.equal(byId(document, id).hidden, false, `#${id} says nothing in the graded state`);
-  }
+  const graded = verdictText(document);
+  assert.match(graded.figure, /^90(\.0)?% of spend in scope$/,
+    "an export over the bar prints its coverage share as the answer's figure");
+  assert.match(graded.confidence,
+    /Coverage: .+ of .+ of spend in scope sits in departments the rubric scored\./,
+    "the coverage that decided the verdict travels with the figure");
+  assert.match(graded.confidence, /Residue: /,
+    "what is not scored is stated beside what is");
 });
 
 test("clearing a suppressed import renders the bundled example exactly as a fresh load does", () => {
@@ -463,7 +470,7 @@ test("clearing a suppressed import renders the bundled example exactly as a fres
   applyStandHeadline(cleared, answerState.getHeadline());
 
   assert.deepEqual(figuresOnScreen(cleared), figuresOnScreen(fresh));
-  assert.deepEqual(gradabilityText(cleared), gradabilityText(fresh));
+  assert.deepEqual(verdictText(cleared), verdictText(fresh));
   for (const id of [STAND_IDS.question, STAND_IDS.answer, STAND_IDS.recoverableValue,
     STAND_IDS.teamName, STAND_IDS.action, STAND_IDS.sample]) {
     assert.equal(shownText(cleared, id), shownText(fresh, id), `#${id} came back different`);

@@ -89,6 +89,164 @@ export function destination(key) {
 /** The answer destination, which is the one the block below is built from. */
 export const ANSWER_DESTINATION = destination("answer");
 
+/**
+ * THE ONE DECISION-SUMMARY REGION, declared once.
+ *
+ * A CTO who has never opened this product lands on /evolution.html and must get,
+ * in ONE region, above and before any working area, four things and exactly one
+ * of each: the question this page decides, the material number with its unit and
+ * its period, the single next action, and how much to trust the number. That
+ * region is `#finops-answer`, inside the headline region `#finops-stand`, and
+ * this is the declaration downstream code reads — the element ids it paints
+ * into, the wording it ships before any script runs, and the order the four
+ * parts are met in. `finops-stand-view.js` derives its id map from `parts`
+ * below, so the page cannot paint into a slot the contract does not declare.
+ *
+ * WHY THE MARKING RATHER THAN A COUNT OF ANSWER-SHAPED BLOCKS. "Exactly one" has
+ * to be checkable against the shipped document, and a second summary is not
+ * recognisable by its tag: it is recognisable by claiming to be the answer. So
+ * the claim is authored — `data-decision-summary-region="authored"` — and
+ * `auditDecisionSummary` fails on a second element carrying it, on the declared
+ * region not carrying it, and on a part that left the region or moved within it.
+ * The claim is deliberately NOT `data-decision-summary`: that attribute is the
+ * decision contract's `complete`/`evidence` vocabulary for whole regions, with
+ * its own entitlement referee, and repurposing it would make one attribute mean
+ * two things.
+ *
+ * WHY CONFIDENCE SITS AHEAD OF THE ACTION. The four parts are ordered question →
+ * metric → confidence → action, which is the order the page already ships. An
+ * action read before the reader knows how far to trust the number behind it is
+ * an instruction with no argument under it, and a reader who cannot see the two
+ * lines at once has no way to scan back for the reason. The same rule orders
+ * `READING_ORDER` in finops-decision-interaction.js.
+ */
+export const DECISION_SUMMARY = Object.freeze({
+  /** The one region that answers on its own. Every other region supports it. */
+  regionId: "finops-answer",
+  /** The top-level region it sits in, first in `#main-content`. */
+  hostRegionId: "finops-stand",
+  /** The authored claim, checkable in the document before any paint. */
+  attribute: "data-decision-summary-region",
+  claim: "authored",
+  /**
+   * The four parts, in reading order. `answers` is the reader's question, not a
+   * description of the widget; `authored` is the wording the document ships
+   * before a figure exists, which lives here rather than only in the markup so
+   * the page is a rendering of this file and a test can hold the two together.
+   */
+  parts: Object.freeze([
+    Object.freeze({
+      role: "question",
+      elementId: "finops-answer-question",
+      answers: "What does this page decide?",
+      authored: ANSWER_DESTINATION.question,
+    }),
+    Object.freeze({
+      role: "metric",
+      elementId: "finops-answer-figure",
+      answers: "What is the one number, in what unit, over what period?",
+      authored: null,
+      /** The figure's three slots, in the order they are spoken as one line. */
+      slots: Object.freeze({
+        label: Object.freeze({
+          elementId: "finops-answer-label", authored: ANSWER_DESTINATION.metricLabel,
+        }),
+        value: Object.freeze({ elementId: "finops-answer-value", authored: "Still reading" }),
+        basis: Object.freeze({
+          elementId: "finops-answer-basis", authored: "as of the Bundled synthetic example",
+        }),
+      }),
+    }),
+    Object.freeze({
+      role: "confidence",
+      elementId: "finops-answer-confidence",
+      answers: "How much of this number was measured, and what does it not measure?",
+      authored: "Nothing has been read yet, so there is no coverage, grade, or residue to report.",
+    }),
+    Object.freeze({
+      role: "action",
+      elementId: "finops-answer-action",
+      answers: "What is the one thing to do next?",
+      authored: "Analyze a provider export — go to the import panel",
+      /** Authored href, so the one action is operable before any script runs. */
+      href: "#local-import",
+    }),
+  ]),
+  /** The entry points beside the block, kept out of it so the block stays four things. */
+  doorsId: "finops-answer-doors",
+});
+
+/** The element ids the block owns, keyed by role, for a painter to write into. */
+export const DECISION_SUMMARY_IDS = Object.freeze(Object.fromEntries([
+  ["block", DECISION_SUMMARY.regionId],
+  ["doors", DECISION_SUMMARY.doorsId],
+  ...DECISION_SUMMARY.parts.flatMap((part) => [
+    [part.role === "metric" ? "figure" : part.role, part.elementId],
+    ...Object.entries(part.slots ?? {}).map(([key, slot]) => [key, slot.elementId]),
+  ]),
+]));
+
+/** Element children as a real Array. `children` is a live collection in a browser. */
+const elementChildren = (node) => [...(node?.children ?? [])]
+  .filter((child) => child?.nodeType === undefined || child.nodeType === 1);
+
+/** Every descendant id of `node`, in document order. */
+function idsInOrder(node, out = []) {
+  for (const child of elementChildren(node)) {
+    if (child.id) out.push(child.id);
+    idsInOrder(child, out);
+  }
+  return out;
+}
+
+/**
+ * Is this document carrying exactly one decision summary, and does that one
+ * state all four things in the declared order?
+ *
+ * Returns problems as plain sentences and never throws — the caller is a test
+ * that should report every drift at once, not the first one.
+ */
+export function auditDecisionSummary(doc) {
+  const problems = [];
+  const marked = [...(doc?.querySelectorAll?.(
+    `[${DECISION_SUMMARY.attribute}="${DECISION_SUMMARY.claim}"]`) ?? [])];
+  const named = marked.map((element) => `#${element.id || "(no id)"}`);
+
+  if (marked.length === 0) {
+    problems.push(`No region claims ${DECISION_SUMMARY.attribute}="${DECISION_SUMMARY.claim}", so `
+      + `this page states no decision summary. "#${DECISION_SUMMARY.regionId}" is the one that must.`);
+    return Object.freeze(problems);
+  }
+  if (marked.length > 1) {
+    problems.push(`${marked.length} regions claim to be the decision summary (${named.join(", ")}). `
+      + "Exactly one may: a second is a competing answer to the same question, and a reader who "
+      + "meets two does not know which one to act on.");
+  }
+
+  const region = marked.find((element) => element.id === DECISION_SUMMARY.regionId) ?? null;
+  if (!region) {
+    problems.push(`The decision summary is declared as "#${DECISION_SUMMARY.regionId}", but the `
+      + `claim is on ${named.join(", ")}.`);
+    return Object.freeze(problems);
+  }
+
+  const found = idsInOrder(region);
+  for (const part of DECISION_SUMMARY.parts) {
+    if (!found.includes(part.elementId)) {
+      problems.push(`The decision summary states no ${part.role}: "#${part.elementId}" is not `
+        + `inside "#${DECISION_SUMMARY.regionId}", so it never answers "${part.answers}"`);
+    }
+  }
+
+  const declared = DECISION_SUMMARY.parts.map((part) => part.elementId);
+  const order = found.filter((id) => declared.includes(id));
+  if (order.length === declared.length && order.join(" → ") !== declared.join(" → ")) {
+    problems.push(`The decision summary reads ${order.join(" → ")}; the contract's reading order `
+      + `is ${declared.join(" → ")}.`);
+  }
+  return Object.freeze(problems);
+}
+
 /** The states in which the percentage may be printed at all. */
 const PUBLISHED_STATES = Object.freeze([
   GRADABILITY_STATE.graded, GRADABILITY_STATE.provisional,

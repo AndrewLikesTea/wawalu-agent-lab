@@ -194,3 +194,45 @@ says which input is missing and which control resolves it.
 * **A second headline.** The answer block asks one question. Every other region
   on `/evolution.html` keeps its own question, its own content, and its own
   behaviour, reachable from the four named entry points above.
+
+## 7. One decision summary, and how that is checked
+
+A first-time reader — a CTO who has never opened this product — must meet the
+question, the number, the one next action and the hedge **once**, in one region,
+above and before any working area. That region is `#finops-answer`, and it is
+the only one on the page that may claim to answer on its own.
+
+The claim is authored, not inferred: `#finops-answer` carries
+`data-decision-summary-region="authored"`, and `DECISION_SUMMARY` in
+`src/finops-screen-contract.js` declares the region id, the four parts in
+reading order, the element id each part is painted into, and the wording each
+ships before any script runs. `auditDecisionSummary()` checks a document against
+that declaration and fails on a second region carrying the claim, on the claim
+sitting anywhere but the declared region, on a part that left the region, and on
+the parts being met out of order. `tests/finops-page-structure.test.js` runs it
+against the shipped markup and against a constructed second summary.
+
+**Reading order is question → metric → confidence → action**, and confidence
+sits ahead of the action deliberately. An action read before the reader knows
+how far to trust the number under it is an instruction with no argument behind
+it, and a reader who cannot see both lines at once has no way to scan back for
+the reason. `READING_ORDER` in `src/finops-decision-interaction.js` orders the
+first-run region on the same rule.
+
+**What this retired.** The headline region used to carry a second rendering of
+the same gradability verdict: a three-slot line — its own question, its own
+coverage figure, its own next step, whose text was "Read the answer above" —
+twenty lines under the answer block that is painted from that verdict. Two
+renderings of one verdict are two decision summaries. The verdict is unchanged
+and is still stated twice over, once in the answer block's confidence sentence
+(§1) and once at length in the "Can this export be graded?" disclosure, which
+carries the bar, the coverage, the rows read and the next step. That is
+progressive disclosure, not a peer of the answer.
+
+**Still open.** `#finops-first-run` also declares itself a complete decision
+summary — a different question ("Are we wasting money?"), a different number
+(recoverable share) and its own ranked action, one screen below this block. Its
+claim is refereed by `refereeCompleteSummaries()` in
+`src/finops-decision-contract.js`, which enforces one *visible* complete summary
+at a time but does not fold it into this one. Consolidating the two is a
+separate change; this section is the standard it will be held to.
