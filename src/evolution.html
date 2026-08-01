@@ -521,24 +521,17 @@
            because the confidence claim, the method disclosure, and both ways on
            all live here. So the type scale steps down and #finops-stand above
            carries the answer. -->
-      <section class="first-run" id="finops-first-run" tabindex="-1" data-state="pending" data-tone="neutral" data-subordinate="true" data-decision-summary="complete" data-workspace-frame="true" aria-labelledby="finops-first-run-title">
+      <section class="first-run" id="finops-first-run" tabindex="-1" data-state="ready" data-tone="resolved" data-subordinate="true" data-decision-summary="complete" data-workspace-frame="true" aria-labelledby="finops-first-run-title">
         <div class="first-run-head">
           <!-- ○ and not ◇: the diamond is this page's provenance silhouette and
                nothing else. Band state is a live signal, so it is drawn on the
                circle ramp — ○ nothing yet, ◌ reading, ◐ part, ● measured. -->
-          <p class="eyebrow" id="finops-first-run-label"><span class="first-run-shape" id="finops-first-run-shape" aria-hidden="true">○</span> <span id="finops-first-run-word">Not analyzed</span></p>
+          <p class="eyebrow" id="finops-first-run-label"><span class="first-run-shape" id="finops-first-run-shape" aria-hidden="true">▣</span> <span id="finops-first-run-word">Example result</span></p>
           <!-- The heading is the decision question itself, authored here in the
                same words `finops-decision-contract.js` publishes. -->
           <h2 id="finops-first-run-title">Are we wasting money?</h2>
         </div>
-        <!-- ONE DISCLAIMER ON THE FIRST SCREEN, not two. #finops-stand-sample
-             above already tells a first-time visitor that every figure on this
-             page is invented data for an invented company, and this copy sat
-             one screen under it qualifying figures that had not been drawn yet.
-             It is withheld with the figures it labels and revealed on the same
-             paint, so a reader who has an example result still meets the marker
-             inside the region it belongs to. -->
-        <p class="sample-marker first-run-sample pre-analysis-withheld" id="finops-first-run-sample" hidden><span class="sample-marker-shape" aria-hidden="true">◇</span><strong>Bundled synthetic example</strong> Every figure below comes from six months of invented data for an invented company. It is not your spend, customer data, or realized savings. No file is needed.</p>
+        <p class="sample-marker first-run-sample" id="finops-first-run-sample"><span class="sample-marker-shape" aria-hidden="true">◇</span><strong>Bundled synthetic example</strong> Every figure below comes from six months of invented data for an invented company. It is not your spend, customer data, or realized savings. No file is needed.</p>
         <!-- THE ANSWER, and why it is a sentence rather than a grid.
              `src/finops-decision-interaction.js` publishes the reading order
              this block keeps in every medium: answer, then the benchmark that
@@ -546,18 +539,18 @@
              a reader check it — and only then the supporting detail. It is the
              DOM order, which is what makes it also the focus order and the
              print order; nothing below reorders in CSS. -->
-        <p class="first-run-answer" id="finops-first-run-answer" data-available="false">No analysis has run yet. Try the Bundled synthetic example without uploading a file, or analyze your own export.</p>
-        <p class="first-run-answer-detail" id="finops-first-run-answer-detail" hidden></p>
-        <div class="first-run-slots pre-analysis-withheld" hidden>
+        <p class="first-run-answer" id="finops-first-run-answer" data-available="true">33% of analyzed AI spend is recoverable</p>
+        <p class="first-run-answer-detail" id="finops-first-run-answer-detail">Up to $51,254 estimated cost reduction in the month — a synthetic scenario, not realized customer savings.</p>
+        <div class="first-run-slots">
           <div class="first-run-slot">
             <h3 class="first-run-slot-label" id="finops-first-run-benchmark-heading">Potentially recoverable share</h3>
-            <p class="first-run-value" id="finops-first-run-benchmark-value" data-available="false"></p>
-            <p class="first-run-detail" id="finops-first-run-benchmark-detail" hidden></p>
+            <p class="first-run-value" id="finops-first-run-benchmark-value" data-available="true">33% of analyzed AI spend</p>
+            <p class="first-run-detail" id="finops-first-run-benchmark-detail">$51,254 of $154,500 analyzed · 5 invented departments · 2026-06-01 to 2026-07-01 (end exclusive). Synthetic figures, not realized customer savings.</p>
           </div>
           <div class="first-run-slot">
             <h3 class="first-run-slot-label" id="finops-first-run-impact-heading">Potential impact · routing scenario</h3>
-            <p class="first-run-value" id="finops-first-run-impact-value" data-available="false"></p>
-            <p class="first-run-detail" id="finops-first-run-impact-detail" hidden></p>
+            <p class="first-run-value" id="finops-first-run-impact-value" data-available="true">$51,254 in the reporting period</p>
+            <p class="first-run-detail" id="finops-first-run-impact-detail">A modelled routing scenario over invented departments — a ceiling on what re-routing could recover, not realized, invoiced, or promised customer savings.</p>
           </div>
         </div>
         <!-- WHERE THE SPEND RANKS, and it is above the recommended action
@@ -575,15 +568,6 @@
              The slot answers exactly one question — "among comparable
              organizations, is this org's cost per successful task high or low?"
 
-             The authored value is a pending state, not a figure: every number
-             in this region comes out of the analysis path at run time, so
-             hand-writing a band here would be the one thing the region is not
-             allowed to do. `peer-cost-position.js` resolves the position and
-             `finops-first-run.js` paints it, and when a position is withheld
-             the same slot carries that module's reason sentence. The bare word
-             "Unavailable" is never painted into it: a reader who cannot be
-             given a position is owed the sentence that says what is missing.
-
              THE BAND CHIP, ahead of the value in the DOM so it is ahead of it
              in speech. It is never a bare colour: a glyph that differs per
              state, the band's own word, and the figure itself all carry the
@@ -593,12 +577,12 @@
              is given a blank where a band should be cannot tell "we did not
              compare" from "the page is broken". Authored empty and hidden: the
              band, like every figure here, comes out of the analysis path. -->
-        <div class="first-run-support pre-analysis-withheld" hidden>
+        <div class="first-run-support">
           <div class="first-run-slot">
             <h3 class="first-run-slot-label" id="finops-first-run-peer-heading">Rank against similar organizations</h3>
-            <p class="first-run-band" id="finops-first-run-peer-band" hidden></p>
-            <p class="first-run-value" id="finops-first-run-peer-value" data-available="false"></p>
-            <p class="first-run-detail" id="finops-first-run-peer-detail" hidden></p>
+            <p class="first-run-band" id="finops-first-run-peer-band" data-state="behind">Bottom quartile</p>
+            <p class="first-run-value" id="finops-first-run-peer-value" data-available="true">Bottom quartile · $38.63 per successful task</p>
+            <p class="first-run-detail" id="finops-first-run-peer-detail">Synthetic comparison against an invented peer cohort; lower cost per successful task is better. This is not customer performance or realized savings.</p>
           </div>
           <!-- THE DRILL-DOWN OF THAT SAME POSITION, one slot to its right: the
                widest gap between this organization's OWN departments, stated in
@@ -622,25 +606,25 @@
                words — never the same shape in two tints. -->
           <div class="first-run-slot">
             <h3 class="first-run-slot-label" id="finops-first-run-internal-heading">Internal drill-down · widest department gap</h3>
-            <p class="first-run-band" id="finops-first-run-internal-band" hidden></p>
-            <p class="first-run-value" id="finops-first-run-internal-value" data-available="false"></p>
-            <p class="first-run-detail" id="finops-first-run-internal-detail" hidden></p>
+            <p class="first-run-band" id="finops-first-run-internal-band" data-state="behind">A full band behind</p>
+            <p class="first-run-value" id="finops-first-run-internal-value" data-available="true">Invented Department …atlas0 is a full band behind invented Department …boreal.</p>
+            <p class="first-run-detail" id="finops-first-run-internal-detail">Synthetic cost-per-successful-task comparison from invented departments, not customer performance or realized savings.</p>
           </div>
         </div>
-        <div class="first-run-recommendation pre-analysis-withheld" hidden>
+        <div class="first-run-recommendation">
           <h3 class="eyebrow" id="finops-first-run-action-heading">Recommended action · rank 1</h3>
-          <p class="first-run-action-text" id="finops-first-run-action" data-available="false"></p>
+          <p class="first-run-action-text" id="finops-first-run-action" data-available="true">Pilot lower-cost routing in the top-spend invented department. Cap the pilot at $51,254, then compare it with a similar period.</p>
           <!-- A role, never a person, beside the action it owns. -->
-          <p class="first-run-role" id="finops-first-run-role" hidden></p>
+          <p class="first-run-role" id="finops-first-run-role">Accountable role: Platform Engineering Lead</p>
         </div>
         <!-- A score never appears without the basis for it. An impact figure
              with no statement of how much of it was verified asks the reader to
              take the number on faith, which is the one thing this region is not
              allowed to do. -->
-        <div class="first-run-confidence pre-analysis-withheld" hidden>
+        <div class="first-run-confidence">
           <h3 class="first-run-slot-label" id="finops-first-run-confidence-heading">Confidence in this answer</h3>
-          <p class="first-run-value" id="finops-first-run-confidence-value" data-available="false"></p>
-          <p class="first-run-detail" id="finops-first-run-confidence-detail" hidden></p>
+          <p class="first-run-value" id="finops-first-run-confidence-value" data-available="true">0.85 of 1.00 · moderate</p>
+          <p class="first-run-detail" id="finops-first-run-confidence-detail">All 15 invented example records were analyzed; confidence is reduced because the recommended routing call shape could not be verified. Computed locally from bundled synthetic data in this browser tab.</p>
         </div>
         <!-- Provenance directly off the headline, one keystroke away and never
              a footnote: the inputs, the path the figures took, the arithmetic

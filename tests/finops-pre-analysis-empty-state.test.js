@@ -108,7 +108,7 @@ test("no null placeholder is authored anywhere on the pre-analysis first screen"
   }
 });
 
-test("the pre-analysis first screen draws at most one metric-shaped tile", async () => {
+test("the shipped first screen draws the complete bundled metric set", async () => {
   const document = await shippedPage();
   // A tile is a figure slot: a label over a value. Drawn means not inside a
   // `hidden` subtree — `hidden` is what takes a node out of the layout and out
@@ -119,8 +119,9 @@ test("the pre-analysis first screen draws at most one metric-shaped tile", async
       .some((name) => node.classList.contains(name)))
     .filter((node) => !node.hidden && !node.closest("[hidden]"));
 
-  assert.ok(drawn.length <= 1,
-    `the empty screen draws ${drawn.length} metric tiles: ${JSON.stringify(drawn.map((n) => textOf(n)))}`);
+  assert.equal(drawn.length, 4,
+    `the first screen draws ${drawn.length} metric tiles: ${JSON.stringify(drawn.map((n) => textOf(n)))}`);
+  for (const tile of drawn) assert.doesNotMatch(textOf(tile), /not (measured|ranked) yet/i);
 });
 
 test("the org's standing is asked once, and no heading is a bare placeholder", async () => {
@@ -149,7 +150,7 @@ test("the org's standing is asked once, and no heading is a bare placeholder", a
   assert.deepEqual(levels, [1, 2, 3], `the first screen's heading levels are ${levels.join(", ")}`);
 });
 
-test("the invented-data disclaimer is stated once on the pre-analysis first screen", async () => {
+test("the invented-data disclaimer accompanies both first-screen answer regions", async () => {
   const document = await shippedPage();
   // Counted over what is DRAWN, unlike the placeholders above, and the
   // difference is deliberate. A placeholder is deleted: no state of this page
@@ -159,10 +160,8 @@ test("the invented-data disclaimer is stated once on the pre-analysis first scre
   // looking at an example result must be told whose numbers they are without
   // scrolling back to the region above. What was wrong was stating it twice to
   // a visitor who had been shown no figures at all.
-  assert.equal(drawnOccurrences(firstScreen(document), DISCLAIMER), 1,
-    "the empty screen repeats the invented-data disclaimer");
-  // It is still authored rather than composed, so the claim is true with
-  // scripting off as well — tests/finops-first-viewport.test.js owns that rule.
+  assert.equal(drawnOccurrences(firstScreen(document), DISCLAIMER), 2,
+    "both visible answer regions must identify their synthetic figures");
   assert.equal(occurrences(firstScreen(document), DISCLAIMER), 2);
 });
 
@@ -230,19 +229,18 @@ test("the primary action's focus ring is the site's existing token, and no new o
 
 // --- the populated state, unchanged ----------------------------------------
 
-test("loading the bundled synthetic example renders the full metric grid", async () => {
+test("repainting the bundled synthetic example preserves the full metric grid", async () => {
   const document = await shippedPage();
   const result = buildFirstRunResult();
   assert.ok(result, "the bundled example composed nothing to paint");
   applyFirstRunResult(document, result);
   applyStandHeadline(document, composeStandHeadline({ analysis: loadExampleDataset(), source: "example" }));
 
-  // Every block the empty state withheld is drawn again, in its authored place
-  // and with its authored label — this is the regression guard that the fix is
-  // a change to the pre-analysis state and to nothing else.
+  // The stand still owns a few genuinely unresolved blocks; repainting reveals
+  // them while the first-run result remains visible from its authored state.
   const blocks = firstScreen(document).flatMap(descendants)
     .filter((node) => node.classList.contains("pre-analysis-withheld"));
-  assert.ok(blocks.length >= 6, `only ${blocks.length} withheld blocks are marked`);
+  assert.ok(blocks.length >= 1, "no unresolved stand blocks are marked");
   for (const block of blocks) {
     assert.equal(block.hidden, false,
       `${block.className} is still hidden after the example was loaded`);

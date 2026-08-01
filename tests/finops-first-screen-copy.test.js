@@ -31,7 +31,7 @@ import { readFile } from "node:fs/promises";
 import { loadPage, parseHtml, textOf } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 import {
-  FIRST_RUN_ACTIONS, FIRST_RUN_IDS, FIRST_RUN_INSTRUCTION, FIRST_RUN_NOT_YET, FIRST_RUN_STATE,
+  buildFirstRunResult, FIRST_RUN_ACTIONS, FIRST_RUN_IDS,
 } from "../src/finops-first-run.js";
 import { HERO_INTRO, LOAD_NARRATION, SECONDARY_PLACEHOLDER } from "../src/finops-load-status.js";
 
@@ -150,29 +150,22 @@ test("the hero is one heading and one sentence about the outcome", async () => {
   }
 });
 
-test("one instruction stands between the page title and the first control", async () => {
+test("a finished synthetic result stands between the page title and the first control", async () => {
   const document = parseHtml(await readFile(PAGE, "utf8"));
+  const result = buildFirstRunResult();
 
   const lines = waitingLines(document);
   assert.deepEqual(lines, [],
     `the first screen should instruct the visitor instead of showing a pending state: ${JSON.stringify(lines)}`);
 
-  // The state label stays a state label. It is `.eyebrow` — 11px uppercase
-  // monospace at .11em tracking — so a two-clause instruction set in it is
-  // shouted rather than read, and it is the half of the word/shape pair that is
-  // swapped on every transition.
+  // The state and headline are already complete in the shipped document. The
+  // synchronous runtime paint may validate and replace them, but is not needed
+  // to turn a preparation screen into a result.
   const word = textOf(byId(document, FIRST_RUN_IDS.word));
-  assert.equal(word, FIRST_RUN_STATE.pending.word);
+  assert.equal(word, result.presentation.word);
   assert.ok(word.split(/\s+/).length <= 3, `a state label, not a sentence: ${JSON.stringify(word)}`);
-
-  // The one plain-language message is the answer slot, which is the region's
-  // largest text and the first line a reader lands on. It says what has
-  // happened and names both ways on, so the slots under it need not repeat it.
-  assert.equal(textOf(byId(document, FIRST_RUN_IDS.answer)), FIRST_RUN_INSTRUCTION);
-  assert.match(FIRST_RUN_INSTRUCTION, /^No analysis has run yet\./);
-  assert.match(FIRST_RUN_INSTRUCTION, /Try the Bundled synthetic example/);
-  assert.match(FIRST_RUN_INSTRUCTION, /without uploading a file/);
-  assert.match(FIRST_RUN_INSTRUCTION, /analyze your own export/);
+  assert.equal(textOf(byId(document, FIRST_RUN_IDS.answer)), result.answer.value);
+  assert.equal(byId(document, FIRST_RUN_IDS.answer).dataset.available, "true");
 
   // The hero provenance names the dataset on screen rather than a read that has
   // not happened, so it no longer competes with the label above.
@@ -187,44 +180,26 @@ test("one instruction stands between the page title and the first control", asyn
   }
 });
 
-test("the first screen says nothing has run, never that something failed", async () => {
+test("the first screen authors complete figures, confidence, and one recommendation", async () => {
   const document = parseHtml(await readFile(PAGE, "utf8"));
+  const result = buildFirstRunResult();
 
-  // "Unavailable" is spoken for. `DECISION_STATE.error` is literally
-  // `state: "unavailable", tone: "error"`, and `.first-run-answer
-  // [data-available="false"]` is painted in `--state-warn-ink`. A first screen
-  // that borrows the word tells a visitor their analysis failed before they
-  // have chosen anything, and leaves the page nothing to say when one does.
-  assert.notEqual(FIRST_RUN_STATE.pending.word, FIRST_RUN_STATE.unavailable.word);
-  assert.doesNotMatch(FIRST_RUN_STATE.pending.word, /unavailable/i);
-  assert.doesNotMatch(FIRST_RUN_INSTRUCTION, /unavailable/i);
-
-  // …and the slots say nothing at all, because they are not drawn yet.
-  //
-  // THIS SUPERSEDES A NARROWER RULE. Until #755 the four slots were required to
-  // carry one shared absence vocabulary — "Not yet measured", "Not yet ranked"
-  // — on the theory that one grammatical shape learned once is scannable. It is,
-  // and that was the right rule for a screen that draws the boxes. This screen
-  // does not draw them: six metric-shaped boxes holding six null placeholders
-  // was six answers to "what does this tell me?" that are worse than the one
-  // instruction above them, and six screen-reader stops before the one action a
-  // visitor can take. The vocabulary is still the module's and still what a
-  // withheld figure reads *after* an analysis — tests/finops-first-run.test.js
-  // holds that — so it is checked here as the thing the empty screen is free of.
   const slots = [
-    FIRST_RUN_IDS.benchmarkValue, FIRST_RUN_IDS.impactValue,
-    FIRST_RUN_IDS.confidenceValue, FIRST_RUN_IDS.action,
+    [FIRST_RUN_IDS.benchmarkValue, result.benchmark.value],
+    [FIRST_RUN_IDS.impactValue, result.impact.value],
+    [FIRST_RUN_IDS.confidenceValue, result.confidence.value],
+    [FIRST_RUN_IDS.action, result.action.value],
   ];
-  for (const id of slots) {
+  for (const [id, expected] of slots) {
     const node = byId(document, id);
-    assert.equal(textOf(node), "", `${id} is authored with a placeholder rather than empty`);
-    assert.ok(node.closest("[hidden]"),
-      `${id} is empty but still drawn, which is a metric-shaped box with nothing in it`);
+    assert.equal(textOf(node), expected, `${id} drifted from the bundled result`);
+    assert.equal(node.dataset.available, "true");
+    assert.equal(node.closest("[hidden]"), null, `${id} is hidden on first render`);
   }
-  for (const value of Object.values(FIRST_RUN_NOT_YET)) {
-    assert.ok(!textOf(byId(document, FIRST_RUN_IDS.region)).includes(value),
-      `the pre-analysis region still reads ${JSON.stringify(value)}`);
-  }
+  assert.match(textOf(byId(document, FIRST_RUN_IDS.sample)), /invented data/);
+  assert.match(textOf(byId(document, FIRST_RUN_IDS.answerDetail)), /not realized customer savings/);
+  assert.match(textOf(byId(document, FIRST_RUN_IDS.confidenceDetail)), /bundled synthetic data/);
+  assert.equal(document.querySelectorAll("#finops-first-run-action").length, 1);
 });
 
 test("the two choices are told apart by whose data each one uses", async () => {
