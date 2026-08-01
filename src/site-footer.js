@@ -333,9 +333,9 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
 
     try {
       const address = email.value.trim();
-      const body = await postLeadEmail(request, email.value, CONTACT_COPY);
+      const body = await postLeadEmail(request, email.value, "follow_up", CONTACT_COPY);
       form.dataset.state = "success";
-      status.textContent = body?.subscribed === false ? ALREADY_CAPTURED : CAPTURED;
+      status.textContent = body.created ? CAPTURED : ALREADY_CAPTURED;
       // The form is replaced from here, so the control that would send again is
       // gone before the `finally` below could bring it back.
       confirmation.show(address);

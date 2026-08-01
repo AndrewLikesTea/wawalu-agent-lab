@@ -18,10 +18,9 @@
 //      analysis, never in place of it; opening, submitting, failing, and
 //      dismissing all leave every rendered figure exactly where it was. There is
 //      no code path in here that writes to an analysis surface.
-//   2. The payload is built from the typed field and nothing else. The whole
-//      body is assembled by `postLeadEmail` in lead-capture.js out of one
-//      argument — the address in the input — so the visible claim ("only what
-//      you type is sent") is a property of the code, not a promise on a page.
+//   2. The payload is built from the typed field and the fixed `follow_up`
+//      routing label. `postLeadEmail` in lead-capture.js accepts no page state,
+//      so the visible claim ("only what you type is sent") is a property of the code, not a promise on a page.
 //      This module holds no reference to the import state and imports nothing
 //      that does.
 //   3. Failure copy exists only after a failure. The recovery paragraph starts
@@ -216,9 +215,9 @@ export function initFinopsContact(
 
     try {
       const address = email.value.trim();
-      const body = await postLeadEmail(request, email.value, CONTACT_COPY);
+      const body = await postLeadEmail(request, email.value, "follow_up", CONTACT_COPY);
       form.dataset.state = "success";
-      status.textContent = body?.subscribed === false ? ALREADY_CAPTURED : CAPTURED;
+      status.textContent = body.created ? CAPTURED : ALREADY_CAPTURED;
       // Waiting two business days is not a next action, so the surface offers
       // one: somewhere to go now, in this tab, that does not depend on the reply.
       // It survives the swap below: the form goes, this stays.

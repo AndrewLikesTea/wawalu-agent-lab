@@ -177,7 +177,7 @@ test("the invitation states, before anything is typed, that only the address is 
 test("the AI FinOps confirmation begins with “Follow-up requested”, both times", async () => {
   const page = await openFinopsTab();
   const { document } = page;
-  interceptLeads((call) => jsonReply({ subscribed: call === 1 }, call === 1 ? 201 : 200));
+  interceptLeads((call) => jsonReply({ captured: true, created: call === 1, purpose: "follow_up" }, call === 1 ? 201 : 200));
   try {
     byId(document, "finops-result-followup").querySelector("[data-follow-up-cta]").click();
     submitEmail(document, "finops-contact", TYPED_EMAIL);
@@ -205,7 +205,7 @@ test("a successful request leaves a usable next action, and a failed one leaves 
   let failNext = false;
   interceptLeads(() => (failNext
     ? jsonReply({ error: { code: "storage_unavailable", message: "unavailable" } }, 503)
-    : jsonReply({ subscribed: true })));
+    : jsonReply({ captured: true, created: true, purpose: "follow_up" })));
   try {
     byId(document, "finops-contact-open").click();
     const next = byId(document, "finops-contact-next");
@@ -372,7 +372,7 @@ test("the CTA still works after the briefing is repainted under it", async () =>
 test("a confirmed request keeps the briefing on screen and its print action within reach", async () => {
   const page = await openBriefingTab();
   const { document } = page;
-  interceptLeads(() => jsonReply({ subscribed: true }));
+  interceptLeads(() => jsonReply({ captured: true, created: true, purpose: "follow_up" }));
   try {
     const figure = textOf(document.querySelector(".brief-figure"));
     byId(document, "brief-followup-cta").click();
@@ -426,7 +426,7 @@ test("the briefing flow offers one work-email form, and the footer points at it 
 test("the briefing form sends the typed address and nothing from the briefing, and says so", async () => {
   const page = await openBriefingTab();
   const { document } = page;
-  const calls = interceptLeads(() => jsonReply({ subscribed: true }));
+  const calls = interceptLeads(() => jsonReply({ captured: true, created: true, purpose: "follow_up" }));
   try {
     // The figures this page is showing when the request goes out. If it were
     // showing none, the assertion below could not mean anything.
@@ -449,8 +449,8 @@ test("the briefing form sends the typed address and nothing from the briefing, a
     const [{ url, options }] = calls;
     assert.equal(url, "/api/leads");
     assert.equal(options.method, "POST");
-    assert.deepEqual(JSON.parse(options.body), { email: TYPED_EMAIL });
-    assert.deepEqual(Object.keys(JSON.parse(options.body)), ["email"]);
+    assert.deepEqual(JSON.parse(options.body), { email: TYPED_EMAIL, purpose: "follow_up" });
+    assert.deepEqual(Object.keys(JSON.parse(options.body)), ["email", "purpose"]);
 
     const transmitted = `${url} ${JSON.stringify(options.headers)} ${options.body}`;
     for (const secret of [figure, ...figure.replace(/[^0-9.]/g, " ").trim().split(/\s+/)].filter((v) => v.length > 2))
@@ -473,7 +473,7 @@ test("the briefing form sends the typed address and nothing from the briefing, a
 test("the briefing form diagnoses a bad address at the field and never reaches the network", async () => {
   const page = await openBriefingTab();
   const { document } = page;
-  const calls = interceptLeads(() => jsonReply({ subscribed: true }));
+  const calls = interceptLeads(() => jsonReply({ captured: true, created: true, purpose: "follow_up" }));
   try {
     byId(document, "briefing-contact-open").click();
     submitEmail(document, "briefing-contact", "director at example");

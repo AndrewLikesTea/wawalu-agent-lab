@@ -428,7 +428,7 @@ test("the button toggles the form on the keyboard, takes focus, and hands it bac
 test("a submission goes through the shared capture path, and the confirmation says what happens next", async () => {
   const page = await openFooterPage("index.html");
   const { document } = page;
-  const calls = interceptLeads((call) => jsonReply({ subscribed: call === 1 }, call === 1 ? 201 : 200));
+  const calls = interceptLeads((call) => jsonReply({ captured: true, created: call === 1, purpose: "follow_up" }, call === 1 ? 201 : 200));
   try {
     byId(document, "site-footer-open").click();
     submitEmail(document, TYPED_EMAIL);
@@ -440,8 +440,8 @@ test("a submission goes through the shared capture path, and the confirmation sa
     const [{ url, options }] = calls;
     assert.equal(url, "/api/leads");
     assert.equal(options.method, "POST");
-    assert.deepEqual(JSON.parse(options.body), { email: TYPED_EMAIL });
-    assert.deepEqual(Object.keys(JSON.parse(options.body)), ["email"]);
+    assert.deepEqual(JSON.parse(options.body), { email: TYPED_EMAIL, purpose: "follow_up" });
+    assert.deepEqual(Object.keys(JSON.parse(options.body)), ["email", "purpose"]);
 
     assert.equal(byId(document, "site-footer-form").dataset.state, "success");
     const confirmation = shownText(document, "site-footer-status");
@@ -473,7 +473,7 @@ test("a submission goes through the shared capture path, and the confirmation sa
 test("the privacy sentence beside the field is what the request body actually does", async () => {
   const page = await openFooterPage("evolution.html");
   const { document } = page;
-  const calls = interceptLeads(() => jsonReply({ subscribed: true }));
+  const calls = interceptLeads(() => jsonReply({ captured: true, created: true, purpose: "follow_up" }));
   try {
     assert.equal(shownText(document, "site-footer-note"), FOLLOW_UP_PRIVACY);
 
@@ -496,7 +496,7 @@ test("the privacy sentence beside the field is what the request body actually do
 test("an obviously invalid address is diagnosed at the field and never reaches the network", async () => {
   const page = await openFooterPage("index.html");
   const { document } = page;
-  const calls = interceptLeads(() => jsonReply({ subscribed: true }));
+  const calls = interceptLeads(() => jsonReply({ captured: true, created: true, purpose: "follow_up" }));
   try {
     byId(document, "site-footer-open").click();
     const field = byId(document, "site-footer-email");
@@ -534,7 +534,7 @@ test("a failed submission keeps the typed address, says it can be retried, and t
   let failNext = true;
   const calls = interceptLeads(() => (failNext
     ? jsonReply({ error: { code: "storage_unavailable", message: "unreviewed upstream text" } }, 503)
-    : jsonReply({ subscribed: true })));
+    : jsonReply({ captured: true, created: true, purpose: "follow_up" })));
   try {
     byId(document, "site-footer-open").click();
     const field = byId(document, "site-footer-email");
@@ -565,7 +565,7 @@ test("a failed submission keeps the typed address, says it can be retried, and t
     await waitFor(() => byId(document, "site-footer-form").dataset.state === "success",
       "the retry to succeed");
     assert.equal(calls.length, 2, "the retry must make its own request");
-    assert.deepEqual(JSON.parse(calls[1].options.body), { email: TYPED_EMAIL });
+    assert.deepEqual(JSON.parse(calls[1].options.body), { email: TYPED_EMAIL, purpose: "follow_up" });
     assert.match(shownText(document, "site-footer-status"), /^Follow-up requested — we sent your email address, and nothing else\./);
   } finally {
     page.restore();
@@ -601,7 +601,7 @@ test("the pending state is announced, not merely spun", async () => {
   const { document } = page;
   let release;
   const pending = new Promise((resolve) => { release = resolve; });
-  interceptLeads(async () => { await pending; return jsonReply({ subscribed: true }); });
+  interceptLeads(async () => { await pending; return jsonReply({ captured: true, created: true, purpose: "follow_up" }); });
   try {
     byId(document, "site-footer-open").click();
     submitEmail(document, TYPED_EMAIL);

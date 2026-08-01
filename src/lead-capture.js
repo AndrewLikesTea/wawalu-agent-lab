@@ -30,7 +30,7 @@ const TIMEOUT_MS = 10000;
  * of this shape rather than an invention: what to type, what a rejection means,
  * and what is and is not known when nothing answered.
  */
-const UNREADABLE_CODES = ["invalid_json", "unsupported_media_type", "method_not_allowed"];
+const UNREADABLE_CODES = ["invalid_request", "invalid_purpose", "invalid_json", "unsupported_media_type", "method_not_allowed"];
 
 // Keyed by the contract's application `error.code` enum. Every one of these
 // means the address is definitely not stored, so the copy can say so.
@@ -132,19 +132,19 @@ export function resolveFailure(response, body, copy) {
 }
 
 /**
- * The one request either form makes. The body is built here, from the address
- * argument and nothing else, so no caller can widen what leaves the browser:
- * `{ email }` is the entire documented request shape, and the FinOps contact
- * form's no-transfer claim rests on this function having no other input.
+ * The one request either form makes. The body is built here from the address
+ * and a fixed routing label, so no caller can widen what leaves the browser:
+ * `{ email, purpose }` is the entire documented request shape. The purpose is
+ * never page content.
  *
  * Resolves with the parsed success body; throws a SubmissionError carrying copy
  * this module owns plus the reason code that drives recovery.
  */
-export async function postLeadEmail(request, email, copy) {
+export async function postLeadEmail(request, email, purpose, copy) {
   const response = await request(ENDPOINT, {
     method: "POST",
     headers: { "content-type": "application/json", accept: "application/json" },
-    body: JSON.stringify({ email }),
+    body: JSON.stringify({ email, purpose }),
     // Without this a hung request strands the visitor on "Submitting…"
     // with the control disabled and no way to recover.
     signal: globalThis.AbortSignal?.timeout?.(TIMEOUT_MS),
@@ -153,6 +153,9 @@ export async function postLeadEmail(request, email, copy) {
   if (!response.ok) {
     const failure = resolveFailure(response, body, copy);
     throw new SubmissionError(failure.message, failure.reason);
+  }
+  if (body?.captured !== true || body?.purpose !== purpose || typeof body?.created !== "boolean") {
+    throw new SubmissionError(copy.unconfirmed, "unconfirmed");
   }
   return body;
 }
@@ -243,10 +246,10 @@ export function initLeadCapture(root = document, request = globalThis.fetch) {
     status.textContent = SUBMITTING;
 
     try {
-      const body = await postLeadEmail(request, email.value, FIELD_NOTE_COPY);
+      const body = await postLeadEmail(request, email.value, "field_notes", FIELD_NOTE_COPY);
 
       form.dataset.state = "success";
-      status.textContent = body?.subscribed === false ? ALREADY_CAPTURED : CAPTURED;
+      status.textContent = body.created ? CAPTURED : ALREADY_CAPTURED;
       form.reset();
     } catch (error) {
       // A rejected fetch (offline, aborted, DNS) means the request may still
