@@ -24,6 +24,10 @@
 import { formatPercent, formatUsd } from "./evolution.js";
 import { COVERAGE_TIERS } from "./grade-eligibility.js";
 import { GRADABILITY_STATE } from "./export-gradability.js";
+// One provenance record shape for both published figures, and the tap that makes
+// its `inputs` the operands the code below actually read rather than a list kept
+// beside them. It imports nothing, so the answer's minimal path stays minimal.
+import { AGGREGATION, figureProvenance, inputTap } from "./finops-figure-provenance.js";
 
 /** Bump when a question, a metric, or a computation below changes meaning. */
 export const SCREEN_CONTRACT_VERSION = "finops-screen-contract/1.0.0";
@@ -301,8 +305,8 @@ export const ANSWER_EVIDENCE_PANEL = Object.freeze({
  * baseline-less import, whose tier is not in the published table) gets the
  * provenance ALONE rather than a confidence word nothing measured.
  */
-function answerEvidence(gradability, basis) {
-  const confidence = tierOf(gradability?.tier)?.label ?? null;
+function answerEvidence(read, basis) {
+  const confidence = tierOf(read("tier"))?.label ?? null;
   return Object.freeze({
     panelId: ANSWER_EVIDENCE_PANEL.panelId,
     label: ANSWER_EVIDENCE_PANEL.label,
@@ -329,33 +333,41 @@ const WITHHELD_FIGURE = Object.freeze({
  * in export-gradability.js, already carried as `action.cluster`, so this block
  * cannot name a different department from the one the verdict named. The two
  * states with no residue to rank are handled ahead of it.
+ *
+ * Returns the action AND the size of the sample its ranking was taken over, so
+ * the action's provenance record states a count this function measured rather
+ * than one the caller guessed from the state. The two states that rank nothing
+ * report zero and read no rows to get there — which is what makes their record
+ * say "no rows were ranked" instead of naming a residue they never looked at.
  */
-function nextAction(gradability) {
-  const state = gradability?.state ?? null;
+function nextAction(read) {
+  const state = read("state") ?? null;
   if (state === GRADABILITY_STATE.noBaseline) {
-    return Object.freeze({
+    return { rankedRows: 0, aggregation: AGGREGATION.stateOnly, action: Object.freeze({
       label: "Import billing data so coverage has a denominator",
       href: "#local-import",
       destinationKey: null,
-    });
+    }) };
   }
   if (state === GRADABILITY_STATE.graded) {
     const act = destination("act-and-verify");
-    return Object.freeze({
+    return { rankedRows: 0, aggregation: AGGREGATION.stateOnly, action: Object.freeze({
       label: `Record and verify a savings commitment — go to ${act.name}`,
       href: act.target,
       destinationKey: act.key,
-    });
+    }) };
   }
-  const cluster = gradability?.action?.cluster ?? null;
+  const cluster = read("action.cluster") ?? null;
   const departments = destination("departments");
-  return Object.freeze({
-    label: cluster
-      ? `Widen the scored sample for ${cluster} — go to ${departments.name}`
-      : `Review which departments were scored — go to ${departments.name}`,
-    href: departments.target,
-    destinationKey: departments.key,
-  });
+  return { rankedRows: Number(read("provenance.unscored")) || 0,
+    aggregation: AGGREGATION.largestGroup,
+    action: Object.freeze({
+      label: cluster
+        ? `Widen the scored sample for ${cluster} — go to ${departments.name}`
+        : `Review which departments were scored — go to ${departments.name}`,
+      href: departments.target,
+      destinationKey: departments.key,
+    }) };
 }
 
 /**
@@ -364,19 +376,20 @@ function nextAction(gradability) {
  * absent: it scores `classifyQuery` against a hand-labelled corpus and is not an
  * input to this figure, so naming it would claim a link that does not exist.
  */
-function confidenceSentence(gradability, basis) {
-  const covered = Number(gradability?.coveredUsd);
-  const total = Number(gradability?.totalUsd);
+function confidenceSentence(read, basis) {
+  const covered = Number(read("coveredUsd"));
+  const total = Number(read("totalUsd"));
   const parts = [Number.isFinite(total) && total > 0
     ? `Coverage: ${formatUsd(covered)} of ${formatUsd(total)} of spend in scope sits in `
       + "departments the rubric scored."
     : "Coverage: this analysis published no spend total, so there is nothing to measure "
       + "coverage against."];
-  const rule = tierRule(gradability?.tier);
-  if (rule) parts.push(`Grade: ${gradability.tier} coverage tier — ${rule}`);
+  const tier = read("tier");
+  const rule = tierRule(tier);
+  if (rule) parts.push(`Grade: ${tier} coverage tier — ${rule}`);
   const residue = Number.isFinite(total) && Number.isFinite(covered) && total > covered
     ? total - covered : 0;
-  const cluster = gradability?.action?.cluster ?? null;
+  const cluster = read("action.cluster") ?? null;
   parts.push(residue > 0
     ? `Residue: ${formatUsd(residue)} of that spend has no scored query`
       + (cluster ? `, the largest single block of it in ${cluster}.` : ".")
@@ -438,13 +451,38 @@ export function periodLabel(analysis) {
  * It reads three fields — `label`, `period`, `gradability` — and nothing else,
  * which is why `src/finops-answer-summary.js` can hand it a small object derived
  * straight from the fixture instead of a fully composed headline.
+ *
+ * WHERE EACH NUMBER CAME FROM, beside each number. Both published figures — the
+ * headline metric and the one next action — carry a `provenance` record: the
+ * operand keys the code below actually read, the count of rows those operands
+ * were measured over, the aggregation and the computing module's own published
+ * rule version, and when. Every field is taken off the verdict through
+ * `inputTap`, so a figure that gains or loses an operand gains or loses it in
+ * its record with no edit at either call site.
+ *
+ * @param options.now the clock, injected. Defaults to the real one and is CALLED
+ *   here, never read at import: a test passes its own and gets a deterministic
+ *   `computedAt` without stubbing a global.
  */
-export function answerBlock(headline) {
+export function answerBlock(headline, { now = () => new Date() } = {}) {
   const gradability = headline?.gradability ?? null;
   const basis = asOfBasis(headline);
-  const state = gradability?.state ?? null;
-  const ratio = typeof gradability?.coverage === "number" ? gradability.coverage : null;
+  // Two taps, because the two figures consume different operands and each record
+  // must name its own. Both read the same verdict.
+  const metric = inputTap(gradability);
+  const act = inputTap(gradability);
+  const state = metric.read("state") ?? null;
+  const coverage = metric.read("coverage");
+  const ratio = typeof coverage === "number" ? coverage : null;
   const published = ratio !== null && PUBLISHED_STATES.includes(state);
+  const confidence = confidenceSentence(metric.read, basis);
+  const evidence = answerEvidence(metric.read, basis);
+  const { action, rankedRows, aggregation } = nextAction(act.read);
+  const computedAt = now();
+  // The rows the figure was measured over: the verdict's own count of what it
+  // read, not a re-count of anything here.
+  const rowsRead = Number(metric.read("provenance.rows")) || 0;
+  const rule = gradability?.version ?? null;
   return Object.freeze({
     version: SCREEN_CONTRACT_VERSION,
     question: ANSWER_DESTINATION.question,
@@ -457,9 +495,36 @@ export function answerBlock(headline) {
       ? `${formatPercent(ratio, { digits: 1 })} of spend in scope`
       : WITHHELD_FIGURE[state] ?? "Not computed yet",
     basis: `as of ${basis}`,
-    confidence: confidenceSentence(gradability, basis),
+    confidence,
     /** Which supporting panel backs this figure, and the one line that says so. */
-    evidence: answerEvidence(gradability, basis),
-    action: nextAction(gradability),
+    evidence,
+    action,
+    /**
+     * One record per published figure, keyed by figure rather than positional,
+     * so a reader — on screen or in the export — can tell which record explains
+     * which number without counting.
+     */
+    provenance: Object.freeze({
+      headlineMetric: figureProvenance({
+        figure: "headlineMetric",
+        label: ANSWER_DESTINATION.metricLabel,
+        inputs: metric.keys(),
+        sampleCount: rowsRead,
+        sampleUnit: "department row",
+        aggregation: AGGREGATION.ratioOfSums,
+        rule,
+        computedAt,
+      }),
+      nextAction: figureProvenance({
+        figure: "nextAction",
+        label: "The one next action",
+        inputs: act.keys(),
+        sampleCount: rankedRows,
+        sampleUnit: "unscored department row",
+        aggregation,
+        rule,
+        computedAt,
+      }),
+    }),
   });
 }

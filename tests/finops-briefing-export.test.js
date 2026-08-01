@@ -265,6 +265,53 @@ test("the attributed share is re-derivable as amounts and as counts", () => {
   assert.equal(inputs.analyzedRecords / inputs.totalRecords, payload.briefing.coverage.coverageRatio);
 });
 
+test("every figure carries a provenance record, keyed to the figure it explains", () => {
+  const payload = buildBriefing(
+    analysisFixture({ attributedSpend: 18_000, unattributedSpend: 6_000, joinedRecords: 96, quarantinedRecords: 24 }),
+    { dataset: "user", exportedAt: EXPORTED_AT });
+
+  for (const [key, figure] of Object.entries(payload.figures)) {
+    const record = figure.provenance;
+    assert.ok(record, `figures.${key} publishes a value with no provenance behind it`);
+    // KEYED, NOT POSITIONAL: the record names the figure it sits under, so a
+    // reader never has to match by order.
+    assert.equal(record.figure, key,
+      `figures.${key}.provenance claims to explain ${record.figure}`);
+
+    // All four field groups, on every record.
+    assert.ok(Array.isArray(record.inputs) && record.inputs.length > 0,
+      `figures.${key} names no inputs`);
+    assert.ok(Number.isInteger(record.samples.count) && record.samples.count > 0,
+      `figures.${key} reports no sample count`);
+    assert.ok(record.samples.unit, `figures.${key} counts its sample in no unit`);
+    assert.ok(record.method.aggregation && record.method.rule && record.method.label,
+      `figures.${key} names no method`);
+    assert.equal(record.computedAt, new Date(EXPORTED_AT).toISOString(),
+      `figures.${key} was not stamped with the caller's clock`);
+
+    // The inputs are the figure's OWN operand keys, so they cannot drift from
+    // the operands beside them, and they are names rather than values.
+    assert.deepEqual(record.inputs, Object.keys(figure.inputs).sort(),
+      `figures.${key}.provenance.inputs is not the operand list beside it`);
+  }
+
+  // The two records name different samples in different units: one is records,
+  // the other departments, and a shared record shape must not blur them.
+  assert.equal(payload.figures.attributedShare.samples, undefined);
+  assert.equal(payload.figures.attributedShare.provenance.samples.count,
+    payload.briefing.coverage.recordsAnalyzed);
+  assert.equal(payload.figures.recoverableSpend.provenance.samples.count,
+    payload.figures.recoverableSpend.inputs.rankedDepartmentCount);
+  assert.notEqual(payload.figures.attributedShare.provenance.samples.unit,
+    payload.figures.recoverableSpend.provenance.samples.unit);
+  assert.equal(payload.figures.recoverableSpend.provenance.method.rule, DOWN_ROUTING_RULE_VERSION);
+
+  // A file written with no clock reports no computation time rather than one it
+  // invented — the module still has none of its own.
+  const undated = buildBriefing(analysisFixture(), { dataset: "user" });
+  assert.equal(undated.figures.recoverableSpend.provenance.computedAt, null);
+});
+
 test("the scenario carries the rule's numeric parameters, not a formula about them", () => {
   const payload = buildBriefing(analysisFixture(), { dataset: "user", exportedAt: EXPORTED_AT });
   const byName = new Map(payload.scenario.parameters.map((entry) => [entry.name, entry]));

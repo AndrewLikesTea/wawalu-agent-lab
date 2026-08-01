@@ -57,6 +57,10 @@ import {
   DOWN_ROUTING_RULE_VERSION,
 } from "./down-routing-candidates.js";
 import { deriveBriefingCommitment } from "./finops-briefing-commitment.js";
+// The same record shape the answer block on /evolution.html publishes beside its
+// headline metric. One shape, so a reader who learned to read provenance on the
+// screen reads it in the file without learning a second vocabulary.
+import { AGGREGATION, figureProvenance } from "./finops-figure-provenance.js";
 
 /**
  * The file's own version, separate from the briefing contract's. The contract
@@ -494,9 +498,42 @@ export function buildBriefing(analysis, { dataset, exportedAt, attributionWithhe
     dataset: dataset === "example" ? "example" : "user",
     ...(dataset === "example" ? { datasetNotice: EXAMPLE_DATASET_NOTICE } : {}),
     ...(typeof exportedAt === "string" && exportedAt ? { exportedAt } : {}),
+    // Each figure with its operands, its completeness marker, and — keyed under
+    // the figure it explains rather than in a list a reader would have to
+    // position-match — the record that says where it came from. `inputs` is
+    // derived from the figure's OWN operand object, so an operand added above
+    // appears in the record with no edit here. `computedAt` is the caller's
+    // `exportedAt`: this module still has no clock, and a file written without
+    // one reports no computation time rather than inventing it.
     figures: {
-      attributedShare: { ...attributedShare, completeness },
-      recoverableSpend: { ...recoverableSpend, completeness },
+      attributedShare: {
+        ...attributedShare,
+        completeness,
+        provenance: figureProvenance({
+          figure: "attributedShare",
+          label: "Attributed share of analyzed spend",
+          inputs: attributedShare.inputs,
+          sampleCount: briefing.coverage.recordsAnalyzed,
+          sampleUnit: "analyzed record",
+          aggregation: AGGREGATION.ratioOfSums,
+          rule: result?.attribution?.version ?? null,
+          computedAt: exportedAt ?? null,
+        }),
+      },
+      recoverableSpend: {
+        ...recoverableSpend,
+        completeness,
+        provenance: figureProvenance({
+          figure: "recoverableSpend",
+          label: "Recoverable spend under the routing scenario",
+          inputs: recoverableSpend.inputs,
+          sampleCount: departments.length,
+          sampleUnit: "ranked department",
+          aggregation: AGGREGATION.publishedTotal,
+          rule: DOWN_ROUTING_RULE_VERSION,
+          computedAt: exportedAt ?? null,
+        }),
+      },
     },
     // No new provenance key: the contract already carries the client-side
     // statement at `briefing.provenance`, and a second copy under a second name
