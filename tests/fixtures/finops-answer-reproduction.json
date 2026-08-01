@@ -1,0 +1,148 @@
+{
+  "revision": "finops-answer-reproduction/1",
+  "readFirst": "A FinOps lead forwarded a headline answer and was asked where it came from. This file is the reply: a pinned, invented input snapshot and the three published values it must produce — the headline metric, the ranked next action, and the confidence tier. tests/finops-answer-reproduction.test.js feeds `input` into the same two functions the live page calls (gradeExport, then answerBlock) and compares every field below. Read `weights` for what each rule assumes, then `expected`, where every value carries a one-line `note` naming the rule that produced it. You should not have to open the scoring source to follow any number here.",
+  "safety": "Fully synthetic. Invented company, invented department names, invented dollars. No customer data, no real account name, no credential, no network call, and nothing read from a live integration. Nothing in this file is interpolated into HTML: the page renders only the check's recorded date, and only after it matches an ISO date pattern.",
+  "computedBy": [
+    "src/export-gradability.js — gradeExport({ analysis, source })",
+    "src/finops-screen-contract.js — answerBlock({ label, period, gradability }, { now })",
+    "…which is the same pair src/finops-answer-summary.js calls to paint /evolution.html. There is no second arithmetic path, here or in the test."
+  ],
+  "weights": [
+    {
+      "weight": "Coverage is weighted by spend, not by query count or by department count.",
+      "where": "src/grade-eligibility.js — covered_spend / total_imported_spend",
+      "assumption": "The lead is asking about money. One $40,000 department nobody sampled matters more than five hundred sampled queries in a team spending pocket change. A director who disputes this is disputing that the question is a budget question."
+    },
+    {
+      "weight": "A department is covered or not covered. There is no partial credit and no fractional weight per row.",
+      "where": "src/evolution.js — departmentPerformance(department).available",
+      "assumption": "The department is the smallest unit that is both spent and scored: the grain below it is a prompt this product never sees. Inventing a partial weight would put a number on how nearly the rubric scored a row, which nothing here measures."
+    },
+    {
+      "weight": "Tier floors 0.80 (high), 0.50 (moderate), 0.25 (provisional), 0.00 (insufficient), read with >=, so a boundary value belongs to the better tier.",
+      "where": "src/grade-eligibility.js — COVERAGE_TIERS",
+      "assumption": "These are publication thresholds, not accuracy estimates: they say how much of the money was measured before a letter may be shown, and nothing about how right the letter is. 0.50 is the bar because that is the lowest floor whose tier is still 'graded'."
+    },
+    {
+      "weight": "The one next action is ranked by largest unscored spend, ties broken lexicographically on the department key.",
+      "where": "src/export-gradability.js — topCluster(), over src/grade-eligibility.js — nextActionFor()",
+      "assumption": "The most valuable next step is the largest correctable residue. The tie-break is lexicographic rather than input order so the same snapshot always yields the same sentence — a ranking that moved with row order would not be reproducible, which is the property this whole fixture exists to hold."
+    },
+    {
+      "weight": "The confidence tier is a five-value enum, never a numeric confidence score.",
+      "where": "src/grade-eligibility.js — COVERAGE_TIERS[].tier plus NO_BASELINE_TIER",
+      "assumption": "Nothing on this page measures a probability that the answer is correct. A decimal would read as one, so the coarse enum is the honest ceiling on what the inputs support."
+    }
+  ],
+  "input": {
+    "source": "example",
+    "label": "Bundled synthetic example · nothing of yours needed",
+    "computedAt": "2026-07-31T12:00:00.000Z",
+    "computedAtNote": "The clock, pinned and injected. answerBlock() takes `now` as an option, so this snapshot has no wall clock in it and each provenance record's computedAt is this instant exactly.",
+    "analysis": {
+      "period": "2026-06-01 to 2026-07-01",
+      "periodNote": "A half-open window ending on the first of the next month is one whole month, which is why the basis below reads 'June 2026'.",
+      "rankedDepartments": [
+        {
+          "id": "data-science",
+          "name": "Data Science",
+          "spendUsd": 36000,
+          "queries": 900,
+          "headcount": 12,
+          "mix": { "highValue": 40, "overProvisioned": 30, "inefficient": 20, "outOfScope": 10 },
+          "sampling": { "status": "available", "sampledQueries": 120 },
+          "note": "The one scored department: sampling status is 'available', the sampled-query count is a positive integer, and the mix carries non-zero shares. That is the whole test for 'covered'."
+        },
+        {
+          "id": "platform-engineering",
+          "name": "Platform Engineering",
+          "spendUsd": 40000,
+          "queries": 1400,
+          "headcount": 18,
+          "mix": { "highValue": 35, "overProvisioned": 40, "inefficient": 15, "outOfScope": 10 },
+          "sampling": {
+            "status": "not_sampled",
+            "sampledQueries": 0,
+            "reason": "No queries from this department were sampled in this window."
+          },
+          "note": "Unscored and the largest unscored spend, so the ranking rule must name this department and no other."
+        },
+        {
+          "id": "customer-support",
+          "name": "Customer Support",
+          "spendUsd": 24000,
+          "queries": 2100,
+          "headcount": 26,
+          "mix": { "highValue": 20, "overProvisioned": 25, "inefficient": 45, "outOfScope": 10 },
+          "sampling": {
+            "status": "not_sampled",
+            "sampledQueries": 0,
+            "reason": "No queries from this department were sampled in this window."
+          },
+          "note": "Unscored, and second by unscored spend. It is here so the ranking has something to rank against; more queries than either other department and it still loses, because the ranking is by dollars."
+        }
+      ]
+    }
+  },
+  "expected": {
+    "headlineMetric": {
+      "figure": "36.0% of spend in scope",
+      "ratio": 0.36,
+      "note": "figure=36.0% because $36,000 of scored spend over a $100,000 total is 0.36, printed to one decimal. The $36,000 is Data Science alone; the other two departments are unscored, so none of their spend is in the numerator.",
+      "basis": "as of Bundled synthetic example · nothing of yours needed · June 2026",
+      "basisNote": "basis is the input's own label and its window, never a clock: a percentage with no period attached is not checkable.",
+      "state": "provisional",
+      "stateNote": "state=provisional because coverage 0.36 is under the 0.50 publication bar but the provisional tier still publishes a grade. The percentage is printed rather than withheld — withholding starts at the insufficient tier.",
+      "provenance": {
+        "figure": "headlineMetric",
+        "label": "Spend we can stand behind",
+        "inputs": ["action.cluster", "coverage", "coveredUsd", "provenance.rows", "state", "tier", "totalUsd"],
+        "sampleCount": 3,
+        "sampleUnit": "department row",
+        "aggregation": "ratio of two sums",
+        "rule": "export-gradability/1.0.0",
+        "empty": false,
+        "note": "inputs is the set of operand keys the metric's own code read through its tap — key names only, never values — so a figure that gains an operand gains it here. sampleCount=3 is every department row read, including the two the rubric did not score; it is a count of what was read, not of what counted."
+      }
+    },
+    "rankedAction": {
+      "label": "Widen the scored sample for Platform Engineering — go to Departments",
+      "href": "#department-decision-panel",
+      "destinationKey": "departments",
+      "note": "action names Platform Engineering because it holds the largest unscored spend ($40,000 against Customer Support's $24,000). The destination is the Departments screen because that is where the residue is broken out; the tie-break never fired here, the two amounts differ.",
+      "provenance": {
+        "figure": "nextAction",
+        "label": "The one next action",
+        "inputs": ["action.cluster", "provenance.unscored", "state"],
+        "sampleCount": 2,
+        "sampleUnit": "unscored department row",
+        "aggregation": "largest single group, ties broken by key order",
+        "rule": "export-gradability/1.0.0",
+        "empty": false,
+        "note": "sampleCount=2 is the number of unscored rows the ranking was taken over — the two departments above. The scored one was never a candidate, so it is not counted into the sample the ranking reports."
+      }
+    },
+    "confidence": {
+      "tier": "provisional",
+      "label": "Partial result · provisional grade",
+      "line": "Confidence: Partial result · provisional grade. Source: Bundled synthetic example · nothing of yours needed · June 2026.",
+      "note": "tier=provisional because coverage 0.36 falls in the 0.25-to-0.50 band, and the bands are read with >= from the top: 0.36 clears 0.25 and misses 0.50. The label is the tier's own published words, not a phrase the answer screen writes for it."
+    }
+  },
+  "perturbations": [
+    {
+      "name": "one more department gets scored",
+      "department": "Customer Support",
+      "set": { "sampling": { "status": "available", "sampledQueries": 90 } },
+      "expect": { "tier": "moderate", "state": "graded", "actionLabel": "Record and verify a savings commitment — go to Act and verify" },
+      "note": "Coverage moves from 0.36 to 0.60, which crosses the 0.50 bar: the tier becomes moderate, the state becomes graded, and there is no residue left to rank so the action stops naming a department. If the check still passed with the pinned tier after this change, the tier assertion would be measuring nothing."
+    },
+    {
+      "name": "the largest unscored department changes hands",
+      "department": "Customer Support",
+      "set": { "spendUsd": 50000 },
+      "expect": { "tier": "provisional", "actionLabel": "Widen the scored sample for Customer Support — go to Departments" },
+      "note": "Customer Support's unscored spend passes Platform Engineering's, so the ranked action must name it instead. The tier stays provisional (0.36 becomes 0.29, still inside the same band), which is the point: the ranking assertion has to bite on its own, without a tier change to carry it."
+    }
+  ]
+}

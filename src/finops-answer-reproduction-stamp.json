@@ -1,0 +1,12 @@
+{
+  "version": "finops-answer-reproduction-stamp/1.0.0",
+  "check": "tests/finops-answer-reproduction.test.js",
+  "fixture": "tests/fixtures/finops-answer-reproduction.json",
+  "fixtureRevision": "finops-answer-reproduction/1",
+  "checkedOn": "2026-08-01",
+  "figuresChecked": [
+    "headlineMetric",
+    "nextAction"
+  ],
+  "note": "Written by the check named above, and only after every field of the pinned fixture agreed. Do not edit by hand: the date is the claim the answer block renders, and a hand-typed date would be a freshness claim nothing ran behind. Re-run `npm test` to move it."
+}
