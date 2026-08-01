@@ -226,6 +226,14 @@
    breakpoint, and one wide enough to actually reach the edge would paint its
    background outside the panel's 18px rounded corners. */
 .recurring-review-workspace { margin:0 0 26px; border:1px solid var(--panel-border); border-radius:14px; padding:22px 20px 24px; background:#f6faf7; }
+.monthly-review-projection { margin:0 0 26px; border:1px solid var(--panel-border); border-radius:14px; padding:22px 20px 24px; background:#f5f8fc; }
+.monthly-review-projection h2 { margin:4px 0 12px; font-size:22px; }
+.monthly-review-projection p { max-width:76ch; line-height:1.55; }
+.monthly-review-projection-action { margin-top:16px; border-left:4px solid var(--import-accent); padding-left:14px; }
+.monthly-review-projection-action h3 { margin:0 0 5px; font-size:14px; }
+.monthly-review-projection-action p { margin:0; font-weight:650; }
+.monthly-review-projection-provenance { margin-top:16px; }
+.monthly-review-projection-provenance summary { cursor:pointer; font-weight:650; }
 .recurring-review-workspace[data-state="blocked"],.recurring-review-workspace[data-state="insufficient_evidence"] { background:#fff9ec; }
 /* By id: `.guided-result h2` is equally specific and later in the file, so it
    would otherwise win and this heading would render at the size of the headline

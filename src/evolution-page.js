@@ -62,7 +62,7 @@ import { briefingFile, buildBriefing } from "/finops-briefing-export.js";
 // both have been composed. This page does not know the storage shape or consent
 // rules; the adapter owns projection, refusal, and the write/no-write decision.
 import {
-  browserFinopsWorkspaceStorage, retainDerivedPeriod,
+  browserFinopsWorkspaceStorage, readRetainedPeriodInputs, retainDerivedPeriod,
 } from "/finops-workspace.js";
 // The read half of the same opt-in store. A visitor who granted retention and
 // comes back later gets their last derived period, the movement between the
@@ -108,6 +108,8 @@ import {
 import { consolidateJourney } from "/finops-journey-consolidated.js";
 import { renderConsolidatedJourney } from "/finops-journey-consolidated-view.js";
 import { renderRecurringReviewWorkspace } from "/recurring-review-workspace-view.js";
+import { buildMonthlyReviewProjection, MONTHLY_REVIEW_INPUT_VERSION } from "/monthly-review-projection.js";
+import { renderMonthlyReviewProjection } from "/monthly-review-projection-view.js";
 // The returning lead's question — "where do I start this month?" — and the one
 // answer to it. The contract is pure and clock-free; the clock is injected at
 // the call sites below, which is what makes the same records give one answer.
@@ -1184,6 +1186,11 @@ function mountLocalFinopsImport() {
   const syncGuidedResult = () => {
     const composed = composeGuidedResult(guidedInputs());
     const storage = browserFinopsWorkspaceStorage();
+    const retainedPeriods = readRetainedPeriodInputs(storage);
+    renderMonthlyReviewProjection(document, buildMonthlyReviewProjection({
+      schemaVersion: MONTHLY_REVIEW_INPUT_VERSION,
+      retainedPeriods: retainedPeriods.periods,
+    }));
     const retained = readMonthlyAction(storage);
     const evidence = readCurrentReviewEvidence(storage);
     renderRecurringReviewWorkspace(document, assembleRecurringReview({
