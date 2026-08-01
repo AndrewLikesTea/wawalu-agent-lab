@@ -257,6 +257,11 @@ export function applyPageLoadStatus(doc, { state = "loading", title = "", detail
 
   region.dataset.state = presentation.state;
   region.dataset.tone = presentation.tone;
+  // `role=status` announces the words that changed, while `aria-busy` tells a
+  // reader whether the retry is still doing work. Without it, an error followed
+  // by another "Reading" announcement has no machine-readable completion
+  // boundary and can sound like the original indefinite load continuing.
+  region.setAttribute("aria-busy", String(presentation.state === "loading"));
   setText(doc, LOAD_STATUS_IDS.shape, presentation.shape);
   setText(doc, LOAD_STATUS_IDS.word, presentation.word);
   if (title) setText(doc, LOAD_STATUS_IDS.title, title);

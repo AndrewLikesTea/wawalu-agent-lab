@@ -312,6 +312,13 @@ test("a visitor with no files meets four resolved slots and one ranked action", 
     assert.ok(textOf(byId(document, FIRST_RUN_IDS.peerDetail)).length > 0);
     assert.equal(byId(document, FIRST_RUN_IDS.action).dataset.available, "true");
     assert.match(textOf(byId(document, FIRST_RUN_IDS.role)), /Accountable role: /);
+    assert.equal(byId(document, FIRST_RUN_IDS.confidenceValue).dataset.available, "true");
+    assert.match(textOf(byId(document, FIRST_RUN_IDS.confidenceValue)),
+      /^0\.\d{2} of 1\.00 · (low|moderate|high)$/i);
+    assert.match(textOf(byId(document, FIRST_RUN_IDS.confidenceDetail)),
+      /bundled example records were analyzed/i);
+    assert.match(textOf(byId(document, FIRST_RUN_IDS.sample)), /Bundled synthetic example/);
+    assert.match(textOf(byId(document, FIRST_RUN_IDS.sample)), /not .*realized savings/i);
 
     // The method disclosure is painted from the briefing, not from the markup.
     const terms = byId(document, FIRST_RUN_IDS.methodList)

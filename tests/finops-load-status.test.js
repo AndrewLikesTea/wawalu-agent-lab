@@ -180,6 +180,41 @@ test("a failed bundled load keeps the action and adds the retry", async () => {
   }
 });
 
+test("retry reruns a failed bundled analysis and restores the synthetic completed state", async () => {
+  // Keep the routes object mutable: the first request cannot find the bundled
+  // analysis, then the retry sees the fixture become available. This exercises
+  // the shipped click handler rather than repainting the status helper by hand.
+  const routes = { "/finops-evaluation-fixtures.json": EVALUATION_FIXTURES };
+  const page = await bootedPage({ routes });
+  try {
+    const { document } = page;
+    const region = byId(document, LOAD_STATUS_IDS.region);
+    const retry = byId(document, LOAD_STATUS_IDS.retry);
+
+    assert.equal(region.dataset.state, "error");
+    assert.equal(region.getAttribute("aria-busy"), "false");
+    assert.equal(retry.hidden, false);
+
+    routes["/evolution-demo-data.json"] = DEMO_DATA;
+    retry.click();
+    assert.equal(region.dataset.state, "loading");
+    assert.equal(region.getAttribute("aria-busy"), "true");
+    assert.equal(retry.hidden, true, "a running retry is not offered a second time");
+
+    await waitFor(() => region.dataset.state === "ready", "the retry to complete");
+    assert.equal(region.getAttribute("aria-busy"), "false");
+    assert.equal(region.dataset.import, "example");
+    assert.match(textOf(byId(document, LOAD_STATUS_IDS.copy)), /Bundled synthetic example/);
+    assert.match(textOf(byId(document, LOAD_STATUS_IDS.copy)), /invented data, not your spend/);
+    assert.match(textOf(byId(document, "kpi-recoverable-value")), /\$/,
+      "the completed analysis does not publish its recoverable figure");
+    assert.ok(textOf(byId(document, "department-priority")).length > 20,
+      "the completed analysis does not publish a recommended department action");
+  } finally {
+    page.restore();
+  }
+});
+
 // --- the module in isolation ----------------------------------------------
 
 test("import presence is a no-op while the load owns the region", () => {
