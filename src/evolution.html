@@ -794,31 +794,38 @@
       <nav class="workspace-nav" id="finops-workspace-nav" tabindex="-1" data-ranked="false" data-current="answer" data-workspace-frame="true" aria-labelledby="finops-workspace-nav-title">
         <div class="workspace-nav-head">
           <h2 class="workspace-nav-title" id="finops-workspace-nav-title">Go to a part of this workspace</h2>
-          <p class="workspace-nav-note">Four destinations. The one marked <strong>Current</strong> is the one you last opened; opening a destination moves the keyboard to it and unfolds any supporting panel it sits inside.</p>
+          <p class="workspace-nav-note">Four destinations, one open at a time. The one marked <strong>Current</strong> is the one on screen; opening a destination moves the keyboard to its heading and leaves the answer above it.</p>
         </div>
-        <!-- An ordered list, because the order is the reading order: the answer,
+        <!-- THE ONE LIST OF DESTINATIONS ON THIS PAGE (#819). There used to be a
+             second — the "Working area" switcher below — that named the same four
+             and pointed each door at the destination while these pointed at a
+             panel inside it. Two controls for one act. These doors carry the
+             destination fragments now, and src/finops-workspace-shell.js reads
+             them rather than authoring a rival set: `data-destination-*` is the
+             wayfinding vocabulary, `data-shell-*` is the shell's, one anchor
+             answers to both.
+
+             An ordered list, because the order is the reading order: the answer,
              then its evidence, then the unit that owns the action, then the
              commitment. The state and recommendation chips sit *inside* each
              link, so the name a screen reader announces and the name a
              speech-control user says are both the name a sighted reader sees. -->
         <ol class="workspace-nav-list" id="finops-workspace-nav-list">
           <li class="workspace-nav-item">
-            <a class="workspace-dest" href="#finops-first-run" aria-current="true" data-destination-key="answer" data-destination-name="The answer" data-destination-target="finops-first-run" data-destination-off-page="false" data-destination-current="true"><span class="workspace-dest-name">The answer</span><span class="workspace-dest-state">Current</span><span class="workspace-dest-recommended" hidden></span></a>
+            <a class="workspace-dest" href="#workspace-answer" aria-current="true" data-destination-key="answer" data-destination-name="The answer" data-destination-target="finops-first-run" data-destination-current="true" data-shell-destination="answer" data-shell-name="The answer"><span class="workspace-dest-name">The answer</span><span class="workspace-dest-state" data-role="state">Current</span><span class="workspace-dest-recommended" hidden></span></a>
           </li>
           <li class="workspace-nav-item">
-            <a class="workspace-dest" href="#recommendation-evidence" data-destination-key="evidence" data-destination-name="Evidence" data-destination-target="recommendation-evidence" data-destination-off-page="false" data-destination-current="false"><span class="workspace-dest-name">Evidence</span><span class="workspace-dest-state" hidden></span><span class="workspace-dest-recommended" hidden></span></a>
+            <a class="workspace-dest" href="#workspace-evidence" data-destination-key="evidence" data-destination-name="Evidence" data-destination-target="recommendation-evidence" data-destination-current="false" data-shell-destination="evidence" data-shell-name="Evidence"><span class="workspace-dest-name">Evidence</span><span class="workspace-dest-state" data-role="state" hidden></span><span class="workspace-dest-recommended" hidden></span></a>
           </li>
           <li class="workspace-nav-item">
-            <a class="workspace-dest" href="#department-decision-panel" data-destination-key="department" data-destination-name="Departments" data-destination-target="department-decision-panel" data-destination-off-page="false" data-destination-current="false"><span class="workspace-dest-name">Departments</span><span class="workspace-dest-state" hidden></span><span class="workspace-dest-recommended" hidden></span></a>
+            <a class="workspace-dest" href="#workspace-departments" data-destination-key="department" data-destination-name="Departments" data-destination-target="department-decision-panel" data-destination-current="false" data-shell-destination="department" data-shell-name="Departments"><span class="workspace-dest-name">Departments</span><span class="workspace-dest-state" data-role="state" hidden></span><span class="workspace-dest-recommended" hidden></span></a>
           </li>
-          <!-- The one door that leaves this document. It is never marked current
-               — a reader who follows it is reading another page, and a rail
-               claiming they are "currently" somewhere they have left is worse
-               than one that claims nothing. The chip says so in words, and it is
-               authored rather than painted because the claim has to be true
-               before any script runs. -->
+          <!-- Act and verify is an in-page destination here, not the off-page
+               door it used to be: the work is on this page and the Savings Action
+               Center it also has a page for is still linked from the ranked door
+               above. So it is markable, like the other three. -->
           <li class="workspace-nav-item">
-            <a class="workspace-dest" href="/savings-action-center.html" data-destination-key="act-and-verify" data-destination-name="Act and verify" data-destination-off-page="true" data-destination-current="false"><span class="workspace-dest-name">Act and verify</span><span class="workspace-dest-kind">Opens another page</span></a>
+            <a class="workspace-dest" href="#workspace-act-and-verify" data-destination-key="act-and-verify" data-destination-name="Act and verify" data-destination-current="false" data-shell-destination="act-and-verify" data-shell-name="Act and verify"><span class="workspace-dest-name">Act and verify</span><span class="workspace-dest-state" data-role="state" hidden></span><span class="workspace-dest-recommended" hidden></span></a>
           </li>
         </ol>
         <!-- What each door answers and what it will not, from the contract.
@@ -829,37 +836,21 @@
           <summary id="finops-workspace-nav-detail-summary" aria-expanded="false"><h3 class="workspace-nav-detail-heading"><span>What each destination answers, and what it will not</span><span class="workspace-nav-detail-state" id="finops-workspace-nav-detail-state" data-disclosure="collapsed"><span class="workspace-nav-detail-shape" aria-hidden="true">▸</span> Show detail</span></h3></summary>
           <dl class="workspace-nav-detail-list" id="finops-workspace-nav-detail-list"></dl>
         </details>
-        <!-- One polite status region for the whole rail, and it says nothing on
-             load. It speaks only when the destination *changes* — re-pressing the
-             door you are standing in announces nothing, because a live region
-             that talks on every press is one a reader learns to ignore. -->
-        <p class="visually-hidden" id="finops-workspace-nav-live" role="status" aria-live="polite" aria-atomic="true"></p>
       </nav>
 
-      <!-- THE WORKING-AREA CONTROL, and why it is not the rail above it.
-           The rail names the four parts of this page and says which one to take
-           first; it is an explanation, and its act-and-verify door leaves for
-           another page because that is where the contract points it. This is the
-           control that changes what is on screen here — four doors, four
-           fragments this page owns, one open at a time — including the in-page
-           act-and-verify work the rail's off-page door cannot reach.
-           A group rather than a second navigation landmark: two landmarks called
-           "navigation" on one page is the problem the rail was named to avoid.
-           Every door is a real anchor with a real href, so the fragment lands in
-           the address bar, back and forward walk the destinations, and a copied
-           link opens on the destination it was copied from. -->
+      <!-- THE SCREEN HEADER, which is what is left of the "Working area" control
+           after #819 collapsed its four doors into the one navigation above. The
+           rail listed the destinations and this listed them again; a reader had to
+           learn which of two identical lists changed what was on screen. The doors
+           are the rail's now. What stays here is the thing the rail cannot say —
+           which screen is open, and the question it answers — plus the one live
+           region that speaks when it changes. -->
       <div class="workspace-switch" id="finops-workspace-switch" role="group" data-workspace-frame="true" data-workspace-destination="answer" aria-labelledby="finops-workspace-switch-title" aria-describedby="finops-workspace-switch-note">
         <h2 class="eyebrow" id="finops-workspace-switch-title">Working area</h2>
         <p class="workspace-switch-note" id="finops-workspace-switch-note">One destination is open at a time. The answer above stays on screen in all four.</p>
-        <ul class="workspace-switch-list" id="finops-workspace-switch-list">
-          <li><a class="workspace-switch-door" data-shell-destination="answer" data-shell-name="The answer" href="#workspace-answer">The answer <span class="workspace-switch-state" data-role="state" hidden></span></a></li>
-          <li><a class="workspace-switch-door" data-shell-destination="evidence" data-shell-name="Evidence" href="#workspace-evidence">Evidence <span class="workspace-switch-state" data-role="state" hidden></span></a></li>
-          <li><a class="workspace-switch-door" data-shell-destination="department" data-shell-name="Departments" href="#workspace-departments">Departments <span class="workspace-switch-state" data-role="state" hidden></span></a></li>
-          <li><a class="workspace-switch-door" data-shell-destination="act-and-verify" data-shell-name="Act and verify" href="#workspace-act-and-verify">Act and verify <span class="workspace-switch-state" data-role="state" hidden></span></a></li>
-        </ul>
         <!-- WHICH SCREEN THE READER IS STANDING IN, and the question it answers.
-             The list above says what may be pressed; this says what is open, and
-             it is the node the keyboard is handed on every destination change.
+             The navigation above says what may be pressed; this says what is
+             open, and it is the node the keyboard is handed on every change.
 
              `tabindex="-1"` makes it programmatically focusable without adding a
              tab stop — a heading a reader Tabs onto is a heading that has to be
@@ -882,8 +873,8 @@
              inserted at the moment it is written into is one a screen reader was
              not watching and does not read. Silent on an ordinary cold open and
              silent for a press that changes nothing; it speaks for a forwarded
-             link that opens somewhere other than the answer, and for this
-             control's own doors. The rail's doors are announced by the rail. -->
+             link that opens somewhere other than the answer, for a step back, and
+             for the navigation's doors. It is the page's only one. -->
         <p class="visually-hidden" id="finops-workspace-switch-live" role="status" aria-live="polite" aria-atomic="true"></p>
       </div>
 

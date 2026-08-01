@@ -1435,7 +1435,11 @@
    rail: "where you are" and "where you should go first" are different claims and
    must not share one silhouette. Colour is the last of the four channels, so
    greyscale, print, and a screen reader each still carry the state. */
-.workspace-dest[aria-current="true"] { border-color:var(--import-accent); border-left:5px solid var(--import-accent); padding-left:10px; background:var(--import-wash); font-weight:750; }
+/* Four channels beside the word "Current" and `aria-current`, none of them a hue
+   alone: a thicker left rule, extra weight, and a line under the name. The weight
+   stays 750 and the rule stays scoped to `.workspace-dest` — this is the door's
+   own emphasis, not a restyle of every element drawing --import-accent. */
+.workspace-dest[aria-current="true"] { border-color:var(--import-accent); border-left:5px solid var(--import-accent); padding-left:10px; background:var(--import-wash); font-weight:750; text-decoration:underline; text-underline-offset:3px; }
 /* No `.workspace-dest-shape`: the four doors carry no glyph. See the rail's own
    note in finops-workspace-nav.js. This is the disclosure triangle beside the
    rail's one summary, which is an affordance and not a destination mark. */
@@ -1447,7 +1451,8 @@
 .workspace-dest-recommended { flex:none; border:1px solid var(--import-accent); border-radius:99px; padding:2px 8px; color:var(--import-ink); font:700 10px/1.5 ui-monospace,monospace; letter-spacing:.05em; text-transform:uppercase; }
 /* Leaves the page: a neutral outline, because it is a fact about the door rather
    than a state of the reader. */
-.workspace-dest-kind { flex:none; border:1px dashed var(--import-line); border-radius:99px; padding:2px 8px; color:var(--import-ink); font:600 10px/1.5 ui-monospace,monospace; letter-spacing:.04em; text-transform:uppercase; }
+/* No `.workspace-dest-kind`: the "Opens another page" chip went with the off-page
+   door, now that act-and-verify is a destination on this page (#819). */
 .workspace-nav-detail>summary { list-style:none; cursor:pointer; color:var(--import-ink); font-size:13px; font-weight:700; }
 .workspace-nav-detail>summary::marker { content:""; }
 .workspace-nav-detail>summary::-webkit-details-marker { display:none; }
@@ -3084,17 +3089,9 @@ section[data-workspace-current="true"] { box-shadow:-6px 0 0 0 var(--import-wash
 
 .workspace-switch { margin:18px 0 0; border:1px solid var(--panel-border); border-radius:12px; padding:14px 16px; background:#fff; }
 .workspace-switch-note { margin:6px 0 0; max-width:70ch; color:var(--ink-muted); font-size:13px; line-height:1.55; }
-.workspace-switch-list { display:flex; flex-wrap:wrap; gap:8px; margin:12px 0 0; padding:0; list-style:none; }
-.workspace-switch-door { display:inline-flex; align-items:center; gap:6px; min-width:0; min-height:44px; border:1px solid var(--panel-border); border-radius:99px; padding:6px 14px; background:#fff; color:var(--ink,#22221f); font:650 13px/1.5 ui-monospace,monospace; text-decoration:none; overflow-wrap:anywhere; }
-.workspace-switch-door:hover { border-color:var(--ink,#22221f); }
-.workspace-switch-door:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
-/* The open destination is marked by weight, a rule under the word, and the word
-   "Showing" — never by fill alone, so it survives greyscale, paper, and a
-   screen reader reading the link's own name. Same ink on the same white as the
-   other three, so the ring above is not scoped away from it. Its chip is a live
-   state, so it is a filled wash rather than an outline. */
-.workspace-switch-door[data-shell-current="true"] { border-color:var(--ink,#22221f); border-width:2px; padding:5px 13px; font-weight:800; text-decoration:underline; text-underline-offset:3px; }
-.workspace-switch-state { flex:none; border-radius:99px; padding:2px 8px; background:var(--import-wash); color:var(--import-ink); font:700 10px/1.4 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; }
+/* #819: no `.workspace-switch-list` or `.workspace-switch-door`. The shell's copy
+   of the four doors is gone; the one list is the rail's, styled as
+   `.workspace-dest` above, and its open state is marked there. */
 
 /* WHICH SCREEN IS OPEN — the heading the keyboard is handed on every change, on
    steps this sheet ships. Painted from no destination's data, so it draws the
@@ -3110,10 +3107,6 @@ section[data-workspace-current="true"] { box-shadow:-6px 0 0 0 var(--import-wash
 .workspace-context-pair dt { color:var(--ink-muted); font:700 10px/1.4 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; }
 .workspace-context-pair dd { margin:0; max-width:70ch; font-size:13px; line-height:1.55; overflow-wrap:anywhere; }
 
-@media (max-width:640px) {
-  .workspace-switch-list { flex-direction:column; align-items:stretch; }
-  .workspace-switch-door { justify-content:space-between; border-radius:8px; }
-}
 
 @media print {
   /* Paper has no controls, so a printed page is the whole page: every

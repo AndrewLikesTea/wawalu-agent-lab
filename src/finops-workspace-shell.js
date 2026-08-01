@@ -58,7 +58,10 @@
 // link with a stale or invented hash is a link to this page, not an instruction
 // to empty it.
 
-import { DEFAULT_DESTINATION, WORKSPACE_DESTINATION } from "./finops-workspace-nav.js";
+import {
+  DEFAULT_DESTINATION, DESTINATION_FRAGMENT, DESTINATION_STATE_LABEL, WORKSPACE_DESTINATION,
+  setCurrentDestination,
+} from "./finops-workspace-nav.js";
 // The question each screen answers, from the module the answer block is already
 // composed from. Named here rather than re-worded: a destination that announced
 // a different question from the one its screen contract publishes would be a
@@ -69,10 +72,18 @@ import { DESTINATION_LOAD_STATE, createDestinationLoader } from "./finops-destin
 // is still fetching its module is a panel in a state this module already draws.
 import { PANEL_STATUS, applyPanelStatus } from "./panel-status-view.js";
 
-/** The ids the shipped markup carries, in one place so a test can name them. */
+/**
+ * The ids the shipped markup carries, in one place so a test can name them.
+ *
+ * `switchList` is the NAVIGATION's list, not a second one of this module's own.
+ * #819 collapsed the two: the shell used to author four doors beside the rail's
+ * four, so every destination on this page was named twice. The doors it drives
+ * are the rail's now, and the region that keeps this id is the screen header —
+ * which screen is open, and the question it answers.
+ */
 export const WORKSPACE_SHELL_IDS = Object.freeze({
   switch: "finops-workspace-switch",
-  switchList: "finops-workspace-switch-list",
+  switchList: "finops-workspace-nav-list",
   live: "finops-workspace-switch-live",
   screen: "finops-workspace-screen",
   screenTitle: "finops-workspace-screen-title",
@@ -101,16 +112,20 @@ const SCREEN_BY_DESTINATION = Object.freeze(Object.fromEntries(
  * "the evidence" should survive all three. These four are the only fragments this
  * shell answers to; every other in-page fragment is resolved by looking up what
  * region actually contains it, so the page's existing deep links keep working.
+ *
+ * It is declared beside the doors that carry it, in the navigation module, and
+ * re-exported here: one list of four fragments, read by both.
  */
-export const DESTINATION_FRAGMENT = Object.freeze({
-  [WORKSPACE_DESTINATION.answer]: "#workspace-answer",
-  [WORKSPACE_DESTINATION.evidence]: "#workspace-evidence",
-  [WORKSPACE_DESTINATION.department]: "#workspace-departments",
-  [WORKSPACE_DESTINATION.actAndVerify]: "#workspace-act-and-verify",
-});
+export { DESTINATION_FRAGMENT };
 
-/** The visible word on the control for the destination now on screen. */
-export const SHELL_STATE_LABEL = Object.freeze({ current: "Showing" });
+/**
+ * The visible word on the door for the destination now on screen.
+ *
+ * The navigation's word, not a second one. The shell used to say "Showing" on its
+ * own copy of the doors while the rail said "Current" on its copy; with one
+ * control there is one word.
+ */
+export const SHELL_STATE_LABEL = Object.freeze({ current: DESTINATION_STATE_LABEL.current });
 
 /** The five figures carried into every destination but the answer. */
 export const CONTEXT_TERMS = Object.freeze([
@@ -402,20 +417,12 @@ export function applyWorkspaceDestination(doc, key, {
 
   const group = byId(doc, WORKSPACE_SHELL_IDS.switch);
   if (group) group.dataset.workspaceDestination = key;
-  for (const door of switchDoors(doc)) {
-    const current = door.dataset.shellDestination === key;
-    if (current) door.setAttribute("aria-current", "true");
-    else door.removeAttribute("aria-current");
-    door.dataset.shellCurrent = current ? "true" : "false";
-    // The state is a word, never a fill: this survives greyscale, print, and a
-    // screen reader reading the link's name.
-    const slot = door.querySelector?.('[data-role="state"]');
-    if (slot) {
-      slot.replaceChildren();
-      slot.hidden = !current;
-      if (current) slot.append(doc.createTextNode(SHELL_STATE_LABEL.current));
-    }
-  }
+  // ONE CONTROL MARKS ITSELF. `setCurrentDestination` puts `aria-current`, the
+  // word "Current" and the data attribute the stylesheet reads onto the one door
+  // for this destination and takes them off the other three. The shell used to
+  // run its own version of that loop over its own copy of the doors; there is one
+  // list now, and the module that authors it owns how it is marked.
+  setCurrentDestination(doc, key);
 
   // The carried figures are a restatement, so they retire the moment the region
   // they restate is on screen.
@@ -562,11 +569,25 @@ export function initWorkspaceShell(doc, { win = null, loaded = null, loader = de
   if (loaded) loader.seed(WORKSPACE_DESTINATION.actAndVerify, loaded);
   paintWorkspaceContext(doc, loaded);
 
-  const select = (hash, { announce, focus = null }) => {
+  // WHERE THE READER WAS STANDING ON EACH SCREEN. Back and forward move without a
+  // reload, so the browser has no new document to restore a scroll offset onto:
+  // it repaints under the offset that belonged to the screen being left. The
+  // offset is kept per destination instead — the unit the reader experiences —
+  // written when one is left and replayed when it is returned to.
+  const offsets = new Map();
+  const scrollOf = () => (typeof win?.scrollY === "number" ? win.scrollY : 0);
+
+  const select = (hash, { announce, focus = null, restore = false }) => {
     const key = destinationForFragment(doc, hash);
     // Unknown fragment: the reader stays exactly where they were.
     if (!key) return null;
-    return applyWorkspaceDestination(doc, key, { announce, focus, loader });
+    const leaving = currentWorkspaceDestination(doc);
+    if (leaving && leaving !== key) offsets.set(leaving, scrollOf());
+    const opened = applyWorkspaceDestination(doc, key, { announce, focus, loader });
+    // Only on a history move. A door press is a reader asking for the top of a
+    // screen they chose; a step back is a reader asking for the place they left.
+    if (opened && restore && leaving !== key) win?.scrollTo?.(0, offsets.get(key) ?? 0);
+    return opened;
   };
 
   // The retry, on the region that failed. It re-invokes the import rather than
@@ -589,7 +610,7 @@ export function initWorkspaceShell(doc, { win = null, loaded = null, loader = de
     select(href, { announce: ownsFragment(href) });
   };
 
-  const onHashChange = () => select(win?.location?.hash ?? "", { announce: true });
+  const onHashChange = () => select(win?.location?.hash ?? "", { announce: true, restore: true });
 
   doc.addEventListener?.("click", onClick, true);
   doc.addEventListener?.("click", onRetry);

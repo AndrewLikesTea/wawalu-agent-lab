@@ -222,21 +222,78 @@ test("pressing a control switches the destination, in a word and in aria-current
   assert.match(textOf(byId(document, WORKSPACE_SHELL_IDS.live)), /^Showing Act and verify\. \d+ panels?\./);
 });
 
-test("the shell says nothing on load and nothing for a rail door", async () => {
+test("the shell says nothing on load, and one thing per press after it", async () => {
   const { document } = await shelled();
   assert.equal(textOf(byId(document, WORKSPACE_SHELL_IDS.live)), "",
     "the shell announced a destination the reader did not choose");
 
-  // The rail's doors point at panels rather than at the shell's own fragments.
-  // They still switch — but the rail announces them, and two live regions
-  // describing one press is how a reader learns to ignore both.
-  const railDoor = byId(document, "finops-workspace-nav-list")
-    .querySelectorAll("a").find((link) => link.getAttribute("href") === "#department-decision-panel");
-  assert.ok(railDoor, "the rail no longer carries a door to the department panel");
-  railDoor.click();
+  // #819: the doors this drives ARE the navigation's doors. There is no second
+  // list and no second live region, so one press produces one sentence.
+  const door = doorFor(document, WORKSPACE_DESTINATION.department);
+  assert.equal(door.closest("nav").id, "finops-workspace-nav",
+    "the shell is driving a control outside the navigation landmark");
+  door.click();
+  assert.deepEqual([...activeKeys(document)], [WORKSPACE_DESTINATION.department]);
+  assert.match(textOf(byId(document, WORKSPACE_SHELL_IDS.live)), /^Showing Departments\./);
+  assert.equal(document.querySelectorAll("[data-shell-destination]").length, 4,
+    "a second copy of the four doors is still in the document");
+});
+
+/* ----------------------------- a forwardable URL --------------------------- */
+
+test("each destination's own URL opens it directly, with the answer still on screen", async () => {
+  // The forwardable link a FinOps lead pastes into an email. Opening it cold has
+  // to render that screen — not the answer with a fragment nobody acted on — and
+  // the answer block's headline has to survive the trip, because the number is
+  // what the mail was about.
+  for (const key of KEYS) {
+    const { document } = await shelled(DESTINATION_FRAGMENT[key]);
+    assert.deepEqual([...activeKeys(document)], [key], `${DESTINATION_FRAGMENT[key]} opened ${
+      [...activeKeys(document)].join(", ")} instead`);
+    const headline = byId(document, "finops-stand");
+    assert.ok(headline, "the answer block is not in the document at all");
+    assert.equal(headline.dataset.workspaceActive, undefined,
+      "the answer's headline was held back as though it belonged to one destination");
+    assert.equal(byId(document, WORKSPACE_SHELL_IDS.screen).dataset.destination, key);
+  }
+});
+
+test("an unknown or empty destination opens the answer rather than a blank shell", async () => {
+  for (const hash of ["", "#", "#not-a-destination", "#workspace-nonsense"]) {
+    const { document, shell } = await shelled(hash);
+    assert.equal(shell.destination, WORKSPACE_DESTINATION.answer,
+      `"${hash}" did not fall back to the answer`);
+    assert.deepEqual([...activeKeys(document)], [WORKSPACE_DESTINATION.answer]);
+    // Fell back, did not throw and did not empty the page: exactly one screen is
+    // rendered and it is the one a reader who typed the bare URL would expect.
+    assert.equal(currentWorkspaceDestination(document), WORKSPACE_DESTINATION.answer);
+  }
+});
+
+test("back and forward return the reader to where they were on each screen", async () => {
+  // Without a reload there is no new document for the browser to restore a scroll
+  // offset onto, so a step back used to repaint Departments under whatever offset
+  // Evidence happened to be at. The offset is kept per destination now.
+  const document = parseHtml(html);
+  const win = fakeWindow("");
+  win.scrollY = 0;
+  win.scrollTo = (_x, y) => { win.scrollY = y; };
+  initWorkspaceShell(document, { win, loaded });
+
+  win.go(DESTINATION_FRAGMENT[WORKSPACE_DESTINATION.department]);
+  win.scrollY = 940;                       // the reader reads down the drill-down
+  win.go(DESTINATION_FRAGMENT[WORKSPACE_DESTINATION.evidence]);
+  assert.deepEqual([...activeKeys(document)], [WORKSPACE_DESTINATION.evidence]);
+  win.scrollY = 120;
+
+  win.go(DESTINATION_FRAGMENT[WORKSPACE_DESTINATION.department], "popstate");
   assert.deepEqual([...activeKeys(document)], [WORKSPACE_DESTINATION.department],
-    "a rail door no longer switches the destination it points into");
-  assert.equal(textOf(byId(document, WORKSPACE_SHELL_IDS.live)), "");
+    "a step back left the reader on the screen the URL no longer describes");
+  assert.equal(win.scrollY, 940, "back repainted Departments at Evidence's scroll position");
+
+  win.go(DESTINATION_FRAGMENT[WORKSPACE_DESTINATION.evidence], "popstate");
+  assert.deepEqual([...activeKeys(document)], [WORKSPACE_DESTINATION.evidence]);
+  assert.equal(win.scrollY, 120, "forward did not return the reader to where they were");
 });
 
 /* ------------------------- the keyboard and the voice ---------------------- */
@@ -370,25 +427,29 @@ test("the open destination is told apart by more than a hue, and every door take
     return found[1];
   };
 
-  // Weight, a second border, and a rule under the word — three channels beside
-  // the word "Showing" in the markup and `aria-current` in the tree. Take the
-  // hue away and the open destination is still the one that is obviously open.
-  const current = rule('.workspace-switch-door[data-shell-current="true"]');
-  assert.match(current, /font-weight:\s*800/);
+  // #819: the door this asserts is the navigation's, because it is the only one
+  // left. Weight, a thicker left rule, and a line under the name — three channels
+  // beside the word "Current" in the markup and `aria-current` in the tree. Take
+  // the hue away and the open destination is still obviously the open one.
+  const current = rule('.workspace-dest[aria-current="true"]');
+  assert.match(current, /font-weight:\s*750/);
   assert.match(current, /text-decoration:\s*underline/);
-  assert.match(current, /border-width:\s*2px/);
-  // And no rule scopes the ring away from the selected door: it is declared on
-  // the door, not on the unselected door.
-  assert.match(rule(".workspace-switch-door:focus-visible"),
+  assert.match(current, /border-left:\s*5px/);
+  // And the emphasis is scoped to the door's own class: it must not restyle every
+  // element on this page that happens to draw --import-accent.
+  assert.match(current.trim(), /^border-color/);
+  // No rule scopes the ring away from the selected door: it is declared on the
+  // door, not on the unselected door.
+  assert.match(rule(".workspace-dest:focus-visible"),
     /outline:\s*3px solid var\(--focus-ring\)/);
   assert.match(rule(".workspace-screen-title:focus-visible"),
     /outline:\s*3px solid var\(--focus-ring\)/);
-  // A 44px target, the size the rail's own doors already ship.
-  assert.match(rule(".workspace-switch-door"), /min-height:\s*44px/);
+  // A 44px target.
+  assert.match(rule(".workspace-dest"), /min-height:\s*44px/);
   // Four doors on a 320px column wrap and shrink rather than push sideways.
-  assert.match(rule(".workspace-switch-list"), /flex-wrap:\s*wrap/);
+  assert.match(rule(".workspace-nav-list"), /flex-wrap:\s*wrap/);
   for (const property of [/min-width:\s*0/, /overflow-wrap:\s*anywhere/]) {
-    assert.match(rule(".workspace-switch-door"), property);
+    assert.match(rule(".workspace-dest"), property);
   }
 
   // Both states, against the surface each one actually sits on. The ring token
@@ -398,7 +459,7 @@ test("the open destination is told apart by more than a hue, and every door take
   for (const [what, foreground, background, floor] of [
     ["unselected door", "#22221f", "#fff", 4.5],
     ["selected door", "#22221f", "#fff", 4.5],
-    ["the Showing chip", token("import-ink"), token("import-wash"), 4.5],
+    ["the Current chip", "#fff", token("import-accent"), 4.5],
     ["the screen question", token("ink-muted"), "#fff", 4.5],
     ["the focus ring", ring, "#fff", 3],
   ]) {
