@@ -426,7 +426,9 @@ export function parseHtml(html) {
     stack.at(-1).append(new TextNode(decodeEntities(text), document));
   };
 
-  for (const match of html.matchAll(TAG_PATTERN)) {
+  TAG_PATTERN.lastIndex = 0;
+  let match;
+  while ((match = TAG_PATTERN.exec(html)) !== null) {
     appendText(html.slice(cursor, match.index));
     cursor = match.index + match[0].length;
     const [token, closing, opening, attributeText] = match;
@@ -444,7 +446,23 @@ export function parseHtml(html) {
       element.setAttribute(name, decodeEntities(quoted ?? singleQuoted ?? bare ?? ""));
     }
     stack.at(-1).append(element);
-    if (!VOID_TAGS.has(element.tagName.toLowerCase())) stack.push(element);
+    if (!VOID_TAGS.has(element.tagName.toLowerCase())) {
+      stack.push(element);
+      // HTML raw-text elements do not contain markup. Advancing past their
+      // closing tag keeps tag-shaped comments and script strings out of the
+      // DOM, matching what the browser parses rather than regexing raw HTML.
+      if (["SCRIPT", "STYLE"].includes(element.tagName)) {
+        const close = new RegExp(`</${opening}\\s*>`, "i");
+        const remainder = html.slice(cursor);
+        const closingMatch = close.exec(remainder);
+        if (closingMatch) {
+          appendText(remainder.slice(0, closingMatch.index));
+          cursor += closingMatch.index + closingMatch[0].length;
+          TAG_PATTERN.lastIndex = cursor;
+          stack.pop();
+        }
+      }
+    }
   }
   appendText(html.slice(cursor));
   return document;

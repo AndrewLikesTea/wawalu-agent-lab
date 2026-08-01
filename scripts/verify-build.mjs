@@ -2,8 +2,35 @@ import { createHash } from "node:crypto";
 import { readdir, readFile, writeFile } from "node:fs/promises";
 import { relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { parseHtml } from "../tests/support/browser.js";
+import { DECISION_SUMMARY } from "../src/finops-screen-contract.js";
 
 const MANIFEST = "build-manifest.json";
+
+function elementsInOrder(node, found = []) {
+  for (const child of [...(node?.children ?? [])]) {
+    if (child?.nodeType !== 1) continue;
+    found.push(child);
+    elementsInOrder(child, found);
+  }
+  return found;
+}
+
+/** Verify structural invariants against parsed elements, never source text. */
+export function verifyEvolutionStructure(html) {
+  const document = parseHtml(html);
+  const elements = elementsInOrder(document);
+  const summaries = elements.filter((element) =>
+    element.getAttribute?.(DECISION_SUMMARY.attribute) === DECISION_SUMMARY.claim);
+  if (summaries.length > 1) {
+    throw new Error(`evolution.html has ${summaries.length} decision-summary regions; at most one may ship`);
+  }
+  const h1 = elements.findIndex((element) => element.tagName === "H1");
+  const h2 = elements.findIndex((element) => element.tagName === "H2");
+  if (h2 >= 0 && (h1 < 0 || h1 > h2)) {
+    throw new Error("evolution.html h1 must precede its first h2");
+  }
+}
 
 async function artifactFiles(root, directory = root) {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -401,6 +428,7 @@ export async function verifyArtifact(root) {
   // Keep this local and deterministic: no browser, binding, or network is
   // required for the production build to fail before deployment.
   const finopsHtml = await readFile(resolve(root, "evolution.html"), "utf8");
+  verifyEvolutionStructure(finopsHtml);
   const { FIRST_RUN_ACTIONS, FIRST_RUN_IDS } = await import(
     pathToFileURL(resolve(root, "finops-first-run.js")).href
   );

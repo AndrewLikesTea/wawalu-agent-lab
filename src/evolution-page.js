@@ -34,6 +34,7 @@ import { applyDisclosureRoles, applyGuidedResult } from "/finops-guided-result-v
 // into them. Without this a copied `#recommendation-evidence` lands a reader at
 // the top of the page with the evidence still collapsed.
 import { installDeepLinkDisclosure } from "/deep-link-disclosure.js";
+import { forwardRetiredAnchor } from "/retired-anchor-compatibility.js";
 // Disclosure-only method prose, fetched from a static fragment on first expand
 // rather than shipped in this page's initial payload. It carries no figure and
 // gates nothing: the panels it fills are readable before it runs and readable
@@ -3390,6 +3391,9 @@ function paintConsolidatedJourney() {
 
 async function init() {
   if (!document.getElementById("department-priority")) return;
+  // Preserve bookmarks to deleted summary regions. This is a local fragment
+  // replacement only: no redirect, request, storage, or server coupling.
+  forwardRetiredAnchor(window);
   // Before anything else touches the document: every top-level region is
   // stamped with the question it answers and its place in the reading order, so
   // the classification is true of the DOM a reader receives rather than only of
