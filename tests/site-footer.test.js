@@ -199,9 +199,7 @@ test("the footer names the demos a visitor would try first, and links the one th
       // One name per concept: the footer calls a destination what the nav calls it.
       assert.ok(navLabels.has(demo.label), `"${demo.label}" is not what the navigation calls that destination`);
       assert.ok(row.startsWith(demo.label), `${demo.label} must be named first in its row`);
-      // The visitor's question, not a feature label.
-      assert.match(demo.question, /\?$/, `${demo.label} must answer a question the visitor arrives with`);
-      assert.ok(row.includes(demo.question), `${demo.label} must show its question`);
+      assert.ok(row.includes(demo.description), `${demo.label} must show its description`);
     }
 
     // Exactly one link, to the demo the home page's title, heading, and primary
@@ -224,9 +222,24 @@ test("the footer names the demos a visitor would try first, and links the one th
     // swaps the contact form for a pointer.
     for (const file of PAGES) {
       const html = await read(file);
-      for (const demo of DEMOS) assert.ok(html.includes(demo.question), `${file} is missing "${demo.label}"`);
+      for (const demo of DEMOS) assert.ok(html.includes(demo.description), `${file} is missing "${demo.label}"`);
       assert.ok(html.includes('<li><a href="/evolution.html">AI FinOps</a>'), `${file} is missing the way in`);
     }
+
+    // The defect this row fixes was drift between two surfaces: the footer
+    // asked "where is our AI spend going" while the home page promised the
+    // product names what to do first. Pin both to the action rather than to a
+    // literal string, so neither can be reworded without the other.
+    const ACTION = /where to act first on your AI spend/;
+    assert.match(DEMOS[0].description, ACTION, "the AI FinOps door must name the action a visitor gets");
+    assert.doesNotMatch(DEMOS[0].description, /\?$/, "the AI FinOps destination must lead with an action");
+    const guideRow = [...document.querySelector(".site-guide").querySelectorAll("li")]
+      .find((row) => row.querySelector('a[href="/evolution.html"]'));
+    assert.match(textOf(guideRow), ACTION, "the home page's directory must describe AI FinOps the way the footer does");
+    // Neither surface may sell the analysis without saying where it happens.
+    for (const row of [items[0], guideRow])
+      assert.match(textOf(row), /provider export in this browser tab/,
+        "the AI FinOps destination must preserve its local-analysis disclosure");
   } finally {
     page.restore();
   }
