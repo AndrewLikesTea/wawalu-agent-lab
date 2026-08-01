@@ -1140,6 +1140,14 @@ def requeue_conflicted_pull(pull: dict[str, Any], token: str, config: dict[str, 
     request clears the stale failure count (the issue has proven it is workable
     on current ``main``), while ``max_conflict_requeues`` still stops an issue
     that genuinely cannot land from recycling forever.
+
+    For the same reason the discarded session is refunded to ``total_runs``. That
+    cumulative counter exists to retire an issue no worker can finish, and a lost
+    merge race is not evidence of that — it is contention on a hot file. Left
+    charged, three merge races on one busy file spent half of issue #819's
+    lifetime budget and retired it as "needs splitting" while its work was fine.
+    The refund matches the diff-budget, provider-overload and capacity paths,
+    which all hand back a session that said nothing about the work.
     """
     branch = str(pull["head"]["ref"])
     match = (re.match(r"agent/[^/]+/issue-(\d+)-", branch)
@@ -1163,7 +1171,7 @@ def requeue_conflicted_pull(pull: dict[str, Any], token: str, config: dict[str, 
         conflicts = int(record.get("conflict_requeues", 0)) + 1
         exhausted = conflicts > int(config.get("max_conflict_requeues", 2))
         record["conflict_requeues"] = conflicts
-        record["total_runs"] = int(record.get("total_runs", record.get("attempts", 0)))
+        record["total_runs"] = max(int(record.get("total_runs", record.get("attempts", 0))) - 1, 0)
         record.update({"status": "blocked", "blocked_at": utc_now().isoformat()} if exhausted else
                       {"status": "requeued", "requeued_at": utc_now().isoformat(), "attempts": 0})
     if exhausted:
