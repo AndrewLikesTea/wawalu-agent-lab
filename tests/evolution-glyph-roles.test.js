@@ -228,10 +228,10 @@ test("the modules that repaint those chips draw on the same two families", () =>
 
 // --- the workspace rail -----------------------------------------------------
 
-test("the four destinations stay apart with every glyph suppressed", () => {
+test("the five destinations stay apart with every glyph suppressed", () => {
   const document = parseHtml(html);
   const doors = walk(document).filter((node) => node.classList?.contains?.("workspace-dest"));
-  assert.equal(doors.length, 4, "the rail authors four doors");
+  assert.equal(doors.length, 5, "the rail authors five doors");
 
   // No door draws a mark at all. This is the third job ◇ used to do.
   for (const door of doors) {
@@ -246,8 +246,8 @@ test("the four destinations stay apart with every glyph suppressed", () => {
     assert.ok(name, `${door.dataset.destinationKey} has no visible name`);
     return textOf(name);
   });
-  assert.deepEqual(names, ["The answer", "Evidence", "Departments", "Act and verify"]);
-  assert.equal(new Set(names).size, 4, "two doors read the same with glyphs suppressed");
+  assert.deepEqual(names, ["The answer", "Evidence", "Departments", "Act and verify", "Monthly review"]);
+  assert.equal(new Set(names).size, 5, "two doors read the same with glyphs suppressed");
 
   // The module that owns the rail no longer publishes a shape for any door, so
   // a future painter cannot put one back without failing here first.
@@ -337,7 +337,7 @@ test("the rail draws no glyph once its own module has repainted it", async () =>
     const { document } = page;
     applyWorkspaceNav(document, null);
     const doors = walk(document).filter((node) => node.classList?.contains?.("workspace-dest"));
-    assert.equal(doors.length, 4);
+    assert.equal(doors.length, 5);
     for (const door of doors) {
       assert.ok(!HAS_GLYPH.test(textOf(door)),
         `the painted ${door.dataset.destinationKey} door drew ${marksIn(textOf(door)).join("")}`);

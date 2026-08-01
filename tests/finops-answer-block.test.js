@@ -61,10 +61,10 @@ async function openWithClearedStorage() {
 // 1. The contract and the screen are one set of strings.
 // ---------------------------------------------------------------------------
 
-test("the contract document names exactly the four destinations the module ships", () => {
-  assert.equal(SCREEN_CONTRACT.length, 4);
+test("the contract document names exactly the five destinations the module ships", () => {
+  assert.equal(SCREEN_CONTRACT.length, 5);
   assert.deepEqual(SCREEN_CONTRACT.map((entry) => entry.key),
-    ["answer", "evidence", "departments", "act-and-verify"]);
+    ["answer", "evidence", "departments", "act-and-verify", "monthly-review"]);
   for (const entry of SCREEN_CONTRACT) {
     // Every question and every metric label a reader can meet is in the prose
     // too, verbatim. A reworded question in one file and not the other is the
@@ -364,7 +364,7 @@ test("every top-level section that existed before the answer block is still on t
     "destination-load-evidence", "destination-load-department",
     "destination-load-act-and-verify",
     "finops-workspace-context", "finops-load-state", "score-card",
-    "finops-portfolio-brief", "guided-result", "local-import", "prompt-coaching",
+    "finops-portfolio-brief", "monthly-review-projection", "guided-result", "local-import", "prompt-coaching",
     "finops-contact", "finops-proof-point", "finops-headline", "classifier-agreement",
     "disclosure-grade-comparisons", "graded-sample", "org-coaching", "spend-per-delivery",
     "department-evidence", "department-fix-pack", "monthly-department-decision",

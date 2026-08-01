@@ -115,8 +115,8 @@ test("every in-page destination is a named landmark that can take focus", () => 
   const document = parseHtml(html);
   const names = [];
   for (const link of doors(document)) {
-    // Act and verify names no single panel: its screen is several. The other
-    // three each lead into one named region, and that region has to be reachable.
+    // Act and verify names no single panel: its screen is several. Every other
+    // destination leads into one named region that has to be reachable.
     if (!link.dataset.destinationTarget) continue;
     const target = byId(document, link.dataset.destinationTarget);
     assert.ok(target, `${link.dataset.destinationKey} points at no element on this page`);
@@ -129,8 +129,8 @@ test("every in-page destination is a named landmark that can take focus", () => 
       `${target.id} cannot take focus, so the door only scrolls`);
     names.push(textOf(label));
   }
-  assert.equal(names.length, 3);
-  assert.equal(new Set(names).size, 3, `two destinations share one name: ${names.join(" / ")}`);
+  assert.equal(names.length, 4);
+  assert.equal(new Set(names).size, 4, `two destinations share one name: ${names.join(" / ")}`);
 
   // Focusable, but never a tab stop of its own: a reader tabbing the page must
   // not walk three extra empty stops for the privilege.
@@ -162,11 +162,12 @@ test("the rail follows the decision it navigates away from, and does not restate
 
 /* ------------------------- consuming Noor's contract ---------------------- */
 
-test("the four doors are the contract's three destinations plus this page's answer", () => {
+test("the original four doors remain and monthly review is added", () => {
   const destinations = workspaceDestinations(loaded);
   assert.deepEqual(destinations.map((entry) => entry.key), [
     WORKSPACE_DESTINATION.answer, WORKSPACE_DESTINATION.evidence,
     WORKSPACE_DESTINATION.department, WORKSPACE_DESTINATION.actAndVerify,
+    WORKSPACE_DESTINATION.monthlyReview,
   ]);
 
   // Every href, and every "what does this answer", comes from the record — not
@@ -198,7 +199,8 @@ test("a record that failed its contract costs the ranking, never the doors", asy
   delete broken.finding;
   const painted = applyWorkspaceNav(document, loadWorkspaceDestinations(broken));
 
-  assert.equal(painted.length, 4, "a failed record removed a destination");
+  assert.equal(painted.length, Object.values(WORKSPACE_DESTINATION).length,
+    "a failed record removed a destination");
   assert.equal(byId(document, WORKSPACE_NAV_IDS.nav).dataset.ranked, "false");
   assert.equal(painted.filter((entry) => entry.recommended).length, 0);
   // Still four operable anchors, and still the current destination marked.
@@ -212,7 +214,7 @@ test("importing your own export retires the recommendation and keeps the doors",
 
   supersedeWorkspaceNavRanking(document, true);
   assert.equal(byId(document, WORKSPACE_NAV_IDS.nav).dataset.ranked, "false");
-  assert.equal(doors(document).length, 4);
+  assert.equal(doors(document).length, Object.values(WORKSPACE_DESTINATION).length);
   for (const link of doors(document)) {
     assert.equal(textOf(link).includes(DESTINATION_STATE_LABEL.recommended), false);
   }
@@ -246,12 +248,12 @@ test("this page lists each destination exactly once, in one navigation landmark"
   const document = parseHtml(html);
   const keys = doors(document).map((link) => link.dataset.destinationKey);
   assert.deepEqual(keys, Object.values(WORKSPACE_DESTINATION),
-    "the one navigation does not list the four destinations in reading order");
+    "the one navigation does not list the destinations in reading order");
   assert.equal(new Set(keys).size, keys.length, "a destination is listed twice");
 
   // And no second list of the same doors survives anywhere in the document.
   const everyDoor = document.querySelectorAll("[data-shell-destination]");
-  assert.equal(everyDoor.length, 4,
+  assert.equal(everyDoor.length, Object.values(WORKSPACE_DESTINATION).length,
     `${everyDoor.length} destination controls ship, so the page still names a destination twice`);
   for (const door of everyDoor) {
     assert.equal(door.closest("nav")?.id, WORKSPACE_NAV_IDS.nav,
@@ -403,7 +405,7 @@ test("the disclosure states expanded and collapsed in three channels, and stays 
 test("the disclosure carries what each door answers and what it will not", async () => {
   const { document } = await railed();
   const groups = byId(document, WORKSPACE_NAV_IDS.detailList).querySelectorAll("[data-destination-key]");
-  assert.equal(groups.length, 4);
+  assert.equal(groups.length, Object.values(WORKSPACE_DESTINATION).length);
   for (const group of groups) {
     assert.ok(group.querySelector(".workspace-nav-answers"), `${group.dataset.destinationKey} says nothing`);
     assert.ok(group.querySelector(".workspace-nav-limit"),

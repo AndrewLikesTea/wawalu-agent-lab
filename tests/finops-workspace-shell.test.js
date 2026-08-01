@@ -235,8 +235,8 @@ test("the shell says nothing on load, and one thing per press after it", async (
   door.click();
   assert.deepEqual([...activeKeys(document)], [WORKSPACE_DESTINATION.department]);
   assert.match(textOf(byId(document, WORKSPACE_SHELL_IDS.live)), /^Showing Departments\./);
-  assert.equal(document.querySelectorAll("[data-shell-destination]").length, 4,
-    "a second copy of the four doors is still in the document");
+  assert.equal(document.querySelectorAll("[data-shell-destination]").length, KEYS.length,
+    "a second copy of the destination doors is still in the document");
 });
 
 /* ----------------------------- a forwardable URL --------------------------- */

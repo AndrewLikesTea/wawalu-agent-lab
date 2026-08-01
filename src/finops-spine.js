@@ -147,6 +147,7 @@ const REGIONS = Object.freeze({
   "finops-load-state": REGION_CLASS.evidence,
   "score-card": REGION_CLASS.evidence,
   "finops-portfolio-brief": REGION_CLASS.evidence,
+  "monthly-review-projection": REGION_CLASS.evidence,
   "guided-result": REGION_CLASS.evidence,
   "local-import": REGION_CLASS.evidence,
   "prompt-coaching": REGION_CLASS.evidence,
@@ -190,7 +191,9 @@ const EVIDENCE_LAYERS = Object.freeze([
   Object.freeze({
     id: "the-decision-record",
     question: "What is the complete answer behind that headline, and how far do you stand behind it?",
-    regionIds: Object.freeze(["finops-first-run", "guided-result", "finops-portfolio-brief"]),
+    regionIds: Object.freeze([
+      "finops-first-run", "guided-result", "finops-portfolio-brief", "monthly-review-projection",
+    ]),
   }),
   Object.freeze({
     id: "what-to-do-this-month",

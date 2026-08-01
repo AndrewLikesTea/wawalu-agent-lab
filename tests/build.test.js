@@ -422,6 +422,67 @@ test("artifact verification rejects a partial organizational-artifact reader", a
   );
 });
 
+test("artifact verification rejects a rail door whose destination the artifact lost", async (t) => {
+  const directory = await mkdtemp(resolve(tmpdir(), "shiplog-dead-door-test-"));
+  t.after(async () => (await import("node:fs/promises")).rm(directory, { recursive: true, force: true }));
+  await copyDeployableArtifact(directory);
+
+  // The failure this deletes: a door that survives an edit its destination did
+  // not. Nothing in the markup, the manifest, or the import graph notices — the
+  // anchor parses, styles, and takes focus — so the first report is a reader
+  // pressing "Monthly review" on the deployed page and going nowhere.
+  const page = resolve(directory, "evolution.html");
+  const html = await readFile(page, "utf8");
+  await writeFile(page, html.replace(
+    /<section class="monthly-review-projection" id="monthly-review-projection"/,
+    '<section class="monthly-review-projection" id="monthly-review-projection-renamed"',
+  ));
+  await createManifest(directory);
+
+  await assert.rejects(
+    verifyArtifact(directory),
+    /the "monthly-review" door points at #monthly-review-projection/,
+  );
+});
+
+test("artifact verification rejects a monthly review that can never reach a decision", async (t) => {
+  const directory = await mkdtemp(resolve(tmpdir(), "shiplog-inert-review-test-"));
+  t.after(async () => (await import("node:fs/promises")).rm(directory, { recursive: true, force: true }));
+  await copyDeployableArtifact(directory);
+
+  // A destination that only ever refuses passes the empty-state probe and every
+  // other assertion on this artifact while being permanently inert. Stub the
+  // projector into always returning null — the shape a narrowing change to the
+  // retained-period contract would produce — and the build has to fail.
+  const workspace = resolve(directory, "finops-workspace.js");
+  const source = await readFile(workspace, "utf8");
+  await writeFile(workspace, `${source.replace(
+    "export function projectRetainedPeriod(", "function shadowedProjectRetainedPeriod(",
+  )}\nexport function projectRetainedPeriod() { return null; }\n`);
+  await createManifest(directory);
+
+  await assert.rejects(
+    verifyArtifact(directory),
+    /retained months cannot reach a monthly decision/,
+  );
+});
+
+test("artifact verification rejects an AI FinOps entry that stops joining its monthly review", async (t) => {
+  const directory = await mkdtemp(resolve(tmpdir(), "shiplog-review-wiring-test-"));
+  t.after(async () => (await import("node:fs/promises")).rm(directory, { recursive: true, force: true }));
+  await copyDeployableArtifact(directory);
+
+  const entry = resolve(directory, "evolution-page.js");
+  await writeFile(entry, (await readFile(entry, "utf8"))
+    .replaceAll("readRetainedPeriodInputs", "readNothingAtAll"));
+  await createManifest(directory);
+
+  await assert.rejects(
+    verifyArtifact(directory),
+    /no longer joins readRetainedPeriodInputs into its monthly review/,
+  );
+});
+
 test("artifact verification rejects a module the artifact imports but does not carry", async (t) => {
   const directory = await mkdtemp(resolve(tmpdir(), "shiplog-import-closure-test-"));
   t.after(async () => (await import("node:fs/promises")).rm(directory, { recursive: true, force: true }));

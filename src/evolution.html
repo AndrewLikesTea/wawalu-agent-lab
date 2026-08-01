@@ -801,22 +801,11 @@
       <nav class="workspace-nav" id="finops-workspace-nav" tabindex="-1" data-ranked="false" data-current="answer" data-workspace-frame="true" aria-labelledby="finops-workspace-nav-title">
         <div class="workspace-nav-head">
           <h2 class="workspace-nav-title" id="finops-workspace-nav-title">Go to a part of this workspace</h2>
-          <p class="workspace-nav-note">Four destinations, one open at a time. The one marked <strong>Current</strong> is the one on screen; opening a destination moves the keyboard to its heading and leaves the answer above it.</p>
+          <p class="workspace-nav-note">Five destinations, one open at a time. The original four screens and their deep links remain available. The one marked <strong>Current</strong> is on screen.</p>
         </div>
-        <!-- THE ONE LIST OF DESTINATIONS ON THIS PAGE (#819). There used to be a
-             second — the "Working area" switcher below — that named the same four
-             and pointed each door at the destination while these pointed at a
-             panel inside it. Two controls for one act. These doors carry the
-             destination fragments now, and src/finops-workspace-shell.js reads
-             them rather than authoring a rival set: `data-destination-*` is the
-             wayfinding vocabulary, `data-shell-*` is the shell's, one anchor
-             answers to both.
-
-             An ordered list, because the order is the reading order: the answer,
-             then its evidence, then the unit that owns the action, then the
-             commitment. The state and recommendation chips sit *inside* each
-             link, so the name a screen reader announces and the name a
-             speech-control user says are both the name a sighted reader sees. -->
+        <!-- One ordered list drives both wayfinding and the workspace shell.
+             State text stays inside each link so visible, spoken, and
+             speech-control names agree. -->
         <ol class="workspace-nav-list" id="finops-workspace-nav-list">
           <li class="workspace-nav-item">
             <a class="workspace-dest" href="#workspace-answer" aria-current="true" data-destination-key="answer" data-destination-name="The answer" data-destination-target="finops-first-run" data-destination-current="true" data-shell-destination="answer" data-shell-name="The answer"><span class="workspace-dest-name">The answer</span><span class="workspace-dest-state" data-role="state">Current</span><span class="workspace-dest-recommended" hidden></span></a>
@@ -833,6 +822,9 @@
                above. So it is markable, like the other three. -->
           <li class="workspace-nav-item">
             <a class="workspace-dest" href="#workspace-act-and-verify" data-destination-key="act-and-verify" data-destination-name="Act and verify" data-destination-current="false" data-shell-destination="act-and-verify" data-shell-name="Act and verify"><span class="workspace-dest-name">Act and verify</span><span class="workspace-dest-state" data-role="state" hidden></span><span class="workspace-dest-recommended" hidden></span></a>
+          </li>
+          <li class="workspace-nav-item">
+            <a class="workspace-dest" href="#workspace-monthly-review" data-destination-key="monthly-review" data-destination-name="Monthly review" data-destination-target="monthly-review-projection" data-destination-current="false" data-shell-destination="monthly-review" data-shell-name="Monthly review"><span class="workspace-dest-name">Monthly review</span><span class="workspace-dest-state" data-role="state" hidden></span><span class="workspace-dest-recommended" hidden></span></a>
           </li>
         </ol>
         <!-- What each door answers and what it will not, from the contract.
@@ -854,7 +846,7 @@
            region that speaks when it changes. -->
       <div class="workspace-switch" id="finops-workspace-switch" role="group" data-workspace-frame="true" data-workspace-destination="answer" aria-labelledby="finops-workspace-switch-title" aria-describedby="finops-workspace-switch-note">
         <h2 class="eyebrow" id="finops-workspace-switch-title">Working area</h2>
-        <p class="workspace-switch-note" id="finops-workspace-switch-note">One destination is open at a time. The answer above stays on screen in all four.</p>
+        <p class="workspace-switch-note" id="finops-workspace-switch-note">One destination is open at a time. The answer above stays available while you work.</p>
         <!-- WHICH SCREEN THE READER IS STANDING IN, and the question it answers.
              The navigation above says what may be pressed; this says what is
              open, and it is the node the keyboard is handed on every change.
@@ -1050,6 +1042,12 @@
         <p class="visually-hidden" id="finops-portfolio-brief-live" role="status" aria-live="polite" aria-atomic="true"></p>
       </section>
 
+      <section class="monthly-review-projection" id="monthly-review-projection"
+        data-workspace-region="monthly-review" tabindex="-1"
+        aria-labelledby="monthly-review-projection-title" hidden>
+        <h2 id="monthly-review-projection-title">Monthly review</h2>
+      </section>
+
       <!-- The guided result. One question, one benchmark, one action, and the
            required trust verdict, composed in src/finops-guided-result.js. Every
            other executive panel on this page is progressive-disclosure support
@@ -1057,8 +1055,6 @@
            bottom of this section. Nothing here is computed by the page: the
            contract selects, this section displays. -->
       <section class="guided-result finops-panel" id="guided-result" data-state="unavailable" data-decision-ready="false" data-decision-summary="complete" data-workspace-region="answer" aria-labelledby="guided-result-question" hidden>
-        <section class="monthly-review-projection" id="monthly-review-projection"
-          aria-labelledby="monthly-review-projection-title" hidden></section>
         <section class="recurring-review-workspace" id="recurring-review-workspace"
           aria-labelledby="recurring-review-question" hidden></section>
         <p class="eyebrow">FinOps briefing · headline</p>
