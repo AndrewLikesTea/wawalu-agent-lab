@@ -1089,6 +1089,13 @@
    near-peer of the sentence below it. */
 .answer-figure-basis { color:var(--muted); font-size:13px; font-weight:600; line-height:1.5; }
 .answer-confidence { max-width:62ch; margin:0; color:var(--ink); font-size:15px; line-height:1.5; overflow-wrap:anywhere; }
+/* The reproduction line qualifies the confidence sentence above it, so it is one
+   step quieter than that sentence and never louder. `data-checked="false"` is
+   the state where the page could not confirm the check ran: it is drawn in the
+   warn ink the rest of this page uses for a withheld claim, so the fact is
+   carried by the wording AND by the colour rather than by the colour alone. */
+.answer-reproduction { max-width:62ch; margin:0; color:var(--muted); font-size:13px; line-height:1.5; overflow-wrap:anywhere; }
+.answer-reproduction[data-checked="false"] { color:var(--state-warn-ink); font-weight:650; }
 .answer-action { justify-self:start; margin-top:4px; min-height:44px; border:1px solid var(--import-accent); border-radius:9px; padding:11px 18px; background:var(--import-accent); color:#fff; font-size:15px; font-weight:700; text-decoration:none; overflow-wrap:anywhere; }
 .answer-action:hover { background:var(--import-ink); border-color:var(--import-ink); }
 .answer-action:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }

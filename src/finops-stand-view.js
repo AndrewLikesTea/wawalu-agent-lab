@@ -27,6 +27,10 @@ import { FINOPS_ANSWER_SUMMARY } from "./finops-answer-summary.js";
 // from here, in one sentence, because it used to be announced from nine regions
 // at once and a reader heard a queue instead of an answer.
 import { announceAnswer, answerAnnouncement } from "./finops-answer-announcement.js";
+// Whether the answer still reproduces from the pinned example, as one sentence.
+// Read from the artifact the check writes, never composed here and never dated
+// here — see the module for what the sentence may and may not claim.
+import { ANSWER_REPRODUCTION } from "./finops-answer-reproduction.js";
 
 /** The state chip, in the same two channels the rest of this page uses. */
 export const STAND_DISCLOSURE_STATE = Object.freeze({
@@ -53,6 +57,48 @@ const byId = (doc, id) => (doc?.getElementById ? doc.getElementById(id) : null);
  * does not declare cannot be painted from this file.
  */
 export const ANSWER_BLOCK_IDS = DECISION_SUMMARY_IDS;
+
+/** The reproduction line's id. Authored in evolution.html, written only here. */
+export const ANSWER_REPRODUCTION_ID = "finops-answer-reproduction";
+
+/**
+ * Paint the reproduction line: does this answer still come out the same?
+ *
+ * MOUNTED, NOT AUTHORED, for the reason the provenance disclosure above it is:
+ * the decision summary's contract is four parts and nothing else in the shipped
+ * document, and this sentence is a qualifier on the third of them rather than a
+ * fifth thing to read. It is built once, immediately before the one action, so
+ * a reader meets it with the confidence sentence it qualifies and ahead of the
+ * step it bounds. Nothing is lost with JavaScript off: the figure it qualifies
+ * is painted by this same file, so the number and its qualifier arrive together
+ * or neither arrives.
+ *
+ * Painted from the artifact rather than from the summary — the claim is about
+ * the RULES that produced the figure, so it is equally true of the bundled
+ * example and of a reader's own import — and unconditional, so a paint that
+ * arrived with no payload cannot leave the qualifier off. `data-checked` carries
+ * the same fact in the channel a stylesheet, a printed page and a test read, so
+ * "we could not confirm this" is never carried by wording alone.
+ *
+ * `textContent`, on a string the reproduction module authored: no fixture value
+ * is interpolated into markup here or anywhere above it.
+ */
+export function applyAnswerReproduction(doc, line = ANSWER_REPRODUCTION) {
+  const block = byId(doc, ANSWER_BLOCK_IDS.block);
+  if (!block || !doc.createElement) return null;
+  let node = byId(doc, ANSWER_REPRODUCTION_ID);
+  if (!node) {
+    node = doc.createElement("p");
+    node.className = "answer-reproduction";
+    node.id = ANSWER_REPRODUCTION_ID;
+    const action = byId(doc, ANSWER_BLOCK_IDS.action);
+    if (action && action.parentNode === block) block.insertBefore(node, action);
+    else block.append(node);
+  }
+  node.dataset.checked = String(line?.available === true);
+  node.textContent = line?.text ?? "";
+  return node;
+}
 
 /** The evidence line's own ids. Authored in evolution.html, written only here. */
 export const ANSWER_EVIDENCE_IDS = Object.freeze({
@@ -285,6 +331,10 @@ export function applyAnswerBlock(doc, summary = FINOPS_ANSWER_SUMMARY) {
   // the same reason: a block with no payload must say it has nothing behind its
   // numbers rather than leave the last payload's provenance standing under them.
   applyAnswerProvenance(doc, summary);
+  // …and whether the rules behind the figure still reproduce the pinned example.
+  // Also unconditional, and for the same reason: it qualifies the confidence
+  // sentence below it, so a payload-less paint must not leave the qualifier off.
+  applyAnswerReproduction(doc);
   if (!summary) return null;
   block.dataset.state = summary.state ?? "unavailable";
   block.dataset.available = String(summary.available === true);
