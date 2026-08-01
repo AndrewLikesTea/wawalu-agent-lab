@@ -93,3 +93,51 @@ export function renderMonthlyFinopsReview(doc, review) {
     heading, finding, confidence, provenance, action, details);
   return root;
 }
+
+export function renderOperatingCycle(doc, cycle, { onSelect, onReset } = {}) {
+  const root = doc.getElementById("monthly-review-projection");
+  if (!root) return null;
+  if (cycle.status === "ready") {
+    renderMonthlyFinopsReview(doc, cycle.review);
+    const controls = node(doc, "div", "monthly-review-cycle-controls", "");
+    const reset = node(doc, "button", "", "Reset demo action");
+    reset.type = "button";
+    reset.addEventListener("click", () => onReset?.());
+    controls.append(reset, node(doc, "p", "monthly-review-boundary",
+      "Reset removes the selected demo action from this browser. The synthetic fixture is never stored."));
+    root.append(controls);
+    return root;
+  }
+
+  root.replaceChildren();
+  root.dataset.state = cycle.status;
+  root.dataset.contractVersion = cycle.schemaVersion;
+  const heading = node(doc, "h2", "", "Did our last action deliver the expected savings?");
+  heading.id = "monthly-review-projection-title";
+  root.append(node(doc, "p", "eyebrow", "Local operating cycle · bundled synthetic data"), heading);
+  const messages = {
+    empty: "Choose one bundled demo action to begin. No verification exists until a valid subsequent synthetic period is linked.",
+    unavailable: "Browser-local storage is unavailable. No action was selected and no verification is shown.",
+    incompatible: "The saved demo action cannot be read by this version. Reset it before starting a new cycle.",
+    no_valid_comparison: "This action has no valid like-for-like subsequent bundled period. It is not verified.",
+  };
+  root.append(node(doc, "p", "monthly-review-status", messages[cycle.status] ?? messages.incompatible));
+  if (cycle.status === "empty") {
+    const choices = node(doc, "div", "monthly-review-cycle-controls", "");
+    for (const action of cycle.actions) {
+      const button = node(doc, "button", "", `Select ${action.name}`);
+      button.type = "button";
+      button.addEventListener("click", () => onSelect?.(action.id));
+      choices.append(button, node(doc, "p", "monthly-review-comparison", action.scope));
+    }
+    root.append(choices);
+  } else if (["incompatible", "no_valid_comparison"].includes(cycle.status)) {
+    const reset = node(doc, "button", "", "Reset demo action");
+    reset.type = "button";
+    reset.addEventListener("click", () => onReset?.());
+    root.append(reset);
+  }
+  root.append(node(doc, "p", "monthly-review-boundary",
+    "Stored locally: selected synthetic action ID only. Provider exports, HRIS data, credentials, prompts, and customer data are rejected from this cycle."));
+  return root;
+}

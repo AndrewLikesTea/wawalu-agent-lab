@@ -1,7 +1,13 @@
+import { OPERATING_CYCLE_STORAGE_KEY } from "./finops-workspace-contract.js";
+
+export { OPERATING_CYCLE_STORAGE_KEY };
+
 // Verification brief contract. This module owns the definitions before the UI:
 // it is pure, clock-free, and uses integer minor currency units until display.
 export const MONTHLY_FINOPS_FIXTURE_VERSION = "monthly-finops-review-fixture/2.0.0";
 export const MONTHLY_FINOPS_REVIEW_VERSION = "monthly-finops-review/2.0.0";
+export const OPERATING_CYCLE_VERSION = "finops-operating-cycle/1.0.0";
+export const OPERATING_CYCLE_SELECTION_VERSION = "finops-operating-cycle-selection/1.0.0";
 
 export const MONTHLY_FINOPS_METRIC_CONTRACTS = Object.freeze({
   selectedAction: Object.freeze({
@@ -161,4 +167,86 @@ export function buildMonthlyFinopsReview(fixture) {
     }),
     nextAction: freeze({ rank: 1, id: followUp.id, statement: followUp.statement, evidence: followUp.evidence }),
   });
+}
+
+const selectionFields = Object.freeze(["schemaVersion", "actionId"]);
+
+/** The only durable cycle data: a schema marker and one bundled action id. */
+export function validateOperatingCycleSelection(value) {
+  const errors = [];
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return freeze({ valid: false, errors: freeze(["selection must be an object"]) });
+  }
+  for (const key of Object.keys(value)) {
+    if (!selectionFields.includes(key)) errors.push(`${key}: storage field is not allowed`);
+  }
+  if (value.schemaVersion !== OPERATING_CYCLE_SELECTION_VERSION) errors.push("unsupported selection version");
+  if (typeof value.actionId !== "string" || !ID.test(value.actionId)) errors.push("actionId is invalid");
+  return freeze({ valid: errors.length === 0, errors: freeze(errors) });
+}
+
+const ID = /^[a-z0-9][a-z0-9_-]{0,63}$/i;
+
+export function readOperatingCycleSelection(storage) {
+  if (!storage) return freeze({ status: "unavailable", selection: null });
+  try {
+    const raw = storage.getItem(OPERATING_CYCLE_STORAGE_KEY);
+    if (raw === null) return freeze({ status: "empty", selection: null });
+    const selection = JSON.parse(raw);
+    return validateOperatingCycleSelection(selection).valid
+      ? freeze({ status: "selected", selection: freeze({ ...selection }) })
+      : freeze({ status: "incompatible", selection: null });
+  } catch {
+    return freeze({ status: "incompatible", selection: null });
+  }
+}
+
+export function writeOperatingCycleSelection(storage, actionId) {
+  const selection = { schemaVersion: OPERATING_CYCLE_SELECTION_VERSION, actionId };
+  const checked = validateOperatingCycleSelection(selection);
+  if (!checked.valid || !storage) return freeze({ ok: false, status: "unavailable" });
+  try {
+    storage.setItem(OPERATING_CYCLE_STORAGE_KEY, JSON.stringify(selection));
+    return freeze({ ok: true, status: "selected", selection: freeze(selection) });
+  } catch {
+    return freeze({ ok: false, status: "unavailable" });
+  }
+}
+
+export function clearOperatingCycleSelection(storage) {
+  if (!storage) return freeze({ ok: false, status: "unavailable" });
+  try {
+    storage.removeItem(OPERATING_CYCLE_STORAGE_KEY);
+    const cleared = storage.getItem(OPERATING_CYCLE_STORAGE_KEY) === null;
+    return freeze({ ok: cleared, status: cleared ? "empty" : "incompatible" });
+  } catch {
+    return freeze({ ok: false, status: "unavailable" });
+  }
+}
+
+/** Resolve a selected bundled action to its declared, immediately subsequent period. */
+export function projectOperatingCycle(fixture, selectionResult) {
+  const base = { schemaVersion: OPERATING_CYCLE_VERSION, sourceType: "bundled_synthetic_fixture" };
+  if (selectionResult?.status !== "selected") {
+    return freeze({ ...base, status: selectionResult?.status ?? "empty", review: null,
+      actions: freeze((fixture?.actions ?? []).map(({ id, name, scope }) => freeze({ id, name, scope }))) });
+  }
+  if (fixture?.schemaVersion !== MONTHLY_FINOPS_FIXTURE_VERSION) {
+    return freeze({ ...base, status: "incompatible", review: null, actions: freeze([]) });
+  }
+  const action = fixture.actions?.find(({ id }) => id === selectionResult.selection.actionId);
+  if (!action) return freeze({ ...base, status: "incompatible", review: null,
+    actions: freeze(fixture.actions.map(({ id, name, scope }) => freeze({ id, name, scope }))) });
+  const baseline = fixture.observation?.baselinePeriod;
+  const verification = fixture.observation?.verificationPeriod;
+  const baselineMonth = /^synthetic-(\d{4})-(\d{2})$/.exec(action.baselinePeriodId ?? "");
+  const verificationMonth = /^synthetic-(\d{4})-(\d{2})$/.exec(action.verificationPeriodId ?? "");
+  const serial = (match) => match ? Number(match[1]) * 12 + Number(match[2]) : null;
+  const valid = baseline?.id === action.baselinePeriodId && verification?.id === action.verificationPeriodId
+    && serial(verificationMonth) === serial(baselineMonth) + 1 && fixture.observation.scope === action.scope;
+  if (!valid) return freeze({ ...base, status: "no_valid_comparison", review: null,
+    selectedAction: freeze({ id: action.id, name: action.name, scope: action.scope }), actions: freeze([]) });
+  const selectedFixture = { ...fixture, actions: fixture.actions.map((candidate) =>
+    ({ ...candidate, selected: candidate.id === action.id })) };
+  return freeze({ ...base, status: "ready", review: buildMonthlyFinopsReview(selectedFixture), actions: freeze([]) });
 }

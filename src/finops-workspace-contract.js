@@ -8,6 +8,7 @@
 export const FINOPS_WORKSPACE_VERSION = "finops-workspace/1.1.0";
 export const FINOPS_WORKSPACE_KEY = "shiplog.finops.workspace.v1";
 export const FINOPS_LABELS_KEY = "shiplog.finops.orgUnitLabels";
+export const OPERATING_CYCLE_STORAGE_KEY = "shiplog.finops.syntheticOperatingCycle";
 
 /**
  * Every document version this build can read, oldest first. A store written by
