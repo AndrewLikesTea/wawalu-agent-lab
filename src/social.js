@@ -361,7 +361,13 @@ function renderSkeleton(container, count = 3) {
 // Every one of these states names Social. "No posts yet" on its own could be any
 // list on the site; a reader who arrived from the nav needs the empty screen to
 // confirm which of the two feeds they are looking at.
-const DEFAULT_EMPTY_MESSAGE = "Write the first post to start the Social feed.";
+//
+// An `emptyMessage` is passed only when filters are hiding posts, so its absence
+// is what "the feed itself is empty" means. The two are different news and get
+// different actions: nothing published yet points at Paint, because an image is
+// the part of a post a reader has nowhere else to get; a filtered-out feed is
+// already full and only needs the filters or the composer.
+const NO_POSTS_GUIDANCE = "Publish the first one, with an image from Paint or without.";
 
 // `state` separates "we have nothing yet because we are still fetching" from
 // "we have nothing because there is nothing" and from "we have nothing because
@@ -369,7 +375,7 @@ const DEFAULT_EMPTY_MESSAGE = "Write the first post to start the Social feed.";
 // Posts always win over a pending or failed refresh: stale content beats a
 // spinner over content the reader could already see.
 export function renderPosts(container, posts, options = {}) {
-  const { emptyMessage = DEFAULT_EMPTY_MESSAGE, state = "ready" } = options;
+  const { emptyMessage = null, state = "ready" } = options;
   const ordered = sortPostsNewestFirst(posts);
   container.replaceChildren();
   container.setAttribute("aria-busy", state === "loading" && ordered.length === 0 ? "true" : "false");
@@ -395,8 +401,10 @@ export function renderPosts(container, posts, options = {}) {
         state: "empty",
         label: "Social feed status",
         value: "No posts on Social yet.",
-        description: emptyMessage,
-        action: { label: "Write a post", href: "#post-body" },
+        description: emptyMessage ?? NO_POSTS_GUIDANCE,
+        action: emptyMessage
+          ? { label: "Write a post", href: "#post-body" }
+          : { label: "Create an image in Paint", href: "/paint/" },
       });
       panel.classList.add("empty-state");
     }

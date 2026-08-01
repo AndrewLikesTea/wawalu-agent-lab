@@ -48,14 +48,17 @@ for (const [name, document] of Object.entries(documents)) {
     const link = invitation.querySelector("a");
     assert.equal(link.tagName, "A", "the route is not an anchor, so it is not open-in-new-tab-able");
     assert.ok(opensPaint(link.href), `${name}'s route does not open Paint: ${link.href}`);
-    // The label says the tool and the outcome. "Paint" alone names a
-    // destination; "↗" alone names nothing.
-    assert.match(textOf(link), /Create an image in Paint/);
+    // The label names the tool in words. "↗" alone names nothing, and the
+    // sentence around it is what makes "Paint" mean something — so that
+    // sentence has to name what the route produces, not just point at it.
+    assert.match(textOf(link), /Paint/);
     assert.doesNotMatch(textOf(link), /^[^A-Za-z]*$/, "the label carries no words");
+    assert.match(textOf(invitation), /picture|image/i);
 
-    // The sentence around it says where the image goes afterwards, so the route
-    // is legible before it is taken.
-    assert.match(textOf(invitation), /post|attach/i);
+    // What the image has to do to arrive here is the empty state's sentence to
+    // say; repeating it in this helper is the defect this file guards against.
+    assert.doesNotMatch(textOf(invitation), /then (publish|post|attach)/i,
+      `${name}'s helper restates the publishing path the empty state already gives`);
   });
 
   test(`${name} keeps the Paint route in the keyboard sequence, before the browsing panel`, () => {
@@ -74,10 +77,10 @@ for (const [name, document] of Object.entries(documents)) {
   });
 }
 
-test("People names both ends of the route: the editor and the feed the image returns to", () => {
+test("People's nearby helper links to the editor without repeating the empty-state choices", () => {
   const invitation = documents.People.querySelector(".feed-create");
   const hrefs = invitation.querySelectorAll("a").map((anchor) => anchor.href);
-  assert.deepEqual(hrefs, ["/paint/?from=profile", SOCIAL_COMPOSER_PATH]);
+  assert.deepEqual(hrefs, ["/paint/?from=profile"]);
 });
 
 /* ---------------------------- the primary route ---------------------------- */
@@ -89,13 +92,16 @@ test("People names both ends of the route: the editor and the feed the image ret
 /** The page's leading call to action: the primary control in its hero. */
 const heroCta = (document) => document.querySelector(".hero-actions").querySelector("a");
 
-test("Social leads with a call to action that names the outcome, not the destination alone", () => {
+test("Social leads with a call to action that names the act, not the destination alone", () => {
   const cta = heroCta(documents.Social);
   assert.equal(cta.tagName, "A", "the primary route is not an anchor");
   assert.ok(opensPaint(cta.href), `Social's primary route does not open Paint: ${cta.href}`);
-  // Creating and publishing an image, in words. "Paint" alone, an arrow alone,
-  // or a colour alone would each name nothing a reader can act on.
-  assert.match(textOf(cta), /^Create an image in Paint, then publish it here/);
+  // Making an image, in words. "Paint" alone repeats the nav item beside it, an
+  // arrow alone names nothing, and a colour alone names nothing a reader can
+  // act on. It stops at the act: the empty state says where the image goes.
+  assert.match(textOf(cta), /^Create an image in Paint/);
+  assert.doesNotMatch(textOf(cta), /then (publish|post)/i,
+    "the hero restates the publishing path the empty state already gives");
   assert.ok(tabSequence(documents.Social).includes(cta), "the primary route is not keyboard reachable");
 
   // Above the composer and the feed, in the source, so it is the first route a
@@ -105,7 +111,7 @@ test("Social leads with a call to action that names the outcome, not the destina
   assert.ok(html.indexOf('id="social-paint-cta"') < html.indexOf('class="feed-create'));
 });
 
-test("People names both ends of the path from its entry point, in words", () => {
+test("People offers distinct Social and Paint routes from its entry point", () => {
   // Two distinct visible links in the page's opening section: back to every post
   // on Social, and on to the editor. Neither depends on an icon or a colour, and
   // each says which destination it goes to.
@@ -115,7 +121,7 @@ test("People names both ends of the path from its entry point, in words", () => 
   const toSocial = links.filter((anchor) => anchor.href.startsWith("/social.html"));
   assert.equal(toPaint.length, 1, "People's entry point offers no single way into Paint");
   assert.equal(toSocial.length, 1, "People's entry point offers no single way back to Social");
-  assert.match(textOf(toPaint[0]), /^Create an image in Paint, then publish it on Social/);
+  assert.match(textOf(toPaint[0]), /^Create an image in Paint/);
   assert.match(textOf(toSocial[0]), /Social/);
 
   const sequence = tabSequence(documents.People);

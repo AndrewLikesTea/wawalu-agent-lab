@@ -167,6 +167,18 @@ test("the grid keeps list semantics and one roving tab stop", () => {
 });
 
 test("empty, loading, and error states are three distinct renders", () => {
+  // Nothing published yet and nothing matching the filters are different news.
+  // The first is the only one that has to name Paint: an image is the part of a
+  // post a reader has nowhere else to get.
+  const noPosts = createElement("div");
+  renderPosts(noPosts, []);
+  const noPostsPanel = first(noPosts, "empty-state");
+  assert.match(noPostsPanel.textContent, /No posts on Social yet\./);
+  assert.match(noPostsPanel.textContent, /Publish the first one, with an image from Paint or without\./);
+  const paintAction = first(noPostsPanel, "state-action");
+  assert.equal(paintAction.textContent, "Create an image in Paint");
+  assert.equal(paintAction.href, "/paint/");
+
   const empty = createElement("div");
   renderPosts(empty, [], { emptyMessage: "No Social posts match these filters." });
   assert.equal(empty.getAttribute("aria-busy"), "false");

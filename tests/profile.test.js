@@ -259,23 +259,37 @@ test("posts already on screen outrank a pending or failed refresh", () => {
   }
 });
 
-test("an empty profile gives one message and a route into Paint", () => {
+test("an empty profile separates viewing Social from creating and publishing an image", () => {
   const container = createElement("div");
   renderProfileGrid(container, [], { author: "Mina" });
   const empty = first(container, "empty-state");
   assert.equal(tags(empty, "P").length, 1, "the empty state renders one message, not two");
-  assert.equal(first(empty, "empty-title").textContent, "Make an image in Paint, then use it in a post.");
+  assert.equal(first(empty, "empty-title").textContent, "Images made in Paint and published on Social appear here.");
   // Named, not gestured at: the visitor has to know where to go.
   assert.match(empty.textContent, /Paint/);
-  const action = first(empty, "empty-action");
-  assert.equal(action.textContent, "Open Paint");
+
+  // Two destinations, told apart by their labels rather than by their weight,
+  // and neither of them a second reading of the sentence above.
+  const actions = byClass(empty, "empty-action");
+  assert.equal(actions.length, 2);
+  const title = first(empty, "empty-title").textContent;
+  for (const control of actions) {
+    assert.ok(!title.includes(control.textContent),
+      `the empty state's sentence repeats its own button: ${control.textContent}`);
+  }
+
+  // The primary is first, so the solid control, the reading order, and the tab
+  // order all name the same link. An outlined secondary arriving first would put
+  // the emphasis and the sequence in disagreement.
+  const action = actions[0];
+  assert.equal(action.textContent, "Create an image in Paint");
   assert.equal(action.href, "/paint/?from=profile&author=Mina");
   assert.equal(action.tagName, "A", "the primary action is keyboard reachable without scripted key handling");
   assert.match(action.href, /^\/paint\//, "first-time visitors get a visible route into creation");
-  const actions = byClass(empty, "empty-action");
-  assert.equal(actions.length, 2);
-  assert.equal(actions[1].textContent, "Write a post");
-  assert.equal(actions[1].href, "/social.html#post-form");
+  assert.ok(!action.className.includes("empty-action-secondary"), "the primary action is styled as the secondary one");
+  assert.equal(actions[1].textContent, "See every post on Social");
+  assert.equal(actions[1].href, "/social.html");
+  assert.ok(actions[1].className.includes("empty-action-secondary"), "the second action is not marked as secondary");
 });
 
 test("a failed load is offered a retry, not a false empty state", () => {
@@ -383,7 +397,7 @@ test("the empty profile says it once across the whole page", () => {
   assert.equal(onPage.filter((text) => text.includes(PROFILE_EMPTY_COPY.summary)).length, 1);
   assert.equal(onPage.filter((text) => text.includes("Paint")).length, 1);
   assert.equal(spoken[1], "0 image posts", "the heading count is a count, not a sentence");
-  assert.equal(profileAnnouncement("Mina", 0), "No image posts on People yet. Make an image in Paint, then use it in a post.");
+  assert.equal(profileAnnouncement("Mina", 0), "No image posts on People yet. Images made in Paint and published on Social appear here.");
   assert.equal(profileAnnouncement("Mina", 2), "Showing 2 image posts by Mina.");
 });
 

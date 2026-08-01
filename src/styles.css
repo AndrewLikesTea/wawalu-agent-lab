@@ -682,7 +682,12 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .empty-action { display:inline-flex; align-items:center; justify-content:center; width:auto; margin:18px auto 0; border-radius:9px; padding:11px 18px; background:#171713; color:#fff; font:700 14px/1 system-ui,sans-serif; text-decoration:none; cursor:pointer; }
 .empty-action:hover { background:#1f70c1; }
 .empty-action:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
-.empty-actions { display:flex; justify-content:center; gap:10px; flex-wrap:wrap; }
+/* The `auto` side margins that centre a lone .empty-action become four competing
+   auto margins once there are two of them, which eats the free space and pushes
+   the pair to opposite edges — a primary and its secondary read as two unrelated
+   controls. Reset them here so gap and justify-content do the centring. */
+.empty-actions { display:flex; justify-content:center; gap:10px; flex-wrap:wrap; margin-top:18px; }
+.empty-actions .empty-action { margin:0; }
 .empty-action-secondary { border:1px solid #7a7a74; background:#fff; color:#171713; }
 .empty-action-secondary:hover { background:#e9f1f8; color:#171713; }
 .empty-state-error .empty-title { color:#7c3f3a; }
