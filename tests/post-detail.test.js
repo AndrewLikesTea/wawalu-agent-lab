@@ -206,7 +206,7 @@ test("a missing post is named in plain language, with no id or code echoed back"
   const missing = createElement("div");
   renderPostDetail(missing, null, { id: "p-gone", author: "Mina" });
   assert.equal(first(missing, "detail-state-label").textContent, "Unavailable");
-  assert.equal(first(missing, "empty-title").textContent, "This post is unavailable");
+  assert.equal(first(missing, "empty-title").textContent, "Post unavailable");
   assert.match(missing.textContent, /It may have been removed, or the link may be incomplete\./);
   // And it points at the surface the post came from, so the reader is not left
   // holding a dead link with nowhere named to go next.
@@ -229,7 +229,7 @@ test("a failed load says what happened once, offers a retry, and leaks no error 
   assert.doesNotMatch(failed.textContent, /p-gone|\b[45]\d\d\b|Error:|fetch|TypeError/);
   // Retry is the only action this state offers; the way back is the page's
   // standing back link, not a second copy of it inside the panel.
-  assert.match(failed.textContent, /Try again/);
+  assert.match(failed.textContent, /Retry/);
   assert.equal(byClass(failed, "empty-action-secondary").length, 0);
   tags(failed, "BUTTON")[0].dispatch("click");
   assert.equal(retried, 1, "a failed load offers a retry");
@@ -464,7 +464,7 @@ test("loading, not found and failed each say a different thing, in words", () =>
     first(missing, "empty-title").textContent,
     first(failed, "empty-title").textContent,
   ];
-  assert.deepEqual(titles, ["Loading this post from Social…", "This post is unavailable", "Post couldn’t be loaded"]);
+  assert.deepEqual(titles, ["Loading this post from Social…", "Post unavailable", "Post couldn’t be loaded"]);
   assert.equal(new Set(titles).size, 3, "two states share a title");
 
   // The difference has to survive with colour, icons and badges removed, so it

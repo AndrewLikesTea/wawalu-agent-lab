@@ -102,7 +102,7 @@ test("arriving from a profile turns the one exit into the profile's, and nothing
 test("an unknown id is named as a missing post, with the feed still the way out", async () => {
   const page = await openPostPage("?id=p-gone", seedOnly([SEED_POST]));
   try {
-    assert.match(textOf(page.panel), /This post is unavailable/);
+    assert.match(textOf(page.panel), /Post unavailable/);
     assert.match(textOf(page.panel), /It may have been removed, or the link may be incomplete\. Browse Social to find another post\./);
     // No post, no author: the h1 names the page rather than standing as "Post".
     assert.equal(textOf(page.document.querySelector("#page-title")), "Post from Social");
@@ -154,7 +154,7 @@ test("a failed lookup says the load failed, and its retry re-runs the fetch and 
     assertOneExit(page, SOCIAL, "failed");
 
     const retry = page.panel.querySelector("button");
-    assert.equal(textOf(retry), "Try again");
+    assert.equal(textOf(retry), "Retry");
     // A button, not a link: retrying re-runs the fetch in place rather than
     // reloading the page and losing everything already on screen.
     assert.equal(retry.type, "button");

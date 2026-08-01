@@ -82,7 +82,7 @@ const POST_STATE_COPY = {
     className: "detail-state-not-found",
     tone: "missing",
     label: "Unavailable",
-    title: "This post is unavailable",
+    title: "Post unavailable",
     // Second sentence names the way on: this state is the one place a reader can
     // land with nothing to read, and "browse Social" is true whichever route the
     // page is offering them — the standing exit when they came from the feed,
@@ -199,7 +199,7 @@ function renderMissing(container, id, returnHref) {
 }
 
 function renderFailed(container, onRetry) {
-  const retry = el("button", "empty-action detail-retry", "Try again");
+  const retry = el("button", "empty-action detail-retry", "Retry");
   retry.type = "button";
   if (onRetry) retry.addEventListener("click", onRetry);
   container.append(labelledState("error", [retry]));
