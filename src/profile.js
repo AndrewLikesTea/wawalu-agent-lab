@@ -219,10 +219,14 @@ export const PROFILE_EMPTY_COPY = {
   // the surface it is true of. "No image posts yet" alone could be any list on
   // the site, and this page and Social are the two a visitor mixes up.
   summary: "No image posts on People yet.",
-  // The grid's empty state: the next action, not a second telling of the state.
-  guidance: "Make an image in Paint, then use it in a post.",
-  actionLabel: "Open Paint",
-  postActionLabel: "Write a post",
+  // The grid's empty state. The sentence says what fills this grid — both ends
+  // of the path, in one telling — and the two buttons below it name the two
+  // destinations. Splitting it that way is deliberate: when the sentence and the
+  // buttons both spell out the instruction, the empty state repeats itself in
+  // the space of three lines, which is the defect this copy exists to fix.
+  guidance: "Images made in Paint and published on Social appear here.",
+  actionLabel: "Create an image in Paint",
+  postActionLabel: "See every post on Social",
 };
 
 // The profile description under the name. An author with posts but no images
@@ -337,8 +341,13 @@ function renderSkeleton(container, count = 6) {
   container.append(list);
 }
 
-// One paragraph and one action. The hero has already said the profile is empty,
-// so this says what to do about it instead of saying it again.
+// One paragraph and two distinct actions. The hero has already said the profile
+// is empty, so this says what fills it and then separates the two things a
+// reader can do about it: read the whole feed, or make an image for it. Paint is
+// the primary and goes first, so the solid control and the first stop in reading
+// and tab order are the same link; the way back to the whole feed is already a
+// sentence in the hero. The secondary is outlined as well as second, so weight
+// is not the only thing saying which is which.
 function renderEmpty(container, author) {
   const empty = el("div", "empty-state");
   empty.append(el("p", "empty-title", PROFILE_EMPTY_COPY.guidance));
@@ -346,7 +355,7 @@ function renderEmpty(container, author) {
   link.href = profilePaintHref(author);
   const postLink = el("a", "empty-action empty-action-secondary",
     PROFILE_EMPTY_COPY.postActionLabel);
-  postLink.href = "/social.html#post-form";
+  postLink.href = "/social.html";
   const actions = el("div", "empty-actions");
   actions.append(link, postLink);
   empty.append(actions);
