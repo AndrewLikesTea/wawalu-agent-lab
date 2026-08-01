@@ -341,9 +341,14 @@ test("every top-level section that existed before the answer block is still on t
   // The full top-level set as it shipped before this change. Pinned as a list
   // rather than derived, because the point of the assertion is that a reorder
   // did not quietly become a deletion.
+  // #832 took two ids OUT of this list — "disclosure-next-step" and
+  // "disclosure-journey" — and they are the reason the assertion below the list
+  // exists: the pair did not leave the page, they moved INTO the answer's one
+  // disclosure group. Nothing else about them changed, and nothing a reader
+  // could read before is gone.
   const existing = [
-    "finops-stand", "finops-hero", "finops-first-run", "disclosure-next-step",
-    "disclosure-journey", "finops-destinations", "finops-workspace-nav",
+    "finops-hero", "finops-stand", "finops-first-run",
+    "finops-destinations", "finops-workspace-nav",
     "finops-workspace-switch",
     // #821: one load-state region per on-demand destination, so a module that
     // is in flight or that failed has somewhere named to be read.
@@ -362,7 +367,15 @@ test("every top-level section that existed before the answer block is still on t
     .map((node) => node.id);
   assert.deepEqual(top, existing,
     "this change reorders and adds entry points; it must not add or drop a top-level region");
-  for (const id of existing) {
+  // The two regions #832 relocated, held to the same "still here, still full"
+  // bar as the ones that stayed top-level — and to where they went, so dropping
+  // one of them cannot pass as a consolidation.
+  const relocated = ["disclosure-next-step", "disclosure-journey"];
+  for (const id of relocated) {
+    assert.equal(byId(document, id)?.parentNode?.id, "finops-stand-disclosures",
+      `${id} left the top level without arriving in the answer's disclosure group`);
+  }
+  for (const id of [...existing, ...relocated]) {
     const region = byId(document, id);
     assert.ok(region.children.filter((node) => node.nodeType === 1).length > 0,
       `${id} is on the page but its content is gone`);

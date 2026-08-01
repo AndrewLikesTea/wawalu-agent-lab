@@ -31,6 +31,19 @@
       </header>
 
       <main id="main-content" tabindex="-1">
+      <!-- THE PAGE'S OWN NAME. The h1 is emitted before every h2, so heading
+           navigation starts with the page rather than dropping a reader into a
+           subordinate question. This is orientation, not a competing answer:
+           the single answer region follows it immediately. -->
+      <section class="finops-hero" id="finops-hero" data-subordinate="true" aria-labelledby="page-title" data-workspace-frame="true">
+        <div class="hero-copy">
+          <p class="eyebrow">AI FinOps</p>
+          <h1 id="page-title">Know what your<br />AI spend is buying.</h1>
+          <p id="finops-intro">Import a provider export and this page names how much of your AI spend is recoverable, what to do first, and how far to trust the number.</p>
+          <p class="finops-provenance" id="finops-provenance">Bundled synthetic example</p>
+        </div>
+      </section>
+
       <!-- THE WORKSPACE FRAME. This region, the brief under it, the load status,
            the rail, and the shell's own controls carry `data-workspace-frame`:
            they hold the page heading, the one complete answer, and the way
@@ -311,7 +324,25 @@
              finops-stand-view.js) and `aria-controls` names the list it
              discloses. No button inside a summary: the summary IS the control,
              so Enter and Space are the browser's and focus never moves. -->
-        <div class="stand-disclosures" id="finops-stand-disclosures">
+        <!-- ONE GROUP, AND IT OWNS ITS MEMBERS IN THE DOCUMENT. This labelled
+             group holds every control that hangs off the answer: the evidence
+             disclosures below, then the two follow-on questions that used to be
+             top-level regions of their own further down the page.
+             They were MOVED here in source. They are not `aria-owns`ed here
+             from a distance, and the distinction is the whole point: `aria-owns`
+             re-parents a node in the accessibility tree ONLY, so a reader
+             browsing by virtual cursor would have met them inside this group
+             while Tab and the eye still found them one region and several
+             thousand pixels further down. This page has refused that split
+             everywhere else — no `order`, no positive `tabindex` — and an
+             accessibility-tree-only reparent is the same trick in the one place
+             it is hardest to notice. The visual order, the focus order, and the
+             announced order stay one order.
+             Deep links and screen-state still resolve: the shell selects on
+             `[data-workspace-region]` anywhere in the document and
+             deep-link-disclosure.js opens whichever `details` are above the
+             fragment, so both survive the nesting unchanged. -->
+        <div class="stand-disclosures" id="finops-stand-disclosures" role="group" aria-label="Evidence and follow-on questions for this answer">
           <details class="stand-disclosure" id="finops-stand-disclosure-cohort" data-disclosure="collapsed">
             <summary id="finops-stand-disclosure-cohort-summary" aria-expanded="false" aria-controls="finops-stand-disclosure-cohort-list"><h3 class="stand-disclosure-heading"><span id="finops-stand-disclosure-cohort-heading">How the organizations you are compared with were chosen</span><span class="stand-disclosure-state" id="finops-stand-disclosure-cohort-state" data-disclosure="collapsed"><span class="stand-disclosure-shape" aria-hidden="true">▸</span> Show</span></h3></summary>
             <dl class="stand-disclosure-list" id="finops-stand-disclosure-cohort-list"></dl>
@@ -347,38 +378,77 @@
             <summary id="finops-stand-disclosure-other-actions-summary" aria-expanded="false" aria-controls="finops-stand-disclosure-other-actions-list"><h3 class="stand-disclosure-heading"><span id="finops-stand-disclosure-other-actions-heading">Other actions, in priority order</span><span class="stand-disclosure-state" id="finops-stand-disclosure-other-actions-state" data-disclosure="collapsed"><span class="stand-disclosure-shape" aria-hidden="true">▸</span> Show</span></h3></summary>
             <dl class="stand-disclosure-list" id="finops-stand-disclosure-other-actions-list"></dl>
           </details>
+
+          <!-- WHERE DO I START THIS MONTH? — the recurring lead's continuation,
+               and an EVIDENCE LAYER rather than a full-weight peer of the
+               answer. src/finops-spine.js classifies this region `evidence`, and
+               until #742 the markup did not say so: it opened at the answer's
+               weight, so a lead met a second question before finishing the
+               first. Same region, same module, same painted figures — inside the
+               page's established `support-disclosure` idiom, shut on arrival.
+               The summary is what a skeptic opens it to check, not a section
+               label, and a native `summary` is the control, so Enter and Space
+               are the browser's and `open` is the exposed state.
+               src/finops-next-step.js still decides the recommendation and still
+               reads no clock.
+               `data-workspace-region` stays on the disclosure: the destination a
+               fragment resolves to is whichever ancestor carries it, and the
+               answer region above does not carry one.
+               `data-headline-evidence="false"`: a supporting layer that does NOT
+               back the headline figure, drawn one step down from the panel that
+               does. The attribute is authored so the claim is checkable in the
+               document rather than only after a paint. -->
+          <details class="support-disclosure" id="disclosure-next-step" data-spine-region data-subordinate="true" data-headline-evidence="false" data-workspace-region="answer">
+            <summary class="support-disclosure-summary"><span class="support-disclosure-step" data-role="step">Evidence layer</span> <span class="support-disclosure-question" data-role="question">If I only do one thing this month, is this the right one?</span></summary>
+            <!-- h3, not h2. This question is inside the answer region now, under
+                 an h2 that is the answer's own; an h2 here would open a second
+                 top-rung section inside the section it belongs to. -->
+            <section class="next-step" id="finops-next-step" tabindex="-1" data-subordinate="true" data-state="pending" data-confidence="unknown" data-decision-summary="evidence" aria-labelledby="finops-next-step-question">
+              <div class="next-step-head">
+                <p class="eyebrow" id="finops-next-step-label">This month · one next step</p>
+                <h3 id="finops-next-step-question">Where do I start this month?</h3>
+              </div>
+              <!-- Authored in markup, above the figures rather than under them: a
+                   claim about what kind of numbers a reader is looking at has to be
+                   true before any script runs, or it is a claim they cannot rely on
+                   while deciding. The view repaints the same sentence from the
+                   module once it knows whether the records are the reader's own. -->
+              <p class="sample-marker" id="finops-next-step-sample"><span class="sample-marker-shape" aria-hidden="true">◇</span><strong>Bundled synthetic example</strong> Invented review, action, and verification records for an invented company. Not your spend and not realized savings.</p>
+              <div id="finops-next-step-body">
+                <p class="next-step-headline">No journey records have been read yet, so no next step is recommended.</p>
+              </div>
+            </section>
+          </details>
+
+          <!-- THE WHOLE JOURNEY, ON ONE SURFACE — the second follow-on.
+               The layer above names one step. This is the rest of that thought in
+               one place — the evidence behind the step, what this browser already
+               decided, and the checkpoint that would close it, which used to be
+               three surfaces. It composes; it does not recompute:
+               src/finops-journey-consolidated.js derives exactly one field of its
+               own, the checkpoint's date and expected figure. Collapsed for the
+               same reason as the layer above — `evidence` is a claim about weight,
+               and a region that opens at the answer's weight contradicts it. -->
+          <details class="support-disclosure" id="disclosure-journey" data-spine-region data-subordinate="true" data-headline-evidence="false" data-workspace-region="answer">
+            <summary class="support-disclosure-summary"><span class="support-disclosure-step" data-role="step">Evidence layer</span> <span class="support-disclosure-question" data-role="question">If I take that step, what will tell me it actually worked?</span></summary>
+            <section class="finops-journey" id="finops-journey" data-subordinate="true" data-phase="pending" data-source="unknown" data-decision-summary="evidence" aria-labelledby="finops-journey-question">
+              <div class="fjc-head">
+                <p class="eyebrow" id="finops-journey-label">This month · evidence, action, and the checkpoint</p>
+                <h3 id="finops-journey-question">What do I do next, and what will tell me it worked?</h3>
+              </div>
+              <!-- Authored in markup, above the figures rather than under them: a claim
+                   about what kind of numbers a reader is looking at has to be true
+                   before any script runs. The view repaints the same sentence from the
+                   source module once it knows whose records these are. -->
+              <p class="sample-marker" id="finops-journey-sample"><span class="sample-marker-shape" aria-hidden="true">◇</span><strong>Bundled synthetic example</strong> Invented review, action, and verification records for an invented company. Not your spend and not realized savings.</p>
+              <div id="finops-journey-body">
+                <p class="fjc-headline">No journey records have been read yet, so no step is recommended from them.</p>
+              </div>
+              <p class="visually-hidden" id="finops-journey-live" role="status" aria-live="polite" aria-atomic="true"></p>
+            </section>
+          </details>
         </div>
         <p class="visually-hidden" id="finops-stand-live" role="status" aria-live="polite" aria-atomic="true"></p>
-      </section>
-
-      <!-- THE PAGE'S OWN NAME, AND IT COMES AFTER THE ANSWER. This region used
-           to open the document: an 82px h1 and a promise, one full screen of
-           "what this page is" ahead of the one thing a CTO opened it for. The
-           answer is the first region of `main` now, so this is what it always
-           was — orientation — and `data-subordinate` draws it that way. Moved in
-           source, never with `order` or a `tabindex`, so the visual order, the
-           focus order, and the announced order stay one order. -->
-      <section class="finops-hero" id="finops-hero" data-subordinate="true" aria-labelledby="page-title" data-workspace-frame="true">
-        <div class="hero-copy">
-          <p class="eyebrow">AI FinOps</p>
-          <h1 id="page-title">Know what your<br />AI spend is buying.</h1>
-          <!-- One sentence, and it is the outcome rather than the machinery.
-               The copy is authored here and in finops-load-status.js as
-               HERO_INTRO, because evolution-page.js repaints this slot when a
-               reader returns to the example data. -->
-          <p id="finops-intro">Import a provider export and this page names how much of your AI spend is recoverable, what to do first, and how far to trust the number.</p>
-          <!-- Every slot on this page states what it does not have yet rather
-               than narrating the fetch. Exactly one region — #finops-load-state
-               below — is allowed to say a load is in progress; a test walks the
-               document and fails on any second one. -->
-          <!-- Provenance, not progress. This slot used to read "organization not
-               read yet", which put a second waiting-message above the example
-               result's own state label — two lines competing to tell a reader
-               what has not happened, over an answer that was already composed.
-               It names the dataset instead, and the fetch replaces it with the
-               organization line the moment there is one. -->
-          <p class="finops-provenance" id="finops-provenance">Bundled synthetic example</p>
-        </div>
       </section>
 
       <!-- THE FIRST-RUN SYNTHETIC RESULT, and why a landing page carries one.
@@ -648,73 +718,6 @@
         </div>
         <p class="visually-hidden" id="finops-first-run-live" role="status" aria-live="polite" aria-atomic="true"></p>
       </section>
-
-      <!-- WHERE DO I START THIS MONTH? — the recurring lead's continuation, and
-           now an EVIDENCE LAYER rather than a full-weight peer of the answer.
-
-           src/finops-spine.js classifies this region `evidence`, and until #742
-           the markup did not say so: it opened at the answer's weight, so a lead
-           met a second question before finishing the first. Same region, same
-           module, same painted figures — inside the page's established
-           `support-disclosure` idiom, shut on arrival. The summary is what a
-           skeptic opens it to check, not a section label, and a native `summary`
-           is the control, so Enter and Space are the browser's and `open` is the
-           exposed state. src/finops-next-step.js still decides the
-           recommendation and still reads no clock.
-
-           `data-workspace-region` moved onto the disclosure with the region: the
-           destination a fragment resolves to is whichever ancestor carries it. -->
-      <!-- `data-headline-evidence="false"`: a supporting layer that does NOT
-           back the headline figure, drawn one step down from the panel that
-           does and shut on arrival. The attribute is authored so the claim is
-           checkable in the document rather than only after a paint. -->
-      <details class="support-disclosure" id="disclosure-next-step" data-subordinate="true" data-headline-evidence="false" data-workspace-region="answer">
-        <summary class="support-disclosure-summary"><span class="support-disclosure-step" data-role="step">Evidence layer</span> <span class="support-disclosure-question" data-role="question">If I only do one thing this month, is this the right one?</span></summary>
-      <section class="next-step" id="finops-next-step" tabindex="-1" data-subordinate="true" data-state="pending" data-confidence="unknown" data-decision-summary="evidence" aria-labelledby="finops-next-step-question">
-        <div class="next-step-head">
-          <p class="eyebrow" id="finops-next-step-label">This month · one next step</p>
-          <h2 id="finops-next-step-question">Where do I start this month?</h2>
-        </div>
-        <!-- Authored in markup, above the figures rather than under them: a
-             claim about what kind of numbers a reader is looking at has to be
-             true before any script runs, or it is a claim they cannot rely on
-             while deciding. The view repaints the same sentence from the module
-             once it knows whether the records are the reader's own. -->
-        <p class="sample-marker" id="finops-next-step-sample"><span class="sample-marker-shape" aria-hidden="true">◇</span><strong>Bundled synthetic example</strong> Invented review, action, and verification records for an invented company. Not your spend and not realized savings.</p>
-        <div id="finops-next-step-body">
-          <p class="next-step-headline">No journey records have been read yet, so no next step is recommended.</p>
-        </div>
-      </section>
-      </details>
-
-      <!-- THE WHOLE JOURNEY, ON ONE SURFACE — the second evidence layer.
-
-           The layer above names one step. This is the rest of that thought in
-           one place — the evidence behind the step, what this browser already
-           decided, and the checkpoint that would close it, which used to be
-           three surfaces. It composes; it does not recompute:
-           src/finops-journey-consolidated.js derives exactly one field of its
-           own, the checkpoint's date and expected figure. Collapsed for the same
-           reason as the layer above — `evidence` is a claim about weight, and a
-           region that opens at the answer's weight contradicts it. -->
-      <details class="support-disclosure" id="disclosure-journey" data-subordinate="true" data-headline-evidence="false" data-workspace-region="answer">
-        <summary class="support-disclosure-summary"><span class="support-disclosure-step" data-role="step">Evidence layer</span> <span class="support-disclosure-question" data-role="question">If I take that step, what will tell me it actually worked?</span></summary>
-      <section class="finops-journey" id="finops-journey" data-subordinate="true" data-phase="pending" data-source="unknown" data-decision-summary="evidence" aria-labelledby="finops-journey-question">
-        <div class="fjc-head">
-          <p class="eyebrow" id="finops-journey-label">This month · evidence, action, and the checkpoint</p>
-          <h2 id="finops-journey-question">What do I do next, and what will tell me it worked?</h2>
-        </div>
-        <!-- Authored in markup, above the figures rather than under them: a claim
-             about what kind of numbers a reader is looking at has to be true
-             before any script runs. The view repaints the same sentence from the
-             source module once it knows whose records these are. -->
-        <p class="sample-marker" id="finops-journey-sample"><span class="sample-marker-shape" aria-hidden="true">◇</span><strong>Bundled synthetic example</strong> Invented review, action, and verification records for an invented company. Not your spend and not realized savings.</p>
-        <div id="finops-journey-body">
-          <p class="fjc-headline">No journey records have been read yet, so no step is recommended from them.</p>
-        </div>
-        <p class="visually-hidden" id="finops-journey-live" role="status" aria-live="polite" aria-atomic="true"></p>
-      </section>
-      </details>
 
       <!-- WHERE THE READER GOES NEXT — the third evidence layer.
 

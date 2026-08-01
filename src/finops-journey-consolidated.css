@@ -24,7 +24,10 @@
   font-weight: 700;
 }
 
-.finops-journey h2 { margin: 4px 0 8px; }
+/* h3 alongside h2: this region keeps an h2 in the Savings Action Center and is
+   an h3 inside /evolution.html's answer region (#832). Spacing is the region's. */
+.finops-journey h2,
+.finops-journey h3 { margin: 4px 0 8px; }
 .finops-journey h3 { margin: 0 0 4px; font-size: 1rem; }
 
 /* State is a shape and a word first. The tint is the third channel and carries
