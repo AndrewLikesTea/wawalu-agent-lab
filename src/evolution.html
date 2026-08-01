@@ -154,7 +154,7 @@
              from the composed headline's own gradability verdict — the same
              verdict the gradeability line below already reads, so the two can
              never disagree about whether this export can be stood behind. -->
-        <div class="answer-block" id="finops-answer" data-state="pending" data-available="false" role="group" aria-labelledby="finops-answer-question">
+        <div class="answer-block" id="finops-answer" data-decision-summary-region="authored" data-state="pending" data-available="false" role="group" aria-labelledby="finops-answer-question">
           <h3 class="answer-question" id="finops-answer-question">Is our AI spend classification trustworthy enough to act on?</h3>
           <p class="answer-figure" id="finops-answer-figure"><span class="answer-figure-label" id="finops-answer-label">Spend we can stand behind</span><strong class="answer-figure-value" id="finops-answer-value">Still reading</strong><span class="answer-figure-basis" id="finops-answer-basis">as of the Bundled synthetic example</span></p>
           <p class="answer-confidence" id="finops-answer-confidence">Nothing has been read yet, so there is no coverage, grade, or residue to report.</p>
@@ -168,26 +168,23 @@
              a name here cannot drift from the name in the document. -->
         <p class="answer-doors" id="finops-answer-doors" role="group" aria-label="Where to go next"></p>
         <p class="stand-answer" id="finops-stand-answer">Still reading the Bundled synthetic example; the numbers below fill in when it finishes.</p>
-        <!-- CAN THIS EXPORT BE GRADED — the gate on every figure below, and the
-             one place this region says so before a reader quotes one. Three
-             slots and no panel: the question, the verdict with the coverage
-             figure that decided it, and the one next step. Painted by
-             finops-stand-view.js from the verdict in src/export-gradability.js,
-             which derives its bar from the coverage tiers in
-             src/grade-eligibility.js rather than restating a threshold. Each
-             slot ships empty and hidden and is hidden again on any paint that
-             gives it no text, so no empty line and no blank screen-reader stop
-             is left behind. It is a supporting line, not a second headline: the
-             region's one heading is the question above it. -->
-        <p class="stand-gradability" id="finops-stand-gradability" data-state="unavailable" data-figures="shown">
-          <span class="stand-figure-label" id="finops-stand-gradability-question" hidden></span>
-          <span id="finops-stand-gradability-metric" hidden></span>
-          <span class="stand-figure-basis" id="finops-stand-gradability-action" hidden></span>
-        </p>
-        <!-- TEACH THE CLASSIFIER, from the gradeability line rather than from a
-             section of its own: the question this disclosure answers is the one
-             immediately above it — "can this export be graded, and if not, what
-             would make it gradeable?". The control ships hidden and is revealed
+        <!-- THE GRADEABILITY LINE IS GONE, and what it said is not (#831). It
+             carried a question, a metric and a next step painted from the SAME
+             gradability verdict the answer block above is painted from — a
+             second question, a second figure and a second action, twenty lines
+             under the first, whose own action read "Read the answer above". Two
+             renderings of one verdict is two decision summaries, and a reader
+             who meets both does not know which one to act on. The verdict is
+             unchanged and is still stated twice over: in full in the answer
+             block's confidence sentence (coverage, the tier and its rule, the
+             residue, and what it is as of), and in the "Can this export be
+             graded?" disclosure below, which carries the bar, the coverage, the
+             rows read and the next step at length. Progressive disclosure, not
+             a peer of the answer. -->
+        <!-- TEACH THE CLASSIFIER, from the gradeability disclosure rather than
+             from a section of its own: the question it answers is "can this
+             export be graded, and if not, what would make it gradeable?". The
+             control ships hidden and is revealed
              by evolution-page.js only when the reader has imported their own
              export and it holds rows the classifier declined; the bundled
              synthetic example never reveals it, so the demo path's numbers and

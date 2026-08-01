@@ -23,7 +23,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-import { parseHtml } from "./support/browser.js";
+import { parseHtml, textOf } from "./support/browser.js";
+import { DECISION_SUMMARY, auditDecisionSummary } from "../src/finops-screen-contract.js";
 import {
   ANSWER_SPINE, MAIN_REGION_ID, ROLE,
   auditPageStructure, liveRegionIds, namingHeading, normalizeQuestion,
@@ -170,7 +171,88 @@ test("a heading that is hidden from sighted readers is not a competing question"
 });
 
 // ---------------------------------------------------------------------------
-// 4. The audit is total: a document it cannot read is a reported problem.
+// 4. ONE DECISION SUMMARY, and it states all four things.
+//
+// The failure this section exists for is #831's: a first-time reader met the
+// question, a number, an action and a hedge more than once on one screen, in
+// regions that were each painted from the same verdict, and nothing failed when
+// a second one was authored. The rule is now declared in
+// src/finops-screen-contract.js and checked here against the shipped document —
+// and, as everywhere else in this file, against a CONSTRUCTED failing one.
+// ---------------------------------------------------------------------------
+
+test("the shipped page carries exactly one decision summary, and it is the declared one", () => {
+  const document = parseHtml(html);
+  assert.deepEqual(auditDecisionSummary(document), []);
+
+  const marked = document.querySelectorAll(
+    `[${DECISION_SUMMARY.attribute}="${DECISION_SUMMARY.claim}"]`);
+  assert.deepEqual([...marked].map((element) => element.id), [DECISION_SUMMARY.regionId],
+    "exactly one region may claim to answer the question on its own");
+});
+
+test("a second decision-summary region fails the audit", () => {
+  // A competing answer, authored the way a well-meaning second one would be:
+  // its own question, its own number, its own action, its own hedge.
+  const problems = auditDecisionSummary(parseHtml(pageWith(
+    `<section id="finops-second-answer" ${DECISION_SUMMARY.attribute}="${DECISION_SUMMARY.claim}">`
+    + "<h2>Is our AI spend classification trustworthy enough to act on?</h2>"
+    + "<p>62.0% of spend in scope</p><p>Confidence: moderate.</p>"
+    + '<a href="#local-import">Analyze a provider export</a></section>')));
+  assert.ok(problems.some((problem) => problem.includes("2 regions claim to be the decision summary")
+    && problem.includes("#finops-second-answer")),
+  `expected a second-summary problem, got: ${problems.join(" | ")}`);
+});
+
+test("the one decision summary names its question, its number, and its one next action", () => {
+  const document = parseHtml(html);
+  const region = document.getElementById(DECISION_SUMMARY.regionId);
+  assert.ok(region, "the decision summary must be in the shipped markup, not painted into it");
+
+  // Each part is read as the question a leader is asking, and the wording is the
+  // contract's: a page that authored its own copy here could drift from the
+  // module every downstream reader paints from.
+  const authored = (id) => textOf(document.getElementById(id));
+  const part = (role) => DECISION_SUMMARY.parts.find((entry) => entry.role === role);
+
+  assert.equal(authored(part("question").elementId), part("question").authored,
+    "the region must name what this page decides, in the contract's words");
+  assert.equal(authored(part("metric").slots.label.elementId),
+    part("metric").slots.label.authored, "the number must be labelled with its metric");
+  assert.equal(authored(part("metric").slots.value.elementId),
+    part("metric").slots.value.authored);
+  assert.equal(authored(part("metric").slots.basis.elementId),
+    part("metric").slots.basis.authored, "a number with no period is not checkable");
+  assert.equal(authored(part("confidence").elementId), part("confidence").authored,
+    "the hedge ships with the figure, not after it");
+
+  // EXACTLY ONE ACTION. A second one at the same weight is the ranking decision
+  // being handed back to the reader.
+  const actions = region.querySelectorAll("a");
+  assert.deepEqual([...actions].map((link) => link.id), [part("action").elementId],
+    "the decision summary carries one next action; a second belongs in disclosure");
+  assert.equal(authored(part("action").elementId), part("action").authored);
+  assert.equal(document.getElementById(part("action").elementId).getAttribute("href"),
+    part("action").href, "the one action is operable before any script runs");
+});
+
+test("a decision summary that lost a part is a reported problem", () => {
+  // Deleting the confidence sentence is the regression that reads best: the
+  // number stays, the action stays, and the reader is no longer told how far to
+  // trust either. The audit has to see the absence.
+  const confidence = DECISION_SUMMARY.parts.find((part) => part.role === "confidence");
+  const stripped = html.replace(new RegExp(
+    `<p class="answer-confidence" id="${confidence.elementId}">[^<]*</p>`), "");
+  assert.notEqual(stripped, html, "this assertion needs the confidence line to have been removed");
+
+  const problems = auditDecisionSummary(parseHtml(stripped));
+  assert.ok(problems.some((problem) => problem.includes("states no confidence")
+    && problem.includes(confidence.answers)),
+  `expected a missing-part problem, got: ${problems.join(" | ")}`);
+});
+
+// ---------------------------------------------------------------------------
+// 5. The audit is total: a document it cannot read is a reported problem.
 // ---------------------------------------------------------------------------
 
 test("auditPageStructure never throws on a document it cannot read", () => {
