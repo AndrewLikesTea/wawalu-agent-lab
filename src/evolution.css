@@ -3467,3 +3467,56 @@ section[data-workspace-current="true"] { box-shadow:-6px 0 0 0 var(--import-wash
   .provider-native-field input,.provider-native-field select { max-width:100%; }
   .provider-native-metric { font-size:14px; }
 }
+/* ---------------- expanded-provider import evidence (#931) -----------------
+
+   One chip vocabulary for the recognition score and the provider-native
+   intake. Two silhouettes, from the Claude Design foundations card:
+
+     FILLED WASH = a dynamic signal   — how this file scored, just now
+     OUTLINE     = a classification   — which contract it was read against
+
+   Colour is the fourth carrier, never the first: every chip ships a word, a
+   value, and a mark off the circle ramp already documented at the top of this
+   file, so deleting the tint loses nothing. The four tone families are the
+   ones this stylesheet already declares — no hue is introduced here.
+
+   TYPE follows the foundations card's "metadata · timestamps · statuses — mono
+   ink-3" role: chips are mono at caption size, and the figures beside them are
+   tabular so two chips stacked on a phone still line up.
+
+   NOTHING BELOW PINS A CONTENT-BEARING BOX TO A PIXEL WIDTH. Chips wrap, rows
+   are flex with `min-width:0`, and every long string — a provider name, a
+   model name, a very large or negative amount — breaks with
+   `overflow-wrap:anywhere` rather than pushing a fixed track off screen. */
+.import-chip { display:inline-flex; align-items:baseline; flex-wrap:wrap; gap:1px 6px; min-width:0; max-width:100%; border:1px solid transparent; border-radius:5px; padding:3px 8px; font-family:ui-monospace,Menlo,monospace; font-size:11.5px; font-weight:700; line-height:1.5; overflow-wrap:anywhere; }
+.import-chip-shape { flex:none; }
+.import-chip-value { font-weight:600; font-variant-numeric:tabular-nums; }
+.import-chip[data-kind="classification"] { border-color:var(--ink-muted); background:transparent; color:var(--ink-muted); }
+.import-chip[data-kind="signal"][data-tone="neutral"] { border-color:var(--ink-muted); background:#f7f7f5; color:var(--ink-muted); }
+.import-chip[data-kind="signal"][data-tone="ok"] { border-color:var(--import-accent); background:var(--import-wash); color:var(--import-ink); }
+.import-chip[data-kind="signal"][data-tone="warn"] { border-color:var(--state-warn-line); background:var(--state-warn-wash); color:var(--state-warn-ink); }
+.import-chip[data-kind="signal"][data-tone="error"] { border-color:var(--state-error-line); background:var(--state-error-wash); color:var(--state-error-ink); }
+/* Provider, then confidence, then what is uncertain, then the control that
+   resolves it. The sentence and the button take a full row of their own so a
+   long provider name never squeezes the action out of sight. */
+.provider-native-status { display:flex; flex-wrap:wrap; align-items:center; gap:8px 10px; min-width:0; margin:12px 0 8px; }
+.provider-native-uncertainty { flex-basis:100%; min-width:0; margin:0; color:var(--ink-muted); font-size:12.5px; line-height:1.55; overflow-wrap:anywhere; }
+.provider-native-status[data-status="rejected"] .provider-native-uncertainty { color:var(--state-error-ink); }
+.provider-native-resolve { flex:0 1 auto; min-width:0; min-height:44px; border:1px solid var(--import-accent); border-radius:8px; padding:6px 14px; background:#fff; color:var(--import-ink); font-size:12.5px; font-weight:700; line-height:1.4; text-align:left; cursor:pointer; overflow-wrap:anywhere; }
+.provider-native-resolve:hover { background:var(--import-wash); }
+.provider-native-resolve:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+/* The recognition reading: chips, the verdict sentence, what is uncertain, the
+   folded evidence, then the action. */
+.export-recognition-chips { display:flex; flex-wrap:wrap; align-items:center; gap:8px 10px; min-width:0; margin:0 0 8px; }
+.export-recognition-uncertainty { min-width:0; margin:0 0 8px; color:var(--state-warn-ink); font-size:12.5px; line-height:1.55; overflow-wrap:anywhere; }
+.export-recognition-result[data-status="rejected"] .export-recognition-uncertainty { color:var(--state-error-ink); }
+.export-recognition-detail { margin:0 0 8px; border-top:1px solid var(--panel-border); padding:6px 0 0; }
+.export-recognition-detail-summary { display:flex; align-items:center; min-width:0; min-height:44px; font-size:12.5px; font-weight:700; line-height:1.45; cursor:pointer; overflow-wrap:anywhere; }
+.export-recognition-detail-summary:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.export-recognition-detail .export-recognition-evidence { margin:4px 0 0; }
+@media (max-width:640px) {
+  /* The action stops sharing a row with a chip: at this width the reader is
+     scrolling, and a control on the end of a wrapped row is a control they
+     scroll past. Nothing here is a pixel width — the button takes the row. */
+  .provider-native-resolve { flex-basis:100%; }
+}

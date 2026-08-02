@@ -75,6 +75,7 @@ const ROLE_OF = new Map(Object.entries({
   "graded-shape": ROLE.status,
   "fjc-chip-shape": ROLE.status,
   "fjc-phase-shape": ROLE.status,
+  "import-chip-shape": ROLE.status,
 
   "finops-action-shape": ROLE.action,
 

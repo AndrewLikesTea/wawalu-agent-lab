@@ -15,6 +15,10 @@
 
 import { RECOGNITION_FIXTURES, recognitionFixtureById } from "./export-recognition-fixtures.js";
 import { RECOGNITION_BANDS, recognizeExport } from "./export-recognition.js";
+import {
+  IMPORT_STATUS, IMPORT_STATUS_CHIPS, classificationChip, importStatusChip, isUnsettled,
+  recognitionStatus, renderChip,
+} from "./import-status-chip.js";
 
 const EXAMPLE_ID = "export-recognition-example";
 const RESULT_ID = "export-recognition-result";
@@ -48,31 +52,26 @@ const node = (doc, tag, className, text) => {
 
 const signed = (value) => (value > 0 ? `+${value}` : String(value));
 
-/** Paints the recognition result for one bundled example. */
-export function renderExportRecognition(doc, fixtureId) {
-  const root = doc.getElementById(RESULT_ID);
-  if (!root) return false;
-  const fixture = recognitionFixtureById(fixtureId);
-  if (!fixture) {
-    root.dataset.state = "unavailable";
-    root.dataset.band = "none";
-    root.replaceChildren(node(doc, "p", "export-recognition-band", UNKNOWN_EXAMPLE_COPY));
-    return true;
-  }
-  const result = recognizeExport(fixture.parsed);
-  root.dataset.state = "scored";
-  root.dataset.band = result.band;
-  root.dataset.outcome = result.outcome;
-  root.dataset.confidence = String(result.confidence);
-  const lines = [
-    node(doc, "p", "export-recognition-band", BAND_SENTENCE[result.band]),
-    node(doc, "p", "export-recognition-provider", result.displayName
-      ? `Detected provider: ${result.displayName}, matched against its published contract.`
-      : "Detected provider: none. This file was not attributed to the nearest-looking provider."),
-    node(doc, "p", "export-recognition-confidence",
-      `Confidence ${result.confidence} of ${result.maxConfidence}, and every point of it is `
-      + `one of the ${result.evidence.length} lines below.`),
-  ];
+/** One row of chips. Wrapping, never a fixed track, so a long provider fits. */
+function chipRow(doc, chips) {
+  const row = node(doc, "p", "export-recognition-chips");
+  row.replaceChildren(...chips.map((chip) => renderChip(doc, chip)));
+  return row;
+}
+
+/**
+ * The evidence, folded.
+ *
+ * A settled reading does not owe the reader eleven signal lines on arrival; an
+ * unsettled one does, so the disclosure ships open when the band is not
+ * accepted. Either way the summary says what is inside and how many lines,
+ * because "Evidence" alone is not a reason to open anything.
+ */
+function evidenceDisclosure(doc, result, status) {
+  const details = node(doc, "details", "export-recognition-detail");
+  const summary = node(doc, "summary", "export-recognition-detail-summary",
+    `Every point of the ${result.confidence} — ${result.evidence.length} signal`
+    + `${result.evidence.length === 1 ? "" : "s"}, each with the weight it carried`);
   const evidence = node(doc, "ol", "export-recognition-evidence");
   for (const entry of result.evidence) {
     const item = node(doc, "li", null,
@@ -81,7 +80,58 @@ export function renderExportRecognition(doc, fixtureId) {
     item.dataset.contribution = String(entry.contribution);
     evidence.append(item);
   }
-  lines.push(evidence);
+  details.append(summary, evidence);
+  details.open = isUnsettled(status);
+  details.dataset.open = String(details.open);
+  return details;
+}
+
+/** Paints the recognition result for one bundled example. */
+export function renderExportRecognition(doc, fixtureId) {
+  const root = doc.getElementById(RESULT_ID);
+  if (!root) return false;
+  const fixture = recognitionFixtureById(fixtureId);
+  if (!fixture) {
+    root.dataset.state = "unavailable";
+    root.dataset.band = "none";
+    root.dataset.status = IMPORT_STATUS.PENDING;
+    root.replaceChildren(
+      chipRow(doc, [importStatusChip(IMPORT_STATUS.PENDING)]),
+      node(doc, "p", "export-recognition-band", UNKNOWN_EXAMPLE_COPY));
+    return true;
+  }
+  const result = recognizeExport(fixture.parsed);
+  root.dataset.state = "scored";
+  root.dataset.band = result.band;
+  root.dataset.outcome = result.outcome;
+  root.dataset.confidence = String(result.confidence);
+  // Reading order, top down: which provider this is, how sure the workspace is,
+  // what that verdict means in a sentence, what is still uncertain, the folded
+  // evidence, and the one action. The chips carry the same two facts as the
+  // first two sentences, so a reader who scans and a reader who reads arrive at
+  // the same place — and neither of them needs to see the colour.
+  const status = recognitionStatus(result.band, result.outcome);
+  root.dataset.status = status;
+  const lines = [
+    chipRow(doc, [
+      result.displayName ? classificationChip(result.displayName)
+        : classificationChip("No provider matched"),
+      importStatusChip(status, { confidence: result.confidence, max: result.maxConfidence }),
+    ]),
+    node(doc, "p", "export-recognition-band", BAND_SENTENCE[result.band]),
+    node(doc, "p", "export-recognition-provider", result.displayName
+      ? `Detected provider: ${result.displayName}, matched against its published contract.`
+      : "Detected provider: none. This file was not attributed to the nearest-looking provider."),
+    node(doc, "p", "export-recognition-confidence",
+      `Confidence ${result.confidence} of ${result.maxConfidence}, and every point of it is `
+      + `one of the ${result.evidence.length} lines below.`),
+  ];
+  const uncertain = IMPORT_STATUS_CHIPS[status];
+  if (uncertain.uncertainty) {
+    lines.push(node(doc, "p", "export-recognition-uncertainty",
+      `What is uncertain: ${uncertain.uncertainty}`));
+  }
+  lines.push(evidenceDisclosure(doc, result, status));
   lines.push(node(doc, "p", "export-recognition-action", `Next action: ${result.nextAction}`));
   lines.push(node(doc, "p", "export-recognition-scope", LOCAL_SCOPE_COPY));
   root.replaceChildren(...lines);
