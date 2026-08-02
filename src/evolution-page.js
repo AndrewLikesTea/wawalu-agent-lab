@@ -3791,6 +3791,10 @@ async function init() {
       // but the reason is a failed fetch, not a file the reader forgot. Left as
       // "awaiting input" the page sends them to the import panel for nothing.
       applyPanelLifecycle(document, PANEL_STATUS.error);
+      // Panel synchronization can restore the authored example summary while
+      // deciding ownership. Reassert the page lifecycle last so a failed
+      // preparation still replaces every bundled result surface as one state.
+      setLoadState("error", failure.title, failure.detail);
       return;
     }
 

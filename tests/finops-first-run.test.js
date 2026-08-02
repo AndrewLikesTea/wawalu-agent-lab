@@ -395,7 +395,7 @@ test("a suppressed internal gap renders its stated reason rather than an empty p
   assert.ok(textOf(value).length > 20, "the reason is a sentence, not a dash");
 });
 
-test("the block survives a bundled fixture that never arrives", async () => {
+test("failed preparation replaces the bundled result instead of sitting beside it", async () => {
   // Only the evaluation fixture is served; the demo-data request throws. The
   // block is composed from a module in the bundle, so it owes that fetch
   // nothing — which is the reason it is composed rather than fetched.
@@ -407,9 +407,11 @@ test("the block survives a bundled fixture that never arrives", async () => {
     assert.equal(byId(document, "finops-load-state").dataset.state, "error",
       "the bundled fixture request is expected to have failed");
     const region = byId(document, FIRST_RUN_IDS.region);
-    assert.equal(region.dataset.state, "ready");
-    assert.match(textOf(byId(document, FIRST_RUN_IDS.benchmarkValue)), /% of analyzed AI spend/);
-    assert.equal(byId(document, FIRST_RUN_IDS.demo).hasAttribute("disabled"), false);
+    assert.equal(region.hidden, true);
+    assert.equal(byId(document, "finops-stand").hidden, true);
+    assert.equal(byId(document, "finops-load-state").hidden, false);
+    assert.match(textOf(byId(document, "finops-load-title")), /could not/i);
+    assert.equal(byId(document, "finops-data-retry").hidden, false);
   } finally {
     page.restore();
   }

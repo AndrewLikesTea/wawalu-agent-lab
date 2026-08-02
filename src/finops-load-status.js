@@ -61,6 +61,9 @@ export const LOAD_STATUS_IDS = Object.freeze({
   retry: "finops-data-retry",
 });
 
+/** Complete bundled-result regions governed by the preparation lifecycle. */
+export const BUNDLED_RESULT_IDS = Object.freeze(["finops-stand", "finops-first-run"]);
+
 /** The visible name of the region, so "status" is read rather than inferred. */
 export const LOAD_STATUS_LABEL = "Page status";
 
@@ -257,6 +260,19 @@ export function applyPageLoadStatus(doc, { state = "loading", title = "", detail
 
   region.dataset.state = presentation.state;
   region.dataset.tone = presentation.tone;
+  // The bundled answer and its subordinate example are one result. A genuine
+  // preparation or failure replaces both of them; it must never sit beside
+  // their figures, confidence, recommendation, or briefing controls. Once the
+  // result is ready the status has no information of its own, so it leaves the
+  // reading order entirely instead of becoming a second "ready" panel.
+  region.hidden = presentation.state === "ready";
+  for (const id of BUNDLED_RESULT_IDS) {
+    const result = byId(doc, id);
+    if (!result) continue;
+    const superseded = result.dataset?.superseded === "true";
+    result.hidden = presentation.state !== "ready" || superseded;
+    result.setAttribute("aria-busy", String(presentation.state === "loading"));
+  }
   // `role=status` announces the words that changed, while `aria-busy` tells a
   // reader whether the retry is still doing work. Without it, an error followed
   // by another "Reading" announcement has no machine-readable completion
