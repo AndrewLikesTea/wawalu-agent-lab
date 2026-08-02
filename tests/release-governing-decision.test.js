@@ -337,7 +337,7 @@ test("the recorder names the decision that will govern the release as it is chos
 
   // The hint says the rule before anything is ticked.
   assert.ok(textOf(page.document.querySelector("#release-decisions-hint"))
-    .includes("The first decision you select is the release’s primary linked decision. Any additional decisions you select remain linked to the release."));
+    .includes("The first decision you select is the release’s primary linked decision."));
   // A live region, so the choice is announced without moving focus out of the
   // group — and it is a region, so it was announced at all.
   assert.equal(summary.getAttribute("role"), "status");
@@ -346,17 +346,17 @@ test("the recorder names the decision that will govern the release as it is chos
   // Keyboard only: reach an option and link it with Space.
   optionFor("d-flags").focus();
   pressSpace(page.document);
-  assert.equal(textOf(summary), "1 of 3 decisions linked. “Ship behind feature flags” governs this release.");
+  assert.equal(textOf(summary), "1 of 3 decisions linked. “Ship behind feature flags” is the primary linked decision.");
 
   // A second tick joins the release but does not take the governing seat.
   optionFor("d-queue").focus();
   pressSpace(page.document);
-  assert.equal(textOf(summary), "2 of 3 decisions linked. “Ship behind feature flags” governs this release.");
+  assert.equal(textOf(summary), "2 of 3 decisions linked. “Ship behind feature flags” is the primary linked decision.");
 
   // Unticking the governing decision promotes the next one in the chosen order.
   optionFor("d-flags").focus();
   pressSpace(page.document);
-  assert.equal(textOf(summary), "1 of 3 decisions linked. “Adopt a durable job queue” governs this release.");
+  assert.equal(textOf(summary), "1 of 3 decisions linked. “Adopt a durable job queue” is the primary linked decision.");
 
   // Each option carries the rationale it is being chosen on, as text.
   const rationale = [...page.document.querySelectorAll(".decision-picker-rationale")].map(textOf);

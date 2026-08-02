@@ -32,6 +32,11 @@ export const RELEASE_DECISION_STATUSES = DECISION_STATUSES;
 // surfaces, which an export/import round trip can leave behind. It sits in the
 // filter vocabulary because it is the one thing a reader of this list can act
 // on and cannot otherwise see without expanding every release in turn.
+//
+// The label says so: it selects releases whose linked decision id resolves to
+// nothing, not releases with no decisions at all (those cannot exist — the
+// recorder requires one). The value stays `missing` because the control, the
+// URL, and the counts key off it.
 export const MISSING_DECISION_FILTER = "missing";
 
 // The linked-decision filter for the shipping history. Filtering by decision
@@ -47,7 +52,7 @@ export const RELEASE_DECISION_STATUS_FILTERS = Object.freeze([
   { value: "pending", label: "Pending" },
   { value: "accepted", label: "Accepted" },
   { value: "superseded", label: "Superseded" },
-  { value: MISSING_DECISION_FILTER, label: "Missing decision" },
+  { value: MISSING_DECISION_FILTER, label: "Decision not in this log" },
 ]);
 
 // URL builders are the single seam between views. They are pure and unit-tested
