@@ -87,6 +87,11 @@ import {
 import {
   applyImportedMovement, clearImportedMovement,
 } from "/finops-imported-movement-view.js";
+// And how complete the brief those two blocks compose is, against the one the
+// bundled example earns: seven weighted slots, one tier, one prioritized gap.
+import {
+  applyBriefCompleteness, clearBriefCompleteness,
+} from "/finops-brief-completeness-view.js";
 // The download itself. Every figure decision is inside `briefingFile`; the only
 // thing this layer contributes is the clock, because the generator is pure and
 // will not read one.
@@ -1579,11 +1584,17 @@ function mountLocalFinopsImport() {
     // as a series with named movement instead of one period and no change. The
     // exports are filtered to the ones the reconciler accepted, so this series
     // and the headline total above it are computed from the same rows.
-    applyImportedMovement(document, example ? null : {
+    const movement = applyImportedMovement(document, example ? null : {
       exports: inputs?.providers ?? [],
       acceptedExportIds: next.decisionInputs?.provenance?.acceptedProviderExportIds ?? null,
       retainedPeriods: retainedPeriodTotals(),
     });
+    // And the completeness of the brief those two blocks compose. The movement
+    // summary is handed in rather than re-derived, so the score and the block
+    // above it are reading the same periods; the bundled example keeps its own
+    // complete brief and is not scored against itself.
+    applyBriefCompleteness(document, example ? null : next,
+      { movement: example ? null : movement.movement });
     applyDatasetProvenance(document, example, example ? null : importProvenance());
     // Where this organization ranks, decided from the same selection this
     // result was analyzed from. The bundled example declares no cohort
@@ -2037,6 +2048,9 @@ function mountLocalFinopsImport() {
     clearImportedHeadline(document);
     // And the period series with it: the months it names are the cleared file's.
     clearImportedMovement(document);
+    // The completeness score goes with the brief it scored. A tier left standing
+    // over a cleared import is a verdict about a file nobody has loaded.
+    clearBriefCompleteness(document);
     const trust = document.getElementById("local-trust");
     if (trust) {
       trust.hidden = true;

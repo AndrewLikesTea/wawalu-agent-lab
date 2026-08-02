@@ -1254,6 +1254,19 @@
 .stand-imported-series { display:grid; margin:0; gap:2px; padding-left:18px; }
 .stand-imported-period { color:var(--ink-muted); font-size:13px; font-variant-numeric:tabular-nums; }
 .stand-imported-series .stand-imported-period:last-child { color:var(--ink); font-weight:700; }
+/* The completeness score. The tier line and the prioritized next action are
+   ordinary paragraphs in the open; only the slot-by-slot working sits behind
+   the disclosure. A slot that fell back is marked by the word "Fell back" and a
+   dashed rule, never by colour alone. */
+.stand-imported-next { margin:0; max-width:60ch; border-left:3px solid var(--import-accent); padding-left:10px; color:var(--ink); font-size:14px; line-height:1.5; overflow-wrap:anywhere; }
+.completeness-detail>summary { color:var(--ink-muted); font-size:13px; font-weight:700; cursor:pointer; }
+.completeness-slots { display:grid; margin:8px 0 0; gap:2px; }
+.completeness-slot-label { color:var(--ink-muted); font-size:12px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; }
+.completeness-slot { display:grid; margin:0 0 8px; gap:2px; border-left:3px solid var(--import-accent); padding-left:10px; }
+.completeness-slot[data-satisfied="false"] { border-left-style:dashed; border-left-color:var(--state-warn-line); }
+.completeness-verdict { color:var(--ink); font-size:13px; font-weight:700; }
+.completeness-slot[data-satisfied="false"] .completeness-verdict { color:var(--state-warn-ink); }
+.completeness-reason { max-width:60ch; color:var(--ink-muted); font-size:13px; line-height:1.55; overflow-wrap:anywhere; }
 .stand-next { display:grid; justify-items:start; gap:6px; }
 .stand-action { display:inline-block; border:1px solid var(--import-accent); border-radius:9px; padding:11px 18px; background:var(--import-accent); color:#fff; font-size:15px; font-weight:700; text-decoration:none; }
 .stand-action:hover { background:var(--import-ink); border-color:var(--import-ink); }

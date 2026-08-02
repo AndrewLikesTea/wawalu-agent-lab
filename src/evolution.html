@@ -263,6 +263,29 @@
           <p class="stand-imported-basis" id="finops-imported-movement-basis"></p>
           <ol class="stand-imported-series" id="finops-imported-movement-series"></ol>
         </div>
+        <!-- HOW COMPLETE THAT BRIEF IS, against the one the bundled example
+             earns. It ships EMPTY and HIDDEN: the tier sentence, the next
+             action, the count and every slot row are painted by
+             src/finops-brief-completeness-view.js from the scorer in
+             src/finops-brief-completeness.js.
+             WHY IT EXISTS: the blocks above already say, one at a time, when a
+             slot fell back. Nobody could add them up, so "is my own brief as
+             complete as the demo, and what do I fix first?" had no answer.
+             WHY THE TIER AND THE ACTION ARE NOT IN THE DISCLOSURE: a collapsed
+             disclosure is hidden from assistive tech, so the two lines a reader
+             came for are paragraphs in the open. Behind the control is the
+             slot-by-slot working — weights and reasons — which is what a reader
+             opens only to dispute the number, and the control says how many
+             slots fell back before it is pressed. -->
+        <div class="stand-imported" id="finops-brief-completeness" data-state="unavailable" data-total="0" hidden>
+          <p class="eyebrow">Your export · brief completeness</p>
+          <p class="stand-imported-movement" id="finops-brief-completeness-tier"></p>
+          <p class="stand-imported-next" id="finops-brief-completeness-next"></p>
+          <details class="completeness-detail" id="finops-brief-completeness-detail" data-disclosure="collapsed">
+            <summary id="finops-brief-completeness-summary" aria-expanded="false" aria-controls="finops-brief-completeness-slots">Slot-by-slot working: <span class="disclosure-count" id="finops-brief-completeness-count">not analyzed</span></summary>
+            <dl class="completeness-slots" id="finops-brief-completeness-slots"></dl>
+          </details>
+        </div>
         <!-- THE CLASSIFICATION VERDICT, evidence for the finding above rather
              than a second lead. It keeps every word, id and painted value it
              had; what changed is that it no longer carries the first number. The contract it renders
