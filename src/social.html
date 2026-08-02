@@ -42,10 +42,13 @@
              The primary names the act and the tool — "Paint" alone is what the
              nav already says, and a control that repeats the nav adds nothing.
              It stops at the act, though: where the image goes afterwards is the
-             empty state's sentence to say, and this is the surface it goes to.
-             Ordinary anchors, so Tab, Enter, and open-in-new-tab behave. -->
+             composer's own numbered steps to say, and this is the standing
+             invitation, not the in-flow one. Ordinary anchors, so Tab and Enter
+             behave. Paint opens in a new tab so a caption already typed into the
+             composer survives the trip, and the label says so in words: the
+             glyph is decorative and is hidden from assistive technology. -->
         <div class="hero-actions">
-          <a class="button-link" id="social-paint-cta" href="/paint/">Create an image in Paint <span aria-hidden="true">→</span></a>
+          <a class="button-link" id="social-paint-cta" href="/paint/" target="_blank" rel="noopener"><span>Create an image in Paint <span class="new-tab-note">(opens in a new tab)</span></span> <span aria-hidden="true">↗</span></a>
           <a class="text-link" href="#post-form">Write a post without an image</a>
         </div>
       </section>
@@ -72,10 +75,23 @@
               <div class="media-source-actions">
                 <label class="secondary-button file-button" for="post-image">Upload image
                   <input id="post-image" name="image" type="file"
-                    accept="image/png,image/jpeg,image/gif,image/webp" aria-describedby="post-image-hint post-media-status" />
+                    accept="image/png,image/jpeg,image/gif,image/webp" aria-describedby="post-image-steps post-image-hint post-media-status" />
                 </label>
-                <a class="secondary-button paint-link" href="/paint/">Create in Paint <span aria-hidden="true">↗</span></a>
+                <a class="secondary-button paint-link" href="/paint/" target="_blank" rel="noopener">Create in Paint <span class="new-tab-note">(opens in a new tab)</span> <span aria-hidden="true">↗</span></a>
               </div>
+              <!-- The whole round trip, in the order it happens, in the page as
+                   served: Paint uploads nothing, so the visitor is the transport
+                   and has to know that before leaving. A real ordered list, so
+                   the sequence is structure rather than three sentences that
+                   happen to sit next to each other, and it is named by the file
+                   input's own aria-describedby, so focusing Upload image reads
+                   it. Nothing folds it away — no disclosure widget, no hover, no
+                   script — because a reader who needs it needs it first. -->
+              <ol class="hint image-steps" id="post-image-steps">
+                <li>Draw your image in Paint and export it as a PNG.</li>
+                <li>Return to this tab.</li>
+                <li>Choose Upload image and pick the PNG you exported.</li>
+              </ol>
               <p class="hint" id="post-image-hint">PNG, JPEG, GIF, or WebP · 512 KB maximum.</p>
               <div class="compose-media" id="compose-media" hidden>
                 <div class="compose-media-head">
@@ -92,12 +108,16 @@
                 <!-- The requirement marker is the same span, in the same place,
                      with the same class as the "(optional)" markers on Name and
                      Image, so the two answers to "must I fill this in?" are told
-                     the same way. It is revealed by social.js when an image is
-                     attached, because until then there is nothing to describe.
+                     the same way. It ships stated rather than blank: this field
+                     is inside the panel that only opens once an image is
+                     attached, and at that point social.js refuses a blank
+                     description, so "required" is the true answer in every state
+                     the field is visible in. social.js still owns the live
+                     marker, and hides it if the image is removed.
                      The counter is the caption's counter pointed at this field's
                      budget: same wording, same live region, same math. -->
                 <div class="field field-wide">
-                  <label for="post-image-alt">Image description <span class="label-optional label-required" id="post-image-alt-required" hidden>(required)</span></label>
+                  <label for="post-image-alt">Image description <span class="label-optional label-required" id="post-image-alt-required">(required)</span></label>
                   <textarea id="post-image-alt" name="image-alt" rows="2" maxlength="200"
                     aria-describedby="post-image-alt-hint post-image-alt-counter-label post-image-alt-counter"></textarea>
                   <p class="field-error compose-error" id="post-image-alt-error" hidden></p>
@@ -147,11 +167,14 @@
             </div>
             <span class="count" id="post-count" aria-live="polite">Loading posts…</span>
           </div>
-          <!-- A short route back to Paint for readers already browsing the feed;
-               the zero-post state carries the complete publishing instruction. -->
-          <p class="feed-create hint">
-            Want to answer with a picture? <a class="text-link paint-link" href="/paint/">Open Paint</a>.
-          </p>
+          <!-- Social offers Paint twice, and only twice: the hero's standing
+               invitation and the composer's in-flow control. A third invitation
+               beside the feed, reading "Open Paint", used to sit here; it named
+               the destination rather than the act, it was the furthest of the
+               three from the field an image actually enters a post through, and
+               a reader met the same offer in a third voice within one scroll.
+               People keeps its own version, because People has no composer and
+               that link is the only route out of the grid. -->
           <div class="social-toolbar" aria-label="Filter posts">
             <div class="filter">
               <label for="post-agent-filter">Agent</label>
