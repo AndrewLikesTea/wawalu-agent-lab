@@ -16,7 +16,9 @@ import {
 import {
   assessOwnDataEvidence, BUNDLED_OWN_DATA_EVIDENCE,
 } from "/own-data-evidence-preflight.js";
-import { renderOwnDataEvidencePreflight } from "/own-data-evidence-preflight-view.js";
+import {
+  OWN_DATA_VIEW_STATE, renderOwnDataEvidencePreflight, renderOwnDataEvidenceState,
+} from "/own-data-evidence-preflight-view.js";
 import { assessBriefingReadiness } from "/briefing-readiness.js";
 import { renderBriefingReadiness } from "/briefing-readiness-view.js";
 import { projectExecutiveBriefing } from "/executive-briefing-projection.js";
@@ -740,11 +742,15 @@ function mountLocalFinopsImport() {
   // file. Keep it out of the cold-load graph, then run both pure modules from
   // the already-validated in-memory document; this opens no network data path.
   const paintProviderProjection = async (providerDocument) => {
+    renderOwnDataEvidenceState(document, OWN_DATA_VIEW_STATE.LOADING);
     const [{ projectProviderExport }, { renderProviderExportProjection }] = await Promise.all([
       import("/provider-export-projection.js"),
       import("/provider-export-projection-view.js"),
     ]);
-    renderProviderExportProjection(document, projectProviderExport(providerDocument));
+    const projection = projectProviderExport(providerDocument);
+    if (!renderProviderExportProjection(document, projection)) {
+      renderOwnDataEvidenceState(document, OWN_DATA_VIEW_STATE.VALIDATION_ERROR);
+    }
   };
   const stateNode = document.getElementById("local-import-state");
   const resultsNode = document.getElementById("local-results");
@@ -2575,6 +2581,7 @@ function mountLocalFinopsImport() {
       } catch (error) {
         applyImportProgress(document, null);
         if (error?.code === CANCELLED_CODE) return;
+        renderOwnDataEvidenceState(document, OWN_DATA_VIEW_STATE.VALIDATION_ERROR);
         failFile(error, file);
         return;
       }

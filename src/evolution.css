@@ -372,18 +372,36 @@
 #guided-result[data-support-expanded="false"]~[data-panel-role="support"],
 #guided-result[data-support-expanded="false"]~* [data-panel-role="support"] { display:none; }
 .local-import { border-color:#9eb9aa; background:linear-gradient(145deg,#f7fbf8,#fff 55%); }
-.own-data-preflight { display:grid; gap:12px; margin:24px 0; border:1px solid var(--import-line,#9eb9aa); border-left:6px solid #39705a; border-radius:12px; padding:20px; background:#fff; }
-.own-data-preflight[data-outcome="insufficient-evidence"] { border-left-color:var(--state-warn-line,#9a6b1f); }
+.own-data-preflight { display:grid; gap:14px; margin:24px 0; border:1px solid var(--import-line); border-left:6px solid var(--import-accent); border-radius:12px; padding:20px; background:var(--import-wash); }
+.own-data-preflight[data-outcome="loading"] { border-left-color:var(--ink-muted); border-left-style:dashed; }
+.own-data-preflight[data-outcome="provider-export-only"],.own-data-preflight[data-outcome="insufficient-evidence"] { border-left-color:var(--state-warn-line); background:var(--state-warn-wash); }
+.own-data-preflight[data-outcome="validation-error"] { border-left-color:var(--state-error-line); background:var(--state-error-wash); }
+.own-data-preflight:focus { outline:3px solid var(--focus-ring); outline-offset:3px; }
 .own-data-preflight h3,.own-data-preflight h4,.own-data-preflight p { margin:0; }
+.own-data-preflight-status { width:fit-content; border-radius:5px; padding:4px 9px; background:var(--import-wash); color:var(--import-ink); font:700 11px/1.4 ui-monospace,monospace; }
+.own-data-preflight[data-outcome="loading"] .own-data-preflight-status { background:transparent; color:var(--ink-muted); }
+.own-data-preflight[data-outcome="provider-export-only"] .own-data-preflight-status,.own-data-preflight[data-outcome="insufficient-evidence"] .own-data-preflight-status { background:transparent; color:var(--state-warn-ink); }
+.own-data-preflight[data-outcome="validation-error"] .own-data-preflight-status { background:transparent; color:var(--state-error-ink); }
 .own-data-preflight-finding { display:grid; gap:4px; font-size:16px; line-height:1.5; }
 .own-data-preflight-verdict { font-size:20px; }
-.own-data-preflight-benchmark,.own-data-preflight-confidence,.own-data-preflight-boundary { color:var(--ink-muted); font-size:13px; line-height:1.55; }
+.own-data-preflight-measures { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin:0; }
+.own-data-preflight-measures div { border-top:1px solid var(--import-line); padding-top:10px; }
+.own-data-preflight-measures dt { color:var(--ink-muted); font:700 10px/1.4 ui-monospace,monospace; letter-spacing:.08em; text-transform:uppercase; }
+.own-data-preflight-measures dd { margin:5px 0 0; font-size:13px; line-height:1.55; }
+.own-data-preflight-boundary { color:var(--ink-muted); font-size:13px; line-height:1.55; }
 .own-data-preflight-sources { display:grid; gap:6px; }
 .own-data-preflight-sources h4 { font-size:13px; }
 .own-data-preflight-sources ul,.own-data-preflight-boundary ul { display:grid; gap:5px; margin:0; padding-left:20px; }
 .own-data-preflight-boundary { display:grid; gap:5px; }
 .own-data-preflight-sources li[data-available="false"] { color:var(--ink-muted); }
-.own-data-preflight-action { display:grid; gap:3px; border-top:1px solid #d7ddd8; padding-top:12px; }
+.own-data-preflight-action { display:grid; gap:3px; border-left:5px solid var(--import-accent); padding:3px 0 3px 12px; }
+.own-data-preflight[data-outcome="provider-export-only"] .own-data-preflight-action,.own-data-preflight[data-outcome="insufficient-evidence"] .own-data-preflight-action { border-left-color:var(--state-warn-line); }
+.own-data-preflight[data-outcome="validation-error"] .own-data-preflight-action { border-left-color:var(--state-error-line); }
+.own-data-preflight-disclosure { border-top:1px solid var(--import-line); padding-top:10px; }
+.own-data-preflight-disclosure>summary { display:flex; justify-content:space-between; gap:16px; cursor:pointer; color:var(--import-ink); font:700 12px/1.55 ui-monospace,monospace; }
+.own-data-preflight-disclosure>summary:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.own-data-preflight-disclosure>div { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px; margin-top:12px; }
+@media(max-width:640px) { .own-data-preflight { padding:16px; } .own-data-preflight-measures,.own-data-preflight-disclosure>div { grid-template-columns:1fr; } }
 .local-import-heading,.local-result-heading { display:flex; align-items:start; justify-content:space-between; gap:24px; }
 /* Static classifications are outlined; dynamic status chips use filled washes. */
 /* Chip silhouette follows design-system/claude-design/review-08-foundations:
