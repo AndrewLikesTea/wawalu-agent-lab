@@ -61,6 +61,7 @@ import {
 } from "/browser-compat-view.js";
 import { evaluateExport, parseExportText } from "/browser-compat-eligibility.js";
 import { initExportRecognition } from "/export-recognition-view.js";
+import { bindProviderImport, initProviderImport } from "/provider-native-import-view.js";
 import { FIXTURE_REFERENCE_DATE } from "/browser-compat-fixtures.js";
 import { scoreIntakeConfidence } from "/intake-confidence.js";
 import { clearIntakeConfidence, renderIntakeConfidence } from "/intake-confidence-view.js";
@@ -3783,6 +3784,11 @@ async function init() {
   // credential, and a confidence that arrives after paint is one the reader has
   // already read the page without.
   initExportRecognition(document);
+  // Provider-native intake (#930). Initialised AFTER the eligibility check so
+  // the shared provider chooser has one deterministic owner of its default;
+  // both write the same option set, and the assertion that they do is in
+  // tests/provider-native-import.test.js rather than in a comment alone.
+  if (initProviderImport(document)) bindProviderImport(document);
   const gateway = createStaticGateway();
   const refreshGateway = document.getElementById("integration-gateway-refresh");
   gateway.subscribe(({ status, inspection, metadata }) => {
