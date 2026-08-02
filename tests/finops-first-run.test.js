@@ -230,13 +230,29 @@ test("the peer position is authored directly before the recommended action", asy
   assert.equal(value.closest("[hidden]"), null);
 });
 
-test("the internal drill-down is authored in the same area as the peer position", async () => {
+test("the drill-down and the literacy letter share the peer position's area", async () => {
   const document = parseHtml(await readFile(PAGE, "utf8"));
   const support = document.querySelectorAll(".first-run-support")[0];
   assert.ok(support, "the drill-down lives in the peer position's own area");
   const values = support.querySelectorAll(".first-run-value").map((node) => node.id);
-  assert.deepEqual(values, [FIRST_RUN_IDS.peerValue, FIRST_RUN_IDS.internalValue],
-    "the internal gap follows the org-level position it drills into");
+  // A DELIBERATE CONTRACT CHANGE, and the exactness is the point of keeping it.
+  // This area shipped two supporting figures and now ships three: #994 fills the
+  // literacy slot that used to read "no scored query sample", and it belongs
+  // here rather than beside the headline because it qualifies the org-level
+  // answer in the same way the internal gap does. The list stays exact so a
+  // fourth figure cannot arrive unannounced, and the ORDER is the reading order
+  // — the org's position, then inside it, then how well its people prompt.
+  assert.deepEqual(values,
+    [FIRST_RUN_IDS.peerValue, FIRST_RUN_IDS.internalValue, FIRST_RUN_IDS.literacyValue],
+    "the internal gap follows the org-level position it drills into, and the letter follows both");
+
+  // And the new member is a letter with its rubric attached, not a placeholder
+  // that happened to take a slot: the grade, the score, and the rubric label a
+  // disputed score has to be argued against are on one line.
+  const literacy = byId(document, FIRST_RUN_IDS.literacyValue);
+  assert.equal(literacy.dataset.available, "true");
+  assert.match(textOf(literacy), /^[A-F] · \d{1,3} of 100 · literacy-mix\/\d+\.\d+\.\d+$/);
+  assert.equal(textOf(literacy), buildFirstRunResult().literacy.value);
 
   // The same slot idiom as its neighbour, down to the heading level: an h3 under
   // the region's h2, a value, and a detail that is hidden until it has content.
@@ -293,7 +309,7 @@ test("the method disclosure is a native details hanging off the headline", async
 
 // --- the booted page -------------------------------------------------------
 
-test("a visitor with no files meets four resolved slots and one ranked action", async () => {
+test("a visitor with no files meets five resolved slots and one ranked action", async () => {
   const page = await bootedPage();
   const { document } = page;
   try {
@@ -308,6 +324,18 @@ test("a visitor with no files meets four resolved slots and one ranked action", 
       /^Bottom quartile · \$\d+\.\d{2} per successful task$/);
     assert.equal(byId(document, FIRST_RUN_IDS.peerValue).dataset.available, "true");
     assert.ok(textOf(byId(document, FIRST_RUN_IDS.peerDetail)).length > 0);
+    // The fifth resolved slot. It is a letter, a score, a rubric label, and the
+    // coverage that qualifies all three — never a dash, which is what this slot
+    // held before #994 bundled a synthetic prompt corpus to score.
+    const literacy = byId(document, FIRST_RUN_IDS.literacyValue);
+    assert.equal(literacy.dataset.available, "true");
+    assert.match(textOf(literacy), /^[A-F] · \d{1,3} of 100 · literacy-mix\/\d+\.\d+\.\d+$/);
+    const literacyDetail = textOf(byId(document, FIRST_RUN_IDS.literacyDetail));
+    assert.match(literacyDetail, /^\$[\d,]+ of \$[\d,]+ in-scope invented spend was scored/);
+    assert.match(literacyDetail, /(high|moderate|provisional|insufficient) coverage/);
+    assert.match(literacyDetail, /\d+ of \d+ synthetic prompts classified/);
+    assert.match(literacyDetail, /not customer behaviour and not realized savings/);
+
     assert.equal(byId(document, FIRST_RUN_IDS.action).dataset.available, "true");
     assert.match(textOf(byId(document, FIRST_RUN_IDS.role)), /Accountable role: /);
     assert.equal(byId(document, FIRST_RUN_IDS.confidenceValue).dataset.available, "true");
@@ -321,8 +349,19 @@ test("a visitor with no files meets four resolved slots and one ranked action", 
     // The method disclosure is painted from the briefing, not from the markup.
     const terms = byId(document, FIRST_RUN_IDS.methodList)
       .querySelectorAll("dt").map((node) => textOf(node));
+    // A DELIBERATE CONTRACT CHANGE. "AI literacy" is a new evidence entry, and
+    // its POSITION is asserted rather than its mere presence: it sits after
+    // "Coverage", which states how much of the example was analyzed, and before
+    // "Limits", which is the closing caveat and now names the literacy letter as
+    // one of the things that is synthetic. Evidence read after the caveat that
+    // qualifies it is evidence a reader has already been told to discount.
     assert.deepEqual(terms,
-      ["Inputs", "Path", "Arithmetic", "Coverage", "Limits", "Internal gap", "Where it ran"]);
+      ["Inputs", "Path", "Arithmetic", "Coverage", "AI literacy", "Limits", "Internal gap", "Where it ran"]);
+    const literacyEntry = byId(document, FIRST_RUN_IDS.methodList).querySelectorAll("div")
+      .find((node) => textOf(node.querySelectorAll("dt")[0]) === "AI literacy");
+    assert.match(textOf(literacyEntry.querySelectorAll("dd")[0]),
+      /^[A-F] · \d{1,3} of 100 · literacy-mix\/\d+\.\d+\.\d+ · \$[\d,]+ of \$[\d,]+ in-scope invented spend/,
+      "the evidence entry must carry the letter, the score, and the rubric it came from");
 
     // The live region is armed and SILENT on the first paint. A polite region
     // that is filled during page load reads the whole headline aloud over the
