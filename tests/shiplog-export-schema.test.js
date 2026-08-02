@@ -225,7 +225,14 @@ test("record_count states the size of the file it is in, or it is a violation", 
     "an empty file counting zero records is correct, not degenerate");
   assert.deepEqual(recordCountViolations(file()), [], "a file with no count predates it and is valid");
   assert.deepEqual(recordCountViolations(file({ record_count: 5 })),
-    ["export.record_count: states 5, but the file carries 2 records"]);
+    ["export.record_count: envelope claims 5 records, file contains 2"]);
+  // The per-collection counts are checked on the same terms, and each names its
+  // own collection: "2 records" would not tell a reader which array is short.
+  assert.deepEqual(recordCountViolations(file({ decision_count: 7 })),
+    ["export.decision_count: envelope claims 7 decisions, file contains 1"]);
+  assert.deepEqual(recordCountViolations(file({ release_count: 0 })),
+    ["export.release_count: envelope claims 0 releases, file contains 1"]);
+  assert.deepEqual(recordCountViolations(file({ decision_count: 1, release_count: 1, record_count: 2 })), []);
   assert.deepEqual(recordCountViolations(file({ record_count: 1.5 })),
     ["export.record_count: expected an integer, got 1.5"]);
   assert.ok(shiplogExportViolations(file({ record_count: 5 })).some((violation) => violation.includes("record_count")),

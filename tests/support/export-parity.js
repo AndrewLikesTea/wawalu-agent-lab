@@ -174,6 +174,12 @@ export const SHIPLOG_EXPORT_SHAPE = Object.freeze({
     // every file, and a file that stopped carrying them would be a consumer's
     // regression, not a variation.
     record_count: "number",
+    // Per collection, so a consumer checking "how many decisions" has a number
+    // to check against. Required for the same reason as the total above.
+    decision_count: "number",
+    release_count: "number",
+    // Which surface wrote the file.
+    source: "string",
     filter: "object",
     decisions: "array",
     releases: "array",

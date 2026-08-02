@@ -31,7 +31,9 @@
 // dialog cannot say how many records are about to go, and it cannot be read by
 // the live region that reports what happened afterwards.
 
-import { buildShiplogExport, downloadShiplogExport, unresolvedLinkSentence } from "./shiplog-export.js";
+import {
+  EXPORT_SOURCES, buildShiplogExport, downloadShiplogExport, unresolvedLinkSentence,
+} from "./shiplog-export.js";
 import { commitShiplogImport, formatImportSummary, prepareShiplogImport } from "./shiplog-import.js";
 import {
   OUTCOME, RETENTION, WORKSPACE_STATE, eraseWorkspace, noteExport, readWorkspace, setRetention,
@@ -223,7 +225,13 @@ export function initLocalWorkspace(root, storage, options = {}) {
 
   function runExport() {
     try {
-      const report = buildShiplogExport(storage, { generatedAt: now().toISOString() });
+      // The file says it came from the backup, not from the history panel: the
+      // two write the same schema, and only the envelope can tell a whole-store
+      // backup from a filtered download a year later.
+      const report = buildShiplogExport(storage, {
+        generatedAt: now().toISOString(),
+        source: EXPORT_SOURCES.workspace,
+      });
       download(report.payload);
       noteExport(storage, { now: now() });
       // A backup that quietly holds fewer links than the store is not a backup
