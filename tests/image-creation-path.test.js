@@ -68,10 +68,17 @@ for (const [name, document] of Object.entries(NEARBY_INVITATION)) {
     assert.doesNotMatch(textOf(link), /^[^A-Za-z]*$/, "the label carries no words");
     assert.match(textOf(invitation), /picture|image/i);
 
-    // What the image has to do to arrive here is the empty state's sentence to
-    // say; repeating it in this helper is the defect this file guards against.
-    assert.doesNotMatch(textOf(invitation), /then (publish|post|attach)/i,
-      `${name}'s helper restates the publishing path the empty state already gives`);
+    // Both steps, in the order they happen. This used to be the empty state's
+    // sentence alone, and the helper was pinned against repeating it — but the
+    // empty state only renders for a name with no image posts, so a reader
+    // looking at a full grid was told "Open Paint" and nothing about what
+    // actually puts a picture in it. Paint publishes nothing, so naming the
+    // editor without naming the publishing step is the defect now.
+    const sentence = textOf(invitation);
+    assert.match(sentence, /publish/i,
+      `${name}'s helper stops at the editor and never says the image has to be published`);
+    assert.ok(sentence.indexOf("Paint") < sentence.indexOf("Social"),
+      `${name}'s helper names the two steps out of order`);
   });
 
   test(`${name} keeps the Paint route in the keyboard sequence, before the browsing panel`, () => {

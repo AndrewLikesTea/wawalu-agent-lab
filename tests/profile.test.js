@@ -326,7 +326,11 @@ test("the profile and post pages are wired, labelled, and reachable", async () =
   assert.match(social, /href="\/profile\.html"/);
 
   assert.match(profile, /id="profile-grid"/);
-  assert.match(profile, /<label for="profile-author">/);
+  // The picker's label says what choosing an entry does, in the words Social's
+  // own feed toolbar uses ("Show posts"). Naming the menu's contents instead —
+  // it read "Display name" — left the one control that changes whose posts the
+  // grid shows looking like a caption on the names inside it.
+  assert.match(profile, /<label for="profile-author">Show posts by<\/label>/);
   assert.match(profile, /id="profile-author"[^>]*aria-describedby="profile-author-hint"/);
   assert.match(profile, /id="profile-announcer"[^>]*aria-live="polite"/);
   assert.match(profile, /src="\/profile-page\.js"/);
