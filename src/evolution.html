@@ -1231,6 +1231,14 @@
             <p class="provider-native-field"><label for="provider-native-file">Or choose an export file</label><input id="provider-native-file" type="file" accept=".csv,.tsv,.json,.jsonl,.ndjson" /></p>
             <p class="provider-native-field"><label for="provider-native-example">Or read a bundled example</label><select id="provider-native-example"></select></p>
           </div>
+          <!-- Provider, then confidence, then what is uncertain, then the one
+               control that resolves it (#931). Painted by
+               src/import-status-chip.js through
+               src/provider-native-import-view.js: no provider name, no band and
+               no number ships here. It sits above the finding and outside every
+               disclosure, and it is not a live region — the finding below is,
+               and one reading must not interrupt a screen reader twice. -->
+          <div class="provider-native-status" id="provider-native-status" data-status="pending" data-unsettled="false" aria-label="Recognition status for this export"></div>
           <div class="provider-native-finding" id="provider-native-finding" role="status" aria-live="polite" data-state="empty" data-metric="none">
             <p class="provider-native-question">No export has been read yet. Choose the provider you exported from, then drop a file here, pick one with the file control, or read a bundled example.</p>
           </div>
