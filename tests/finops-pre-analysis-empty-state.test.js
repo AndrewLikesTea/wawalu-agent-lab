@@ -108,7 +108,7 @@ test("no null placeholder is authored anywhere on the pre-analysis first screen"
   }
 });
 
-test("the shipped first screen draws the complete bundled metric set", async () => {
+test("the shipped first screen draws all five bundled metric tiles", async () => {
   const document = await shippedPage();
   // A tile is a figure slot: a label over a value. Drawn means not inside a
   // `hidden` subtree — `hidden` is what takes a node out of the layout and out
@@ -119,9 +119,27 @@ test("the shipped first screen draws the complete bundled metric set", async () 
       .some((name) => node.classList.contains(name)))
     .filter((node) => !node.hidden && !node.closest("[hidden]"));
 
-  assert.equal(drawn.length, 4,
+  // A DELIBERATE CONTRACT CHANGE. This shipped as four and is now five: #994
+  // added the AI-literacy tile, which used to be a dash because the bundled
+  // example carried no scored prompts. The count stays EXACT rather than
+  // becoming a floor, because the whole point of this file is that a
+  // metric-shaped tile with nothing in it must not reach a first-time visitor —
+  // an unbounded check would let the scaffold grow back one tile at a time.
+  assert.equal(drawn.length, 5,
     `the first screen draws ${drawn.length} metric tiles: ${JSON.stringify(drawn.map((n) => textOf(n)))}`);
   for (const tile of drawn) assert.doesNotMatch(textOf(tile), /not (measured|ranked) yet/i);
+
+  // And the fifth is the literacy tile, holding a real letter rather than the
+  // placeholder it replaced: the grade, the numeric score, the rubric id and
+  // version it is attributable to, both coverage denominators, and the
+  // synthetic-data label its four siblings already carry.
+  const literacy = textOf(drawn[4]);
+  assert.match(literacy, /^AI literacy · graded prompt sample [A-F] · \d{1,3} of 100 · literacy-mix\/\d+\.\d+\.\d+/);
+  assert.match(literacy, /\$[\d,]+ of \$[\d,]+ in-scope invented spend was scored/);
+  assert.match(literacy, /(high|moderate|provisional|insufficient) coverage/);
+  assert.match(literacy, /\d+ of \d+ synthetic prompts classified/);
+  assert.match(literacy, /Synthetic prompts from an invented company/);
+  assert.match(literacy, /not customer behaviour and not realized savings/);
 });
 
 test("the org's standing is asked once, and no heading is a bare placeholder", async () => {
@@ -251,6 +269,7 @@ test("repainting the bundled synthetic example preserves the full metric grid", 
     [FIRST_RUN_IDS.impactValue, "Potential impact · routing scenario"],
     [FIRST_RUN_IDS.peerValue, "Rank against similar organizations"],
     [FIRST_RUN_IDS.internalValue, "Internal drill-down · widest department gap"],
+    [FIRST_RUN_IDS.literacyValue, "AI literacy · graded prompt sample"],
     [FIRST_RUN_IDS.confidenceValue, "Confidence in this answer"],
     [STAND_IDS.positionValue, "Rank against similar organizations"],
     [STAND_IDS.recoverableValue, "Recoverable spend"],
