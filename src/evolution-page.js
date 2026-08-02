@@ -736,6 +736,21 @@ function syncWorkspaceRestore() {
 function mountLocalFinopsImport() {
   const input = document.getElementById("local-finops-files");
   if (!input) return;
+  const activationStatus = document.getElementById("local-export-activation-status");
+  const setActivationStatus = (state, title, detail) => {
+    if (!activationStatus) return;
+    activationStatus.dataset.state = state;
+    activationStatus.replaceChildren();
+    const strong = document.createElement("strong");
+    strong.textContent = title;
+    activationStatus.append(strong, document.createTextNode(` ${detail}`));
+  };
+  // Idle is a state this panel returns to from three different places — a
+  // rejected file discarded, a read cancelled, a result cleared — so its
+  // sentence is written once. A flow test asserts the restored wording is
+  // byte-identical to the sentence evolution.html ships with.
+  const setIdleActivation = () => setActivationStatus("idle", "Ready for local processing.",
+    "Choose a file to read it in this tab; the Bundled synthetic example stays in place until a valid result is ready.");
   // Provider projection code is needed only after a visitor selects a provider
   // file. Keep it out of the cold-load graph, then run both pure modules from
   // the already-validated in-memory document; this opens no network data path.
@@ -745,6 +760,10 @@ function mountLocalFinopsImport() {
       import("/provider-export-projection-view.js"),
     ]);
     renderProviderExportProjection(document, projectProviderExport(providerDocument));
+    // Said only once the projection above has actually been painted from this
+    // document, so the claim names work that has already happened.
+    setActivationStatus("ready", "Local reading ready.",
+      "This answer was computed from your file in this tab. Nothing was uploaded or stored.");
   };
   const stateNode = document.getElementById("local-import-state");
   const resultsNode = document.getElementById("local-results");
@@ -1984,6 +2003,7 @@ function mountLocalFinopsImport() {
     // The authored hero sentence, from the module that owns it, so a reader who
     // clears an import lands back on the words the page shipped with.
     setText("finops-intro", HERO_INTRO);
+    setIdleActivation();
     announce("ready", wasExample
       ? "Bundled synthetic example cleared."
       : "Returned to the Bundled synthetic example.",
@@ -2019,6 +2039,8 @@ function mountLocalFinopsImport() {
       code: error?.code, message: error?.message, ordinal: file.ordinal, total: file.total,
     });
     applyFieldDiagnostic(document, diagnostic);
+    setActivationStatus("error", "The selected file was not analyzed.",
+      `${diagnostic.recovery} The result already on screen is unchanged.`);
     showTransientBasis("failed");
     // Every panel goes back to the sample together. A surface with the KPI row
     // swapped and the grade stale would be a half-import nobody asked for, and
@@ -2596,6 +2618,8 @@ function mountLocalFinopsImport() {
     applyFieldDiagnostic(document, null);
     announce("loading", "Reading files in this tab…",
       "Parsing and validation are running locally; no file contents are being transferred.");
+    setActivationStatus("reading", "Reading locally…",
+      "Validation and analysis are running in this tab. Nothing is being uploaded or stored.");
     // While a file is being read the panels stay exactly what they were and say
     // so in a reserved line. Relabelling them now would caption figures that
     // have not changed with a source that does not yet exist.
@@ -2698,6 +2722,10 @@ function mountLocalFinopsImport() {
     applyFieldDiagnostic(document, null);
     input.value = "";
     syncStage();
+    // Cancelling ends the read, so the visible "Reading locally…" claim ends
+    // with it. Left standing it would be the one line on the panel still
+    // asserting work that was just stopped.
+    setIdleActivation();
     announce("ready", stopped ? "Import cancelled." : "Nothing was running.",
       "No rows were kept and no total was produced. Choose the same file again, or a different one.");
     input.focus?.();

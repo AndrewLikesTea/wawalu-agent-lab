@@ -1120,16 +1120,19 @@
           <h3 id="own-data-preflight-question">Can this export support a trustworthy department-spend decision?</h3>
           <p class="own-data-preflight-finding" id="own-data-preflight-finding">Checking the bundled evidence package.</p>
           <p class="own-data-preflight-benchmark" id="own-data-preflight-benchmark">Benchmark: 90% required spend coverage.</p>
-          <div class="own-data-preflight-sources">
-            <h4>What evidence is present?</h4>
-            <ul id="own-data-preflight-provenance"></ul>
-          </div>
-          <p class="own-data-preflight-confidence" id="own-data-preflight-confidence">No confidence limit available yet.</p>
+          <p class="own-data-preflight-confidence"><strong>Confidence and coverage</strong><span id="own-data-preflight-confidence">No confidence limit available yet.</span></p>
           <p class="own-data-preflight-action"><strong>Prioritized next action</strong><span id="own-data-preflight-action">Waiting for the evidence check.</span></p>
-          <div class="own-data-preflight-boundary">
-            <p>This preflight reads invented bundled rows in this tab. Its static-demo boundary:</p>
-            <ul id="own-data-preflight-boundary"></ul>
-          </div>
+          <details class="own-data-preflight-evidence" id="own-data-preflight-evidence">
+            <summary>Field provenance and limitations</summary>
+            <div class="own-data-preflight-sources">
+              <h4>Evidence used for this finding</h4>
+              <ul id="own-data-preflight-provenance"></ul>
+            </div>
+            <div class="own-data-preflight-boundary">
+              <p>What this local reading cannot establish:</p>
+              <ul id="own-data-preflight-boundary"></ul>
+            </div>
+          </details>
         </section>
         <div class="privacy-boundary" role="note" aria-label="Local processing privacy boundary">
           <strong>Your files do not leave this tab.</strong>
@@ -1175,6 +1178,7 @@
             <!-- The ceiling sentence is painted from the one place the numbers
                  are defined (import-limits.js). No number is written here. -->
             <p class="local-file-limits" id="local-file-limits"></p>
+            <p class="local-export-activation-status" id="local-export-activation-status" data-state="idle"><strong>Ready for local processing.</strong> Choose a file to read it in this tab; the Bundled synthetic example stays in place until a valid result is ready.</p>
             <p class="field-error" id="local-file-error" hidden></p>
             <!-- Two recoveries, two different outcomes. The note says which is
                  which, because the labels alone cannot carry that discarding

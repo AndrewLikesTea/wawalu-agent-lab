@@ -245,3 +245,64 @@ test("the live workspace wires JSON and mapped provider exports into the project
   assert.match(entry, /renderProviderExportProjection\(document, projectProviderExport\(providerDocument\)\)/);
   assert.equal((entry.match(/await paintProviderProjection\(parsed\.document\)/g) ?? []).length, 2);
 });
+
+/**
+ * The text between a start marker and the first following end marker. Source
+ * assertions here are all containment claims — "this node is inside that
+ * disclosure", "this rule is inside that media query" — and an open-ended
+ * `[\s\S]*` cannot make one: it matches an end marker anywhere later in the
+ * file, so the assertion passes whether or not the thing is actually nested.
+ * Slicing the block first means the assertion fails for the reason it states.
+ */
+function block(source, start, end) {
+  const from = source.indexOf(start);
+  assert.notEqual(from, -1, `the shipped source no longer contains ${start}`);
+  const rest = source.slice(from);
+  const to = rest.indexOf(end);
+  assert.notEqual(to, -1, `${start} is never closed by ${end}`);
+  return rest.slice(0, to);
+}
+
+test("the activation panel and its evidence disclosure are structured as shipped", async () => {
+  const [html, css] = await Promise.all([
+    readFile(new URL("../src/evolution.html", import.meta.url), "utf8"),
+    readFile(new URL("../src/evolution.css", import.meta.url), "utf8"),
+  ]);
+
+  // The chooser stays the browser's own file input: keyboard operation and the
+  // OS picker come free, and no custom widget has to re-earn them.
+  assert.match(html, /id="local-finops-files" type="file"[^>]*aria-describedby="local-file-help"/,
+    "the browser-native chooser remains keyboard operable and named");
+  assert.match(html, /id="local-export-activation-status" data-state="idle"/);
+  assert.doesNotMatch(html, /id="local-export-activation-status"[^>]*(?:role="status"|aria-live)/,
+    "the visible state must not compete with the page's single answer announcer");
+
+  // One finding, then one action, then the evidence — and the provenance and
+  // limitation lists are *inside* the disclosure, not merely after it.
+  const disclosure = block(html, '<details class="own-data-preflight-evidence"', "</details>");
+  assert.match(disclosure, /<summary>Field provenance and limitations<\/summary>/);
+  assert.ok(disclosure.includes('id="own-data-preflight-provenance"'),
+    "field-level provenance belongs behind the disclosure, not beside the finding");
+  assert.ok(disclosure.includes('id="own-data-preflight-boundary"'),
+    "the static-demo limitations belong behind the same disclosure");
+  assert.ok(html.indexOf("own-data-preflight-question") < html.indexOf("own-data-preflight-action"));
+  assert.ok(html.indexOf("own-data-preflight-action") < html.indexOf("own-data-preflight-evidence"));
+
+  assert.match(css, /\.own-data-preflight-evidence summary \{ min-height:44px;/,
+    "the disclosure has a touch- and keyboard-visible target");
+  // Contrast and weight are not signalled by the tint alone, so the status must
+  // not be left to inherit the muted 11px of `.local-import-controls p`.
+  assert.match(css, /\.local-import-controls \.local-export-activation-status \{[^}]*color:var\(--ink\)/);
+  assert.doesNotMatch(css, /\.local-export-activation-status[^}\n]*!important/,
+    "specificity, not !important, keeps this panel overridable");
+  // The phone breakpoint, which is the one that actually stacks this row — the
+  // 900px query above it does not touch `.local-import-controls`. Naming the
+  // wrong query here is not a cosmetic slip: it is a responsive claim nothing
+  // in the stylesheet backs.
+  const phone = block(css, "@media(max-width:640px)", "\n}");
+  assert.match(phone, /\.local-import-controls[^{}]*\{[^{}]*flex-direction:column/,
+    "the phone layout stacks the activation controls rather than crowding them");
+  // The status sits in `.local-import-field`, which is a grid at every width,
+  // so it stacks under the chooser it describes without a breakpoint of its own.
+  assert.match(css, /\.local-import-field \{ display:grid;/);
+});

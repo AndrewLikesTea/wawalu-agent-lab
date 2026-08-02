@@ -378,6 +378,11 @@
 .own-data-preflight-finding { display:grid; gap:4px; font-size:16px; line-height:1.5; }
 .own-data-preflight-verdict { font-size:20px; }
 .own-data-preflight-benchmark,.own-data-preflight-confidence,.own-data-preflight-boundary { color:var(--ink-muted); font-size:13px; line-height:1.55; }
+.own-data-preflight-confidence { display:grid; gap:3px; }
+.own-data-preflight-confidence strong { color:var(--ink); }
+.own-data-preflight-evidence { border-top:1px solid #d7ddd8; padding-top:12px; }
+.own-data-preflight-evidence summary { min-height:44px; cursor:pointer; color:var(--ink); font-weight:750; }
+.own-data-preflight-evidence[open] { display:grid; gap:12px; }
 .own-data-preflight-sources { display:grid; gap:6px; }
 .own-data-preflight-sources h4 { font-size:13px; }
 .own-data-preflight-sources ul,.own-data-preflight-boundary ul { display:grid; gap:5px; margin:0; padding-left:20px; }
@@ -747,6 +752,12 @@
    help text it follows. It is painted, never authored here. */
 .local-file-limits { margin:0; color:var(--ink-muted); font-size:11px; line-height:1.5; }
 .local-file-limits:empty { display:none; }
+/* Scoped past `.local-import-controls p` on specificity rather than with
+   !important, so a later rule for this panel can still override it. */
+.local-import-controls .local-export-activation-status { border-left:4px solid #39705a; padding:9px 11px; background:#f3f8f5; color:var(--ink); font-size:12px; }
+.local-export-activation-status[data-state="reading"] { border-left-color:#476b9b; background:#f2f6fb; }
+.local-export-activation-status[data-state="error"] { border-left-color:var(--state-error-line); background:var(--state-error-wash); color:var(--state-error-ink); }
+.local-export-activation-status strong { display:block; }
 /* Import progress and its cancel. The phase word and the percentage both ship as
    text, so nothing here is signalled by the bar alone. */
 .local-import-progress { display:flex; align-items:center; justify-content:space-between; gap:14px; margin-top:18px; border:1px solid #aaa79d; border-radius:9px; padding:11px 15px; background:#f7f6f1; }

@@ -155,8 +155,8 @@ const consentSeed = (state) => ({
  */
 function chooseFiles(document, files) {
   const input = document.getElementById("local-finops-files");
-  input.files = files.map(({ name, text }) => ({
-    name, type: "text/csv", text: async () => text,
+  input.files = files.map(({ name, text, type = "text/csv" }) => ({
+    name, type, text: async () => text,
   }));
   input.dispatchEvent(new DomEvent("change", { bubbles: true }));
 }
@@ -825,6 +825,52 @@ test("the provider export still reaches the mapping step unchanged", async () =>
     chooseFiles(document, [{ name: "openai-usage-export.csv", text: PROVIDER_EXPORT }]);
     await reviewOpens(document, "openai-usage-export.csv");
     assert.equal(byId(document, "import-mapping").hidden, false);
+  } finally {
+    page.restore();
+  }
+});
+
+// The activation status beside the picker, driven rather than read out of the
+// source. Its three visible states are a claim about what the page is doing
+// with a reader's file, so each one is asserted from the state the page itself
+// reaches — a source grep for the call would pass on a status wired to nothing.
+test("the activation status states each local-processing outcome and recovers to its authored wording", async () => {
+  const page = await openFinopsTab();
+  const { document } = page;
+  const status = () => byId(document, "local-export-activation-status");
+  try {
+    // The authored idle sentence, captured before any file is chosen. It is the
+    // baseline the recovery below has to land back on exactly.
+    const authoredIdle = shownText(document, "local-export-activation-status");
+    assert.equal(status().dataset.state, "idle");
+    assert.match(authoredIdle, /Bundled synthetic example stays in place until a valid result is ready/);
+    assert.equal(byId(document, "local-results").hidden, true);
+
+    chooseFiles(document, [
+      { name: "provider-export.json", text: "{ this is not an envelope", type: "application/json" },
+    ]);
+    await waitFor(() => status().dataset.state === "error",
+      "the activation status to report that the chosen file was not analyzed");
+    const rejected = shownText(document, "local-export-activation-status");
+    assert.match(rejected, /was not analyzed/);
+    // A rejection names the outcome and the way out of it, never the file or
+    // anything read out of it — the same rule the announcer beside it follows.
+    assert.doesNotMatch(rejected, /provider-export\.json/);
+    assert.doesNotMatch(rejected, /envelope/);
+    assert.equal(byId(document, "local-file-recovery").hidden, false,
+      "a rejected file must offer its recovery controls");
+
+    // Recovery is reachable by keyboard alone and needs no page reload.
+    tabTo(document, "local-file-discard");
+    pressEnter(document);
+    await waitFor(() => status().dataset.state === "idle",
+      "discarding to return the panel to its idle state");
+    // Agreement check on the copy itself: the sentence restored from
+    // evolution-page.js is the sentence evolution.html ships with. Two copies
+    // of one claim is how a panel starts saying something the page does not do.
+    assert.equal(shownText(document, "local-export-activation-status"), authoredIdle);
+    assert.equal(byId(document, "local-results").hidden, true,
+      "the bundled example remains the answer on screen after a discard");
   } finally {
     page.restore();
   }
