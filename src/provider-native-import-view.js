@@ -23,6 +23,10 @@
 import { PRIVACY_POLICY } from "./browser-compat-contracts.js";
 import { ACCEPTED_MIN_CONFIDENCE } from "./export-recognition.js";
 import {
+  IMPORT_STATUS, IMPORT_STATUS_CHIPS, classificationChip, importStatusChip, intakeStatus,
+  isUnsettled, renderChip,
+} from "./import-status-chip.js";
+import {
   INTAKE_STATES, NO_RATE_SENTENCE, PROVISIONAL_PREFIX, buildIntake, importableContracts,
 } from "./provider-native-import.js";
 import {
@@ -39,6 +43,9 @@ const FINDING_ID = "provider-native-finding";
 const TRUST_ID = "provider-native-trust";
 const EVIDENCE_ID = "provider-native-evidence";
 const EVIDENCE_BODY_ID = "provider-native-evidence-body";
+const STATUS_ID = "provider-native-status";
+export const RESOLVE_ID = "provider-native-resolve";
+export const RESOLVE_LABEL = "Show what is uncertain";
 
 // Said before anything has been read. Deliberately not a finding: an empty
 // answer slot must not read as "nothing expensive was found".
@@ -123,6 +130,73 @@ export function trustSignals(doc, root, intake) {
   return true;
 }
 
+/**
+ * Opens the evidence disclosure and puts focus on its own control.
+ *
+ * Focus lands on the summary rather than inside the body, so the reader who
+ * pressed the button can close what they just opened without hunting for it.
+ */
+export function openEvidence(doc) {
+  const evidence = doc.getElementById(EVIDENCE_ID);
+  if (!evidence) return false;
+  evidence.open = true;
+  evidence.dataset.open = "true";
+  const summary = evidence.querySelector?.("summary");
+  summary?.focus?.();
+  return true;
+}
+
+/**
+ * Provider, then confidence, then what is uncertain, then the control that
+ * resolves it — painted ABOVE the finding so the section's DOM order is the
+ * reading order an executive actually needs: which provider this is, how sure
+ * the workspace is, and only then the figure and the action below.
+ *
+ * This row is deliberately NOT a live region. The finding under it already
+ * announces, and two live regions for one reading interrupt a screen reader
+ * twice for one event. It is always rendered and never folded into a
+ * disclosure, so the state is reachable without opening anything.
+ */
+export function renderImportStatus(doc, intake, { status = null } = {}) {
+  const root = doc.getElementById(STATUS_ID);
+  if (!root) return false;
+  const resolved = status
+    ?? (intake ? intakeStatus(intake.state, Boolean(intake.metric)) : IMPORT_STATUS.PENDING);
+  const chip = importStatusChip(resolved, {
+    confidence: intake?.recognition?.confidence ?? null,
+    max: intake?.recognition?.maxConfidence,
+  });
+  const parts = [];
+  // The provider is the first thing read, and it is a classification: an
+  // outline chip, so it cannot be mistaken for the verdict beside it.
+  const provider = intake?.provenance?.providerName;
+  if (intake) {
+    parts.push(renderChip(doc, provider
+      ? classificationChip(provider, `contract v${intake.provenance.contractVersion}`)
+      : classificationChip("No contract matched")));
+  }
+  parts.push(renderChip(doc, chip));
+  root.dataset.status = resolved;
+  root.dataset.unsettled = String(isUnsettled(resolved));
+  if (chip.uncertainty) {
+    parts.push(node(doc, "p", "provider-native-uncertainty",
+      `${chip.uncertainty} ${chip.next}`));
+  }
+  // A real control, beside the status rather than under the evidence: an
+  // unsettled import is the one state where the reader's next move must be one
+  // key away. It opens the evidence and moves focus into it, so the keyboard
+  // path from "this is ambiguous" to "here is why" is a single press.
+  if (isUnsettled(resolved)) {
+    const button = node(doc, "button", "provider-native-resolve", RESOLVE_LABEL);
+    button.id = RESOLVE_ID;
+    button.type = "button";
+    button.addEventListener("click", () => openEvidence(doc));
+    parts.push(button);
+  }
+  root.replaceChildren(...parts);
+  return true;
+}
+
 /** The rate table and the recognition evidence, behind the disclosure. */
 export function evidenceBody(doc, root, intake) {
   const lines = [];
@@ -177,6 +251,8 @@ export function renderProviderImport(doc, intake, { reason = null } = {}) {
   const body = doc.getElementById(EVIDENCE_BODY_ID);
   if (!finding || !trust || !evidence || !body) return false;
   if (!intake) {
+    renderImportStatus(doc, null,
+      { status: reason ? IMPORT_STATUS.REJECTED : IMPORT_STATUS.PENDING });
     finding.dataset.state = "empty";
     finding.dataset.metric = "none";
     finding.replaceChildren(node(doc, "p", "provider-native-question", reason ?? EMPTY_FINDING_COPY));
@@ -194,6 +270,7 @@ export function renderProviderImport(doc, intake, { reason = null } = {}) {
   const resolved = metricSentence(intake);
   const sentence = intake.state === INTAKE_STATES.PROVISIONAL
     ? `${PROVISIONAL_PREFIX} ${resolved}` : resolved;
+  renderImportStatus(doc, intake);
   finding.dataset.state = intake.state;
   finding.dataset.metric = intake.metric ? "rate" : "none";
   // Reading order is the answer order: the question, then the figure that
