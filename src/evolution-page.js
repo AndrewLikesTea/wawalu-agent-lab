@@ -15,6 +15,10 @@ import {
 } from "/evolution.js";
 import { assessBriefingReadiness } from "/briefing-readiness.js";
 import { renderBriefingReadiness } from "/briefing-readiness-view.js";
+import { projectExecutiveBriefing } from "/executive-briefing-projection.js";
+import {
+  renderExecutiveBriefingProjection, renderExecutiveBriefingProjectionError,
+} from "/executive-briefing-projection-view.js";
 // Which executive panel may show a figure, and what a panel that may not says
 // instead. One declared question, one declared input list, and one threshold per
 // input live there; this page holds no opinion about panel visibility beyond
@@ -3621,6 +3625,8 @@ async function init() {
       // evidence, so the contract reports exactly that; the load-status region
       // above owns the reason, and this one names no action of its own.
       renderBriefingReadiness(document, assessBriefingReadiness(null));
+      renderExecutiveBriefingProjectionError(document,
+        new Error("Bundled analysis did not load."));
       syncExecutivePanels();
       // After the contract, not before it: a seed that never arrived leaves
       // every bundled panel unanswerable, and the contract is right to say so —
@@ -3634,6 +3640,12 @@ async function init() {
     const totals = summarize(departments);
     bundledSeed = data;
     renderBriefingReadiness(document, assessBriefingReadiness(data.briefingReadiness));
+    try {
+      renderExecutiveBriefingProjection(document,
+        projectExecutiveBriefing(data.briefingReadiness));
+    } catch (error) {
+      renderExecutiveBriefingProjectionError(document, error);
+    }
     renderFinancePortfolio(data);
     repaintBundledAnalysis = () => {
       renderHeadline(data.organization ?? {}, totals, gradeEligibility(departments), departments);
