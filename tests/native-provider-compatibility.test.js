@@ -7,6 +7,9 @@ import {
   NATIVE_PROVIDER_BOUNDARY, NATIVE_PROVIDER_COMPATIBILITY, NATIVE_PROVIDER_CONTRACT_VERSION,
 } from "../src/native-provider-compatibility.js";
 import { renderNativeProviderCompatibility } from "../src/native-provider-compatibility-view.js";
+import {
+  assessNativeProviderActivation, NATIVE_ACTIVATION_STATUS,
+} from "../src/native-provider-activation.js";
 import { createElement, installDocument, tags } from "./support/dom.js";
 import { readTable } from "./support/tabular.js";
 
@@ -64,6 +67,27 @@ test("supported, missing-required, and unknown-format fixtures have deterministi
   const unknown = detectDialect(await table("unknown-format.csv"));
   assert.equal(unknown.status, "unidentified");
   assert.match(unknown.reason, /no profile/);
+});
+
+test("activation distinguishes direct analysis, incomplete native export, and manual formats", async () => {
+  const supported = assessNativeProviderActivation({
+    header: (await table("openai-supported.csv")).columns,
+    rows: (await table("openai-supported.csv")).rows.map((values) => ({ values })),
+  });
+  assert.equal(supported.status, NATIVE_ACTIVATION_STATUS.SUPPORTED);
+  assert.equal(supported.providerId, "openai-usage-export");
+  assert.match(supported.message, /manual column mapping is not required/i);
+
+  const incompleteTable = await table("anthropic-missing-required.csv");
+  const incomplete = assessNativeProviderActivation({
+    header: incompleteTable.columns, rows: incompleteTable.rows.map((values) => ({ values })),
+  });
+  assert.equal(incomplete.status, NATIVE_ACTIVATION_STATUS.INCOMPLETE);
+  assert.match(incomplete.message, /missing required column.*cost_usd/i);
+
+  assert.equal(assessNativeProviderActivation({
+    header: ["day", "team", "sku", "spend"], rows: [],
+  }).status, NATIVE_ACTIVATION_STATUS.NOT_NATIVE);
 });
 
 test("AI FinOps compatibility view renders the contract registry and prohibitions", () => {

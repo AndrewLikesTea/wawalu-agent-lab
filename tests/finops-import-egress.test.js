@@ -48,6 +48,14 @@ const PROVIDER_EXPORT = (await readFile(new URL("openai-usage-export.csv", EXAMP
   .replace(/boreal-support/g, "Boreal Support");
 const ORG_ROSTER = await readFile(new URL("generic-hris-roster.csv", EXAMPLE_EXPORTS), "utf8");
 
+// The same subject on the path a leader now actually takes: one supported
+// export, activated by its own adapter with no mapping step in between. The
+// two-file selection above still walks the mapping step, so without this the
+// one-file branch would carry no behavioural proof of the claim at all.
+const NATIVE_OPENAI = await readFile(new URL(
+  "../contracts/integrations/native-provider-exports/v1/fixtures/openai-supported.csv",
+  import.meta.url), "utf8");
+
 const PROVIDER_FILE = "openai-usage-export.csv";
 const ROSTER_FILE = "generic-hris-roster.csv";
 
@@ -203,6 +211,29 @@ test("importing and scoring a provider export opens no outbound connection", asy
     "the import path navigated the page, which carries whatever is in the URL off the browser");
 });
 
+test("the one-file native activation path opens no outbound connection either", async (t) => {
+  const page = await openFinopsTab();
+  const { document } = page;
+  const egress = recordEgress(document);
+  t.after(() => { egress.restore(); page.restore(); });
+
+  // No mapping step to click through: the adapter is recognized from the header
+  // row and the analysis runs from the same selection event.
+  chooseFiles(document, [{ name: "openai-native.csv", text: NATIVE_OPENAI }]);
+  await waitFor(() => !byId(document, "local-results").hidden, "the activated analysis to appear");
+
+  // The branch really ran. Without this a skipped activation would pass by
+  // leaking nothing because it did nothing.
+  assert.equal(byId(document, "import-mapping").hidden, true,
+    "this must be the direct path, not the mapping step under another name");
+  assert.equal(byId(document, "local-export-activation").dataset.state, "ready");
+
+  assert.deepEqual(egress.violations, [],
+    "the native activation path transmitted the leader's export; every entry above is a call that would have left the browser");
+  assert.deepEqual(egress.navigationsSince(), [],
+    "the native activation path navigated the page, which carries whatever is in the URL off the browser");
+});
+
 test("exporting the resulting briefing keeps it in the browser too", async (t) => {
   // The file the leader is handed back is written with `URL.createObjectURL`
   // over a `Blob` and downloaded by the anchor. That is local by construction —
@@ -247,9 +278,12 @@ test("no module on the import-and-scoring path names a transport at all", async 
   // them is walked rather than listed, so a module added under one of them is
   // covered on the day it is added. `evolution-page.js` is deliberately not a
   // seed: it is the page boot, and it legitimately fetches bundled assets.
+  // `native-provider-activation.js` is its own seed: it decides whether a file
+  // skips the mapping step, but the page reaches it by an absolute specifier and
+  // the walk below follows relative ones, so no other entry would pull it in.
   const ENTRIES = ["local-import-flow.js", "import-offload.js", "import-worker-core.js",
     "finops-tabular-import.js", "import-column-mapping.js", "finops-export-normalization.js",
-    "finops-trust-verdict.js", "local-finops.js"];
+    "finops-trust-verdict.js", "local-finops.js", "native-provider-activation.js"];
   const source = new URL("../src/", import.meta.url);
   const seen = new Set();
   const offenders = [];

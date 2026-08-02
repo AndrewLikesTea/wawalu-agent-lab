@@ -45,6 +45,10 @@ const EVALUATION_FIXTURES = JSON.parse(
 const EXAMPLE_EXPORTS = new URL("../contracts/integrations/tabular-dialects/v1/fixtures/", import.meta.url);
 const PROVIDER_EXPORT = await readFile(new URL("openai-usage-export.csv", EXAMPLE_EXPORTS), "utf8");
 const ORG_ROSTER = await readFile(new URL("generic-hris-roster.csv", EXAMPLE_EXPORTS), "utf8");
+const NATIVE_EXPORTS = new URL("../contracts/integrations/native-provider-exports/v1/fixtures/", import.meta.url);
+const NATIVE_OPENAI = await readFile(new URL("openai-supported.csv", NATIVE_EXPORTS), "utf8");
+const INCOMPLETE_ANTHROPIC = await readFile(
+  new URL("anthropic-missing-required.csv", NATIVE_EXPORTS), "utf8");
 
 // ---------------------------------------------------------------------------
 // What the fixture is worth, derived from its own bytes.
@@ -181,6 +185,67 @@ function tabTo(document, id) {
   assert.fail(`"${id}" is not reachable by Tab from ${document.activeElement?.id || "the current focus"}; `
     + `a keyboard user cannot complete this step. Tab stops: ${stops}.`);
 }
+
+test("a supported native provider export bypasses mapping and opens its analysis", async () => {
+  const page = await openFinopsTab();
+  const { document } = page;
+  try {
+    chooseFiles(document, [{ name: "openai-native.csv", text: NATIVE_OPENAI }]);
+    await waitFor(() => !byId(document, "local-results").hidden,
+      "the native provider analysis to render");
+    assert.equal(byId(document, "import-mapping").hidden, true,
+      "a supported native adapter must bypass #import-mapping");
+    assert.equal(byId(document, "local-export-activation").dataset.state, "ready");
+    assert.match(shownText(document, "local-export-activation-status"),
+      /OpenAI organization usage export.*adapter v1.*header confidence/i);
+    assert.equal(byId(document, "local-export-activation").dataset.confidence, "0.875");
+    assert.equal(document.activeElement?.id, "finops-stand",
+      "focus should move to the existing analysis answer");
+  } finally {
+    page.restore();
+  }
+});
+
+test("an incomplete native export is announced and never enters mapping or analysis", async () => {
+  const page = await openFinopsTab();
+  const { document } = page;
+  try {
+    chooseFiles(document, [{ name: "anthropic-incomplete.csv", text: INCOMPLETE_ANTHROPIC }]);
+    await waitFor(() => byId(document, "local-export-activation").dataset.state === "error",
+      "the incomplete native status to render");
+    assert.equal(byId(document, "import-mapping").hidden, true);
+    assert.equal(byId(document, "local-results").hidden, true);
+    assert.match(shownText(document, "local-export-activation-status"),
+      /looks incomplete.*missing required column.*cost_usd/i);
+    assert.equal(byId(document, "local-finops-files").getAttribute("aria-invalid"), "true");
+    // The rejection has to survive the end of the selection. The two announcement
+    // regions clear each other, so a refusal that let the queue run on to
+    // "1 compatible file ready" would erase the only thing a screen reader was
+    // told about this file, and take the focus off the picker with it.
+    assert.match(shownText(document, "local-import-alert"), /incomplete/i);
+    assert.doesNotMatch(shownText(document, "local-import-state"), /compatible file/i);
+    assert.equal(document.activeElement?.id, "local-finops-files");
+  } finally {
+    page.restore();
+  }
+});
+
+test("an unsupported local export format reports recovery without opening mapping", async () => {
+  const page = await openFinopsTab();
+  const { document } = page;
+  try {
+    chooseFiles(document, [{ name: "provider-export.zip", text: "not an archive reader" }]);
+    await waitFor(() => byId(document, "local-export-activation").dataset.state === "error",
+      "the unsupported-format status to render");
+    assert.equal(byId(document, "import-mapping").hidden, true);
+    assert.equal(byId(document, "local-results").hidden, true);
+    assert.match(shownText(document, "local-file-error"),
+      /ZIP archive.*open the archive.*choose the CSV/i);
+    assert.equal(byId(document, "local-finops-files").getAttribute("aria-invalid"), "true");
+  } finally {
+    page.restore();
+  }
+});
 
 test("a leader imports the example provider export and reaches a decision they can export", async (t) => {
   const page = await openFinopsTab();
@@ -798,8 +863,8 @@ test("the reopen control and the restored region are operable on the keyboard al
 // export. Before this path existed the import surface had nowhere to put one:
 // it fell through to the column-mapping step, which reads billing shapes. These
 // two tests are the regression guard on that routing in both directions — an
-// archive must be recognized without the mapping step, and a provider export
-// must still reach the mapping step exactly as it always did.
+// archive and a supported one-file provider export both bypass billing mapping,
+// but only the latter activates the analysis.
 
 test("a local conversation archive is recognized without the mapping step", async () => {
   const page = await openFinopsTab();
@@ -825,13 +890,15 @@ test("a local conversation archive is recognized without the mapping step", asyn
   }
 });
 
-test("the provider export still reaches the mapping step unchanged", async () => {
+test("a supported one-file provider export now reaches analysis without mapping", async () => {
   const page = await openFinopsTab();
   try {
     const { document } = page;
     chooseFiles(document, [{ name: "openai-usage-export.csv", text: PROVIDER_EXPORT }]);
-    await reviewOpens(document, "openai-usage-export.csv");
-    assert.equal(byId(document, "import-mapping").hidden, false);
+    await waitFor(() => !byId(document, "local-results").hidden,
+      "the supported provider export to reach analysis");
+    assert.equal(byId(document, "import-mapping").hidden, true);
+    assert.equal(byId(document, "local-export-activation").dataset.state, "ready");
   } finally {
     page.restore();
   }

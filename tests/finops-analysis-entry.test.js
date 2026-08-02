@@ -76,11 +76,17 @@ function reviewOpens(document, fileName) {
   `the column-mapping step to open on ${fileName}`);
 }
 
-/** Take one delimited file through the mapping step it always walks. */
+/** Import directly when a native adapter matches; otherwise confirm mapping. */
 async function importFile(document, name, text) {
+  const hadResult = !byId(document, "local-results").hidden;
   chooseFiles(document, [{ name, text }]);
-  await reviewOpens(document, name);
-  byId(document, "import-mapping-confirm").click();
+  await waitFor(() => !byId(document, "import-mapping").hidden
+    || (!hadResult && !byId(document, "local-results").hidden)
+    || (hadResult && byId(document, "local-import-state").getAttribute("aria-busy") === "false"),
+  `the import flow to advance for ${name}`);
+  if (!byId(document, "import-mapping").hidden) {
+    byId(document, "import-mapping-confirm").click();
+  }
 }
 
 /**
