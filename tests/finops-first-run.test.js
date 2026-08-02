@@ -26,7 +26,7 @@ import {
 import {
   applyFirstRunResult, applyFirstRunSupersession, bindFirstRunActions,
 } from "../src/finops-first-run-view.js";
-import { loadExampleDataset } from "../src/example-dataset.js";
+import { EXAMPLE_DEPARTMENT_NAME_SET, loadExampleDataset } from "../src/example-dataset.js";
 import { buildFinopsBriefing } from "../src/finops-briefing-contract.js";
 
 const PAGE = new URL("../src/evolution.html", import.meta.url);
@@ -109,8 +109,13 @@ test("no figure in the result is authored — every one comes from the analysis"
   // The figures are the contract's, recomputed here from the same envelope.
   const share = Math.round((analysis.recoverableUsd / analysis.spendUsd) * 100);
   assert.equal(result.benchmark.value, `${share}% of analyzed AI spend`);
-  assert.match(result.action.value,
-    /^Pilot lower-cost routing in the top-spend invented department\./);
+  // The action names the team it is for, and the name is the envelope's own —
+  // computed here from the same ranking rather than restated, so a relabelled
+  // envelope moves the sentence with it.
+  const topSpend = [...analysis.rankedDepartments]
+    .sort((left, right) => right.spendUsd - left.spendUsd)[0].name;
+  assert.match(result.action.value, new RegExp(
+    `^Pilot lower-cost routing in ${topSpend}, the top-spend invented department\\.`));
   assert.match(result.action.value, new RegExp(
     `Cap the pilot at \\$${Math.round(briefing.materialMetric.value).toLocaleString("en-US")}`));
   assert.equal(result.action.detail, `Accountable role: ${briefing.rankedAction.accountableRole}`);
@@ -261,7 +266,11 @@ test("the drill-down and the literacy letter share the peer position's area", as
   const value = byId(document, FIRST_RUN_IDS.internalValue);
   assert.equal(value.className, "first-run-value");
   assert.equal(value.dataset.available, "true");
-  assert.match(textOf(value), /Invented Department/);
+  // Two of the invented company's own teams, by the names `example-dataset.js`
+  // publishes for them — not `Department …atlas0`, the identifier tail this
+  // slot used to render beside blocks that named human teams.
+  assert.equal(EXAMPLE_DEPARTMENT_NAME_SET.filter((name) => textOf(value).includes(name)).length, 2);
+  assert.doesNotMatch(textOf(value), /Department …|psn_example_unit/);
   assert.match(textOf(value), /full band behind/);
   assert.equal(byId(document, FIRST_RUN_IDS.internalDetail).hasAttribute("hidden"), false);
   // No new control, so no new tab stop and no new focus trap in this area.
@@ -396,7 +405,11 @@ test("the internal department gap renders in the drill-down area of the booted p
       "each side states how many records it was computed over");
     assert.match(text, /Lower cost per successful task is better\./);
     assert.match(text, /cost_per_successful_task · finops-cost-position\//);
-    assert.match(text, /\d{4}-\d{2}-\d{2} to \d{4}-\d{2}-\d{2}\.$/);
+    assert.match(text, /\d{4}-\d{2}-\d{2} to \d{4}-\d{2}-\d{2}\./);
+    // The cohort the pair was picked out of closes the line: who else is in it,
+    // where its middle is, and under which two rubrics.
+    assert.match(text, / median \$\d+\.\d{2} per successful task\./);
+    assert.match(text, /is graded under literacy-mix\/\d+\.\d+\.\d+\.$/);
 
     // And the same provenance in the evidence disclosure, where this surface
     // already surfaces comparable evidence, in a form a later pass can recompute.

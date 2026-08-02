@@ -18,9 +18,11 @@
 
 import { parseLocalFinopsFile, normalizeLocalFinopsHistory } from "./local-finops.js";
 import {
-  ORG_SIZE_BAND, PEER_COST_SNAPSHOT_ID, PEER_INDUSTRY, TASK_OUTCOME,
-  TASK_NON_TERMINAL_OUTCOME,
+  COST_METRIC, COST_POSITION_VERSION, costPerSuccessfulTask, countSuccessfulTasks,
+  displayCostPerSuccessfulTask, ORG_SIZE_BAND, PEER_COST_SNAPSHOT_ID, PEER_INDUSTRY,
+  TASK_OUTCOME, TASK_NON_TERMINAL_OUTCOME,
 } from "./peer-cost-position.js";
+import { RUBRIC_VERSION_ID } from "./prompt-literacy-scoring.js";
 
 /** Six consecutive complete calendar months; the last one is the reporting period. */
 const MONTHS = Object.freeze([
@@ -135,6 +137,180 @@ export const EXAMPLE_TASK_LEDGER = Object.freeze([
   ...taskRows("psn_example_unit_quartz", 520, 80, 30, 45),
   ...taskRows("psn_example_unit_ember0", 300, 60, 25, 30),
 ]);
+
+// ---------------------------------------------------------------------------
+// THE COMPANY'S OWN VOCABULARY — one naming scheme for the whole example brief.
+//
+// The bytes above carry opaque `psn_example_unit_*` identifiers, because that is
+// what a real provider export carries and this fixture is not allowed to be
+// easier to read than the thing it stands in for. `local-finops.js` therefore
+// labels each unit `Department …atlas0` from its own id tail, which is correct
+// for an imported file nobody has named — and wrong for the *example*, where the
+// company is invented and its teams already have names in this repository
+// (`contracts/integrations/tabular-dialects/v1/fixtures/generic-hris-roster.csv`
+// staffs Atlas Platform, Boreal Support, and Cinder Research by hand).
+//
+// The result before this table existed was a brief that named the same five
+// teams two ways: a peer-position line reading "Department …atlas0 is a full
+// band behind Department …boreal" beside panels naming human teams. Two naming
+// schemes on one screen read as two datasets stitched together, which is exactly
+// what the example must not look like.
+//
+// So the names are published HERE, beside the units they belong to, and the
+// brief renders them. The identifier stays the key — it is what the provider
+// console and every downstream export still say — and never the visible text.
+// ---------------------------------------------------------------------------
+
+/** What the invented company calls each invented unit. Keys are the wire ids. */
+export const EXAMPLE_DEPARTMENT_NAMES = Object.freeze({
+  psn_example_unit_atlas0: "Atlas Platform",
+  psn_example_unit_boreal: "Boreal Support",
+  psn_example_unit_cinder: "Cinder Research",
+  psn_example_unit_quartz: "Quartz Analytics",
+  psn_example_unit_ember0: "Ember Studio",
+});
+
+/**
+ * Every name this example may put on a screen.
+ *
+ * Published as a set so a surface can be checked against it rather than against
+ * a second list: a rendered department name that is not in here did not come
+ * from this company, which is the property `tests/finops-example-one-company.test.js`
+ * asserts across all three blocks of the brief.
+ */
+export const EXAMPLE_DEPARTMENT_NAME_SET = Object.freeze(
+  Object.values(EXAMPLE_DEPARTMENT_NAMES));
+
+/**
+ * The same envelope, with this company's own names on its ranked departments.
+ *
+ * Applied at the brief's composition layer rather than inside the translator, on
+ * purpose: the analysis envelope is what every export, snapshot, and stored
+ * period is built from, and renaming units in there would rewrite records that
+ * are supposed to say what the file said. What a *reader* is shown is a display
+ * decision, and this is the one place the example makes it.
+ *
+ * Total. A null envelope, a missing ranking, and a unit this table has no name
+ * for all come back unchanged rather than blank.
+ */
+export function nameExampleDepartments(analysis) {
+  const ranked = analysis?.rankedDepartments;
+  if (!analysis || typeof analysis !== "object" || !Array.isArray(ranked)) return analysis;
+  return Object.freeze({
+    ...analysis,
+    rankedDepartments: Object.freeze(ranked.map((department) => {
+      const name = EXAMPLE_DEPARTMENT_NAMES[department?.id];
+      return name ? Object.freeze({ ...department, name }) : department;
+    })),
+  });
+}
+
+/** How many peers a cohort position needs before it is a position at all. */
+export const EXAMPLE_COHORT_MINIMUM_PEERS = 2;
+
+/**
+ * What the peer block says when the dataset cannot support one, and what would
+ * unblock it.
+ *
+ * Two sentences, never a dash, an empty list, or a hidden block — the idiom this
+ * page already uses for a withheld finding. The first names what is missing; the
+ * second names the input that would produce it, because a reader who is told
+ * only "unavailable" has nothing to do next.
+ */
+export const EXAMPLE_COHORT_UNAVAILABLE = Object.freeze({
+  tooFewPeers: {
+    reason: `No peer position: fewer than ${EXAMPLE_COHORT_MINIMUM_PEERS} departments in this `
+      + "example produced a cost per successful task, so there is no cohort to place one inside.",
+    needed: "Two or more departments must carry both attributed spend and at least one successful "
+      + "task in the reporting period before a peer position can be stated.",
+  },
+  noMedian: {
+    reason: "No peer position: the departments in this example produced no median cost per "
+      + "successful task, so there is no midpoint to compare any of them against.",
+    needed: "A department's spend and its successful-task count must both be present for the "
+      + "median to be computable.",
+  },
+});
+
+/** The midpoint of an ordered list of numbers, or null for an empty one. */
+function medianOf(values) {
+  if (!values.length) return null;
+  const sorted = [...values].sort((left, right) => left - right);
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 1
+    ? sorted[middle]
+    : (sorted[middle - 1] + sorted[middle]) / 2;
+}
+
+function cohortWithheld({ reason, needed }, peers) {
+  return Object.freeze({
+    available: false,
+    peers,
+    peerNames: Object.freeze(peers.map((peer) => peer.name)),
+    medianValue: null,
+    medianDisplay: null,
+    metricId: COST_METRIC.id,
+    rubricVersion: COST_POSITION_VERSION,
+    literacyRubricVersion: RUBRIC_VERSION_ID,
+    reason,
+    needed,
+  });
+}
+
+/**
+ * Where each of this company's departments sits against the others.
+ *
+ * The peer entries are not a parallel copy of the roster: they are built from
+ * the SAME envelope the headline benchmark divides and the SAME task ledger the
+ * org-level position counts, relabelled through `nameExampleDepartments`. So a
+ * name in the peer line is by construction a name the headline and the literacy
+ * letter are talking about, over the same reporting period.
+ *
+ * The median is derived here and never authored — a hand-written midpoint is a
+ * figure that survives the dataset changing under it.
+ *
+ * @param analysis the example envelope; relabelled here if it was not already.
+ * @param tasks the reporting window's task ledger. Defaults to this example's.
+ */
+export function exampleCohortPosition({ analysis = null, tasks = EXAMPLE_TASK_LEDGER } = {}) {
+  const named = nameExampleDepartments(analysis);
+  const departments = Array.isArray(named?.rankedDepartments) ? named.rankedDepartments : [];
+  const peers = [];
+  for (const department of departments) {
+    const successfulTasks = countSuccessfulTasks(
+      (Array.isArray(tasks) ? tasks : []).filter((row) => row?.orgUnitId === department?.id));
+    const value = costPerSuccessfulTask(Number(department?.spendUsd), successfulTasks);
+    if (value === null) continue;
+    peers.push(Object.freeze({
+      id: department.id,
+      name: department.name,
+      successfulTasks,
+      value,
+      valueDisplay: displayCostPerSuccessfulTask(value),
+    }));
+  }
+  peers.sort((left, right) => left.value - right.value || left.id.localeCompare(right.id));
+  const frozen = Object.freeze(peers);
+  if (frozen.length < EXAMPLE_COHORT_MINIMUM_PEERS) {
+    return cohortWithheld(EXAMPLE_COHORT_UNAVAILABLE.tooFewPeers, frozen);
+  }
+  const medianValue = medianOf(frozen.map((peer) => peer.value));
+  if (medianValue === null) return cohortWithheld(EXAMPLE_COHORT_UNAVAILABLE.noMedian, frozen);
+  return Object.freeze({
+    available: true,
+    peers: frozen,
+    peerNames: Object.freeze(frozen.map((peer) => peer.name)),
+    medianValue,
+    medianDisplay: displayCostPerSuccessfulTask(medianValue),
+    metricId: COST_METRIC.id,
+    /** The rubric the band boundaries above were computed under. */
+    rubricVersion: COST_POSITION_VERSION,
+    /** And the one the literacy letter beside them was graded under. */
+    literacyRubricVersion: RUBRIC_VERSION_ID,
+    reason: null,
+    needed: null,
+  });
+}
 
 const USAGE_UNIT = Object.freeze({
   "text-generation": "tokens",

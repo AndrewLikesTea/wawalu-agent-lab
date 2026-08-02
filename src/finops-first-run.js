@@ -47,7 +47,8 @@
 // markup; `finops-first-run-view.js` owns the DOM.
 
 import {
-  EXAMPLE_ORG_COHORT_PROFILE, EXAMPLE_TASK_LEDGER, loadExampleDataset,
+  EXAMPLE_ORG_COHORT_PROFILE, EXAMPLE_TASK_LEDGER, exampleCohortPosition,
+  loadExampleDataset, nameExampleDepartments,
 } from "./example-dataset.js";
 import { buildFinopsBriefing, validateBriefing } from "./finops-briefing-contract.js";
 import {
@@ -486,10 +487,11 @@ function peerSlot(analysis, org, tasks) {
  * withheld reason. It never renders the bare word "Unavailable" and it never
  * renders an empty panel: "we did not compare, here is why" is the answer.
  */
-function internalSlot(gap) {
+function internalSlot(gap, cohort = null) {
+  const peers = cohortSentence(cohort);
   if (gap?.status !== INTERNAL_GAP_STATUS.finding) {
     return bandedSlot(false, gap?.suppressedReason ?? FIRST_RUN_UNAVAILABLE.notComposed,
-      gap?.metric?.definition ?? "", band(BAND_STATE.withheld, WITHHELD_GAP_LABEL));
+      `${gap?.metric?.definition ?? ""}${peers}`.trim(), band(BAND_STATE.withheld, WITHHELD_GAP_LABEL));
   }
   // Severity is the band distance itself, in the rubric's own words: one band
   // behind is a gap, two or more is a different fact and gets a different chip.
@@ -497,17 +499,60 @@ function internalSlot(gap) {
   const state = distance >= 2 ? BAND_STATE.critical : BAND_STATE.behind;
   const words = bandDistanceWords(distance);
   const label = `${words.charAt(0).toUpperCase()}${words.slice(1)} behind`;
-  return bandedSlot(true, `${internalGapHeadline(gap)}.`, internalGapDetail(gap),
+  return bandedSlot(true, `${internalGapHeadline(gap)}.`, `${internalGapDetail(gap)}${peers}`,
     band(state, label));
 }
 
+/**
+ * The cohort the pair above was picked out of: who else is in it, where the
+ * middle of it is, and under which rubrics.
+ *
+ * It is one sentence appended to the slot's own detail rather than a block of
+ * its own, because it qualifies that finding and nothing else. Every name in it
+ * comes from `exampleCohortPosition`, which builds its peers out of the same
+ * relabelled envelope this slot's leader and laggard came from — so a reader
+ * cannot meet a team here that the headline and the literacy letter above are
+ * not also talking about.
+ *
+ * A degenerate cohort — fewer than two placeable departments, or no median —
+ * renders the reason and the input that would unblock it. Never an empty list,
+ * never a dash, and never a hidden block: the pair is still a finding, and the
+ * cohort behind it is still owed an explanation.
+ */
+function cohortSentence(cohort) {
+  if (!cohort) return "";
+  if (!cohort.available) return ` ${cohort.reason} ${cohort.needed}`;
+  return ` Cohort: ${cohort.peerNames.join(", ")} — ${cohort.peers.length} departments of the same `
+    + `invented company over the same reporting period, median ${cohort.medianDisplay} per `
+    + `successful task. Banded under ${cohort.rubricVersion}; the literacy letter beside this slot `
+    + `is graded under ${cohort.literacyRubricVersion}.`;
+}
+
+/** The department carrying the most analyzed spend, by name. Null when unnamed. */
+function topSpendDepartment(analysis) {
+  const departments = Array.isArray(analysis?.rankedDepartments) ? analysis.rankedDepartments : [];
+  let top = null;
+  for (const department of departments) {
+    const spend = Number(department?.spendUsd);
+    if (!Number.isFinite(spend)) continue;
+    if (!top || spend > Number(top.spendUsd)) top = department;
+  }
+  return typeof top?.name === "string" && top.name.trim() ? top.name.trim() : null;
+}
+
 /** The rank-1 action and the role accountable for it, or the reason there is none. */
-function actionSlot(briefing) {
+function actionSlot(briefing, analysis = null) {
   const ranked = briefing?.rankedAction;
   if (typeof ranked?.action === "string" && ranked.action.trim()) {
     const cap = usd(briefing?.materialMetric?.value);
+    // The team is named, not described. "The top-spend invented department" made
+    // the reader hold a ranking in their head to find out who the action was
+    // for, and it was the one line in this region that referred to a department
+    // without saying which — the peer slot below names two by name.
+    const top = topSpendDepartment(analysis);
+    const target = top ? `${top}, the top-spend invented department` : "the top-spend invented department";
     const action = cap
-      ? `Pilot lower-cost routing in the top-spend invented department. Cap the pilot at ${cap}, then compare it with a similar period.`
+      ? `Pilot lower-cost routing in ${target}. Cap the pilot at ${cap}, then compare it with a similar period.`
       : ranked.action;
     return slot(true, action,
       typeof ranked.accountableRole === "string" && ranked.accountableRole
@@ -631,7 +676,7 @@ function methodEntries(analysis, briefing, gap = null, literacy = null) {
  * useful in exactly those cases.
  */
 export function composeFirstRunResult({
-  analysis = null, briefing = null, decision = null, org = null, tasks = null,
+  analysis = null, briefing = null, decision = null, org = null, tasks = null, cohort = null,
 } = {}) {
   if (!analysis || typeof analysis !== "object" || !briefing || typeof briefing !== "object") {
     return unavailableResult(FIRST_RUN_UNAVAILABLE.notComposed);
@@ -692,10 +737,10 @@ export function composeFirstRunResult({
     benchmark,
     impact,
     peer: peerSlot(analysis, org, tasks),
-    internal: internalSlot(gap),
+    internal: internalSlot(gap, cohort),
     internalGap: gap,
     literacy,
-    action: actionSlot(briefing),
+    action: actionSlot(briefing, analysis),
     confidence: confidenceSlot(decision, notices),
     method: methodEntries(analysis, briefing, gap, literacy),
     reason: null,
@@ -792,7 +837,11 @@ function emptyResult() {
  */
 export function buildFirstRunResult(load = loadExampleDataset, loadDecision = loadCanonicalDecision) {
   try {
-    const analysis = load();
+    // Relabelled once, here, and then used for every block below. The headline
+    // benchmark, the literacy corpus's department column, the peer cohort, and
+    // the internal gap all read this one object, which is what makes the three
+    // blocks of the brief describe one company rather than three.
+    const analysis = nameExampleDepartments(load());
     // The established example analysis and the authored fixture are independent
     // local inputs. A broken fixture must not hide a still-valid benchmark and
     // action; it only removes the confidence claim it owns.
@@ -822,6 +871,7 @@ export function buildFirstRunResult(load = loadExampleDataset, loadDecision = lo
       decision,
       org: EXAMPLE_ORG_COHORT_PROFILE,
       tasks: EXAMPLE_TASK_LEDGER,
+      cohort: exampleCohortPosition({ analysis, tasks: EXAMPLE_TASK_LEDGER }),
     });
   } catch {
     return unavailableResult(FIRST_RUN_UNAVAILABLE.failed);
