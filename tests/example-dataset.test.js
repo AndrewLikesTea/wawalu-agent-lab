@@ -51,7 +51,14 @@ test("the example dataset carries no real identifier and no committed result", a
       assert.match(match[0], /^"psn_example_[A-Za-z0-9_-]+"$/, `${match[0]} must be an example pseudonym`);
   }
   // No pre-computed answer is stored: the numbers in the source are inputs.
-  assert.doesNotMatch(source, /spendUsd|recoverableUsd|rankedDepartments/);
+  //
+  // The module now also derives the example's peer cohort from an envelope it is
+  // handed, so *naming* an analysis field is expected and the bare-mention scan
+  // this used to be would fail on a read. What must never appear is one of those
+  // fields with a number authored beside it — a stored answer, which is the
+  // thing the assumption above actually forbids.
+  assert.doesNotMatch(source, /(spendUsd|recoverableUsd|medianValue|coveredUsd)\s*[:=][^=]*\d/,
+    "an analysis figure is authored into the dataset module rather than derived");
 });
 
 test("the example dataset translates to a valid envelope with stable key totals", () => {

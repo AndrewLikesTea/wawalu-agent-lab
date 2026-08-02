@@ -122,6 +122,14 @@ export function composeFirstRunLiteracy(analysis, load = analyzeConversationExpo
     coverageRule: eligibility.rule,
     departmentsGraded: gradedNames.size,
     departmentsTotal: departments.length,
+    // The teams the rubric did NOT grade, by name, as one pre-joined string.
+    // Named rather than counted because "4 of 5 departments" leaves a reader
+    // guessing which one is missing from the letter, and a string rather than an
+    // array because nothing nested may leave this function — see the redaction
+    // note above and the field-shape assertion in this module's test.
+    ungradedDepartments: departments
+      .filter((department) => !gradedNames.has(department.name))
+      .map((department) => department.name).join(", "),
   });
 
   // Two independent gates, and both must open. `showGrade` is the prompt-basis
@@ -157,10 +165,13 @@ export function composeFirstRunLiteracy(analysis, load = analyzeConversationExpo
  * or unclassified prompts, and those call for different fixes.
  */
 function coverageSentence(figures) {
+  const ungraded = figures.ungradedDepartments
+    ? ` Not graded: ${figures.ungradedDepartments}.` : "";
   return `${USD.format(figures.coveredUsd)} of ${USD.format(figures.totalUsd)} in-scope invented spend `
     + `was scored — ${figures.coverageTier} coverage, `
     + `${figures.departmentsGraded} of ${figures.departmentsTotal} invented departments, `
-    + `${COUNT.format(figures.promptsScored)} of ${COUNT.format(figures.promptsTotal)} synthetic prompts classified.`;
+    + `${COUNT.format(figures.promptsScored)} of ${COUNT.format(figures.promptsTotal)} synthetic prompts classified.`
+    + ungraded;
 }
 
 /** A slot with no figure in it, carrying the reason rather than a dash. */
@@ -183,6 +194,7 @@ function unavailable(reason) {
     coverageRule: null,
     departmentsGraded: 0,
     departmentsTotal: 0,
+    ungradedDepartments: "",
   });
 }
 
