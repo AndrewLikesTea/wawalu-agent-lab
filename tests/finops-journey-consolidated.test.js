@@ -243,6 +243,13 @@ test("every disclosure is a real button over a named region, operable by Enter a
       assert.equal(panel.getAttribute("aria-labelledby"), trigger.id,
         "the controlled region is labelled by its trigger");
 
+      // Reading order, in the source: the evidence is the NEXT thing after the
+      // control that reveals it. A panel moved elsewhere in the DOM leaves a
+      // reader who opens it somewhere other than where they pressed.
+      const siblings = trigger.parentNode.children.map((node) => node.getAttribute("id"));
+      assert.deepEqual(siblings, [trigger.id, panel.getAttribute("id")],
+        "the disclosure panel does not sit immediately after its own trigger");
+
       // Reachable by Tab, in document order.
       assert.ok(tabSequence(document).includes(trigger));
 
