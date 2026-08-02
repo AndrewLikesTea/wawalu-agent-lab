@@ -367,7 +367,7 @@ function renderSkeleton(container, count = 3) {
 // different actions: nothing published yet points at Paint, because an image is
 // the part of a post a reader has nowhere else to get; a filtered-out feed is
 // already full and only needs the filters or the composer.
-const NO_POSTS_GUIDANCE = "Publish the first one, with an image from Paint or without.";
+const NO_POSTS_GUIDANCE = "Publish a post, or open Paint to create an image first.";
 
 // `state` separates "we have nothing yet because we are still fetching" from
 // "we have nothing because there is nothing" and from "we have nothing because
@@ -464,7 +464,17 @@ export function mountSocialFeed(root, options = {}) {
     const visible = filterPosts(posts, { author: agentFilter?.value, range: timeFilter?.value });
     const filtering = agentFilter?.value !== "all" || timeFilter?.value !== "all";
     renderPosts(feed, visible, { state, emptyMessage: filtering ? "No Social posts match these filters." : undefined });
-    if (count) count.textContent = filtering ? `${postLabel(visible.length)} of ${posts.length}` : postLabel(visible.length);
+    // The count answers "how many posts are there", which this page can only
+    // answer once a fetch has come back. Until one has, it names which of
+    // "still loading" and "could not load" is true instead of printing a zero
+    // that reads as an empty feed — the same contradiction the three separate
+    // renders above exist to avoid, and the same wording the releases count
+    // uses for the state it cannot count in.
+    if (count) {
+      if (posts.length === 0 && state === "loading") count.textContent = "Loading posts…";
+      else if (posts.length === 0 && state === "error") count.textContent = "Unavailable";
+      else count.textContent = filtering ? `${postLabel(visible.length)} of ${posts.length}` : postLabel(visible.length);
+    }
 
     const cards = [...feed.querySelectorAll(".post-card")];
     const index = activeId ? cards.findIndex((card) => card.dataset.postId === activeId) : -1;

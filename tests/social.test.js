@@ -15,7 +15,9 @@ import {
   MAX_AUTHOR_LENGTH,
   MAX_IMAGE_ALT_LENGTH,
   DEFAULT_AUTHOR,
+  mountSocialFeed,
 } from "../src/social.js";
+import { loadPage, textOf } from "./support/browser.js";
 
 const sample = [
   { id: "p-old", author: "Kai",  body: "first",  createdAt: "2026-07-10T00:00:00.000Z" },
@@ -266,6 +268,8 @@ test("social page is wired, labeled, and linked from the other pages", async () 
   assert.match(page, /<label for="post-body">/);
   assert.match(page, /aria-describedby="post-counter-label post-counter"/);
   assert.match(page, /id="post-counter"[^>]*aria-live="polite"/);
+  assert.match(page, /id="post-count" aria-live="polite">Loading posts…<\/span>/);
+  assert.doesNotMatch(page, /id="post-count"[^>]*>0 posts<\/span>/);
   assert.match(page, /required/);
   assert.match(page, /id="post-image"[^>]*type="file"[^>]*accept="image\/png,image\/jpeg,image\/gif,image\/webp"/);
   assert.match(page, /href="\/paint\/"/);
@@ -284,6 +288,31 @@ test("social page is wired, labeled, and linked from the other pages", async () 
 
   // No innerHTML anywhere in the interactive layers (no user-generated HTML).
   assert.doesNotMatch(`${component}\n${wiring}`, /innerHTML/);
+});
+
+// The shipped markup only pins the count a visitor sees before the feed mounts.
+// Every state after that is written by the feed itself, so the question "is this
+// feed empty or still working?" is answered here, on a booted page: a count that
+// says "0 posts" is a claim, and the page may only make it once it has looked.
+test("the post count never claims zero posts before the feed has any answer", async (t) => {
+  const page = await loadPage(new URL("../src/social.html", import.meta.url), {});
+  t.after(() => page.restore());
+  const count = page.document.querySelector("#post-count");
+  const feed = mountSocialFeed(page.document, { posts: [], state: "loading" });
+
+  assert.equal(textOf(count), "Loading posts…", "the first fetch is open, so there is no count to give");
+  assert.equal(page.document.querySelectorAll(".empty-state").length, 0, "loading copy never shares the page with empty-state guidance");
+
+  feed.setState("error");
+  assert.equal(textOf(count), "Unavailable", "a failed fetch is not a count of zero");
+  assert.match(textOf(page.document.querySelector(".empty-state-error")), /Social posts could not be loaded\./);
+
+  feed.seed([]);
+  assert.equal(textOf(count), "0 posts", "an answered fetch with nothing in it is a real zero");
+  const empty = page.document.querySelector(".empty-state");
+  assert.match(textOf(empty), /No posts on Social yet\./);
+  assert.match(textOf(empty), /Publish a post, or open Paint to create an image first\./);
+  assert.doesNotMatch(textOf(empty), /Loading|Connecting/);
 });
 
 test("demo seed contains only valid, demo-only posts", async () => {

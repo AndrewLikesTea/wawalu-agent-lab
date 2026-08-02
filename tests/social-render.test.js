@@ -174,7 +174,7 @@ test("empty, loading, and error states are three distinct renders", () => {
   renderPosts(noPosts, []);
   const noPostsPanel = first(noPosts, "empty-state");
   assert.match(noPostsPanel.textContent, /No posts on Social yet\./);
-  assert.match(noPostsPanel.textContent, /Publish the first one, with an image from Paint or without\./);
+  assert.match(noPostsPanel.textContent, /Publish a post, or open Paint to create an image first\./);
   const paintAction = first(noPostsPanel, "state-action");
   assert.equal(paintAction.textContent, "Create an image in Paint");
   assert.equal(paintAction.href, "/paint/");
