@@ -13,6 +13,10 @@ import {
   letterGrade, literacyScore, quartileLabel, rankDepartmentsForHelp,
   recoverableSpendUsd, redactForScoring, summarize,
 } from "/evolution.js";
+import {
+  assessOwnDataEvidence, BUNDLED_OWN_DATA_EVIDENCE,
+} from "/own-data-evidence-preflight.js";
+import { renderOwnDataEvidencePreflight } from "/own-data-evidence-preflight-view.js";
 import { assessBriefingReadiness } from "/briefing-readiness.js";
 import { renderBriefingReadiness } from "/briefing-readiness-view.js";
 import { projectExecutiveBriefing } from "/executive-briefing-projection.js";
@@ -3669,5 +3673,9 @@ async function init() {
 
   await loadAndRender();
 }
+
+// Painted before init() so the evidence gate is answered on first paint rather
+// than after the bundled analysis loads. It reads only the bundled package.
+renderOwnDataEvidencePreflight(document, assessOwnDataEvidence(BUNDLED_OWN_DATA_EVIDENCE));
 
 init();
