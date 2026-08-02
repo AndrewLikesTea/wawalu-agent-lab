@@ -70,9 +70,10 @@ const SEEDED_TEXT = Object.freeze([
   "briefing-readiness-boundary",
   "finops-stand-answer",
   "finops-stand-evidence", "finops-stand-confidence",
-  "finops-stand-position-value", "finops-stand-position-basis",
   "finops-stand-recoverable-value", "finops-stand-recoverable-basis",
+  "finops-stand-position-value", "finops-stand-position-basis",
   "finops-stand-team-name", "finops-stand-team-detail",
+  "finops-stand-action", "finops-stand-action-basis",
   ANSWER_ANNOUNCER_ID,
 ]);
 
@@ -120,7 +121,7 @@ test("every seeded slot matches the authored markup exactly once", () => {
   // reaching here is the assertion. The count is stated so a slot cannot be
   // quietly dropped from the seed and leave this suite still green.
   const edits = firstScreenEdits(BUNDLED);
-  assert.equal(edits.length, 32, "the seed covers 32 first-screen slots");
+  assert.equal(edits.length, 34, "the seed covers 34 first-screen slots");
   for (const { slot, find } of edits) {
     assert.equal(SOURCE.split(find).length - 1, 1, `${slot} matches the authored markup once`);
   }
@@ -260,4 +261,93 @@ test("a boot paint of the answer the document already carries announces nothing"
   assert.equal(writes, 1, "a boot that composed a different sentence still gets it, written once");
   announceAnswer(counting, seededSentence);
   assert.equal(writes, 3, "a real answer change is still blanked and re-set, so it is spoken");
+});
+
+// ---------------------------------------------------------------------------
+// THE LEAD FINDING (#956). One region, one number, one department, one action.
+//
+// The page used to answer "how much of our AI spend is recoverable, and what
+// should we do first?" twice over: the classification verdict led with "Not
+// enough scored to stand behind", and the recoverable figure — the answer to
+// the question actually being asked — sat three cards below it at card weight,
+// while #finops-first-run stated it again at full headline weight two screens
+// down. These assertions hold the order the served document now ships in, and
+// they hold it on the SEEDED markup rather than on a paint, because what a
+// leader lands on is the bytes, not the render.
+// ---------------------------------------------------------------------------
+
+/** Where an id sits in the served document, as a byte offset. Order, not layout. */
+const positionOf = (id) => SEEDED.indexOf(`id="${id}"`);
+
+test("the lead finding leads with the recoverable figure, its department, and one action", () => {
+  const document = seededDocument();
+  // The one material number, on load, formatted the way the page formats it.
+  assert.match(textOf(document.getElementById("finops-stand-recoverable-value")),
+    /^\$[\d,]+ · \d+% of analyzed spend$/);
+  // The department driving it, named in text.
+  assert.ok(textOf(document.getElementById("finops-stand-team-name")).trim().length > 0,
+    "the driving department is named in the served document");
+  assert.equal(document.getElementById("finops-stand-team").dataset.available, "true");
+  // One action, and it is a real anchor the reader can take before any script
+  // runs. The `hidden` it ships with is dropped by the same seed edit that gives
+  // it its label, so an action that never composed stays out of the tree rather
+  // than shipping empty.
+  const action = document.getElementById("finops-stand-action");
+  assert.equal(action.hasAttribute("hidden"), false);
+  assert.ok(action.getAttribute("href"), "the action is a real link, not a scripted control");
+  const label = textOf(action).trim();
+  assert.ok(label.length > 0, "the action carries its label in the served bytes");
+  for (const placeholder of PENDING) assert.notEqual(label, placeholder);
+  assert.equal(/^(—|-|…)$/.test(label), false, "the action is never a dash or an ellipsis");
+  assert.ok(textOf(document.getElementById("finops-stand-action-basis")).trim().length > 0,
+    "and the reason to take it travels with it");
+
+  // And the order: the answer sentence, the number, the department, the action —
+  // every one of them ahead of the classification verdict that used to lead.
+  const lead = ["finops-stand-answer", "finops-stand-recoverable-value",
+    "finops-stand-team-name", "finops-stand-action"].map(positionOf);
+  assert.deepEqual(lead, [...lead].sort((left, right) => left - right),
+    "the lead finding is in the order it is spoken");
+  assert.ok(Math.max(...lead) < positionOf("finops-answer-value"),
+    "the classification verdict follows the finding rather than leading it");
+  assert.ok(Math.max(...lead) < positionOf("briefing-readiness-verdict"),
+    "the circulation checklist follows the finding too");
+});
+
+test("the provenance label in the lead finding names the bundled sample on load", () => {
+  const document = seededDocument();
+  const marker = document.getElementById("finops-stand-sample");
+  assert.equal(marker.dataset.source ?? "example", "example");
+  assert.match(textOf(marker), /Bundled synthetic example/);
+  // The eyebrow above the question says the same thing, and neither of them
+  // claims the reader imported anything.
+  assert.match(textOf(document.getElementById("finops-stand-label")),
+    /Bundled synthetic example/);
+  assert.equal(/Imported/.test(textOf(marker)), false);
+});
+
+test("every demoted signal keeps its id and its computed value", () => {
+  const document = seededDocument();
+  // Nothing was dropped when the finding moved above it. Each of these is the
+  // same node with the same id, still carrying the value the build computed for
+  // it, one step below the finding instead of level with it.
+  const demoted = {
+    "finops-answer-value": /\S/,
+    "finops-answer-label": /\S/,
+    "finops-answer-confidence": /\S/,
+    "finops-stand-position-value": /per successful task$/,
+    "finops-stand-position-basis": /\S/,
+    "finops-stand-evidence": /\S/,
+    "finops-stand-confidence": /\S/,
+    "briefing-readiness-verdict": /\S/,
+    "finops-stand-answer": /\S/,
+  };
+  for (const [id, shape] of Object.entries(demoted)) {
+    const node = document.getElementById(id);
+    assert.equal(node?.id, id, `${id} is still in the document`);
+    assert.match(textOf(node), shape, `${id} still carries its computed value`);
+  }
+  // The position figure is still declared available, so it was demoted in
+  // reading order rather than suppressed.
+  assert.equal(document.getElementById("finops-stand-position-value").dataset.available, "true");
 });
