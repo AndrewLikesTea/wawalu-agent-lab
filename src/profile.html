@@ -84,33 +84,41 @@
             <span class="count" id="profile-count">0 image posts</span>
           </div>
           <!-- People is where a visitor browses images, so the route into the
-               editor stays beside them. It is a route and nothing more: what an
-               image has to do to land in this grid is said once, by the empty
-               state directly below, and this paragraph sits close enough to it
-               that saying it twice is the defect, not the redundancy.
+               editor stays beside them. The sentence names both steps in the
+               order they happen, because Paint publishes nothing: it used to
+               read "Want a picture of your own here? Open Paint", which made
+               opening the editor sound like the whole path and left the
+               publishing step to an empty state a reader with posts on screen
+               never sees.
                `from=profile` is provenance, not state: it is what lets Paint's
                one back link say "Back to People" and mean it. profile.js adds
                the selected display name to it so the return lands on the exact
                profile that was being read; this static href is the
-               pre-hydration render and returns to People either way. -->
+               pre-hydration render and returns to People either way. Social is
+               named in words and not linked here: the way back to the whole
+               feed is already a link in the hero, and this paragraph holds one
+               route only. -->
           <p class="feed-create hint">
-            Want a picture of your own here? <a class="text-link paint-link" id="profile-paint-route" href="/paint/?from=profile">Open Paint</a>.
+            Want a picture of your own here? Create or export the image in <a class="text-link paint-link" id="profile-paint-route" href="/paint/?from=profile">Paint</a>, then publish it on Social under a display name.
           </p>
 
           <div class="profile-toolbar">
             <div class="filter">
-              <label for="profile-author">Display name</label>
+              <label for="profile-author">Show posts by</label>
               <select id="profile-author" aria-describedby="profile-author-hint"></select>
             </div>
-            <!-- "Display name" is the one term the site uses for the name a post
-                 is published under, and the composer on Social labels the same
-                 thing the same way. This block used to be headed "Profile" and
-                 explained itself in a circle — "a profile is a display name" —
-                 which named a surface this site does not have. The “Guest”
-                 default belongs to the composer, where a name is typed, so it
-                 is not repeated here. -->
+            <!-- The label says what choosing an entry does, in Social's own
+                 words: its feed labels a filter "Show posts". The menu holds
+                 display names, and the hint below names the term rather than
+                 the label doing it — a control headed "Display name" said what
+                 the list contained and never said that picking one changes
+                 whose posts the grid shows. Before that this block was headed
+                 "Profile" and explained itself in a circle — "a profile is a
+                 display name" — which named a surface this site does not have.
+                 The “Guest” default belongs to the composer, where a name is
+                 typed, so it is not repeated here. -->
             <p class="hint profile-toolbar-hint" id="profile-author-hint">
-              The display name is the name shown on each post. Yours is the name you last posted under.
+              The display name is the name shown on each post. People shows the image posts published under one display name, so a post you publish under a name appears on that name’s page.
             </p>
           </div>
 
