@@ -102,6 +102,53 @@ test("a file no published contract claims still reaches the routes that owned it
     "the column-mapping review to open on an unclaimed file");
 });
 
+// --- content-based provider detection (#957) --------------------------------
+
+test("the ready panel names the provider the file's own columns identified", async () => {
+  const { document } = await openFinopsTab();
+  chooseFile(document, "bedrock-usage.csv", BEDROCK_EXPORT);
+  await waitFor(() => activationState(document) === "ready",
+    "the detected Bedrock export to reach the ready state");
+
+  const status = textOf(document.getElementById("local-export-activation-status"));
+  // The reader named no provider anywhere in this flow: the verdict, the
+  // confidence and the evidence behind it all came from the file.
+  assert.match(status, /AWS Bedrock identified from this file's own columns at \d+ of 100/);
+  assert.match(status, /2 of 2 signature columns and 6 of 6 billing roles/);
+  assert.doesNotMatch(status, /000000000001|anthropic\.claude-sonnet|4\.80/);
+});
+
+test("a refused file is told the named reason and the importer it is nearest to", async () => {
+  const { document } = await openFinopsTab();
+  // A JSON file no route claims: before #957 this reached the reader as the
+  // generic "correct the file issue below" line and nothing else.
+  chooseFile(document, "notes.json", JSON.stringify({ posting_date: "2026-07-20", note: "n/a" }));
+  await waitFor(() => activationState(document) === "error",
+    "the unrecognized file to be refused");
+
+  const status = textOf(document.getElementById("local-export-activation-status"));
+  assert.match(status, /No cost or amount column was found/);
+  assert.match(status, /closest supported importer is .+ which this file matched at \d+ of 100/);
+  // The panel keeps its own recovery line: the named reason leads it, never
+  // replaces it.
+  assert.match(status, /Correct the file issue below/);
+  // A message only painted into the panel is one a screen reader never gets.
+  const alert = textOf(document.getElementById("local-import-alert"));
+  assert.match(alert, /No cost or amount column was found/);
+  assert.match(alert, /closest supported importer/);
+});
+
+test("an empty file is a named reason rather than a blank panel", async () => {
+  const { document } = await openFinopsTab();
+  chooseFile(document, "empty.csv", "   \n  \n");
+  await waitFor(() => activationState(document) === "error",
+    "the empty file to be refused");
+  const status = textOf(document.getElementById("local-export-activation-status"));
+  assert.match(status, /empty or contains only blank space/);
+  assert.match(textOf(document.getElementById("local-import-alert")),
+    /empty or contains only blank space/);
+});
+
 // --- payload placement ------------------------------------------------------
 
 test("the adapters are loaded on demand, never in the page's initial payload", async () => {
@@ -111,4 +158,9 @@ test("the adapters are loaded on demand, never in the page's initial payload", a
   // A static import would put the module — and everything it reaches — into the
   // graph scripts/check-size-budget.mjs measures as the first-screen payload.
   assert.doesNotMatch(source, /^import[^;]*from\s*"\/hyperscaler-export-adapters\.js"/m);
+  // The detection entry point rides the same dynamic import for the same
+  // reason: it runs only once a reader has dropped a file in.
+  assert.match(source, /import\("\/export-provider-detection\.js"\)/,
+    "the entry point must reach provider detection through a dynamic import");
+  assert.doesNotMatch(source, /^import[^;]*from\s*"\/export-provider-detection\.js"/m);
 });
