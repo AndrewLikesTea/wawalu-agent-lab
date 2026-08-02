@@ -55,6 +55,7 @@ export function createElement(tagName) {
     },
     setAttribute(name, value) { node.attributes[name] = String(value); },
     getAttribute(name) { return node.attributes[name] ?? null; },
+    removeAttribute(name) { delete node.attributes[name]; },
     addEventListener(type, handler) { (node.listeners[type] ??= []).push(handler); },
     dispatch(type, event) { for (const handler of node.listeners[type] ?? []) handler(event); },
     querySelector(selector) {

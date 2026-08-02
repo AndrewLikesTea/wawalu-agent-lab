@@ -1115,21 +1115,30 @@
             <span id="analysis-mode-label">Bundled synthetic example</span>
           </span>
         </div>
-        <section class="own-data-preflight" id="own-data-evidence-preflight" data-outcome="pending" aria-labelledby="own-data-preflight-question">
+        <section class="own-data-preflight" id="own-data-evidence-preflight" data-outcome="loading" aria-labelledby="own-data-preflight-question" aria-describedby="own-data-preflight-status" aria-busy="true">
           <p class="eyebrow">Evidence preflight · bundled local example</p>
           <h3 id="own-data-preflight-question">Can this export support a trustworthy department-spend decision?</h3>
-          <p class="own-data-preflight-finding" id="own-data-preflight-finding">Checking the bundled evidence package.</p>
-          <p class="own-data-preflight-benchmark" id="own-data-preflight-benchmark">Benchmark: 90% required spend coverage.</p>
-          <div class="own-data-preflight-sources">
-            <h4>What evidence is present?</h4>
-            <ul id="own-data-preflight-provenance"></ul>
-          </div>
-          <p class="own-data-preflight-confidence" id="own-data-preflight-confidence">No confidence limit available yet.</p>
+          <p class="own-data-preflight-status" id="own-data-preflight-status"><span class="status-shape" aria-hidden="true">○</span> Not yet classified · No evidence has been validated. Processing stays local to this tab; no file is uploaded or retained.</p>
+          <p class="own-data-preflight-finding" id="own-data-preflight-finding"><strong class="own-data-preflight-verdict">Checking evidence</strong><span>Results will appear after local validation.</span></p>
+          <dl class="own-data-preflight-measures">
+            <div><dt>Evidence benchmark</dt><dd id="own-data-preflight-benchmark">90% required spend coverage.</dd></div>
+            <div><dt>Confidence and sufficiency</dt><dd class="own-data-preflight-confidence" id="own-data-preflight-confidence">Not classified · Evidence has not been validated yet.</dd></div>
+          </dl>
           <p class="own-data-preflight-action"><strong>Prioritized next action</strong><span id="own-data-preflight-action">Waiting for the evidence check.</span></p>
-          <div class="own-data-preflight-boundary">
-            <p>This preflight reads invented bundled rows in this tab. Its static-demo boundary:</p>
-            <ul id="own-data-preflight-boundary"></ul>
-          </div>
+          <details class="own-data-preflight-disclosure" id="own-data-preflight-disclosure">
+            <summary id="own-data-preflight-disclosure-summary" aria-expanded="false" aria-controls="own-data-preflight-disclosure-body">Provenance and limitations <span id="own-data-preflight-disclosure-state">Show</span></summary>
+            <div id="own-data-preflight-disclosure-body">
+              <div class="own-data-preflight-sources">
+                <h4>Evidence provenance</h4>
+                <ul id="own-data-preflight-provenance"></ul>
+              </div>
+              <div class="own-data-preflight-boundary">
+                <h4>Local-processing limits</h4>
+                <p>Evidence is processed locally in this tab. Incomplete query evidence limits classification confidence.</p>
+                <ul id="own-data-preflight-boundary"></ul>
+              </div>
+            </div>
+          </details>
         </section>
         <div class="privacy-boundary" role="note" aria-label="Local processing privacy boundary">
           <strong>Your files do not leave this tab.</strong>

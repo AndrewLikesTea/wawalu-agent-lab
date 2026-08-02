@@ -242,6 +242,7 @@ test("the preflight restatement never contradicts the projection it restates", a
 test("the live workspace wires JSON and mapped provider exports into the projection", async () => {
   const entry = await readFile(new URL("../src/evolution-page.js", import.meta.url), "utf8");
   assert.match(entry, /import\("\/provider-export-projection\.js"\)/);
-  assert.match(entry, /renderProviderExportProjection\(document, projectProviderExport\(providerDocument\)\)/);
+  assert.match(entry, /const projection = projectProviderExport\(providerDocument\)/);
+  assert.match(entry, /renderProviderExportProjection\(document, projection\)/);
   assert.equal((entry.match(/await paintProviderProjection\(parsed\.document\)/g) ?? []).length, 2);
 });
