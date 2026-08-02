@@ -171,7 +171,7 @@ test("a decrease and a flat month are both findings, not missing ones", () => {
   assert.match(movementSentence(flat), /2026-07 vs 2026-06: flat at 7,500 USD/);
 });
 
-test("one period names itself, states the figure, and blames nobody", () => {
+test("one period says what is withheld, why, and which control supplies it", () => {
   const summary = periodMovement(importedPeriodSeries(SINGLE_MONTH()));
   assert.equal(summary.available, false);
   assert.equal(summary.periodCount, 1);
@@ -179,8 +179,12 @@ test("one period names itself, states the figure, and blames nobody", () => {
   assert.equal(summary.priorPeriod, null);
   assert.equal(summary.delta, null);
   const sentence = movementSentence(summary);
-  assert.match(sentence, /2026-07 is the only period in this export/);
-  assert.match(sentence, /9,000 USD/);
+  // Three jobs, three sentences. What is not on screen…
+  assert.match(sentence, /^No month-over-month movement yet\./);
+  // …the one input that is missing, with the month and the figure named…
+  assert.match(sentence, /covers one month — 2026-07, at 9,000 USD — and a movement needs two/);
+  // …and the control that supplies it, by the label it carries in evolution.html.
+  assert.match(sentence, /Under "Choose your export files", add an export covering an earlier month/);
   for (const blame of [/re-?export/i, /only one period was retained/i, /you (must|should|need)/i]) {
     assert.doesNotMatch(sentence, blame, "the single-period sentence must not blame the reader");
   }

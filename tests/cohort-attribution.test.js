@@ -140,9 +140,14 @@ test("an unrecognized industry is reported as declared, through the merge path",
     'This import declares an industry of "Rocket Surgery", which is not a value this cohort '
     + "contract publishes.");
   // And the instruction is to change the value, not to add a column the file
-  // already has: `industry` is right there in the header.
-  assert.match(decision.nextStep, /Change the declared industry value to one of: saas, financial_services/);
-  assert.match(decision.nextStep, /already in the file/);
+  // already has: `industry` is right there in the header. The choosers are not
+  // offered on this state — a typed-in value is read only where the file left
+  // the column empty — so the step names the file and the page's file input.
+  assert.match(decision.nextStep,
+    /Change the industry value in the file to one of: saas, financial_services/);
+  assert.match(decision.nextStep, /the column is already there/);
+  assert.match(decision.nextStep, /choose the file again under "Choose your export files"/);
+  assert.doesNotMatch(decision.nextStep, /Place this import with these values/);
   assert.equal(decision.declared.industryRaw, "Rocket Surgery");
   assert.equal(decision.position, null);
   for (const accepted of ACCEPTED_INDUSTRIES) assert.match(decision.nextStep, new RegExp(accepted));
@@ -155,14 +160,15 @@ test("an unrecognized org size band is reported as declared, through the merge p
   assert.equal(decision.reasonText,
     'This import declares an organization size band of "gigantic", which is not a value this '
     + "cohort contract publishes.");
-  assert.match(decision.nextStep, /already in the file/);
+  assert.match(decision.nextStep, /the column is already there/);
+  assert.match(decision.nextStep, /choose the file again under "Choose your export files"/);
   for (const accepted of ACCEPTED_ORG_SIZE_BANDS) assert.match(decision.nextStep, new RegExp(accepted));
   assert.equal(decision.declared.orgSizeBandRaw, "gigantic");
 });
 
 test("a genuinely absent column is a different answer from an unaccepted value", () => {
-  // No industry column at all: the instruction is to add one, and it is the
-  // only state in which that instruction is correct.
+  // No industry column at all: this is the state the in-page choosers exist for,
+  // so the step is to type the fact in rather than to edit and re-import a file.
   const noIndustry = [
     "usage_date,department_key,amount,org_size_band",
     "2026-06-05,unit-1,100,scaling",
@@ -173,7 +179,12 @@ test("a genuinely absent column is a different answer from an unaccepted value",
   ].join("\n");
   const decision = decide(noIndustry);
   assert.equal(decision.reason, COHORT_ATTRIBUTION_REASON.missingIndustry);
-  assert.match(decision.nextStep, /Add an industry column/);
+  // The step names the control that supplies the fact, by its shipped label, and
+  // says the import is not re-read. It must not send the reader back to a file.
+  assert.match(decision.nextStep,
+    /choose "Organization size band" and "Industry", then press "Place this import with these values"/);
+  assert.match(decision.nextStep, /industries on offer are saas, financial_services/);
+  assert.match(decision.nextStep, /The file is not opened again/);
   assert.equal(decision.declared.industryRaw, "");
   assert.notEqual(decision.reason, COHORT_ATTRIBUTION_REASON.unrecognizedIndustry);
 });
@@ -250,7 +261,8 @@ test("a declared band that disagrees with the counted units is reported, not tru
   const decision = decide(usageExport({ units: 6, orgSizeBand: "focused" }));
   assert.equal(decision.reason, COHORT_ATTRIBUTION_REASON.orgSizeBandMismatch);
   assert.match(decision.reasonText, /carries 6 attributed org units/);
-  assert.match(decision.nextStep, /Declare "scaling"/);
+  assert.match(decision.nextStep, /Set the org_size_band value in the file to "scaling"/);
+  assert.match(decision.nextStep, /choose the file again under "Choose your export files"/);
 });
 
 test("inactive units are excluded from the count the cohort is selected on", () => {

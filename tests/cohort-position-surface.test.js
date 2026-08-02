@@ -146,10 +146,16 @@ test("an unrecognized declared industry reaches the screen as the value the read
       + "contract publishes.");
     assert.match(shownText(document, "local-cohort-detail"), /Reason code: UNRECOGNIZED_INDUSTRY/);
     // The instruction is to change the value. Telling a reader to add a column
-    // their file already carries is the defect this assertion stands against.
+    // their file already carries is the defect this assertion stands against —
+    // and so is pointing at the in-page choosers, which are not offered here and
+    // would be ignored if they were: a typed-in value is read only where the
+    // file left the column empty.
     assert.match(shownText(document, "local-cohort-next"),
-      /Change the declared industry value to one of: saas, financial_services/);
+      /Change the industry value in the file to one of: saas, financial_services/);
     assert.equal(shownText(document, "local-cohort-next").includes("Add an industry column"), false);
+    assert.equal(
+      shownText(document, "local-cohort-next").includes("Place this import with these values"),
+      false);
   } finally {
     page.restore();
   }
@@ -167,7 +173,7 @@ test("an unrecognized declared size band reaches the screen the same way", async
       'This import declares an organization size band of "gigantic", which is not a value this '
       + "cohort contract publishes.");
     assert.match(shownText(document, "local-cohort-next"),
-      /Change the declared org_size_band value to one of: focused, scaling, enterprise/);
+      /Change the org_size_band value in the file to one of: focused, scaling, enterprise/);
   } finally {
     page.restore();
   }
@@ -199,8 +205,20 @@ test("an export declaring nothing keeps its findings and says what is missing", 
     assert.equal(byId(document, "local-cohort-position").dataset.state, "withheld");
     assert.match(shownText(document, "local-cohort-detail"),
       /Reason code: MISSING_ORG_SIZE_BAND/);
-    assert.match(shownText(document, "local-cohort-next"),
-      /Add an org_size_band column declaring one of: focused, scaling, enterprise/);
+    // Three distinct jobs on screen: the eyebrow says what is withheld, the
+    // headline names the missing input, and the next line names the control that
+    // supplies it — by the exact label that control carries in the markup below.
+    assert.equal(shownText(document, "local-cohort-state"), "Ranked position withheld");
+    assert.match(shownText(document, "local-cohort-headline"),
+      /declares no organization size band, and no column in it carries one/);
+    const next = shownText(document, "local-cohort-next");
+    assert.match(next,
+      /choose "Organization size band" and "Industry", then press "Place this import with these values"/);
+    assert.match(next, /bands on offer are focused, scaling, enterprise/);
+    // The label quoted in the copy is the one the shipped control wears.
+    assert.equal(byId(document, "local-cohort-declare-submit").textContent,
+      "Place this import with these values");
+    assert.equal(byId(document, "local-cohort-declare").hidden, false);
   } finally {
     page.restore();
   }

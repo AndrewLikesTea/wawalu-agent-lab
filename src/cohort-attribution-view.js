@@ -146,9 +146,15 @@ export function applyCohortAttribution(doc, result = null) {
 // page builds a chooser, and now this control builds one too.
 // ---------------------------------------------------------------------------
 
-const LEAD = "This import declares neither an organization size band nor an industry, and no "
-  + "column in it can supply them. Declare them here and the position is recomputed from the "
-  + "import already in this tab — nothing is re-read, re-uploaded, or kept beyond this session.";
+// ACCURATE ON BOTH REASONS THAT REACH IT. This control is offered when the file
+// is missing the band, when it is missing the industry, and when it is missing
+// both — so it cannot say "neither ... nor", which is false for an import that
+// declared one of the two. It names what a cohort is selected on and lets the
+// panel above say which of the two this file left empty.
+const LEAD = "A cohort is selected on two declared attributes — an organization size band and an "
+  + "industry — and no column in this import supplies both. Choose them here and the position is "
+  + "recomputed from the import already in this tab: nothing is re-read, re-uploaded, or kept "
+  + "beyond this session.";
 
 const fillOptions = (doc, select, entries) => {
   select.replaceChildren(...entries.map(({ value, label }) => {
