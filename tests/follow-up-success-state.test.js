@@ -78,6 +78,12 @@ async function openFooterPage() {
   return page;
 }
 
+async function openNamedFooterPage(file) {
+  const page = await loadPage(new URL(`../src/${file}`, import.meta.url));
+  await importPageModule("/site-footer-page.js");
+  return page;
+}
+
 async function openBriefingPage() {
   const page = await loadPage(BRIEFING_PAGE, { routes: { [BRIEFING_FIXTURE_PATH]: BRIEFING_FIXTURE } });
   await importPageModule("/executive-briefing-page.js");
@@ -93,6 +99,28 @@ const SURFACES = [
   { name: "the About Shiplog footer", open: openFooterPage, prefix: "site-footer" },
   { name: "the executive briefing", open: openBriefingPage, prefix: "briefing-contact" },
 ];
+
+test("Social, People, Releases, and Prompt coach all show the shared success confirmation", async () => {
+  const pages = ["social.html", "profile.html", "releases.html", "coach.html"];
+  for (const file of pages) {
+    const page = await openNamedFooterPage(file);
+    const calls = interceptLeads(() => jsonReply({ subscribed: true }, 201));
+    try {
+      byId(page.document, "site-footer-open").click();
+      submitEmail(page.document, "site-footer", LONG_EMAIL);
+      await settled(page.document, "site-footer");
+
+      assert.equal(calls.length, 1, `${file}: valid submission must be sent once`);
+      assert.equal(byId(page.document, "site-footer-form").dataset.state, "success", `${file}: success state`);
+      assert.ok(byId(page.document, "site-footer-confirmation"), `${file}: visible confirmation`);
+      assert.equal(page.document.activeElement?.id, "site-footer-confirmation", `${file}: focus reaches confirmation`);
+      assert.match(shownText(page.document, "site-footer-status"), /person replies by email/,
+        `${file}: confirmation states the next step`);
+    } finally {
+      page.restore();
+    }
+  }
+});
 
 for (const { name, open, prefix } of SURFACES) {
   test(`${name} answers a landed request with a receipt naming the address`, async () => {

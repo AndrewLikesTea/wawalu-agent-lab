@@ -137,7 +137,12 @@ export function resolveFailure(response, body, copy) {
  * `{ email, purpose }` is the entire documented request shape. The purpose is
  * never page content.
  *
- * Resolves with the parsed success body; throws a SubmissionError carrying copy
+ * Resolves every 2xx response as a capture. HTTP success is the durable
+ * browser/server contract: older deployed handlers returned `subscribed`
+ * while the current handler returns `created`, and rejecting the former after
+ * it had committed a row made a valid request visibly end in failure.
+ * `created` is normalized for callers that distinguish a new row from an
+ * existing one. Non-2xx responses still throw a SubmissionError carrying copy
  * this module owns plus the reason code that drives recovery.
  */
 export async function postLeadEmail(request, email, purpose, copy) {
@@ -154,10 +159,10 @@ export async function postLeadEmail(request, email, purpose, copy) {
     const failure = resolveFailure(response, body, copy);
     throw new SubmissionError(failure.message, failure.reason);
   }
-  if (body?.captured !== true || body?.purpose !== purpose || typeof body?.created !== "boolean") {
-    throw new SubmissionError(copy.unconfirmed, "unconfirmed");
-  }
-  return body;
+  const created = typeof body?.created === "boolean"
+    ? body.created
+    : (typeof body?.subscribed === "boolean" ? body.subscribed : true);
+  return { captured: true, created, purpose };
 }
 
 // The browser's own shape check, for forms that cannot lean on the control's

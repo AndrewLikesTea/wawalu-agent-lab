@@ -196,6 +196,16 @@ test("client submits once, announces success, and restores the control", async (
   assert.equal(harness.button.disabled, false);
 });
 
+test("client treats a legacy 2xx response as success after the row was captured", async () => {
+  const harness = leadFormHarness();
+  initLeadCapture(harness.root, async () => jsonResponse({ subscribed: true }, 201));
+  await harness.listeners.submit({ preventDefault() {} });
+
+  assert.equal(harness.form.dataset.state, "success");
+  assert.match(harness.status.textContent, /^You’re subscribed\./);
+  assert.equal(harness.recovery.hidden, true);
+});
+
 test("client validates empty and invalid work email inline without losing input", async () => {
   const harness = leadFormHarness();
   let requests = 0;
