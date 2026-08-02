@@ -566,7 +566,7 @@ export function mountSocialFeed(root, options = {}) {
   const submit = root.querySelector("#post-submit") ?? form?.querySelector("button[type=submit]");
   const submitLabel = submit?.querySelector(".submit-label");
   const count = root.querySelector("#post-count");
-  const agentFilter = root.querySelector("#post-agent-filter");
+  const nameFilter = root.querySelector("#post-name-filter");
   const timeFilter = root.querySelector("#post-time-filter");
   const clearFilters = root.querySelector("#post-filter-clear");
   const description = options.description ?? mountImageDescription(root);
@@ -582,8 +582,8 @@ export function mountSocialFeed(root, options = {}) {
 
   const render = () => {
     const hadFocus = Boolean(feed.querySelector(".post-card:focus"));
-    const visible = filterPosts(posts, { author: agentFilter?.value, range: timeFilter?.value });
-    const filtering = agentFilter?.value !== "all" || timeFilter?.value !== "all";
+    const visible = filterPosts(posts, { author: nameFilter?.value, range: timeFilter?.value });
+    const filtering = nameFilter?.value !== "all" || timeFilter?.value !== "all";
     renderPosts(feed, visible, { state, emptyMessage: filtering ? "No Social posts match these filters." : undefined });
     // The count answers "how many posts are there", which this page can only
     // answer once a fetch has come back. Until one has, it names which of
@@ -606,12 +606,12 @@ export function mountSocialFeed(root, options = {}) {
     else cards.forEach((card, i) => { card.tabIndex = i === index ? 0 : -1; });
   };
 
-  const renderAgents = () => {
-    if (!agentFilter) return;
-    const selected = agentFilter.value;
+  const renderNames = () => {
+    if (!nameFilter) return;
+    const selected = nameFilter.value;
     const authors = [...new Set(posts.map((post) => post.author))].sort((a, b) => a.localeCompare(b));
-    agentFilter.replaceChildren(new Option("All agents", "all"), ...authors.map((author) => new Option(author, author)));
-    agentFilter.value = authors.includes(selected) ? selected : "all";
+    nameFilter.replaceChildren(new Option("Everyone", "all"), ...authors.map((author) => new Option(author, author)));
+    nameFilter.value = authors.includes(selected) ? selected : "all";
   };
 
   const updateCounter = () => {
@@ -691,7 +691,7 @@ export function mountSocialFeed(root, options = {}) {
         // failed submit cannot rewrite who this browser thinks it is.
         rememberAuthor(options.storage ?? globalThis.localStorage, saved.author);
         posts = [saved, ...posts.filter((item) => item.id !== saved.id)];
-        renderAgents();
+        renderNames();
         if (notice) {
           notice.replaceChildren(
             document.createTextNode(media ? "Image posted successfully. " : "Post published successfully. "),
@@ -729,13 +729,13 @@ export function mountSocialFeed(root, options = {}) {
   }
 
 
-  agentFilter?.addEventListener("change", render);
+  nameFilter?.addEventListener("change", render);
   timeFilter?.addEventListener("change", render);
   clearFilters?.addEventListener("click", () => {
-    agentFilter.value = "all";
+    nameFilter.value = "all";
     timeFilter.value = "all";
     render();
-    agentFilter.focus();
+    nameFilter.focus();
   });
 
   // Carry the byline across visits so the feed and the profile agree on who you
@@ -743,7 +743,7 @@ export function mountSocialFeed(root, options = {}) {
   const remembered = readStoredAuthor(options.storage ?? globalThis.localStorage);
   if (authorInput && !authorInput.value && remembered) authorInput.value = remembered;
 
-  renderAgents();
+  renderNames();
   render();
   updateCounter();
   return {
@@ -751,7 +751,7 @@ export function mountSocialFeed(root, options = {}) {
     // Handed back so the media composer can tell the field when an image
     // arrives or leaves, without either half owning the other's DOM.
     description,
-    seed(next) { posts = next ?? []; state = "ready"; renderAgents(); render(); },
+    seed(next) { posts = next ?? []; state = "ready"; renderNames(); render(); },
     // Loading/error are display states only — they never discard posts already
     // on screen, so a failed refresh degrades to "stale but readable".
     setState(next) { state = next; render(); },
