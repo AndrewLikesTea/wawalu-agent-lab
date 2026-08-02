@@ -134,7 +134,17 @@ export function paintDisclosureState(doc, entryCount = null) {
 export function bindFirstRunDisclosure(doc) {
   const details = byId(doc, FIRST_RUN_IDS.method);
   if (!details) return null;
-  const count = () => byId(doc, FIRST_RUN_IDS.methodList)?.querySelectorAll?.("dt")?.length ?? null;
+  // Whichever half of the shared disclosure is on screen is the one counted:
+  // the example's evidence entries, or the reader's own ranked rows. A count
+  // taken from the hidden half would say how much is behind a control that is
+  // not holding it.
+  const count = () => {
+    const own = byId(doc, FIRST_RUN_IDS.ownEvidence);
+    if (own && own.hidden === false) {
+      return byId(doc, FIRST_RUN_IDS.ownRows)?.querySelectorAll?.("tr")?.length ?? null;
+    }
+    return byId(doc, FIRST_RUN_IDS.methodList)?.querySelectorAll?.("dt")?.length ?? null;
+  };
   details.addEventListener("toggle", () => paintDisclosureState(doc, count()));
   paintDisclosureState(doc, count());
   return details;
@@ -295,13 +305,21 @@ export function applyExampleBriefingCta(doc) {
 }
 
 /**
- * Retire the region once the page holds an analysis of its own.
+ * Retire the region once the page holds an analysis this block cannot hold.
  *
  * A first-run result is an answer to "what would this tell me?", and that
- * question is closed the moment a real result — the reader's import, or the
- * example loaded into every panel — is on screen. Leaving it there would put a
- * second synthetic headline beside a live one, which is the exact confusion
- * this region exists to remove. There is no longer a conversion aside to retire
+ * question is closed the moment a real result is on screen. Leaving it there
+ * would put a second synthetic headline beside a live one, which is the exact
+ * confusion this region exists to remove.
+ *
+ * WHICH RESULTS STILL RETIRE IT. The bundled example loaded into every panel
+ * below still does: it is the same invented data this region already composed,
+ * so keeping it would be two copies of one answer. A reader's own IMPORT no
+ * longer does — `applyOwnDataDrilldown` repopulates the region from that
+ * export first and the caller passes `false` here, so the drill-down and the
+ * evidence disclosure survive into the state a reader actually cares about.
+ * An import carrying no dimension worth ranking is the one exception, and it
+ * retires through this path exactly as it always did. There is no longer a conversion aside to retire
  * alongside it: the answer spine retired that region, and #finops-contact —
  * which is not first-run-specific and stays on screen — carries the ask.
  */

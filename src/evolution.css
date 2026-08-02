@@ -1389,6 +1389,24 @@
 .first-run-answer { margin:0; max-width:44ch; color:var(--ink); font-size:clamp(17px,2.1vw,21px); font-weight:700; line-height:1.35; overflow-wrap:anywhere; }
 .first-run-answer[data-available="false"] { max-width:60ch; color:var(--state-warn-ink); font-size:16px; }
 .first-run-answer-detail { margin:-8px 0 0; max-width:70ch; color:var(--ink-muted); font-size:13px; line-height:1.55; overflow-wrap:anywhere; }
+/* The own-data half of this region. It is drawn at exactly the weight the
+   example headline above it is drawn at, because it is the same headline slot
+   holding a different file — only one of the two is ever on screen. The
+   grouping line is a claim about the data and not a caption, so it keeps the
+   ink of a sentence rather than the grey of a footnote. */
+.first-run-own { display:grid; gap:10px; }
+.first-run-own-answer { margin:0; max-width:44ch; color:var(--ink); font-size:clamp(17px,2.1vw,21px); font-weight:700; line-height:1.35; overflow-wrap:anywhere; }
+.first-run[data-subordinate="true"] .first-run-own-answer { font-size:clamp(15px,1.6vw,17px); }
+.first-run-own-detail { margin:0; max-width:70ch; color:var(--ink-muted); font-size:13px; line-height:1.55; overflow-wrap:anywhere; }
+.first-run-own-grouping { margin:0; max-width:70ch; color:var(--ink); font-size:13px; line-height:1.55; overflow-wrap:anywhere; }
+.first-run-own-grouping[data-fallback="true"] { padding-left:9px; border-left:2px solid var(--state-warn-ink); }
+.first-run-own-evidence { margin:12px 0 0; overflow-x:auto; }
+.first-run-own-table { width:100%; border-collapse:collapse; font-size:12.5px; }
+.first-run-own-table caption { margin-bottom:8px; color:var(--ink-muted); font-size:12px; line-height:1.5; text-align:left; }
+.first-run-own-table th,.first-run-own-table td { padding:6px 10px 6px 0; border-bottom:1px solid var(--panel-border); text-align:left; vertical-align:top; overflow-wrap:anywhere; }
+.first-run-own-table thead th { color:var(--ink-muted); font:700 10px/1.5 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; }
+.first-run-own-table tbody th { color:var(--ink); font-weight:600; }
+.first-run-own-table tbody tr[data-rank="1"] th { text-decoration:underline; text-underline-offset:3px; }
 /* Three slots, and the whole grid is one print/column unit: the share, the
    scenario, and the unavailable peer position qualify each other. */
 .first-run-slots { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px 22px; break-inside:avoid; }

@@ -285,6 +285,12 @@ import {
   applyExampleBriefingCta,
   applyFirstRunResult, applyFirstRunSupersession, bindFirstRunActions, bindFirstRunDisclosure,
 } from "/finops-first-run-view.js";
+// The same region, holding the reader's own export: one ranked drill-down and
+// one headline derived from it, painted into the block above rather than into a
+// second one beside it.
+import {
+  applyOwnDataDrilldown, clearOwnDataDrilldown,
+} from "/finops-own-drilldown-view.js";
 // Where the reader goes once they have read that result. The contract owns which
 // three destinations exist, which one is prioritized, and the clause that
 // promoted it; this page hands the loaded record to the view and paints it.
@@ -1301,7 +1307,17 @@ function mountLocalFinopsImport() {
     // The reader's own briefing heading is where this block's question is
     // answered next, and it already takes focus programmatically, so it is
     // where a keyboard user is put if the region retires under their focus ring.
-    applyFirstRunSupersession(document, Boolean(result),
+    // …unless the analysis on screen is the reader's OWN. Then the block is
+    // repopulated from that export rather than retired: the drill-down and the
+    // evidence disclosure are the most persuasive things on this page, and
+    // hiding them at the exact moment a reader has their own numbers in them
+    // was the defect. Exactly one headline paints — the own-data one replaces
+    // the example's rather than sitting beside it — and an export carrying no
+    // dimension worth ranking still retires through the path below.
+    const ownDrilldown = exampleActive || !result
+      ? (clearOwnDataDrilldown(document), null)
+      : applyOwnDataDrilldown(document, result);
+    applyFirstRunSupersession(document, Boolean(result) && !ownDrilldown?.available,
       { focusFallbackId: "local-results-title" });
     // The destination ranking belongs to that block: the doors stay true, but the
     // order they are in was ranked from the invented dataset, so it retires with

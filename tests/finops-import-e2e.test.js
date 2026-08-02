@@ -406,6 +406,29 @@ test("a leader imports the example provider export and reaches a decision they c
       assert.match(text, /Routing rubric down-routing-candidate\/1\.0\.0/);
     });
 
+    await t.test("step 3c · the answer region holds this import instead of retiring", () => {
+      // The richest block on the page — headline, drill-down, and the evidence
+      // behind both under one disclosure — used to be hidden the moment an
+      // analysis landed. It now carries the reader's own export, and it carries
+      // exactly one headline while it does.
+      const region = byId(document, "finops-first-run");
+      assert.equal(region.hidden, false, "an import must repopulate this region, not retire it");
+      assert.equal(region.dataset.source, "own-data");
+      const headlines = region.querySelectorAll("[data-finops-headline]")
+        .filter((node) => !node.hidden);
+      assert.equal(headlines.length, 1, "one headline on screen after an import, never two");
+      assert.equal(headlines[0].id, "finops-first-run-own-answer");
+      const rows = byId(document, "finops-first-run-own-rows").querySelectorAll("tr");
+      assert.ok(rows.length >= 1, "this import groups its spend, so it earns ranked rows");
+      const spend = rows.map((row) =>
+        Number(textOf(row.querySelectorAll("td")[1]).replace(/[^0-9]/g, "")));
+      assert.deepEqual(spend, [...spend].sort((left, right) => right - left),
+        "the drill-down is ordered by spend, descending");
+      assert.equal(rows[0].dataset.group, textOf(headlines[0]).split(" is driving")[0],
+        "row 1 must be the group the headline names as the driver");
+      assert.match(textOf(byId(document, "finops-first-run-own-grouping")), /^Grouped by /);
+    });
+
     await t.test("step 4 · the decision record the leader exports carries the same numbers", () => {
       byId(document, "export-local-json").click();
       assert.equal(page.downloads.length, 1, "the export button must hand back exactly one file");

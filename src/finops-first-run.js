@@ -95,6 +95,22 @@ export const FIRST_RUN_IDS = Object.freeze({
   role: "finops-first-run-role",
   methodList: "finops-first-run-method-list",
   method: "finops-first-run-method",
+  // The example half of the shared disclosure's summary heading, and the slots
+  // the own-data half of this region paints into. They are listed here rather
+  // than in the module that paints them because both halves are nodes of ONE
+  // region and one disclosure: two id maps would be the first step towards two
+  // headlines. See src/finops-own-drilldown-view.js.
+  methodTitle: "finops-first-run-method-title",
+  own: "finops-first-run-own",
+  ownAnswer: "finops-first-run-own-answer",
+  ownDetail: "finops-first-run-own-detail",
+  ownGrouping: "finops-first-run-own-grouping",
+  ownSample: "finops-first-run-own-sample",
+  ownTitle: "finops-first-run-own-title",
+  ownEvidence: "finops-first-run-own-evidence",
+  ownCaption: "finops-first-run-own-caption",
+  ownGroupHeading: "finops-first-run-own-group-heading",
+  ownRows: "finops-first-run-own-rows",
   methodSummary: "finops-first-run-method-summary",
   methodState: "finops-first-run-method-state",
   methodPrint: "finops-first-run-method-print",
