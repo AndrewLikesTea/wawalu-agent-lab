@@ -223,6 +223,26 @@
                deep-link-disclosure.js unfolds and focuses, in that order. -->
           <a class="stand-trajectory" id="finops-stand-trajectory" href="#trend-title">Is the trend a one-off? See the period-over-period comparison</a>
         </div>
+        <!-- THE IMPORTED HEADLINE, and only the imported one. It ships EMPTY and
+             HIDDEN: the question, the five slot labels, every value, every
+             fallback sentence and both provenance labels are painted by
+             src/finops-imported-headline-view.js from the checked-in contract in
+             src/finops-imported-headline-fixture.json, so no word a reader acts
+             on is authored here. The block appears on import and goes off screen
+             on a clear; the example headline above keeps every node, id and
+             string it had and does not read the fixture.
+             WHY IT IS FIVE ROWS AND NEVER FOUR: an import that could not supply
+             a slot used to render a shorter headline, which a reader cannot tell
+             from a slot that was dropped. Each row now prints either its figure
+             or the contract's own sentence for its absence, and says which of
+             the two ran. The definitions are in the fixture, beside the slot they
+             define. No heading and no landmark: it is part of this region's one
+             answer, not a second one. -->
+        <div class="stand-imported" id="finops-imported-headline" data-state="unavailable" hidden>
+          <p class="eyebrow">Your export · headline contract</p>
+          <p class="stand-imported-question" id="finops-imported-headline-question"></p>
+          <dl class="stand-imported-slots" id="finops-imported-headline-slots"></dl>
+        </div>
         <!-- THE CLASSIFICATION VERDICT, evidence for the finding above rather
              than a second lead. It keeps every word, id and painted value it
              had; what changed is that it no longer carries the first number. The contract it renders

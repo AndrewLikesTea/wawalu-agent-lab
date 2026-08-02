@@ -77,6 +77,11 @@ import { localFinopsMeetingSummary, normalizeLocalFinopsHistory } from "/local-f
 // object, and it hands the page back to the single-provider brief when no
 // portfolio exists.
 import { applyPortfolioBrief, clearPortfolioBrief } from "/finops-portfolio-brief-view.js";
+// The five-slot headline an imported export earns, painted from the checked-in
+// contract in finops-imported-headline-fixture.json. Imported state only.
+import {
+  applyImportedHeadline, clearImportedHeadline,
+} from "/finops-imported-headline-view.js";
 // The download itself. Every figure decision is inside `briefingFile`; the only
 // thing this layer contributes is the clock, because the generator is pure and
 // will not read one.
@@ -1558,6 +1563,12 @@ function mountLocalFinopsImport() {
     // intake contract actually combined two or more providers; a single-provider
     // import returns `available: false` and the page renders exactly as before.
     applyPortfolioBrief(document, next);
+    // And the headline the reader's own export earns: five slots, always five,
+    // each one either a figure from this envelope or the contract's own sentence
+    // for why the export could not supply it. The bundled example is not an
+    // import and does not get one — it already has its own complete headline,
+    // which this call leaves untouched.
+    applyImportedHeadline(document, example ? null : next);
     applyDatasetProvenance(document, example, example ? null : importProvenance());
     // Where this organization ranks, decided from the same selection this
     // result was analyzed from. The bundled example declares no cohort
@@ -2005,6 +2016,10 @@ function mountLocalFinopsImport() {
     // clearing the import gives the single-provider answer back rather than
     // leaving a combined total leading the page.
     clearPortfolioBrief(document);
+    // Same rule for the imported headline: it is a statement about a file that
+    // is no longer loaded, so it goes with the import rather than lingering
+    // above the example's own headline.
+    clearImportedHeadline(document);
     const trust = document.getElementById("local-trust");
     if (trust) {
       trust.hidden = true;
