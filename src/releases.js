@@ -829,7 +829,7 @@ export function renderReleaseListState(container, state, options = {}) {
     // release matches" is a filter state whose one next step is clearing them.
     empty: options.filtered
       ? ["No matching releases", "No release matches the current search, release status, linked decision, and linked decision status together."]
-      : ["No releases yet", "Record a release and link the decisions behind it to build a shipping history."],
+      : ["No releases have been recorded yet", "Link at least one decision, then record a release."],
   }[state];
   panel.append(el("h3", undefined, copy[0]));
   panel.append(el("p", undefined, copy[1]));

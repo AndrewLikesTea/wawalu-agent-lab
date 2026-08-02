@@ -332,6 +332,10 @@ test("the list state before the page boots is a loading state", async (t) => {
   const loading = page.document.querySelector(".list-state-loading");
   assert.ok(loading, "the shipped markup carries a loading state");
   assert.equal(loading.getAttribute("role"), "status");
+  // The count is the other half of the same answer: while the list says it is
+  // loading, the count may not say how many releases there are.
+  assert.equal(countText(page), "Loading releases…");
+  assert.equal(page.document.querySelectorAll(".list-state-empty").length, 0, "no empty-state guidance shares the page with loading copy");
 
   initReleasesPage(page.document, page.storage, { seed: NO_SEED });
   assert.equal(list.getAttribute("aria-busy"), "false", "the busy state is cleared once rendered");
@@ -448,7 +452,8 @@ test("an empty log offers a different next step from a no-match view", async (t)
   const page = await bootedReleases(t, { releases: [] });
   assert.equal(countText(page), "0 of 0 releases");
   const state = page.document.querySelector(".list-state-empty");
-  assert.equal(textOf(state.querySelector("h3")), "No releases yet");
+  assert.equal(textOf(state.querySelector("h3")), "No releases have been recorded yet");
+  assert.match(textOf(state), /Link at least one decision, then record a release\./);
   assert.equal(state.querySelector(".release-reset-action"), null, "nothing to clear in a first-run state");
 
   const record = state.querySelector(".release-empty-action");

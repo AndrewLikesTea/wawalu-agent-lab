@@ -119,6 +119,11 @@ class Element {
       contains: (name) => names().includes(name),
       add: (...added) => { this.className = [...new Set([...names(), ...added])].join(" "); },
       remove: (...removed) => { this.className = names().filter((name) => !removed.includes(name)).join(" "); },
+      toggle: (name, force) => {
+        const on = force ?? !names().includes(name);
+        this.className = on ? [...new Set([...names(), name])].join(" ") : names().filter((each) => each !== name).join(" ");
+        return on;
+      },
     };
   }
 
