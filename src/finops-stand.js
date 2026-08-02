@@ -804,6 +804,10 @@ function anonymizationEntries(note) {
   return [
     entry(note.label, note.text),
     entry("Fields read", note.fieldsRead.join(", ")),
+    // The second surface a placement appears on, and it reads the same
+    // discriminator the panel does rather than inferring one of its own.
+    entry("Position source", note.positionSource
+      ?? "no organization size band or industry was declared"),
     entry(note.provenance.label, note.provenance.statement),
   ];
 }
