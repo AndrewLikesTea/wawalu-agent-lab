@@ -1148,6 +1148,10 @@
 .briefing-readiness-sequence { display:grid; gap:7px; margin:2px 0; padding-left:22px; }
 .briefing-readiness-sequence li>span { color:var(--muted); font-size:12px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; }
 .briefing-readiness-boundary { color:var(--muted); font-size:13px; }
+.briefing-projection { display:grid; gap:8px; border-top:1px solid var(--import-line); padding-top:12px; }
+.briefing-projection p { margin:0; }
+.briefing-projection[data-state="error"] [role="status"] { color:var(--state-warn-ink); }
+.briefing-projection pre { max-height:24rem; overflow:auto; padding:12px; border:1px solid var(--import-line); white-space:pre-wrap; }
 /* The four named entry points. Wrapping inline links, in source order, so the
    keyboard order and the visual order are one order at every width. */
 .answer-doors { display:flex; flex-wrap:wrap; gap:8px 14px; margin:0 0 4px; }

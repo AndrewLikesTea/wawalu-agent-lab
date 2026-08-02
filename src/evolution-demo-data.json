@@ -1,6 +1,12 @@
 {
   "briefingReadiness": {
     "inputModel": "bundled-static-analysis/1.0.0",
+    "selectionVersion": "bundled-briefing-selection/1.0.0",
+    "projectionVersion": "finops-executive-projection/1.0.0",
+    "fixture": {
+      "id": "evolution-demo-data",
+      "version": "2026-07-25.1"
+    },
     "headlineFinding": "Backend Platform is the first intervention priority because over-provisioning is its largest recoverable cost line.",
     "benchmarkComparison": "Backend Platform scores 71, 10 points above the synthetic enterprise SaaS cohort median of 61 under rubric literacy-mix/1.0.0.",
     "recommendedAction": "First, pilot routing short, low-context Backend Platform requests to the standard model, capped at the fixture's $5,200 monthly savings scenario.",
@@ -13,6 +19,13 @@
       "end": "2026-07-25",
       "provenance": "hand-authored bundled provider aggregates and org mapping; not live provider or HRIS data"
     },
+    "departmentEvidence": [
+      {
+        "department": "Backend Platform",
+        "evidence": "Over-provisioning is the largest recoverable cost line; 760 synthetic queries were sampled through the period end.",
+        "provenance": "Bundled synthetic department aggregate; fixture evidence only."
+      }
+    ],
     "exclusions": {
       "prompts": "Prompt text is excluded from this circulation decision.",
       "providerRows": "Provider-level rows are excluded; only bundled synthetic aggregates are in scope."
