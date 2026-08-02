@@ -225,7 +225,12 @@ test("imageDescriptionProblem requires a description only of an image post", () 
 test("the shipped composer markup carries the marker, the error slot, and the counter", async () => {
   const html = await import("node:fs/promises")
     .then(({ readFile }) => readFile(new URL("../src/social.html", import.meta.url), "utf8"));
-  assert.match(html, /<span class="label-optional label-required" id="post-image-alt-required" hidden>\(required\)<\/span>/);
+  // Stated in the page as served: the field lives inside the panel that only
+  // opens with an image attached, and with one attached the description is
+  // genuinely required, so the served label answers "must I fill this in?"
+  // rather than leaving it to be inferred. social.js still owns the live
+  // marker and takes it away with the image.
+  assert.match(html, /<span class="label-optional label-required" id="post-image-alt-required">\(required\)<\/span>/);
   assert.match(html, /id="post-image-alt"[^>]*maxlength="200"/);
   assert.match(html, /aria-describedby="post-image-alt-hint post-image-alt-counter-label post-image-alt-counter"/);
   assert.match(html, /<p class="field-error compose-error" id="post-image-alt-error" hidden><\/p>/);
