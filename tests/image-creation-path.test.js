@@ -36,11 +36,24 @@ const sources = Object.fromEntries(await Promise.all(
 const documents = Object.fromEntries(
   Object.entries(sources).map(([name, html]) => [name, parseHtml(html)]));
 
+// The nearby invitation is People's alone now. People has no composer, so the
+// link beside its grid is the only route out of it; Social had three offers of
+// the same feature in three voices, and this was the third — see
+// "Social offers Paint exactly twice" below.
+const NEARBY_INVITATION = { People: documents.People };
+
 /** Every anchor on a page that points at the Paint editor. */
 const paintLinks = (document) => document.querySelectorAll("a")
   .filter((anchor) => opensPaint(anchor.href));
 
-for (const [name, document] of Object.entries(documents)) {
+/** The in-flow control: the composer's media picker offers exactly one link. */
+const composerPaintLink = () => documents.Social.querySelector(".media-source-actions").querySelector("a");
+
+/** Social's Paint entry points: every route into Paint except the site nav. */
+const socialEntryPoints = () => paintLinks(documents.Social)
+  .filter((anchor) => !anchor.parentNode?.classList?.contains("site-nav"));
+
+for (const [name, document] of Object.entries(NEARBY_INVITATION)) {
   test(`${name} offers a labelled way to create an image, beside the images it shows`, () => {
     const invitation = document.querySelector(".feed-create");
     assert.ok(invitation, `${name} has no route from browsing an image to making one`);
@@ -108,7 +121,7 @@ test("Social leads with a call to action that names the act, not the destination
   // reader meets rather than one more control inside the form.
   const html = sources.Social;
   assert.ok(html.indexOf('id="social-paint-cta"') < html.indexOf('id="post-form"'));
-  assert.ok(html.indexOf('id="social-paint-cta"') < html.indexOf('class="feed-create'));
+  assert.ok(html.indexOf('id="social-paint-cta"') < html.indexOf('id="post-feed"'));
 });
 
 test("People offers distinct Social and Paint routes from its entry point", () => {
@@ -150,13 +163,130 @@ test("both of People's routes into Paint follow the profile actually being read"
 });
 
 test("the composer's own Paint control is unchanged and still labelled in words", () => {
-  const links = paintLinks(documents.Social);
-  // Four: the site nav, the hero's call to action, the composer's media picker,
-  // and the feed invitation.
-  assert.equal(links.length, 4, "the number of routes into Paint from Social changed");
-  const composer = documents.Social.querySelector(".media-source-actions").querySelector("a");
+  const composer = composerPaintLink();
   assert.equal(composer.href, PAINT_PATH);
-  assert.match(textOf(composer), /Create in Paint/);
+  assert.match(textOf(composer), /^Create in Paint/);
+});
+
+/* ------------------- one feature, offered exactly twice ------------------- */
+// Social used to make the same offer three times in three voices: the hero's
+// "Create an image in Paint", the composer's "Create in Paint", and a third
+// paragraph beside the feed reading "Open Paint". Two of them are the feature —
+// the standing invitation and the in-flow control — and this is the assertion
+// that keeps a third from growing back.
+
+test("Social offers Paint exactly twice: the standing invitation and the in-flow control", () => {
+  // Three anchors in the page, and one of them is the site nav's own item —
+  // Paint is a destination on this site, and every page lists it. The two that
+  // are invitations are the ones counted here.
+  assert.equal(paintLinks(documents.Social).length, 3, "the number of routes into Paint from Social changed");
+  const entryPoints = socialEntryPoints();
+  assert.equal(entryPoints.length, 2, "Social offers Paint more than twice again");
+  assert.equal(entryPoints[0].id, "social-paint-cta", "the standing invitation is not the first offer");
+  assert.equal(entryPoints[1], composerPaintLink(), "the composer's control is not the second offer");
+
+  // One feature, two placements: both labels are "Create … in Paint", so the
+  // two read as one thing offered where a reader is, not as two features.
+  for (const link of entryPoints) assert.match(textOf(link), /^Create (an image )?in Paint/);
+
+  // The removed third invitation named the destination alone. Nothing outside
+  // the site nav may go back to naming it that way.
+  const feedInvitations = documents.Social.querySelectorAll(".feed-create").length;
+  assert.equal(feedInvitations, 0, "Social grew a third Paint invitation beside its feed again");
+});
+
+test("every Social route into Paint says in words that it opens a new tab", () => {
+  for (const link of socialEntryPoints()) {
+    // The behaviour first: the tab really does change, so the disclosure is a
+    // fact rather than decoration, and `noopener` comes with it.
+    assert.equal(link.getAttribute("target"), "_blank", `${textOf(link)} does not open a new tab`);
+    assert.match(link.getAttribute("rel") ?? "", /noopener/);
+
+    // Then the disclosure, in the accessible name — real text, not a title
+    // attribute and not the glyph.
+    assert.match(textOf(link), /\(opens in a new tab\)/, `${textOf(link)} hides the new tab from its name`);
+    assert.match(sources.Social, /<span class="new-tab-note">\(opens in a new tab\)<\/span>/);
+
+    // The arrow is decoration on top of that sentence: hidden from assistive
+    // technology so it is not read as punctuation, and never the only signal.
+    const glyphs = link.querySelectorAll("span").filter((span) => /[↗→]/.test(textOf(span)));
+    assert.equal(glyphs.length, 1, `${textOf(link)} does not carry exactly one glyph`);
+    assert.equal(glyphs[0].getAttribute("aria-hidden"), "true", "the glyph is read as punctuation");
+  }
+});
+
+/* ---------------- the round trip, named where it is taken ---------------- */
+// Paint uploads nothing: the visitor exports a PNG and carries it back. The
+// composer is where that has to be said, in order, in the page as served.
+
+test("the composer names the whole round trip, in order, as an ordered list", () => {
+  const steps = documents.Social.getElementById("post-image-steps");
+  assert.ok(steps, "the composer names no steps at all");
+  assert.equal(steps.tagName, "OL", "the sequence is not structural, only visual");
+
+  const items = steps.querySelectorAll("li");
+  assert.equal(items.length, 3, "the round trip is not told in three steps");
+  assert.match(textOf(items[0]), /Paint/);
+  assert.match(textOf(items[0]), /PNG/);
+  assert.match(textOf(items[1]), /this tab/);
+  assert.match(textOf(items[2]), /Upload image/);
+
+  // In the page as served, not folded behind a disclosure widget and not
+  // written in by a script after load: a curl has to contain it. (The harness
+  // reads text straight through a closed disclosure, so the count below is what
+  // actually rules one out.)
+  const html = sources.Social;
+  assert.match(html, /<ol class="hint image-steps" id="post-image-steps">/);
+  assert.ok(html.indexOf("export it as a PNG") < html.indexOf("Return to this tab"));
+  assert.ok(html.indexOf("Return to this tab") < html.indexOf("Choose Upload image"));
+  assert.equal(documents.Social.querySelectorAll("details").length, 0,
+    "Social folded content behind a disclosure widget");
+  assert.ok(!steps.getAttribute("hidden"), "the steps ship hidden");
+});
+
+test("the steps are the image field's own description, so focusing it reads them", () => {
+  const input = documents.Social.getElementById("post-image");
+  const described = (input.getAttribute("aria-describedby") ?? "").split(/\s+/);
+  assert.ok(described.includes("post-image-steps"), "Upload image is not described by the steps");
+  // The mechanism the other fields already use, and the order it is read in:
+  // the round trip, then the file constraint, then the live status.
+  assert.deepEqual(described, ["post-image-steps", "post-image-hint", "post-media-status"]);
+});
+
+test("the composer's Paint link sits between Upload image and Image description", async () => {
+  // Source order, which is what the task is: no tabindex anywhere near it.
+  const html = sources.Social;
+  assert.ok(html.indexOf('id="post-image"') < html.indexOf('class="secondary-button paint-link"'));
+  assert.ok(html.indexOf('class="secondary-button paint-link"') < html.indexOf('id="post-image-alt"'));
+  assert.ok(!composerPaintLink().getAttribute("tabindex"), "the order is faked with tabindex");
+
+  // And the sequence a keyboard actually walks, with the media panel open —
+  // the description field only exists once an image is attached.
+  const page = await loadPage(PAGES.Social);
+  try {
+    page.document.getElementById("compose-media").hidden = false;
+    const sequence = tabSequence(page.document);
+    const at = (id) => sequence.indexOf(page.document.getElementById(id));
+    const paint = sequence.indexOf(page.document.querySelector(".media-source-actions").querySelector("a"));
+    assert.ok(at("post-image") >= 0 && paint >= 0 && at("post-image-alt") >= 0,
+      "one of the composer's image controls is not keyboard reachable");
+    assert.ok(at("post-image") < paint, "the Paint link comes before Upload image");
+    assert.ok(paint < at("post-image-alt"), "the Paint link comes after Image description");
+  } finally {
+    page.restore();
+  }
+});
+
+test("Image description states its status in the label, like Name and Image do", () => {
+  const marker = documents.Social.getElementById("post-image-alt-required");
+  assert.ok(marker, "Image description carries no status marker");
+  assert.equal(textOf(marker), "(required)");
+  // Stated in the page as served, in the label itself: the status is read, not
+  // inferred from the absence of an "(optional)" the other two fields carry.
+  assert.match(
+    sources.Social,
+    /<label for="post-image-alt">Image description <span class="label-optional label-required" id="post-image-alt-required">\(required\)<\/span><\/label>/,
+  );
 });
 
 /* ------------------------------ the way back ------------------------------ */
