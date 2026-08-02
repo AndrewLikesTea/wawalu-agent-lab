@@ -3440,20 +3440,47 @@ section[data-workspace-current="true"] { box-shadow:-6px 0 0 0 var(--import-wash
    zone is a single column at every width; nothing in it needs a second one. */
 .import-drop { display:grid; gap:8px; margin:0 0 14px; border:2px dashed var(--import-line,#b9bdb4); border-radius:10px; padding:14px; background:#fff; }
 .import-drop[data-dragging="true"] { border-style:solid; border-width:3px; background:var(--import-wash,#eef3ee); }
+/* Four states, all drawn (#960), and each changes the border silhouette as well
+   as its tint — dashed while waiting for a file, solid once something happened
+   to it — beside a word in .import-drop-state or the chip below. The two
+   backgrounds are the panel's own, so the focus ring keeps a measured ratio in
+   every state: #155f9e is 6.64:1 on #fff, 6.04:1 on --import-wash, 5.88:1 on
+   the page behind them — past the 3:1 floor for a non-text indicator. */
+.import-drop[data-state="reading"] { border-style:solid; }
+.import-drop[data-state="imported"] { border-style:solid; border-color:var(--import-accent); background:var(--import-wash); }
+.import-drop[data-state="refused"] { border-style:solid; border-color:var(--state-warn-line); }
 .import-drop-title { margin:0; font-size:15px; font-weight:700; }
 .import-drop-mark { margin-right:6px; }
 .import-drop-instruction { margin:0; max-width:70ch; color:var(--ink-muted); font-size:13px; }
+.import-drop-actions { margin:0; }
+/* The keyboard's way in, so it takes the panel's primary weight. */
+.local-import button.import-drop-browse { min-height:44px; border-color:var(--import-ink); background:var(--import-ink); color:#fff; }
+.local-import button.import-drop-browse:hover { background:#183b2e; }
+.import-drop-browse:focus-visible,.import-drop input[type="file"]:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
 .import-drop-state:empty { display:none; }
 .import-drop-state { margin:0; font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; }
 .import-reason:empty { display:none; }
 .import-reason { margin:0; max-width:70ch; border-left:5px solid #d5d8d2; padding:8px 10px; font-size:13px; overflow-wrap:anywhere; }
 .import-reason[data-state="unrecognized"] { border-left-color:var(--warn-line,#a8642a); background:#fdf6ef; }
 .import-reason[data-state="recognized"] { border-left-color:var(--ok-line,#2f6b45); background:#f0f6f1; }
-.stand-import-source { margin:4px 0 0; font-size:13px; font-weight:700; overflow-wrap:anywhere; }
+/* Filled wash, per the Claude Design foundations card: a recognition outcome is
+   a dynamic signal, not a static classification, so it takes the wash and
+   leaves the outline to the category chips. Its mark is from the page's status
+   family (a fuller circle is a surer reading) and the word beside it stands
+   alone — delete both the fill and the mark and "Recognized" is still there. */
+.import-reason-chip { display:inline-block; margin-right:6px; border-radius:5px; padding:1px 8px; font:750 11px/1.5 ui-monospace,monospace; letter-spacing:.04em; white-space:nowrap; }
+.import-reason-chip[data-outcome="recognized"] { background:var(--import-wash); color:var(--import-ink); }
+.import-reason-chip[data-outcome="unrecognized"] { background:var(--state-warn-wash); color:var(--state-warn-ink); }
+.import-reason-shape { margin-right:5px; }
+/* A build-system file name long enough to push the question out of view is an
+   extreme that ships anyway: it wraps in its own line, the heading keeps its
+   place, and the spoken copy is clipped in finops-import-drop.js. */
+.stand-import-source { margin:4px 0 0; max-width:70ch; font-size:13px; font-weight:700; overflow-wrap:anywhere; }
 .stand-import-source[hidden] { display:none; }
 @media (max-width:640px) {
   .import-drop { padding:12px; }
   .import-drop input[type="file"] { max-width:100%; }
+  .import-drop-browse { width:100%; }
 }
 .provider-native-field { display:grid; gap:4px; margin:0; font-size:12px; font-weight:700; }
 .provider-native-field input:focus-visible,.provider-native-field select:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }

@@ -134,7 +134,17 @@
                in the open rather than a disclosure summary: a criterion that
                says "visible immediately" is not met by a collapsed details
                element, whatever a test harness reads through it. -->
-          <p class="stand-import-source" id="finops-stand-import-source" data-source="example" data-provider="none" data-confidence="none" hidden></p>
+          <p class="stand-import-source" id="finops-stand-import-source" data-source="example" data-provider="none" data-confidence="none" data-confidence-tier="none" hidden></p>
+          <!-- WHOSE BRIEFING THIS IS (#960). A successful import moves focus to
+               this region, and a region named "Where do we stand on AI spend?"
+               announces the same words to a reader who imported nothing. This
+               line is authored empty — so it adds nothing to the accessible name
+               until there is something of the reader's to name — and painted by
+               finops-import-drop.js with the detected provider, the confidence,
+               and the file it came from. It is visually hidden rather than a
+               second visible heading: the line above already says all three on
+               screen, and repeating them would be two headlines for one fact. -->
+          <p class="visually-hidden" id="finops-stand-owner"></p>
           <!-- The highest-ranked heading in this region, and it is the lead's
                own question rather than a noun phrase describing a panel. -->
           <h2 id="finops-stand-question">Where do we stand on AI spend?</h2>
@@ -1311,9 +1321,16 @@
                #finops-import-drop-state as well as a border treatment, and
                #finops-import-reason ships in the document — a live region that
                arrives with the error is one no screen reader was told about. -->
-          <div class="import-drop" id="finops-import-drop" data-dragging="false" role="group" aria-labelledby="finops-import-drop-title">
+          <div class="import-drop" id="finops-import-drop" data-dragging="false" data-state="empty" role="group" aria-labelledby="finops-import-drop-title">
             <p class="import-drop-title" id="finops-import-drop-title"><span class="import-drop-mark" aria-hidden="true">⇩</span> Import your provider export</p>
-            <p class="import-drop-instruction" id="finops-import-drop-instruction">Drop the file anywhere on this page, or browse for it below. Any supported provider export is recognized from its own content — you are never asked which console it came from.</p>
+            <p class="import-drop-instruction" id="finops-import-drop-instruction">Drop the file anywhere on this page, or choose it with the button below. Any supported provider export is recognized from its own content — you are never asked which console it came from.</p>
+            <!-- THE KEYBOARD ENTRANCE (#960). A drop target is a pointer
+                 affordance and nothing else, so the same import is offered here
+                 as a real button in the tab order: Enter and Space open the file
+                 control below, which is what actually reads the file. It is bound
+                 in finops-import-drop.js beside the drop handler, so the two
+                 paths cannot drift apart. -->
+            <p class="import-drop-actions"><button class="import-drop-browse" id="finops-import-browse" type="button" aria-describedby="finops-import-drop-instruction">Choose your export file</button></p>
             <p class="import-drop-state" id="finops-import-drop-state" aria-hidden="true"></p>
           <div class="local-import-field">
             <label for="local-finops-files">Choose your export files</label>

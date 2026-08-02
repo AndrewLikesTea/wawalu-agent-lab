@@ -321,8 +321,16 @@ test("the import panel offers one primary choice and one synthetic alternative",
   const firstStep = controls.querySelectorAll("input,button,select")
     .filter((node) => onScreen(node) && !enclosingDisclosures(node).length);
   const ids = firstStep.map((node) => node.id);
-  assert.deepEqual(ids, ["local-finops-files", "try-example-dataset"],
+  // Two nodes, one choice: the browse button opens the file control beside it
+  // rather than reading anything itself (#960), because a drop target with
+  // pointer handlers on it is not an affordance a keyboard can operate. A
+  // SECOND import — a second control that reads a file of its own — would fail
+  // this, which is what it is here to catch.
+  assert.deepEqual(ids, ["finops-import-browse", "local-finops-files", "try-example-dataset"],
     "exactly one import choice, plus the labelled way in for a visitor with no export");
+  assert.equal(controls.querySelectorAll("input")
+    .filter((node) => node.getAttribute("type") === "file" && !enclosingDisclosures(node).length).length, 1,
+    "a second file control is a second import, whatever it is labelled");
 
   const example = doc.getElementById("try-example-dataset");
   assert.match(example.textContent, /Bundled synthetic example/,
