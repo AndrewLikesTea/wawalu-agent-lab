@@ -128,10 +128,24 @@ export function importFailureAnnouncement(diagnostic) {
  * an import that lands and is cleared immediately after — are two writes to the
  * same node, so the reader hears the state they ended up in rather than a stack
  * of the states they passed through.
+ *
+ * `announce: false` IS FOR THE PAINT THAT IS NOT A CHANGE. The page's boot paint
+ * puts the bundled example on screen, and a polite region rewritten on load
+ * speaks a figure the reader never asked for, over whatever they were doing. The
+ * build seeds this region with that same sentence (scripts/seed-first-screen.mjs)
+ * so it is already carrying it when the document is parsed; on the boot paint
+ * the sentence is unchanged, nothing is written, and nothing is spoken. A boot
+ * that composes a DIFFERENT sentence — a document that was not seeded — still
+ * gets it, written once rather than blanked and re-set. Every later paint is a
+ * real change and announces normally.
  */
-export function announceAnswer(doc, message) {
+export function announceAnswer(doc, message, { announce = true } = {}) {
   const region = doc?.getElementById?.(ANSWER_ANNOUNCER_ID) ?? null;
   if (!region || !message) return null;
+  if (!announce) {
+    if (region.textContent !== message) region.textContent = message;
+    return message;
+  }
   region.textContent = "";
   region.textContent = message;
   return message;
