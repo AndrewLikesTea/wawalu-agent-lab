@@ -13,6 +13,8 @@ import {
   letterGrade, literacyScore, quartileLabel, rankDepartmentsForHelp,
   recoverableSpendUsd, redactForScoring, summarize,
 } from "/evolution.js";
+import { assessBriefingReadiness } from "/briefing-readiness.js";
+import { renderBriefingReadiness } from "/briefing-readiness-view.js";
 // Which executive panel may show a figure, and what a panel that may not says
 // instead. One declared question, one declared input list, and one threshold per
 // input live there; this page holds no opinion about panel visibility beyond
@@ -3612,6 +3614,13 @@ async function init() {
       // have answered says which input is missing rather than sitting on a
       // loading line under a heading that promises a figure.
       bundledSeed = null;
+      // The circulation decision resolves too. Left unpainted it sits on
+      // "Checking required evidence…" for the rest of the session — a region
+      // that promises a verdict and never reaches one, beside panels that have
+      // all said what they are missing. A seed that never arrived carries no
+      // evidence, so the contract reports exactly that; the load-status region
+      // above owns the reason, and this one names no action of its own.
+      renderBriefingReadiness(document, assessBriefingReadiness(null));
       syncExecutivePanels();
       // After the contract, not before it: a seed that never arrived leaves
       // every bundled panel unanswerable, and the contract is right to say so —
@@ -3624,6 +3633,7 @@ async function init() {
     const departments = Array.isArray(data.departments) ? data.departments : [];
     const totals = summarize(departments);
     bundledSeed = data;
+    renderBriefingReadiness(document, assessBriefingReadiness(data.briefingReadiness));
     renderFinancePortfolio(data);
     repaintBundledAnalysis = () => {
       renderHeadline(data.organization ?? {}, totals, gradeEligibility(departments), departments);
