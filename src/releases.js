@@ -319,9 +319,19 @@ export const RELEASE_ATTENTION_KINDS = Object.freeze([
   "superseded",
 ]);
 
+// The subset a reader can still settle *as a decision*: the stages before the
+// lifecycle reaches a final word. A dangling reference is a broken record, not
+// an open question, and a superseded decision was already answered by a later
+// one — both are release-level problems, so a caller asking "which decision
+// here is not final yet" must not be handed either. It lives here and not in
+// each caller because the words are the log's vocabulary, not one view's.
+export const OPEN_DECISION_KINDS = Object.freeze(["proposed", "pending"]);
+
 // The most urgent thing about one release, or null when nothing is outstanding.
-export function releaseAttentionKind(resolved) {
-  return RELEASE_ATTENTION_KINDS.find((kind) => (resolved?.counts?.[kind] ?? 0) > 0) ?? null;
+// `kinds` narrows what counts as outstanding; it is a subset of the list above,
+// read in the same priority order.
+export function releaseAttentionKind(resolved, kinds = RELEASE_ATTENTION_KINDS) {
+  return kinds.find((kind) => (resolved?.counts?.[kind] ?? 0) > 0) ?? null;
 }
 
 // Linked-decision fields arrive from storage and from imports, so a decision
@@ -515,9 +525,15 @@ const DECISION_FOLLOW_UP_COPY = {
  * lifecycle stage the more urgent. Within a single kind the release author's
  * association order decides, so the answer is stable across renders and matches
  * the order the evidence list below is read in.
+ *
+ * `kinds` narrows what the release is asked about. A caller that only wants an
+ * unsettled decision passes OPEN_DECISION_KINDS and gets one whether or not the
+ * release also has a dangling reference: a broken link outranks a pending
+ * decision here, but it must not stand in for one on a surface that promised an
+ * open decision and would otherwise show nothing.
  */
-export function releaseDecisionFollowUp(resolved) {
-  const kind = releaseAttentionKind(resolved);
+export function releaseDecisionFollowUp(resolved, kinds = RELEASE_ATTENTION_KINDS) {
+  const kind = releaseAttentionKind(resolved, kinds);
   if (!kind) return null;
   const copy = DECISION_FOLLOW_UP_COPY[kind];
 

@@ -34,6 +34,7 @@ export const HISTORY_FILTER_PARAMS = Object.freeze({
   type: "type",
   status: "status",
   owner: "owner",
+  releaseId: "release",
   from: "from",
   to: "to",
   currentOnly: "current",
@@ -53,6 +54,7 @@ export const DEFAULT_HISTORY_FILTERS = Object.freeze({
   type: "all",
   status: "all",
   owner: "all",
+  releaseId: "all",
   from: "",
   to: "",
   currentOnly: false,
@@ -60,7 +62,7 @@ export const DEFAULT_HISTORY_FILTERS = Object.freeze({
 
 // Serialization order, so the same state always produces the same string and a
 // shared link is stable enough to diff by eye.
-const FILTER_ORDER = ["query", "type", "status", "owner", "from", "to", "currentOnly"];
+const FILTER_ORDER = ["query", "type", "status", "owner", "releaseId", "from", "to", "currentOnly"];
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -115,6 +117,11 @@ function normalizeFilterOwner(value) {
   return owner === "" || owner === "all" ? "all" : owner;
 }
 
+function normalizeReleaseId(value) {
+  const id = typeof value === "string" ? value.trim() : "";
+  return id === "" || id === "all" ? "all" : id;
+}
+
 function normalizeFilterQuery(value) {
   return typeof value === "string" ? value.trim() : "";
 }
@@ -147,6 +154,7 @@ export function parseHistoryFilters(search = "") {
     type: normalizeFilterType(read("type")),
     status: normalizeFilterStatus(read("status")),
     owner: normalizeFilterOwner(read("owner")),
+    releaseId: normalizeReleaseId(read("releaseId")),
     from: range.from,
     to: range.to,
     currentOnly: read("currentOnly") === CURRENT_ONLY_VALUE,
@@ -161,6 +169,7 @@ export function normalizeHistoryFilters(filters = {}) {
     type: normalizeFilterType(filters.type),
     status: normalizeFilterStatus(filters.status),
     owner: normalizeFilterOwner(filters.owner),
+    releaseId: normalizeReleaseId(filters.releaseId),
     from: range.from,
     to: range.to,
     currentOnly: filters.currentOnly === true,
@@ -334,6 +343,7 @@ export function historyFilterChips(filters = {}) {
   if (active.type !== "all") add("type", "Record type", TYPE_LABELS[active.type]);
   if (active.status !== "all") add("status", "Status", active.status);
   if (active.owner !== "all") add("owner", "Owner", active.owner);
+  if (active.releaseId !== "all") add("releaseId", "Release", active.releaseId);
   if (active.from) add("from", "From", formatFilterDate(active.from));
   if (active.to) add("to", "To", formatFilterDate(active.to));
   if (active.currentOnly) add("currentOnly", "Current only", "");

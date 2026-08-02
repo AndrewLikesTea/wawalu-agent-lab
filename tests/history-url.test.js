@@ -38,6 +38,7 @@ const FILTERED = {
   type: "decision",
   status: "accepted",
   owner: "Kai",
+  releaseId: "r-1-3-0",
   from: "2026-04-01",
   to: "2026-06-30",
   currentOnly: true,
@@ -61,6 +62,7 @@ test("each filter serializes under one canonical parameter name", () => {
   assert.equal(historyFilterSearch({ type: "release" }), "?type=release");
   assert.equal(historyFilterSearch({ status: "accepted" }), "?status=accepted");
   assert.equal(historyFilterSearch({ owner: "Kai" }), "?owner=Kai");
+  assert.equal(historyFilterSearch({ releaseId: "r-1-3-0" }), "?release=r-1-3-0");
   assert.equal(historyFilterSearch({ from: "2026-04-01" }), "?from=2026-04-01");
   assert.equal(historyFilterSearch({ to: "2026-06-30" }), "?to=2026-06-30");
   assert.equal(historyFilterSearch({ currentOnly: true }), "?current=only");
@@ -69,7 +71,7 @@ test("each filter serializes under one canonical parameter name", () => {
 test("the combined state is one stable string, in one order", () => {
   assert.equal(
     historyFilterSearch(FILTERED),
-    "?q=queue&type=decision&status=accepted&owner=Kai&from=2026-04-01&to=2026-06-30&current=only",
+    "?q=queue&type=decision&status=accepted&owner=Kai&release=r-1-3-0&from=2026-04-01&to=2026-06-30&current=only",
   );
   // The same state written twice is the same link twice: a shared URL is
   // diffable, and no filter changes place because a control was touched first.
@@ -207,12 +209,13 @@ test("the summary line states the match count out of the unfiltered total", () =
 test("every active filter becomes a chip whose remove control names it", () => {
   assert.deepEqual(historyFilterChips({}), []);
   const chips = historyFilterChips(FILTERED);
-  assert.deepEqual(chips.map((chip) => chip.key), ["query", "type", "status", "owner", "from", "to", "currentOnly"]);
+  assert.deepEqual(chips.map((chip) => chip.key), ["query", "type", "status", "owner", "releaseId", "from", "to", "currentOnly"]);
   assert.deepEqual(chips.map((chip) => chip.text), [
     "Search: queue",
     "Record type: Decisions",
     "Status: accepted",
     "Owner: Kai",
+    "Release: r-1-3-0",
     "From: Apr 1, 2026",
     "To: Jun 30, 2026",
     "Current only",

@@ -13,7 +13,7 @@ const demo = {
     { id: "cache", title: "Approve edge cache", context: "Reduce latency", owner: "Mina", status: "pending", createdAt: "2026-03-01T00:00:00.000Z" },
   ],
   releases: [
-    { id: "r-1-3-0", version: "v1.3.0", title: "Throughput and latency", description: "The durable queue shipped.", status: "completed", owner: "Kai", createdAt: "2026-04-01T00:00:00.000Z", decisionIds: ["queue"] },
+    { id: "r-1-3-0", version: "v1.3.0", title: "Throughput and latency", description: "The durable queue shipped.", status: "completed", owner: "Kai", createdAt: "2026-04-01T00:00:00.000Z", decisionIds: ["queue", "cache"] },
   ],
 };
 
@@ -73,22 +73,34 @@ test("the record type filter narrows the list and updates the count and announce
   assert.equal(harness.count.textContent, "3 records");
 });
 
-test("selecting Releases disables the decision status filter and clears its value", async () => {
-  const harness = await boot();
+// Both controls narrow the stream to decisions, so a type filter asking for
+// releases contradicts either one. The pair must not compose into a
+// guaranteed-empty list that nothing on screen explains.
+test("selecting Releases disables the decision-only filters and clears their values", async () => {
+  const harness = await open();
+  const releaseHint = harness.elements["#filter-release-hint"];
 
   harness.chooseStatus("approved");
+  harness.chooseRelease("r-1-3-0");
   assert.deepEqual(titles(harness), ["Adopt a durable queue"]);
   assert.equal(harness.status.disabled, false);
+  assert.equal(harness.elements["#filter-release"].disabled, false);
 
   harness.chooseType("release");
   assert.equal(harness.status.disabled, true, "a release can never carry a decision status");
   assert.equal(harness.status.value, "all", "the inapplicable selection is cleared, not left inert");
   assert.match(harness.statusHint.textContent, /Unavailable while the record type is set to Releases/);
+  assert.equal(harness.elements["#filter-release"].disabled, true, "a release row is never one of its own decisions");
+  assert.equal(harness.elements["#filter-release"].value, "all");
+  assert.match(releaseHint.textContent, /Unavailable while the record type is set to Releases/);
   assert.deepEqual(titles(harness), ["v1.3.0 · Throughput and latency"]);
+  assert.equal(harness.url, "?type=release", "the cleared filters leave the link too");
 
   harness.chooseType("all");
   assert.equal(harness.status.disabled, false);
   assert.match(harness.statusHint.textContent, /Choosing a status shows decision records only/);
+  assert.equal(harness.elements["#filter-release"].disabled, false);
+  assert.match(releaseHint.textContent, /Shows decisions associated with the selected release/);
   assert.equal(harness.count.textContent, "3 records");
 });
 
@@ -153,6 +165,45 @@ test("the owner filter spans both record kinds", async () => {
   harness.elements["#filter-owner"].value = "Kai";
   harness.elements["#filter-owner"].dispatch("change");
   assert.deepEqual(titles(harness), ["v1.3.0 · Throughput and latency", "Adopt a durable queue"]);
+});
+
+test("a release filter shows its decisions and one prioritized non-final follow-up", async () => {
+  const harness = await open();
+  harness.chooseRelease("r-1-3-0");
+
+  assert.deepEqual(titles(harness), ["Approve edge cache", "Adopt a durable queue"]);
+  assert.equal(harness.url, "?release=r-1-3-0");
+  assert.equal(harness.summary.textContent, "2 of 3 records");
+  assert.deepEqual(chipText(harness), ["Release: r-1-3-0"]);
+
+  const followUp = harness.elements["#history-release-followup"];
+  assert.equal(followUp.hidden, false);
+  assert.match(followUp.textContent, /Prioritized follow-up.*Approve edge cache.*Owner: Mina.*Status: pending.*Settle/);
+
+  harness.elements["#clear-decision-filters"].dispatch("click");
+  assert.equal(harness.elements["#filter-release"].value, "all");
+  assert.equal(followUp.hidden, true);
+  assert.equal(harness.url, "");
+  assert.equal(harness.search.focused, 1, "clearing keeps keyboard focus on a stable control");
+});
+
+test("a dangling reference on the selected release does not stand in for its open decision", async () => {
+  const data = {
+    decisions: demo.decisions,
+    releases: [{ ...demo.releases[0], decisionIds: ["queue", "erased", "cache"] }],
+  };
+  const harness = createHistoryHarness(data);
+  await initDecisionLog(harness.root, harness.storage, { announceDelay: 0, seed: data });
+  harness.chooseRelease("r-1-3-0");
+
+  // The release detail page ranks the broken link above an unsettled decision,
+  // and rightly: a reference that resolves to nothing cannot be reviewed at
+  // all. This panel answers a narrower question — which decision here is not
+  // final — and the one thing it must not do is answer it with silence.
+  const followUp = harness.elements["#history-release-followup"];
+  assert.equal(followUp.hidden, false);
+  assert.match(followUp.textContent, /Approve edge cache.*Owner: Mina.*Status: pending/);
+  assert.deepEqual(titles(harness), ["Approve edge cache", "Adopt a durable queue"]);
 });
 
 /* ------------------------ the URL is the filter state ------------------------- */

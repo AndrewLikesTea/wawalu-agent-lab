@@ -43,6 +43,8 @@ import {
   releaseOwner,
   releaseStatus,
   releaseTitle,
+  OPEN_DECISION_KINDS,
+  releaseDecisionFollowUp,
   renderReleaseListState,
   resolveRelease,
   statusSummaryText,
@@ -322,6 +324,7 @@ export function toHistoryRecords(decisions = [], releases = [], options = {}) {
 // empty result set for a window a reader believes they asked for.
 export function selectHistory(records, view = {}) {
   const { owner = "all", sort = DEFAULT_SORT } = view;
+  const releaseId = typeof view.releaseId === "string" && view.releaseId.trim() !== "" ? view.releaseId : "all";
   const type = RECORD_TYPES.includes(view.type) ? view.type : "all";
   const status = STATUSES.includes(view.status) ? canonicalDecisionStatus(view.status) : "all";
   const query = typeof view.query === "string" ? view.query.trim().toLocaleLowerCase() : "";
@@ -340,6 +343,11 @@ export function selectHistory(records, view = {}) {
       // "Current only" removes exactly the decisions another decision replaced.
       // A release is never superseded, so it is never removed by this filter.
       if (view.currentOnly === true && record.superseded === true) return false;
+      // A release selection answers “which decisions did this release carry?”;
+      // the release row itself is context, not one of those decisions. `links`
+      // is optional on a hand-built record, as everywhere else that reads it.
+      if (releaseId !== "all" && (record.type !== "decision"
+        || !(record.links ?? []).some((link) => link.type === "release" && link.id === releaseId))) return false;
       if (type !== "all" && record.type !== type) return false;
       if (status !== "all" && (record.type !== "decision" || record.status !== status)) return false;
       if (owner !== "all" && record.owner !== owner) return false;
@@ -767,6 +775,43 @@ function syncOwnerOptions(select, records) {
   select.value = current === "all" || owners.includes(current) ? current : "all";
 }
 
+function syncReleaseOptions(select, releases) {
+  if (!select) return;
+  const current = select.value || "all";
+  select.replaceChildren(new Option("All releases", "all"));
+  for (const release of releases) select.append(new Option(releaseTitle(release), release.id));
+  select.value = current === "all" || releases.some(({ id }) => id === current) ? current : "all";
+}
+
+function renderHistoryReleaseFollowUp(container, release, decisions) {
+  if (!container) return;
+  container.replaceChildren();
+  // Open decisions only: this panel exists to name the one decision in the
+  // selected release that still needs settling, and releases.js owns which
+  // lifecycle stages those are.
+  const followUp = release
+    ? releaseDecisionFollowUp(resolveRelease(release, decisions), OPEN_DECISION_KINDS)
+    : null;
+  container.hidden = !followUp;
+  if (container.hidden) return;
+  const panel = document.createElement("section");
+  panel.className = "history-release-followup";
+  panel.setAttribute("aria-labelledby", "history-release-followup-title");
+  appendTextElement(panel, "p", "history-release-followup-kicker", "Prioritized follow-up");
+  const heading = appendTextElement(panel, "h3", "history-release-followup-title", followUp.title);
+  heading.id = "history-release-followup-title";
+  const meta = document.createElement("div");
+  meta.className = "decision-meta";
+  appendLabelledValue(meta, "Owner", followUp.owner);
+  appendLabelledValue(meta, "Status", followUp.status, `badge badge-${followUp.status}`);
+  panel.append(meta);
+  if (followUp.href) {
+    const link = appendTextElement(panel, "a", "history-release-followup-action", followUp.action);
+    link.href = followUp.href;
+  }
+  container.append(panel);
+}
+
 // The recorder offers the decisions that exist right now as supersede targets,
 // so the ordinary path cannot produce a self reference (a new decision has no id
 // yet) or a dangling one. A selection that has since disappeared is still
@@ -786,6 +831,9 @@ export async function initDecisionLog(root = document, storage = localStorage, o
   const notice = root.querySelector("#storage-notice");
   const statusFilter = root.querySelector("#filter-status");
   const ownerFilter = root.querySelector("#filter-owner");
+  const releaseFilter = root.querySelector("#filter-release");
+  const releaseHint = root.querySelector("#filter-release-hint");
+  const releaseFollowUp = root.querySelector("#history-release-followup");
   const sortBy = root.querySelector("#sort-by");
   const search = root.querySelector("#decision-search");
   const clearFilters = root.querySelector("#clear-decision-filters");
@@ -851,6 +899,7 @@ export async function initDecisionLog(root = document, storage = localStorage, o
     type: "all",
     status: "all",
     owner: "all",
+    releaseId: "all",
     sort: DEFAULT_SORT,
     from: "",
     to: "",
@@ -880,6 +929,11 @@ export async function initDecisionLog(root = document, storage = localStorage, o
       const offered = [...(ownerFilter.options ?? [])].some((option) => option.value === view.owner);
       if (!offered) view.owner = "all";
       ownerFilter.value = view.owner;
+    }
+    if (releaseFilter) {
+      const offered = [...(releaseFilter.options ?? [])].some((option) => option.value === view.releaseId);
+      if (!offered) view.releaseId = "all";
+      releaseFilter.value = view.releaseId;
     }
     if (fromFilter) fromFilter.value = view.from;
     if (toFilter) toFilter.value = view.to;
@@ -1027,20 +1081,34 @@ export async function initDecisionLog(root = document, storage = localStorage, o
 
   const STATUS_HINT = "Applies to decisions. Choosing a status shows decision records only.";
   const STATUS_HINT_UNAVAILABLE = "Unavailable while the record type is set to Releases — a release has no decision status.";
+  const RELEASE_HINT = "Shows decisions associated with the selected release.";
+  const RELEASE_HINT_UNAVAILABLE = "Unavailable while the record type is set to Releases — this filter shows the decisions a release carried, not the release itself.";
 
   // Mirrors the coupling rule documented on selectHistory into the controls:
-  // with releases selected the status filter can never match, so it is disabled
-  // (a native state assistive tech reports) and its value returns to "all"
-  // rather than lingering as an inert selection.
+  // with releases selected neither the status nor the release filter can ever
+  // match, so each is disabled (a native state assistive tech reports) and its
+  // value returns to "all" rather than lingering as an inert selection. Both
+  // are the same rule: a filter that narrows the stream to decisions is
+  // contradicted by a type filter asking for releases, and the pair would
+  // otherwise compose into a guaranteed-empty list no control explains.
   const syncStatusAvailability = () => {
-    if (!statusFilter) return;
     const unavailable = view.type === "release";
-    if (unavailable && view.status !== "all") {
-      view.status = "all";
-      statusFilter.value = "all";
+    if (statusFilter) {
+      if (unavailable && view.status !== "all") {
+        view.status = "all";
+        statusFilter.value = "all";
+      }
+      statusFilter.disabled = unavailable;
+      if (statusHint) statusHint.textContent = unavailable ? STATUS_HINT_UNAVAILABLE : STATUS_HINT;
     }
-    statusFilter.disabled = unavailable;
-    if (statusHint) statusHint.textContent = unavailable ? STATUS_HINT_UNAVAILABLE : STATUS_HINT;
+    if (releaseFilter) {
+      if (unavailable && view.releaseId !== "all") {
+        view.releaseId = "all";
+        releaseFilter.value = "all";
+      }
+      releaseFilter.disabled = unavailable;
+      if (releaseHint) releaseHint.textContent = unavailable ? RELEASE_HINT_UNAVAILABLE : RELEASE_HINT;
+    }
   };
 
   // The chip buttons currently on screen, in render order, so a removal can
@@ -1068,6 +1136,11 @@ export async function initDecisionLog(root = document, storage = localStorage, o
     // the same sentence on screen.
     renderHistorySummary(filterSummary, { visible, total: records.length, filters: view });
     chipButtons = renderHistoryFilterChips(filterChips, view, { onRemove: removeFilter });
+    renderHistoryReleaseFollowUp(
+      releaseFollowUp,
+      releases.find(({ id }) => id === view.releaseId),
+      decisions,
+    );
     announce(historyCountMessage(visible, records.length));
     // The history owns the filter rule, so it states its own selection instead of
     // letting the export panel re-derive one from the store. Published on every
@@ -1132,8 +1205,14 @@ export async function initDecisionLog(root = document, storage = localStorage, o
       );
     }
     if (ownerFilter) syncOwnerOptions(ownerFilter, records);
+    syncReleaseOptions(releaseFilter, releases);
     if (supersedesField) syncSupersedesOptions(supersedesField, decisions);
     view.owner = ownerFilter?.value ?? view.owner;
+    // Same rule for the release: an import can replace the store with one that
+    // no longer holds the selected release, and syncReleaseOptions drops the
+    // option. Without this the control would read "All releases" while the view
+    // still filtered by the release that is gone.
+    view.releaseId = releaseFilter?.value ?? view.releaseId;
     if (paint) render();
   };
 
@@ -1212,6 +1291,10 @@ export async function initDecisionLog(root = document, storage = localStorage, o
   });
   ownerFilter?.addEventListener("change", () => {
     view.owner = ownerFilter.value;
+    commit();
+  });
+  releaseFilter?.addEventListener("change", () => {
+    view.releaseId = releaseFilter.value;
     commit();
   });
   sortBy?.addEventListener("change", () => {

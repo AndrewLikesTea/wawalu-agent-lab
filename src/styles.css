@@ -811,6 +811,13 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .filter-share-action:hover { background:#eef4fb; color:#174f84; }
 .filter-copy-status { margin:0; color:#4a4a45; font-size:13px; }
 .filter-copy-status:empty { display:none; }
+.history-release-followup { margin:0 0 16px; border:1px solid #b7cde2; border-left:5px solid #155f9e; border-radius:11px; padding:16px 18px; background:#f1f7fc; }
+.history-release-followup-kicker { margin:0; color:#0f3c63; font:700 11px/1.4 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; }
+.history-release-followup-title { margin:7px 0 0; color:#171713; font-size:18px; overflow-wrap:anywhere; }
+.history-release-followup .decision-meta { margin-top:10px; }
+.history-release-followup-action { display:inline-flex; margin-top:12px; border-radius:9px; padding:11px 18px; background:#155f9e; color:#fff; font-weight:700; text-decoration:none; }
+.history-release-followup-action:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+@media(max-width:520px) { .history-release-followup-action{width:100%;justify-content:center} }
 .field-error { margin:0; color:#8c2f28; font-size:12px; line-height:1.45; overflow-wrap:anywhere; }
 .field-error[hidden] { display:none; }
 /* The recorder's form-level count. It spans both form columns and is banded

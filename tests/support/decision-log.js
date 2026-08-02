@@ -91,6 +91,9 @@ export function createHistoryHarness(data, { search = "", clipboard } = {}) {
     "#filter-status": select(),
     "#filter-status-hint": createElement("span"),
     "#filter-owner": select(),
+    "#filter-release": select(),
+    "#filter-release-hint": createElement("span"),
+    "#history-release-followup": createElement("div"),
     "#sort-by": select("newest"),
     "#decision-search": control({ value: "" }),
     "#clear-decision-filters": control(),
@@ -167,6 +170,10 @@ export function createHistoryHarness(data, { search = "", clipboard } = {}) {
     chooseStatus(value) {
       elements["#filter-status"].value = value;
       elements["#filter-status"].dispatch("change");
+    },
+    chooseRelease(value) {
+      elements["#filter-release"].value = value;
+      elements["#filter-release"].dispatch("change");
     },
     type(query) {
       elements["#decision-search"].value = query;
