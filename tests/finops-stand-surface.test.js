@@ -555,6 +555,60 @@ test("the named team and every figure are readable as text", async () => {
   assert.match(shownText(document, STAND_IDS.live), /Where do we stand|most expensive quarter/);
 });
 
+test("the provenance label changes in place when the reader's own export is read", () => {
+  // ONE LABEL, ONE NODE, TWO STATES (#956). The lead finding says whose figures
+  // it is reporting, and when an import replaces the bundled example the answer
+  // to "whose data is this?" changes *here* rather than appearing as a second
+  // region somewhere else on the page. Asserted on the same node before and
+  // after, which is the only way to catch a second marker being grown instead.
+  const document = parseHtml(html);
+  const marker = () => byId(document, STAND_IDS.sample);
+
+  applyStandHeadline(document, buildStandHeadline());
+  assert.equal(marker().dataset.source, "example");
+  assert.match(textOf(marker()), /Bundled synthetic example/);
+  assert.equal(/Imported/.test(textOf(marker())), false);
+  const sampleMarkers = document.querySelectorAll(".stand-sample").length;
+
+  const eligibility = validateCohortAttribution({
+    rows: [{ department_key: "atlas-platform", cost: "10" }],
+  });
+  applyStandHeadline(document, standHeadlineForImport({ analysis: overBar(), eligibility }));
+  assert.equal(marker().dataset.source, "import");
+  assert.match(textOf(marker()), /Imported/);
+  assert.match(textOf(marker()), /computed in this browser from the export you selected/);
+  assert.equal(/Bundled synthetic example/.test(textOf(marker())), false,
+    "the marker is never half-true: the example wording goes when the import arrives");
+  assert.equal(document.querySelectorAll(".stand-sample").length, sampleMarkers,
+    "the imported state repaints the label rather than adding a second one");
+  // And the region carries the same fact in the channel a stylesheet, a printed
+  // page, and a test can all read.
+  assert.equal(byId(document, STAND_IDS.region).dataset.source, "import");
+});
+
+test("the lead finding's four parts precede the classification verdict in the document", () => {
+  // The order a leader reads: the answer, the recoverable figure, the department
+  // driving it, the action. The verdict that used to open this region is still
+  // here in full, one step down, with its id and its painted value.
+  const document = parseHtml(html);
+  const region = byId(document, STAND_IDS.region);
+  const order = [...region.querySelectorAll("[id]")].map((node) => node.id);
+  const at = (id) => order.indexOf(id);
+  for (const id of ["finops-stand-answer", "finops-stand-recoverable-value",
+    "finops-stand-team-name", "finops-stand-action"]) {
+    assert.ok(at(id) > -1, `${id} is in the lead region`);
+    assert.ok(at(id) < at(ANSWER_BLOCK_IDS.value),
+      `${id} is read before the classification verdict`);
+  }
+  assert.ok(at("finops-stand-recoverable-value") < at("finops-stand-position-value"),
+    "the recoverable figure is the headline and the peer position supports it");
+  // Demoted, never dropped: every id the region computed is still queryable.
+  for (const id of ["finops-stand-position-value", "finops-stand-position-basis",
+    ANSWER_BLOCK_IDS.value, ANSWER_BLOCK_IDS.confidence, "briefing-readiness-verdict"]) {
+    assert.ok(at(id) > -1, `${id} is still in the region`);
+  }
+});
+
 test("the shipped page renders the resolver's winning finding, and only that one", async () => {
   const { document } = await openWithClearedStorage();
   const region = byId(document, STAND_IDS.region);
