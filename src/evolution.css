@@ -1139,6 +1139,15 @@
    control to learn. The only thing true of THIS one and not of those is where it
    sits, so that is the only thing declared here. */
 .answer-block>.answer-provenance { margin-top:2px; }
+.briefing-readiness { display:grid; gap:8px; max-width:72ch; border-top:1px solid var(--import-line); padding-top:14px; }
+.briefing-readiness h3,.briefing-readiness p { margin:0; overflow-wrap:anywhere; }
+.briefing-readiness h3 { font-size:20px; }
+.briefing-readiness-verdict { color:var(--import-ink); font-size:18px; }
+.briefing-readiness[data-state="insufficient-evidence"] .briefing-readiness-verdict,
+.briefing-readiness[data-state="unsupported-input"] .briefing-readiness-verdict { color:var(--state-warn-ink); }
+.briefing-readiness-sequence { display:grid; gap:7px; margin:2px 0; padding-left:22px; }
+.briefing-readiness-sequence li>span { color:var(--muted); font-size:12px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; }
+.briefing-readiness-boundary { color:var(--muted); font-size:13px; }
 /* The four named entry points. Wrapping inline links, in source order, so the
    keyboard order and the visual order are one order at every width. */
 .answer-doors { display:flex; flex-wrap:wrap; gap:8px 14px; margin:0 0 4px; }

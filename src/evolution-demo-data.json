@@ -1,4 +1,29 @@
 {
+  "briefingReadiness": {
+    "inputModel": "bundled-static-analysis/1.0.0",
+    "headlineFinding": "Backend Platform is the first intervention priority because over-provisioning is its largest recoverable cost line.",
+    "benchmarkComparison": "Backend Platform scores 71, 10 points above the synthetic enterprise SaaS cohort median of 61 under rubric literacy-mix/1.0.0.",
+    "recommendedAction": "First, pilot routing short, low-context Backend Platform requests to the standard model, capped at the fixture's $5,200 monthly savings scenario.",
+    "confidence": {
+      "level": "High",
+      "basis": "760 sampled queries, current through the source-period end; synthetic evidence only"
+    },
+    "sourcePeriod": {
+      "start": "2026-06-25",
+      "end": "2026-07-25",
+      "provenance": "hand-authored bundled provider aggregates and org mapping; not live provider or HRIS data"
+    },
+    "exclusions": {
+      "prompts": "Prompt text is excluded from this circulation decision.",
+      "providerRows": "Provider-level rows are excluded; only bundled synthetic aggregates are in scope."
+    },
+    "claims": {
+      "liveProviderAccess": false,
+      "liveHrisAccess": false,
+      "promptContent": false,
+      "providerRows": false
+    }
+  },
   "organization": {
     "name": "Northwind Technology",
     "period": "25 Jun – 25 Jul 2026",
