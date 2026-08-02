@@ -209,6 +209,13 @@ test("a leader imports the example provider export and reaches a decision they c
         { name: ROSTER_FILE, text: ORG_ROSTER },
       ]);
       await reviewOpens(document, PROVIDER_FILE);
+      // A delimited file reaches the mapping step, not a projection, so this
+      // read ends with no verdict to paint. The activation must hand its
+      // primary action back rather than leave it disabled under "reading…" —
+      // there is no other control here that reopens the picker.
+      assert.equal(byId(document, "activate-local-export").disabled, false,
+        "the export chooser is stranded disabled while the mapping step is open");
+      assert.equal(byId(document, "local-export-activation").dataset.state, "idle");
       assert.match(shownText(document, "import-mapping-summary"),
         /Recognized as OpenAI usage export/);
       assert.equal(shownText(document, "import-mapping-caption"),

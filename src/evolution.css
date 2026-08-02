@@ -372,6 +372,17 @@
 #guided-result[data-support-expanded="false"]~[data-panel-role="support"],
 #guided-result[data-support-expanded="false"]~* [data-panel-role="support"] { display:none; }
 .local-import { border-color:#9eb9aa; background:linear-gradient(145deg,#f7fbf8,#fff 55%); }
+.local-export-activation { display:flex; align-items:center; justify-content:space-between; gap:24px; margin:24px 0; border:1px solid var(--import-line); border-radius:12px; padding:20px; background:#fff; }
+.local-export-activation>div:first-child { display:grid; gap:6px; max-width:64ch; }
+.local-export-activation p { margin:0; }
+.local-export-activation-lead { font-size:17px; line-height:1.45; }
+#local-export-activation-status { color:var(--ink-muted); font-size:12px; line-height:1.55; }
+.local-export-activation-actions { display:grid; flex:0 0 auto; gap:8px; min-width:220px; }
+.local-import button.local-export-primary { border-color:var(--import-ink); background:var(--import-ink); color:#fff; }
+.local-import button.local-export-primary:hover { background:#183b2e; }
+.local-export-activation[data-state="reading"] { border-color:var(--ink-muted); }
+.local-export-activation[data-state="ready"] { border-left:6px solid var(--import-accent); }
+.local-export-activation[data-state="error"] { border-color:var(--state-error-line); background:var(--state-error-wash); }
 .own-data-preflight { display:grid; gap:14px; margin:24px 0; border:1px solid var(--import-line); border-left:6px solid var(--import-accent); border-radius:12px; padding:20px; background:var(--import-wash); }
 .own-data-preflight[data-outcome="loading"] { border-left-color:var(--ink-muted); border-left-style:dashed; }
 .own-data-preflight[data-outcome="provider-export-only"],.own-data-preflight[data-outcome="insufficient-evidence"] { border-left-color:var(--state-warn-line); background:var(--state-warn-wash); }
@@ -402,6 +413,7 @@
 .own-data-preflight-disclosure>summary:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
 .own-data-preflight-disclosure>div { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px; margin-top:12px; }
 @media(max-width:640px) { .own-data-preflight { padding:16px; } .own-data-preflight-measures,.own-data-preflight-disclosure>div { grid-template-columns:1fr; } }
+@media(max-width:640px) { .local-export-activation { align-items:stretch; flex-direction:column; padding:16px; } .local-export-activation-actions { width:100%; min-width:0; } .local-export-activation-actions button { width:100%; } }
 .local-import-heading,.local-result-heading { display:flex; align-items:start; justify-content:space-between; gap:24px; }
 /* Static classifications are outlined; dynamic status chips use filled washes. */
 /* Chip silhouette follows design-system/claude-design/review-08-foundations:

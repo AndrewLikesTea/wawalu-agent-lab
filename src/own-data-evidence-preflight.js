@@ -115,7 +115,10 @@ export function assessOwnDataEvidence({ providerRows = [], querySampleRows = [] 
     benchmark: Object.freeze({
       ratio: REQUIRED_SPEND_COVERAGE_BENCHMARK,
       label: "90% required spend coverage",
-      rule: "Covered spend-record rows ÷ all spend-record rows; zero rows equals 0% and is insufficient.",
+      rule: "Covered spend-record rows ÷ all spend-record rows; zero rows equals 0% and is insufficient."
+        + " 90% is a stated assumption, not a measured constant: under it the unclassified remainder"
+        + " can be larger than the gap between the departments this view would rank, so the ranking"
+        + " is not defensible against the director it grades.",
     }),
     provenance: Object.freeze([
       Object.freeze({ source: "Bundled provider export", available: coverage.totalRows > 0,
