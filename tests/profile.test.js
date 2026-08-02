@@ -9,7 +9,7 @@ import { byClass, createElement, first, ids, installDocument, tags } from "./sup
 installDocument();
 
 const {
-  PROFILE_EMPTY_COPY, authorInitials, captionFor, countLabel, distinctAuthors,
+  PROFILE_EMPTY_COPY, authorInitials, captionFor, countLabel, distinctAuthors, emptySummaryText,
   mergePostsById, normalizeProfileApiPosts, normalizeSeedPosts, postDetailHref,
   profileAnnouncement, profileHref, profilePaintHref, profileSummary, profileSummaryText,
   renderProfileGrid, renderProfileHeader, resolveProfileAuthor, selectProfilePosts,
@@ -358,7 +358,9 @@ test("the header shows who this is and what the counts mean", () => {
 test("an empty header states the situation once, in image-post terms", () => {
   const elements = { avatar: createElement("span"), name: createElement("span"), summary: createElement("p") };
   renderProfileHeader(elements, "Mina Okafor", { total: 0, withImages: 0, likes: 0, latest: null });
-  assert.equal(elements.summary.textContent, "No image posts on People yet.");
+  // The empty line names the person the page is showing, not the surface: it is
+  // never true that "People" has no image posts, only that this name has none.
+  assert.equal(elements.summary.textContent, "Mina Okafor hasn’t posted an image yet.");
   // The description states the state; the grid's empty state gives the action.
   // Neither repeats the other's sentence — that repetition was the bug.
   assert.notEqual(elements.summary.textContent, PROFILE_EMPTY_COPY.guidance);
@@ -371,7 +373,10 @@ test("the description carries the posted-but-no-images case, so the empty state 
     profileSummaryText({ total: 3, withImages: 0, likes: 0, latest: null }),
     "0 image posts · 3 posts in total",
   );
-  assert.equal(profileSummaryText({ total: 0, withImages: 0, likes: 0, latest: null }), PROFILE_EMPTY_COPY.summary);
+  assert.equal(
+    profileSummaryText({ total: 0, withImages: 0, likes: 0, latest: null }, "Mina"),
+    "Mina hasn’t posted an image yet.",
+  );
 });
 
 test("the empty profile says it once across the whole page", () => {
@@ -394,10 +399,10 @@ test("the empty profile says it once across the whole page", () => {
   // a live region has no page around it to borrow context from.
   const onPage = spoken.slice(0, 3);
   assert.equal(new Set(onPage).size, onPage.length, "no two page regions print the same sentence");
-  assert.equal(onPage.filter((text) => text.includes(PROFILE_EMPTY_COPY.summary)).length, 1);
+  assert.equal(onPage.filter((text) => text.includes(emptySummaryText("Mina"))).length, 1);
   assert.equal(onPage.filter((text) => text.includes("Paint")).length, 1);
   assert.equal(spoken[1], "0 image posts", "the heading count is a count, not a sentence");
-  assert.equal(profileAnnouncement("Mina", 0), "No image posts on People yet. Images made in Paint and published on Social appear here.");
+  assert.equal(profileAnnouncement("Mina", 0), "Mina hasn’t posted an image yet. Images made in Paint and published on Social appear here.");
   assert.equal(profileAnnouncement("Mina", 2), "Showing 2 image posts by Mina.");
 });
 
@@ -405,7 +410,9 @@ test("the profile page's static copy does not drift from the module's", async ()
   // profile.html renders before the module runs, so its defaults are the empty
   // state a first-time visitor actually sees first.
   const html = await readFile(new URL("../src/profile.html", import.meta.url), "utf8");
-  assert.match(html, new RegExp(`id="profile-summary">${PROFILE_EMPTY_COPY.summary}<`));
+  // "Ari" is the pre-hydration name in the line above, so the static empty
+  // sentence has to be built from that same name and nothing else.
+  assert.match(html, new RegExp(`id="profile-summary">${emptySummaryText("Ari")}<`));
   assert.match(html, new RegExp(`id="profile-count">${countLabel(0, "image post")}<`));
   assert.doesNotMatch(html, /Start by sharing an image/);
 });

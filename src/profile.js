@@ -210,16 +210,11 @@ export function formatDate(iso) {
 // primary action is "Use in post", so this copy says "image post" and "use it in
 // a post", and it names Paint instead of gesturing at "the team feed".
 //
-// One message for every visitor, deliberately. This demo has no accounts (a
-// profile is a display name), so an empty profile you are only looking at and an
-// empty profile of your own are the same surface, and splitting the copy in two
-// is what produced the duplication in the first place. If accounts ever arrive,
-// branch here — not at four call sites.
+// One message for every visitor, deliberately. This demo has no accounts, so an
+// empty view you are only looking at and an empty view of your own are the same
+// surface, and splitting the copy in two is what produced the duplication in the
+// first place. If accounts ever arrive, branch here — not at four call sites.
 export const PROFILE_EMPTY_COPY = {
-  // The identity line under the heading: states the situation, once, and names
-  // the surface it is true of. "No image posts yet" alone could be any list on
-  // the site, and this page and Social are the two a visitor mixes up.
-  summary: "No image posts on People yet.",
   // The grid's empty state. The sentence says what fills this grid — both ends
   // of the path, in one telling — and the two buttons below it name the two
   // destinations. Splitting it that way is deliberate: when the sentence and the
@@ -230,11 +225,25 @@ export const PROFILE_EMPTY_COPY = {
   postActionLabel: "See every post on Social",
 };
 
+// The identity line under the heading when the selected name has nothing to
+// show. It names the person the page is already showing rather than the surface:
+// "No image posts on People yet" read as if People itself were empty, which is
+// never true — some other demo persona always has posts. Built from the same
+// display name the heading renders, so it stays right for every persona.
+//
+// The name is written through textContent everywhere it lands (the header, the
+// live region), so an apostrophe in a name needs no escaping; nothing here is
+// ever parsed as markup.
+export function emptySummaryText(author) {
+  const name = String(author ?? "").trim() || DEFAULT_AUTHOR;
+  return `${name} hasn’t posted an image yet.`;
+}
+
 // The profile description under the name. An author with posts but no images
 // reads "0 image posts · 3 posts in total", so the counts carry the "you posted,
 // just without pictures" case that the empty state used to spell out in prose.
-export function profileSummaryText(summary) {
-  if (summary.total === 0) return PROFILE_EMPTY_COPY.summary;
+export function profileSummaryText(summary, author) {
+  if (summary.total === 0) return emptySummaryText(author);
   const parts = [countLabel(summary.withImages, "image post"), `${countLabel(summary.total, "post")} in total`];
   if (summary.latest) parts.push(`last posted ${formatDate(summary.latest)}`);
   return parts.join(" · ");
@@ -244,7 +253,7 @@ export function profileSummaryText(summary) {
 // grid now shows rather than composing a fourth variant of the same news.
 export function profileAnnouncement(author, visibleCount) {
   if (visibleCount > 0) return `Showing ${countLabel(visibleCount, "image post")} by ${author}.`;
-  return `${PROFILE_EMPTY_COPY.summary} ${PROFILE_EMPTY_COPY.guidance}`;
+  return `${emptySummaryText(author)} ${PROFILE_EMPTY_COPY.guidance}`;
 }
 
 /* ------------------------------ rendering layer --------------------------- */
@@ -413,7 +422,7 @@ export function renderProfileHeader(elements, author, summary) {
   }
   if (elements.name) elements.name.textContent = author;
   if (elements.roleName) elements.roleName.textContent = author;
-  if (elements.summary) elements.summary.textContent = profileSummaryText(summary);
+  if (elements.summary) elements.summary.textContent = profileSummaryText(summary, author);
 }
 
 /* -------------------------------- mounting -------------------------------- */

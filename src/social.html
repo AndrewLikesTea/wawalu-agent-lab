@@ -37,7 +37,7 @@
              visitor confuses it with — People — and when to open that instead.
              People carries the mirror sentence. -->
         <h1 id="page-title">Social</h1>
-        <p>Social is the team's shared demo feed: read every post as it lands, and publish your own with an optional image. Open People when you want one person's image posts instead. Posts are shared across browsers and use no customer or production data.</p>
+        <p>Social is the team's shared demo feed: read every post as it lands, and publish your own with an optional image. Open People when you want one demo persona's image posts instead. Posts are shared across browsers and use no customer or production data.</p>
         <!-- The two ways to publish here, as a pair: with an image, or without.
              The primary names the act and the tool — "Paint" alone is what the
              nav already says, and a control that repeats the nav adds nothing.
@@ -115,7 +115,11 @@
               <label for="post-author">Name <span class="label-optional">(optional)</span></label>
               <input id="post-author" name="author" type="text" maxlength="60" autocomplete="off"
                 placeholder="Guest" aria-describedby="post-author-hint" />
-              <span class="hint" id="post-author-hint">Shown as the byline. Defaults to “Guest”.</span>
+              <!-- "Display name" is the one term the site uses for the name a
+                   post is published under; People labels its picker with the
+                   same words. The “Guest” default is stated here, where the
+                   visitor is actually typing a name, and nowhere else. -->
+              <span class="hint" id="post-author-hint">Shown as the display name on your post. Defaults to “Guest”.</span>
             </div>
 
             <div class="field field-wide">
