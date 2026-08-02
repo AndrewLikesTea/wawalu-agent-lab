@@ -84,6 +84,10 @@ export const EXPORT_FILTER_FIELDS = Object.freeze({
   type: "string",
   status: "string",
   owner: "string",
+  // The release whose decisions were on screen, by id. The id and not the
+  // version: the version is a label that a re-release can reuse, and the file
+  // has to name the release the reader can look up in its own `releases`.
+  releaseId: "string",
   from: "string",
   to: "string",
   currentOnly: "boolean",

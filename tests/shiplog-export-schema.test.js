@@ -6,8 +6,10 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
+import { DEFAULT_HISTORY_FILTERS } from "../src/history-filters.js";
 import {
   EXPORT_DECISION_FIELDS,
+  EXPORT_FILTER_FIELDS,
   EXPORT_RELEASE_FIELDS,
   SHIPLOG_EXPORT_SCHEMA,
   SHIPLOG_EXPORT_VERSION,
@@ -180,6 +182,18 @@ test("a reordered file is named as out of canonical order", () => {
   assert.deepEqual(orderingViolations(file({ decisions: [older, decision] })), [],
     "the same two records in canonical order pass");
   assert.deepEqual(orderingViolations({}), [], "a payload with no collections has no order to violate");
+});
+
+// The exporter writes whatever dimensions the history view holds, so a filter
+// added to the view and not to this schema produces a file that fails its own
+// contract — and the visitor who set that filter is exactly the one who cannot
+// export. Pinning the two key sets together turns that into a failure here,
+// where it costs one line, instead of at the download.
+test("every dimension the history can filter by is a dimension the file may name", () => {
+  assert.deepEqual(
+    Object.keys(EXPORT_FILTER_FIELDS).sort(),
+    Object.keys(DEFAULT_HISTORY_FILTERS).sort(),
+  );
 });
 
 test("the filter block declares its dimensions, and never states one that was off", () => {

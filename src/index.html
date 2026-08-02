@@ -401,6 +401,13 @@
                 <option value="all">all</option>
               </select>
             </div>
+            <div class="filter history-release-filter">
+              <label for="filter-release">Decisions in release</label>
+              <select id="filter-release" aria-describedby="filter-release-hint">
+                <option value="all">All releases</option>
+              </select>
+              <span class="hint" id="filter-release-hint">Shows decisions associated with the selected release.</span>
+            </div>
             <!-- The recorded-on window. Two native date inputs, each with its
                  own visible label, so the range is keyboard-operable and its
                  two ends are separately clearable. Both bounds are inclusive
@@ -470,6 +477,7 @@
               <p class="filter-copy-status" id="history-copy-status" role="status" aria-live="polite"></p>
             </div>
           </div>
+          <div id="history-release-followup" hidden></div>
           <div id="decision-list" aria-busy="true">
             <div class="list-state list-state-loading" role="status">
               <h3>Loading decisions</h3>

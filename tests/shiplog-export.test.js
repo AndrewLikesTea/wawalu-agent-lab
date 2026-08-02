@@ -480,7 +480,7 @@ test("a scoped export carries the filter that produced it and counts what it wro
       filtered: true,
       decisionIds: ["link-d-cache"],
       releaseIds: [],
-      filters: { owner: "Ari", status: "accepted", sort: "title" },
+      filters: { owner: "Ari", status: "accepted", releaseId: "link-r-1-4-0", sort: "title" },
     },
   });
 
@@ -491,7 +491,10 @@ test("a scoped export carries the filter that produced it and counts what it wro
   assert.equal(filtered, true);
   // `sort` is not a filter — it reorders the same records — so it is not in the
   // block, and the retired "approved" spelling would arrive here as "accepted".
-  assert.deepEqual(payload.filter, { owner: "Ari", status: "accepted" });
+  // Every other dimension the history can filter by is declared and carried: a
+  // filter the view knows about but the schema does not is drift the file
+  // reports rather than a scope it can state.
+  assert.deepEqual(payload.filter, { owner: "Ari", status: "accepted", releaseId: "link-r-1-4-0" });
   assert.deepEqual(shiplogExportViolations(payload), []);
 });
 
