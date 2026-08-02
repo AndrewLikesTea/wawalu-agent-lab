@@ -201,7 +201,7 @@ test("the loading state is one announced line in the post's region, and takes no
     assert.equal(panel.getAttribute("aria-busy"), "true");
     assert.equal(state.getAttribute("role"), "status", "the state is announced without stealing focus");
     assert.equal(page.document.activeElement, null, "nothing may take focus on load");
-    assert.equal(textOf(state), "Loading this post from Social…");
+    assert.equal(textOf(state), "Loading this post…");
     // Nothing is named yet, so the h1 names the page — the same words a reader
     // sees in the shipped markup before any script runs.
     assert.equal(textOf(page.document.querySelector("#page-title")), "Post from Social");
@@ -222,6 +222,72 @@ test("the loading state is one announced line in the post's region, and takes no
     await waitFor(() => page.document.documentElement.dataset.shiplogPostDetail === "ready", "the post arrived");
     assert.equal(panel.getAttribute("aria-busy"), "false");
     assertOneExit(page, SOCIAL, "after loading");
+  } finally {
+    page.restore();
+  }
+});
+
+// The state a visitor meets before a single line of this page's script has run.
+// A shared link is opened cold, and the markup paints first; the region used to
+// ship empty, so the page read as a heading, a sentence, and a hole.
+test("the page opens already saying it is loading, and the post replaces that line", async () => {
+  const page = await loadPage(new URL("../src/post.html", import.meta.url), { location: { search: "?id=p-image" } });
+  try {
+    const panel = page.document.querySelector("#post-detail");
+
+    // Shipped markup, no module imported yet.
+    assert.equal(panel.dataset.postState, "initial");
+    assert.equal(panel.getAttribute("aria-busy"), "true");
+    assert.equal(panel.querySelectorAll(".detail-loading").length, 1);
+    assert.equal(textOf(panel.querySelector(".detail-loading")), "Loading this post…");
+    assert.equal(panel.querySelector(".detail-loading").getAttribute("role"), "status");
+    // The states that explain an absent post are not in the markup at all, so
+    // the wait and an unavailable panel cannot be read together at any point.
+    assert.equal(panel.querySelectorAll(".detail-state-message").length, 0);
+    assert.equal(panel.querySelectorAll(".detail-post").length, 0);
+    // And it takes nothing away from the exit above it.
+    assertOneExit(page, SOCIAL, "before the script runs");
+    assert.equal(tabSequence(page.document).filter((node) => node.closest("#post-detail")).length, 0);
+
+    // Held open, so the script's own render of the same line can be read.
+    let release;
+    globalThis.fetch = () => new Promise((resolve) => { release = () => resolve(seedResponse([SEED_POST])); });
+    await importPageModule("/post-page.js");
+    await waitFor(() => page.document.documentElement.dataset.shiplogPostDetail === "loading", "the script took the region");
+
+    assert.equal(panel.dataset.postState, "initial", "the script agrees with the markup it replaced");
+    assert.equal(panel.querySelectorAll(".detail-loading").length, 1, "one wait line, not the shipped one plus a second");
+    assert.equal(textOf(panel.querySelector(".detail-loading")), "Loading this post…");
+    assert.equal(panel.querySelectorAll(".detail-state-message").length, 0);
+
+    release();
+    await waitFor(() => page.document.documentElement.dataset.shiplogPostDetail === "ready", "the post arrived");
+
+    // Resolved: one state, and the wait is gone rather than pushed off screen.
+    assert.equal(panel.dataset.postState, "resolved");
+    assert.equal(panel.querySelectorAll(".detail-loading").length, 0);
+    assert.equal(panel.querySelectorAll(".detail-post").length, 1);
+    assert.equal(panel.getAttribute("aria-busy"), "false");
+    assert.doesNotMatch(textOf(panel), /Loading this post/);
+    assert.equal(textOf(page.document.querySelector("#page-title")), "Post by Mina Okafor");
+  } finally {
+    page.restore();
+  }
+});
+
+// The other exit from the initial state: no post to show, one state on the
+// region, and the wait line gone rather than sitting under the explanation.
+test("an unavailable post leaves the initial state behind entirely", async () => {
+  const page = await openPostPage("?id=p-gone", seedOnly([SEED_POST]));
+  try {
+    const panel = page.panel;
+    assert.equal(panel.dataset.postState, "unavailable");
+    assert.equal(panel.querySelectorAll(".detail-loading").length, 0, "the wait must not survive under the explanation");
+    assert.doesNotMatch(textOf(panel), /Loading this post/);
+    assert.equal(panel.querySelectorAll(".detail-state-message").length, 1);
+    assert.equal(panel.getAttribute("aria-busy"), "false");
+    // The body still carries a way forward, alongside the standing exit above.
+    assert.equal(textOf(panel.querySelector(".detail-state-feed")), "Return to the Social feed");
   } finally {
     page.restore();
   }

@@ -10,6 +10,7 @@ installDocument();
 
 const {
   DEFAULT_POST_RETURN,
+  POST_LOADING_LINE,
   findPostById,
   postDetailTitle,
   postImageAlt,
@@ -254,7 +255,11 @@ test("the loading state is one labelled line in the post's region, not a banner"
   assert.equal(container.children.length, 1, "the wait is a single line, not a stack of furniture");
   const status = first(container, "detail-loading");
   assert.equal(status.getAttribute("role"), "status");
-  assert.equal(status.textContent.replace(/\s+/g, " ").trim(), "Loading this post from Social…");
+  assert.equal(status.textContent.replace(/\s+/g, " ").trim(), "Loading this post…");
+  assert.equal(POST_LOADING_LINE, "Loading this post…");
+  // A real ellipsis, the way "Loading posts…" and "Loading releases…" spell it,
+  // not three periods pretending to be one.
+  assert.ok(POST_LOADING_LINE.endsWith("…") && !POST_LOADING_LINE.includes("..."));
 
   // Concise: no heading of its own, no state banner, and no placeholder block
   // pretending to be an image the post may not even have.
@@ -410,6 +415,70 @@ test("the standing sentence outlives every state the panel renders", () => {
   }
 });
 
+/* --------------------- the state the page opens holding ------------------- */
+
+// A shared link is opened cold: the markup paints before post-page.js is
+// fetched, parsed and run. The region used to ship empty, so the first thing a
+// visitor saw was a heading, a sentence, and a hole. The wait now ships with
+// the page, in the words the script would have written anyway.
+test("the shipped markup opens in the initial state, saying so in words", async () => {
+  const html = await postPageHtml();
+  const region = html.match(/<div id="post-detail"[\s\S]*?<\/div>/)[0];
+
+  assert.match(region, /data-post-state="initial"/, "the region names the state it opens in");
+  assert.match(region, /aria-busy="true"/, "and reports that it is still working");
+  assert.equal((region.match(/class="detail-loading"/g) ?? []).length, 1, "one wait line, not a stack");
+  assert.ok(region.includes(`>${POST_LOADING_LINE}</span>`), "the shipped line is the rendered line");
+  assert.match(region, /role="status"/, "so assistive tech announces it without stealing focus");
+  assert.match(region, /class="detail-loading-dot" aria-hidden="true"/, "the spinner is decoration");
+
+  // One spelling of one sentence. Two would flash a rewrite when the script ran.
+  assert.equal(html.split(POST_LOADING_LINE).length - 1, 1);
+  // The wait is a line, not a second page: no heading, no chip, no placeholder
+  // block standing in for an image this post may not have.
+  assert.doesNotMatch(region, /<h[1-6]|detail-state-chip|skeleton-media|empty-state/);
+  // And it carries nothing to tab to, so the standing exit stays the first stop
+  // a keyboard reader reaches after the site frame.
+  assert.doesNotMatch(region, /<a |<button|tabindex/);
+  // Nothing about the unavailable states ships in the markup: they are what the
+  // script writes *instead of* this, never alongside it.
+  assert.doesNotMatch(region, /Post unavailable|Choose a post|Return to the Social feed/);
+});
+
+// One value, not two toggled nodes. Two nodes is how a wait survives underneath
+// an unavailable-post panel; a single attribute cannot hold both states.
+test("the post region holds exactly one state, and names it on one attribute", () => {
+  const expected = {
+    loading: "initial",
+    loaded: "resolved",
+    missing: "unavailable",
+    error: "unavailable",
+    "id-less": "unavailable",
+  };
+
+  for (const [name, value, options] of PANEL_STATES) {
+    const container = createElement("div");
+    // Start from what src/post.html ships, so each render has to move the state
+    // off "initial" rather than inherit it.
+    container.setAttribute("data-post-state", "initial");
+    container.append(createElement("p"));
+
+    renderPostDetail(container, value, options);
+
+    assert.equal(container.dataset.postState, expected[name], `the ${name} state is named on the region`);
+    const waiting = byClass(container, "detail-loading").length;
+    const explained = byClass(container, "detail-state-message").length;
+    const shown = byClass(container, "detail-post").length;
+    assert.equal(waiting + explained + shown, 1, `the ${name} state renders more than one thing at once`);
+    assert.equal(waiting, name === "loading" ? 1 : 0, `the ${name} state's wait line`);
+    assert.equal(explained, ["missing", "error", "id-less"].includes(name) ? 1 : 0, `the ${name} state's explanation`);
+    assert.equal(container.getAttribute("aria-busy"), name === "loading" ? "true" : "false");
+    // The wait never survives into a resolved state, whatever the region held
+    // before: the shipped line and the unavailable panel are never both on screen.
+    if (name !== "loading") assert.doesNotMatch(container.textContent, /Loading this post/);
+  }
+});
+
 test("the standing exit remains while unavailable states add a clear feed action", async () => {
   const html = await postPageHtml();
   assert.equal([...html.matchAll(/id="post-back"/g)].length, 1, "one standing exit in the markup");
@@ -459,7 +528,7 @@ test("loading and unavailable states say what happened in words", () => {
     first(missing, "empty-title").textContent,
     first(failed, "empty-title").textContent,
   ];
-  assert.deepEqual(titles, ["Loading this post from Social…", "Post unavailable", "Post unavailable"]);
+  assert.deepEqual(titles, ["Loading this post…", "Post unavailable", "Post unavailable"]);
 
   // The difference has to survive with colour, icons and badges removed, so it
   // is asserted on the words themselves — no class name is read here.

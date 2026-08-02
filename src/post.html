@@ -64,7 +64,21 @@
 
       <section class="workspace profile-workspace" aria-label="Post">
         <div class="list-panel">
-          <div id="post-detail"></div>
+          <!-- The initial state ships in the markup, the way src/releases.html
+               ships its "Loading releases" line inside the release list. This
+               region used to be an empty container: a visitor opening a shared
+               link read the heading and the sentence above, then nothing at all
+               until post-page.js ran and drew the same line from script. The
+               page now says what it is doing from the first paint.
+
+               post-detail.js owns every state after this one. It replaces the
+               whole region on each render and stamps data-post-state, so the
+               wait and an unavailable post can never stand on screen together.
+               The wording here is the one post-detail.js renders, character for
+               character; a test pins them to each other. -->
+          <div id="post-detail" data-post-state="initial" aria-busy="true">
+            <p class="detail-loading" role="status"><span class="detail-loading-dot" aria-hidden="true"></span><span class="detail-loading-text">Loading this post…</span></p>
+          </div>
         </div>
       </section>
       </main>
