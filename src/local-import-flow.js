@@ -264,6 +264,8 @@ const RECOVERY_BY_CODE = Object.freeze({
   malformed_quoted_field: "Re-export without editing the file by hand; a quoted field is left open.",
   missing_required_column: "Add the named column to the export, or choose the full provider export.",
   native_required_field_invalid: "Correct the named column — every required cell filled, dates printed as YYYY-MM-DD — then choose the export again.",
+  hyperscaler_export_incomplete: "Re-export with the named fields included; the export was recognized, so only the missing columns stand between it and an analysis.",
+  hyperscaler_export_incompatible: "Choose the usage or billing export the compatibility contract describes for this provider.",
   unparseable_date: "Correct the dates in the named column, then choose the file again.",
   invalid_amount: "Correct the cost column so every row holds a non-negative amount.",
   invalid_quantity: "Correct the usage column so every row holds a non-negative quantity.",

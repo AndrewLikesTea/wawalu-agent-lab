@@ -33,6 +33,11 @@ import {
 import { modelPseudonym, orgUnitPseudonym, unitDigest, unitKey } from "./unit-pseudonym.js";
 import { NO_NATIVE_GROUPING, detectNativeGrouping } from "./native-grouping.js";
 import { NATIVE_REQUIRED_FIELD_CODE, nativeContractForHeader } from "./native-provider-activation.js";
+// The three hyperscaler adapters. They import this module's money, date, and id
+// helpers rather than growing a second copy of them, so the import is mutual —
+// deliberately, and only for function bindings that are called after both
+// modules have finished evaluating.
+import { HYPERSCALER_OUTCOME, adaptHyperscalerExport } from "./hyperscaler-export-adapters.js";
 // The package layer: which vendor packages are supported, what a reader is told
 // to ask for, and which containers are refused. Everything below reads those
 // declarations rather than restating them — the accepted extensions, the
@@ -64,7 +69,18 @@ export const TABULAR_CODES = Object.freeze({
   CONTRACT_REJECTED: "contract_rejected",
   SENSITIVE_FIELD_PRESENT: "sensitive_field_present",
   NATIVE_REQUIRED_FIELD_INVALID: NATIVE_REQUIRED_FIELD_CODE,
+  HYPERSCALER_INCOMPLETE: "hyperscaler_export_incomplete",
+  HYPERSCALER_INCOMPATIBLE: "hyperscaler_export_incompatible",
 });
+
+/**
+ * The adapter's own outcome, as this module's problem code. A function rather
+ * than a lookup table because the two modules import each other: a table built
+ * at module scope would read `HYPERSCALER_OUTCOME` before the adapter module
+ * has finished evaluating, depending on which of the two a page imported first.
+ */
+const hyperscalerCode = (outcome) => (outcome === HYPERSCALER_OUTCOME.INCOMPLETE
+  ? TABULAR_CODES.HYPERSCALER_INCOMPLETE : TABULAR_CODES.HYPERSCALER_INCOMPATIBLE);
 
 /** Extensions the picker and the validator accept, from the package contract.
  * `.json` keeps its own path. */
@@ -409,7 +425,9 @@ const digestOf = unitDigest;
 const unitId = orgUnitPseudonym;
 const modelId = modelPseudonym;
 
-function exportId(seed) {
+/** Exported so the hyperscaler adapters mint their envelope ids the same way a
+ * delimited import does, rather than growing a second UUID derivation. */
+export function exportId(seed) {
   const hex = `${digestOf(seed)}${digestOf(`${seed}:tail`)}`;
   return [
     hex.slice(0, 8), hex.slice(8, 12), `4${hex.slice(13, 16)}`,
@@ -438,7 +456,9 @@ function mapProvider(value, fallback) {
   return PROVIDER_BY_PATTERN.find(([pattern]) => pattern.test(text))?.[1] ?? "other";
 }
 
-function mapServiceCategory(model) {
+/** Exported for the same reason `exportId` is: one model string must land in
+ * one service category whichever import path read it. */
+export function mapServiceCategory(model) {
   const text = String(model ?? "");
   if (/embed/i.test(text)) return "embedding";
   if (/image|dall.?e|imagen|stable.?diffusion|canvas/i.test(text)) return "image-generation";
@@ -1148,6 +1168,45 @@ function reject(code, message, detail = {}) {
  * render the located problems.
  */
 export function parseLocalImportFile(text, fileName = "local.json", mediaType = "", options = {}) {
+  // The hyperscaler contracts are asked first, and by marker rather than by
+  // extension, because two of the three arrive as `.json`: routing an Azure
+  // actual-cost envelope by its name would hand it to the v1 validator, which
+  // would reject it as an undeclared field rather than adapt it. Recognition is
+  // structural and disjoint from every already-supported input — a v1 envelope
+  // carries `kind`, not `properties.rows`; a supported CSV carries no
+  // `lineItem/` columns — so nothing that parsed before reaches this branch.
+  const claimed = adaptHyperscalerExport(text);
+  if (claimed) {
+    if (!claimed.ok) {
+      reject(hyperscalerCode(claimed.outcome), `${claimed.reason} ${claimed.remedy}`, {
+        providerId: claimed.providerId,
+        caseCode: claimed.caseCode,
+        // Named, so the reader is told which column to re-export rather than
+        // being told the file is wrong.
+        missingFields: claimed.missingFields,
+      });
+    }
+    let validated;
+    try {
+      // Same validator, same rules as an uploaded envelope: an adapter defect
+      // fails here rather than downstream. The synthetic name only satisfies
+      // the JSON path's extension gate; the reader's own file name is restored
+      // below so diagnostics still address the file they chose.
+      validated = parseLocalFinopsFile(JSON.stringify(claimed.document),
+        "normalized-hyperscaler-import.json", "application/json");
+    } catch (error) {
+      reject(TABULAR_CODES.CONTRACT_REJECTED,
+        describeProblem({ code: TABULAR_CODES.CONTRACT_REJECTED, reason: error?.code ?? "unknown" }),
+        { providerId: claimed.providerId });
+    }
+    return Object.freeze({
+      type: validated.type,
+      fileName,
+      document: validated.document,
+      shape: `hyperscaler_${claimed.providerId}`,
+      problems: Object.freeze([]),
+    });
+  }
   const extension = extensionOf(fileName);
   if (extension === ACCEPTED_LOCAL_FILE.extension) {
     return parseLocalFinopsFile(text, fileName, mediaType);

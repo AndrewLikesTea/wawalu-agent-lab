@@ -98,6 +98,10 @@ import { briefingDerivation } from "/finops-briefing-derivation.js";
 // untouched, `.csv`/`.tsv`/`.txt` route through the delimited normalizer. Both
 // return the same parsed v1 envelope, so nothing below this line changes.
 import { isDelimitedFileName, parseLocalImportFile } from "/finops-tabular-import.js";
+// Asked before the review queue so a contracted Bedrock, Vertex AI, or Azure
+// OpenAI export skips a mapping step it has no mapping for. Recognition only;
+// the conversion happens inside `parseLocalImportFile`.
+import { recognizeHyperscalerExport } from "/hyperscaler-export-adapters.js";
 import { readDelimitedText } from "/delimited-text.js";
 import {
   assessNativeProviderActivation, NATIVE_ACTIVATION_STATUS,
@@ -2666,7 +2670,14 @@ function mountLocalFinopsImport() {
       }
       // A delimited file is never analyzed on sight: it goes through the review
       // step, and the rest of the selection waits behind it.
-      if (isDelimitedFileName(file.fileName)) {
+      //
+      // The exception is a file a hyperscaler compatibility contract claims by
+      // marker. Its columns are named by the contract, so there is no mapping
+      // for the reader to review and nothing for the review step to correct;
+      // asking them to map `lineItem/UnblendedCost` onto "cost" would be asking
+      // them to confirm a translation the contract already fixed. It takes the
+      // direct path below, which is the same call and the same validator.
+      if (isDelimitedFileName(file.fileName) && !recognizeHyperscalerExport(file.text)) {
         // The direct path is intentionally one-file: a mixed selection still
         // uses the established review queue so provider and roster mappings are
         // confirmed together and its long-standing behavior is preserved.
@@ -2688,7 +2699,10 @@ function mountLocalFinopsImport() {
           paintIntakeConfidence(parsed);
         }
         imports.push({
-          source: "json", fileName: file.fileName, parsed, state: null,
+          // A contracted hyperscaler export reached this branch by its markers,
+          // not by being JSON, so it is recorded as the native export it is.
+          source: isDelimitedFileName(file.fileName) ? "native" : "json",
+          fileName: file.fileName, parsed, state: null,
           rows: parsed.document?.records?.length ?? 0,
         });
       } catch (error) {
