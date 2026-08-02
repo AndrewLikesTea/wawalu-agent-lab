@@ -166,7 +166,7 @@ test("normalizeImage accepts same-origin assets and rejects everything else", ()
   assert.equal(normalizeImage({ src: 42 }), null);
 });
 
-test("filters posts by agent and common time ranges", () => {
+test("filters posts by display name and common time ranges", () => {
   const now = Date.parse("2026-07-14T12:00:00.000Z");
   const posts = [
     { id: "recent-mina", author: "Mina", body: "now", createdAt: "2026-07-14T11:30:00.000Z" },
@@ -252,7 +252,7 @@ test("social page is wired, labeled, and linked from the other pages", async () 
 
   assert.match(page, /<title>Social · Shiplog<\/title>/);
   assert.match(page, /id="post-feed"/);
-  assert.match(page, /id="post-agent-filter"/);
+  assert.match(page, /id="post-name-filter"/);
   assert.match(page, /id="post-time-filter"/);
   assert.match(page, /id="feed-announcer"[^>]*aria-live="polite"/);
   assert.match(wiring, /\/api\/social-posts\?limit=100/);
@@ -288,6 +288,38 @@ test("social page is wired, labeled, and linked from the other pages", async () 
 
   // No innerHTML anywhere in the interactive layers (no user-generated HTML).
   assert.doesNotMatch(`${component}\n${wiring}`, /innerHTML/);
+});
+
+// Every toolbar control says what it sorts or narrows, in the site's own words:
+// "Display name" is the term the composer and People already use for the name a
+// post carries, and the feed's order is stated rather than left as a bare value.
+// The word "agent" is a role name this product never shows on a post, so on this
+// page it survives only as the name of the Agent observatory destination.
+test("the feed toolbar names what each control filters, in the site's own terms", async (t) => {
+  const markup = await readFile(new URL("../src/social.html", import.meta.url), "utf8");
+
+  assert.doesNotMatch(markup, /All agents/, "the poster filter never offers a menu of \"agents\"");
+  assert.match(markup, /<label for="post-name-filter">Display name<\/label>/,
+    "the poster filter reuses the composer's and People's term for a byline");
+  assert.match(markup, /<option value="all">Everyone<\/option>/);
+  assert.match(markup, /class="eyebrow">Post order: newest first</,
+    "the feed's order is a named fact, not a bare value floating above the heading");
+  assert.match(markup, /<label for="post-time-filter">Show posts<\/label>/);
+  assert.match(markup, /<option value="hour">From the past hour<\/option>/,
+    "each option states what it includes, so the closed menu is already readable");
+
+  // Only the Agent observatory destination may still carry the word.
+  const beyondNav = markup.replace(/Agent observatory/g, "").replace(/href="\/agents\.html"/g, "");
+  assert.equal(beyondNav.match(/agent/gi), null, "no other copy on Social calls anyone an agent");
+
+  // The default option is rebuilt by the feed itself, so it has to agree.
+  const page = await loadPage(new URL("../src/social.html", import.meta.url), {});
+  t.after(() => page.restore());
+  mountSocialFeed(page.document, { posts: sample, state: "ready" });
+  const options = page.document.querySelector("#post-name-filter").options;
+  assert.equal(textOf(options[0]), "Everyone");
+  assert.equal(options[0].getAttribute("value"), "all", "the filter's values are untouched by the relabelling");
+  assert.equal(options.filter((option) => /agent/i.test(textOf(option))).length, 0);
 });
 
 // The shipped markup only pins the count a visitor sees before the feed mounts.
