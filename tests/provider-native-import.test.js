@@ -26,15 +26,13 @@ import {
 import { createElement, first, tags } from "./support/dom.js";
 
 const PROVIDER_ID = "browser-compat-provider";
-const FILE_ID = "provider-native-file";
-const DROP_ID = "provider-native-drop";
 const EXAMPLE_ID = "provider-native-example";
 const FINDING_ID = "provider-native-finding";
 const TRUST_ID = "provider-native-trust";
 const EVIDENCE_ID = "provider-native-evidence";
 const EVIDENCE_BODY_ID = "provider-native-evidence-body";
 
-const IDS = [PROVIDER_ID, FILE_ID, DROP_ID, EXAMPLE_ID, FINDING_ID, TRUST_ID,
+const IDS = [PROVIDER_ID, EXAMPLE_ID, FINDING_ID, TRUST_ID,
   EVIDENCE_ID, EVIDENCE_BODY_ID];
 
 function fakeDocument() {
@@ -295,36 +293,10 @@ test("every bundled example reads to a finding with all three slots", () => {
   }
 });
 
-test("a dropped file and a file chosen with the control take the same path", async () => {
-  const file = (entry) => ({ name: entry.fileName, text: async () => entry.text });
-  for (const [type, event] of [
-    ["change", null],
-    ["drop", { preventDefault() {}, dataTransfer: { files: [file(NO_UNIT_COUNT_EXAMPLE)] } }],
-  ]) {
-    const doc = fakeDocument();
-    initProviderImport(doc);
-    bindProviderImport(doc);
-    doc.registry[FILE_ID].files = [file(NO_UNIT_COUNT_EXAMPLE)];
-    doc.registry[type === "drop" ? DROP_ID : FILE_ID].dispatch(type, event);
-    // The read is asynchronous; the render lands on the next turn of the loop.
-    await Promise.resolve();
-    await Promise.resolve();
-    assert.equal(doc.registry[FINDING_ID].dataset.state, INTAKE_STATES.ANSWERED, type);
-    assert.equal(doc.registry[FINDING_ID].dataset.metric, "none", type);
-    assert.equal(doc.registry[FINDING_ID].children.length, 3, type);
-  }
-});
-
-test("dragging over the drop target is a state, and it clears again", () => {
-  const doc = fakeDocument();
-  initProviderImport(doc);
-  bindProviderImport(doc);
-  const drop = doc.registry[DROP_ID];
-  drop.dispatch("dragover", { preventDefault() {} });
-  assert.equal(drop.dataset.dragging, "true");
-  drop.dispatch("dragleave", {});
-  assert.equal(drop.dataset.dragging, "false");
-});
+// This section's own file control and drop target are gone (#958): the reader's
+// export has ONE way into the page, and the tests for it are in
+// tests/finops-import-drop.test.js. What is left here reads bundled examples,
+// and the assertion that it no longer offers a second importer is in that file.
 
 test("changing the provider refills the examples and clears the previous finding", () => {
   const doc = fakeDocument();

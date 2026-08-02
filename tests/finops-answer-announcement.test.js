@@ -200,8 +200,14 @@ test("a rejected file is announced once, from a control the reader can act from"
     await waitFor(() => shownText(document, ANSWER_ANNOUNCER_ID).startsWith("This file was not"),
       "the rejection to be announced");
 
+    // Two, and exactly two (#958). The announcer below still carries what
+    // happened, what to do, and that nothing changed. The second is the named
+    // reason beside the import control itself — the region a reader who has
+    // just dropped a file is already looking at, and the one the recognition
+    // entry point's own sentence is written into. Anything beyond these two is
+    // still a third interruption for one reading.
     const announced = spoke(before, announcingRegions(document));
-    assert.deepEqual(announced, [ANSWER_ANNOUNCER_ID],
+    assert.deepEqual(announced, [ANSWER_ANNOUNCER_ID, "finops-import-reason"],
       `${announced.length} regions announced this rejection`);
     const said = shownText(document, ANSWER_ANNOUNCER_ID);
     assert.match(said, /This file was not analyzed\./, "the announcement does not say what happened");

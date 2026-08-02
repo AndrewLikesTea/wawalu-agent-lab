@@ -36,8 +36,6 @@ import {
 // Shared with the eligibility check (#927): one provider chooser on the page,
 // not two that can disagree about which provider the reader is working with.
 const PROVIDER_ID = "browser-compat-provider";
-const DROP_ID = "provider-native-drop";
-const FILE_ID = "provider-native-file";
 const EXAMPLE_ID = "provider-native-example";
 const FINDING_ID = "provider-native-finding";
 const TRUST_ID = "provider-native-trust";
@@ -52,11 +50,6 @@ export const RESOLVE_LABEL = "Show what is uncertain";
 export const EMPTY_FINDING_COPY = "No export has been read yet. Choose the provider you "
   + "exported from, then drop a file here, pick one with the file control, or read a "
   + "bundled example.";
-
-// Said when the file was chosen but could not be read at all — a directory, a
-// revoked handle, a file the browser refused. It is a state, not a thrown error.
-export const UNREADABLE_FILE_COPY = "That file could not be read in this tab. Choose it "
-  + "again, or export a fresh copy and drop that.";
 
 // Said when the example chooser holds a value that is not a bundled example. A
 // real control refuses an unlisted value and a test harness does not, so the
@@ -337,27 +330,18 @@ export function initProviderImport(doc) {
 const readFinding = (doc, providerId, { text, fileName, sourceLabel }) =>
   renderProviderImport(doc, buildIntake({ text, fileName, providerId, sourceLabel }));
 
-/** Wires the drop target, the file control, the example chooser and the provider. */
+/**
+ * Wires the example chooser and the provider.
+ *
+ * The file control and the drop target this section used to own are gone
+ * (#958): the reader's own export has exactly one way into the page, the
+ * drop-anywhere import, and it names its provider from the file's own content
+ * rather than from the chooser above. What is left here reads bundled examples.
+ */
 export function bindProviderImport(doc) {
   const provider = doc.getElementById(PROVIDER_ID);
   const example = doc.getElementById(EXAMPLE_ID);
-  const file = doc.getElementById(FILE_ID);
-  const drop = doc.getElementById(DROP_ID);
-  if (!provider || !example || !file || !drop) return false;
-
-  const readFile = async (chosen) => {
-    if (!chosen) return;
-    let text = null;
-    try {
-      text = await chosen.text();
-    } catch {
-      renderProviderImport(doc, null, { reason: UNREADABLE_FILE_COPY });
-      return;
-    }
-    readFinding(doc, provider.value, {
-      text, fileName: chosen.name, sourceLabel: `your file ${chosen.name}`,
-    });
-  };
+  if (!provider || !example) return false;
 
   provider.addEventListener("change", () => {
     fillNativeExamples(doc, provider.value);
@@ -373,20 +357,6 @@ export function bindProviderImport(doc) {
       text: chosen.text, fileName: chosen.fileName,
       sourceLabel: `bundled example · ${chosen.label}`,
     });
-  });
-  file.addEventListener("change", () => readFile(file.files?.[0] ?? null));
-  // Drag and drop is an ADDITION to the file control, never a replacement: the
-  // control above stays in the tab order and does the same job, so a reader who
-  // cannot drag is not locked out of the surface.
-  drop.addEventListener("dragover", (event) => {
-    event.preventDefault?.();
-    drop.dataset.dragging = "true";
-  });
-  drop.addEventListener("dragleave", () => { drop.dataset.dragging = "false"; });
-  drop.addEventListener("drop", (event) => {
-    event.preventDefault?.();
-    drop.dataset.dragging = "false";
-    return readFile(event.dataTransfer?.files?.[0] ?? null);
   });
   return true;
 }

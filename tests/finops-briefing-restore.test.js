@@ -538,7 +538,9 @@ test("the reopen control is a labelled, keyboard-reachable file input", async ()
   // an aria-label standing in for one.
   const label = doc.querySelectorAll("label").find((node) => node.getAttribute("for") === "reopen-briefing-file");
   assert.ok(label, "the reopen input needs a label element bound to it");
-  assert.equal(textOf(label), "Reopen a saved FinOps briefing");
+  // Says what it reopens, not what it imports (#958): the one import affordance
+  // is the drop zone above, and this control must not read as a rival to it.
+  assert.equal(textOf(label), "Reopen a saved briefing");
   assert.equal(input.getAttribute("placeholder"), null);
 
   // The help text is programmatically associated and repeats the same promise

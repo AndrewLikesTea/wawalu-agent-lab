@@ -60,6 +60,7 @@ import {
   bindBrowserCompatCheck, initBrowserCompatCheck, renderBrowserCompatContracts,
 } from "/browser-compat-view.js";
 import { evaluateExport, parseExportText } from "/browser-compat-eligibility.js";
+import { bindImportDrop } from "/finops-import-drop.js";
 import { initExportRecognition } from "/export-recognition-view.js";
 import { bindProviderImport, initProviderImport } from "/provider-native-import-view.js";
 import { FIXTURE_REFERENCE_DATE } from "/browser-compat-fixtures.js";
@@ -2787,8 +2788,12 @@ function mountLocalFinopsImport() {
   // review, so a visitor on the bundled example never meets either.
   bindQueryReview(document, { onRevert: revertQueryLabels, onLeave: announceReviewPass });
 
-  input.addEventListener("change", async () => {
-    const files = [...input.files];
+  // THE import handler, and there is only one (#958). `bindImportDrop` below
+  // registers it for the file control's own change AND for a file dropped
+  // anywhere on the page, so the two paths cannot diverge: drag and drop is a
+  // layer over a control that already completes the identical import.
+  const importChosenFiles = async (chosen) => {
+    const files = [...chosen];
     if (!files.length) return;
     stateNode.setAttribute("aria-busy", "true");
     renderLocalExportActivation(document, LOCAL_EXPORT_ACTIVATION_STATE.READING);
@@ -2839,7 +2844,8 @@ function mountLocalFinopsImport() {
       settleLocalExportActivation(document, LOCAL_EXPORT_ACTIVATION_STATE.IDLE);
       input.value = "";
     }
-  });
+  };
+  bindImportDrop(document, importChosenFiles);
   // Back into the step from a rendered result, with the file already in hand and
   // the reader's own choices intact — no second trip through the file picker.
   remap?.addEventListener("click", () => {

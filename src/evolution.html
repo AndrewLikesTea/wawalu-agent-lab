@@ -127,6 +127,14 @@
         <p class="visually-hidden" id="finops-stand-claim">Where do we stand on AI spend? The Bundled synthetic example uses invented data. Results will appear when preparation is complete.</p>
         <div class="stand-head">
           <p class="eyebrow" id="finops-stand-label">Bundled synthetic example · nothing of yours needed</p>
+          <!-- Which provider was recognized, how confident the recognition was,
+               and whose data this finding is (#958). Painted by
+               finops-import-drop.js from the recognition entry point, and
+               empty until a reader imports something. It is a plain paragraph
+               in the open rather than a disclosure summary: a criterion that
+               says "visible immediately" is not met by a collapsed details
+               element, whatever a test harness reads through it. -->
+          <p class="stand-import-source" id="finops-stand-import-source" data-source="example" data-provider="none" data-confidence="none" hidden></p>
           <!-- The highest-ranked heading in this region, and it is the lead's
                own question rather than a noun phrase describing a panel. -->
           <h2 id="finops-stand-question">Where do we stand on AI spend?</h2>
@@ -1196,7 +1204,7 @@
         <section class="browser-compat" id="browser-compat" aria-labelledby="browser-compat-title">
           <p class="eyebrow">Bedrock, Vertex AI, Azure OpenAI · browser only</p>
           <h3 id="browser-compat-title">Will your hyperscaler export work here?</h3>
-          <p>Check one export against the published contract without a credential, a connector, or a single network request. The file is parsed in this tab and discarded when the verdict appears.</p>
+          <p>Check a bundled example against the published contract without a credential, a connector, or a single network request. Your own export does not belong here: drop it into the one import above and it is recognized from its own content.</p>
           <details class="browser-compat-disclosure" id="browser-compat-disclosure">
             <summary><span>What each provider contract requires</span><span class="browser-compat-count" id="browser-compat-count">3 versioned contracts</span></summary>
             <div id="browser-compat-contracts" data-state="pending"><p>Contracts are available when this client-side demo starts.</p></div>
@@ -1205,7 +1213,6 @@
           <div class="browser-compat-check">
             <p class="browser-compat-field"><label for="browser-compat-provider">Provider you are exporting from</label><select id="browser-compat-provider"></select></p>
             <p class="browser-compat-field"><label for="browser-compat-example">Bundled synthetic example</label><select id="browser-compat-example"></select></p>
-            <p class="browser-compat-field"><label for="browser-compat-file">Or check one of your own export files</label><input id="browser-compat-file" type="file" accept=".csv,.tsv,.json,.jsonl,.ndjson" /></p>
             <button id="browser-compat-run" type="button">Check this export</button>
           </div>
           <div class="browser-compat-verdict" id="browser-compat-verdict" role="status" aria-live="polite" data-state="empty" data-status="none">
@@ -1245,12 +1252,8 @@
         <section class="provider-native-import" id="provider-native-import" aria-labelledby="provider-native-title">
           <p class="eyebrow">Your own export · read in this tab</p>
           <h3 id="provider-native-title">Which model in your export costs the most per thousand billed units?</h3>
-          <p>Choose the provider you exported from in the control above, then drop the file below or pick it with the file control. The file is parsed here, in this browser, and the answer, the confidence behind it, and the one thing to do about it appear together.</p>
-          <div class="provider-native-drop" id="provider-native-drop" data-dragging="false">
-            <p class="provider-native-hint">Drop an export file anywhere in this box.</p>
-            <p class="provider-native-field"><label for="provider-native-file">Or choose an export file</label><input id="provider-native-file" type="file" accept=".csv,.tsv,.json,.jsonl,.ndjson" /></p>
-            <p class="provider-native-field"><label for="provider-native-example">Or read a bundled example</label><select id="provider-native-example"></select></p>
-          </div>
+          <p>Read a bundled example below and the answer, the confidence behind it, and the one thing to do about it appear together. Your own export goes through the one import at the top of this panel, which recognizes the provider from the file itself.</p>
+          <p class="provider-native-field"><label for="provider-native-example">Read a bundled example</label><select id="provider-native-example"></select></p>
           <!-- Provider, then confidence, then what is uncertain, then the one
                control that resolves it (#931). Painted by
                src/import-status-chip.js through
@@ -1298,9 +1301,23 @@
         <p class="dataset-provenance" id="dataset-provenance-panel" data-dataset-provenance data-dataset="user" role="note" aria-label="Data provenance" hidden></p>
         <ol class="import-stages" id="import-stages" aria-label="Import progress"></ol>
         <div class="local-import-controls">
+          <!-- The page's ONE import affordance (#958). The drop zone and the
+               browse control are the same control: a real file input behind a
+               real label, so it is reachable and operable from the keyboard,
+               with the whole page body as the drop target. Both paths run the
+               one handler in evolution-page.js through the recognition entry
+               point in export-provider-detection.js, so no step here asks which
+               provider the file came from. The dragging state is a word in
+               #finops-import-drop-state as well as a border treatment, and
+               #finops-import-reason ships in the document — a live region that
+               arrives with the error is one no screen reader was told about. -->
+          <div class="import-drop" id="finops-import-drop" data-dragging="false" role="group" aria-labelledby="finops-import-drop-title">
+            <p class="import-drop-title" id="finops-import-drop-title"><span class="import-drop-mark" aria-hidden="true">⇩</span> Import your provider export</p>
+            <p class="import-drop-instruction" id="finops-import-drop-instruction">Drop the file anywhere on this page, or browse for it below. Any supported provider export is recognized from its own content — you are never asked which console it came from.</p>
+            <p class="import-drop-state" id="finops-import-drop-state" aria-hidden="true"></p>
           <div class="local-import-field">
             <label for="local-finops-files">Choose your export files</label>
-            <input id="local-finops-files" type="file" accept=".json,.csv,.tsv,.txt,application/json,text/csv,text/tab-separated-values,text/plain" multiple aria-describedby="local-file-help" aria-invalid="false" />
+            <input id="local-finops-files" type="file" accept=".json,.csv,.tsv,.txt,application/json,text/csv,text/tab-separated-values,text/plain" multiple aria-describedby="finops-import-drop-instruction local-file-help" aria-invalid="false" />
             <p id="local-file-help">Required: at least one provider period export, as CSV, TSV, or a v1 JSON envelope. Optional: an org mapping for your own department names, a query sample, and a Shiplog delivery-history JSON export if the releases you want spend compared against live in another install. Choose them together or add them in batches; every provider period must come from the same source.</p>
             <!-- The ceiling sentence is painted from the one place the numbers
                  are defined (import-limits.js). No number is written here. -->
@@ -1314,6 +1331,8 @@
               <button class="field-recovery-action" id="local-file-repick" type="button">Choose files again</button>
               <button class="field-recovery-action" id="local-file-discard" type="button">Discard all files and results</button>
             </div>
+          </div>
+            <p class="import-reason" id="finops-import-reason" role="status" aria-live="polite" data-state="idle"></p>
           </div>
           <!-- The one exit from the unsatisfiable file picker: no export in
                hand, one click, a computed finding. No chooser, no wizard, no
@@ -1402,9 +1421,9 @@
                the pickers rather than with the result, because a visitor may
                reopen a briefing before importing anything at all. -->
           <div class="local-import-field">
-            <label for="reopen-briefing-file">Reopen a saved FinOps briefing</label>
+            <label for="reopen-briefing-file">Reopen a saved briefing</label>
             <input id="reopen-briefing-file" type="file" accept=".json,application/json" aria-describedby="reopen-briefing-help" aria-invalid="false" />
-            <p id="reopen-briefing-help">Choose a FinOps briefing JSON file this page exported. It is read in this browser only — nothing is uploaded, and nothing is saved after you close this tab. It opens read-only below the current briefing and never replaces it.</p>
+            <p id="reopen-briefing-help">This is not the import. It reopens a briefing this page already wrote: choose a FinOps briefing JSON file this page exported. It is read in this browser only — nothing is uploaded, and nothing is saved after you close this tab. It opens read-only below the current briefing and never replaces it.</p>
             <!-- Deliberately not a live region: the polite/assertive pair above
                  speaks the outcome once, and this is what a reader who wants the
                  reason again comes back to. -->
