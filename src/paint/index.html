@@ -13,10 +13,20 @@
     <a class="skip-link" href="#editor-canvas">Skip to canvas</a>
     <div class="app-shell">
       <header class="app-header">
-        <a class="brand" href="/" aria-label="Shiplog home">
-          <span class="brand-mark" aria-hidden="true"></span>
-          <span>Paint</span>
-        </a>
+        <!-- Paint is the one destination in src/site-nav.js whose page carries
+             no row of site links, so the word "Paint" used to sit inside a link
+             that went to Decisions: it read as a label for where you are while
+             behaving as a link somewhere else. Split in two, the wordmark is
+             the way home and the destination name is what it looks like — the
+             navigation's own name for this surface, marked current the same way
+             every other page marks its own item. -->
+        <nav class="site-place" aria-label="Site">
+          <a class="brand" href="/" aria-label="Shiplog home">
+            <span class="brand-mark" aria-hidden="true"></span>
+            <span>Shiplog</span>
+          </a>
+          <a class="site-place-current" href="/paint/" aria-current="page">Paint</a>
+        </nav>
         <div class="document-title" aria-label="Current document">
           <strong>Untitled image</strong>
           <span id="save-state" role="status">Saved locally</span>

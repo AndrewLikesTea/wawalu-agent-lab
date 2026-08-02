@@ -6,7 +6,8 @@ import {
   PAINT_RETURN_LABELS, paintReturnContext,
   persistTheme, preferredTheme, storedTheme, THEME_KEY,
 } from "../src/paint/paint.js";
-import { SITE_NAV } from "../src/site-nav.js";
+import { navCurrentFor, SITE_NAV } from "../src/site-nav.js";
+import { parseHtml, textOf } from "./support/browser.js";
 
 test("paint shell has semantic navigation and an accessible canvas", async () => {
   const html = await readFile(new URL("../src/paint/index.html", import.meta.url), "utf8");
@@ -79,6 +80,119 @@ test("Paint navigation keeps focus and narrow-layout safeguards", async () => {
   assert.match(css, /@media \(max-width: 560px\)[\s\S]*\.header-actions \{ min-width: 0;/);
   assert.doesNotMatch(css, /@media \(max-width: 560px\)[\s\S]*\.return-action \{[^}]*display:\s*none/);
   assert.match(css, /@media \(max-width: 360px\)[\s\S]*\.theme-toggle \{ display: none; \}/);
+});
+
+/* ----------------------- the destination you are in ------------------------ */
+// Paint is a full-screen workspace, so it carries no row of site links. It is
+// still one of the destinations in src/site-nav.js, and a reader who took that
+// link used to arrive somewhere whose only answer to "which one am I in?" was a
+// wordmark reading "Paint" that navigated to Decisions. The answer now is the
+// one every other page gives: the navigation's own name for this surface,
+// carrying aria-current, marked in weight and a rule rather than in a hue.
+
+const paintCss = () => readFile(new URL("../src/paint/paint.css", import.meta.url), "utf8");
+
+// The declaration block a selector ships, read by exact selector text so a
+// renamed or deleted rule fails here instead of making an assertion vacuous.
+function declarations(css, selector) {
+  const literal = selector.replace(/[.*+?^${}()|[\]\\]/g, (ch) => `\\${ch}`);
+  const found = css.match(new RegExp(`^${literal} \\{([^}]*)\\}`, "m"));
+  assert.ok(found, `no rule for ${selector}`);
+  return found[1];
+}
+
+const channels = (hex) => [1, 3, 5].map((start) => parseInt(hex.slice(start, start + 2), 16));
+function relativeLuminance(hex) {
+  const [r, g, b] = channels(hex).map((value) => {
+    const channel = value / 255;
+    return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+function contrastRatio(foreground, background) {
+  const [light, dark] = [relativeLuminance(foreground), relativeLuminance(background)].sort((a, b) => b - a);
+  return (light + 0.05) / (dark + 0.05);
+}
+
+// Both themes are one attribute on the root element, so both token sets live in
+// this one stylesheet and the marker can be measured in each of them here.
+function themeTokens(css, selector) {
+  return Object.fromEntries(
+    [...declarations(css, selector).matchAll(/--([a-z-]+):\s*(#[0-9a-f]{3,6})/gi)]
+      .map(([, name, value]) => [name, value]),
+  );
+}
+
+test("Paint names the destination it is, marks it current, and keeps the way home a link elsewhere", async () => {
+  const document = parseHtml(await readFile(new URL("../src/paint/index.html", import.meta.url), "utf8"));
+  const place = document.querySelector(".site-place");
+  assert.ok(place, "the Paint header must carry a site-level landmark");
+  assert.equal(place.tagName, "NAV");
+  assert.equal(place.getAttribute("aria-label"), "Site", "named apart from the document actions beside it");
+
+  const marked = place.querySelectorAll("a").filter((link) => link.getAttribute("aria-current") === "page");
+  assert.equal(marked.length, 1, `${marked.length} controls in the Paint header claim to be the page`);
+  assert.equal(marked[0].tagName, "A", "the current item stays an ordinary link, not a span");
+  assert.equal(marked[0].getAttribute("href"), "/paint/");
+  assert.equal(textOf(marked[0]), SITE_NAV.find((entry) => entry.href === "/paint/").label);
+  // The name and the resolver agree: /paint/ is the destination this page is in.
+  assert.equal(navCurrentFor("/paint/"), "/paint/");
+
+  const home = place.querySelector(".brand");
+  assert.equal(home.getAttribute("href"), "/", "the wordmark is the way out of the workspace");
+  assert.equal(home.getAttribute("aria-current"), null, "a link elsewhere must not claim to be this page");
+  assert.equal(textOf(home), "Shiplog", "the wordmark names the product, not the surface it leaves");
+  // The visible word is inside the accessible name, so voice control and the
+  // screen reader ask for the same thing.
+  assert.match(home.getAttribute("aria-label"), /Shiplog/);
+
+  // Nothing here buys a place in the tab order or gives one up.
+  for (const link of place.querySelectorAll("a")) {
+    assert.equal(link.getAttribute("tabindex"), null, `"${textOf(link)}" sets tabindex`);
+    assert.ok(link.getAttribute("href"), `"${textOf(link)}" is not reachable as a link`);
+  }
+});
+
+test("the Paint marker is drawn in weight and a rule, and holds its contrast in both themes", async () => {
+  const css = await paintCss();
+  const current = declarations(css, '.site-place a[aria-current="page"]');
+  const base = declarations(css, ".site-place-current");
+
+  // Keyed off the attribute, so the state a reader hears and the state a reader
+  // sees are one fact that cannot drift into two.
+  assert.match(current, /font-weight:\s*750/, "the marker must promote the weight");
+  assert.match(current, /box-shadow:\s*inset 0 -2px 0 currentColor/, "the marker must carry a rule, not a hue");
+  const resting = Number(base.match(/font-weight:\s*(\d+)/)?.[1]);
+  assert.ok(resting < 750, `the marker promotes from ${resting}, so weight is a real difference`);
+  // Never the accent: review-08-foundations flags blue as both the input series
+  // and the selection colour, so a marker drawn in it reads as one of those.
+  assert.doesNotMatch(current, /--accent/, "the marker must not be drawn in the ambiguous blue");
+  // The ring is a different property with a different geometry, drawn outside
+  // the box the rule sits inside. The marker neither restyles nor suppresses it.
+  assert.doesNotMatch(current, /outline/, "the marker must not touch the focus ring");
+  assert.match(css, /a:focus-visible\s*\{\s*outline:\s*3px solid var\(--focus\)/);
+
+  for (const [theme, selector] of [["light", ":root"], ["dark", ':root[data-theme="dark"]']]) {
+    const tokens = themeTokens(css, selector);
+    // The rule is drawn in currentColor, so the marker's ink is the rule's ink:
+    // one measurement covers the word and the band under it.
+    const marker = contrastRatio(tokens.text, tokens.surface);
+    const sibling = contrastRatio(tokens.muted, tokens.surface);
+    assert.ok(marker >= 4.5, `${theme}: the marker measures ${marker.toFixed(2)}:1 on the header`);
+    assert.ok(marker >= sibling, `${theme}: the marker is dimmer than the type beside it`);
+    assert.ok(contrastRatio(tokens.focus, tokens.surface) >= 3, `${theme}: the focus ring must stay visible`);
+  }
+});
+
+test("the destination name survives the narrow header, where the wordmark folds to its mark", async () => {
+  const css = await paintCss();
+  const phone = css.match(/@media \(max-width: 560px\) \{([\s\S]*?)\n\}/)[1];
+  assert.match(phone, /\.site-place-current \{[^}]*font-size: 12px/, "the name stays, one size down");
+  assert.doesNotMatch(phone, /\.site-place[^{]*\{[^}]*display:\s*none/, "the narrow header must not drop the name");
+  assert.doesNotMatch(phone, /\.site-place a\[aria-current="page"\] \{/, "the breakpoint must not restyle the marker");
+  // It is the only thing left on a phone that says which destination this is:
+  // the wordmark next to it is reduced to its mark by the rule above.
+  assert.match(phone, /\.brand span:last-child \{ position: absolute;/);
 });
 
 test("layer appearance inputs safely handle empty and implausible extremes", () => {
