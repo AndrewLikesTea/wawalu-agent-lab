@@ -268,7 +268,14 @@ export function analysisFromRetained(payload) {
     }),
     history: Object.freeze({
       state: periods.length >= 2 ? "available" : "missing",
-      message: periods.length >= 2 ? "" : "Only one period was retained, so no change is computed.",
+      // One period is a figure without movement, and the sentence for it names
+      // the period it has rather than the export it lacks: a reader who kept a
+      // single month is not the cause of anything and is not asked to re-export.
+      message: periods.length >= 2 ? ""
+        : periods.length === 1
+          ? `${periods[0].period} is the only period kept here, so this briefing carries `
+            + "its figure and no movement."
+          : "No period was kept here, so this briefing carries no movement.",
       currentPeriod: text(payload.totals.period),
       previousPeriod: text(payload.totals.previousPeriod),
       periods: Object.freeze(periods),

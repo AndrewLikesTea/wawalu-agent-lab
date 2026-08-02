@@ -82,6 +82,11 @@ import { applyPortfolioBrief, clearPortfolioBrief } from "/finops-portfolio-brie
 import {
   applyImportedHeadline, clearImportedHeadline,
 } from "/finops-imported-headline-view.js";
+// Every calendar month inside the imported file, as one series, and the movement
+// between the newest two. A period used to be a file; it is now a month.
+import {
+  applyImportedMovement, clearImportedMovement,
+} from "/finops-imported-movement-view.js";
 // The download itself. Every figure decision is inside `briefingFile`; the only
 // thing this layer contributes is the clock, because the generator is pure and
 // will not read one.
@@ -1569,6 +1574,16 @@ function mountLocalFinopsImport() {
     // import and does not get one — it already has its own complete headline,
     // which this call leaves untouched.
     applyImportedHeadline(document, example ? null : next);
+    // Every month inside that same file, summed per calendar month and merged
+    // with what this browser had already retained, so a year-long export reads
+    // as a series with named movement instead of one period and no change. The
+    // exports are filtered to the ones the reconciler accepted, so this series
+    // and the headline total above it are computed from the same rows.
+    applyImportedMovement(document, example ? null : {
+      exports: inputs?.providers ?? [],
+      acceptedExportIds: next.decisionInputs?.provenance?.acceptedProviderExportIds ?? null,
+      retainedPeriods: retainedPeriodTotals(),
+    });
     applyDatasetProvenance(document, example, example ? null : importProvenance());
     // Where this organization ranks, decided from the same selection this
     // result was analyzed from. The bundled example declares no cohort
@@ -2020,6 +2035,8 @@ function mountLocalFinopsImport() {
     // is no longer loaded, so it goes with the import rather than lingering
     // above the example's own headline.
     clearImportedHeadline(document);
+    // And the period series with it: the months it names are the cleared file's.
+    clearImportedMovement(document);
     const trust = document.getElementById("local-trust");
     if (trust) {
       trust.hidden = true;
@@ -2932,6 +2949,18 @@ function mountLocalFinopsImport() {
   };
 
   const retentionStore = () => browserFinopsWorkspaceStorage();
+
+  /**
+   * The period totals this browser is already holding, for the period series.
+   *
+   * Read through `readRetainedBriefing`, so a browser that refuses storage, a
+   * corrupt payload and an empty one all return an empty list rather than
+   * throwing into a render. Nothing is written here.
+   */
+  const retainedPeriodTotals = () => {
+    const held = readRetainedBriefing(retentionStore());
+    return held.retained ? (held.payload?.totals?.periods ?? []) : [];
+  };
 
   const captureNow = (analysis) => retainedBriefingPayload({
     analysis,

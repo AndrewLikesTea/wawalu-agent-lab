@@ -243,6 +243,26 @@
           <p class="stand-imported-question" id="finops-imported-headline-question"></p>
           <dl class="stand-imported-slots" id="finops-imported-headline-slots"></dl>
         </div>
+        <!-- THE PERIODS INSIDE THE FILE, and the movement between the newest
+             two. It ships EMPTY and HIDDEN: every word is painted by
+             src/finops-imported-movement-view.js from the derivation in
+             src/finops-imported-period-series.js.
+             WHY IT EXISTS: a period used to be a FILE, so a reader who exported
+             a year in one file was told there was a single period and no change
+             could be computed. The months were on the rows the whole time. The
+             series is now derived per calendar month, summed, merged with what
+             this browser had already retained, and the newest two are compared
+             by name in the sentence below.
+             WHY IT IS NOT INSIDE A DISCLOSURE: the movement sentence is the
+             answer, and a closed details element would keep it off the screen
+             of a real browser while a text-reading harness still saw it. It is a
+             paragraph in the open, with the per-period rows beside it. -->
+        <div class="stand-imported" id="finops-imported-movement" data-state="unavailable" data-period-count="0" hidden>
+          <p class="eyebrow">Your export · period-over-period movement</p>
+          <p class="stand-imported-movement" id="finops-imported-movement-answer"></p>
+          <p class="stand-imported-basis" id="finops-imported-movement-basis"></p>
+          <ol class="stand-imported-series" id="finops-imported-movement-series"></ol>
+        </div>
         <!-- THE CLASSIFICATION VERDICT, evidence for the finding above rather
              than a second lead. It keeps every word, id and painted value it
              had; what changed is that it no longer carries the first number. The contract it renders
