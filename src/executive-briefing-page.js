@@ -16,8 +16,8 @@
 // the first screen. The sample is labelled as a sample in the notice, in the
 // masthead, beside the figure, and on paper.
 //
-// NOTHING IS FETCHED, ON EITHER PATH
-// ----------------------------------
+// NOTHING IS FETCHED ON EITHER OF THOSE PATHS
+// -------------------------------------------
 // The sample's three periods are carried in the bundle by
 // `executive-briefing-sample.js` and rebuilt through the shipped contract in the
 // same synchronous pass as the workspace path. That is a deliberate change from
@@ -28,10 +28,17 @@
 // `scripts/verify-build.mjs` instead, where a drift fails the build rather than
 // stalling a reader's page.
 //
-// This entry now reads no file at all, and writes nothing: no clock, no import,
-// no credential, no shareable link, and never a write back to the store it read.
-// That is the same boundary the briefing's own safety statement makes, which is
-// why this entry can honestly render it.
+// The one exception is `?payload=bundled`, the hand-off from the live AI FinOps
+// workspace's briefing-readiness region. That sheet is projected from a block
+// that exists only in /evolution-demo-data.json, so it reads that document — and
+// paints its own labelled "reading" state while it does, rather than borrowing
+// the markup's panel, which promises the opposite. See `paintPayloadBriefing`
+// for why a bundled second copy of the block was the worse trade.
+//
+// This entry writes nothing on any path: no credential, no shareable link, and
+// never a write back to the store it read. That is the same boundary the
+// briefing's own safety statement makes, which is why this entry can honestly
+// render it.
 
 import {
   buildExecutiveBriefing, validateExecutiveBriefing,
@@ -58,9 +65,17 @@ import {
   wirePrintControl,
   wirePrintExpansion,
 } from "/executive-briefing-view.js";
+import { projectExecutiveBriefing } from "/executive-briefing-projection.js";
+import { renderPayloadBriefing, renderPayloadState } from "/executive-payload-briefing-view.js";
 
 const root = document.getElementById("executive-briefing");
 const actions = document.getElementById("briefing-actions");
+
+const PAYLOAD_URL = "/evolution-demo-data.json";
+const PAYLOAD_PRINT_NOTE =
+  "The decision summary prints without controls: the leadership question, the answer, the benchmark, "
+  + "the action, and the provenance stay, and department evidence and methodology come off. "
+  + "Nothing is uploaded and nothing is sent.";
 
 function paint(...nodes) {
   // `loadExecutiveBriefingPreview` is public and may be retried in the same
@@ -224,9 +239,65 @@ function paintExampleBriefing() {
   return preview;
 }
 
+/**
+ * Draw the printable sheet for the bundled analysis's decision payload.
+ *
+ * THE ONE PATH THAT READS A FILE, and the header above says the others do not.
+ * The payload is projected from the readiness block, which lives in
+ * /evolution-demo-data.json and nowhere else — the same document
+ * `evolution-page.js` reads to paint the region this link sits in. Restating
+ * those figures in a bundled module the way the sample path does would make
+ * this sheet network-free too, at the cost of a second copy of the block that
+ * can drift from the one the workspace just showed the reader; two different
+ * numbers under one label is the confusion this hand-off exists to remove. So
+ * it fetches, and it says so on screen while it does, in its own labelled state
+ * rather than under the markup's "nothing is fetched either way" panel.
+ *
+ * Nothing else about the boundary changes: no store is read or written, no
+ * credential is sent, and `projectExecutiveBriefing` allowlists its own output,
+ * so no provider row, prompt, or customer field can reach this sheet even if
+ * the bundled document grows one.
+ */
+async function paintPayloadBriefing() {
+  paint(renderPayloadState(document, "loading", "Reading the bundled analysis",
+    "Building the printable briefing in this tab from the bundled example's decision payload. "
+    + "Nothing of yours is read, and nothing is uploaded."));
+  try {
+    const response = await globalThis.fetch(PAYLOAD_URL, { credentials: "same-origin" });
+    if (!response?.ok) throw new Error(`bundled payload unavailable (${response?.status ?? "no response"})`);
+    const data = await response.json();
+    const article = renderPayloadBriefing(document, projectExecutiveBriefing(data?.briefingReadiness));
+    paint(article);
+    // The standing print hint under the sheet describes the workspace briefing,
+    // where both levels open on paper. This sheet does the opposite, so the two
+    // sentences a reader meets beside the same button have to agree — briefly
+    // here, in full beside the control itself.
+    const hint = document.querySelector(".brief-print-hint");
+    if (hint) {
+      hint.textContent = "Printing or saving as PDF keeps the decision: the site chrome and both "
+        + "levels come off, and the answer, benchmark, action, and provenance stay.";
+    }
+    // Not `activate`: the disclosures here are native <details>, and the shared
+    // print expansion opens `.brief-toggle` levels this sheet does not have.
+    const control = renderPrintControl({ note: PAYLOAD_PRINT_NOTE });
+    actions?.replaceChildren(control);
+    wirePrintControl(control, article, { scope: globalThis.window ?? globalThis, doc: document });
+    return article;
+  } catch {
+    paint(renderPayloadState(document, "error", "The briefing is unavailable",
+      "The bundled decision payload is absent, incompatible, or malformed. No decision figures are "
+      + "shown, because a briefing missing its own evidence cannot be quoted. Nothing of yours was "
+      + "read or stored. Return to the analysis and try again."));
+    return null;
+  }
+}
+
 export async function loadExecutiveBriefingPreview() {
   if (!root) return null;
   try {
+    if (new URLSearchParams(globalThis.window?.location?.search ?? "").get("payload") === "bundled") {
+      return paintPayloadBriefing();
+    }
     // The example context is read from the address bar, so it survives a copied
     // link and a reload — the two ways a reader actually keeps a page.
     if (readExampleContext(globalThis.window?.location ?? null).pinned) {

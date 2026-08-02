@@ -1152,6 +1152,13 @@
 .briefing-projection p { margin:0; }
 .briefing-projection[data-state="error"] [role="status"] { color:var(--state-warn-ink); }
 .briefing-projection pre { max-height:24rem; overflow:auto; padding:12px; border:1px solid var(--import-line); white-space:pre-wrap; }
+/* The printable sheet is offered only once there is a payload to print. The
+   link is authored in markup so it is a real anchor before any script runs, and
+   withdrawn by the region's own state rather than by a second branch in JS: a
+   pending or failed projection that still hands a reader a "print this" link
+   sends them to an error page for a figure this region already knows it does
+   not have. The status line above says which of the two it is. */
+.briefing-projection:not([data-state="ready"]) .briefing-projection-open { display:none; }
 /* The four named entry points. Wrapping inline links, in source order, so the
    keyboard order and the visual order are one order at every width. */
 .answer-doors { display:flex; flex-wrap:wrap; gap:8px 14px; margin:0 0 4px; }
