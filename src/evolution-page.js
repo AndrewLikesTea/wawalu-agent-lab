@@ -736,6 +736,16 @@ function syncWorkspaceRestore() {
 function mountLocalFinopsImport() {
   const input = document.getElementById("local-finops-files");
   if (!input) return;
+  // Provider projection code is needed only after a visitor selects a provider
+  // file. Keep it out of the cold-load graph, then run both pure modules from
+  // the already-validated in-memory document; this opens no network data path.
+  const paintProviderProjection = async (providerDocument) => {
+    const [{ projectProviderExport }, { renderProviderExportProjection }] = await Promise.all([
+      import("/provider-export-projection.js"),
+      import("/provider-export-projection-view.js"),
+    ]);
+    renderProviderExportProjection(document, projectProviderExport(providerDocument));
+  };
   const stateNode = document.getElementById("local-import-state");
   const resultsNode = document.getElementById("local-results");
   const clear = document.getElementById("clear-local-analysis");
@@ -1963,6 +1973,7 @@ function mountLocalFinopsImport() {
     // has no partial evidence, and a synthetic answer to "what do my exports
     // support" would be the one claim this region exists to refuse.
     clearPartialEvidence(document);
+    renderOwnDataEvidencePreflight(document, assessOwnDataEvidence(BUNDLED_OWN_DATA_EVIDENCE));
     repaintBundledAnalysis();
     // The bundled seed answers for the panels again, so they are re-decided from
     // it rather than restored by a flag. A visitor who imports nothing and a
@@ -2152,6 +2163,9 @@ function mountLocalFinopsImport() {
       const options = boundedDelimitedOptions({ mapping: binding });
       parsed = await runImport(file, options,
         () => parseLocalImportFile(file.text, file.fileName, file.mediaType, options));
+      if (parsed.type === "provider") {
+        await paintProviderProjection(parsed.document);
+      }
     } catch (error) {
       applyImportProgress(document, null);
       // A cancel is the reader's own decision, already announced where they made
@@ -2551,6 +2565,9 @@ function mountLocalFinopsImport() {
       try {
         const parsed = await runImport(file, undefined,
           () => parseLocalImportFile(file.text, file.fileName, file.mediaType));
+        if (parsed.type === "provider") {
+          await paintProviderProjection(parsed.document);
+        }
         imports.push({
           source: "json", fileName: file.fileName, parsed, state: null,
           rows: parsed.document?.records?.length ?? 0,
