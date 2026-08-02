@@ -12,6 +12,7 @@ import {
   SHIPLOG_EXPORT_SCHEMA,
   SHIPLOG_EXPORT_VERSION,
   canonicalExportOrder,
+  associationViolations,
   compareExportRecords,
   filterBlockViolations,
   normalizeExportRecord,
@@ -43,6 +44,27 @@ const file = (overrides = {}) => ({
 test("a well-formed file has no violations", () => {
   assert.deepEqual(shiplogExportViolations(file()), []);
   assert.deepEqual(shiplogExportViolations(file({ decisions: [], releases: [] })), []);
+});
+
+test("associations are held to being the flattened view of releases[].decisionIds", () => {
+  const associated = file({
+    associations: [{ decisionId: "d-1", releaseId: "r-1", position: 0 }],
+  });
+  assert.deepEqual(associationViolations(associated), []);
+  // A link the release names but the join omits is named, not summarised.
+  assert.deepEqual(associationViolations(file({ associations: [] })), [
+    'export.associations[0]: expected {"decisionId":"d-1","releaseId":"r-1","position":0}, got null',
+  ]);
+  // A row nothing in the file backs is a violation too, in the other direction.
+  assert.deepEqual(associationViolations(file({
+    associations: [
+      { decisionId: "d-1", releaseId: "r-1", position: 0 },
+      { decisionId: "d-1", releaseId: "r-9", position: 0 },
+    ],
+  })), ["export.associations: carries 2 links, but this file's releases name 1"]);
+  assert.ok(associationViolations(file({ associations: [
+    { decisionId: "d-1", releaseId: "r-1", position: "0" },
+  ] })).some((violation) => violation.includes("position: expected number")));
 });
 
 test("a broken envelope is reported field by field", () => {
