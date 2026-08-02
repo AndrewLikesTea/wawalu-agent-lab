@@ -1804,6 +1804,22 @@
             <p class="local-cohort-headline" id="local-cohort-headline">—</p>
             <p class="local-cohort-detail" id="local-cohort-detail">—</p>
             <p class="local-cohort-next" id="local-cohort-next" hidden>—</p>
+            <!-- The one affordance for an export whose columns cannot supply the
+                 two attributes a cohort is selected on. Offered by
+                 renderCohortDeclaration() on that state alone and hidden on
+                 every other paint. Both choosers ship EMPTY: their options come
+                 from the published enumeration in cohort-attribution.js, so a
+                 value this page offers and a value the contract accepts cannot
+                 drift apart. What a reader chooses here is labelled
+                 reader-declared wherever the position appears, lives only in
+                 this tab, and goes when the import does. -->
+            <div class="local-cohort-declare" id="local-cohort-declare" role="group" aria-labelledby="local-cohort-declare-lead" hidden>
+              <p class="local-cohort-declare-lead" id="local-cohort-declare-lead">—</p>
+              <p class="local-cohort-declare-field"><label for="local-cohort-band">Organization size band</label><select id="local-cohort-band"></select></p>
+              <p class="local-cohort-declare-field"><label for="local-cohort-industry">Industry</label><select id="local-cohort-industry"></select></p>
+              <p><button type="button" class="local-cohort-declare-submit" id="local-cohort-declare-submit">Place this import with these values</button></p>
+              <p class="local-cohort-declare-message" id="local-cohort-declare-message" role="status" data-state="refused" hidden>—</p>
+            </div>
             <!-- What was read to produce the line above, carried on the result
                  rather than authored here, so a position can never appear
                  without the statement of what left the boundary to select it. -->

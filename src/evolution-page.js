@@ -388,9 +388,13 @@ import { PEER_COHORT_PROVENANCE } from "/peer-cohort-contract.js";
 // decides whether what they declared is enough — or says which value is missing
 // or unrecognized, in the reader's own words.
 import {
-  mergeCohortSources, projectCohortSource, validateCohortAttribution,
+  COHORT_ATTRIBUTION_REASON, mergeCohortSources, projectCohortSource,
+  validateCohortAttribution, validateDeclaredCohortFacts,
 } from "/cohort-attribution.js";
-import { applyCohortAttribution } from "/cohort-attribution-view.js";
+import {
+  applyCohortAttribution, applyCohortDeclarationOutcome, bindCohortDeclaration,
+  renderCohortDeclaration,
+} from "/cohort-attribution-view.js";
 // The headline answer this view leads with, and the module that paints it.
 import {
   applyAnswerBlock, applyStandHeadline, bindStandDisclosures, bindStandResolution,
@@ -813,6 +817,18 @@ function mountLocalFinopsImport() {
   // so the step can be re-entered without re-selecting the file. All of it lives
   // in this closure for as long as the tab does and no longer.
   const imports = [];
+  /**
+   * The two cohort attributes the reader declared in this tab, or null.
+   *
+   * IN MEMORY, IN THIS TAB, AND NOWHERE ELSE. Declared here beside `imports`
+   * because it has exactly their lifetime: `reset()` drops both, and "Forget
+   * this briefing" calls `reset()`, so the one control that means forget
+   * already means this too. Nothing writes it to storage, and nothing sends it
+   * anywhere — there is no credential and no request on this path at all.
+   */
+  let declaredCohortFacts = null;
+  /** The analysis the last position was computed against, for a recompute. */
+  let cohortAnalysis = null;
   // Query samples, kept apart from the provider/HRIS pair above: they answer a
   // different question and are graded by a different module. Same lifetime as
   // everything else here — this closure, and no longer.
@@ -2012,6 +2028,13 @@ function mountLocalFinopsImport() {
     // longer loaded, and `imports` has just been emptied, so there is nothing
     // left to derive one from either.
     applyCohortAttribution(document, null);
+    // …and what the reader declared by hand goes with it. Declared facts are a
+    // statement about the import that was open; carrying them into the next one
+    // would place a different organization's export against a cohort nobody
+    // chose for it. This line is what makes "forget" total: the forget control
+    // runs this function, so nothing declared survives it.
+    declaredCohortFacts = null;
+    cohortAnalysis = null;
     // And the headline goes back to the bundled example with it. A cleared
     // import must not leave a withheld-position path on screen for a file that
     // is no longer loaded. The state restores the synthetic answer — marker
@@ -2315,19 +2338,43 @@ function mountLocalFinopsImport() {
   const cohortSources = () => imports.map((entry) => entry.cohortSource).filter(Boolean);
 
   /**
+   * The states a reader can close themselves.
+   *
+   * Only these two. An unrecognized value is a value the FILE wrote, and the
+   * remedy for it is to fix the file rather than to overrule it here; a
+   * mismatch, a missing org unit column and an absent cohort are not gaps a
+   * declaration can fill either.
+   */
+  const DECLARABLE = new Set([
+    COHORT_ATTRIBUTION_REASON.missingOrgSizeBand,
+    COHORT_ATTRIBUTION_REASON.missingIndustry,
+  ]);
+
+  /**
    * Paint the ranked-position panel for whatever is loaded right now.
    *
    * `asOf` is the analysed period's own end when there is one, never a clock
    * read: an eligibility answer has to be reproducible from the same files.
    */
   const syncCohortPosition = (analysis = null) => {
+    cohortAnalysis = analysis;
     const eligibility = exampleActive || !cohortSources().length
       ? null
       : validateCohortAttribution({
         ...mergeCohortSources(cohortSources()),
         asOf: spendWindowFromPeriod(analysis?.period)?.end ?? null,
+        readerDeclared: declaredCohortFacts,
       });
     applyCohortAttribution(document, eligibility);
+    // THE GATE. The declaration renderer is reached on one state and no other:
+    // the contract says this import's own columns cannot supply the two
+    // attributes. An import that supplies them — and an import with no cohort
+    // source at all, which is every unrelated path through this page — never
+    // touches it. `applyCohortAttribution` above has already handed the control
+    // back, so those paths do not need a second call to do so.
+    if (eligibility?.eligible === false && DECLARABLE.has(eligibility.reason)) {
+      renderCohortDeclaration(document, { declared: declaredCohortFacts });
+    }
     // The headline follows the file the reader is actually looking at. One
     // eligibility decision feeds both surfaces, so the panel below and the
     // headline above can never disagree about whether this import may be
@@ -2348,6 +2395,35 @@ function mountLocalFinopsImport() {
     applyStandHeadline(document, answerState.getHeadline());
     return eligibility;
   };
+
+  /**
+   * The reader declared the two attributes their export could not supply.
+   *
+   * NO RE-IMPORT AND NO RE-READ. The position is recomputed from the projected
+   * sources already in `imports` and the analysis already on screen — the file
+   * is not opened again, and there was never anything to open it from: this
+   * page holds the reader's bytes for the length of the tab and no longer.
+   *
+   * The contract judges the values, not this handler and not the chooser: a
+   * select refuses a value that is not one of its options, but the test double
+   * for one accepts anything, so the refusal has to be somewhere a test can
+   * call it. A refusal leaves the standing position exactly as it was.
+   */
+  const declareCohortFacts = (chosen) => {
+    const outcome = validateDeclaredCohortFacts(chosen);
+    applyCohortDeclarationOutcome(document, outcome);
+    if (!outcome.accepted) {
+      announce("error", "These values were not accepted.", outcome.message);
+      return outcome;
+    }
+    declaredCohortFacts = outcome.facts;
+    syncCohortPosition(cohortAnalysis);
+    announce("ready", "Ranked position recomputed from the import already open.",
+      outcome.message);
+    return outcome;
+  };
+
+  bindCohortDeclaration(document, { onDeclare: declareCohortFacts });
 
   const confirmReview = async () => {
     const binding = mappingBinding(review?.state);
