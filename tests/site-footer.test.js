@@ -183,7 +183,7 @@ test("the footer says what a visitor can do here before it says what Shiplog is"
   }
 });
 
-test("the footer names the demos a visitor would try first, and links the one the site leads with", async () => {
+test("the footer names every destination the navigation offers, and links the one the site leads with", async () => {
   const page = await loadPage(pageUrl("index.html"));
   const { document } = page;
   try {
@@ -191,15 +191,31 @@ test("the footer names the demos a visitor would try first, and links the one th
     assert.equal(list.tagName, "UL", "the destinations must be a real list, so a screen reader gets the count");
     const items = [...list.querySelectorAll("li")];
     assert.equal(items.length, DEMOS.length, "one row per destination");
-    assert.ok(items.length >= 3 && items.length <= 4, "three or four doors; more is a directory, not positioning");
 
-    const navLabels = new Set(SITE_NAV.map((link) => link.label));
+    // Every door the navigation offers, named exactly once. This band is the
+    // only directory on the pages whose body carries none, so a surface missing
+    // here is a surface a visitor has to guess at.
+    const navLabels = SITE_NAV.map((link) => link.label);
+    const sorted = (labels) => [...labels].sort();
+    assert.deepEqual(sorted(DEMOS.map((demo) => demo.label)), sorted(navLabels),
+      "the band must name each navigation destination exactly once, by the name the navigation uses");
+
     for (const [index, demo] of DEMOS.entries()) {
       const row = textOf(items[index]);
-      // One name per concept: the footer calls a destination what the nav calls it.
-      assert.ok(navLabels.has(demo.label), `"${demo.label}" is not what the navigation calls that destination`);
       assert.ok(row.startsWith(demo.label), `${demo.label} must be named first in its row`);
       assert.ok(row.includes(demo.description), `${demo.label} must show its description`);
+    }
+
+    // One description per concept: each row says what the home page's "Where
+    // everything is" list says about the same surface, word for word. Two
+    // wordings for one surface is how a visitor ends up thinking they are two.
+    const guideRows = [...document.querySelector(".site-guide").querySelectorAll("li")];
+    for (const demo of DEMOS) {
+      const { href } = SITE_NAV.find((link) => link.label === demo.label);
+      const guide = guideRows.find((row) => row.querySelector(`a[href="${href}"]`));
+      assert.ok(guide, `the home page's directory is missing ${demo.label}`);
+      assert.ok(textOf(guide).endsWith(demo.description),
+        `${demo.label} is worded one way in the footer and another in the home page's directory`);
     }
 
     // Exactly one link, to the demo the home page's title, heading, and primary
