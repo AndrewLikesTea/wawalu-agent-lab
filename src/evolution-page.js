@@ -97,6 +97,18 @@ import { applyWorkspaceRestore } from "/finops-workspace-restore-view.js";
 // never the imported file — so the derivation on screen is a check of exactly
 // the artifact a leader forwards.
 import { briefingDerivation } from "/finops-briefing-derivation.js";
+// Opt-in local retention for the reader's own briefing (#959). Off until asked,
+// derived values only, one versioned key, and one control that erases it. The
+// store never throws at this page: every storage condition comes back as a
+// state with a sentence in it.
+import {
+  RETENTION_COPY, RETENTION_STATE, analysisFromRetained, forgetRetainedBriefing,
+  readRetainedBriefing, retainedBriefingPayload, writeRetainedBriefing,
+} from "/finops-briefing-retention.js";
+import {
+  bindBriefingRetention, clearBriefingRetention, renderBriefingRetention,
+} from "/finops-briefing-retention-view.js";
+import { briefingFromRetained } from "/finops-briefing-retention.js";
 // One entry point for a selected file: `.json` keeps the reviewed JSON path
 // untouched, `.csv`/`.tsv`/`.txt` route through the delimited normalizer. Both
 // return the same parsed v1 envelope, so nothing below this line changes.
@@ -802,6 +814,10 @@ function mountLocalFinopsImport() {
   // can be compared against exactly what is on screen rather than against a
   // second selection made from the same envelope.
   let currentBriefing = null;
+  // The analysis a retention write would be built from — the reader's own, or the
+  // one a restored payload stands for. Held here and nowhere else, so there is
+  // exactly one thing the retention control can ever capture.
+  let retentionAnalysis = null;
   // A briefing reopened from a file. Same lifetime as everything else in this
   // closure: this tab, and no longer. Nothing about it is written to storage,
   // the URL, or the network.
@@ -1706,6 +1722,12 @@ function mountLocalFinopsImport() {
       derivation = null;
     }
     applyBriefing(document, currentBriefing, derivation);
+    // The retention affordance appears WITH the reader's own briefing and never
+    // before it: until this line has run there is nothing of theirs to keep, and
+    // a control offering to keep the bundled example would be offering to keep
+    // invented data.
+    if (example) clearBriefingRetention(document);
+    else syncRetention(next);
     // A restored briefing on screen gains — or loses — its delta line the
     // moment the live analysis changes underneath it. Repainting here is what
     // stops a delta from outliving the analysis it was computed against.
@@ -1924,6 +1946,14 @@ function mountLocalFinopsImport() {
     // so; discarding it with its referents keeps the clear total.
     clearJourneySnapshot(browserFinopsWorkspaceStorage());
     currentBriefing = null;
+    // The retention affordance goes with the briefing it was offered for, and
+    // the folded result panels come back. The stored key is NOT touched here: a
+    // reader who clears the screen has not asked this browser to forget, and
+    // "forget this briefing" is the one control that means that.
+    clearBriefingRetention(document);
+    foldForRestore(false);
+    delete resultsNode.dataset.retained;
+    retentionAnalysis = null;
     exampleActive = false;
     renderLocalExportActivation(document, LOCAL_EXPORT_ACTIVATION_STATE.IDLE);
     // The reader's own coverage figure goes with the reader's own analysis. A
@@ -2846,6 +2876,142 @@ function mountLocalFinopsImport() {
     }
   };
   bindImportDrop(document, importChosenFiles);
+
+  // -------------------------------------------------------------------------
+  // OPT-IN LOCAL RETENTION FOR THE READER'S OWN BRIEFING (#959)
+  // -------------------------------------------------------------------------
+  //
+  // Nothing below writes on its own. `syncRetention` paints the control when a
+  // briefing of the reader's exists; the only calls that reach `setItem` are the
+  // reader turning the control on, and — for a reader who already turned it on —
+  // replacing a superseded capture with the briefing now on screen.
+  //
+  // The store is total: every branch here reads a state with a sentence in it,
+  // so no storage condition can escape into the boot or the import.
+
+  /** The analysis a retention write would be built from, for as long as it is on screen. */
+  const detectedProviderFor = () => {
+    // The recognition entry point already published its verdict on the answer
+    // region (#958). Reading it there is what keeps ONE provider decision on this
+    // page rather than a second detection pass with its own opinion.
+    const region = document.getElementById("finops-stand");
+    return {
+      id: region?.dataset.detectedProvider ?? null,
+      name: region?.dataset.detectedProviderName ?? null,
+      confidence: Number(region?.dataset.detectedConfidence ?? 0),
+    };
+  };
+
+  // A restored briefing is the only thing in the result region that has figures
+  // behind it. The panels beside it are painted from an analysis this tab does
+  // not have, and an authored placeholder next to a real figure reads as a
+  // number that failed rather than one that was never retained — so they fold
+  // while a restore is what is on screen, and come back with the next import.
+  const RESTORE_FOLDED = ["local-secondary-evidence", "local-result-upgrade",
+    "local-export-actions"];
+  const foldForRestore = (folded) => {
+    for (const id of RESTORE_FOLDED) {
+      const node = document.getElementById(id);
+      if (node) node.hidden = folded;
+    }
+  };
+
+  const retentionStore = () => browserFinopsWorkspaceStorage();
+
+  const captureNow = (analysis) => retainedBriefingPayload({
+    analysis,
+    provider: detectedProviderFor(),
+    capturedAt: new Date().toISOString(),
+  });
+
+  /**
+   * The reader turned the control on or off. This is the ONLY write path.
+   *
+   * A refused write leaves the box unchecked and says why, because the state the
+   * control shows is read back from the store rather than assumed from the click.
+   */
+  const setRetention = (on) => {
+    if (!on) {
+      renderBriefingRetention(document, forgetRetainedBriefing(retentionStore()));
+      return;
+    }
+    renderBriefingRetention(document,
+      writeRetainedBriefing(retentionStore(), captureNow(retentionAnalysis)));
+  };
+
+  /** One action: the key goes, and the page is back on its sample state. */
+  const forgetRetention = () => {
+    forgetRetainedBriefing(retentionStore());
+    reset();
+  };
+
+  const syncRetention = (analysis) => {
+    retentionAnalysis = analysis;
+    const held = readRetainedBriefing(retentionStore());
+    // Already opted in: the consent was to keep the briefing this page produces,
+    // so the new one replaces it. Leaving the superseded capture would restore an
+    // answer the reader has already moved past.
+    if (held.state === RETENTION_STATE.retained) {
+      renderBriefingRetention(document,
+        writeRetainedBriefing(retentionStore(), captureNow(analysis)));
+      return;
+    }
+    renderBriefingRetention(document, held);
+  };
+
+  /**
+   * Rehydrate on load.
+   *
+   * The retained payload is turned back into an analysis envelope and handed to
+   * `buildFinopsBriefing` and `applyBriefing` — the same two calls the freshly
+   * imported briefing above goes through — so there is no second renderer here
+   * to drift from that one.
+   */
+  const restoreRetainedBriefing = () => {
+    let held = readRetainedBriefing(retentionStore());
+    if (held.state === RETENTION_STATE.retained) {
+      const restored = briefingFromRetained(held.payload);
+      if (restored) {
+        const { analysis, briefing } = restored;
+        retentionAnalysis = analysis;
+        foldForRestore(true);
+        resultsNode.dataset.retained = "true";
+        resultsNode.hidden = false;
+        applyBriefing(document, briefing);
+        renderBriefingRetention(document, held);
+        return;
+      }
+      // Readable JSON this page cannot render is the same failure as unreadable
+      // JSON, and gets the same remedy: cleared, and said out loud below.
+      forgetRetainedBriefing(retentionStore());
+      held = Object.freeze({
+        state: RETENTION_STATE.discarded,
+        message: RETENTION_COPY[RETENTION_STATE.discarded],
+        payload: null,
+        retained: false,
+      });
+    }
+    if (held.state === RETENTION_STATE.discarded) {
+      // Something WAS kept here and could not be brought back. The reader is owed
+      // that sentence, so the result region opens on its empty briefing state to
+      // carry it — the bundled synthetic answer above is untouched.
+      foldForRestore(true);
+      resultsNode.dataset.retained = "discarded";
+      resultsNode.hidden = false;
+      applyBriefingState(document, "empty");
+      renderBriefingRetention(document, held);
+      return;
+    }
+    // Nothing retained, or a browser that refuses storage outright. Both leave
+    // the page exactly as a first-time visitor meets it. A blocked browser is
+    // told so at the moment it matters — when a briefing of the reader's own
+    // exists and the control offers to keep it — rather than on a load where
+    // there was never anything to restore.
+    clearBriefingRetention(document);
+  };
+
+  bindBriefingRetention(document, { onRetain: setRetention, onForget: forgetRetention });
+  restoreRetainedBriefing();
   // Back into the step from a rendered result, with the file already in hand and
   // the reader's own choices intact — no second trip through the file picker.
   remap?.addEventListener("click", () => {

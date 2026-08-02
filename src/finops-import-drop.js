@@ -79,6 +79,9 @@ export function renderImportRecognition(doc, verdict, { reason = null } = {}) {
   const region = byId(doc, IMPORT_DROP_IDS.region);
   if (region) {
     region.dataset.detectedProvider = verdict.provider;
+    // The display name beside the id, so a later reader of this region does not
+    // have to keep a second provider-name table to say which console it was.
+    region.dataset.detectedProviderName = verdict.displayName;
     region.dataset.detectedConfidence = String(verdict.confidence);
     region.dataset.provenance = IMPORT_PROVENANCE;
   }
