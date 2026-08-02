@@ -296,8 +296,8 @@ import {
   announceAnswer, importFailureAnnouncement, silenceEchoedRegions,
 } from "/finops-answer-announcement.js";
 import {
-  bindLocalExportActivation, LOCAL_EXPORT_ACTIVATION_STATE, renderLocalExportActivation,
-  settleLocalExportActivation,
+  bindLocalExportActivation, LOCAL_EXPORT_ACTIVATION_COPY, LOCAL_EXPORT_ACTIVATION_STATE,
+  renderLocalExportActivation, settleLocalExportActivation,
 } from "/local-export-activation.js";
 import {
   announce as announceStage, applyDatasetProvenance, applyExportPackageGuidance,
@@ -2064,7 +2064,15 @@ function mountLocalFinopsImport() {
       code: error?.code, message: error?.message, ordinal: file.ordinal, total: file.total,
     });
     applyFieldDiagnostic(document, diagnostic);
-    renderLocalExportActivation(document, LOCAL_EXPORT_ACTIVATION_STATE.ERROR);
+    // What the content-based detection pass (#957) already worked out about
+    // this file, said in the reader's own panel. A named reason and the
+    // importer the file is NEAREST to are worth more than "could not analyze",
+    // and this is the one place every rejected file passes through. The
+    // sentence rides on the file rather than on closure state, so a stale
+    // verdict from a previous file can never be attached to this one.
+    const detected = file.unrecognizedReason ?? null;
+    renderLocalExportActivation(document, LOCAL_EXPORT_ACTIVATION_STATE.ERROR,
+      detected ? { message: `${detected} ${LOCAL_EXPORT_ACTIVATION_COPY.error}` } : null);
     showTransientBasis("failed");
     // Every panel goes back to the sample together. A surface with the KPI row
     // swapped and the grade stale would be a half-import nobody asked for, and
@@ -2076,8 +2084,12 @@ function mountLocalFinopsImport() {
     spendPerDeliveryPhase(SPEND_PER_DELIVERY_PHASE.error,
       `${diagnostic.recovery} No reading here was replaced.`);
     syncStage();
+    // The named reason leads the announcement too. A message that is only
+    // painted into the panel is one a screen reader user never receives, and
+    // the whole point of naming the reason is that it reaches a human.
     announce("error", "This file was not analyzed.",
-      `${diagnostic.text} ${diagnostic.recovery} Existing analysis was not replaced.`);
+      `${detected ? `${detected} ` : ""}${diagnostic.text} ${diagnostic.recovery} `
+      + "Existing analysis was not replaced.");
     // A rejection does not repaint the answer, so it does not reach the answer
     // region's own announcer — this is the one path that has to speak for
     // itself. One sentence: what went wrong, what to do about it, and the fact
@@ -2637,6 +2649,16 @@ function mountLocalFinopsImport() {
   const adaptHyperscalerFile = async (file) => {
     const { adaptHyperscalerExport, HYPERSCALER_RESULT } =
       await import("/hyperscaler-export-adapters.js");
+    const { detectAndNormalizeExport, describeDetection } =
+      await import("/export-provider-detection.js");
+    // ONE content-based verdict per file, before any adapter looks at it, and
+    // the reader is never asked which console it came from (#957). The verdict
+    // is not a router — the adapters below still own what they claim — it is
+    // what the panel SAYS, and on a refusal it is the named reason and the
+    // nearest importer that reach the reader in place of "could not analyze".
+    const detection = detectAndNormalizeExport(file.text);
+    const sentence = describeDetection(detection);
+    if (!detection.provider) file.unrecognizedReason = sentence;
     const result = adaptHyperscalerExport({ text: file.text, fileName: file.fileName });
     if (result.status === HYPERSCALER_RESULT.INCOMPATIBLE) return "unclaimed";
     if (result.status === HYPERSCALER_RESULT.INCOMPLETE) {
@@ -2644,9 +2666,10 @@ function mountLocalFinopsImport() {
       // Falling through would hand the file to a route that would either refuse
       // it for a different reason or read a partial period as a whole one.
       failFile({ code: result.code, message: result.message }, file);
-      renderLocalExportActivation(document, LOCAL_EXPORT_ACTIVATION_STATE.ERROR, result);
+      renderLocalExportActivation(document, LOCAL_EXPORT_ACTIVATION_STATE.ERROR,
+        { ...result, message: `${result.message} ${sentence}` });
       announce("error", "This provider export is incomplete.",
-        `${result.message} ${result.action}`);
+        `${result.message} ${sentence} ${result.action}`);
       return "refused";
     }
     if (!await paintProviderProjection(result.document)) {
@@ -2654,7 +2677,8 @@ function mountLocalFinopsImport() {
         + "but its rows did not project. No analysis was run." }, file);
       return "refused";
     }
-    renderLocalExportActivation(document, LOCAL_EXPORT_ACTIVATION_STATE.READY, result);
+    renderLocalExportActivation(document, LOCAL_EXPORT_ACTIVATION_STATE.READY,
+      { ...result, message: `${result.message} ${sentence}` });
     imports.push({
       source: "hyperscaler", fileName: file.fileName, mediaType: file.mediaType,
       text: file.text, parsed: result.parsed, state: null,
