@@ -382,7 +382,12 @@ const postPageHtml = () => readFile(new URL("../src/post.html", import.meta.url)
 test("the page says what Social is in one plain sentence, written once, outside the panel", async () => {
   const html = await postPageHtml();
   assert.ok(html.includes(`<p>${STANDING_SENTENCE}</p>`), "the standing sentence must ship in the markup");
-  assert.equal(html.split(STANDING_SENTENCE).length - 1, 1, "it is written once, not repeated per state");
+  // Counted over the page's own content, not the whole document: the About
+  // Shiplog band below it names every destination of the site in the words the
+  // home page's directory uses, and Social's row is this same sentence. What
+  // this rule is about is the page repeating it once per panel state.
+  const content = html.slice(0, html.indexOf('<footer class="site-footer"'));
+  assert.equal(content.split(STANDING_SENTENCE).length - 1, 1, "it is written once, not repeated per state");
 
   // Short enough to read at a glance, and one sentence rather than a paragraph.
   assert.ok(STANDING_SENTENCE.split(/\s+/).length <= 25, "the standing sentence stays at 25 words or fewer");

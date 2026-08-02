@@ -58,30 +58,33 @@ export const IDENTITY = "On this site you can analyze your own AI spend, check a
   + "operated by Wawalu at labs.wawalu.org.";
 
 /**
- * Where to start, and what each destination offers.
+ * Every door the navigation offers, and what each one is for.
  *
- * Four of the site's eight nav doors: a visitor reading a footer wants a way in,
- * and the full directory is the nav's job. Each carries a short description,
- * and each `label` is the word src/site-nav.js already uses — one name per
- * concept, so the door here and the door up there are visibly the same one.
+ * This band is the only directory on the pages whose body carries none, so a
+ * surface left out is one a reader has to guess at. Each `label` is the word
+ * src/site-nav.js uses, and each description is word for word the sentence the
+ * home page's "Where everything is" list gives that surface: one name and one
+ * description per concept.
  *
  * AI FinOps is first and is the only link: it is what the site leads with. The
- * href is root-relative for the reason every link in site-nav.js is — this band
- * ships on every page, and a bare relative path would resolve against a page in
- * a subdirectory rather than against the site.
+ * href is root-relative because this band ships on every page — a bare relative
+ * path would resolve against a page in a subdirectory rather than the site.
  */
 export const DEMOS = Object.freeze([
   Object.freeze({
     label: "AI FinOps",
     href: "/evolution.html",
-    description: "Find where to act first on your AI spend.",
-    // The only row that says "start here": four doors with no order is the same
-    // problem as no list at all.
-    note: "Start here: it reads your own provider export in this browser tab.",
+    description: "Find where to act first on your AI spend: score your own provider export in this browser tab.",
+    // The only row that says "start here": a list with no order is no list.
+    note: "Start here.",
   }),
-  Object.freeze({ label: "Prompt coach", description: "is this prompt worth sending?" }),
-  Object.freeze({ label: "Decisions", description: "why did we decide this, and what did we rule out?" }),
-  Object.freeze({ label: "Releases", description: "what shipped, and which decision led to it?" }),
+  Object.freeze({ label: "Prompt coach", description: "Grade one prompt against a bundled rubric in your browser tab, then revise it and grade again." }),
+  Object.freeze({ label: "Decisions", description: "Record a decision with its context, alternatives, and owner, then search and filter the history." }),
+  Object.freeze({ label: "Releases", description: "Every release, newest first, with the decisions it carried." }),
+  Object.freeze({ label: "Social", description: "Social is a shared demo feed of short posts about the work the team ships, each with an optional image." }),
+  Object.freeze({ label: "People", description: "Pick a demo persona and see that person's image posts, newest first. The picker is on the page." }),
+  Object.freeze({ label: "Paint", description: "Draw or crop an image in this tab, export a PNG, then hand it to a Social post yourself." }),
+  Object.freeze({ label: "Agent observatory", description: "Watch a synthetic engineering team plan, build, review, and deliver work." }),
 ]);
 
 /**
@@ -171,11 +174,10 @@ export function siteFooterMarkup(indent = "    ", { redirect = null } = {}) {
 }
 
 /**
- * The demo list: a real <ul>, so the destinations arrive as a list rather than a
- * run-on sentence and a screen reader gets the count. Only the primary demo is a
- * link — the other three are named as the nav names them, and that is where a
- * visitor reaches them. A second copy of the nav here is a directory, not
- * positioning.
+ * A real <ul>, so the destinations arrive as a list rather than a run-on
+ * sentence and a screen reader gets the count. Only the primary demo is a link
+ * — the rest are named as the nav names them, and that is where a visitor
+ * reaches them.
  */
 function demoListLines() {
   return [
