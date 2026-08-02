@@ -50,16 +50,16 @@ import {
 /** Bump this when a `source`, a `state`, or a panel key changes meaning. */
 export const FINOPS_PROVENANCE_VERSION = "finops-panel-provenance/1.0.0";
 
-/**
- * The label a sample-fed panel carries, verbatim as the page has always shipped
- * it. Authored once so the markup, this model, and the tests cannot hold three
- * versions of one sentence.
- */
-export const SAMPLE_LABEL =
-  "Bundled synthetic example — invented data, not your spend. Analyze your own export to replace it with your figures.";
-
 /** The word beside the shape. Neither one is a tint; both survive monochrome. */
 export const SAMPLE_WORD = "Bundled synthetic example";
+
+/**
+ * The short label every sample-fed panel carries. Now that the full boundary is
+ * stated once, before the first illustrative result, the label a panel carries
+ * *is* the word beside its shape — so it is that constant rather than a second
+ * copy of the phrase this file exists to keep singular.
+ */
+export const SAMPLE_LABEL = SAMPLE_WORD;
 export const USER_WORD = "Your data";
 const SAMPLE_SHAPE = "◇";
 const USER_SHAPE = "▣";

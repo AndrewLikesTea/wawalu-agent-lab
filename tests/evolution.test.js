@@ -229,8 +229,11 @@ test("the AI FinOps proof point is supporting, explicit, and linked to its evide
   assert.match(proofPoint, /Projected savings[\s\S]*\$5,200 \/ month/);
   assert.match(proofPoint, /Accountable role[\s\S]*Core Services platform director/);
   assert.match(proofPoint, /Confidence[\s\S]*High · 760-query scored sample/);
-  assert.match(proofPoint, /Bundled synthetic example/);
-  assert.match(proofPoint, /not live analysis, customer data, or realized savings/i);
+  // The boundary is stated once, above the figures, rather than repeated under
+  // them: the wording moved, the requirement that it be here did not.
+  assert.match(proofPoint, /Illustrative figures · invented sample/);
+  assert.match(proofPoint, /invented example data/i);
+  assert.match(proofPoint, /not your spend or realized savings/i);
   assert.match(proofPoint, /href="#recommendation-evidence"/);
   assert.match(page, /id="recommendation-evidence"[\s\S]*aria-labelledby="evaluation-title"/);
 

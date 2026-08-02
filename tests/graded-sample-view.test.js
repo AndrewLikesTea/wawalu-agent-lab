@@ -12,6 +12,7 @@ import assert from "node:assert/strict";
 import { loadPage, pressEnter, pressTab, tabSequence, textOf } from "./support/browser.js";
 import { applyGradedSample, clearGradedSample } from "../src/graded-sample-view.js";
 import { gradedSampleFigures, querySampleEligibility } from "../src/graded-sample-figures.js";
+import { SAMPLE_LABEL } from "../src/finops-provenance-model.js";
 import { classifyQuerySample, parseQuerySample } from "../src/query-sample-contract.js";
 import { RUBRIC_VERSION_ID, scorePromptLiteracy } from "../src/prompt-literacy-scoring.js";
 import { exampleDepartmentUnitIds, exampleQuerySampleText } from "../src/query-sample-example.js";
@@ -66,8 +67,7 @@ test("state C · a visitor who imports nothing meets the page unchanged", async 
     mixHidden: byId(document, "spend-mix-panel").hidden,
   };
   assert.equal(before.badgeHidden, false);
-  assert.match(before.badge,
-    /^◇ Bundled synthetic example — invented data, not your spend\. Analyze your own export to replace it with your figures\.$/);
+  assert.equal(before.badge, `◇ ${SAMPLE_LABEL}`);
   assert.equal(byId(document, "graded-sample").hidden, true, "the graded section ships hidden");
   assert.equal(byId(document, "graded-provenance").hidden, true);
   assert.equal(byId(document, "mix-basis").hidden, true);
@@ -179,8 +179,7 @@ test("clearing hands every slot back to the example surface", async () => {
   assert.equal(byId(document, "graded-provenance").hidden, true);
   assert.equal(byId(document, "mix-basis").hidden, true);
   assert.equal(byId(document, "headline-basis").hidden, false);
-  assert.match(shown(document, "headline-basis"),
-    /^◇ Bundled synthetic example — invented data, not your spend\. Analyze your own export to replace it with your figures\.$/);
+  assert.equal(shown(document, "headline-basis"), `◇ ${SAMPLE_LABEL}`);
 });
 
 test("the disclosure reveals the subscores and the unclassified count, from the keyboard", async () => {

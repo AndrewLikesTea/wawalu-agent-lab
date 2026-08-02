@@ -212,7 +212,7 @@ test("the example-data case labels the headline metric on a cold load", async ()
   // Authored state, before any script runs.
   assert.equal(doc.getElementById("local-metric-label").textContent.trim(), "Bundled synthetic example");
   assert.equal(doc.getElementById("local-recoverable").dataset.real, "false");
-  assert.match(normalized(doc.getElementById("headline-basis")), /Bundled synthetic example — invented data, not your spend/);
+  assert.equal(normalized(doc.getElementById("headline-basis")), "◇ Bundled synthetic example");
   assert.equal(doc.getElementById("analysis-mode").dataset.mode, "example");
 
   applyMetricBasis(doc, metricBasis({ mode: "local", departments: 4, joinedRecords: 9 }));
