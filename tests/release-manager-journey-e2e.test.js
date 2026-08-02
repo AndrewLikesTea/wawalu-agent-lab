@@ -21,13 +21,8 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { initDecisionLog, STORAGE_KEY } from "../src/app.js";
-import { RELEASE_STORAGE_KEY } from "../src/releases.js";
-import { initReleasesPage } from "../src/releases-page.js";
-import { initReleaseDetail } from "../src/release-page.js";
-import { initDecisionDetail } from "../src/decision-page.js";
-import { initShiplogExport } from "../src/shiplog-export.js";
-import { loadReleaseData } from "../src/releases-data.js";
+import { createHash } from "node:crypto";
+import { readFile } from "node:fs/promises";
 import { onRequest as healthz } from "../functions/healthz.js";
 import {
   DomEvent,
@@ -41,10 +36,41 @@ import {
   typeText,
 } from "./support/browser.js";
 
-const DECISIONS_PAGE = new URL("../src/index.html", import.meta.url);
-const RELEASES_PAGE = new URL("../src/releases.html", import.meta.url);
-const RELEASE_DETAIL_PAGE = new URL("../src/release.html", import.meta.url);
-const DECISION_DETAIL_PAGE = new URL("../src/decision.html", import.meta.url);
+// Normal `npm test` runs against source for fast feedback. The production E2E
+// command sets this to `dist`, so the page markup and every browser module the
+// journey loads come from the deployable tree.
+//
+// What a green production run proves: the artifact ships every page and module
+// this journey needs, they still work together once assembled by the build, and
+// each of those files is the byte-for-byte file the build verified (asserted
+// below against the build manifest). What it does not prove: that dist/ was
+// built from the working tree — `npm run check` builds immediately before, and
+// outside that chain the artifact is whatever the last build left. The health
+// endpoint stays a source import either way: Pages functions deploy from
+// functions/, not from this artifact.
+const BUILD_ROOT = process.env.SHIPLOG_E2E_BUILD_ROOT || "src";
+const artifact = (path) => new URL(`../${BUILD_ROOT}/${path}`, import.meta.url);
+
+// The journey's whole file surface, named once so the manifest check below
+// covers exactly what was loaded rather than a list kept in step by hand. The
+// module order is the destructuring order underneath it; reordering one without
+// the other binds the wrong export and every test here fails at once.
+const JOURNEY_MODULES = ["app.js", "releases.js", "releases-page.js", "release-page.js",
+  "decision-page.js", "shiplog-export.js", "releases-data.js"];
+const JOURNEY_PAGES = ["index.html", "releases.html", "release.html", "decision.html"];
+
+const [
+  { initDecisionLog, STORAGE_KEY },
+  { RELEASE_STORAGE_KEY },
+  { initReleasesPage },
+  { initReleaseDetail },
+  { initDecisionDetail },
+  { initShiplogExport },
+  { loadReleaseData },
+] = await Promise.all(JOURNEY_MODULES.map((module) => import(artifact(module))));
+
+const [DECISIONS_PAGE, RELEASES_PAGE, RELEASE_DETAIL_PAGE, DECISION_DETAIL_PAGE] =
+  JOURNEY_PAGES.map(artifact);
 
 // The example records are module constants the pages compose in, not a fetch,
 // so a journey that wants a log containing nothing but its own work hands every
@@ -466,6 +492,28 @@ test("GET /healthz returns a successful health response without credentials or e
     auth: "unconfigured",
   });
   assert.deepEqual(statements, ["SELECT 1 AS healthy"], "the health probe performed work beyond its read-only query");
+});
+
+// Without this, a green production run only means "some directory called dist
+// happens to work". A hand-edited, half-copied, or partially promoted artifact
+// would pass the journey above as long as the seven modules imported cleanly.
+// Skipped on the source run, where there is no artifact to hold to account.
+test("the journey ran against files the build verified and shipped", {
+  skip: BUILD_ROOT === "src" && "source run: no build artifact to check",
+}, async () => {
+  const manifest = JSON.parse(await readFile(artifact("build-manifest.json"), "utf8"));
+  const verified = new Map(manifest.files.map((file) => [file.path, file]));
+
+  for (const path of [...JOURNEY_PAGES, ...JOURNEY_MODULES]) {
+    const entry = verified.get(path);
+    assert.ok(entry, `the journey loaded ${path}, which the build did not ship or verify`);
+    const onDisk = await readFile(artifact(path));
+    assert.equal(
+      createHash(manifest.algorithm).update(onDisk).digest("hex"),
+      entry.sha256,
+      `${BUILD_ROOT}/${path} is not the file the build verified`,
+    );
+  }
 });
 
 test("a reload between the steps loses nothing the manager recorded", async (t) => {
