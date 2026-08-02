@@ -29,14 +29,39 @@
 // idea of what "comparable" means. A position withheld here is withheld with a
 // code and a sentence, never with an inferred attribute.
 //
+// TWO PROVENANCE SOURCES, ONE DECISION (#978)
+// -------------------------------------------
+// A cohort attribute may now arrive two ways, and every record says which:
+//
+//   file             a column in the imported export carried it
+//   reader_declared  the reader named it in the page, because their export
+//                    carries no such column and no export in the v1 dialect
+//                    contracts ever will
+//
+// The two are never interchangeable to a consumer. `COHORT_ATTRIBUTE_SOURCE`
+// travels on the resolved declaration per attribute AND on the position as one
+// discriminator, so a surface labels a placement without inferring anything
+// from which fields happen to be empty. FILE WINS: if the export carries the
+// column at all — even carrying a value this contract does not publish — the
+// file's answer is the answer, and a reader-declared value for that attribute
+// is not consulted. That keeps every export that ranks today ranking today's
+// way, and keeps the UNRECOGNIZED_* instruction ("fix the value in your file")
+// from being silently satisfied behind the reader's back.
+//
 // PARTIAL, STALE, MALFORMED, REORDERED
 // ------------------------------------
 //   partial    a declaration may appear on the first data row, on every row, or
 //              on a roster beside the usage export. All three resolve the same.
+//              A reader who declares one of the two attributes and not the
+//              other has declared nothing usable: the absent attribute reports
+//              its own MISSING_* and no position is published.
 //   malformed  a declared value the contract does not publish is reported as
 //              UNRECOGNIZED_*, quoting the value back, never silently dropped
 //              to MISSING_* — "you wrote something we do not accept" and "you
-//              wrote nothing" are different instructions to the reader.
+//              wrote nothing" are different instructions to the reader. A
+//              reader-declared value outside the published enumeration is
+//              refused here, in the model, with the accepted options named —
+//              never only in the control, which anything can bypass.
 //   reordered  attributes are resolved by first non-empty value across the
 //              projected rows, and across sources in selection order, so a file
 //              whose first row happens to be blank still resolves.
@@ -48,7 +73,33 @@ import {
 } from "./peer-cohort-contract.js";
 
 /** Bump when a projection, an accepted value, or a published reason changes. */
-export const COHORT_ATTRIBUTION_VERSION = "import-cohort-attribution/1.0.0";
+export const COHORT_ATTRIBUTION_VERSION = "import-cohort-attribution/1.1.0";
+
+/**
+ * Where one cohort attribute came from.
+ *
+ * A named field on the record, never an inferred flag: a consumer must not have
+ * to guess "the file must have carried this, since something did".
+ */
+export const COHORT_ATTRIBUTE_SOURCE = Object.freeze({
+  file: "file",
+  readerDeclared: "reader_declared",
+});
+
+/** How a placement may be described. One string per source, authored once. */
+export const COHORT_PROVENANCE_LABEL = Object.freeze({
+  [COHORT_ATTRIBUTE_SOURCE.file]: "file-derived cohort",
+  [COHORT_ATTRIBUTE_SOURCE.readerDeclared]: "reader-declared cohort",
+});
+
+/** The same fact as a sentence, for the surfaces that have room for one. */
+export const COHORT_PROVENANCE_STATEMENT = Object.freeze({
+  [COHORT_ATTRIBUTE_SOURCE.file]:
+    "The cohort attributes behind this position were read from the imported export.",
+  [COHORT_ATTRIBUTE_SOURCE.readerDeclared]:
+    "The cohort attributes behind this position were declared by you on this page. They were not "
+    + "read from the imported export, and the position is reader-declared rather than file-derived.",
+});
 
 const EMPTY = Object.freeze([]);
 
@@ -172,6 +223,37 @@ const INDUSTRIES = Object.freeze([
 export const ACCEPTED_ORG_SIZE_BANDS = Object.freeze(ORG_SIZE_BANDS.map((entry) => entry.key));
 export const ACCEPTED_INDUSTRIES = Object.freeze(INDUSTRIES.map((entry) => entry.key));
 
+/**
+ * The closed enumeration a reader may declare in the page, with its labels.
+ *
+ * THE SINGLE SOURCE OF TRUTH for the in-page control, the refusal messages, and
+ * the accepted-values table in the contract doc. The control renders its options
+ * from this and nothing else, so the list a reader is offered, the list the
+ * model accepts, and the list the doc publishes cannot drift into three lists —
+ * which is the failure a second copy written as string literals in the page
+ * would produce on the first band anyone adds.
+ */
+export const COHORT_DECLARATION_CHOICES = Object.freeze({
+  orgSizeBand: Object.freeze(ORG_SIZE_BANDS.map((entry) =>
+    Object.freeze({ key: entry.key, label: entry.label }))),
+  industry: Object.freeze(INDUSTRIES.map((entry) =>
+    Object.freeze({ key: entry.key, label: entry.label }))),
+});
+
+/** The two attributes a reader may declare, in the order the control shows. */
+export const COHORT_DECLARED_ATTRIBUTES = Object.freeze(["orgSizeBand", "industry"]);
+
+/** What each declared attribute is called in a sentence to the reader. */
+const DECLARED_ATTRIBUTE_NOUN = Object.freeze({
+  orgSizeBand: "organization size band",
+  industry: "industry",
+});
+
+const ACCEPTED_DECLARED = Object.freeze({
+  orgSizeBand: ACCEPTED_ORG_SIZE_BANDS,
+  industry: ACCEPTED_INDUSTRIES,
+});
+
 const listed = (values) => values.join(", ");
 
 const resolveBand = (raw) => {
@@ -209,6 +291,51 @@ export function readCohortDeclaration(source = null) {
     orgSizeBand: resolveBand(orgSizeBandRaw)?.key ?? null,
     industryRaw,
     industry: resolveIndustry(industryRaw)?.key ?? null,
+  });
+}
+
+/**
+ * One reader-declared cohort, checked against the closed enumeration.
+ *
+ * IN THE MODEL, NOT ONLY IN THE CONTROL. The control offers exactly
+ * `COHORT_DECLARATION_CHOICES` and nothing else, but a control is markup: a
+ * bypassed one, a replayed handler, or a future caller with its own affordance
+ * all arrive here, and they are refused here. Aliases are deliberately NOT
+ * accepted on this path — a file may write `mid-market` because a reader typed
+ * it into a spreadsheet months ago, but nobody types into this control, so the
+ * declared value is either one of the published keys or it is refused.
+ *
+ * An empty attribute is not a refusal. It is an attribute the reader did not
+ * declare, and `validateCohortAttribution` reports the resulting gap with the
+ * MISSING_* code it already publishes for it.
+ *
+ * @returns `{ ok, declaration, refusals }`. `declaration` carries only the
+ *   attributes that were declared AND accepted; `refusals` carries one entry
+ *   per unaccepted attribute, each naming the accepted options for that field.
+ */
+export function validateReaderCohortDeclaration(input = null) {
+  const declaration = {};
+  const refusals = [];
+  for (const attribute of COHORT_DECLARED_ATTRIBUTES) {
+    const raw = text(isObject(input) ? input[attribute] : "");
+    if (!raw) continue;
+    const accepted = ACCEPTED_DECLARED[attribute];
+    const normalized = normalizeValue(raw);
+    if (accepted.includes(normalized)) {
+      declaration[attribute] = normalized;
+      continue;
+    }
+    refusals.push(Object.freeze({
+      attribute,
+      value: raw,
+      message: `"${raw}" is not an accepted ${DECLARED_ATTRIBUTE_NOUN[attribute]}. The accepted `
+        + `values are: ${listed(accepted)}.`,
+    }));
+  }
+  return Object.freeze({
+    ok: refusals.length === 0,
+    declaration: Object.freeze(declaration),
+    refusals: Object.freeze(refusals),
   });
 }
 
@@ -317,6 +444,8 @@ export const COHORT_ATTRIBUTION_REASON = Object.freeze({
   unrecognizedIndustry: "UNRECOGNIZED_INDUSTRY",
   orgSizeBandMismatch: "ORG_SIZE_BAND_MISMATCH",
   noPublishedCohort: "NO_PUBLISHED_COHORT",
+  /** A reader-declared value outside the published enumeration (#978). */
+  unacceptedDeclaredValue: "UNACCEPTED_DECLARED_VALUE",
 });
 
 const EXTERNAL_UNIT_TYPES = new Set(["contractor", "vendor", "external", "agency", "partner"]);
@@ -360,19 +489,47 @@ const withheld = (reason, reasonText, nextStep, facts) => Object.freeze({
  * @param input.declaration the merged RAW declaration, or null. Rows are the
  *   fallback: the same attribute declared on every usage row resolves exactly
  *   as one declared in a header block does.
+ * @param input.readerDeclaration what the reader declared in the page, or null.
+ *   Consulted per attribute ONLY where the export carries no column for it, so
+ *   an export that already declares both ranks exactly as it does today.
  * @param input.asOf the caller's evaluation date, recorded on the note.
  * @returns a frozen decision. `eligible` is the only branch a surface needs;
  *   every other state carries a code, a sentence, and one next step.
  */
 export function validateCohortAttribution({
-  rows = [], roster = [], declaration = null, asOf = null,
+  rows = [], roster = [], declaration = null, readerDeclaration = null, asOf = null,
 } = {}) {
   const rowList = (Array.isArray(rows) ? rows : []).filter(isObject);
   const rosterList = (Array.isArray(roster) ? roster : []).filter(isObject);
   // The declaration first, rows behind it. `pick` takes the first non-empty
   // value across the list, so a declaration that resolved nothing falls through
   // to the rows without a second code path deciding when it should.
-  const declared = readCohortDeclaration([declaration, ...rowList]);
+  const fromFile = readCohortDeclaration([declaration, ...rowList]);
+  const reader = validateReaderCohortDeclaration(readerDeclaration);
+  // WHICH ATTRIBUTES THE EXPORT COULD NOT SUPPLY. Published on every decision,
+  // in both branches, because it is what the page gates its declaration control
+  // on — and gating on "the position was withheld" would offer the control for
+  // a file that carries the columns and merely wrote a value we do not publish.
+  const declarable = Object.freeze({
+    orgSizeBand: !fromFile.orgSizeBandRaw,
+    industry: !fromFile.industryRaw,
+  });
+  // FILE WINS, per attribute. A column present in the export decides that
+  // attribute outright — including deciding it is unrecognized — and the
+  // reader-declared value fills only a genuinely absent column.
+  const declared = Object.freeze({
+    orgSizeBandRaw: fromFile.orgSizeBandRaw || reader.declaration.orgSizeBand || "",
+    orgSizeBand: declarable.orgSizeBand
+      ? reader.declaration.orgSizeBand ?? null : fromFile.orgSizeBand,
+    orgSizeBandSource: declarable.orgSizeBand
+      ? (reader.declaration.orgSizeBand ? COHORT_ATTRIBUTE_SOURCE.readerDeclared : null)
+      : COHORT_ATTRIBUTE_SOURCE.file,
+    industryRaw: fromFile.industryRaw || reader.declaration.industry || "",
+    industry: declarable.industry ? reader.declaration.industry ?? null : fromFile.industry,
+    industrySource: declarable.industry
+      ? (reader.declaration.industry ? COHORT_ATTRIBUTE_SOURCE.readerDeclared : null)
+      : COHORT_ATTRIBUTE_SOURCE.file,
+  });
   const note = anonymizationNote(asOf);
 
   // Org units are counted over NORMALIZED keys, and the roster is indexed the
@@ -398,8 +555,21 @@ export function validateCohortAttribution({
     inactiveUnits: inactive.length,
     externalUnits: external.length,
   });
-  const facts = { declared, observed, note };
+  const facts = { declared, declarable, observed, note, refusals: EMPTY };
 
+  // The refusal stands before anything is counted from it: a value outside the
+  // published enumeration must never reach `selectPeerCohort`, and a reader who
+  // sent one is owed the accepted options for the field they sent it for. Only
+  // refusals for attributes the export could not supply are raised — where the
+  // file carries the column, the reader-declared value was never consulted.
+  const refusals = reader.refusals.filter((refusal) => declarable[refusal.attribute]);
+  if (refusals.length) {
+    return withheld(COHORT_ATTRIBUTION_REASON.unacceptedDeclaredValue,
+      refusals.map((refusal) => refusal.message).join(" "),
+      "Declare a value from the accepted list for each field named above. No position is "
+      + "published from a value this contract does not publish.",
+      { ...facts, refusals: Object.freeze(refusals) });
+  }
   if (!keys.length) {
     return withheld(COHORT_ATTRIBUTION_REASON.noValidRows,
       "No row in this import carries an org unit, so there is nothing to count an organization "
@@ -419,7 +589,8 @@ export function validateCohortAttribution({
       "This import declares no organization size band. A cohort is never selected from an "
       + "inferred attribute, so no position is published.",
       `Add an org_size_band column declaring one of: ${listed(ACCEPTED_ORG_SIZE_BANDS)}. It may `
-      + "sit on the first data row or repeat on every row.", facts);
+      + "sit on the first data row or repeat on every row. You can also declare the band on this "
+      + "page instead, without re-importing the export.", facts);
   }
   if (!declared.orgSizeBand) {
     return withheld(COHORT_ATTRIBUTION_REASON.unrecognizedOrgSizeBand,
@@ -433,7 +604,8 @@ export function validateCohortAttribution({
       "This import declares no industry. Without one the comparison would be against every "
       + "organization of this size rather than against organizations like this one.",
       `Add an industry column declaring one of: ${listed(ACCEPTED_INDUSTRIES)}. It may sit on the `
-      + "first data row or repeat on every row.", facts);
+      + "first data row or repeat on every row. You can also declare the industry on this page "
+      + "instead, without re-importing the export.", facts);
   }
   if (!declared.industry) {
     return withheld(COHORT_ATTRIBUTION_REASON.unrecognizedIndustry,
@@ -480,7 +652,21 @@ export function validateCohortAttribution({
       memberCount: cohort.members.length,
       orgUnits: observed.orgUnits,
       orgSizeBand: declared.orgSizeBand,
+      orgSizeBandSource: declared.orgSizeBandSource,
       industry: declared.industry,
+      industrySource: declared.industrySource,
+      /**
+       * ONE discriminator for the whole placement, beside the per-attribute
+       * ones. A position is file-derived only when BOTH attributes came out of
+       * the export; a single reader-declared attribute makes the placement
+       * reader-declared, because that is the weaker of the two claims and a
+       * surface that averaged them would present a declared cohort as a
+       * measured one.
+       */
+      provenance: declared.orgSizeBandSource === COHORT_ATTRIBUTE_SOURCE.file
+        && declared.industrySource === COHORT_ATTRIBUTE_SOURCE.file
+        ? COHORT_ATTRIBUTE_SOURCE.file
+        : COHORT_ATTRIBUTE_SOURCE.readerDeclared,
       snapshotDate: cohort.snapshotDate,
     }),
     ...facts,

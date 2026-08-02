@@ -99,6 +99,13 @@ export function answerAnnouncement(headline) {
       ? `Do this next: ${action.label}`
       : `Do this next: ${headline.withheld?.nextStep || action?.label || ""}`),
     sentence(headline.label ? `Source: ${headline.label}` : ""),
+    // Where the peer placement rests on facts the reader named on this page
+    // rather than on columns in their export, the sentence says so. Absent on
+    // every other headline, so nothing is added to the announcement a reader
+    // hears today: the position slot only carries this note when the cohort
+    // contract labelled the placement reader-declared (#978).
+    sentence(headline.position?.provenance === "reader_declared"
+      ? headline.position.provenanceNote : ""),
   ].filter(Boolean).join(" ");
 }
 

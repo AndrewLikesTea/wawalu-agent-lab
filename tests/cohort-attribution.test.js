@@ -12,10 +12,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readDelimitedText } from "../src/delimited-text.js";
+import { readFile } from "node:fs/promises";
 import {
-  ACCEPTED_INDUSTRIES, ACCEPTED_ORG_SIZE_BANDS, COHORT_ATTRIBUTION_REASON, ROSTER_COLUMNS_READ,
-  mergeCohortSources, normalizeKey, pick, projectCohortSource, readCohortDeclaration,
-  readDepartmentRoster, validateCohortAttribution,
+  ACCEPTED_INDUSTRIES, ACCEPTED_ORG_SIZE_BANDS, COHORT_ATTRIBUTE_SOURCE,
+  COHORT_ATTRIBUTION_REASON, COHORT_ATTRIBUTION_VERSION, COHORT_DECLARATION_CHOICES,
+  ROSTER_COLUMNS_READ, mergeCohortSources, normalizeKey, pick, projectCohortSource,
+  readCohortDeclaration, readDepartmentRoster, validateCohortAttribution,
+  validateReaderCohortDeclaration,
 } from "../src/cohort-attribution.js";
 
 // --- the harness: exactly what the page does with a confirmed delimited file --
@@ -34,6 +37,13 @@ const decide = (...files) => validateCohortAttribution({
   asOf: "2026-06-30",
 });
 
+/** The same boundary, with what a reader declared in the page behind it. */
+const decideDeclaring = (readerDeclaration, ...files) => validateCohortAttribution({
+  ...mergeCohortSources(files.map((csv) => projectCohortSource({ objects: objectsFrom(csv) }))),
+  readerDeclaration,
+  asOf: "2026-06-30",
+});
+
 // --- fixtures, generated here rather than committed ------------------------
 
 const usageExport = ({ units = 6, orgSizeBand = "scaling", industry = "saas",
@@ -46,6 +56,25 @@ const usageExport = ({ units = 6, orgSizeBand = "scaling", industry = "saas",
     return ["2026-06-05", "gpt-4o", `unit-${index + 1}`, String(100 + index), ...declared,
       ...extras.map((column) => extraColumns[column])];
   });
+  return [header, ...rows].map((row) => row.join(",")).join("\n");
+};
+
+/**
+ * The four column shapes the contract has to answer for, from one generator.
+ *
+ * `columns` names which of the two cohort columns the export CARRIES — not what
+ * they hold. An absent column and an empty one are the same to the reader ("my
+ * export cannot supply this"), and both are what the in-page declaration exists
+ * for; a column that is present and holds an unaccepted value is a different
+ * answer, and `usageExport` above already produces it.
+ */
+const usageExportCarrying = ({ columns = ["org_size_band", "industry"], units = 6 } = {}) => {
+  const header = ["usage_date", "department_key", "amount", ...columns];
+  const declared = { org_size_band: "scaling", industry: "saas" };
+  const rows = Array.from({ length: units }, (_, index) => [
+    "2026-06-05", `unit-${index + 1}`, String(100 + index),
+    ...columns.map((column) => declared[column]),
+  ]);
   return [header, ...rows].map((row) => row.join(",")).join("\n");
 };
 
@@ -261,6 +290,157 @@ test("inactive units are excluded from the count the cohort is selected on", () 
   assert.equal(decision.observed.inactiveUnits, 1);
   assert.equal(decision.observed.orgUnits, 5);
   assert.equal(decision.eligible, true);
+});
+
+// --- two provenance sources (#978) ----------------------------------------
+
+test("the contract version records the provenance extension", () => {
+  assert.equal(COHORT_ATTRIBUTION_VERSION, "import-cohort-attribution/1.1.0");
+});
+
+test("an export carrying both columns is file-derived and says so on the record", () => {
+  const decision = decide(usageExportCarrying());
+  assert.equal(decision.eligible, true);
+  assert.deepEqual({ ...decision.declarable }, { orgSizeBand: false, industry: false });
+  assert.equal(decision.declared.orgSizeBandSource, COHORT_ATTRIBUTE_SOURCE.file);
+  assert.equal(decision.declared.industrySource, COHORT_ATTRIBUTE_SOURCE.file);
+  assert.equal(decision.position.provenance, COHORT_ATTRIBUTE_SOURCE.file);
+});
+
+test("an export carrying neither column is declarable in both attributes", () => {
+  const decision = decide(usageExportCarrying({ columns: [] }));
+  assert.equal(decision.eligible, false);
+  assert.equal(decision.reason, COHORT_ATTRIBUTION_REASON.missingOrgSizeBand);
+  assert.deepEqual({ ...decision.declarable }, { orgSizeBand: true, industry: true });
+  assert.equal(decision.declared.orgSizeBandSource, null);
+});
+
+test("an export carrying exactly one column is declarable in the other only", () => {
+  const decision = decide(usageExportCarrying({ columns: ["industry"] }));
+  assert.deepEqual({ ...decision.declarable }, { orgSizeBand: true, industry: false });
+  assert.equal(decision.declared.industrySource, COHORT_ATTRIBUTE_SOURCE.file);
+  assert.equal(decision.reason, COHORT_ATTRIBUTION_REASON.missingOrgSizeBand);
+  // And the next step now names both ways out, not only the column edit.
+  assert.match(decision.nextStep, /Add an org_size_band column declaring one of/);
+  assert.match(decision.nextStep, /declare the band on this page/);
+});
+
+test("a cohort satisfied by declaration ranks and is labelled reader-declared", () => {
+  const decision = decideDeclaring({ orgSizeBand: "scaling", industry: "saas" },
+    usageExportCarrying({ columns: [] }));
+  assert.equal(decision.eligible, true);
+  assert.equal(decision.position.orgSizeBand, "scaling");
+  assert.equal(decision.position.industry, "saas");
+  assert.equal(decision.position.provenance, COHORT_ATTRIBUTE_SOURCE.readerDeclared);
+  assert.equal(decision.position.orgSizeBandSource, COHORT_ATTRIBUTE_SOURCE.readerDeclared);
+  assert.equal(decision.position.industrySource, COHORT_ATTRIBUTE_SOURCE.readerDeclared);
+});
+
+test("one file-derived attribute beside one declared one is still reader-declared", () => {
+  const decision = decideDeclaring({ orgSizeBand: "scaling" },
+    usageExportCarrying({ columns: ["industry"] }));
+  assert.equal(decision.eligible, true);
+  assert.equal(decision.position.industrySource, COHORT_ATTRIBUTE_SOURCE.file);
+  assert.equal(decision.position.orgSizeBandSource, COHORT_ATTRIBUTE_SOURCE.readerDeclared);
+  // The weaker of the two claims decides how the placement may be described.
+  assert.equal(decision.position.provenance, COHORT_ATTRIBUTE_SOURCE.readerDeclared);
+});
+
+test("a file-derived value wins over a declared one for the same attribute", () => {
+  // The export says saas. The declaration says financial_services. The export
+  // is what ranks, and the record says the industry came out of the file.
+  const decision = decideDeclaring({ orgSizeBand: "focused", industry: "financial_services" },
+    usageExportCarrying());
+  assert.equal(decision.position.industry, "saas");
+  assert.equal(decision.position.orgSizeBand, "scaling");
+  assert.equal(decision.position.provenance, COHORT_ATTRIBUTE_SOURCE.file);
+});
+
+test("a declaration never rescues a file value the contract does not publish", () => {
+  // The column IS in the file, holding "gigantic". The instruction stays "fix
+  // the value you wrote"; a declared band must not satisfy it behind the
+  // reader's back, or the export would keep shipping a value nothing accepts.
+  const decision = decideDeclaring({ orgSizeBand: "scaling" },
+    usageExport({ orgSizeBand: "gigantic" }));
+  assert.equal(decision.reason, COHORT_ATTRIBUTION_REASON.unrecognizedOrgSizeBand);
+  assert.equal(decision.position, null);
+  assert.equal(decision.declarable.orgSizeBand, false);
+});
+
+test("declaring one of the two attributes is unsatisfied, not a partial position", () => {
+  const decision = decideDeclaring({ industry: "saas" }, usageExportCarrying({ columns: [] }));
+  assert.equal(decision.eligible, false);
+  assert.equal(decision.position, null);
+  assert.equal(decision.reason, COHORT_ATTRIBUTION_REASON.missingOrgSizeBand);
+  assert.equal(decision.declared.industrySource, COHORT_ATTRIBUTE_SOURCE.readerDeclared);
+});
+
+test("a declared value outside the enumeration is refused by the model", () => {
+  // Not by the control — this call bypasses it entirely, which is the point.
+  const refusal = validateReaderCohortDeclaration({
+    orgSizeBand: "gigantic", industry: "Rocket Surgery",
+  });
+  assert.equal(refusal.ok, false);
+  assert.equal(refusal.refusals.length, 2);
+  assert.deepEqual(refusal.refusals.map((entry) => entry.attribute), ["orgSizeBand", "industry"]);
+  // Each message names the accepted options FOR THAT FIELD, and quotes back the
+  // value the caller sent rather than describing it.
+  assert.equal(refusal.refusals[0].message,
+    '"gigantic" is not an accepted organization size band. The accepted values are: '
+    + "focused, scaling, enterprise.");
+  assert.match(refusal.refusals[1].message, /The accepted values are: saas, financial_services\./);
+  assert.deepEqual({ ...refusal.declaration }, {});
+});
+
+test("aliases a file may write are not accepted from the in-page declaration", () => {
+  // `mid-market` resolves in a FILE, because a reader typed it into a
+  // spreadsheet months ago. Nobody types into the control, so the declared path
+  // takes published keys only.
+  assert.equal(validateReaderCohortDeclaration({ orgSizeBand: "mid-market" }).ok, false);
+  assert.equal(validateReaderCohortDeclaration({ orgSizeBand: " Scaling " }).declaration.orgSizeBand,
+    "scaling");
+});
+
+test("a refused declared value withholds the position through the whole boundary", () => {
+  const decision = decideDeclaring({ orgSizeBand: "gigantic", industry: "saas" },
+    usageExportCarrying({ columns: [] }));
+  assert.equal(decision.eligible, false);
+  assert.equal(decision.position, null);
+  assert.equal(decision.reason, COHORT_ATTRIBUTION_REASON.unacceptedDeclaredValue);
+  assert.equal(decision.refusals.length, 1);
+  assert.match(decision.reasonText, /The accepted values are: focused, scaling, enterprise\./);
+  assert.match(decision.nextStep, /Declare a value from the accepted list/);
+});
+
+test("a refusal for an attribute the file supplies is not raised", () => {
+  // The declared industry is nonsense, but the file carries an industry column,
+  // so the declared value was never consulted and there is nothing to refuse.
+  const decision = decideDeclaring({ industry: "Rocket Surgery" },
+    usageExportCarrying({ columns: ["industry"] }));
+  assert.equal(decision.reason, COHORT_ATTRIBUTION_REASON.missingOrgSizeBand);
+  assert.deepEqual([...decision.refusals], []);
+});
+
+test("the doc's accepted values are exactly the enumeration the control offers", async () => {
+  const doc = await readFile(new URL("../docs/import-cohort-attribution-contract.md",
+    import.meta.url), "utf8");
+  // Parsed out of the doc's own published table rather than restated here, so a
+  // band added to the model and not to the doc fails this test rather than
+  // shipping a page that offers a value the doc never told anyone about.
+  const published = (column) => {
+    const row = doc.split("\n").find((line) => line.startsWith(`| \`${column}\` |`));
+    assert.ok(row, `the contract doc must publish a row for ${column}`);
+    return row.split("|")[2].trim().split(",").map((value) => value.trim().replace(/`/g, ""));
+  };
+  assert.deepEqual(published("org_size_band"),
+    COHORT_DECLARATION_CHOICES.orgSizeBand.map((choice) => choice.key));
+  assert.deepEqual(published("industry"),
+    COHORT_DECLARATION_CHOICES.industry.map((choice) => choice.key));
+  // …and the enumeration the control renders from is the one the model accepts.
+  assert.deepEqual(COHORT_DECLARATION_CHOICES.orgSizeBand.map((choice) => choice.key),
+    [...ACCEPTED_ORG_SIZE_BANDS]);
+  assert.deepEqual(COHORT_DECLARATION_CHOICES.industry.map((choice) => choice.key),
+    [...ACCEPTED_INDUSTRIES]);
 });
 
 test("no selection at all is an empty merge rather than a thrown error", () => {

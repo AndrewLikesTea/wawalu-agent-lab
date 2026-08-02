@@ -1741,6 +1741,29 @@
             <p class="local-cohort-headline" id="local-cohort-headline">—</p>
             <p class="local-cohort-detail" id="local-cohort-detail">—</p>
             <p class="local-cohort-next" id="local-cohort-next" hidden>—</p>
+            <!-- The reader supplies what their export cannot (#978). Shown only
+                 for the attributes the imported file carries no column for, and
+                 hidden entirely when the file supplies both. The two selects
+                 are authored EMPTY: their options are rendered from the cohort
+                 model's own enumeration by cohort-attribution-view.js, so the
+                 values offered here and the values the model accepts are one
+                 list. Submitting recomputes the position from the import
+                 already in this tab — no re-import, no re-read of the file, no
+                 request, and nothing written outside this session. -->
+            <div class="local-cohort-declare" id="local-cohort-declare" hidden>
+              <p class="eyebrow" id="local-cohort-declare-title">Declare what this export does not carry</p>
+              <p class="local-cohort-declare-note">These values stay in this tab with the imported data and are cleared with it. A position selected from them is labelled reader-declared, never file-derived.</p>
+              <p class="local-cohort-declare-field" id="local-cohort-declare-band-field" hidden>
+                <label for="local-cohort-declare-band">Organization size band</label>
+                <select id="local-cohort-declare-band"></select>
+              </p>
+              <p class="local-cohort-declare-field" id="local-cohort-declare-industry-field" hidden>
+                <label for="local-cohort-declare-industry">Industry</label>
+                <select id="local-cohort-declare-industry"></select>
+              </p>
+              <button class="local-cohort-declare-submit" id="local-cohort-declare-submit" type="button">Recompute the peer position</button>
+              <p class="local-cohort-declare-status" id="local-cohort-declare-status" role="status" aria-live="polite" hidden></p>
+            </div>
             <!-- What was read to produce the line above, carried on the result
                  rather than authored here, so a position can never appear
                  without the statement of what left the boundary to select it. -->

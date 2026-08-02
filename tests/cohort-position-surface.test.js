@@ -16,6 +16,10 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { DomEvent, loadPage, textOf } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
+import {
+  ACCEPTED_INDUSTRIES, ACCEPTED_ORG_SIZE_BANDS,
+} from "../src/cohort-attribution.js";
+import { ANSWER_ANNOUNCER_ID } from "../src/finops-answer-announcement.js";
 
 const PAGE = new URL("../src/evolution.html", import.meta.url);
 const DEMO_DATA = JSON.parse(await readFile(new URL("../src/evolution-demo-data.json", import.meta.url), "utf8"));
@@ -200,6 +204,179 @@ test("an export declaring nothing keeps its findings and says what is missing", 
       /Reason code: MISSING_ORG_SIZE_BAND/);
     assert.match(shownText(document, "local-cohort-next"),
       /Add an org_size_band column declaring one of: focused, scaling, enterprise/);
+  } finally {
+    page.restore();
+  }
+});
+
+// --- the reader's own declaration, on the shipped page (#978) --------------
+
+const OPTION_VALUES = (document, id) =>
+  byId(document, id).querySelectorAll("option").map((node) => node.value);
+
+/** The shipped export with exactly one of the two cohort columns on it. */
+const withOneDeclaration = (csv, column, value) => csv.split("\n").map((line, index) => {
+  if (line.trim() === "") return line;
+  return index === 0 ? `${line},${column}` : `${line},${index === 1 ? value : ""}`;
+}).join("\n");
+
+/** Set both selects and submit, as a reader with a mouse and a keyboard does. */
+function declareCohort(document, { orgSizeBand = "", industry = "" } = {}) {
+  byId(document, "local-cohort-declare-band").value = orgSizeBand;
+  byId(document, "local-cohort-declare-industry").value = industry;
+  byId(document, "local-cohort-declare-submit").click();
+}
+
+test("the declaration control offers exactly the accepted enumeration", async () => {
+  const page = await openFinopsTab();
+  const { document } = page;
+  try {
+    await importExport(document, JOINABLE_EXPORT);
+    assert.equal(byId(document, "local-cohort-declare").hidden, false);
+    // The placeholder is the ABSENCE of a declaration, so it is dropped before
+    // the comparison; every other option is a published key and nothing else.
+    // This is asserted separately from the refusal because the test harness's
+    // select accepts any value — only the rendered list proves what is offered.
+    assert.deepEqual(OPTION_VALUES(document, "local-cohort-declare-band").filter(Boolean),
+      [...ACCEPTED_ORG_SIZE_BANDS]);
+    assert.deepEqual(OPTION_VALUES(document, "local-cohort-declare-industry").filter(Boolean),
+      [...ACCEPTED_INDUSTRIES]);
+    assert.equal(byId(document, "local-cohort-declare-band-field").hidden, false);
+    assert.equal(byId(document, "local-cohort-declare-industry-field").hidden, false);
+  } finally {
+    page.restore();
+  }
+});
+
+test("an export declaring both attributes is offered no declaration control", async () => {
+  const page = await openFinopsTab();
+  const { document } = page;
+  try {
+    await importExport(document, withDeclaration(JOINABLE_EXPORT));
+    assert.equal(byId(document, "local-cohort-position").dataset.state, "ranked");
+    assert.equal(byId(document, "local-cohort-declare").hidden, true,
+      "a file that supplies both attributes has nothing for a reader to declare");
+    // …and the placement is labelled as what it is.
+    assert.equal(byId(document, "local-cohort-position").dataset.provenance, "file");
+    assert.match(shownText(document, "local-cohort-detail"), /file-derived cohort/);
+    assert.equal(shownText(document, "local-cohort-state"), "Ranked position available");
+  } finally {
+    page.restore();
+  }
+});
+
+test("only the attribute the file cannot supply is offered", async () => {
+  const page = await openFinopsTab();
+  const { document } = page;
+  try {
+    // The export declares its industry and nothing else, so the industry field
+    // is folded away and the band field is the one thing asked for.
+    await importExport(document, withOneDeclaration(JOINABLE_EXPORT, "industry", "saas"));
+    assert.equal(byId(document, "local-cohort-declare").hidden, false);
+    assert.equal(byId(document, "local-cohort-declare-band-field").hidden, false);
+    assert.equal(byId(document, "local-cohort-declare-industry-field").hidden, true);
+  } finally {
+    page.restore();
+  }
+});
+
+test("declaring the missing cohort recomputes the position from the imported session", async () => {
+  const page = await openFinopsTab();
+  const { document } = page;
+  try {
+    await importExport(document, JOINABLE_EXPORT);
+    assert.equal(byId(document, "local-cohort-position").dataset.state, "withheld");
+
+    // No re-import, no second file read: the same three org units already in
+    // this tab are what the recomputed position is selected from.
+    declareCohort(document, { orgSizeBand: "focused", industry: "saas" });
+
+    assert.equal(byId(document, "local-cohort-position").dataset.state, "ranked");
+    assert.equal(byId(document, "local-cohort-position").dataset.provenance, "reader_declared");
+    assert.match(shownText(document, "local-cohort-detail"), /3 attributed org units counted/);
+    // Labelled reader-declared in the eyebrow, in the detail sentence, and in
+    // the panel's own status region — never presented as file-derived.
+    assert.equal(shownText(document, "local-cohort-state"),
+      "Ranked position available · reader-declared cohort");
+    assert.match(shownText(document, "local-cohort-detail"), /reader-declared cohort/);
+    // The one phrase the panel must never apply to this placement. The
+    // statement beside it does contain the words "file-derived" — it says the
+    // position is reader-declared RATHER THAN file-derived — so the assertion
+    // is on the label the panel would carry if it claimed the wrong source.
+    assert.equal(shownText(document, "local-cohort-detail").includes("· file-derived cohort"),
+      false);
+    const status = byId(document, "local-cohort-declare-status");
+    assert.equal(status.hidden, false);
+    assert.equal(status.getAttribute("aria-live"), "polite");
+    assert.match(textOf(status), /declared by you on this page/);
+    // And the headline above says the same thing about the same placement.
+    assert.match(shownText(document, "finops-stand-position-basis"), /reader-declared cohort/);
+    assert.match(textOf(byId(document, ANSWER_ANNOUNCER_ID)), /declared by you on this page/);
+  } finally {
+    page.restore();
+  }
+});
+
+test("a declared value the model refuses is answered with the accepted options", async () => {
+  const page = await openFinopsTab();
+  const { document } = page;
+  try {
+    await importExport(document, JOINABLE_EXPORT);
+    // The harness's select accepts a value the real control would never offer,
+    // which is exactly the bypass the model-layer refusal exists for.
+    declareCohort(document, { orgSizeBand: "gigantic", industry: "saas" });
+
+    assert.equal(byId(document, "local-cohort-position").dataset.state, "withheld");
+    assert.equal(byId(document, "local-cohort-position").dataset.provenance, "none");
+    assert.match(textOf(byId(document, "local-cohort-declare-status")),
+      /"gigantic" is not an accepted organization size band\. The accepted values are: focused, scaling, enterprise\./);
+    assert.match(shownText(document, "local-cohort-detail"),
+      /Reason code: UNACCEPTED_DECLARED_VALUE/);
+  } finally {
+    page.restore();
+  }
+});
+
+test("declaring one of the two attributes publishes no position", async () => {
+  const page = await openFinopsTab();
+  const { document } = page;
+  try {
+    await importExport(document, JOINABLE_EXPORT);
+    declareCohort(document, { industry: "saas" });
+
+    assert.equal(byId(document, "local-cohort-position").dataset.state, "withheld");
+    assert.match(shownText(document, "local-cohort-detail"), /Reason code: MISSING_ORG_SIZE_BAND/);
+  } finally {
+    page.restore();
+  }
+});
+
+test("the forget control takes the declared cohort with the briefing", async () => {
+  const page = await openFinopsTab();
+  const { document } = page;
+  try {
+    await importExport(document, JOINABLE_EXPORT);
+    declareCohort(document, { orgSizeBand: "focused", industry: "saas" });
+    assert.equal(byId(document, "local-cohort-position").dataset.state, "ranked");
+
+    // Opt in, then use the one control that means "forget this". It runs the
+    // same reset the clear control does, and the declared values live in that
+    // session state, so there is nothing left for the next import to inherit.
+    const toggle = byId(document, "local-lead-retention-toggle");
+    toggle.checked = true;
+    toggle.dispatchEvent(new DomEvent("change", { bubbles: true }));
+    await waitFor(() => byId(document, "local-lead-retention-forget").hidden === false,
+      "the forget control to be offered for a kept briefing");
+    byId(document, "local-lead-retention-forget").click();
+    await waitFor(() => byId(document, "local-cohort-position").hidden,
+      "the ranked position to be handed back with the briefing");
+
+    // Re-import the same undeclared export: it must be withheld again, which it
+    // cannot be if the declaration survived the forget.
+    await importExport(document, JOINABLE_EXPORT);
+    assert.equal(byId(document, "local-cohort-position").dataset.state, "withheld");
+    assert.match(shownText(document, "local-cohort-detail"), /Reason code: MISSING_ORG_SIZE_BAND/);
+    assert.equal(byId(document, "local-cohort-declare-status").hidden, true);
   } finally {
     page.restore();
   }

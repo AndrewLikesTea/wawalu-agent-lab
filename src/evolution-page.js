@@ -373,9 +373,13 @@ import { PEER_COHORT_PROVENANCE } from "/peer-cohort-contract.js";
 // decides whether what they declared is enough — or says which value is missing
 // or unrecognized, in the reader's own words.
 import {
-  mergeCohortSources, projectCohortSource, validateCohortAttribution,
+  COHORT_PROVENANCE_STATEMENT, mergeCohortSources, projectCohortSource,
+  validateCohortAttribution,
 } from "/cohort-attribution.js";
-import { applyCohortAttribution } from "/cohort-attribution-view.js";
+import {
+  announceCohortDeclaration, applyCohortAttribution, readCohortDeclarationControl,
+  renderCohortDeclarationChoices,
+} from "/cohort-attribution-view.js";
 // The headline answer this view leads with, and the module that paints it.
 import {
   applyAnswerBlock, applyStandHeadline, bindStandDisclosures, bindStandResolution,
@@ -1975,6 +1979,13 @@ function mountLocalFinopsImport() {
     // longer loaded, and `imports` has just been emptied, so there is nothing
     // left to derive one from either.
     applyCohortAttribution(document, null);
+    // The reader's own declaration goes with it, and for the same reason: it is
+    // a claim about the export being discarded, and a band left standing here
+    // would silently attribute the next import to a cohort nobody declared it
+    // into. This is the whole of where a declared value lives, so clearing the
+    // variable IS forgetting it — there is no key to erase.
+    declaredCohort = null;
+    announceCohortDeclaration(document, null);
     // And the headline goes back to the bundled example with it. A cleared
     // import must not leave a withheld-position path on screen for a file that
     // is no longer loaded. The state restores the synthetic answer — marker
@@ -2269,6 +2280,18 @@ function mountLocalFinopsImport() {
   const cohortSources = () => imports.map((entry) => entry.cohortSource).filter(Boolean);
 
   /**
+   * What the reader declared in the page, for as long as this session lasts.
+   *
+   * A plain closure variable, beside `imports` and the mapping choices — the
+   * same place the imported data itself lives. There is deliberately NO storage
+   * key, no cookie and no request behind it: a declared band is a fact about the
+   * file the reader is looking at, and it must not outlive that file. `reset()`
+   * empties it with the import, which is what both the clear control and the
+   * "forget this briefing" control run.
+   */
+  let declaredCohort = null;
+
+  /**
    * Paint the ranked-position panel for whatever is loaded right now.
    *
    * `asOf` is the analysed period's own end when there is one, never a clock
@@ -2279,6 +2302,10 @@ function mountLocalFinopsImport() {
       ? null
       : validateCohortAttribution({
         ...mergeCohortSources(cohortSources()),
+        // The reader's own declaration, consulted by the contract only for the
+        // attributes their export carries no column for. An export that
+        // declares both is decided exactly as it was before this existed.
+        readerDeclaration: declaredCohort,
         asOf: spendWindowFromPeriod(analysis?.period)?.end ?? null,
       });
     applyCohortAttribution(document, eligibility);
@@ -3012,6 +3039,25 @@ function mountLocalFinopsImport() {
 
   bindBriefingRetention(document, { onRetain: setRetention, onForget: forgetRetention });
   restoreRetainedBriefing();
+  // The declaration control (#978). Its options come from the cohort model's
+  // enumeration, once, at boot; the submit below re-runs the SAME decision on
+  // the SAME already-imported sources, so nothing is parsed, fetched or read
+  // off disk a second time. A value the model refuses is painted as the model's
+  // own sentence — the control is not the thing that decides.
+  renderCohortDeclarationChoices(document);
+  document.getElementById("local-cohort-declare-submit")?.addEventListener("click", () => {
+    declaredCohort = readCohortDeclarationControl(document);
+    const decision = syncCohortPosition(result);
+    if (!decision) return;
+    if (decision.refusals?.length) {
+      announceCohortDeclaration(document, `${decision.reasonText} ${decision.nextStep}`);
+      return;
+    }
+    announceCohortDeclaration(document, decision.eligible
+      ? `Peer position recomputed from the values you declared. ${COHORT_PROVENANCE_STATEMENT[
+        decision.position.provenance]}`
+      : `No peer position was published. ${decision.reasonText} ${decision.nextStep}`);
+  });
   // Back into the step from a rendered result, with the file already in hand and
   // the reader's own choices intact — no second trip through the file picker.
   remap?.addEventListener("click", () => {

@@ -49,7 +49,9 @@ import { buildFinopsBriefing } from "./finops-briefing-contract.js";
 import { loadCanonicalDecision } from "./finops-decision-contract.js";
 import { leadingFinding } from "./finops-leading-finding.js";
 import { recoverableShare } from "./finops-first-run.js";
-import { validateCohortAttribution } from "./cohort-attribution.js";
+import {
+  COHORT_PROVENANCE_LABEL, COHORT_PROVENANCE_STATEMENT, validateCohortAttribution,
+} from "./cohort-attribution.js";
 // The gate this region reads before it quotes a figure out of a reader's file.
 // It owns the coverage bar, the four states, and the sentence for each; nothing
 // about gradability is decided here.
@@ -1248,7 +1250,15 @@ export function standHeadlineForImport({ analysis = null, eligibility = null } =
       + `declared band ${position.orgSizeBand} · declared industry ${position.industry} · `
       + `${COUNT.format(position.orgUnits)} attributed org unit`
       + `${position.orgUnits === 1 ? "" : "s"} counted from this export · cohort snapshot `
-      + `${position.snapshotDate}`,
+      + `${position.snapshotDate} · ${COHORT_PROVENANCE_LABEL[position.provenance]}`,
+    /**
+     * WHOSE FACTS SELECTED THIS COHORT, carried to the announcer as well as to
+     * the visible slot. A placement the reader declared the attributes for is
+     * said to be reader-declared in both channels; a sighted reader and a
+     * screen-reader user are told the same thing about it.
+     */
+    provenance: position.provenance,
+    provenanceNote: COHORT_PROVENANCE_STATEMENT[position.provenance] ?? null,
   });
   // The answer is NOT rebuilt here. This path used to compose a second headline
   // sentence of its own — a placement clause with the recoverable figure and the
