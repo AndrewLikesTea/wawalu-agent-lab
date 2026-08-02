@@ -436,10 +436,12 @@ test("the contact copy claims nothing the page has not shown, and leaves the exi
       /\bROI\b/i, /teams like yours/i, /\d+\s*%/, /\$\s*\d/,
     ]) assert.doesNotMatch(copy, claim, `the contact copy must not make this claim: ${claim}`);
 
-    // The two labels this change is forbidden to touch, character for character.
-    assert.match(html, /<strong>Bundled synthetic example<\/strong>\s*<span>This is an illustrative recommendation—not live analysis, customer data, or realized savings\.<\/span>/);
+    // The three labels this change is forbidden to touch, character for
+    // character: the one full boundary, the storage promise, and the short
+    // label the repeated panels carry in its place.
+    assert.match(html, /<strong>Illustrative figures · invented sample<\/strong>\s*<span>These figures use invented example data\. They are not your spend or realized savings\.<\/span>/);
     assert.match(html, /<strong>Your files do not leave this tab\.<\/strong>/);
-    assert.match(html, /Bundled synthetic example — invented data, not your spend\. Analyze your own export to replace it with your figures\./);
+    assert.match(html, /aria-hidden="true">◇<\/span> Bundled synthetic example</);
 
     // And the contact section is placed beside the result region, not inside it:
     // nothing in it can be unmounted by a re-render of the analysis.

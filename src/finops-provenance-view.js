@@ -33,8 +33,8 @@ const RETURN_ID = "finops-return-to-sample";
 /**
  * Where each panel's provenance sentence lives.
  *
- * `basis` is the example badge the page has always shipped, authored in the
- * markup and never rewritten. `provenance` is the line that replaces it once the
+ * `basis` is the shared short example label, authored in the markup and never
+ * rewritten. `provenance` is the line that replaces it once the
  * panel is the reader's, authored empty. The KPI row already had this pair; the
  * three headline panels are given the same shape so one function paints all four
  * and no panel can grow a treatment of its own.

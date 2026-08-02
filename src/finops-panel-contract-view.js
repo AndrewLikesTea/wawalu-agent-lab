@@ -200,8 +200,7 @@ export function applyProofPointBasis(doc, { imported = false } = {}) {
     element(doc, "span", undefined, imported
       ? "These four numbers are hand-written demonstration data. They are not your import, they are "
         + "larger than the result computed from your own file below, and the two must not be compared."
-      : "These four numbers are hand-written demonstration data, not live analysis, customer data, "
-        + "or realized savings."),
+      : "These figures use invented example data. They are not your spend or realized savings."),
   );
   return marker;
 }

@@ -308,6 +308,12 @@ test("the static proof point is marked illustrative before its figures, and more
   assert.ok(article.children.indexOf(marker) < article.children.indexOf(article.querySelector(".proof-point-facts")),
     "the marker must be read before the numbers it qualifies");
   assert.match(textOf(marker), /Illustrative figures/);
+  assert.match(textOf(marker), /invented example data/);
+  assert.match(textOf(marker), /not your spend or realized savings/);
+  // A count, not the node: `assert.equal(node, null)` serializes the whole
+  // parsed page on failure and hangs past the test timeout instead of failing.
+  assert.equal(document.querySelectorAll(".proof-point-boundary").length, 0,
+    "the full boundary must not repeat after the illustrative result");
 
   await importExports(document);
   assert.equal(marker.dataset.basis, "illustrative-over-import");
