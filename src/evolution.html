@@ -1192,6 +1192,24 @@
             <p class="browser-compat-verdict-line">No export has been checked yet. Choose a bundled example or one of your own export files, then run the check.</p>
           </div>
         </section>
+        <!-- Export recognition and confidence (#928). The chooser is filled and
+             the score is painted by src/export-recognition-view.js from
+             src/export-recognition-fixtures.js and src/export-recognition.js:
+             no provider, no signal, no weight and NO NUMBER is in this markup,
+             so a reader with JavaScript off sees the question and not a figure
+             they could act on. The result region is a live region and sits
+             outside every disclosure on this page on purpose — a status folded
+             inside a collapsed details element is not announced in a real
+             browser however readable a test harness finds it. -->
+        <section class="export-recognition" id="export-recognition" aria-labelledby="export-recognition-title">
+          <p class="eyebrow">Recognition score · reproducible, local, browser only</p>
+          <h3 id="export-recognition-title">How confident is this workspace that it recognized the export?</h3>
+          <p>Every bundled example below is a labelled fixture with one expected score. Choosing one recomputes that score in this tab from the published provider contracts: the same example always produces the same number, and every point of the number is listed under it.</p>
+          <p class="export-recognition-field"><label for="export-recognition-example">Bundled labelled example</label><select id="export-recognition-example"></select></p>
+          <div class="export-recognition-result" id="export-recognition-result" role="status" aria-live="polite" data-state="pending" data-band="none">
+            <p class="export-recognition-band">The recognition score for the selected bundled example appears here when this client-side demo starts.</p>
+          </div>
+        </section>
         <section class="intake-confidence" id="intake-confidence" data-status="pending" hidden></section>
         <!-- The forwardable form of the note above (#745). Checked, not
              asserted: tests/finops-import-egress.test.js enforces "never

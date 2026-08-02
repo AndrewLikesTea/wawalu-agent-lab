@@ -1819,6 +1819,23 @@ section[data-workspace-current="true"] { box-shadow:-6px 0 0 0 var(--import-wash
 .browser-compat-verdict[data-status="degraded"] { border-left-color:#a8710f; }
 .browser-compat-verdict[data-status="rejected"],.browser-compat-verdict[data-status="no-match"] { border-left-color:#a4322b; }
 @media (max-width:640px) { #browser-compat-contracts { grid-template-columns:minmax(0,1fr); } }
+/* Export recognition (#928). The band sentence carries the state in words, so
+   the band colour is a second cue and never the message itself. */
+.export-recognition { margin:16px 0; border:1px solid #d5d8d2; border-radius:10px; padding:14px; background:#fbfcfa; }
+.export-recognition>h3,.export-recognition>p { margin:0 0 8px; }
+.export-recognition-field { display:grid; gap:4px; margin:12px 0; font-size:12px; font-weight:700; max-width:520px; }
+.export-recognition-result { border:1px solid #d5d8d2; border-left-width:5px; border-radius:8px; padding:12px; background:#fff; }
+.export-recognition-result p { margin:0 0 6px; }
+.export-recognition-result p:last-child { margin-bottom:0; }
+.export-recognition-band { font-weight:700; }
+.export-recognition-confidence { font:600 13px/1.5 ui-monospace,monospace; }
+.export-recognition-evidence { margin:0 0 8px; padding-left:20px; font-size:12px; line-height:1.6; }
+.export-recognition-evidence li { overflow-wrap:anywhere; }
+.export-recognition-scope { font-size:12px; color:var(--ink-muted); }
+.export-recognition-result[data-band="none"] { border-left-color:#b9bdb4; }
+.export-recognition-result[data-band="accepted"] { border-left-color:#2f7d4f; }
+.export-recognition-result[data-band="needs-attention"] { border-left-color:#a8710f; }
+.export-recognition-result[data-band="rejected"] { border-left-color:#a4322b; }
 .intake-confidence { margin:16px 0; border:1px solid #d5d8d2; border-radius:10px; padding:14px; background:#fbfcfa; }
 .intake-confidence h3,.intake-confidence p { margin:0 0 8px; }
 .intake-confidence dl { display:grid; gap:6px; margin:10px 0; }
