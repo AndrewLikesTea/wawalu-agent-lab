@@ -23,6 +23,7 @@
 //      on the image inside the link when the tile is read rather than listed.
 
 import { normalizeImage } from "./social.js";
+import { imageDescription, renderDescriptionNote } from "./image-description.js";
 import { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH } from "./social-identity.js";
 
 export const MAX_CAPTION_LENGTH = 280;
@@ -269,17 +270,18 @@ function el(tag, className, text) {
 // appearance and JS owns only the transition: loading reserves a square that
 // cannot shift the grid, ready shows the image, error leaves the caption to
 // carry the post on its own.
-function renderTileMedia(image) {
+function renderTileMedia(image, description) {
   const frame = el("div", "profile-media");
   frame.dataset.state = "loading";
 
   const img = document.createElement("img");
   img.className = "profile-image";
   img.src = image.src;
-  // A supplied alt always wins. Without one the image is marked decorative on
-  // purpose: it sits in a <figure> whose <figcaption> is right there, so reading
-  // out a storage path would be strictly worse than silence.
-  img.alt = image.alt;
+  // A supplied alt always wins. A post that carries none is a row written
+  // before a description was required, and the shared read-path fallback
+  // (src/image-description.js — the same one the feed uses) still gives it a
+  // real alt rather than the silence of alt="".
+  img.alt = description.alt;
   img.loading = "lazy";
   img.decoding = "async";
   if (image.width && image.height) {
@@ -311,13 +313,17 @@ function renderTile(post, index) {
   link.dataset.postId = post.id;
 
   const figure = el("figure", "profile-figure");
-  if (post.image) figure.append(renderTileMedia(post.image));
+  const description = imageDescription(post);
+  if (post.image) figure.append(renderTileMedia(post.image, description));
 
   const caption = el("figcaption", "profile-tile-caption", captionFor(post));
   // Ids are minted from the render index, never from post.id: a post id is
   // arbitrary text and must not be spliced into an id/IDREF list.
   caption.id = `profile-tile-${index}-caption`;
   figure.append(caption);
+  // Beside the caption, not inside it: the tile is named by its caption alone,
+  // and flagging a missing description must not rename the link.
+  if (post.image && description.missing) figure.append(renderDescriptionNote());
   link.append(figure);
 
   const meta = el("p", "profile-tile-meta");
