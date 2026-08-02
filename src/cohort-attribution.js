@@ -466,6 +466,47 @@ export const COHORT_ATTRIBUTION_REASON = Object.freeze({
   noPublishedCohort: "NO_PUBLISHED_COHORT",
 });
 
+// ---------------------------------------------------------------------------
+// THE CONTROLS A WITHHELD POSITION POINTS AT, quoted by the exact label each one
+// carries in src/evolution.html. A next step that names no control is a next
+// step a reader cannot take, and a next step that invents a label sends them
+// looking for a button this page does not have. Every string below is the
+// visible text of a control that ships in the markup:
+//
+//   * "Choose your export files"            — the file input's label, line 1386.
+//   * "Change column mapping"               — line 1500. Delimited imports only,
+//     which is why the sentence that quotes it also says what a JSON export does
+//     instead.
+//   * "Run the analysis with this mapping"  — line 1677.
+//   * the two choosers and their submit     — lines 1822-1824, offered on exactly
+//     the two reasons `declareHere` is used for.
+//   * the cohort disclosure summary         — line 464.
+// ---------------------------------------------------------------------------
+
+/** The page's single file input. There is no second picker on this page. */
+const FILE_PICKER_LABEL = "Choose your export files";
+const MAPPING_STEP_ACTION = "Change column mapping";
+const MAPPING_RUN_ACTION = "Run the analysis with this mapping";
+const BAND_CHOOSER_LABEL = "Organization size band";
+const INDUSTRY_CHOOSER_LABEL = "Industry";
+const DECLARE_SUBMIT_LABEL = "Place this import with these values";
+const COHORT_DISCLOSURE_LABEL = "How the organizations you are compared with were chosen";
+/** The heading over the panel that holds the two choosers, so the step is findable. */
+const COHORT_PANEL_LABEL = "Where does this organization rank against its peers?";
+
+/**
+ * The one next step for a fact the file never carried: type it in, here, now.
+ *
+ * The reader does not have to edit and re-export anything — the position is
+ * recomputed from the import already open — so the sentence says so rather than
+ * sending them back to a spreadsheet. Used on exactly the two reasons that put
+ * the choosers on screen.
+ */
+const declareHere = (accepts) =>
+  `Under "${COHORT_PANEL_LABEL}", choose "${BAND_CHOOSER_LABEL}" and "${INDUSTRY_CHOOSER_LABEL}", `
+  + `then press "${DECLARE_SUBMIT_LABEL}". ${accepts} The file is not opened again: the position `
+  + "is recomputed from the import already in this tab.";
+
 const EXTERNAL_UNIT_TYPES = new Set(["contractor", "vendor", "external", "agency", "partner"]);
 
 /**
@@ -565,45 +606,47 @@ export function validateCohortAttribution({
 
   if (!keys.length) {
     return withheld(COHORT_ATTRIBUTION_REASON.noValidRows,
-      "No row in this import carries an org unit, so there is nothing to count an organization "
-      + "size from.",
-      "Re-open the mapping step and point the column that identifies the org unit at "
-      + "department_key, then import the file again.", facts);
+      "No row in this import names an org unit, so there is no count to select an organization "
+      + "size band from.",
+      `Press "${MAPPING_STEP_ACTION}", point the column that names the org unit at `
+      + `department_key, then press "${MAPPING_RUN_ACTION}". A JSON export has no mapping step: `
+      + "re-export it with a department_key field instead.", facts);
   }
   if (!counted.length) {
     return withheld(COHORT_ATTRIBUTION_REASON.noActiveOrgUnits,
       `Every org unit in this import — ${keys.length} of them — is marked inactive or as an `
       + "external unit type in the roster, so none of them count toward organization size.",
-      "Import a roster whose active internal units cover the org units in the usage export, or "
-      + "import the usage export on its own.", facts);
+      `Under "${FILE_PICKER_LABEL}", add a roster whose active internal units cover these org `
+      + "units, or choose the usage export on its own.", facts);
   }
   if (!declared.orgSizeBandRaw) {
     return withheld(COHORT_ATTRIBUTION_REASON.missingOrgSizeBand,
-      "This import declares no organization size band. A cohort is never selected from an "
-      + "inferred attribute, so no position is published.",
-      `Add an org_size_band column declaring one of: ${listed(ACCEPTED_ORG_SIZE_BANDS)}. It may `
-      + "sit on the first data row or repeat on every row.", facts);
+      "This import declares no organization size band, and no column in it carries one. A cohort "
+      + "is never selected from a band this page guessed.",
+      declareHere(`The bands on offer are ${listed(ACCEPTED_ORG_SIZE_BANDS)}.`), facts);
   }
   if (!declared.orgSizeBand) {
     return withheld(COHORT_ATTRIBUTION_REASON.unrecognizedOrgSizeBand,
       `This import declares an organization size band of "${declared.orgSizeBandRaw}", which is `
       + "not a value this cohort contract publishes.",
-      `Change the declared org_size_band value to one of: ${listed(ACCEPTED_ORG_SIZE_BANDS)}. The `
-      + "column is already in the file, so nothing has to be added to it.", facts);
+      `Change the org_size_band value in the file to one of: ${listed(ACCEPTED_ORG_SIZE_BANDS)} — `
+      + `the column is already there — then choose the file again under "${FILE_PICKER_LABEL}".`,
+      facts);
   }
   if (!declared.industryRaw) {
     return withheld(COHORT_ATTRIBUTION_REASON.missingIndustry,
-      "This import declares no industry. Without one the comparison would be against every "
-      + "organization of this size rather than against organizations like this one.",
-      `Add an industry column declaring one of: ${listed(ACCEPTED_INDUSTRIES)}. It may sit on the `
-      + "first data row or repeat on every row.", facts);
+      "This import declares no industry, and no column in it carries one. Without one the "
+      + "comparison would be against every organization of this size rather than against "
+      + "organizations like this one.",
+      declareHere(`The industries on offer are ${listed(ACCEPTED_INDUSTRIES)}.`), facts);
   }
   if (!declared.industry) {
     return withheld(COHORT_ATTRIBUTION_REASON.unrecognizedIndustry,
       `This import declares an industry of "${declared.industryRaw}", which is not a value this `
       + "cohort contract publishes.",
-      `Change the declared industry value to one of: ${listed(ACCEPTED_INDUSTRIES)}. The column is `
-      + "already in the file, so nothing has to be added to it.", facts);
+      `Change the industry value in the file to one of: ${listed(ACCEPTED_INDUSTRIES)} — the `
+      + `column is already there — then choose the file again under "${FILE_PICKER_LABEL}".`,
+      facts);
   }
   const declaredBand = ORG_SIZE_BANDS.find((entry) => entry.key === declared.orgSizeBand);
   if (observed.orgUnits < declaredBand.min || observed.orgUnits > declaredBand.max) {
@@ -618,17 +661,19 @@ export function validateCohortAttribution({
       `${declarer} "${declaredBand.key}" band (${declaredBand.label}) and this import carries `
       + `${observed.orgUnits} attributed org unit${observed.orgUnits === 1 ? "" : "s"}.`,
       fits
-        ? `Declare "${fits.key}" — the band that contains ${observed.orgUnits} attributed org `
-          + "units — or import the export whose org units match the band already declared."
-        : "Import an export whose attributed org units fall inside a published band.", facts);
+        ? `Set the org_size_band value in the file to "${fits.key}" — the band that contains `
+          + `${observed.orgUnits} attributed org units — then choose the file again under `
+          + `"${FILE_PICKER_LABEL}".`
+        : `Under "${FILE_PICKER_LABEL}", choose an export whose attributed org units fall inside `
+          + "a published band.", facts);
   }
   const cohort = selectPeerCohort({ orgUnits: observed.orgUnits, industry: declared.industry });
   if (!cohort) {
     return withheld(COHORT_ATTRIBUTION_REASON.noPublishedCohort,
       `No published cohort covers ${observed.orgUnits} attributed org units in `
-      + `${declared.industry}.`,
-      "This is a gap in the published cohorts rather than a defect in the export. The rest of "
-      + "this briefing is unaffected.", facts);
+      + `${declared.industry}. Nothing in this export can select one.`,
+      `Open "${COHORT_DISCLOSURE_LABEL}" to read which cohorts are published. There is nothing `
+      + "to fix in the file, and every other figure in this brief still stands.", facts);
   }
   return Object.freeze({
     version: COHORT_ATTRIBUTION_VERSION,
