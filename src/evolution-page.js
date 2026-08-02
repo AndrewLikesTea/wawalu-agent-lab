@@ -2619,6 +2619,52 @@ function mountLocalFinopsImport() {
     return outcome;
   };
 
+  /**
+   * The hyperscaler path: a Bedrock, Vertex AI, or Azure OpenAI export adapted
+   * into the canonical projection before the delimited and JSON routes see it.
+   *
+   * The adapter module is loaded through a dynamic `import()` on purpose. It
+   * only runs once a reader has actually dropped a file in, so it is not part of
+   * what this page sends before the answer block is readable, and the size
+   * budget in config/evolution-size-budget.json measures that rather than taking
+   * the claim on trust.
+   *
+   * Three outcomes, mirroring `activateNativeProvider` so a refusal here ends
+   * the selection the way every other refusal does. "unclaimed" means no
+   * published contract recognized the file, and the existing routes below read
+   * it exactly as they did before this path existed.
+   */
+  const adaptHyperscalerFile = async (file) => {
+    const { adaptHyperscalerExport, HYPERSCALER_RESULT } =
+      await import("/hyperscaler-export-adapters.js");
+    const result = adaptHyperscalerExport({ text: file.text, fileName: file.fileName });
+    if (result.status === HYPERSCALER_RESULT.INCOMPATIBLE) return "unclaimed";
+    if (result.status === HYPERSCALER_RESULT.INCOMPLETE) {
+      // A recognized provider whose export cannot answer is surfaced as itself.
+      // Falling through would hand the file to a route that would either refuse
+      // it for a different reason or read a partial period as a whole one.
+      failFile({ code: result.code, message: result.message }, file);
+      renderLocalExportActivation(document, LOCAL_EXPORT_ACTIVATION_STATE.ERROR, result);
+      announce("error", "This provider export is incomplete.",
+        `${result.message} ${result.action}`);
+      return "refused";
+    }
+    if (!await paintProviderProjection(result.document)) {
+      failFile({ code: "contract_rejected", message: `${result.displayName} adapted locally, `
+        + "but its rows did not project. No analysis was run." }, file);
+      return "refused";
+    }
+    renderLocalExportActivation(document, LOCAL_EXPORT_ACTIVATION_STATE.READY, result);
+    imports.push({
+      source: "hyperscaler", fileName: file.fileName, mediaType: file.mediaType,
+      text: file.text, parsed: result.parsed, state: null,
+      rows: result.document.records.length,
+    });
+    paintIntakeConfidence(result.parsed);
+    announce("ready", "Provider adapter active.", result.message);
+    return "claimed";
+  };
+
   const processQueue = async () => {
     let total = imports.length + queue.length;
     while (queue.length) {
@@ -2666,6 +2712,13 @@ function mountLocalFinopsImport() {
         readDeliveryHistory(file.text);
         continue;
       }
+      // The fifth declared source, claimed the same way as the four above: from
+      // the file's own columns, through the published compatibility contracts,
+      // never from its name. A file no contract recognizes comes back
+      // "unclaimed" and the routes below read it unchanged.
+      const hyperscaler = await adaptHyperscalerFile(file);
+      if (hyperscaler === "refused") return;
+      if (hyperscaler === "claimed") continue;
       // A delimited file is never analyzed on sight: it goes through the review
       // step, and the rest of the selection waits behind it.
       if (isDelimitedFileName(file.fileName)) {
