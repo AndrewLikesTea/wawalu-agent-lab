@@ -61,6 +61,8 @@ import {
 } from "/browser-compat-view.js";
 import { evaluateExport, parseExportText } from "/browser-compat-eligibility.js";
 import { initExportRecognition } from "/export-recognition-view.js";
+import { buildDemoImportFindings, buildImportFinding } from "/import-evidence.js";
+import { renderImportEvidence, renderImportEvidenceLoading } from "/import-evidence-view.js";
 import { FIXTURE_REFERENCE_DATE } from "/browser-compat-fixtures.js";
 import { scoreIntakeConfidence } from "/intake-confidence.js";
 import { clearIntakeConfidence, renderIntakeConfidence } from "/intake-confidence-view.js";
@@ -2087,9 +2089,41 @@ function mountLocalFinopsImport() {
     input.focus?.();
   };
 
+  const REVIEW_EVIDENCE_ID = "import-evidence-review";
+
   const closeReview = () => {
     review = null;
     closeMappingReview(document);
+    // Back to the reading state rather than to the last file's verdict: a
+    // finding left standing here would describe a file the reader has closed.
+    renderImportEvidenceLoading(document, REVIEW_EVIDENCE_ID, { level: 5 });
+  };
+
+  /**
+   * What the file under review actually is, said at the moment it decides
+   * whether to run: the same finding, in the same order, as the bundled
+   * comparison in the import panel above.
+   *
+   * The parse is the eligibility module's own, so this adds no second reading of
+   * the bytes and no second opinion about the shape. A file it cannot parse is a
+   * per-finding error rather than a blank: the reader is told what happened and
+   * what to do, in the slot the verdict would have used.
+   */
+  const paintReviewEvidence = (file) => {
+    const parsed = parseExportText(file.text, file.fileName);
+    renderImportEvidence(document, REVIEW_EVIDENCE_ID, {
+      level: 5,
+      findings: [buildImportFinding({
+        id: "file-under-review",
+        label: "The file you are reviewing",
+        sourceClass: "file",
+        parsed,
+        error: parsed.ok === false
+          ? { message: "This file could not be read as any published export shape, "
+            + "so nothing was scored from it." }
+          : null,
+      })],
+    });
   };
 
   // --- step 2: check the mapping --------------------------------------------
@@ -2128,6 +2162,7 @@ function mountLocalFinopsImport() {
       state: entry?.state ?? createColumnMapping({ reading, fileName: file.fileName }),
     };
     paintReview();
+    paintReviewEvidence(file);
     // Reviewing is the "check the mapping" stage the indicator already names, so
     // the step arrives with the flow's own step 2 marked current.
     syncStage();
@@ -3783,6 +3818,13 @@ async function init() {
   // credential, and a confidence that arrives after paint is one the reader has
   // already read the page without.
   initExportRecognition(document);
+  // The same fixtures, read as findings rather than as one score (#931): one
+  // provider per row, in the order they are owed a decision, with the money each
+  // one carries and the single action that clears it. Painted in this pass for
+  // the reason above — the set is static, so a reader never meets an empty
+  // comparison that fills in later — and the mixed outcome is deliberate: the
+  // shipped page shows the partial state, not the one that demos well.
+  renderImportEvidence(document, "import-evidence", { findings: buildDemoImportFindings(), level: 4 });
   const gateway = createStaticGateway();
   const refreshGateway = document.getElementById("integration-gateway-refresh");
   gateway.subscribe(({ status, inspection, metadata }) => {

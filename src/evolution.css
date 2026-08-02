@@ -1836,6 +1836,54 @@ section[data-workspace-current="true"] { box-shadow:-6px 0 0 0 var(--import-wash
 .export-recognition-result[data-band="accepted"] { border-left-color:#2f7d4f; }
 .export-recognition-result[data-band="needs-attention"] { border-left-color:#a8710f; }
 .export-recognition-result[data-band="rejected"] { border-left-color:#a4322b; }
+/* Import evidence (#931). The reading order is the DOM order: no rule below
+   reorders, reverses, or places by grid-area, so what a screen reader hears and
+   what a printer emits is what the page shows. Every colour, size and space here
+   is one already in this sheet — the panel's own tokens for status, the existing
+   figure rung for the impact, the mono metadata rung for chips and labels. */
+.import-evidence { margin:16px 0; border:1px solid #d5d8d2; border-radius:10px; padding:14px; background:#fbfcfa; }
+.import-evidence>h3,.import-evidence>h4,.import-evidence>p { margin:0 0 8px; }
+.import-evidence-state { color:var(--ink-muted); font-size:12px; line-height:1.55; overflow-wrap:anywhere; }
+.import-evidence-list { display:grid; gap:12px; margin:0; padding:0; list-style:none; }
+/* A stacked block at every width. It was never a table, so a narrow viewport
+   reflows it instead of scrolling a comparison sideways. */
+.import-evidence-finding { display:grid; gap:6px; border:1px solid var(--import-line); border-left-width:5px; border-radius:8px; padding:12px; background:#fff; }
+.import-evidence-finding[data-status="trusted"] { border-left-color:var(--import-accent); }
+.import-evidence-finding[data-status="ambiguous"] { border-left-color:var(--state-warn-line); }
+.import-evidence-finding[data-status="rejected"] { border-left-color:var(--state-error-line); }
+.import-evidence-provider { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 8px; margin:0; font-size:15px; line-height:1.4; }
+.import-evidence-provider-name,.import-evidence-value { overflow-wrap:anywhere; }
+.import-evidence-line { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 8px; margin:0; font-size:13px; line-height:1.55; overflow-wrap:anywhere; }
+.import-evidence-label { color:var(--ink-muted); font:700 10px/1.4 ui-monospace,monospace; letter-spacing:.08em; text-transform:uppercase; }
+.import-evidence-detail { flex-basis:100%; color:var(--ink-muted); font-size:12px; }
+.import-evidence-value { font:600 13px/1.5 ui-monospace,monospace; }
+/* Impact and action are the two that have to survive a squint: one is the only
+   figure on the card, the other is the only filled block. */
+.import-evidence-figure { font:700 clamp(18px,2.2vw,22px)/1.25 Inter,ui-sans-serif,system-ui,sans-serif; font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+.import-evidence-unit { color:var(--ink-muted); font-size:12px; }
+.import-evidence-impact[data-scale="outsized"] .import-evidence-figure,.import-evidence-impact[data-scale="credit"] .import-evidence-figure { flex-basis:100%; }
+.import-evidence-action { border-radius:8px; padding:8px 10px; background:var(--import-wash); color:var(--import-ink); font-size:14px; }
+.import-evidence-action-text { font-weight:600; overflow-wrap:anywhere; }
+.import-evidence-failure { margin:0; border-radius:8px; padding:8px 10px; background:var(--state-error-wash); color:var(--state-error-ink); font-size:12px; line-height:1.55; overflow-wrap:anywhere; }
+/* Chips: a tint, and never only a tint — the glyph and the word are in the
+   markup. Filled wash for the measured status (a dynamic signal), outline for
+   where the finding came from (a static classification). */
+.import-evidence-chip { display:inline-flex; flex-wrap:wrap; align-items:baseline; gap:2px 6px; max-width:100%; border:1px solid transparent; border-radius:5px; padding:2px 8px; font:700 11px/1.5 ui-monospace,monospace; overflow-wrap:anywhere; }
+.import-evidence-chip[data-silhouette="outline"] { border-color:var(--import-line); color:var(--ink-muted); }
+.import-evidence-chip[data-state="trusted"] { border-color:var(--import-accent); background:var(--import-wash); color:var(--import-ink); }
+.import-evidence-chip[data-state="ambiguous"] { border-color:var(--state-warn-line); background:var(--state-warn-wash); color:var(--state-warn-ink); }
+.import-evidence-chip[data-state="rejected"] { border-color:var(--state-error-line); background:var(--state-error-wash); color:var(--state-error-ink); }
+.import-evidence-chip-value { font-variant-numeric:tabular-nums; }
+.import-evidence-support { margin:0; font-size:12px; }
+.import-evidence-support-summary { cursor:pointer; color:var(--import-ink); font-weight:600; overflow-wrap:anywhere; }
+.import-evidence-support-summary:focus-visible { outline:3px solid var(--focus-ring); outline-offset:2px; }
+.import-evidence-support-label { margin:8px 0 4px; color:var(--ink-muted); font:700 10px/1.4 ui-monospace,monospace; letter-spacing:.08em; text-transform:uppercase; }
+.import-evidence-provenance { display:grid; grid-template-columns:minmax(0,auto) minmax(0,1fr); gap:2px 10px; margin:0; }
+.import-evidence-provenance dt { color:var(--ink-muted); }
+.import-evidence-provenance dd { margin:0; font-family:ui-monospace,monospace; overflow-wrap:anywhere; }
+.import-evidence-signals,.import-evidence-reasons { margin:0; padding-left:18px; line-height:1.6; }
+.import-evidence-signals li,.import-evidence-reasons li { overflow-wrap:anywhere; }
+@media (max-width:640px) { .import-evidence-finding { padding:10px; } .import-evidence-figure { flex-basis:100%; } }
 .intake-confidence { margin:16px 0; border:1px solid #d5d8d2; border-radius:10px; padding:14px; background:#fbfcfa; }
 .intake-confidence h3,.intake-confidence p { margin:0 0 8px; }
 .intake-confidence dl { display:grid; gap:6px; margin:10px 0; }

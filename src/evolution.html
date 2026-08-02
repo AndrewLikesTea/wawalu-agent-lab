@@ -1210,6 +1210,21 @@
             <p class="export-recognition-band">The recognition score for the selected bundled example appears here when this client-side demo starts.</p>
           </div>
         </section>
+        <!-- Import evidence, ordered for a decision (#931). Every finding is
+             painted by src/import-evidence-view.js from src/import-evidence.js
+             in one order — provider, confidence, benchmark, impact, provenance,
+             action — so NO PROVIDER, NO SCORE, NO FIGURE and NO ACTION is in
+             this markup. The status line and the polite region below it are
+             always rendered and sit outside every disclosure on purpose: a
+             status folded inside a collapsed details element is not announced in
+             a real browser however readable a test harness finds it. -->
+        <section class="import-evidence" id="import-evidence" data-state="loading" aria-labelledby="import-evidence-title">
+          <p class="eyebrow">Import evidence · one finding per export</p>
+          <h3 id="import-evidence-title">Which of these exports can a briefing stand on?</h3>
+          <p class="import-evidence-state" id="import-evidence-summary">Not scored yet. Each export appears here with its confidence, the money it puts at stake, and one action.</p>
+          <ol class="import-evidence-list" id="import-evidence-list" aria-label="Findings, the ones still owed a decision first"></ol>
+          <p class="visually-hidden" id="import-evidence-live" role="status" aria-live="polite" aria-atomic="true"></p>
+        </section>
         <section class="intake-confidence" id="intake-confidence" data-status="pending" hidden></section>
         <!-- The forwardable form of the note above (#745). Checked, not
              asserted: tests/finops-import-egress.test.js enforces "never
@@ -1507,6 +1522,20 @@
             <p class="import-mapping-file-line">Reviewing <span id="import-mapping-file" class="import-mapping-file"></span></p>
             <p id="import-mapping-summary" class="import-mapping-summary"></p>
           </div>
+          <!-- The same finding, in the same order, at the moment it decides
+               whether to run: what the file was recognized as, how confident
+               that is as a number, the money it carries, and one action. Painted
+               by src/import-evidence-view.js; this is a slot, never wording.
+               No live region of its own, deliberately: this step already has
+               one announcer in #import-mapping-status, and a second region
+               speaking at the same moment is a queue in the reader's ear rather
+               than an answer. The state line below is always rendered and
+               always visible instead. -->
+          <section class="import-evidence" id="import-evidence-review" data-state="loading" aria-labelledby="import-evidence-review-title">
+            <h4 id="import-evidence-review-title">What this file is, before you run it</h4>
+            <p class="import-evidence-state" id="import-evidence-review-summary">Not scored yet. The file you chose appears here before anything is run on it.</p>
+            <ol class="import-evidence-list" id="import-evidence-review-list" aria-label="What the file under review was recognized as"></ol>
+          </section>
           <div class="import-mapping-kind">
             <label for="import-mapping-kind-select">This file is</label>
             <select id="import-mapping-kind-select" aria-describedby="import-mapping-kind-note"></select>
