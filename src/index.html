@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="AI FinOps names one AI spend decision — where to act first, how much is recoverable, what to do next, and how far to trust it — built in your browser tab. Shiplog's decision and release log is on the same site." />
-    <title>Shiplog · AI FinOps, decisions, and releases</title>
+    <title>Shiplog · one site for AI spend, decisions, and releases</title>
     <link rel="stylesheet" href="/styles.css" />
     <!-- The decision summary below the hero is the same artifact the executive
          briefing page draws, so it is drawn by the same stylesheet: one set of
@@ -35,24 +35,33 @@
       </header>
 
       <main id="main-content" tabindex="-1">
-      <!-- THE FRONT DOOR IS THE DECISION, NOT THE FILING CABINET.
-           This hero used to lead with the decision and release log and name AI
-           FinOps in an aside. That order asked a first-time visitor to want a
-           log before they had been shown anything worth logging, and put the
-           one surface that answers a question on arrival — "what is our AI
-           spend buying, and what should we do about it?" — behind a secondary
-           button. So AI FinOps leads, and the log keeps every workflow it had
-           one section down, under a heading that says what it is.
-           Nothing was removed. The record form, the searchable history, the
-           export, the import, the release panel, and every nav destination are
-           all still on this page, in the same order, with the same ids. -->
+      <!-- ONE PRODUCT FIRST, THEN ONE THING TO DO.
+           This hero used to open by pitching AI FinOps, so a first-time visitor
+           met a surface before they met the product, and was handed two ways on
+           at once. It now says what Shiplog is and who it is for, states one
+           fact a visitor can check by clicking, and offers a single primary
+           destination: the decision AI FinOps has already computed, which needs
+           no export, no sign-in, and no account.
+           Nothing was removed and no surface was demoted out of the page. The
+           example briefing below, the decision and release log, the destination
+           list, the Prompt coach, and the analyze your own export path in the
+           summary's own next step all keep the links and ids they had, one
+           screen down, named as parts of this product rather than as three
+           competing front doors.
+           No figure is authored here. Every number on this page is rebuilt by a
+           contract into the summary below, under the qualifier that contract
+           carries; a money figure typed into this markup would be a claim with
+           no arithmetic and no caveat behind it. The proof point names what the
+           worked decision contains and what it costs to read, not what it
+           says. -->
       <section class="hero hero-finops" id="top" aria-labelledby="page-title">
-        <p class="eyebrow">AI FinOps · what your AI spend is buying</p>
-        <h1 id="page-title">One AI spend decision,<br />before you upload anything.</h1>
-        <p>AI FinOps reads a provider export in this browser tab and names the one thing to act on: where to act first, how much is recoverable, what to do next, and how far the number can be trusted. The example decision below is already built and needs nothing of yours.</p>
+        <p class="eyebrow">Shiplog</p>
+        <h1 id="page-title">One site for your AI spend,<br />your decisions, and your releases.</h1>
+        <p>Shiplog is for engineering teams that answer for both an AI bill and a release history: it names what your AI spend is buying, and it keeps the reasoning behind what shipped.</p>
+        <p class="hero-proof-point">A worked decision is already computed on the AI FinOps page: the recoverable share of the spend analyzed, the action to take first, the role accountable for it, and how far the number can be trusted. It is built from bundled synthetic data, so reading it takes no export of yours, no sign-in, and no account.</p>
         <div class="hero-actions" data-conversion-slot="hero">
-          <a class="button-link" href="/evolution.html">Analyze your own provider export in AI FinOps <span aria-hidden="true">→</span></a>
-          <a class="text-link" href="#landing-decision">Read the example decision first</a>
+          <a class="button-link" href="/evolution.html">Read the worked decision in AI FinOps <span aria-hidden="true">→</span></a>
+          <a class="text-link" href="#landing-decision">Or read the example briefing below</a>
         </div>
         <p class="hero-boundary"><strong>Your files do not leave this tab.</strong> <span>Exports are read and analyzed in this browser. No upload, no credentials, no account, and nothing of yours is stored.</span></p>
       </section>
@@ -137,6 +146,7 @@
            navigation module's link set; a test pins them. -->
       <section class="site-guide" aria-labelledby="site-guide-title">
         <h2 id="site-guide-title">Where everything is</h2>
+        <p class="site-guide-intro">These are the parts of Shiplog, all on this one site.</p>
         <ul>
           <li><a href="/">Decisions</a> Record a decision with its context, alternatives, and owner, then search and filter the history.</li>
           <li><a href="/social.html">Social</a> Social is a shared demo feed of short posts about the work the team ships, each with an optional image.</li>
@@ -157,7 +167,7 @@
            hero on purpose — the log is what this page leads with, and a second
            primary call to action beside the first would make neither one. -->
       <section class="coach-entry" aria-labelledby="coach-entry-title">
-        <p class="eyebrow">Try it now · nothing to install, nothing to upload</p>
+        <p class="eyebrow">Also part of Shiplog · nothing to install, nothing to upload</p>
         <h2 id="coach-entry-title">Grade a prompt in your browser.</h2>
         <p>The Prompt coach scores one prompt for intent, efficiency, and model fit against a bundled rubric, names the single change worth making first, and lets you revise and grade again. A worked example is already graded when you arrive, so there is a real result to read before you paste anything. No sign-in, no upload, no storage, and no request to a model.</p>
         <a class="secondary-button" href="/coach.html">Open the prompt coach</a>
