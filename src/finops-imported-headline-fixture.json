@@ -1,0 +1,62 @@
+{
+  "contractVersion": "finops-imported-headline/1.0.0",
+  "$comment": "The headline an IMPORTED export earns, as a checked-in contract rather than as strings inlined in a renderer. Five slots, always five, in this order. src/finops-imported-headline.js computes each one and src/finops-imported-headline-view.js paints them; neither authors a label, a definition, a fallback or a provenance word of its own. The example-path headline in src/finops-stand.js is untouched by this file and does not read it.",
+  "$whyFive": "A reader who imports their own export and gets four slots cannot tell whether the fifth was irrelevant or silently dropped. So a slot the export cannot supply prints its fallback and its fallback provenance label instead of leaving the row out. That is what makes an absent department column a stated fact rather than a shorter headline.",
+  "$fallbackRule": "Every fallback below states what the analysis did with the data it has. None of them instructs the reader to go and edit their file: 'no department column, so the total is not broken down' is a statement this product can defend; 'add a column and try again' is a chore assigned to someone who did not choose the export format.",
+  "question": "Where do you stand on AI spend, in the export you brought?",
+  "$questionForm": "Mirrors the example headline's question in src/finops-stand.js — STAND_QUESTION, 'Where do we stand on AI spend?' — in the same grammatical shape, worded for the reader's own data. It renders above the five slots.",
+  "currencyDefault": "USD",
+  "cohort": {
+    "label": "the bundled peer cohort",
+    "basis": "Every member published in src/peer-cohort-fixtures.js, across all five cohorts, taken as one comparison group. The union is used rather than one segment because a percentile band must be computable from an export that declares no industry and no size band.",
+    "field": "recoverableShare",
+    "bands": ["lowest quartile", "second quartile", "third quartile", "highest quartile"]
+  },
+  "slots": [
+    {
+      "id": "recoverable_spend",
+      "label": "Recoverable spend",
+      "source_fields": ["history.periods[].completeness", "history.periods[].period", "history.periods[].recoverableUsd", "currency"],
+      "definition": "The sum of the monthly cost of every line item the analysis classifies as recoverable, over the most recent COMPLETE billing month present in the export, stated in the export's own currency and rounded to whole units. A month is complete when its period record carries completeness 'complete'; a partial month is not summed and does not stand in for one. The figure is one month, never annualized and never multiplied by anything. If the export carries no complete month, this slot falls back.",
+      "fallback": "No complete billing month is present in this export, so no month's recoverable total is summed.",
+      "provenance_supported": "From your export's most recent complete month",
+      "provenance_fallback": "Not in your export: no complete billing month"
+    },
+    {
+      "id": "peer_position",
+      "label": "Position against the bundled peer cohort",
+      "source_fields": ["history.periods[].recoverableUsd", "history.periods[].spendUsd"],
+      "definition": "The imported portfolio's recoverable spend as a percentage of its total spend, over the same complete month the slot above sums, expressed as a percentile band against the bundled peer cohort's published recoverable shares. The percentile is the share of cohort members whose recoverable share is strictly lower than this export's, rounded to a whole percent; the band is the quartile that percentile falls in. A HIGHER band means MORE of this organization's spend is modelled as recoverable than its peers', which is headroom, not efficiency. Both a total-spend figure and a recoverable figure are required for that month; with either missing, this slot falls back.",
+      "fallback": "This export supplies no complete month carrying both a total and a recoverable figure, so it is not placed against the bundled peer cohort.",
+      "provenance_supported": "From your export, placed against the bundled cohort",
+      "provenance_fallback": "Not in your export: no share to place"
+    },
+    {
+      "id": "top_department",
+      "label": "Department carrying the most recoverable spend",
+      "source_fields": ["rankedDepartments[].name", "rankedDepartments[].recoverableUsd", "rankedDepartments[].spendUsd"],
+      "definition": "The department — or the export's nearest equivalent grouping field — with the largest ABSOLUTE recoverable spend, never the largest percentage: a small group whose spend is wholly recoverable does not outrank a large one carrying more money. Ties break first on the larger total spend, then alphabetically by name. Requires the export to carry a grouping field and at least one group with recoverable spend above zero; otherwise this slot falls back.",
+      "fallback": "No grouping column in this export carries recoverable spend, so the recoverable total is not broken down by department.",
+      "provenance_supported": "From your export's grouping column",
+      "provenance_fallback": "Not in your export: no grouping column with recoverable spend"
+    },
+    {
+      "id": "rank_1_action",
+      "label": "Do this first",
+      "source_fields": ["action", "rankedDepartments[].recoverableUsd"],
+      "definition": "The single recommended action carrying the highest recoverable spend. Rank is by recoverable amount alone — never by how easy the action is, how confident the analysis is, or how large the group is — so the action named here is the one attached to the department the slot above names. Requires both a recommended action on the analysis and a department ranked by recoverable spend; otherwise this slot falls back.",
+      "fallback": "No line item in this export is classified as recoverable, so no action is ranked first by recoverable spend.",
+      "provenance_supported": "From your export's own ranking",
+      "provenance_fallback": "Not in your export: nothing ranked by recoverable spend"
+    },
+    {
+      "id": "confidence_tier",
+      "label": "Confidence in this headline",
+      "source_fields": ["recoverable_spend", "peer_position", "top_department", "rank_1_action"],
+      "definition": "A three-tier band derived from how many of the four slots above were satisfied FROM THE EXPORT rather than fallen back: 4 satisfied reads high, 2 or 3 reads medium, 0 or 1 reads low. It counts nothing else — not row count, not file size, not provider. An import that supported almost nothing reads low, and the tier is never raised to make a thin export look better than it is.",
+      "fallback": "No export has been read, so there are no satisfied slots to derive a tier from.",
+      "provenance_supported": "Derived from the four slots above",
+      "provenance_fallback": "Not derived: no export was read"
+    }
+  ]
+}

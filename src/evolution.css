@@ -1236,6 +1236,19 @@
 .stand-team-name { margin:0; color:var(--ink); font-size:clamp(19px,2.5vw,24px); font-weight:750; line-height:1.2; overflow-wrap:anywhere; }
 .stand-team[data-available="false"] .stand-team-name { color:var(--state-warn-ink); font-size:16px; font-weight:700; }
 .stand-team-detail { margin:0; max-width:60ch; color:var(--ink-muted); font-size:13px; line-height:1.55; overflow-wrap:anywhere; }
+/* The imported-state headline. Five rows, always five: a slot the export could
+   not supply carries the contract's own sentence, and it is marked with a
+   dashed rule and a stated provenance label rather than by colour alone. */
+.stand-imported { display:grid; align-content:start; gap:8px; border-top:3px solid var(--import-accent); padding-top:10px; }
+.stand-imported-question { margin:0; max-width:60ch; color:var(--ink); font-size:clamp(17px,2.2vw,21px); font-weight:750; line-height:1.25; }
+.stand-imported-slots { display:grid; margin:0; gap:4px; }
+.imported-headline-label { color:var(--ink-muted); font-size:12px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; }
+.imported-headline-slot { display:grid; margin:0 0 8px; gap:2px; border-left:3px solid var(--import-accent); padding-left:10px; }
+.imported-headline-slot[data-supported="false"] { border-left-style:dashed; border-left-color:var(--state-warn-line); }
+.imported-headline-value { color:var(--ink); font-size:16px; font-weight:700; overflow-wrap:anywhere; }
+.imported-headline-slot[data-supported="false"] .imported-headline-value { color:var(--state-warn-ink); font-weight:600; }
+.imported-headline-provenance { color:var(--ink-muted); font-size:12px; font-weight:700; }
+.imported-headline-basis { max-width:60ch; color:var(--ink-muted); font-size:13px; line-height:1.55; overflow-wrap:anywhere; }
 .stand-next { display:grid; justify-items:start; gap:6px; }
 .stand-action { display:inline-block; border:1px solid var(--import-accent); border-radius:9px; padding:11px 18px; background:var(--import-accent); color:#fff; font-size:15px; font-weight:700; text-decoration:none; }
 .stand-action:hover { background:var(--import-ink); border-color:var(--import-ink); }
