@@ -12,6 +12,7 @@
     "field": "recoverableShare",
     "bands": ["lowest quartile", "second quartile", "third quartile", "highest quartile"]
   },
+  "$readingOrder": "This array IS the reading order of the imported brief, and there is only one: the renderer paints the slots in this order, so the DOM order, the visual order and the tab order of the block are the same sequence. It leads with the answerable question (above), the recoverable figure the question asks for, and the one action to take about it; the position, the grouping and the confidence tier follow as support, at smaller type roles. Reordering this array reorders the page — which is the point: the order a reader meets these five things in is a contract decision, not a render-site one.",
   "slots": [
     {
       "id": "recoverable_spend",
@@ -23,10 +24,19 @@
       "provenance_fallback": "Not in your export: no complete billing month"
     },
     {
+      "id": "rank_1_action",
+      "label": "Do this first",
+      "source_fields": ["action", "rankedDepartments[].recoverableUsd"],
+      "definition": "The single recommended action carrying the highest recoverable spend. Rank is by recoverable amount alone — never by how easy the action is, how confident the analysis is, or how large the group is — so the action named here is the one attached to the department the grouping slot below names. Requires both a recommended action on the analysis and a department ranked by recoverable spend; otherwise this slot falls back.",
+      "fallback": "No line item in this export is classified as recoverable, so no action is ranked first by recoverable spend.",
+      "provenance_supported": "From your export's own ranking",
+      "provenance_fallback": "Not in your export: nothing ranked by recoverable spend"
+    },
+    {
       "id": "peer_position",
       "label": "Position against the bundled peer cohort",
       "source_fields": ["history.periods[].recoverableUsd", "history.periods[].spendUsd"],
-      "definition": "The imported portfolio's recoverable spend as a percentage of its total spend, over the same complete month the slot above sums, expressed as a percentile band against the bundled peer cohort's published recoverable shares. The percentile is the share of cohort members whose recoverable share is strictly lower than this export's, rounded to a whole percent; the band is the quartile that percentile falls in. A HIGHER band means MORE of this organization's spend is modelled as recoverable than its peers', which is headroom, not efficiency. Both a total-spend figure and a recoverable figure are required for that month; with either missing, this slot falls back.",
+      "definition": "The imported portfolio's recoverable spend as a percentage of its total spend, over the same complete month the recoverable-spend slot sums, expressed as a percentile band against the bundled peer cohort's published recoverable shares. The percentile is the share of cohort members whose recoverable share is strictly lower than this export's, rounded to a whole percent; the band is the quartile that percentile falls in. A HIGHER band means MORE of this organization's spend is modelled as recoverable than its peers', which is headroom, not efficiency. Both a total-spend figure and a recoverable figure are required for that month; with either missing, this slot falls back.",
       "fallback": "This export supplies no complete month carrying both a total and a recoverable figure, so it is not placed against the bundled peer cohort.",
       "provenance_supported": "From your export, placed against the bundled cohort",
       "provenance_fallback": "Not in your export: no share to place"
@@ -39,15 +49,6 @@
       "fallback": "No grouping column in this export carries recoverable spend, so the recoverable total is not broken down by department.",
       "provenance_supported": "From your export's grouping column",
       "provenance_fallback": "Not in your export: no grouping column with recoverable spend"
-    },
-    {
-      "id": "rank_1_action",
-      "label": "Do this first",
-      "source_fields": ["action", "rankedDepartments[].recoverableUsd"],
-      "definition": "The single recommended action carrying the highest recoverable spend. Rank is by recoverable amount alone — never by how easy the action is, how confident the analysis is, or how large the group is — so the action named here is the one attached to the department the slot above names. Requires both a recommended action on the analysis and a department ranked by recoverable spend; otherwise this slot falls back.",
-      "fallback": "No line item in this export is classified as recoverable, so no action is ranked first by recoverable spend.",
-      "provenance_supported": "From your export's own ranking",
-      "provenance_fallback": "Not in your export: nothing ranked by recoverable spend"
     },
     {
       "id": "confidence_tier",

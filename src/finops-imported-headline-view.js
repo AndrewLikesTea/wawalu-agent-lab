@@ -28,10 +28,22 @@
 // rendered label rather than on whether something is visible.
 
 import { importedHeadline } from "./finops-imported-headline.js";
+import { renderProvenance, sourceOfSupported } from "./finops-brief-provenance.js";
 
 const REGION_ID = "finops-imported-headline";
 const QUESTION_ID = "finops-imported-headline-question";
 const SLOTS_ID = "finops-imported-headline-slots";
+
+/**
+ * The emphasis each slot is painted at. ONE order, and it is the fixture's: the
+ * question is the block's first line, the recoverable figure the question asks
+ * for is the next thing on the page at the largest step this region draws, and
+ * the action to take about it is the one after that. Everything else is support
+ * and is painted a step down, in the same DOM order a Tab key and a screen
+ * reader walk. Nothing here reverses, floats or re-orders in CSS — the row order
+ * IS the reading order, and it is decided in the contract.
+ */
+const SLOT_ROLE = Object.freeze({ recoverable_spend: "lead", rank_1_action: "action" });
 
 const byId = (doc, id) => (doc?.getElementById ? doc.getElementById(id) : null);
 
@@ -54,15 +66,21 @@ function paintSlots(doc, slots) {
   if (!host) return [];
   const built = [];
   for (const entry of slots) {
+    const role = SLOT_ROLE[entry.id] ?? "support";
     const term = element(doc, "dt", "imported-headline-label", entry.label);
     term.dataset.slot = entry.id;
+    term.dataset.role = role;
     const detail = element(doc, "dd", "imported-headline-slot");
     detail.dataset.slot = entry.id;
+    detail.dataset.role = role;
     detail.dataset.supported = String(entry.supported);
     detail.append(element(doc, "span", "imported-headline-value", entry.value));
-    const provenance = element(doc, "span", "imported-headline-provenance", entry.provenance);
-    provenance.dataset.provenance = entry.supported ? "supported" : "fallback";
-    detail.append(provenance);
+    // The shared marker carries what a per-row sentence used to: the state, in
+    // the same words every other region of this brief uses, with the contract's
+    // own sentence for the derivation as its detail. One marker, one pattern —
+    // the row no longer words provenance its own way.
+    detail.append(renderProvenance(doc, sourceOfSupported(entry.supported),
+      { qualifies: entry.label, detail: entry.provenance }));
     if (entry.detail) {
       detail.append(element(doc, "span", "imported-headline-basis", entry.detail));
     }

@@ -25,10 +25,13 @@ import {
   periodRowLabel, seriesSentence,
 } from "./finops-imported-period-series.js";
 
+import { FIGURE_SOURCE, mountProvenance } from "./finops-brief-provenance.js";
+
 const REGION_ID = "finops-imported-movement";
 const ANSWER_ID = "finops-imported-movement-answer";
 const BASIS_ID = "finops-imported-movement-basis";
 const SERIES_ID = "finops-imported-movement-series";
+const PROVENANCE_ID = "finops-imported-movement-provenance";
 
 const byId = (doc, id) => (doc?.getElementById ? doc.getElementById(id) : null);
 
@@ -75,6 +78,15 @@ export function applyImportedMovement(doc, input = null) {
   if (answer) answer.textContent = movementSentence(summary);
   const basis = byId(doc, BASIS_ID);
   if (basis) basis.textContent = seriesSentence(series);
+  // Every month in this series came off rows in the reader's own export — the
+  // ones this browser retained came off an earlier one. So the marker is the
+  // file state, and it sits above the per-period rows it qualifies rather than
+  // after them.
+  mountProvenance(doc, {
+    region, id: PROVENANCE_ID, source: FIGURE_SOURCE.file, before: host,
+    qualifies: "Period-over-period movement",
+    detail: `${series.length} month${series.length === 1 ? "" : "s"} read from your export`,
+  });
   if (host) {
     for (const entry of series) {
       const row = doc.createElement("li");

@@ -63,6 +63,10 @@ const ROLE_OF = new Map(Object.entries({
   "sample-marker-shape": ROLE.provenance,
   "badge-shape": ROLE.provenance,
   "provenance-shape": ROLE.provenance,
+  // The imported brief's one marker (#981). It draws ◆ and only ◆ — the mark
+  // this table already gives to "computed from the file this reader brought" —
+  // and its other two states carry no mark at all.
+  "brief-provenance-shape": ROLE.provenance,
 
   "first-run-shape": ROLE.status,
   "kpi-flag-shape": ROLE.status,
