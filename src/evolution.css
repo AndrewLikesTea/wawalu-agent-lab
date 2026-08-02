@@ -838,6 +838,15 @@
 .local-cohort-detail { margin:6px 0 0; color:var(--ink-muted); font:600 12px/1.6 ui-monospace,monospace; overflow-wrap:anywhere; }
 .local-cohort-next { margin:10px 0 0; font-size:14px; line-height:1.5; }
 .local-cohort-note { margin:12px 0 0; padding-top:10px; border-top:1px solid #e0dbd0; color:var(--ink-muted); font-size:12px; line-height:1.6; }
+/* The declaration control. Its refusal is banded and worded, never coloured
+   alone: the sentence names the accepted values whatever the rule renders as. */
+.local-cohort-declare { margin:12px 0 0; padding:14px; border:1px dashed #b9b2a4; border-radius:10px; background:#fbf9f5; }
+.local-cohort-declare-lead { margin:0; font-size:14px; line-height:1.55; }
+.local-cohort-declare-field { display:flex; flex-wrap:wrap; gap:6px 12px; align-items:baseline; margin:10px 0 0; font-size:14px; }
+.local-cohort-declare-field label { font-weight:700; }
+.local-cohort-declare-field select { min-width:min(100%,320px); padding:6px 8px; font:inherit; }
+.local-cohort-declare-message { margin:10px 0 0; padding-left:10px; border-left:3px solid #b9b2a4; font-size:13px; line-height:1.55; }
+.local-cohort-declare-message[data-state="refused"] { border-left-color:var(--state-warn-ink,#8a6d2b); }
 /* The landing surface: the question first, then the one number that answers it. */
 /* The briefing, read top to bottom: the question, the answer block that cannot
    be split, the action and its owner, the disclosed detail, then the two lines
