@@ -56,6 +56,8 @@ import { PANEL_STATUS } from "/panel-status-view.js";
 import { formatIntegrationProvenance } from "/integration-contracts.js";
 import { createStaticGateway } from "/static-gateway.js";
 import { renderNativeProviderCompatibility } from "/native-provider-compatibility-view.js";
+import { scoreIntakeConfidence } from "/intake-confidence.js";
+import { clearIntakeConfidence, renderIntakeConfidence } from "/intake-confidence-view.js";
 import { createFinancePortfolio } from "/finance-portfolio.js";
 import { mountFinancePortfolio, renderPortfolioUnavailable } from "/finance-portfolio-view.js";
 import {
@@ -1869,6 +1871,7 @@ function mountLocalFinopsImport() {
     applyImportProgress(document, null);
     loaded.providers.length = 0;
     delete loaded.hris;
+    clearIntakeConfidence(document);
     // Abandoning is total: the queued files, the retained delimited text, and
     // the mapping choices go with the result. Nothing was written down, so a
     // fresh import afterwards starts from the file picker with no residue.
@@ -2033,6 +2036,15 @@ function mountLocalFinopsImport() {
       else loaded.hris = entry.parsed;
     }
   };
+
+  // Only the compact verdict crosses into the DOM. File text and rows remain in
+  // the import closure and are never stored or rendered by this surface. Origin
+  // is passed, never inferred: a bundled synthetic export and a reader's own
+  // file produce the same shaped finding, and only this argument keeps the
+  // panel from labelling invented spend as the reader's own.
+  const paintIntakeConfidence = (parsed, origin = "locally_selected_file") =>
+    renderIntakeConfidence(document, scoreIntakeConfidence({ document: parsed.document,
+      importEvidence: parsed.importEvidence, origin }));
 
   // The diagnostic belongs to the control that produced it: the input goes
   // aria-invalid, the message is described-by it, and the recovery sits beside
@@ -2257,6 +2269,7 @@ function mountLocalFinopsImport() {
         () => parseLocalImportFile(file.text, file.fileName, file.mediaType, options));
       if (parsed.type === "provider") {
         await paintProviderProjection(parsed.document);
+        paintIntakeConfidence(parsed);
       }
     } catch (error) {
       applyImportProgress(document, null);
@@ -2667,6 +2680,7 @@ function mountLocalFinopsImport() {
           () => parseLocalImportFile(file.text, file.fileName, file.mediaType));
         if (parsed.type === "provider") {
           await paintProviderProjection(parsed.document);
+          paintIntakeConfidence(parsed);
         }
         imports.push({
           source: "json", fileName: file.fileName, parsed, state: null,
@@ -2766,9 +2780,17 @@ function mountLocalFinopsImport() {
   // the analysis is the same synchronous pair of calls the file input makes, so
   // there is no intermediate state to show and nothing to confirm.
   document.getElementById("try-example-dataset")?.addEventListener("click", () => {
+    // A verdict earned by the reader's own file must not survive the switch to
+    // invented figures, in either branch below: the panel is cleared first, and
+    // the example re-earns its own finding under its own provenance.
+    clearIntakeConfidence(document);
     try {
       const inputs = loadExampleDatasetInputs();
       renderResult(normalizeLocalFinopsHistory(inputs), { example: true, inputs });
+      // The example is a history of monthly exports and the finding describes
+      // one export, so it describes the latest — the period the panel names.
+      const latest = inputs.providers.at(-1);
+      if (latest) paintIntakeConfidence(latest, "bundled_example");
     } catch (error) {
       // Unreachable while the bundled export matches the contract. If the
       // contract moves under it, say so rather than showing a stale surface.
