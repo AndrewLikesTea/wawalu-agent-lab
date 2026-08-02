@@ -1,0 +1,2 @@
+date,model,workspace,input_tokens,output_tokens,currency
+2026-07-01,claude-demo,synthetic-support,800,100,USD

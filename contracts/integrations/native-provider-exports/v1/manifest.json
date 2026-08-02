@@ -1,0 +1,65 @@
+{
+  "contract_version": "native-provider-exports/1.0.0",
+  "kind": "wawalu.integration.native-provider-exports",
+  "status": "bounded-static-compatibility",
+  "formats": ["csv-utf8-with-header"],
+  "providers": [
+    {
+      "id": "openai-usage-export",
+      "label": "OpenAI organization usage export",
+      "adapter_version": 1,
+      "required_columns": ["usage_date", "model", "project", "n_context_tokens_total", "amount"],
+      "optional_columns": ["currency", "n_generated_tokens_total", "api_key_name"],
+      "normalization": {
+        "usage_date": "strict ISO calendar date",
+        "model": "trimmed vendor SKU; never prompt text",
+        "project": "trimmed local grouping key",
+        "n_context_tokens_total": "finite nonnegative number -> usage quantity",
+        "amount": "finite nonnegative major currency amount -> integer minor units, rounded half away from zero",
+        "currency": "trimmed uppercase ISO-style code; default USD only when column is absent",
+        "n_generated_tokens_total": "shape signal only; not retained",
+        "api_key_name": "shape signal only; never treated as a credential or retained"
+      }
+    },
+    {
+      "id": "anthropic-usage-export",
+      "label": "Anthropic Console usage export",
+      "adapter_version": 1,
+      "required_columns": ["date", "model", "workspace", "input_tokens", "cost_usd"],
+      "optional_columns": ["currency", "output_tokens", "api_key"],
+      "normalization": {
+        "date": "strict ISO calendar date -> usage date",
+        "model": "trimmed vendor SKU; never prompt text",
+        "workspace": "trimmed local grouping key",
+        "input_tokens": "finite nonnegative number -> usage quantity",
+        "cost_usd": "finite nonnegative major currency amount -> integer minor units, rounded half away from zero",
+        "currency": "trimmed uppercase ISO-style code; default USD only when column is absent",
+        "output_tokens": "shape signal only; not retained",
+        "api_key": "shape signal only; never treated as a credential or retained"
+      }
+    }
+  ],
+  "unsupported_shape_behavior": {
+    "missing_required_column": "reject that file before reading rows; identify missing column names; do not guess or substitute an optional field",
+    "unknown_header_shape": "return unsupported_format; preserve no rows; offer manual mapping in the existing client-side intake",
+    "ambiguous_shape": "return unsupported_format; never select the nearest-looking provider",
+    "reordered_columns": "accept; match normalized header names, never column positions",
+    "unknown_columns": "ignore unless they contain prohibited prompt or credential material; never retain ignored values",
+    "malformed_row": "skip the row with a counted reason; do not coerce invalid values to zero",
+    "partial_export": "analyze valid rows as partial evidence and disclose skipped-row counts; never present the subtotal as complete",
+    "stale_export": "the native CSV has no trustworthy export timestamp; report freshness as unknown rather than infer it from usage dates"
+  },
+  "privacy_and_runtime": {
+    "credentials": "prohibited; no API keys, tokens, logins, or provider-account access are requested or used",
+    "network_requests": "prohibited during import; files are read with the browser File API only",
+    "prompt_content": "prohibited from normalized output, UI, logs, exports, or retained state",
+    "customer_data_persistence": "prohibited; raw rows and customer identifiers are never persisted, remain in memory for the tab, and are discarded on refresh or explicit discard",
+    "live_connections": "prohibited; no live provider, HRIS, or identity connection is part of this contract",
+    "fixtures": "synthetic only"
+  },
+  "fixtures": [
+    { "scenario": "supported", "path": "/contracts/integrations/native-provider-exports/v1/fixtures/openai-supported.csv", "provider_id": "openai-usage-export", "expected": "accepted" },
+    { "scenario": "missing-required-field", "path": "/contracts/integrations/native-provider-exports/v1/fixtures/anthropic-missing-required.csv", "provider_id": "anthropic-usage-export", "expected": "missing_required_column" },
+    { "scenario": "unknown-format", "path": "/contracts/integrations/native-provider-exports/v1/fixtures/unknown-format.csv", "provider_id": null, "expected": "unsupported_format" }
+  ]
+}

@@ -1159,6 +1159,13 @@
                stricter than the one above — no sample value, ever. -->
           <span id="prompt-privacy-note"><strong>Prompt text is never one of them.</strong> A conversation or audit export is parsed in memory only to count its characters and estimate its tokens. The prompt itself is never rendered on this page, never exported, never stored in this browser, and never uploaded — see the <a href="/docs/conversation-export-import-contract.md">conversation-export contract</a>.</span>
         </div>
+        <details class="native-provider-compatibility" id="native-provider-compatibility">
+          <summary><span>Which native provider exports are compatible?</span><span class="native-provider-count">2 versioned adapters</span></summary>
+          <div id="native-provider-compatibility-body" data-state="pending">
+            <p>Compatibility contract is available when this client-side demo starts.</p>
+          </div>
+          <p class="native-provider-contract-link">Full static contract, normalization rules, fixtures, and failure behavior: <a href="/contracts/integrations/native-provider-exports/v1/manifest.json">native provider export contract v1</a>.</p>
+        </details>
         <!-- The forwardable form of the note above (#745). Checked, not
              asserted: tests/finops-import-egress.test.js enforces "never
              transmitted", the /evolution.html rule in src/_headers the policy.
