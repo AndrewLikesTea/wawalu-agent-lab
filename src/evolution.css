@@ -237,6 +237,14 @@
 .monthly-review-comparison { margin:7px 0 0; color:var(--ink-muted); font-size:13px; }
 .monthly-review-projection-action { margin-top:20px; border-left:5px solid var(--import-accent); padding:15px 16px; background:#fff; }
 .monthly-review-action-statement { margin:0; font-size:17px; font-weight:700; }
+.monthly-review-disposition { margin:0 0 8px; color:#244c3c; font-weight:800; text-transform:uppercase; }
+.monthly-review-cycle-controls { display:grid; gap:14px; max-width:760px; margin:16px 0; }
+.monthly-review-cycle-choice { display:grid; grid-template-columns:auto 1fr; gap:4px 10px; border:1px solid var(--panel-border); border-radius:10px; padding:15px; background:#fff; }
+.monthly-review-cycle-choice input { width:20px; height:20px; margin:2px 0 0; accent-color:var(--import-accent); }
+.monthly-review-cycle-choice .monthly-review-comparison { grid-column:2; }
+.monthly-review-cycle-controls button,.monthly-review-projection > button { width:max-content; min-height:44px; border:0; border-radius:9px; padding:9px 15px; background:var(--import-accent); color:#fff; font-weight:750; cursor:pointer; }
+.monthly-review-cycle-controls button[disabled] { opacity:.55; cursor:not-allowed; }
+.monthly-review-cycle-controls button:focus-visible,.monthly-review-cycle-choice input:focus-visible,.monthly-review-projection > button:focus-visible,#monthly-review-projection-title:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
 .monthly-review-department-link { display:inline-flex; min-height:44px; align-items:center; margin-top:12px; color:#1f70c1; font-weight:750; text-underline-offset:4px; }
 .monthly-review-department-link:focus-visible,.monthly-review-return:focus-visible,.monthly-review-projection-provenance summary:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
 .monthly-review-return { display:inline-flex; min-height:44px; align-items:center; margin-bottom:16px; color:#1f70c1; font-weight:750; text-underline-offset:4px; }
@@ -248,6 +256,9 @@
 .monthly-review-projection-provenance summary { border-radius:8px; padding:11px 13px; cursor:pointer; font-weight:650; }
 .monthly-review-provenance-content { display:grid; gap:12px; padding:3px 13px 14px; }
 .monthly-review-boundary { margin:0; color:var(--ink-muted); font-size:12px; }
+@media (max-width:560px) {
+  .monthly-review-cycle-controls button,.monthly-review-projection > button { width:100%; }
+}
 .recurring-review-workspace[data-state="blocked"],.recurring-review-workspace[data-state="insufficient_evidence"] { background:#fff9ec; }
 /* By id: `.guided-result h2` is equally specific and later in the file, so it
    would otherwise win and this heading would render at the size of the headline

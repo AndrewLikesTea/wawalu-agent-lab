@@ -49,12 +49,14 @@
     {
       "id": "extend-platform-routing",
       "outcome": "met",
+      "disposition": "continue",
       "statement": "Extend the verified routing policy to Support for the August synthetic review.",
       "evidence": "Observed savings exceeded expectation and all three bundled confidence signals passed."
     },
     {
       "id": "inspect-routing-gap",
       "outcome": "missed",
+      "disposition": "adjust",
       "statement": "Inspect the Platform routing gap before extending the policy.",
       "evidence": "Observed savings were below the selected action's one-period expectation."
     }
