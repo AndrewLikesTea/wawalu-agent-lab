@@ -230,6 +230,29 @@ test("an incomplete native export is announced and never enters mapping or analy
   }
 });
 
+test("one bad required row rejects the whole native export and preserves the bundled answer", async () => {
+  const page = await openFinopsTab();
+  const { document } = page;
+  const mixed = [
+    "usage_date,model,project,n_context_tokens_total,amount,currency",
+    "2026-07-01,gpt-demo,synthetic-platform,1200,1.25,USD",
+    "03/04/2026,gpt-demo,synthetic-platform,900,0.75,USD",
+  ].join("\n");
+  try {
+    chooseFiles(document, [{ name: "mixed-native.csv", text: mixed }]);
+    await waitFor(() => byId(document, "local-export-activation").dataset.state === "error",
+      "the required-field rejection to render");
+    assert.equal(byId(document, "local-results").hidden, true);
+    assert.equal(byId(document, "local-finops-files").getAttribute("aria-invalid"), "true");
+    assert.match(shownText(document, "local-file-error"),
+      /invalid required field.*row 3.*usage_date.*dates printed as YYYY-MM-DD/i);
+    assert.match(shownText(document, "finops-stand"), /Bundled synthetic example[\s\S]*\$51,254/,
+      "a partial native subtotal must not replace the bundled analysis");
+  } finally {
+    page.restore();
+  }
+});
+
 test("an unsupported local export format reports recovery without opening mapping", async () => {
   const page = await openFinopsTab();
   const { document } = page;
@@ -636,7 +659,7 @@ test("an opted-in import adds its canonical derived briefing to the local worksp
     assert.equal(retained.periods[0].period, "2026-06");
     assert.equal(retained.periods[0].briefingContractVersion, "finops-briefing/1.0.0");
     assert.equal(retained.periods[0].materialMetricId, "recoverable_scenario");
-    assert.equal(retained.periods[0].materialMetricMinor, 39822);
+    assert.equal(retained.periods[0].materialMetricMinor, 40275);
     assert.equal("provenance" in retained.periods[0], false,
       "the persisted record must be the allowlisted projection, not the briefing envelope");
   } finally {

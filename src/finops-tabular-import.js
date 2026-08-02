@@ -32,6 +32,7 @@ import {
 } from "./provider-usage-record.js";
 import { modelPseudonym, orgUnitPseudonym, unitDigest, unitKey } from "./unit-pseudonym.js";
 import { NO_NATIVE_GROUPING, detectNativeGrouping } from "./native-grouping.js";
+import { NATIVE_REQUIRED_FIELD_CODE, nativeContractForHeader } from "./native-provider-activation.js";
 // The package layer: which vendor packages are supported, what a reader is told
 // to ask for, and which containers are refused. Everything below reads those
 // declarations rather than restating them — the accepted extensions, the
@@ -62,6 +63,7 @@ export const TABULAR_CODES = Object.freeze({
   GROUP_SIZE_ASSUMED: "group_size_assumed",
   CONTRACT_REJECTED: "contract_rejected",
   SENSITIVE_FIELD_PRESENT: "sensitive_field_present",
+  NATIVE_REQUIRED_FIELD_INVALID: NATIVE_REQUIRED_FIELD_CODE,
 });
 
 /** Extensions the picker and the validator accept, from the package contract.
@@ -487,6 +489,49 @@ function failure(problems, extra = {}) {
   });
 }
 
+// A contract-required cell the normalizer could not read. `unsupported_currency`
+// is deliberately absent: a foreign-currency row is a readable row that the
+// envelope itself reports as omitted, with `completeness: "partial"` and a
+// count — the reader is told. These five mean the required value was unusable,
+// and the row disappears from the total with nothing on the envelope to say so.
+const NATIVE_BLOCKING_CODES = Object.freeze([
+  TABULAR_CODES.MALFORMED_ROW, TABULAR_CODES.UNPARSEABLE_DATE, TABULAR_CODES.MISSING_VALUE,
+  TABULAR_CODES.INVALID_AMOUNT, TABULAR_CODES.INVALID_QUANTITY,
+]);
+
+/**
+ * The two ways a native row can be read successfully and still not be the
+ * export the contract describes. Both are silent in the general path, so the
+ * native path looks for them by name.
+ *
+ * A date: `03/04/2026` parses, because this module's documented rule reads a
+ * two-number date month-first. On a native export it means a spreadsheet round
+ * trip, and the guessed month order can move spend into the wrong month — so
+ * the native path takes the printed form the manifest names, "strict ISO
+ * calendar date", and only that one.
+ *
+ * A currency: an empty cell in a currency column that the export *does* carry
+ * would default to the analysis currency and join the USD total. The manifest
+ * allows that default only when the column is absent from the file entirely.
+ */
+function nativePrintedFormProblem(binding, reading) {
+  const at = (record, field) => record.values[binding.bound[field]] ?? "";
+  const locate = (field, record, code) => ({
+    row: record.row, column: reading.header[binding.bound[field]] ?? field,
+    columnIndex: binding.bound[field] ?? null, code,
+  });
+  for (const record of reading.rows) {
+    const resolved = parseExportDate(at(record, "date"));
+    if (resolved.ok && resolved.format !== "iso_date") {
+      return locate("date", record, `date_printed_as_${resolved.format}`);
+    }
+    if (binding.bound.currency !== undefined && String(at(record, "currency")).trim() === "") {
+      return locate("currency", record, "currency_missing");
+    }
+  }
+  return null;
+}
+
 function addDay(date) {
   return new Date(Date.parse(`${date}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
 }
@@ -862,6 +907,11 @@ export function parseDelimitedFinopsFile(text, fileName = "export.csv", options 
   const reading = readDelimitedText(text, options);
   if (!reading.ok) return failure([makeProblem(reading.problem.code, reading.problem)]);
 
+  // Set once the header names exactly one supported provider's required columns.
+  // That file skips the mapping review, so it is held to the stricter native
+  // row rule below instead.
+  const nativeContract = nativeContractForHeader(reading.header);
+
   // A reviewed mapping wins over detection: the reader has already been shown
   // what every column became and has corrected it, so re-guessing here would
   // discard the one answer that is not a guess.
@@ -903,6 +953,15 @@ export function parseDelimitedFinopsFile(text, fileName = "export.csv", options 
     binding = nativeGroupingBinding(binding, nativeGrouping);
   }
 
+  // Contract-approved native output retains the required usage quantity only.
+  // Provider output-token columns are shape signals, not additive usage input:
+  // the manifest declares `n_generated_tokens_total` and `output_tokens` as
+  // "shape signal only; not retained".
+  if (nativeContract && binding.bound.outputTokens !== undefined) {
+    binding = { ...binding, bound: { ...binding.bound } };
+    delete binding.bound.outputTokens;
+  }
+
   if (!binding.recognized) {
     if (binding.matched === 0) {
       return failure([makeProblem(TABULAR_CODES.UNSUPPORTED_FORMAT, {
@@ -927,6 +986,30 @@ export function parseDelimitedFinopsFile(text, fileName = "export.csv", options 
   const normalized = binding.shape.kind === "provider"
     ? normalizeProviderRows(binding.shape, binding, reading, problems, settings)
     : normalizeRosterRows(binding, reading, problems, settings);
+
+  // The native all-or-nothing rule. A reader who mapped the columns themselves
+  // is shown the skipped-row count and can judge the remainder; a native export
+  // skips that review, so one unreadable required cell rejects the file whole.
+  // Otherwise the provider's usage and cost for that row leave the monthly
+  // total silently, and a subtotal reads exactly like a total.
+  //
+  // The verdict is the normalizer's own, not a second copy of its rules: a
+  // private validator drifts from the parser it guards, and every value the two
+  // disagree about is a row waved through the gate and skipped downstream —
+  // which is the partial analysis this gate exists to prevent.
+  if (nativeContract) {
+    const cause = problems.find(({ code }) => NATIVE_BLOCKING_CODES.includes(code))
+      ?? nativePrintedFormProblem(binding, reading);
+    if (cause) {
+      return failure([makeProblem(TABULAR_CODES.NATIVE_REQUIRED_FIELD_INVALID, {
+        row: cause.row, column: cause.column, columnIndex: cause.columnIndex,
+        providerId: nativeContract.id, reason: cause.code,
+      }), ...problems], {
+        columns, shape: binding.shape.id, rowCount: reading.rows.length, nativeGrouping,
+      });
+    }
+  }
+
   if (!normalized.records) {
     problems.push(makeProblem(TABULAR_CODES.NO_USABLE_ROWS, {
       observed: normalized.accepted, expected: 1,
@@ -1101,6 +1184,8 @@ export function describeProblem(problem) {
     ? ` at row ${problem.row}${problem.column ? ` in column “${problem.column}”` : ""}`
     : "";
   switch (problem.code) {
+    case TABULAR_CODES.NATIVE_REQUIRED_FIELD_INVALID:
+      return `The native provider export has an invalid required field${at}; no rows were analyzed.`;
     case TABULAR_CODES.EMPTY_FILE:
       return "The file contains no rows.";
     case TABULAR_CODES.FILE_TOO_LARGE:

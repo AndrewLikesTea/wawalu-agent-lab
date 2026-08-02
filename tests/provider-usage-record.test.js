@@ -105,7 +105,7 @@ test("openai: a request column carries a genuine zero as zero", async () => {
   assert.equal(isAbsent(forModel(result, "gpt-4o-mini").request_count), false);
 });
 
-test("anthropic: model, tier, and split map from the real column names", async () => {
+test("anthropic native input maps while its output-token shape signal is not retained", async () => {
   const result = await delimited("anthropic-usage.csv");
   assert.equal(result.ok, true);
   assert.equal(result.shape, "anthropic_usage");
@@ -114,7 +114,7 @@ test("anthropic: model, tier, and split map from the real column names", async (
   const economy = forModel(result, "claude-haiku-3-5");
   assert.equal(economy.model_tier, "economy");
   assert.equal(economy.input_tokens, 410000);
-  assert.equal(economy.output_tokens, 38000);
+  assert.equal(economy.output_tokens, null);
   assert.equal(economy.request_count, null);
 });
 
