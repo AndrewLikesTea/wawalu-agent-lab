@@ -15,6 +15,7 @@
 import { FIRST_RUN_ACTIONS, FIRST_RUN_IDS } from "./finops-first-run.js";
 import { EXAMPLE_BRIEFING_CTA, EXAMPLE_BRIEFING_HREF } from "./finops-example-briefing.js";
 import { DISCLOSURE_SPEC, disclosureStateLabel } from "./finops-decision-interaction.js";
+import { DRILLDOWN_HEADING, DRILLDOWN_QUESTION } from "./finops-imported-departments.js";
 // The `.pre-analysis-withheld` idiom is defined once, in the view that owns the
 // answer region above this one, because both regions share the first screen and
 // therefore have to withhold and reveal on the same rule.
@@ -88,6 +89,34 @@ function definition(doc, entry) {
   detail.textContent = entry.detail;
   item.append(term, detail);
   return item;
+}
+
+/**
+ * Fill the shared evidence disclosure, its print sibling, and its state chip.
+ *
+ * ONE disclosure, two callers: the example's method entries and the imported
+ * drill-down's ranked rows go through this function into the same `details`, so
+ * there is no second pattern to keep operable and no second place a heading can
+ * drift. The print sibling is the same evidence outside the disclosure — see
+ * PRINT_SPEC: it is what reaches paper, because no rule in any cascade origin
+ * can suppress a block that is not inside a `details` at all. It is
+ * `aria-hidden`; the disclosure is the copy the accessibility tree reads.
+ */
+function paintEvidence(doc, entries, heading) {
+  setText(doc, FIRST_RUN_IDS.methodTitle, heading);
+  const method = byId(doc, FIRST_RUN_IDS.methodList);
+  if (method) method.replaceChildren(...entries.map((entry) => definition(doc, entry)));
+  const print = byId(doc, FIRST_RUN_IDS.methodPrint);
+  if (print) {
+    const list = doc.createElement("dl");
+    list.className = "first-run-method-list";
+    list.replaceChildren(...entries.map((entry) => definition(doc, entry)));
+    const title = doc.createElement("p");
+    title.className = "first-run-method-print-heading";
+    title.textContent = heading;
+    print.replaceChildren(title, list);
+  }
+  paintDisclosureState(doc, entries.length);
 }
 
 /**
@@ -225,26 +254,7 @@ export function applyFirstRunResult(doc, result, { announce = false } = {}) {
   paintSlot(doc, FIRST_RUN_IDS.confidenceValue, FIRST_RUN_IDS.confidenceDetail, result.confidence);
 
   const entries = result.method ?? [];
-  const method = byId(doc, FIRST_RUN_IDS.methodList);
-  if (method) method.replaceChildren(...entries.map((entry) => definition(doc, entry)));
-
-  // The same evidence, a second time, outside the disclosure. See PRINT_SPEC:
-  // this sibling is what actually reaches paper, because no rule in any cascade
-  // origin can suppress a block that is not inside a `details` at all. It is
-  // `aria-hidden` and holds nothing focusable — the disclosure above is the
-  // copy the accessibility tree reads.
-  const print = byId(doc, FIRST_RUN_IDS.methodPrint);
-  if (print) {
-    const list = doc.createElement("dl");
-    list.className = "first-run-method-list";
-    list.replaceChildren(...entries.map((entry) => definition(doc, entry)));
-    const heading = doc.createElement("p");
-    heading.className = "first-run-method-print-heading";
-    heading.textContent = DISCLOSURE_SPEC.heading;
-    print.replaceChildren(heading, list);
-  }
-
-  paintDisclosureState(doc, entries.length);
+  paintEvidence(doc, entries, DISCLOSURE_SPEC.heading);
 
   // Spoken once, and only what a reader who cannot see the region would need to
   // decide whether to read it: what kind of numbers these are and what they say.
@@ -295,20 +305,124 @@ export function applyExampleBriefingCta(doc) {
 }
 
 /**
- * Retire the region once the page holds an analysis of its own.
- *
- * A first-run result is an answer to "what would this tell me?", and that
- * question is closed the moment a real result — the reader's import, or the
- * example loaded into every panel — is on screen. Leaving it there would put a
- * second synthetic headline beside a live one, which is the exact confusion
- * this region exists to remove. There is no longer a conversion aside to retire
- * alongside it: the answer spine retired that region, and #finops-contact —
- * which is not first-run-specific and stays on screen — carries the ask.
+ * The parts of the region that speak for the bundled example and only for it.
+ * Withheld as wholes in the imported state: a synthetic peer band, routing
+ * scenario, or confidence score standing beside a reader's own department
+ * ranking is a second answer to the question this region asks.
  */
-export function applyFirstRunSupersession(doc, superseded, { focusFallbackId = null } = {}) {
+const EXAMPLE_ONLY_IDS = Object.freeze([
+  FIRST_RUN_IDS.sample, FIRST_RUN_IDS.slots,
+  FIRST_RUN_IDS.recommendation, FIRST_RUN_IDS.confidence,
+]);
+
+/** The text nodes the imported state overwrites, and therefore has to restore. */
+const RESTORED_IDS = Object.freeze([
+  FIRST_RUN_IDS.word, FIRST_RUN_IDS.shape, FIRST_RUN_IDS.question,
+  FIRST_RUN_IDS.answer, FIRST_RUN_IDS.answerDetail,
+]);
+
+/**
+ * What the example had in those nodes, per document, captured on the way in and
+ * put back on the way out. Captured rather than recomposed: clearing an import
+ * must leave this region exactly as the example painted it, and rebuilding the
+ * example result here would put a composition path in a view whose one rule is
+ * that it composes nothing.
+ */
+const EXAMPLE_COPY = new WeakMap();
+
+/** The disclosure's current entries, read back off the list it painted them into. */
+function evidenceEntries(doc) {
+  const list = byId(doc, FIRST_RUN_IDS.methodList);
+  const terms = [...(list?.querySelectorAll?.("dt") ?? [])];
+  const details = [...(list?.querySelectorAll?.("dd") ?? [])];
+  return terms.map((term, index) => ({
+    term: term.textContent ?? "", detail: details[index]?.textContent ?? "",
+  }));
+}
+
+/**
+ * Refill the region from the reader's own export instead of retiring it.
+ *
+ * One headline and one disclosure: the drill-down's headline sentence — WITH
+ * its figure in it — is painted into the answer slot, outside and above the
+ * `details`, so the collapsed state answers "which team is driving this" on its
+ * own. The ranked rows are supporting detail and go behind the disclosure the
+ * example already uses, which is a native `details` and therefore keyboard
+ * reachable and operable in this state exactly as it is in the other one.
+ */
+function applyOwnDataDrilldown(doc, region, drilldown) {
+  if (!EXAMPLE_COPY.has(doc)) {
+    EXAMPLE_COPY.set(doc, {
+      text: RESTORED_IDS.map((id) => [id, byId(doc, id)?.textContent ?? ""]),
+      entries: evidenceEntries(doc),
+      heading: byId(doc, FIRST_RUN_IDS.methodTitle)?.textContent ?? DISCLOSURE_SPEC.heading,
+    });
+  }
+  for (const id of EXAMPLE_ONLY_IDS) {
+    const node = byId(doc, id);
+    if (node) node.hidden = true;
+  }
+  region.dataset.superseded = "own-data";
+  region.dataset.source = "imported";
+  region.dataset.grouping = drilldown.grouping.id;
+  // The state word and its glyph, on the same two channels the example uses:
+  // ▣ computed, ▲ could not compute. Never a tint on its own.
+  setText(doc, FIRST_RUN_IDS.word, drilldown.available ? "Your export" : "Nothing to rank");
+  setText(doc, FIRST_RUN_IDS.shape, drilldown.available ? "▣" : "▲");
+  setText(doc, FIRST_RUN_IDS.question, DRILLDOWN_QUESTION);
+  paintSlot(doc, FIRST_RUN_IDS.answer, FIRST_RUN_IDS.answerDetail, {
+    available: drilldown.available, value: drilldown.headline, detail: drilldown.detail,
+  });
+  paintEvidence(doc, drilldown.rows.map((entry) => ({
+    term: entry.term, detail: entry.detail,
+  })), DRILLDOWN_HEADING);
+  return region;
+}
+
+/** Put the example's own words and slots back when an import is cleared. */
+function restoreExampleCopy(doc) {
+  const copy = EXAMPLE_COPY.get(doc);
+  if (!copy) return;
+  EXAMPLE_COPY.delete(doc);
+  for (const [id, text] of copy.text) setText(doc, id, text);
+  for (const id of EXAMPLE_ONLY_IDS) {
+    const node = byId(doc, id);
+    if (node) node.hidden = false;
+  }
+  const detail = byId(doc, FIRST_RUN_IDS.answerDetail);
+  if (detail) detail.hidden = false;
+  paintEvidence(doc, copy.entries, copy.heading);
+}
+
+/**
+ * Retire the region, or refill it from the reader's own export.
+ *
+ * A first-run result is an answer to "what would this tell me?", and the
+ * EXAMPLE closes that question the moment it is loaded into every panel below:
+ * two synthetic headlines on one page is the confusion this region exists to
+ * remove, so that path still retires the block whole.
+ *
+ * An IMPORT closes it differently. The reader now has a fuller headline of
+ * their own above this region, but the question underneath it — which of my
+ * teams is that coming from — is the one this block was already shaped to
+ * answer, and hiding it took the drill-down that made the example persuasive
+ * off the page at exactly the moment it became about real money. So when
+ * `ownData` is supplied the region stays, withholds every synthetic figure in
+ * it, and is repainted from the import: one headline, one disclosure, no second
+ * summary. Without it, nothing about the retirement changes.
+ */
+export function applyFirstRunSupersession(doc, superseded,
+  { focusFallbackId = null, ownData = null } = {}) {
   const region = byId(doc, FIRST_RUN_IDS.region);
   if (!region) return null;
   const retired = Boolean(superseded);
+  if (retired && ownData) {
+    region.hidden = false;
+    return applyOwnDataDrilldown(doc, region, ownData);
+  }
+  restoreExampleCopy(doc);
+  delete region.dataset.source;
+  delete region.dataset.grouping;
   // Hiding the element a reader is standing on drops focus to `<body>`, which
   // for a keyboard user means the next Tab starts again at the top of the
   // document — they imported a file and lost their place on the page. So when
