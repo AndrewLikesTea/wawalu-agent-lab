@@ -192,6 +192,14 @@ function renderFailed(container, onRetry) {
   container.append(labelledState("error", [feedAction(), retry]));
 }
 
+// The wait, in one place, because src/post.html ships this same line in its
+// markup so the region is never blank before this module runs. Two spellings of
+// one sentence would flash a rewrite at the reader on every visit; one exported
+// string cannot. It no longer names Social — the h1 directly above it already
+// reads "Post from Social", and the standing sentence under that says what
+// Social is, so repeating the surface a third time bought nothing.
+export const POST_LOADING_LINE = "Loading this post…";
+
 // Waiting is not one of the states above, and it does not get their furniture.
 //
 // It used to: a full banner with its own heading, its own sentence, and a 4:3
@@ -207,14 +215,27 @@ function renderLoading(container) {
   status.setAttribute("role", "status");
   const dot = el("span", "detail-loading-dot");
   dot.setAttribute("aria-hidden", "true");
-  status.append(dot, el("span", "detail-loading-text", "Loading this post from Social…"));
+  status.append(dot, el("span", "detail-loading-text", POST_LOADING_LINE));
   container.append(status);
 }
+
+// What the region is showing, in one word, on one attribute. The page has
+// exactly three things it can be doing — waiting for the post, showing it, or
+// explaining that it cannot — and they are mutually exclusive by construction:
+// replaceChildren() empties the region first, one branch below fills it, and
+// this stamp records which. src/post.html ships the region already marked
+// "initial", so the shipped markup and the first render agree.
+//
+// It is not decoration for a test. Two independently toggled nodes is how a
+// loading line survives underneath an unavailable-post panel; a single value
+// cannot hold both.
+const POST_REGION_STATE = { loading: "initial", ready: "unavailable", error: "unavailable" };
 
 export function renderPostDetail(container, post, options = {}) {
   const { state = "ready", id = "", returnHref = DEFAULT_POST_RETURN.href } = options;
   container.replaceChildren();
   container.setAttribute("aria-busy", state === "loading" ? "true" : "false");
+  container.dataset.postState = post ? "resolved" : POST_REGION_STATE[state] ?? "unavailable";
 
   if (!post) {
     if (state === "loading") renderLoading(container);
