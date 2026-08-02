@@ -1,0 +1,2 @@
+usage_date,model,project,n_context_tokens_total,n_generated_tokens_total,amount,currency
+2026-07-01,gpt-demo,synthetic-platform,1200,200,1.25,USD

@@ -16,7 +16,7 @@ try {
   // No integration credential, transport, or live customer/provider data exists.
   for (const integration of ["hris-org", "provider-usage-billing", "query-sample",
     "conversation-export", "provider-export-package", "org-query-source",
-    "shiplog-delivery-history"]) {
+    "shiplog-delivery-history", "native-provider-exports"]) {
     await cp(
       resolve(root, "contracts", "integrations", integration, "v1"),
       resolve(staging, "contracts", "integrations", integration, "v1"),

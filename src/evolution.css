@@ -1781,6 +1781,17 @@ section[data-workspace-current="true"] { box-shadow:-6px 0 0 0 var(--import-wash
 .redaction-clean { background:#eef6f2; border:1px solid #cfe4da; }
 .privacy-note { margin:0; border-radius:10px; padding:14px; background:#e9f1f8; color:#55616b; font-size:12px; line-height:1.55; }
 .privacy-note strong { display:block; margin-bottom:3px; color:#283b4a; }
+.native-provider-compatibility { margin:16px 0; border:1px solid #d5d8d2; border-radius:10px; padding:12px 14px; background:#fbfcfa; }
+.native-provider-compatibility>summary { display:flex; justify-content:space-between; gap:16px; cursor:pointer; font-weight:700; }
+.native-provider-count,.native-provider-version,.native-provider-provenance { color:var(--ink-muted); font:600 12px/1.5 ui-monospace,monospace; }
+.native-provider-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin-top:14px; }
+.native-provider-card { border:1px solid #e0e2dd; border-radius:8px; padding:12px; background:#fff; }
+.native-provider-card h4,.native-provider-card p { margin:0 0 8px; }
+.native-provider-card dl { display:grid; grid-template-columns:auto minmax(0,1fr); gap:5px 10px; margin:0 0 8px; font-size:12px; }
+.native-provider-card dt { font-weight:700; }
+.native-provider-card dd { margin:0; overflow-wrap:anywhere; }
+.native-provider-failure,.native-provider-boundary,.native-provider-contract-link { font-size:12px; line-height:1.5; }
+.native-provider-boundary { margin:14px 0 8px; }
 .gateway-refresh { margin-top:12px; border:1px solid #b8c8d5; border-radius:8px; padding:9px 12px; background:#fff; color:#283b4a; font:700 12px/1.4 ui-monospace,monospace; cursor:pointer; }
 .gateway-refresh:hover { border-color:#55758d; background:#f5f8fa; }
 .gateway-refresh:disabled { cursor:wait; opacity:.65; }
@@ -1811,6 +1822,7 @@ section[data-workspace-current="true"] { box-shadow:-6px 0 0 0 var(--import-wash
   .portfolio-facts { grid-template-columns:repeat(2,1fr); }
 }
 @media(max-width:640px) {
+  .native-provider-list { grid-template-columns:1fr; }
   .finops-load-state { align-items:stretch; flex-direction:column; }
   /* One column on a phone, and the buttons go full width: the two choices stay
      equally reachable rather than one of them becoming a thumb-sized target. */

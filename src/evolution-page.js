@@ -55,6 +55,7 @@ import { installDeferredDetails } from "/finops-deferred-detail.js";
 import { PANEL_STATUS } from "/panel-status-view.js";
 import { formatIntegrationProvenance } from "/integration-contracts.js";
 import { createStaticGateway } from "/static-gateway.js";
+import { renderNativeProviderCompatibility } from "/native-provider-compatibility-view.js";
 import { createFinancePortfolio } from "/finance-portfolio.js";
 import { mountFinancePortfolio, renderPortfolioUnavailable } from "/finance-portfolio-view.js";
 import {
@@ -3598,6 +3599,7 @@ async function init() {
   // reachable by keyboard before a reader has chosen anything.
   bindPortfolioSamples(document, evaluateSample);
   initFinopsContact(document);
+  renderNativeProviderCompatibility(document.getElementById("native-provider-compatibility-body"));
   const gateway = createStaticGateway();
   const refreshGateway = document.getElementById("integration-gateway-refresh");
   gateway.subscribe(({ status, inspection, metadata }) => {
