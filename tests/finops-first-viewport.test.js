@@ -183,7 +183,7 @@ test("the brief's two next steps are reached before the retry control", async ()
 
 // --- the booted page, with the bundled fixture failing ----------------------
 
-test("a failed bundled fixture still meets the visitor with the complete brief", async () => {
+test("a failed bundled fixture replaces the complete brief with recovery", async () => {
   // Nothing is served: every fixture request throws. This is the run the old
   // first viewport had nothing to say on.
   const page = await bootedPage({ routes: {} });
@@ -192,26 +192,16 @@ test("a failed bundled fixture still meets the visitor with the complete brief",
     assert.equal(byId(document, "finops-load-state").dataset.state, "error",
       "the bundled fixture request is expected to have failed");
 
-    // No retry, no file chosen — and a complete, populated result regardless.
+    // A failed preparation owns the surface: no stale result figure,
+    // recommendation, confidence, or briefing control remains beside it.
     const region = byId(document, FIRST_RUN_IDS.region);
     assert.equal(region.dataset.state, "ready");
-    assert.equal(region.hidden, false);
-    assert.match(textOf(byId(document, FIRST_RUN_IDS.benchmarkValue)),
-      /^\d+% of analyzed AI spend$/);
-    assert.equal(byId(document, FIRST_RUN_IDS.benchmarkValue).dataset.available, "true");
-    assert.match(textOf(byId(document, FIRST_RUN_IDS.impactValue)), /^\$[\d,]+ in the reporting period$/);
-    assert.equal(byId(document, FIRST_RUN_IDS.action).dataset.available, "true");
-    assert.match(textOf(byId(document, FIRST_RUN_IDS.role)), /Accountable role: /);
-    // Provenance and the arithmetic behind the figure, one keystroke away.
-    const terms = byId(document, FIRST_RUN_IDS.methodList)
-      .querySelectorAll("dt").map((node) => textOf(node));
-    for (const term of ["Arithmetic", "Coverage", "Limits"]) assert.ok(terms.includes(term));
-
-    // And still no pending vocabulary above it.
-    const read = beforeTheBrief(document).filter((node) => !node.hidden).map(ownText).join(" ");
-    for (const phrase of PENDING_LANGUAGE) {
-      assert.doesNotMatch(read, new RegExp(phrase), `"${phrase}" is read before the brief`);
-    }
+    assert.equal(region.hidden, true);
+    assert.equal(byId(document, "finops-stand").hidden, true);
+    const replacement = byId(document, "finops-load-state");
+    assert.equal(replacement.hidden, false);
+    assert.match(textOf(replacement), /could not load/i);
+    assert.equal(byId(document, "finops-data-retry").hidden, false);
   } finally {
     page.restore();
   }

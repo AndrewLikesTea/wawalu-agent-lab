@@ -76,26 +76,21 @@ test("the dominant region is authored inside the first viewport, above every pan
   assert.ok(html.indexOf('id="page-title"') < html.indexOf('id="finops-load-state"'));
 });
 
-test("the region carries a visible label, a shape, and a word beside its state", async () => {
+test("the available document omits the preparation panel from the reading order", async () => {
   const document = parseHtml(await readFile(PAGE, "utf8"));
   const region = byId(document, LOAD_STATUS_IDS.region);
 
   assert.equal(region.getAttribute("role"), "status");
   assert.equal(region.getAttribute("aria-labelledby"), LOAD_STATUS_IDS.label);
+  assert.equal(region.hidden, true);
+  assert.equal(region.dataset.state, "ready");
   assert.match(textOf(byId(document, LOAD_STATUS_IDS.label)), /Page status/);
-  // The state never travels as a border colour alone.
-  assert.equal(textOf(byId(document, LOAD_STATUS_IDS.shape)), LOAD_PRESENTATION.loading.shape);
+  // If script reveals this region for a transition, its authored fallback is
+  // still a word and shape rather than a colour-only state.
+  assert.equal(textOf(byId(document, LOAD_STATUS_IDS.shape)), LOAD_PRESENTATION.ready.shape);
   assert.equal(byId(document, LOAD_STATUS_IDS.shape).getAttribute("aria-hidden"), "true");
-  assert.equal(textOf(byId(document, LOAD_STATUS_IDS.word)), LOAD_PRESENTATION.loading.word);
-  assert.equal(LOAD_PRESENTATION.loading.word, "Preparing",
-    "the initial state uses the page's one term for active work");
-  const title = textOf(byId(document, LOAD_STATUS_IDS.title));
-  const copy = textOf(byId(document, LOAD_STATUS_IDS.copy));
-  assert.match(title, /^Preparing the Bundled synthetic example/);
-  assert.match(copy, /Invented example data is being prepared/);
-  assert.match(copy, /No personal file is needed/);
-  assert.match(copy, /You can wait/);
-  assert.match(copy, /analyze your own provider export/);
+  assert.equal(textOf(byId(document, LOAD_STATUS_IDS.word)), LOAD_PRESENTATION.ready.word);
+  assert.doesNotMatch(textOf(region), /prepar|unavailable|waiting/i);
 });
 
 test("the score card and every KPI ship a shape-and-word flag, not a bare dash", async () => {
@@ -118,6 +113,7 @@ test("a cold load says nothing of yours is imported, and offers one action", asy
     const region = byId(document, LOAD_STATUS_IDS.region);
 
     assert.equal(region.dataset.state, "ready");
+    assert.equal(region.hidden, true, "a ready status must not compete with the available result");
     assert.equal(region.dataset.import, "example");
     // Answer first: whose numbers these are. Evidence second: what that costs
     // and what changes it.
@@ -148,13 +144,21 @@ test("the booted page still narrates the load in exactly one place", async () =>
   }
 });
 
-test("“Choose files” is in the tab order and lands the reader on the picker", async () => {
-  const page = await bootedPage();
+test("the loading replacement offers Choose files and lands the reader on the picker", async () => {
+  const page = await loadPage(PAGE, { routes: ROUTES });
   try {
     const { document } = page;
+    bindChooseFiles(document);
+    applyPageLoadStatus(document, {
+      state: "loading",
+      title: "Preparing the Bundled synthetic example…",
+      detail: "Invented example data is being prepared.",
+    });
     const choose = byId(document, LOAD_STATUS_IDS.choose);
     assert.ok(tabSequence(document).includes(choose),
       "the page's one next action is not keyboard reachable");
+    assert.equal(byId(document, "finops-stand").hidden, true);
+    assert.equal(byId(document, "finops-first-run").hidden, true);
 
     choose.dispatchEvent(new DomEvent("click"));
     assert.equal(document.activeElement, byId(document, CHOOSE_FILES_ACTION.targetId),
@@ -174,6 +178,11 @@ test("a failed bundled load keeps the action and adds the retry", async () => {
     assert.equal(textOf(byId(document, LOAD_STATUS_IDS.word)), LOAD_PRESENTATION.error.word);
     assert.equal(textOf(byId(document, LOAD_STATUS_IDS.shape)), LOAD_PRESENTATION.error.shape);
     assert.equal(byId(document, LOAD_STATUS_IDS.retry).hidden, false);
+    assert.equal(region.hidden, false);
+    assert.equal(byId(document, "finops-stand").hidden, true,
+      "failed preparation left headline figures and briefing controls visible");
+    assert.equal(byId(document, "finops-first-run").hidden, true,
+      "failed preparation left recoverable spend, confidence, or recommendation visible");
     // Still offered: a reader whose example failed can analyze their own file,
     // and that is the better of the two next steps.
     assert.equal(byId(document, LOAD_STATUS_IDS.choose).hidden, false);
@@ -212,6 +221,9 @@ test("retry reruns a failed bundled analysis and restores the synthetic complete
 
     await waitFor(() => region.dataset.state === "ready", "the retry to complete");
     assert.equal(region.getAttribute("aria-busy"), "false");
+    assert.equal(region.hidden, true);
+    assert.equal(byId(document, "finops-stand").hidden, false);
+    assert.equal(byId(document, "finops-first-run").hidden, false);
     assert.equal(region.dataset.import, "example");
     assert.match(textOf(byId(document, LOAD_STATUS_IDS.copy)), /Bundled synthetic example/);
     assert.match(textOf(byId(document, LOAD_STATUS_IDS.copy)), /invented data, not your spend/);

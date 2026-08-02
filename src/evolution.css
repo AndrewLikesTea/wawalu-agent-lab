@@ -1114,9 +1114,9 @@
 .finops-load-state[data-state="error"] { border-color:#b4453a; background:#fdf4f3; color:#6f2821; }
 .finops-load-state[data-state="ready"] { border-left-color:#315f50; }
 .finops-load-actions { display:flex; flex:none; flex-wrap:wrap; gap:9px; }
-.finops-load-state button { flex:none; min-height:44px; border:1px solid currentColor; border-radius:8px; padding:9px 13px; background:#fff; color:#6f2821; font-weight:750; cursor:pointer; }
-.finops-load-state[data-state="loading"] button,.finops-load-state[data-state="ready"] button { color:#174f83; }
-.finops-load-state button:focus-visible { outline:3px solid #2a78d6; outline-offset:3px; }
+.finops-load-state button { flex:none; min-height:44px; border:1px solid currentColor; border-radius:8px; padding:9px 13px; background:#fff; color:var(--state-error-ink); font-weight:750; cursor:pointer; }
+.finops-load-state[data-state="loading"] button,.finops-load-state[data-state="ready"] button { color:var(--ink); }
+.finops-load-state button:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
 .finops-load-state button[disabled] { opacity:.55; cursor:default; }
 
 /* WHERE DO WE STAND? — the headline answer, and the only block on this view
