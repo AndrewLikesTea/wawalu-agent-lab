@@ -38,7 +38,7 @@ async function copyDeployableArtifact(directory) {
 test("product has a health endpoint and accessible title", async () => {
   assert.equal((await readFile(new URL("../src/healthz", import.meta.url), "utf8")).trim(), "ok");
   const html = await readFile(new URL("../src/index.html", import.meta.url), "utf8");
-  assert.match(html, /<title>Shiplog · AI FinOps, decisions, and releases<\/title>/);
+  assert.match(html, /<title>Shiplog · one site for AI spend, decisions, and releases<\/title>/);
   // The landmark the skip link targets — header and nav sit outside it.
   assert.match(html, /<main id="main-content" tabindex="-1">/);
   assert.match(html, /<label for="title">Title<\/label>/);
@@ -99,13 +99,25 @@ const heroOf = (html) =>
 const logEntryOf = (html) =>
   html.slice(html.indexOf('<section class="shiplog-entry"'), html.indexOf('<section class="site-guide"'));
 
-test("the hero leads with AI FinOps and keeps the log as a named, complete secondary path", async () => {
+test("the hero names the product before any surface, and keeps the log as a named, complete secondary path", async () => {
   const html = await readFile(new URL("../src/index.html", import.meta.url), "utf8");
   const hero = heroOf(html);
 
-  // What AI FinOps answers, in the surface's own name — not a synonym — before
-  // any other destination on this site is named.
-  assert.match(hero, /AI FinOps · what your AI spend is buying/);
+  // The promise first: what Shiplog is and who it is for, before any one
+  // surface is named as a place to go. A visitor who has never heard of this
+  // site meets the product, not its best section.
+  const promise = hero.indexOf("Shiplog is for engineering teams");
+  assert.ok(promise > 0, "the hero must open by saying what Shiplog is and who it is for");
+  assert.ok(promise < hero.indexOf("AI FinOps"),
+    "the product promise must land before the first surface is named");
+  assert.match(hero, /<p class="eyebrow">Shiplog<\/p>/,
+    "the hero's eyebrow must name the product, not one of its surfaces");
+
+  // The checkable fact, stated as a fact rather than as a benefit: what the
+  // worked decision contains, and what it costs to read.
+  assert.match(hero, /A worked decision is already computed on the AI FinOps page/);
+  assert.match(hero, /no export of yours, no sign-in, and no account/);
+  assert.match(hero, /bundled synthetic data/);
   assert.match(hero, /Your files do not leave this tab\./);
   assert.doesNotMatch(html, /cost analyzer|spend tool/i);
   assert.ok(
@@ -113,15 +125,24 @@ test("the hero leads with AI FinOps and keeps the log as a named, complete secon
     "the front door must lead with AI FinOps, not with the log",
   );
 
-  // Exactly one primary button in the hero, and it opens the surface the hero
-  // is about. The second way on is the summary below it, as a text link: two
-  // primary buttons beside each other would make neither one primary.
+  // Exactly one primary button in the hero, and it opens the worked decision:
+  // the strongest single destination on this site, and the only one that needs
+  // nothing of the visitor's. The summary below stays a text link — two primary
+  // buttons beside each other would make neither one primary.
   assert.equal((hero.match(/class="button-link"/g) ?? []).length, 1,
     "the hero must carry exactly one primary call to action");
-  assert.match(hero, /<a class="button-link" href="\/evolution\.html">Analyze your own provider export in AI FinOps/);
+  assert.match(hero, /<a class="button-link" href="\/evolution\.html">Read the worked decision in AI FinOps/);
   assert.match(hero, /<a class="text-link" href="#landing-decision">/);
   assert.equal((hero.match(/class="secondary-button"/g) ?? []).length, 0,
     "the hero must not carry a third call to action");
+
+  // The path the hero used to lead with is not gone, only moved: analyzing your
+  // own export is offered under the summary, below the one call to action.
+  assert.match(html, /Your own numbers: <a href="\/evolution\.html">analyze a provider export in AI FinOps<\/a>/);
+  assert.ok(
+    html.indexOf("Your own numbers:") > html.indexOf('<section class="landing-decision"'),
+    "the analyze-your-own-export path must read below the hero's call to action",
+  );
 
   // The log is not demoted out of the page, only out of the first screen: its
   // own labelled section, its own heading, and the same call to action landing
