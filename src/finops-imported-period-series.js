@@ -217,20 +217,30 @@ const WORD = Object.freeze({
   [MOVEMENT_DIRECTION.increase]: "up", [MOVEMENT_DIRECTION.decrease]: "down",
 });
 
+/** The file input's own label in src/evolution.html, quoted so the step is findable. */
+const FILE_PICKER_LABEL = "Choose your export files";
+
 /**
  * The movement in words: both period names, the direction, and the magnitude.
  *
- * A single period names itself and states what is missing as a fact about the
- * file, not as an instruction to the reader — nobody is told to re-export.
+ * THE SINGLE-PERIOD STATE IS THREE SENTENCES, AND EACH ONE DOES A DIFFERENT
+ * JOB: what is not on screen, the one input that is missing, and the one step
+ * that supplies it. It used to end at "Movement is stated as soon as a second
+ * period is present" — true, and a fact about the file rather than a step, which
+ * left a reader holding one month with nothing to do about it. Naming the file
+ * picker is not blame: the months are read out of whichever exports are chosen
+ * together, so a second month is a file away and the sentence says which control
+ * takes it.
  */
 export function movementSentence(summary) {
   if (!summary || summary.periodCount === 0) {
     return "No dated period was read from this export, so there is no movement to state.";
   }
   if (summary.periodCount === 1) {
-    return `${summary.onlyPeriod} is the only period in this export: `
-      + `${formatUsd(summary.latestTotal)}. Movement is stated as soon as a second period `
-      + "is present.";
+    return "No month-over-month movement yet. This export covers one month — "
+      + `${summary.onlyPeriod}, at ${formatUsd(summary.latestTotal)} — and a movement needs two. `
+      + `Under "${FILE_PICKER_LABEL}", add an export covering an earlier month: the months are `
+      + "summed from the rows already inside the files you choose.";
   }
   const pair = `${summary.latestPeriod} vs ${summary.priorPeriod}`;
   if (summary.direction === MOVEMENT_DIRECTION.flat) {

@@ -113,26 +113,38 @@ const SLOT_LABELS = Object.freeze({
   [DRILL_DOWN_SLOT_ID]: "Department drill-down rows",
 });
 
+// The two controls these instructions send a reader to, quoted by the exact
+// label each carries in src/evolution.html: the file input's label at line 1386,
+// and the button beside the result at line 1747. Both are on screen whenever
+// this block is, because this block is painted only for an import. An
+// instruction that names no control is one a reader cannot follow.
+const FILE_PICKER_LABEL = "Choose your export files";
+const OPTIONAL_FILE_ACTION = "Add an org mapping or query sample";
+
 /**
- * What a reader can do on THIS page to satisfy each slot. One sentence each,
- * written as an instruction rather than as an apology, and kept here beside the
- * weight so the highest-value gap and its remedy cannot drift apart.
+ * What a reader can do on THIS page to satisfy each slot, naming the control
+ * that does it. Written as an instruction rather than as an apology, and kept
+ * here beside the weight so the highest-value gap and its remedy cannot drift
+ * apart.
  */
 export const SLOT_INSTRUCTIONS = Object.freeze({
-  recoverable_spend: "Import an export that covers at least one complete billing month — "
-    + "a partial month is skipped rather than summed.",
-  peer_position: "The cohort position needs one complete month carrying both a spend total "
-    + "and a recoverable total; supply the recoverable classification and it is placed.",
-  top_department: "Select your HRIS org export beside the provider export, or re-export with "
-    + "the department column included, so recoverable spend can be grouped.",
+  recoverable_spend: `Under "${FILE_PICKER_LABEL}", add an export covering at least one complete `
+    + "billing month — a partial month is skipped rather than summed.",
+  peer_position: "The cohort position needs one complete month carrying both a spend total and a "
+    + `recoverable total. Add the recoverable column and choose the file again under `
+    + `"${FILE_PICKER_LABEL}".`,
+  top_department: `Press "${OPTIONAL_FILE_ACTION}" and select your HRIS org export, or re-export `
+    + "with the department column included, so recoverable spend can be grouped.",
   rank_1_action: "The first action is ranked off the department carrying the most recoverable "
-    + "spend; supply the grouping above and it is ranked from your own rows.",
+    + "spend, so supply the grouping above and it is ranked from your own rows.",
   confidence_tier: "The tier restates the four headline slots and is stated as soon as an "
     + "analysis is on screen.",
-  [TREND_SLOT_ID]: "Import an export covering two or more calendar months — the movement is "
-    + "computed from the months already inside one file, not from a second visit.",
+  [TREND_SLOT_ID]: `Under "${FILE_PICKER_LABEL}", add an export covering two or more calendar `
+    + "months — the movement is computed from the months already inside one file, not from a "
+    + "second visit.",
   [DRILL_DOWN_SLOT_ID]: "Department evidence lists your own rows once provider aggregates join "
-    + "active HRIS units; select the org export to make the join possible.",
+    + `active HRIS units. Press "${OPTIONAL_FILE_ACTION}" and select the org export to make the `
+    + "join possible.",
 });
 
 /** The instruction when nothing is missing. A state, not the absence of one. */
