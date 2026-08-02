@@ -16,7 +16,7 @@ import { parseHtml, tabSequence, textOf } from "./support/browser.js";
 // `title` is the browser title, listed here so it cannot drift from the name
 // the nav gives the same surface.
 const PAGES = [
-  { file: "index.html", current: "/", title: "Shiplog · AI FinOps, decisions, and releases" },
+  { file: "index.html", current: "/", title: "Shiplog · one site for AI spend, decisions, and releases" },
   { file: "decision.html", current: "/", title: "Decision · Shiplog" },
   { file: "workspace.html", current: "/", title: "Local workspace · Shiplog" },
   { file: "social.html", current: "/social.html", title: "Social · Shiplog" },
@@ -122,6 +122,10 @@ test("the home page names the product and what it is for, not just its first sec
   assert.notEqual(title, "Shiplog", "the bare product name says nothing about what it is for");
   assert.match(title, /decision/i);
   assert.match(title, /release/i);
+  // And it reads as one product with parts, not as a menu of three things to
+  // pick between: "Shiplog · AI FinOps, decisions, and releases" listed them as
+  // alternatives, which is the reading this phrasing removes.
+  assert.match(title, /one site for/i, `the home page is titled "${title}"`);
 });
 
 test("no two pages share a document title, and none is longer than a tab can show", async () => {

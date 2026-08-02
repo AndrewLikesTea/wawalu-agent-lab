@@ -11,6 +11,12 @@
 
 /* ------------------------------- the hero ---------------------------------- */
 
+/* The checkable fact under the promise. `.hero > p` is margin-free, so the
+ * proof point needs its own space to read as a second paragraph rather than as
+ * more of the first. No new hue and no new type scale: it inherits the hero's
+ * own body ink. */
+.hero > p.hero-proof-point { margin-top:18px; }
+
 /* The privacy boundary is a claim a reader checks before they decide to try
  * anything, so it is stated in the hero rather than beside the picker a page
  * away. Bordered, not tinted: the words carry it in greyscale too. */
