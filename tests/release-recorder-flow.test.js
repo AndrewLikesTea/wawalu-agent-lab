@@ -113,7 +113,7 @@ test("a release is recorded from the page with the decisions it carried", async 
   optionFor(page, QUEUE_DECISION.title).focus();
   pressSpace(page.document);
   assert.equal(optionFor(page, QUEUE_DECISION.title).checked, true);
-  assert.equal(summaryText(page), "1 of 2 decisions linked. “Adopt a durable job queue” governs this release.");
+  assert.equal(summaryText(page), "1 of 2 decisions linked. “Adopt a durable job queue” is the primary linked decision.");
 
   fillRequired(page, { version: "v1.4.0" });
   fill(page, "release-title", "Throughput work");
@@ -156,7 +156,7 @@ test("more than one decision can be linked, in the order they were picked", asyn
   optionFor(page, QUEUE_DECISION.title).click();
   optionFor(page, CACHE_DECISION.title).click();
   // The first tick is the governing decision, and the summary says which.
-  assert.equal(summaryText(page), "2 of 2 decisions linked. “Adopt a durable job queue” governs this release.");
+  assert.equal(summaryText(page), "2 of 2 decisions linked. “Adopt a durable job queue” is the primary linked decision.");
   fillRequired(page, { version: "v2.0.0" });
   submit(page);
 
@@ -184,7 +184,7 @@ test("a rejected submit keeps the linked decisions and writes nothing", async (t
 
   assert.deepEqual(stored(page), [], "an invalid release was written anyway");
   assert.equal(optionFor(page, CACHE_DECISION.title).checked, true, "the selection was lost with the rejected submit");
-  assert.equal(summaryText(page), "1 of 2 decisions linked. “Cache the read path” governs this release.");
+  assert.equal(summaryText(page), "1 of 2 decisions linked. “Cache the read path” is the primary linked decision.");
   assert.equal(page.document.querySelector("#release-owner").value, "Priya", "the typed owner was lost");
   assert.equal(page.document.querySelector("#release-released-on").value, "2026-07-02", "the typed date was lost");
 
@@ -244,7 +244,7 @@ test("a failed save is reported and preserves the release for retry", async (t) 
   assert.equal(page.document.querySelector("#release-version").value, "v1.5.0");
   assert.equal(page.document.querySelector("#release-owner").value, "Priya");
   assert.equal(optionFor(page, QUEUE_DECISION.title).checked, true);
-  assert.equal(summaryText(page), "1 of 1 decision linked. “Adopt a durable job queue” governs this release.");
+  assert.equal(summaryText(page), "1 of 1 decision linked. “Adopt a durable job queue” is the primary linked decision.");
   assert.equal(textOf(page.document.querySelector("#release-record-status")), "");
 });
 

@@ -80,7 +80,7 @@
             <div class="field field-wide">
               <label for="release-description">Summary</label>
               <textarea id="release-description" name="description" rows="4" maxlength="1000" required aria-describedby="release-description-hint"></textarea>
-              <span class="hint" id="release-description-hint">What shipped, in a sentence or two. Every release carries one.</span>
+              <span class="hint" id="release-description-hint">What shipped, in a sentence or two; a summary is required.</span>
             </div>
 
             <!-- The multi-select is a native checkbox group: every option is a
@@ -95,7 +95,7 @@
                  invalid and returns focus to it. -->
             <fieldset class="field field-wide decision-picker-field" id="release-decisions-field" aria-describedby="release-decisions-hint release-decisions-summary">
               <legend>Link decisions to this release</legend>
-              <p class="hint" id="release-decisions-hint">Tick every decision this release carried; at least one is required. The first decision you select is the release’s primary linked decision. Any additional decisions you select remain linked to the release. Tab moves through the list; Space links or unlinks the decision in focus.</p>
+              <p class="hint" id="release-decisions-hint">Tick every decision this release carried; at least one is required. The first decision you select is the release’s primary linked decision. Tab moves through the list; Space links or unlinks the decision in focus.</p>
               <p class="decision-picker-summary" id="release-decisions-summary" role="status" aria-live="polite">No decisions linked yet.</p>
               <div class="decision-picker" id="release-decisions"></div>
             </fieldset>
@@ -145,12 +145,13 @@
           </div>
           <!-- Radios, not a select: the options are few, all six stay visible
                with the chosen one marked, and the platform gives the group one
-               tab stop with arrow-key movement for free. "Missing decision" is
-               not a status a decision can hold — it is an association pointing
-               at a decision this log does not have. -->
+               tab stop with arrow-key movement for free. The last option is not
+               a status a decision can hold — it selects releases whose linked
+               decision id resolves to nothing, so its label names the
+               association rather than posing as a fifth status. -->
           <fieldset class="filter filter-group release-decision-filter" aria-describedby="release-decision-status-hint">
             <legend>Linked decision status</legend>
-            <p class="hint" id="release-decision-status-hint">Shows releases carrying at least one decision in the chosen state. Arrow keys move between the options.</p>
+            <p class="hint" id="release-decision-status-hint">Shows releases carrying at least one decision in the chosen state. “Decision not in this log” shows releases linked to a decision this log does not hold. Arrow keys move between the options.</p>
             <div class="filter-options">
               <span class="filter-option">
                 <input id="release-decision-status-all" name="release-decision-status" type="radio" value="all" checked />
@@ -174,7 +175,7 @@
               </span>
               <span class="filter-option">
                 <input id="release-decision-status-missing" name="release-decision-status" type="radio" value="missing" />
-                <label for="release-decision-status-missing">Missing decision</label>
+                <label for="release-decision-status-missing">Decision not in this log</label>
               </span>
             </div>
           </fieldset>
