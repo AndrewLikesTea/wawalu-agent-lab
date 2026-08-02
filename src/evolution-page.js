@@ -283,6 +283,10 @@ import {
   announceAnswer, importFailureAnnouncement, silenceEchoedRegions,
 } from "/finops-answer-announcement.js";
 import {
+  bindLocalExportActivation, LOCAL_EXPORT_ACTIVATION_STATE, renderLocalExportActivation,
+  settleLocalExportActivation,
+} from "/local-export-activation.js";
+import {
   announce as announceStage, applyDatasetProvenance, applyExportPackageGuidance,
   applyFieldDiagnostic, applyImportLimits, applyOrgQuerySources, applyOrgQuerySourceStatus,
   applyBriefing, applyBriefingState, applyImportProgress, applyMetricBasis, applyProviderCoverage,
@@ -750,6 +754,9 @@ function mountLocalFinopsImport() {
     const projection = projectProviderExport(providerDocument);
     if (!renderProviderExportProjection(document, projection)) {
       renderOwnDataEvidenceState(document, OWN_DATA_VIEW_STATE.VALIDATION_ERROR);
+      renderLocalExportActivation(document, LOCAL_EXPORT_ACTIVATION_STATE.ERROR);
+    } else {
+      renderLocalExportActivation(document, LOCAL_EXPORT_ACTIVATION_STATE.READY);
     }
   };
   const stateNode = document.getElementById("local-import-state");
@@ -1489,6 +1496,11 @@ function mountLocalFinopsImport() {
   const renderResult = (next, { example = false, inputs = loaded } = {}) => {
     result = next;
     exampleActive = example;
+    // The activation says which dataset the finding below it came from, so it
+    // is bound to the same fact every other panel is relabelled from. Painting
+    // the example while it still reads "your provider export is active" is the
+    // mislabelling `reset` exists to prevent, arriving by a different door.
+    if (example) renderLocalExportActivation(document, LOCAL_EXPORT_ACTIVATION_STATE.IDLE);
     // Selection order cannot weaken period validation. If the delivery file was
     // read before the provider file, parse it again against the now-known spend
     // window before any ratio is painted. This is replacement, not accumulation,
@@ -1895,6 +1907,7 @@ function mountLocalFinopsImport() {
     clearJourneySnapshot(browserFinopsWorkspaceStorage());
     currentBriefing = null;
     exampleActive = false;
+    renderLocalExportActivation(document, LOCAL_EXPORT_ACTIVATION_STATE.IDLE);
     // The reader's own coverage figure goes with the reader's own analysis. A
     // verdict outliving the import it was measured from is the mislabelling the
     // clear exists to prevent, in the other direction.
@@ -2025,6 +2038,7 @@ function mountLocalFinopsImport() {
       code: error?.code, message: error?.message, ordinal: file.ordinal, total: file.total,
     });
     applyFieldDiagnostic(document, diagnostic);
+    renderLocalExportActivation(document, LOCAL_EXPORT_ACTIVATION_STATE.ERROR);
     showTransientBasis("failed");
     // Every panel goes back to the sample together. A surface with the KPI row
     // swapped and the grade stale would be a half-import nobody asked for, and
@@ -2599,6 +2613,7 @@ function mountLocalFinopsImport() {
     const files = [...input.files];
     if (!files.length) return;
     stateNode.setAttribute("aria-busy", "true");
+    renderLocalExportActivation(document, LOCAL_EXPORT_ACTIVATION_STATE.READING);
     resultsNode.setAttribute("aria-busy", "true");
     applyFieldDiagnostic(document, null);
     announce("loading", "Reading files in this tab…",
@@ -2641,6 +2656,9 @@ function mountLocalFinopsImport() {
       // file that carried no provider period — must not leave "reading…" on a
       // panel that has stopped reading.
       endSpendPerDeliveryLoading();
+      // Same rule, one panel over: a path that stopped without painting a
+      // verdict must not leave the primary action disabled under "reading…".
+      settleLocalExportActivation(document, LOCAL_EXPORT_ACTIVATION_STATE.IDLE);
       input.value = "";
     }
   });
@@ -2656,6 +2674,14 @@ function mountLocalFinopsImport() {
     }, entry);
   });
   clear?.addEventListener("click", reset);
+  bindLocalExportActivation(document, {
+    onChoose: () => {
+      applyFieldDiagnostic(document, null);
+      input.focus?.();
+      input.click?.();
+    },
+    onReturn: reset,
+  });
   // One click, one computed finding. Translating the bundled export and running
   // the analysis is the same synchronous pair of calls the file input makes, so
   // there is no intermediate state to show and nothing to confirm.
@@ -2703,6 +2729,7 @@ function mountLocalFinopsImport() {
     applyImportProgress(document, null);
     closeReview();
     applyFieldDiagnostic(document, null);
+    renderLocalExportActivation(document, LOCAL_EXPORT_ACTIVATION_STATE.IDLE);
     input.value = "";
     syncStage();
     announce("ready", stopped ? "Import cancelled." : "Nothing was running.",

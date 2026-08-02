@@ -1115,6 +1115,17 @@
             <span id="analysis-mode-label">Bundled synthetic example</span>
           </span>
         </div>
+        <div class="local-export-activation" id="local-export-activation" data-state="idle" aria-busy="false">
+          <div>
+            <p class="eyebrow">Start with one file</p>
+            <p class="local-export-activation-lead"><strong>Use your provider export for this decision.</strong> One provider period export — CSV, TSV, or a v1 JSON envelope — is validated and analyzed in this tab.</p>
+            <p id="local-export-activation-status">Bundled example is active. Choose one provider JSON export to answer this question with your data.</p>
+          </div>
+          <div class="local-export-activation-actions">
+            <button class="local-export-primary" id="activate-local-export" type="button">Choose a provider export</button>
+            <button id="return-to-bundled-example" type="button" hidden>Return to bundled example</button>
+          </div>
+        </div>
         <section class="own-data-preflight" id="own-data-evidence-preflight" data-outcome="loading" aria-labelledby="own-data-preflight-question" aria-describedby="own-data-preflight-status" aria-busy="true">
           <p class="eyebrow">Evidence preflight · bundled local example</p>
           <h3 id="own-data-preflight-question">Can this export support a trustworthy department-spend decision?</h3>
