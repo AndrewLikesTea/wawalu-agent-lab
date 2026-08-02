@@ -51,7 +51,7 @@ const seedOnly = (posts) => (url) => {
 // document rather than from a known id is the point: a second back link
 // appearing anywhere — in the markup, in a state panel — fails here.
 function exits(document) {
-  return document.querySelectorAll("a").filter((link) => /←|Back to|Return to/.test(link.textContent));
+  return document.querySelectorAll("a").filter((link) => /←|Back to/.test(link.textContent));
 }
 
 function assertOneExit(page, expected, where) {
@@ -103,16 +103,17 @@ test("an unknown id is named as a missing post, with the feed still the way out"
   const page = await openPostPage("?id=p-gone", seedOnly([SEED_POST]));
   try {
     assert.match(textOf(page.panel), /Post unavailable/);
-    assert.match(textOf(page.panel), /It may have been removed, or the link may be incomplete\. Browse Social to find another post\./);
+    assert.match(textOf(page.panel), /This post is unavailable or no longer exists\./);
+    assert.match(textOf(page.panel), /Social is a shared demo feed, not a signed-in account\./);
     // No post, no author: the h1 names the page rather than standing as "Post".
     assert.equal(textOf(page.document.querySelector("#page-title")), "Post from Social");
-    assert.doesNotMatch(textOf(page.panel), /couldn’t be loaded|Try again/);
+    assert.doesNotMatch(textOf(page.panel), /Try again/);
     assert.equal(page.panel.querySelector(".detail-state-message").getAttribute("role"), "status");
     assert.equal(page.document.title, "Post unavailable · Shiplog");
     assertOneExit(page, SOCIAL, "not found");
-    // The standing exit is the feed here, so the panel adds nothing: exactly one
-    // link to Social on the page, and it is keyboard-reachable.
-    assert.equal(page.panel.querySelectorAll(".detail-state-feed").length, 0);
+    const feed = page.panel.querySelector(".detail-state-feed");
+    assert.equal(textOf(feed), "Return to the Social feed");
+    assert.equal(feed.getAttribute("href"), "/social.html");
     assert.ok(tabSequence(page.document).includes(page.document.querySelector("#post-back")));
   } finally {
     page.restore();
@@ -127,7 +128,7 @@ test("a missing post reached from a profile still offers the feed it belonged to
     // have no route at all to the feed the missing post lived in.
     const feed = page.panel.querySelector(".detail-state-feed");
     assert.equal(feed.getAttribute("href"), "/social.html");
-    assert.equal(textOf(feed), "Browse the Social feed");
+    assert.equal(textOf(feed), "Return to the Social feed");
     const toFeed = page.document.querySelectorAll("a")
       .filter((link) => link.getAttribute("href") === "/social.html" && !link.closest(".site-nav"));
     assert.equal(toFeed.length, 1, "one link to Social outside the site nav, not two");
@@ -140,17 +141,16 @@ test("a missing post reached from a profile still offers the feed it belonged to
   }
 });
 
-test("a failed lookup says the load failed, and its retry re-runs the fetch and recovers", async () => {
+test("a failed lookup shows the unavailable state, and retry can recover", async () => {
   let failing = true;
   const page = await openPostPage("?id=p-image", (url) => {
     if (failing) throw new TypeError("Failed to fetch");
     return seedOnly([SEED_POST])(url);
   });
   try {
-    assert.match(textOf(page.panel), /Post couldn’t be loaded/);
-    assert.match(textOf(page.panel), /We couldn’t reach Social, so this post didn’t load\. Try again in a moment\./);
-    // A failure, not an absence: the missing state's words must not appear here.
-    assert.doesNotMatch(textOf(page.panel), /not found|may have been removed/i);
+    assert.match(textOf(page.panel), /Post unavailable/);
+    assert.match(textOf(page.panel), /This post is unavailable right now\./);
+    assert.match(textOf(page.panel), /Social is a shared demo feed, not a signed-in account\./);
     assertOneExit(page, SOCIAL, "failed");
 
     const retry = page.panel.querySelector("button");
@@ -168,7 +168,7 @@ test("a failed lookup says the load failed, and its retry re-runs the fetch and 
     assert.ok(page.requests.length > before, "the retry must actually re-run the fetch");
     assert.equal(textOf(page.document.querySelector("#page-title")), "Post by Mina Okafor");
     assert.equal(textOf(page.panel.querySelector("figcaption")), "The middle card, ringed.");
-    assert.doesNotMatch(textOf(page.panel), /couldn’t be loaded/);
+    assert.doesNotMatch(textOf(page.panel), /Post unavailable/);
     assertOneExit(page, SOCIAL, "recovered");
   } finally {
     page.restore();
@@ -240,9 +240,10 @@ test("the failed state reads back link, then the post's region, then its retry",
     assert.ok(sequence.includes(back) && sequence.includes(retry), "both controls are reachable by keyboard");
     assert.ok(sequence.indexOf(back) < sequence.indexOf(retry), "the exit comes before the retry");
     assert.ok(retry.closest("#post-detail"), "the retry belongs to the post's region, not the page frame");
-    // The retry is the only control the panel adds.
+    // The panel offers both a return to the feed and a retry.
     assert.equal(page.panel.querySelectorAll("button").length, 1);
-    assert.equal(page.panel.querySelectorAll("a").length, 0);
+    assert.equal(page.panel.querySelectorAll("a").length, 1);
+    assert.equal(textOf(page.panel.querySelector("a")), "Return to the Social feed");
   } finally {
     page.restore();
   }

@@ -5,9 +5,9 @@
 // core (resolution) plus a rendering layer, and the same rule about text —
 // textContent only, never an HTML string.
 //
-// Four states, because they are four different things to a reader: loading,
-// found, "no such post", and "the lookup failed". Collapsing the last two would
-// tell someone their post was deleted when the network merely blinked.
+// Four states: loading, found, no requested post, and a lookup failure. Both
+// unresolved requested-post states use the same plain "unavailable" language;
+// the failed lookup also offers a retry without claiming the post was deleted.
 
 // Relative, not root-absolute: this module is imported by `node --test` as well
 // as by the browser, and only a relative specifier resolves in both.
@@ -55,10 +55,9 @@ function formatDateTime(iso) {
   return new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(iso));
 }
 
-// The page carries exactly one standing exit, in src/post.html, named by
-// postReturnContext above. No state renders a second way back — with one narrow
-// exception, feedAction() below, for the reader whose exit does not lead to the
-// feed and whose post is not there.
+// The page carries a standing exit in src/post.html, named by postReturnContext
+// above. An unavailable-post state also owns an explicit return action so the
+// next step remains visible beside the explanation.
 
 // One title and one sentence per resolved state, in the same shape the decision
 // detail uses: a status chip, a heading that names the state, then a single line
@@ -83,20 +82,14 @@ const POST_STATE_COPY = {
     tone: "missing",
     label: "Unavailable",
     title: "Post unavailable",
-    // Second sentence names the way on: this state is the one place a reader can
-    // land with nothing to read, and "browse Social" is true whichever route the
-    // page is offering them — the standing exit when they came from the feed,
-    // the feed link feedAction() adds when they came from a profile.
-    description: "It may have been removed, or the link may be incomplete. Browse Social to find another post.",
+    description: "This post is unavailable or no longer exists. Social is a shared demo feed, not a signed-in account.",
   },
   error: {
     className: "empty-state-error detail-state-unavailable",
     tone: "error",
-    label: "Error",
-    title: "Post couldn’t be loaded",
-    // Points at the retry button this state ships, and says the wait is worth
-    // it: nothing here suggests the post is gone, because it probably is not.
-    description: "We couldn’t reach Social, so this post didn’t load. Try again in a moment.",
+    label: "Unavailable",
+    title: "Post unavailable",
+    description: "This post is unavailable right now. Social is a shared demo feed, not a signed-in account.",
   },
 };
 
@@ -119,17 +112,11 @@ function labelledState(state, actions = []) {
   return node;
 }
 
-// The one case where a panel may link to Social itself.
-//
-// The standing exit is usually the feed, and then this adds nothing and renders
-// nothing: one link to Social on the page, never two. But a reader who arrived
-// from a profile has an exit that goes back to that profile, and if the post
-// they clicked is gone, nothing on the page reaches the feed the post belonged
-// to. That reader gets this link, and only in the states where the post is not
-// there to read.
-function feedAction(returnHref) {
-  if (String(returnHref ?? DEFAULT_POST_RETURN.href).startsWith(DEFAULT_POST_RETURN.href)) return null;
-  const link = el("a", "empty-action empty-action-secondary detail-state-feed", "Browse the Social feed");
+// Every unavailable requested-post panel links to the feed itself. Keeping the
+// action with the state makes the next step explicit even when the standing
+// exit above happens to lead to the same place.
+function feedAction() {
+  const link = el("a", "empty-action empty-action-secondary detail-state-feed", "Return to the Social feed");
   link.href = DEFAULT_POST_RETURN.href;
   return link;
 }
@@ -194,15 +181,15 @@ function renderMedia(image, caption) {
   return frame;
 }
 
-function renderMissing(container, id, returnHref) {
-  container.append(labelledState(id ? "not-found" : "empty", [feedAction(returnHref)]));
+function renderMissing(container, id) {
+  container.append(labelledState(id ? "not-found" : "empty", [id ? feedAction() : null]));
 }
 
 function renderFailed(container, onRetry) {
   const retry = el("button", "empty-action detail-retry", "Retry");
   retry.type = "button";
   if (onRetry) retry.addEventListener("click", onRetry);
-  container.append(labelledState("error", [retry]));
+  container.append(labelledState("error", [feedAction(), retry]));
 }
 
 // Waiting is not one of the states above, and it does not get their furniture.
@@ -314,12 +301,9 @@ export function postPageHeading(post) {
 // nav names, then the product. src/post.html ships titled "Post · Social ·
 // Shiplog", which is what a reader sees until this runs.
 //
-// The title says what the panel says, in the panel's words: a post that is not
-// there is "unavailable" in both places, and a load that failed says so in both.
-// They used to be crossed — the tab read "Post unavailable" for the failure and
-// "Post not found" for the absence, which is the one distinction this page
-// exists to keep straight.
-export function postDetailTitle(post, state = "ready") {
+// The title says what the panel says: any requested post that cannot render is
+// "unavailable," whether the lookup returned nothing or could not complete.
+export function postDetailTitle(post) {
   if (post?.author) return recordTitle(`Post by ${post.author}`, { surface: "Social", fallback: "Post" });
-  return state === "error" ? pageTitle("Post couldn’t be loaded") : pageTitle("Post unavailable");
+  return pageTitle("Post unavailable");
 }

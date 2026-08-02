@@ -207,13 +207,13 @@ test("a missing post is named in plain language, with no id or code echoed back"
   renderPostDetail(missing, null, { id: "p-gone", author: "Mina" });
   assert.equal(first(missing, "detail-state-label").textContent, "Unavailable");
   assert.equal(first(missing, "empty-title").textContent, "Post unavailable");
-  assert.match(missing.textContent, /It may have been removed, or the link may be incomplete\./);
-  // And it points at the surface the post came from, so the reader is not left
-  // holding a dead link with nowhere named to go next.
-  assert.match(missing.textContent, /Browse Social to find another post\./);
+  assert.match(missing.textContent, /This post is unavailable or no longer exists\./);
+  assert.match(missing.textContent, /Social is a shared demo feed, not a signed-in account\./);
   assert.equal(missing.firstChild.getAttribute("role"), "status");
   assert.ok(ids(missing).includes(missing.firstChild.getAttribute("aria-labelledby")));
-  assert.equal(byClass(missing, "empty-action-secondary").length, 0, "the standing back link is not repeated here");
+  const feed = first(missing, "detail-state-feed");
+  assert.equal(feed.textContent, "Return to the Social feed");
+  assert.equal(feed.href, "/social.html");
   // The reader is told the post is gone, not shown the string they typed.
   assert.doesNotMatch(missing.textContent, /p-gone|404|null|undefined/);
 });
@@ -222,15 +222,15 @@ test("a failed load says what happened once, offers a retry, and leaks no error 
   const failed = createElement("div");
   let retried = 0;
   renderPostDetail(failed, null, { state: "error", id: "p-gone", author: "Mina", onRetry: () => { retried += 1; } });
-  assert.equal(first(failed, "detail-state-label").textContent, "Error");
-  assert.equal(first(failed, "empty-title").textContent, "Post couldn’t be loaded");
-  assert.match(failed.textContent, /We couldn’t reach Social, so this post didn’t load\. Try again in a moment\./);
+  assert.equal(first(failed, "detail-state-label").textContent, "Unavailable");
+  assert.equal(first(failed, "empty-title").textContent, "Post unavailable");
+  assert.match(failed.textContent, /This post is unavailable right now\./);
+  assert.match(failed.textContent, /Social is a shared demo feed, not a signed-in account\./);
   assert.equal(failed.firstChild.getAttribute("role"), "alert");
   assert.doesNotMatch(failed.textContent, /p-gone|\b[45]\d\d\b|Error:|fetch|TypeError/);
-  // Retry is the only action this state offers; the way back is the page's
-  // standing back link, not a second copy of it inside the panel.
+  // The state offers both ways forward: leave for the feed or retry in place.
   assert.match(failed.textContent, /Retry/);
-  assert.equal(byClass(failed, "empty-action-secondary").length, 0);
+  assert.equal(first(failed, "detail-state-feed").textContent, "Return to the Social feed");
   tags(failed, "BUTTON")[0].dispatch("click");
   assert.equal(retried, 1, "a failed load offers a retry");
 });
@@ -292,10 +292,9 @@ test("the permalink heading matches the phrase in the document title", () => {
 
 test("the document title names the post, the feed, and the product", () => {
   assert.equal(postDetailTitle(post), "Post by Mina Okafor · Social · Shiplog");
-  // The tab reads what the panel reads: absence is "unavailable" in both, a
-  // failed load says it failed in both. These two used to be swapped.
+  // Every unresolved requested post is unavailable in both the tab and panel.
   assert.equal(postDetailTitle(null), "Post unavailable · Shiplog");
-  assert.equal(postDetailTitle(null, "error"), "Post couldn’t be loaded · Shiplog");
+  assert.equal(postDetailTitle(null, "error"), "Post unavailable · Shiplog");
 });
 
 test("the post page's exit sits after the site frame, and names where it goes", async () => {
@@ -405,38 +404,34 @@ test("the standing sentence outlives every state the panel renders", () => {
     renderPostDetail(container, value, options);
 
     assert.match(main.textContent, /Social is a shared demo feed/, `the sentence is gone in the ${name} state`);
-    // The panel keeps its own copy exactly as shipped and never restates this.
-    assert.doesNotMatch(container.textContent, /Social is a shared demo feed/, `the ${name} panel restates the sentence`);
+    if (["missing", "error"].includes(name)) {
+      assert.match(container.textContent, /not a signed-in account/, `the ${name} state must set demo context`);
+    }
   }
 });
 
-test("exactly one standing exit renders on the post page, in every state", async () => {
+test("the standing exit remains while unavailable states add a clear feed action", async () => {
   const html = await postPageHtml();
   assert.equal([...html.matchAll(/id="post-back"/g)].length, 1, "one standing exit in the markup");
   assert.equal([...html.matchAll(/class="detail-back detail-page-back"/g)].length, 1, "and only one");
   assert.equal([...html.matchAll(/<a [^>]*>← Back to /g)].length, 1, "one back label ships, not two stacked ones");
 
-  // No state may add a second one, whatever it renders: the count above is the
-  // whole page's count only if the panel contributes nothing to it.
   for (const [name, value, options] of PANEL_STATES) {
     const container = createElement("div");
     renderPostDetail(container, value, options);
     const backish = tags(container, "A").filter((link) => /Back to|Return to/.test(link.textContent));
-    assert.equal(backish.length, 0, `the ${name} state renders its own back link`);
-    const toExits = tags(container, "A")
-      .filter((link) => ["/social.html", "/profile.html"].some((href) => String(link.href ?? "").startsWith(href)));
-    assert.equal(toExits.length, 0, `the ${name} state links to an exit destination itself`);
+    assert.equal(backish.length, ["missing", "error"].includes(name) ? 1 : 0);
   }
 });
 
-test("no panel state renders its own way out; the standing exits own that job", () => {
+test("only unavailable requested-post states render a feed action", () => {
   for (const [name, value, options] of PANEL_STATES) {
     const container = createElement("div");
     renderPostDetail(container, value, options);
     assert.equal(
       byClass(container, "empty-action-secondary").length,
-      0,
-      `the ${name} state restates one of the standing exits`,
+      ["missing", "error"].includes(name) ? 1 : 0,
+      `the ${name} state has the expected feed action`,
     );
     // Retry is the one action a state still owns, because no standing link can
     // re-run a failed fetch.
@@ -447,7 +442,7 @@ test("no panel state renders its own way out; the standing exits own that job", 
 
 /* --------------- states a reader can tell apart with colour off ----------- */
 
-test("loading, not found and failed each say a different thing, in words", () => {
+test("loading and unavailable states say what happened in words", () => {
   const render = (value, options) => {
     const container = createElement("div");
     renderPostDetail(container, value, options);
@@ -464,8 +459,7 @@ test("loading, not found and failed each say a different thing, in words", () =>
     first(missing, "empty-title").textContent,
     first(failed, "empty-title").textContent,
   ];
-  assert.deepEqual(titles, ["Loading this post from Social…", "Post unavailable", "Post couldn’t be loaded"]);
-  assert.equal(new Set(titles).size, 3, "two states share a title");
+  assert.deepEqual(titles, ["Loading this post from Social…", "Post unavailable", "Post unavailable"]);
 
   // The difference has to survive with colour, icons and badges removed, so it
   // is asserted on the words themselves — no class name is read here.
@@ -473,14 +467,10 @@ test("loading, not found and failed each say a different thing, in words", () =>
   const missingWords = words(missing);
   const failedWords = words(failed);
   const only = (a, b) => [...a].filter((word) => !b.has(word));
-  assert.ok(only(missingWords, failedWords).includes("removed"), "the missing state must say the post is gone");
-  assert.ok(only(failedWords, missingWords).some((word) => ["couldn’t", "reach"].includes(word)),
-    "the failed state must describe a failure, not an absence");
+  assert.ok(only(missingWords, failedWords).includes("exists"), "the missing state may say the post no longer exists");
+  assert.ok(only(failedWords, missingWords).includes("now"), "the failed state must describe temporary unavailability");
 
-  // And in the other direction: neither state may be readable as the other. The
-  // missing state does say "unavailable" — that is the word for a post that is
-  // not there — but it never describes a failure, and the failure never
-  // describes an absence.
+  // Neither state makes the temporary failure sound like confirmed deletion.
   assert.doesNotMatch(missing.textContent, /couldn’t|failed|try again/i);
   assert.doesNotMatch(failed.textContent, /removed|incomplete|may have been/i);
 });
@@ -494,7 +484,7 @@ test("each state's chip carries a word, and a wash that only agrees with it", as
 
   const chips = [
     ["not-found", chipOf(null, { state: "ready", id: "p-gone" }), "missing", "Unavailable"],
-    ["error", chipOf(null, { state: "error", id: "p-gone" }), "error", "Error"],
+    ["error", chipOf(null, { state: "error", id: "p-gone" }), "error", "Unavailable"],
     ["id-less", chipOf(null, { state: "ready", id: "" }), "neutral", "Post status"],
   ];
 
@@ -504,7 +494,7 @@ test("each state's chip carries a word, and a wash that only agrees with it", as
     assert.equal(chip.textContent, text, `the ${name} chip must name its state in words`);
     assert.ok(chip.classes.includes(`detail-state-chip-${tone}`), `the ${name} chip carries its tone class`);
   }
-  assert.equal(new Set(chips.map(([, chip]) => chip.textContent)).size, 3, "two chips share a word");
+  assert.equal(new Set(chips.map(([, chip]) => chip.textContent)).size, 2);
 
   // A resolved lookup is a dynamic signal, so every one of these is a filled
   // wash. The outline chip is this site's mark for a standing classification,
@@ -530,21 +520,21 @@ test("a missing post reaches the feed even when the standing exit does not", () 
   const feed = first(fromProfile, "detail-state-feed");
   assert.equal(feed.tagName, "A");
   assert.equal(feed.href, "/social.html");
-  assert.equal(feed.textContent, "Browse the Social feed");
+  assert.equal(feed.textContent, "Return to the Social feed");
   // It comes after the words that explain it, so it is not tabbed to first.
   assert.equal(fromProfile.firstChild.lastChild, feed);
 
-  // Arrived any other way: the standing exit already is the feed, so nothing is
-  // added — one link to Social on the page, never two.
+  // The unavailable state owns this next step even when the standing exit also
+  // points to Social.
   for (const returnHref of ["/social.html", undefined]) {
     const container = createElement("div");
     renderPostDetail(container, null, { id: "p-gone", returnHref });
-    assert.equal(byClass(container, "detail-state-feed").length, 0, `"${returnHref}" must not add a second feed link`);
+    assert.equal(byClass(container, "detail-state-feed").length, 1);
   }
-  // And a post that failed to load is not missing: its action is the retry.
+  // A post that failed to load offers both a feed return and retry.
   const failed = createElement("div");
   renderPostDetail(failed, null, { state: "error", id: "p-gone", returnHref: "/profile.html" });
-  assert.equal(byClass(failed, "detail-state-feed").length, 0);
+  assert.equal(byClass(failed, "detail-state-feed").length, 1);
 });
 
 /* ------------------------- extremes stay in the page ---------------------- */
