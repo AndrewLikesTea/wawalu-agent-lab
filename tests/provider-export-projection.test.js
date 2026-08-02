@@ -244,5 +244,5 @@ test("the live workspace wires JSON and mapped provider exports into the project
   assert.match(entry, /import\("\/provider-export-projection\.js"\)/);
   assert.match(entry, /const projection = projectProviderExport\(providerDocument\)/);
   assert.match(entry, /renderProviderExportProjection\(document, projection\)/);
-  assert.equal((entry.match(/await paintProviderProjection\(parsed\.document\)/g) ?? []).length, 2);
+  assert.equal((entry.match(/await paintProviderProjection\(parsed\.document\)/g) ?? []).length, 3);
 });

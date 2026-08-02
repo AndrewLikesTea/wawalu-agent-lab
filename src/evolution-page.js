@@ -94,6 +94,9 @@ import { briefingDerivation } from "/finops-briefing-derivation.js";
 // return the same parsed v1 envelope, so nothing below this line changes.
 import { isDelimitedFileName, parseLocalImportFile } from "/finops-tabular-import.js";
 import { readDelimitedText } from "/delimited-text.js";
+import {
+  assessNativeProviderActivation, NATIVE_ACTIVATION_STATUS,
+} from "/native-provider-activation.js";
 // Where that one call runs. A module worker when the browser has one, this
 // thread when it does not; the ceilings and the messages are the same either
 // way, and the worker calls the same `parseLocalImportFile` imported above.
@@ -748,6 +751,8 @@ function mountLocalFinopsImport() {
   // Provider projection code is needed only after a visitor selects a provider
   // file. Keep it out of the cold-load graph, then run both pure modules from
   // the already-validated in-memory document; this opens no network data path.
+  // Returns whether the projection painted, so a caller that would otherwise
+  // report success cannot paint "ready" over the error state set below.
   const paintProviderProjection = async (providerDocument) => {
     renderOwnDataEvidenceState(document, OWN_DATA_VIEW_STATE.LOADING);
     const [{ projectProviderExport }, { renderProviderExportProjection }] = await Promise.all([
@@ -758,9 +763,10 @@ function mountLocalFinopsImport() {
     if (!renderProviderExportProjection(document, projection)) {
       renderOwnDataEvidenceState(document, OWN_DATA_VIEW_STATE.VALIDATION_ERROR);
       renderLocalExportActivation(document, LOCAL_EXPORT_ACTIVATION_STATE.ERROR);
-    } else {
-      renderLocalExportActivation(document, LOCAL_EXPORT_ACTIVATION_STATE.READY);
+      return false;
     }
+    renderLocalExportActivation(document, LOCAL_EXPORT_ACTIVATION_STATE.READY);
+    return true;
   };
   const stateNode = document.getElementById("local-import-state");
   const resultsNode = document.getElementById("local-results");
@@ -2127,6 +2133,71 @@ function mountLocalFinopsImport() {
   };
 
   /**
+   * The one-file native path, and what the queue does next.
+   *
+   * Three outcomes, because a refusal here has to end the selection the way
+   * every other refusal in `processQueue` does. "queued" hands the file back to
+   * the mapping step, "activated" means the analysis ran and the selection may
+   * finish, and "refused" means a diagnostic already owns the flow. Falling
+   * through on a refusal would reach `finishSelection`, whose polite "n
+   * compatible files ready" both erases the assertive rejection — one announcer,
+   * two regions, each clearing the other — and moves focus off the picker the
+   * diagnostic was just attached to.
+   */
+  const activateNativeProvider = async (file) => {
+    const reading = readDelimitedText(file.text, boundedDelimitedOptions());
+    if (!reading.ok) return "queued";
+    const activation = assessNativeProviderActivation(reading);
+    if (activation.status === NATIVE_ACTIVATION_STATUS.NOT_NATIVE) return "queued";
+    if (activation.status === NATIVE_ACTIVATION_STATUS.INCOMPLETE) {
+      failFile({ code: "missing_required_column", message: activation.message }, file);
+      renderLocalExportActivation(document, LOCAL_EXPORT_ACTIVATION_STATE.ERROR, activation);
+      announce("error", "This provider export is incomplete.", activation.message);
+      return "refused";
+    }
+    renderLocalExportActivation(document, LOCAL_EXPORT_ACTIVATION_STATE.READING, activation);
+    announce("loading", "Compatible provider export detected.", activation.message);
+    let parsed;
+    try {
+      const options = boundedDelimitedOptions();
+      parsed = await runImport(file, options,
+        () => parseLocalImportFile(file.text, file.fileName, file.mediaType, options));
+    } catch (error) {
+      applyImportProgress(document, null);
+      // A cancel is the reader's own decision, already announced where they made
+      // it. It is not a file defect on this path either.
+      if (error?.code === CANCELLED_CODE) return "refused";
+      renderOwnDataEvidenceState(document, OWN_DATA_VIEW_STATE.VALIDATION_ERROR);
+      failFile(error, file);
+      return "refused";
+    }
+    // The adapter matched a header row; only the parser and the projection can
+    // say the bytes behind it are a provider export this page can read. A claim
+    // neither of them upheld is a refusal with a recovery sentence, never a
+    // "ready" state and an "adapter active" announcement painted over an error.
+    if (parsed.type !== "provider" || !await paintProviderProjection(parsed.document)) {
+      failFile({
+        code: "contract_rejected",
+        message: `${activation.providerLabel} matched adapter v${activation.adapterVersion}, `
+          + "but its rows did not normalize into a v1 provider export. No analysis was run.",
+      }, file);
+      return "refused";
+    }
+    renderLocalExportActivation(document, LOCAL_EXPORT_ACTIVATION_STATE.READY, activation);
+    imports.push({
+      source: "native", fileName: file.fileName, mediaType: file.mediaType,
+      text: file.text, parsed, state: null, rows: parsed.document?.records?.length ?? 0,
+      // The same projection the mapped path attaches on confirm. Without it an
+      // export that declares its cohort attributes would lose them by taking the
+      // faster route, so one file would report a different cohort position
+      // depending on which path read it.
+      cohortSource: projectCohortSource({ objects: rowObjects(reading) }),
+    });
+    announce("ready", "Provider adapter active.", activation.message);
+    return "activated";
+  };
+
+  /**
    * One delimited reading, as header-keyed row objects.
    *
    * The header names are the file's own, unchanged, because the cohort contract
@@ -2591,6 +2662,14 @@ function mountLocalFinopsImport() {
       // A delimited file is never analyzed on sight: it goes through the review
       // step, and the rest of the selection waits behind it.
       if (isDelimitedFileName(file.fileName)) {
+        // The direct path is intentionally one-file: a mixed selection still
+        // uses the established review queue so provider and roster mappings are
+        // confirmed together and its long-standing behavior is preserved.
+        if (file.total === 1) {
+          const outcome = await activateNativeProvider(file);
+          if (outcome === "refused") return;
+          if (outcome === "activated") continue;
+        }
         // Whether the reader is now reviewing it or it failed to read at all,
         // this selection stops here: the step, or the diagnostic, owns the flow.
         openReview(file);

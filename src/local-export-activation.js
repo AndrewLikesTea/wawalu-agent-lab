@@ -16,7 +16,7 @@ const COPY = Object.freeze({
   error: "The bundled example is still active. Correct the file issue below, then choose the export again.",
 });
 
-export function renderLocalExportActivation(document, state) {
+export function renderLocalExportActivation(document, state, detail = null) {
   const region = document.getElementById("local-export-activation");
   const status = document.getElementById("local-export-activation-status");
   const choose = document.getElementById("activate-local-export");
@@ -24,7 +24,12 @@ export function renderLocalExportActivation(document, state) {
   if (!region || !status || !choose || !reset || !COPY[state]) return false;
   region.dataset.state = state;
   region.setAttribute("aria-busy", String(state === LOCAL_EXPORT_ACTIVATION_STATE.READING));
-  status.textContent = COPY[state];
+  status.textContent = detail?.message ?? COPY[state];
+  if (detail?.confidence !== undefined) {
+    region.dataset.confidence = String(detail.confidence);
+  } else {
+    delete region.dataset.confidence;
+  }
   choose.textContent = state === LOCAL_EXPORT_ACTIVATION_STATE.ERROR
     ? "Choose a corrected export" : "Choose a provider export";
   choose.disabled = state === LOCAL_EXPORT_ACTIVATION_STATE.READING;
