@@ -98,9 +98,21 @@ are returned as recorded.
 
 The browser-side export (`src/shiplog-export.js`, download button on the export
 panel) writes a separate `shiplog-history` file. Its stable top-level record is
-`{ schema, version, generatedAt, record_count, filter, decisions, releases,
-associations }`, and an empty history is that same record with all three
-collections empty rather than a shorter file.
+`{ schema, version, generatedAt, record_count, decision_count, release_count,
+source, filter, decisions, releases, associations }`, and an empty history is
+that same record with all three collections empty rather than a shorter file.
+The file lands as `shiplog-history-{YYYY-MM-DD}T{HH-MM-SS}Z.json`, named from
+the same `generatedAt` the envelope carries.
+
+`decision_count`, `release_count`, and `record_count` are the lengths of the
+arrays the file actually carries, taken after every filter and every dropped
+link. `source` is which surface wrote it — `shiplog.history-panel` or
+`shiplog.workspace-backup`. The importer (`src/shiplog-import.js`) refuses a
+whole file whose schema, version, or counts disagree with what it contains,
+naming the collection and both numbers — *"decision_count: envelope claims 7
+decisions, file contains 5"* — and writes nothing to storage when it does. A
+file written before these fields existed is still a valid version 1 export: an
+absent count is not a mismatch.
 
 `associations` answers *which decisions shipped in which release, in what
 order*, without a reader having to walk nested records. It is the file's

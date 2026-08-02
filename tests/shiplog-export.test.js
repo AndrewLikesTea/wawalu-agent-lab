@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import {
+  EXPORT_SOURCES,
   EXPORT_STATUS,
   SHIPLOG_EXPORT_SCHEMA,
   SHIPLOG_EXPORT_VERSION,
@@ -102,6 +103,9 @@ test("populated browser export has an explicit portable contract and only Shiplo
     version: SHIPLOG_EXPORT_VERSION,
     generatedAt: GENERATED_AT,
     record_count: 2,
+    decision_count: 1,
+    release_count: 1,
+    source: EXPORT_SOURCES.history,
     // Nothing was filtered, so the block is empty — the one reading that means
     // "this file is the whole browsed history".
     filter: {},
@@ -123,6 +127,9 @@ test("empty browser history exports an explicitly empty valid record", () => {
     version: SHIPLOG_EXPORT_VERSION,
     generatedAt: GENERATED_AT,
     record_count: 0,
+    decision_count: 0,
+    release_count: 0,
+    source: EXPORT_SOURCES.history,
     filter: {},
     decisions: [],
     releases: [],

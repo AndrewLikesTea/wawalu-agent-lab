@@ -34,6 +34,19 @@ export const SHIPLOG_EXPORT_SCHEMA = "shiplog-history";
 // would have made every older export unreadable to buy nothing.
 export const SHIPLOG_EXPORT_VERSION = 1;
 
+// Which surface wrote the file. Two of them download the same schema — the
+// history export panel and the workspace backup — and a reader holding only the
+// file otherwise cannot tell a deliberate backup from a filtered download the
+// visitor took for one report. Declared as a closed set rather than free text so
+// the identifier is a value a consumer can switch on, and stated once here so
+// the writer and the reader can never name the surface differently.
+export const EXPORT_SOURCES = Object.freeze({
+  history: "shiplog.history-panel",
+  workspace: "shiplog.workspace-backup",
+});
+
+export const DEFAULT_EXPORT_SOURCE = EXPORT_SOURCES.history;
+
 // A field spec is a type token: "string", "number", "object", "array",
 // "string[]". A trailing "?" marks the field optional. Required here means
 // "the local store guarantees it", which is the rule loadDecisions/loadReleases
@@ -53,6 +66,16 @@ export const EXPORT_ENVELOPE_FIELDS = Object.freeze({
   // and the file keeps them in two arrays, so one count over both is the number
   // a reader means by "how many records is this".
   record_count: "number?",
+  // The same fact per collection, because "how many decisions is this" is the
+  // question a reader actually checks a file against and one total over two
+  // arrays cannot answer it. Both are derived from the arrays written below —
+  // never from the store a second time — so a file cannot claim a count that
+  // disagrees with its own records, and a reader that finds one has found a
+  // truncated or hand-edited file.
+  decision_count: "number?",
+  release_count: "number?",
+  // Which surface wrote the file (EXPORT_SOURCES).
+  source: "string?",
   // The active filters, keyed and valued exactly as activeHistoryFilters()
   // states them: present means active, absent means off, `{}` means the file is
   // the whole browsed history.
@@ -373,25 +396,61 @@ export function filterBlockViolations(payload) {
   return violations;
 }
 
+// The three counts an envelope may state, each with the collections it counts.
+// A count is checked against the arrays in the same file and nothing else.
+const ENVELOPE_COUNTS = Object.freeze([
+  { field: "decision_count", noun: "decisions", collections: ["decisions"] },
+  { field: "release_count", noun: "releases", collections: ["releases"] },
+  { field: "record_count", noun: "records", collections: ["decisions", "releases"] },
+]);
+
 /**
- * `record_count` states the size of the file it is in: it must equal the number
- * of records actually written, across both collections.
+ * Every envelope count that disagrees with the records the file carries, as
+ * structured rows rather than sentences.
+ *
+ * Structured because two callers need the same fact in two registers: this
+ * module reports it as a contract violation, and shiplog-import.js refuses the
+ * whole file over it in the visitor's own words. Deriving both from one row
+ * keeps them from drifting into two different accounts of the same file.
  *
  * A count that disagrees with the arrays is worse than no count at all — it is
- * the number a consumer would check the file against — so it is a violation
- * rather than something reconciled quietly.
+ * the number a consumer would check the file against — so it is reported rather
+ * than reconciled quietly. An absent count predates the field and is not a
+ * mismatch; a present count that is not an integer is.
+ *
+ * @returns `{ field, noun, claimed, actual, message }` per mismatch, where
+ *   `actual` is null when the count could not be compared to anything.
+ */
+export function envelopeCountMismatches(payload) {
+  const mismatches = [];
+  for (const { field, noun, collections } of ENVELOPE_COUNTS) {
+    const claimed = payload?.[field];
+    if (claimed === undefined) continue;
+    if (typeof claimed !== "number" || !Number.isInteger(claimed)) {
+      mismatches.push({
+        field, noun, claimed, actual: null,
+        message: `${field}: expected an integer, got ${JSON.stringify(claimed) ?? typeof claimed}`,
+      });
+      continue;
+    }
+    const arrays = collections.map((kind) => payload?.[kind]);
+    if (arrays.some((records) => !Array.isArray(records))) continue;
+    const actual = arrays.reduce((total, records) => total + records.length, 0);
+    if (claimed === actual) continue;
+    mismatches.push({
+      field, noun, claimed, actual,
+      message: `${field}: envelope claims ${claimed} ${noun}, file contains ${actual}`,
+    });
+  }
+  return mismatches;
+}
+
+/**
+ * The envelope counts as contract violations: each states the size of the file
+ * it is in, or it is a violation.
  */
 export function recordCountViolations(payload) {
-  const stated = payload?.record_count;
-  if (stated === undefined) return [];
-  if (typeof stated !== "number" || !Number.isInteger(stated)) {
-    return [`export.record_count: expected an integer, got ${JSON.stringify(stated)}`];
-  }
-  if (!Array.isArray(payload?.decisions) || !Array.isArray(payload?.releases)) return [];
-  const actual = payload.decisions.length + payload.releases.length;
-  return stated === actual
-    ? []
-    : [`export.record_count: states ${stated}, but the file carries ${actual} records`];
+  return envelopeCountMismatches(payload).map((mismatch) => `export.${mismatch.message}`);
 }
 
 /**
@@ -410,6 +469,12 @@ export function shiplogExportViolations(payload) {
     }
     if (payload.version !== undefined && payload.version !== SHIPLOG_EXPORT_VERSION) {
       violations.push(`export.version: expected ${SHIPLOG_EXPORT_VERSION}, got ${JSON.stringify(payload.version)}`);
+    }
+    if (payload.source !== undefined && !Object.values(EXPORT_SOURCES).includes(payload.source)) {
+      violations.push(
+        `export.source: expected one of ${Object.values(EXPORT_SOURCES).map((id) => JSON.stringify(id)).join(", ")}, `
+        + `got ${JSON.stringify(payload.source)}`,
+      );
     }
     if (typeof payload.generatedAt === "string" && Number.isNaN(Date.parse(payload.generatedAt))) {
       violations.push(`export.generatedAt: expected an ISO date, got ${JSON.stringify(payload.generatedAt)}`);

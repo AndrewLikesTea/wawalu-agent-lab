@@ -539,7 +539,9 @@ test("the import control is reachable by keyboard and summarises before writing"
 
   assert.equal(
     importHeadline(page),
-    "Found 1 decision and 0 releases in this file. 1 record new, 0 already in this browser and skipped. 0 records rejected, 0 release links dropped.",
+    "Found 1 decision and 0 releases in this file. "
+    + "Its envelope claims 1 decision and 0 releases, which is what the file contains. "
+    + "1 record new, 0 already in this browser and skipped. 0 records rejected, 0 release links dropped.",
     "the pre-commit summary does not state what would be written",
   );
   assert.equal(

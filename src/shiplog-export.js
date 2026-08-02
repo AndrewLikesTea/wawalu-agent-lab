@@ -35,8 +35,10 @@
 import { loadDecisions } from "./app.js";
 import { loadReleases } from "./releases.js";
 import {
+  DEFAULT_EXPORT_SOURCE,
   EXPORT_DECISION_FIELDS,
   EXPORT_RELEASE_FIELDS,
+  EXPORT_SOURCES,
   SHIPLOG_EXPORT_SCHEMA,
   SHIPLOG_EXPORT_VERSION,
   canonicalExportOrder,
@@ -52,7 +54,7 @@ import {
 import { activeHistoryFilters } from "./history-filters.js";
 import { onRecordsChanged } from "./shiplog-records.js";
 
-export { SHIPLOG_EXPORT_SCHEMA, SHIPLOG_EXPORT_VERSION };
+export { EXPORT_SOURCES, SHIPLOG_EXPORT_SCHEMA, SHIPLOG_EXPORT_VERSION };
 
 /** The two things the panel's scope control can mean. */
 export const EXPORT_SCOPES = Object.freeze({ browsing: "browsing", stored: "stored" });
@@ -62,6 +64,8 @@ export const EXPORT_SCOPES = Object.freeze({ browsing: "browsing", stored: "stor
  *
  * @param options.scope the browsed history scope (history-scope.js). Omitted, or
  *   unfiltered, means the whole store.
+ * @param options.source which surface is writing the file (EXPORT_SOURCES).
+ *   Defaults to the history panel; the workspace backup names itself.
  * @returns `{ payload, unresolvedLinks, excludedLinks, droppedFields }`, where
  *   `unresolvedLinks` is `{ releaseId, decisionId, position }` per release link
  *   that named a decision this browser no longer holds, `excludedLinks` is the
@@ -73,6 +77,10 @@ export function buildShiplogExport(storage, options = {}) {
   const generatedAt = options.generatedAt ?? new Date().toISOString();
   if (Number.isNaN(Date.parse(generatedAt))) {
     throw new TypeError("Export generatedAt must be an ISO date.");
+  }
+  const source = options.source ?? DEFAULT_EXPORT_SOURCE;
+  if (!Object.values(EXPORT_SOURCES).includes(source)) {
+    throw new TypeError("Export source must be one of EXPORT_SOURCES.");
   }
 
   const droppedFields = [];
@@ -140,6 +148,17 @@ export function buildShiplogExport(storage, options = {}) {
       // history published with the very ids above — so a file cannot claim a
       // count or a filter that disagrees with its own records.
       record_count: decisions.length + releases.length,
+      // The same size stated per collection, so a reader can check "seven
+      // decisions" against the array it is about to read rather than against a
+      // total that two arrays could satisfy in several ways. Both are the
+      // lengths of the arrays written below, taken after every filter and every
+      // dropped link has been applied. shiplog-import.js refuses a file whose
+      // envelope disagrees with its own records.
+      decision_count: decisions.length,
+      release_count: releases.length,
+      // Which surface wrote it. Two of them write this schema, and only the
+      // file can say which one a visitor is holding a year from now.
+      source,
       filter,
       decisions,
       releases,

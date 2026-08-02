@@ -34,6 +34,7 @@ import {
 } from "./finops-commitment-decision.js";
 import { RELEASE_STORAGE_KEY, loadReleases, saveReleases } from "./releases.js";
 import { SHIPLOG_EXPORT_SCHEMA, SHIPLOG_EXPORT_VERSION } from "./shiplog-export.js";
+import { envelopeCountMismatches } from "./shiplog-export-schema.js";
 
 // One decision field is optional and validated on its own terms: the
 // `finopsCommitment` block a decision recorded from an approved FinOps
@@ -43,18 +44,25 @@ import { SHIPLOG_EXPORT_SCHEMA, SHIPLOG_EXPORT_VERSION } from "./shiplog-export.
 // Everything createShiplogExport writes. Anything else in the file is reported
 // and ignored rather than silently carried into storage.
 //
-// `record_count`, `filter`, and `associations` describe the file rather than
-// carrying anything only they know: they are listed so a conforming export is
-// not reported back to the visitor as unknown keys, and they are deliberately
-// not read. The records the file actually carries are the import, and a count,
-// a filter block, or a join table copied from whoever exported it must never
-// influence what this browser stores. `associations` restates
+// `filter`, `source`, and `associations` describe the file rather than carrying
+// anything only they know: they are listed so a conforming export is not
+// reported back to the visitor as unknown keys, and they are deliberately not
+// read. The records the file actually carries are the import, and a filter
+// block, a surface name, or a join table copied from whoever exported it must
+// never influence what this browser stores. `associations` restates
 // `releases[].decisionIds`, which is what the release records below import; a
 // file whose two views disagree is rejected by shiplogExportViolations, so
 // reading the derived copy here could only ever agree or import a lie.
+//
+// The three counts are the exception, and they are read for exactly one
+// purpose: to refuse the file. A count is the file's own claim about its own
+// records, so a count that disagrees with the arrays means the file is not the
+// file its writer wrote — truncated, hand-edited, or concatenated — and
+// importing "whatever survived" from it would be a silent partial restore. They
+// are never used as a source of records; see the count check in parseImport.
 export const IMPORT_TOP_LEVEL_KEYS = [
-  "schema", "version", "generatedAt", "record_count", "filter",
-  "decisions", "releases", "associations",
+  "schema", "version", "generatedAt", "record_count", "decision_count",
+  "release_count", "source", "filter", "decisions", "releases", "associations",
 ];
 
 function describe(value) {
@@ -173,6 +181,7 @@ function unusable(message) {
     schema: null,
     version: null,
     generatedAt: null,
+    envelope: null,
     decisions: [],
     releases: [],
     rejected: [rejection("file", null, null, message)],
@@ -222,6 +231,16 @@ export function parseImport(text, options = {}) {
   if (!Array.isArray(raw.releases)) {
     return unusable(`releases: expected array, got ${describe(raw.releases)}`);
   }
+
+  // The last whole-file check, and the last point at which nothing has been
+  // accepted yet: the envelope's counts against the arrays that are actually
+  // there. A file that claims seven decisions and carries five is a file that
+  // lost records on the way here, and the visitor is told which collection and
+  // both numbers rather than being handed the five as if they were the seven.
+  // Refused as a whole rather than per record — the missing records are exactly
+  // the ones that cannot be reported individually.
+  const [mismatch] = envelopeCountMismatches(raw);
+  if (mismatch) return unusable(mismatch.message);
 
   const rejected = [];
   const droppedAssociations = [];
@@ -357,6 +376,15 @@ export function parseImport(text, options = {}) {
     schema: raw.schema,
     version: raw.version,
     generatedAt: raw.generatedAt,
+    // What the file says about itself, kept apart from what it carries. The
+    // counts here have already been held to the arrays above, so the panel can
+    // report the two together — found against claimed — rather than asking a
+    // visitor to trust one of them.
+    envelope: {
+      source: typeof raw.source === "string" ? raw.source : null,
+      decisionCount: Number.isInteger(raw.decision_count) ? raw.decision_count : null,
+      releaseCount: Number.isInteger(raw.release_count) ? raw.release_count : null,
+    },
     decisions,
     releases,
     rejected,
@@ -397,6 +425,11 @@ export function mergeImport(parsed, existing = {}) {
     summary: {
       decisionsFound: (parsed.decisions ?? []).length,
       releasesFound: (parsed.releases ?? []).length,
+      // What the envelope claimed, alongside what was found. Null when the file
+      // predates the counts; never a number that disagrees, because parseImport
+      // refuses that file before this runs.
+      decisionsClaimed: parsed.envelope?.decisionCount ?? null,
+      releasesClaimed: parsed.envelope?.releaseCount ?? null,
       newDecisions: decisions.added.length,
       newReleases: releases.added.length,
       duplicateDecisions: decisions.duplicates.length,
@@ -470,13 +503,29 @@ function plural(count, noun) {
   return `${count} ${count === 1 ? noun : `${noun}s`}`;
 }
 
+/**
+ * The sentence that says found-against-claimed, or "" for a file with no counts.
+ *
+ * Both numbers even though they are equal by the time this runs: "found 5,
+ * the file claims 5" is the visitor watching the check happen, where "found 5"
+ * alone asks them to take it on faith. A file written before the counts existed
+ * says nothing here rather than claiming zero.
+ */
+export function formatEnvelopeCheck(summary) {
+  const { decisionsClaimed, releasesClaimed } = summary;
+  if (!Number.isInteger(decisionsClaimed) || !Number.isInteger(releasesClaimed)) return "";
+  return `Its envelope claims ${plural(decisionsClaimed, "decision")} and `
+    + `${plural(releasesClaimed, "release")}, which is what the file contains.`;
+}
+
 export function formatImportSummary(summary) {
   const parts = [
     `Found ${plural(summary.decisionsFound, "decision")} and ${plural(summary.releasesFound, "release")} in this file.`,
+    formatEnvelopeCheck(summary),
     `${plural(summary.newDecisions + summary.newReleases, "record")} new, ${summary.duplicateDecisions + summary.duplicateReleases} already in this browser and skipped.`,
   ];
   parts.push(`${plural(summary.rejected, "record")} rejected, ${plural(summary.droppedAssociations, "release link")} dropped.`);
-  return parts.join(" ");
+  return parts.filter(Boolean).join(" ");
 }
 
 export function formatRestoreAction(summary) {
