@@ -612,9 +612,13 @@ export function bindStandResolution(doc) {
 /**
  * Apply a composed headline to the document.
  *
+ * `announce: false` is the boot paint's option and nothing else's: the answer it
+ * puts on screen is the bundled example the shipped document was already seeded
+ * with, so it is not a change and must not be spoken. See `announceAnswer`.
+ *
  * @returns the region, so a caller can assert on the state it asked for.
  */
-export function applyStandHeadline(doc, headline) {
+export function applyStandHeadline(doc, headline, { announce = true } = {}) {
   const region = byId(doc, STAND_IDS.region);
   if (!region || !headline) return null;
 
@@ -758,7 +762,7 @@ export function applyStandHeadline(doc, headline) {
   // keep listening: the question, the metric with its unit, and the one next
   // action. Every other region that used to echo this change was silenced at
   // boot by `silenceEchoedRegions`.
-  announceAnswer(doc, answerAnnouncement(headline));
+  announceAnswer(doc, answerAnnouncement(headline), { announce });
 
   // THE SPINE, LAST, so it is what the region ends up carrying. It writes the
   // page's one question into this region's heading, the headline metric's name

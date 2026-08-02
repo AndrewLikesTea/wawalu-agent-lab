@@ -665,8 +665,14 @@ class HarnessFormData {
 // that serves exactly the fixtures a test names. Every unlisted request throws,
 // so a test can never accidentally depend on the network or on a file it did not
 // declare.
-export async function loadPage(pageUrl, { storage = {}, routes = {}, location = {} } = {}) {
-  const html = await readFile(pageUrl, "utf8");
+// `markup` boots a document the BUILD produces rather than the one `src/` holds
+// — scripts/seed-first-screen.mjs renders /evolution.html's first screen at
+// build time, and a test that only ever boots the authored source can never see
+// what a visitor is actually served. Everything else is unchanged: same parser,
+// same globals, same declared routes.
+export async function loadPage(pageUrl,
+  { storage = {}, routes = {}, location = {}, markup = null } = {}) {
+  const html = markup ?? await readFile(pageUrl, "utf8");
   const document = parseHtml(html);
   const browserStorage = createStorage(storage);
   const saved = Object.fromEntries(GLOBAL_KEYS

@@ -5,12 +5,23 @@ const put = (root, id, value) => {
   if (node) node.textContent = value;
 };
 
+/**
+ * The status line without its instant.
+ *
+ * Split out so the build can seed this region with a true sentence and no
+ * clock: scripts/seed-first-screen.mjs writes this prefix into the shipped
+ * document, and the paint below completes it with the moment the payload was
+ * regenerated in the reader's own browser. One string, one file, no drift.
+ */
+export const PROJECTION_STATUS_PREFIX = (schemaVersion) =>
+  `Briefing generated locally · ${schemaVersion}`;
+
 export function renderExecutiveBriefingProjection(root, result) {
   const region = root.getElementById("executive-briefing-projection");
   if (!region) return null;
   region.dataset.state = "ready";
   put(root, "executive-briefing-projection-status",
-    `Briefing generated locally · ${result.schemaVersion} · ${result.generatedAt}`);
+    `${PROJECTION_STATUS_PREFIX(result.schemaVersion)} · ${result.generatedAt}`);
   put(root, "executive-briefing-projection-payload", JSON.stringify(result, null, 2));
   return region;
 }
