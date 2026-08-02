@@ -1,0 +1,52 @@
+/* The bundled-payload briefing sheet, layered over executive-briefing.css.
+   SCOPE DISCIPLINE: every selector here starts at .payload-, because this file
+   loads on every visit to /executive-briefing.html — including the workspace,
+   sample, and example paths it knows nothing about. It defines no custom
+   property and restyles no shared hook: .brief-hero, .brief-actions, and
+   .brief-print-button are already owned next door, and redefining one here
+   would silently repaint three sheets this feature never touches. */
+.payload-brief,.payload-state { max-width:900px; margin-bottom:24px; border:1px solid var(--brief-line); border-radius:18px; background:var(--brief-surface); box-shadow:0 18px 50px rgba(27,50,48,.08); }
+.payload-state { padding:30px; border-left:5px solid #8a2b2b; }
+.payload-state h2 { margin-top:0; }.payload-state p { max-width:62ch; color:var(--brief-muted); line-height:1.55; }
+.payload-state:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.payload-header,.payload-card,.payload-why,.payload-meta { padding:28px 32px; border-bottom:1px solid var(--brief-line); }
+.payload-question { max-width:24ch; margin:8px 0 14px; font-size:clamp(29px,5vw,46px); line-height:1.08; letter-spacing:-.04em; }
+.payload-answer { max-width:62ch; margin:0; font-size:20px; font-weight:720; line-height:1.5; }
+.payload-decision { display:grid; grid-template-columns:1fr 1fr; }
+.payload-card + .payload-card { border-left:1px solid var(--brief-line); }
+.payload-label { margin:0 0 12px; color:var(--brief-muted); font:750 11px/1.4 ui-monospace,monospace; letter-spacing:.08em; text-transform:uppercase; }
+.payload-benchmark,.payload-action-copy,.payload-why p { margin:0; color:var(--brief-ink); font-size:17px; line-height:1.55; }
+.payload-action { background:var(--brief-quiet); }.payload-action-copy { font-weight:700; }
+.payload-meta { display:grid; grid-template-columns:max-content 1fr; gap:6px 18px; margin:0; }
+.payload-meta dt,.payload-method-versions dt { color:var(--brief-muted); font-size:12px; font-weight:750; text-transform:uppercase; }
+.payload-meta dd,.payload-method-versions dd { margin:0; overflow-wrap:anywhere; }
+.payload-disclosure { border-bottom:1px solid var(--brief-line); }
+.payload-disclosure-toggle { min-height:44px; padding:20px 32px; font-size:17px; font-weight:750; cursor:pointer; }
+.payload-disclosure-toggle:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.payload-disclosure-hint { display:block; margin-top:4px; color:var(--brief-muted); font-size:13px; font-weight:400; }
+.payload-evidence,.payload-method { margin:0; padding:0 32px 26px 54px; color:var(--brief-muted); line-height:1.6; }
+.payload-evidence li + li { margin-top:12px; }.payload-evidence small { display:block; }
+.payload-method { padding-left:32px; }.payload-method p { max-width:64ch; }
+.payload-method-versions { display:grid; grid-template-columns:max-content 1fr; gap:5px 16px; }
+@media (max-width:640px) {
+  .payload-brief,.payload-state { border-radius:13px; }
+  .payload-decision { grid-template-columns:1fr; }.payload-card + .payload-card { border-left:0; }
+  .payload-header,.payload-card,.payload-why,.payload-meta { padding:22px 20px; }
+  .payload-meta { grid-template-columns:1fr; }.payload-meta dd { margin-bottom:8px; }
+  .payload-disclosure-toggle { padding:18px 20px; }.payload-evidence,.payload-method { padding:0 20px 22px 40px; }
+  .payload-method { padding-left:20px; }
+}
+/* PRINT. @page, the site chrome, and the print control are already removed by
+   executive-briefing.css for every sheet on this page; only what is specific to
+   this one is stated here. The two levels are hidden rather than expanded —
+   the opposite of the workspace sheet — because department evidence and
+   methodology are the raw analysis detail the printed brief is meant to leave
+   off. The decision hierarchy above them survives unchanged. */
+@media print {
+  .payload-disclosure { display:none !important; }
+  .payload-brief { max-width:none; margin:0; border:1px solid #555; border-radius:0; box-shadow:none; }
+  .payload-header,.payload-card,.payload-why,.payload-meta { padding:12px 0; break-inside:avoid; }
+  .payload-question { font-size:25px; }.payload-answer { font-size:16px; }
+  .payload-benchmark,.payload-action-copy,.payload-why p { font-size:13px; }
+  .payload-action { background:none; }.payload-meta { font-size:11px; }
+}

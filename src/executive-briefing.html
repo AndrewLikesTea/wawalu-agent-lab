@@ -7,6 +7,7 @@
     <title>Executive FinOps briefing · Shiplog</title>
     <link rel="stylesheet" href="/styles.css" />
     <link rel="stylesheet" href="/executive-briefing.css" />
+    <link rel="stylesheet" href="/executive-payload-briefing.css" />
   </head>
   <body>
     <a class="skip-link" href="#main-content">Skip to main content</a>
@@ -44,10 +45,14 @@
       </section>
 
       <!-- The briefing is painted here. The state below is what a reader sees
-           between parse and module execution only: neither path fetches
-           anything, so it is replaced by a complete briefing in the same pass —
-           the reader's own periods when this browser holds them, and the
-           synthetic sample this page ships when it does not. -->
+           between parse and module execution only: the workspace and sample
+           paths fetch nothing, so it is replaced by a complete briefing in the
+           same pass — the reader's own periods when this browser holds them,
+           and the synthetic sample this page ships when it does not. The
+           `?payload=bundled` hand-off does read the bundled analysis document,
+           and replaces this panel with its own state that says so, because a
+           panel claiming nothing is fetched must not be the one left on screen
+           while something is. -->
       <div id="executive-briefing" role="region" aria-label="Executive FinOps briefing result" aria-live="polite" aria-busy="true">
         <section class="brief-state" data-state="loading" role="status">
           <h2>Reading this browser's own FinOps figures</h2>
