@@ -104,8 +104,21 @@ test("the answer block holds one question heading, one figure, one confidence se
   const headings = region.querySelectorAll("h1,h2,h3,h4,h5,h6");
   assert.equal(headings[0].tagName.toLowerCase(), "h2",
     "the region's own question stays the highest-ranked heading in it");
-  assert.equal(headings[1].id, ANSWER_BLOCK_IDS.question,
-    "the answer block's question is the next heading after it");
+  // The lead finding's headings come first now (#956). This region leads with
+  // the one thing a finance lead opens it for — how much is recoverable, which
+  // department is driving it, what to do first — and the classification verdict
+  // this block carries is evidence for that finding rather than a second lead.
+  // What still has to hold is the heading order: one h2, and nothing under it
+  // that competes with it for rank.
+  const ranks = [...headings].map((node) => node.tagName.toLowerCase());
+  assert.deepEqual(ranks.slice(1).filter((rank) => rank === "h1" || rank === "h2"), [],
+    "no heading under the region's question may compete with it for rank");
+  const idOrder = [...headings].map((node) => node.id);
+  const question = idOrder.indexOf(ANSWER_BLOCK_IDS.question);
+  const recoverable = idOrder.indexOf("finops-stand-metric-label");
+  assert.ok(recoverable > 0, "the recoverable figure's label is a heading in the region");
+  assert.ok(question > recoverable,
+    "the recoverable figure leads and the classification verdict follows it");
 
   // The action is a real link with a real href, operable before any script.
   assert.equal(children[3].tagName.toLowerCase(), "a");

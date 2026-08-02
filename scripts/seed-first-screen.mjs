@@ -262,6 +262,27 @@ export function firstScreenEdits(bundled) {
     filledText("team detail", "finops-stand-team-detail",
       { authored: "", seeded: "" }, "p", headline.team?.detail ?? ""),
 
+    // ---- The one action the lead finding ends on. Seeded for the same reason
+    // the figures above it are: the served document states what a leader should
+    // do first, rather than holding an empty anchor until a script runs. It is
+    // seeded ONLY when the composer produced an action — an anchor carrying a
+    // label the analysis did not authorize would be a recommendation this build
+    // invented, and `applyStandHeadline` reveals it at boot in that case
+    // instead.
+    ...(headline.action?.available
+      ? [
+        edit("stand action",
+          '<a class="stand-action" id="finops-stand-action" href="#recommendation-evidence"'
+          + ' aria-describedby="finops-stand-action-basis" hidden></a>',
+          '<a class="stand-action" id="finops-stand-action"'
+          + ` href="${escapeAttribute(headline.action.href ?? "#recommendation-evidence")}"`
+          + ' aria-describedby="finops-stand-action-basis">'
+          + `${escapeText(headline.action.label ?? "")}</a>`),
+        filledText("stand action basis", "finops-stand-action-basis",
+          { authored: " hidden", seeded: "" }, "p", headline.action.basis ?? ""),
+      ]
+      : []),
+
     // ---- The page's one announcer, seeded rather than spoken. A polite region
     // that is already carrying its sentence when the document is parsed
     // announces nothing on load, and `announceAnswer` leaves an unchanged
