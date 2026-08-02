@@ -9,7 +9,10 @@ export const LOCAL_EXPORT_ACTIVATION_STATE = Object.freeze({
   ERROR: "error",
 });
 
-const COPY = Object.freeze({
+// Exported so a caller that PREFIXES one of these lines — the content-based
+// detection reason (#957) leads the error line — quotes this file rather than
+// restating it, and the panel cannot end up with two wordings of one state.
+export const LOCAL_EXPORT_ACTIVATION_COPY = Object.freeze({
   idle: "Bundled example is active. Choose one provider period export to answer this question with your data.",
   reading: "Reading and validating in this browser tab. Nothing is being uploaded or retained.",
   ready: "Your provider export is active. The finding below was computed locally from its accepted rows.",
@@ -21,10 +24,10 @@ export function renderLocalExportActivation(document, state, detail = null) {
   const status = document.getElementById("local-export-activation-status");
   const choose = document.getElementById("activate-local-export");
   const reset = document.getElementById("return-to-bundled-example");
-  if (!region || !status || !choose || !reset || !COPY[state]) return false;
+  if (!region || !status || !choose || !reset || !LOCAL_EXPORT_ACTIVATION_COPY[state]) return false;
   region.dataset.state = state;
   region.setAttribute("aria-busy", String(state === LOCAL_EXPORT_ACTIVATION_STATE.READING));
-  status.textContent = detail?.message ?? COPY[state];
+  status.textContent = detail?.message ?? LOCAL_EXPORT_ACTIVATION_COPY[state];
   if (detail?.confidence !== undefined) {
     region.dataset.confidence = String(detail.confidence);
   } else {
