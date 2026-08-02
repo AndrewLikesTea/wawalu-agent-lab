@@ -89,11 +89,23 @@
                   </div>
                   <figcaption id="compose-preview-caption">Preview before posting</figcaption>
                 </figure>
+                <!-- The requirement marker is the same span, in the same place,
+                     with the same class as the "(optional)" markers on Name and
+                     Image, so the two answers to "must I fill this in?" are told
+                     the same way. It is revealed by social.js when an image is
+                     attached, because until then there is nothing to describe.
+                     The counter is the caption's counter pointed at this field's
+                     budget: same wording, same live region, same math. -->
                 <div class="field field-wide">
-                  <label for="post-image-alt">Image description</label>
+                  <label for="post-image-alt">Image description <span class="label-optional label-required" id="post-image-alt-required" hidden>(required)</span></label>
                   <textarea id="post-image-alt" name="image-alt" rows="2" maxlength="200"
-                    aria-describedby="post-image-alt-hint"></textarea>
+                    aria-describedby="post-image-alt-hint post-image-alt-counter-label post-image-alt-counter"></textarea>
+                  <p class="field-error compose-error" id="post-image-alt-error" hidden></p>
                   <span class="hint" id="post-image-alt-hint">Describe what matters in the image for people who cannot see it.</span>
+                  <p class="counter-row">
+                    <span id="post-image-alt-counter-label">Characters remaining:</span>
+                    <span id="post-image-alt-counter" aria-live="polite" aria-atomic="true">200</span>
+                  </p>
                 </div>
               </div>
               <p class="media-status" id="post-media-status" role="status" aria-live="polite"></p>

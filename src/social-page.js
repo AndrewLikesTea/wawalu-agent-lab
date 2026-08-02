@@ -79,7 +79,11 @@ async function fileToPublishImage(file) {
   return value;
 }
 
-function mountMediaComposer(root) {
+// `description` is the composer's image-description field, mounted by
+// src/social.js because the refusal it owns is what decides whether a post is
+// created. This half owns the bytes and tells that half when they arrive or
+// leave; neither reaches into the other's DOM.
+function mountMediaComposer(root, description) {
   const input = root.querySelector("#post-image");
   const panel = root.querySelector("#compose-media");
   const frame = root.querySelector("#compose-preview-frame");
@@ -105,7 +109,8 @@ function mountMediaComposer(root) {
     selectionGeneration += 1;
     media = null;
     input.value = "";
-    alt.value = "";
+    description.clear();
+    description.setAttached(false);
     preview.removeAttribute("src");
     panel.hidden = true;
     setStatus("");
@@ -122,6 +127,7 @@ function mountMediaComposer(root) {
     source.textContent = next.source === "paint" ? "Paint drawing" : "Uploaded image";
     caption.textContent = `${next.width} × ${next.height} px · ${Math.max(1, Math.ceil(next.size / 1024))} KB`;
     setStatus(`${source.textContent} ready to describe and post.`);
+    description.setAttached(true);
     alt.focus();
   };
 
@@ -162,11 +168,11 @@ function mountMediaComposer(root) {
   else arrival?.focus?.();
 
   return {
+    // Handed over as-is, description and all. Whether the description is good
+    // enough to publish is not this half's call — src/social.js refuses, marks
+    // the field, and leaves these bytes sitting right here for the retry.
     get() {
-      if (!media) return null;
-      const description = alt.value.trim();
-      if (!description) throw new Error("Add an image description before posting.");
-      return { ...media, alt: description };
+      return media ? { ...media, alt: alt.value.trim() } : null;
     },
     clear,
   };
@@ -203,14 +209,16 @@ async function init() {
   const announcer = root.querySelector("#feed-announcer");
   // Mount before any fetch resolves so the first paint is a reserved skeleton
   // grid rather than a blank panel that later jumps to full height.
-  const media = mountMediaComposer(root);
   const feed = mountSocialFeed(root, {
     posts: [],
     state: "loading",
     create: createLivePost,
+    // Read on submit, long after `media` is bound below; the feed mounts first
+    // so the description field exists before a Paint handoff can fill it.
     getMedia: () => media.get(),
     clearMedia: () => media.clear(),
   });
+  const media = mountMediaComposer(root, feed.description);
 
   const fallback = dedupeById(await fetchDemoPosts());
   if (fallback.length) feed.seed(fallback);

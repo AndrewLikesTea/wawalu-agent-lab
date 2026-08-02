@@ -22,6 +22,7 @@
 // single import. One owner, so the byline the feed accepts and the byline the
 // profile remembers cannot drift apart.
 import { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH, readStoredAuthor, rememberAuthor } from "./social-identity.js";
+import { imageDescription, renderDescriptionNote } from "./image-description.js";
 import { renderState } from "./state-ui.js";
 
 export { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH };
@@ -54,6 +55,27 @@ export function createPost(values, options = {}) {
     body,
     createdAt: options.createdAt ?? new Date().toISOString(),
   };
+}
+
+// The id of the composer's image-description error, referenced from the
+// description input's aria-describedby while the error is showing.
+export const IMAGE_DESCRIPTION_ERROR_ID = "post-image-alt-error";
+
+// Submit-time validation of the image description, deliberately independent of
+// the textarea's `maxlength`: the attribute stops a key press, this stops a
+// value that arrived any other way — a paste, a Paint handoff, a restored
+// draft — and it is the check that actually decides whether a post is created.
+// Nothing is required of a post that carries no image.
+export function imageDescriptionProblem(value, { attached = false } = {}) {
+  if (!attached) return null;
+  const text = String(value ?? "").trim();
+  if (!text) {
+    return "Add a description of the image before posting, so people who cannot see it still get the post.";
+  }
+  if (text.length > MAX_IMAGE_ALT_LENGTH) {
+    return `An image description must be ${MAX_IMAGE_ALT_LENGTH} characters or fewer. Remove ${text.length - MAX_IMAGE_ALT_LENGTH}.`;
+  }
+  return null;
 }
 
 // Reverse chronological order (newest first). Never mutates the input; ties fall
@@ -252,18 +274,18 @@ function initials(author) {
 //   ready   → the image
 //   error   → an inline "image unavailable" note; the caption still carries the
 //             post, so a dead asset degrades the card instead of breaking it.
-function renderMedia(image) {
+function renderMedia(image, description) {
   const frame = el("div", "post-media");
   frame.dataset.state = "loading";
 
   const img = document.createElement("img");
   img.className = "post-image";
   img.src = image.src;
-  // A supplied alt always wins. When a post carries no alt text the image is
-  // marked decorative (alt="") on purpose: it sits inside a <figure> whose
-  // <figcaption> is right there and describes it, so the alternative — reading
-  // out a filename, or repeating the caption twice — is strictly worse.
-  img.alt = image.alt;
+  // A supplied alt always wins. A post that carries none is a row written
+  // before a description was required, and it still gets a real alt from the
+  // shared read-path fallback (src/image-description.js) — never alt="", which
+  // would quietly file the image as decoration.
+  img.alt = description.alt;
   img.loading = "lazy";
   img.decoding = "async";
   if (image.width && image.height) {
@@ -325,10 +347,15 @@ function renderPostCard(post, { focusable, index }) {
     // that explains it, and it survives the caption being the only content left
     // when the image fails to load.
     const figure = el("figure", "post-figure");
-    figure.append(renderMedia(image));
+    const description = imageDescription({ ...post, image });
+    figure.append(renderMedia(image, description));
     const caption = el("figcaption", "post-caption", post.body);
     caption.id = textId;
     figure.append(caption);
+    // The note sits beside the caption rather than inside it, so an undescribed
+    // legacy post is visibly flagged without the flag joining the card's
+    // accessible name.
+    if (description.missing) figure.append(renderDescriptionNote());
     article.append(figure);
   } else {
     const body = el("p", "post-body", post.body);
@@ -432,6 +459,99 @@ function visibleColumnCount(cards) {
   return columnCount(cards.map((card) => card.offsetTop));
 }
 
+// The composer's image-description field: its requirement marker, its remaining
+// -character counter, and its refusal state. It lives here rather than in the
+// page wiring because the refusal is what decides whether a post is created,
+// and that decision is testable without a file picker or a FileReader.
+//
+// The counter is the caption's counter — same counterState math, same
+// "Characters remaining:" wording, same near/over classes — pointed at a
+// different budget. There is deliberately no second mechanism.
+export function mountImageDescription(root) {
+  const input = root.querySelector("#post-image-alt");
+  const marker = root.querySelector("#post-image-alt-required");
+  const errorNode = root.querySelector("#post-image-alt-error");
+  const counter = root.querySelector("#post-image-alt-counter");
+  // The description the field carries when nothing is wrong. The error id is
+  // added to it only while the error is showing: a hidden node named by
+  // aria-describedby is still read, so leaving it there permanently would
+  // announce a failure that has not happened.
+  const described = input?.getAttribute("aria-describedby") ?? "";
+  let attached = false;
+
+  const updateCounter = () => {
+    if (!counter || !input) return;
+    const state = counterState(input.value, MAX_IMAGE_ALT_LENGTH);
+    counter.textContent = `${state.remaining}`;
+    counter.classList.toggle("over", state.over);
+    counter.classList.toggle("near", state.near);
+  };
+
+  const clearError = () => {
+    if (!input || !errorNode) return;
+    input.removeAttribute("aria-invalid");
+    input.removeAttribute("autofocus");
+    input.setAttribute("aria-describedby", described);
+    errorNode.replaceChildren();
+    errorNode.hidden = true;
+  };
+
+  const showError = (message) => {
+    if (!input || !errorNode) return;
+    // Text plus a mark, never a colour on its own: the ⚠ is the message's first
+    // character and the band down its edge is a border, not a tint.
+    const mark = el("span", "field-error-mark", "⚠");
+    mark.setAttribute("aria-hidden", "true");
+    errorNode.replaceChildren(mark, el("span", "field-error-text", message));
+    errorNode.hidden = false;
+    input.setAttribute("aria-invalid", "true");
+    input.setAttribute("aria-describedby", `${described} ${IMAGE_DESCRIPTION_ERROR_ID}`.trim());
+    // Both halves of the same instruction. focus() moves the caret on the live
+    // page; `autofocus` is carried by the input itself, so it still names the
+    // field to land on if the composer is re-rendered around it.
+    input.setAttribute("autofocus", "");
+    input.focus();
+  };
+
+  input?.addEventListener("input", () => {
+    updateCounter();
+    // Clear the refusal the moment the reason for it is gone. A field that
+    // stays marked invalid while it holds a valid value is a lie.
+    if (input.getAttribute("aria-invalid") === "true" && !imageDescriptionProblem(input.value, { attached })) clearError();
+  });
+
+  updateCounter();
+  return {
+    // There is nothing to describe until an image is attached, so the marker
+    // arrives with the image and leaves with it.
+    setAttached(next) {
+      attached = Boolean(next);
+      if (marker) marker.hidden = !attached;
+      // aria-required rather than `required`: the native attribute would hand
+      // the refusal to the browser's own bubble, which cannot mark the field,
+      // associate the message, or say what to do about it.
+      input?.setAttribute("aria-required", String(attached));
+      if (!attached) clearError();
+      updateCounter();
+    },
+    // `required` overrides the marker's state at submit time, where the truth is
+    // whether the composer actually handed over an image.
+    validate(required) {
+      const problem = imageDescriptionProblem(input?.value, {
+        attached: required === undefined ? attached : Boolean(required),
+      });
+      if (problem) showError(problem);
+      else clearError();
+      return problem;
+    },
+    clear() {
+      if (input) input.value = "";
+      clearError();
+      updateCounter();
+    },
+  };
+}
+
 // Wire the interactive behaviour: compose submission, the live character
 // counter, and roving-focus navigation over the feed. Handlers are delegated to
 // the feed container so they survive a re-render without re-binding. Returns a
@@ -449,6 +569,7 @@ export function mountSocialFeed(root, options = {}) {
   const agentFilter = root.querySelector("#post-agent-filter");
   const timeFilter = root.querySelector("#post-time-filter");
   const clearFilters = root.querySelector("#post-filter-clear");
+  const description = options.description ?? mountImageDescription(root);
 
   let posts = options.posts ?? [];
   let state = options.state ?? "ready";
@@ -556,6 +677,12 @@ export function mountSocialFeed(root, options = {}) {
         return;
       }
 
+      // The one field the composer will not publish an image without. Refusing
+      // here means no post is created and nothing else is touched: the caption,
+      // the byline, and the encoded image all stay exactly where the poster left
+      // them, the image in the same composer store the success path reads from.
+      if (description.validate(Boolean(media))) return;
+
       try {
         setSubmitting(true);
         const saved = options.create ? await options.create(post, media) : post;
@@ -595,6 +722,7 @@ export function mountSocialFeed(root, options = {}) {
       render();
       form.reset();
       options.clearMedia?.();
+      description.clear();
       updateCounter();
       bodyInput?.focus();
     });
@@ -620,6 +748,9 @@ export function mountSocialFeed(root, options = {}) {
   updateCounter();
   return {
     render,
+    // Handed back so the media composer can tell the field when an image
+    // arrives or leaves, without either half owning the other's DOM.
+    description,
     seed(next) { posts = next ?? []; state = "ready"; renderAgents(); render(); },
     // Loading/error are display states only — they never discard posts already
     // on screen, so a failed refresh degrades to "stale but readable".
