@@ -1,6 +1,7 @@
 import { cp, mkdir, mkdtemp, rename, rm } from "node:fs/promises";
 import { basename, resolve } from "node:path";
 import { createManifest, verifyArtifact } from "./verify-build.mjs";
+import { seedFirstScreen } from "./seed-first-screen.mjs";
 
 const root = resolve(import.meta.dirname, "..");
 const output = resolve(root, "dist");
@@ -56,6 +57,14 @@ try {
   ]) {
     await cp(resolve(root, "docs", page), resolve(staging, "docs", page));
   }
+  // The AI FinOps first screen, rendered from the modules that own its figures
+  // rather than left as the pending state the source authors (#944). It happens
+  // against the staging copy and before the manifest, so what is hashed,
+  // verified and served is the seeded document — and `src/evolution.html` stays
+  // the authored pending scaffold, which is still what a paint falls back to.
+  const seeded = await seedFirstScreen(staging);
+  console.log(`seeded ${seeded.slots} first-screen slots into evolution.html `
+    + `(${seeded.bytes >= 0 ? "+" : ""}${seeded.bytes} bytes)`);
   await createManifest(staging);
   await verifyArtifact(staging);
 

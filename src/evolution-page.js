@@ -3693,7 +3693,11 @@ async function init() {
   bindStandResolution(document);
   // Nothing has been imported at boot, so the held answer is the bundled
   // synthetic example with its marker intact — composed on this first read.
-  applyStandHeadline(document, answerState.getHeadline());
+  // Painted WITHOUT announcing: the build seeds this same answer into the
+  // shipped document, so the boot paint is a repaint of what the reader already
+  // has rather than a change, and a polite region rewritten on load speaks a
+  // figure nobody asked for. Every paint after this one is a real change.
+  applyStandHeadline(document, answerState.getHeadline(), { announce: false });
   // The way out of the region, repainted from the module that owns the link so
   // the authored href and the hand-off contract cannot drift apart. It needs no
   // binding: it is an anchor, and it worked before this line ran.
