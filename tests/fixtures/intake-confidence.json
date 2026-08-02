@@ -1,0 +1,53 @@
+{
+  "contract": "intake-confidence/1.0.0",
+  "fixtures": [
+    {
+      "label": "complete fields, period, attribution, and unambiguous parse",
+      "changes": {},
+      "expected": { "status": "scored", "grade": "A", "score": 100,
+        "remediation": "was not independently verified" }
+    },
+    {
+      "label": "period declares omitted records",
+      "changes": { "completeness": "partial", "omitted_record_count": 2 },
+      "expected": { "status": "scored", "grade": "B", "score": 88,
+        "remediation": "period" }
+    },
+    {
+      "label": "record is not attribution-ready",
+      "changes": { "org_unit_id": "" },
+      "expected": { "status": "scored", "grade": "B", "score": 75,
+        "remediation": "grouping" }
+    },
+    {
+      "label": "only one of four source rows parsed clearly",
+      "changes": { "sourceRows": 4, "analyzedRows": 1 },
+      "expected": { "status": "scored", "grade": "B", "score": 89,
+        "remediation": "mapping" }
+    },
+    {
+      "label": "reversed bounds despite complete metadata and one record",
+      "changes": { "period_start": "2026-08-01", "period_end": "2026-07-01" },
+      "expected": { "status": "invalid_period", "grade": "Not scored", "score": null,
+        "remediation": "period_start" }
+    },
+    {
+      "label": "declared period carries no spend records",
+      "changes": { "emptyRecords": true },
+      "expected": { "status": "no_records", "grade": "Not scored", "score": null,
+        "remediation": "spend records" }
+    },
+    {
+      "label": "record dated outside the declared half-open period",
+      "changes": { "usage_date": "2026-08-02" },
+      "expected": { "status": "period_contradiction", "grade": "Not scored", "score": null,
+        "remediation": "usage_date" }
+    },
+    {
+      "label": "same envelope loaded as a bundled synthetic example",
+      "changes": { "origin": "bundled_example" },
+      "expected": { "status": "scored", "grade": "A", "score": 100,
+        "provenance": "Bundled synthetic example" }
+    }
+  ]
+}

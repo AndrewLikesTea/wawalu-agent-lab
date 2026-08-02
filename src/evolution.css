@@ -1792,6 +1792,12 @@ section[data-workspace-current="true"] { box-shadow:-6px 0 0 0 var(--import-wash
 .native-provider-card dd { margin:0; overflow-wrap:anywhere; }
 .native-provider-failure,.native-provider-boundary,.native-provider-contract-link { font-size:12px; line-height:1.5; }
 .native-provider-boundary { margin:14px 0 8px; }
+.intake-confidence { margin:16px 0; border:1px solid #d5d8d2; border-radius:10px; padding:14px; background:#fbfcfa; }
+.intake-confidence h3,.intake-confidence p { margin:0 0 8px; }
+.intake-confidence dl { display:grid; gap:6px; margin:10px 0; }
+.intake-confidence dl div { display:grid; grid-template-columns:110px 1fr; gap:10px; }
+.intake-confidence dt { font-weight:700; }
+.intake-confidence dd { margin:0; }
 .gateway-refresh { margin-top:12px; border:1px solid #b8c8d5; border-radius:8px; padding:9px 12px; background:#fff; color:#283b4a; font:700 12px/1.4 ui-monospace,monospace; cursor:pointer; }
 .gateway-refresh:hover { border-color:#55758d; background:#f5f8fa; }
 .gateway-refresh:disabled { cursor:wait; opacity:.65; }
