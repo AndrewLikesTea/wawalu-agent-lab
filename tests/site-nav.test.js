@@ -533,6 +533,20 @@ test("the nav is reached by keyboard in the order it is displayed", async () => 
     // Social group must not cost it one — and the sequence is document order,
     // which is the order the nav is authored and read in.
     assert.deepEqual(sequence.map(textOf), SITE_NAV_LABELS, `${file}: nav tab order`);
+
+    // The order above is document order because nothing overrides it. A
+    // tabindex anywhere in the row would make that agreement a coincidence,
+    // whichever direction it pointed.
+    const nav = document.querySelector(".site-nav");
+    assert.equal(nav.querySelectorAll("[tabindex]").length, 0, `${file}: a nav item sets tabindex`);
+
+    // The item you are on is the one it is tempting to freeze: a reader who is
+    // already there has nowhere to go, so it becomes a span, and then it is the
+    // one destination a keyboard cannot reach or a screen reader cannot list.
+    for (const item of nav.querySelectorAll('[aria-current="page"]')) {
+      assert.equal(item.tagName, "A", `${file}: the current item is a ${item.tagName}, not a link`);
+      assert.ok(item.getAttribute("href"), `${file}: the current item is a link to nowhere`);
+    }
   }
 
   // Nothing in the stylesheets re-orders the row visually, which would leave the
