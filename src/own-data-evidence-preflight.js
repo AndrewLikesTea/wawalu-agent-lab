@@ -9,6 +9,19 @@ export const EVIDENCE_PREFLIGHT_OUTCOME = Object.freeze({
   INSUFFICIENT: "insufficient-evidence",
 });
 
+// Which rows produced the figures. One region is painted from an invented
+// bundled package and from a reader's own selected export, so the caption
+// travels with the assessment instead of sitting fixed in the markup, where it
+// would keep saying "bundled" over a reader's own numbers.
+export const EVIDENCE_SOURCE = Object.freeze({
+  BUNDLED: Object.freeze({
+    id: "bundled-example", label: "Evidence preflight · bundled local example",
+  }),
+  SELECTED_EXPORT: Object.freeze({
+    id: "selected-export", label: "Evidence preflight · your selected provider export",
+  }),
+});
+
 export const OWN_DATA_PREFLIGHT_QUESTION =
   "Can this export support a trustworthy department-spend decision?";
 
@@ -110,6 +123,8 @@ export function assessOwnDataEvidence({ providerRows = [], querySampleRows = [] 
     question: OWN_DATA_PREFLIGHT_QUESTION,
     boundary: OWN_DATA_PREFLIGHT_BOUNDARY,
     outcome,
+    source: EVIDENCE_SOURCE.BUNDLED.id,
+    sourceLabel: EVIDENCE_SOURCE.BUNDLED.label,
     sufficient,
     coverage,
     benchmark: Object.freeze({

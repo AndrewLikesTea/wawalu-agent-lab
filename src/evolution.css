@@ -372,6 +372,17 @@
 #guided-result[data-support-expanded="false"]~[data-panel-role="support"],
 #guided-result[data-support-expanded="false"]~* [data-panel-role="support"] { display:none; }
 .local-import { border-color:#9eb9aa; background:linear-gradient(145deg,#f7fbf8,#fff 55%); }
+.local-export-activation { display:grid; grid-template-columns:minmax(0,1fr) minmax(240px,.7fr); gap:20px; margin:24px 0; border:1px solid var(--import-line); border-radius:14px; padding:20px; background:var(--import-wash); }
+.local-export-activation fieldset { min-width:0; margin:0; border:0; padding:0; }
+.local-export-activation legend { padding:0; color:var(--import-ink); font-size:19px; font-weight:750; }
+.local-export-intake-help,.local-export-next p { margin:5px 0 0; color:var(--ink-muted); font-size:12px; line-height:1.5; }
+.local-export-choices { display:flex; flex-wrap:wrap; gap:8px; margin-top:14px; }
+.local-export-choices label { display:flex; align-items:center; gap:8px; min-height:44px; border:1px solid var(--import-line); border-radius:10px; padding:8px 13px; background:#fff; color:var(--import-ink); font-weight:700; cursor:pointer; }
+.local-export-choices label:has(input:checked) { border-width:2px; border-color:var(--import-accent); background:#f7fbf8; }
+.local-export-choices input { width:18px; height:18px; margin:0; accent-color:var(--import-accent); }
+.local-export-choices input:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.local-export-next { align-self:center; }
+.local-export-next button { width:100%; }
 .own-data-preflight { display:grid; gap:12px; margin:24px 0; border:1px solid var(--import-line,#9eb9aa); border-left:6px solid #39705a; border-radius:12px; padding:20px; background:#fff; }
 .own-data-preflight[data-outcome="insufficient-evidence"] { border-left-color:var(--state-warn-line,#9a6b1f); }
 .own-data-preflight h3,.own-data-preflight h4,.own-data-preflight p { margin:0; }
@@ -384,6 +395,10 @@
 .own-data-preflight-boundary { display:grid; gap:5px; }
 .own-data-preflight-sources li[data-available="false"] { color:var(--ink-muted); }
 .own-data-preflight-action { display:grid; gap:3px; border-top:1px solid #d7ddd8; padding-top:12px; }
+.own-data-preflight-detail { border-top:1px solid var(--import-line); padding-top:10px; }
+.own-data-preflight-detail summary { min-height:44px; color:var(--import-ink); font-weight:750; cursor:pointer; }
+.own-data-preflight-detail summary:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.own-data-preflight-detail[open] { display:grid; gap:12px; }
 .local-import-heading,.local-result-heading { display:flex; align-items:start; justify-content:space-between; gap:24px; }
 /* Static classifications are outlined; dynamic status chips use filled washes. */
 /* Chip silhouette follows design-system/claude-design/review-08-foundations:
@@ -1781,6 +1796,9 @@ section[data-workspace-current="true"] { box-shadow:-6px 0 0 0 var(--import-wash
   .portfolio-facts { grid-template-columns:repeat(2,1fr); }
 }
 @media(max-width:640px) {
+  .local-export-activation { grid-template-columns:1fr; padding:16px; }
+  .local-export-choices { display:grid; grid-template-columns:1fr; }
+  .local-export-choices label,.local-export-next button { width:100%; }
   .finops-load-state { align-items:stretch; flex-direction:column; }
   /* One column on a phone, and the buttons go full width: the two choices stay
      equally reachable rather than one of them becoming a thumb-sized target. */

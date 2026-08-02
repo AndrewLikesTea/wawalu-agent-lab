@@ -106,6 +106,8 @@ test("the view fills every region the shipped page provides", async () => {
   const assessment = assessOwnDataEvidence(BUNDLED_OWN_DATA_EVIDENCE);
   assert.equal(renderOwnDataEvidencePreflight(document, assessment), true);
   assert.equal(nodes["own-data-evidence-preflight"].dataset.outcome, assessment.outcome);
+  assert.equal(nodes["own-data-evidence-preflight"].dataset.source, "bundled-example");
+  assert.match(nodes["own-data-preflight-source"].textContent, /bundled local example/);
   assert.equal(nodes["own-data-preflight-boundary"].children.length, assessment.boundary.length);
   assert.match(nodes["own-data-preflight-boundary"].textContent, /No credentials/);
   assert.equal(nodes["own-data-preflight-provenance"].children.length, 2);

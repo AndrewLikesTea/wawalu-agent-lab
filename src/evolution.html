@@ -1115,21 +1115,38 @@
             <span id="analysis-mode-label">Bundled synthetic example</span>
           </span>
         </div>
+        <section class="local-export-activation" id="local-export-activation" data-choice="ready" aria-labelledby="local-export-intake-question">
+          <fieldset>
+            <legend id="local-export-intake-question">Do you have a provider billing export ready?</legend>
+            <p class="local-export-intake-help" id="local-export-intake-help">Choose one answer. You can change it without losing the briefing already on screen.</p>
+            <div class="local-export-choices" role="radiogroup" aria-describedby="local-export-intake-help">
+              <label><input type="radio" name="local-export-ready" value="ready" checked /> Yes, choose it</label>
+              <label><input type="radio" name="local-export-ready" value="example" /> Not yet</label>
+            </div>
+          </fieldset>
+          <div class="local-export-next">
+            <button class="first-run-primary" id="local-export-next-action" type="button" aria-describedby="local-export-next-note">Choose a provider export</button>
+            <p id="local-export-next-note">CSV, TSV, or a v1 JSON envelope. It will be processed only in this browser tab.</p>
+          </div>
+        </section>
         <section class="own-data-preflight" id="own-data-evidence-preflight" data-outcome="pending" aria-labelledby="own-data-preflight-question">
-          <p class="eyebrow">Evidence preflight · bundled local example</p>
+          <p class="eyebrow" id="own-data-preflight-source">Evidence preflight · bundled local example</p>
           <h3 id="own-data-preflight-question">Can this export support a trustworthy department-spend decision?</h3>
           <p class="own-data-preflight-finding" id="own-data-preflight-finding">Checking the bundled evidence package.</p>
           <p class="own-data-preflight-benchmark" id="own-data-preflight-benchmark">Benchmark: 90% required spend coverage.</p>
-          <div class="own-data-preflight-sources">
-            <h4>What evidence is present?</h4>
-            <ul id="own-data-preflight-provenance"></ul>
-          </div>
           <p class="own-data-preflight-confidence" id="own-data-preflight-confidence">No confidence limit available yet.</p>
           <p class="own-data-preflight-action"><strong>Prioritized next action</strong><span id="own-data-preflight-action">Waiting for the evidence check.</span></p>
-          <div class="own-data-preflight-boundary">
-            <p>This preflight reads invented bundled rows in this tab. Its static-demo boundary:</p>
-            <ul id="own-data-preflight-boundary"></ul>
-          </div>
+          <details class="own-data-preflight-detail">
+            <summary>Field provenance and limitations</summary>
+            <div class="own-data-preflight-sources">
+              <h4>Evidence used for this finding</h4>
+              <ul id="own-data-preflight-provenance"></ul>
+            </div>
+            <div class="own-data-preflight-boundary">
+              <p>What this finding cannot establish:</p>
+              <ul id="own-data-preflight-boundary"></ul>
+            </div>
+          </details>
         </section>
         <div class="privacy-boundary" role="note" aria-label="Local processing privacy boundary">
           <strong>Your files do not leave this tab.</strong>

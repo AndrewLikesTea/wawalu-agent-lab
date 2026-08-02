@@ -289,6 +289,7 @@ import {
   EXAMPLE_DATASET_PROVENANCE,
   focusStageHeading, importStage, metricBasis, userDatasetProvenance,
 } from "/local-import-flow.js";
+import { mountLocalExportActivation } from "/local-export-activation.js";
 // A leader's own graded sample. The rubric and the eligibility tier are both
 // upstream and unchanged here; `graded-sample-figures.js` only decides which of
 // the three states the three panels are in, and `graded-sample-view.js` paints
@@ -736,6 +737,22 @@ function syncWorkspaceRestore() {
 function mountLocalFinopsImport() {
   const input = document.getElementById("local-finops-files");
   if (!input) return;
+  // Loaded only after a validated provider file exists. The projection reads
+  // the same in-memory document as the analysis and paints the single evidence
+  // finding; it performs no I/O and retains no selected rows.
+  const paintProviderProjection = async (providerDocument) => {
+    const [{ projectProviderExport }, { renderProviderExportProjection }] = await Promise.all([
+      import("/provider-export-projection.js"),
+      import("/provider-export-projection-view.js"),
+    ]);
+    // The region answers about the export just read. `imports` holds the ones
+    // accepted before it, so the caption can say which of a multi-file
+    // selection these figures came from instead of implying all of them.
+    const selectedExports = 1
+      + imports.filter((entry) => entry.parsed?.type === "provider").length;
+    renderProviderExportProjection(document, projectProviderExport(providerDocument),
+      { selectedExports });
+  };
   const stateNode = document.getElementById("local-import-state");
   const resultsNode = document.getElementById("local-results");
   const clear = document.getElementById("clear-local-analysis");
@@ -1963,6 +1980,7 @@ function mountLocalFinopsImport() {
     // has no partial evidence, and a synthetic answer to "what do my exports
     // support" would be the one claim this region exists to refuse.
     clearPartialEvidence(document);
+    renderOwnDataEvidencePreflight(document, assessOwnDataEvidence(BUNDLED_OWN_DATA_EVIDENCE));
     repaintBundledAnalysis();
     // The bundled seed answers for the panels again, so they are re-decided from
     // it rather than restored by a flag. A visitor who imports nothing and a
@@ -2152,6 +2170,7 @@ function mountLocalFinopsImport() {
       const options = boundedDelimitedOptions({ mapping: binding });
       parsed = await runImport(file, options,
         () => parseLocalImportFile(file.text, file.fileName, file.mediaType, options));
+      if (parsed.type === "provider") await paintProviderProjection(parsed.document);
     } catch (error) {
       applyImportProgress(document, null);
       // A cancel is the reader's own decision, already announced where they made
@@ -2551,6 +2570,7 @@ function mountLocalFinopsImport() {
       try {
         const parsed = await runImport(file, undefined,
           () => parseLocalImportFile(file.text, file.fileName, file.mediaType));
+        if (parsed.type === "provider") await paintProviderProjection(parsed.document);
         imports.push({
           source: "json", fileName: file.fileName, parsed, state: null,
           rows: parsed.document?.records?.length ?? 0,
@@ -3458,6 +3478,7 @@ async function init() {
   // Nothing below this line waits on it — the returned promises are the tests'
   // handle, not a gate on the boot.
   installDeferredDetails(document);
+  mountLocalExportActivation(document);
   mountLocalFinopsImport();
   // The page's one next action, operable before any fixture resolves: it stands
   // the reader on the file input and opens the picker. Bound here rather than

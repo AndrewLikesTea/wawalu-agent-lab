@@ -7,16 +7,22 @@ function node(document, tag, className, text) {
 
 export function renderOwnDataEvidencePreflight(document, assessment) {
   const region = document.getElementById("own-data-evidence-preflight");
+  // The caption is as required as the number under it: this region is painted
+  // from invented rows and from a reader's own export, and a stale caption
+  // would attribute one to the other.
+  const source = document.getElementById("own-data-preflight-source");
   const finding = document.getElementById("own-data-preflight-finding");
   const benchmark = document.getElementById("own-data-preflight-benchmark");
   const provenance = document.getElementById("own-data-preflight-provenance");
   const confidence = document.getElementById("own-data-preflight-confidence");
   const action = document.getElementById("own-data-preflight-action");
   const boundary = document.getElementById("own-data-preflight-boundary");
-  if (!region || !finding || !benchmark || !provenance || !confidence || !action
+  if (!region || !source || !finding || !benchmark || !provenance || !confidence || !action
     || !boundary) return false;
 
   region.dataset.outcome = assessment.outcome;
+  region.dataset.source = assessment.source;
+  source.textContent = assessment.sourceLabel;
   finding.replaceChildren(
     node(document, "strong", "own-data-preflight-verdict", assessment.verdict),
     node(document, "span", undefined, assessment.finding),
