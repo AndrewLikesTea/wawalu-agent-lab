@@ -76,6 +76,17 @@ const submitOf = (document, formId) => byId(document, formId)?.querySelector('bu
 // these on two pages has no way to know they lead to the same inbox.
 const COMPETING = [/walkthrough/i, /\bdiscuss/i, /\bconversation/i, /\bchat\b/i, /\bdemo\b/i];
 
+// The copy that belongs to the errand, which on the footer is everything except
+// the site's destination directory. That list describes the product's surfaces
+// in the home page's words — a "shared demo feed", a "demo persona" — and those
+// are names for what a visitor can go and look at, not names for the follow-up.
+// Every sentence that does speak for the request stays subject to the rule.
+const errandCopy = (region) => {
+  const directory = region.querySelector(".site-footer-demos");
+  const copy = textOf(region);
+  return directory ? copy.replace(textOf(directory), "") : copy;
+};
+
 test("every control that opens or submits a follow-up form reads exactly the one CTA label", async () => {
   for (const { page: file, what, buttons, forms } of SURFACES) {
     const page = await loadPage(pageUrl(file));
@@ -117,7 +128,7 @@ test("no follow-up surface calls the same errand a walkthrough, a discussion, or
       for (const id of context) {
         const region = byId(page.document, id);
         assert.ok(region, `${what}: #${id} does not render on ${file}`);
-        const copy = textOf(region);
+        const copy = errandCopy(region);
         for (const term of COMPETING) {
           assert.doesNotMatch(copy, term, `${what}: #${id} still names the follow-up "${term}"`);
         }
