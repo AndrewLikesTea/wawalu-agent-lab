@@ -1166,6 +1166,32 @@
           </div>
           <p class="native-provider-contract-link">Full static contract, normalization rules, fixtures, and failure behavior: <a href="/contracts/integrations/native-provider-exports/v1/manifest.json">native provider export contract v1</a>.</p>
         </details>
+        <!-- Hyperscaler export eligibility (#927). Every card, every field name
+             and every prohibition below is painted from src/browser-compat-contracts.js
+             by src/browser-compat-view.js: nothing in this markup names a
+             provider, so a fourth contract appears here without a page edit.
+             The verdict region is deliberately OUTSIDE the disclosure below: a
+             live region folded away inside a collapsed details element is not
+             announced in a real browser, whatever a test harness reads from it. -->
+        <section class="browser-compat" id="browser-compat" aria-labelledby="browser-compat-title">
+          <p class="eyebrow">Bedrock, Vertex AI, Azure OpenAI · browser only</p>
+          <h3 id="browser-compat-title">Will your hyperscaler export work here?</h3>
+          <p>Check one export against the published contract without a credential, a connector, or a single network request. The file is parsed in this tab and discarded when the verdict appears.</p>
+          <details class="browser-compat-disclosure" id="browser-compat-disclosure">
+            <summary><span>What each provider contract requires</span><span class="browser-compat-count" id="browser-compat-count">3 versioned contracts</span></summary>
+            <div id="browser-compat-contracts" data-state="pending"><p>Contracts are available when this client-side demo starts.</p></div>
+            <ul class="browser-compat-privacy" id="browser-compat-privacy" data-state="pending" aria-label="Compatibility check prohibitions"></ul>
+          </details>
+          <div class="browser-compat-check">
+            <p class="browser-compat-field"><label for="browser-compat-provider">Provider you are exporting from</label><select id="browser-compat-provider"></select></p>
+            <p class="browser-compat-field"><label for="browser-compat-example">Bundled synthetic example</label><select id="browser-compat-example"></select></p>
+            <p class="browser-compat-field"><label for="browser-compat-file">Or check one of your own export files</label><input id="browser-compat-file" type="file" accept=".csv,.tsv,.json,.jsonl,.ndjson" /></p>
+            <button id="browser-compat-run" type="button">Check this export</button>
+          </div>
+          <div class="browser-compat-verdict" id="browser-compat-verdict" role="status" aria-live="polite" data-state="empty" data-status="none">
+            <p class="browser-compat-verdict-line">No export has been checked yet. Choose a bundled example or one of your own export files, then run the check.</p>
+          </div>
+        </section>
         <section class="intake-confidence" id="intake-confidence" data-status="pending" hidden></section>
         <!-- The forwardable form of the note above (#745). Checked, not
              asserted: tests/finops-import-egress.test.js enforces "never

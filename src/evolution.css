@@ -1792,6 +1792,33 @@ section[data-workspace-current="true"] { box-shadow:-6px 0 0 0 var(--import-wash
 .native-provider-card dd { margin:0; overflow-wrap:anywhere; }
 .native-provider-failure,.native-provider-boundary,.native-provider-contract-link { font-size:12px; line-height:1.5; }
 .native-provider-boundary { margin:14px 0 8px; }
+/* Hyperscaler export eligibility (#927). The verdict carries a word for every
+   state, never colour alone, so data-status is a hook rather than the message. */
+.browser-compat { margin:16px 0; border:1px solid #d5d8d2; border-radius:10px; padding:14px; background:#fbfcfa; }
+.browser-compat>h3,.browser-compat>p { margin:0 0 8px; }
+.browser-compat-disclosure { margin:12px 0; border:1px solid #e0e2dd; border-radius:8px; padding:10px 12px; background:#fff; }
+.browser-compat-disclosure>summary { display:flex; justify-content:space-between; gap:16px; cursor:pointer; font-weight:700; }
+.browser-compat-count,.browser-compat-version { color:var(--ink-muted); font:600 12px/1.5 ui-monospace,monospace; }
+#browser-compat-contracts { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin-top:12px; }
+.browser-compat-card { border:1px solid #e0e2dd; border-radius:8px; padding:12px; font-size:12px; }
+.browser-compat-card h4,.browser-compat-card h5,.browser-compat-card p { margin:0 0 6px; }
+.browser-compat-card ul,.browser-compat-privacy { margin:0 0 8px; padding-left:18px; }
+.browser-compat-card li,.browser-compat-privacy li { overflow-wrap:anywhere; }
+.browser-compat-rejections { margin:0 0 8px; }
+.browser-compat-rejections dt { font-weight:700; }
+.browser-compat-rejections dd { margin:0 0 6px; }
+.browser-compat-privacy { font-size:12px; line-height:1.5; margin-top:10px; }
+.browser-compat-check { display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end; margin:12px 0; }
+.browser-compat-field { display:grid; gap:4px; margin:0; font-size:12px; font-weight:700; }
+.browser-compat-verdict { border:1px solid #d5d8d2; border-left-width:5px; border-radius:8px; padding:12px; background:#fff; }
+.browser-compat-verdict p { margin:0 0 6px; }
+.browser-compat-verdict p:last-child { margin-bottom:0; }
+.browser-compat-verdict-line { font-weight:700; }
+.browser-compat-verdict[data-state="empty"] { border-left-color:#b9bdb4; }
+.browser-compat-verdict[data-status="supported"] { border-left-color:#2f7d4f; }
+.browser-compat-verdict[data-status="degraded"] { border-left-color:#a8710f; }
+.browser-compat-verdict[data-status="rejected"],.browser-compat-verdict[data-status="no-match"] { border-left-color:#a4322b; }
+@media (max-width:640px) { #browser-compat-contracts { grid-template-columns:minmax(0,1fr); } }
 .intake-confidence { margin:16px 0; border:1px solid #d5d8d2; border-radius:10px; padding:14px; background:#fbfcfa; }
 .intake-confidence h3,.intake-confidence p { margin:0 0 8px; }
 .intake-confidence dl { display:grid; gap:6px; margin:10px 0; }

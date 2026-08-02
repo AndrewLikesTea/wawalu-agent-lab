@@ -56,6 +56,11 @@ import { PANEL_STATUS } from "/panel-status-view.js";
 import { formatIntegrationProvenance } from "/integration-contracts.js";
 import { createStaticGateway } from "/static-gateway.js";
 import { renderNativeProviderCompatibility } from "/native-provider-compatibility-view.js";
+import {
+  bindBrowserCompatCheck, initBrowserCompatCheck, renderBrowserCompatContracts,
+} from "/browser-compat-view.js";
+import { evaluateExport, parseExportText } from "/browser-compat-eligibility.js";
+import { FIXTURE_REFERENCE_DATE } from "/browser-compat-fixtures.js";
 import { scoreIntakeConfidence } from "/intake-confidence.js";
 import { clearIntakeConfidence, renderIntakeConfidence } from "/intake-confidence-view.js";
 import { createFinancePortfolio } from "/finance-portfolio.js";
@@ -3701,6 +3706,23 @@ async function init() {
   bindPortfolioSamples(document, evaluateSample);
   initFinopsContact(document);
   renderNativeProviderCompatibility(document.getElementById("native-provider-compatibility-body"));
+  // Hyperscaler export eligibility (#927). Same synchronous pass and the same
+  // reason as the comparability judgment above: it needs no fetch, no adapter
+  // and no credential, so "will my Bedrock/Vertex/Azure export work here?" is
+  // answerable before anything is chosen.
+  renderBrowserCompatContracts(document);
+  if (initBrowserCompatCheck(document)) {
+    bindBrowserCompatCheck(document, ({ text, fileName, providerId, bundled }) =>
+      evaluateExport(parseExportText(text, fileName), {
+        expectedProviderId: providerId,
+        // A bundled example is judged against the fixture's own reference date
+        // so its verdict is the same today and next quarter; a reader's own
+        // export is judged against today, which is the only freshness answer
+        // that means anything to them. The evaluator itself never reads a clock.
+        referenceDate: bundled ? FIXTURE_REFERENCE_DATE
+          : new Date().toISOString().slice(0, 10),
+      }));
+  }
   const gateway = createStaticGateway();
   const refreshGateway = document.getElementById("integration-gateway-refresh");
   gateway.subscribe(({ status, inspection, metadata }) => {
