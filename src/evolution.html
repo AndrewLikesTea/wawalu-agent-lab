@@ -1210,6 +1210,36 @@
             <p class="export-recognition-band">The recognition score for the selected bundled example appears here when this client-side demo starts.</p>
           </div>
         </section>
+        <!-- Provider-native local export intake (#930). The provider chooser is
+             the one above, shared rather than duplicated. Everything a reader
+             acts on here is decided by src/provider-native-import.js and painted
+             by src/provider-native-import-view.js: no provider, no column name,
+             no rate and NO FIGURE is in this markup, so a reader with JavaScript
+             off sees the question and the controls, never an answer nobody
+             computed. The finding region is a live region and sits OUTSIDE the
+             evidence disclosure below on purpose — a status folded inside a
+             collapsed details element is not announced in a real browser however
+             readable a test harness finds it. Drag and drop is an addition to
+             the file control, which stays in the tab order and does the same
+             job. -->
+        <section class="provider-native-import" id="provider-native-import" aria-labelledby="provider-native-title">
+          <p class="eyebrow">Your own export · read in this tab</p>
+          <h3 id="provider-native-title">Which model in your export costs the most per thousand billed units?</h3>
+          <p>Choose the provider you exported from in the control above, then drop the file below or pick it with the file control. The file is parsed here, in this browser, and the answer, the confidence behind it, and the one thing to do about it appear together.</p>
+          <div class="provider-native-drop" id="provider-native-drop" data-dragging="false">
+            <p class="provider-native-hint">Drop an export file anywhere in this box.</p>
+            <p class="provider-native-field"><label for="provider-native-file">Or choose an export file</label><input id="provider-native-file" type="file" accept=".csv,.tsv,.json,.jsonl,.ndjson" /></p>
+            <p class="provider-native-field"><label for="provider-native-example">Or read a bundled example</label><select id="provider-native-example"></select></p>
+          </div>
+          <div class="provider-native-finding" id="provider-native-finding" role="status" aria-live="polite" data-state="empty" data-metric="none">
+            <p class="provider-native-question">No export has been read yet. Choose the provider you exported from, then drop a file here, pick one with the file control, or read a bundled example.</p>
+          </div>
+          <ul class="provider-native-trust" id="provider-native-trust" data-state="empty" aria-label="Recognition, provenance and privacy signals"></ul>
+          <details class="provider-native-evidence" id="provider-native-evidence" data-open="false">
+            <summary><span>How that figure was reached</span></summary>
+            <div id="provider-native-evidence-body"><p class="provider-native-evidence-lead">The rate table and the recognition evidence appear here once an export has been read.</p></div>
+          </details>
+        </section>
         <section class="intake-confidence" id="intake-confidence" data-status="pending" hidden></section>
         <!-- The forwardable form of the note above (#745). Checked, not
              asserted: tests/finops-import-egress.test.js enforces "never

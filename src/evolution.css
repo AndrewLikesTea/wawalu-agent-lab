@@ -3422,3 +3422,48 @@ section[data-workspace-current="true"] { box-shadow:-6px 0 0 0 var(--import-wash
 .query-review-action { flex-basis:100%; font-weight:600; overflow-wrap:anywhere; }
 .query-review-provenance { margin:0; color:var(--import-ink); font-size:12.5px; font-weight:700; }
 .query-review-live { margin:0; color:var(--ink-muted); font-size:12px; }
+
+/* Provider-native local export intake (#930). Three treatments and nothing
+   decorative: the drop target has to read as a target before anything is
+   dragged over it, the finding's three slots have to read in answer order at
+   any width, and the trust signals have to sit UNDER the answer rather than
+   beside it — no alert colour, no badge, no second focal point competing with
+   the figure the reader came for. */
+.provider-native-import { margin:16px 0; border:1px solid #d5d8d2; border-radius:10px; padding:14px; background:#fbfcfa; }
+.provider-native-import>h3,.provider-native-import>p { margin:0 0 8px; }
+/* Dashed edge = a target that accepts something, matching the outline/filled
+   pair used elsewhere on this page: dashed while idle, filled wash while a file
+   is over it. The state is also in data-dragging, so it is never colour alone. */
+.provider-native-drop { display:flex; flex-wrap:wrap; gap:12px 16px; align-items:flex-end; margin:12px 0; border:2px dashed var(--import-line,#b9bdb4); border-radius:10px; padding:14px; background:#fff; }
+.provider-native-drop[data-dragging="true"] { border-style:solid; background:var(--import-wash,#eef3ee); }
+.provider-native-hint { flex-basis:100%; margin:0; color:var(--ink-muted); font-size:12.5px; font-weight:700; }
+.provider-native-field { display:grid; gap:4px; margin:0; font-size:12px; font-weight:700; }
+.provider-native-field input:focus-visible,.provider-native-field select:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+/* The answer block. The left rule carries the state a second time, after the
+   words in the metric sentence itself, never instead of them. */
+.provider-native-finding { border:1px solid #d5d8d2; border-left-width:5px; border-radius:8px; padding:12px; background:#fff; }
+.provider-native-finding p { margin:0 0 6px; max-width:80ch; overflow-wrap:anywhere; }
+.provider-native-finding p:last-child { margin-bottom:0; }
+.provider-native-question { font-weight:700; }
+.provider-native-metric { font-size:15px; line-height:1.55; }
+.provider-native-action { font-weight:700; }
+.provider-native-finding[data-state="empty"] { border-left-color:#b9bdb4; }
+.provider-native-finding[data-state="answered"] { border-left-color:#2f7d4f; }
+.provider-native-finding[data-state="answered"][data-metric="none"],.provider-native-finding[data-state="provisional"] { border-left-color:#a8710f; }
+.provider-native-finding[data-state="unrecognized"] { border-left-color:#a4322b; }
+.provider-native-trust { margin:10px 0 0; padding-left:18px; color:var(--ink-muted); font-size:12.5px; line-height:1.6; }
+.provider-native-trust li { overflow-wrap:anywhere; }
+.provider-native-trust:empty { display:none; }
+.provider-native-evidence { margin:12px 0 0; border:1px solid #e0e2dd; border-radius:8px; padding:10px 12px; background:#fff; }
+.provider-native-evidence>summary { cursor:pointer; font-weight:700; }
+.provider-native-evidence-lead { margin:8px 0 6px; font-size:12.5px; }
+.provider-native-rates,.provider-native-recognition { margin:0 0 8px; padding-left:20px; font-size:12.5px; line-height:1.6; }
+.provider-native-rates li,.provider-native-recognition li { overflow-wrap:anywhere; }
+.provider-native-rates li { font-variant-numeric:tabular-nums; }
+/* One column under 640px: the controls stack in the order they are read, and
+   the drop target keeps its full width so it stays a target on a phone. */
+@media (max-width:640px) {
+  .provider-native-drop { display:grid; grid-template-columns:minmax(0,1fr); }
+  .provider-native-field input,.provider-native-field select { max-width:100%; }
+  .provider-native-metric { font-size:14px; }
+}
