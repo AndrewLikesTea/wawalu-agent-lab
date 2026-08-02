@@ -2,12 +2,14 @@
 // This registry mirrors the two direct-provider dialect profiles the intake
 // already consumes. It does not parse files, connect to a vendor, or retain data.
 
-export const NATIVE_PROVIDER_CONTRACT_VERSION = "native-provider-exports/1.0.0";
+// 1.1.0: the malformed-row rule tightened. A native export with an unreadable
+// contract-required cell is now rejected whole rather than analyzed without it.
+export const NATIVE_PROVIDER_CONTRACT_VERSION = "native-provider-exports/1.1.0";
 
 const behavior = Object.freeze({
   partial: "Valid rows are partial evidence; skipped rows are counted and totals are never labelled complete.",
   stale: "Freshness is unknown because native CSV files carry no trustworthy export timestamp.",
-  malformed: "Invalid rows are skipped with a counted reason; invalid values never become zero.",
+  malformed: "Any invalid contract-required row rejects the native export; no partial total is analyzed.",
   reordered: "Columns are matched by normalized header name, never position.",
   unsupported: "Missing, ambiguous, or unknown shapes are rejected; the existing manual mapping remains available.",
 });

@@ -263,6 +263,7 @@ const RECOVERY_BY_CODE = Object.freeze({
   too_many_rows: "Split the export into smaller periods; the row ceiling is stated in the message.",
   malformed_quoted_field: "Re-export without editing the file by hand; a quoted field is left open.",
   missing_required_column: "Add the named column to the export, or choose the full provider export.",
+  native_required_field_invalid: "Correct the named column — every required cell filled, dates printed as YYYY-MM-DD — then choose the export again.",
   unparseable_date: "Correct the dates in the named column, then choose the file again.",
   invalid_amount: "Correct the cost column so every row holds a non-negative amount.",
   invalid_quantity: "Correct the usage column so every row holds a non-negative quantity.",

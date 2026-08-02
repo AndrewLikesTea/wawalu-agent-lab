@@ -331,8 +331,10 @@ test("a redacted column is listed for mapping but never sampled", () => {
 
 // --- malformed, reordered, and the original single-provider path ------------
 
-test("malformed rows are located and skipped; the rest of the file imports", () => {
-  const broken = [OPENAI_HEADER,
+test("malformed rows in a non-native mapped table are skipped; the rest imports", () => {
+  // The reviewed mapping path retains its partial-evidence contract. Exact
+  // native headers are covered separately and fail the whole export instead.
+  const broken = [OPENAI_HEADER.replace("usage_date", "day"),
     "2026-01-01,Platform,gpt-5,1000,500,120.00,USD",
     "not-a-date,Platform,gpt-5,1000,500,120.00,USD",
     "2026-01-03,Platform,gpt-5,1000,500,not-a-number,USD",

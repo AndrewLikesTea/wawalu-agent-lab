@@ -18,7 +18,11 @@ export function renderNativeProviderCompatibility(root, providers = NATIVE_PROVI
       fields.append(term, definition);
     }
     const failure = document.createElement("p"); failure.className = "native-provider-failure";
-    failure.textContent = provider.behavior.unsupported;
+    // Both refusals, where the operator reads the contract: which shapes are
+    // turned away at the header, and what one unreadable row does to the rest
+    // of the file. The second is the surprising one, so it is not left to the
+    // error message that appears after the import has already failed.
+    failure.textContent = `${provider.behavior.unsupported} ${provider.behavior.malformed}`;
     card.append(title, version, fields, failure); cards.append(card);
   }
   const boundary = document.createElement("ul"); boundary.className = "native-provider-boundary";

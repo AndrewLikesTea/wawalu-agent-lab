@@ -1,5 +1,5 @@
 {
-  "contract_version": "native-provider-exports/1.0.0",
+  "contract_version": "native-provider-exports/1.1.0",
   "kind": "wawalu.integration.native-provider-exports",
   "status": "bounded-static-compatibility",
   "formats": ["csv-utf8-with-header"],
@@ -45,7 +45,7 @@
     "ambiguous_shape": "return unsupported_format; never select the nearest-looking provider",
     "reordered_columns": "accept; match normalized header names, never column positions",
     "unknown_columns": "ignore unless they contain prohibited prompt or credential material; never retain ignored values",
-    "malformed_row": "skip the row with a counted reason; do not coerce invalid values to zero",
+    "malformed_row": "reject the whole native export when any contract-required cell cannot be read; name the first invalid row and column; analyze no subtotal from the remaining rows and do not coerce invalid values to zero",
     "partial_export": "analyze valid rows as partial evidence and disclose skipped-row counts; never present the subtotal as complete",
     "stale_export": "the native CSV has no trustworthy export timestamp; report freshness as unknown rather than infer it from usage dates"
   },
