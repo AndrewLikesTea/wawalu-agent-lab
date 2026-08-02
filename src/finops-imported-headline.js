@@ -191,7 +191,12 @@ export function importedHeadline(analysis = null) {
       detail: `Ranked first by recoverable spend, which is ${top.name}'s.`,
     });
 
-  const earned = [recoverableSlot, positionSlot, departmentSlot, actionSlot];
+  // THE ORDER IS THE FIXTURE'S, and the fixture's order is the reading order:
+  // the figure the question asks for, the one action to take about it, then the
+  // support. `$readingOrder` in the fixture states it; this array follows it, so
+  // a slot cannot be reordered on the page without being reordered in the
+  // contract. The tier is last because it is a fact about the four above it.
+  const earned = [recoverableSlot, actionSlot, positionSlot, departmentSlot];
   const satisfiedCount = earned.filter((entry) => entry.supported).length;
   const tier = satisfiedCount >= 4 ? CONFIDENCE_TIER.high
     : satisfiedCount >= 2 ? CONFIDENCE_TIER.medium : CONFIDENCE_TIER.low;
