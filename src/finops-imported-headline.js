@@ -76,19 +76,28 @@ export function latestCompleteMonth(analysis) {
 }
 
 /**
- * The department carrying the most recoverable spend.
+ * Every group in this export that carries recoverable spend, richest first.
  *
  * Absolute amount, then larger total spend, then name — the fixture's rule,
  * applied here and stated there. A group with no recoverable spend is not a
- * candidate: naming one would present a zero as a finding.
+ * candidate: ranking one would present a zero as a finding.
+ *
+ * Exported because the drill-down in `finops-imported-drilldown.js` ranks the
+ * same groups the headline names its driver from. One function, one order: rank
+ * 1 down there and the named department up here cannot drift, because there is
+ * no second comparator for them to drift between.
  */
+export function rankDepartments(analysis) {
+  return list(analysis?.rankedDepartments)
+    .filter((entry) => filled(entry?.name) && money(entry?.recoverableUsd) > 0)
+    .sort((left, right) => (right.recoverableUsd - left.recoverableUsd)
+      || ((money(right.spendUsd) ?? 0) - (money(left.spendUsd) ?? 0))
+      || String(left.name).localeCompare(String(right.name)));
+}
+
+/** The department carrying the most recoverable spend, or null. */
 export function topRecoverableDepartment(analysis) {
-  const ranked = list(analysis?.rankedDepartments)
-    .filter((entry) => filled(entry?.name) && money(entry?.recoverableUsd) > 0);
-  if (ranked.length === 0) return null;
-  return ranked.slice().sort((left, right) => (right.recoverableUsd - left.recoverableUsd)
-    || ((money(right.spendUsd) ?? 0) - (money(left.spendUsd) ?? 0))
-    || String(left.name).localeCompare(String(right.name)))[0];
+  return rankDepartments(analysis)[0] ?? null;
 }
 
 /**

@@ -91,6 +91,11 @@ export const FIRST_RUN_IDS = Object.freeze({
   internalValue: "finops-first-run-internal-value",
   internalDetail: "finops-first-run-internal-detail",
   internalBand: "finops-first-run-internal-band",
+  // The slot's own label, and the disclosure heading's text half. Both are
+  // authored for the example and reworded when an import takes the region over,
+  // so both need a handle rather than only a stylesheet class.
+  internalHeading: "finops-first-run-internal-heading",
+  methodTitle: "finops-first-run-method-title",
   action: "finops-first-run-action",
   role: "finops-first-run-role",
   methodList: "finops-first-run-method-list",

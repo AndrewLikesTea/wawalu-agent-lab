@@ -1400,6 +1400,12 @@
 .first-run-answer-detail { margin:-8px 0 0; max-width:70ch; color:var(--ink-muted); font-size:13px; line-height:1.55; overflow-wrap:anywhere; }
 /* Three slots, and the whole grid is one print/column unit: the share, the
    scenario, and the unavailable peer position qualify each other. */
+/* An import withholds the example's own summary and keeps only the drill-down
+   slot (#979). Each block below sets an author `display`, which beats the UA
+   `[hidden]` rule, so these only restore what `hidden` already means — the same
+   repair `.pre-analysis-withheld[hidden]` makes above. */
+.first-run-answer[hidden],.first-run-answer-detail[hidden],.first-run-slot[hidden],
+.first-run-recommendation[hidden],.first-run-confidence[hidden] { display:none; }
 .first-run-slots { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px 22px; break-inside:avoid; }
 .first-run-slot { display:grid; align-content:start; gap:5px; border-top:2px solid var(--import-accent); padding-top:10px; }
 .first-run-slot-label { margin:0; color:var(--import-ink); font:700 10px/1.5 ui-monospace,monospace; letter-spacing:.07em; text-transform:uppercase; }

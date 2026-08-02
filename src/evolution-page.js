@@ -282,9 +282,11 @@ import {
 // real analysis path, so it needs no network and survives a failed fixture.
 import { buildFirstRunResult } from "/finops-first-run.js";
 import {
-  applyExampleBriefingCta,
-  applyFirstRunResult, applyFirstRunSupersession, bindFirstRunActions, bindFirstRunDisclosure,
+  applyExampleBriefingCta, applyFirstRunResult, applyFirstRunSupersession,
+  applyImportedDrilldown, bindFirstRunActions, bindFirstRunDisclosure, restoreFirstRunExample,
 } from "/finops-first-run-view.js";
+// The reader's own ranking, in the region the example used to own alone.
+import { importedDrilldown } from "/finops-imported-drilldown.js";
 // Where the reader goes once they have read that result. The contract owns which
 // three destinations exist, which one is prioritized, and the clause that
 // promoted it; this page hands the loaded record to the view and paints it.
@@ -784,6 +786,12 @@ function syncWorkspaceRestore() {
   }
 }
 
+// The bundled example result, composed once. It is used on boot and again on
+// every hand-back from an import, and recomposing it on each panel sync would
+// re-run the whole example analysis for a region that has not changed.
+let firstRunExample = null;
+const exampleFirstRunResult = () => (firstRunExample ??= buildFirstRunResult());
+
 function mountLocalFinopsImport() {
   const input = document.getElementById("local-finops-files");
   if (!input) return;
@@ -1085,6 +1093,23 @@ function mountLocalFinopsImport() {
       || (entry.parsed.document?.records ?? [])
         .some((record) => String(record.org_unit_id ?? "").trim())));
   /**
+   * The word the provider's own export groups by, when detection named one.
+   *
+   * Read off the same versioned answer, never re-detected: it is what the
+   * drill-down falls back to naming when no org roster typed the groups as
+   * departments. Null when nothing named a unit, which the drill-down states in
+   * its own words rather than guessing at.
+   */
+  const providerGroupingUnit = () => {
+    for (const entry of imports) {
+      const grouping = entry.parsed?.type === "provider" ? entry.state?.nativeGrouping : null;
+      if (grouping?.status === "native" && grouping.unit) {
+        return String(grouping.unit).replace(/_/g, " ");
+      }
+    }
+    return null;
+  };
+  /**
    * One place decides what the recoverable figure may claim. The share is
    * measured; `classifyFinding` decides the rest from the published table, and
    * a suppressed classification withholds the figure rather than hedging it.
@@ -1310,14 +1335,32 @@ function mountLocalFinopsImport() {
     return applyGuidedResult(document, composed);
   };
   const syncPanels = () => {
-    // The first-run block answers "what would this tell me?". Any analysis on
-    // screen — the reader's import, or the example loaded into every panel —
-    // closes that question, so the block retires rather than sitting beside a
-    // fuller result with a second synthetic headline in it.
+    // The first-run block answers "what would this tell me?". The example
+    // loaded into every panel below closes that question, so the block retires
+    // rather than stating the same synthetic figures twice.
+    //
+    // An IMPORT does not close it — it answers it (#979). The example's summary
+    // is withheld so the imported headline above stays the only one on screen,
+    // and the drill-down slot and its disclosure are repopulated from the
+    // reader's own ranking. The region therefore keeps its place in the tab
+    // order and the workspace rail keeps a destination to point at.
+    const ownData = Boolean(result) && !exampleActive;
+    if (ownData) {
+      applyImportedDrilldown(document, importedDrilldown({
+        analysis: result,
+        // A department on this page is an org-roster fact: without an HRIS
+        // export nothing types a unit as one, so the ranking falls back to the
+        // grouping the provider's own export carries and says which.
+        departmentDimension: Boolean(loaded.hris),
+        groupingUnit: providerGroupingUnit(),
+      }));
+    } else {
+      restoreFirstRunExample(document, exampleFirstRunResult);
+    }
     // The reader's own briefing heading is where this block's question is
     // answered next, and it already takes focus programmatically, so it is
     // where a keyboard user is put if the region retires under their focus ring.
-    applyFirstRunSupersession(document, Boolean(result),
+    applyFirstRunSupersession(document, Boolean(result) && !ownData,
       { focusFallbackId: "local-results-title" });
     // The destination ranking belongs to that block: the doors stay true, but the
     // order they are in was ranked from the invented dataset, so it retires with
@@ -4013,7 +4056,7 @@ async function init() {
   // whether or not the request below ever resolves. Both next actions are bound
   // first, so they are operable in the unavailable state too.
   bindFirstRunActions(document);
-  applyFirstRunResult(document, buildFirstRunResult());
+  applyFirstRunResult(document, exampleFirstRunResult());
   // The headline answer, painted BEFORE the fixture request and from a module in
   // the bundle rather than from storage: a lead who lands with cleared storage,
   // no import, and a failed fetch still reads the complete "where do we stand?"

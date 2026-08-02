@@ -12,7 +12,7 @@
 // every node is built with createElement, because the strings below include a
 // contract's own operation line and a department label taken out of an analysis.
 
-import { FIRST_RUN_ACTIONS, FIRST_RUN_IDS } from "./finops-first-run.js";
+import { FIRST_RUN_ACTIONS, FIRST_RUN_IDS, SLOT_LABEL } from "./finops-first-run.js";
 import { EXAMPLE_BRIEFING_CTA, EXAMPLE_BRIEFING_HREF } from "./finops-example-briefing.js";
 import { DISCLOSURE_SPEC, disclosureStateLabel } from "./finops-decision-interaction.js";
 // The `.pre-analysis-withheld` idiom is defined once, in the view that owns the
@@ -123,6 +123,34 @@ export function paintDisclosureState(doc, entryCount = null) {
 }
 
 /**
+ * Paint the evidence into the disclosure, into its print sibling, and the state
+ * chip that counts it — one function, because the example path and the imported
+ * drill-down put different entries behind the SAME control and a second copy of
+ * this would be a second way for the two to diverge.
+ *
+ * The print sibling is the same evidence a second time, outside the disclosure.
+ * See PRINT_SPEC: it is what actually reaches paper, because no rule in any
+ * cascade origin can suppress a block that is not inside a `details` at all. It
+ * is `aria-hidden` and holds nothing focusable — the disclosure above is the
+ * copy the accessibility tree reads.
+ */
+function paintMethod(doc, entries, heading) {
+  const method = byId(doc, FIRST_RUN_IDS.methodList);
+  if (method) method.replaceChildren(...entries.map((entry) => definition(doc, entry)));
+  const print = byId(doc, FIRST_RUN_IDS.methodPrint);
+  if (print) {
+    const list = doc.createElement("dl");
+    list.className = "first-run-method-list";
+    list.replaceChildren(...entries.map((entry) => definition(doc, entry)));
+    const title = doc.createElement("p");
+    title.className = "first-run-method-print-heading";
+    title.textContent = heading;
+    print.replaceChildren(title, list);
+  }
+  return paintDisclosureState(doc, entries.length);
+}
+
+/**
  * Keep the three state channels in step with the element's own `open`.
  *
  * Bound to `toggle`, which fires for a click, for Enter, for Space, and for a
@@ -225,26 +253,7 @@ export function applyFirstRunResult(doc, result, { announce = false } = {}) {
   paintSlot(doc, FIRST_RUN_IDS.confidenceValue, FIRST_RUN_IDS.confidenceDetail, result.confidence);
 
   const entries = result.method ?? [];
-  const method = byId(doc, FIRST_RUN_IDS.methodList);
-  if (method) method.replaceChildren(...entries.map((entry) => definition(doc, entry)));
-
-  // The same evidence, a second time, outside the disclosure. See PRINT_SPEC:
-  // this sibling is what actually reaches paper, because no rule in any cascade
-  // origin can suppress a block that is not inside a `details` at all. It is
-  // `aria-hidden` and holds nothing focusable — the disclosure above is the
-  // copy the accessibility tree reads.
-  const print = byId(doc, FIRST_RUN_IDS.methodPrint);
-  if (print) {
-    const list = doc.createElement("dl");
-    list.className = "first-run-method-list";
-    list.replaceChildren(...entries.map((entry) => definition(doc, entry)));
-    const heading = doc.createElement("p");
-    heading.className = "first-run-method-print-heading";
-    heading.textContent = DISCLOSURE_SPEC.heading;
-    print.replaceChildren(heading, list);
-  }
-
-  paintDisclosureState(doc, entries.length);
+  paintMethod(doc, entries, DISCLOSURE_SPEC.heading);
 
   // Spoken once, and only what a reader who cannot see the region would need to
   // decide whether to read it: what kind of numbers these are and what they say.
@@ -295,15 +304,138 @@ export function applyExampleBriefingCta(doc) {
 }
 
 /**
+ * Withhold — or restore — the example's own summary inside this region.
+ *
+ * THE ONE-SUMMARY RULE. An import paints its headline into
+ * `#finops-imported-headline`. If this region kept its example answer,
+ * benchmark, impact, peer position and confidence beside it, a reader would be
+ * looking at two summaries of two different companies. So exactly those blocks
+ * are withheld and exactly one is kept: the drill-down slot.
+ *
+ * `hidden` and not a class — the attribute is what a screen reader, a print
+ * stylesheet and a test already agree on. The `[hidden]` rules added to
+ * evolution.css only restore what `hidden` already means, because each of these
+ * blocks sets an author `display` that would otherwise beat the UA rule.
+ */
+function withholdExampleFigures(doc, withheld) {
+  const region = byId(doc, FIRST_RUN_IDS.region);
+  if (!region) return null;
+  for (const id of [FIRST_RUN_IDS.answer, FIRST_RUN_IDS.answerDetail]) {
+    const node = byId(doc, id);
+    if (node) node.hidden = withheld;
+  }
+  for (const slot of region.querySelectorAll?.(".first-run-slot") ?? []) {
+    // The drill-down slot is the one this region keeps. It is found by the id it
+    // paints into rather than by position, so re-ordering the slots cannot
+    // silently withhold the wrong one.
+    const kept = Boolean(slot.querySelector?.(`#${FIRST_RUN_IDS.internalValue}`));
+    slot.hidden = withheld && !kept;
+  }
+  for (const block of region.querySelectorAll?.(
+    ".first-run-recommendation,.first-run-confidence") ?? []) {
+    block.hidden = withheld;
+  }
+  return region;
+}
+
+/**
+ * Hand the region to the reader's own export.
+ *
+ * The region is NOT retired — see `applyFirstRunSupersession` for what it used
+ * to do and why that was only half right. The example's summary is withheld,
+ * the eyebrow, question and provenance line are reworded to say whose numbers
+ * these now are, and the drill-down slot and its disclosure are repainted from
+ * the imported ranking.
+ *
+ * The headline number stays OUTSIDE the disclosure, in the slot's own value: a
+ * reader who never opens the evidence has still read which group carries the
+ * money and how much. The disclosure holds the full ranking.
+ *
+ * @returns the region, so a caller can assert on the state it asked for.
+ */
+export function applyImportedDrilldown(doc, drilldown) {
+  const region = byId(doc, FIRST_RUN_IDS.region);
+  if (!region || !drilldown) return null;
+  region.hidden = false;
+  region.dataset.superseded = "false";
+  region.dataset.source = "imported";
+  region.dataset.state = drilldown.available ? "ready" : "empty";
+  withholdExampleFigures(doc, true);
+
+  setText(doc, FIRST_RUN_IDS.shape, drilldown.available ? "▣" : "◇");
+  setText(doc, FIRST_RUN_IDS.word, drilldown.word);
+  setText(doc, FIRST_RUN_IDS.question, drilldown.question);
+  // ◆ and not ◇: the filled diamond is this page's mark for a reader's own
+  // data, the outline one for the bundled invention. The provenance sentence is
+  // repainted rather than left standing, because the authored one says every
+  // figure below is invented and after this call none of them is.
+  const sample = byId(doc, FIRST_RUN_IDS.sample);
+  if (sample) {
+    const shape = doc.createElement("span");
+    shape.className = "sample-marker-shape";
+    shape.setAttribute("aria-hidden", "true");
+    shape.textContent = "◆";
+    const badge = doc.createElement("strong");
+    badge.textContent = drilldown.word;
+    sample.replaceChildren(shape, badge, doc.createTextNode(` ${drilldown.provenance}`));
+  }
+
+  setText(doc, FIRST_RUN_IDS.internalHeading, drilldown.slotLabel);
+  paintBand(doc, FIRST_RUN_IDS.internalBand, drilldown);
+  paintSlot(doc, FIRST_RUN_IDS.internalValue, FIRST_RUN_IDS.internalDetail, {
+    available: drilldown.available,
+    value: drilldown.headline,
+    // The grouping sentence is visible text beside the figure, not evidence
+    // behind the control: a reader whose export carried no department column has
+    // to be told what they are looking at instead, whether or not they open
+    // anything.
+    detail: drilldown.grouping.statement,
+  });
+  setText(doc, FIRST_RUN_IDS.methodTitle, drilldown.heading);
+  paintMethod(doc, drilldown.entries ?? [], drilldown.heading);
+  return region;
+}
+
+/**
+ * Give the region back to the bundled example.
+ *
+ * Reachable without a reload: a reader can import their own export and then
+ * press "Try the Bundled synthetic example", or clear the import entirely. A
+ * one-way hand-over would leave the example's own figures withheld behind an
+ * example headline, which is a worse state than the one this change replaced.
+ *
+ * `result` may be a function so a caller can avoid recomposing the example on
+ * every panel sync: it is called only when a hand-back is actually happening.
+ */
+export function restoreFirstRunExample(doc, result = null) {
+  const region = byId(doc, FIRST_RUN_IDS.region);
+  if (!region) return null;
+  if (region.dataset.source !== "imported") return region;
+  region.dataset.source = "example";
+  withholdExampleFigures(doc, false);
+  setText(doc, FIRST_RUN_IDS.internalHeading, SLOT_LABEL.internal);
+  setText(doc, FIRST_RUN_IDS.methodTitle, DISCLOSURE_SPEC.heading);
+  const composed = typeof result === "function" ? result() : result;
+  return composed ? applyFirstRunResult(doc, composed) : region;
+}
+
+/**
  * Retire the region once the page holds an analysis of its own.
  *
  * A first-run result is an answer to "what would this tell me?", and that
- * question is closed the moment a real result — the reader's import, or the
- * example loaded into every panel — is on screen. Leaving it there would put a
- * second synthetic headline beside a live one, which is the exact confusion
- * this region exists to remove. There is no longer a conversion aside to retire
- * alongside it: the answer spine retired that region, and #finops-contact —
- * which is not first-run-specific and stays on screen — carries the ask.
+ * question is closed the moment the example is loaded into every panel below:
+ * the same synthetic figures would then be stated twice on one screen.
+ *
+ * IT IS NO LONGER WHAT AN IMPORT DOES (#979). Retiring the region on import
+ * threw away the drill-down along with the synthetic headline, and left the
+ * reader who had supplied real data with less structure than the visitor who
+ * had supplied none. `applyImportedDrilldown` above withholds the competing
+ * summary and repopulates the drill-down instead; this function still owns the
+ * example-into-every-panel case, unchanged.
+ *
+ * There is no longer a conversion aside to retire alongside it: the answer
+ * spine retired that region, and #finops-contact — which is not
+ * first-run-specific and stays on screen — carries the ask.
  */
 export function applyFirstRunSupersession(doc, superseded, { focusFallbackId = null } = {}) {
   const region = byId(doc, FIRST_RUN_IDS.region);
