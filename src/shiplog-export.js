@@ -99,6 +99,7 @@ export function buildShiplogExport(storage, options = {}) {
 
   const unresolvedLinks = [];
   const excludedLinks = [];
+  const associations = [];
   const releases = withinHistoryScope(canonicalExportOrder(loadReleases(storage)), scope.releaseIds, scope)
     .map((stored) => {
       const release = collect("releases", stored, EXPORT_RELEASE_FIELDS);
@@ -110,6 +111,15 @@ export function buildShiplogExport(storage, options = {}) {
         (held.has(decisionId) ? excludedLinks : unresolvedLinks)
           .push({ releaseId: release.id, decisionId, position });
         return false;
+      });
+      // Positions are indices into the list above — the one this file carries —
+      // and so run 0,1,2… with no gaps. A dropped link leaves no hole here: the
+      // entry it would have numbered is not in the file, and a consumer holding
+      // only the file could not say what a missing index meant. That a link was
+      // dropped is reported to the visitor by the panel, which is the surface
+      // that can also say *which* of the two reasons it was.
+      release.decisionIds.forEach((decisionId, position) => {
+        associations.push({ decisionId, releaseId: release.id, position });
       });
       return release;
     });
@@ -133,6 +143,13 @@ export function buildShiplogExport(storage, options = {}) {
       filter,
       decisions,
       releases,
+      // The decision-to-release join, stated once as its own collection so a
+      // consumer can answer "which decisions shipped in which release, in what
+      // order" by reading one flat list. It is derived — exactly
+      // `releases[].decisionIds` flattened in file order — and `decisionIds`
+      // stays on the release because the importer reads it; the schema check
+      // holds the two to agreement rather than letting them drift.
+      associations,
     },
     unresolvedLinks,
     excludedLinks,

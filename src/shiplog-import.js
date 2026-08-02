@@ -1,8 +1,9 @@
 // Restore a Shiplog export back into this browser.
 //
 // The contract is the exporter, not a new schema: createShiplogExport emits
-// `{ schema, version, generatedAt, decisions, releases }`, where each record is
-// exactly what loadDecisions/loadReleases already accept out of storage. So the
+// `{ schema, version, generatedAt, decisions, releases, associations }`, where
+// each record is what loadDecisions/loadReleases already accept out of storage.
+// So the
 // validation below mirrors isDecision/isRelease field for field and nothing
 // more — being stricter than the store would reject records the store itself
 // holds today and break the export → import → export round trip.
@@ -42,13 +43,18 @@ import { SHIPLOG_EXPORT_SCHEMA, SHIPLOG_EXPORT_VERSION } from "./shiplog-export.
 // Everything createShiplogExport writes. Anything else in the file is reported
 // and ignored rather than silently carried into storage.
 //
-// `record_count` and `filter` describe the file rather than the records in it:
-// they are listed so a conforming export is not reported back to the visitor as
-// two unknown keys, and they are deliberately not read. The records the file
-// actually carries are the import, and a count or a filter block copied from
-// whoever exported it must never influence what this browser stores.
+// `record_count`, `filter`, and `associations` describe the file rather than
+// carrying anything only they know: they are listed so a conforming export is
+// not reported back to the visitor as unknown keys, and they are deliberately
+// not read. The records the file actually carries are the import, and a count,
+// a filter block, or a join table copied from whoever exported it must never
+// influence what this browser stores. `associations` restates
+// `releases[].decisionIds`, which is what the release records below import; a
+// file whose two views disagree is rejected by shiplogExportViolations, so
+// reading the derived copy here could only ever agree or import a lie.
 export const IMPORT_TOP_LEVEL_KEYS = [
-  "schema", "version", "generatedAt", "record_count", "filter", "decisions", "releases",
+  "schema", "version", "generatedAt", "record_count", "filter",
+  "decisions", "releases", "associations",
 ];
 
 function describe(value) {

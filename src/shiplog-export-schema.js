@@ -59,6 +59,21 @@ export const EXPORT_ENVELOPE_FIELDS = Object.freeze({
   filter: "object?",
   decisions: "array",
   releases: "array",
+  // Required on files produced now; optional in the version-1 reader so an
+  // export written before associations became explicit remains readable.
+  associations: "array?",
+});
+
+// One row per decision-to-release link. `position` is the index of `decisionId`
+// within that release's own `decisionIds` *as this file carries it* — 0-based
+// and contiguous, so the third row for a release is that release's third
+// decision and nothing else. It is not an index into whatever the exporting
+// browser held: a link the file could not carry is absent from both collections
+// rather than left as a gap somebody would have to interpret.
+export const EXPORT_ASSOCIATION_FIELDS = Object.freeze({
+  decisionId: "string",
+  releaseId: "string",
+  position: "number",
 });
 
 // The filter dimensions a `filter` block may name, with the type each value
@@ -274,6 +289,52 @@ export function linkIntegrityViolations(payload) {
 }
 
 /**
+ * `associations` is the flat decision-to-release join, and it is *derived*:
+ * `releases[].decisionIds` flattened in file order, one row per link, where
+ * `position` is the index into the release's own `decisionIds` as this file
+ * carries it. So it is fully determined by the rest of the file, and this check
+ * is what makes it safe to publish a second copy of the same fact — a reader
+ * that joins on `associations` and a reader that walks `decisionIds` cannot get
+ * different answers without the file being reported as invalid.
+ *
+ * Reported row by row rather than as one verdict, because a file that has
+ * drifted is being diagnosed, and "row 7 should be X" is the finding; "these do
+ * not match" only says to go and diff them by hand.
+ */
+export function associationViolations(payload) {
+  if (payload?.associations === undefined) return [];
+  if (!Array.isArray(payload.associations)) return [];
+  const violations = [];
+  payload.associations.forEach((association, index) => {
+    violations.push(...fieldViolations(
+      `export.associations[${index}]`, association, EXPORT_ASSOCIATION_FIELDS,
+    ));
+  });
+  if (!Array.isArray(payload.releases)) return violations;
+  const expected = payload.releases.flatMap((release) => (
+    isRecordObject(release) && Array.isArray(release.decisionIds)
+      ? release.decisionIds.map((decisionId, position) => ({ decisionId, releaseId: release.id, position }))
+      : []
+  ));
+  expected.forEach((row, index) => {
+    const actual = payload.associations[index];
+    if (actual?.decisionId === row.decisionId
+      && actual?.releaseId === row.releaseId
+      && actual?.position === row.position) return;
+    violations.push(
+      `export.associations[${index}]: expected ${JSON.stringify(row)}, got ${JSON.stringify(actual ?? null)}`,
+    );
+  });
+  if (payload.associations.length > expected.length) {
+    violations.push(
+      `export.associations: carries ${payload.associations.length} links, but this file's `
+      + `releases name ${expected.length}`,
+    );
+  }
+  return violations;
+}
+
+/**
  * The `filter` block's own contract: every key is a declared filter dimension,
  * every value has that dimension's type, and no key carries the value that
  * means "off".
@@ -360,6 +421,7 @@ export function shiplogExportViolations(payload) {
   violations.push(...filterBlockViolations(payload));
   violations.push(...recordCountViolations(payload));
   violations.push(...linkIntegrityViolations(payload));
+  violations.push(...associationViolations(payload));
   violations.push(...orderingViolations(payload));
   return violations;
 }

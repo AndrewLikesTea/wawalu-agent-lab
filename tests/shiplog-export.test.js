@@ -109,6 +109,7 @@ test("populated browser export has an explicit portable contract and only Shiplo
     // The second id named a decision this browser does not hold, so it is not
     // written into the file: see the link integrity tests below.
     releases: [{ ...release, decisionIds: ["d-queue"] }],
+    associations: [{ decisionId: "d-queue", releaseId: "r-1", position: 0 }],
   });
   assert.equal(JSON.parse(JSON.stringify(payload)).generatedAt, GENERATED_AT);
   assert.equal(payload["unrelated.state"], undefined);
@@ -125,6 +126,7 @@ test("empty browser history exports an explicitly empty valid record", () => {
     filter: {},
     decisions: [],
     releases: [],
+    associations: [],
   });
   // An empty log is a valid export, not a degenerate one: the envelope is whole
   // and both collections are present and empty rather than absent.
@@ -137,6 +139,7 @@ test("an empty log downloads a parseable file that says it holds nothing", async
   const parsed = JSON.parse(text);
   assert.deepEqual(parsed.decisions, []);
   assert.deepEqual(parsed.releases, []);
+  assert.deepEqual(parsed.associations, []);
   assert.deepEqual(shiplogExportViolations(parsed), []);
 });
 
@@ -157,9 +160,42 @@ test("many decisions and releases export with every association intact", () => {
   // One decision carried by two releases stays one exported record.
   assert.equal(payload.decisions.filter(({ id }) => id === "link-d-cache").length, 1);
   assert.equal(payload.decisions[1].supersedes, "link-d-cache", "the supersede link survives the export");
+  assert.deepEqual(payload.associations, [
+    { decisionId: "link-d-cache", releaseId: "link-r-1-4-0", position: 0 },
+    { decisionId: "link-d-flags", releaseId: "link-r-1-4-0", position: 1 },
+    { decisionId: "link-d-cache", releaseId: "link-r-1-5-0", position: 0 },
+    { decisionId: "link-d-tokens", releaseId: "link-r-1-5-0", position: 1 },
+  ]);
   assert.deepEqual(unresolvedLinks, [
     { releaseId: "link-r-1-5-0", decisionId: "link-d-erased", position: 2 },
   ]);
+  assert.deepEqual(shiplogExportViolations(payload), []);
+});
+
+test("association positions number the file's own links, leaving no gap for a dropped one", () => {
+  const source = storage({
+    [STORAGE_KEY]: JSON.stringify([LINKED_DECISIONS[0], LINKED_DECISIONS[2]]),
+    [RELEASE_STORAGE_KEY]: JSON.stringify([{
+      ...LINKED_RELEASES[1],
+      decisionIds: ["link-d-cache", "link-d-erased", "link-d-tokens"],
+    }]),
+  });
+  const { payload, unresolvedLinks } = buildShiplogExport(source, { generatedAt: GENERATED_AT });
+
+  // The middle link named a decision this browser no longer holds. It is
+  // reported to the visitor at its recorded position, and the file it is
+  // missing from renumbers so that "position 1" means the second decision this
+  // release actually shipped rather than a hole nothing in the file explains.
+  assert.deepEqual(unresolvedLinks, [
+    { releaseId: "link-r-1-5-0", decisionId: "link-d-erased", position: 1 },
+  ]);
+  assert.deepEqual(payload.releases[0].decisionIds, ["link-d-cache", "link-d-tokens"]);
+  assert.deepEqual(payload.associations, [
+    { decisionId: "link-d-cache", releaseId: "link-r-1-5-0", position: 0 },
+    { decisionId: "link-d-tokens", releaseId: "link-r-1-5-0", position: 1 },
+  ]);
+  // And the two views of the link agree, which is the whole reason the file may
+  // carry both: associations[i] is decisionIds[position] for its release.
   assert.deepEqual(shiplogExportViolations(payload), []);
 });
 

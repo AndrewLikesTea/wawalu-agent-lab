@@ -177,6 +177,7 @@ export const SHIPLOG_EXPORT_SHAPE = Object.freeze({
     filter: "object",
     decisions: "array",
     releases: "array",
+    associations: "array",
   },
   decisions: {
     id: "string",
@@ -203,11 +204,16 @@ export const SHIPLOG_EXPORT_SHAPE = Object.freeze({
     createdAt: "string",
     decisionIds: "string[]",
   },
+  associations: {
+    decisionId: "string",
+    releaseId: "string",
+    position: "number",
+  },
 });
 
 export function shapeViolations(payload, shape = SHIPLOG_EXPORT_SHAPE) {
   const violations = fieldViolations("export", payload, shape.envelope);
-  for (const kind of ["decisions", "releases"]) {
+  for (const kind of ["decisions", "releases", "associations"]) {
     if (!Array.isArray(payload?.[kind])) continue;
     payload[kind].forEach((record, index) => {
       violations.push(...fieldViolations(`export.${kind}[${index}]`, record, shape[kind]));

@@ -97,5 +97,29 @@ file has nothing to resolve associations against, so a release's `decisionIds`
 are returned as recorded.
 
 The browser-side export (`src/shiplog-export.js`, download button on the export
-panel) writes the separate `shiplog-history` file documented in
-`src/shiplog-export-schema.js`, and is unaffected by this endpoint.
+panel) writes a separate `shiplog-history` file. Its stable top-level record is
+`{ schema, version, generatedAt, record_count, filter, decisions, releases,
+associations }`, and an empty history is that same record with all three
+collections empty rather than a shorter file.
+
+`associations` answers *which decisions shipped in which release, in what
+order*, without a reader having to walk nested records. It is the file's
+`releases[].decisionIds` flattened in file order — releases in the export's own
+order, and within a release the order that release recorded — as one
+`{ decisionId, releaseId, position }` row per link, where `position` is the
+0-based index of `decisionId` in that release's `decisionIds` **as this file
+carries it**.
+
+Two consequences worth stating, because they are what a consumer would
+otherwise have to guess:
+
+- Positions are contiguous. A link the export could not carry — its decision is
+  gone from the browser, or the visitor's filters hide it — is absent from
+  `decisionIds` and from `associations` alike, and the remaining links renumber.
+  There is no gap standing for a record the file does not contain. The export
+  panel is where a dropped link is reported, and it is the surface that can also
+  say which of the two reasons applied.
+- `associations` is derived, never authoritative on its own.
+  `shiplogExportViolations` rejects any file whose two views of a link disagree,
+  so joining on `associations` and walking `decisionIds` cannot give different
+  answers. `decisionIds` stays on the release because the importer reads it.
