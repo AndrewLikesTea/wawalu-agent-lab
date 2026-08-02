@@ -3434,9 +3434,27 @@ section[data-workspace-current="true"] { box-shadow:-6px 0 0 0 var(--import-wash
 /* Dashed edge = a target that accepts something, matching the outline/filled
    pair used elsewhere on this page: dashed while idle, filled wash while a file
    is over it. The state is also in data-dragging, so it is never colour alone. */
-.provider-native-drop { display:flex; flex-wrap:wrap; gap:12px 16px; align-items:flex-end; margin:12px 0; border:2px dashed var(--import-line,#b9bdb4); border-radius:10px; padding:14px; background:#fff; }
-.provider-native-drop[data-dragging="true"] { border-style:solid; background:var(--import-wash,#eef3ee); }
-.provider-native-hint { flex-basis:100%; margin:0; color:var(--ink-muted); font-size:12.5px; font-weight:700; }
+/* The one import affordance (#958). The dragging state is a solid border AND a
+   word painted into .import-drop-state, never a tint on its own, so it survives
+   a high-contrast theme and a reader who cannot separate the two borders. The
+   zone is a single column at every width; nothing in it needs a second one. */
+.import-drop { display:grid; gap:8px; margin:0 0 14px; border:2px dashed var(--import-line,#b9bdb4); border-radius:10px; padding:14px; background:#fff; }
+.import-drop[data-dragging="true"] { border-style:solid; border-width:3px; background:var(--import-wash,#eef3ee); }
+.import-drop-title { margin:0; font-size:15px; font-weight:700; }
+.import-drop-mark { margin-right:6px; }
+.import-drop-instruction { margin:0; max-width:70ch; color:var(--ink-muted); font-size:13px; }
+.import-drop-state:empty { display:none; }
+.import-drop-state { margin:0; font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; }
+.import-reason:empty { display:none; }
+.import-reason { margin:0; max-width:70ch; border-left:5px solid #d5d8d2; padding:8px 10px; font-size:13px; overflow-wrap:anywhere; }
+.import-reason[data-state="unrecognized"] { border-left-color:var(--warn-line,#a8642a); background:#fdf6ef; }
+.import-reason[data-state="recognized"] { border-left-color:var(--ok-line,#2f6b45); background:#f0f6f1; }
+.stand-import-source { margin:4px 0 0; font-size:13px; font-weight:700; overflow-wrap:anywhere; }
+.stand-import-source[hidden] { display:none; }
+@media (max-width:640px) {
+  .import-drop { padding:12px; }
+  .import-drop input[type="file"] { max-width:100%; }
+}
 .provider-native-field { display:grid; gap:4px; margin:0; font-size:12px; font-weight:700; }
 .provider-native-field input:focus-visible,.provider-native-field select:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
 /* The answer block. The left rule carries the state a second time, after the
@@ -3463,7 +3481,6 @@ section[data-workspace-current="true"] { box-shadow:-6px 0 0 0 var(--import-wash
 /* One column under 640px: the controls stack in the order they are read, and
    the drop target keeps its full width so it stays a target on a phone. */
 @media (max-width:640px) {
-  .provider-native-drop { display:grid; grid-template-columns:minmax(0,1fr); }
   .provider-native-field input,.provider-native-field select { max-width:100%; }
   .provider-native-metric { font-size:14px; }
 }

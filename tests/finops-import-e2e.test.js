@@ -856,7 +856,7 @@ test("the reopen control and the restored region are operable on the keyboard al
       assert.equal(input.getAttribute("type"), "file");
       const label = document.querySelectorAll("label")
         .find((node) => node.getAttribute("for") === "reopen-briefing-file");
-      assert.equal(textOf(label), "Reopen a saved FinOps briefing");
+      assert.equal(textOf(label), "Reopen a saved briefing");
       assert.equal(input.getAttribute("placeholder"), null,
         "the control is labelled programmatically, never by placeholder text");
     });

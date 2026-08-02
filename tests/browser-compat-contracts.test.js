@@ -294,7 +294,7 @@ function fakeDocument(idList) {
 
 const SURFACE_IDS = ["browser-compat-contracts", "browser-compat-privacy",
   "browser-compat-count", "browser-compat-provider", "browser-compat-example",
-  "browser-compat-file", "browser-compat-run", "browser-compat-verdict"];
+  "browser-compat-run", "browser-compat-verdict"];
 
 test("the eligibility surface is generated from the manifest, provider by provider", () => {
   const doc = fakeDocument(SURFACE_IDS);

@@ -20,7 +20,6 @@ const CONTRACTS_ID = "browser-compat-contracts";
 const PRIVACY_ID = "browser-compat-privacy";
 const PROVIDER_ID = "browser-compat-provider";
 const EXAMPLE_ID = "browser-compat-example";
-const FILE_ID = "browser-compat-file";
 const RUN_ID = "browser-compat-run";
 const VERDICT_ID = "browser-compat-verdict";
 
@@ -191,9 +190,8 @@ function degradationDetail(verdict) {
 export function bindBrowserCompatCheck(doc, evaluate) {
   const provider = doc.getElementById(PROVIDER_ID);
   const example = doc.getElementById(EXAMPLE_ID);
-  const file = doc.getElementById(FILE_ID);
   const run = doc.getElementById(RUN_ID);
-  if (!provider || !example || !file || !run) return false;
+  if (!provider || !example || !run) return false;
   provider.addEventListener("change", () => {
     fillExamples(doc, provider.value);
     renderBrowserCompatVerdict(doc, null);
@@ -201,14 +199,9 @@ export function bindBrowserCompatCheck(doc, evaluate) {
   run.addEventListener("click", async () => {
     run.disabled = true;
     try {
-      const chosen = file.files?.[0] ?? null;
-      if (chosen) {
-        const text = await chosen.text();
-        renderBrowserCompatVerdict(doc,
-          evaluate({ text, fileName: chosen.name, providerId: provider.value, bundled: false }),
-          { sourceLabel: `your file ${chosen.name}` });
-        return;
-      }
+      // Bundled examples only. The reader's own export has ONE way in (#958) —
+      // the drop-anywhere import, which recognizes the provider from the file
+      // rather than asking this section's chooser about it.
       const fixture = BROWSER_COMPAT_FIXTURES.find((entry) => entry.id === example.value);
       // The harness's select accepts a value a real control would refuse, so the
       // lookup is guarded rather than trusted: an unknown id paints nothing.
