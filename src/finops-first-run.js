@@ -61,6 +61,9 @@ import { DECISION_QUESTION, loadCanonicalDecision } from "./finops-decision-cont
 import {
   auditDecisionFigures, DECISION_STATE, noticeFor, OUT_OF_RANGE_VALUE,
 } from "./finops-decision-interaction.js";
+import {
+  composeFirstRunLiteracy, LITERACY_SLOT_LABEL, LITERACY_UNAVAILABLE, literacyMethodEntry,
+} from "./finops-first-run-literacy.js";
 
 /** Bump when a slot, a state word, or a label changes meaning. */
 export const FIRST_RUN_VERSION = "finops-first-run-result/1.0.0";
@@ -91,6 +94,11 @@ export const FIRST_RUN_IDS = Object.freeze({
   internalValue: "finops-first-run-internal-value",
   internalDetail: "finops-first-run-internal-detail",
   internalBand: "finops-first-run-internal-band",
+  // The fifth resolved slot: the letter the bundled synthetic prompt corpus
+  // earns, and the share of the invented spend that sample actually covers.
+  // `finops-first-run-literacy.js` owns both figures and the join between them.
+  literacyValue: "finops-first-run-literacy-value",
+  literacyDetail: "finops-first-run-literacy-detail",
   action: "finops-first-run-action",
   role: "finops-first-run-role",
   // The three containers that speak for the bundled example and only for it.
@@ -257,6 +265,7 @@ export const SLOT_LABEL = Object.freeze({
   // the same comparison on the same screen.
   peer: PEER_RANK_LABEL,
   internal: "Internal drill-down · widest department gap",
+  literacy: LITERACY_SLOT_LABEL,
   action: "Recommended action · rank 1",
   confidence: "Confidence in this answer",
 });
@@ -566,7 +575,7 @@ function answerSlot(decision, benchmark, impact) {
  * it, so the sentence a reader checks the figure against cannot drift from the
  * figure. Every entry is a term and its plain-text value.
  */
-function methodEntries(analysis, briefing, gap = null) {
+function methodEntries(analysis, briefing, gap = null, literacy = null) {
   const coverage = briefing?.coverage ?? {};
   const entries = [
     ["Inputs", "Six invented monthly provider exports and one invented HRIS org export, generated "
@@ -585,9 +594,15 @@ function methodEntries(analysis, briefing, gap = null) {
       + `${count(coverage.recordsTotal ?? 0)} example records analyzed · `
       + `confidence ${coverage.confidence ?? "unknown"}.`]);
   }
+  // The literacy grade's own provenance, ahead of the limits that qualify it:
+  // the letter, the rubric label it was produced under, and both coverage
+  // denominators. A reader who disputes the letter needs all four to recompute
+  // it, and a letter with no rubric version beside it cannot be argued with.
+  if (literacy) entries.push(["AI literacy", literacyMethodEntry(literacy)]);
   entries.push(["Limits", "A routing scenario is a modelled ceiling, not a realized saving. This "
-    + "sample carries no peer cohort and no scored query sample, so the peer and literacy "
-    + "figures on this page stay unavailable. Your own export will produce different numbers."]);
+    + "sample carries no peer cohort, so the peer figure on this page stays unavailable, and its "
+    + "literacy letter is scored over invented prompts rather than anyone's real traffic. Your own "
+    + "export will produce different numbers."]);
   // The internal gap's provenance, beside the rest of the evidence rather than
   // only inside the slot: a later verification pass needs the metric, the rubric
   // version, the rows the finding selected, and the window they cover in order
@@ -660,6 +675,9 @@ export function composeFirstRunResult({
   // object, so the sentence a reader checks the finding against cannot drift
   // from the finding.
   const gap = resolveInternalCostGap({ analysis, org, tasks });
+  // Resolved once and used twice, exactly like the gap above: the slot a reader
+  // sees and the evidence entry they check it against read the same object.
+  const literacy = composeFirstRunLiteracy(analysis);
   return Object.freeze({
     ...BASE,
     presentation: FIRST_RUN_STATE.ready,
@@ -676,9 +694,10 @@ export function composeFirstRunResult({
     peer: peerSlot(analysis, org, tasks),
     internal: internalSlot(gap),
     internalGap: gap,
+    literacy,
     action: actionSlot(briefing),
     confidence: confidenceSlot(decision, notices),
-    method: methodEntries(analysis, briefing, gap),
+    method: methodEntries(analysis, briefing, gap, literacy),
     reason: null,
   });
 }
@@ -735,6 +754,9 @@ function degradedResult(presentation, reason, answerValue) {
       + "department was placed against another.", reason,
     band(BAND_STATE.withheld, WITHHELD_GAP_LABEL)),
     internalGap: null,
+    // Same rule as the two above: a grade that could not be produced is owed the
+    // sentence saying so, never the bare word "Unavailable" and never a dash.
+    literacy: slot(false, LITERACY_UNAVAILABLE.failed, reason),
     action: slot(false, "Recommended action unavailable.", reason),
     confidence: blank,
     method: Object.freeze([Object.freeze({ term: "Limits", detail: reason })]),

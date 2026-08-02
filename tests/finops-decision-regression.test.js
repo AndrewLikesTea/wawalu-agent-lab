@@ -575,6 +575,23 @@ const ALLOWED_MODULES = Object.freeze([
   // not drag the rubric and the classifier onto this payload. Neither opens a
   // request, reads storage, or reads a clock.
   "export-gradability.js", "query-gradeability-reasons.js",
+  // Reviewed on with #994, which put a real literacy letter on the first screen.
+  // `example-conversation-corpus.js` writes a synthetic prompt corpus from a
+  // frozen plan and the row's own index — no clock, no generator, no I/O — and
+  // `finops-first-run-literacy.js` joins the resulting grade to the spend it
+  // covers using thresholds it reads from `grade-eligibility.js` and
+  // `prompt-literacy-rubric.json` rather than restating any. The three modules
+  // between them are the shipped conversation-import pipeline, reached here
+  // because the bundled example now walks the same path a reader's own export
+  // does: `delimited-text.js` and `dialect-detection.js` are pure functions over
+  // an in-memory string, and `conversation-export.js` /
+  // `conversation-literacy.js` classify inside the parse and return counts. None
+  // of the six opens a request, touches storage, reads a clock, or draws a
+  // random value — the three tests around this list check exactly that, and the
+  // reproducibility assertion in `tests/finops-first-run-literacy.test.js`
+  // checks that the letter itself does not move between two runs.
+  "conversation-export.js", "conversation-literacy.js", "delimited-text.js",
+  "dialect-detection.js", "example-conversation-corpus.js", "finops-first-run-literacy.js",
 ]);
 
 /**

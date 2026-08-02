@@ -245,6 +245,11 @@ export function applyFirstRunResult(doc, result, { announce = false } = {}) {
   // the value, never an empty panel and never a console warning.
   paintBand(doc, FIRST_RUN_IDS.internalBand, result.internal);
   paintSlot(doc, FIRST_RUN_IDS.internalValue, FIRST_RUN_IDS.internalDetail, result.internal);
+  // The literacy letter, through the same helper again. It carries no band chip:
+  // its qualifier is a coverage tier stated in words and dollars on the detail
+  // line, not a position on a cohort ramp, and borrowing the band vocabulary
+  // would say this figure was placed against peers when it was not.
+  paintSlot(doc, FIRST_RUN_IDS.literacyValue, FIRST_RUN_IDS.literacyDetail, result.literacy);
 
   const action = setText(doc, FIRST_RUN_IDS.action, result.action?.value ?? "");
   if (action) action.dataset.available = result.action?.available ? "true" : "false";
