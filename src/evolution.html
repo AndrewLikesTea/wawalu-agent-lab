@@ -1666,7 +1666,7 @@
               <p class="eyebrow">From your imported files</p>
               <h3 id="local-results-title" tabindex="-1">FinOps briefing</h3>
             </div>
-            <div class="local-export-actions" aria-label="Export this FinOps briefing">
+            <div class="local-export-actions" id="local-export-actions" aria-label="Export this FinOps briefing">
               <button id="export-local-json" type="button">Export briefing (JSON)</button>
               <button id="export-local-summary" type="button">Meeting summary</button>
             </div>
@@ -1846,6 +1846,23 @@
             </p>
             <p class="local-lead-provenance" id="local-lead-provenance">—</p>
             <p class="dataset-provenance" id="dataset-provenance-finding" data-dataset-provenance data-dataset="user" role="note" aria-label="Data provenance" hidden></p>
+            <!-- OPT-IN LOCAL RETENTION (#959). Authored `hidden` and unchecked:
+                 it appears when a briefing of the reader's OWN is on screen, and
+                 nothing is written to this browser until the box is turned on.
+                 The label states what is kept and where before consent, the
+                 status line carries whatever the store reports — including a
+                 browser that refuses storage outright — and the forget control
+                 removes the key in one action. Painted by
+                 finops-briefing-retention-view.js; every sentence lives in
+                 finops-briefing-retention.js. -->
+            <div class="local-lead-retention" id="local-lead-retention" data-state="off" data-retained="false" aria-labelledby="local-lead-retention-title" hidden>
+              <p class="eyebrow" id="local-lead-retention-title">Keeping this briefing</p>
+              <p class="local-lead-retention-captured" id="local-lead-retention-captured" hidden></p>
+              <p class="local-lead-retention-control"><label for="local-lead-retention-toggle"><input type="checkbox" id="local-lead-retention-toggle" aria-describedby="local-lead-retention-detail"> <span id="local-lead-retention-label">Keep this briefing in this browser, on this device</span></label></p>
+              <p class="local-lead-retention-detail" id="local-lead-retention-detail">Derived values only. Nothing is kept until you turn this on.</p>
+              <p class="local-lead-retention-status" id="local-lead-retention-status"></p>
+              <button class="local-lead-retention-forget" id="local-lead-retention-forget" type="button" hidden>Forget this briefing</button>
+            </div>
           </article>
           <!-- Per-model overspend, model-overspend-finding/1.0.0. Authored empty:
                the question, the number, the action, confidence, provenance, and
