@@ -1410,6 +1410,14 @@
           <div class="import-drop" id="finops-import-drop" data-dragging="false" role="group" aria-labelledby="finops-import-drop-title">
             <p class="import-drop-title" id="finops-import-drop-title"><span class="import-drop-mark" aria-hidden="true">⇩</span> Import your provider export</p>
             <p class="import-drop-instruction" id="finops-import-drop-instruction">Drop the file anywhere on this page, or browse for it below. Any supported provider export is recognized from its own content — you are never asked which console it came from.</p>
+            <!-- The same drop also accepts an assistant conversation export,
+                 recognized from its contents. These two slots are painted by
+                 conversation-transcript-import.js through evolution-page.js and
+                 stay in the panel's normal reading flow — not inside a
+                 disclosure, because a folded region is unreadable to a real
+                 reader even where a harness can read through it. -->
+            <p class="import-drop-instruction" id="finops-transcript-reads"></p>
+            <p class="import-drop-instruction" id="finops-transcript-discards"></p>
             <p class="import-drop-state" id="finops-import-drop-state" aria-hidden="true"></p>
           <div class="local-import-field">
             <label for="local-finops-files">Choose your export files</label>

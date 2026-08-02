@@ -417,6 +417,11 @@ import { EXAMPLE_QUERY_SAMPLE_FILE, exampleQuerySampleText } from "/query-sample
 import {
   CONVERSATION_EXAMPLE_FILES, conversationExampleText,
 } from "/conversation-export-example.js";
+// The JSON and JSONL transcript shapes, read through the same drop as everything
+// else and claimed from their contents (#996).
+import {
+  TRANSCRIPT_INTAKE_COPY, readConversationTranscript,
+} from "/conversation-transcript-import.js";
 // One imported-analysis state, and the four linked disclosures composed from
 // it: the leading finding, the benchmark card, the recommendation evidence, and
 // the quantified-impact figure with the action it sizes. Four call sites reading
@@ -2887,6 +2892,20 @@ function mountLocalFinopsImport() {
         archives.push({ fileName: file.fileName, result: archive });
         continue;
       }
+      // The same third source in the two shapes a leader can actually download
+      // from an assistant console: a JSON conversation envelope, or a JSONL log
+      // of message events (#996). Claimed from the file's own structure — a
+      // nested role-bearing turns array, or one flat message event per line —
+      // and never from its name or the picker, because there is no picker. It
+      // reaches the identical literacy path the delimited archive reaches, with
+      // a rubric category per conversation and no excerpt behind it; a billing
+      // export carries neither structure and falls through to the routes below
+      // exactly as before.
+      const transcript = readConversationTranscript(file.text);
+      if (transcript.ok) {
+        archives.push({ fileName: file.fileName, result: transcript });
+        continue;
+      }
       // The fourth declared source: a Shiplog delivery history, claimed from its
       // own `kind` rather than its name. A file that claims this contract is
       // reported against this contract even when it fails it — an unsupported
@@ -3007,6 +3026,19 @@ function mountLocalFinopsImport() {
     }
   };
   bindImportDrop(document, importChosenFiles);
+
+  // What a conversation export gives up and what it never gives up, in the
+  // panel's own reading flow. Painted from the module that owns the contract, so
+  // the promise on screen cannot drift from the parser that keeps it, and left
+  // in the open rather than folded away: a closed disclosure is unreadable to a
+  // real reader whatever a test harness can read through it.
+  for (const [id, sentence] of [
+    ["finops-transcript-reads", TRANSCRIPT_INTAKE_COPY.reads],
+    ["finops-transcript-discards", TRANSCRIPT_INTAKE_COPY.discards],
+  ]) {
+    const node = document.getElementById(id);
+    if (node) node.textContent = sentence;
+  }
 
   // -------------------------------------------------------------------------
   // OPT-IN LOCAL RETENTION FOR THE READER'S OWN BRIEFING (#959)

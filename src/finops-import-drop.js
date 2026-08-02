@@ -48,6 +48,9 @@
  * Focus is NOT taken on a refusal. The page leaves it on the file control so the
  * reader can choose again, and nothing in here moves it.
  */
+import {
+  CONVERSATION_TRANSCRIPT_CONTRACT, describeUnrecognizedTranscript, detectConversationTranscript,
+} from "./conversation-transcript-import.js";
 import { describeDetection, detectAndNormalizeExport } from "./export-provider-detection.js";
 import { ACCEPTED_MIN_CONFIDENCE } from "./export-recognition.js";
 import { IMPORT_STATUS, importStatusChip, renderChip } from "./import-status-chip.js";
@@ -170,6 +173,30 @@ export function renderImportRecognition(doc, verdict, { reason = null } = {}) {
 }
 
 /**
+ * Paint a recognized conversation transcript.
+ *
+ * A separate painter from the provider one, and deliberately narrower: it writes
+ * the live region and nothing else. The result region's provenance datasets name
+ * the console a *billing* figure came from, and a transcript produces a literacy
+ * grade rather than a cost figure, so labelling the stand with it would caption
+ * one answer with another answer's source.
+ */
+export function renderImportConversation(doc, detected) {
+  const reasonNode = byId(doc, IMPORT_DROP_IDS.reason);
+  if (!reasonNode || !detected?.shape) return false;
+  reasonNode.dataset.state = "recognized-conversation";
+  reasonNode.dataset.transcriptShape = detected.shape;
+  paintState(doc, reasonNode, {
+    status: IMPORT_STATUS.RECOGNIZED,
+    sentence: `${detected.label} recognized from this file's own structure `
+      + `(contract ${CONVERSATION_TRANSCRIPT_CONTRACT}): ${detected.observed}. It is read into the `
+      + "AI-literacy grade below. Message and prompt text is measured and discarded in the parser; "
+      + "none of it is kept.",
+  });
+  return true;
+}
+
+/**
  * The reading state, in the drop target's own state line.
  *
  * Not in the live region: the answer block already announces "Reading files in
@@ -200,6 +227,8 @@ export function renderImportReading(doc, active) {
  */
 async function recognizeBatch(doc, files) {
   let firstVerdict = null;
+  let firstTranscript = null;
+  let lastText = "";
   try {
     for (const file of files) {
       let text = null;
@@ -209,11 +238,23 @@ async function recognizeBatch(doc, files) {
         renderImportRecognition(doc, null, { reason: IMPORT_DROP_COPY.unreadable });
         return false;
       }
+      lastText = text;
       const verdict = detectAndNormalizeExport(text);
       firstVerdict ??= verdict;
       if (verdict.provider) return renderImportRecognition(doc, verdict);
+      // The other kind of export this one control accepts. Asked only after the
+      // provider question, and from the same bytes: a billing export carries no
+      // nested turns and no message events, so the order changes no verdict.
+      const transcript = detectConversationTranscript(text);
+      if (transcript.shape) firstTranscript ??= transcript;
     }
-    return renderImportRecognition(doc, firstVerdict);
+    if (firstTranscript) return renderImportConversation(doc, firstTranscript);
+    // Not a provider export and not a transcript. The refusal names both: the
+    // provider reason the recognition entry point gave, and the two conversation
+    // shapes with the fields each requires.
+    return renderImportRecognition(doc, firstVerdict, {
+      reason: `${describeDetection(firstVerdict)} ${describeUnrecognizedTranscript(lastText)}`,
+    });
   } finally {
     // Every exit, including the refusal returns above: a reading state left
     // standing over a painted verdict says the page is still working on a file
