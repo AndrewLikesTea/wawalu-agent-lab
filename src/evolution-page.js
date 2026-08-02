@@ -281,6 +281,9 @@ import {
 // the first viewport. Composed from the bundled invented dataset through the
 // real analysis path, so it needs no network and survives a failed fixture.
 import { buildFirstRunResult } from "/finops-first-run.js";
+// And what refills that same block once the reader has imported a file of their
+// own: their groups, ranked by the rule that named the driver in the headline.
+import { importedDepartmentDrilldown } from "/finops-imported-departments.js";
 import {
   applyExampleBriefingCta,
   applyFirstRunResult, applyFirstRunSupersession, bindFirstRunActions, bindFirstRunDisclosure,
@@ -1310,15 +1313,21 @@ function mountLocalFinopsImport() {
     return applyGuidedResult(document, composed);
   };
   const syncPanels = () => {
-    // The first-run block answers "what would this tell me?". Any analysis on
-    // screen — the reader's import, or the example loaded into every panel —
-    // closes that question, so the block retires rather than sitting beside a
-    // fuller result with a second synthetic headline in it.
+    // The first-run block answers "what would this tell me?". The EXAMPLE closes
+    // that question by filling every panel below, so it still retires the block
+    // rather than leaving a second synthetic headline beside a fuller result.
     // The reader's own briefing heading is where this block's question is
     // answered next, and it already takes focus programmatically, so it is
     // where a keyboard user is put if the region retires under their focus ring.
-    applyFirstRunSupersession(document, Boolean(result),
-      { focusFallbackId: "local-results-title" });
+    //
+    // An IMPORT closes it differently: the block is refilled from the reader's
+    // own export, so the department drill-down that made the example persuasive
+    // answers "which of my teams is driving this" about their own organization
+    // instead of disappearing at the moment it became about real money.
+    applyFirstRunSupersession(document, Boolean(result), {
+      focusFallbackId: "local-results-title",
+      ownData: result && !exampleActive ? importedDepartmentDrilldown(result) : null,
+    });
     // The destination ranking belongs to that block: the doors stay true, but the
     // order they are in was ranked from the invented dataset, so it retires with
     // the example rather than recommending a first step off data nobody imported.

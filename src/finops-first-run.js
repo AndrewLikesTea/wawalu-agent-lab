@@ -93,9 +93,19 @@ export const FIRST_RUN_IDS = Object.freeze({
   internalBand: "finops-first-run-internal-band",
   action: "finops-first-run-action",
   role: "finops-first-run-role",
+  // The three containers that speak for the bundled example and only for it.
+  // They are addressed as wholes because #979 withholds them as wholes: once a
+  // reader's own export is on screen, a synthetic peer band beside their own
+  // department ranking is a second answer to the question this region asks.
+  slots: "finops-first-run-slots",
+  recommendation: "finops-first-run-recommendation",
+  confidence: "finops-first-run-confidence",
   methodList: "finops-first-run-method-list",
   method: "finops-first-run-method",
   methodSummary: "finops-first-run-method-summary",
+  // The heading text inside that summary, separate from the state chip beside
+  // it, so the disclosure can name what it is actually holding.
+  methodTitle: "finops-first-run-method-title",
   methodState: "finops-first-run-method-state",
   methodPrint: "finops-first-run-method-print",
   demo: "finops-first-run-demo",

@@ -654,7 +654,11 @@
              print order; nothing below reorders in CSS. -->
         <p class="first-run-answer" id="finops-first-run-answer" data-available="true">33% of analyzed AI spend is recoverable</p>
         <p class="first-run-answer-detail" id="finops-first-run-answer-detail">Up to $51,254 estimated cost reduction in the month — a synthetic scenario, not realized customer savings.</p>
-        <div class="first-run-slots">
+        <!-- The three example-only containers below carry an id for one reason:
+             an imported export withholds each of them whole, so a synthetic
+             peer band, routing scenario, or confidence score never stands
+             beside a reader's own department ranking. -->
+        <div class="first-run-slots" id="finops-first-run-slots">
           <div class="first-run-slot">
             <h3 class="first-run-slot-label" id="finops-first-run-benchmark-heading">Potentially recoverable share</h3>
             <p class="first-run-value" id="finops-first-run-benchmark-value" data-available="true">33% of analyzed AI spend</p>
@@ -724,7 +728,7 @@
             <p class="first-run-detail" id="finops-first-run-internal-detail">Synthetic cost-per-successful-task comparison from invented departments, not customer performance or realized savings.</p>
           </div>
         </div>
-        <div class="first-run-recommendation">
+        <div class="first-run-recommendation" id="finops-first-run-recommendation">
           <h3 class="eyebrow" id="finops-first-run-action-heading">Recommended action · rank 1</h3>
           <p class="first-run-action-text" id="finops-first-run-action" data-available="true">Pilot lower-cost routing in the top-spend invented department. Cap the pilot at $51,254, then compare it with a similar period.</p>
           <!-- A role, never a person, beside the action it owns. -->
@@ -734,7 +738,7 @@
              with no statement of how much of it was verified asks the reader to
              take the number on faith, which is the one thing this region is not
              allowed to do. -->
-        <div class="first-run-confidence">
+        <div class="first-run-confidence" id="finops-first-run-confidence">
           <h3 class="first-run-slot-label" id="finops-first-run-confidence-heading">Confidence in this answer</h3>
           <p class="first-run-value" id="finops-first-run-confidence-value" data-available="true">0.85 of 1.00 · moderate</p>
           <p class="first-run-detail" id="finops-first-run-confidence-detail">All 15 invented example records were analyzed; confidence is reduced because the recommended routing call shape could not be verified. Computed locally from bundled synthetic data in this browser tab.</p>
@@ -752,7 +756,7 @@
              `aria-label`, so the name a speech-control user says is the name
              they can see. -->
         <details class="first-run-method" id="finops-first-run-method" data-disclosure="collapsed">
-          <summary id="finops-first-run-method-summary" aria-expanded="false"><h3 class="first-run-method-heading" id="finops-first-run-method-heading"><span>How this example was calculated and what it cannot tell you</span><span class="first-run-method-state" id="finops-first-run-method-state" data-disclosure="collapsed"><span class="first-run-method-shape" aria-hidden="true">▸</span> Show evidence</span></h3></summary>
+          <summary id="finops-first-run-method-summary" aria-expanded="false"><h3 class="first-run-method-heading" id="finops-first-run-method-heading"><span id="finops-first-run-method-title">How this example was calculated and what it cannot tell you</span><span class="first-run-method-state" id="finops-first-run-method-state" data-disclosure="collapsed"><span class="first-run-method-shape" aria-hidden="true">▸</span> Show evidence</span></h3></summary>
           <dl class="first-run-method-list" id="finops-first-run-method-list">
             <div><dt>Inputs</dt><dd>Invented provider and org exports generated in this tab. No company, account, provider, or person in them is real, and no customer or telemetry data is read.</dd></div>
             <div><dt>Limits</dt><dd>A routing scenario is a modelled ceiling, not a realized saving. Your own export will produce different numbers.</dd></div>
