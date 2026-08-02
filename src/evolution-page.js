@@ -60,6 +60,7 @@ import {
   bindBrowserCompatCheck, initBrowserCompatCheck, renderBrowserCompatContracts,
 } from "/browser-compat-view.js";
 import { evaluateExport, parseExportText } from "/browser-compat-eligibility.js";
+import { initExportRecognition } from "/export-recognition-view.js";
 import { FIXTURE_REFERENCE_DATE } from "/browser-compat-fixtures.js";
 import { scoreIntakeConfidence } from "/intake-confidence.js";
 import { clearIntakeConfidence, renderIntakeConfidence } from "/intake-confidence-view.js";
@@ -3737,6 +3738,12 @@ async function init() {
           : new Date().toISOString().slice(0, 10),
       }));
   }
+  // Recognition score for the bundled labelled examples (#928). Same
+  // synchronous pass and the same reason: the score is computed from static
+  // fixtures and the published contracts, so it needs no fetch and no
+  // credential, and a confidence that arrives after paint is one the reader has
+  // already read the page without.
+  initExportRecognition(document);
   const gateway = createStaticGateway();
   const refreshGateway = document.getElementById("integration-gateway-refresh");
   gateway.subscribe(({ status, inspection, metadata }) => {
