@@ -1256,8 +1256,40 @@
 .imported-headline-slot[data-supported="false"] { border-left-style:dashed; border-left-color:var(--state-warn-line); }
 .imported-headline-value { color:var(--ink); font-size:16px; font-weight:700; overflow-wrap:anywhere; }
 .imported-headline-slot[data-supported="false"] .imported-headline-value { color:var(--state-warn-ink); font-weight:600; }
-.imported-headline-provenance { color:var(--ink-muted); font-size:12px; font-weight:700; }
 .imported-headline-basis { max-width:60ch; color:var(--ink-muted); font-size:13px; line-height:1.55; overflow-wrap:anywhere; }
+/* ONE READING ORDER, and it is the DOM's. The rows are painted in the order the
+   contract publishes them — question, the recoverable figure, the one action,
+   then the support — so what a sighted reader meets, what a screen reader reads
+   and what the Tab key walks are the same sequence. The scale below is the only
+   thing that says which of them leads: no `order`, no absolute positioning, no
+   reversed flex direction appears in this block, because every one of those
+   would put a reader who sees the page and a reader who hears it in different
+   orders. The lead step is the one `.stand-figure-value` already ships. */
+.imported-headline-slot[data-role="lead"] .imported-headline-value { font-size:clamp(22px,3vw,30px); font-weight:750; line-height:1.15; }
+.imported-headline-slot[data-role="action"] .imported-headline-value { font-size:17px; }
+.imported-headline-slot[data-role="support"] .imported-headline-value { font-size:14px; }
+.imported-headline-slot[data-role="support"] .imported-headline-basis { color:var(--ink-muted); }
+.imported-headline-label[data-role="lead"] { color:var(--import-ink); }
+/* THE BRIEF'S ONE PROVENANCE MARKER, in three states. Colour is the LAST
+   carrier: the words say the whole thing on their own ("From your file", "You
+   entered this", "Not in your file"), the silhouette says it again in grayscale
+   — FILLED wash for a figure computed from the file in front of the reader,
+   SOLID outline for a fact the reader declared, DASHED outline for a stated
+   absence — and only then do the palette roles differ. The silhouettes follow
+   the Claude Design foundations card: a filled wash is a dynamic signal, an
+   outline is a static classification. Every value here already ships in this
+   sheet; no hue, size or spacing step is introduced.
+   It WRAPS rather than clips. The marker is a block-level item of the row's own
+   grid, so at narrow widths it falls beneath the figure it qualifies instead of
+   truncating it, and `overflow-wrap` keeps a 30-digit figure or a long declared
+   label inside the column rather than scrolling the row sideways. */
+.brief-provenance { display:inline-flex; align-items:baseline; flex-wrap:wrap; gap:1px 6px; justify-self:start; min-width:0; max-width:100%; border:1px solid var(--ink-muted); border-radius:5px; padding:3px 8px; font-family:ui-monospace,Menlo,monospace; font-size:11.5px; font-weight:700; line-height:1.5; overflow-wrap:anywhere; }
+.brief-provenance-shape { flex:none; }
+.brief-provenance-detail { font-weight:600; }
+.brief-provenance[data-silhouette="filled"] { border-color:var(--import-accent); background:var(--import-wash); color:var(--import-ink); }
+.brief-provenance[data-silhouette="outline"] { border-color:var(--ink-muted); background:transparent; color:var(--ink-muted); }
+.brief-provenance[data-silhouette="dashed"] { border-style:dashed; border-color:var(--state-warn-line); background:transparent; color:var(--state-warn-ink); }
+.brief-provenance-line { display:grid; justify-items:start; margin:0; max-width:60ch; }
 .stand-imported-movement { margin:0; max-width:60ch; color:var(--ink); font-size:16px; font-weight:700; line-height:1.4; overflow-wrap:anywhere; }
 .stand-imported-basis { margin:0; max-width:60ch; color:var(--ink-muted); font-size:13px; line-height:1.55; }
 .stand-imported-series { display:grid; margin:0; gap:2px; padding-left:18px; }
@@ -1269,6 +1301,10 @@
    dashed rule, never by colour alone. */
 .stand-imported-next { margin:0; max-width:60ch; border-left:3px solid var(--import-accent); padding-left:10px; color:var(--ink); font-size:14px; line-height:1.5; overflow-wrap:anywhere; }
 .completeness-detail>summary { color:var(--ink-muted); font-size:13px; font-weight:700; cursor:pointer; }
+/* A summary is not one of the elements styles.css gives a focus ring to, so
+   this control had none: a keyboard reader could reach the working and not see
+   where they were. Same ring, same offset as every other disclosure here. */
+.completeness-detail>summary:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; border-radius:4px; }
 .completeness-slots { display:grid; margin:8px 0 0; gap:2px; }
 .completeness-slot-label { color:var(--ink-muted); font-size:12px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; }
 .completeness-slot { display:grid; margin:0 0 8px; gap:2px; border-left:3px solid var(--import-accent); padding-left:10px; }

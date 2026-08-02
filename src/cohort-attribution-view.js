@@ -15,7 +15,17 @@
 // the published enumeration, because a list retyped in a view is a list that
 // drifts from the one the contract accepts, and the reader meets that drift as
 // "the page let me choose it and then refused it".
-import { INDUSTRY_OPTIONS, ORG_SIZE_BAND_OPTIONS } from "./cohort-attribution.js";
+import {
+  COHORT_FACT_SOURCE, INDUSTRY_OPTIONS, ORG_SIZE_BAND_OPTIONS,
+} from "./cohort-attribution.js";
+// The imported brief's one provenance marker. This panel is the only region on
+// the page that can be READER-DECLARED — the two attributes a cohort is
+// selected on may come from a column or from the choosers below — so it is the
+// region that proves the three states are three, and it says which one it is in
+// the same words and the same silhouette as every other region of the brief.
+import { FIGURE_SOURCE, mountProvenance } from "./finops-brief-provenance.js";
+
+const PROVENANCE_ID = "local-cohort-provenance";
 
 const IDS = Object.freeze({
   panel: "local-cohort-position",
@@ -95,6 +105,20 @@ export function applyCohortAttribution(doc, result = null) {
     const next = setText(doc, IDS.next, `Next step: ${result.nextStep}`);
     if (next) next.hidden = false;
   }
+  // WHOSE FACTS PLACED THIS IMPORT, as the marker rather than as the tail of a
+  // detail line. Read off the discriminator the contract carries, never worked
+  // out here from whether a column happened to exist: a withheld position is
+  // the absence state, a position selected on typed-in attributes is the
+  // reader-declared one, and only a position selected on the export's own
+  // columns is file-derived.
+  const source = !result.eligible ? FIGURE_SOURCE.fallback
+    : result.position?.sourceLabel === COHORT_FACT_SOURCE.reader
+      ? FIGURE_SOURCE.reader : FIGURE_SOURCE.file;
+  mountProvenance(doc, {
+    region: panel, id: PROVENANCE_ID, source, before: byId(doc, IDS.note),
+    qualifies: "Peer position",
+    detail: result.eligible ? "" : "no cohort was selected for this import",
+  });
   // The note travels with the answer in both states: what a comparison read is
   // as much part of it as where it placed.
   setText(doc, IDS.note, `${result.note.label}. ${result.note.text} `

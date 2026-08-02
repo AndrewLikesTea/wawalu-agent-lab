@@ -26,8 +26,12 @@
 import {
   completenessSentence, nextActionSentence, scoreBriefCompleteness,
 } from "./finops-brief-completeness.js";
+import {
+  FIGURE_SOURCE, mountProvenance, renderProvenance, sourceOfSupported,
+} from "./finops-brief-provenance.js";
 
 const REGION_ID = "finops-brief-completeness";
+const PROVENANCE_ID = "finops-brief-completeness-provenance";
 const TIER_ID = "finops-brief-completeness-tier";
 const NEXT_ID = "finops-brief-completeness-next";
 const DETAIL_ID = "finops-brief-completeness-detail";
@@ -88,6 +92,10 @@ function paintSlots(doc, slots) {
     // are what a reader reads and what a test holds.
     detail.append(element(doc, "span", "completeness-verdict",
       slot.satisfied ? "Earned" : "Fell back"));
+    // And the same marker the rest of the brief uses, so a row here and the
+    // headline row it scores say where the figure came from in one vocabulary.
+    detail.append(renderProvenance(doc, sourceOfSupported(slot.satisfied),
+      { qualifies: slot.label }));
     detail.append(element(doc, "span", "completeness-reason", slot.reason));
     host.append(term, detail);
   }
@@ -132,6 +140,16 @@ export function applyBriefCompleteness(doc, analysis, { movement = null } = {}) 
   setText(doc, COUNT_ID, missing === 0
     ? `all ${score.slotCount} earned`
     : `${missing} of ${score.slotCount} fell back`);
+  // The score is a fact about the reader's own export — it counts what that file
+  // could and could not supply — so the marker above the working reads as the
+  // file state, with the count as its detail. It sits OUTSIDE the disclosure,
+  // above it, because a marker inside a collapsed details element is one a real
+  // browser never shows.
+  mountProvenance(doc, {
+    region, id: PROVENANCE_ID, source: FIGURE_SOURCE.file, before: byId(doc, DETAIL_ID),
+    qualifies: "Brief completeness",
+    detail: `${score.satisfiedCount} of ${score.slotCount} slots scored from your export`,
+  });
   paintSlots(doc, score.slots);
   return score;
 }

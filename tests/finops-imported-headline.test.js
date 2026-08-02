@@ -78,8 +78,12 @@ const slotOf = (headline, id) => headline.slots.find((entry) => entry.id === id)
 
 test("no slot in the contract may ship without its fallback, definition and labels", () => {
   const slots = IMPORTED_HEADLINE_FIXTURE.slots;
+  // The order is the READING order (#981): the figure the question asks for,
+  // the one action to take about it, then the support. It changed here when the
+  // block was made readable in one pass, and it changed in the fixture — which
+  // is the property this assertion exists to hold, not the old sequence.
   assert.deepEqual(slots.map((slot) => slot.id), [
-    "recoverable_spend", "peer_position", "top_department", "rank_1_action", "confidence_tier",
+    "recoverable_spend", "rank_1_action", "peer_position", "top_department", "confidence_tier",
   ], "the five slots are ordered by the contract, and the renderer follows it");
   assert.ok(IMPORTED_HEADLINE_FIXTURE.question.trim().length > 0,
     "the imported state has its own answerable question line");
