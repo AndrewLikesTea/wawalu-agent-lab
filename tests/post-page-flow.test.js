@@ -62,7 +62,7 @@ function assertOneExit(page, expected, where) {
 }
 
 const SOCIAL = { label: "← Back to Social", href: "/social.html" };
-const PROFILE = { label: "← Back to Profile", href: "/profile.html?author=Mina%20Okafor" };
+const PROFILE = { label: "← Back to People", href: "/profile.html?author=Mina%20Okafor" };
 
 test("a post that loads is headed by its author and reads name, time, image, caption", async () => {
   const page = await openPostPage("?id=p-image", seedOnly([SEED_POST]));

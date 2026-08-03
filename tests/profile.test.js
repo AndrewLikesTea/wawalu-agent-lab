@@ -179,7 +179,7 @@ test("a tile is a link to the post, named by its caption", () => {
   const tile = first(container, "profile-tile");
   assert.equal(tile.tagName, "A", "the whole tile is the navigation target");
   // Every tile says where it sent the reader from, so the post page's single
-  // back link can read "← Back to Profile" instead of guessing.
+  // back link can read "← Back to People" instead of guessing.
   assert.equal(tile.href, "/post.html?id=p-image&author=Mina&from=profile");
   assert.equal(tile.dataset.postId, "p-image");
 
@@ -327,10 +327,11 @@ test("the profile and post pages are wired, labelled, and reachable", async () =
 
   assert.match(profile, /id="profile-grid"/);
   // The picker's label says what choosing an entry does, in the words Social's
-  // own feed toolbar uses ("Show posts"). Naming the menu's contents instead —
-  // it read "Display name" — left the one control that changes whose posts the
-  // grid shows looking like a caption on the names inside it.
-  assert.match(profile, /<label for="profile-author">Show posts by<\/label>/);
+  // own feed toolbar uses ("Show posts"), and names what is being chosen with
+  // the term the composer, the feed filter, and this page's own description all
+  // use. "Show posts by" alone left the menu's contents unnamed, so the page
+  // described them as one thing and every other surface as another.
+  assert.match(profile, /<label for="profile-author">Show posts by display name<\/label>/);
   assert.match(profile, /id="profile-author"[^>]*aria-describedby="profile-author-hint"/);
   assert.match(profile, /id="profile-announcer"[^>]*aria-live="polite"/);
   assert.match(profile, /src="\/profile-page\.js"/);
@@ -342,6 +343,40 @@ test("the profile and post pages are wired, labelled, and reachable", async () =
 
   // No innerHTML in any interactive layer: no user-generated HTML executes here.
   assert.doesNotMatch([component, detailComponent, profileWiring, detailWiring].join("\n"), /innerHTML/);
+});
+
+// One name for the thing the picker selects, on the page and on the post. The
+// page used to describe itself with one word ("one demo persona's image posts")
+// and label its picker with another, so a reader could not tell whether the menu
+// held what the sentence promised. The surviving term is the one a post already
+// carries: Social's composer field and its feed filter both say "display name".
+//
+// Pinned as a shared term rather than as one exact sentence, so the copy can be
+// rewritten freely and only a second word for the same concept fails.
+test("the People picker and the page's own description use one term for what is selected", async () => {
+  const html = await readFile(new URL("../src/profile.html", import.meta.url), "utf8");
+  const TERM = "display name";
+  const RIVALS = [/demo persona/i, /\bpersona\b/i, /\bprofile\b/i, /\baccount\b/i, /\bauthor\b/i];
+  const between = (pattern) => html.match(pattern)?.[1] ?? "";
+  const surfaces = [
+    ["page intro", between(/<p class="profile-lede">([\s\S]*?)<\/p>/)],
+    ["picker label", between(/<label for="profile-author">([\s\S]*?)<\/label>/)],
+    ["picker hint", between(/<p class="hint profile-toolbar-hint" id="profile-author-hint">([\s\S]*?)<\/p>/)],
+  ];
+
+  for (const [surface, copy] of surfaces) {
+    assert.notEqual(copy, "", `the ${surface} must still be on the page`);
+    assert.ok(copy.includes(TERM), `the ${surface} must call the selected thing a "${TERM}": ${copy.trim()}`);
+    for (const rival of RIVALS)
+      assert.doesNotMatch(copy, rival, `the ${surface} must not name the same thing a second way`);
+  }
+
+  // The two lines about publishing keep the term too: an empty page tells a
+  // reader how to fill it, and it has to be the same word they just picked by.
+  assert.match(html, /publish it on Social under a display name/);
+  const social = await readFile(new URL("../src/social.html", import.meta.url), "utf8");
+  assert.match(social, /Shown as the display name on your post/,
+    "the composer names the same thing the picker selects");
 });
 
 test("the header shows who this is and what the counts mean", () => {

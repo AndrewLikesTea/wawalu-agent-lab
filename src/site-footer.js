@@ -82,7 +82,7 @@ export const DEMOS = Object.freeze([
   Object.freeze({ label: "Decisions", description: "Record a decision with its context, alternatives, and owner, then search and filter the history." }),
   Object.freeze({ label: "Releases", description: "Every release, newest first, with the decisions it carried." }),
   Object.freeze({ label: "Social", description: "Social is a shared demo feed of short posts about the work the team ships, each with an optional image." }),
-  Object.freeze({ label: "People", description: "Pick a demo persona and see that person's image posts, newest first. The picker is on the page." }),
+  Object.freeze({ label: "People", description: "Pick a display name and see the image posts published under it, newest first. The picker is on the page." }),
   Object.freeze({ label: "Paint", description: "Draw or crop an image in this tab, export a PNG, then hand it to a Social post yourself." }),
   Object.freeze({ label: "Agent observatory", description: "Watch a synthetic engineering team plan, build, review, and deliver work." }),
 ]);
