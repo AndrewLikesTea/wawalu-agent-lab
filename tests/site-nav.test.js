@@ -573,7 +573,9 @@ test("the nav is reached by keyboard in the order it is displayed", async () => 
 test("the feed has one name: no page still says Team feed in its nav, eyebrow, or title", async () => {
   for (const file of ["social.html", "post.html"]) {
     const html = await readFile(pageUrl(file), "utf8");
-    assert.match(html, /<p class="eyebrow">Social · (demo|post)<\/p>/, `${file} eyebrow must name the feed "Social"`);
+    // One eyebrow convention: the surface, then anything narrowing it, then the
+    // "demo" marker every feed page carries — segments joined by " · ".
+    assert.match(html, /<p class="eyebrow">Social · (post · )?demo<\/p>/, `${file} eyebrow must name the feed "Social" and say it is a demo`);
     assert.doesNotMatch(html.match(/<head>[\s\S]*?<\/head>/)[0], /Team feed/i, `${file} title block must not say "Team feed"`);
   }
 });

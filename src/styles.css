@@ -56,6 +56,7 @@ main,.page { width:min(1180px,calc(100% - 40px)); margin:auto; padding:24px 0 80
 .eyebrow { margin:0; color:#65717d; font:700 11px/1.4 ui-monospace,monospace; letter-spacing:.11em; text-transform:uppercase; }
 h1 { margin:16px 0 24px; font-size:clamp(44px,7.3vw,82px); line-height:.96; letter-spacing:-.055em; }
 .hero>p:not(.eyebrow) { max-width:760px; margin:0; color:#555550; font-size:19px; line-height:1.6; }
+.hero-post>p:not(.eyebrow)+p { margin-top:14px; }
 .hero-actions { display:flex; align-items:center; flex-wrap:wrap; gap:18px; margin-top:30px; }
 .button-link { display:inline-flex; align-items:center; justify-content:space-between; gap:30px; min-height:48px; border-radius:9px; padding:0 17px; background:#171713; color:#fff; font-size:14px; font-weight:750; text-decoration:none; }
 .button-link:hover { background:#1f70c1; }
@@ -731,9 +732,9 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 /* Single post. The image leads at its natural aspect ratio — this is the view
    that exists to show it whole, not cropped to a grid cell. */
 .detail-back { color:#1f5fa8; font:650 13px/1.4 ui-monospace,monospace; }
-.detail-page-back { margin:0 0 18px; min-height:44px; }
-/* The post page's single exit. Still a flex row so it keeps its 44px target and
-   wraps rather than shrinking on a phone. */
+.detail-page-back,.detail-page-people { margin:0 0 18px; min-height:44px; }
+/* The post page's two pointers. A flex row so each keeps its
+   44px target and wraps on a phone. */
 .detail-page-exits { display:flex; flex-wrap:wrap; gap:0 24px; margin:0; }
 .detail-post { display:flex; flex-direction:column; min-width:0; max-width:720px; margin:auto; }
 /* The post's one forward step: the poster's display name, linked to their

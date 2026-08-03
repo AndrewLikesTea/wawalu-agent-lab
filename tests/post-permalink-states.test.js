@@ -98,6 +98,86 @@ function assertOneState(page, expected, where) {
   assert.equal(headings.length, ["not-found", "error"].includes(expected) ? 1 : 0, `${where}: state headings in the panel`);
 }
 
+/* ----------------------------- standing chrome ---------------------------- */
+
+// The frame around the panel, in the words a cold visitor reads. None of it is
+// built in a success branch, so a link that resolves to nothing says the same
+// four things a link that resolves to a post does: where the whole feed is,
+// where this display name's other image posts are, that the page is a demo, and
+// what the demo does with data.
+const CHROME = {
+  social: "Open Social to read the whole feed",
+  people: "Open People to see the image posts published under one display name",
+  eyebrow: "Social · post · demo",
+  demo: "Posts are shared across browsers and use no customer or production data.",
+};
+
+function assertChrome(page, where) {
+  const { document } = page;
+  assert.equal(textOf(document.querySelector("#post-back")), CHROME.social, `${where}: the Social pointer`);
+  assert.equal(textOf(document.querySelector("#post-people")), CHROME.people, `${where}: the People pointer`);
+  assert.equal(textOf(document.querySelector(".eyebrow")), CHROME.eyebrow, `${where}: the eyebrow`);
+
+  // Counted, not asserted absent: one demo sentence, in the hero, and none of
+  // it inside the post's own region — where a state render would wipe it.
+  const note = document.querySelectorAll(".hero-demo-note");
+  assert.equal(note.length, 1, `${where}: one demo sentence, found ${note.length}`);
+  assert.equal(textOf(note[0]), CHROME.demo, `${where}: the demo sentence`);
+  assert.equal(page.panel.querySelectorAll(".hero-demo-note").length, 0, `${where}: the sentence moved into the panel`);
+  assert.equal(textOf(page.panel).includes(CHROME.demo), false, `${where}: the panel repeats the demo sentence`);
+}
+
+test("the chrome reads the same for a post that is missing as for one that loaded", async () => {
+  const missing = await openPostPage("?id=p-gone&author=Mina%20Okafor", seedOnly([IMAGE_POST]));
+  try {
+    assertOneState(missing, "not-found", "the id names nothing");
+    assertChrome(missing, "the post is missing");
+    // The pointer still offers this display name's other image posts, because
+    // the name came from the link rather than from the post that never arrived.
+    assert.equal(missing.document.querySelector("#post-people").href, "/profile.html?author=Mina%20Okafor");
+  } finally {
+    missing.restore();
+  }
+
+  const loaded = await openPostPage("?id=p-image&author=Mina%20Okafor", seedOnly([IMAGE_POST]));
+  try {
+    assertOneState(loaded, "loaded", "the post arrived");
+    assertChrome(loaded, "the post loaded");
+    assert.equal(loaded.document.querySelector("#post-people").href, "/profile.html?author=Mina%20Okafor");
+  } finally {
+    loaded.restore();
+  }
+});
+
+test("the chrome is already there while the lookup runs, and outlives a failure", async () => {
+  // Held open: a fetch that never settles is the state a cold visitor meets
+  // first, and the pointers have to be readable in it.
+  const waiting = await loadPage(new URL("../src/post.html", import.meta.url), { location: { search: "?id=p-image" } });
+  try {
+    let release;
+    globalThis.fetch = () => new Promise((resolve) => { release = () => resolve(seedResponse([IMAGE_POST])); });
+    await importPageModule("/post-page.js");
+    const panel = waiting.document.querySelector("#post-detail");
+    await waitFor(() => panel.querySelectorAll(".detail-loading").length === 1, "the loading state rendered");
+    assertChrome({ ...waiting, panel }, "while the lookup runs");
+    // No name in the link, so it offers People itself rather than promising a
+    // display name the page cannot know yet.
+    assert.equal(waiting.document.querySelector("#post-people").href, "/profile.html");
+    release();
+    await waitFor(() => waiting.document.documentElement.dataset.shiplogPostDetail === "ready", "the post arrived");
+  } finally {
+    waiting.restore();
+  }
+
+  const failed = await openPostPage("?id=p-image", () => { throw new TypeError("Failed to fetch"); });
+  try {
+    assertOneState(failed, "error", "the fetch threw");
+    assertChrome(failed, "the feed could not be reached");
+  } finally {
+    failed.restore();
+  }
+});
+
 /* ------------------------------- not found -------------------------------- */
 
 test("a post id that does not exist is headed as not found, with no wait left behind", async () => {

@@ -27,32 +27,32 @@
       </header>
 
       <main id="main-content" tabindex="-1">
-      <!-- The exit sits inside the content region, after the site header and
-           nav, the way src/decision.html places "← Back to Decisions". It used
-           to come first in the document, ahead of the wordmark, which put a
-           page-specific control before the site frame on this page and nowhere
-           else — that is the ordering bug this markup fixes.
+      <!-- The pointers sit inside the content region, after the site header and
+           nav. They used to come first in the document, ahead of the wordmark,
+           which put a page-specific control before the site frame on this page
+           and nowhere else — that is the ordering bug this markup fixes.
 
-           One exit, not two. The page has two honest origins — the feed the post
-           lives in, and the profile that collects the rest of the author's posts
-           — but a reader has only one "back", so the link names the origin they
-           actually came from. The feed is what ships in the markup, because a
-           pasted or shared link is from the feed as far as anyone can tell;
-           post-page.js renames this same element to "← Back to People" when the
-           URL carries the ?from=profile that profile.js writes into its tiles.
-           The label says People because that is the name of the destination,
-           on the page and in the nav; this site has no page called Profile.
-           Its visible text carries the destination — no aria-label holding a
-           word the eye cannot read.
+           Most readers reach this page from a link someone pasted, so they have
+           no "back" to offer them: nothing on this site is behind them. Both
+           pointers are therefore forward actions, written with the verb Social
+           and People already use for each other — "Open Social when you want
+           the whole feed", "Open People when you want the image posts published
+           under one display name". Two destinations, never two names for one:
+           Social is the whole feed, People is one display name's image posts.
 
-           This is the page's only such link. The state panel below never repeats
-           it — see the note above labelledState() in post-detail.js. -->
+           Both are standing chrome. They ship in the markup with their text
+           final, so they read the same while the post loads, when it loads, and
+           when the id names nothing. post-page.js narrows only the People
+           pointer's href, never its words, when the URL carries an author.
+           The visible text carries each destination — no aria-label holding a
+           word the eye cannot read. -->
       <p class="detail-page-exits">
-        <a class="detail-back detail-page-back" id="post-back" href="/social.html">← Back to Social</a>
+        <a class="detail-back detail-page-back" id="post-back" href="/social.html">Open Social to read the whole feed</a>
+        <a class="detail-back detail-page-people" id="post-people" href="/profile.html">Open People to see the image posts published under one display name</a>
       </p>
 
       <section class="hero hero-post" id="top" aria-labelledby="page-title">
-        <p class="eyebrow">Social · post</p>
+        <p class="eyebrow">Social · post · demo</p>
         <!-- What ships is what post-page.js writes while the lookup runs, and
              what it leaves standing when there is no author to name: the page,
              not the bare word "Post". A loaded post renames it after its author. -->
@@ -62,6 +62,11 @@
              while the post is still loading — and still if it never arrives.
              The heading above it is rewritten by JS; this sentence is not. -->
         <p>Social is a shared demo feed of short posts about the work the team ships, each with an optional image.</p>
+        <!-- The same sentence the Social page ends its intro with, word for
+             word. Someone who opened a pasted link has not read that page, so
+             the fact that this feed is public and carries nothing real has to
+             be told here too — once, in the frame, not per state. -->
+        <p class="hero-demo-note">Posts are shared across browsers and use no customer or production data.</p>
       </section>
 
       <section class="workspace profile-workspace" aria-label="Post">

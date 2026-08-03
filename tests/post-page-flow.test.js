@@ -47,22 +47,33 @@ const seedOnly = (posts) => (url) => {
   throw new Error(`Unexpected request: ${url}`);
 };
 
-// The one exit, wherever the page is in its life. Reading it from the whole
-// document rather than from a known id is the point: a second back link
+// The page's standing pointers, wherever it is in its life. Reading them from
+// the whole document rather than from known ids is the point: a third pointer
 // appearing anywhere — in the markup, in a state panel — fails here.
 function exits(document) {
-  return document.querySelectorAll("a").filter((link) => /←|Back to/.test(link.textContent));
+  return document.querySelectorAll("a").filter((link) => /^Open (Social|People) to /.test(link.textContent));
 }
 
-function assertOneExit(page, expected, where) {
+// Both pointers, with their words fixed. Only the People destination moves, and
+// only with the name the arriving URL carried.
+function assertPointers(page, peopleHref, where) {
   const links = exits(page.document);
-  assert.equal(links.length, 1, `${where}: expected one back link, found ${links.map(textOf).join(" + ") || "none"}`);
-  assert.equal(textOf(links[0]), expected.label, `${where}: the back link's text`);
-  assert.equal(links[0].href, expected.href, `${where}: the back link's destination`);
+  assert.equal(links.length, 2, `${where}: expected both pointers, found ${links.map(textOf).join(" + ") || "none"}`);
+  assert.deepEqual(links.map(textOf), [SOCIAL.label, PEOPLE.label], `${where}: the pointers' text`);
+  assert.equal(links[0].href, SOCIAL.href, `${where}: the Social pointer's destination`);
+  assert.equal(links[1].href, peopleHref, `${where}: the People pointer's destination`);
+  // Nothing on the page invites a reader to step back to somewhere they have
+  // most likely never been: this page is opened from a pasted link.
+  assert.equal(
+    page.document.querySelectorAll("a").filter((link) => /Back to/.test(link.textContent)).length,
+    0,
+    `${where}: a back label reappeared`,
+  );
 }
 
-const SOCIAL = { label: "← Back to Social", href: "/social.html" };
-const PROFILE = { label: "← Back to People", href: "/profile.html?author=Mina%20Okafor" };
+const SOCIAL = { label: "Open Social to read the whole feed", href: "/social.html" };
+const PEOPLE = { label: "Open People to see the image posts published under one display name", href: "/profile.html" };
+const MINA = "/profile.html?author=Mina%20Okafor";
 
 test("a post that loads is headed by its author and reads name, time, image, caption", async () => {
   const page = await openPostPage("?id=p-image", seedOnly([SEED_POST]));
@@ -81,18 +92,18 @@ test("a post that loads is headed by its author and reads name, time, image, cap
     assert.equal(textOf(figure.querySelector("figcaption")), "The middle card, ringed.");
     assert.equal(page.panel.getAttribute("aria-busy"), "false");
 
-    assertOneExit(page, SOCIAL, "loaded");
+    assertPointers(page, PEOPLE.href, "loaded");
   } finally {
     page.restore();
   }
 });
 
-test("arriving from a profile turns the one exit into the profile's, and nothing else", async () => {
+test("a named author narrows the People pointer's destination, and nothing else", async () => {
   const page = await openPostPage("?id=p-image&from=profile&author=Mina%20Okafor", seedOnly([SEED_POST]));
   try {
-    assertOneExit(page, PROFILE, "from a profile");
-    // The provenance came from the URL, not from the post, so it is the same
-    // exit whether or not the post itself loaded.
+    assertPointers(page, MINA, "with a named author");
+    // The name came from the URL, not from the post, so the pointers read the
+    // same whether or not the post itself loaded.
     assert.equal(textOf(page.document.querySelector("#page-title")), "Post by Mina Okafor");
   } finally {
     page.restore();
@@ -110,7 +121,7 @@ test("an unknown id is named as a missing post, with the feed still the way out"
     assert.doesNotMatch(textOf(page.panel), /Try again/);
     assert.equal(page.panel.querySelector(".detail-state-message").getAttribute("role"), "status");
     assert.equal(page.document.title, "Post not found · Shiplog");
-    assertOneExit(page, SOCIAL, "not found");
+    assertPointers(page, PEOPLE.href, "not found");
     const feed = page.panel.querySelector(".detail-state-feed");
     assert.equal(textOf(feed), "Return to the Social feed");
     assert.equal(feed.getAttribute("href"), "/social.html");
@@ -120,12 +131,12 @@ test("an unknown id is named as a missing post, with the feed still the way out"
   }
 });
 
-test("a missing post reached from a profile still offers the feed it belonged to", async () => {
+test("a missing post reached with an author still offers the feed it belonged to", async () => {
   const page = await openPostPage("?id=p-gone&from=profile&author=Mina%20Okafor", seedOnly([SEED_POST]));
   try {
-    assertOneExit(page, PROFILE, "missing, from a profile");
-    // The one exit goes back to the profile, so without this the reader would
-    // have no route at all to the feed the missing post lived in.
+    assertPointers(page, MINA, "missing, with a named author");
+    // The panel names the feed too, beside the explanation of what went wrong,
+    // so the next step is offered where the problem is read.
     const feed = page.panel.querySelector(".detail-state-feed");
     assert.equal(feed.getAttribute("href"), "/social.html");
     assert.equal(textOf(feed), "Return to the Social feed");
@@ -135,7 +146,7 @@ test("a missing post reached from a profile still offers the feed it belonged to
     const toFeed = page.document.querySelectorAll("a")
       .filter((link) => link.getAttribute("href") === "/social.html"
         && !link.closest(".site-nav") && !link.closest("#site-footer"));
-    assert.equal(toFeed.length, 1, "one link to Social outside the site's directories, not two");
+    assert.equal(toFeed.length, 2, "the standing pointer and the panel's recovery action, and nothing else");
 
     // Tab order: the exit first, then the post region's own action.
     const sequence = tabSequence(page.document);
@@ -155,7 +166,7 @@ test("a failed lookup names the feed it could not reach, and retry can recover",
     assert.match(textOf(page.panel), /Post could not be loaded/);
     assert.match(textOf(page.panel), /The Social feed could not be reached/);
     assert.match(textOf(page.panel), /Social is a shared demo feed, not a signed-in account\./);
-    assertOneExit(page, SOCIAL, "failed");
+    assertPointers(page, PEOPLE.href, "failed");
 
     const retry = page.panel.querySelector("button");
     assert.equal(textOf(retry), "Retry");
@@ -174,7 +185,7 @@ test("a failed lookup names the feed it could not reach, and retry can recover",
     assert.equal(textOf(page.panel.querySelector("figcaption")), "The middle card, ringed.");
     assert.doesNotMatch(textOf(page.panel), /could not be reached/);
     assert.equal(page.panel.dataset.postState, "loaded");
-    assertOneExit(page, SOCIAL, "recovered");
+    assertPointers(page, PEOPLE.href, "recovered");
   } finally {
     page.restore();
   }
@@ -185,7 +196,7 @@ test("a visit with no id is told what the page needs, and still has one way out"
   try {
     assert.match(textOf(page.panel), /Choose a post/);
     assert.equal(page.requests.length, 0);
-    assertOneExit(page, SOCIAL, "no id");
+    assertPointers(page, PEOPLE.href, "no id");
   } finally {
     page.restore();
   }
@@ -218,7 +229,7 @@ test("the loading state is one announced line in the post's region, and takes no
     // The frame around it still says what the page is, so the region is never
     // an unexplained blank.
     assert.match(textOf(page.document.querySelector(".hero-post")), /Social is a shared demo feed/);
-    assertOneExit(page, SOCIAL, "loading");
+    assertPointers(page, PEOPLE.href, "loading");
     // Nothing inside the waiting region is tabbable, so the exit stays the
     // first thing on the page a keyboard reader reaches after the site frame.
     assert.equal(tabSequence(page.document).filter((node) => node.closest("#post-detail")).length, 0);
@@ -226,7 +237,7 @@ test("the loading state is one announced line in the post's region, and takes no
     release();
     await waitFor(() => page.document.documentElement.dataset.shiplogPostDetail === "ready", "the post arrived");
     assert.equal(panel.getAttribute("aria-busy"), "false");
-    assertOneExit(page, SOCIAL, "after loading");
+    assertPointers(page, PEOPLE.href, "after loading");
   } finally {
     page.restore();
   }
@@ -251,7 +262,7 @@ test("the page opens already saying it is loading, and the post replaces that li
     assert.equal(panel.querySelectorAll(".detail-state-message").length, 0);
     assert.equal(panel.querySelectorAll(".detail-post").length, 0);
     // And it takes nothing away from the exit above it.
-    assertOneExit(page, SOCIAL, "before the script runs");
+    assertPointers(page, PEOPLE.href, "before the script runs");
     assert.equal(tabSequence(page.document).filter((node) => node.closest("#post-detail")).length, 0);
 
     // Held open, so the script's own render of the same line can be read.
