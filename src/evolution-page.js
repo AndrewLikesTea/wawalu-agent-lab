@@ -128,8 +128,15 @@ import { briefingFromRetained } from "/finops-briefing-retention.js";
 // One entry point for a selected file: `.json` keeps the reviewed JSON path
 // untouched, `.csv`/`.tsv`/`.txt` route through the delimited normalizer. Both
 // return the same parsed v1 envelope, so nothing below this line changes.
-import { isDelimitedFileName, parseLocalImportFile } from "/finops-tabular-import.js";
+import {
+  bindingFromMapping, detectShape, isDelimitedFileName, parseLocalImportFile,
+} from "/finops-tabular-import.js";
 import { readDelimitedText } from "/delimited-text.js";
+// The names the dropped file already carries for the reader's own units, under
+// the checked-in derivation contract. They sit BELOW anything the reader typed
+// and above the pseudonym — see `namedOrgUnitLabels` below, which is the only
+// place the two maps are merged.
+import { deriveOrgUnitNames, mergeOrgUnitNamings } from "/finops-export-unit-names.js";
 import {
   assessNativeProviderActivation, NATIVE_ACTIVATION_STATUS,
 } from "/native-provider-activation.js";
@@ -892,6 +899,27 @@ function mountLocalFinopsImport() {
   // imported figure; every surface re-reads the same envelope and resolves the
   // name through `orgUnitDisplayName`.
   let orgUnitLabels = NO_ORG_UNIT_LABELS;
+  /**
+   * The names DERIVED from the dropped export itself, merged across the files
+   * in this selection.
+   *
+   * Derived rather than accumulated, for the reason `cohortSources` is: the
+   * naming travels on the import entry, so re-mapping a file replaces its own
+   * naming and clearing an import takes its names with it. A standing map here
+   * could name this selection's units from the last one's labels.
+   */
+  const importedUnitNaming = () => mergeOrgUnitNamings(
+    imports.map((entry) => entry.unitNaming).filter(Boolean));
+  /**
+   * The one merge: what the reader typed over what their export already said.
+   *
+   * Reader-typed wins because it is spread last, and `orgUnitDisplayName` reads
+   * the merged map first — so precedence across all three layers is
+   * reader-typed, then derived, then the pseudonym, with no second resolver.
+   */
+  const namedOrgUnitLabels = () => Object.freeze({
+    ...importedUnitNaming().names, ...orgUnitLabels,
+  });
   // When the reader last edited any of the three above. Null until they do,
   // which is what keeps a record written by a reader who supplied nothing free
   // of a context field and of a timestamp that would stand for no edit.
@@ -1335,7 +1363,7 @@ function mountLocalFinopsImport() {
           verdict: lastVerdict,
           facts: importedRowFacts(),
         },
-        labels: orgUnitLabels,
+        labels: namedOrgUnitLabels(),
       };
     }
     return {
@@ -1384,7 +1412,7 @@ function mountLocalFinopsImport() {
     orgUnitLabels = withOrgUnitDisplayLabel(orgUnitLabels, unitId, label);
     noteContextEdit();
     if (result && !exampleActive) {
-      applyImportedHeadline(document, result, { labels: orgUnitLabels });
+      applyImportedHeadline(document, result, { labels: namedOrgUnitLabels(), naming: importedUnitNaming() });
     }
     // The drill-down and, through it, the guided result's driver sentence. One
     // call, so the three surfaces cannot end up naming the unit three ways.
@@ -1405,7 +1433,9 @@ function mountLocalFinopsImport() {
     applyFirstRunSupersession(document, Boolean(result), {
       focusFallbackId: "local-results-title",
       ownData: result && !exampleActive
-        ? importedDepartmentDrilldown(result, { labels: orgUnitLabels }) : null,
+        ? importedDepartmentDrilldown(result, {
+          labels: namedOrgUnitLabels(), readerLabels: orgUnitLabels, naming: importedUnitNaming(),
+        }) : null,
       // The name fields inside that disclosure. They are built rather than
       // shipped as markup: the disclosure is already interactive and already on
       // the page, and five static fields would spend the document's initial
@@ -1703,7 +1733,8 @@ function mountLocalFinopsImport() {
     // for why the export could not supply it. The bundled example is not an
     // import and does not get one — it already has its own complete headline,
     // which this call leaves untouched.
-    applyImportedHeadline(document, example ? null : next, { labels: orgUnitLabels });
+    applyImportedHeadline(document, example ? null : next,
+      { labels: namedOrgUnitLabels(), naming: example ? null : importedUnitNaming() });
     // Every month inside that same file, summed per calendar month and merged
     // with what this browser had already retained, so a year-long export reads
     // as a series with named movement instead of one period and no change. The
@@ -2450,6 +2481,10 @@ function mountLocalFinopsImport() {
       // faster route, so one file would report a different cohort position
       // depending on which path read it.
       cohortSource: projectCohortSource({ objects: rowObjects(reading) }),
+      // The names this file already carries for its own units, from the same
+      // one reading of the bytes. Nothing extra is opened and nothing else is
+      // retained: the derivation returns labels and a column name.
+      unitNaming: deriveExportUnitNames(reading),
     });
     announce("ready", "Provider adapter active.", activation.message);
     return "activated";
@@ -2464,6 +2499,26 @@ function mountLocalFinopsImport() {
    */
   const rowObjects = (reading) => (reading?.rows ?? []).map((row) => Object.fromEntries(
     (reading.header ?? []).map((name, index) => [name, row.values?.[index] ?? ""])));
+
+  /**
+   * Name this reading's org units from the file's own label columns.
+   *
+   * The org-unit column is whichever one the analysis actually bound — the
+   * reader's reviewed mapping when there is one, this repository's shape
+   * aliases otherwise — so a derived name lands on the same pseudonymous
+   * identity every figure on this page is keyed on. A header no shape binds an
+   * org unit for yields the contract's unavailable naming rather than a guess.
+   */
+  const deriveExportUnitNames = (reading, mapping = null) => {
+    const header = reading?.header ?? [];
+    const binding = mapping ? bindingFromMapping(mapping, header) : detectShape(header);
+    const index = binding?.bound?.orgUnit;
+    return deriveOrgUnitNames({
+      columns: header,
+      rows: rowObjects(reading),
+      unitColumn: Number.isInteger(index) ? header[index] ?? null : null,
+    });
+  };
 
   /**
    * Every cohort source in this selection, derived rather than accumulated.
@@ -2600,6 +2655,10 @@ function mountLocalFinopsImport() {
     // The cohort projection travels on the entry, so re-mapping this file
     // replaces it rather than adding a second reading of the same bytes.
     stored.cohortSource = projectCohortSource({ objects: rowObjects(reading) });
+    // Same rule for the names: the reviewed mapping decides which column the
+    // org unit came from, so a reader who corrected that column gets their
+    // units named from the one they chose.
+    stored.unitNaming = deriveExportUnitNames(reading, binding);
     if (!entry) imports.push(stored);
     closeReview();
     await processQueue();

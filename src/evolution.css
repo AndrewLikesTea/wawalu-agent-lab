@@ -1291,6 +1291,12 @@
 .stand-imported { display:grid; align-content:start; gap:8px; border-top:3px solid var(--import-accent); padding-top:10px; }
 .stand-imported-question { margin:0; max-width:60ch; color:var(--ink); font-size:clamp(17px,2.2vw,21px); font-weight:750; line-height:1.25; }
 .stand-imported-slots { display:grid; margin:0; gap:4px; }
+/* Provenance for the names in the sentence above: readable, secondary, and not
+   behind a disclosure. The contract line is a step quieter than the column it
+   qualifies, never hidden. */
+.stand-imported-naming { margin:8px 0 0; max-width:70ch; color:var(--ink); font-size:14px; line-height:1.45; }
+.stand-imported-naming-contract { margin:2px 0 0; max-width:70ch; color:var(--muted); font-size:13px; line-height:1.45; }
+.org-unit-underived { color:var(--muted); font-weight:500; }
 .imported-headline-label { color:var(--ink-muted); font-size:12px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; }
 .imported-headline-slot { display:grid; margin:0 0 8px; gap:2px; border-left:3px solid var(--import-accent); padding-left:10px; }
 .imported-headline-slot[data-supported="false"] { border-left-style:dashed; border-left-color:var(--state-warn-line); }

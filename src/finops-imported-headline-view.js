@@ -33,6 +33,12 @@ import { renderProvenance, sourceOfSupported } from "./finops-brief-provenance.j
 const REGION_ID = "finops-imported-headline";
 const QUESTION_ID = "finops-imported-headline-question";
 const SLOTS_ID = "finops-imported-headline-slots";
+// Where the names in the sentence above came from, in the export's own column
+// names. Both lines are plain text in the region, never inside a fold: the
+// harness reads through a collapsed disclosure and a real browser does not, so
+// folding this away would silence it for everyone except the tests.
+const NAMING_ID = "finops-imported-headline-naming";
+const NAMING_CONTRACT_ID = "finops-imported-headline-naming-contract";
 
 /**
  * The emphasis each slot is painted at. ONE order, and it is the fixture's: the
@@ -91,21 +97,59 @@ function paintSlots(doc, slots) {
 }
 
 /**
+ * Where the unit names in this headline came from, and what the derivation is
+ * allowed to read.
+ *
+ * Two lines, both of them the derivation contract's own words — this layer holds
+ * no string here either. The first names the actual columns, because "names were
+ * derived" is a claim a reader cannot check and `“project_name” column` is one
+ * they can go and look at. The second states the recognized fields and their
+ * precedence, so a reader can tell a column that was ignored from one that was
+ * read and lost a tie.
+ *
+ * An import with no derivation to report — a JSON envelope, or a reading with no
+ * org-unit column — empties both and hides the block. It never falls back to a
+ * generic sentence, because a generic sentence about provenance is the thing
+ * this block exists to replace.
+ */
+function paintNaming(doc, naming) {
+  const line = byId(doc, NAMING_ID);
+  const contract = byId(doc, NAMING_CONTRACT_ID);
+  const available = Boolean(naming?.available && naming.unitCount > 0);
+  if (line) {
+    line.textContent = available ? naming.statement : "";
+    line.hidden = !available;
+    line.dataset.derived = available ? String(naming.derivedCount) : "0";
+    line.dataset.units = available ? String(naming.unitCount) : "0";
+    line.dataset.conflicted = available ? String(naming.conflictedCount) : "0";
+    line.dataset.contractVersion = available ? String(naming.contractVersion) : "";
+  }
+  if (contract) {
+    contract.textContent = available ? naming.precedenceStatement : "";
+    contract.hidden = !available;
+  }
+  return available;
+}
+
+/**
  * Paint the imported headline for an analysis, or take it off screen.
  *
  * @param analysis an envelope from `normalizeLocalFinopsHistory`, or null when
  *   the reader is on the bundled example or has cleared an import.
- * @param {{labels?: object}} [options] the reader's own org-unit names, from
- *   page state. Carried through to the contract, which is where the one
- *   resolver is called; this layer still holds no string of its own.
+ * @param {{labels?: object, naming?: object}} [options] `labels` is the resolved
+ *   org-unit name map — the reader's own names over the ones derived from their
+ *   export — carried through to the contract, which is where the one resolver is
+ *   called. `naming` is the derivation result behind the second half of that
+ *   map, painted as this block's provenance. This layer still holds no string.
  * @returns the composed headline, including the unavailable one.
  */
-export function applyImportedHeadline(doc, analysis, { labels = null } = {}) {
+export function applyImportedHeadline(doc, analysis, { labels = null, naming = null } = {}) {
   const region = byId(doc, REGION_ID);
   const headline = importedHeadline(analysis ?? null, { labels });
   if (!region) return headline;
   const host = byId(doc, SLOTS_ID);
   if (host) host.replaceChildren();
+  paintNaming(doc, headline.available ? naming : null);
   if (!headline.available) {
     region.hidden = true;
     region.dataset.state = "unavailable";
