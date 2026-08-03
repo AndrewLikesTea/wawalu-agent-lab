@@ -19,7 +19,7 @@ test("renders the decision-ready payload in leadership reading order", () => {
   const article = renderPayloadBriefing(doc, payload());
   const text = article.textContent;
   const ordered = [
-    "Where should we act first?", "Backend Platform is the first intervention priority",
+    "Where should we act first?", "Atlas Platform is the first intervention priority",
     "Material benchmark or trend", "Prioritized next action", "Why it matters", "Confidence",
     "Selected period", "Generated", "Department evidence", "Methodology and provenance",
   ];

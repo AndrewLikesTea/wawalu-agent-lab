@@ -7,9 +7,9 @@
       "id": "evolution-demo-data",
       "version": "2026-07-25.1"
     },
-    "headlineFinding": "Backend Platform is the first intervention priority because over-provisioning is its largest recoverable cost line.",
-    "benchmarkComparison": "Backend Platform scores 71, 10 points above the synthetic enterprise SaaS cohort median of 61 under rubric literacy-mix/1.0.0.",
-    "recommendedAction": "First, pilot routing short, low-context Backend Platform requests to the standard model, capped at the fixture's $5,200 monthly savings scenario.",
+    "headlineFinding": "Atlas Platform is the first intervention priority because over-provisioning is its largest recoverable cost line.",
+    "benchmarkComparison": "Atlas Platform scores 71, 10 points above the synthetic enterprise SaaS cohort median of 61 under rubric literacy-mix/1.0.0.",
+    "recommendedAction": "First, pilot routing short, low-context Atlas Platform requests to the standard model, capped at the fixture's $5,200 monthly savings scenario.",
     "confidence": {
       "level": "High",
       "basis": "760 sampled queries, current through the source-period end; synthetic evidence only"
@@ -21,7 +21,7 @@
     },
     "departmentEvidence": [
       {
-        "department": "Backend Platform",
+        "department": "Atlas Platform",
         "evidence": "Over-provisioning is the largest recoverable cost line; 760 synthetic queries were sampled through the period end.",
         "provenance": "Bundled synthetic department aggregate; fixture evidence only."
       }
@@ -94,7 +94,7 @@
     },
     {
       "id": "backend",
-      "name": "Backend Platform",
+      "name": "Atlas Platform",
       "costCenter": "CC-4010",
       "leader": "Directorate of Core Services",
       "headcount": 48,
@@ -313,7 +313,7 @@
       {
         "actionId": "action-backend-down-route-v1",
         "departmentId": "backend",
-        "departmentName": "Backend Platform",
+        "departmentName": "Atlas Platform",
         "evidenceRefs": ["syn-backend-033"],
         "priorityRank": 1,
         "isTopNextAction": true,

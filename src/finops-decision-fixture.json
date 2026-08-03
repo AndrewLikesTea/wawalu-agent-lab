@@ -17,7 +17,7 @@
   },
   "prioritizedAction": {
     "rank": 1,
-    "statement": "Pilot lower-cost routing for text-generation in Department …atlas0; cap the pilot at 32903.50 USD and verify against a like-for-like period.",
+    "statement": "Pilot lower-cost routing for text-generation in Atlas Platform; cap the pilot at 32903.50 USD and verify against a like-for-like period.",
     "accountableRole": "Platform Engineering Lead",
     "basis": "Rank 1 of five invented departments, ordered by modelled recoverable spend. Only the top-ranked intervention is carried here: a leader who has read one action and a cap can start, and a list of five would move the ranking decision back onto them."
   },

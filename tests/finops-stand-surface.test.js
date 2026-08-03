@@ -82,7 +82,10 @@ test("the complete headline renders on first load with no import and no stored s
   assert.match(shownText(document, STAND_IDS.positionBasis), /for June 2026/);
   assert.match(shownText(document, STAND_IDS.recoverableValue),
     /\$51,254 · 33% of analyzed spend/);
-  assert.equal(shownText(document, STAND_IDS.teamName), "Department …atlas0");
+  // #1017: the driving department is named, not elided. This slot said
+  // "Department …atlas0" — an identifier tail beside a circulation block naming
+  // a human team — so the two blocks read as two datasets.
+  assert.equal(shownText(document, STAND_IDS.teamName), "Atlas Platform");
   assert.equal(byId(document, STAND_IDS.action).hidden, false);
   assert.equal(shownText(document, STAND_IDS.action), "Open the recommendation evidence");
   assert.equal(byId(document, STAND_IDS.action).getAttribute("href"), "#recommendation-evidence");
