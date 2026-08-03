@@ -9,7 +9,8 @@ import { byClass, createElement, first, ids, installDocument, tags } from "./sup
 installDocument();
 
 const {
-  PROFILE_EMPTY_COPY, authorInitials, captionFor, countLabel, distinctAuthors, emptySummaryText,
+  PROFILE_EMPTY_COPY, authorInitials, authorOptionLabel, captionFor, countLabel, defaultProfileAuthor,
+  distinctAuthors, emptySummaryText, hasExplicitAuthor, imagePostCounts, loadingSummaryText,
   mergePostsById, normalizeProfileApiPosts, normalizeSeedPosts, postDetailHref,
   profileAnnouncement, profileHref, profilePaintHref, profileSummary, profileSummaryText,
   renderProfileGrid, renderProfileHeader, resolveProfileAuthor, selectProfilePosts,
@@ -116,6 +117,49 @@ test("the profile subject is the query param, then the remembered name, then a d
   assert.equal(resolveProfileAuthor({}), "Guest");
   // An over-long name is ignored rather than truncated into someone else's.
   assert.equal(resolveProfileAuthor({ param: "x".repeat(61), stored: "Kai" }), "Kai");
+});
+
+test("with nothing asked for, the landing name beats the first name alphabetically", () => {
+  // The reported defect: a visitor following Social's "Open People" pointer
+  // landed on whichever name sorted first and read a verdict about an empty
+  // grid. A name with images outranks alphabetical order — but only as a
+  // default: anything explicit still wins, empty profile included.
+  assert.equal(resolveProfileAuthor({ authors: ["Ari", "Kai"], preferred: "Kai" }), "Kai");
+  assert.equal(resolveProfileAuthor({ param: "Ari", authors: ["Ari", "Kai"], preferred: "Kai" }), "Ari");
+  assert.equal(resolveProfileAuthor({ stored: "Ari", authors: ["Ari", "Kai"], preferred: "Kai" }), "Ari");
+  // No name has an image: the fallback is unchanged, and the empty state is the
+  // honest answer rather than a name picked at random.
+  assert.equal(resolveProfileAuthor({ authors: ["Ari", "Kai"], preferred: null }), "Ari");
+});
+
+test("an explicit name is told apart from a first-time landing", () => {
+  assert.equal(hasExplicitAuthor({ param: "Kai" }), true);
+  assert.equal(hasExplicitAuthor({ stored: "Kai" }), true);
+  assert.equal(hasExplicitAuthor({ param: "  ", stored: null }), false);
+  assert.equal(hasExplicitAuthor({}), false);
+  // An over-long name never wins, so it is not a choice the page has to honour.
+  assert.equal(hasExplicitAuthor({ param: "x".repeat(61) }), false);
+});
+
+test("the landing name is the fullest profile, ties broken by the picker's own order", () => {
+  const posts = [imagePost, olderImagePost, otherPost, textPost];
+  assert.deepEqual(imagePostCounts(posts), [{ name: "Kai", images: 1 }, { name: "Mina", images: 2 }]);
+  assert.equal(defaultProfileAuthor(posts), "Mina");
+  // A tie is broken by distinctAuthors order, so the same feed always opens on
+  // the same view rather than on whichever post happened to be fetched first.
+  assert.equal(defaultProfileAuthor([imagePost, otherPost]), "Kai");
+  assert.equal(defaultProfileAuthor([otherPost, imagePost]), "Kai");
+  // Text-only posts are not images, and a feed with no images at all has no
+  // landing name to offer.
+  assert.equal(defaultProfileAuthor([textPost]), null);
+  assert.equal(defaultProfileAuthor([]), null);
+});
+
+test("a picker entry carries its image-post count in the option's own text", () => {
+  assert.equal(authorOptionLabel("Mina", 2), "Mina · 2 image posts");
+  assert.equal(authorOptionLabel("Ari", 1), "Ari · 1 image post");
+  // A name with nothing to show stays in the menu; the count is what says so.
+  assert.equal(authorOptionLabel("Kai", 0), "Kai · 0 image posts");
 });
 
 test("the grid selects this author's image posts, newest first", () => {
@@ -430,28 +474,33 @@ test("the empty profile says it once across the whole page", () => {
 
   const spoken = [
     elements.summary.textContent,
-    countLabel(0, "image post"),
     first(grid, "empty-title").textContent,
     profileAnnouncement("Mina", 0),
   ];
   // The announcement is the one place that may restate the description, because
   // a live region has no page around it to borrow context from.
-  const onPage = spoken.slice(0, 3);
+  const onPage = spoken.slice(0, 2);
   assert.equal(new Set(onPage).size, onPage.length, "no two page regions print the same sentence");
   assert.equal(onPage.filter((text) => text.includes(emptySummaryText("Mina"))).length, 1);
   assert.equal(onPage.filter((text) => text.includes("Paint")).length, 1);
-  assert.equal(spoken[1], "0 image posts", "the heading count is a count, not a sentence");
+  // The results panel states no count of its own. The identity line above it is
+  // the count's one home, so a name with nothing to show reads one sentence
+  // rather than that sentence and a bare "0 image posts" beside the heading.
+  assert.equal(onPage.filter((text) => text.includes(countLabel(0, "image post"))).length, 0);
   assert.equal(profileAnnouncement("Mina", 0), "Mina hasn’t posted an image yet. Images made in Paint and published on Social appear here.");
   assert.equal(profileAnnouncement("Mina", 2), "Showing 2 image posts by Mina.");
 });
 
 test("the profile page's static copy does not drift from the module's", async () => {
-  // profile.html renders before the module runs, so its defaults are the empty
-  // state a first-time visitor actually sees first.
+  // profile.html renders before the module runs, so its defaults are what a
+  // first-time visitor actually reads first. That frame used to ship the empty
+  // state — a verdict about a name nobody had chosen, and a false one for the
+  // seeded feed — so it now says only that the counting has not happened yet.
   const html = await readFile(new URL("../src/profile.html", import.meta.url), "utf8");
-  // "Ari" is the pre-hydration name in the line above, so the static empty
-  // sentence has to be built from that same name and nothing else.
-  assert.match(html, new RegExp(`id="profile-summary">${emptySummaryText("Ari")}<`));
-  assert.match(html, new RegExp(`id="profile-count">${countLabel(0, "image post")}<`));
+  assert.match(html, new RegExp(`id="profile-summary">${loadingSummaryText("Ari")}<`));
+  assert.doesNotMatch(html, new RegExp(emptySummaryText("Ari")));
+  // The results panel's count chip is gone, not hidden: the identity line is the
+  // page's only statement of the image-post count.
+  assert.doesNotMatch(html, /id="profile-count"/);
   assert.doesNotMatch(html, /Start by sharing an image/);
 });
