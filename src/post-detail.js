@@ -22,27 +22,35 @@ import { captionFor, countLabel, profileHref } from "./profile.js";
 import { pageTitle, recordTitle } from "./page-title.js";
 import { normalizeImage } from "./social.js";
 
-// Where "back" goes, read the way src/paint/paint.js reads the same thing: an
-// explicit `from` written by the link that sent the reader here. One exit, named
-// for one destination — the page used to ship two stacked back links, which left
-// a reader to guess which one undid their last step.
+// The two routes out of a permalink, named once and shipped in src/post.html.
 //
-// Anything we did not write is not provenance: no parameter, a parameter naming
-// somewhere else, or an author string longer than a display name can be all fall
-// back to the feed, which is where a shared link is honestly from.
-export const DEFAULT_POST_RETURN = { href: "/social.html", label: "← Back to Social" };
+// Neither is a "back". A permalink is the one page in this product a visitor can
+// meet cold — pasted into a chat window, opened by someone who has never seen
+// Social — and there is nothing behind them to return to. So both links point
+// forward, name their destination, and say what is there, in the verb the two
+// feed pages already use for each other ("Open People when you want…", "Open
+// Social when you want…"). The label says People, not Profile: this site has a
+// People page and no page called Profile.
+//
+// The labels are constants because nothing may rewrite them mid-visit. They are
+// pinned against src/post.html, which ships both links so that they stand in the
+// loading, loaded, not-found and error states alike.
+export const POST_EXITS = {
+  social: { href: "/social.html", label: "Open Social to read the whole feed" },
+  people: { href: "/profile.html", label: "Open People to see this display name's other image posts" },
+};
 const MAX_RETURN_AUTHOR_LENGTH = 60;
 
-export function postReturnContext(search = "") {
+// Where the People link goes. The words promise one display name's image posts,
+// so the destination narrows to that name whenever the page can honestly name
+// one — from the loaded post first, and otherwise from the ?author= that
+// profile.js writes into its tiles. With no usable name it is People plainly,
+// rather than a filter parameter standing for a name nobody supplied. An author
+// string longer than a display name can be is not a name.
+export function postPeopleHref(search = "", author = "") {
   const params = new URLSearchParams(String(search).replace(/^\?/, ""));
-  if (params.get("from") !== "profile") return DEFAULT_POST_RETURN;
-  const author = (params.get("author") ?? "").trim();
-  // The visitor did come from a profile, so the exit says so either way; only the
-  // destination narrows to one author's profile when the name is usable.
-  return {
-    href: author && author.length <= MAX_RETURN_AUTHOR_LENGTH ? profileHref(author) : "/profile.html",
-    label: "← Back to People",
-  };
+  const name = String(author || params.get("author") || "").trim();
+  return name && name.length <= MAX_RETURN_AUTHOR_LENGTH ? profileHref(name) : POST_EXITS.people.href;
 }
 
 export function findPostById(posts, id) {
@@ -62,7 +70,7 @@ function formatDateTime(iso) {
   return new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(iso));
 }
 
-// The page carries a standing exit in src/post.html, named by postReturnContext
+// The page carries both standing exits in src/post.html, named by POST_EXITS
 // above. An unavailable-post state also owns an explicit return action so the
 // next step remains visible beside the explanation.
 
@@ -132,10 +140,10 @@ function labelledState(key, actions = []) {
 
 // Every unavailable requested-post panel links to the feed itself. Keeping the
 // action with the state makes the next step explicit even when the standing
-// exit above happens to lead to the same place.
+// exit above leads to the same place.
 function feedAction() {
   const link = el("a", "empty-action empty-action-secondary detail-state-feed", "Return to the Social feed");
-  link.href = DEFAULT_POST_RETURN.href;
+  link.href = POST_EXITS.social.href;
   return link;
 }
 
@@ -260,7 +268,7 @@ export function resolvePostState(post, state = "ready") {
 }
 
 export function renderPostDetail(container, post, options = {}) {
-  const { state: requested = "ready", id = "", returnHref = DEFAULT_POST_RETURN.href } = options;
+  const { state: requested = "ready", id = "", returnHref = POST_EXITS.social.href } = options;
   // One state, chosen before anything is drawn. replaceChildren() empties the
   // region and exactly one branch below fills it, so the states cannot stack:
   // an inactive state is absent from the document rather than hidden, which is
