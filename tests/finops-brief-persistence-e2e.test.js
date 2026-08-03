@@ -431,22 +431,21 @@ test("a second export replaces the figures from the first rather than mixing the
 // back, the page states the figure it had refused to state, and an action
 // costed against it. Same data, stronger claim, one reload apart.
 //
-// The cause is a decision that is made beside the analysis and not kept with
+// The cause was a decision that was made beside the analysis and not kept with
 // it: `buildFinopsBriefing(result, { attributionWithheld })` is passed the
 // page's suppression decision on a live import (evolution-page.js), and
-// `briefingFromRetained` calls the same builder with the option defaulted to
-// false. The retained payload has no attribution facts in it to re-derive it
+// `briefingFromRetained` called the same builder with the option defaulted to
+// false. The retained payload had no attribution facts in it to re-derive it
 // from.
 //
-// Left to the owning engineer rather than patched here, because both plausible
-// fixes are theirs to choose between: keep the withholding decision in the
-// payload — it is a derived boolean and carries no export content, but it does
-// widen what the retention contract stores — or refuse to restore a briefing
-// whose figure was never publishable in the first place. Marked todo so the
-// repository check stays green while the failure stays visible and runnable.
+// Fixed in #997 by the first of the two options this comment left open: the
+// withholding decision — and the file presence it was decided against — now
+// travel in the payload beside the figures. It is three derived booleans and
+// carries no export content, and it is what lets the restore reproduce the
+// outcome the import reached rather than recompute one from a partial envelope.
+// The todo marker is gone with the defect.
 
-test("a figure the page withheld is not stated as fact after a reload",
-  { todo: "restore ignores the attribution suppression the live import applied" }, async () => {
+test("a figure the page withheld is not stated as fact after a reload", async () => {
     let page = await openFinopsTab();
     try {
       const { document } = page;

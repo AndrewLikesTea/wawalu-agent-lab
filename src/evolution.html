@@ -1110,6 +1110,12 @@
              grade that failed its plausibility check" are told apart without
              the amber. Painted by finops-load-status.js. -->
         <p class="kpi-flag" id="score-flag" hidden><span class="kpi-flag-shape" aria-hidden="true">○</span> unmeasured</p>
+        <!-- Why there is no letter, when the reason is a file rather than a
+             failure (#997). Painted from src/finops-import-slots.js and hidden
+             whenever a conversation export is actually in hand, so a scored
+             card never carries a sentence about a missing input. Not a live
+             region: the one announcer above already speaks for this import. -->
+        <p class="score-input-need" id="score-input-need" hidden></p>
         <p class="score-value" id="score-value">Score not available yet</p>
         <p class="score-coverage" id="score-coverage">Sampled-spend coverage not available yet</p>
         <p class="score-action" id="score-action" data-available="false">Action not available yet</p>
@@ -1418,6 +1424,24 @@
                  reader even where a harness can read through it. -->
             <p class="import-drop-instruction" id="finops-transcript-reads"></p>
             <p class="import-drop-instruction" id="finops-transcript-discards"></p>
+            <!-- The two declared files, as one path rather than two errands
+                 (#997). Each slot says whether it is here and what it unlocks,
+                 painted from src/finops-import-slots.js. Deliberately NOT a
+                 live region: this page announces through one region plus the
+                 import reason beside it, and a third would make every clear
+                 speak twice. Present and missing are carried by the state word
+                 and by aria-disabled, never by the colour band alone. -->
+            <p class="import-slots-title" id="finops-import-slots-title">This import reads two files, and each one answers a different half.</p>
+            <ul class="import-slots" id="finops-import-slots" aria-labelledby="finops-import-slots-title">
+              <li class="import-slot" id="finops-import-slot-spend" data-state="missing" aria-disabled="true">
+                <p class="import-slot-label">Spend export · <span class="import-slot-state" id="finops-import-slot-spend-state">Not imported yet</span></p>
+                <p class="import-slot-unlocks" id="finops-import-slot-spend-unlocks"></p>
+              </li>
+              <li class="import-slot" id="finops-import-slot-conversation" data-state="missing" aria-disabled="true">
+                <p class="import-slot-label">Conversation export · <span class="import-slot-state" id="finops-import-slot-conversation-state">Not imported yet</span></p>
+                <p class="import-slot-unlocks" id="finops-import-slot-conversation-unlocks"></p>
+              </li>
+            </ul>
             <p class="import-drop-state" id="finops-import-drop-state" aria-hidden="true"></p>
           <div class="local-import-field">
             <label for="local-finops-files">Choose your export files</label>

@@ -124,7 +124,10 @@ const departmentRollup = (department) => Object.freeze({
  * @param capturedAt an ISO instant supplied by the caller; no clock is read here.
  * @returns the payload, or null when there is not enough to restore a briefing.
  */
-export function retainedBriefingPayload({ analysis = null, provider = null, capturedAt = null } = {}) {
+export function retainedBriefingPayload({
+  analysis = null, provider = null, capturedAt = null,
+  attributionWithheld = false, sources = null,
+} = {}) {
   const spendUsd = number(analysis?.spendUsd);
   const departments = Array.isArray(analysis?.rankedDepartments) ? analysis.rankedDepartments : [];
   const stamp = text(capturedAt);
@@ -155,7 +158,33 @@ export function retainedBriefingPayload({ analysis = null, provider = null, capt
     }),
     departments: Object.freeze(departments.map(departmentRollup)),
     rankedAction: text(analysis?.action),
+    // The decision the live page made ABOUT this analysis, kept with it (#997).
+    //
+    // Without it a restore rebuilt the briefing with the suppression defaulted
+    // off, and a figure the import refused to state came back stated as fact
+    // one reload later — same data, stronger claim. It is a derived boolean and
+    // two more: no cell, no name, no export content crosses into the payload,
+    // and the file presence is here because it is what the decision was made
+    // against, so a restore reproduces the outcome rather than re-deriving one
+    // from a partial envelope.
+    attribution: Object.freeze({
+      withheld: Boolean(attributionWithheld),
+      spendExport: sources?.spend !== false,
+      conversationExport: Boolean(sources?.conversation),
+    }),
   });
+}
+
+/**
+ * The suppression decision a payload carries, defaulted the safe way.
+ *
+ * A payload written before this field existed has no opinion, and the honest
+ * reading of "no opinion" is the one the page has always taken for it: not
+ * withheld. It is read through one function so the restore path and any test
+ * of it agree on that default.
+ */
+export function retainedAttributionWithheld(payload) {
+  return payload?.attribution?.withheld === true;
 }
 
 /** Is this a payload this version of the page may render? */
@@ -298,7 +327,11 @@ export function briefingFromRetained(payload) {
   const analysis = analysisFromRetained(payload);
   if (!analysis) return null;
   try {
-    const briefing = buildFinopsBriefing(analysis);
+    // The SAME option the live import passed, read back from the payload rather
+    // than defaulted: a briefing restored with the suppression off is a
+    // different, stronger claim than the one that was kept.
+    const briefing = buildFinopsBriefing(analysis,
+      { attributionWithheld: retainedAttributionWithheld(payload) });
     return briefing ? Object.freeze({ analysis, briefing }) : null;
   } catch {
     return null;

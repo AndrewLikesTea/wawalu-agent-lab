@@ -926,3 +926,161 @@ test("a supported one-file provider export now reaches analysis without mapping"
     page.restore();
   }
 });
+
+// ---------------------------------------------------------------------------
+// The two-file import, read as one path to the literacy grade (#997)
+// ---------------------------------------------------------------------------
+//
+// A leader drops a spend export and gets money answered and an AI-literacy card
+// sitting on a dash. Nothing on the page said the dash was waiting on a SECOND
+// file, so it read as a grade that failed rather than a grade that has not been
+// asked for yet. These tests drive the shipped panel and assert on what that
+// leader can now see: two named slots with a state word each, a sentence on the
+// card naming the exact file that is missing, and the same card filling in when
+// that file arrives — in place, with no reload.
+//
+// Assertion discipline for this harness: counts and attribute values only. The
+// browser double's textOf reads through a closed disclosure element and its
+// select accepts values a real control would refuse, and asserting that a node
+// equals null walks the whole document.
+
+/** A conversation export in the shape the transcript reader claims (#996). */
+function transcriptExport(groups) {
+  const conversations = [];
+  let ordinal = 0;
+  for (const group of groups) {
+    for (let copy = 0; copy < group.conversations; copy += 1) {
+      ordinal += 1;
+      conversations.push({
+        conversation_id: `conv-${ordinal}`,
+        created_at: `2026-06-${String(1 + (ordinal % 20)).padStart(2, "0")}T09:15:00Z`,
+        user: { email: `person${ordinal}@example.invalid` },
+        department: group.department,
+        model: "claude-sonnet",
+        messages: [
+          { role: "user", content: `${group.prompt} (${ordinal})` },
+          { role: "assistant", content: "An assistant reply of no measured interest." },
+        ],
+      });
+    }
+  }
+  return `${JSON.stringify({ export_version: 3, conversations }, null, 2)}\n`;
+}
+
+const CODING_PROMPT = "design the migration plan with constraints and acceptance criteria";
+const PERSONAL_PROMPT = "write a birthday poem for my mum";
+
+/** Two disjoint conversation exports: no department name is in both. */
+const FIRST_TRANSCRIPT = transcriptExport([
+  { department: "Harbour Platform", conversations: 8, prompt: CODING_PROMPT },
+  { department: "Harbour Support", conversations: 7, prompt: PERSONAL_PROMPT },
+]);
+const SECOND_TRANSCRIPT = transcriptExport([
+  { department: "Meridian Research", conversations: 9, prompt: CODING_PROMPT },
+  { department: "Meridian Billing", conversations: 6, prompt: PERSONAL_PROMPT },
+]);
+
+const slotState = (document, slot) => byId(document, `finops-import-slot-${slot}`).dataset.state;
+const slotDisabled = (document, slot) =>
+  byId(document, `finops-import-slot-${slot}`).getAttribute("aria-disabled");
+/** The names on the ranked department list, in the order the page ranked them. */
+const rankedDepartmentNames = (document) =>
+  [...byId(document, "department-priority").querySelectorAll(".priority-name")]
+    .map((node) => textOf(node));
+
+test("a spend export on its own names the file the literacy grade is waiting on", async () => {
+  const page = await openFinopsTab();
+  try {
+    const { document } = page;
+    chooseFiles(document, [{ name: "openai-usage-export.csv", text: PROVIDER_EXPORT }]);
+    await waitFor(() => !byId(document, "local-results").hidden,
+      "the spend export to reach analysis");
+
+    // Both slots say which of them arrived, in a word and in an aria state —
+    // never in a colour band or a mark alone.
+    assert.equal(slotState(document, "spend"), "present");
+    assert.equal(slotDisabled(document, "spend"), "false");
+    assert.equal(textOf(byId(document, "finops-import-slot-spend-state")), "Imported");
+    assert.equal(slotState(document, "conversation"), "missing");
+    assert.equal(slotDisabled(document, "conversation"), "true");
+    assert.equal(textOf(byId(document, "finops-import-slot-conversation-state")), "Not imported yet");
+    // Each slot says what it unlocks rather than what format it is in.
+    assert.match(textOf(byId(document, "finops-import-slot-conversation-unlocks")),
+      /AI literacy grade/);
+
+    // And the card explains the absence rather than showing a bare dash.
+    const need = byId(document, "score-input-need");
+    assert.equal(need.hidden, false, "a withheld grade must explain itself");
+    assert.match(textOf(need), /conversation export/,
+      "the explanation must name the exact file that is missing");
+    assert.equal(byId(document, "score-card").dataset.inputState, "needs-conversation");
+    assert.notEqual(textOf(byId(document, "score-grade")), "–",
+      "a grade waiting on a file must not be shown as a bare dash");
+  } finally {
+    page.restore();
+  }
+});
+
+test("dropping the conversation export fills the grade in place, with no reload", async () => {
+  const page = await openFinopsTab();
+  try {
+    const { document } = page;
+    chooseFiles(document, [{ name: "openai-usage-export.csv", text: PROVIDER_EXPORT }]);
+    await waitFor(() => !byId(document, "local-results").hidden,
+      "the spend export to reach analysis");
+    assert.equal(byId(document, "score-input-need").hidden, false);
+
+    chooseFiles(document, [{ name: "conversations.json", text: FIRST_TRANSCRIPT }]);
+    await waitFor(() => rankedDepartmentNames(document).includes("Harbour Platform"),
+      "the conversation export to repaint the ranked departments");
+
+    // Same document, same tab: the brief moved without a boot.
+    assert.equal(byId(document, "local-results").hidden, false);
+    assert.equal(slotState(document, "conversation"), "present");
+    assert.equal(slotDisabled(document, "conversation"), "false");
+    assert.equal(slotState(document, "spend"), "present",
+      "the spend export must survive the second file rather than be replaced by it");
+    // The explanation goes when the file it asked for arrives.
+    assert.equal(byId(document, "score-input-need").hidden, true);
+    assert.equal(byId(document, "score-card").dataset.inputState, "scored");
+    // Grade, coverage and the departments behind them all came from the file.
+    assert.equal(rankedDepartmentNames(document).length, 2);
+    assert.match(shownText(document, "org-coaching"), /Your file, read in this tab/);
+  } finally {
+    page.restore();
+  }
+});
+
+test("a second conversation export replaces the first, leaving no stale grade", async () => {
+  const page = await openFinopsTab();
+  try {
+    const { document } = page;
+    chooseFiles(document, [{ name: "openai-usage-export.csv", text: PROVIDER_EXPORT }]);
+    await waitFor(() => !byId(document, "local-results").hidden,
+      "the spend export to reach analysis");
+    chooseFiles(document, [{ name: "first-conversations.json", text: FIRST_TRANSCRIPT }]);
+    await waitFor(() => rankedDepartmentNames(document).includes("Harbour Platform"),
+      "the first conversation export to be graded");
+
+    // A fresh selection is a replacement, not an addition: the reader is
+    // re-importing, and the page must not hold both readings at once.
+    byId(document, "local-file-discard").click();
+    chooseFiles(document, [{ name: "openai-usage-export.csv", text: PROVIDER_EXPORT }]);
+    await waitFor(() => !byId(document, "local-results").hidden,
+      "the spend export to be re-read");
+    chooseFiles(document, [{ name: "second-conversations.json", text: SECOND_TRANSCRIPT }]);
+    await waitFor(() => rankedDepartmentNames(document).includes("Meridian Research"),
+      "the second conversation export to be graded");
+
+    const names = rankedDepartmentNames(document);
+    assert.equal(names.length, 2, `the replacement mixed two readings: ${names.join(", ")}`);
+    for (const stale of ["Harbour Platform", "Harbour Support"]) {
+      assert.equal(names.includes(stale), false,
+        `the first conversation export's ${stale} outlived its replacement`);
+    }
+    assert.equal(byId(document, "score-input-need").hidden, true,
+      "a replaced grade must not fall back to the missing-input sentence");
+  } finally {
+    page.restore();
+  }
+});
