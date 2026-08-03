@@ -1503,6 +1503,42 @@
 .first-run-value[data-available="false"] { color:var(--state-warn-ink); font-size:17px; font-weight:700; }
 .first-run-slot:has(>.first-run-value[data-available="false"]) { border-top-style:dashed; border-top-color:var(--state-warn-line); }
 .first-run-detail { margin:0; color:var(--ink-muted); font-size:12.5px; line-height:1.55; overflow-wrap:anywhere; }
+/* WHERE EACH FIGURE CAME FROM — read from the example's files, derived here, or
+   absent from them (#1025).
+
+   NO NEW TOKEN ENTERS THE PAGE HERE. The chip is `.brief-provenance`, already
+   defined above for the imported brief, on two of the silhouettes it already
+   ships: solid outline for derived, dashed for absent. That is the Claude Design
+   foundations rule unchanged — outline is a static classification, and where a
+   figure came from is a classification of the figure rather than a reading that
+   moves — which is also why the filled wash is NOT borrowed: it means "computed
+   from the file this reader brought", a state a bundled example can never be in.
+
+   The words carry the whole meaning on their own and the silhouette is the
+   second channel, so the three states stay apart in greyscale, on a mono
+   printer, and to a reader who sees no colour. DIRECT CARRIES NO CHIP: the
+   legend below the answer states the convention and names what is unmarked, and
+   eight badges over eight figures would cost the reading order more than they
+   returned. The tint is the last carrier, never the first.
+
+   The marker is caption scale (11–12.5px, `--ink-muted`) and the working sits
+   behind a shut disclosure, so nothing here competes with the answer above it. */
+.figure-source { margin:0; }
+.figure-source>summary { display:inline-flex; align-items:baseline; flex-wrap:wrap; gap:4px 8px; width:fit-content; min-width:0; max-width:100%; border-radius:5px; padding:2px; list-style:none; overflow-wrap:anywhere; cursor:pointer; }
+.figure-source>summary::-webkit-details-marker { display:none; }
+.figure-source>summary:hover { background:var(--import-wash); }
+.figure-source>summary:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.figure-source-state { flex:none; color:var(--ink-muted); font:700 11px/1.5 ui-monospace,Menlo,monospace; }
+.figure-source-shape { flex:none; }
+/* The working. A rule down its left edge rather than a box, so an opened marker
+   reads as a footnote hanging off its figure instead of a second card competing
+   with the slot it belongs to. */
+.figure-source-detail { display:grid; gap:6px; margin:6px 0 0; max-width:70ch; border-left:2px solid var(--import-line); padding-left:11px; }
+.figure-source[data-source="missing"] .figure-source-detail { border-left-color:var(--state-warn-line); }
+.figure-source-detail dt { margin:0; color:var(--import-ink); font:700 10px/1.5 ui-monospace,monospace; letter-spacing:.07em; text-transform:uppercase; }
+.figure-source-detail dd { margin:2px 0 0; color:var(--ink-muted); font-size:12.5px; line-height:1.55; overflow-wrap:anywhere; }
+/* The legend, and it is what makes an unmarked figure a claim rather than a gap. */
+.figure-source-legend { margin:0; max-width:70ch; color:var(--ink-muted); font-size:12.5px; line-height:1.55; overflow-wrap:anywhere; }
 /* THE BAND CHIP. Four channels, and the tint is the last of them: the glyph
    differs per state, the word names the band, the figure below repeats it, and
    only then does the fill say it again. Take the colour away — greyscale print,

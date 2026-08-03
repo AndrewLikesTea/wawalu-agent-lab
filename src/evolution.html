@@ -690,6 +690,37 @@
              print order; nothing below reorders in CSS. -->
         <p class="first-run-answer" id="finops-first-run-answer" data-available="true">33% of analyzed AI spend is recoverable</p>
         <p class="first-run-answer-detail" id="finops-first-run-answer-detail">Up to $51,254 estimated cost reduction in the month — a synthetic scenario, not realized customer savings.</p>
+        <!-- WHERE EACH FIGURE CAME FROM, on the figure itself (#1025).
+             Every published figure in this region now declares one of three
+             states — read from the example's files, derived here, or absent from
+             them — and `src/finops-example-figure-sources.js` owns the table,
+             the words, and the working behind each one. Authored here with the
+             module's own sentences so the provenance of a money figure survives
+             a page whose script never ran; `applyExampleFigureSources` repaints
+             them, which is what proves the two copies have not drifted.
+
+             DIRECT CARRIES NO CHIP. Eight chips over eight figures is eight
+             things to read past to reach the numbers, and the reading order this
+             region protects — one question, one material metric, one next
+             action — is worth more than a badge on every value. The legend below
+             states the convention and names what is unmarked, so the absence is
+             a claim rather than a gap.
+
+             Each marker is a native details element, shut on arrival: the
+             summary IS the control, so Enter and Space are the browser's, focus
+             never moves, and `open` is the exposed state. The chip inside it
+             reuses `.brief-provenance` — the same silhouettes the imported
+             brief already ships — so no new hue, size, or spacing step enters
+             the page here. Solid outline is derived, dashed is absent, and the
+             words say the whole thing on their own. -->
+        <details class="figure-source" id="finops-first-run-answer-source" data-source="derived" data-disclosure="collapsed">
+          <summary class="figure-source-summary" id="finops-first-run-answer-source-summary" aria-expanded="false" aria-controls="finops-first-run-answer-source-detail"><span class="brief-provenance" data-provenance="derived" data-silhouette="outline" data-tone="neutral"><span class="visually-hidden">The answer, 33% of analyzed AI spend is recoverable: </span><span class="brief-provenance-label">Derived here</span></span><span class="figure-source-state" data-disclosure="collapsed"><span class="figure-source-shape" aria-hidden="true">▸</span> Show working</span></summary>
+          <dl class="figure-source-detail" id="finops-first-run-answer-source-detail">
+            <div><dt>Where this came from</dt><dd>A ratio this page computes: $51,254 of recoverable spend over $154,500 of analyzed spend, both summed from the 15 invented usage records, then rounded once to a whole percent. No column in the example's files carries a recoverable share.</dd></div>
+            <div><dt>What it moves</dt><dd>It sizes the prize before anyone commits time to it. A share this large is worth a pilot; the same share of a tenth of the spend is not.</dd></div>
+          </dl>
+        </details>
+        <p class="figure-source-legend" id="finops-first-run-source-legend">Where each figure came from: unmarked values — the department names, the reporting period, and the record counts — are read straight out of the example's export files. Every marked figure below says whether this page derived it or could not find it, and opens to show the working.</p>
         <!-- The three example-only containers below carry an id for one reason:
              an imported export withholds each of them whole, so a synthetic
              peer band, routing scenario, or confidence score never stands
@@ -699,11 +730,25 @@
             <h3 class="first-run-slot-label" id="finops-first-run-benchmark-heading">Potentially recoverable share</h3>
             <p class="first-run-value" id="finops-first-run-benchmark-value" data-available="true">33% of analyzed AI spend</p>
             <p class="first-run-detail" id="finops-first-run-benchmark-detail">$51,254 of $154,500 analyzed · 5 invented departments · 2026-06-01 to 2026-07-01 (end exclusive). Synthetic figures, not realized customer savings.</p>
+            <details class="figure-source" id="finops-first-run-benchmark-source" data-source="derived" data-disclosure="collapsed">
+              <summary class="figure-source-summary" id="finops-first-run-benchmark-source-summary" aria-expanded="false" aria-controls="finops-first-run-benchmark-source-detail"><span class="brief-provenance" data-provenance="derived" data-silhouette="outline" data-tone="neutral"><span class="visually-hidden">Potentially recoverable share, 33% of analyzed AI spend: </span><span class="brief-provenance-label">Derived here</span></span><span class="figure-source-state" data-disclosure="collapsed"><span class="figure-source-shape" aria-hidden="true">▸</span> Show working</span></summary>
+              <dl class="figure-source-detail" id="finops-first-run-benchmark-source-detail">
+                <div><dt>Where this came from</dt><dd>The same ratio as the answer above, shown against the figures it divides. The $154,500 denominator is the sum of the cost column across all five invented departments for 2026-06-01 to 2026-07-01; the $51,254 numerator is scored per department by the published recoverability rule, not read from any column.</dd></div>
+                <div><dt>What it moves</dt><dd>It is the number to hold your own export's share against. If yours comes back far lower, the ceiling below is smaller too.</dd></div>
+              </dl>
+            </details>
           </div>
           <div class="first-run-slot">
             <h3 class="first-run-slot-label" id="finops-first-run-impact-heading">Potential impact · routing scenario</h3>
             <p class="first-run-value" id="finops-first-run-impact-value" data-available="true">$51,254 in the reporting period</p>
             <p class="first-run-detail" id="finops-first-run-impact-detail">A modelled routing scenario over invented departments — a ceiling on what re-routing could recover, not realized, invoiced, or promised customer savings.</p>
+            <details class="figure-source" id="finops-first-run-impact-source" data-source="derived" data-disclosure="collapsed">
+              <summary class="figure-source-summary" id="finops-first-run-impact-source-summary" aria-expanded="false" aria-controls="finops-first-run-impact-source-detail"><span class="brief-provenance" data-provenance="derived" data-silhouette="outline" data-tone="neutral"><span class="visually-hidden">Potential impact · routing scenario, $51,254 in the reporting period: </span><span class="brief-provenance-label">Derived here</span></span><span class="figure-source-state" data-disclosure="collapsed"><span class="figure-source-shape" aria-hidden="true">▸</span> Show working</span></summary>
+              <dl class="figure-source-detail" id="finops-first-run-impact-source-detail">
+                <div><dt>Where this came from</dt><dd>A modelled routing scenario, not an invoice line. Each department's baseline spend is multiplied by its normalized waste share and that category's recoverable share, then rounded once — the arithmetic the example data publishes beside every department.</dd></div>
+                <div><dt>What it moves</dt><dd>It is the ceiling on what re-routing could return, so it caps what the pilot is allowed to cost before it stops being worth running.</dd></div>
+              </dl>
+            </details>
           </div>
         </div>
         <!-- WHERE THE SPEND RANKS, and it is above the recommended action
@@ -736,6 +781,13 @@
             <p class="first-run-band" id="finops-first-run-peer-band" data-state="behind">Bottom quartile</p>
             <p class="first-run-value" id="finops-first-run-peer-value" data-available="true">Bottom quartile · $38.63 per successful task</p>
             <p class="first-run-detail" id="finops-first-run-peer-detail">Synthetic comparison against an invented peer cohort; lower cost per successful task is better. This is not customer performance or realized savings.</p>
+            <details class="figure-source" id="finops-first-run-peer-source" data-source="derived" data-disclosure="collapsed">
+              <summary class="figure-source-summary" id="finops-first-run-peer-source-summary" aria-expanded="false" aria-controls="finops-first-run-peer-source-detail"><span class="brief-provenance" data-provenance="derived" data-silhouette="outline" data-tone="neutral"><span class="visually-hidden">Rank against similar organizations, Bottom quartile · $38.63 per successful task: </span><span class="brief-provenance-label">Derived here</span></span><span class="figure-source-state" data-disclosure="collapsed"><span class="figure-source-shape" aria-hidden="true">▸</span> Show working</span></summary>
+              <dl class="figure-source-detail" id="finops-first-run-peer-source-detail">
+                <div><dt>Where this came from</dt><dd>$38.63 is analyzed spend divided by the successful-task count in the same invented records. The quartile it lands in is read off hand-authored synthetic cohort boundaries — those boundaries are not in the example's export files and no reader's export contains them either.</dd></div>
+                <div><dt>What it moves</dt><dd>A bottom-quartile cost per task says the problem is efficiency rather than volume, which is what makes routing the first move instead of a headcount conversation.</dd></div>
+              </dl>
+            </details>
           </div>
           <!-- THE DRILL-DOWN OF THAT SAME POSITION, one slot to its right: the
                widest gap between this organization's OWN departments, stated in
@@ -762,6 +814,13 @@
             <p class="first-run-band" id="finops-first-run-internal-band" data-state="behind">A full band behind</p>
             <p class="first-run-value" id="finops-first-run-internal-value" data-available="true">Atlas Platform is a full band behind Boreal Support on cost per successful task.</p>
             <p class="first-run-detail" id="finops-first-run-internal-detail">Synthetic cost-per-successful-task comparison across the invented company's own departments — Boreal Support, Cinder Research, Quartz Analytics, Ember Studio, Atlas Platform — not customer performance or realized savings.</p>
+            <details class="figure-source" id="finops-first-run-internal-source" data-source="derived" data-disclosure="collapsed">
+              <summary class="figure-source-summary" id="finops-first-run-internal-source-summary" aria-expanded="false" aria-controls="finops-first-run-internal-source-detail"><span class="brief-provenance" data-provenance="derived" data-silhouette="outline" data-tone="neutral"><span class="visually-hidden">Internal drill-down · widest department gap, Atlas Platform is a full band behind Boreal Support: </span><span class="brief-provenance-label">Derived here</span></span><span class="figure-source-state" data-disclosure="collapsed"><span class="figure-source-shape" aria-hidden="true">▸</span> Show working</span></summary>
+              <dl class="figure-source-detail" id="finops-first-run-internal-source-detail">
+                <div><dt>Where this came from</dt><dd>Both department names are read straight from the files. The gap between them is computed: cost per successful task per department, placed on the same band boundaries as the peer position above, and the widest surviving pair is the one named.</dd></div>
+                <div><dt>What it moves</dt><dd>It names the department to pilot in. A gap inside your own organization is one you can act on this month without waiting for a cohort to agree with you.</dd></div>
+              </dl>
+            </details>
           </div>
           <!-- THE LETTER, and the coverage figure that qualifies it. This slot
                used to say "no scored query sample" and show a dash, because the
@@ -791,6 +850,13 @@
             <h3 class="first-run-slot-label" id="finops-first-run-literacy-heading">AI literacy · graded prompt sample</h3>
             <p class="first-run-value" id="finops-first-run-literacy-value" data-available="true">B · 85 of 100 · literacy-mix/1.0.0</p>
             <p class="first-run-detail" id="finops-first-run-literacy-detail">$143,500 of $154,500 in-scope invented spend was scored — high coverage, 4 of 5 invented departments, 141 of 144 synthetic prompts classified. Not graded: Ember Studio. At least 80% of imported spend sits in departments the rubric scored. Synthetic prompts from an invented company, scored by a published rubric — not customer behaviour and not realized savings.</p>
+            <details class="figure-source" id="finops-first-run-literacy-source" data-source="derived" data-disclosure="collapsed">
+              <summary class="figure-source-summary" id="finops-first-run-literacy-source-summary" aria-expanded="false" aria-controls="finops-first-run-literacy-source-detail"><span class="brief-provenance" data-provenance="derived" data-silhouette="outline" data-tone="neutral"><span class="visually-hidden">AI literacy · graded prompt sample, B · 85 of 100 · literacy-mix/1.0.0: </span><span class="brief-provenance-label">Derived here</span></span><span class="figure-source-state" data-disclosure="collapsed"><span class="figure-source-shape" aria-hidden="true">▸</span> Show working</span></summary>
+              <dl class="figure-source-detail" id="finops-first-run-literacy-source-detail">
+                <div><dt>Where this came from</dt><dd>141 of 144 invented prompts were classified and scored by the published literacy-mix rubric, then weighted by each department's spend. The letter is the rubric's output; the $143,500 of $154,500 coverage figure beside it is the spend those scored departments account for. Ember Studio carries no prompts in the corpus, so it is outside both figures.</dd></div>
+                <div><dt>What it moves</dt><dd>It says whether the spend is being wasted on how people ask rather than on which model answers — a B over 93% of the budget means routing, not training, is the cheaper first move.</dd></div>
+              </dl>
+            </details>
           </div>
         </div>
         <div class="first-run-recommendation" id="finops-first-run-recommendation">
@@ -798,6 +864,20 @@
           <p class="first-run-action-text" id="finops-first-run-action" data-available="true">Pilot lower-cost routing in Atlas Platform, the top-spend invented department. Cap the pilot at $51,254, then compare it with a similar period.</p>
           <!-- A role, never a person, beside the action it owns. -->
           <p class="first-run-role" id="finops-first-run-role">Accountable role: Platform Engineering Lead</p>
+          <!-- THE ONE FIGURE IN THIS BRIEF THAT IS NOT IN THE FILES. It is
+               marked in the recommendation, beside the role it qualifies, and
+               not collected into a panel somewhere below: a reader deciding who
+               runs the pilot has to meet the absence at the moment they read the
+               name, or they will carry the name into the meeting as if the data
+               had supplied it. Dashed silhouette and its own words; the chip
+               never leans on colour to say "absent". -->
+          <details class="figure-source" id="finops-first-run-role-source" data-source="missing" data-disclosure="collapsed">
+            <summary class="figure-source-summary" id="finops-first-run-role-source-summary" aria-expanded="false" aria-controls="finops-first-run-role-source-detail"><span class="brief-provenance" data-provenance="missing" data-silhouette="dashed" data-tone="warn"><span class="visually-hidden">Accountable role for the recommended action, Platform Engineering Lead: </span><span class="brief-provenance-label">Not in these files</span></span><span class="figure-source-state" data-disclosure="collapsed"><span class="figure-source-shape" aria-hidden="true">▸</span> Show working</span></summary>
+            <dl class="figure-source-detail" id="finops-first-run-role-source-detail">
+              <div><dt>Where this came from</dt><dd>The example's export files carry no owner, team-lead, or cost-centre column, so nobody accountable for Atlas Platform's spend could be read out of them. "Platform Engineering Lead" is the role this page assigns by rule to a routing pilot — it is not a person, a title, or a mapping named anywhere in the data.</dd></div>
+              <div><dt>What it moves</dt><dd>Nothing gets piloted until someone owns it. Check this role against your own org chart before the meeting, because your export will not fill it in either unless it carries an owner column.</dd></div>
+            </dl>
+          </details>
         </div>
         <!-- A score never appears without the basis for it. An impact figure
              with no statement of how much of it was verified asks the reader to
@@ -807,6 +887,13 @@
           <h3 class="first-run-slot-label" id="finops-first-run-confidence-heading">Confidence in this answer</h3>
           <p class="first-run-value" id="finops-first-run-confidence-value" data-available="true">0.85 of 1.00 · moderate</p>
           <p class="first-run-detail" id="finops-first-run-confidence-detail">All 15 invented example records were analyzed; confidence is reduced because the recommended routing call shape could not be verified. Computed locally from bundled synthetic data in this browser tab.</p>
+          <details class="figure-source" id="finops-first-run-confidence-source" data-source="derived" data-disclosure="collapsed">
+            <summary class="figure-source-summary" id="finops-first-run-confidence-source-summary" aria-expanded="false" aria-controls="finops-first-run-confidence-source-detail"><span class="brief-provenance" data-provenance="derived" data-silhouette="outline" data-tone="neutral"><span class="visually-hidden">Confidence in this answer, 0.85 of 1.00 · moderate: </span><span class="brief-provenance-label">Derived here</span></span><span class="figure-source-state" data-disclosure="collapsed"><span class="figure-source-shape" aria-hidden="true">▸</span> Show working</span></summary>
+            <dl class="figure-source-detail" id="finops-first-run-confidence-source-detail">
+              <div><dt>Where this came from</dt><dd>Scored by this page, not read from anything: all 15 invented records were analyzed, which is what holds the figure up, and the score is then reduced because the routing call shape the recommendation depends on could not be verified in the records.</dd></div>
+              <div><dt>What it moves</dt><dd>It is the gap between quoting this number and standing behind it. At 0.85 the direction is safe to circulate; the exact dollar ceiling is not, until the call shape is confirmed.</dd></div>
+            </dl>
+          </details>
         </div>
         <!-- Provenance directly off the headline, one keystroke away and never
              a footnote: the inputs, the path the figures took, the arithmetic

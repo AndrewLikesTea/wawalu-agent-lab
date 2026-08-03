@@ -24,6 +24,13 @@ import { MAX_ORG_UNIT_DISPLAY_LABEL } from "./org-unit-display-label.js";
 // answer region above this one, because both regions share the first screen and
 // therefore have to withhold and reveal on the same rule.
 import { revealWithheld } from "./finops-stand-view.js";
+// Which of this region's figures were read, derived, or are absent from the
+// example's files. The markers are authored in evolution.html so they survive a
+// page whose script never ran; this view repaints them from the module, which is
+// what proves the authored copy and the module's copy are the same sentences.
+import {
+  applyExampleFigureSources, bindExampleFigureSources, EXAMPLE_ONLY_SOURCE_IDS,
+} from "./finops-example-figure-sources.js";
 
 const byId = (doc, id) => (doc?.getElementById ? doc.getElementById(id) : null);
 
@@ -263,6 +270,10 @@ export function paintDisclosureState(doc, entryCount = null) {
  * them is how a disclosure stops being operable in the browser's own way.
  */
 export function bindFirstRunDisclosure(doc) {
+  // The eight figure-source markers ride the same binding: each is its own
+  // native disclosure, so this only mirrors `open` onto the state the
+  // stylesheet and assistive technology read. No key is intercepted.
+  bindExampleFigureSources(doc);
   const details = byId(doc, FIRST_RUN_IDS.method);
   if (!details) return null;
   const count = () => byId(doc, FIRST_RUN_IDS.methodList)?.querySelectorAll?.("dt")?.length ?? null;
@@ -360,6 +371,12 @@ export function applyFirstRunResult(doc, result, { announce = false } = {}) {
 
   paintSlot(doc, FIRST_RUN_IDS.confidenceValue, FIRST_RUN_IDS.confidenceDetail, result.confidence);
 
+  // Where each of the figures painted above came from. Repainted after them so
+  // a marker can never describe a slot that has not been written yet, and
+  // collapsed either way — the working is one keystroke down from the figure,
+  // never in front of it.
+  applyExampleFigureSources(doc);
+
   const entries = result.method ?? [];
   paintEvidence(doc, entries, DISCLOSURE_SPEC.heading);
 
@@ -420,6 +437,11 @@ export function applyExampleBriefingCta(doc) {
 const EXAMPLE_ONLY_IDS = Object.freeze([
   FIRST_RUN_IDS.sample, FIRST_RUN_IDS.slots,
   FIRST_RUN_IDS.recommendation, FIRST_RUN_IDS.confidence,
+  // The headline's figure-source marker and the legend that explains the
+  // convention. Both describe how the EXAMPLE's figures were derived, and the
+  // headline above them is repainted with the reader's own drill-down — so they
+  // are withheld with everything else that only speaks for the example.
+  ...EXAMPLE_ONLY_SOURCE_IDS,
 ]);
 
 /** The text nodes the imported state overwrites, and therefore has to restore. */
