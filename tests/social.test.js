@@ -325,6 +325,17 @@ test("the control that opens the composer agrees with the composer about images"
   assert.match(hint, /Add an image if you want one/);
   assert.equal(textOf(page.document.querySelector(".media-picker").querySelector("legend")), "Image (optional)");
 
+  // The byline field is named after the concept every other surface reads it
+  // as. It was labelled "Name (optional)" while its own hint, the feed filter
+  // an inch below it, and People all said "display name" — one thing, two
+  // words, within a single screen. Pinned so the term cannot drift back.
+  const authorLabel = page.document.querySelectorAll("label")
+    .filter((label) => label.getAttribute("for") === "post-author");
+  assert.equal(authorLabel.length, 1, "the byline field carries exactly one visible label");
+  assert.equal(textOf(authorLabel[0]), "Display name (optional)");
+  assert.equal(page.document.querySelector("#post-author").getAttribute("aria-label"), null,
+    "the accessible name comes from the visible label, not a second string beside it");
+
   // One name for the destination, and it is the one the nav, the footer, and
   // People's own heading use.
   assert.match(hint, /appears on People/, "the composer stops naming where an image post lands");

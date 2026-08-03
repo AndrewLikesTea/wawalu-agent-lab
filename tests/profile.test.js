@@ -419,7 +419,7 @@ test("the People picker and the page's own description use one term for what is 
   // reader how to fill it, and it has to be the same word they just picked by.
   assert.match(html, /publish it on Social under a display name/);
   const social = await readFile(new URL("../src/social.html", import.meta.url), "utf8");
-  assert.match(social, /Shown as the display name on your post/,
+  assert.match(social, /<label for="post-author">Display name <span class="label-optional">\(optional\)<\/span><\/label>/,
     "the composer names the same thing the picker selects");
 });
 
