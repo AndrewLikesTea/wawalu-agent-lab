@@ -1103,7 +1103,7 @@
            belongs with; it no longer outranks a populated result. -->
       <section class="score-card" id="score-card" data-decision-summary="evidence" data-workspace-region="evidence" aria-labelledby="score-card-title">
         <p class="eyebrow" id="score-card-title">AI literacy</p>
-        <p class="score-grade" id="score-grade" aria-hidden="true">–</p>
+        <p class="score-grade" id="score-grade" data-literacy-slot="score-grade" aria-hidden="true">–</p>
         <!-- The letter above is a glyph and a colour band, which is one and a
              half channels. This is the other two: a word a screen reader reads
              and a shape a greyscale screenshot keeps, so "no grade" and "a
@@ -1117,8 +1117,50 @@
              region: the one announcer above already speaks for this import. -->
         <p class="score-input-need" id="score-input-need" hidden></p>
         <p class="score-value" id="score-value">Score not available yet</p>
-        <p class="score-coverage" id="score-coverage">Sampled-spend coverage not available yet</p>
+        <!-- The two figures the letter is only readable with: how much of the
+             money was graded, and how confident that makes the letter. They sit
+             immediately under the glyph and above everything else in the card,
+             because a letter read without them is read as a verdict on the
+             whole organization rather than on the sampled part of it. Both are
+             labelled, both lead with their own value, and both stay on the page
+             in every state — a slot that is removed when it has no figure is a
+             slot that reflows the card under the reader. See #998 and
+             src/finops-literacy-card.js for the slot order this keeps. -->
+        <div class="score-figures">
+          <div class="score-figure">
+            <p class="score-figure-label" id="score-coverage-label">Coverage · share of spend graded</p>
+            <p class="score-coverage" id="score-coverage" data-literacy-slot="score-coverage" aria-describedby="score-coverage-label">Sampled-spend coverage not available yet</p>
+          </div>
+          <div class="score-figure">
+            <p class="score-figure-label" id="score-confidence-label">Confidence in this letter</p>
+            <p class="score-confidence" id="score-confidence" data-literacy-slot="score-confidence" aria-describedby="score-confidence-label">Not established yet · no scored sample read</p>
+          </div>
+        </div>
+        <!-- The band, as a word and the numeric range that defined it. It used
+             to exist only as the tint on the glyph above, which is meaning
+             carried by colour alone. An outline chip rather than a filled one:
+             the Claude Design foundations card reserves the filled wash for a
+             live signal, and a band is a static classification of a number that
+             already shipped. -->
+        <p class="score-band" id="score-band" data-literacy-slot="score-band">Under review · no letter published</p>
+        <!-- Two to three drivers, on screen without expanding anything. The
+             reader who has just met a letter asks "why" before they ask "which
+             department", and making them open a disclosure to learn the first
+             is how a grade becomes something to argue with rather than act
+             on. -->
+        <p class="score-why" id="score-why">Why this letter: no scored sample has been read, so no driver can be named yet.</p>
         <p class="score-action" id="score-action" data-available="false">Action not available yet</p>
+        <!-- The per-department detail, behind a native disclosure so it is
+             keyboard- and screen-reader-operable with no key handler of ours.
+             The collapsed summary states the count, so a reader who cannot see
+             the closed panel still knows how much is inside it. -->
+        <details class="score-detail" id="score-detail">
+          <summary class="score-detail-summary" id="score-detail-summary">Per-department scores and the rubric · no departments read yet</summary>
+          <ul class="score-detail-list" id="score-detail-list" aria-labelledby="score-detail-summary">
+            <li>No department has been read yet.</li>
+          </ul>
+          <p class="score-detail-rule" id="score-detail-rule" hidden></p>
+        </details>
         <p class="score-peer" id="score-peer">Fills in once a scored query sample is read.</p>
       </section>
 

@@ -176,7 +176,11 @@ import { SAMPLE_LABEL, chooseJourneyState } from "/finops-next-step-source.js";
 import { renderNextStep } from "/finops-next-step-view.js";
 // Whether the letter may be shown at all is decided before it is drawn: the
 // score card is a roll-up of only the departments the rubric actually scored.
-import { gradeEligibility } from "/grade-eligibility.js";
+import { CLAMPED_REASON, gradeEligibility } from "/grade-eligibility.js";
+// The four slots below the letter — coverage, confidence, band, and the drivers
+// behind them — in one published order, painted the same way from every state
+// this page can be in (#998).
+import { applyLiteracyCard, literacyCardModel } from "/finops-literacy-card.js";
 // The drill-down's fallback answer to "so what do I do". A fixture that carries
 // no reviewed intervention used to leave the whole action surface saying
 // "Result unavailable"; the scorer fills the same twelve fields by rule instead,
@@ -1558,6 +1562,22 @@ function mountLocalFinopsImport() {
       peer: analysis ? importedPeer(analysis) : null,
     });
     applyImportedExecutive(document, figures, { band });
+    // The same four slots, now from the reader's own corpus. Painted here and
+    // not inside the executive view because the department roll and the corpus
+    // confidence live on this closure's analysis rather than on the hero — and
+    // because a bundled department left standing under an imported letter is a
+    // grade attributed to a company the reader has never heard of.
+    applyLiteracyCard(document, literacyCardModel({
+      confidence: figures.hero.available
+        ? importedCorpus()?.confidence?.label ?? null
+        : "Not established · no letter is published for this corpus",
+      band: figures.hero.available ? band(figures.hero.composite) : "review",
+      mix: figures.mix.available ? figures.mix.shares : null,
+      departments: (analysis?.literacy?.departments ?? []).map((entry) => ({
+        name: entry?.name, graded: entry?.gradeable, score: entry?.score,
+      })),
+      rule: figures.hero.rule,
+    }));
     // One painter per state. The graded surface has already drawn its own mix
     // into these nodes; drawing a second one over it would be the same chart
     // twice with two different captions. What must not survive underneath an
@@ -3536,6 +3556,27 @@ function ungradedDepartmentNames(departments) {
     .map((entry) => entry.name);
 }
 
+/**
+ * The disclosure's rows: every analysed department, largest spend first, so the
+ * team whose absence moves the grade most is the first one a reader meets after
+ * opening the panel. Graded and ungraded are one list — a list that omitted the
+ * ungraded ones would make the coverage figure above it unaccountable.
+ */
+function literacyDepartmentRows(departments) {
+  return (Array.isArray(departments) ? departments : [])
+    .map((department) => {
+      const performance = departmentPerformance(department);
+      return {
+        name: String(department?.name ?? department?.id ?? "").trim(),
+        graded: performance.available,
+        score: performance.score,
+        spendUsd: summarize([department]).spendUsd,
+      };
+    })
+    .filter((entry) => entry.name)
+    .sort((left, right) => right.spendUsd - left.spendUsd || left.name.localeCompare(right.name));
+}
+
 function renderHeadline(organization, totals, eligibility, departments = []) {
   const trust = headlineTrust(totals, organization);
   // Two independent gates on one letter, and both must pass. `headlineTrust`
@@ -3574,6 +3615,18 @@ function renderHeadline(organization, totals, eligibility, departments = []) {
   setText("score-peer", trust.score.plausible
     ? `${totals.scoreExplanation.version} · ${totals.scoreExplanation.rule} ${totals.scoreExplanation.arithmetic}`
     : "The calculated score fell outside the supported 0–100 range and is not presented as reliable.");
+  // Confidence, the band, the drivers and the department roll — the four things
+  // that decide whether the letter above may be acted on. A withheld letter is
+  // the "review" band rather than a missing slot: the card keeps its shape.
+  applyLiteracyCard(document, literacyCardModel({
+    tier: eligibility.tier,
+    band: gradeVisible ? band(totals.score) : "review",
+    clamped: eligibility.reason === CLAMPED_REASON,
+    mix: trust.highValue.plausible ? totals.mix : null,
+    departments: literacyDepartmentRows(departments),
+    coverage: eligibility.coverage,
+    rule: eligibility.rule,
+  }));
 
   setText("kpi-spend-value", trust.spend.plausible ? formatUsd(totals.spendUsd) : "Needs review");
   setText("kpi-spend-note",
@@ -4282,6 +4335,12 @@ async function init() {
       setText("score-coverage", noData.label);
       setText("score-action", noData.nextAction.text);
       setText("score-peer", HEADLINE_BUNDLE_UNAVAILABLE.peer);
+      // The error state is the same four slots, saying what an unread bundle
+      // leaves them able to say. Nothing here is emptied or removed, so a
+      // reader who was on the confidence line still has a confidence line.
+      applyLiteracyCard(document, literacyCardModel({
+        tier: noData.tier, coverage: noData.coverage, rule: noData.rule,
+      }));
       for (const id of ["kpi-spend-value", "kpi-recoverable-value", "kpi-productive-value", "kpi-peer-value"])
         setText(id, KPI_NOT_LOADED);
       // "Not loaded" is a different claim from "needs review", and the shape
