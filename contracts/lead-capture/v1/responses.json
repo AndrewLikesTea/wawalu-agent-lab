@@ -7,8 +7,14 @@
     "content_type": "application/json",
     "body": {
       "email": "string, trimmed and lowercased server-side, max 254 chars",
-      "purpose": "field_notes or follow_up; no additional fields are accepted"
+      "purpose": "field_notes or follow_up",
+      "reason": "optional; why the visitor is reaching out. Omitted by the field-note sign-up and by the follow-up forms that do not ask. When present it must be one of reason_values below — an unknown, empty, or null reason is refused with invalid_reason, never stored. No other field is accepted."
     }
+  },
+  "reason_values": {
+    "own_spend": "The visitor wants to run Shiplog against their own AI spend.",
+    "demo_question": "The visitor has a question about the demonstration.",
+    "something_else": "Anything the other two do not cover; the visitor says the rest by email."
   },
   "response_headers": {
     "content-type": "application/json; charset=utf-8",
@@ -63,6 +69,15 @@
       "captured": false,
       "retryable": true,
       "meaning": "Body parsed but the address failed normalization (empty, malformed, or over 254 chars)."
+    },
+    {
+      "id": "invalid_reason",
+      "code": "invalid_reason",
+      "status": 422,
+      "origin": "application",
+      "captured": false,
+      "retryable": true,
+      "meaning": "The body carried a reason that is not one of reason_values. Empty and null count: a reason that was sent must be one the endpoint knows."
     },
     {
       "id": "invalid_json",

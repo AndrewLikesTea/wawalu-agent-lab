@@ -5,8 +5,10 @@ import {
   createD1LeadStore,
   createMemoryLeadStore,
   handleLeadRequest,
+  LEAD_REASONS,
   normalizeEmail,
 } from "../src/leads.js";
+import { FOLLOW_UP_REASONS } from "../src/site-footer.js";
 import {
   CONTACT_COPY, FIELD_NOTE_COPY, initLeadCapture, looksLikeEmail, resolveFailure,
 } from "../src/lead-capture.js";
@@ -77,6 +79,95 @@ test("stores field-note and follow-up intent independently for the same address"
   assert.equal(followUp.status, 201, "an existing subscription must not swallow a follow-up request");
   assert.equal(store.has("mina@example.com", "field_notes"), true);
   assert.equal(store.has("mina@example.com", "follow_up"), true);
+});
+
+test("the endpoint decides for itself which reasons it will record", async () => {
+  // The browser's required-choice gate is a courtesy to the visitor. This is the
+  // guarantee: a reason the endpoint does not know never becomes a row, whatever
+  // sent it. The harness's controls accept any value they are given, so proving
+  // refusal at the control would prove nothing — it is proved here instead.
+  const store = createMemoryLeadStore();
+  const dependencies = { store, requestId: "lead-reason", now: () => "2026-08-03T12:00:00.000Z" };
+
+  for (const reason of ["curious", "", null, 7, "OWN_SPEND", "own_spend "]) {
+    const refused = await handleLeadRequest(request({
+      email: "mina@example.com", purpose: "follow_up", reason,
+    }), dependencies);
+    assert.equal(refused.status, 422, `${JSON.stringify(reason)} must be refused`);
+    assert.equal((await refused.json()).error.code, "invalid_reason");
+  }
+  assert.equal(store.has("mina@example.com", "follow_up"), false, "a refused reason must store nothing");
+
+  // A fourth key is still a caller this endpoint does not know about.
+  const widened = await handleLeadRequest(request({
+    email: "mina@example.com", purpose: "follow_up", reason: "own_spend", source: "footer",
+  }), dependencies);
+  assert.equal(widened.status, 400);
+  assert.equal((await widened.json()).error.code, "invalid_request");
+
+  // Every reason the footer can produce is one the endpoint records, and the
+  // value the visitor chose is what lands beside the address.
+  for (const [index, reason] of LEAD_REASONS.entries()) {
+    const email = `mina${index}@example.com`;
+    const accepted = await handleLeadRequest(request({ email, purpose: "follow_up", reason }), dependencies);
+    assert.equal(accepted.status, 201, `${reason} is offered by the form and must be accepted`);
+    assert.deepEqual(await accepted.json(), { captured: true, created: true, purpose: "follow_up" });
+    assert.equal(store.reasonFor(email), reason, `${reason} must reach storage, not just the wire`);
+  }
+
+  // And a form that does not ask why still sends two keys and still works.
+  const withoutReason = await handleLeadRequest(request({
+    email: "director@example.com", purpose: "follow_up",
+  }), dependencies);
+  assert.equal(withoutReason.status, 201);
+  assert.equal(store.reasonFor("director@example.com"), null);
+});
+
+test("the reason a visitor can choose and the reason the endpoint accepts are one vocabulary", async () => {
+  // Two halves of one contract, in two files that cannot import each other: the
+  // endpoint is server code and no page ships it. A form offering a choice the
+  // endpoint refuses would lose the visitor at the last step, and an endpoint
+  // accepting a value no form produces would store something nobody chose.
+  assert.deepEqual(FOLLOW_UP_REASONS.map((reason) => reason.value), [...LEAD_REASONS]);
+
+  // The published contract documents the same set, and the migration's CHECK
+  // constraint is what keeps a row from carrying anything else.
+  assert.deepEqual(Object.keys(CONTRACT.reason_values), [...LEAD_REASONS]);
+  const migration = await readFile(new URL("../migrations/0008_lead_reason.sql", import.meta.url), "utf8");
+  for (const reason of LEAD_REASONS) assert.match(migration, new RegExp(`'${reason}'`), `${reason} is not storable`);
+
+  // The two the issue named, in the words a visitor reads them by.
+  const labels = FOLLOW_UP_REASONS.map((reason) => reason.label);
+  assert.ok(labels.length >= 3, "the group must offer at least three choices");
+  assert.ok(labels.some((label) => /own AI spend/.test(label)), "one choice must be running Shiplog on your own spend");
+  assert.ok(labels.some((label) => /question about the demonstration/.test(label)), "one choice must be a question about the demo");
+});
+
+test("the D1 store records the chosen reason and refuses one the vocabulary does not list", async (t) => {
+  const db = await createTestD1();
+  t.after(() => db.close());
+  const store = createD1LeadStore(db);
+
+  assert.equal(await store.capture("mina@example.com", "follow_up", "2026-08-03T12:00:00.000Z", "own_spend"), true);
+  assert.equal(
+    db.raw.prepare("SELECT reason FROM lead_submissions WHERE email = ?").get("mina@example.com").reason,
+    "own_spend",
+  );
+  // The sign-up asks nobody why, and its rows say so rather than guessing.
+  assert.equal(await store.capture("mina@example.com", "field_notes", "2026-08-03T12:01:00.000Z"), true);
+  assert.equal(
+    db.raw.prepare("SELECT reason FROM lead_submissions WHERE purpose = 'field_notes'").get().reason,
+    null,
+  );
+  // The CHECK fires and the insert is dropped rather than committed. The store
+  // writes with INSERT OR IGNORE, so a violation reports "nothing was created"
+  // instead of throwing — which is exactly what the caller has to be told.
+  assert.equal(
+    await store.capture("director@example.com", "follow_up", "2026-08-03T12:02:00.000Z", "curious"),
+    false,
+    "a reason the vocabulary does not list must not become a row",
+  );
+  assert.equal(db.raw.prepare("SELECT count(*) AS count FROM lead_submissions").get().count, 2);
 });
 
 test("returns actionable client errors and opaque storage errors", async () => {
@@ -373,6 +464,7 @@ test("the endpoint still returns every response the published contract documents
     ["invalid_request", () => handleLeadRequest(request({ email: "mina@example.com" }), { store: createMemoryLeadStore() })],
     ["invalid_purpose", () => handleLeadRequest(request({ email: "mina@example.com", purpose: "marketing" }), { store: createMemoryLeadStore() })],
     ["invalid_email", () => handleLeadRequest(request({ email: "not-an-email", purpose: "field_notes" }), { store: createMemoryLeadStore() })],
+    ["invalid_reason", () => handleLeadRequest(request({ email: "mina@example.com", purpose: "follow_up", reason: "curious" }), { store: createMemoryLeadStore() })],
     ["invalid_json", () => handleLeadRequest(request("{", { raw: true }), { store: createMemoryLeadStore() })],
     ["unsupported_media_type", () => handleLeadRequest(request({}, { headers: { "content-type": "text/plain" } }), { store: createMemoryLeadStore() })],
     ["method_not_allowed", () => handleLeadRequest(request(undefined, { method: "GET" }), { store: createMemoryLeadStore() })],

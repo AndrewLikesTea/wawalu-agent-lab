@@ -20,7 +20,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
-import { DEMOS, FOLLOW_UP_REDIRECT, IDENTITY, INVITATION, siteFooterMarkup } from "../src/site-footer.js";
+import {
+  DEMOS, FOLLOW_UP_REASONS, FOLLOW_UP_REDIRECT, IDENTITY, INVITATION, REASON_LEGEND, REASON_PRIVACY,
+  REASON_REQUIRED, siteFooterMarkup,
+} from "../src/site-footer.js";
 import { FOLLOW_UP_PRIVACY } from "../src/lead-capture.js";
 import { SITE_NAV } from "../src/site-nav.js";
 import { loadPage, pressEnter, pressKey, pressTab, tabSequence, textOf, typeText } from "./support/browser.js";
@@ -356,10 +359,25 @@ function tabTo(document, id) {
   assert.fail(`"${id}" is not reachable by Tab; a keyboard user cannot use the footer.`);
 }
 
-/** Type an address into the disclosed form and submit it from the keyboard. */
-function submitEmail(document, value) {
+/**
+ * Choose why the visitor is getting in touch, the way a mouse would.
+ *
+ * The form sends nothing until this is answered, so every test that drives a
+ * complete submission answers it. Nothing is preselected in the markup — a
+ * default would answer the question for the visitor — which is why this is a
+ * step rather than a state the form starts in.
+ */
+function chooseReason(document, value = FOLLOW_UP_REASONS[0].value) {
+  const [radio] = byId(document, "site-footer-form").querySelectorAll(`input[value="${value}"]`);
+  radio.click();
+  return radio;
+}
+
+/** Fill the disclosed form in full and submit it from the keyboard. */
+function submitEmail(document, value, reason = FOLLOW_UP_REASONS[0].value) {
   const field = byId(document, "site-footer-email");
   field.value = "";
+  if (reason) chooseReason(document, reason);
   field.focus();
   typeText(document, value);
   pressEnter(document);
@@ -456,12 +474,13 @@ test("a submission goes through the shared capture path, and the confirmation sa
     const [{ url, options }] = calls;
     assert.equal(url, "/api/leads");
     assert.equal(options.method, "POST");
-    assert.deepEqual(JSON.parse(options.body), { email: TYPED_EMAIL, purpose: "follow_up" });
-    assert.deepEqual(Object.keys(JSON.parse(options.body)), ["email", "purpose"]);
+    assert.deepEqual(JSON.parse(options.body), { email: TYPED_EMAIL, purpose: "follow_up", reason: "own_spend" });
+    assert.deepEqual(Object.keys(JSON.parse(options.body)), ["email", "purpose", "reason"]);
 
     assert.equal(byId(document, "site-footer-form").dataset.state, "success");
     const confirmation = shownText(document, "site-footer-status");
-    assert.match(confirmation, /^Follow-up requested — we sent your email address, and nothing else\./);
+    assert.match(confirmation,
+      /^Follow-up requested — we sent your email address and the reason you chose, and nothing else\./);
     assert.match(confirmation, /recorded for the Wawalu team/, "the confirmation must say what happens next");
     // Nothing promised that this demo does not do.
     assert.doesNotMatch(confirmation, /business days?|within \d|hours?\b/i);
@@ -581,8 +600,12 @@ test("a failed submission keeps the typed address, says it can be retried, and t
     await waitFor(() => byId(document, "site-footer-form").dataset.state === "success",
       "the retry to succeed");
     assert.equal(calls.length, 2, "the retry must make its own request");
-    assert.deepEqual(JSON.parse(calls[1].options.body), { email: TYPED_EMAIL, purpose: "follow_up" });
-    assert.match(shownText(document, "site-footer-status"), /^Follow-up requested — we sent your email address, and nothing else\./);
+    assert.deepEqual(JSON.parse(calls[1].options.body), { email: TYPED_EMAIL, purpose: "follow_up", reason: "own_spend" });
+    assert.match(shownText(document, "site-footer-status"),
+      /^Follow-up requested — we sent your email address and the reason you chose, and nothing else\./);
+    // The choice survived the failure in the form it was made in, so the retry
+    // sends what the visitor picked rather than asking for it a second time.
+    assert.equal(byId(document, "site-footer-reason-own-spend").checked, true);
   } finally {
     page.restore();
   }
@@ -626,7 +649,11 @@ test("the pending state is announced, not merely spun", async () => {
     const submit = byId(document, "site-footer-panel").querySelector('button[type="submit"]');
     assert.equal(submit.disabled, true, "the submit control must be unusable while a request is in flight");
     assert.equal(submit.getAttribute("aria-disabled"), "true");
-    assert.equal(shownText(document, "site-footer-status"), "Requesting a follow-up — sending your email address…",
+    // Two things are in flight now, and the sentence says two. It was reworded
+    // with the reason, not before it: an announcement that named one thing while
+    // the request carried two would be the form's first untrue claim.
+    assert.equal(shownText(document, "site-footer-status"),
+      "Requesting a follow-up — sending your email address and reason…",
       "the pending state must be in the live region, not only in the button");
 
     release();
@@ -637,6 +664,148 @@ test("the pending state is announced, not merely spun", async () => {
     assert.equal(byId(document, "site-footer-form").hidden, true);
     byId(document, "site-footer-again").click();
     assert.equal(submit.disabled, false, "reopening the form must give the control back");
+  } finally {
+    page.restore();
+  }
+});
+
+test("the form asks why, in a group a keyboard reaches between the field and the button", async () => {
+  const page = await openFooterPage("index.html");
+  const { document } = page;
+  try {
+    byId(document, "site-footer-open").click();
+
+    // A real fieldset with a legend, so the question is the group's accessible
+    // name rather than a paragraph that happens to sit above it.
+    const group = byId(document, "site-footer-reason");
+    assert.equal(group.tagName, "FIELDSET");
+    assert.equal(textOf(group.querySelector("legend")), REASON_LEGEND);
+
+    // Three real controls, each with its own label, and nothing preselected: the
+    // form must not answer the question on the visitor's behalf.
+    const radios = group.querySelectorAll('input[name="reason"]');
+    assert.ok(radios.length >= 3, "the visitor needs at least three reasons to choose between");
+    assert.deepEqual(radios.map((radio) => radio.value), FOLLOW_UP_REASONS.map((reason) => reason.value));
+    for (const { id, label } of FOLLOW_UP_REASONS) {
+      assert.equal(byId(document, id).getAttribute("type"), "radio");
+      assert.equal(textOf(document.querySelector(`label[for="${id}"]`)), label);
+    }
+    assert.equal(radios.filter((radio) => radio.checked).length, 0, "nothing may be chosen for the visitor");
+    // The two the issue named are both on offer.
+    const labels = FOLLOW_UP_REASONS.map((reason) => reason.label).join(" | ");
+    assert.match(labels, /own AI spend/);
+    assert.match(labels, /question about the demonstration/);
+
+    // Reachable and operable by keyboard alone, and in the order the request is
+    // built in: the address, then why, then the control that sends.
+    const ids = tabSequence(document).map((node) => node.id);
+    const order = ["site-footer-email", FOLLOW_UP_REASONS[0].id];
+    const positions = order.map((id) => ids.indexOf(id));
+    for (const [index, position] of positions.entries())
+      assert.ok(position >= 0, `${order[index]} must be keyboard reachable`);
+    assert.ok(positions[0] < positions[1], "the group must follow the field it comes after");
+    const submitIndex = tabSequence(document).indexOf(byId(document, "site-footer-panel").querySelector('button[type="submit"]'));
+    assert.ok(positions[1] < submitIndex, "the group must come before the control that sends");
+    // One tab stop for the group, the way a radio group behaves natively.
+    assert.equal(tabSequence(document).filter((node) => node.name === "reason").length, 1);
+
+    // Operated from the keyboard: tab to the group, arrow to the second option,
+    // and the choice is made without a mouse anywhere near it.
+    tabTo(document, FOLLOW_UP_REASONS[0].id);
+    pressKey(document, "ArrowDown");
+    assert.equal(document.activeElement?.id, FOLLOW_UP_REASONS[1].id);
+    assert.equal(byId(document, FOLLOW_UP_REASONS[1].id).checked, true);
+  } finally {
+    page.restore();
+  }
+});
+
+test("the form says the address and the reason are what get sent, and nothing else", async () => {
+  const page = await openFooterPage("index.html");
+  const { document } = page;
+  try {
+    // The shared privacy sentence still names the address. The group carries the
+    // rest of the claim, beside the question it belongs to, and it is the
+    // group's accessible description rather than prose left near it.
+    assert.equal(shownText(document, "site-footer-note"), FOLLOW_UP_PRIVACY);
+    const note = byId(document, "site-footer-reason-note");
+    assert.equal(textOf(note), REASON_PRIVACY);
+    assert.match(REASON_PRIVACY, /reason you choose is sent with your work email address/);
+    assert.match(REASON_PRIVACY, /nothing else on this page is sent/);
+    assert.equal(byId(document, "site-footer-reason").getAttribute("aria-describedby"), "site-footer-reason-note");
+  } finally {
+    page.restore();
+  }
+});
+
+test("a submission with no reason chosen sends nothing and says which choice is missing", async () => {
+  const page = await openFooterPage("index.html");
+  const { document } = page;
+  const calls = interceptLeads(() => jsonReply({ captured: true, created: true, purpose: "follow_up" }));
+  try {
+    byId(document, "site-footer-open").click();
+    // A valid address, and no answer to the question — the state a visitor who
+    // reads top to bottom and presses the button arrives in.
+    submitEmail(document, TYPED_EMAIL, null);
+
+    assert.equal(calls.length, 0, "a request with no reason must not reach the network");
+    assert.equal(byId(document, "site-footer-form").dataset.state, "invalid");
+    assert.equal(shownText(document, "site-footer-error"), REASON_REQUIRED);
+    assert.equal(byId(document, "site-footer-error").hidden, false);
+    assert.match(REASON_REQUIRED, /why you are getting in touch/, "the message must name the missing choice");
+    // The typed address is untouched, and the diagnostic belongs to the control
+    // that has to change rather than to the field that is already right.
+    assert.equal(byId(document, "site-footer-email").value, TYPED_EMAIL);
+    assert.equal(byId(document, "site-footer-email").getAttribute("aria-invalid"), null);
+    assert.equal(describedBy(document), "site-footer-note");
+    const group = byId(document, "site-footer-reason");
+    assert.equal(group.getAttribute("aria-invalid"), "true");
+    assert.match(group.getAttribute("aria-describedby"), /site-footer-error/);
+    // Focus lands where the fix is, and nothing claims a failed submission.
+    assert.equal(document.activeElement?.id, FOLLOW_UP_REASONS[0].id);
+    assert.equal(shownText(document, "site-footer-status"), "");
+    assert.equal(byId(document, "site-footer-recovery").hidden, true);
+
+    // Answering the question retracts the diagnostic, the way typing retracts
+    // the one about the address.
+    chooseReason(document, FOLLOW_UP_REASONS[1].value);
+    assert.equal(byId(document, "site-footer-error").hidden, true);
+    assert.equal(group.getAttribute("aria-invalid"), null);
+    assert.equal(group.getAttribute("aria-describedby"), "site-footer-reason-note");
+
+    // And the form sends on the next press, carrying the choice that was made.
+    byId(document, "site-footer-email").focus();
+    pressEnter(document);
+    await settled(document);
+    assert.equal(calls.length, 1);
+    assert.deepEqual(JSON.parse(calls[0].options.body),
+      { email: TYPED_EMAIL, purpose: "follow_up", reason: FOLLOW_UP_REASONS[1].value });
+  } finally {
+    page.restore();
+  }
+});
+
+test("the receipt reads back the address and the reason, in the words the visitor chose them by", async () => {
+  const page = await openFooterPage("index.html");
+  const { document } = page;
+  const calls = interceptLeads(() => jsonReply({ captured: true, created: true, purpose: "follow_up" }));
+  try {
+    byId(document, "site-footer-open").click();
+    const chosen = FOLLOW_UP_REASONS[1];
+    submitEmail(document, TYPED_EMAIL, chosen.value);
+    await settled(document);
+
+    assert.deepEqual(JSON.parse(calls[0].options.body),
+      { email: TYPED_EMAIL, purpose: "follow_up", reason: chosen.value });
+
+    // Both of them, in words, on the page — not a value the visitor never saw.
+    const receipt = byId(document, "site-footer-confirmation");
+    assert.equal(textOf(receipt.querySelector(".site-footer-confirmation-address")), TYPED_EMAIL);
+    assert.equal(textOf(receipt.querySelector(".site-footer-confirmation-reason")), chosen.label);
+    assert.match(textOf(receipt), /We sent two things: /,
+      "the receipt must count what was sent, and two things were");
+    assert.doesNotMatch(textOf(receipt), new RegExp(chosen.value),
+      "the receipt speaks the visitor's words, not the wire's");
   } finally {
     page.restore();
   }

@@ -59,10 +59,26 @@ const jsonReply = (body, status = 201) => new Response(JSON.stringify(body), {
 
 const failureReply = () => jsonReply({ error: { code: "storage_unavailable", message: "unavailable" } }, 503);
 
-/** Type an address into a disclosed form and submit it from the keyboard. */
+/**
+ * Answer the form's required question, where it asks one.
+ *
+ * The footer's form asks why a visitor is getting in touch and sends nothing
+ * until they say. A form that does not ask — the briefing's — has no group to
+ * find, so this is a no-op there. Choosing the first option rather than
+ * defaulting one in the markup is deliberate: a preselected radio would answer
+ * the question for the visitor, and the gate is what these tests drive through.
+ */
+function chooseReason(document, prefix) {
+  const [first] = byId(document, `${prefix}-form`).querySelectorAll('input[name="reason"]');
+  first?.click();
+  return first ?? null;
+}
+
+/** Fill a disclosed form in full and submit it from the keyboard. */
 function submitEmail(document, prefix, value) {
   const field = byId(document, `${prefix}-email`);
   field.value = "";
+  chooseReason(document, prefix);
   field.focus();
   typeText(document, value);
   pressEnter(document);

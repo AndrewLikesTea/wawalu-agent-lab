@@ -38,6 +38,55 @@ import {
 
 const ERROR_ID = "site-footer-error";
 const RECOVERY_ID = "site-footer-recovery";
+const REASON_ID = "site-footer-reason";
+
+/**
+ * Why a visitor is reaching out, in the words the form offers and the values the
+ * endpoint accepts.
+ *
+ * This is the browser half of a two-halved contract: `LEAD_REASONS` in
+ * src/leads.js is the same list of values, and tests/leads.test.js pins them to
+ * each other. It is not imported from there — that module is the endpoint's, and
+ * no page ships server code — so the test is what keeps a choice this form
+ * offers from being one the endpoint would refuse.
+ *
+ * A native radio group in a fieldset, rendered from this list. Three real
+ * controls rather than a select, because a radio group is one tab stop, arrow
+ * keys move between the options, and nothing about it needs a script to work.
+ * The first two are the two the issue named; the third is what keeps a visitor
+ * who is neither from having to misfile themselves to be heard at all.
+ */
+export const FOLLOW_UP_REASONS = Object.freeze([
+  Object.freeze({
+    value: "own_spend",
+    id: "site-footer-reason-own-spend",
+    label: "Running Shiplog against my own AI spend",
+  }),
+  Object.freeze({
+    value: "demo_question",
+    id: "site-footer-reason-demo-question",
+    label: "A question about the demonstration",
+  }),
+  Object.freeze({
+    value: "something_else",
+    id: "site-footer-reason-something-else",
+    label: "Something else",
+  }),
+]);
+
+/** The question above the group, and the claim the group's own answer makes. */
+export const REASON_LEGEND = "Why are you getting in touch?";
+export const REASON_PRIVACY = "The reason you choose is sent with your work email address; "
+  + "nothing else on this page is sent.";
+
+/**
+ * What a visitor is told when they typed an address and chose nothing.
+ *
+ * It names the missing choice rather than saying the form is incomplete, and it
+ * names what the form would have done, the way every other inline message on
+ * this surface does.
+ */
+export const REASON_REQUIRED = "Choose why you are getting in touch to request a Shiplog follow-up.";
 
 /**
  * What a visitor can do here, then who runs it and where — on every page.
@@ -112,12 +161,15 @@ export const INVITATION = "Questions about Shiplog? Ask the Wawalu team that ope
 // says what is actually true — the address is recorded, a person is the one who
 // reads it, and no machine is about to reply — rather than a response time this
 // demo would break.
-const CAPTURED = "Follow-up requested — we sent your email address, and nothing else. It is recorded "
-  + "for the Wawalu team, and a person replies by email; nothing here answers automatically.";
+const CAPTURED = "Follow-up requested — we sent your email address and the reason you chose, and "
+  + "nothing else. They are recorded for the Wawalu team, and a person replies by email; nothing "
+  + "here answers automatically.";
 const ALREADY_CAPTURED = "Follow-up requested — that address is already on our list, so nothing new "
   + "was recorded. The Wawalu team can reach you there.";
 
-const SUBMITTING = "Requesting a follow-up — sending your email address…";
+// Two things go now, so the pending sentence says two. It is the same claim the
+// form made above the button, in the tense of a request that is in flight.
+const SUBMITTING = "Requesting a follow-up — sending your email address and reason…";
 
 /**
  * The pages that answer a follow-up request better than this footer can, and
@@ -190,6 +242,11 @@ function demoListLines() {
   ];
 }
 
+/** The words a reason was chosen by, for the receipt that reads it back. */
+export function labelForReason(value) {
+  return FOLLOW_UP_REASONS.find((reason) => reason.value === value)?.label ?? null;
+}
+
 function contactDisclosureLines() {
   return [
     `    <p class="site-footer-invitation">${INVITATION}</p>`,
@@ -207,6 +264,19 @@ function contactDisclosureLines() {
     "               and would otherwise be read on first focus. -->",
     '          <input id="site-footer-email" name="email" type="email" maxlength="254" inputmode="email" autocomplete="email" placeholder="you@company.com" required aria-describedby="site-footer-note" />',
     "        </div>",
+    // A real fieldset with a legend: the question is the group's accessible
+    // name, the three options are one tab stop, and it sits between the field
+    // and the button because that is the order the request is built in.
+    '        <fieldset class="site-footer-reason" id="site-footer-reason" aria-describedby="site-footer-reason-note">',
+    `          <legend>${REASON_LEGEND}</legend>`,
+    ...FOLLOW_UP_REASONS.flatMap(({ value, id, label }) => [
+      '          <div class="site-footer-choice">',
+      `            <input id="${id}" name="reason" type="radio" value="${value}" required />`,
+      `            <label for="${id}">${label}</label>`,
+      "          </div>",
+    ]),
+    `          <p class="site-footer-reason-note" id="site-footer-reason-note">${REASON_PRIVACY}</p>`,
+    "        </fieldset>",
     `        <p class="site-footer-error" id="site-footer-error" hidden></p>`,
     `        <p class="site-footer-note" id="site-footer-note">${FOLLOW_UP_PRIVACY}</p>`,
     '        <div class="site-footer-actions">',
@@ -242,13 +312,27 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
   const fieldError = root.querySelector(`#${ERROR_ID}`);
   const status = root.querySelector("#site-footer-status");
   const recovery = root.querySelector(`#${RECOVERY_ID}`);
+  const reasonGroup = form.querySelector(`#${REASON_ID}`);
+  // Spread, not the live list: this is read in both a browser and the test
+  // harness, and only an array answers `.find` in both.
+  const reasons = [...form.querySelectorAll('input[name="reason"]')];
+  const chosenReason = () => reasons.find((radio) => radio.checked) ?? null;
 
-  function setFieldError(message) {
+  /**
+   * One diagnostic paragraph, described to whichever control has to change.
+   * Pointing it at both would tell a visitor with a valid address that the
+   * address is the problem.
+   */
+  function setFieldError(message, control = email) {
     fieldError.textContent = message ?? "";
     fieldError.hidden = !message;
-    describeWith(email, ERROR_ID, Boolean(message));
-    if (message) email.setAttribute("aria-invalid", "true");
-    else email.removeAttribute("aria-invalid");
+    for (const owner of [email, reasonGroup]) {
+      if (!owner) continue;
+      const owns = Boolean(message) && owner === control;
+      describeWith(owner, ERROR_ID, owns);
+      if (owns) owner.setAttribute("aria-invalid", "true");
+      else owner.removeAttribute("aria-invalid");
+    }
   }
 
   function setRecoveryVisible(visible) {
@@ -300,12 +384,16 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
   // Editing the field retracts the diagnostic about it. The submission outcome
   // in the live region stays: it reports something that happened, not something
   // about the current value.
-  email.addEventListener("input", () => {
-    if (form.dataset.state === "invalid") {
-      delete form.dataset.state;
-      setFieldError(null);
-    }
-  });
+  function retractDiagnostic() {
+    if (form.dataset.state !== "invalid") return;
+    delete form.dataset.state;
+    setFieldError(null);
+  }
+
+  email.addEventListener("input", retractDiagnostic);
+  // Choosing a reason answers the diagnostic about the missing choice the same
+  // way typing answers the one about the address.
+  for (const radio of reasons) radio.addEventListener("change", retractDiagnostic);
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -323,6 +411,18 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
       email.focus();
       return;
     }
+    // Nothing leaves the page until the visitor has said why. The endpoint
+    // refuses an unknown reason on its own — this is the half that keeps a
+    // visitor from finding that out through a failed request.
+    const choice = chosenReason();
+    if (!choice) {
+      form.dataset.state = "invalid";
+      setFieldError(REASON_REQUIRED, reasonGroup);
+      setRecoveryVisible(false);
+      status.textContent = "";
+      reasons[0]?.focus();
+      return;
+    }
 
     form.dataset.state = "submitting";
     setFieldError(null);
@@ -335,12 +435,14 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
 
     try {
       const address = email.value.trim();
-      const body = await postLeadEmail(request, email.value, "follow_up", CONTACT_COPY);
+      const body = await postLeadEmail(request, email.value, "follow_up", CONTACT_COPY, choice.value);
       form.dataset.state = "success";
       status.textContent = body.created ? CAPTURED : ALREADY_CAPTURED;
       // The form is replaced from here, so the control that would send again is
-      // gone before the `finally` below could bring it back.
-      confirmation.show(address);
+      // gone before the `finally` below could bring it back. The receipt reads
+      // the choice back in the words the visitor picked it by, not the value
+      // that travelled.
+      confirmation.show(address, labelForReason(choice.value));
     } catch (error) {
       // Copy this repository owns, never a string an intermediary supplied, and
       // never a claim that the address was lost when that is not known.

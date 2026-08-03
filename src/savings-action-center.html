@@ -151,6 +151,22 @@
                    and would otherwise be read on first focus. -->
               <input id="site-footer-email" name="email" type="email" maxlength="254" inputmode="email" autocomplete="email" placeholder="you@company.com" required aria-describedby="site-footer-note" />
             </div>
+            <fieldset class="site-footer-reason" id="site-footer-reason" aria-describedby="site-footer-reason-note">
+              <legend>Why are you getting in touch?</legend>
+              <div class="site-footer-choice">
+                <input id="site-footer-reason-own-spend" name="reason" type="radio" value="own_spend" required />
+                <label for="site-footer-reason-own-spend">Running Shiplog against my own AI spend</label>
+              </div>
+              <div class="site-footer-choice">
+                <input id="site-footer-reason-demo-question" name="reason" type="radio" value="demo_question" required />
+                <label for="site-footer-reason-demo-question">A question about the demonstration</label>
+              </div>
+              <div class="site-footer-choice">
+                <input id="site-footer-reason-something-else" name="reason" type="radio" value="something_else" required />
+                <label for="site-footer-reason-something-else">Something else</label>
+              </div>
+              <p class="site-footer-reason-note" id="site-footer-reason-note">The reason you choose is sent with your work email address; nothing else on this page is sent.</p>
+            </fieldset>
             <p class="site-footer-error" id="site-footer-error" hidden></p>
             <p class="site-footer-note" id="site-footer-note">The work email address you type here goes to the Wawalu team that operates Shiplog; nothing else on this page is sent.</p>
             <div class="site-footer-actions">

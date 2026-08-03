@@ -32,6 +32,11 @@
  * so the address arrives as a text node of its own.
  */
 export const CONFIRMATION_LEAD = "We sent one thing: ";
+// The same sentence for a form that asked why, which sends two. Split around
+// both values, so each arrives as a text node of its own and the count in the
+// opening words is the count of things the request actually carried.
+export const CONFIRMATION_LEAD_WITH_REASON = "We sent two things: ";
+export const CONFIRMATION_REASON_JOIN = ", and the reason you chose: ";
 export const CONFIRMATION_DETAIL = "A person from the Wawalu team replies to that address by email. "
   + "Nothing else on this page — nothing you have read, filtered, imported, or exported — was read, "
   + "attached, or transmitted.";
@@ -82,6 +87,11 @@ export function createFollowUpConfirmation({ form, status, submit, email, onReop
   mark.textContent = "✓";
   const address = document.createElement("strong");
   address.className = `${base}-confirmation-address`;
+  // Only a surface that asked why fills this in, and `show` decides: the lead is
+  // composed there rather than here, because what was sent is not known until a
+  // request has been made.
+  const reason = document.createElement("strong");
+  reason.className = `${base}-confirmation-reason`;
   lead.append(mark, CONFIRMATION_LEAD, address, ".");
 
   const detail = document.createElement("p");
@@ -105,9 +115,17 @@ export function createFollowUpConfirmation({ form, status, submit, email, onReop
 
   let sent = false;
 
-  /** Put the panel into its terminal state, naming the address that was sent. */
-  function show(value) {
+  /**
+   * Put the panel into its terminal state, naming what was sent: the address,
+   * and — where the form asked — the reason the visitor chose, in the words the
+   * form offered rather than the value that went on the wire.
+   */
+  function show(value, reasonLabel = null) {
     address.textContent = value;
+    reason.textContent = reasonLabel ?? "";
+    lead.replaceChildren(...(reasonLabel
+      ? [mark, CONFIRMATION_LEAD_WITH_REASON, address, CONFIRMATION_REASON_JOIN, reason, "."]
+      : [mark, CONFIRMATION_LEAD, address, "."]));
     if (!region.parentNode) form.parentNode.insertBefore(region, form);
     // Hiding the form takes the field and both of its buttons out of the tab
     // order; disabling submit means even a stray click on it does nothing.

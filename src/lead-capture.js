@@ -34,9 +34,10 @@ const UNREADABLE_CODES = ["invalid_request", "invalid_purpose", "invalid_json", 
 
 // Keyed by the contract's application `error.code` enum. Every one of these
 // means the address is definitely not stored, so the copy can say so.
-function rejectedCopy({ invalidEmail, unreadable, storageError, storageUnavailable }) {
+function rejectedCopy({ invalidEmail, invalidReason, unreadable, storageError, storageUnavailable }) {
   const byCode = {
     invalid_email: invalidEmail,
+    invalid_reason: invalidReason,
     storage_error: storageError,
     storage_unavailable: storageUnavailable,
   };
@@ -51,6 +52,9 @@ export const FIELD_NOTE_COPY = Object.freeze({
   invalidEmail: "Enter a valid work email address to subscribe to field notes.",
   rejected: rejectedCopy({
     invalidEmail: "You’re not subscribed: that address wasn’t accepted. Check it and submit again.",
+    // Unreachable from the sign-up, which sends no reason at all. It still owns
+    // a sentence, because a documented code with no copy is a blank page.
+    invalidReason: "You’re not subscribed: that request wasn’t accepted. Reload the page and try again.",
     unreadable: "You’re not subscribed because the request couldn’t be read. Reload the page and try again.",
     storageError: "You’re not subscribed — something went wrong at our end. Please try again.",
     storageUnavailable: "You’re not subscribed because sign-up is temporarily offline.",
@@ -74,6 +78,7 @@ export const CONTACT_COPY = Object.freeze({
   invalidEmail: "Enter a valid work email address to request a Shiplog follow-up.",
   rejected: rejectedCopy({
     invalidEmail: "We didn’t get your request: that address wasn’t accepted. Check it and submit again.",
+    invalidReason: "We didn’t get your request: that reason wasn’t accepted. Choose one of the listed reasons and submit again.",
     unreadable: "We didn’t get your request because it couldn’t be read. Reload the page and try again.",
     storageError: "We didn’t get your request — something went wrong at our end. Please try again.",
     storageUnavailable: "We didn’t get your request because follow-up requests are temporarily offline.",
@@ -132,10 +137,13 @@ export function resolveFailure(response, body, copy) {
 }
 
 /**
- * The one request either form makes. The body is built here from the address
- * and a fixed routing label, so no caller can widen what leaves the browser:
- * `{ email, purpose }` is the entire documented request shape. The purpose is
- * never page content.
+ * The one request every one of these forms makes. The body is built here from
+ * the address, a fixed routing label, and — only where a form asked the visitor
+ * why they are reaching out — the value of the choice they made. No caller can
+ * widen it: `{ email, purpose, reason }` is the entire documented request shape,
+ * the purpose is never page content, and the reason is never anything but one of
+ * the values the endpoint documents. A form that does not ask sends two keys,
+ * exactly as it always has.
  *
  * Resolves every 2xx response as a capture. HTTP success is the durable
  * browser/server contract: older deployed handlers returned `subscribed`
@@ -145,11 +153,11 @@ export function resolveFailure(response, body, copy) {
  * existing one. Non-2xx responses still throw a SubmissionError carrying copy
  * this module owns plus the reason code that drives recovery.
  */
-export async function postLeadEmail(request, email, purpose, copy) {
+export async function postLeadEmail(request, email, purpose, copy, reason = null) {
   const response = await request(ENDPOINT, {
     method: "POST",
     headers: { "content-type": "application/json", accept: "application/json" },
-    body: JSON.stringify({ email, purpose }),
+    body: JSON.stringify(reason === null ? { email, purpose } : { email, purpose, reason }),
     // Without this a hung request strands the visitor on "Submitting…"
     // with the control disabled and no way to recover.
     signal: globalThis.AbortSignal?.timeout?.(TIMEOUT_MS),
@@ -162,7 +170,7 @@ export async function postLeadEmail(request, email, purpose, copy) {
   const created = typeof body?.created === "boolean"
     ? body.created
     : (typeof body?.subscribed === "boolean" ? body.subscribed : true);
-  return { captured: true, created, purpose };
+  return { captured: true, created, purpose, reason };
 }
 
 // The browser's own shape check, for forms that cannot lean on the control's
