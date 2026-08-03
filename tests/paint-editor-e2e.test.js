@@ -19,7 +19,15 @@ test("empty account: a first-time user sees a rendered blank canvas and every co
       .map((selector) => Boolean(harness.root.querySelector(selector))),
     [true, true, true, true],
   );
-  assert.match(harness.status.textContent, /^WebGL · \d+\.\d ms$/);
+  // The renderer, named, with a millisecond figure and nothing else — which is
+  // what this test is about. The optional suffix is NOT a loosening: `render()`
+  // in paint-engine.js returns real `performance.now()` elapsed, and paint.js
+  // appends "(over frame budget)" whenever that first cold render exceeds
+  // FRAME_BUDGET_MS (16.67 ms). On a loaded CI runner it does, so the anchored
+  // form asserted the machine was fast rather than that the status was correct,
+  // and failed as one red test in an otherwise green run. Whether a render is
+  // over budget is a property of the host, and no test asserts that wording.
+  assert.match(harness.status.textContent, /^WebGL · \d+\.\d ms( \(over frame budget\))?$/);
   assert.equal(harness.viewport.getAttribute("aria-label"), "Image canvas, 1200 by 800 pixels");
 });
 

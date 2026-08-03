@@ -24,7 +24,7 @@
 
 import { formatPercent, formatUsd } from "./evolution.js";
 import { COVERAGE_TIERS } from "./grade-eligibility.js";
-import { GRADABILITY_STATE } from "./export-gradability.js";
+import { GRADABILITY_STATE, rubricCoverage } from "./export-gradability.js";
 // One provenance record shape for both published figures, and the tap that makes
 // its `inputs` the operands the code below actually read rather than a list kept
 // beside them. It imports nothing, so the answer's minimal path stays minimal.
@@ -392,9 +392,14 @@ function nextAction(read) {
  * input to this figure, so naming it would claim a link that does not exist.
  */
 function confidenceSentence(read, basis) {
-  const covered = Number(read("coveredUsd"));
-  const total = Number(read("totalUsd"));
-  const parts = [Number.isFinite(total) && total > 0
+  // One reading of the coverage, shared with the sentence that qualifies the
+  // recoverable figure in the headline block (#1019) — still taken through the
+  // tap, so the operands this figure's provenance names are the ones read. The
+  // wording stays here; only the reading moved.
+  const { measurable, coveredUsd: covered, totalUsd: total } = rubricCoverage({
+    coveredUsd: read("coveredUsd"), totalUsd: read("totalUsd"), coverage: read("coverage"),
+  });
+  const parts = [measurable
     ? `Coverage: ${formatUsd(covered)} of ${formatUsd(total)} of spend in scope sits in `
       + "departments the rubric scored."
     : "Coverage: this analysis published no spend total, so there is nothing to measure "

@@ -700,6 +700,9 @@ export function applyStandHeadline(doc, headline, { announce = true } = {}) {
   const recoverable = setText(doc, STAND_IDS.recoverableValue, headline.recoverable?.value ?? "");
   if (recoverable) recoverable.dataset.available = headline.recoverable?.available ? "true" : "false";
   setText(doc, STAND_IDS.recoverableBasis, headline.recoverable?.basis ?? "");
+  // …and what that figure IS and what the rubric scored of it (#1019), in the
+  // same block as the value and in the always-rendered path.
+  setText(doc, STAND_IDS.recoverableReconciliation, headline.recoverable?.reconciliation ?? "");
 
   // The named team is text in both channels — the name in its own element and
   // the evidence sentence beside it. Nothing about which department it is is

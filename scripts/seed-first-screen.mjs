@@ -252,6 +252,12 @@ export function firstScreenEdits(bundled) {
       "p", headline.recoverable?.value ?? ""),
     filledText("recoverable basis", "finops-stand-recoverable-basis",
       { authored: "", seeded: "" }, "p", headline.recoverable?.basis ?? ""),
+    // What that figure is, and what the rubric scored of it (#1019). Seeded for
+    // the reason the figure above it is: a reader who is served the dollar
+    // amount and gets its qualification a paint later has already read an
+    // unverified estimate as a verified one.
+    filledText("recoverable reconciliation", "finops-stand-recoverable-reconciliation",
+      { authored: "", seeded: "" }, "p", headline.recoverable?.reconciliation ?? ""),
     edit("team revealed",
       '<div class="stand-team pre-analysis-withheld" id="finops-stand-team"'
       + ' data-available="false" hidden>',

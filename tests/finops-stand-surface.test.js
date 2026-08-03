@@ -91,6 +91,96 @@ test("the complete headline renders on first load with no import and no stored s
   assert.equal(byId(document, STAND_IDS.withheld).hidden, true);
 });
 
+/**
+ * THE TWO PANELS MAY NOT CONTRADICT EACH OTHER OVER ONE SPEND BASE (#1019).
+ *
+ * With nothing imported, the headline states $51,254 modelled as recoverable out
+ * of $154,500 of analyzed spend, and the trust panel below states that $0 of that
+ * same $154,500 sits in departments the rubric scored. Neither figure is wrong
+ * and neither may be softened — the coverage is genuinely zero and is asserted as
+ * zero here — so what closes the gap is one sentence beside the dollar figure
+ * saying what it is and what the rubric did and did not score of it.
+ *
+ * The sentence is checked in the DOCUMENT and in the BOOTED page, and its
+ * ancestry is walked rather than trusted: this repository's harness reads text
+ * through a shut disclosure, so a text assertion alone would pass on a sentence
+ * a real browser folds away.
+ */
+test("the recoverable figure carries the sentence reconciling it with zero rubric coverage",
+  async () => {
+    const { document } = await openWithClearedStorage();
+    const region = byId(document, STAND_IDS.region);
+    const sentence = shownText(document, STAND_IDS.recoverableReconciliation);
+
+    // 1. It is in the same block as the figure it qualifies, and that block is
+    //    the one holding the recoverable value — not a sibling card, not a
+    //    footnote at the end of the region.
+    const block = byId(document, STAND_IDS.recoverableValue).parentNode;
+    assert.equal(block.querySelectorAll(`#${STAND_IDS.recoverableReconciliation}`).length, 1,
+      "the reconciling sentence is not in the same block as the recoverable figure");
+
+    // 2. It is in the always-rendered path: no disclosure ancestor between it
+    //    and the region, and nothing hidden along the way.
+    let node = byId(document, STAND_IDS.recoverableReconciliation);
+    while (node && node !== region) {
+      assert.notEqual(node.tagName?.toLowerCase(), "details",
+        "the reconciling sentence is inside a disclosure a reader has to open");
+      assert.notEqual(node.hidden, true,
+        "the reconciling sentence is inside a hidden ancestor");
+      node = node.parentNode;
+    }
+
+    // 3. It says what the figure is and what the rubric scored of it, in the
+    //    figures the composer derived — no dollar amount is authored twice.
+    assert.match(sentence, /^\$51,254 is a modelled estimate/);
+    assert.match(sentence, /modelled estimate of recoverable spend, not savings anyone has verified/);
+    assert.match(sentence,
+      /the rubric has scored none of the spend it was modelled over — \$0 of the \$154,500 analyzed sits in departments the rubric scored\./);
+
+    // 4. …and the coverage it quotes is still the zero the trust panel reports.
+    //    Reconciling the two claims may not move either number.
+    assert.match(verdictText(document).confidence,
+      /Coverage: \$0 of \$154,500 of spend in scope sits in departments the rubric scored\./);
+    const headline = buildStandHeadline();
+    assert.equal(headline.gradability.coveredUsd, 0);
+    assert.equal(headline.gradability.coverage, 0);
+    assert.equal(headline.recoverable.value, "$51,254 · 33% of analyzed spend");
+
+    // 5. The synthetic-data marker above both is untouched by the reconciliation.
+    assert.match(shownText(document, STAND_IDS.sample), /Bundled synthetic example/);
+  });
+
+test("the reconciling sentence ships in the served markup, outside every disclosure", () => {
+  // The document as parsed from source: the slot exists exactly once, and the
+  // build seeds it (tests/finops-first-screen-seed.test.js pins the seeded text
+  // against what the paint writes). A slot painted only at runtime is one a
+  // reader on a slow connection meets the dollar figure without.
+  assert.equal(html.split(`id="${STAND_IDS.recoverableReconciliation}"`).length - 1, 1,
+    "the reconciling sentence has no slot in the shipped markup, or has two");
+  const document = parseHtml(html);
+  const slot = byId(document, STAND_IDS.recoverableReconciliation);
+  const region = byId(document, STAND_IDS.region);
+  // Same block as the value, and no disclosure between the two of them and the
+  // region. Walked rather than selected: this harness reads text through a shut
+  // disclosure, so only the ancestry says whether a browser would fold it away.
+  assert.equal(byId(document, STAND_IDS.recoverableValue).parentNode
+    .querySelectorAll(`#${STAND_IDS.recoverableReconciliation}`).length, 1,
+    "the reconciling sentence ships outside the block holding the recoverable figure");
+  let node = slot;
+  let depth = 0;
+  while (node && node !== region) {
+    assert.notEqual(node.tagName?.toLowerCase(), "details",
+      "the reconciling sentence ships inside a disclosure");
+    node = node.parentNode;
+    depth += 1;
+  }
+  // Compared as a boolean, never as two nodes: asserting on a harness element
+  // walks the whole parsed page to build a diff.
+  assert.equal(node === region, true,
+    "the reconciling sentence ships outside the headline region");
+  assert.ok(depth > 0, "the reconciling sentence has no ancestry to check");
+});
+
 test("the headline is the highest-ranked heading in its region, and it is first on the view", () => {
   const document = parseHtml(html);
   const region = byId(document, STAND_IDS.region);

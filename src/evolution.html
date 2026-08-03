@@ -190,6 +190,16 @@
             <h3 class="stand-figure-label" id="finops-stand-metric-label">Recoverable spend</h3>
             <p class="stand-figure-value" id="finops-stand-recoverable-value" data-available="false"></p>
             <p class="stand-figure-basis" id="finops-stand-recoverable-basis"></p>
+            <!-- WHAT THE FIGURE ABOVE IS, AND WHAT THE RUBRIC SCORED OF IT
+                 (#1019). This block models a recoverable ceiling over every
+                 analyzed dollar; the trust panel below reports how much of that
+                 same base the rubric scored. Side by side with nothing between
+                 them the two read as a contradiction. The sentence here is
+                 composed in src/finops-stand.js from the SAME gradeExport()
+                 verdict the trust panel prints, so their coverage cannot
+                 diverge. It is an ordinary paragraph beside the value it
+                 qualifies, never a footnote, a tooltip, or a details element. -->
+            <p class="stand-figure-basis stand-figure-reconciliation" id="finops-stand-recoverable-reconciliation"></p>
           </div>
           <div class="stand-figure stand-figure-position">
             <h3 class="stand-figure-label">Rank against similar organizations</h3>

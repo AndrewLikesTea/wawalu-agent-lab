@@ -119,6 +119,44 @@ export const GRADABILITY_STATE = Object.freeze({
   noBaseline: "no_baseline",
 });
 
+/**
+ * WHAT THE RUBRIC SCORED, READ ONCE (#1019).
+ *
+ * Two surfaces state this over one spend base: the trust panel's coverage clause
+ * (`confidenceSentence` in finops-screen-contract.js) and the sentence
+ * qualifying the recoverable figure in the headline block (`finops-stand.js`).
+ * A second lookup at the second call site is a second chance to disagree about
+ * whether a verdict has a denominator at all — which is precisely the confusion
+ * #1019 exists to remove — so the reading lives here, next to the verdict that
+ * publishes it. Both callers WORD it; neither re-derives it.
+ *
+ * NOTHING IS COMPUTED. The three fields are read off a `gradeExport()` verdict
+ * and returned in the shape a caller needs to word them. `measurable` is the
+ * distinction `grade-eligibility.js` already publishes and states twice: a
+ * missing or non-positive total has no denominator and is NOT a coverage of
+ * zero, and `ratio` there is null exactly when that is so — which is why both
+ * halves are asserted here rather than one standing in for the other.
+ *
+ * @param verdict a `gradeExport()` result, or anything carrying the same three
+ *   fields. Null and undefined are not measurable, and never throw.
+ */
+export function rubricCoverage(verdict) {
+  const coveredUsd = Number(verdict?.coveredUsd);
+  const totalUsd = Number(verdict?.totalUsd);
+  const ratio = verdict?.coverage ?? null;
+  const measurable = Number.isFinite(totalUsd) && totalUsd > 0 && typeof ratio === "number";
+  return Object.freeze({
+    /** Whether there is a denominator to measure coverage against at all. */
+    measurable,
+    coveredUsd,
+    totalUsd,
+    /** The raw ratio, or null when there is nothing to have taken it over. */
+    ratio: measurable ? ratio : null,
+    /** The rubric scored NO part of a base it could have scored. Zero, not absent. */
+    scoredNothing: measurable && !(coveredUsd > 0),
+  });
+}
+
 const PERCENT = new Intl.NumberFormat("en-US", { style: "percent", maximumFractionDigits: 0 });
 const percent = (ratio) => PERCENT.format(ratio);
 

@@ -30,7 +30,7 @@ import {
 import { ANSWER_BLOCK_IDS, applyStandHeadline } from "../src/finops-stand-view.js";
 import { buildStandHeadline, composeStandHeadline } from "../src/finops-stand.js";
 import { departmentPerformance, formatPercent, summarize } from "../src/evolution.js";
-import { GRADABILITY_STATE } from "../src/export-gradability.js";
+import { GRADABILITY_STATE, rubricCoverage } from "../src/export-gradability.js";
 
 const PAGE = new URL("../src/evolution.html", import.meta.url);
 const html = await readFile(PAGE, "utf8");
@@ -406,4 +406,54 @@ test("every top-level section that existed before the answer block is still on t
   // one region the answer spine allows to be the headline.
   assert.ok(!top.includes(ANSWER_BLOCK_IDS.block));
   assert.equal(byId(document, ANSWER_BLOCK_IDS.block).closest("section").id, "finops-stand");
+});
+
+/**
+ * ONE READING OF THE COVERAGE, WORDED TWICE (#1019).
+ *
+ * The trust panel's coverage clause and the sentence qualifying the recoverable
+ * figure in the headline block are two sentences over one spend base. They read
+ * `rubricCoverage()` rather than each looking the three fields up, so the
+ * distinction that matters — a coverage of ZERO is not the same as no
+ * denominator to measure against — cannot be decided one way on one surface and
+ * the other way three inches below it.
+ */
+test("the coverage reading distinguishes a scored nothing from nothing to score", () => {
+  const zero = rubricCoverage({ coveredUsd: 0, totalUsd: 154500, coverage: 0 });
+  assert.equal(zero.measurable, true, "a positive spend total is measurable");
+  assert.equal(zero.scoredNothing, true);
+  assert.equal(zero.ratio, 0, "zero coverage is reported as zero, never as absent");
+
+  // No denominator. `grade-eligibility.js` publishes a null ratio exactly here.
+  const absent = rubricCoverage({ coveredUsd: 0, totalUsd: 0, coverage: null });
+  assert.equal(absent.measurable, false);
+  assert.equal(absent.scoredNothing, false, "nothing to score is not a score of nothing");
+  assert.equal(absent.ratio, null);
+
+  // Partial coverage keeps both amounts, so a caller words them rather than
+  // rounding a share this module did not take.
+  const some = rubricCoverage({ coveredUsd: 60000, totalUsd: 154500, coverage: 0.388 });
+  assert.equal(some.scoredNothing, false);
+  assert.equal(some.coveredUsd, 60000);
+  assert.equal(some.totalUsd, 154500);
+
+  // A missing verdict is not measurable and does not throw.
+  assert.equal(rubricCoverage(null).measurable, false);
+});
+
+/**
+ * …and the two sentences agree on the bundled example, which is the state #1019
+ * was filed against: the headline qualifies $51,254 with the same $0 of $154,500
+ * the trust panel prints, off the same verdict.
+ */
+test("the headline's qualifying sentence quotes the trust panel's own coverage", () => {
+  const headline = buildStandHeadline();
+  const coverage = rubricCoverage(headline.gradability);
+  assert.equal(coverage.scoredNothing, true, "the bundled rubric scores no department");
+  assert.match(answerBlock(headline).confidence,
+    /Coverage: \$0 of \$154,500 of spend in scope sits in departments the rubric scored\./);
+  assert.match(headline.recoverable.reconciliation,
+    /\$0 of the \$154,500 analyzed sits in departments the rubric scored\./);
+  // Neither figure moved to make them agree.
+  assert.equal(headline.recoverable.value, "$51,254 · 33% of analyzed spend");
 });
