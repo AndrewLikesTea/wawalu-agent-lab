@@ -546,7 +546,16 @@
                    module once it knows whether the records are the reader's own. -->
               <p class="sample-marker" id="finops-next-step-sample"><span class="sample-marker-shape" aria-hidden="true">◇</span><strong>Bundled synthetic example</strong> Invented review, action, and verification records for an invented company. Not your spend and not realized savings.</p>
               <div id="finops-next-step-body">
-                <p class="next-step-headline">No journey records have been read yet, so no next step is recommended.</p>
+                <!-- #1020: this used to author a dead end — "no journey records
+                     have been read yet, so no next step is recommended" — on a
+                     screen whose whole point is a worked example that DOES
+                     recommend one. The step is derived in
+                     src/finops-bundled-next-step.js from the bundled dataset and
+                     painted in the first synchronous pass, so this line is only
+                     ever read before that pass and says what is coming rather
+                     than that nothing is. No figure and no department is
+                     authored here. -->
+                <p class="next-step-headline">This month's one step is composed from what this browser holds, and from the bundled synthetic example when it holds nothing.</p>
               </div>
             </section>
           </details>
@@ -573,7 +582,9 @@
                    source module once it knows whose records these are. -->
               <p class="sample-marker" id="finops-journey-sample"><span class="sample-marker-shape" aria-hidden="true">◇</span><strong>Bundled synthetic example</strong> Invented review, action, and verification records for an invented company. Not your spend and not realized savings.</p>
               <div id="finops-journey-body">
-                <p class="fjc-headline">No journey records have been read yet, so no step is recommended from them.</p>
+                <!-- Same rule as the layer above (#1020): the step and the
+                     checkpoint are derived, never authored here. -->
+                <p class="fjc-headline">This step and its checkpoint are composed from what this browser holds, and from the bundled synthetic example when it holds nothing.</p>
               </div>
               <p class="visually-hidden" id="finops-journey-live" role="status" aria-live="polite" aria-atomic="true"></p>
             </section>

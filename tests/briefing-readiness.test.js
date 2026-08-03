@@ -101,6 +101,9 @@ test("the existing evolution surface consumes and renders the contract", async (
     readFile(new URL("../src/evolution-page.js", import.meta.url), "utf8"),
   ]);
   assert.match(page, /Is this bundled analysis ready to circulate\?/);
-  assert.match(wiring, /assessBriefingReadiness\(data\.briefingReadiness\)/);
+  // #1020: the record still comes from the bundled seed, but its first action is
+  // the one derived by src/finops-bundled-next-step.js, so this block and the two
+  // evidence layers below it cannot name different first actions.
+  assert.match(wiring, /assessBriefingReadiness\(withDerivedFirstAction\(data\)\)/);
   assert.match(wiring, /renderBriefingReadiness/);
 });

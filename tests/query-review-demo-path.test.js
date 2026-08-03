@@ -63,6 +63,9 @@ test("the bundled demo path's headline number and next action are unchanged", as
     + "Your AI spend is in the most expensive quarter of organizations like yours, at $38.63 per "
     + "successful task for June 2026. $51,254 of that is modelled as recoverable. Department "
     + "…atlas0 is driving the increase.");
+  // #1020: the bundled state's step is now derived from the bundled dataset the
+  // figures above come from, rather than from an unrelated invented journey
+  // fixture, so it names a department that appears in the analyzed spend.
   assert.equal(textOf(document.getElementById("finops-next-step-action")),
-    "Verify “Route short support summaries to the standard model”");
+    "Enable automated down-routing for short, low-context prompts in Backend Platform");
 });

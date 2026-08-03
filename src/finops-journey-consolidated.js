@@ -62,12 +62,14 @@ export const JOURNEY_PHASE = Object.freeze({
   degraded: "degraded",
   verificationReady: "verification_ready",
   resumed: "resumed_review",
+  bundledExample: "bundled_example",
   new: "new_review",
 });
 
 /** The state as a word, beside the tint, so the phase never travels as colour. */
 export const PHASE_LABEL = Object.freeze({
   [JOURNEY_PHASE.new]: "New review",
+  [JOURNEY_PHASE.bundledExample]: "Bundled synthetic example",
   [JOURNEY_PHASE.resumed]: "Review in progress",
   [JOURNEY_PHASE.verificationReady]: "Awaiting verification",
   [JOURNEY_PHASE.degraded]: "Records unreadable",
@@ -77,6 +79,9 @@ export const PHASE_LABEL = Object.freeze({
 export const PHASE_COPY = Object.freeze({
   [JOURNEY_PHASE.new]:
     "Nothing is retained in this browser yet, so this review starts from the one step below.",
+  [JOURNEY_PHASE.bundledExample]:
+    "Nothing of yours is imported, so the step and the checkpoint below are the ones the "
+    + "bundled synthetic example recommends for its own invented company.",
   [JOURNEY_PHASE.resumed]:
     "A review is already under way here. What was decided and what is still open are both below.",
   [JOURNEY_PHASE.verificationReady]:
@@ -286,9 +291,13 @@ const provenanceRow = (marker) => [
  * took. A phase is a claim about the reader's own journey, so it may only be
  * made from the reader's own records.
  */
-function phaseOf({ recommendation, restored, retainedAction }) {
+function phaseOf({ recommendation, restored, retainedAction, example }) {
   if (!retainedAction && !restored?.carried && !restored?.currentAnalysis) {
-    return JOURNEY_PHASE.new;
+    // #1020: a reader with nothing imported used to be told there was nothing
+    // to recommend from, on a page whose whole first screen is a worked
+    // example. The example's own first action answers instead — when one was
+    // derived. Without one this is still honestly empty rather than invented.
+    return example ? JOURNEY_PHASE.bundledExample : JOURNEY_PHASE.new;
   }
   if (recommendation.state === JOURNEY_STATE.verificationDue
     && recommendation.primaryAction.kind === PRIMARY_ACTION.verifyAction) {
@@ -338,6 +347,39 @@ function onboarding(surface) {
  * step the reader can still take all survive, so no panel is ever blank and no
  * unreadable record reaches a reader as a thrown error.
  */
+/**
+ * The bundled-example state: what the WORKED EXAMPLE recommends, and what would
+ * tell that example it worked.
+ *
+ * Every field is read off the one derived `finops-bundled-next-step/1.0.0`
+ * record — the same record the circulation decision block states its first
+ * action from — so this surface cannot name a second first action. It states no
+ * figure of the reader's, because there is none: the metric is the example's
+ * modelled recoverable line, labelled as modelled and as invented.
+ */
+function bundledExample(example, surface) {
+  return freeze({
+    sample: "◇ Bundled synthetic example — the step and the checkpoint below are what this "
+      + "invented company's records recommend. Not your spend and not realized savings.",
+    headline: example.headline,
+    metric: freeze({
+      known: true,
+      label: "Figure the example's step came from",
+      value: `${example.figure.text} ${example.figure.metricName}`,
+      comparison: `${example.figure.unit}${example.figure.period ? ` · ${example.figure.period}` : ""}`
+        + ` · ${example.department} · modelled from invented records, not a realized saving`,
+    }),
+    action: freeze({
+      known: true,
+      kind: PRIMARY_ACTION.collectEvidence,
+      label: example.actionText,
+      href: actionHref(PRIMARY_ACTION.collectEvidence, surface),
+      rationale: `${example.rationale} Import one provider export to get the same step derived `
+        + "from your own periods.",
+    }),
+  });
+}
+
 function degraded(reason, surface, marker = null) {
   return freeze({
     contract: CONSOLIDATED_JOURNEY_CONTRACT,
@@ -391,7 +433,7 @@ function degraded(reason, surface, marker = null) {
  *   an unreadable input resolves to the degraded phase with its reason named.
  */
 export function consolidateJourney({
-  restored = null, now = new Date(), surface = "briefing", provenance = null,
+  restored = null, now = new Date(), surface = "briefing", provenance = null, example = null,
 } = {}) {
   const marker = provenanceMarker(provenance);
   if (restored !== null && !isRecord(restored)) {
@@ -418,11 +460,16 @@ export function consolidateJourney({
       "A journey contract answered in a shape this view does not support.", surface, marker);
   }
 
-  const checkpoint = verificationCheckpoint(retainedAction);
-  const phase = phaseOf({ recommendation, restored, retainedAction });
+  const derived = isRecord(example) ? example : null;
+  const phase = phaseOf({ recommendation, restored, retainedAction, example: derived });
+  // The example's step carries the example's own checkpoint. Every other phase
+  // reads the one the retained record schedules, which may be none.
+  const checkpoint = phase === JOURNEY_PHASE.bundledExample
+    ? derived.checkpoint : verificationCheckpoint(retainedAction);
   // The onboarding state answers from nothing, so it answers for itself. Every
   // other phase reads the recommendation the contract already published.
-  const first = phase === JOURNEY_PHASE.new ? onboarding(surface) : {
+  const first = phase === JOURNEY_PHASE.bundledExample ? bundledExample(derived, surface)
+    : phase === JOURNEY_PHASE.new ? onboarding(surface) : {
     sample: SAMPLE_LABEL[chosen.source] ?? null,
     headline: recommendation.headline,
     metric: materialMetric(review, recommendation),
@@ -450,7 +497,15 @@ export function consolidateJourney({
     metric: first.metric,
     action: freeze({ ...first.action, label: neutralizeRecordText(first.action.label) }),
     decided: decided(review, retainedAction, checkpoint),
-    remaining: phase === JOURNEY_PHASE.new
+    remaining: phase === JOURNEY_PHASE.bundledExample
+      ? displayRows([
+        ["Next step", derived.actionText],
+        ["Checkpoint", derived.checkpoint.note],
+        ["Nothing of yours is imported yet",
+          "No provider export, no retained monthly action, and no evidence verdict are held "
+          + "in this browser. Importing one export derives this same step from your periods."],
+      ])
+      : phase === JOURNEY_PHASE.new
       ? displayRows([["Nothing retained yet",
         "No provider export, no retained monthly action, and no evidence verdict are held "
         + "in this browser. Importing one export fills all three."]])
@@ -475,7 +530,10 @@ export function consolidateJourney({
       // The boundary belongs to the recommendation, so it travels only where the
       // recommendation does. In the onboarding state it would be the bundled
       // fixture's boundary describing accounts the reader has never imported.
-      ["Evidence boundary", phase === JOURNEY_PHASE.new
+      ["Evidence boundary", phase === JOURNEY_PHASE.bundledExample
+        ? "Covers the bundled example's invented departments over its own baseline period only. "
+        + "Nothing you imported is inside it, because nothing is imported."
+        : phase === JOURNEY_PHASE.new
         ? "No boundary is stated: no imported evidence exists here to bound."
         : recommendation.evidenceBoundary],
     ]),
