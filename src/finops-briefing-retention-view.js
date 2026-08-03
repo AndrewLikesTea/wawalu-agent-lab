@@ -13,6 +13,7 @@
  */
 import {
   BRIEFING_RETENTION_KEY, RETENTION_COPY, RETENTION_STATE, capturedAtLabel,
+  suppliedContextLabel,
 } from "./finops-briefing-retention.js";
 
 export const RETENTION_IDS = Object.freeze({
@@ -22,6 +23,7 @@ export const RETENTION_IDS = Object.freeze({
   detail: "local-lead-retention-detail",
   status: "local-lead-retention-status",
   captured: "local-lead-retention-captured",
+  supplied: "local-lead-retention-supplied",
   forget: "local-lead-retention-forget",
 });
 
@@ -74,6 +76,16 @@ export function renderBriefingRetention(doc, state, { now = new Date() } = {}) {
     captured.hidden = !stamp;
   }
 
+  // …and beside it the time the reader last edited context of their own. Two
+  // instants rather than one, because a name typed by hand and a figure read
+  // off a file are not the same kind of fact. Hidden when none was supplied.
+  const supplied = byId(doc, RETENTION_IDS.supplied);
+  if (supplied) {
+    const line = retained ? suppliedContextLabel(state?.payload?.context ?? null, now) : "";
+    supplied.textContent = line;
+    supplied.hidden = !line;
+  }
+
   // Forget is offered only when there is something to forget. A control that
   // clears nothing is a control that teaches a reader their data was kept.
   const forget = byId(doc, RETENTION_IDS.forget);
@@ -93,10 +105,12 @@ export function clearBriefingRetention(doc) {
   block.dataset.retained = "false";
   const toggle = byId(doc, RETENTION_IDS.toggle);
   if (toggle) toggle.checked = false;
-  const captured = byId(doc, RETENTION_IDS.captured);
-  if (captured) {
-    captured.textContent = "";
-    captured.hidden = true;
+  for (const id of [RETENTION_IDS.captured, RETENTION_IDS.supplied]) {
+    const line = byId(doc, id);
+    if (line) {
+      line.textContent = "";
+      line.hidden = true;
+    }
   }
   const forget = byId(doc, RETENTION_IDS.forget);
   if (forget) forget.hidden = true;

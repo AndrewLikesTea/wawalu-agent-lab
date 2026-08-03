@@ -118,7 +118,8 @@ import { briefingDerivation } from "/finops-briefing-derivation.js";
 // state with a sentence in it.
 import {
   RETENTION_COPY, RETENTION_STATE, analysisFromRetained, forgetRetainedBriefing,
-  readRetainedBriefing, retainedBriefingPayload, writeRetainedBriefing,
+  readRetainedBriefing, retainedBriefingPayload, retainedSuppliedContext,
+  writeRetainedBriefing,
 } from "/finops-briefing-retention.js";
 import {
   bindBriefingRetention, clearBriefingRetention, renderBriefingRetention,
@@ -847,11 +848,14 @@ function mountLocalFinopsImport() {
   /**
    * The two cohort attributes the reader declared in this tab, or null.
    *
-   * IN MEMORY, IN THIS TAB, AND NOWHERE ELSE. Declared here beside `imports`
-   * because it has exactly their lifetime: `reset()` drops both, and "Forget
-   * this briefing" calls `reset()`, so the one control that means forget
-   * already means this too. Nothing writes it to storage, and nothing sends it
-   * anywhere — there is no credential and no request on this path at all.
+   * IN MEMORY, IN THIS TAB, AND NOWHERE ELSE UNTIL THE READER SAYS OTHERWISE.
+   * Declared here beside `imports` because it has exactly their lifetime:
+   * `reset()` drops both, and "Forget this briefing" calls `reset()`, so the one
+   * control that means forget already means this too. It reaches this browser's
+   * storage on one path only — inside the retained record of the import it is
+   * about, and only once the reader has turned keeping that record on (#1010).
+   * Nothing sends it anywhere: there is no credential and no request on this
+   * path at all.
    */
   let declaredCohortFacts = null;
   /** The analysis the last position was computed against, for a recompute. */
@@ -869,12 +873,17 @@ function mountLocalFinopsImport() {
   let review = null;
   let result = null;
   // The reader's own names for their own org units — "Platform Engineering"
-  // over `psn_…atlas0`. PAGE STATE AND NOTHING ELSE: it is never written to
-  // storage, never put in an export, never sent anywhere, and it dies with the
-  // tab. It is deliberately NOT part of `result`, so naming a team cannot touch
-  // a single imported figure; every surface re-reads the same envelope and
-  // resolves the name through `orgUnitDisplayName`.
+  // over `psn_…atlas0`. Never put in an export and never sent anywhere; it
+  // reaches storage only inside the retained record of the import it names, and
+  // only after the reader turns keeping that record on (#1010). It is
+  // deliberately NOT part of `result`, so naming a team cannot touch a single
+  // imported figure; every surface re-reads the same envelope and resolves the
+  // name through `orgUnitDisplayName`.
   let orgUnitLabels = NO_ORG_UNIT_LABELS;
+  // When the reader last edited any of the three above. Null until they do,
+  // which is what keeps a record written by a reader who supplied nothing free
+  // of a context field and of a timestamp that would stand for no edit.
+  let contextEditedAt = null;
   // The briefing the live analysis last produced, kept so a restored briefing
   // can be compared against exactly what is on screen rather than against a
   // second selection made from the same envelope.
@@ -1352,13 +1361,16 @@ function mountLocalFinopsImport() {
   /**
    * A reader named one of their own org units, or cleared the name.
    *
-   * Nothing is uploaded and nothing is stored: the map is replaced in page
-   * state and the surfaces are repainted from the SAME imported envelope, so a
-   * rename cannot discard, reorder, or mutate a single imported row. Clearing
-   * the field removes the entry and the unit renders under its pseudonym again.
+   * Nothing is uploaded: the map is replaced in page state and the surfaces are
+   * repainted from the SAME imported envelope, so a rename cannot discard,
+   * reorder, or mutate a single imported row. Clearing the field removes the
+   * entry and the unit renders under its pseudonym again. It is written down
+   * only for a reader who has turned keeping this briefing on, and then into
+   * that briefing's own record (#1010).
    */
   function relabelOrgUnit(unitId, label) {
     orgUnitLabels = withOrgUnitDisplayLabel(orgUnitLabels, unitId, label);
+    noteContextEdit();
     if (result && !exampleActive) {
       applyImportedHeadline(document, result, { labels: orgUnitLabels });
     }
@@ -1875,7 +1887,15 @@ function mountLocalFinopsImport() {
     // a control offering to keep the bundled example would be offering to keep
     // invented data.
     if (example) clearBriefingRetention(document);
-    else syncRetention(next);
+    else {
+      // A new analysis is a new file, and the reader's names, categories and
+      // declared cohort were about the last one. Dropped BEFORE the capture
+      // below, so the record this import writes describes this import and
+      // nothing carried over from the one it replaced — including one restored
+      // from storage a moment earlier (#1010).
+      dropSuppliedContext();
+      syncRetention(next);
+    }
     // A restored briefing on screen gains — or loses — its delta line the
     // moment the live analysis changes underneath it. Repainting here is what
     // stops a delta from outliving the analysis it was computed against.
@@ -2135,6 +2155,9 @@ function mountLocalFinopsImport() {
     // runs this function, so nothing declared survives it.
     declaredCohortFacts = null;
     cohortAnalysis = null;
+    // And with them the unit names and the edit stamp, so "start over" leaves
+    // nothing of the reader's own composition behind either.
+    dropSuppliedContext();
     // And the headline goes back to the bundled example with it. A cleared
     // import must not leave a withheld-position path on screen for a file that
     // is no longer loaded. The state restores the synthetic answer — marker
@@ -2521,6 +2544,7 @@ function mountLocalFinopsImport() {
       return outcome;
     }
     declaredCohortFacts = outcome.facts;
+    noteContextEdit();
     syncCohortPosition(cohortAnalysis);
     announce("ready", "Ranked position recomputed from the import already open.",
       outcome.message);
@@ -2831,6 +2855,7 @@ function mountLocalFinopsImport() {
         // the reader taking a category back off, not a rejected one.
         if (categoryId) readerWorkloadChoices.set(name, categoryId);
         else readerWorkloadChoices.delete(name);
+        noteContextEdit();
         paintReaderClassification();
       },
     });
@@ -3287,10 +3312,46 @@ function mountLocalFinopsImport() {
     return held.retained ? (held.payload?.totals?.periods ?? []) : [];
   };
 
+  /**
+   * The three things the reader supplied by hand, read from page state at
+   * capture time rather than accumulated as they are typed, so what is kept is
+   * what is on screen. A null stamp is nothing supplied, and the store then
+   * writes no context field at all.
+   */
+  /** Forget what the reader supplied, in page state. One place, three fields. */
+  const dropSuppliedContext = () => {
+    orgUnitLabels = NO_ORG_UNIT_LABELS;
+    readerWorkloadChoices.clear();
+    declaredCohortFacts = null;
+    contextEditedAt = null;
+  };
+
+  const suppliedContextNow = () => ({
+    unitLabels: orgUnitLabels,
+    departments: Object.fromEntries(readerWorkloadChoices),
+    cohort: declaredCohortFacts,
+    editedAt: contextEditedAt,
+  });
+
+  /**
+   * The reader typed a name, a category, or a cohort attribute. Stamped here —
+   * this is the page, so this is where the clock is — and written through the
+   * SAME capture path an import goes through. A reader who has not opted in
+   * gets the stamp and no write; `syncRetention` decides that from the store.
+   */
+  const noteContextEdit = () => {
+    contextEditedAt = new Date().toISOString();
+    if (retentionAnalysis) syncRetention(retentionAnalysis);
+  };
+
   const captureNow = (analysis) => retainedBriefingPayload({
     analysis,
     provider: detectedProviderFor(),
     capturedAt: new Date().toISOString(),
+    // What the reader said about this import, in the record the import is in
+    // (#1010), so one restore brings back one complete brief and one forget
+    // takes all of it.
+    context: suppliedContextNow(),
     // The suppression this page applied to THIS analysis, and the file presence
     // it was decided against, kept with the figures rather than beside them
     // (#997). A capture written without them restores as a briefing that states
@@ -3335,6 +3396,43 @@ function mountLocalFinopsImport() {
   };
 
   /**
+   * Put the reader's own context back, from the record the import came out of.
+   *
+   * EVERY VALUE GOES BACK THROUGH THE CHECK THAT ACCEPTED IT: a label through
+   * `withOrgUnitDisplayLabel`, a cohort pair through
+   * `validateDeclaredCohortFacts`, a category through the grade composer. The
+   * store validated a SHAPE; whether a value still means anything is the
+   * contract's decision, so a pair a later contract no longer accepts comes
+   * back as no declaration rather than as a position nobody could choose today.
+   * Nothing here can throw into the restore path: no parse, and every loop is
+   * over a frozen map the store already normalized.
+   */
+  const rehydrateSuppliedContext = (analysis, context) => {
+    if (!context) return;
+    contextEditedAt = context.editedAt;
+    for (const [unitId, label] of Object.entries(context.unitLabels)) {
+      orgUnitLabels = withOrgUnitDisplayLabel(orgUnitLabels, unitId, label);
+    }
+    readerWorkloadChoices.clear();
+    for (const [name, categoryId] of Object.entries(context.departments)) {
+      readerWorkloadChoices.set(name, categoryId);
+    }
+    const declared = context.cohort ? validateDeclaredCohortFacts(context.cohort) : null;
+    declaredCohortFacts = declared?.accepted ? declared.facts : null;
+    // The letter those categories earn, recomposed from the restored rollups
+    // rather than stored as a grade: a letter kept as a letter would survive a
+    // change to the rubric that produced it, which is the one thing a grade
+    // must not do.
+    if (readerWorkloadChoices.size > 0) {
+      applyReaderClassifiedLetter(document, readerClassifiedGrade({
+        departments: (analysis?.rankedDepartments ?? [])
+          .map((entry) => ({ name: entry.name, spendUsd: entry.spendUsd })),
+        choices: readerWorkloadChoices,
+      }));
+    }
+  };
+
+  /**
    * Rehydrate on load.
    *
    * The retained payload is turned back into an analysis envelope and handed to
@@ -3352,6 +3450,10 @@ function mountLocalFinopsImport() {
         foldForRestore(true);
         resultsNode.dataset.retained = "true";
         resultsNode.hidden = false;
+        // The context first: the analysis below already carries the reader's
+        // own unit names, applied by the store when it rebuilt the envelope, so
+        // there is one composition here and not two.
+        rehydrateSuppliedContext(analysis, retainedSuppliedContext(held.payload));
         applyBriefing(document, briefing);
         renderBriefingRetention(document, held);
         return;

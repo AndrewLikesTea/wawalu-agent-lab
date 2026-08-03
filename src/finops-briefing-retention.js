@@ -77,8 +77,9 @@ export const RETENTION_COPY = Object.freeze({
   label: "Keep this briefing in this browser, on this device",
   detail: "Derived values only: the spend and recoverable totals, the department rollups, the "
     + "detected provider and its recognition confidence, the confidence grade, and the time of "
-    + "capture. No file contents, no individual usage rows, and no file names are written. "
-    + "Nothing is kept until you turn this on.",
+    + "capture — plus the names, department categories and cohort facts you supplied here "
+    + "yourself, with the time you last edited them. No file contents, no individual usage rows, "
+    + "and no file names are written. Nothing is kept until you turn this on.",
   forget: "Forget this briefing",
   [RETENTION_STATE.off]:
     "Nothing is kept in this browser. Turning this on writes the derived values named above.",
@@ -103,6 +104,63 @@ const count = (value) => {
 };
 const text = (value) => (typeof value === "string" && value.trim() ? value : null);
 
+/** A ceiling on supplied entries, so nothing can grow this entry without bound. */
+const MAX_CONTEXT_ENTRIES = 200;
+
+/** A `{ id: word }` map of the reader's own strings, cleaned entry by entry. */
+const suppliedMap = (value) => {
+  const clean = {};
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    for (const [key, entry] of Object.entries(value).slice(0, MAX_CONTEXT_ENTRIES)) {
+      const id = text(key);
+      const word = text(entry);
+      if (id && word) clean[id] = word;
+    }
+  }
+  return Object.freeze(clean);
+};
+
+/**
+ * The context a reader supplied by hand, normalized for the same record (#1010).
+ *
+ * IN THE IMPORT'S OWN RECORD, because a unit label, a department category and a
+ * declared cohort attribute are all statements ABOUT one import. Under a second
+ * key they would outlive it, and a reader who forgot a briefing would still be
+ * carrying their reading of a company's departments. One record, one lifetime,
+ * one erase. Nothing here is written without the same consent the figures
+ * beside it needed, and `editedAt` comes from the caller — no clock is read.
+ *
+ * @returns the context, or null when the reader has supplied none of it.
+ */
+export function suppliedContext(supplied = null) {
+  const { unitLabels = null, departments = null, cohort = null, editedAt = null } = supplied ?? {};
+  const stamp = text(editedAt);
+  if (!stamp) return null;
+  const labels = suppliedMap(unitLabels);
+  const categories = suppliedMap(departments);
+  const band = text(cohort?.orgSizeBand);
+  const industry = text(cohort?.industry);
+  const facts = band && industry ? Object.freeze({ orgSizeBand: band, industry }) : null;
+  if (!Object.keys(labels).length && !Object.keys(categories).length && !facts) return null;
+  return Object.freeze({
+    editedAt: stamp, unitLabels: labels, departments: categories, cohort: facts,
+  });
+}
+
+/**
+ * Absent is valid: a record written before this field existed is a complete
+ * record of what it did carry. Present but not reproducible by the builder
+ * above invalidates the WHOLE payload rather than being dropped from it —
+ * half a restored record is a brief that disagrees with the one that was kept.
+ */
+const validContext = (value) => value === undefined || value === null
+  || (typeof value === "object" && !Array.isArray(value) && suppliedContext(value) !== null);
+
+/** The context a payload carries, or null. Read through one function. */
+export function retainedSuppliedContext(payload) {
+  return validPayload(payload) ? payload.context ?? null : null;
+}
+
 /** One department rollup: an aggregate over a unit, never a record from one. */
 const departmentRollup = (department) => Object.freeze({
   id: text(department?.id) ?? "",
@@ -126,7 +184,7 @@ const departmentRollup = (department) => Object.freeze({
  */
 export function retainedBriefingPayload({
   analysis = null, provider = null, capturedAt = null,
-  attributionWithheld = false, sources = null,
+  attributionWithheld = false, sources = null, context = null,
 } = {}) {
   const spendUsd = number(analysis?.spendUsd);
   const departments = Array.isArray(analysis?.rankedDepartments) ? analysis.rankedDepartments : [];
@@ -172,6 +230,10 @@ export function retainedBriefingPayload({
       spendExport: sources?.spend !== false,
       conversationExport: Boolean(sources?.conversation),
     }),
+    // What the reader said about this import, in the record the import is in
+    // (#1010). Null when they supplied none, which is the state every record
+    // written before this field existed is also read as.
+    context: suppliedContext(context),
   });
 }
 
@@ -195,7 +257,8 @@ function validPayload(value) {
     && value.version === BRIEFING_RETENTION_VERSION
     && typeof value.capturedAt === "string"
     && Boolean(value.totals)
-    && Array.isArray(value.departments);
+    && Array.isArray(value.departments)
+    && validContext(value.context);
 }
 
 const outcome = (state, payload = null) => Object.freeze({
@@ -274,7 +337,12 @@ export function forgetRetainedBriefing(storage) {
  */
 export function analysisFromRetained(payload) {
   if (!validPayload(payload)) return null;
-  const departments = payload.departments.map(departmentRollup);
+  // The reader's own name for a unit. It renames, it never re-ranks: only the
+  // visible word changes, so a restored brief names the team a leader knows
+  // without the arithmetic depending on anything the reader typed.
+  const labels = payload.context?.unitLabels ?? null;
+  const departments = payload.departments.map((entry) => departmentRollup(
+    labels?.[entry?.id] ? { ...entry, name: labels[entry.id] } : entry));
   const periods = (payload.totals.periods ?? []).map((entry) => Object.freeze({
     period: text(entry?.period) ?? "", spendUsd: number(entry?.spendUsd) ?? 0,
   }));
@@ -349,13 +417,32 @@ const UNITS = Object.freeze([
  * export I meant?", and the absolute instant beside it is what survives being
  * read a week later in a screenshot.
  */
-export function capturedAtLabel(capturedAt, now = new Date()) {
-  const captured = Date.parse(String(capturedAt ?? ""));
-  if (!Number.isFinite(captured)) return "Captured at an unrecorded time";
-  const absolute = new Date(captured).toISOString().replace("T", " ").slice(0, 16);
-  const elapsed = now.getTime() - captured;
-  if (elapsed < 60000) return `Captured just now · ${absolute} UTC`;
+function stampLabel(instant, now, lead, unknown) {
+  const at = Date.parse(String(instant ?? ""));
+  if (!Number.isFinite(at)) return unknown;
+  const absolute = new Date(at).toISOString().replace("T", " ").slice(0, 16);
+  const elapsed = now.getTime() - at;
+  if (elapsed < 60000) return `${lead} just now · ${absolute} UTC`;
   const [unit, size] = UNITS.find(([, span]) => elapsed >= span) ?? UNITS.at(-1);
   const amount = Math.floor(elapsed / size);
-  return `Captured ${amount} ${unit}${amount === 1 ? "" : "s"} ago · ${absolute} UTC`;
+  return `${lead} ${amount} ${unit}${amount === 1 ? "" : "s"} ago · ${absolute} UTC`;
+}
+
+export function capturedAtLabel(capturedAt, now = new Date()) {
+  return stampLabel(capturedAt, now, "Captured", "Captured at an unrecorded time");
+}
+
+/**
+ * When the reader last edited what THEY supplied, said apart from the file.
+ *
+ * Two instants in one record answering different questions: above is when the
+ * file was read, this is when a person last typed. Same formatter, so they are
+ * comparable at a glance; different sentence, so neither can be read as the
+ * other.
+ */
+export function suppliedContextLabel(context, now = new Date()) {
+  if (!context?.editedAt) return "";
+  return `${stampLabel(context.editedAt, now, "You last edited the names and facts you supplied yourself",
+    "You supplied names and facts yourself, at an unrecorded time")}. `
+    + "Every figure in this brief was derived from the file you imported.";
 }

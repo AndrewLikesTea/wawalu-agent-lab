@@ -22,7 +22,11 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { DomEvent, loadPage, textOf } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
-import { BRIEFING_RETENTION_KEY, RETENTION_STATE } from "../src/finops-briefing-retention.js";
+import {
+  BRIEFING_RETENTION_KEY, RETENTION_STATE, retainedSuppliedContext,
+} from "../src/finops-briefing-retention.js";
+import { ACCEPTED_INDUSTRIES, ACCEPTED_ORG_SIZE_BANDS } from "../src/cohort-attribution.js";
+import { ORG_UNIT_LABEL_STORAGE_KEY } from "../src/org-unit-labels.js";
 
 const PAGE = new URL("../src/evolution.html", import.meta.url);
 const DEMO_DATA = JSON.parse(await readFile(new URL("../src/evolution-demo-data.json", import.meta.url), "utf8"));
@@ -471,3 +475,164 @@ test("a figure the page withheld is not stated as fact after a reload", async ()
       page.restore();
     }
   });
+
+// ---------------------------------------------------------------------------
+// 4. The context the operator supplied by hand (#1010)
+// ---------------------------------------------------------------------------
+//
+// A billing export cannot say which industry the company is in or how big it
+// is; the operator can, and does, in the declaration beside the position. That
+// is context of theirs, about this import, and before this change it died with
+// the tab while the figures it qualified came back — so a restored brief was a
+// brief with the operator's own half missing.
+//
+// These drive the shipped controls: the real chooser, the real submit, the real
+// retention control, and a genuine second boot over the storage the first boot
+// left behind.
+
+/** Declare the two attributes this export carries no column for. */
+function declareCohort(document) {
+  assert.equal(byId(document, "local-cohort-declare").hidden, false,
+    "an import with no cohort columns must offer the declaration to fill them");
+  byId(document, "local-cohort-band").value = ACCEPTED_ORG_SIZE_BANDS[0];
+  byId(document, "local-cohort-industry").value = ACCEPTED_INDUSTRIES[0];
+  byId(document, "local-cohort-declare-submit").click();
+  assert.equal(byId(document, "local-cohort-declare-message").dataset.state, "accepted",
+    "the declaration must be accepted before a test asserts it was kept");
+}
+
+/** The record this browser is holding, parsed. */
+const heldRecord = (page) => JSON.parse(page.storage.getItem(BRIEFING_RETENTION_KEY));
+
+test("the context an operator supplied comes back with the brief, dated as theirs", async () => {
+  let page = await openFinopsTab();
+  try {
+    await importExport(page.document, SPRING);
+    keepBriefing(page);
+    declareCohort(page.document);
+
+    // The declaration went into the record of the import it was about — one
+    // key, one version, one erase — rather than beside it under a second key.
+    const record = heldRecord(page);
+    assert.equal(record.version, 1);
+    assert.equal(record.context.cohort.orgSizeBand, ACCEPTED_ORG_SIZE_BANDS[0]);
+    assert.equal(record.context.cohort.industry, ACCEPTED_INDUSTRIES[0]);
+    assert.equal(typeof record.context.editedAt, "string");
+    assert.notEqual(record.context.editedAt, record.capturedAt,
+      "when the operator typed and when the file was read are two different facts");
+    const before = briefingFigures(page.document);
+
+    page = await reopen(page);
+    const { document } = page;
+
+    // The brief is back and complete: the same figures, and the operator's own
+    // declaration standing behind them rather than an empty chooser.
+    assert.equal(byId(document, "local-results").dataset.retained, "true");
+    assert.deepEqual(briefingFigures(document), before);
+    assert.equal(retainedSuppliedContext(heldRecord(page)).cohort.industry,
+      ACCEPTED_INDUSTRIES[0]);
+
+    // And the brief says when the operator last edited it, in a line that
+    // cannot be mistaken for the capture time above it.
+    const supplied = byId(document, "local-lead-retention-supplied");
+    assert.equal(supplied.hidden, false, "a restored brief must date the context supplied for it");
+    assert.match(shownText(document, "local-lead-retention-supplied"),
+      /^You (last edited the names and facts you supplied yourself|supplied names and facts).* UTC\. /);
+    assert.match(shownText(document, "local-lead-retention-supplied"),
+      /derived from the file you imported\.$/);
+    assert.equal(shownText(document, "local-lead-retention-supplied").includes("Captured"), false);
+    assert.match(shownText(document, "local-lead-retention-captured"), /^Captured .* UTC$/);
+  } finally {
+    page.restore();
+  }
+});
+
+test("one forget clears the import and every piece of context supplied with it", async () => {
+  let page = await openFinopsTab();
+  try {
+    await importExport(page.document, SPRING);
+    keepBriefing(page);
+    declareCohort(page.document);
+    page = await reopen(page);
+    assert.equal(byId(page.document, "local-lead-retention-forget").hidden, false,
+      "an operator can only forget a brief the page brought back and showed them");
+
+    byId(page.document, "local-lead-retention-forget").click();
+
+    // ONE ACTION, NO RESIDUE UNDER ANY KEY. Asserted on the store rather than
+    // on the screen: a page that painted its sample state over a record it left
+    // behind would look identical and restore it on the next load.
+    assert.equal(page.storage.getItem(BRIEFING_RETENTION_KEY), null);
+    assert.equal(BRIEFING_RETENTION_KEY in page.jar, false);
+    assert.equal(ORG_UNIT_LABEL_STORAGE_KEY in page.jar, false,
+      "the other key this page can name org units under must be gone too");
+    const residue = JSON.stringify(page.jar);
+    for (const supplied of [ACCEPTED_ORG_SIZE_BANDS[0], ACCEPTED_INDUSTRIES[0], SPRING.total]) {
+      assert.equal(occurrences(residue, supplied), 0,
+        `"${supplied}" must not survive a forget anywhere in this browser`);
+    }
+
+    page = await reopen(page);
+    assert.equal(byId(page.document, "local-results").hidden, true);
+    assert.equal(byId(page.document, "local-lead-retention").hidden, true);
+    assert.equal(byId(page.document, "local-lead-retention-supplied").hidden, true);
+    assert.equal(byId(page.document, "finops-stand").dataset.source, "example");
+    assert.equal(page.storage.getItem(BRIEFING_RETENTION_KEY), null);
+  } finally {
+    page.restore();
+  }
+});
+
+test("a second import replaces a restored brief without carrying its context across", async () => {
+  let page = await openFinopsTab();
+  try {
+    await importExport(page.document, SPRING);
+    keepBriefing(page);
+    declareCohort(page.document);
+    page = await reopen(page);
+    assert.equal(byId(page.document, "local-results").dataset.retained, "true");
+
+    await importExport(page.document, WINTER);
+
+    // The winter import wins the record, and the spring declaration does not
+    // ride along inside it: what the operator said about last quarter's file is
+    // not a fact about the file they just opened.
+    const record = heldRecord(page);
+    assert.equal(record.totals.analyzedSpendUsd, WINTER.totalUsd);
+    assert.equal(retainedSuppliedContext(record), null,
+      "context declared against the previous import must not be kept against this one");
+    assert.equal(byId(page.document, "local-lead-retention-supplied").hidden, true,
+      "a brief with no supplied context must not show an edit time for one");
+    assert.equal(occurrences(JSON.stringify(record), ACCEPTED_INDUSTRIES[0]), 0);
+  } finally {
+    page.restore();
+  }
+});
+
+test("a record this page cannot read is discarded and the tab opens pre-import", async () => {
+  // Written by a version that is not this one, and carrying a context field
+  // shaped in a way this page does not recognize. Both are the same failure and
+  // get the same remedy: nothing is rehydrated, and the key does not survive to
+  // fail again on the next load.
+  const page = await openFinopsTab({
+    [BRIEFING_RETENTION_KEY]: JSON.stringify({
+      version: 99,
+      capturedAt: "2026-08-01T09:00:00.000Z",
+      totals: { analyzedSpendUsd: 4242.42 },
+      departments: [],
+      context: { unitLabels: "not a map", editedAt: 17 },
+    }),
+  });
+  try {
+    const { document } = page;
+    assert.equal(byId(document, "local-lead-finding").dataset.state, "empty");
+    assert.equal(byId(document, "finops-stand").dataset.source, "example");
+    assert.equal(byId(document, "local-lead-retention-supplied").hidden, true);
+    assert.equal(page.storage.getItem(BRIEFING_RETENTION_KEY), null,
+      "an unreadable record must be removed, not left to be re-read on every visit");
+    assert.equal(occurrences(textOf(document.documentElement), "4242.42"), 0,
+      "nothing from a record that failed validation may be painted");
+  } finally {
+    page.restore();
+  }
+});

@@ -16,7 +16,8 @@ import { DomEvent, loadPage, textOf } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 import {
   BRIEFING_RETENTION_KEY, BRIEFING_RETENTION_VERSION, RETENTION_COPY, RETENTION_STATE,
-  capturedAtLabel, readRetainedBriefing, retainedBriefingPayload,
+  briefingFromRetained, capturedAtLabel, readRetainedBriefing, retainedBriefingPayload,
+  retainedSuppliedContext, suppliedContextLabel,
 } from "../src/finops-briefing-retention.js";
 
 const PAGE = new URL("../src/evolution.html", import.meta.url);
@@ -172,10 +173,15 @@ test("turning retention on writes derived values and none of the export's own co
     // `attribution` is the one deliberate widening (#997): the suppression the
     // live import applied, and the file presence it was decided against, kept
     // with the figures so a restore cannot state a figure the page withheld.
+    // `context` is the second (#1010): what the reader typed here themselves,
+    // in the record of the import it was typed about, and null on this payload
+    // because this caller supplied none.
     assert.deepEqual(Object.keys(payload).sort(), [
-      "attribution", "capturedAt", "confidence", "departments", "provider",
-      "rankedAction", "totals", "version",
+      "attribution", "capturedAt", "confidence", "context", "departments",
+      "provider", "rankedAction", "totals", "version",
     ]);
+    assert.equal(payload.context, null,
+      "a reader who supplied nothing must not get a context field with anything in it");
     // Three derived booleans and nothing else — not a copy of the decision's
     // inputs, and no room for a file name or a share to arrive in this slot.
     assert.deepEqual(Object.keys(payload.attribution).sort(),
@@ -430,4 +436,120 @@ test("a store whose accessor throws reads as unavailable rather than raising", (
   assert.equal(held.state, RETENTION_STATE.unavailable);
   assert.equal(held.message, RETENTION_COPY[RETENTION_STATE.unavailable]);
   assert.equal(held.message.includes("blocked"), false);
+});
+
+// ---------------------------------------------------------------------------
+// The context the reader supplied, in the same record (#1010)
+// ---------------------------------------------------------------------------
+
+/** The smallest analysis this store will build a payload from. */
+const ANALYSIS = Object.freeze({
+  spendUsd: 100,
+  recoverableUsd: 10,
+  confidence: "Medium",
+  action: "Do the thing.",
+  period: "2026-06",
+  rankedDepartments: Object.freeze([
+    Object.freeze({ id: "psn-atlas0", name: "psn-atlas0", spendUsd: 60, recoverableUsd: 6 }),
+    Object.freeze({ id: "psn-borea1", name: "psn-borea1", spendUsd: 40, recoverableUsd: 4 }),
+  ]),
+});
+
+const withContext = (context) => retainedBriefingPayload({
+  analysis: ANALYSIS,
+  provider: { id: "openai", name: "OpenAI", confidence: 92 },
+  capturedAt: "2026-08-01T09:00:00.000Z",
+  context,
+});
+
+const SUPPLIED = Object.freeze({
+  unitLabels: Object.freeze({ "psn-atlas0": "Platform Engineering" }),
+  departments: Object.freeze({ "psn-atlas0": "product-engineering" }),
+  cohort: Object.freeze({ orgSizeBand: "band-201-1000", industry: "software" }),
+  editedAt: "2026-08-01T10:30:00.000Z",
+});
+
+/** Read one hand-written record back, and say what the store did with the key. */
+function readStored(record) {
+  const store = new Map([[BRIEFING_RETENTION_KEY, JSON.stringify(record)]]);
+  const held = readRetainedBriefing({
+    getItem: (key) => store.get(key) ?? null,
+    removeItem: (key) => store.delete(key),
+  });
+  return { held, kept: store.has(BRIEFING_RETENTION_KEY) };
+}
+
+test("the record carries the names, categories and cohort facts a reader supplied", () => {
+  const payload = withContext(SUPPLIED);
+  assert.deepEqual(Object.keys(payload.context).sort(),
+    ["cohort", "departments", "editedAt", "unitLabels"]);
+  assert.equal(payload.context.unitLabels["psn-atlas0"], "Platform Engineering");
+  assert.equal(payload.context.departments["psn-atlas0"], "product-engineering");
+  assert.deepEqual({ ...payload.context.cohort },
+    { orgSizeBand: "band-201-1000", industry: "software" });
+  // The edit time is the reader's, and it is NOT the capture time: two instants
+  // that answer different questions have to be storable as different values.
+  assert.equal(payload.context.editedAt, "2026-08-01T10:30:00.000Z");
+  assert.notEqual(payload.context.editedAt, payload.capturedAt);
+  // Still one record and one version. The context is a field of the import's
+  // own payload, not a second entry with a lifetime of its own.
+  assert.equal(payload.version, BRIEFING_RETENTION_VERSION);
+});
+
+test("a reader's own unit name is what the restored rollup is called", () => {
+  const { analysis } = briefingFromRetained(withContext(SUPPLIED));
+  assert.equal(analysis.rankedDepartments[0].name, "Platform Engineering",
+    "a restored brief must name the team the reader named, not the export's pseudonym");
+  // Renamed, never re-ranked or re-totalled: the figures are the import's.
+  assert.equal(analysis.rankedDepartments[0].spendUsd, 60);
+  assert.equal(analysis.rankedDepartments[1].name, "psn-borea1");
+});
+
+test("supplied context with no edit time, and empty supplied context, are not written", () => {
+  assert.equal(withContext({ ...SUPPLIED, editedAt: null }).context, null);
+  assert.equal(withContext({ editedAt: "2026-08-01T10:30:00.000Z" }).context, null,
+    "a stamp with nothing supplied under it would be an edit that never happened");
+});
+
+test("a record whose supplied context does not validate is discarded whole", () => {
+  for (const broken of [
+    { ...SUPPLIED, editedAt: 17 },
+    { unitLabels: ["Platform Engineering"], departments: null, cohort: null, editedAt: "x" },
+    "a string where an object was written",
+  ]) {
+    const { held, kept } = readStored({ ...withContext(SUPPLIED), context: broken });
+    // Discarded, not half-read: a record that came back with figures and
+    // without the names they were read under is a brief that disagrees with the
+    // one this browser was asked to keep.
+    assert.equal(held.state, RETENTION_STATE.discarded);
+    assert.equal(held.payload, null);
+    assert.equal(kept, false,
+      "an unreadable record must be removed rather than left to fail on every load");
+  }
+  // And the same for a version this page does not render: unrecognized is
+  // discarded whatever the rest of the shape says.
+  const newer = readStored({ ...withContext(SUPPLIED), version: BRIEFING_RETENTION_VERSION + 1 });
+  assert.equal(newer.held.state, RETENTION_STATE.discarded);
+  assert.equal(newer.kept, false);
+});
+
+test("a record written before this field existed still restores", () => {
+  const { context, ...older } = withContext(SUPPLIED);
+  assert.equal(context === null, false, "the fixture must have had a context to drop");
+  const { held } = readStored(older);
+  assert.equal(held.state, RETENTION_STATE.retained);
+  assert.equal(retainedSuppliedContext(held.payload), null);
+  assert.equal(briefingFromRetained(held.payload).analysis.rankedDepartments[0].name, "psn-atlas0");
+});
+
+test("the supplied-context line dates the reader's own edit and says what it is not", () => {
+  const now = new Date("2026-08-02T12:00:00.000Z");
+  assert.equal(suppliedContextLabel(withContext(SUPPLIED).context, now),
+    "You last edited the names and facts you supplied yourself 1 day ago · 2026-08-01 10:30 UTC. "
+    + "Every figure in this brief was derived from the file you imported.");
+  // Nothing supplied is no line at all, rather than a sentence about an absence.
+  assert.equal(suppliedContextLabel(null, now), "");
+  // The two lines a restored brief shows are about two different moments, and
+  // neither sentence can be read as the other.
+  assert.equal(suppliedContextLabel(withContext(SUPPLIED).context, now).includes("Captured"), false);
 });
