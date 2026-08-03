@@ -31,6 +31,12 @@
 // strings, at the two-decimal USD and one-decimal percent conventions the
 // import panel already uses.
 
+import { formatSignedUsd } from "./evolution.js";
+// The reader's own name for the driver, resolved through the one resolver that
+// owns that decision. This module composes the sentence the name appears in, so
+// it asks; it never reads the label map itself.
+import { orgUnitDisplayName } from "./org-unit-display-label.js";
+
 const MONTH_NAMES = Object.freeze([
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December",
@@ -44,8 +50,11 @@ function monthLabel(period) {
   return month ? `${month} ${match[1]}` : null;
 }
 
-const usd = (value) => `${value.toFixed(2)} USD`;
-const signedUsd = (value) => `${value > 0 ? "+" : value < 0 ? "−" : ""}${usd(Math.abs(value))}`;
+// Money is rendered, never re-derived: `formatSignedUsd` is the repo's own
+// helper beside `formatUsd`, so "+$34,500" here is the same string the rest of
+// the page prints. The MODEL still carries full precision — this is the render
+// boundary and the only thing that rounds.
+const signedUsd = formatSignedUsd;
 const percent = (value) => `${Math.round(value * 10) / 10}%`;
 const signedPercent = (value) => `${value > 0 ? "+" : value < 0 ? "−" : ""}${percent(Math.abs(value))}`;
 
@@ -95,10 +104,12 @@ function positiveDrivers(departments) {
 
 /**
  * @param {object} result an envelope from `normalizeLocalFinopsHistory`.
+ * @param {{labels?: object}} [options] the reader's own org-unit names, from
+ *   page state. Absent or empty leaves every sentence exactly as it is today.
  * @returns the leading question, the one number that answers it, and the
  *   highest-ranked recommendation that names the same driver.
  */
-export function leadingFinding(result) {
+export function leadingFinding(result, { labels = null } = {}) {
   const history = result?.history ?? null;
   const periods = Array.isArray(history?.periods) ? history.periods : [];
   const reportingLabel = monthLabel(history?.currentPeriod ?? result?.period);
@@ -142,19 +153,22 @@ export function leadingFinding(result) {
   // other department is not an answer to this question, and saying so is more
   // useful than quietly pairing a driver with an unrelated action.
   const topRanked = result.rankedDepartments?.[0] ?? null;
+  // One resolver, three sentences. Every unit reference below is this call, so
+  // a name a reader typed cannot reach the driver sentence and miss the action.
+  const named = (unit) => orgUnitDisplayName(labels, unit?.id, unit?.name);
   const actionNamesDriver = Boolean(driver && topRanked && topRanked.id === driver.id);
   const action = Object.freeze(actionNamesDriver && result.action
     ? { available: true, text: result.action }
     : {
       available: false,
       text: driver && topRanked
-        ? `The highest-ranked recommendation names ${topRanked.name}, not the driver of the change. `
+        ? `The highest-ranked recommendation names ${named(topRanked)}, not the driver of the change. `
           + "Open the department evidence before choosing an action."
         : "No department grew, so no driver action is prioritized.",
     });
 
   const driverSentence = driver
-    ? `${driver.name} contributed ${signedUsd(driver.deltaUsd)} of the `
+    ? `${named(driver)} contributed ${signedUsd(driver.deltaUsd)} of the `
       + `${signedUsd(changeUsd)} change`
       + (driverContributionPercent === null ? "." : ` (${percent(driverContributionPercent)} of it).`)
     : "No department increased its spend against the prior month.";

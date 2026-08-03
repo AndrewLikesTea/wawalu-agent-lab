@@ -532,6 +532,13 @@ const ALLOWED_MODULES = Object.freeze([
   "finops-attribution-policy.js", "finops-briefing-contract.js", "finops-decision-contract.js",
   "finops-decision-interaction.js", "finops-display.js", "finops-first-run.js",
   "finops-leading-finding.js",
+  // Reviewed on: the display-label layer over the pseudonymous org-unit
+  // identity (#1007). It imports nothing, holds no module-level state, and its
+  // three functions are pure string work over a map the caller owns — no
+  // fetch, storage, clock, or randomness. It is on the path because
+  // `finops-leading-finding.js` resolves the driver's rendered name through it.
+  // Nothing it touches is ever persisted or sent: the labels are page state.
+  "org-unit-display-label.js",
   // Reviewed on: the answer spine. It is a frozen declaration — the page's one
   // question, the headline metric's definition and its accessor, the one action,
   // the one artifact, and a class for every top-level region — with no imports

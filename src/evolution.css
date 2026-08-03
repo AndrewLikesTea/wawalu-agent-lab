@@ -3698,3 +3698,13 @@ section[data-workspace-current="true"] { box-shadow:-6px 0 0 0 var(--import-wash
      scroll past. Nothing here is a pixel width — the button takes the row. */
   .provider-native-resolve { flex-basis:100%; }
 }
+
+/* THE ORG-UNIT NAME FIELD (#1007). One per ranked row inside the drill-down
+   disclosure, built by finops-first-run-view.js. Everything here is layout; the
+   focus ring is the page's own 3px token, because a field a keyboard reader
+   cannot see themselves standing in is a field they cannot use. */
+.first-run-unit-label { display:flex; flex-wrap:wrap; align-items:center; gap:.4rem; margin:.35rem 0 0; }
+.first-run-unit-label-name { font-size:.78rem; color:var(--muted); }
+.first-run-unit-label-input { flex:1 1 12rem; min-width:0; padding:.3rem .45rem; font:inherit; font-size:.85rem; }
+.first-run-unit-label-help { flex-basis:100%; font-size:.72rem; color:var(--muted); }
+.first-run-unit-label-input:focus-visible,.first-run-unit-label-save:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }

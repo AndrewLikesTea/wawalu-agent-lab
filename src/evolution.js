@@ -443,6 +443,21 @@ export function formatUsd(value, { compact = false } = {}) {
   }).format(amount);
 }
 
+/**
+ * `34500` → `"+$34,500"`, `-120` → `"−$120"`, `0` → `"$0"`.
+ *
+ * The same `formatUsd` above, carrying the sign convention the FinOps copy
+ * already prints: a plus for a rise, U+2212 for a fall, nothing for flat. It
+ * exists so a change figure is formatted in one place rather than re-derived
+ * with `toFixed(2)` wherever a sentence needs one.
+ */
+export function formatSignedUsd(value) {
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return formatUsd(0);
+  const sign = amount > 0 ? "+" : amount < 0 ? "−" : "";
+  return `${sign}${formatUsd(Math.abs(amount))}`;
+}
+
 export function formatPercent(share, { digits = 0 } = {}) {
   const value = Number(share);
   if (!Number.isFinite(value)) return "0%";
