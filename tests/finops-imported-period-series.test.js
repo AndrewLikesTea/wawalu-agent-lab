@@ -23,10 +23,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { parseHtml } from "./support/browser.js";
+import { parseHtml, pressEnter, tabSequence, textOf } from "./support/browser.js";
 import {
-  MOVEMENT_DIRECTION, canonicalPeriod, importedPeriodSeries, mergePeriodSeries,
-  movementSentence, periodMovement, periodSeriesFromTotals,
+  MOVEMENT_DIRECTION, canonicalPeriod, comparisonWindow, importedPeriodSeries,
+  mergePeriodSeries, monthLabel, movementSentence, periodMovement, periodSeriesFromTotals,
 } from "../src/finops-imported-period-series.js";
 import {
   applyImportedMovement, clearImportedMovement,
@@ -180,14 +180,42 @@ test("one period says what is withheld, why, and which control supplies it", () 
   assert.equal(summary.delta, null);
   const sentence = movementSentence(summary);
   // Three jobs, three sentences. What is not on screen…
-  assert.match(sentence, /^No month-over-month movement yet\./);
+  assert.match(sentence, /^No movement figure yet\./);
   // …the one input that is missing, with the month and the figure named…
-  assert.match(sentence, /covers one month — 2026-07, at 9,000 USD — and a movement needs two/);
+  assert.match(sentence,
+    /covers one month — 2026-07, at 9,000 USD — and a movement needs at least two months/);
   // …and the control that supplies it, by the label it carries in evolution.html.
-  assert.match(sentence, /Under "Choose your export files", add an export covering an earlier month/);
+  assert.match(sentence,
+    /Under "Choose your export files", re-import a longer export covering an earlier month/);
+  // And no movement figure stands in for the one that was not computed.
+  assert.doesNotMatch(sentence, /%/, "no percentage is printed for a movement that has no pair");
+  assert.doesNotMatch(sentence, /\b(up|down|flat)\b/i, "and no direction word either");
   for (const blame of [/re-?export/i, /only one period was retained/i, /you (must|should|need)/i]) {
     assert.doesNotMatch(sentence, blame, "the single-period sentence must not blame the reader");
   }
+});
+
+test("the comparison window is the first month, the last month, and the count", () => {
+  const window = comparisonWindow(importedPeriodSeries(THREE_MONTHS()));
+  assert.equal(window.monthCount, 3);
+  assert.equal(window.firstPeriod, "2026-05");
+  assert.equal(window.lastPeriod, "2026-07");
+  assert.equal(window.label, "May 2026 → Jul 2026, 3 months");
+  // It is derived from the series, so a shuffled input and a merged retained
+  // month cannot move it off the months the movement was computed from.
+  assert.deepEqual(comparisonWindow([...importedPeriodSeries(THREE_MONTHS())].reverse()), window);
+  assert.equal(comparisonWindow(mergePeriodSeries(
+    [{ period: "2026-04", spendUsd: 3_000 }], importedPeriodSeries(THREE_MONTHS()))).label,
+  "Apr 2026 → Jul 2026, 4 months");
+  // One month is a window too, and zero months is not a range anyone may print.
+  assert.equal(comparisonWindow(importedPeriodSeries(SINGLE_MONTH())).label, "Jul 2026 only, 1 month");
+  assert.deepEqual(comparisonWindow([]),
+    Object.freeze({
+      monthCount: 0, firstPeriod: null, lastPeriod: null,
+      firstLabel: null, lastLabel: null, label: "",
+    }));
+  assert.equal(monthLabel("2026-01-31"), "Jan 2026");
+  assert.equal(monthLabel("2026-13"), null, "an impossible month is not labelled");
 });
 
 test("an empty series is still a total function, not a null", () => {
@@ -260,16 +288,120 @@ test("the shipped page states the movement in text, naming both periods", () => 
   assert.equal(painted.movement.periodCount, 3);
 });
 
-test("the movement sentence is not inside a collapsed disclosure", () => {
+test("the sentence and its window are outside the one disclosure, which ships closed", () => {
   const document = parseHtml(html);
   applyImportedMovement(document, { exports: [THREE_MONTHS()] });
   // The harness reads text through a closed details element, so the guard is
-  // structural: the region ships as a div with no summary in it, and the
-  // paragraph is its own child.
+  // structural rather than textual: the answer and the window label are not
+  // descendants of the disclosure, and the disclosure is exactly one.
   const region = document.getElementById("finops-imported-movement");
-  assert.equal(region.querySelectorAll("summary").length, 0);
-  assert.equal(region.querySelectorAll("details").length, 0);
-  assert.equal(document.querySelectorAll("#finops-imported-movement-answer").length, 1);
+  assert.equal(region.querySelectorAll("details").length, 1, "one disclosure, not two");
+  assert.equal(region.querySelectorAll("summary").length, 1, "and one control to open it");
+  for (const id of ["finops-imported-movement-answer", "finops-imported-movement-window",
+    "finops-imported-movement-basis", "finops-imported-movement-provenance"]) {
+    const node = document.getElementById(id);
+    assert.equal(node.closest("details") === null, true,
+      `${id} must stay readable while the disclosure is closed`);
+  }
+  // The rows are the only thing behind it, and it is closed until pressed.
+  const detail = document.getElementById("finops-imported-movement-detail");
+  assert.equal(detail.hasAttribute("open"), false, "collapsed is the default state");
+  assert.equal(detail.dataset.disclosure, "collapsed");
+  assert.equal(detail.querySelectorAll("li.stand-imported-period").length, 3);
+});
+
+test("the disclosure is the native one: one tab stop, operable from the keyboard", () => {
+  const document = parseHtml(html);
+  applyImportedMovement(document, { exports: [THREE_MONTHS()] });
+  const summary = document.getElementById("finops-imported-movement-summary");
+  assert.equal(summary.tagName.toLowerCase(), "summary");
+  assert.equal(summary.parentNode.id, "finops-imported-movement-detail");
+  assert.equal(summary.getAttribute("tabindex"), null, "the tab stop is the native one");
+  assert.equal(summary.getAttribute("role"), null, "and so is the role");
+  assert.equal(summary.getAttribute("aria-controls"), "finops-imported-movement-series");
+  assert.equal(summary.getAttribute("aria-expanded"), "false");
+  // It is reachable in document order, and its name says what is behind it.
+  assert.equal(tabSequence(document).filter((node) => node.id === summary.id).length, 1,
+    "the control is in the tab sequence exactly once");
+  assert.match(textOf(summary), /Month-by-month values: 3 months/);
+
+  summary.focus();
+  pressEnter(document);
+  const detail = document.getElementById("finops-imported-movement-detail");
+  assert.equal(detail.hasAttribute("open"), true, "Enter on the summary opens it");
+  assert.equal(summary.getAttribute("aria-expanded"), "true", "and the state is mirrored");
+  pressEnter(document);
+  assert.equal(detail.hasAttribute("open"), false, "and Enter again closes it");
+  assert.equal(summary.getAttribute("aria-expanded"), "false");
+});
+
+test("the window label names the first month, the last month, and how many", () => {
+  const document = parseHtml(html);
+  // Four months with a known first and last, generated here rather than checked in.
+  const painted = applyImportedMovement(document, {
+    exports: [providerExport([
+      row("2026-03-04", 1_000), row("2026-04-04", 1_100),
+      row("2026-05-04", 1_200), row("2026-06-04", 1_300),
+    ], { periodStart: "2026-03-01", periodEnd: "2026-07-01" })],
+  });
+  assert.equal(painted.window.label, "Mar 2026 → Jun 2026, 4 months");
+  assert.equal(painted.window.firstPeriod, "2026-03");
+  assert.equal(painted.window.lastPeriod, "2026-06");
+  assert.equal(painted.window.monthCount, 4);
+
+  const label = document.getElementById("finops-imported-movement-window");
+  assert.equal(label.hidden, false, "the window is stated in the open, not on hover");
+  assert.equal(label.dataset.monthCount, "4");
+  // The arrow is decoration; the word beside it is what a screen reader reads,
+  // so the spoken label is the same sentence without a glyph in it.
+  assert.equal(textOf(label), "Mar 2026 to → Jun 2026, 4 months");
+  const arrow = label.querySelector(".stand-imported-window-arrow");
+  assert.equal(arrow.getAttribute("aria-hidden"), "true");
+  assert.equal(label.querySelectorAll(".visually-hidden").length, 1,
+    "one spoken stand-in for the arrow, not one per repaint");
+});
+
+test("fewer than two months prints no movement figure, and says what to do instead", () => {
+  const document = parseHtml(html);
+  applyImportedMovement(document, { exports: [SINGLE_MONTH()] });
+  const region = document.getElementById("finops-imported-movement");
+  assert.equal(region.hidden, false, "the block keeps its place in the reading order");
+  assert.equal(region.dataset.state, "single-period");
+  assert.equal(region.dataset.direction, "none");
+
+  // No figure stands where the movement would have been: no percentage, no
+  // direction, and no dash pretending to be a computed value.
+  const answer = document.getElementById("finops-imported-movement-answer");
+  const said = textOf(answer);
+  assert.doesNotMatch(said, /%/);
+  assert.doesNotMatch(said, /\b(up|down|flat)\b/i);
+  assert.equal(answer.closest("details") === null, true);
+  // The message does both jobs: how many months a movement needs, and the step.
+  assert.match(said, /at least two months/);
+  assert.match(said, /re-import a longer export/);
+  // The window is still stated, so the one month read is named where the label
+  // for four would have been.
+  const label = document.getElementById("finops-imported-movement-window");
+  assert.equal(label.hidden, false);
+  assert.equal(textOf(label), "Jul 2026 only, 1 month");
+  assert.equal(label.closest("details") === null, true);
+});
+
+test("an import with no dated month keeps the block and states the same next step", () => {
+  const document = parseHtml(html);
+  applyImportedMovement(document, { exports: [providerExport([row("not-a-date", 1_000)])] });
+  const region = document.getElementById("finops-imported-movement");
+  assert.equal(region.hidden, false);
+  assert.equal(region.dataset.state, "no-period");
+  assert.equal(region.dataset.periodCount, "0");
+  const said = textOf(document.getElementById("finops-imported-movement-answer"));
+  assert.match(said, /at least two months/);
+  assert.match(said, /re-import a longer export/);
+  assert.doesNotMatch(said, /%/);
+  // Nothing is offered to disclose, and no window is claimed.
+  assert.equal(document.getElementById("finops-imported-movement-detail").hidden, true);
+  assert.equal(document.getElementById("finops-imported-movement-window").hidden, true);
+  assert.equal(document.querySelectorAll("li.stand-imported-period").length, 0);
 });
 
 test("a single-period file says so on the page and names that period", () => {

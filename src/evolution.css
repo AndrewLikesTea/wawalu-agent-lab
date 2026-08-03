@@ -1318,8 +1318,20 @@
 .brief-provenance[data-silhouette="dashed"] { border-style:dashed; border-color:var(--state-warn-line); background:transparent; color:var(--state-warn-ink); }
 .brief-provenance-line { display:grid; justify-items:start; margin:0; max-width:60ch; }
 .stand-imported-movement { margin:0; max-width:60ch; color:var(--ink); font-size:16px; font-weight:700; line-height:1.4; overflow-wrap:anywhere; }
+/* Which months the movement was computed from, directly under the figure. It is
+   ordinary text in the reading order, one step down from the sentence above it
+   and one step up from the basis line below, and the arrow inside it is
+   decoration the markup marks aria-hidden with the word "to" beside it. */
+.stand-imported-window { margin:0; max-width:60ch; color:var(--ink); font-size:13px; font-weight:700; line-height:1.5; font-variant-numeric:tabular-nums; }
+.stand-imported-window-arrow { padding:0 2px; color:var(--ink-muted); }
 .stand-imported-basis { margin:0; max-width:60ch; color:var(--ink-muted); font-size:13px; line-height:1.55; }
-.stand-imported-series { display:grid; margin:0; gap:2px; padding-left:18px; }
+/* The per-month working. Same disclosure treatment and the same focus ring as
+   the completeness working below it: a summary is not one of the elements
+   styles.css gives a ring to, so a keyboard reader would otherwise reach this
+   control and not see where they were. */
+.stand-imported-detail>summary { color:var(--ink-muted); font-size:13px; font-weight:700; cursor:pointer; }
+.stand-imported-detail>summary:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; border-radius:4px; }
+.stand-imported-series { display:grid; margin:8px 0 0; gap:2px; padding-left:18px; }
 .stand-imported-period { color:var(--ink-muted); font-size:13px; font-variant-numeric:tabular-nums; }
 .stand-imported-series .stand-imported-period:last-child { color:var(--ink); font-weight:700; }
 /* The completeness score. The tier line and the prioritized next action are
