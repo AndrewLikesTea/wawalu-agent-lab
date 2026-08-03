@@ -72,12 +72,13 @@
                page now says what it is doing from the first paint.
 
                post-detail.js owns every state after this one. It replaces the
-               whole region on each render and stamps data-post-state, so the
-               wait and an unavailable post can never stand on screen together.
-               The wording here is the one post-detail.js renders, character for
-               character; a test pins them to each other. -->
-          <div id="post-detail" data-post-state="initial" aria-busy="true">
-            <p class="detail-loading" role="status"><span class="detail-loading-dot" aria-hidden="true"></span><span class="detail-loading-text">Loading this post…</span></p>
+               whole region on each render and stamps data-post-state with one
+               of exactly four values — loading, loaded, not-found, error — so
+               the wait and a resolved answer can never stand on screen
+               together. The wording here is the one post-detail.js renders,
+               character for character; a test pins them to each other. -->
+          <div id="post-detail" data-post-state="loading" aria-busy="true">
+            <p class="detail-loading detail-state-panel" data-post-state-panel="loading" role="status"><span class="detail-loading-dot" aria-hidden="true"></span><span class="detail-loading-text">Loading this post…</span></p>
           </div>
         </div>
       </section>

@@ -70,10 +70,16 @@ async function init() {
         }
       }
     }
+    // The two unresolved answers are different facts and get different states.
+    // A source that threw or answered not-ok means the feed could not be
+    // reached — that is `error`, and it is retryable. A source that answered
+    // and simply had no post with this id is `not-found`, and retrying it would
+    // only produce the same answer more slowly.
+    //
     // A lookup that failed is only reported as a failure when nothing was found
     // anywhere: if the seed answered, the reader has the post and does not need
     // to hear about the network.
-    const state = post ? "ready" : failed ? "error" : "ready";
+    const state = post ? "loaded" : failed ? "error" : "not-found";
     renderPostDetail(container, post, {
       state,
       id,
