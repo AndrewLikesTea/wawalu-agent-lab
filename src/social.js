@@ -46,7 +46,9 @@ export function createPost(values, options = {}) {
     throw new TypeError(`A post must be ${MAX_POST_LENGTH} characters or fewer.`);
   }
   if (author.length > MAX_AUTHOR_LENGTH) {
-    throw new TypeError(`An author must be ${MAX_AUTHOR_LENGTH} characters or fewer.`);
+    // Surfaced in the composer's notice, so it names the field the way the
+    // field's own label does: "Display name", not a second word for it.
+    throw new TypeError(`A display name must be ${MAX_AUTHOR_LENGTH} characters or fewer.`);
   }
 
   return {

@@ -113,8 +113,8 @@
                   <figcaption id="compose-preview-caption">Preview before posting</figcaption>
                 </figure>
                 <!-- The requirement marker is the same span, in the same place,
-                     with the same class as the "(optional)" markers on Name and
-                     Image, so the two answers to "must I fill this in?" are told
+                     with the same class as the "(optional)" markers on Display
+                     name and Image, so the two answers to "must I fill this in?" are told
                      the same way. It ships stated rather than blank: this field
                      is inside the panel that only opens once an image is
                      attached, and at that point social.js refuses a blank
@@ -139,15 +139,18 @@
             </fieldset>
 
             <div class="field field-wide">
-              <label for="post-author">Name <span class="label-optional">(optional)</span></label>
+              <label for="post-author">Display name <span class="label-optional">(optional)</span></label>
               <input id="post-author" name="author" type="text" maxlength="60" autocomplete="off"
                 placeholder="Guest" aria-describedby="post-author-hint" />
               <!-- "Display name" is the one term the site uses for the name a
-                   post is published under; People's hint uses the same words
-                   for the names in its picker. The “Guest” default is stated
+                   post is published under; the feed filter, People's picker and
+                   the About Shiplog footer all say it, so the field is named
+                   after the concept instead of defining it in the hint below.
+                   The hint used to open by restating the label — it now carries
+                   only the fact the label cannot: the “Guest” default, stated
                    here, where the visitor is actually typing a name, and
                    nowhere else. -->
-              <span class="hint" id="post-author-hint">Shown as the display name on your post. Defaults to “Guest”.</span>
+              <span class="hint" id="post-author-hint">Defaults to “Guest”.</span>
             </div>
 
             <div class="field field-wide">
