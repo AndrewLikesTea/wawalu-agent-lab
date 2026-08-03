@@ -130,13 +130,199 @@ export function coverageRatio(recordsAnalyzed, recordsTotal) {
   return recordsAnalyzed / recordsTotal;
 }
 
-export function confidenceFor(ratio, missingInputs = []) {
+function coverageConfidence(ratio, missingInputs = []) {
   if (!(ratio > COVERAGE_THRESHOLDS.low)) return BRIEFING_CONFIDENCE.insufficient;
   if (ratio >= COVERAGE_THRESHOLDS.high && missingInputs.length === 0) {
     return BRIEFING_CONFIDENCE.high;
   }
   if (ratio >= COVERAGE_THRESHOLDS.moderate) return BRIEFING_CONFIDENCE.moderate;
   return BRIEFING_CONFIDENCE.low;
+}
+
+// ---------------------------------------------------------------------------
+// Input provenance — was this brief supplied, or did we work it out ourselves?
+// ---------------------------------------------------------------------------
+//
+// Coverage answers "how many records did we read?". It cannot answer "how much
+// of what you are reading did you give us?", and until now the grade treated a
+// number the finance lead can point at in their own bill exactly like a number
+// this build modelled. Those are not the same evidence, and a director disputing
+// the letter is entitled to see which of the two they are arguing with.
+//
+// THE RULE, IN ONE LINE. Confidence is the coverage level, CAPPED by the input
+// mix: each required input scores 100 supplied, 60 derived, 0 missing; if that
+// average falls below 90 the brief may not publish "high".
+//
+// The cap only ever lowers. Coverage and provenance are two independent gates on
+// the same letter and passing one does not excuse the other, so a brief made
+// entirely of supplied inputs keeps exactly the letter it had before this rule
+// existed — the score is then 100, the ceiling is `high`, and the cap is a
+// no-op. Every existing all-supplied briefing is therefore unchanged by
+// construction, not by coincidence.
+//
+// DETERMINISM. Every term is an integer count of a fixed-length, fixed-order
+// list (`REQUIRED_INPUTS`), the weights are integers, and the score is one
+// truncated integer division. No clock, no randomness, no object iteration, and
+// no float accumulation whose order could move a boundary.
+
+export const INPUT_PROVENANCE = Object.freeze({
+  /** Present verbatim in the source export, or entered by the reader. */
+  supplied: "supplied",
+  /** Computed, inferred, defaulted, or carried over from another field. */
+  derived: "derived",
+  /** Absent, with no derivation available. */
+  missing: "missing",
+});
+
+/**
+ * What one input contributes to the provenance score, out of 100.
+ *
+ * EVERY WEIGHT CARRIES THE ASSUMPTION IT RESTS ON. A director who disputes the
+ * confidence disputes one of these three lines, and each says what it assumes
+ * rather than only what it costs.
+ */
+export const PROVENANCE_WEIGHT = Object.freeze({
+  // 100 — ASSUMES a value the reader can point at in their own file needs no
+  // assumption of ours to be believed. It is the reference the other two are
+  // discounted against, so an all-supplied brief scores exactly 100 and is
+  // capped at nothing.
+  supplied: 100,
+  // 60 — ASSUMES a derived value is still evidence, because the rule that
+  // produced it is published and re-checkable ("check the math" re-runs it), and
+  // ASSUMES it is weaker evidence than a supplied one, because it is this
+  // build's arithmetic rather than a number in the reader's bill. 60 is not a
+  // tuned constant: it is `COVERAGE_THRESHOLDS.moderate` on the same 0–100
+  // scale, so a brief that is mostly derived lands where a brief that is mostly
+  // uncovered lands.
+  derived: 60,
+  // 0 — ASSUMES a missing input contributes no evidence: there is nothing to
+  // re-check and nothing to reproduce. Deliberately not negative, which would
+  // assume a missing input makes the inputs that ARE present less true.
+  missing: 0,
+});
+
+/**
+ * The score a brief must reach before it may publish "high" confidence.
+ *
+ * Not a new constant either: it is `COVERAGE_THRESHOLDS.high` expressed on the
+ * 0–100 scale, rounded to an integer so the comparison is integer-to-integer and
+ * cannot be moved by float representation. The assumption is that the bar for
+ * "how much of this was yours" should be the same bar this contract already sets
+ * for "how many of your records did we read".
+ */
+export const PROVENANCE_HIGH_FLOOR = Math.round(COVERAGE_THRESHOLDS.high * 100);
+
+/**
+ * The floor of the cap. Provenance can cost a brief the top level and no more:
+ * `low` and `insufficient` are statements about record coverage, and the input
+ * mix has measured nothing about that.
+ */
+export const PROVENANCE_CEILING_FLOOR = BRIEFING_CONFIDENCE.moderate;
+
+/** Worst to best. Capping is `min` over this order, so it can only lower. */
+const CONFIDENCE_ORDER = Object.freeze([
+  BRIEFING_CONFIDENCE.insufficient, BRIEFING_CONFIDENCE.low,
+  BRIEFING_CONFIDENCE.moderate, BRIEFING_CONFIDENCE.high,
+]);
+
+/**
+ * Classify one required input against the analysis envelope.
+ *
+ * Each branch states the evidence it reads, because "which fields were derived?"
+ * is answerable only if every answer names the field it was decided from.
+ */
+function provenanceOf(input, result) {
+  const quality = result?.quality ?? {};
+  if (input === "analyzed_spend_usd") {
+    // Supplied: the money column is in the provider export. Totalling a column
+    // the file already carries restates the reader's own money; it introduces no
+    // assumption they could dispute.
+    return Number.isFinite(Number(result?.spendUsd))
+      ? INPUT_PROVENANCE.supplied : INPUT_PROVENANCE.missing;
+  }
+  if (input === "recoverable_scenario_usd") {
+    // Always derived when present. It is a routing scenario priced by this
+    // build's rubric against reference rates — never a number in anyone's bill,
+    // so there is no envelope shape that would make it supplied.
+    return Number.isFinite(Number(result?.recoverableUsd))
+      ? INPUT_PROVENANCE.derived : INPUT_PROVENANCE.missing;
+  }
+  if (input === "ranked_departments") {
+    if (!(result?.rankedDepartments?.length > 0)) return INPUT_PROVENANCE.missing;
+    // An org file read means the reader supplied the unit identities. Without
+    // one the units are the export's own billing key regrouped and labelled
+    // here, which is an org structure inferred from a field that was never an
+    // org structure — derived, and the one a plain billing export hits.
+    return quality.hrisCompleteness == null
+      ? INPUT_PROVENANCE.derived : INPUT_PROVENANCE.supplied;
+  }
+  // provider_completeness — declared by the export's own snapshot, so it is the
+  // provider's statement about their file rather than ours about their file.
+  return quality.providerCompleteness ? INPUT_PROVENANCE.supplied : INPUT_PROVENANCE.missing;
+}
+
+/**
+ * The input mix behind one brief, as data rather than as a number.
+ *
+ * `derived` and `missing` are name lists so a reader — or a test — can ask which
+ * fields were derived and get the answer back, instead of being handed a score
+ * and asked to trust it. Every name is a `REQUIRED_INPUTS` member, which is
+ * repository-authored: no export field name, label, or cell value reaches this
+ * object, so nothing here can carry a reader's content onward.
+ */
+export function briefInputProvenance(result) {
+  const inputs = REQUIRED_INPUTS.map((name) => Object.freeze({ name, state: provenanceOf(name, result) }));
+  const count = (state) => inputs.filter((input) => input.state === state).length;
+  const supplied = count(INPUT_PROVENANCE.supplied);
+  const derived = count(INPUT_PROVENANCE.derived);
+  const missing = count(INPUT_PROVENANCE.missing);
+  const total = inputs.length;
+  // Integer arithmetic over integer counts: same inputs, same score, always.
+  const score = total === 0 ? PROVENANCE_WEIGHT.supplied : Math.trunc(
+    (supplied * PROVENANCE_WEIGHT.supplied
+      + derived * PROVENANCE_WEIGHT.derived
+      + missing * PROVENANCE_WEIGHT.missing) / total,
+  );
+  return Object.freeze({
+    inputs: Object.freeze(inputs),
+    total,
+    suppliedCount: supplied,
+    derivedCount: derived,
+    missingCount: missing,
+    derived: Object.freeze(inputs.filter((input) => input.state === INPUT_PROVENANCE.derived)
+      .map((input) => input.name)),
+    missing: Object.freeze(inputs.filter((input) => input.state === INPUT_PROVENANCE.missing)
+      .map((input) => input.name)),
+    score,
+    floor: PROVENANCE_HIGH_FLOOR,
+    ceiling: score >= PROVENANCE_HIGH_FLOOR ? BRIEFING_CONFIDENCE.high : PROVENANCE_CEILING_FLOOR,
+  });
+}
+
+/**
+ * Names may only ever be `REQUIRED_INPUTS` members on the way to a reader or a
+ * judge. The lists this module builds satisfy that by construction, but a brief
+ * reopened from a file is untrusted input carrying a field name someone else
+ * wrote — so anything unrecognised is replaced by a fixed placeholder rather
+ * than echoed. A surface renders the return of this function, never its argument.
+ */
+export function redactInputNames(names) {
+  return (Array.isArray(names) ? names : [])
+    .map((name) => (REQUIRED_INPUTS.includes(name) ? name : "unnamed_input"));
+}
+
+/**
+ * @param ratio the record coverage ratio.
+ * @param missingInputs the required inputs this brief did not have.
+ * @param provenance a `briefInputProvenance` object, or null for a brief that
+ *   carries none — treated as all-supplied, so an older payload grades exactly
+ *   as it did before this rule existed.
+ */
+export function confidenceFor(ratio, missingInputs = [], provenance = null) {
+  const level = coverageConfidence(ratio, missingInputs);
+  const ceiling = provenance?.ceiling;
+  if (!CONFIDENCE_ORDER.includes(ceiling)) return level;
+  return CONFIDENCE_ORDER.indexOf(ceiling) < CONFIDENCE_ORDER.indexOf(level) ? ceiling : level;
 }
 
 // ---------------------------------------------------------------------------
@@ -442,7 +628,11 @@ export function validateBriefing(briefing) {
     }
     if (!Object.values(BRIEFING_CONFIDENCE).includes(coverage.confidence)) {
       fail("coverage.confidence", "confidence_not_in_enum", String(coverage.confidence));
-    } else if (coverage.confidence !== confidenceFor(expected, coverage.missingInputs ?? [])) {
+      // Checked against the brief's OWN provenance, not a re-classification: a
+      // validator that re-derives the mix would pass a payload whose stated mix
+      // disagrees with the confidence printed beside it.
+    } else if (coverage.confidence
+      !== confidenceFor(expected, coverage.missingInputs ?? [], coverage.provenance ?? null)) {
       fail("coverage.confidence", "confidence_contradicts_thresholds", String(coverage.confidence));
     }
   }
@@ -506,19 +696,19 @@ function coverageOf(result) {
   // set aside. It is the same set the JSON export ships, so a reader comparing
   // the two is comparing the same denominator.
   const recordsTotal = recordsAnalyzed + recordsExcluded;
-  const missingInputs = REQUIRED_INPUTS.filter((input) => {
-    if (input === "analyzed_spend_usd") return !Number.isFinite(Number(result?.spendUsd));
-    if (input === "recoverable_scenario_usd") return !Number.isFinite(Number(result?.recoverableUsd));
-    if (input === "ranked_departments") return !(result?.rankedDepartments?.length > 0);
-    return !quality.providerCompleteness;
-  });
+  // One classification, two consumers. The missing list is the `missing` half of
+  // the provenance rather than a second predicate beside it, so the sentence a
+  // reader is shown and the list the confidence was computed from cannot drift.
+  const provenance = briefInputProvenance(result);
+  const missingInputs = [...provenance.missing];
   const ratio = coverageRatio(recordsAnalyzed, recordsTotal);
   return Object.freeze({
     recordsAnalyzed,
     recordsTotal,
     coverageRatio: ratio,
-    confidence: confidenceFor(ratio, missingInputs),
+    confidence: confidenceFor(ratio, missingInputs, provenance),
     missingInputs: Object.freeze(missingInputs),
+    provenance,
   });
 }
 

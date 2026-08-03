@@ -13,7 +13,8 @@ import { loadExampleDataset } from "../src/example-dataset.js";
 import { localFinopsJsonExport, localFinopsMeetingSummary } from "../src/local-finops.js";
 import {
   ABSENCE_REASON, ABSENCE_STATEMENT, ACCOUNTABLE_ROLE, BRIEFING_CONFIDENCE, BRIEFING_FIXTURE,
-  buildFinopsBriefing, CONTRACT_VERSION, COVERAGE_THRESHOLDS, coverageRatio, DEFAULT_HEADLINE_QUESTION,
+  buildFinopsBriefing, confidenceFor, CONTRACT_VERSION, COVERAGE_THRESHOLDS, coverageRatio,
+  DEFAULT_HEADLINE_QUESTION,
   MATERIAL_CANDIDATE, periodFromEnvelopeString, questionForAnalysis, validateBriefing,
 } from "../src/finops-briefing-contract.js";
 
@@ -139,7 +140,22 @@ test("each confidence level is an explicit numeric rule, not a judgement call", 
 
   assert.equal(COVERAGE_THRESHOLDS.high, 0.9);
   assert.equal(COVERAGE_THRESHOLDS.moderate, 0.6);
-  assert.equal(at(90, 10).confidence, BRIEFING_CONFIDENCE.high);
+  // The coverage rule on its own, unchanged: same ratios, same four levels.
+  assert.equal(confidenceFor(0.9, []), BRIEFING_CONFIDENCE.high);
+  assert.equal(confidenceFor(0.89, []), BRIEFING_CONFIDENCE.moderate);
+  assert.equal(confidenceFor(0.6, []), BRIEFING_CONFIDENCE.moderate);
+  assert.equal(confidenceFor(0.59, []), BRIEFING_CONFIDENCE.low);
+  assert.equal(confidenceFor(0, []), BRIEFING_CONFIDENCE.insufficient);
+  // Published on a real envelope, the top ratio now grades MODERATE rather than
+  // high (#1024). This envelope carries no org file, so two of its four required
+  // inputs — the routing scenario and the ranked units — are derived here rather
+  // than supplied, which scores 80 against the 90 the cap requires. The ratio is
+  // still 0.9: what changed is that a ratio alone can no longer buy "high".
+  assert.equal(at(90, 10).coverageRatio, 0.9);
+  assert.equal(at(90, 10).provenance.score, 80);
+  assert.equal(at(90, 10).confidence, BRIEFING_CONFIDENCE.moderate);
+  // Every level at or below the ceiling is untouched by the cap, so these four
+  // are the values they always were.
   assert.equal(at(89, 11).confidence, BRIEFING_CONFIDENCE.moderate);
   assert.equal(at(60, 40).confidence, BRIEFING_CONFIDENCE.moderate);
   assert.equal(at(59, 41).confidence, BRIEFING_CONFIDENCE.low);

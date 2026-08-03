@@ -25,6 +25,11 @@ import { BRIEFING_CONFIDENCE_LABEL, BRIEFING_STATE_MESSAGE } from "./briefing-st
 // file's own and this layer cannot invent a third wording for them.
 import { capturedPeriodLine, EXAMPLE_DATASET_LINE } from "./finops-briefing-restore.js";
 import { renderBriefingDerivation } from "./finops-briefing-derivation-view.js";
+// The input-provenance rule the grade beside this sentence is capped by. The
+// weights, the score and the ceiling are all the contract's; this layer only
+// words them, and it renders `redactInputNames` rather than the payload's own
+// list, because a briefing reopened from a file is untrusted input.
+import { PROVENANCE_HIGH_FLOOR, redactInputNames } from "./finops-briefing-contract.js";
 // Where a reader gets the file this panel is asking them for. The panel paints
 // the contract's own guidance rather than wording a vendor's console itself, so
 // the sentence beside the picker and the sentence a refusal carries are the
@@ -605,6 +610,41 @@ function coverageText(coverage) {
     + `(${coverage.recordsAnalyzed} analyzed of ${coverage.recordsTotal}).${missing}`;
 }
 
+/**
+ * ONE sentence: how much of this brief we worked out ourselves, and what that
+ * cost the confidence beside it.
+ *
+ * A finance lead reads a grade and one line. So this is one line, and every
+ * figure in it is traceable to the published rule — the two counts are the
+ * contract's own classification, the score is `provenance.score`, and the floor
+ * is `PROVENANCE_HIGH_FLOOR`. No figure appears here that the sentence cannot
+ * also explain, which is why the individual weights are not in it: they are in
+ * the method disclosure and in the contract, where a dispute goes.
+ *
+ * Field names are whitelisted through `redactInputNames` on the way out. Every
+ * name a live analysis produces is repository-authored already; a briefing
+ * reopened from a file is not, and a name from one must never reach a reader's
+ * screen or a judge's prompt as though this build had written it.
+ */
+function provenanceText(coverage) {
+  const provenance = coverage?.provenance;
+  if (!provenance || !Number.isFinite(Number(provenance.score))) {
+    return "Input provenance was not recorded for this briefing, so the confidence above is bounded by record coverage alone.";
+  }
+  const { total, derivedCount, missingCount, score } = provenance;
+  if (derivedCount === 0 && missingCount === 0) {
+    return `All ${total} required inputs were supplied by your files, `
+      + "so nothing about how this brief was assembled lowers the confidence above.";
+  }
+  const derived = redactInputNames(provenance.derived);
+  const worked = derivedCount === 0
+    ? `${missingCount} of the ${total} required inputs was not available`
+    : `${derivedCount} of the ${total} required inputs `
+      + `(${derived.join(", ")}) ${derivedCount === 1 ? "was" : "were"} derived here rather than supplied by your files`;
+  return `${worked}, scoring ${score} of 100 against the ${PROVENANCE_HIGH_FLOOR} `
+    + `this rule requires for high confidence, so the confidence above is held at ${score >= PROVENANCE_HIGH_FLOOR ? "what record coverage earned" : "moderate at best"}.`;
+}
+
 function arithmeticText(arithmetic) {
   return `${arithmetic.operation}. `
     + arithmetic.inputs.map((input) => `${input.name} = ${input.value}`).join("; ") + ".";
@@ -686,6 +726,7 @@ export function briefingLines(briefing) {
     metric: materialMetric ? metricText(materialMetric) : briefing.absent.materialMetric.statement,
     grade: gradeOf(briefing.coverage),
     coverage: coverageText(briefing.coverage),
+    provenance_mix: provenanceText(briefing.coverage),
     arithmetic: materialMetric ? arithmeticText(briefing.arithmeticInputs) : null,
     action: rankedAction
       ? `${rankedAction.action} Accountable role: ${rankedAction.accountableRole}.`
@@ -749,6 +790,12 @@ export function applyBriefing(doc, briefing, derivation = null) {
   // them. A low-coverage briefing that hides its coverage is the one dishonest
   // shape this surface can take.
   write("local-lead-coverage", lines.coverage);
+  // How much of this brief was derived rather than supplied, in one sentence,
+  // beside the grade it capped. Written with `textContent` like every other slot
+  // here, so no export string can reach the document as markup, and painted in
+  // every state — a brief that hides how it was assembled is the same brief
+  // asking to be trusted for a reason it will not state.
+  write("local-lead-derived", lines.provenance_mix);
   write("local-lead-arithmetic", lines.arithmetic ?? "");
   const arithmetic = byId(doc, "local-lead-arithmetic");
   if (arithmetic) arithmetic.hidden = !materialMetric;

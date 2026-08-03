@@ -920,6 +920,9 @@
 .local-lead-grade-shape { font-size:13px; line-height:1; }
 .local-lead-grade-value { font-size:15px; font-weight:750; letter-spacing:-.01em; overflow-wrap:anywhere; }
 .local-lead-coverage { margin:8px 0 0; font-size:14px; line-height:1.5; font-weight:650; overflow-wrap:anywhere; }
+/* One weight below the coverage line: it qualifies the grade, it is not a
+   second grade. Never hidden — see briefing-board.test.js (#1024). */
+.local-lead-derived { margin:6px 0 0; font-size:13px; line-height:1.5; font-weight:550; overflow-wrap:anywhere; }
 
 .local-lead-next { margin-top:18px; padding-top:16px; border-top:1px solid #d8e2dc; break-inside:avoid; }
 .local-lead-action { margin:5px 0 0; font-size:16px; font-weight:750; line-height:1.45; }

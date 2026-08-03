@@ -72,7 +72,10 @@ const READING_ORDER = [
   "local-lead-answer",         // 2. the answer block…
   "local-lead-metric",         //    …the material metric
   "local-lead-grade",          //    …the grade
-  "local-lead-coverage",       //    …and the coverage it is bounded by
+  "local-lead-coverage",       //    …the coverage it is bounded by
+  "local-lead-derived",        //    …and how much of it we derived rather than
+                               //       were given (#1024), beside the grade it
+                               //       caps and outside every disclosure
   "local-lead-next",           // 3. the prioritized action…
   "local-lead-action",
   "local-lead-role",           //    …and the role accountable for it
@@ -100,6 +103,10 @@ test("every contract slot is rendered, in the reading order the briefing claims"
   assert.equal(textOf(byId(document, "local-lead-grade-label")), "High confidence");
   assert.equal(textOf(byId(document, "local-lead-grade-value")), "95.0% coverage");
   assert.match(textOf(byId(document, "local-lead-coverage")), /760 analyzed of 800/);
+  // The committed fixture carries no provenance block — it predates #1024 — so
+  // the slot says so plainly rather than implying a mix it never measured, and
+  // the grade above it is unchanged at High.
+  assert.match(textOf(byId(document, "local-lead-derived")), /^Input provenance was not recorded/);
   assert.match(textOf(byId(document, "local-lead-arithmetic")), /recoverable_scenario_usd/);
   assert.match(textOf(byId(document, "local-lead-action")), /Pilot lower-cost routing/);
   assert.equal(textOf(byId(document, "local-lead-role")),
@@ -109,6 +116,23 @@ test("every contract slot is rendered, in the reading order the briefing claims"
     new RegExp(BRIEFING_FIXTURE.rubricVersion));
   assert.equal(textOf(byId(document, "local-lead-provenance")), lines.provenance);
   assert.match(textOf(byId(document, "local-lead-provenance")), /browser|this tab/);
+});
+
+test("the sentence that explains a capped grade is never folded away (#1024)", () => {
+  // The harness reads text through a closed disclosure, so it cannot tell a
+  // reader-visible sentence from a hidden one. The markup can: count the
+  // disclosures opened and closed before this slot, and if they do not balance,
+  // the slot is inside one and a real browser hides it.
+  const at = html.indexOf('id="local-lead-derived"');
+  assert.ok(at > 0, "the slot is missing from the authored markup");
+  const before = html.slice(0, at);
+  assert.equal((before.match(/<details/g) ?? []).length, (before.match(/<\/details>/g) ?? []).length,
+    "the derivation sentence sits inside a disclosure and would be hidden by default");
+  // Nor is it hidden by attribute, and nothing in the stylesheet removes it.
+  assert.doesNotMatch(html.slice(at, at + 200), /\bhidden\b/);
+  for (const [, , body] of css.matchAll(/([^{}]*\.local-lead-derived[^{}]*)\{([^}]*)\}/g)) {
+    assert.doesNotMatch(body, /display\s*:\s*none|visibility\s*:\s*hidden/);
+  }
 });
 
 test("the visual order is the DOM order: no slot is moved by the stylesheet", () => {

@@ -45,6 +45,7 @@ import {
   CONTRACT_VERSION,
   COVERAGE_THRESHOLDS,
   MATERIAL_CANDIDATE,
+  PROVENANCE_HIGH_FLOOR,
   REQUIRED_INPUTS,
   confidenceFor,
   coverageRatio,
@@ -379,13 +380,20 @@ function coverageSteps(briefing, results) {
       expression:
         `grade = high if coverage_ratio ≥ ${COVERAGE_THRESHOLDS.high} and no required input is missing; `
         + `moderate if ≥ ${COVERAGE_THRESHOLDS.moderate}; low if > ${COVERAGE_THRESHOLDS.low}; `
-        + "otherwise insufficient",
+        + "otherwise insufficient — then capped at moderate when the input "
+        + `provenance score is under ${PROVENANCE_HIGH_FLOOR} of 100`,
       unit: "grade",
       operands: [
         operand("coverage_ratio", computedRatio, "ratio"),
         operand("missing_required_inputs", missing.length, "count"),
+        // The cap's own operand, so a director checking the math sees the score
+        // the ceiling was decided by rather than a grade that dropped a level
+        // for a reason no step names. Read off the briefing, like the missing
+        // list above it: it is a statement about what the analysis had.
+        operand("input_provenance_score", finite(coverage.provenance?.score), "score"),
       ],
-      computed: computedRatio === null ? null : confidenceFor(computedRatio, missing),
+      computed: computedRatio === null
+        ? null : confidenceFor(computedRatio, missing, coverage.provenance ?? null),
       stated: Object.values(BRIEFING_CONFIDENCE).includes(coverage.confidence) ? coverage.confidence : null,
     }),
   ];
