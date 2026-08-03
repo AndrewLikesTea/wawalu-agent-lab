@@ -324,6 +324,11 @@ import {
   applyExampleBriefingCta,
   applyFirstRunResult, applyFirstRunSupersession, bindFirstRunActions, bindFirstRunDisclosure,
 } from "/finops-first-run-view.js";
+// The other half of those markers: a reader who spots a wrong derived name or
+// figure corrects it on the line they read it, and the block's headline, table
+// and confidence sentence are repainted from the one state the correction landed
+// in. Nothing it holds leaves this tab.
+import { mountFigureCorrections } from "/finops-figure-corrections.js";
 // Where the reader goes once they have read that result. The contract owns which
 // three destinations exist, which one is prioritized, and the clause that
 // promoted it; this page hands the loaded record to the view and paints it.
@@ -4514,6 +4519,9 @@ async function init() {
   // first, so they are operable in the unavailable state too.
   bindFirstRunActions(document);
   applyFirstRunResult(document, buildFirstRunResult());
+  // After the result, so the correction table is built over the same figures the
+  // reader has just been shown rather than over a half-painted region.
+  mountFigureCorrections(document);
   // The headline answer, painted BEFORE the fixture request and from a module in
   // the bundle rather than from storage: a lead who lands with cleared storage,
   // no import, and a failed fetch still reads the complete "where do we stand?"
