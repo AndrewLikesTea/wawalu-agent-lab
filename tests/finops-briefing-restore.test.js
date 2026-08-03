@@ -72,7 +72,13 @@ function envelope(overrides = {}) {
     confidence: "Medium",
     quality: {
       providerCompleteness: "complete",
-      hrisCompleteness: null,
+      // A two-file import: provider export plus an org roster. Stated rather
+      // than null because #1024 grades a brief on how much of it was supplied —
+      // with no org file the ranked units are DERIVED from the export's own
+      // billing key, which caps this brief at moderate and would flatten the
+      // high-to-moderate grade movement the delta assertions below exist to
+      // observe. The subject of this suite is the round trip, not the cap.
+      hrisCompleteness: "complete",
       joinedRecords: 760,
       quarantinedRecords: 40,
       quarantine: [],

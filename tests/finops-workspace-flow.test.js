@@ -65,7 +65,14 @@ function analysisOf({ month = "2026-06", spendUsd = 7430, recoverableUsd = 5200 
     ],
     topDepartment: { id: "customer-support", recoverableUsd },
     action: "Pilot lower-cost routing for text generation in the highest-spend org unit.",
-    quality: { joinedRecords: 760, quarantinedRecords: 40, providerCompleteness: true },
+    // A two-file import. `hrisCompleteness` is stated rather than left off
+    // because #1024 caps confidence on how much of a brief was supplied: with no
+    // org file the ranked units are DERIVED from the export's own billing key
+    // and this brief would publish moderate, which is a fact about the cap and
+    // not about the retention flow this suite is here to pin.
+    quality: {
+      joinedRecords: 760, quarantinedRecords: 40, providerCompleteness: true, hrisCompleteness: true,
+    },
   };
 }
 
