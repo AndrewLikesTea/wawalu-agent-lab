@@ -48,6 +48,12 @@ export const MOVEMENT_DIRECTION = Object.freeze({
 
 const MONTH = /^(\d{4})-(\d{2})/;
 
+/** The month names this page prints, indexed by month number minus one. */
+const MONTH_NAMES = Object.freeze([
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+]);
+
 const list = (value) => (Array.isArray(value) ? value : []);
 
 const round = (value) => Math.round(value * 100) / 100;
@@ -213,6 +219,47 @@ export function periodMovement(series) {
   });
 }
 
+/** "2026-03" as a reader reads it: "Mar 2026". Null for anything unparseable. */
+export function monthLabel(period) {
+  const key = canonicalPeriod(period);
+  if (key === null) return null;
+  return `${MONTH_NAMES[Number(key.slice(5, 7)) - 1]} ${key.slice(0, 4)}`;
+}
+
+/**
+ * WHICH MONTHS THE FIGURE WAS COMPUTED FROM: the first, the last, and how many.
+ *
+ * The movement above names the newest two periods and nothing else, so a reader
+ * looking at "up 1,500 USD" could not tell whether the file behind it held two
+ * months or twelve — and a series merged with retained history can hold months
+ * the file they just chose does not. This is the window that series covers,
+ * derived from the SAME entries the movement is, so the two cannot disagree.
+ *
+ * `label` is the whole thing in one string for prose and for a test to pin; the
+ * renderer paints the parts, because the arrow is decoration and a screen
+ * reader needs the word "to" in its place.
+ *
+ * @returns `{ monthCount, firstPeriod, lastPeriod, firstLabel, lastLabel,
+ *   label }`, with nulls and an empty label when no month was read.
+ */
+export function comparisonWindow(series) {
+  const entries = periodSeriesFromTotals(series);
+  const first = entries[0] ?? null;
+  const last = entries.at(-1) ?? null;
+  const count = entries.length;
+  const months = `${count} month${count === 1 ? "" : "s"}`;
+  return Object.freeze({
+    monthCount: count,
+    firstPeriod: first?.period ?? null,
+    lastPeriod: last?.period ?? null,
+    firstLabel: first ? monthLabel(first.period) : null,
+    lastLabel: last ? monthLabel(last.period) : null,
+    label: count === 0 ? ""
+      : count === 1 ? `${monthLabel(last.period)} only, ${months}`
+        : `${monthLabel(first.period)} → ${monthLabel(last.period)}, ${months}`,
+  });
+}
+
 const WORD = Object.freeze({
   [MOVEMENT_DIRECTION.increase]: "up", [MOVEMENT_DIRECTION.decrease]: "down",
 });
@@ -234,13 +281,15 @@ const FILE_PICKER_LABEL = "Choose your export files";
  */
 export function movementSentence(summary) {
   if (!summary || summary.periodCount === 0) {
-    return "No dated period was read from this export, so there is no movement to state.";
+    return "No movement figure: no dated calendar month was read from these files, and a "
+      + `movement needs at least two months. Under "${FILE_PICKER_LABEL}", re-import a longer `
+      + "export whose rows carry a usage date.";
   }
   if (summary.periodCount === 1) {
-    return "No month-over-month movement yet. This export covers one month — "
-      + `${summary.onlyPeriod}, at ${formatUsd(summary.latestTotal)} — and a movement needs two. `
-      + `Under "${FILE_PICKER_LABEL}", add an export covering an earlier month: the months are `
-      + "summed from the rows already inside the files you choose.";
+    return "No movement figure yet. This import covers one month — "
+      + `${summary.onlyPeriod}, at ${formatUsd(summary.latestTotal)} — and a movement needs at `
+      + `least two months. Under "${FILE_PICKER_LABEL}", re-import a longer export covering an `
+      + "earlier month: the months are summed from the rows already inside the files you choose.";
   }
   const pair = `${summary.latestPeriod} vs ${summary.priorPeriod}`;
   if (summary.direction === MOVEMENT_DIRECTION.flat) {
@@ -250,12 +299,19 @@ export function movementSentence(summary) {
     + `${formatUsd(summary.latestTotal)} against ${formatUsd(summary.priorTotal)}.`;
 }
 
-/** How many periods this series covers, and from where. One line, in text. */
+/**
+ * What one entry in this series IS. One line, in text.
+ *
+ * It used to name the count and the range too, which is the window label's job
+ * now: two lines one under the other, both saying "three months, May through
+ * July", is the same fact twice and neither reads as the answer. So this states
+ * the rule the reader cannot see — a month here is every row of that calendar
+ * month, summed — and leaves the window to the line above it.
+ */
 export function seriesSentence(series) {
   const entries = periodSeriesFromTotals(series);
   if (entries.length === 0) return "No period was derived from this export.";
-  return `${entries.length} period${entries.length === 1 ? "" : "s"}, `
-    + `${entries[0].period} through ${entries.at(-1).period}, each one a summed calendar month.`;
+  return "Each month is every row carrying that calendar month, summed.";
 }
 
 /** One row of the series, as the page prints it. */

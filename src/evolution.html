@@ -253,15 +253,29 @@
              series is now derived per calendar month, summed, merged with what
              this browser had already retained, and the newest two are compared
              by name in the sentence below.
-             WHY IT IS NOT INSIDE A DISCLOSURE: the movement sentence is the
-             answer, and a closed details element would keep it off the screen
-             of a real browser while a text-reading harness still saw it. It is a
-             paragraph in the open, with the per-period rows beside it. -->
+             WHAT IS IN THE OPEN AND WHAT IS BEHIND THE CONTROL: the movement
+             sentence is the answer and the window line under it names which
+             months that answer was computed from — first month, last month,
+             count — so neither may sit inside a disclosure. A closed details
+             element is off the screen of a real browser while a text-reading
+             harness still reads through it, so a test that only greps text
+             cannot catch the mistake; both are paragraphs of this region, and
+             the structural test is what holds them there. Behind the control is
+             the per-month working, the value used for each month, which a
+             reader opens to check the figure rather than to read it.
+             FEWER THAN TWO MONTHS IS NOT A ZERO: no movement figure is printed
+             at all, and the paragraph that would have held it says instead that
+             a movement needs at least two months and which control takes a
+             longer export. -->
         <div class="stand-imported" id="finops-imported-movement" data-state="unavailable" data-period-count="0" hidden>
           <p class="eyebrow">Your export · period-over-period movement</p>
           <p class="stand-imported-movement" id="finops-imported-movement-answer"></p>
+          <p class="stand-imported-window" id="finops-imported-movement-window" data-month-count="0" hidden></p>
           <p class="stand-imported-basis" id="finops-imported-movement-basis"></p>
-          <ol class="stand-imported-series" id="finops-imported-movement-series"></ol>
+          <details class="stand-imported-detail" id="finops-imported-movement-detail" data-disclosure="collapsed" hidden>
+            <summary id="finops-imported-movement-summary" aria-expanded="false" aria-controls="finops-imported-movement-series">Month-by-month values: <span class="disclosure-count" id="finops-imported-movement-count">not analyzed</span></summary>
+            <ol class="stand-imported-series" id="finops-imported-movement-series"></ol>
+          </details>
         </div>
         <!-- HOW COMPLETE THAT BRIEF IS, against the one the bundled example
              earns. It ships EMPTY and HIDDEN: the tier sentence, the next
