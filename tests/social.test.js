@@ -290,6 +290,48 @@ test("social page is wired, labeled, and linked from the other pages", async () 
   assert.doesNotMatch(`${component}\n${wiring}`, /innerHTML/);
 });
 
+// The control that opens the composer used to read "Write a post without an
+// image" while the form it opens labels its image field "(optional)" — one page
+// telling a reader both that a post cannot carry an image and that it may. The
+// field label is the anchor term and is unchanged; the entry control names the
+// act and stops there. The same pass pins the destination for image posts: this
+// site has no page called Profile, so "profile" survives on Social only as the
+// People page's URL and the class that styles its nav item, never as a word a
+// reader sees.
+test("the control that opens the composer agrees with the composer about images", async (t) => {
+  const markup = await readFile(new URL("../src/social.html", import.meta.url), "utf8");
+  const page = await loadPage(new URL("../src/social.html", import.meta.url), {});
+  t.after(() => page.restore());
+
+  const entry = page.document.querySelector(".hero-actions").querySelectorAll("a")
+    .filter((anchor) => anchor.getAttribute("href") === "#post-form");
+  assert.equal(entry.length, 1, "the hero offers exactly one route into the composer");
+  assert.equal(textOf(entry[0]), "Write a post",
+    "the control that opens the composer makes a claim about images again");
+
+  const rendered = textOf(page.document.querySelector("body"));
+  assert.doesNotMatch(rendered, /without an image/i,
+    "a rendered string on Social says a post cannot carry an image");
+  // Attributes too: a stale aria-label or title would go unread by the check
+  // above. Rationale comments are prose about the copy, not the copy itself.
+  assert.doesNotMatch(markup.replace(/<!--[\s\S]*?-->/g, ""), /without an image/i,
+    "a stale label survives in an attribute or a hidden string");
+
+  // The composer's own words, unchanged: the intro offers the image, the field
+  // label is the term everything else defers to.
+  const hint = textOf(page.document.querySelector("#post-form-hint"));
+  assert.match(hint, /Add an image if you want one/);
+  assert.equal(textOf(page.document.querySelector(".media-picker").querySelector("legend")), "Image (optional)");
+
+  // One name for the destination, and it is the one the nav, the footer, and
+  // People's own heading use.
+  assert.match(hint, /appears on People/, "the composer stops naming where an image post lands");
+  assert.doesNotMatch(rendered, /profile/i, "Social names a page called Profile, which does not exist");
+  const beyondTheUrl = markup.replace(/class="nav-profile"|href="\/profile\.html"/g, "");
+  assert.doesNotMatch(beyondTheUrl.replace(/<!--[\s\S]*?-->/g, ""), /profile/i,
+    "the word survives outside the People page's own URL and nav class");
+});
+
 // Every toolbar control says what it sorts or narrows, in the site's own words:
 // "Display name" is the term the composer and People already use for the name a
 // post carries, and the feed's order is stated rather than left as a bare value.
