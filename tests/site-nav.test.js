@@ -207,15 +207,20 @@ test("the nav names people, and never promises the visitor a personal profile", 
   assert.ok(entry, "the destination list must still name this page");
   assert.match(entry[1], /^People<\/a>/, "the list calls it what the nav calls it");
   assert.doesNotMatch(entry[1], /not your account/, "a truthful label needs no correction");
-  assert.match(entry[1], /demo persona/, "the list says what kind of people this destination contains");
+  assert.match(entry[1], /display name/, "the list says what the picker on that page selects");
+  assert.doesNotMatch(entry[1], /profile/i, "the list must not call this destination a profile");
 });
 
 test("the profile page identifies the selected name as a demo persona", async () => {
   const html = await readFile(pageUrl("profile.html"), "utf8");
   const role = html.match(/<p class="profile-role">([\s\S]*?)<\/p>/);
   assert.ok(role, "the profile page must state its role near its heading");
-  assert.match(role[1], /<span class="profile-role-chip">Demo persona<\/span>/);
   assert.match(role[1], /<span id="profile-role-name">Ari<\/span> is a demo persona/);
+  // "Demo persona" is said here, in a sentence about what the bundled names
+  // are — and nowhere else on the page. A badge used to repeat it above this
+  // sentence, which left the page with two words for what the picker selects.
+  const rendered = html.replace(/<!--[\s\S]*?-->/g, "");
+  assert.equal(rendered.match(/demo persona/gi)?.length, 1, "the page says \"demo persona\" exactly once");
   assert.match(role[1], /not a signed-in user/);
   assert.match(role[1], /shows that person's image posts only/);
   // Subordinate, not trapped: the way back to the whole feed is right there.
