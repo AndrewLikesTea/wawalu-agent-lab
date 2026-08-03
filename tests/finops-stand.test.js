@@ -33,6 +33,7 @@ import {
   SYNTHETIC_CLAIM_QUALIFIER,
 } from "../src/finops-finding-resolver.js";
 import { SPINE_CLAIM_KIND } from "../src/finops-spine-manifest.js";
+import { answerBlock, scoredCoverage } from "../src/finops-screen-contract.js";
 import { PEER_COST_SNAPSHOT_ID } from "../src/peer-cost-position.js";
 import { evaluateRankingReproducibility } from "../src/ranking-reproducibility.js";
 
@@ -101,6 +102,33 @@ test("the recoverable figure sits in the headline beside the position, not in a 
   assert.ok(headline.answer.includes("$38.63"));
   assert.ok(headline.answer.includes("$51,254"));
   assert.ok(headline.answer.includes(headline.team.name));
+});
+
+test("the recoverable figure and the trust panel state the rubric's reach from one derivation", () => {
+  const headline = buildStandHeadline();
+  const { coveredUsd, totalUsd } = headline.gradability;
+  // The bundled example is the case that made this necessary: a modelled
+  // recoverable over spend the rubric scored none of. Zero stays zero.
+  assert.equal(coveredUsd, 0);
+  assert.equal(totalUsd, 154500);
+
+  // ONE derivation, both surfaces. The figure's qualifier and the panel's
+  // coverage line are two renderings of the same call over the same verdict, so
+  // neither can be edited into disagreeing with the other.
+  const scored = scoredCoverage(coveredUsd, totalUsd);
+  assert.equal(headline.recoverable.basis.endsWith(scored.qualifier), true);
+  assert.equal(answerBlock(headline).confidence.startsWith(scored.coverageLine), true);
+  assert.match(scored.qualifier,
+    /^Modelled, not graded: the rubric has scored none of the \$154,500 in scope/);
+
+  // And it is a derivation, not a sentence typed beside a number: a verdict
+  // that scored half the spend says so on both surfaces.
+  const half = scoredCoverage(totalUsd / 2, totalUsd);
+  assert.match(half.qualifier, /the rubric has scored \$77,250 of the \$154,500 in scope/);
+  assert.equal(half.coverageLine.includes("$77,250 of $154,500"), true);
+  // No denominator is not a coverage of zero, and neither line claims it is.
+  assert.equal(scoredCoverage(0, 0).measurable, false);
+  assert.doesNotMatch(scoredCoverage(0, 0).qualifier, /none of/);
 });
 
 test("exactly one team is named, and it is the department the existing finding already ranked", () => {
