@@ -9,7 +9,8 @@ import { byClass, createElement, first, ids, installDocument, tags } from "./sup
 installDocument();
 
 const {
-  DEFAULT_POST_RETURN,
+  PEOPLE_HREF,
+  POST_FEED_HREF,
   POST_LOADING_LINE,
   POST_STATES,
   findPostById,
@@ -17,7 +18,7 @@ const {
   postDetailTitle,
   postImageAlt,
   postPageHeading,
-  postReturnContext,
+  postPeopleHref,
   renderPostDetail,
 } = await import("../src/post-detail.js");
 
@@ -314,60 +315,60 @@ test("the document title names the post, the feed, and the product", () => {
   assert.equal(postDetailTitle(post, "error"), "Post by Mina Okafor · Social · Shiplog");
 });
 
-test("the post page's exit sits after the site frame, and names where it goes", async () => {
+test("the post page's onward links sit after the site frame, and name where they go", async () => {
   const html = await readFile(new URL("../src/post.html", import.meta.url), "utf8");
 
-  // The order this page used to get wrong: its back link came before the
-  // wordmark, so the one page-specific control on the site preceded the site
+  // The order this page used to get wrong: its page-specific link came before
+  // the wordmark, so the one page-specific control on the site preceded the site
   // frame. src/decision.html puts "← Back to Decisions" inside the content
-  // region, after the header, and this page now matches it.
+  // region, after the header, and this page now matches that placement.
   const brand = html.indexOf('class="brand"');
   const nav = html.indexOf('<nav class="site-nav"');
   const exit = html.indexOf('id="post-back"');
+  const people = html.indexOf('id="post-people"');
   const content = html.indexOf('id="post-detail"');
   assert.ok(brand < nav, "the wordmark precedes the nav");
-  assert.ok(nav < exit, "the nav precedes the exit");
-  assert.ok(exit < content, "the exit precedes the post content");
+  assert.ok(nav < exit, "the nav precedes the onward links");
+  assert.ok(exit < people, "Social is offered before People");
+  assert.ok(people < content, "the onward links precede the post content");
 
-  // Destination in the visible text, not smuggled into an aria-label. The feed
-  // is what ships, because a link with no provenance came from the feed as far
-  // as this page can honestly tell.
-  assert.match(html, /<a class="detail-back detail-page-back" id="post-back" href="\/social\.html">← Back to Social<\/a>/);
-  assert.equal(html.includes("post-back-feed"), false, "the second, stacked exit is gone");
+  // Destination in the visible text, not smuggled into an aria-label. Both are
+  // written out in the markup, so they read before a line of script has run.
+  assert.match(html, /<a class="detail-back detail-page-back" id="post-back" href="\/social\.html">Open Social to read the whole feed<\/a>/);
+  assert.match(html, /<a class="detail-back detail-page-back" id="post-people" href="\/profile\.html">Open People to see other posts by this display name<\/a>/);
   const exits = html.match(/<p class="detail-page-exits">[\s\S]*?<\/p>/)[0];
-  assert.doesNotMatch(exits, /aria-label/, "an exit must not depend on aria-label to name its destination");
+  assert.doesNotMatch(exits, /aria-label/, "a link must not depend on aria-label to name its destination");
 
-  // The arrow-plus-"Back to <destination>" convention comes from the decision
-  // page; this page is not allowed to invent a second phrasing for the same job.
-  const decision = await readFile(new URL("../src/decision.html", import.meta.url), "utf8");
-  assert.match(decision, /class="detail-back" href="\/">← Back to Decisions<\/a>/);
+  // No "Back" on a page nobody arrives at by stepping forward. A permalink is
+  // opened cold from a pasted link, so there is no previous step to undo, and a
+  // link promising one is a lie about the reader's own history.
+  assert.doesNotMatch(exits, /Back/, "the permalink's onward links must not say Back");
+
+  // "Open <destination>" is the site's own verb for reaching a neighbouring
+  // surface — src/social.html and src/profile.html each use it about the other —
+  // so this page is not inventing a second phrasing for the same job.
+  const social = await readFile(new URL("../src/social.html", import.meta.url), "utf8");
+  const profile = await readFile(new URL("../src/profile.html", import.meta.url), "utf8");
+  assert.match(social, /Open People when you want/);
+  assert.match(profile, /Open Social when you want/);
 });
 
-/* ---------------------------- where "back" goes --------------------------- */
+/* ------------------------ where the People link goes ---------------------- */
 
-test("provenance decides the one exit, and anything unknown means the feed", () => {
-  assert.deepEqual(postReturnContext("?id=p-image&from=profile&author=Mina%20Okafor"), {
-    href: "/profile.html?author=Mina%20Okafor",
-    label: "← Back to People",
-  });
-  // Came from a profile, but with no usable name: still the profile, generally.
-  assert.deepEqual(postReturnContext("?id=p-image&from=profile"), {
-    href: "/profile.html",
-    label: "← Back to People",
-  });
-  assert.equal(postReturnContext(`?from=profile&author=${"n".repeat(61)}`).href, "/profile.html");
+test("a display name in the link opens People already filtered to it", () => {
+  // The shape profile.js writes into its tiles, passed straight through to
+  // People's own filter rather than dropping the reader on an unfiltered page.
+  assert.equal(postPeopleHref("?id=p-image&from=profile&author=Mina%20Okafor"), "/profile.html?author=Mina%20Okafor");
+  assert.equal(postPeopleHref("?id=p-image&author=Mina%20Okafor"), "/profile.html?author=Mina%20Okafor");
+  assert.equal(postPeopleHref("?author=Ada%20%C3%98%E2%80%99Neil%20%26%20Co"), `/profile.html?author=${encodeURIComponent("Ada Ø’Neil & Co")}`);
 
-  // No provenance, a provenance naming somewhere this page does not know, and a
-  // value shaped like an injection all land on the same honest default.
-  for (const search of ["", "?id=p-image", "?id=p-image&from=", "?from=social", "?from=PROFILE", "?from=javascript:alert(1)"]) {
-    assert.deepEqual(postReturnContext(search), DEFAULT_POST_RETURN, `"${search}" must fall back to the feed`);
+  // No name, a blank one, and a string longer than a display name can be all
+  // open People itself — still the right page, just unfiltered.
+  for (const search of ["", "?id=p-image", "?author=", "?author=%20%20", `?author=${"n".repeat(61)}`]) {
+    assert.equal(postPeopleHref(search), PEOPLE_HREF, `"${search}" must open People unfiltered`);
   }
-  assert.deepEqual(DEFAULT_POST_RETURN, { href: "/social.html", label: "← Back to Social" });
-
-  // The label reads the same in both directions and says only what it does.
-  // Both labels name a destination the nav offers: this site has a People page
-  // and no page called Profile, so the exit cannot promise one.
-  for (const search of ["?from=profile", ""]) assert.match(postReturnContext(search).label, /^← Back to (People|Social)$/);
+  assert.equal(PEOPLE_HREF, "/profile.html");
+  assert.equal(POST_FEED_HREF, "/social.html");
 });
 
 /* ------------------------- the page's standing frame ---------------------- */
@@ -530,11 +531,12 @@ test("the post region holds exactly one state, and names it on one attribute", (
   }
 });
 
-test("the standing exit remains while unavailable states add a clear feed action", async () => {
+test("the standing links remain while unavailable states add a clear feed action", async () => {
   const html = await postPageHtml();
-  assert.equal([...html.matchAll(/id="post-back"/g)].length, 1, "one standing exit in the markup");
-  assert.equal([...html.matchAll(/class="detail-back detail-page-back"/g)].length, 1, "and only one");
-  assert.equal([...html.matchAll(/<a [^>]*>← Back to /g)].length, 1, "one back label ships, not two stacked ones");
+  assert.equal([...html.matchAll(/id="post-back"/g)].length, 1, "one link to Social in the markup");
+  assert.equal([...html.matchAll(/id="post-people"/g)].length, 1, "one link to People in the markup");
+  assert.equal([...html.matchAll(/class="detail-back detail-page-back"/g)].length, 2, "two standing links, no more");
+  assert.equal([...html.matchAll(/<a [^>]*>← Back to /g)].length, 0, "no back label ships on a page opened cold");
 
   for (const [name, value, options] of PANEL_STATES) {
     const container = createElement("div");

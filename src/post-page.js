@@ -6,7 +6,7 @@
 // asked first, and the seed is still consulted when the API has no answer.
 
 import { normalizeProfileApiPosts, normalizeSeedPosts } from "/profile.js";
-import { findPostById, postDetailTitle, postPageHeading, postReturnContext, renderPostDetail } from "/post-detail.js";
+import { findPostById, postDetailTitle, postPageHeading, postPeopleHref, renderPostDetail } from "/post-detail.js";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -30,16 +30,14 @@ async function init() {
   const params = new URLSearchParams(window.location.search);
   const id = params.get("id") ?? "";
   const requestedAuthor = (params.get("author") ?? "").trim();
-  // One exit, named once, before anything is fetched — so it reads the same in
-  // the loading, loaded, missing and failed states, and never changes under a
-  // reader mid-visit. Provenance comes from the URL the visitor arrived on, not
-  // from the post: what they came from does not change with what loads.
-  const exit = postReturnContext(window.location.search);
-  const back = document.querySelector("#post-back");
-  if (back) {
-    back.href = exit.href;
-    back.textContent = exit.label;
-  }
+  // Both onward links ship written out in src/post.html and nothing here
+  // rewrites their words: they read the same in the loading, loaded, missing and
+  // failed states, and never change under a reader mid-visit. The only thing
+  // this can settle is *which* People view the second one opens, and it settles
+  // it from the URL the visitor arrived on rather than from the post — a name in
+  // the link is known before the fetch and does not change with what loads.
+  const people = document.querySelector("#post-people");
+  if (people) people.href = postPeopleHref(window.location.search);
 
   const heading = document.querySelector("#page-title");
   const nameHeading = (post) => {
@@ -53,7 +51,7 @@ async function init() {
     // page (a test, a smoke check) sees the second fetch as its own load.
     document.documentElement.dataset.shiplogPostDetail = "loading";
     nameHeading(null);
-    renderPostDetail(container, null, { state: "loading", id, author: requestedAuthor, returnHref: exit.href });
+    renderPostDetail(container, null, { state: "loading", id, author: requestedAuthor });
     let post = null;
     let failed = false;
     if (id) {
@@ -84,7 +82,6 @@ async function init() {
       state,
       id,
       author: post?.author ?? requestedAuthor,
-      returnHref: exit.href,
       onRetry: () => load({ fromRetry: true }),
     });
     nameHeading(post);

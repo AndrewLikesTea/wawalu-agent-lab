@@ -198,11 +198,17 @@ export function captionFor(post) {
   return post?.caption?.trim() || post?.body?.trim() || "";
 }
 
-// `from` is provenance, written by the surface that links to the post so the
-// detail page can offer one back link that names where the reader actually came
-// from. Same parameter, same value, same defaulting rule as profilePaintHref
-// below and src/paint/paint.js: only "profile" means anything, and a link that
-// omits it gets the feed's exit.
+// `author` is the display name the tile was published under. The permalink
+// passes it straight through to People's own filter, so its "Open People to see
+// other posts by this display name" link lands on that one name rather than on
+// the whole directory — before the post is fetched, and whether or not it
+// arrives.
+//
+// `from` is provenance, written by the surface that links to the post. The
+// permalink no longer reads it: it is opened cold from pasted links, so it names
+// where a reader can go instead of guessing where they have been. The parameter
+// keeps the same value and the same defaulting rule as profilePaintHref below
+// and src/paint/paint.js, where it is still read.
 export function postDetailHref(id, author = "", from = "") {
   const params = new URLSearchParams({ id: String(id ?? "") });
   const name = String(author ?? "").trim();

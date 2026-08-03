@@ -350,6 +350,132 @@ test("every state the page can reach puts exactly one of the four on screen", as
   }
 });
 
+/* ------------------------------ the chrome -------------------------------- */
+
+// What a cold visitor needs is not in the post: it is the page around the post.
+// Which surface this is and that it is a demo, that the feed is shared and holds
+// nothing real, and two ways onward. All of it ships in src/post.html, outside
+// #post-detail, so a render cannot take it — and this block's whole point is
+// that it reads the same when the post never arrives as when it does.
+const OPEN_SOCIAL = "Open Social to read the whole feed";
+const OPEN_PEOPLE = "Open People to see other posts by this display name";
+// Word for word from src/social.html's hero. A visitor who arrived on a pasted
+// link has never seen the page that sentence comes from, so this page says it
+// too — the same sentence, not a paraphrase of it.
+const DEMO_SENTENCE = "Posts are shared across browsers and use no customer or production data.";
+
+function assertChrome(page, where) {
+  const { document } = page;
+
+  const social = document.querySelector("#post-back");
+  assert.equal(textOf(social), OPEN_SOCIAL, `${where}: the link to Social`);
+  assert.equal(social.getAttribute("href"), "/social.html", `${where}: where the Social link opens`);
+  // A permalink is opened cold, so its reader has no previous step on this site.
+  // "Back" would name one anyway. Read across every link on the page, not just
+  // this one, so a "Back" reappearing inside a state panel fails here too.
+  assert.doesNotMatch(textOf(social), /Back/, `${where}: the Social link must not say Back`);
+  const backish = document.querySelectorAll("a").filter((link) => /Back to/.test(link.textContent));
+  assert.equal(backish.length, 0, `${where}: a link still offers to go back: ${backish.map(textOf).join(" + ")}`);
+
+  const people = document.querySelector("#post-people");
+  assert.equal(textOf(people), OPEN_PEOPLE, `${where}: the link to People`);
+  assert.doesNotMatch(textOf(people), /Back/, `${where}: the People link must not say Back`);
+  // "display name" is the term People's picker, the feed's filter and the
+  // composer's helper all use for this. One name per concept, everywhere.
+  assert.ok(textOf(people).includes("display name"), `${where}: People is offered by the term the rest of the site uses`);
+
+  const hero = document.querySelector(".hero-post");
+  assert.equal(textOf(hero.querySelector(".eyebrow")), "Social · post · demo", `${where}: the eyebrow carries the demo marker`);
+  assert.ok(textOf(hero).includes(DEMO_SENTENCE), `${where}: the demo sentence must be on the page`);
+
+  // And none of it may have been moved into the region a render replaces.
+  assert.equal(page.panel.querySelectorAll(".detail-page-back").length, 0, `${where}: the onward links must not sit in the panel`);
+  assert.equal(textOf(page.panel).includes(DEMO_SENTENCE), false, `${where}: the demo sentence must not sit in the panel`);
+}
+
+test("the chrome a cold visitor reads survives the state the post lands in", async () => {
+  // The wait, held open: the state a shared link is opened into.
+  const waiting = await loadPage(new URL("../src/post.html", import.meta.url), { location: { search: "?id=p-image" } });
+  try {
+    let release;
+    globalThis.fetch = () => new Promise((resolve) => { release = () => resolve(seedResponse([IMAGE_POST])); });
+    await importPageModule("/post-page.js");
+    const panel = waiting.document.querySelector("#post-detail");
+    await waitFor(() => panel.querySelectorAll(".detail-loading").length === 1, "the loading state rendered");
+    assertChrome({ ...waiting, panel }, "while the lookup runs");
+
+    release();
+    await waitFor(() => waiting.document.documentElement.dataset.shiplogPostDetail === "ready", "the post arrived");
+    assertChrome({ ...waiting, panel }, "once the post arrived");
+  } finally {
+    waiting.restore();
+  }
+
+  // And every state a settled lookup can land in — the missing post above all,
+  // because that is the one whose panel used to replace what the reader needs.
+  const cases = [
+    ["loaded", "?id=p-image", seedOnly([IMAGE_POST])],
+    ["not-found", "?id=p-gone", seedOnly([IMAGE_POST])],
+    ["error", "?id=p-image", () => { throw new TypeError("Failed to fetch"); }],
+    ["no id at all", "", () => { throw new Error("a page with no id must not ask the network"); }],
+  ];
+  for (const [state, search, answer] of cases) {
+    const page = await openPostPage(search, answer);
+    try {
+      assertChrome(page, `the ${state} state`);
+    } finally {
+      page.restore();
+    }
+  }
+});
+
+// The one thing about the chrome that is allowed to vary, and it is a
+// destination rather than a word: a display name carried in the link opens
+// People already filtered to that name instead of at the whole directory.
+test("a display name in the link opens People filtered, in every state", async () => {
+  const cases = [
+    ["loaded", "?id=p-image&from=profile&author=Mina%20Okafor", seedOnly([IMAGE_POST])],
+    ["not-found", "?id=p-gone&from=profile&author=Mina%20Okafor", seedOnly([IMAGE_POST])],
+  ];
+  for (const [state, search, answer] of cases) {
+    const page = await openPostPage(search, answer);
+    try {
+      assertChrome(page, `the ${state} state, from a profile`);
+      assert.equal(page.document.querySelector("#post-people").getAttribute("href"), "/profile.html?author=Mina%20Okafor",
+        `the ${state} state must keep the display name on the People link`);
+    } finally {
+      page.restore();
+    }
+  }
+
+  // With no name to carry, People opens unfiltered — still the right page.
+  const plain = await openPostPage("?id=p-gone", seedOnly([IMAGE_POST]));
+  try {
+    assert.equal(plain.document.querySelector("#post-people").getAttribute("href"), "/profile.html");
+  } finally {
+    plain.restore();
+  }
+});
+
+// The chrome ships written out, so it is on screen before a line of script has
+// run — which is when a cold visitor actually meets this page.
+test("the chrome is in the markup, not drawn by the script", async () => {
+  const html = await readFile(new URL("../src/post.html", import.meta.url), "utf8");
+  assert.ok(html.includes(`>${OPEN_SOCIAL}</a>`), "the Social link ships in the markup");
+  assert.ok(html.includes(`>${OPEN_PEOPLE}</a>`), "the People link ships in the markup");
+  assert.ok(html.includes(`<p>${DEMO_SENTENCE}</p>`), "the demo sentence ships in the markup");
+  assert.ok(html.includes('<p class="eyebrow">Social · post · demo</p>'), "the eyebrow ships with the demo marker");
+
+  // All of it sits before the region every render replaces.
+  for (const piece of [OPEN_SOCIAL, OPEN_PEOPLE, DEMO_SENTENCE]) {
+    assert.ok(html.indexOf(piece) < html.indexOf('id="post-detail"'), `"${piece}" must precede the state panel`);
+  }
+
+  // The demo sentence is Social's own, so the two pages cannot drift apart.
+  const social = await readFile(new URL("../src/social.html", import.meta.url), "utf8");
+  assert.ok(social.includes(DEMO_SENTENCE), "the sentence must be copied from src/social.html, not rewritten");
+});
+
 // Every state says what it is in words, so none of them depends on a colour or
 // an icon to be understood. Asserted on text with every class name ignored.
 test("all four states carry a visible text label, not colour alone", async () => {

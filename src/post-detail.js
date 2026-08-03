@@ -22,27 +22,27 @@ import { captionFor, countLabel, profileHref } from "./profile.js";
 import { pageTitle, recordTitle } from "./page-title.js";
 import { normalizeImage } from "./social.js";
 
-// Where "back" goes, read the way src/paint/paint.js reads the same thing: an
-// explicit `from` written by the link that sent the reader here. One exit, named
-// for one destination — the page used to ship two stacked back links, which left
-// a reader to guess which one undid their last step.
-//
-// Anything we did not write is not provenance: no parameter, a parameter naming
-// somewhere else, or an author string longer than a display name can be all fall
-// back to the feed, which is where a shared link is honestly from.
-export const DEFAULT_POST_RETURN = { href: "/social.html", label: "← Back to Social" };
+// The two destinations the page's standing chrome names. Both are constants,
+// because both links ship written out in src/post.html and no lookup can change
+// what they say: a permalink is opened cold, so it names where a reader can go
+// rather than guessing where they have been.
+export const POST_FEED_HREF = "/social.html";
+export const PEOPLE_HREF = "/profile.html";
 const MAX_RETURN_AUTHOR_LENGTH = 60;
 
-export function postReturnContext(search = "") {
+// Where the People link lands. Read the way src/paint/paint.js reads the same
+// thing — from the URL the visitor arrived on, not from the post, so it is
+// settled before the fetch and identical in every state the page can reach.
+//
+// A display name written into the link by profile.js's tiles opens People
+// already filtered to that name. Anything we did not write is not a display
+// name: no parameter, an empty one, or a string longer than a display name can
+// be all open People unfiltered, which is still the right page.
+export function postPeopleHref(search = "") {
   const params = new URLSearchParams(String(search).replace(/^\?/, ""));
-  if (params.get("from") !== "profile") return DEFAULT_POST_RETURN;
   const author = (params.get("author") ?? "").trim();
-  // The visitor did come from a profile, so the exit says so either way; only the
-  // destination narrows to one author's profile when the name is usable.
-  return {
-    href: author && author.length <= MAX_RETURN_AUTHOR_LENGTH ? profileHref(author) : "/profile.html",
-    label: "← Back to People",
-  };
+  if (!author || author.length > MAX_RETURN_AUTHOR_LENGTH) return PEOPLE_HREF;
+  return profileHref(author);
 }
 
 export function findPostById(posts, id) {
@@ -62,9 +62,11 @@ function formatDateTime(iso) {
   return new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(iso));
 }
 
-// The page carries a standing exit in src/post.html, named by postReturnContext
-// above. An unavailable-post state also owns an explicit return action so the
-// next step remains visible beside the explanation.
+// The page carries its standing chrome in src/post.html — both onward links, the
+// eyebrow, and the two sentences about what Social is. None of it is rendered
+// here, so none of it can be replaced by a state. An unavailable-post state
+// still owns an explicit feed action, so the next step stays visible beside the
+// explanation that prompted it.
 
 // One title and one sentence per resolved state, in the same shape the decision
 // detail uses: a status chip, a heading that names the state, then a single line
@@ -135,7 +137,7 @@ function labelledState(key, actions = []) {
 // exit above happens to lead to the same place.
 function feedAction() {
   const link = el("a", "empty-action empty-action-secondary detail-state-feed", "Return to the Social feed");
-  link.href = DEFAULT_POST_RETURN.href;
+  link.href = POST_FEED_HREF;
   return link;
 }
 
@@ -260,7 +262,7 @@ export function resolvePostState(post, state = "ready") {
 }
 
 export function renderPostDetail(container, post, options = {}) {
-  const { state: requested = "ready", id = "", returnHref = DEFAULT_POST_RETURN.href } = options;
+  const { state: requested = "ready", id = "", returnHref = POST_FEED_HREF } = options;
   // One state, chosen before anything is drawn. replaceChildren() empties the
   // region and exactly one branch below fills it, so the states cannot stack:
   // an inactive state is absent from the document rather than hidden, which is

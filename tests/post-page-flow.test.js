@@ -5,7 +5,8 @@
 // The render layer is covered structurally in tests/post-detail.test.js. What is
 // only true end to end is here: which state the page lands in for a given
 // answer, that the retry button re-runs the real fetch and can recover, and that
-// exactly one back link is on the page in every one of those states.
+// the page's standing chrome — both onward links, the demo eyebrow and the demo
+// sentence — reads identically in every one of those states.
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -47,22 +48,45 @@ const seedOnly = (posts) => (url) => {
   throw new Error(`Unexpected request: ${url}`);
 };
 
-// The one exit, wherever the page is in its life. Reading it from the whole
-// document rather than from a known id is the point: a second back link
-// appearing anywhere — in the markup, in a state panel — fails here.
-function exits(document) {
-  return document.querySelectorAll("a").filter((link) => /←|Back to/.test(link.textContent));
-}
+// The page's standing chrome, wherever the page is in its life. All four pieces
+// of it live in src/post.html, outside #post-detail, so a render cannot take any
+// of them with it — which is what this helper is really asserting when it is
+// called in the loading, loaded, missing and failed states alike.
+const OPEN_SOCIAL = "Open Social to read the whole feed";
+const OPEN_PEOPLE = "Open People to see other posts by this display name";
+const PEOPLE_UNFILTERED = "/profile.html";
+const PEOPLE_FILTERED = "/profile.html?author=Mina%20Okafor";
+// Word for word from src/social.html's hero — the same sentence, not a
+// paraphrase, because a cold visitor may never see the page it comes from.
+const DEMO_SENTENCE = "Posts are shared across browsers and use no customer or production data.";
 
-function assertOneExit(page, expected, where) {
-  const links = exits(page.document);
-  assert.equal(links.length, 1, `${where}: expected one back link, found ${links.map(textOf).join(" + ") || "none"}`);
-  assert.equal(textOf(links[0]), expected.label, `${where}: the back link's text`);
-  assert.equal(links[0].href, expected.href, `${where}: the back link's destination`);
-}
+function assertStandingChrome(page, peopleHref, where) {
+  const { document } = page;
+  const social = document.querySelector("#post-back");
+  const people = document.querySelector("#post-people");
+  assert.equal(textOf(social), OPEN_SOCIAL, `${where}: the link to Social`);
+  assert.equal(social.href, "/social.html", `${where}: where the Social link opens`);
+  assert.equal(textOf(people), OPEN_PEOPLE, `${where}: the link to People`);
+  assert.equal(people.href, peopleHref, `${where}: where the People link opens`);
 
-const SOCIAL = { label: "← Back to Social", href: "/social.html" };
-const PROFILE = { label: "← Back to People", href: "/profile.html?author=Mina%20Okafor" };
+  // No "Back" anywhere on a page that is opened cold. Read from the whole
+  // document rather than from the two known ids: a link promising to undo a
+  // step the reader never took fails here whether it ships in the markup or is
+  // drawn into a state panel.
+  const backish = document.querySelectorAll("a").filter((link) => /←|Back to/.test(link.textContent));
+  assert.equal(backish.length, 0, `${where}: a link still offers to go back: ${backish.map(textOf).join(" + ")}`);
+
+  // The eyebrow's demo marker and the demo sentence, both in the hero, which no
+  // render touches.
+  const hero = document.querySelector(".hero-post");
+  assert.equal(textOf(hero.querySelector(".eyebrow")), "Social · post · demo", `${where}: the eyebrow`);
+  assert.ok(textOf(hero).includes(DEMO_SENTENCE), `${where}: the demo sentence must be on the page`);
+
+  // None of it may have been moved into the region a render replaces.
+  const panel = document.querySelector("#post-detail");
+  assert.equal(panel.querySelectorAll(".detail-page-back").length, 0, `${where}: the onward links must not sit in the panel`);
+  assert.equal(textOf(panel).includes(DEMO_SENTENCE), false, `${where}: the demo sentence must not sit in the panel`);
+}
 
 test("a post that loads is headed by its author and reads name, time, image, caption", async () => {
   const page = await openPostPage("?id=p-image", seedOnly([SEED_POST]));
@@ -81,18 +105,20 @@ test("a post that loads is headed by its author and reads name, time, image, cap
     assert.equal(textOf(figure.querySelector("figcaption")), "The middle card, ringed.");
     assert.equal(page.panel.getAttribute("aria-busy"), "false");
 
-    assertOneExit(page, SOCIAL, "loaded");
+    assertStandingChrome(page, PEOPLE_UNFILTERED,"loaded");
   } finally {
     page.restore();
   }
 });
 
-test("arriving from a profile turns the one exit into the profile's, and nothing else", async () => {
+test("a display name in the link filters the People link, and changes nothing else", async () => {
   const page = await openPostPage("?id=p-image&from=profile&author=Mina%20Okafor", seedOnly([SEED_POST]));
   try {
-    assertOneExit(page, PROFILE, "from a profile");
-    // The provenance came from the URL, not from the post, so it is the same
-    // exit whether or not the post itself loaded.
+    // Same words, both links; only where People opens narrows to the one
+    // display name, which is exactly what assertStandingChrome is checking.
+    assertStandingChrome(page, PEOPLE_FILTERED,"from a profile");
+    // The name came from the URL, not from the post, so the link reads the same
+    // whether or not the post itself loaded.
     assert.equal(textOf(page.document.querySelector("#page-title")), "Post by Mina Okafor");
   } finally {
     page.restore();
@@ -110,7 +136,7 @@ test("an unknown id is named as a missing post, with the feed still the way out"
     assert.doesNotMatch(textOf(page.panel), /Try again/);
     assert.equal(page.panel.querySelector(".detail-state-message").getAttribute("role"), "status");
     assert.equal(page.document.title, "Post not found · Shiplog");
-    assertOneExit(page, SOCIAL, "not found");
+    assertStandingChrome(page, PEOPLE_UNFILTERED,"not found");
     const feed = page.panel.querySelector(".detail-state-feed");
     assert.equal(textOf(feed), "Return to the Social feed");
     assert.equal(feed.getAttribute("href"), "/social.html");
@@ -123,23 +149,26 @@ test("an unknown id is named as a missing post, with the feed still the way out"
 test("a missing post reached from a profile still offers the feed it belonged to", async () => {
   const page = await openPostPage("?id=p-gone&from=profile&author=Mina%20Okafor", seedOnly([SEED_POST]));
   try {
-    assertOneExit(page, PROFILE, "missing, from a profile");
-    // The one exit goes back to the profile, so without this the reader would
-    // have no route at all to the feed the missing post lived in.
+    assertStandingChrome(page, PEOPLE_FILTERED,"missing, from a profile");
+    // The explanation owns its own action, so the next step is named in the same
+    // place as the problem rather than only in the chrome above it.
     const feed = page.panel.querySelector(".detail-state-feed");
     assert.equal(feed.getAttribute("href"), "/social.html");
     assert.equal(textOf(feed), "Return to the Social feed");
     // The site's two directories are both excluded: the header nav and the
     // footer's site map name every destination on every page, and neither is a
-    // route this page offers. What is counted is what the page itself says.
+    // route this page offers. What is counted is what the page itself says —
+    // the standing link in the chrome, and the missing state's own action.
     const toFeed = page.document.querySelectorAll("a")
       .filter((link) => link.getAttribute("href") === "/social.html"
         && !link.closest(".site-nav") && !link.closest("#site-footer"));
-    assert.equal(toFeed.length, 1, "one link to Social outside the site's directories, not two");
+    assert.equal(toFeed.length, 2, "the standing link and the state's own action, and nothing further");
+    assert.deepEqual(toFeed.map(textOf), [OPEN_SOCIAL, "Return to the Social feed"]);
 
-    // Tab order: the exit first, then the post region's own action.
+    // Tab order: the chrome first, then the post region's own action.
     const sequence = tabSequence(page.document);
     assert.ok(sequence.indexOf(page.document.querySelector("#post-back")) < sequence.indexOf(feed));
+    assert.ok(sequence.indexOf(page.document.querySelector("#post-people")) < sequence.indexOf(feed));
   } finally {
     page.restore();
   }
@@ -155,7 +184,7 @@ test("a failed lookup names the feed it could not reach, and retry can recover",
     assert.match(textOf(page.panel), /Post could not be loaded/);
     assert.match(textOf(page.panel), /The Social feed could not be reached/);
     assert.match(textOf(page.panel), /Social is a shared demo feed, not a signed-in account\./);
-    assertOneExit(page, SOCIAL, "failed");
+    assertStandingChrome(page, PEOPLE_UNFILTERED,"failed");
 
     const retry = page.panel.querySelector("button");
     assert.equal(textOf(retry), "Retry");
@@ -174,7 +203,7 @@ test("a failed lookup names the feed it could not reach, and retry can recover",
     assert.equal(textOf(page.panel.querySelector("figcaption")), "The middle card, ringed.");
     assert.doesNotMatch(textOf(page.panel), /could not be reached/);
     assert.equal(page.panel.dataset.postState, "loaded");
-    assertOneExit(page, SOCIAL, "recovered");
+    assertStandingChrome(page, PEOPLE_UNFILTERED,"recovered");
   } finally {
     page.restore();
   }
@@ -185,7 +214,7 @@ test("a visit with no id is told what the page needs, and still has one way out"
   try {
     assert.match(textOf(page.panel), /Choose a post/);
     assert.equal(page.requests.length, 0);
-    assertOneExit(page, SOCIAL, "no id");
+    assertStandingChrome(page, PEOPLE_UNFILTERED,"no id");
   } finally {
     page.restore();
   }
@@ -218,7 +247,7 @@ test("the loading state is one announced line in the post's region, and takes no
     // The frame around it still says what the page is, so the region is never
     // an unexplained blank.
     assert.match(textOf(page.document.querySelector(".hero-post")), /Social is a shared demo feed/);
-    assertOneExit(page, SOCIAL, "loading");
+    assertStandingChrome(page, PEOPLE_UNFILTERED,"loading");
     // Nothing inside the waiting region is tabbable, so the exit stays the
     // first thing on the page a keyboard reader reaches after the site frame.
     assert.equal(tabSequence(page.document).filter((node) => node.closest("#post-detail")).length, 0);
@@ -226,7 +255,7 @@ test("the loading state is one announced line in the post's region, and takes no
     release();
     await waitFor(() => page.document.documentElement.dataset.shiplogPostDetail === "ready", "the post arrived");
     assert.equal(panel.getAttribute("aria-busy"), "false");
-    assertOneExit(page, SOCIAL, "after loading");
+    assertStandingChrome(page, PEOPLE_UNFILTERED,"after loading");
   } finally {
     page.restore();
   }
@@ -251,7 +280,7 @@ test("the page opens already saying it is loading, and the post replaces that li
     assert.equal(panel.querySelectorAll(".detail-state-message").length, 0);
     assert.equal(panel.querySelectorAll(".detail-post").length, 0);
     // And it takes nothing away from the exit above it.
-    assertOneExit(page, SOCIAL, "before the script runs");
+    assertStandingChrome(page, PEOPLE_UNFILTERED,"before the script runs");
     assert.equal(tabSequence(page.document).filter((node) => node.closest("#post-detail")).length, 0);
 
     // Held open, so the script's own render of the same line can be read.
