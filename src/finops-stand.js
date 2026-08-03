@@ -84,7 +84,7 @@ import {
 } from "./finops-spine-manifest.js";
 
 /** Bump when a headline slot, a disclosure, or a withheld sentence changes meaning. */
-export const STAND_VERSION = "finops-stand-headline/1.0.0";
+export const STAND_VERSION = "finops-stand-headline/1.1.0";
 
 /** The lead's own question, in the lead's own words. It is the region's heading. */
 export const STAND_QUESTION = "Where do we stand on AI spend?";
@@ -101,6 +101,8 @@ export const STAND_IDS = Object.freeze({
   positionBasis: "finops-stand-position-basis",
   recoverableValue: "finops-stand-recoverable-value",
   recoverableBasis: "finops-stand-recoverable-basis",
+  /** The sentence that reconciles the recoverable figure with the coverage verdict (#1019). */
+  recoverableReconciliation: "finops-stand-recoverable-reconciliation",
   team: "finops-stand-team",
   teamName: "finops-stand-team-name",
   teamDetail: "finops-stand-team-detail",
@@ -457,8 +459,48 @@ function positionSlot(position, period) {
   });
 }
 
-/** The recoverable figure, beside the position rather than in a card of its own. */
-function recoverableSlot(analysis) {
+/**
+ * THE SENTENCE THAT RECONCILES THIS FIGURE WITH THE COVERAGE VERDICT (#1019).
+ *
+ * The headline says $51,254 of the bundled example is modelled as recoverable
+ * over $154,500 analyzed; the trust panel says the rubric scored $0 of that same
+ * $154,500 and shows no letter. Both are true and they read as a contradiction,
+ * because nothing said the recoverable figure is a MODEL over every analyzed
+ * dollar while coverage measures how much of it has been checked.
+ *
+ * NOTHING IS COMPUTED HERE. `coveredUsd`, `totalUsd` and `coverage` are read off
+ * the `gradeExport()` verdict this render already produced — the same three
+ * `confidenceSentence()` in finops-screen-contract.js prints into that panel —
+ * so the two surfaces cannot state different coverage over one spend base. No
+ * bar, tier or grade is restated, and a coverage of zero prints as zero.
+ */
+function recoverableReconciliation(amount, gradability) {
+  // Deliberately not a second copy of the basis line above it: that one says
+  // what the model is a ceiling ON, this one says the model has not been checked.
+  const lead = `${amount} is a modelled estimate of recoverable spend, not savings anyone has `
+    + "verified";
+  const covered = usd(gradability?.coveredUsd);
+  const total = usd(gradability?.totalUsd);
+  const coverage = gradability?.coverage ?? null;
+  // No denominator is NOT a coverage of zero, so this branch names the missing
+  // input rather than printing a share nothing was measured over.
+  if (coverage === null || covered === null || total === null) {
+    return `${lead}, and this analysis published no spend total to measure coverage against, so `
+      + "the rubric has scored none of the spend behind it.";
+  }
+  return `${lead}, and the rubric has scored `
+    + `${coverage === 0 ? "none" : SHARE.format(coverage)} of the spend it was modelled over — `
+    + `${covered} of the ${total} analyzed sits in departments the rubric scored.`;
+}
+
+/**
+ * The recoverable figure, beside the position rather than in a card of its own.
+ *
+ * @param gradability the `gradeExport()` verdict for this same render, so the
+ *   qualifying sentence quotes the trust panel's coverage rather than a second
+ *   measurement taken here.
+ */
+function recoverableSlot(analysis, gradability) {
   const amount = usd(analysis?.recoverableUsd);
   const analyzed = usd(analysis?.spendUsd);
   const share = recoverableShare(analysis?.recoverableUsd, analysis?.spendUsd);
@@ -468,6 +510,8 @@ function recoverableSlot(analysis) {
       label: "Recoverable spend",
       value: STAND_PENDING.recoverable,
       basis: "This analysis published no spend total to divide, so no recoverable share is claimed.",
+      reconciliation: "No recoverable figure was modelled on this path, so there is nothing here "
+        + "for the rubric to have scored.",
     });
   }
   return Object.freeze({
@@ -476,6 +520,9 @@ function recoverableSlot(analysis) {
     value: `${amount} · ${Math.round(share * 100)}% of analyzed spend`,
     basis: `${amount} of ${analyzed} analyzed. A modelled ceiling on what re-routing this work `
       + "could save — not money already saved.",
+    /** Never folded into `basis`: the answer block reads that as the metric's own
+     * basis line, and this is a claim about a DIFFERENT measurement beside it. */
+    reconciliation: recoverableReconciliation(amount, gradability),
   });
 }
 
@@ -1051,7 +1098,7 @@ export function composeStandHeadline({
   // whether the figures below may be quoted at all, so it is resolved first and
   // read by the view rather than re-derived per slot.
   const gradability = gradeExport({ analysis, source });
-  const recoverable = recoverableSlot(analysis);
+  const recoverable = recoverableSlot(analysis, gradability);
   const team = teamSlot(finding);
   const action = actionSlot(destinations);
   const period = periodLabel(analysis);

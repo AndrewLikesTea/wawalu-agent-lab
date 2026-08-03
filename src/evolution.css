@@ -1280,6 +1280,11 @@
 .stand-figure-value[data-available="false"] { color:var(--state-warn-ink); font-size:clamp(16px,2vw,18px); font-weight:700; }
 .stand-figure:has(>.stand-figure-value[data-available="false"]) { border-top-style:dashed; border-top-color:var(--state-warn-line); }
 .stand-figure-basis { margin:0; max-width:60ch; color:var(--ink-muted); font-size:13px; line-height:1.55; overflow-wrap:anywhere; }
+/* The sentence reconciling the recoverable figure with the rubric's coverage
+   (#1019). Full ink rather than the muted basis grey: it qualifies the largest
+   number in this region and must not read as small print. Colour carries none of
+   the meaning — the sentence itself says what is and is not verified. */
+.stand-figure-reconciliation { color:var(--ink); }
 .stand-team { display:grid; align-content:start; gap:6px; border-top:3px solid var(--import-accent); padding-top:10px; }
 .stand-team[data-available="false"] { border-top-style:dashed; border-top-color:var(--state-warn-line); }
 .stand-team-name { margin:0; color:var(--ink); font-size:clamp(19px,2.5vw,24px); font-weight:750; line-height:1.2; overflow-wrap:anywhere; }
