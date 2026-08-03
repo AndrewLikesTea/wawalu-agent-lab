@@ -110,30 +110,36 @@ export const IDENTITY = "On this site you can analyze your own AI spend, check a
  * Every door the navigation offers, and what each one is for.
  *
  * This band is the only directory on the pages whose body carries none, so a
- * surface left out is one a reader has to guess at. Each `label` is the word
- * src/site-nav.js uses, and each description is word for word the sentence the
- * home page's "Where everything is" list gives that surface: one name and one
- * description per concept.
+ * surface left out is one a reader has to guess at. Every row is a link: a name
+ * a reader cannot follow is a name they have to go and find in the header.
  *
- * AI FinOps is first and is the only link: it is what the site leads with. The
- * href is root-relative because this band ships on every page — a bare relative
- * path would resolve against a page in a subdirectory rather than the site.
+ * `label` and `href` are the word and the path src/site-nav.js uses — one name
+ * per concept, one door per name. They are copied rather than imported: this
+ * module is in every page's initial payload and src/site-nav.js is 6 KB of it,
+ * so tests/site-footer.test.js compares the two tables instead.
+ *
+ * `purpose` is a fragment of at most eight words, not a sentence. It used to be
+ * word for word the home page's "Where everything is" sentence for that
+ * surface: an essay on every page, and the same eight sentences twice on the
+ * home page. One name per concept is still the rule; one wording per concept
+ * was the mistake. The AI FinOps row keeps "in this browser tab" — that clause
+ * is a promise about where a visitor's export is read, not a description.
  */
 export const DEMOS = Object.freeze([
   Object.freeze({
     label: "AI FinOps",
     href: "/evolution.html",
-    description: "Find where to act first on your AI spend: score your own provider export in this browser tab.",
-    // The only row that says "start here": a list with no order is no list.
-    note: "Start here.",
+    purpose: "score your provider export in this browser tab",
+    // The only row that says where to start: a list with no order is no list.
+    note: "start here:",
   }),
-  Object.freeze({ label: "Prompt coach", description: "Grade one prompt against a bundled rubric in your browser tab, then revise it and grade again." }),
-  Object.freeze({ label: "Decisions", description: "Record a decision with its context, alternatives, and owner, then search and filter the history." }),
-  Object.freeze({ label: "Releases", description: "Every release, newest first, with the decisions it carried." }),
-  Object.freeze({ label: "Social", description: "Social is a shared demo feed of short posts about the work the team ships, each with an optional image." }),
-  Object.freeze({ label: "People", description: "Pick a display name and see the image posts published under it, newest first. The picker is on the page." }),
-  Object.freeze({ label: "Paint", description: "Draw or crop an image in this tab, export a PNG, then hand it to a Social post yourself." }),
-  Object.freeze({ label: "Agent observatory", description: "Watch a synthetic engineering team plan, build, review, and deliver work." }),
+  Object.freeze({ label: "Prompt coach", href: "/coach.html", purpose: "grade a prompt, then revise and grade again" }),
+  Object.freeze({ label: "Decisions", href: "/", purpose: "log a decision, then search the history" }),
+  Object.freeze({ label: "Releases", href: "/releases.html", purpose: "each release and the decisions behind it" }),
+  Object.freeze({ label: "Social", href: "/social.html", purpose: "read short demo posts, images optional" }),
+  Object.freeze({ label: "People", href: "/profile.html", purpose: "pick a name, see their image posts" }),
+  Object.freeze({ label: "Paint", href: "/paint/", purpose: "crop or draw, then export a PNG" }),
+  Object.freeze({ label: "Agent observatory", href: "/agents.html", purpose: "watch a synthetic team build and review work" }),
 ]);
 
 /**
@@ -227,17 +233,15 @@ export function siteFooterMarkup(indent = "    ", { redirect = null } = {}) {
 
 /**
  * A real <ul>, so the destinations arrive as a list rather than a run-on
- * sentence and a screen reader gets the count. Only the primary demo is a link
- * — the rest are named as the nav names them, and that is where a visitor
- * reaches them.
+ * sentence and a screen reader gets the count. The hrefs are root-relative:
+ * this band ships on every page, and a bare relative path would resolve against
+ * a page in a subdirectory rather than against the site.
  */
 function demoListLines() {
   return [
     '    <ul class="site-footer-demos">',
-    ...DEMOS.map(({ label, href, description, note }) => {
-      const name = href ? `<a href="${href}">${label}</a>` : `<strong>${label}</strong>`;
-      return `      <li>${name} — ${description}${note ? ` ${note}` : ""}</li>`;
-    }),
+    ...DEMOS.map(({ label, href, purpose, note }) =>
+      `      <li><a href="${href}">${label}</a> — ${note ? `${note} ` : ""}${purpose}</li>`),
     "    </ul>",
   ];
 }

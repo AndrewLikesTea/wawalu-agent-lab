@@ -49,9 +49,15 @@ const paintLinks = (document) => document.querySelectorAll("a")
 /** The in-flow control: the composer's media picker offers exactly one link. */
 const composerPaintLink = () => documents.Social.querySelector(".media-source-actions").querySelector("a");
 
-/** Social's Paint entry points: every route into Paint except the site nav. */
+/**
+ * Social's Paint entry points: every route into Paint except the site's two
+ * directories. The header nav lists every destination, and so does the footer's
+ * site map — neither is an invitation this page extends, and counting them
+ * would make "how many times does Social offer Paint" a question about the
+ * frame rather than about the page.
+ */
 const socialEntryPoints = () => paintLinks(documents.Social)
-  .filter((anchor) => !anchor.parentNode?.classList?.contains("site-nav"));
+  .filter((anchor) => !anchor.parentNode?.classList?.contains("site-nav") && !anchor.closest("#site-footer"));
 
 for (const [name, document] of Object.entries(NEARBY_INVITATION)) {
   test(`${name} offers a labelled way to create an image, beside the images it shows`, () => {
@@ -183,10 +189,11 @@ test("the composer's own Paint control is unchanged and still labelled in words"
 // that keeps a third from growing back.
 
 test("Social offers Paint exactly twice: the standing invitation and the in-flow control", () => {
-  // Three anchors in the page, and one of them is the site nav's own item —
-  // Paint is a destination on this site, and every page lists it. The two that
-  // are invitations are the ones counted here.
-  assert.equal(paintLinks(documents.Social).length, 3, "the number of routes into Paint from Social changed");
+  // Four anchors in the page, and two of them are the site's directories — the
+  // header nav's item and the footer site map's row. Paint is a destination on
+  // this site, and every page lists it twice for that reason. The two that are
+  // invitations are the ones counted here.
+  assert.equal(paintLinks(documents.Social).length, 4, "the number of routes into Paint from Social changed");
   const entryPoints = socialEntryPoints();
   assert.equal(entryPoints.length, 2, "Social offers Paint more than twice again");
   assert.equal(entryPoints[0].id, "social-paint-cta", "the standing invitation is not the first offer");
