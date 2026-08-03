@@ -37,7 +37,7 @@
              visitor confuses it with — People — and when to open that instead.
              People carries the mirror sentence. -->
         <h1 id="page-title">Social</h1>
-        <p>Social is the team's shared demo feed: read every post as it lands, and publish your own with an optional image. Open People when you want one demo persona's image posts instead. Posts are shared across browsers and use no customer or production data.</p>
+        <p>Social is the team's shared demo feed: read every post as it lands, and publish your own with an optional image. Open People when you want the image posts published under one display name instead. Posts are shared across browsers and use no customer or production data.</p>
         <!-- The two ways to publish here, as a pair: with an image, or without.
              The primary names the act and the tool — "Paint" alone is what the
              nav already says, and a control that repeats the nav adds nothing.
@@ -68,7 +68,11 @@
           <div class="paint-arrival" id="paint-arrival" role="status" tabindex="-1" hidden></div>
 
           <form id="post-form" aria-describedby="post-form-hint">
-            <p class="hint" id="post-form-hint">Write the caption. Add an image if you want one — a post with an image also appears on your profile.</p>
+            <!-- The destination is People, and it is named here: "your profile"
+                 promised a page this site does not have, and the post lands
+                 under the display name typed below rather than under an
+                 account. -->
+            <p class="hint" id="post-form-hint">Write the caption. Add an image if you want one — a post with an image also appears on People, under the display name you post with.</p>
 
             <fieldset class="media-picker">
               <legend>Image <span class="label-optional">(optional)</span></legend>
@@ -221,7 +225,7 @@
           <li><strong>Decisions</strong> — Record a decision with its context, alternatives, and owner, then search and filter the history.</li>
           <li><strong>Releases</strong> — Every release, newest first, with the decisions it carried.</li>
           <li><strong>Social</strong> — Social is a shared demo feed of short posts about the work the team ships, each with an optional image.</li>
-          <li><strong>People</strong> — Pick a demo persona and see that person's image posts, newest first. The picker is on the page.</li>
+          <li><strong>People</strong> — Pick a display name and see the image posts published under it, newest first. The picker is on the page.</li>
           <li><strong>Paint</strong> — Draw or crop an image in this tab, export a PNG, then hand it to a Social post yourself.</li>
           <li><strong>Agent observatory</strong> — Watch a synthetic engineering team plan, build, review, and deliver work.</li>
         </ul>

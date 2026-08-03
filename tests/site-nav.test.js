@@ -207,17 +207,22 @@ test("the nav names people, and never promises the visitor a personal profile", 
   assert.ok(entry, "the destination list must still name this page");
   assert.match(entry[1], /^People<\/a>/, "the list calls it what the nav calls it");
   assert.doesNotMatch(entry[1], /not your account/, "a truthful label needs no correction");
-  assert.match(entry[1], /demo persona/, "the list says what kind of people this destination contains");
+  // The destination list describes People with the term People's own intro
+  // uses, so a reader meets one name for the thing the picker selects.
+  assert.match(entry[1], /display name/, "the list says what this destination is a view of");
+  assert.doesNotMatch(entry[1], /demo persona/i, "one term per concept: the page itself no longer says this");
 });
 
-test("the profile page identifies the selected name as a demo persona", async () => {
+test("the profile page names its sample data once, and never as the thing the picker selects", async () => {
   const html = await readFile(pageUrl("profile.html"), "utf8");
   const role = html.match(/<p class="profile-role">([\s\S]*?)<\/p>/);
   assert.ok(role, "the profile page must state its role near its heading");
   assert.match(role[1], /<span class="profile-role-chip">Demo persona<\/span>/);
-  assert.match(role[1], /<span id="profile-role-name">Ari<\/span> is a demo persona/);
-  assert.match(role[1], /not a signed-in user/);
-  assert.match(role[1], /shows that person's image posts only/);
+  // The disclaimer's only job: these bundled names are sample data. What the
+  // view shows is the sentence under the heading's job, and saying it twice is
+  // what let two vocabularies grow on one page.
+  assert.match(role[1], /<span id="profile-role-name">Ari<\/span> and the other names in the picker are sample data/);
+  assert.match(role[1], /not signed-in users/);
   // Subordinate, not trapped: the way back to the whole feed is right there.
   assert.match(role[1], /href="\/social\.html"/);
 

@@ -37,11 +37,13 @@ export function postReturnContext(search = "") {
   const params = new URLSearchParams(String(search).replace(/^\?/, ""));
   if (params.get("from") !== "profile") return DEFAULT_POST_RETURN;
   const author = (params.get("author") ?? "").trim();
-  // The visitor did come from a profile, so the exit says so either way; only the
-  // destination narrows to one author's profile when the name is usable.
+  // The visitor did come from People, so the exit says so either way; only the
+  // destination narrows to one display name's posts when the name is usable.
+  // The label is the nav's word for that page, and Paint's back link already
+  // uses it: "Back to Profile" named a surface this site does not have.
   return {
     href: author && author.length <= MAX_RETURN_AUTHOR_LENGTH ? profileHref(author) : "/profile.html",
-    label: "← Back to Profile",
+    label: "← Back to People",
   };
 }
 

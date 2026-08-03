@@ -220,23 +220,29 @@ export const PROFILE_EMPTY_COPY = {
   // destinations. Splitting it that way is deliberate: when the sentence and the
   // buttons both spell out the instruction, the empty state repeats itself in
   // the space of three lines, which is the defect this copy exists to fix.
-  guidance: "Images made in Paint and published on Social appear here.",
+  guidance: "Images made in Paint and published on Social under this display name appear here.",
   actionLabel: "Create an image in Paint",
   postActionLabel: "See every post on Social",
 };
 
 // The identity line under the heading when the selected name has nothing to
-// show. It names the person the page is already showing rather than the surface:
-// "No image posts on People yet" read as if People itself were empty, which is
-// never true — some other demo persona always has posts. Built from the same
-// display name the heading renders, so it stays right for every persona.
+// show. It names the display name the page is already showing rather than the
+// surface: "No image posts on People yet" read as if People itself were empty,
+// which is never true — some other name always has posts. Built from the same
+// display name the heading renders, so it stays right for every name.
+//
+// It says "published under <name>" rather than "<name> hasn't posted", so this
+// sentence and the guidance line that follows it in the live region are one
+// vocabulary: the page selects a display name, and posts are published under
+// one. The pre-hydration copy of this sentence in src/profile.html must match
+// word for word.
 //
 // The name is written through textContent everywhere it lands (the header, the
 // live region), so an apostrophe in a name needs no escaping; nothing here is
 // ever parsed as markup.
 export function emptySummaryText(author) {
   const name = String(author ?? "").trim() || DEFAULT_AUTHOR;
-  return `${name} hasn’t posted an image yet.`;
+  return `No image posts published under ${name} yet.`;
 }
 
 // The profile description under the name. An author with posts but no images

@@ -179,7 +179,7 @@ test("a tile is a link to the post, named by its caption", () => {
   const tile = first(container, "profile-tile");
   assert.equal(tile.tagName, "A", "the whole tile is the navigation target");
   // Every tile says where it sent the reader from, so the post page's single
-  // back link can read "← Back to Profile" instead of guessing.
+  // back link can read "← Back to People" instead of guessing.
   assert.equal(tile.href, "/post.html?id=p-image&author=Mina&from=profile");
   assert.equal(tile.dataset.postId, "p-image");
 
@@ -264,7 +264,7 @@ test("an empty profile separates viewing Social from creating and publishing an 
   renderProfileGrid(container, [], { author: "Mina" });
   const empty = first(container, "empty-state");
   assert.equal(tags(empty, "P").length, 1, "the empty state renders one message, not two");
-  assert.equal(first(empty, "empty-title").textContent, "Images made in Paint and published on Social appear here.");
+  assert.equal(first(empty, "empty-title").textContent, "Images made in Paint and published on Social under this display name appear here.");
   // Named, not gestured at: the visitor has to know where to go.
   assert.match(empty.textContent, /Paint/);
 
@@ -327,10 +327,12 @@ test("the profile and post pages are wired, labelled, and reachable", async () =
 
   assert.match(profile, /id="profile-grid"/);
   // The picker's label says what choosing an entry does, in the words Social's
-  // own feed toolbar uses ("Show posts"). Naming the menu's contents instead —
-  // it read "Display name" — left the one control that changes whose posts the
-  // grid shows looking like a caption on the names inside it.
-  assert.match(profile, /<label for="profile-author">Show posts by<\/label>/);
+  // own feed toolbar uses ("Show posts"), and names what it selects in the term
+  // the rest of the site uses for it. Naming the menu's contents alone — it
+  // read "Display name" — left the one control that changes whose posts the
+  // grid shows looking like a caption on the names inside it; saying only
+  // "Show posts by" left the page with three names for one concept.
+  assert.match(profile, /<label for="profile-author">Show posts by display name<\/label>/);
   assert.match(profile, /id="profile-author"[^>]*aria-describedby="profile-author-hint"/);
   assert.match(profile, /id="profile-announcer"[^>]*aria-live="polite"/);
   assert.match(profile, /src="\/profile-page\.js"/);
@@ -342,6 +344,47 @@ test("the profile and post pages are wired, labelled, and reachable", async () =
 
   // No innerHTML in any interactive layer: no user-generated HTML executes here.
   assert.doesNotMatch([component, detailComponent, profileWiring, detailWiring].join("\n"), /innerHTML/);
+});
+
+// One concept, one name. The picker selects the name a post is published under;
+// that name is what the post itself shows, and Social's composer field and feed
+// filter both call it a display name. So People's sentence under the heading,
+// its picker label, its picker hint, and its empty state have to call it that
+// too. This pins the reported defect: the label said "Show posts by", the hint
+// said "display name", the hero called the same thing a "demo persona", and
+// Social's composer sent the reader to a "profile" this site does not have.
+test("the People page calls the thing its picker selects by one name", async () => {
+  const html = await readFile(new URL("../src/profile.html", import.meta.url), "utf8");
+  const TERM = "display name";
+  const says = (text) => text.toLowerCase().includes(TERM);
+
+  const label = html.match(/<label for="profile-author">([^<]*)<\/label>/);
+  assert.ok(label, "the picker must keep a visible label");
+  assert.ok(says(label[1]), `the picker label must name what choosing an entry selects: "${label[1]}"`);
+
+  const lede = html.match(/<p class="profile-lede">([^<]*)<\/p>/);
+  assert.ok(lede, "the page must keep one sentence of description under its heading");
+  assert.ok(says(lede[1]), `the description must use the picker's term: "${lede[1]}"`);
+
+  const hint = html.match(/<p class="hint profile-toolbar-hint" id="profile-author-hint">([\s\S]*?)<\/p>/);
+  assert.ok(hint, "the picker must keep the hint it is described by");
+  assert.ok(says(hint[1]), `the picker hint must use the same term as its label: "${hint[1]}"`);
+
+  // The empty state is two sentences and they used to change vocabulary between
+  // them. Both are spoken together in the live region, so that is where the
+  // switch is caught.
+  const empty = profileAnnouncement("Ari", 0);
+  assert.ok(says(empty), `the empty state must use the same term: "${empty}"`);
+
+  // Reader-facing text only: ids, classes, hrefs, and the comments explaining
+  // this copy are free to keep saying "profile" and "persona".
+  const readable = html.replace(/<!--[\s\S]*?-->/g, " ").replace(/<[^>]+>/g, " ");
+  const hits = (pattern) => readable.match(pattern)?.length ?? 0;
+  // "Demo persona" survives exactly once, and only as the disclaimer saying the
+  // bundled names are sample data rather than accounts.
+  assert.equal(hits(/persona/gi), 1, "the page must say 'persona' once, in the sample-data disclaimer");
+  assert.equal(hits(/demo persona/gi), 1, "the surviving mention is the sample-data disclaimer");
+  assert.equal(hits(/profile/gi), 0, "no reader-facing copy may promise a profile page");
 });
 
 test("the header shows who this is and what the counts mean", () => {
@@ -364,7 +407,7 @@ test("an empty header states the situation once, in image-post terms", () => {
   renderProfileHeader(elements, "Mina Okafor", { total: 0, withImages: 0, likes: 0, latest: null });
   // The empty line names the person the page is showing, not the surface: it is
   // never true that "People" has no image posts, only that this name has none.
-  assert.equal(elements.summary.textContent, "Mina Okafor hasn’t posted an image yet.");
+  assert.equal(elements.summary.textContent, "No image posts published under Mina Okafor yet.");
   // The description states the state; the grid's empty state gives the action.
   // Neither repeats the other's sentence — that repetition was the bug.
   assert.notEqual(elements.summary.textContent, PROFILE_EMPTY_COPY.guidance);
@@ -379,7 +422,7 @@ test("the description carries the posted-but-no-images case, so the empty state 
   );
   assert.equal(
     profileSummaryText({ total: 0, withImages: 0, likes: 0, latest: null }, "Mina"),
-    "Mina hasn’t posted an image yet.",
+    "No image posts published under Mina yet.",
   );
 });
 
@@ -406,7 +449,10 @@ test("the empty profile says it once across the whole page", () => {
   assert.equal(onPage.filter((text) => text.includes(emptySummaryText("Mina"))).length, 1);
   assert.equal(onPage.filter((text) => text.includes("Paint")).length, 1);
   assert.equal(spoken[1], "0 image posts", "the heading count is a count, not a sentence");
-  assert.equal(profileAnnouncement("Mina", 0), "Mina hasn’t posted an image yet. Images made in Paint and published on Social appear here.");
+  // Both sentences the live region speaks name the same thing the same way: the
+  // display name a post is published under. It used to switch mid-announcement,
+  // from a person who "hasn't posted" to posts published "on Social".
+  assert.equal(profileAnnouncement("Mina", 0), "No image posts published under Mina yet. Images made in Paint and published on Social under this display name appear here.");
   assert.equal(profileAnnouncement("Mina", 2), "Showing 2 image posts by Mina.");
 });
 

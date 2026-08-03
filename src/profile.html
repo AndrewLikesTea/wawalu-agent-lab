@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="Image posts from demo personas in the Shiplog Social feed" />
+    <meta name="description" content="Image posts published under one display name in the Shiplog Social feed" />
     <title>People · Shiplog</title>
     <link rel="stylesheet" href="/styles.css" />
   </head>
@@ -29,6 +29,13 @@
       <main id="main-content" tabindex="-1">
       <section class="hero hero-profile" id="top" aria-labelledby="page-title">
         <p class="eyebrow">People · demo</p>
+        <!-- One term for what the picker selects, everywhere on this page: the
+             display name a post is published under, which is the name the post
+             itself shows. The sentence under the heading, the picker's label,
+             the picker's hint, and the empty state all use it. They used to run
+             three vocabularies at once — "display name" at the picker, "demo
+             persona" in the title block, "profile" in Social's composer — for
+             one concept. -->
         <!-- The heading is the destination's name, the same word the nav uses.
              It used to be the selected persona's name, which left the page with
              no heading a first-time visitor could match to the link they
@@ -39,28 +46,31 @@
              The sentence under the heading names Social once and says when to
              open it; Social carries the mirror sentence. -->
         <h1 id="page-title">People</h1>
-        <p class="profile-lede">People shows one demo persona's image posts, newest first; select a post to read it in full. Open Social when you want the whole feed, including posts with no image.</p>
+        <p class="profile-lede">People shows the image posts published under one display name, newest first; select a post to read it in full. Open Social when you want the whole feed, including posts with no image.</p>
         <!-- The avatar is decorative: the name beside it is the first line of
              the identity block, so nothing here is announced twice. -->
         <div class="profile-identity">
           <span class="profile-avatar" id="profile-avatar" aria-hidden="true">AR</span>
           <div class="profile-identity-text">
-            <!-- "Ari" is the pre-hydration render of the first demo persona in
+            <!-- "Ari" is the pre-hydration render of the first display name in
                  the seed feed. The picker replaces it once a reader chooses. -->
             <p class="profile-summary" id="profile-name">Ari</p>
             <!-- These defaults are the pre-hydration render of the empty state.
                  They must stay word-for-word with emptySummaryText() and the
                  image-post count label in src/profile.js; a test pins it. The
                  name is "Ari" for the same reason the line above is: it is the
-                 first demo persona in the seed feed, and profile.js rebuilds
+                 first display name in the seed feed, and profile.js rebuilds
                  this sentence from whichever name is selected. -->
-            <p class="profile-summary" id="profile-summary">Ari hasn’t posted an image yet.</p>
+            <p class="profile-summary" id="profile-summary">No image posts published under Ari yet.</p>
           </div>
         </div>
-        <!-- People is a filtered view of Social, and the nav says so by nesting
-             them. This says it in words at the destination and keeps the way
-             back one link away. -->
-        <p class="profile-role"><span class="profile-role-chip">Demo persona</span> <span id="profile-role-name">Ari</span> is a demo persona in the Social feed, not a signed-in user. This view shows that person's image posts only. <a class="text-link" href="/social.html">See every post on Social</a>.</p>
+        <!-- The one sentence on this page that still says "demo persona", and it
+             is the only one that has to: the names in the picker are bundled
+             sample data, and a reader has to know Ari is not somebody's account.
+             What this view shows is the sentence under the heading's job, so
+             this one says only who these names are — and keeps the way back to
+             the whole feed one link away. -->
+        <p class="profile-role"><span class="profile-role-chip">Demo persona</span> <span id="profile-role-name">Ari</span> and the other names in the picker are sample data in the Social feed, not signed-in users. <a class="text-link" href="/social.html">See every post on Social</a>.</p>
         <!-- Two ways out of this view are visible on arrival: the sentence above
              returns to every post on Social, and this route opens Paint. The
              label names the act and the tool, because "Paint" alone is what the
@@ -104,21 +114,23 @@
 
           <div class="profile-toolbar">
             <div class="filter">
-              <label for="profile-author">Show posts by</label>
+              <label for="profile-author">Show posts by display name</label>
               <select id="profile-author" aria-describedby="profile-author-hint"></select>
             </div>
-            <!-- The label says what choosing an entry does, in Social's own
-                 words: its feed labels a filter "Show posts". The menu holds
-                 display names, and the hint below names the term rather than
-                 the label doing it — a control headed "Display name" said what
-                 the list contained and never said that picking one changes
-                 whose posts the grid shows. Before that this block was headed
-                 "Profile" and explained itself in a circle — "a profile is a
-                 display name" — which named a surface this site does not have.
-                 The “Guest” default belongs to the composer, where a name is
-                 typed, so it is not repeated here. -->
+            <!-- The label does both jobs at once, because each half of it was
+                 once missing on its own: "Show posts by" says what choosing an
+                 entry does, in Social's own words (its feed labels a filter
+                 "Show posts"), and "display name" names the concept the menu
+                 holds in the same term the lede, the hint, and the empty state
+                 use. Headed "Display name" alone, the control read as a caption
+                 on the names inside it; headed "Show posts by" alone, this page
+                 named the selected thing three different ways. Before either,
+                 the block was headed "Profile" and explained itself in a circle
+                 — "a profile is a display name" — naming a surface this site
+                 does not have. The “Guest” default belongs to the composer,
+                 where a name is typed, so it is not repeated here. -->
             <p class="hint profile-toolbar-hint" id="profile-author-hint">
-              The display name is the name shown on each post. People shows the image posts published under one display name, so a post you publish under a name appears on that name’s page.
+              A display name is the name shown on each post. Choose one to see only the image posts published under it.
             </p>
           </div>
 
@@ -146,7 +158,7 @@
           <li><strong>Decisions</strong> — Record a decision with its context, alternatives, and owner, then search and filter the history.</li>
           <li><strong>Releases</strong> — Every release, newest first, with the decisions it carried.</li>
           <li><strong>Social</strong> — Social is a shared demo feed of short posts about the work the team ships, each with an optional image.</li>
-          <li><strong>People</strong> — Pick a demo persona and see that person's image posts, newest first. The picker is on the page.</li>
+          <li><strong>People</strong> — Pick a display name and see the image posts published under it, newest first. The picker is on the page.</li>
           <li><strong>Paint</strong> — Draw or crop an image in this tab, export a PNG, then hand it to a Social post yourself.</li>
           <li><strong>Agent observatory</strong> — Watch a synthetic engineering team plan, build, review, and deliver work.</li>
         </ul>

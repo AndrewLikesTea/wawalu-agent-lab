@@ -348,12 +348,14 @@ test("the post page's exit sits after the site frame, and names where it goes", 
 test("provenance decides the one exit, and anything unknown means the feed", () => {
   assert.deepEqual(postReturnContext("?id=p-image&from=profile&author=Mina%20Okafor"), {
     href: "/profile.html?author=Mina%20Okafor",
-    label: "← Back to Profile",
+    // The nav's name for that destination, and the one Paint's back link
+    // already uses. "Back to Profile" named a page this site does not have.
+    label: "← Back to People",
   });
-  // Came from a profile, but with no usable name: still the profile, generally.
+  // Came from People, but with no usable name: still People, generally.
   assert.deepEqual(postReturnContext("?id=p-image&from=profile"), {
     href: "/profile.html",
-    label: "← Back to Profile",
+    label: "← Back to People",
   });
   assert.equal(postReturnContext(`?from=profile&author=${"n".repeat(61)}`).href, "/profile.html");
 
@@ -364,8 +366,9 @@ test("provenance decides the one exit, and anything unknown means the feed", () 
   }
   assert.deepEqual(DEFAULT_POST_RETURN, { href: "/social.html", label: "← Back to Social" });
 
-  // The label reads the same in both directions and says only what it does.
-  for (const search of ["?from=profile", ""]) assert.match(postReturnContext(search).label, /^← Back to (Profile|Social)$/);
+  // The label reads the same in both directions, says only what it does, and
+  // names each destination the way the navigation names it.
+  for (const search of ["?from=profile", ""]) assert.match(postReturnContext(search).label, /^← Back to (People|Social)$/);
 });
 
 /* ------------------------- the page's standing frame ---------------------- */
