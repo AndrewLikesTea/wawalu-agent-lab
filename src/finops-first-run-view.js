@@ -169,6 +169,20 @@ function definition(doc, entry, onLabel) {
   term.textContent = entry.term;
   const detail = doc.createElement("dd");
   detail.textContent = entry.detail;
+  // A unit the dropped export carried no usable label for is marked where its
+  // identifier is, not in a footnote: "…atlas0" and "…borea1" are otherwise
+  // indistinguishable from names the derivation simply has not applied yet.
+  if (entry.nameDerived === false) {
+    const mark = doc.createElement("span");
+    mark.className = "org-unit-underived";
+    mark.dataset.nameDerived = "false";
+    mark.textContent = " · no name in this export";
+    term.append(mark);
+  }
+  if (entry.nameDerived !== undefined && entry.nameDerived !== null) {
+    item.dataset.nameDerived = String(entry.nameDerived);
+  }
+  if (entry.nameConflicted) item.dataset.nameConflicted = "true";
   item.append(term, detail);
   // Only the live disclosure gets fields. The print sibling is a copy of the
   // same evidence and is `aria-hidden`; putting a second input with the same id
@@ -474,10 +488,15 @@ function applyOwnDataDrilldown(doc, region, drilldown, onLabel) {
     unitId: entry.unitId,
     pseudonym: entry.pseudonym,
     rank: entry.rank,
-    // The field shows the name that is actually rendering. This view never
-    // reads the label map — it reads what the resolver decided, which is the
-    // only version of "what is this unit called" the page is allowed to have.
-    label: entry.name === entry.pseudonym ? "" : entry.name,
+    // The field shows the name the READER typed, and only that. A name derived
+    // from their export renders on the row, but prefilling the field with it
+    // would show a saved name they never saved — and clearing it would then
+    // look like it had deleted the export's own label.
+    label: entry.readerNamed ? entry.name : "",
+    // Whether the export itself could name this unit. `false` earns the marker
+    // beside the identifier; `null` is a row that is not an org unit at all.
+    nameDerived: entry.nameDerived,
+    nameConflicted: entry.nameConflicted,
   })), DRILLDOWN_HEADING, onLabel);
   // Put the reader back in the field they committed from. The repaint that
   // followed the commit replaced the node they were standing on, and the ids

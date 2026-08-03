@@ -242,6 +242,17 @@
           <p class="eyebrow">Your export · headline contract</p>
           <p class="stand-imported-question" id="finops-imported-headline-question"></p>
           <dl class="stand-imported-slots" id="finops-imported-headline-slots"></dl>
+          <!-- WHERE THE UNIT NAMES CAME FROM. The sentence above names a team,
+               and until #1023 it named it "Department …atlas0" — an identity, not
+               a name anybody says out loud. The names are now read from a column
+               the dropped file already carried, and these two lines say which
+               column that was and what the derivation is allowed to read, in the
+               words of src/finops-export-unit-names.js. Both ship EMPTY and
+               HIDDEN and are painted by the view; neither is inside a disclosure,
+               because a reader-critical provenance sentence folded away is a
+               sentence most readers never meet. -->
+          <p class="stand-imported-naming" id="finops-imported-headline-naming" hidden></p>
+          <p class="stand-imported-naming-contract" id="finops-imported-headline-naming-contract" hidden></p>
         </div>
         <!-- THE PERIODS INSIDE THE FILE, and the movement between the newest
              two. It ships EMPTY and HIDDEN: every word is painted by

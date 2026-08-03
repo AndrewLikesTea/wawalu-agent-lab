@@ -28,7 +28,7 @@ import { isUnattributed } from "./attribution-units.js";
 // A reader's own name for a group, resolved through the one resolver that owns
 // that decision. `unitId` rides on every department row so the name a reader
 // types is bound to the pseudonymous identity and not to a rank that moves.
-import { orgUnitDisplayName } from "./org-unit-display-label.js";
+import { hasOrgUnitDisplayLabel, orgUnitDisplayName } from "./org-unit-display-label.js";
 
 /** Bump when a row, a rule, or a fallback changes meaning. */
 export const IMPORTED_DEPARTMENTS_VERSION = "finops-imported-departments/1.0.0";
@@ -97,13 +97,22 @@ const byRecoverable = (left, right) => (right.recoverableUsd - left.recoverableU
  * it is the analysis saying a row carried no grouping value, and ranking it as
  * a team would name a department the export never had.
  */
-function departmentGroups(analysis, labels) {
+function departmentGroups(analysis, labels, readerLabels, naming) {
   return list(analysis?.rankedDepartments)
     .filter((entry) => filled(entry?.name) && !isUnattributed(entry?.unit))
     .map((entry) => ({
       unitId: filled(entry?.id) ? entry.id.trim() : null,
       pseudonym: entry.name.trim(),
       name: orgUnitDisplayName(labels, entry?.id, entry.name),
+      // Whether the NAME came from the reader or from the export, kept apart:
+      // the name field beside a row is prefilled from what the reader typed, and
+      // a derived name sitting in it would read as one they had already saved.
+      readerNamed: hasOrgUnitDisplayLabel(readerLabels ?? labels, entry?.id),
+      // Null when no derivation ran at all — a JSON envelope carries no columns
+      // to read, and "this export could not name it" is a claim only a
+      // derivation that actually looked is entitled to make.
+      nameDerived: naming?.available ? Boolean(naming.names?.[entry?.id]) : null,
+      nameConflicted: Boolean(naming?.byUnit?.[entry?.id]?.conflicted),
       recoverableUsd: money(entry.recoverableUsd) ?? 0,
       spendUsd: money(entry.spendUsd) ?? 0,
     }));
@@ -122,6 +131,11 @@ function monthGroups(analysis) {
       unitId: null,
       pseudonym: entry.period.trim(),
       name: entry.period.trim(),
+      // A billing month is not an org unit, so it is neither named nor
+      // un-nameable: it carries no derivation state at all.
+      readerNamed: false,
+      nameDerived: null,
+      nameConflicted: false,
       recoverableUsd: money(entry.recoverableUsd) ?? 0,
       spendUsd: money(entry.spendUsd) ?? 0,
     }));
@@ -139,6 +153,12 @@ function row(group, index, total, currency) {
     // display rule.
     unitId: group.unitId ?? null,
     pseudonym: group.pseudonym,
+    // Carried to the view so a unit the export could not name is marked as such
+    // beside its identifier, rather than being indistinguishable from one
+    // nobody has got round to naming.
+    readerNamed: group.readerNamed ?? false,
+    nameDerived: group.nameDerived ?? null,
+    nameConflicted: group.nameConflicted ?? false,
     recoverableUsd: group.recoverableUsd,
     spendUsd: group.spendUsd,
     share,
@@ -157,13 +177,18 @@ function row(group, index, total, currency) {
  * in every one of those states.
  *
  * @param analysis an envelope from `normalizeLocalFinopsHistory`, or null.
- * @param {{labels?: object}} [options] the reader's own org-unit names, from
- *   page state. Absent renders every row under its pseudonym, as today.
+ * @param {{labels?: object, readerLabels?: object, naming?: object}} [options]
+ *   `labels` is the resolved map the page renders from — the reader's own names
+ *   over the ones derived from their export. `readerLabels` is the reader's half
+ *   alone, so a row can say which of the two it is showing, and `naming` is the
+ *   derivation result, so a row the export could not name says so. Absent
+ *   renders every row under its pseudonym, as today.
  * @returns `{ version, available, grouping, headline, detail, rows, count }`
  */
-export function importedDepartmentDrilldown(analysis = null, { labels = null } = {}) {
+export function importedDepartmentDrilldown(analysis = null,
+  { labels = null, readerLabels = null, naming = null } = {}) {
   const currency = filled(analysis?.currency) ? analysis.currency : "USD";
-  const departments = departmentGroups(analysis, labels);
+  const departments = departmentGroups(analysis, labels, readerLabels, naming);
   const groups = departments.length > 0 ? departments : monthGroups(analysis);
   const grouping = departments.length > 0
     ? DRILLDOWN_GROUPING.department : DRILLDOWN_GROUPING.month;
