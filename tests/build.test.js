@@ -14,7 +14,7 @@ import {
   SEED_RELEASES,
 } from "../src/seed-records.js";
 import { SITE_NAV } from "../src/site-nav.js";
-import { parseHtml, pressEnter, pressTab } from "./support/browser.js";
+import { parseHtml, pressEnter, pressTab, textOf } from "./support/browser.js";
 
 async function copyDeployableArtifact(directory) {
   await cp(new URL("../src", import.meta.url), directory, { recursive: true });
@@ -221,24 +221,66 @@ test("the home page names every nav destination and says what each one does", as
     "the destination list must sit above the decision-to-release story",
   );
 
-  const entries = guide.querySelectorAll("li");
+  // Every destination is still here, named and linked exactly as the nav names
+  // and links it. The list is grouped now rather than flat, so a destination is
+  // found by its href instead of by its position — but the count still has to
+  // match, so a regrouping cannot quietly drop one.
+  const entries = [...guide.querySelectorAll("li")];
   assert.equal(entries.length, SITE_NAV.length);
-  entries.forEach((entry, index) => {
-    const { href, label } = SITE_NAV[index];
-    const link = entry.querySelector("a");
-    // One name per destination: the list calls it exactly what the nav calls it
-    // and sends the reader to exactly where the nav does.
-    assert.equal(link.textContent, label, `entry ${index + 1} must be named "${label}"`);
-    assert.equal(link.getAttribute("href"), href, `"${label}" must link to ${href}`);
+  for (const { href, label } of SITE_NAV) {
+    const matches = entries.filter((entry) => entry.querySelector("a").getAttribute("href") === href);
+    assert.equal(matches.length, 1, `"${label}" must appear exactly once, linking to ${href}`);
+    const link = matches[0].querySelector("a");
+    // One name per destination: the list calls it exactly what the nav calls it.
+    assert.equal(link.textContent, label, `the ${href} entry must be named "${label}"`);
 
-    const sentence = entry.textContent.slice(label.length).trim();
+    const sentence = matches[0].textContent.slice(label.length).trim();
     assert.ok(sentence.length > 0, `"${label}" needs a sentence`);
     assert.ok(
       sentence.split(/\s+/).length <= 20,
       `"${label}" runs to ${sentence.split(/\s+/).length} words`,
     );
     assert.doesNotMatch(sentence, /powerful|seamless|unlock|leverage/i, `"${label}" uses filler`);
-  });
+  }
+
+  // The section says what Shiplog is before it says where anything is, in one
+  // sentence that names the product rather than reciting the list below it.
+  const opener = textOf(guide.querySelector(".site-guide-intro"));
+  assert.ok(opener, "the section must open by saying what Shiplog does");
+  assert.ok(opener.split(/\s+/).length <= 25, `the opening sentence runs to ${opener.split(/\s+/).length} words`);
+  assert.match(opener, /^Shiplog /, "the opening sentence must name the product first");
+  for (const { label } of SITE_NAV) {
+    assert.ok(!opener.includes(label), `the opening sentence enumerates ${label} instead of saying what Shiplog does`);
+  }
+
+  // Two groups, each under a real heading one level below the section's own:
+  // the surfaces that read a visitor's own material, then the ones furnished
+  // with invented data. The second heading has to say demonstration in a word a
+  // buyer cannot read as a promise about their data.
+  const headings = [...guide.querySelectorAll("h3")];
+  assert.equal(headings.length, 2, "the destinations must be split into exactly two groups");
+  assert.match(textOf(headings[0]), /your own work/i, "the first group must say these run on the reader's own material");
+  assert.match(textOf(headings[1]), /demonstrations?/i, "the second group must say plainly that these are demonstrations");
+
+  const lists = [...guide.querySelectorAll("ul")].map((list) =>
+    [...list.querySelectorAll("li")].map((entry) => entry.querySelector("a").getAttribute("href")));
+  assert.equal(lists.length, 2, "each group needs its own list");
+  assert.deepEqual([...lists[0]].sort(), ["/", "/coach.html", "/evolution.html", "/releases.html"]);
+  assert.deepEqual([...lists[1]].sort(), ["/agents.html", "/paint/", "/profile.html", "/social.html"]);
+
+  // Reading order, in the source and on the screen: the tools group is first in
+  // the markup, and nothing in the stylesheet may move it after the demos.
+  const section = html.slice(html.indexOf('<section class="site-guide"'), html.indexOf('<section class="coach-entry"'));
+  for (const demo of ["/social.html", "/profile.html", "/paint/"]) {
+    assert.ok(
+      section.indexOf('"/evolution.html"') < section.indexOf(`"${demo}"`),
+      `AI FinOps must be listed before ${demo}`,
+    );
+  }
+  const css = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
+  for (const rule of css.split("\n").filter((line) => line.startsWith(".") && line.includes(".site-guide"))) {
+    assert.doesNotMatch(rule, /[;{\s]order:|float:|position:\s*absolute/, `a .site-guide rule can reorder the groups: ${rule}`);
+  }
 
   // The hero may not claim a count it does not then list.
   const hero = html.slice(html.indexOf('<section class="hero"'), html.indexOf('class="site-guide"'));
