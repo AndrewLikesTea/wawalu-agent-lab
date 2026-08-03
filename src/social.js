@@ -94,6 +94,36 @@ export function filterPosts(posts, { author = "all", range = "all", now = Date.n
   });
 }
 
+// The one term this site uses for the name a post is published under. The
+// composer's field hint, People's picker, and the feed's own filter label all
+// say "display name", so the sentence above the feed says it too rather than
+// introducing a second word for the same thing.
+export const AUTHOR_TERM = "display name";
+
+// The sentence above the post list: how many posts are on screen, and which
+// filters produced them. Pure so the wording is tested without a browser; the
+// caller supplies `range` and `author` as the *rendered* option text of the two
+// filter controls, so the sentence and the closed menus cannot drift apart.
+//
+// `shown` is the length of the array the cards are rendered from — never a
+// second filter pass — which is what keeps the stated count and the visible
+// cards the same number.
+//
+// An unfiltered, genuinely empty feed returns "": that is the never-posted
+// state, which the empty panel already owns and says more usefully than a
+// sentence counting to zero would.
+export function feedSummarySentence({ shown = 0, range = "", author = "" } = {}) {
+  const posts = `${shown} ${shown === 1 ? "post" : "posts"}`;
+  const clauses = [range, author ? `under the ${AUTHOR_TERM} ${author}` : ""].filter(Boolean).join(" ");
+
+  if (!clauses) {
+    if (shown === 0) return "";
+    return shown === 1 ? "Showing 1 post, newest first." : `Showing all ${shown} posts, newest first.`;
+  }
+  if (shown === 0) return `No posts ${clauses}. Clear filters to see all posts.`;
+  return `Showing ${posts} ${clauses}.`;
+}
+
 export function normalizeApiPosts(payload) {
   if (!Array.isArray(payload?.posts)) return [];
   return payload.posts.flatMap((post) => {
@@ -566,6 +596,7 @@ export function mountSocialFeed(root, options = {}) {
   const submit = root.querySelector("#post-submit") ?? form?.querySelector("button[type=submit]");
   const submitLabel = submit?.querySelector(".submit-label");
   const count = root.querySelector("#post-count");
+  const summary = root.querySelector("#feed-summary");
   const nameFilter = root.querySelector("#post-name-filter");
   const timeFilter = root.querySelector("#post-time-filter");
   const clearFilters = root.querySelector("#post-filter-clear");
@@ -579,6 +610,16 @@ export function mountSocialFeed(root, options = {}) {
   let activeId = null;
 
   const postLabel = (n) => `${n} ${n === 1 ? "post" : "posts"}`;
+
+  // The words a filter is currently showing, read back off the control itself
+  // rather than kept as a second copy in this file. "From the past hour" is
+  // sentence-initial in the menu and mid-sentence in the summary, so only its
+  // first letter changes.
+  const selectedText = (select) => {
+    const option = [...(select?.options ?? [])].find((item) => item.value === select.value);
+    return (option?.textContent ?? "").trim();
+  };
+  const midSentence = (text) => (text ? text[0].toLowerCase() + text.slice(1) : "");
 
   const render = () => {
     const hadFocus = Boolean(feed.querySelector(".post-card:focus"));
@@ -595,6 +636,23 @@ export function mountSocialFeed(root, options = {}) {
       if (posts.length === 0 && state === "loading") count.textContent = "Loading posts…";
       else if (posts.length === 0 && state === "error") count.textContent = "Unavailable";
       else count.textContent = filtering ? `${postLabel(visible.length)} of ${posts.length}` : postLabel(visible.length);
+    }
+
+    // The same `visible` array the cards were just rendered from, so the count
+    // in the sentence is the count of cards below it by construction. Until a
+    // fetch has answered there is nothing to summarize, and the connection
+    // status and the count already say which of loading and failed is true.
+    if (summary) {
+      const answered = posts.length > 0 || state === "ready";
+      const sentence = answered
+        ? feedSummarySentence({
+          shown: visible.length,
+          range: timeFilter && timeFilter.value !== "all" ? midSentence(selectedText(timeFilter)) : "",
+          author: nameFilter && nameFilter.value !== "all" ? selectedText(nameFilter) : "",
+        })
+        : "";
+      summary.textContent = sentence;
+      summary.hidden = sentence === "";
     }
 
     const cards = [...feed.querySelectorAll(".post-card")];
