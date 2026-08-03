@@ -102,14 +102,14 @@ test("arriving from a profile turns the one exit into the profile's, and nothing
 test("an unknown id is named as a missing post, with the feed still the way out", async () => {
   const page = await openPostPage("?id=p-gone", seedOnly([SEED_POST]));
   try {
-    assert.match(textOf(page.panel), /Post unavailable/);
-    assert.match(textOf(page.panel), /This post is unavailable or no longer exists\./);
+    assert.match(textOf(page.panel), /Post not found/);
+    assert.match(textOf(page.panel), /This post was not found\./);
     assert.match(textOf(page.panel), /Social is a shared demo feed, not a signed-in account\./);
     // No post, no author: the h1 names the page rather than standing as "Post".
     assert.equal(textOf(page.document.querySelector("#page-title")), "Post from Social");
     assert.doesNotMatch(textOf(page.panel), /Try again/);
     assert.equal(page.panel.querySelector(".detail-state-message").getAttribute("role"), "status");
-    assert.equal(page.document.title, "Post unavailable · Shiplog");
+    assert.equal(page.document.title, "Post not found · Shiplog");
     assertOneExit(page, SOCIAL, "not found");
     const feed = page.panel.querySelector(".detail-state-feed");
     assert.equal(textOf(feed), "Return to the Social feed");
@@ -141,15 +141,15 @@ test("a missing post reached from a profile still offers the feed it belonged to
   }
 });
 
-test("a failed lookup shows the unavailable state, and retry can recover", async () => {
+test("a failed lookup names the feed it could not reach, and retry can recover", async () => {
   let failing = true;
   const page = await openPostPage("?id=p-image", (url) => {
     if (failing) throw new TypeError("Failed to fetch");
     return seedOnly([SEED_POST])(url);
   });
   try {
-    assert.match(textOf(page.panel), /Post unavailable/);
-    assert.match(textOf(page.panel), /This post is unavailable right now\./);
+    assert.match(textOf(page.panel), /Post could not be loaded/);
+    assert.match(textOf(page.panel), /The Social feed could not be reached/);
     assert.match(textOf(page.panel), /Social is a shared demo feed, not a signed-in account\./);
     assertOneExit(page, SOCIAL, "failed");
 
@@ -168,7 +168,8 @@ test("a failed lookup shows the unavailable state, and retry can recover", async
     assert.ok(page.requests.length > before, "the retry must actually re-run the fetch");
     assert.equal(textOf(page.document.querySelector("#page-title")), "Post by Mina Okafor");
     assert.equal(textOf(page.panel.querySelector("figcaption")), "The middle card, ringed.");
-    assert.doesNotMatch(textOf(page.panel), /Post unavailable/);
+    assert.doesNotMatch(textOf(page.panel), /could not be reached/);
+    assert.equal(page.panel.dataset.postState, "loaded");
     assertOneExit(page, SOCIAL, "recovered");
   } finally {
     page.restore();
@@ -236,7 +237,7 @@ test("the page opens already saying it is loading, and the post replaces that li
     const panel = page.document.querySelector("#post-detail");
 
     // Shipped markup, no module imported yet.
-    assert.equal(panel.dataset.postState, "initial");
+    assert.equal(panel.dataset.postState, "loading");
     assert.equal(panel.getAttribute("aria-busy"), "true");
     assert.equal(panel.querySelectorAll(".detail-loading").length, 1);
     assert.equal(textOf(panel.querySelector(".detail-loading")), "Loading this post…");
@@ -255,7 +256,7 @@ test("the page opens already saying it is loading, and the post replaces that li
     await importPageModule("/post-page.js");
     await waitFor(() => page.document.documentElement.dataset.shiplogPostDetail === "loading", "the script took the region");
 
-    assert.equal(panel.dataset.postState, "initial", "the script agrees with the markup it replaced");
+    assert.equal(panel.dataset.postState, "loading", "the script agrees with the markup it replaced");
     assert.equal(panel.querySelectorAll(".detail-loading").length, 1, "one wait line, not the shipped one plus a second");
     assert.equal(textOf(panel.querySelector(".detail-loading")), "Loading this post…");
     assert.equal(panel.querySelectorAll(".detail-state-message").length, 0);
@@ -264,7 +265,7 @@ test("the page opens already saying it is loading, and the post replaces that li
     await waitFor(() => page.document.documentElement.dataset.shiplogPostDetail === "ready", "the post arrived");
 
     // Resolved: one state, and the wait is gone rather than pushed off screen.
-    assert.equal(panel.dataset.postState, "resolved");
+    assert.equal(panel.dataset.postState, "loaded");
     assert.equal(panel.querySelectorAll(".detail-loading").length, 0);
     assert.equal(panel.querySelectorAll(".detail-post").length, 1);
     assert.equal(panel.getAttribute("aria-busy"), "false");
@@ -275,13 +276,13 @@ test("the page opens already saying it is loading, and the post replaces that li
   }
 });
 
-// The other exit from the initial state: no post to show, one state on the
+// The other exit from the loading state: no post to show, one state on the
 // region, and the wait line gone rather than sitting under the explanation.
-test("an unavailable post leaves the initial state behind entirely", async () => {
+test("a missing post leaves the loading state behind entirely", async () => {
   const page = await openPostPage("?id=p-gone", seedOnly([SEED_POST]));
   try {
     const panel = page.panel;
-    assert.equal(panel.dataset.postState, "unavailable");
+    assert.equal(panel.dataset.postState, "not-found");
     assert.equal(panel.querySelectorAll(".detail-loading").length, 0, "the wait must not survive under the explanation");
     assert.doesNotMatch(textOf(panel), /Loading this post/);
     assert.equal(panel.querySelectorAll(".detail-state-message").length, 1);
