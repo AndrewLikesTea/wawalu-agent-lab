@@ -83,6 +83,13 @@ const ROLE_OF = new Map(Object.entries({
 
   "finops-action-shape": ROLE.action,
 
+  // The bundled example's per-figure source markers (#1025). Eight native
+  // disclosures, each drawing the page's disclosure triangle and nothing else —
+  // the three source states are told apart by their words and by the chip
+  // silhouette, never by a mark, so no diamond is minted for a third kind of
+  // provenance and ◇/◆ keep meaning exactly what they meant.
+  "figure-source-shape": ROLE.disclosure,
+
   "stand-disclosure-shape": ROLE.disclosure,
   "first-run-method-shape": ROLE.disclosure,
   "workspace-nav-detail-shape": ROLE.disclosure,

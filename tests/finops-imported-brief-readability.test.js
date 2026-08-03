@@ -98,7 +98,23 @@ const decide = (csv, readerDeclared = null) => validateCohortAttribution({
   readerDeclared,
 });
 
-const markers = (doc) => [...doc.querySelectorAll(".brief-provenance")];
+/** True when `node` sits inside the element with this id. `parentNode`, because
+ *  the harness rejects a descendant selector. */
+function inRegion(node, id) {
+  for (let held = node; held; held = held.parentNode) if (held.id === id) return true;
+  return false;
+}
+
+/**
+ * Every provenance chip the IMPORTED brief drew.
+ *
+ * #1025 put the same chip on the bundled example's own figures, in a region this
+ * file never paints and which is populated before any import exists — so the
+ * count is scoped to everything outside it rather than being every chip on the
+ * page. "An unimported page marks nothing" is a claim about the imported brief.
+ */
+const markers = (doc) => [...doc.querySelectorAll(".brief-provenance")]
+  .filter((node) => !inRegion(node, "finops-first-run"));
 const rowsOf = (doc) => [...doc.querySelectorAll("dd.imported-headline-slot")];
 
 /** Paint the whole brief for one analysis, the way the page entry does. */

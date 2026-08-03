@@ -165,7 +165,11 @@ test("reading order is focus order: DOM order, and no positive tabindex", () => 
   // sequence, at the DOM position it is reached from.
   assert.deepEqual(reachable, FOCUS_SPEC.order,
     "every control in the region is reachable, in the order it is read");
-  assert.ok(html.indexOf(`id="${DISCLOSURE_SPEC.summaryId}"`) < html.indexOf(`id="${FOCUS_SPEC.order[1]}"`),
+  // The evidence control is reached before the two ways on. The per-figure
+  // source markers (#1025) are reached before it, interleaved with the figures
+  // they qualify, so the comparison is against the first NEXT STEP rather than
+  // against whatever happens to sit at index 1.
+  assert.ok(html.indexOf(`id="${DISCLOSURE_SPEC.summaryId}"`) < html.indexOf('id="finops-first-run-demo"'),
     "the evidence control is reached before the two next steps");
   // A positive tabindex is the one way an author makes focus order disagree
   // with reading order, so the document is held to not containing one.

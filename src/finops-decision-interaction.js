@@ -283,13 +283,31 @@ export const FOCUS_SPEC = Object.freeze({
   forbiddenAttributes: Object.freeze(["tabindex=\"1\""]),
   /**
    * Every control in the region that must be reachable, in the order it is
-   * reached: the evidence behind the figure, then the two ways to put data into
-   * this page, then the one way out of it — the same example, rebuilt as the
+   * reached: each figure's own source marker where that figure is read, then the
+   * evidence behind the whole answer, then the two ways to put data into this
+   * page, then the one way out of it — the same example, rebuilt as the
    * printable executive sheet. The hand-off is last because leaving the page is
    * the step after deciding whether to, and it is a link rather than a button
    * for the same reason.
+   *
+   * THE EIGHT MARKERS COME FIRST AND THEY COME INTERLEAVED (#1025). Each one
+   * says whether the figure above it was read from the example's files, derived
+   * here, or is absent from them, and each is reached immediately after that
+   * figure rather than collected into a panel at the end — a reader tabbing
+   * through the brief meets the number, then where it came from, then the next
+   * number. Collecting them would have made the focus order disagree with the
+   * reading order for the sake of a tidier list, which is the one thing this
+   * spec exists to refuse.
    */
   order: Object.freeze([
+    "finops-first-run-answer-source-summary",
+    "finops-first-run-benchmark-source-summary",
+    "finops-first-run-impact-source-summary",
+    "finops-first-run-peer-source-summary",
+    "finops-first-run-internal-source-summary",
+    "finops-first-run-literacy-source-summary",
+    "finops-first-run-role-source-summary",
+    "finops-first-run-confidence-source-summary",
     "finops-first-run-method-summary",
     "finops-first-run-demo",
     "finops-first-run-import",
