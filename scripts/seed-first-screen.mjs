@@ -257,6 +257,15 @@ export function firstScreenEdits(bundled) {
       "p", headline.recoverable?.value ?? ""),
     filledText("recoverable basis", "finops-stand-recoverable-basis",
       { authored: "", seeded: "" }, "p", headline.recoverable?.basis ?? ""),
+    // The sentence that holds the figure against the coverage verdict (#1019).
+    // Seeded for the same reason the figure above it is: the served document
+    // must not state a modelled ceiling with no word about what the rubric
+    // verified of it. It ships `hidden` and is revealed only when the composer
+    // produced a sentence, so a path with nothing to reconcile draws nothing.
+    ...(headline.recoverable?.reconciliation
+      ? [filledText("recoverable reconciliation", "finops-stand-recoverable-reconciliation",
+        { authored: " hidden", seeded: "" }, "p", headline.recoverable.reconciliation)]
+      : []),
     edit("team revealed",
       '<div class="stand-team pre-analysis-withheld" id="finops-stand-team"'
       + ' data-available="false" hidden>',

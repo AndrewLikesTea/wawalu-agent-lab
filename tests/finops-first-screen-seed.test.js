@@ -71,6 +71,7 @@ const SEEDED_TEXT = Object.freeze([
   "finops-stand-answer",
   "finops-stand-evidence", "finops-stand-confidence",
   "finops-stand-recoverable-value", "finops-stand-recoverable-basis",
+  "finops-stand-recoverable-reconciliation",
   "finops-stand-position-value", "finops-stand-position-basis",
   "finops-stand-team-name", "finops-stand-team-detail",
   "finops-stand-action", "finops-stand-action-basis",
@@ -121,7 +122,10 @@ test("every seeded slot matches the authored markup exactly once", () => {
   // reaching here is the assertion. The count is stated so a slot cannot be
   // quietly dropped from the seed and leave this suite still green.
   const edits = firstScreenEdits(BUNDLED);
-  assert.equal(edits.length, 34, "the seed covers 34 first-screen slots");
+  // 35 since #1019: the recoverable figure's reconciliation sentence is seeded
+  // beside it, so the served document never states a modelled ceiling without
+  // saying what the rubric verified of it.
+  assert.equal(edits.length, 35, "the seed covers 35 first-screen slots");
   for (const { slot, find } of edits) {
     assert.equal(SOURCE.split(find).length - 1, 1, `${slot} matches the authored markup once`);
   }

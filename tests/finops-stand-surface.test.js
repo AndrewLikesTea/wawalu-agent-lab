@@ -91,6 +91,53 @@ test("the complete headline renders on first load with no import and no stored s
   assert.equal(byId(document, STAND_IDS.withheld).hidden, true);
 });
 
+test("the recoverable figure states, in the open, what the rubric verified of it", async () => {
+  const { document } = await openWithClearedStorage();
+  const sentence = byId(document, STAND_IDS.recoverableReconciliation);
+  const text = shownText(document, STAND_IDS.recoverableReconciliation);
+
+  // The bundled path: a modelled ceiling over spend the rubric scored none of.
+  // Reported as zero, because it IS zero — no coverage is invented here.
+  assert.match(text, /^\$51,254 is a model estimate over \$154,500 of analyzed spend; /);
+  assert.match(text, /the rubric scored none of that spend, so no grade is shown\.$/);
+  assert.equal(sentence.hidden, false);
+
+  // IT IS IN THE FLOW OF THE BLOCK THE FIGURE IS READ IN. Walked by parentNode
+  // rather than asserted with a descendant selector: what this has to catch is
+  // the sentence being true and unreachable — inside a disclosure, a dialog, or
+  // a visually-hidden note — and the harness reads text straight through a shut
+  // `details`, so a text assertion alone would pass on exactly that bug.
+  const LAYERS = ["DETAILS", "SUMMARY", "DIALOG", "TEMPLATE"];
+  const ancestors = [];
+  for (let node = sentence.parentNode; node && ancestors.length < 12; node = node.parentNode) {
+    ancestors.push(node);
+    if (node.id === STAND_IDS.region) break;
+  }
+  // Its parent IS the recoverable figure block, so the sentence is that block's
+  // own text rather than a nested layer's…
+  const block = ancestors[0];
+  assert.equal(block.classList.contains("stand-figure-recoverable"), true,
+    `the sentence sits outside the recoverable figure block: ${ancestors.map((n) => n.tagName)}`);
+  // …and the whole chain up to the headline region is walked, not just the
+  // block, so a disclosure wrapped around the figures fails here too.
+  assert.equal(ancestors[ancestors.length - 1].id, STAND_IDS.region);
+  for (const node of ancestors) {
+    assert.equal(LAYERS.includes(node.tagName), false,
+      `${node.tagName} between the sentence and the figure would make it need an interaction`);
+    assert.equal(node.hidden, false, `a hidden ${node.tagName} would take the sentence off screen`);
+    assert.equal(node.classList.contains("visually-hidden"), false);
+  }
+  // No second layer on the node itself, and nothing that defers it to a hover.
+  assert.equal(sentence.hasAttribute("aria-hidden"), false);
+  assert.equal(sentence.hasAttribute("title"), false);
+  assert.equal(sentence.tagName, "P");
+
+  // And it is read beside the figure it qualifies, not somewhere else entirely.
+  const blockText = textOf(block);
+  assert.equal(blockText.includes("$51,254 · 33% of analyzed spend"), true);
+  assert.equal(blockText.includes(text), true);
+});
+
 test("the headline is the highest-ranked heading in its region, and it is first on the view", () => {
   const document = parseHtml(html);
   const region = byId(document, STAND_IDS.region);

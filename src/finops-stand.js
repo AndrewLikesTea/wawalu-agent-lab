@@ -101,6 +101,8 @@ export const STAND_IDS = Object.freeze({
   positionBasis: "finops-stand-position-basis",
   recoverableValue: "finops-stand-recoverable-value",
   recoverableBasis: "finops-stand-recoverable-basis",
+  /** The reconciliation between the modelled figure and the coverage verdict (#1019). */
+  recoverableReconciliation: "finops-stand-recoverable-reconciliation",
   team: "finops-stand-team",
   teamName: "finops-stand-team-name",
   teamDetail: "finops-stand-team-detail",
@@ -457,8 +459,53 @@ function positionSlot(position, period) {
   });
 }
 
+/**
+ * THE ONE SENTENCE THAT RECONCILES THE FIGURE WITH THE GRADE (#1019).
+ *
+ * Two panels on this screen read the same $154,500 base and appeared to
+ * disagree: the headline says a third of it is modelled as recoverable, and the
+ * answer block's coverage line says the rubric scored none of it and shows no
+ * letter. Both are true, and they are true of DIFFERENT things — the recoverable
+ * amount is a routing model over analyzed spend, and coverage is how much of
+ * that spend the scoring rubric read. A reader meeting only the first one has no
+ * way to know that, so the reconciliation is stated where the figure is read.
+ *
+ * Pure, total, and a FUNCTION OF THE COVERAGE STATE rather than a constant: the
+ * scored amount and whether a letter is published are handed in from the same
+ * gradability verdict the coverage line is composed from, so the sentence cannot
+ * drift from the panel and cannot assert "none of it was scored" over an import
+ * the rubric did cover. Null — no sentence at all — whenever an operand is
+ * missing, because there is nothing to reconcile without both sides of it.
+ *
+ * @param scoredUsd the verdict's `coveredUsd`: analyzed spend sitting in
+ *   departments the rubric scored. Null/undefined means no coverage was
+ *   measured, which is not a measured zero and gets no sentence.
+ * @param gradePublished the verdict's `showFigures` — whether the published
+ *   coverage tier shows a letter at all. Named for what a reader sees.
+ */
+export function reconcileRecoverableSentence({
+  analyzedUsd = null, recoverableUsd = null, scoredUsd = null, gradePublished = false,
+} = {}) {
+  // `Number(null)` is 0, and an amount nobody published is NOT a measured zero:
+  // the difference is the whole reason the verdict publishes `null` for an
+  // export with no denominator, so it is checked before the coercion.
+  const stated = (value) => (value === null || value === undefined || value === ""
+    ? NaN : Number(value));
+  const recoverable = stated(recoverableUsd);
+  const analyzed = stated(analyzedUsd);
+  const scored = stated(scoredUsd);
+  if (![recoverable, analyzed, scored].every(Number.isFinite)) return null;
+  const lead = `${usd(recoverable)} is a model estimate over ${usd(analyzed)} of analyzed spend`;
+  if (!(scored > 0)) {
+    return `${lead}; the rubric scored none of that spend, so no grade is shown.`;
+  }
+  return gradePublished
+    ? `${lead}; the rubric scored ${usd(scored)} of it, which is what the grade rests on.`
+    : `${lead}; the rubric scored ${usd(scored)} of it — too little for a grade to be shown.`;
+}
+
 /** The recoverable figure, beside the position rather than in a card of its own. */
-function recoverableSlot(analysis) {
+function recoverableSlot(analysis, gradability) {
   const amount = usd(analysis?.recoverableUsd);
   const analyzed = usd(analysis?.spendUsd);
   const share = recoverableShare(analysis?.recoverableUsd, analysis?.spendUsd);
@@ -468,6 +515,7 @@ function recoverableSlot(analysis) {
       label: "Recoverable spend",
       value: STAND_PENDING.recoverable,
       basis: "This analysis published no spend total to divide, so no recoverable share is claimed.",
+      reconciliation: null,
     });
   }
   return Object.freeze({
@@ -476,6 +524,13 @@ function recoverableSlot(analysis) {
     value: `${amount} · ${Math.round(share * 100)}% of analyzed spend`,
     basis: `${amount} of ${analyzed} analyzed. A modelled ceiling on what re-routing this work `
       + "could save — not money already saved.",
+    /** Read, not recomputed: the verdict the answer block's coverage line states. */
+    reconciliation: reconcileRecoverableSentence({
+      analyzedUsd: analysis?.spendUsd,
+      recoverableUsd: analysis?.recoverableUsd,
+      scoredUsd: gradability?.coveredUsd,
+      gradePublished: Boolean(gradability?.showFigures),
+    }),
   });
 }
 
@@ -1051,7 +1106,7 @@ export function composeStandHeadline({
   // whether the figures below may be quoted at all, so it is resolved first and
   // read by the view rather than re-derived per slot.
   const gradability = gradeExport({ analysis, source });
-  const recoverable = recoverableSlot(analysis);
+  const recoverable = recoverableSlot(analysis, gradability);
   const team = teamSlot(finding);
   const action = actionSlot(destinations);
   const period = periodLabel(analysis);

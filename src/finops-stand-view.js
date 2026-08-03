@@ -700,6 +700,13 @@ export function applyStandHeadline(doc, headline, { announce = true } = {}) {
   const recoverable = setText(doc, STAND_IDS.recoverableValue, headline.recoverable?.value ?? "");
   if (recoverable) recoverable.dataset.available = headline.recoverable?.available ? "true" : "false";
   setText(doc, STAND_IDS.recoverableBasis, headline.recoverable?.basis ?? "");
+  // …and the one sentence that holds this figure against the coverage verdict
+  // the answer block states (#1019). Composed, never assembled here, and hidden
+  // only when the composer produced none — an empty paragraph in the flow of
+  // the block would be a stop through nothing.
+  const reconciliation = setText(doc, STAND_IDS.recoverableReconciliation,
+    headline.recoverable?.reconciliation ?? "");
+  if (reconciliation) reconciliation.hidden = !headline.recoverable?.reconciliation;
 
   // The named team is text in both channels — the name in its own element and
   // the evidence sentence beside it. Nothing about which department it is is

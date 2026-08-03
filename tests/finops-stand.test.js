@@ -15,8 +15,9 @@ import assert from "node:assert/strict";
 import {
   STAND_DISCLOSURE, STAND_DISCLOSURE_ORDER, STAND_LOAD_FAILED, STAND_QUESTION, STAND_RESOLUTION,
   STAND_RESOLUTION_ACTION, buildStandHeadline, composeStandHeadline, periodLabel,
-  standHeadlineForImport,
+  reconcileRecoverableSentence, standHeadlineForImport,
 } from "../src/finops-stand.js";
+import { gradeExport } from "../src/export-gradability.js";
 import {
   EXAMPLE_ORG_COHORT_PROFILE, EXAMPLE_TASK_LEDGER, loadExampleDataset,
 } from "../src/example-dataset.js";
@@ -101,6 +102,63 @@ test("the recoverable figure sits in the headline beside the position, not in a 
   assert.ok(headline.answer.includes("$38.63"));
   assert.ok(headline.answer.includes("$51,254"));
   assert.ok(headline.answer.includes(headline.team.name));
+});
+
+// ---------------------------------------------------------------------------
+// #1019 — the recoverable figure and the coverage verdict, reconciled.
+//
+// The two panels read the same spend base and looked like they disagreed: a
+// third of it modelled as recoverable, and a coverage line saying the rubric
+// scored none of it and shows no letter. The helper below is the whole fix, so
+// it is tested on its own rather than only through the composed headline.
+// ---------------------------------------------------------------------------
+
+test("the reconciling sentence reports zero scored coverage as zero, and says why no grade follows", () => {
+  const sentence = reconcileRecoverableSentence({
+    analyzedUsd: 154500, recoverableUsd: 51254, scoredUsd: 0, gradePublished: false,
+  });
+  assert.equal(sentence, "$51,254 is a model estimate over $154,500 of analyzed spend; "
+    + "the rubric scored none of that spend, so no grade is shown.");
+});
+
+test("the reconciling sentence adapts to scored coverage rather than asserting a constant", () => {
+  // Scored, and the tier publishes a letter: the sentence names the amount and
+  // points at the grade instead of denying one.
+  const graded = reconcileRecoverableSentence({
+    analyzedUsd: 154500, recoverableUsd: 51254, scoredUsd: 139050, gradePublished: true,
+  });
+  assert.equal(graded, "$51,254 is a model estimate over $154,500 of analyzed spend; "
+    + "the rubric scored $139,050 of it, which is what the grade rests on.");
+  assert.doesNotMatch(graded, /none of that spend/);
+
+  // Scored, but under the bar: neither "none" nor a grade that is not shown.
+  const thin = reconcileRecoverableSentence({
+    analyzedUsd: 154500, recoverableUsd: 51254, scoredUsd: 9000, gradePublished: false,
+  });
+  assert.match(thin, /the rubric scored \$9,000 of it — too little for a grade to be shown\./);
+
+  // No operand, no sentence. A missing coverage measurement is not a measured
+  // zero, so it gets no claim about what the rubric did or did not read.
+  assert.equal(reconcileRecoverableSentence({
+    analyzedUsd: 154500, recoverableUsd: 51254, scoredUsd: null, gradePublished: false }), null);
+  assert.equal(reconcileRecoverableSentence({ scoredUsd: 0 }), null);
+  assert.equal(reconcileRecoverableSentence(), null);
+});
+
+test("the headline's reconciliation is the verdict the answer block reads, not a second measurement", () => {
+  const headline = buildStandHeadline();
+  const verdict = gradeExport({ analysis, source: "example" });
+  // Same operands, same sentence: the panel and the headline cannot drift.
+  assert.equal(headline.recoverable.reconciliation, reconcileRecoverableSentence({
+    analyzedUsd: analysis.spendUsd,
+    recoverableUsd: analysis.recoverableUsd,
+    scoredUsd: verdict.coveredUsd,
+    gradePublished: verdict.showFigures,
+  }));
+  // And on the bundled path that is the zero-coverage reading, stated as zero.
+  assert.equal(verdict.coveredUsd, 0);
+  assert.match(headline.recoverable.reconciliation,
+    /^\$51,254 is a model estimate over \$154,500 of analyzed spend; the rubric scored none/);
 });
 
 test("exactly one team is named, and it is the department the existing finding already ranked", () => {
