@@ -608,7 +608,7 @@ function unavailableResult() {
  * @returns a frozen composition: one question, one benchmark, one action, a
  *   required trust slot, and the ordered support-only disclosures.
  */
-export function composeGuidedResult({ imported = null, bundled = null } = {}) {
+export function composeGuidedResult({ imported = null, bundled = null, labels = null } = {}) {
   const chosen = side(imported, RESULT_BASIS.imported) ?? side(bundled, RESULT_BASIS.synthetic);
   if (!chosen) return unavailableResult();
 
@@ -618,7 +618,10 @@ export function composeGuidedResult({ imported = null, bundled = null } = {}) {
   const verdict = basis === RESULT_BASIS.imported ? chosen.verdict : null;
   const trust = composeTrust(verdict, basis);
   const decisionReady = basis === RESULT_BASIS.imported && trust.state === TRUST_STATE.verified;
-  const finding = analysis ? leadingFinding(analysis) : null;
+  // The reader's own org-unit names ride along rather than being applied here:
+  // `leadingFinding` composes the sentences, so it is where the one resolver is
+  // called. This module only carries the map from page state to it.
+  const finding = analysis ? leadingFinding(analysis, { labels }) : null;
   const benchmark = composeBenchmark(grade, { basis });
   const composed = composeAction({ basis, trust, decisionReady, verdict, analysis, finding });
   const disclosures = composeDisclosures(facts);

@@ -95,11 +95,14 @@ function paintSlots(doc, slots) {
  *
  * @param analysis an envelope from `normalizeLocalFinopsHistory`, or null when
  *   the reader is on the bundled example or has cleared an import.
+ * @param {{labels?: object}} [options] the reader's own org-unit names, from
+ *   page state. Carried through to the contract, which is where the one
+ *   resolver is called; this layer still holds no string of its own.
  * @returns the composed headline, including the unavailable one.
  */
-export function applyImportedHeadline(doc, analysis) {
+export function applyImportedHeadline(doc, analysis, { labels = null } = {}) {
   const region = byId(doc, REGION_ID);
-  const headline = importedHeadline(analysis ?? null);
+  const headline = importedHeadline(analysis ?? null, { labels });
   if (!region) return headline;
   const host = byId(doc, SLOTS_ID);
   if (host) host.replaceChildren();

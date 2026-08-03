@@ -296,6 +296,10 @@ import { buildFirstRunResult } from "/finops-first-run.js";
 // And what refills that same block once the reader has imported a file of their
 // own: their groups, ranked by the rule that named the driver in the headline.
 import { importedDepartmentDrilldown } from "/finops-imported-departments.js";
+// The display-label layer over the pseudonymous org-unit identity. The page
+// holds the map; `orgUnitDisplayName` — which the page never calls itself — is
+// the only thing that turns it into words, downstream in the composers.
+import { NO_ORG_UNIT_LABELS, withOrgUnitDisplayLabel } from "/org-unit-display-label.js";
 import {
   applyExampleBriefingCta,
   applyFirstRunResult, applyFirstRunSupersession, bindFirstRunActions, bindFirstRunDisclosure,
@@ -864,6 +868,13 @@ function mountLocalFinopsImport() {
   let queue = [];
   let review = null;
   let result = null;
+  // The reader's own names for their own org units — "Platform Engineering"
+  // over `psn_…atlas0`. PAGE STATE AND NOTHING ELSE: it is never written to
+  // storage, never put in an export, never sent anywhere, and it dies with the
+  // tab. It is deliberately NOT part of `result`, so naming a team cannot touch
+  // a single imported figure; every surface re-reads the same envelope and
+  // resolves the name through `orgUnitDisplayName`.
+  let orgUnitLabels = NO_ORG_UNIT_LABELS;
   // The briefing the live analysis last produced, kept so a restored briefing
   // can be compared against exactly what is on screen rather than against a
   // second selection made from the same envelope.
@@ -1303,6 +1314,7 @@ function mountLocalFinopsImport() {
           verdict: lastVerdict,
           facts: importedRowFacts(),
         },
+        labels: orgUnitLabels,
       };
     }
     return {
@@ -1337,6 +1349,23 @@ function mountLocalFinopsImport() {
     applyDisclosureRoles(document, composed.disclosures);
     return applyGuidedResult(document, composed);
   };
+  /**
+   * A reader named one of their own org units, or cleared the name.
+   *
+   * Nothing is uploaded and nothing is stored: the map is replaced in page
+   * state and the surfaces are repainted from the SAME imported envelope, so a
+   * rename cannot discard, reorder, or mutate a single imported row. Clearing
+   * the field removes the entry and the unit renders under its pseudonym again.
+   */
+  function relabelOrgUnit(unitId, label) {
+    orgUnitLabels = withOrgUnitDisplayLabel(orgUnitLabels, unitId, label);
+    if (result && !exampleActive) {
+      applyImportedHeadline(document, result, { labels: orgUnitLabels });
+    }
+    // The drill-down and, through it, the guided result's driver sentence. One
+    // call, so the three surfaces cannot end up naming the unit three ways.
+    syncPanels();
+  }
   const syncPanels = () => {
     // The first-run block answers "what would this tell me?". The EXAMPLE closes
     // that question by filling every panel below, so it still retires the block
@@ -1351,7 +1380,13 @@ function mountLocalFinopsImport() {
     // instead of disappearing at the moment it became about real money.
     applyFirstRunSupersession(document, Boolean(result), {
       focusFallbackId: "local-results-title",
-      ownData: result && !exampleActive ? importedDepartmentDrilldown(result) : null,
+      ownData: result && !exampleActive
+        ? importedDepartmentDrilldown(result, { labels: orgUnitLabels }) : null,
+      // The name fields inside that disclosure. They are built rather than
+      // shipped as markup: the disclosure is already interactive and already on
+      // the page, and five static fields would spend the document's initial
+      // payload on a control nobody has opened.
+      onOrgUnitLabel: relabelOrgUnit,
     });
     // The destination ranking belongs to that block: the doors stay true, but the
     // order they are in was ranked from the invented dataset, so it retires with
@@ -1644,7 +1679,7 @@ function mountLocalFinopsImport() {
     // for why the export could not supply it. The bundled example is not an
     // import and does not get one — it already has its own complete headline,
     // which this call leaves untouched.
-    applyImportedHeadline(document, example ? null : next);
+    applyImportedHeadline(document, example ? null : next, { labels: orgUnitLabels });
     // Every month inside that same file, summed per calendar month and merged
     // with what this browser had already retained, so a year-long export reads
     // as a series with named movement instead of one period and no change. The

@@ -25,6 +25,10 @@
 // It builds no node, reads no clock, opens no request, and touches no storage.
 
 import { isUnattributed } from "./attribution-units.js";
+// A reader's own name for a group, resolved through the one resolver that owns
+// that decision. `unitId` rides on every department row so the name a reader
+// types is bound to the pseudonymous identity and not to a rank that moves.
+import { orgUnitDisplayName } from "./org-unit-display-label.js";
 
 /** Bump when a row, a rule, or a fallback changes meaning. */
 export const IMPORTED_DEPARTMENTS_VERSION = "finops-imported-departments/1.0.0";
@@ -81,20 +85,25 @@ const amount = (value, currency) => `${Math.round(value).toLocaleString("en-US")
  * larger group carrying the same recoverable amount is the bigger fact; the
  * name breaks the rest, so the order is stable for identical groups.
  */
+// The last step compares PSEUDONYMS, never display names: a reader typing a
+// name must not be able to re-order the ranking underneath themselves, and a
+// rank that moved when a label was typed would put the label on another row.
 const byRecoverable = (left, right) => (right.recoverableUsd - left.recoverableUsd)
   || (right.spendUsd - left.spendUsd)
-  || String(left.name).localeCompare(String(right.name));
+  || String(left.pseudonym).localeCompare(String(right.pseudonym));
 
 /**
  * The reader's attributed groups. The reserved unattributed bucket is not one:
  * it is the analysis saying a row carried no grouping value, and ranking it as
  * a team would name a department the export never had.
  */
-function departmentGroups(analysis) {
+function departmentGroups(analysis, labels) {
   return list(analysis?.rankedDepartments)
     .filter((entry) => filled(entry?.name) && !isUnattributed(entry?.unit))
     .map((entry) => ({
-      name: entry.name.trim(),
+      unitId: filled(entry?.id) ? entry.id.trim() : null,
+      pseudonym: entry.name.trim(),
+      name: orgUnitDisplayName(labels, entry?.id, entry.name),
       recoverableUsd: money(entry.recoverableUsd) ?? 0,
       spendUsd: money(entry.spendUsd) ?? 0,
     }));
@@ -110,6 +119,8 @@ function monthGroups(analysis) {
   return list(analysis?.history?.periods)
     .filter((entry) => entry?.completeness === "complete" && filled(entry?.period))
     .map((entry) => ({
+      unitId: null,
+      pseudonym: entry.period.trim(),
       name: entry.period.trim(),
       recoverableUsd: money(entry.recoverableUsd) ?? 0,
       spendUsd: money(entry.spendUsd) ?? 0,
@@ -122,6 +133,12 @@ function row(group, index, total, currency) {
   return Object.freeze({
     rank: index + 1,
     name: group.name,
+    // The identity the label is keyed on, and the pseudonym it is standing in
+    // for. Both travel to the view: it renders a field per identity and has to
+    // name the unit in that field's accessible name without inventing a second
+    // display rule.
+    unitId: group.unitId ?? null,
+    pseudonym: group.pseudonym,
     recoverableUsd: group.recoverableUsd,
     spendUsd: group.spendUsd,
     share,
@@ -140,11 +157,13 @@ function row(group, index, total, currency) {
  * in every one of those states.
  *
  * @param analysis an envelope from `normalizeLocalFinopsHistory`, or null.
+ * @param {{labels?: object}} [options] the reader's own org-unit names, from
+ *   page state. Absent renders every row under its pseudonym, as today.
  * @returns `{ version, available, grouping, headline, detail, rows, count }`
  */
-export function importedDepartmentDrilldown(analysis = null) {
+export function importedDepartmentDrilldown(analysis = null, { labels = null } = {}) {
   const currency = filled(analysis?.currency) ? analysis.currency : "USD";
-  const departments = departmentGroups(analysis);
+  const departments = departmentGroups(analysis, labels);
   const groups = departments.length > 0 ? departments : monthGroups(analysis);
   const grouping = departments.length > 0
     ? DRILLDOWN_GROUPING.department : DRILLDOWN_GROUPING.month;

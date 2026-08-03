@@ -37,6 +37,10 @@
 
 import FIXTURE from "./finops-imported-headline-fixture.json" with { type: "json" };
 import { PEER_COHORTS } from "./peer-cohort-fixtures.js";
+import { formatUsd } from "./evolution.js";
+// The reader's own name for the unit this headline names, through the one
+// resolver. No slot reads the label map directly.
+import { orgUnitDisplayName } from "./org-unit-display-label.js";
 
 /** Bump when a slot, an order, or a derivation rule changes meaning. */
 export const IMPORTED_HEADLINE_VERSION = "finops-imported-headline/1.0.0";
@@ -58,6 +62,14 @@ const money = (value) => (Number.isFinite(value) && value >= 0 ? value : null);
 const filled = (value) => typeof value === "string" && value.trim() !== "";
 
 const percent = (part, whole) => Math.round((part / whole) * 100);
+
+// Money beside a named unit is rendered currency, not a bare figure with a code
+// after it. Only USD goes through `formatUsd` — the contract admits USD alone,
+// and an export declaring anything else keeps its own code rather than being
+// silently restated in dollars.
+const amount = (value, currency) => (currency === "USD"
+  ? formatUsd(value)
+  : `${Math.round(value).toLocaleString("en-US")} ${currency}`);
 
 /**
  * The most recent COMPLETE billing month in the export.
@@ -136,10 +148,12 @@ const specFor = (id) => FIXTURE.slots.find((entry) => entry.id === id);
  * The five-slot headline for one imported analysis.
  *
  * @param analysis an envelope from `normalizeLocalFinopsHistory`, or null.
+ * @param {{labels?: object}} [options] the reader's own org-unit names, from
+ *   page state. Absent leaves every slot exactly as it reads today.
  * @returns `{ version, contractVersion, question, tier, satisfiedCount, slots }`
  *   with exactly five slots, in fixture order, in every state including null.
  */
-export function importedHeadline(analysis = null) {
+export function importedHeadline(analysis = null, { labels = null } = {}) {
   const month = latestCompleteMonth(analysis);
   const currency = filled(analysis?.currency) ? analysis.currency : FIXTURE.currencyDefault;
   const recoverable = money(month?.recoverableUsd);
@@ -165,12 +179,15 @@ export function importedHeadline(analysis = null) {
     });
 
   const top = topRecoverableDepartment(analysis);
+  // Resolved once, used by both slots below: the department slot and the action
+  // that names the same department cannot disagree about what it is called.
+  const topName = top === null ? "" : orgUnitDisplayName(labels, top.id, top.name);
   const departmentSlot = slot(specFor("top_department"), top === null
     ? { supported: false }
     : {
       supported: true,
-      value: top.name,
-      detail: `${Math.round(top.recoverableUsd).toLocaleString("en-US")} ${currency} recoverable, `
+      value: topName,
+      detail: `${amount(top.recoverableUsd, currency)} recoverable, `
         + "the largest absolute amount of any group in this export.",
     });
 
@@ -179,7 +196,7 @@ export function importedHeadline(analysis = null) {
     : {
       supported: true,
       value: analysis.action,
-      detail: `Ranked first by recoverable spend, which is ${top.name}'s.`,
+      detail: `Ranked first by recoverable spend, which is ${topName}'s.`,
     });
 
   // THE ORDER IS THE FIXTURE'S, and the fixture's order is the reading order:
