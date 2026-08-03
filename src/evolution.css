@@ -145,8 +145,35 @@
 .score-card[data-band="review"] { border-style:dashed; background:#fbf5e8; }
 .score-card[data-band="review"] .score-grade { color:#6d5510; }
 .score-value { margin:8px 0 0; font-size:15px; font-weight:650; }
-.score-coverage { margin:6px 0 0; font-size:13px; font-weight:650; }
-.score-action { margin:2px 0 0; font-size:13px; color:var(--ink-muted); }
+/* Coverage and confidence, immediately subordinate to the letter: a 10px
+   uppercase label over a 13px value, which is the same figure-and-caption pair
+   the KPI cards on this page already use, so the card reads as one system with
+   them rather than as a fifth tile. Both values wrap; neither truncates. */
+.score-figures { display:grid; gap:11px; margin:10px 0 0; }
+.score-figure-label { margin:0; color:var(--ink-muted); font:700 10px/1.4 ui-monospace,monospace; letter-spacing:.09em; text-transform:uppercase; }
+.score-coverage,.score-confidence { margin:4px 0 0; font-size:13px; font-weight:650; line-height:1.5; overflow-wrap:anywhere; }
+/* The band as an outline chip. The word and the range inside it are the whole
+   message; the border colour is the third carrier and never the first. */
+.score-band { display:inline-flex; flex-wrap:wrap; gap:2px 8px; width:fit-content; max-width:100%; margin:12px 0 0; border:1px solid var(--ink-muted); border-radius:99px; padding:4px 11px; background:#fff; color:var(--ink-muted); font:700 11px/1.45 ui-monospace,monospace; overflow-wrap:anywhere; }
+.score-card[data-band="good"] .score-band { border-color:#17845c; color:#17845c; }
+.score-card[data-band="watch"] .score-band { border-color:#8a6d0a; color:#8a6d0a; }
+.score-card[data-band="poor"] .score-band { border-color:#a5322f; color:#a5322f; }
+.score-card[data-band="review"] .score-band { border-style:dashed; border-color:#6d5510; color:#6d5510; }
+.score-why { margin:12px 0 0; font-size:13px; line-height:1.55; overflow-wrap:anywhere; }
+/* The detail disclosure. The summary is a 44px target with its own visible
+   edge and focus ring, so the control is discernible before it is operated. */
+.score-detail { margin:12px 0 0; border-top:1px solid var(--panel-border); padding-top:10px; }
+.score-detail>summary { display:flex; align-items:center; min-height:44px; border:1px solid var(--ink-muted); border-radius:9px; padding:6px 10px; background:#fff; color:var(--ink-muted); font:700 10px/1.5 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; cursor:pointer; overflow-wrap:anywhere; }
+.score-detail>summary:hover { background:var(--import-wash); }
+.score-detail>summary:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.score-detail-list { display:grid; gap:7px; margin:11px 0 0; padding:0; list-style:none; }
+.score-detail-list li { font-size:12px; line-height:1.5; overflow-wrap:anywhere; }
+/* A department the rubric never reached, told by the leading rule as well as
+   by the words in the row, so the two kinds of row separate in monochrome. */
+.score-detail-list li[data-graded="false"] { border-left:3px solid var(--state-warn-line); padding-left:9px; color:var(--state-warn-ink); }
+.score-detail-rule { margin:11px 0 0; color:var(--ink-muted); font-size:12px; line-height:1.5; overflow-wrap:anywhere; }
+.score-detail-rule[hidden] { display:none; }
+.score-action { margin:12px 0 0; font-size:13px; color:var(--ink-muted); }
 .score-peer { margin:2px 0 0; color:var(--ink-muted); font:600 11px/1.5 ui-monospace,monospace; }
 /* A provisional letter is never shown bare: the mark travels with the glyph so
    the caveat cannot be cropped away from the grade it qualifies. */
