@@ -21,9 +21,9 @@
   },
   "rankedAction": {
     "rank": 1,
-    "statement": "Pilot lower-cost routing for text-generation in Department …atlas0; cap the pilot at 32903.50 USD and verify against a like-for-like period.",
+    "statement": "Pilot lower-cost routing for text-generation in Atlas Platform; cap the pilot at 32903.50 USD and verify against a like-for-like period.",
     "accountableRole": "Platform Engineering Lead",
-    "departmentScope": "Department …atlas0",
+    "departmentScope": "Atlas Platform",
     "capUsd": 32903.5,
     "window": {
       "start": "2026-06-01T00:00:00Z",

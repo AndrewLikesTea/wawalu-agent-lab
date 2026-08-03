@@ -24,8 +24,11 @@ import { loadPage, textOf } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 import {
   EXAMPLE_COHORT_MINIMUM_PEERS, EXAMPLE_COHORT_UNAVAILABLE, EXAMPLE_DEPARTMENT_NAMES,
-  EXAMPLE_DEPARTMENT_NAME_SET, exampleCohortPosition, loadExampleDataset, nameExampleDepartments,
+  EXAMPLE_DEPARTMENT_NAME_SET, exampleCohortPosition, loadExampleDataset,
+  loadExampleDatasetInputs, nameExampleDepartments,
 } from "../src/example-dataset.js";
+import { normalizeLocalFinopsHistory } from "../src/local-finops.js";
+import { leadingFinding } from "../src/finops-leading-finding.js";
 import { FIRST_RUN_IDS } from "../src/finops-first-run.js";
 
 const PAGE = new URL("../src/evolution.html", import.meta.url);
@@ -160,7 +163,10 @@ test("a degenerate cohort states what is missing and what would unblock it", () 
 });
 
 test("relabelling the example never rewrites the envelope's own identifiers", () => {
-  const raw = loadExampleDataset();
+  // The genuinely raw envelope, taken the way the translator produces it —
+  // `loadExampleDataset()` now relabels, so reading it here would compare a
+  // named envelope with itself and prove nothing (#1017).
+  const raw = normalizeLocalFinopsHistory(loadExampleDatasetInputs());
   const named = nameExampleDepartments(raw);
   assert.equal(named.rankedDepartments.length, raw.rankedDepartments.length);
   assert.equal(named.spendUsd, raw.spendUsd, "the figures the headline divides are untouched");
@@ -173,4 +179,169 @@ test("relabelling the example never rewrites the envelope's own identifiers", ()
   // A unit this example has no name for keeps whatever the analysis called it.
   const foreign = nameExampleDepartments({ rankedDepartments: [{ id: "psn_other_0001", name: "Active unit …0001" }] });
   assert.equal(foreign.rankedDepartments[0].name, "Active unit …0001");
+});
+
+// ---------------------------------------------------------------------------
+// #1017 — THE ELIDED DEPARTMENT, AND THE TWO NAMES FOR ONE TEAM.
+//
+// The three blocks above were already clean. Four other surfaces on the same
+// screen were not: the stand headline ("Department …atlas0 is driving the
+// increase"), the answer block's residue sentence and its widen-the-sample
+// action, and the ranked-department disclosure. All four read the envelope
+// through `loadExampleDataset()`, which did not relabel, so the fix is there and
+// these tests hold the RENDERED page to it.
+//
+// The second half is the reconciliation: the headline named …atlas0 and the
+// circulation decision named Backend Platform, with nothing on the page saying
+// whether they were one team. They are — this is invented data with one roster —
+// so the seed now says Atlas Platform in both, character for character.
+// ---------------------------------------------------------------------------
+
+/** Every rendered department label in the bundled example, wherever it is painted. */
+const ANSWER_IDS = Object.freeze({
+  headlineTeam: "finops-stand-team-name",
+  residue: "finops-answer-confidence",
+  widen: "finops-answer-action",
+  ranked: "finops-stand-disclosure-departments-list",
+  finding: "briefing-readiness-finding",
+  nextStep: "finops-next-step-action",
+});
+
+/** An elided pseudonym tail or a wire identifier. Neither is a team name. */
+const NOT_A_NAME = /…|psn_[a-z0-9_]+|atlas0/i;
+
+async function settledExamplePage() {
+  const page = await bootedPage();
+  const { document } = page;
+  await waitFor(() => byId(document, ANSWER_IDS.finding)
+    ?.textContent.trim() !== "Headline finding not checked.",
+  "the circulation decision to be painted from the bundled dataset");
+  await waitFor(() => (byId(document, ANSWER_IDS.ranked)?.children.length ?? 0) > 0,
+    "the ranked-department disclosure to be painted");
+  return page;
+}
+
+test("no render site of the bundled example names a department by its identifier", async () => {
+  const page = await settledExamplePage();
+  const { document } = page;
+  try {
+    for (const [slot, id] of Object.entries(ANSWER_IDS)) {
+      const text = textOf(byId(document, id));
+      assert.ok(text.length > 0, `the ${slot} slot rendered nothing to check`);
+      assert.doesNotMatch(text, NOT_A_NAME,
+        `the ${slot} slot still names a department by its identifier`);
+    }
+    // And the ranked disclosure names the whole roster, so the assertion above
+    // is over five real labels rather than over an empty list.
+    const ranked = textOf(byId(document, ANSWER_IDS.ranked));
+    for (const name of EXAMPLE_DEPARTMENT_NAME_SET) {
+      assert.ok(ranked.includes(name), `the ranked disclosure omits ${name}`);
+    }
+  } finally {
+    page.restore();
+  }
+});
+
+test("the headline, the residue and the widen-the-sample action name one team", async () => {
+  const page = await settledExamplePage();
+  const { document } = page;
+  try {
+    const headline = textOf(byId(document, ANSWER_IDS.headlineTeam)).trim();
+    const residue = /the largest single block of it in (.+?)\./
+      .exec(textOf(byId(document, ANSWER_IDS.residue)));
+    const widen = /Widen the scored sample for (.+?) — go to /
+      .exec(textOf(byId(document, ANSWER_IDS.widen)));
+    assert.ok(residue, "the residue sentence names no department at all");
+    assert.ok(widen, "the widen-the-sample action names no department at all");
+    // Equality between the three extracted labels, not three literals: a rename
+    // that moved one of them and not the others is the defect being pinned.
+    assert.equal(residue[1], headline);
+    assert.equal(widen[1], headline);
+    // And the circulation decision's Finding names that same team, so the first
+    // intervention priority and the department driving the increase are one.
+    assert.ok(textOf(byId(document, ANSWER_IDS.finding)).includes(headline),
+      "the circulation decision's Finding names a different team from the headline");
+    assert.ok(textOf(byId(document, ANSWER_IDS.nextStep)).includes(headline),
+      "the bundled first step names a different team from the headline");
+  } finally {
+    page.restore();
+  }
+});
+
+test("every label the bundled example renders is a name a reader can say", async () => {
+  const page = await settledExamplePage();
+  const { document } = page;
+  try {
+    const labels = [
+      textOf(byId(document, ANSWER_IDS.headlineTeam)).trim(),
+      ...EXAMPLE_DEPARTMENT_NAME_SET,
+    ];
+    for (const label of labels) {
+      assert.ok(label.length >= 4, `"${label}" is too short to be a department name`);
+      assert.doesNotMatch(label, /…/, `"${label}" still elides`);
+      assert.doesNotMatch(label, /[0-9a-f]{4,}$/i, `"${label}" ends in an identifier tail`);
+    }
+  } finally {
+    page.restore();
+  }
+});
+
+test("a readable name does not let the renamed figures read as real spend", async () => {
+  const page = await settledExamplePage();
+  const { document } = page;
+  try {
+    // Each renamed figure still carries its own synthetic disclosure, in the
+    // slot that block already used for one.
+    assert.match(textOf(byId(document, FIRST_RUN_IDS.sample)), /invented|synthetic/i);
+    assert.match(textOf(byId(document, "finops-next-step-sample")), /invented|synthetic/i);
+    assert.match(textOf(byId(document, ANSWER_IDS.residue)), /Bundled synthetic example/);
+    assert.match(textOf(byId(document, "finops-stand-answer")), /synthetic/i);
+    // The peer drill-down names five renamed departments; it still says whose
+    // company they are.
+    assert.match(textOf(byId(document, FIRST_RUN_IDS.internalDetail)), /invented company/);
+  } finally {
+    page.restore();
+  }
+});
+
+test("the rename reaches every published label and no identifier", () => {
+  const raw = normalizeLocalFinopsHistory(loadExampleDatasetInputs());
+  const named = loadExampleDataset();
+  const strings = (value, found = []) => {
+    if (typeof value === "string") found.push(value);
+    else if (value && typeof value === "object") {
+      Object.values(value).forEach((item) => strings(item, found));
+    }
+    return found;
+  };
+  // The translator's own output is the elided baseline this exists to fix, and
+  // it stays elided — nothing here reaches into local-finops.js.
+  assert.ok(strings(raw).filter((text) => text.includes("…")).length > 20,
+    "the raw envelope no longer carries the elided labels this test is about");
+  assert.equal(strings(named).filter((text) => text.includes("…")).length, 0,
+    "a published label still elides its unit");
+  // Identifiers are the key and are untouched, so an export still says what the
+  // file said.
+  assert.deepEqual(named.rankedDepartments.map((department) => department.id),
+    raw.rankedDepartments.map((department) => department.id));
+  assert.equal(named.spendUsd, raw.spendUsd);
+  assert.equal(named.recoverableUsd, raw.recoverableUsd);
+  assert.equal(named.topDepartment.name, EXAMPLE_DEPARTMENT_NAMES[named.topDepartment.id]);
+});
+
+test("a reader's own unit name still outranks the example's own roster", () => {
+  const analysis = loadExampleDataset();
+  const driver = analysis.rankedDepartments[0];
+  // With a name the reader typed, that name wins in every sentence.
+  const mine = leadingFinding(analysis, { labels: { [driver.id]: "Platform Engineering" } });
+  assert.match(mine.driverSentence, /^Platform Engineering contributed /);
+  // With none supplied, the fallback is the label the analysis published — which
+  // is now the company's own word for the unit and never a truncated identifier.
+  for (const labels of [null, {}, { [driver.id]: "   " }]) {
+    const bare = leadingFinding(analysis, { labels });
+    assert.match(bare.driverSentence, /^Atlas Platform contributed /);
+    assert.doesNotMatch(bare.driverSentence, NOT_A_NAME);
+  }
+  // Clearing restores, it does not delete: the envelope was never rewritten.
+  assert.equal(analysis.rankedDepartments[0].name, "Atlas Platform");
 });

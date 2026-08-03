@@ -28,7 +28,10 @@ test("equivalent bundled selections produce identical briefing payloads", () => 
   });
   assert.equal(first.period.start, "2026-06-25");
   assert.equal(first.projectionVersion, "finops-executive-projection/1.0.0");
-  assert.equal(first.departmentEvidence[0].department, "Backend Platform");
+  // #1017: one label for one team. The bundled dataset's first intervention
+  // priority and the AI FinOps brief's driving department are the same invented
+  // department, so the seed names it the same way in both.
+  assert.equal(first.departmentEvidence[0].department, "Atlas Platform");
 });
 
 test("projection is an allowlist and does not carry sensitive source fields", () => {
