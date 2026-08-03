@@ -61,6 +61,11 @@ import {
 } from "/browser-compat-view.js";
 import { evaluateExport, parseExportText } from "/browser-compat-eligibility.js";
 import { bindImportDrop } from "/finops-import-drop.js";
+// The check that ends in a decision (#1064): a drop zone that answers "will my
+// export work?" and stops there. It runs no import of its own — the one action
+// on a recognized verdict hands the File it already read back to this page's own
+// import handler, below.
+import { PROVIDER_GUIDANCE_ID, mountExportCheck } from "/finops-export-check.js";
 import { initExportRecognition } from "/export-recognition-view.js";
 // What to ask the billing owner for, per recognized provider (#1062). Column
 // lists and formats come out of the recognition source; this page paints them.
@@ -873,6 +878,12 @@ function mountProviderReadiness() {
   list.replaceChildren(...PROVIDER_READINESS.map((provider) => {
     const item = element("li", "provider-readiness-item");
     item.dataset.provider = provider.id;
+    // The anchor a refused check sends the reader back to (#1064). The id is
+    // derived from the same provider id the verdict carries, so a link can
+    // never point at an entry for a console the file did not come from, and
+    // tabindex makes the landing focusable for the reader who followed it.
+    item.id = `${PROVIDER_GUIDANCE_ID}-${provider.id}`;
+    item.setAttribute("tabindex", "-1");
     const name = element("p", "provider-readiness-name", `${provider.displayName} · `);
     name.append(element("span", "provider-readiness-format",
       `${provider.sampleFormat.toUpperCase()} export`));
@@ -3390,6 +3401,11 @@ function mountLocalFinopsImport() {
     }
   };
   bindImportDrop(document, importChosenFiles);
+  // The no-commitment path onto the SAME handler (#1064). A reader who checked a
+  // file and decided continues with one control, and the File that control hands
+  // over is the one the check already read — there is no second selection, and
+  // no second import path that could drift from the one above.
+  mountExportCheck(document, { onContinue: (file) => importChosenFiles([file]) });
 
   // What a conversation export gives up and what it never gives up, in the
   // panel's own reading flow. Painted from the module that owns the contract, so

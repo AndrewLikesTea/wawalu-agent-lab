@@ -631,9 +631,15 @@ function preflightAction(reason, { contract, missing }) {
  *   `adaptParsedExport` takes and `parseExportText` produces. Never a File,
  *   never text this function has to parse itself.
  * @returns a FRESH frozen verdict every call — `{ provider, displayName,
- *   rowCount, periodCount, missingColumns, reason, nextAction }`. `provider` is
- *   null when no published contract claims the file. Nothing is shared between
- *   two calls and nothing in it is computed lazily.
+ *   rowCount, periodCount, missingColumns, namedColumn, reason, nextAction }`.
+ *   `provider` is null when no published contract claims the file. Nothing is
+ *   shared between two calls and nothing in it is computed lazily.
+ *
+ *   `namedColumn` is the ONE column `nextAction` tells the reader to re-pull
+ *   with, published beside the instruction rather than left to be read out of
+ *   its sentence: a surface that names the missing column in its own words
+ *   (#1064) must name the same one the instruction does, and ranking the
+ *   missing columns a second time is how two surfaces come to name two.
  */
 export function preflight(parsed) {
   const recognition = recognizeExport(parsed);
@@ -670,6 +676,8 @@ export function preflight(parsed) {
     rowCount: records.length,
     periodCount: periods.size,
     missingColumns: Object.freeze(missing),
+    namedColumn: reason === PREFLIGHT_REASONS.MISSING_REQUIRED_COLUMN
+      ? firstMissingColumn(contract, missing) : null,
     reason,
     nextAction: preflightAction(reason, { contract, missing }),
   });
