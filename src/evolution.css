@@ -160,6 +160,19 @@
 .score-card[data-band="poor"] .score-band { border-color:#a5322f; color:#a5322f; }
 .score-card[data-band="review"] .score-band { border-style:dashed; border-color:#6d5510; color:#6d5510; }
 .score-why { margin:12px 0 0; font-size:13px; line-height:1.55; overflow-wrap:anywhere; }
+/* #1008: the reader's own classification of their own departments. On the card
+   and never behind a disclosure — it is what earns the letter above it. Each
+   select is a 44px target with the site focus token, and the stated assumption
+   for the picked category sits under it as ordinary text, so the reason a weight
+   is what it is survives greyscale and a stylesheet that failed to load. */
+.score-classify { margin:12px 0 0; border-top:1px solid var(--panel-border); padding-top:10px; }
+.score-classify-title { margin:0; max-width:60ch; font-size:13px; line-height:1.55; }
+.score-classify-list { display:grid; gap:12px; margin:11px 0 0; padding:0; list-style:none; }
+.score-classify-label { display:block; font-size:12px; font-weight:700; line-height:1.5; overflow-wrap:anywhere; }
+.score-classify-select { min-height:44px; max-width:100%; margin:5px 0 0; border:1px solid var(--ink-muted); border-radius:9px; padding:6px 10px; background:#fff; font-size:13px; }
+.score-classify-select:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.score-classify-assumption:empty { display:none; }
+.score-classify-assumption { margin:5px 0 0; max-width:70ch; font-size:12px; line-height:1.5; color:var(--ink-muted); overflow-wrap:anywhere; }
 /* The detail disclosure. The summary is a 44px target with its own visible
    edge and focus ring, so the control is discernible before it is operated. */
 .score-detail { margin:12px 0 0; border-top:1px solid var(--panel-border); padding-top:10px; }

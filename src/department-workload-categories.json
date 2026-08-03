@@ -1,0 +1,34 @@
+{
+  "schemaVersion": "department-workload-categories/1.0.0",
+  "provenance": "Hand-authored reader-facing wording for the four categories already published in prompt-literacy-rubric.json. Contains no provider, HRIS, customer or telemetry data, no prompt text, and no department name.",
+  "weightRule": "NO WEIGHT IS WRITTEN DOWN IN THIS FILE. Each entry names the rubric category it is the reader-facing form of, and the number it contributes is read from prompt-literacy-rubric.json through categoryScoreWeight(). A reader-facing label therefore cannot carry a weight the published rubric does not, and a rubric change moves this control without an edit here.",
+  "assumptionRule": "Every entry states, in one line, why the rubric weight it inherits is the right one for the workload it describes. An entry without a non-empty assumption is a weight nobody can defend, and tests/reader-classified-grade.test.js fails on it.",
+  "orderingRule": "Listed best-scoring first, so the picker reads as a scale rather than as an unordered menu. The order is presentation only; it is not read by the arithmetic.",
+  "unclassifiedRule": "There is deliberately no 'mixed' or 'not sure' entry. A department the reader has not classified is counted as unclassified spend and named in the shortfall sentence, because a middling weight assigned to a department nobody looked at would move a published letter with no evidence behind it.",
+  "categories": [
+    {
+      "id": "structured-delivery-work",
+      "label": "Mostly structured delivery work — context, constraints, and what a correct answer looks like",
+      "rubricCategory": "highValue",
+      "assumption": "Full marks, because this is the rubric's own definition of its reference class rather than a claim that the department is faultless. A reader picking it is asserting the same thing the rubric asserts about a high-value prompt: the request carried its context, it was answered in one pass, and the model was matched to the work."
+    },
+    {
+      "id": "simple-tasks-on-frontier-models",
+      "label": "Mostly simple tasks — formatting, renaming, boilerplate — on the most expensive model available",
+      "rubricCategory": "overProvisioned",
+      "assumption": "Keeps most of the intent and efficiency credit and none of the model-fit credit, because the work is legitimate and arrives in one pass; what went wrong is a routing decision a gateway rule can correct without the requester changing anything."
+    },
+    {
+      "id": "repeated-reprompting",
+      "label": "Mostly repeated attempts — the same question re-asked until something usable comes back",
+      "rubricCategory": "inefficient",
+      "assumption": "Scores at the efficiency floor and keeps half of intent and model fit, because the goal was real and the model was not the mistake; a chain that had to repeat is evidence the first request omitted its failing state, and that is a coaching gap rather than a platform one."
+    },
+    {
+      "id": "non-business-use",
+      "label": "Mostly non-business use — personal, exploratory, or outside this team's work",
+      "rubricCategory": "outOfScope",
+      "assumption": "Earns no credit on any axis, because partial credit here would let leakage raise a department's letter, which is the one result an executive reading this number would call a lie."
+    }
+  ]
+}
