@@ -41,7 +41,7 @@ export function postReturnContext(search = "") {
   // destination narrows to one author's profile when the name is usable.
   return {
     href: author && author.length <= MAX_RETURN_AUTHOR_LENGTH ? profileHref(author) : "/profile.html",
-    label: "← Back to Profile",
+    label: "← Back to People",
   };
 }
 

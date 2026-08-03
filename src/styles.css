@@ -662,10 +662,12 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .profile-identity-text { min-width:0; }
 .profile-summary { margin:10px 0 0; color:#5b5b56; font:650 13px/1.5 ui-monospace,monospace; }
 .profile-lede { max-width:640px; margin:22px 0 0; color:#555550; font-size:17px; line-height:1.6; }
-/* The role line, not a status: an outline chip and a sentence, the same pair
-   the composer's arrival panel uses. */
+/* The role line, not a status: one sentence saying what the bundled names are,
+   then the way back to the whole feed. It used to open with an uppercase chip
+   reading "Demo persona", which gave the page a second name for the thing the
+   picker selects; the picker selects a display name, and only this sentence
+   says "demo persona" now. */
 .profile-role { display:flex; flex-wrap:wrap; align-items:baseline; gap:8px; max-width:640px; margin:14px 0 0; color:#4c5b66; font-size:14px; line-height:1.6; }
-.profile-role-chip { border:1px solid #a9c6e2; border-radius:5px; padding:1px 7px; color:#285f8f; font:750 10px/1.6 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; }
 .profile-toolbar { display:flex; align-items:end; flex-wrap:wrap; gap:12px 20px; margin:0 0 16px; }
 .profile-toolbar .filter { flex:0 1 240px; }
 .profile-toolbar-hint { flex:1 1 240px; margin:0 0 4px; }
