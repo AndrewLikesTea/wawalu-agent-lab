@@ -334,9 +334,9 @@ test("the main landmark rings for keyboard focus only, never for a mouse click",
 
 /* --------------------------- the post page's order ------------------------ */
 
-const FRAME_STOPS = SITE_NAV.length + 3;
+const FRAME_STOPS = SITE_NAV.length + 4;
 
-test("the post page's tab order is skip link, then the nav, then the one exit", async () => {
+test("the post page's tab order is skip link, then the nav, then its two routes out", async () => {
   const document = await load("post.html");
   const sequence = tabSequence(document);
 
@@ -346,7 +346,8 @@ test("the post page's tab order is skip link, then the nav, then the one exit", 
       SKIP_TEXT,
       "Shiplog",
       ...SITE_NAV.map((link) => link.label),
-      "← Back to Social",
+      "Open Social to read the whole feed",
+      "Open People to see this display name's other image posts",
     ],
     "the post page's tab order changed",
   );
@@ -380,9 +381,10 @@ test("the post page's exit reads after the site header, in the document, not in 
   assert.ok(exit.closest("#main-content"), "the exit must sit inside the content region");
   assert.equal(exit.closest(".site-header"), null, "the exit must not sit in the site header");
 
-  // Document order inside the landmark: the exit, then the heading, then the panel.
-  const order = landmark.querySelectorAll("#post-back,#page-title,#post-detail").map((node) => node.id);
-  assert.deepEqual(order, ["post-back", "page-title", "post-detail"]);
+  // Document order inside the landmark: the routes out, then the heading, then
+  // the panel. Social comes before People, the order the site nav names them in.
+  const order = landmark.querySelectorAll("#post-back,#post-people,#page-title,#post-detail").map((node) => node.id);
+  assert.deepEqual(order, ["post-back", "post-people", "page-title", "post-detail"]);
 
   // No CSS trick may stand in for that order — reading order is the point.
   const css = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
@@ -392,15 +394,21 @@ test("the post page's exit reads after the site header, in the document, not in 
   assert.doesNotMatch(html.match(/<p class="detail-page-exits">[\s\S]*?<\/p>/)[0], /style=/);
 });
 
-test("the post page ships exactly one exit, naming its destination in its own text", async () => {
+test("the post page ships its two routes out, each naming its destination in its own text", async () => {
   const document = await load("post.html");
   const exits = document.querySelector("#main-content").querySelectorAll(".detail-back");
-  assert.equal(exits.length, 1, "two stacked back links is the bug this replaced");
-  assert.deepEqual([exits[0].href, textOf(exits[0])], ["/social.html", "← Back to Social"]);
+  assert.equal(exits.length, 2, "the permalink's two destinations, and no third");
+  assert.deepEqual(
+    exits.map((link) => [link.href, textOf(link)]),
+    [
+      ["/social.html", "Open Social to read the whole feed"],
+      ["/profile.html", "Open People to see this display name's other image posts"],
+    ],
+  );
 
   // The visible text carries the destination, so no aria-label may hold a word
   // the eye cannot read.
-  assert.equal(exits[0].getAttribute("aria-label"), null);
+  for (const link of exits) assert.equal(link.getAttribute("aria-label"), null);
 
   // /social.html is the feed route the rest of the site uses — the nav's Social
   // entry — rather than a path guessed for this page.

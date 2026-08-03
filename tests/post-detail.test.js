@@ -9,7 +9,7 @@ import { byClass, createElement, first, ids, installDocument, tags } from "./sup
 installDocument();
 
 const {
-  DEFAULT_POST_RETURN,
+  POST_EXITS,
   POST_LOADING_LINE,
   POST_STATES,
   findPostById,
@@ -17,7 +17,7 @@ const {
   postDetailTitle,
   postImageAlt,
   postPageHeading,
-  postReturnContext,
+  postPeopleHref,
   renderPostDetail,
 } = await import("../src/post-detail.js");
 
@@ -314,60 +314,68 @@ test("the document title names the post, the feed, and the product", () => {
   assert.equal(postDetailTitle(post, "error"), "Post by Mina Okafor · Social · Shiplog");
 });
 
-test("the post page's exit sits after the site frame, and names where it goes", async () => {
+test("the post page's two routes out sit after the site frame, and name where they go", async () => {
   const html = await readFile(new URL("../src/post.html", import.meta.url), "utf8");
 
-  // The order this page used to get wrong: its back link came before the
-  // wordmark, so the one page-specific control on the site preceded the site
-  // frame. src/decision.html puts "← Back to Decisions" inside the content
-  // region, after the header, and this page now matches it.
+  // The order this page used to get wrong: its exit came before the wordmark,
+  // so the one page-specific control on the site preceded the site frame.
   const brand = html.indexOf('class="brand"');
   const nav = html.indexOf('<nav class="site-nav"');
   const exit = html.indexOf('id="post-back"');
   const content = html.indexOf('id="post-detail"');
   assert.ok(brand < nav, "the wordmark precedes the nav");
-  assert.ok(nav < exit, "the nav precedes the exit");
-  assert.ok(exit < content, "the exit precedes the post content");
+  assert.ok(nav < exit, "the nav precedes the exits");
+  assert.ok(exit < content, "the exits precede the post content");
 
-  // Destination in the visible text, not smuggled into an aria-label. The feed
-  // is what ships, because a link with no provenance came from the feed as far
-  // as this page can honestly tell.
-  assert.match(html, /<a class="detail-back detail-page-back" id="post-back" href="\/social\.html">← Back to Social<\/a>/);
-  assert.equal(html.includes("post-back-feed"), false, "the second, stacked exit is gone");
+  // Destination in the visible text, not smuggled into an aria-label — and both
+  // destinations, because a cold visitor has neither of them behind them.
+  assert.match(html, /<a class="detail-back detail-page-back" id="post-back" href="\/social\.html">Open Social to read the whole feed<\/a>/);
+  assert.match(html, /<a class="detail-back detail-page-back" id="post-people" href="\/profile\.html">Open People to see this display name's other image posts<\/a>/);
+  assert.equal(html.includes("post-back-feed"), false, "the old stacked exit is gone");
   const exits = html.match(/<p class="detail-page-exits">[\s\S]*?<\/p>/)[0];
   assert.doesNotMatch(exits, /aria-label/, "an exit must not depend on aria-label to name its destination");
 
-  // The arrow-plus-"Back to <destination>" convention comes from the decision
-  // page; this page is not allowed to invent a second phrasing for the same job.
-  const decision = await readFile(new URL("../src/decision.html", import.meta.url), "utf8");
-  assert.match(decision, /class="detail-back" href="\/">← Back to Decisions<\/a>/);
+  // No "Back", and no arrow standing in for one. A permalink opened from a
+  // pasted link has nothing behind it, so a return glyph would name a step the
+  // visitor never took.
+  assert.doesNotMatch(exits, /←|Back to/, "the permalink's routes out point forward, not back");
+
+  // And they are not a phrasing invented here: Social and People point at each
+  // other with the same verb, and this page joins that pattern.
+  const [social, people] = await Promise.all([
+    readFile(new URL("../src/social.html", import.meta.url), "utf8"),
+    readFile(new URL("../src/profile.html", import.meta.url), "utf8"),
+  ]);
+  assert.match(social, /Open People when you want/);
+  assert.match(people, /Open Social when you want/);
 });
 
-/* ---------------------------- where "back" goes --------------------------- */
+/* --------------------------- where the exits go --------------------------- */
 
-test("provenance decides the one exit, and anything unknown means the feed", () => {
-  assert.deepEqual(postReturnContext("?id=p-image&from=profile&author=Mina%20Okafor"), {
-    href: "/profile.html?author=Mina%20Okafor",
-    label: "← Back to People",
+test("both destinations ship as constants, and only the People link's target narrows", () => {
+  // The words are fixed. Nothing about a lookup may rewrite them, because they
+  // have to read the same before, during and after it.
+  assert.deepEqual(POST_EXITS, {
+    social: { href: "/social.html", label: "Open Social to read the whole feed" },
+    people: { href: "/profile.html", label: "Open People to see this display name's other image posts" },
   });
-  // Came from a profile, but with no usable name: still the profile, generally.
-  assert.deepEqual(postReturnContext("?id=p-image&from=profile"), {
-    href: "/profile.html",
-    label: "← Back to People",
-  });
-  assert.equal(postReturnContext(`?from=profile&author=${"n".repeat(61)}`).href, "/profile.html");
+  // "display name" is the term Social's composer, Social's feed filter and the
+  // People picker all use for the thing being chosen. One name per concept.
+  assert.match(POST_EXITS.people.label, /display name/);
+  // Both name a destination the nav offers: this site has a People page and no
+  // page called Profile, so a link here cannot promise one.
+  for (const exit of Object.values(POST_EXITS)) assert.match(exit.label, /^Open (Social|People) to /);
 
-  // No provenance, a provenance naming somewhere this page does not know, and a
-  // value shaped like an injection all land on the same honest default.
-  for (const search of ["", "?id=p-image", "?id=p-image&from=", "?from=social", "?from=PROFILE", "?from=javascript:alert(1)"]) {
-    assert.deepEqual(postReturnContext(search), DEFAULT_POST_RETURN, `"${search}" must fall back to the feed`);
+  // The loaded post's own author wins, then the ?author= profile.js writes into
+  // its tiles.
+  assert.equal(postPeopleHref("?id=p-image&from=profile&author=Mina%20Okafor"), "/profile.html?author=Mina%20Okafor");
+  assert.equal(postPeopleHref("?id=p-image&author=Someone%20Else", "Mina Okafor"), "/profile.html?author=Mina%20Okafor");
+
+  // No name, a name longer than a display name can be, and a value shaped like
+  // an injection all land on the same honest default: People, unfiltered.
+  for (const search of ["", "?id=p-image", "?id=p-image&author=", `?author=${"n".repeat(61)}`, "?author=%20%20"]) {
+    assert.equal(postPeopleHref(search), POST_EXITS.people.href, `"${search}" must fall back to People`);
   }
-  assert.deepEqual(DEFAULT_POST_RETURN, { href: "/social.html", label: "← Back to Social" });
-
-  // The label reads the same in both directions and says only what it does.
-  // Both labels name a destination the nav offers: this site has a People page
-  // and no page called Profile, so the exit cannot promise one.
-  for (const search of ["?from=profile", ""]) assert.match(postReturnContext(search).label, /^← Back to (People|Social)$/);
 });
 
 /* ------------------------- the page's standing frame ---------------------- */
@@ -530,11 +538,12 @@ test("the post region holds exactly one state, and names it on one attribute", (
   }
 });
 
-test("the standing exit remains while unavailable states add a clear feed action", async () => {
+test("the standing exits remain while unavailable states add a clear feed action", async () => {
   const html = await postPageHtml();
-  assert.equal([...html.matchAll(/id="post-back"/g)].length, 1, "one standing exit in the markup");
-  assert.equal([...html.matchAll(/class="detail-back detail-page-back"/g)].length, 1, "and only one");
-  assert.equal([...html.matchAll(/<a [^>]*>← Back to /g)].length, 1, "one back label ships, not two stacked ones");
+  assert.equal([...html.matchAll(/id="post-back"/g)].length, 1, "one Social exit in the markup");
+  assert.equal([...html.matchAll(/id="post-people"/g)].length, 1, "one People exit in the markup");
+  assert.equal([...html.matchAll(/class="detail-back detail-page-back"/g)].length, 2, "the pair, and only the pair");
+  assert.equal([...html.matchAll(/<a [^>]*>Open (Social|People) to /g)].length, 2, "one label each, not a stack");
 
   for (const [name, value, options] of PANEL_STATES) {
     const container = createElement("div");

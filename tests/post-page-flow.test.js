@@ -5,7 +5,7 @@
 // The render layer is covered structurally in tests/post-detail.test.js. What is
 // only true end to end is here: which state the page lands in for a given
 // answer, that the retry button re-runs the real fetch and can recover, and that
-// exactly one back link is on the page in every one of those states.
+// the page's two routes out read the same words in every one of those states.
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -47,22 +47,28 @@ const seedOnly = (posts) => (url) => {
   throw new Error(`Unexpected request: ${url}`);
 };
 
-// The one exit, wherever the page is in its life. Reading it from the whole
-// document rather than from a known id is the point: a second back link
-// appearing anywhere — in the markup, in a state panel — fails here.
+// The page's own routes out, wherever it is in its life. Read from the whole
+// document rather than from known ids: a third one appearing anywhere — in the
+// markup, in a state panel — fails here, and so does a stray "back".
 function exits(document) {
-  return document.querySelectorAll("a").filter((link) => /←|Back to/.test(link.textContent));
+  return document.querySelectorAll("a").filter((link) => /^Open (Social|People) to |←|Back to/.test(link.textContent));
 }
 
-function assertOneExit(page, expected, where) {
+// Same two links, same two labels, in every state. Only the People link's
+// destination may differ, and only by narrowing to a display name the page can
+// actually name — which is what the label already promises.
+function assertExits(page, peopleHref, where) {
   const links = exits(page.document);
-  assert.equal(links.length, 1, `${where}: expected one back link, found ${links.map(textOf).join(" + ") || "none"}`);
-  assert.equal(textOf(links[0]), expected.label, `${where}: the back link's text`);
-  assert.equal(links[0].href, expected.href, `${where}: the back link's destination`);
+  assert.deepEqual(
+    links.map((link) => [textOf(link), link.href]),
+    [[SOCIAL.label, SOCIAL.href], [PEOPLE.label, peopleHref]],
+    `${where}: the page's routes out`,
+  );
 }
 
-const SOCIAL = { label: "← Back to Social", href: "/social.html" };
-const PROFILE = { label: "← Back to People", href: "/profile.html?author=Mina%20Okafor" };
+const SOCIAL = { label: "Open Social to read the whole feed", href: "/social.html" };
+const PEOPLE = { label: "Open People to see this display name's other image posts", href: "/profile.html" };
+const MINA = "/profile.html?author=Mina%20Okafor";
 
 test("a post that loads is headed by its author and reads name, time, image, caption", async () => {
   const page = await openPostPage("?id=p-image", seedOnly([SEED_POST]));
@@ -81,18 +87,20 @@ test("a post that loads is headed by its author and reads name, time, image, cap
     assert.equal(textOf(figure.querySelector("figcaption")), "The middle card, ringed.");
     assert.equal(page.panel.getAttribute("aria-busy"), "false");
 
-    assertOneExit(page, SOCIAL, "loaded");
+    // The post named its author, so the People link now points at that one
+    // display name's view — which is what its words promised all along.
+    assertExits(page, MINA, "loaded");
   } finally {
     page.restore();
   }
 });
 
-test("arriving from a profile turns the one exit into the profile's, and nothing else", async () => {
+test("arriving from a profile narrows the People link, and changes no words", async () => {
   const page = await openPostPage("?id=p-image&from=profile&author=Mina%20Okafor", seedOnly([SEED_POST]));
   try {
-    assertOneExit(page, PROFILE, "from a profile");
-    // The provenance came from the URL, not from the post, so it is the same
-    // exit whether or not the post itself loaded.
+    assertExits(page, MINA, "from a profile");
+    // Where the reader came from does not rename anything. The labels are the
+    // same two the page ships for a visitor who has never seen either surface.
     assert.equal(textOf(page.document.querySelector("#page-title")), "Post by Mina Okafor");
   } finally {
     page.restore();
@@ -110,7 +118,7 @@ test("an unknown id is named as a missing post, with the feed still the way out"
     assert.doesNotMatch(textOf(page.panel), /Try again/);
     assert.equal(page.panel.querySelector(".detail-state-message").getAttribute("role"), "status");
     assert.equal(page.document.title, "Post not found · Shiplog");
-    assertOneExit(page, SOCIAL, "not found");
+    assertExits(page, PEOPLE.href, "not found");
     const feed = page.panel.querySelector(".detail-state-feed");
     assert.equal(textOf(feed), "Return to the Social feed");
     assert.equal(feed.getAttribute("href"), "/social.html");
@@ -123,19 +131,22 @@ test("an unknown id is named as a missing post, with the feed still the way out"
 test("a missing post reached from a profile still offers the feed it belonged to", async () => {
   const page = await openPostPage("?id=p-gone&from=profile&author=Mina%20Okafor", seedOnly([SEED_POST]));
   try {
-    assertOneExit(page, PROFILE, "missing, from a profile");
-    // The one exit goes back to the profile, so without this the reader would
-    // have no route at all to the feed the missing post lived in.
+    assertExits(page, MINA, "missing, from a profile");
+    // The panel names the next step where it explains the problem, so a reader
+    // who has just been told the post is gone does not have to look back up the
+    // page for what to do about it.
     const feed = page.panel.querySelector(".detail-state-feed");
     assert.equal(feed.getAttribute("href"), "/social.html");
     assert.equal(textOf(feed), "Return to the Social feed");
     // The site's two directories are both excluded: the header nav and the
     // footer's site map name every destination on every page, and neither is a
-    // route this page offers. What is counted is what the page itself says.
+    // route this page offers. What is counted is what the page itself says —
+    // the standing route out of the frame, and the panel's own action. Two, and
+    // never a third: the pair is what a reader can hold at once.
     const toFeed = page.document.querySelectorAll("a")
       .filter((link) => link.getAttribute("href") === "/social.html"
         && !link.closest(".site-nav") && !link.closest("#site-footer"));
-    assert.equal(toFeed.length, 1, "one link to Social outside the site's directories, not two");
+    assert.deepEqual(toFeed.map(textOf), ["Open Social to read the whole feed", "Return to the Social feed"]);
 
     // Tab order: the exit first, then the post region's own action.
     const sequence = tabSequence(page.document);
@@ -155,7 +166,7 @@ test("a failed lookup names the feed it could not reach, and retry can recover",
     assert.match(textOf(page.panel), /Post could not be loaded/);
     assert.match(textOf(page.panel), /The Social feed could not be reached/);
     assert.match(textOf(page.panel), /Social is a shared demo feed, not a signed-in account\./);
-    assertOneExit(page, SOCIAL, "failed");
+    assertExits(page, PEOPLE.href, "failed");
 
     const retry = page.panel.querySelector("button");
     assert.equal(textOf(retry), "Retry");
@@ -174,7 +185,7 @@ test("a failed lookup names the feed it could not reach, and retry can recover",
     assert.equal(textOf(page.panel.querySelector("figcaption")), "The middle card, ringed.");
     assert.doesNotMatch(textOf(page.panel), /could not be reached/);
     assert.equal(page.panel.dataset.postState, "loaded");
-    assertOneExit(page, SOCIAL, "recovered");
+    assertExits(page, MINA, "recovered");
   } finally {
     page.restore();
   }
@@ -185,7 +196,7 @@ test("a visit with no id is told what the page needs, and still has one way out"
   try {
     assert.match(textOf(page.panel), /Choose a post/);
     assert.equal(page.requests.length, 0);
-    assertOneExit(page, SOCIAL, "no id");
+    assertExits(page, PEOPLE.href, "no id");
   } finally {
     page.restore();
   }
@@ -218,7 +229,7 @@ test("the loading state is one announced line in the post's region, and takes no
     // The frame around it still says what the page is, so the region is never
     // an unexplained blank.
     assert.match(textOf(page.document.querySelector(".hero-post")), /Social is a shared demo feed/);
-    assertOneExit(page, SOCIAL, "loading");
+    assertExits(page, PEOPLE.href, "loading");
     // Nothing inside the waiting region is tabbable, so the exit stays the
     // first thing on the page a keyboard reader reaches after the site frame.
     assert.equal(tabSequence(page.document).filter((node) => node.closest("#post-detail")).length, 0);
@@ -226,7 +237,7 @@ test("the loading state is one announced line in the post's region, and takes no
     release();
     await waitFor(() => page.document.documentElement.dataset.shiplogPostDetail === "ready", "the post arrived");
     assert.equal(panel.getAttribute("aria-busy"), "false");
-    assertOneExit(page, SOCIAL, "after loading");
+    assertExits(page, MINA, "after loading");
   } finally {
     page.restore();
   }
@@ -251,7 +262,7 @@ test("the page opens already saying it is loading, and the post replaces that li
     assert.equal(panel.querySelectorAll(".detail-state-message").length, 0);
     assert.equal(panel.querySelectorAll(".detail-post").length, 0);
     // And it takes nothing away from the exit above it.
-    assertOneExit(page, SOCIAL, "before the script runs");
+    assertExits(page, PEOPLE.href, "before the script runs");
     assert.equal(tabSequence(page.document).filter((node) => node.closest("#post-detail")).length, 0);
 
     // Held open, so the script's own render of the same line can be read.

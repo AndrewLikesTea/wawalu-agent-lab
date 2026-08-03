@@ -6,7 +6,7 @@
 // asked first, and the seed is still consulted when the API has no answer.
 
 import { normalizeProfileApiPosts, normalizeSeedPosts } from "/profile.js";
-import { findPostById, postDetailTitle, postPageHeading, postReturnContext, renderPostDetail } from "/post-detail.js";
+import { POST_EXITS, findPostById, postDetailTitle, postPageHeading, postPeopleHref, renderPostDetail } from "/post-detail.js";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -30,16 +30,18 @@ async function init() {
   const params = new URLSearchParams(window.location.search);
   const id = params.get("id") ?? "";
   const requestedAuthor = (params.get("author") ?? "").trim();
-  // One exit, named once, before anything is fetched — so it reads the same in
-  // the loading, loaded, missing and failed states, and never changes under a
-  // reader mid-visit. Provenance comes from the URL the visitor arrived on, not
-  // from the post: what they came from does not change with what loads.
-  const exit = postReturnContext(window.location.search);
-  const back = document.querySelector("#post-back");
-  if (back) {
-    back.href = exit.href;
-    back.textContent = exit.label;
-  }
+  // Both routes out ship as words in src/post.html and nothing here rewrites
+  // them, so they read the same in the loading, loaded, missing and failed
+  // states and never change under a reader mid-visit. The Social link is
+  // complete as shipped. Only the People link's destination is refined, and
+  // only ever narrowed to the display name the words already promise — first
+  // from the ?author= the arriving link carried, then from the post itself once
+  // one loads. A name that never resolves leaves it on People plainly.
+  const people = document.querySelector("#post-people");
+  const aimPeople = (author) => {
+    if (people) people.href = postPeopleHref(window.location.search, author);
+  };
+  aimPeople("");
 
   const heading = document.querySelector("#page-title");
   const nameHeading = (post) => {
@@ -53,7 +55,7 @@ async function init() {
     // page (a test, a smoke check) sees the second fetch as its own load.
     document.documentElement.dataset.shiplogPostDetail = "loading";
     nameHeading(null);
-    renderPostDetail(container, null, { state: "loading", id, author: requestedAuthor, returnHref: exit.href });
+    renderPostDetail(container, null, { state: "loading", id, author: requestedAuthor, returnHref: POST_EXITS.social.href });
     let post = null;
     let failed = false;
     if (id) {
@@ -84,10 +86,11 @@ async function init() {
       state,
       id,
       author: post?.author ?? requestedAuthor,
-      returnHref: exit.href,
+      returnHref: POST_EXITS.social.href,
       onRetry: () => load({ fromRetry: true }),
     });
     nameHeading(post);
+    aimPeople(post?.author ?? "");
     document.title = postDetailTitle(post, state);
     document.documentElement.dataset.shiplogPostDetail = "ready";
 
