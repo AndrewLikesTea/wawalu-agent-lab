@@ -129,9 +129,13 @@ test("a missing post reached from a profile still offers the feed it belonged to
     const feed = page.panel.querySelector(".detail-state-feed");
     assert.equal(feed.getAttribute("href"), "/social.html");
     assert.equal(textOf(feed), "Return to the Social feed");
+    // The site's two directories are both excluded: the header nav and the
+    // footer's site map name every destination on every page, and neither is a
+    // route this page offers. What is counted is what the page itself says.
     const toFeed = page.document.querySelectorAll("a")
-      .filter((link) => link.getAttribute("href") === "/social.html" && !link.closest(".site-nav"));
-    assert.equal(toFeed.length, 1, "one link to Social outside the site nav, not two");
+      .filter((link) => link.getAttribute("href") === "/social.html"
+        && !link.closest(".site-nav") && !link.closest("#site-footer"));
+    assert.equal(toFeed.length, 1, "one link to Social outside the site's directories, not two");
 
     // Tab order: the exit first, then the post region's own action.
     const sequence = tabSequence(page.document);

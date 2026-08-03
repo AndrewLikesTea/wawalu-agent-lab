@@ -183,7 +183,7 @@ test("the footer says what a visitor can do here before it says what Shiplog is"
   }
 });
 
-test("the footer names every destination the navigation offers, and links the one the site leads with", async () => {
+test("the footer is a site map: every destination the navigation offers, each one a link", async () => {
   const page = await loadPage(pageUrl("index.html"));
   const { document } = page;
   try {
@@ -200,62 +200,79 @@ test("the footer names every destination the navigation offers, and links the on
     assert.deepEqual(sorted(DEMOS.map((demo) => demo.label)), sorted(navLabels),
       "the band must name each navigation destination exactly once, by the name the navigation uses");
 
-    for (const [index, demo] of DEMOS.entries()) {
-      const row = textOf(items[index]);
-      assert.ok(row.startsWith(demo.label), `${demo.label} must be named first in its row`);
-      assert.ok(row.includes(demo.description), `${demo.label} must show its description`);
+    // One door per name. src/site-footer.js repeats the hrefs rather than
+    // importing src/site-nav.js — that file is 6 KB and this module is in every
+    // page's initial payload — so the two tables are compared here instead,
+    // where it costs a visitor nothing.
+    for (const demo of DEMOS) {
+      const destination = SITE_NAV.find((link) => link.label === demo.label);
+      assert.equal(demo.href, destination.href,
+        `the footer sends "${demo.label}" somewhere the navigation does not`);
+      // Root-relative, the convention every cross-page link in src/site-nav.js
+      // uses: this band ships on every page, and a bare relative path would
+      // resolve against a page in a subdirectory instead of against the site.
+      assert.ok(demo.href.startsWith("/"), `"${demo.label}" must resolve from any page depth`);
     }
 
-    // One description per concept: each row says what the home page's "Where
-    // everything is" list says about the same surface, word for word. Two
-    // wordings for one surface is how a visitor ends up thinking they are two.
+    // Every row is a link, and every link is reachable from the keyboard: a
+    // name a reader cannot follow is a name they have to go and find in the
+    // header for themselves.
+    const stops = tabSequence(document);
+    assert.equal(list.querySelectorAll("a").length, DEMOS.length, "every destination must be followable");
+    for (const [index, demo] of DEMOS.entries()) {
+      const link = items[index].querySelector("a");
+      assert.equal(textOf(link), demo.label, `${demo.label} must be the linked text, and named first in its row`);
+      assert.equal(link.getAttribute("href"), demo.href);
+      assert.ok(stops.includes(link), `${demo.label} must be keyboard reachable`);
+    }
+    assert.match(textOf(items[0]), /start here/i, "the list must say where to start");
+    assert.match(textOf(items[0]), /^AI FinOps/, "the site leads with AI FinOps, so the list does too");
+
+    // A site map, not an essay. Each row is a fragment of at most eight words
+    // after the destination's name — the marker on the first row is the order
+    // signal, not purpose copy, so it is counted separately.
+    for (const demo of DEMOS) {
+      const words = demo.purpose.split(/\s+/);
+      assert.ok(words.length <= 8, `"${demo.label}" runs to ${words.length} words of purpose`);
+      assert.doesNotMatch(demo.purpose, /[.!?]$/, `"${demo.label}" is written as a sentence`);
+      assert.doesNotMatch(demo.purpose, /powerful|seamless|unlock|leverage|central hub/i, `"${demo.label}" uses filler`);
+    }
+
+    // The defect this replaces: every row used to be word for word the sentence
+    // the home page's "Where everything is" list gives that surface, so the home
+    // page printed the same eight sentences twice and every other page carried
+    // an essay. One name per concept is still the rule above; one wording per
+    // concept was the mistake. No row may say what a guide row says.
     const guideRows = [...document.querySelector(".site-guide").querySelectorAll("li")];
     for (const demo of DEMOS) {
-      const { href } = SITE_NAV.find((link) => link.label === demo.label);
-      const guide = guideRows.find((row) => row.querySelector(`a[href="${href}"]`));
+      const guide = guideRows.find((row) => row.querySelector(`a[href="${demo.href}"]`));
       assert.ok(guide, `the home page's directory is missing ${demo.label}`);
-      assert.ok(textOf(guide).endsWith(demo.description),
-        `${demo.label} is worded one way in the footer and another in the home page's directory`);
+      const sentence = textOf(guide).slice(demo.label.length).trim();
+      assert.ok(!textOf(items.find((row) => textOf(row).startsWith(demo.label))).includes(sentence),
+        `${demo.label} repeats the home page's sentence in the footer`);
     }
-
-    // Exactly one link, to the demo the home page's title, heading, and primary
-    // call to action all lead with.
-    const links = list.querySelectorAll("a");
-    assert.equal(links.length, 1, "one way in, not a second copy of the navigation");
-    const [primary] = links;
-    assert.equal(textOf(primary), "AI FinOps");
-    assert.equal(primary.getAttribute("href"), "/evolution.html");
-    // Root-relative, the convention every cross-page link in src/site-nav.js
-    // uses: this band ships on every page, and a bare relative path would
-    // resolve against a page in a subdirectory instead of against the site.
-    assert.ok(primary.getAttribute("href").startsWith("/"), "the link must resolve from any page depth");
-    assert.ok(SITE_NAV.some((link) => link.href === primary.getAttribute("href")),
-      "the link must go to a destination the navigation also offers");
-    assert.ok(tabSequence(document).includes(primary), "the way in must be keyboard reachable");
-    assert.match(textOf(items[0]), /Start here/, "the list must say where to start");
 
     // And it is the same list on every page, including the one whose footer
     // swaps the contact form for a pointer.
     for (const file of PAGES) {
       const html = await read(file);
-      for (const demo of DEMOS) assert.ok(html.includes(demo.description), `${file} is missing "${demo.label}"`);
+      for (const demo of DEMOS) {
+        assert.ok(html.includes(`<a href="${demo.href}">${demo.label}</a> — `), `${file} is missing "${demo.label}"`);
+      }
       assert.ok(html.includes('<li><a href="/evolution.html">AI FinOps</a>'), `${file} is missing the way in`);
     }
 
-    // The defect this row fixes was drift between two surfaces: the footer
-    // asked "where is our AI spend going" while the home page promised the
-    // product names what to do first. Pin both to the action rather than to a
-    // literal string, so neither can be reworded without the other.
-    const ACTION = /where to act first on your AI spend/;
-    assert.match(DEMOS[0].description, ACTION, "the AI FinOps door must name the action a visitor gets");
-    assert.doesNotMatch(DEMOS[0].description, /\?$/, "the AI FinOps destination must lead with an action");
-    const guideRow = [...document.querySelector(".site-guide").querySelectorAll("li")]
-      .find((row) => row.querySelector('a[href="/evolution.html"]'));
-    assert.match(textOf(guideRow), ACTION, "the home page's directory must describe AI FinOps the way the footer does");
     // Neither surface may sell the analysis without saying where it happens.
+    // The AI FinOps row is a fragment now, but this clause is a promise about
+    // where a visitor's export is read, so it survives the trim on both.
+    const guideRow = guideRows.find((row) => row.querySelector('a[href="/evolution.html"]'));
     for (const row of [items[0], guideRow])
       assert.match(textOf(row), /provider export in this browser tab/,
         "the AI FinOps destination must preserve its local-analysis disclosure");
+    // The home page's own row still names the action; the footer points, and
+    // the page it points at does the promising.
+    assert.match(textOf(guideRow), /where to act first on your AI spend/,
+      "the home page's directory must name the action AI FinOps gives a visitor");
   } finally {
     page.restore();
   }
