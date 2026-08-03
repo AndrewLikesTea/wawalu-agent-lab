@@ -37,6 +37,7 @@ import {
 } from "./lead-capture.js";
 
 const ERROR_ID = "site-footer-error";
+const REASON_ERROR_ID = "site-footer-reason-error";
 const RECOVERY_ID = "site-footer-recovery";
 
 /**
@@ -118,12 +119,57 @@ export const INVITATION = "Questions about Shiplog? Ask the Wawalu team that ope
 // says what is actually true — the address is recorded, a person is the one who
 // reads it, and no machine is about to reply — rather than a response time this
 // demo would break.
-const CAPTURED = "Follow-up requested — we sent your email address, and nothing else. It is recorded "
-  + "for the Wawalu team, and a person replies by email; nothing here answers automatically.";
-const ALREADY_CAPTURED = "Follow-up requested — that address is already on our list, so nothing new "
-  + "was recorded. The Wawalu team can reach you there.";
+const CAPTURED = "Follow-up requested — we sent your email address and the reason you picked, and "
+  + "nothing else. It is recorded for the Wawalu team, and a person replies by email; nothing here "
+  + "answers automatically.";
+const ALREADY_CAPTURED = "Follow-up requested — that address is already on our list for that reason, "
+  + "so nothing new was recorded. The Wawalu team can reach you there.";
 
-const SUBMITTING = "Requesting a follow-up — sending your email address…";
+const SUBMITTING = "Requesting a follow-up — sending your email address and the reason you picked…";
+
+/**
+ * Why a visitor is reaching out. Three reasons, because three different people
+ * answer them: someone weighing Shiplog against their own AI spend, someone
+ * asking how the site itself works, and press. Without the choice every request
+ * arrived as "someone wants something" and the first reply had to ask what for.
+ *
+ * `value` goes on the wire as the request body's `purpose` — see the submit
+ * handler — and it is a fixed identifier from this table, never a string a
+ * visitor typed. `label` is what a visitor reads and what the receipt repeats
+ * back: it is looked up here by value rather than reflected from the submitted
+ * option, so nothing a visitor supplies reaches the page as content.
+ */
+export const FOLLOW_UP_REASONS = Object.freeze([
+  Object.freeze({ value: "follow_up_own_spend", label: "Running Shiplog against my own AI spend" }),
+  Object.freeze({ value: "follow_up_question", label: "A question about this demonstration" }),
+  Object.freeze({ value: "follow_up_press", label: "Press or partnership" }),
+]);
+
+/** The unchosen option. A real empty value, so an unanswered select fails the check below. */
+export const REASON_PROMPT = "Choose a reason";
+export const REASON_LABEL = "Why you are reaching out";
+
+// Built to the shape of the address messages in CONTACT_COPY: name what is
+// missing, then what it is missing from. "This field is required" says neither.
+export const REASON_MISSING = "Choose why you are reaching out to request a Shiplog follow-up.";
+
+/**
+ * What the reason adds to the promise beside the field. FOLLOW_UP_PRIVACY is the
+ * site's one sentence about what leaves the browser and all three follow-up
+ * forms render it word for word; the other two ask no second question, so this
+ * footer's second thing gets its own sentence rather than a fourth wording of
+ * the shared one. Together they are the whole claim, and the request body is
+ * exactly the two values they name.
+ */
+export const REASON_PRIVACY = "The reason you pick is sent with your email address, so the right "
+  + "person replies; nothing else on this page is sent.";
+
+// What happened, what to do, then what is still safe. It names both things still
+// in the form: a visitor who has to be told the address survived has no reason
+// to assume the choice did.
+const RECOVERY = "We could not send your follow-up request. Try again in a few minutes. Your email "
+  + "address and the reason you picked are still in the form above, and nothing else on this page "
+  + "changed.";
 
 /**
  * The pages that answer a follow-up request better than this footer can, and
@@ -212,14 +258,27 @@ function contactDisclosureLines() {
     '          <input id="site-footer-email" name="email" type="email" maxlength="254" inputmode="email" autocomplete="email" placeholder="you@company.com" required aria-describedby="site-footer-note" />',
     "        </div>",
     `        <p class="site-footer-error" id="site-footer-error" hidden></p>`,
+    // Between the address and the button in document order, with no tabindex
+    // anywhere, so the tab order is the reading order. A native select is what
+    // makes it operable, and `required` is the markup saying so rather than
+    // script claiming it.
+    '        <div class="site-footer-field">',
+    `          <label for="site-footer-reason">${REASON_LABEL}</label>`,
+    '          <select id="site-footer-reason" name="reason" required aria-describedby="site-footer-sends">',
+    `            <option value="">${REASON_PROMPT}</option>`,
+    ...FOLLOW_UP_REASONS.map(({ value, label }) => `            <option value="${value}">${label}</option>`),
+    "          </select>",
+    "        </div>",
+    `        <p class="site-footer-error" id="site-footer-reason-error" hidden></p>`,
     `        <p class="site-footer-note" id="site-footer-note">${FOLLOW_UP_PRIVACY}</p>`,
+    `        <p class="site-footer-note" id="site-footer-sends">${REASON_PRIVACY}</p>`,
     '        <div class="site-footer-actions">',
     '          <button type="submit">Request a follow-up</button>',
     '          <button id="site-footer-dismiss" type="button">Close</button>',
     "        </div>",
     "      </form>",
     '      <p class="site-footer-status" id="site-footer-status" role="status" aria-live="polite"></p>',
-    '      <p class="site-footer-recovery" id="site-footer-recovery" hidden>We could not send your follow-up request. Try again in a few minutes. Your email address is still in the field above, and nothing else on this page changed.</p>',
+    `      <p class="site-footer-recovery" id="site-footer-recovery" hidden>${RECOVERY}</p>`,
     "    </div>",
   ];
 }
@@ -241,9 +300,11 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
   if (!form || !trigger || !panel) return null;
 
   const email = form.elements.email;
+  const reason = form.elements.reason;
   const submit = form.querySelector('button[type="submit"]');
   const dismiss = root.querySelector("#site-footer-dismiss");
   const fieldError = root.querySelector(`#${ERROR_ID}`);
+  const reasonError = root.querySelector(`#${REASON_ERROR_ID}`);
   const status = root.querySelector("#site-footer-status");
   const recovery = root.querySelector(`#${RECOVERY_ID}`);
 
@@ -253,6 +314,31 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
     describeWith(email, ERROR_ID, Boolean(message));
     if (message) email.setAttribute("aria-invalid", "true");
     else email.removeAttribute("aria-invalid");
+  }
+
+  function setReasonError(message) {
+    reasonError.textContent = message ?? "";
+    reasonError.hidden = !message;
+    describeWith(reason, REASON_ERROR_ID, Boolean(message));
+    if (message) reason.setAttribute("aria-invalid", "true");
+    else reason.removeAttribute("aria-invalid");
+  }
+
+  // Invalid only while something is still diagnosed: fixing one of the two
+  // questions must not retract the message about the other.
+  function clearInvalidWhenNothingIsDiagnosed() {
+    if (fieldError.hidden && reasonError.hidden) delete form.dataset.state;
+  }
+
+  /**
+   * The chosen reason, resolved against the table rather than trusted. Only a
+   * value FOLLOW_UP_REASONS lists comes back, so an option the page never
+   * offered is indistinguishable here from no choice at all: refused, nothing
+   * sent. The receipt reads this too, so the label repeated back to a visitor is
+   * always one this repository wrote.
+   */
+  function chosenReason() {
+    return FOLLOW_UP_REASONS.find((option) => option.value === reason.value) ?? null;
   }
 
   function setRecoveryVisible(visible) {
@@ -305,10 +391,16 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
   // in the live region stays: it reports something that happened, not something
   // about the current value.
   email.addEventListener("input", () => {
-    if (form.dataset.state === "invalid") {
-      delete form.dataset.state;
-      setFieldError(null);
-    }
+    if (form.dataset.state !== "invalid") return;
+    setFieldError(null);
+    clearInvalidWhenNothingIsDiagnosed();
+  });
+
+  // Answering the question retracts the diagnostic about it, on the same rule.
+  reason.addEventListener("change", () => {
+    if (form.dataset.state !== "invalid" || !chosenReason()) return;
+    setReasonError(null);
+    clearInvalidWhenNothingIsDiagnosed();
   });
 
   form.addEventListener("submit", async (event) => {
@@ -328,8 +420,23 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
       return;
     }
 
+    // The second question, refused the same way the first is: nothing leaves the
+    // browser, the address the visitor typed is left exactly where it is, and
+    // focus lands on the control they have to answer.
+    const picked = chosenReason();
+    if (!picked) {
+      form.dataset.state = "invalid";
+      setFieldError(null);
+      setReasonError(REASON_MISSING);
+      setRecoveryVisible(false);
+      status.textContent = "";
+      reason.focus();
+      return;
+    }
+
     form.dataset.state = "submitting";
     setFieldError(null);
+    setReasonError(null);
     setRecoveryVisible(false);
     submit.disabled = true;
     submit.setAttribute("aria-disabled", "true");
@@ -339,12 +446,17 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
 
     try {
       const address = email.value.trim();
-      const body = await postLeadEmail(request, email.value, "follow_up", CONTACT_COPY);
+      // Two values, and still the documented two-field body: the reason IS the
+      // purpose. `purpose` was already the label that says what a request is
+      // for, and the endpoint accepts exactly `email` and `purpose` and nothing
+      // else — so sending the answer through it is what keeps "nothing else on
+      // this page is sent" true by construction. src/leads.js lists the values.
+      const body = await postLeadEmail(request, email.value, picked.value, CONTACT_COPY);
       form.dataset.state = "success";
       status.textContent = body.created ? CAPTURED : ALREADY_CAPTURED;
       // The form is replaced from here, so the control that would send again is
       // gone before the `finally` below could bring it back.
-      confirmation.show(address);
+      confirmation.show(address, picked.label);
     } catch (error) {
       // Copy this repository owns, never a string an intermediary supplied, and
       // never a claim that the address was lost when that is not known.

@@ -32,6 +32,15 @@
  * so the address arrives as a text node of its own.
  */
 export const CONFIRMATION_LEAD = "We sent one thing: ";
+/**
+ * The same receipt for a form that asks a second question. The footer's does —
+ * a visitor picks why they are reaching out — so its receipt has to count two,
+ * and a sentence that said "one thing" beside two of them would be the one
+ * false claim on the page. Split around both values for the same reason the
+ * lead above is split around the address: each arrives as its own text node.
+ */
+export const CONFIRMATION_LEAD_PAIR = "We sent two things: ";
+export const CONFIRMATION_PAIR_JOIN = ", and the reason you picked: ";
 export const CONFIRMATION_DETAIL = "A person from the Wawalu team replies to that address by email. "
   + "Nothing else on this page — nothing you have read, filtered, imported, or exported — was read, "
   + "attached, or transmitted.";
@@ -82,6 +91,8 @@ export function createFollowUpConfirmation({ form, status, submit, email, onReop
   mark.textContent = "✓";
   const address = document.createElement("strong");
   address.className = `${base}-confirmation-address`;
+  const reason = document.createElement("strong");
+  reason.className = `${base}-confirmation-reason`;
   lead.append(mark, CONFIRMATION_LEAD, address, ".");
 
   const detail = document.createElement("p");
@@ -105,9 +116,20 @@ export function createFollowUpConfirmation({ form, status, submit, email, onReop
 
   let sent = false;
 
-  /** Put the panel into its terminal state, naming the address that was sent. */
-  function show(value) {
+  /**
+   * Put the panel into its terminal state, naming what was sent.
+   *
+   * `reasonLabel` is optional and belongs to the caller's own option table — a
+   * label this repository wrote, looked up by the submitted value rather than
+   * reflected from it. It is written with `textContent` like the address, so
+   * neither of the two values can become a node whatever they contain.
+   */
+  function show(value, reasonLabel = null) {
     address.textContent = value;
+    if (reasonLabel) {
+      reason.textContent = reasonLabel;
+      lead.replaceChildren(mark, CONFIRMATION_LEAD_PAIR, address, CONFIRMATION_PAIR_JOIN, reason, ".");
+    }
     if (!region.parentNode) form.parentNode.insertBefore(region, form);
     // Hiding the form takes the field and both of its buttons out of the tab
     // order; disabling submit means even a stray click on it does nothing.

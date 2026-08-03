@@ -20,7 +20,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
-import { DEMOS, FOLLOW_UP_REDIRECT, IDENTITY, INVITATION, siteFooterMarkup } from "../src/site-footer.js";
+import {
+  DEMOS, FOLLOW_UP_REASONS, FOLLOW_UP_REDIRECT, IDENTITY, INVITATION, REASON_MISSING, REASON_PRIVACY,
+  siteFooterMarkup,
+} from "../src/site-footer.js";
+import { LEAD_PURPOSES } from "../src/leads.js";
 import { FOLLOW_UP_PRIVACY } from "../src/lead-capture.js";
 import { SITE_NAV } from "../src/site-nav.js";
 import { loadPage, pressEnter, pressKey, pressTab, tabSequence, textOf, typeText } from "./support/browser.js";
@@ -45,7 +49,13 @@ const TYPED_EMAIL = "director@example.com";
 // do, then what is still safe. Pinned whole rather than by fragment — the order
 // of the three sentences is the point, and a substring match would not see it.
 const RECOVERY_COPY = "We could not send your follow-up request. Try again in a few minutes. "
-  + "Your email address is still in the field above, and nothing else on this page changed.";
+  + "Your email address and the reason you picked are still in the form above, and nothing else on "
+  + "this page changed.";
+
+// The reason a submission carries when a test does not care which one it is.
+// "A question about this demonstration" is the middle option, so choosing it
+// also proves the helper is not passing by landing on a default.
+const CHOSEN = FOLLOW_UP_REASONS[1];
 
 const byId = (document, id) => document.getElementById(id);
 const shownText = (document, id) => textOf(byId(document, id));
@@ -373,8 +383,14 @@ function tabTo(document, id) {
   assert.fail(`"${id}" is not reachable by Tab; a keyboard user cannot use the footer.`);
 }
 
-/** Type an address into the disclosed form and submit it from the keyboard. */
-function submitEmail(document, value) {
+/**
+ * Type an address into the disclosed form, answer the reason, and submit it from
+ * the keyboard. `reason` is a value from FOLLOW_UP_REASONS; pass "" to submit
+ * the form with the question unanswered.
+ */
+function submitEmail(document, value, reason = CHOSEN.value) {
+  const choice = byId(document, "site-footer-reason");
+  choice.value = reason;
   const field = byId(document, "site-footer-email");
   field.value = "";
   field.focus();
@@ -473,12 +489,15 @@ test("a submission goes through the shared capture path, and the confirmation sa
     const [{ url, options }] = calls;
     assert.equal(url, "/api/leads");
     assert.equal(options.method, "POST");
-    assert.deepEqual(JSON.parse(options.body), { email: TYPED_EMAIL, purpose: "follow_up" });
+    // Two values and no third: the address, and the reason the visitor chose.
+    // The reason travels as the request's purpose, which is what keeps the body
+    // the two documented fields rather than a widened shape.
+    assert.deepEqual(JSON.parse(options.body), { email: TYPED_EMAIL, purpose: CHOSEN.value });
     assert.deepEqual(Object.keys(JSON.parse(options.body)), ["email", "purpose"]);
 
     assert.equal(byId(document, "site-footer-form").dataset.state, "success");
     const confirmation = shownText(document, "site-footer-status");
-    assert.match(confirmation, /^Follow-up requested — we sent your email address, and nothing else\./);
+    assert.match(confirmation, /^Follow-up requested — we sent your email address and the reason you picked, and nothing else\./);
     assert.match(confirmation, /recorded for the Wawalu team/, "the confirmation must say what happens next");
     // Nothing promised that this demo does not do.
     assert.doesNotMatch(confirmation, /business days?|within \d|hours?\b/i);
@@ -561,6 +580,146 @@ test("an obviously invalid address is diagnosed at the field and never reaches t
   }
 });
 
+/* -------------------------------- the reason ------------------------------- */
+
+test("the reason is a required choice of three, keyboard-operable between the field and the button", async () => {
+  const page = await openFooterPage("index.html");
+  const { document } = page;
+  try {
+    byId(document, "site-footer-open").click();
+    const choice = byId(document, "site-footer-reason");
+
+    // A real select, required in the markup. The test harness accepts any value
+    // a test assigns, so required-ness that lived only in script would pass here
+    // and fail in a browser; the attribute is what a browser reads.
+    assert.equal(choice.tagName, "SELECT", "the choice must be a native control, not a scripted widget");
+    assert.equal(choice.getAttribute("required"), "", "the choice must be required in the markup");
+    assert.equal(choice.getAttribute("name"), "reason");
+    assert.equal(textOf(document.querySelector('label[for="site-footer-reason"]')), "Why you are reaching out");
+
+    // Three reasons and an unchosen state, in the order they are read. The
+    // labels are pinned literally: this is the wording the page ships.
+    assert.deepEqual(choice.options.map((option) => option.value),
+      ["", ...FOLLOW_UP_REASONS.map((reason) => reason.value)]);
+    assert.deepEqual(choice.options.map((option) => textOf(option)), [
+      "Choose a reason",
+      "Running Shiplog against my own AI spend",
+      "A question about this demonstration",
+      "Press or partnership",
+    ]);
+    // One reason is the visitor's own spend, one is about the site itself.
+    assert.ok(FOLLOW_UP_REASONS.some((reason) => /my own AI spend$/.test(reason.label)));
+    assert.ok(FOLLOW_UP_REASONS.some((reason) => reason.label === "A question about this demonstration"));
+
+    // Tab order is document order, which is the only order a browser honours.
+    // Nothing in the panel buys its position with a positive tabindex.
+    const ids = tabSequence(document).map((node) => node.id);
+    const [email, reason, dismiss] = ["site-footer-email", "site-footer-reason", "site-footer-dismiss"]
+      .map((id) => ids.indexOf(id));
+    assert.ok(email >= 0 && reason > email, "the choice must follow the email field");
+    assert.ok(dismiss > reason, "the choice must come before the form's buttons");
+    for (const node of byId(document, "site-footer-panel").querySelectorAll("input,select,button")) {
+      const tabindex = node.getAttribute("tabindex");
+      assert.ok(tabindex === null || Number(tabindex) <= 0, `${node.id} orders itself with a positive tabindex`);
+    }
+
+    // Reachable and operable from the keyboard alone: tab to it, arrow through it.
+    tabTo(document, "site-footer-reason");
+    assert.equal(document.activeElement, choice);
+    pressKey(document, "ArrowDown");
+    assert.equal(choice.value, FOLLOW_UP_REASONS[0].value, "arrowing must change the choice");
+
+    // The sentence beside it says the reason is the second thing sent, and that
+    // the two of them are all that is.
+    assert.equal(shownText(document, "site-footer-sends"), REASON_PRIVACY);
+    assert.match(REASON_PRIVACY, /reason you pick is sent with your email address/);
+    assert.match(REASON_PRIVACY, /nothing else on this page is sent/);
+  } finally {
+    page.restore();
+  }
+});
+
+test("submitting without a reason sends nothing, keeps the address, and names the missing choice", async () => {
+  const page = await openFooterPage("index.html");
+  const { document } = page;
+  const calls = interceptLeads(() => jsonReply({ captured: true, created: true, purpose: CHOSEN.value }));
+  try {
+    byId(document, "site-footer-open").click();
+    submitEmail(document, TYPED_EMAIL, "");
+
+    assert.equal(calls.length, 0, "an unanswered reason must not reach the network");
+    assert.equal(byId(document, "site-footer-form").dataset.state, "invalid");
+    assert.equal(byId(document, "site-footer-email").value, TYPED_EMAIL,
+      "the address the visitor typed must survive the refusal");
+    assert.equal(shownText(document, "site-footer-reason-error"), REASON_MISSING);
+    assert.match(REASON_MISSING, /^Choose why you are reaching out/, "the message must name the missing choice");
+    assert.match(byId(document, "site-footer-reason").getAttribute("aria-describedby"), /site-footer-reason-error/,
+      "the diagnostic must be associated with the control, not merely near it");
+    assert.equal(byId(document, "site-footer-reason").getAttribute("aria-invalid"), "true");
+    assert.equal(document.activeElement?.id, "site-footer-reason",
+      "focus must land on the control the visitor has to answer");
+    // A missing answer is not a submission failure: no recovery copy, and the
+    // address is not diagnosed for a fault that is not its own.
+    assert.equal(byId(document, "site-footer-recovery").hidden, true);
+    assert.equal(byId(document, "site-footer-error").hidden, true);
+
+    // A value no option offers is refused on the same path. The harness lets a
+    // test assign one; a browser would not, and neither does the page.
+    submitEmail(document, TYPED_EMAIL, "follow_up_admin");
+    assert.equal(calls.length, 0, "a reason the page never offered must not reach the network");
+    assert.equal(shownText(document, "site-footer-reason-error"), REASON_MISSING);
+
+    // Answering it from the keyboard retracts the diagnostic, and leaves the
+    // form ready — focus is already on the control, which is where it was sent.
+    assert.equal(document.activeElement?.id, "site-footer-reason");
+    pressKey(document, "ArrowDown");
+    assert.equal(byId(document, "site-footer-reason").value, FOLLOW_UP_REASONS[0].value);
+    assert.equal(byId(document, "site-footer-reason-error").hidden, true);
+    assert.equal(byId(document, "site-footer-form").dataset.state, undefined);
+  } finally {
+    page.restore();
+  }
+});
+
+test("the receipt repeats back the address and the reason, as text", async () => {
+  const page = await openFooterPage("index.html");
+  const { document } = page;
+  const chosen = FOLLOW_UP_REASONS[0];
+  interceptLeads(() => jsonReply({ captured: true, created: true, purpose: chosen.value }));
+  try {
+    byId(document, "site-footer-open").click();
+    submitEmail(document, TYPED_EMAIL, chosen.value);
+    await settled(document);
+
+    const receipt = byId(document, "site-footer-confirmation");
+    assert.ok(receipt, "a landed request must leave a receipt");
+    const said = textOf(receipt);
+    assert.ok(said.includes(TYPED_EMAIL), "the receipt must repeat the address back");
+    assert.ok(said.includes(chosen.label), "the receipt must repeat the reason back in words");
+    assert.match(said, /We sent two things/, "one thing was not what was sent");
+
+    // Both values are text nodes of their own element, written with textContent.
+    // The label comes out of the page's own table rather than off the control,
+    // so an option nothing offered cannot be echoed at all.
+    assert.equal(textOf(receipt.querySelector(".site-footer-confirmation-reason")), chosen.label);
+    assert.equal(textOf(receipt.querySelector(".site-footer-confirmation-address")), TYPED_EMAIL);
+    assert.equal(receipt.querySelectorAll("script").length, 0);
+  } finally {
+    page.restore();
+  }
+});
+
+test("every reason the footer offers is a purpose the endpoint accepts", () => {
+  // The frontend half must not promise a value the backend half rejects: a
+  // reason the page ships and the endpoint 422s is a request a visitor watches
+  // fail for no reason they can see.
+  for (const { value } of FOLLOW_UP_REASONS) {
+    assert.ok(LEAD_PURPOSES.includes(value), `${value} is offered in the footer but not accepted by /api/leads`);
+  }
+  assert.equal(new Set(FOLLOW_UP_REASONS.map((reason) => reason.value)).size, FOLLOW_UP_REASONS.length,
+    "two reasons sharing a value would be indistinguishable in the record");
+});
+
 test("a failed submission keeps the typed address, says it can be retried, and the retry works", async () => {
   const page = await openFooterPage("post.html");
   const { document } = page;
@@ -580,6 +739,8 @@ test("a failed submission keeps the typed address, says it can be retried, and t
 
     assert.equal(byId(document, "site-footer-form").dataset.state, "error");
     assert.equal(field.value, TYPED_EMAIL, "a failed submission must not clear the address the visitor typed");
+    assert.equal(byId(document, "site-footer-reason").value, CHOSEN.value,
+      "a failed submission must not clear the reason the visitor picked either");
     assert.equal(byId(document, "site-footer-recovery").hidden, false);
     assert.match(describedBy(document), /site-footer-recovery/);
     assert.equal(textOf(byId(document, "site-footer-recovery")), RECOVERY_COPY);
@@ -598,8 +759,8 @@ test("a failed submission keeps the typed address, says it can be retried, and t
     await waitFor(() => byId(document, "site-footer-form").dataset.state === "success",
       "the retry to succeed");
     assert.equal(calls.length, 2, "the retry must make its own request");
-    assert.deepEqual(JSON.parse(calls[1].options.body), { email: TYPED_EMAIL, purpose: "follow_up" });
-    assert.match(shownText(document, "site-footer-status"), /^Follow-up requested — we sent your email address, and nothing else\./);
+    assert.deepEqual(JSON.parse(calls[1].options.body), { email: TYPED_EMAIL, purpose: CHOSEN.value });
+    assert.match(shownText(document, "site-footer-status"), /^Follow-up requested — we sent your email address and the reason you picked, and nothing else\./);
   } finally {
     page.restore();
   }
@@ -643,7 +804,8 @@ test("the pending state is announced, not merely spun", async () => {
     const submit = byId(document, "site-footer-panel").querySelector('button[type="submit"]');
     assert.equal(submit.disabled, true, "the submit control must be unusable while a request is in flight");
     assert.equal(submit.getAttribute("aria-disabled"), "true");
-    assert.equal(shownText(document, "site-footer-status"), "Requesting a follow-up — sending your email address…",
+    assert.equal(shownText(document, "site-footer-status"),
+      "Requesting a follow-up — sending your email address and the reason you picked…",
       "the pending state must be in the live region, not only in the button");
 
     release();

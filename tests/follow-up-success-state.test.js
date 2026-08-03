@@ -59,8 +59,16 @@ const jsonReply = (body, status = 201) => new Response(JSON.stringify(body), {
 
 const failureReply = () => jsonReply({ error: { code: "storage_unavailable", message: "unavailable" } }, 503);
 
-/** Type an address into a disclosed form and submit it from the keyboard. */
+/**
+ * Type an address into a disclosed form, answer anything else it asks, and
+ * submit it from the keyboard. The footer's form asks why a visitor is reaching
+ * out and will not send without an answer; the briefing's does not ask, so the
+ * question is answered only where one is on screen. Either way this suite is
+ * about the receipt, not about how a form is filled in.
+ */
 function submitEmail(document, prefix, value) {
+  const reason = byId(document, `${prefix}-reason`);
+  if (reason) reason.value = reason.options[1].value;
   const field = byId(document, `${prefix}-email`);
   field.value = "";
   field.focus();
@@ -257,11 +265,15 @@ for (const { name, open, prefix } of SURFACES) {
       assert.equal(byId(document, `${prefix}-form`).hidden, false);
       assert.equal(byId(document, `${prefix}-form`).querySelector('button[type="submit"]').disabled, false);
 
-      // The recovery paragraph is exactly the sentence it has always been, and
-      // it reads nothing like a receipt.
+      // The recovery paragraph still says what survived the failure, and it
+      // reads nothing like a receipt. The two surfaces name different numbers of
+      // things because they ask for different numbers of things: the footer's
+      // form also asks why a visitor is reaching out, and a paragraph that
+      // reassured them about only the address would leave the other unanswered.
       const recovery = byId(document, `${prefix}-recovery`);
       assert.equal(recovery.hidden, false);
-      assert.match(textOf(recovery), /Your email address is still in the field/);
+      assert.match(textOf(recovery),
+        /Your email address (?:is still in the field|and the reason you picked are still in the form)/);
       assert.doesNotMatch(textOf(recovery), new RegExp(CONFIRMATION_DETAIL.slice(0, 40)));
       assert.doesNotMatch(shownText(document, `${prefix}-status`), /We sent one thing/);
     } finally {

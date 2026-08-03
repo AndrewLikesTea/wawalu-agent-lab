@@ -7,7 +7,7 @@
     "content_type": "application/json",
     "body": {
       "email": "string, trimmed and lowercased server-side, max 254 chars",
-      "purpose": "field_notes or follow_up; no additional fields are accepted"
+      "purpose": "what the request is for: field_notes, follow_up, or one of the footer form's three reasons — follow_up_own_spend, follow_up_question, follow_up_press. No additional fields are accepted, which is what lets a page promise it sends nothing but the address and the reason."
     }
   },
   "response_headers": {
@@ -53,7 +53,7 @@
       "origin": "application",
       "captured": false,
       "retryable": true,
-      "meaning": "Purpose was not field_notes or follow_up."
+      "meaning": "Purpose was not one of the values listed under request.body.purpose."
     },
     {
       "id": "invalid_email",

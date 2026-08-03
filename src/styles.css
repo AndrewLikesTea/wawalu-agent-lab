@@ -899,6 +899,7 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .site-footer-field { display:grid; gap:7px; }
 .site-footer-field label { color:#2c2c28; font-size:14px; font-weight:700; }
 .site-footer-field input { min-height:46px; min-width:0; border:1px solid #a9bccd; border-radius:9px; padding:0 12px; background:#fff; font:inherit; }
+.site-footer-field select { min-height:46px; min-width:0; max-width:100%; border:1px solid #a9bccd; border-radius:9px; padding:0 10px; background:#fff; font:inherit; }
 .site-footer-error { margin:0; border:1px solid #8a2b2b; border-left:5px solid #8a2b2b; border-radius:9px; padding:11px 13px; background:#fbeded; color:#6d2020; font:700 12px/1.5 inherit; }
 .site-footer-error[hidden] { display:none; }
 .site-footer-note { margin:0; color:#4f4f4a; font-size:12px; line-height:1.55; }
@@ -922,6 +923,7 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .site-footer-confirmation-lead { margin:0; color:#1c5c2c; font:700 14px/1.55 inherit; }
 .site-footer-confirmation-mark { margin-right:8px; font-size:15px; }
 .site-footer-confirmation-address { overflow-wrap:anywhere; }
+.site-footer-confirmation-reason { overflow-wrap:anywhere; }
 .site-footer-confirmation-detail { margin:0; color:#2c2c28; font-size:12px; line-height:1.55; }
 .site-footer-confirmation-again { min-height:44px; border:1px solid #1c5c2c; border-radius:9px; padding:0 16px; background:#fff; color:#1c5c2c; font:650 13px/1.4 inherit; cursor:pointer; }
 .site-footer-confirmation-again:hover { background:#1c5c2c; color:#fff; }
@@ -932,7 +934,7 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
    anyone can find. */
 .site-footer-redirect-link { display:inline-block; min-height:44px; padding:11px 0; color:#1f70c1; font-size:14px; font-weight:700; text-decoration:underline; text-underline-offset:3px; }
 .site-footer-redirect-link:hover { color:#171713; }
-.site-footer button:focus-visible,.site-footer input:focus-visible,.site-footer a:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.site-footer button:focus-visible,.site-footer input:focus-visible,.site-footer select:focus-visible,.site-footer a:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
 /* Narrow: the band keeps the page's own gutter, and every control goes full
    width rather than wrapping into a sliver. */
 @media(max-width:520px) { .site-footer-inner{width:calc(100% - 24px);padding:24px 0 32px}.site-footer-trigger{width:100%}.site-footer-panel{padding:15px}.site-footer-actions button{flex:1 1 auto}.site-footer-confirmation{padding:13px}.site-footer-confirmation-again{width:100%} }

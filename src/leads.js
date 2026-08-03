@@ -1,5 +1,26 @@
 export const MAX_EMAIL_LENGTH = 254;
-export const LEAD_PURPOSES = Object.freeze(["field_notes", "follow_up"]);
+/**
+ * Every purpose a request may carry.
+ *
+ * A purpose is what the request is FOR, which is why the three `follow_up_*`
+ * values are here rather than in a field of their own: the footer's form asks a
+ * visitor why they are reaching out, and their answer is that request's purpose.
+ * Carrying it this way is what lets the body stay exactly `{ email, purpose }` —
+ * the shape the strict key check below enforces, and the shape the page's
+ * "nothing else on this page is sent" promise rests on.
+ *
+ * Bare `follow_up` stays: the AI FinOps result's form and the executive
+ * briefing's ask no such question, and each of those requests already carries
+ * its context in the page it was made from.
+ *
+ * Widening this list means widening migrations/0008_lead_reason_purposes.sql
+ * too — the column has a CHECK constraint naming the same values, so a purpose
+ * accepted here and rejected there would be a request the endpoint said it
+ * stored and did not.
+ */
+export const LEAD_PURPOSES = Object.freeze([
+  "field_notes", "follow_up", "follow_up_own_spend", "follow_up_question", "follow_up_press",
+]);
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function normalizeEmail(value) {
@@ -73,7 +94,7 @@ export async function handleLeadRequest(request, {
     return json({ error: { code: "invalid_email", message: "Enter a valid email address.", request_id: requestId } }, 422, requestId);
   }
   if (!LEAD_PURPOSES.includes(input.purpose)) {
-    return json({ error: { code: "invalid_purpose", message: "Purpose must be field_notes or follow_up.", request_id: requestId } }, 422, requestId);
+    return json({ error: { code: "invalid_purpose", message: `Purpose must be one of ${LEAD_PURPOSES.join(", ")}.`, request_id: requestId } }, 422, requestId);
   }
 
   try {
