@@ -62,6 +62,11 @@ import {
 import { evaluateExport, parseExportText } from "/browser-compat-eligibility.js";
 import { bindImportDrop } from "/finops-import-drop.js";
 import { initExportRecognition } from "/export-recognition-view.js";
+// What to ask the billing owner for, per recognized provider (#1062). Column
+// lists and formats come out of the recognition source; this page paints them.
+import {
+  PROVIDER_READINESS, STATIC_DEMO_DISCLOSURE, serializeProviderSample,
+} from "/provider-readiness-contract.js";
 import { bindProviderImport, initProviderImport } from "/provider-native-import-view.js";
 import { FIXTURE_REFERENCE_DATE } from "/browser-compat-fixtures.js";
 import { scoreIntakeConfidence } from "/intake-confidence.js";
@@ -836,7 +841,71 @@ function syncWorkspaceRestore() {
   }
 }
 
+/**
+ * The five exports this page reads, painted directly above the picker (#1062).
+ *
+ * Every string here except the labels comes from the readiness contract, which
+ * reads its column lists out of the same recognition source a dropped file is
+ * scored against — so a card cannot name a column the importer would refuse.
+ * Nothing is folded away: a reader who has never pulled an AI spend export has
+ * to be able to see all five without opening anything.
+ *
+ * The samples are not committed assets. Each one is serialized on click from
+ * the contract and handed to the same local blob download every other artifact
+ * on this page uses, so the bytes a reader receives are the bytes the tests
+ * feed back through recognition.
+ */
+function mountProviderReadiness() {
+  const list = document.getElementById("provider-readiness-list");
+  if (!list) return;
+  setText("provider-readiness-lead", STATIC_DEMO_DISCLOSURE);
+  const columnLine = (label, kind, columns, emptyCopy) => {
+    const line = element("p", "provider-readiness-columns");
+    line.dataset.kind = kind;
+    line.append(element("span", "provider-readiness-key", label));
+    if (!columns.length) {
+      line.append(element("span", "provider-readiness-none", emptyCopy));
+      return line;
+    }
+    for (const column of columns) line.append(element("code", null, column));
+    return line;
+  };
+  list.replaceChildren(...PROVIDER_READINESS.map((provider) => {
+    const item = element("li", "provider-readiness-item");
+    item.dataset.provider = provider.id;
+    const name = element("p", "provider-readiness-name", `${provider.displayName} · `);
+    name.append(element("span", "provider-readiness-format",
+      `${provider.sampleFormat.toUpperCase()} export`));
+    const where = element("p", "provider-readiness-where");
+    where.append(element("span", "provider-readiness-key", "Where it lives"),
+      document.createTextNode(provider.consoleLocation));
+    const when = element("p", "provider-readiness-when");
+    when.append(element("span", "provider-readiness-key", "Which period"),
+      document.createTextNode(provider.dateRangeGuidance));
+    const download = element("button", "provider-readiness-download",
+      `Download a one-row ${provider.sampleFormat.toUpperCase()} sample`);
+    download.type = "button";
+    download.dataset.provider = provider.id;
+    item.append(name, where, when,
+      columnLine("Required columns", "required", provider.requiredColumns, ""),
+      columnLine("Optional columns", "optional", provider.optionalColumns,
+        "None published. This export is read from its required columns alone."),
+      download);
+    return item;
+  }));
+  // One delegated handler rather than five: the list is painted once, and a
+  // sample is generated only when a reader actually asks for one.
+  list.addEventListener("click", (event) => {
+    const button = event.target?.closest?.(".provider-readiness-download");
+    const provider = PROVIDER_READINESS.find((entry) => entry.id === button?.dataset.provider);
+    if (!provider) return;
+    downloadLocalExport(serializeProviderSample(provider),
+      provider.sampleMediaType, provider.sampleFilename);
+  });
+}
+
 function mountLocalFinopsImport() {
+  mountProviderReadiness();
   const input = document.getElementById("local-finops-files");
   if (!input) return;
   // Provider projection code is needed only after a visitor selects a provider

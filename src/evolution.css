@@ -3645,6 +3645,29 @@ section[data-workspace-current="true"] { box-shadow:-6px 0 0 0 var(--import-wash
 .import-slot-state { font-weight:650; }
 .import-slot[data-state="missing"] .import-slot-state { font-style:italic; }
 .import-slot-unlocks { margin:4px 0 0; max-width:60ch; color:var(--ink-muted); font-size:12px; }
+/* #1062: what to ask a billing owner for, per recognized provider, standing
+   directly above the picker that asks for it. Open prose in a plain list on
+   purpose — a disclosure here would be readable to a test harness and invisible
+   to the reader who needs it most. The card grid, the border and the type scale
+   are .import-slots' above, so the two rows in this zone read as one family
+   rather than as a section bolted into it. Required and optional columns are
+   separated by their labels FIRST; the solid and dashed chip edges are a second
+   channel on top of the words, never the only one. */
+.provider-readiness { display:grid; gap:8px; margin:4px 0 0; }
+.provider-readiness-title { margin:0; font-size:13px; font-weight:700; }
+.provider-readiness-lead { margin:0; max-width:70ch; color:var(--ink-muted); font-size:12px; line-height:1.5; }
+.provider-readiness-list { display:grid; gap:8px; margin:0; padding:0; list-style:none; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); }
+.provider-readiness-item { display:grid; gap:5px; align-content:start; border:1px solid var(--import-line,#b9bdb4); border-radius:8px; padding:8px 10px; background:#fff; }
+.provider-readiness-name { margin:0; font-size:13px; font-weight:700; }
+.provider-readiness-format { color:var(--ink-muted); font-weight:650; }
+.provider-readiness-where,.provider-readiness-when,.provider-readiness-columns { margin:0; max-width:60ch; color:var(--ink-muted); font-size:12px; line-height:1.5; }
+.provider-readiness-key { display:block; color:var(--ink,#1d2016); font:750 10px/1.4 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; }
+.provider-readiness-columns code { display:inline-block; margin:2px 4px 0 0; border:1px solid var(--import-line,#b9bdb4); border-radius:999px; padding:1px 7px; font-size:11px; overflow-wrap:anywhere; }
+.provider-readiness-columns[data-kind="required"] code { border-color:var(--import-ink); color:var(--import-ink); }
+.provider-readiness-columns[data-kind="optional"] code { border-style:dashed; }
+.provider-readiness-none { font-style:italic; }
+.local-import button.provider-readiness-download { min-height:34px; margin:4px 0 0; justify-self:start; border-color:var(--import-line); padding:5px 11px; font-size:12px; }
+.local-import button.provider-readiness-download:hover { border-color:var(--import-ink); color:var(--import-ink); }
 /* The literacy card's reason for having no letter. Same weight as the score
    line it stands in for, so it is not read as a footnote to a grade. */
 .score-input-need { margin:8px 0 0; max-width:60ch; font-size:13px; font-weight:600; }

@@ -1653,9 +1653,20 @@
               </li>
             </ul>
             <p class="import-drop-state" id="finops-import-drop-state" aria-hidden="true"></p>
+            <!-- #1062: the five exports this page reads, above the picker that
+                 asks for one, in the open — never folded, since a reader who
+                 has never pulled one cannot ask for a file they cannot see.
+                 Slots only: provider-readiness-contract.js supplies every name,
+                 console path, column and generated sample through
+                 evolution-page.js. -->
+            <section class="provider-readiness" id="provider-readiness" aria-labelledby="provider-readiness-title">
+              <h3 class="provider-readiness-title" id="provider-readiness-title">Ask your billing owner for one of these five exports.</h3>
+              <p class="provider-readiness-lead" id="provider-readiness-lead"></p>
+              <ul class="provider-readiness-list" id="provider-readiness-list"></ul>
+            </section>
           <div class="local-import-field">
             <label for="local-finops-files">Choose your export files</label>
-            <input id="local-finops-files" type="file" accept=".json,.csv,.tsv,.txt,application/json,text/csv,text/tab-separated-values,text/plain" multiple aria-describedby="finops-import-drop-instruction local-file-help" aria-invalid="false" />
+            <input id="local-finops-files" type="file" accept=".json,.csv,.tsv,.txt,.jsonl,application/json,text/csv,text/tab-separated-values,text/plain" multiple aria-describedby="finops-import-drop-instruction local-file-help" aria-invalid="false" />
             <p id="local-file-help">Required: at least one provider period export, as CSV, TSV, or a v1 JSON envelope. Optional: an org mapping for your own department names, a query sample, and a Shiplog delivery-history JSON export if the releases you want spend compared against live in another install. Choose them together or add them in batches; every provider period must come from the same source.</p>
             <!-- The ceiling sentence is painted from the one place the numbers
                  are defined (import-limits.js). No number is written here. -->
