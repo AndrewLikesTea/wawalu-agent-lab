@@ -386,6 +386,52 @@ function nextAction(read) {
 }
 
 /**
+ * WHAT THE RUBRIC SCORED, IN WORDS, DERIVED IN ONE PLACE.
+ *
+ * Two surfaces state this same fact about the same verdict: the trust panel's
+ * coverage line below, and the qualifier the headline's recoverable figure
+ * carries in `recoverableSlot` (src/finops-stand.js). They were two independent
+ * strings, and the bundled example is what that costs — a headline quoting a
+ * modelled recoverable a few inches above a panel reporting that the rubric
+ * scored none of the spend it was modelled over, with nothing on screen tying
+ * the two together. A reader reads that as a contradiction, and the honest
+ * reading — a model estimate over unscored spend — is the one neither panel
+ * said.
+ *
+ * Both lines are now composed here from the same two operands, so a change to
+ * what "scored" means moves both or neither. It takes the two AMOUNTS rather
+ * than the verdict, because its caller below reads them through `inputTap` and
+ * that tap is what makes the headline metric's provenance record name the
+ * operands the code actually read.
+ */
+export function scoredCoverage(coveredUsd, totalUsd) {
+  const covered = Number(coveredUsd);
+  const total = Number(totalUsd);
+  if (!(Number.isFinite(total) && total > 0)) {
+    return Object.freeze({
+      measurable: false,
+      coverageLine: "Coverage: this analysis published no spend total, so there is nothing to "
+        + "measure coverage against.",
+      qualifier: "This analysis published no spend total for the rubric to score, so no grade "
+        + "stands behind this figure.",
+    });
+  }
+  const scored = Number.isFinite(covered) && covered > 0;
+  return Object.freeze({
+    measurable: true,
+    coverageLine: `Coverage: ${formatUsd(covered)} of ${formatUsd(total)} of spend in scope sits `
+      + "in departments the rubric scored.",
+    // Both halves of the apparent contradiction in one sentence: what this
+    // figure is, and how much of the spend under it the rubric actually scored.
+    qualifier: scored
+      ? `Modelled, not graded: the rubric has scored ${formatUsd(covered)} of the `
+        + `${formatUsd(total)} in scope, and this figure is taken over all of it.`
+      : `Modelled, not graded: the rubric has scored none of the ${formatUsd(total)} in scope, `
+        + "so no letter grade stands behind this figure.",
+  });
+}
+
+/**
  * Coverage, grade, residue, and what it is all as of — in that order, naming
  * only inputs that entered the computation. Classifier agreement is deliberately
  * absent: it scores `classifyQuery` against a hand-labelled corpus and is not an
@@ -394,11 +440,7 @@ function nextAction(read) {
 function confidenceSentence(read, basis) {
   const covered = Number(read("coveredUsd"));
   const total = Number(read("totalUsd"));
-  const parts = [Number.isFinite(total) && total > 0
-    ? `Coverage: ${formatUsd(covered)} of ${formatUsd(total)} of spend in scope sits in `
-      + "departments the rubric scored."
-    : "Coverage: this analysis published no spend total, so there is nothing to measure "
-      + "coverage against."];
+  const parts = [scoredCoverage(covered, total).coverageLine];
   const tier = read("tier");
   const rule = tierRule(tier);
   if (rule) parts.push(`Grade: ${tier} coverage tier — ${rule}`);
