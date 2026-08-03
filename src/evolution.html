@@ -721,6 +721,38 @@
           </dl>
         </details>
         <p class="figure-source-legend" id="finops-first-run-source-legend">Where each figure came from: unmarked values — the department names, the reporting period, and the record counts — are read straight out of the example's export files. Every marked figure below says whether this page derived it or could not find it, and opens to show the working.</p>
+        <!-- CORRECTING ONE OF THOSE INFERRED VALUES, ON THE LINE IT IS READ (#1026).
+             A marker that says "we worked this out" and offers nothing to do
+             about a value the reader knows is wrong leaves them holding it. The
+             control is here, beside the marker, and never behind a disclosure.
+
+             THE HEADLINE, THE TABLE AND THE CONFIDENCE SENTENCE ARE ONE STATE.
+             src/finops-figure-corrections.js owns it: a commit writes the value
+             once and repaints all three, so the three can never disagree about
+             what a figure says or about how much of this brief the page
+             inferred. A corrected value counts as SUPPLIED, so the derived share
+             in the sentence below drops on a correction and returns on a revert.
+
+             The two sentences are authored with the module's own words, on the
+             same principle the markers above are, so the claim survives a page
+             whose script never ran and a drift becomes a visible change. The
+             ROWS are built by script and the table ships shut until they are:
+             they are a correction affordance rather than answer content, and the
+             values in them are already published above.
+
+             Nothing announced here needs a live region of its own. The polite
+             region at the foot of this section is the one this block speaks
+             through. -->
+        <div class="figure-corrections" id="finops-figure-corrections" role="group" aria-labelledby="finops-figure-corrections-lead" data-corrected="0" data-editing="">
+          <p class="eyebrow" id="finops-figure-corrections-lead">Correct a derived name or figure</p>
+          <p class="figure-corrections-headline" id="finops-figure-corrections-headline">The answer: 33% of analyzed AI spend is recoverable. 14 of the 16 names and figures below were derived on this page rather than read from the example's export files.</p>
+          <table class="figure-corrections-table" id="finops-figure-corrections-table" hidden>
+            <caption class="figure-corrections-caption">Every name and figure in this brief, with the control that corrects the ones this page inferred. A correction stays in this browser tab and is never uploaded.</caption>
+            <thead><tr><th scope="col">What the figure is called</th><th scope="col">What it says</th></tr></thead>
+            <tbody id="finops-figure-corrections-rows"></tbody>
+          </table>
+          <p class="figure-corrections-confidence" id="finops-figure-corrections-confidence" data-derived-share="88" data-derived="14" data-corrected="0">Confidence in this brief is bounded by how much of it was derived: 88% of it still is (14 of 16). Nothing below has been corrected by a reader yet.</p>
+        </div>
         <!-- The three example-only containers below carry an id for one reason:
              an imported export withholds each of them whole, so a synthetic
              peer band, routing scenario, or confidence score never stands
