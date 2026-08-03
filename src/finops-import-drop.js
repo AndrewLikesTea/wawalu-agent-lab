@@ -47,6 +47,11 @@
  *
  * Focus is NOT taken on a refusal. The page leaves it on the file control so the
  * reader can choose again, and nothing in here moves it.
+ *
+ * WHAT #1063 ADDED: a refusal now ends with the import module's own preflight
+ * instruction — one concrete remedy, naming the column to re-pull the export
+ * with. It runs in check-only mode: the same recognition pass the analysis path
+ * runs, and then a stop. No adapter, no briefing, no write.
  */
 import {
   CONVERSATION_TRANSCRIPT_CONTRACT, describeUnrecognizedTranscript, detectConversationTranscript,
@@ -107,7 +112,7 @@ function paintState(doc, node, { status, confidence = null, sentence }) {
  * @returns true when the verdict is a recognized provider, so a caller can tell
  *          the two outcomes apart without re-reading the verdict.
  */
-export function renderImportRecognition(doc, verdict, { reason = null } = {}) {
+export function renderImportRecognition(doc, verdict, { reason = null, nextAction = null } = {}) {
   const reasonNode = byId(doc, IMPORT_DROP_IDS.reason);
   const source = byId(doc, IMPORT_DROP_IDS.source);
   if (!reasonNode || !source) return false;
@@ -123,9 +128,12 @@ export function renderImportRecognition(doc, verdict, { reason = null } = {}) {
     // close" — so what the reader hears is what went wrong with THEIR file,
     // never a generic refusal. Focus stays where it was.
     reasonNode.dataset.state = "unrecognized";
+    // The check path's one instruction, last, where a reader looking for what to
+    // do next reads: the reason says what is wrong with THEIR file, the
+    // instruction says the concrete thing to go and do about it.
     paintState(doc, reasonNode, {
       status: IMPORT_STATUS.REJECTED,
-      sentence: reason ?? describeDetection(verdict),
+      sentence: [reason ?? describeDetection(verdict), nextAction].filter(Boolean).join(" "),
     });
     return false;
   }
@@ -225,9 +233,35 @@ export function renderImportReading(doc, active) {
  * ANY file in it is, and only a batch with no recognizable export at all paints
  * a refusal.
  */
+/**
+ * The import module's own preflight, in CHECK-ONLY mode.
+ *
+ * One parse — the same `parseExportText` shape the analysis path hands the
+ * recognition pass — then `preflight`, which runs that same recognition pass and
+ * stops. No adapter runs, no canonical document is built, nothing is written:
+ * this is the check, not a quieter import.
+ *
+ * Loaded through a dynamic `import()` for the reason evolution-page.js loads the
+ * adapters that way — they stay out of the page's initial payload — and a check
+ * that cannot load returns null rather than swallowing the refusal it annotates.
+ */
+async function checkOnlyAction(candidate) {
+  if (!candidate) return null;
+  try {
+    const [{ preflight }, { parseExportText }] = await Promise.all([
+      import("./hyperscaler-export-adapters.js"),
+      import("./browser-compat-eligibility.js"),
+    ]);
+    return preflight(parseExportText(candidate.text, candidate.name)).nextAction;
+  } catch {
+    return null;
+  }
+}
+
 async function recognizeBatch(doc, files) {
   let firstVerdict = null;
   let firstTranscript = null;
+  let firstCandidate = null;
   let lastText = "";
   try {
     for (const file of files) {
@@ -239,6 +273,7 @@ async function recognizeBatch(doc, files) {
         return false;
       }
       lastText = text;
+      firstCandidate ??= { text, name: file?.name ?? "" };
       const verdict = detectAndNormalizeExport(text);
       firstVerdict ??= verdict;
       if (verdict.provider) return renderImportRecognition(doc, verdict);
@@ -254,6 +289,9 @@ async function recognizeBatch(doc, files) {
     // shapes with the fields each requires.
     return renderImportRecognition(doc, firstVerdict, {
       reason: `${describeDetection(firstVerdict)} ${describeUnrecognizedTranscript(lastText)}`,
+      // The refusal is where an instruction is worth anything: the reader has no
+      // result to act on, so they get the one thing to go and do to get one.
+      nextAction: await checkOnlyAction(firstCandidate),
     });
   } finally {
     // Every exit, including the refusal returns above: a reading state left

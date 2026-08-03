@@ -14,9 +14,10 @@ import test from "node:test";
 
 import {
   ADAPTED_PROVIDER_IDS, HYPERSCALER_CODES, HYPERSCALER_RESULT,
-  HYPERSCALER_SOURCE_INSTANCE_ID, adaptHyperscalerExport, adaptParsedExport,
-  centsFromDecimal, countFromCell,
+  HYPERSCALER_SOURCE_INSTANCE_ID, PREFLIGHT_REASONS, adaptHyperscalerExport, adaptParsedExport,
+  centsFromDecimal, countFromCell, preflight,
 } from "../src/hyperscaler-export-adapters.js";
+import { parseExportText } from "../src/browser-compat-eligibility.js";
 import { BROWSER_COMPAT_FIXTURES } from "../src/browser-compat-fixtures.js";
 import { RECOGNITION_FIXTURES } from "../src/export-recognition-fixtures.js";
 import { RECOGNITION_OUTCOMES } from "../src/export-recognition.js";
@@ -547,4 +548,112 @@ test("Theo's recognition fixtures decide the adapter's branch, with no second de
     if (result.status === HYPERSCALER_RESULT.PROJECTED) projections += 1;
   }
   assert.ok(projections >= 3, "the recognized fixtures must actually project");
+});
+
+// --- the check path: preflight, which imports nothing ------------------------
+//
+// One recognition pass is shared with the adapter above; what these assert is
+// the VERDICT a reader is handed before importing — the provider, the counts,
+// the missing columns, and the single instruction each state maps to. Every
+// expectation below is the whole string, because a substring match would pass
+// on an instruction that named the wrong column.
+
+const check = (text, fileName) => preflight(parseExportText(text, fileName));
+
+const VERTEX_ROWS = [
+  vertexRecord("2026-07-20", "gemini-1.5-pro", 120000, "4.80"),
+  vertexRecord("2026-07-21", "gemini-1.5-pro", 45000, "0.90"),
+  vertexRecord("2026-07-22", "gemini-1.5-pro", 98000, "3.92"),
+];
+
+// The same rows with the money column taken out. Vertex is the shape that makes
+// this state reachable: its cost column is not one of its signature columns, so
+// the file is still recognized as Vertex AI and is still unusable.
+const withoutCost = (record) => {
+  const { cost, ...rest } = record;
+  return rest;
+};
+
+test("a recognized, complete export is told there is nothing to fix", () => {
+  const verdict = check(vertex(VERTEX_ROWS), "vertex-usage.jsonl");
+  assert.equal(verdict.provider, "vertex-ai");
+  assert.equal(verdict.displayName, "Google Vertex AI");
+  assert.equal(verdict.rowCount, 3);
+  assert.equal(verdict.periodCount, 3);
+  assert.deepEqual([...verdict.missingColumns], []);
+  assert.equal(verdict.reason, PREFLIGHT_REASONS.READY);
+  assert.equal(verdict.nextAction,
+    "Nothing to fix. Import this Google Vertex AI export to run the analysis.");
+});
+
+test("an export with no amount column is told which column to re-pull it with", () => {
+  const verdict = check(vertex(VERTEX_ROWS.map(withoutCost)), "vertex-usage.jsonl");
+  assert.equal(verdict.provider, "vertex-ai");
+  assert.equal(verdict.rowCount, 3);
+  assert.equal(verdict.periodCount, 3);
+  assert.deepEqual([...verdict.missingColumns], ["cost"]);
+  assert.equal(verdict.reason, PREFLIGHT_REASONS.MISSING_REQUIRED_COLUMN);
+  assert.equal(verdict.nextAction,
+    "Re-pull the Google Vertex AI export with the cost column included, then check it again.");
+});
+
+test("an unrecognized file is told which consoles this build reads", () => {
+  const verdict = check(csv(["posting_date", "gl_account", "amount"], [
+    ["2026-07-20", "6100-software", "482.10"],
+    ["2026-07-21", "6100-software", "133.75"],
+  ]), "ledger.csv");
+  assert.equal(verdict.provider, null);
+  assert.equal(verdict.displayName, null);
+  assert.equal(verdict.rowCount, 2);
+  assert.equal(verdict.periodCount, 0);
+  assert.deepEqual([...verdict.missingColumns], []);
+  assert.equal(verdict.reason, PREFLIGHT_REASONS.UNRECOGNIZED_PROVIDER);
+  assert.equal(verdict.nextAction,
+    "Re-pull a usage export from one of the consoles this build adapts — AWS Bedrock, "
+    + "Google Vertex AI, Azure OpenAI — as none of their signature columns are in this file.");
+});
+
+test("an empty file is told to re-pull a period that has usage in it", () => {
+  const verdict = check("   \n\n", "usage.csv");
+  assert.equal(verdict.provider, null);
+  assert.equal(verdict.rowCount, 0);
+  assert.equal(verdict.periodCount, 0);
+  assert.equal(verdict.reason, PREFLIGHT_REASONS.EMPTY_EXPORT);
+  assert.equal(verdict.nextAction, "Re-pull the export over a billing period that has usage "
+    + "in it: this file carries no usage rows to check.");
+});
+
+test("a check writes nothing: persisted state is byte-identical across it", () => {
+  const values = new Map([
+    ["shiplog.finops.brief", JSON.stringify({ recoverable: 4820 })],
+    ["shiplog.finops.workspace", "vertex-ai"],
+  ]);
+  const serialize = () => JSON.stringify([...values.entries()].sort());
+  const saved = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+  Object.defineProperty(globalThis, "localStorage", {
+    configurable: true,
+    writable: true,
+    value: {
+      getItem: (key) => (values.has(key) ? values.get(key) : null),
+      setItem: (key, value) => { values.set(key, String(value)); },
+      removeItem: (key) => { values.delete(key); },
+      clear: () => { values.clear(); },
+      get length() { return values.size; },
+    },
+  });
+  try {
+    const before = serialize();
+    const first = check(vertex(VERTEX_ROWS), "vertex-usage.jsonl");
+    const second = check(vertex(VERTEX_ROWS.map(withoutCost)), "vertex-usage.jsonl");
+    // Serialized state, not object identity: a verdict that wrote a key back
+    // with the same value would still be a write.
+    assert.equal(serialize(), before, "preflight wrote to persisted state");
+    // And a verdict is a fresh object each call rather than one shared record
+    // two calls take turns mutating.
+    assert.notEqual(first, second);
+    assert.deepEqual(check(vertex(VERTEX_ROWS), "vertex-usage.jsonl"), first);
+  } finally {
+    if (saved) Object.defineProperty(globalThis, "localStorage", saved);
+    else delete globalThis.localStorage;
+  }
 });

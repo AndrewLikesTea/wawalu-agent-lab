@@ -136,6 +136,34 @@ test("an unrecognized file names its reason and leaves the reading on screen", a
     assert.equal(textOf(document.getElementById("finops-stand-team-name")), department);
 });
 
+// A Vertex AI export with its money column left out: recognized as Vertex by
+// its signature columns, refused by the import path, and the one file where a
+// generic "no cost column" sentence is not enough to act on.
+const VERTEX_WITHOUT_COST = [
+  { usage_start_time: "2026-07-20", sku: { model_id: "gemini-1.5-pro" },
+    usage: { amount: 120000, unit: "input tokens" }, project: { id: "proj-01" } },
+  { usage_start_time: "2026-07-21", sku: { model_id: "gemini-1.5-pro" },
+    usage: { amount: 45000, unit: "input tokens" }, project: { id: "proj-01" } },
+].map((record) => JSON.stringify(record)).join("\n");
+
+test("a refused file carries the check path's one instruction, naming the column", async () => {
+  const page = await openFinopsTab();
+  const { document } = page;
+  browse(document, file("vertex-usage.jsonl", VERTEX_WITHOUT_COST));
+  await waitFor(() => reason(document).dataset.state === "unrecognized",
+    "the named reason for the export with no amount column");
+
+  // The refusal still says what is wrong, and now ends with the concrete thing
+  // to go and do — the preflight verdict, from the import module the analysis
+  // path uses, with no analysis run and no briefing built.
+  const said = textOf(reason(document));
+  assert.match(said, /No cost or amount column was found/);
+  assert.ok(said.endsWith("Re-pull the Google Vertex AI export with the cost column included, "
+    + "then check it again."), `the preflight instruction is not the last word: ${said}`);
+  // Check-only: the reading a visitor already had is untouched.
+  assert.equal(source(document).hidden, true);
+});
+
 test("a drag over the page is a state in words, and the drop is not a navigation", async () => {
   const page = await openFinopsTab();
   const { document } = page;
