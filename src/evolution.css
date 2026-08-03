@@ -1542,6 +1542,21 @@
 .figure-source-detail dd { margin:2px 0 0; color:var(--ink-muted); font-size:12.5px; line-height:1.55; overflow-wrap:anywhere; }
 /* The legend, and it is what makes an unmarked figure a claim rather than a gap. */
 .figure-source-legend { margin:0; max-width:70ch; color:var(--ink-muted); font-size:12.5px; line-height:1.55; overflow-wrap:anywhere; }
+/* CORRECTING AN INFERRED VALUE IN PLACE (#1026). The tally sentence shares the
+   legend's caption treatment because it answers the same question the legend
+   opens; the controls sit on the marker's own row at the marker's own scale, so
+   an editable figure never outweighs the figure. NO NEW TOKEN: the applied state
+   is `.brief-provenance` on the FILLED silhouette already defined above, which
+   is the one the page reserves for "this came from the reader rather than from
+   us" — the state a correction is. State is in `data-state` and in the chip's
+   own words, never in the tint. */
+.figure-source-tally { margin:0; max-width:70ch; color:var(--ink-muted); font-size:12.5px; line-height:1.55; overflow-wrap:anywhere; }
+.figure-correction { display:flex; align-items:center; flex-wrap:wrap; gap:6px; margin:4px 0 0; }
+.figure-correction button { border:1px solid var(--ink-muted); border-radius:5px; background:transparent; padding:2px 8px; color:var(--ink-muted); font:700 11px/1.5 ui-monospace,Menlo,monospace; cursor:pointer; }
+.figure-correction button:hover { background:var(--import-wash); }
+.figure-correction button:focus-visible { outline:3px solid var(--focus-ring); outline-offset:2px; }
+.figure-correction-field { min-width:0; max-width:32ch; flex:1 1 18ch; border:1px solid var(--ink-muted); border-radius:5px; padding:2px 6px; font:400 12.5px/1.5 inherit; }
+.figure-correction-field:focus-visible { outline:3px solid var(--focus-ring); outline-offset:2px; }
 /* THE BAND CHIP. Four channels, and the tint is the last of them: the glyph
    differs per state, the word names the band, the figure below repeats it, and
    only then does the fill say it again. Take the colour away — greyscale print,

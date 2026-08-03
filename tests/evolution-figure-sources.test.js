@@ -12,7 +12,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-import { loadPage, parseHtml, textOf } from "./support/browser.js";
+import { loadPage, parseHtml, pressKey, textOf } from "./support/browser.js";
 import { FIGURE_SOURCE, PROVENANCE_MARKERS } from "../src/finops-brief-provenance.js";
 import {
   applyExampleFigureSources, bindExampleFigureSources, EXAMPLE_FIGURE_SOURCES,
@@ -20,6 +20,11 @@ import {
   exampleFigureSource, exampleFiguresInState, FIGURE_SOURCE_DISCLOSURE,
   FIGURE_SOURCE_LEGEND, FIGURE_SOURCE_TERMS, figureSourceText,
 } from "../src/finops-example-figure-sources.js";
+import {
+  bindFigureCorrections, CORRECTABLE_FIGURES, CORRECTED_MARKER, correctionControlId,
+  correctionFieldId, correctionTallyText, correctionTriggerId, CORRECTION_LIVE_ID,
+  CORRECTION_TALLY_ID, figureCorrectionStore,
+} from "../src/finops-figure-corrections.js";
 import { applyFirstRunResult, applyFirstRunSupersession } from "../src/finops-first-run-view.js";
 import { buildFirstRunResult } from "../src/finops-first-run.js";
 import { scoreBriefCompleteness } from "../src/finops-brief-completeness.js";
@@ -367,5 +372,236 @@ test("the marker is focusable with the page's own ring and composes only shipped
   for (const size of [rule(".figure-source-state"), rule(".figure-source-detail dd")]) {
     const found = /font(?:-size)?:[^;]*?(\d+(?:\.\d+)?)px/.exec(size);
     assert.ok(found && Number(found[1]) <= 12.5, `a marker is set at ${found?.[1]}px`);
+  }
+});
+
+// --- correcting an inferred value in place (#1026) ---------------------------
+//
+// Every assertion below is on a count, an attribute, or a text value. Nothing
+// asserts `assert.equal(node, null)` against a harness element — that inspects
+// the whole parsed page and outlives the test timeout — and no query uses a
+// descendant selector, which this harness rejects outright.
+
+/** A page with the correction controls planted, as the region ships them. */
+function correctable() {
+  const document = parseHtml(html);
+  bindFigureCorrections(document);
+  return document;
+}
+
+const value = (document, id) => textOf(document.getElementById(id));
+const trigger = (document, id) => document.getElementById(correctionTriggerId(id));
+
+/** Open one control's editor, type a value, and leave by the named route. */
+function correct(document, id, next, { key = null } = {}) {
+  trigger(document, id).click();
+  const field = document.getElementById(correctionFieldId(id));
+  field.value = next;
+  if (key) { field.focus(); pressKey(document, key); return field; }
+  document.getElementById(`${correctionControlId(id)}-save`).click();
+  return field;
+}
+
+test("the store holds one record per inferred value, derived and un-overridden", () => {
+  const document = correctable();
+  const store = figureCorrectionStore(document);
+  assert.equal(store.length, CORRECTABLE_FIGURES.length);
+  assert.equal(store.filter((record) => record.override === null).length, store.length);
+  // Every record is corrected at a marker the region actually publishes, so no
+  // control can be planted beside a figure that carries no provenance claim.
+  const markers = new Set(EXAMPLE_FIGURE_SOURCES.map((entry) => entry.host));
+  for (const record of store) {
+    assert.ok(markers.has(record.marker), `${record.id} hangs off no shipped marker`);
+    assert.equal(document.getElementById(correctionControlId(record.id))?.dataset?.state, "derived");
+  }
+});
+
+test("a correction reaches the headline sentence and the slot that tabulates it", () => {
+  const document = correctable();
+  assert.equal(value(document, "finops-first-run-answer"),
+    "33% of analyzed AI spend is recoverable");
+  assert.equal(value(document, "finops-first-run-benchmark-value"),
+    "33% of analyzed AI spend");
+
+  correct(document, "share", "18%");
+
+  // ONE correction, BOTH places. The second site is what a hand-patched commit
+  // handler forgets, so it is asserted before anything else about the control.
+  assert.equal(value(document, "finops-first-run-answer"),
+    "18% of analyzed AI spend is recoverable");
+  assert.equal(value(document, "finops-first-run-benchmark-value"),
+    "18% of analyzed AI spend");
+});
+
+test("a corrected unit name reaches both sentences that name the unit", () => {
+  const document = correctable();
+  correct(document, "unit", "Northwind Q3");
+  assert.equal(value(document, "finops-first-run-internal-value"),
+    "Northwind Q3 is a full band behind Boreal Support on cost per successful task.");
+  assert.match(value(document, "finops-first-run-action"),
+    /^Pilot lower-cost routing in Northwind Q3, the top-spend/);
+});
+
+test("reverting restores the derived value in both places, in one action", () => {
+  const document = correctable();
+  correct(document, "unit", "Northwind Q3");
+  document.getElementById(`${correctionControlId("unit")}-revert`).click();
+
+  assert.equal(value(document, "finops-first-run-internal-value"),
+    "Atlas Platform is a full band behind Boreal Support on cost per successful task.");
+  assert.match(value(document, "finops-first-run-action"),
+    /^Pilot lower-cost routing in Atlas Platform, the top-spend/);
+  // Back to the inferred marker, and the revert control is gone with the state
+  // it existed to undo — asserted on the count, never against a null node.
+  const host = document.getElementById(correctionControlId("unit"));
+  assert.equal(host.dataset.state, "derived");
+  assert.equal(host.querySelectorAll(".figure-correction-revert").length, 0);
+  assert.equal(host.querySelectorAll(".brief-provenance").length, 0);
+  assert.equal(document.getElementById("finops-first-run-internal-source").dataset.source, "derived");
+});
+
+test("an applied correction is attributed in words, on the shipped chip", () => {
+  const document = correctable();
+  correct(document, "role", "Head of Platform");
+  const host = document.getElementById(correctionControlId("role"));
+  assert.equal(host.dataset.state, "corrected");
+
+  const chip = host.querySelector(".brief-provenance");
+  assert.equal(chip.dataset.provenance, CORRECTED_MARKER.source);
+  // The words are the whole meaning; the silhouette is a second channel and is
+  // one the page already ships rather than a new one.
+  assert.match(textOf(chip), /Corrected by you/);
+  assert.equal(chip.dataset.silhouette, PROVENANCE_MARKERS[FIGURE_SOURCE.file].silhouette);
+  assert.equal(chip.dataset.tone, PROVENANCE_MARKERS[FIGURE_SOURCE.file].tone);
+
+  // The trigger names WHICH value it edits and what that value says now, so a
+  // screen-reader user meeting the sixth of these is not offered a bare "Edit".
+  assert.match(textOf(trigger(document, "role")),
+    /Correct inferred accountable role: Head of Platform/);
+  assert.equal(value(document, "finops-first-run-role"), "Accountable role: Head of Platform");
+});
+
+test("the confidence sentence moves the value out of the derived tally, and back", () => {
+  const document = correctable();
+  const before = value(document, CORRECTION_TALLY_ID);
+  assert.match(before, /all 7 correctable figures are still as this page derived them/);
+
+  correct(document, "share", "18%");
+  const after = value(document, CORRECTION_TALLY_ID);
+  assert.notEqual(after, before);
+  assert.match(after, /6 of the 7 correctable figures are still as this page derived them/);
+  assert.match(after, /1 is reader-supplied — recoverable share\./);
+
+  correct(document, "unit", "Northwind Q3");
+  assert.match(value(document, CORRECTION_TALLY_ID), /2 are reader-supplied/);
+
+  document.getElementById(`${correctionControlId("share")}-revert`).click();
+  document.getElementById(`${correctionControlId("unit")}-revert`).click();
+  assert.equal(value(document, CORRECTION_TALLY_ID), before);
+  // And the sentence the store composes is the sentence the document ships, so
+  // the pre-script wording cannot drift from the recomputed one.
+  assert.equal(before, correctionTallyText(document));
+});
+
+test("a correction containing angle brackets renders as literal text", () => {
+  const document = correctable();
+  const attack = "<img src=x onerror=alert(1)>Northwind";
+  correct(document, "unit", attack);
+
+  // The exact string, character for character, in both sentences that name it.
+  assert.equal(value(document, "finops-first-run-internal-value"),
+    `${attack} is a full band behind Boreal Support on cost per successful task.`);
+  assert.match(value(document, "finops-first-run-action"),
+    /^Pilot lower-cost routing in <img src=x onerror=alert\(1\)>Northwind, /);
+
+  // And nothing was parsed into an element. Counted inside the brief, and
+  // counted again over the whole document, because a fragment that escaped the
+  // region is the same defect one node further out.
+  const region = document.getElementById("finops-first-run");
+  assert.equal(walk(region).filter((node) => node.tagName === "IMG").length, 0);
+  assert.equal(document.querySelectorAll("img").length, 0);
+  // The value echoed back into the control's own name is text too.
+  assert.match(textOf(trigger(document, "unit")), /Correct inferred unit name: <img src=x/);
+});
+
+test("Enter commits and Escape cancels, and both put focus back on the trigger", () => {
+  const document = correctable();
+
+  // Open from the trigger with the keyboard, commit with Enter.
+  trigger(document, "peerRate").focus();
+  pressKey(document, "Enter");
+  assert.equal(document.activeElement.id, correctionFieldId("peerRate"));
+  document.activeElement.value = "$41.10";
+  pressKey(document, "Enter");
+  assert.equal(value(document, "finops-first-run-peer-value"),
+    "Bottom quartile · $41.10 per successful task");
+  assert.equal(document.activeElement.id, correctionTriggerId("peerRate"));
+
+  // Open again, abandon with Escape: the committed value is untouched and focus
+  // is back where it started. Nothing commits on blur, so a reader who tabs away
+  // mid-thought never lands a half-typed figure in the brief.
+  pressKey(document, "Enter");
+  document.activeElement.value = "$999.00";
+  pressKey(document, "Escape");
+  assert.equal(value(document, "finops-first-run-peer-value"),
+    "Bottom quartile · $41.10 per successful task");
+  assert.equal(document.activeElement.id, correctionTriggerId("peerRate"));
+  // The editor is closed, asserted on the count rather than against a node.
+  assert.equal(document.getElementById(correctionControlId("peerRate"))
+    .querySelectorAll(".figure-correction-field").length, 0);
+});
+
+test("the announcement is polite, named, and never inside a collapsed container", () => {
+  const authored = parseHtml(html);
+  const live = authored.getElementById(CORRECTION_LIVE_ID);
+  assert.ok(live, "the live region is not in the document at load");
+  assert.equal(live.getAttribute("aria-live"), "polite");
+  assert.equal(live.hidden, false);
+  // A polite region inside a shut `details` is read by this harness and by no
+  // real screen reader, so the ancestry is walked rather than trusted.
+  for (let held = live.parentNode; held; held = held.parentNode) {
+    assert.notEqual(held.tagName, "DETAILS", "the live region is inside a disclosure");
+  }
+
+  const document = correctable();
+  correct(document, "unit", "Northwind Q3");
+  const message = value(document, CORRECTION_LIVE_ID);
+  assert.match(message, /unit name was corrected to Northwind Q3\./);
+  assert.match(message, /1 of 7 figures now reader-supplied\./);
+
+  document.getElementById(`${correctionControlId("unit")}-revert`).click();
+  assert.match(value(document, CORRECTION_LIVE_ID),
+    /unit name was restored to the derived value Atlas Platform\. No figures are reader-supplied\./);
+});
+
+test("the controls and the tally are withheld when the reader's own export supersedes them", () => {
+  const document = correctable();
+  correct(document, "unit", "Northwind Q3");
+  applyFirstRunSupersession(document, true, {
+    ownData: {
+      available: true, grouping: { id: "department" }, headline: "Your own headline",
+      detail: "Your own detail", rows: [],
+    },
+  });
+  for (const record of figureCorrectionStore(document)) {
+    assert.equal(document.getElementById(correctionControlId(record.id)).hidden, true,
+      `${record.id}'s control is still offered over the reader's own figures`);
+  }
+  assert.equal(document.getElementById(CORRECTION_TALLY_ID).hidden, true);
+
+  // Clearing the import brings them back with the correction intact.
+  applyFirstRunSupersession(document, false, {});
+  assert.equal(document.getElementById(correctionControlId("unit")).hidden, false);
+  assert.equal(document.getElementById(CORRECTION_TALLY_ID).hidden, false);
+  assert.equal(value(document, "finops-first-run-internal-value"),
+    "Northwind Q3 is a full band behind Boreal Support on cost per successful task.");
+});
+
+test("the correction path assigns text and never markup", async () => {
+  const source = await readFile(
+    new URL("../src/finops-figure-corrections.js", import.meta.url), "utf8");
+  for (const forbidden of ["innerHTML", "outerHTML", "insertAdjacentHTML", "document.write"]) {
+    assert.ok(!source.includes(forbidden),
+      `the correction path reaches the document through ${forbidden}`);
   }
 });

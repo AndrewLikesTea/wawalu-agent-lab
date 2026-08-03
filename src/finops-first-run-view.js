@@ -31,6 +31,13 @@ import { revealWithheld } from "./finops-stand-view.js";
 import {
   applyExampleFigureSources, bindExampleFigureSources, EXAMPLE_ONLY_SOURCE_IDS,
 } from "./finops-example-figure-sources.js";
+// Correcting one of those derived values in place, on the line it is read. The
+// store is the single source of truth for the corrected value; every sentence in
+// this region that prints one is repainted from it, so a name that appears in
+// two places cannot change in one and stay stale in the other.
+import {
+  bindFigureCorrections, renderFigureCorrections,
+} from "./finops-figure-corrections.js";
 
 const byId = (doc, id) => (doc?.getElementById ? doc.getElementById(id) : null);
 
@@ -274,6 +281,8 @@ export function bindFirstRunDisclosure(doc) {
   // native disclosure, so this only mirrors `open` onto the state the
   // stylesheet and assistive technology read. No key is intercepted.
   bindExampleFigureSources(doc);
+  // And each marker's correction control, planted immediately after it.
+  bindFigureCorrections(doc);
   const details = byId(doc, FIRST_RUN_IDS.method);
   if (!details) return null;
   const count = () => byId(doc, FIRST_RUN_IDS.methodList)?.querySelectorAll?.("dt")?.length ?? null;
@@ -376,6 +385,10 @@ export function applyFirstRunResult(doc, result, { announce = false } = {}) {
   // collapsed either way — the working is one keystroke down from the figure,
   // never in front of it.
   applyExampleFigureSources(doc);
+  // Then the reader's own corrections, last, over the values the analysis just
+  // painted: a correction the repaint quietly discarded is one they will not
+  // notice until it is in a meeting.
+  renderFigureCorrections(doc);
 
   const entries = result.method ?? [];
   paintEvidence(doc, entries, DISCLOSURE_SPEC.heading);
@@ -570,7 +583,13 @@ export function applyFirstRunSupersession(doc, superseded,
   const retired = Boolean(superseded);
   if (retired && ownData) {
     region.hidden = false;
-    return applyOwnDataDrilldown(doc, region, ownData, onOrgUnitLabel);
+    const refilled = applyOwnDataDrilldown(doc, region, ownData, onOrgUnitLabel);
+    // The correction controls and the tally go off screen with every other
+    // synthetic figure: a correction to a DERIVED example value has no meaning
+    // standing over the reader's own numbers. Hidden rather than removed, so
+    // clearing the import brings them back with the corrections intact.
+    renderFigureCorrections(doc);
+    return refilled;
   }
   restoreExampleCopy(doc);
   delete region.dataset.source;
@@ -584,6 +603,8 @@ export function applyFirstRunSupersession(doc, superseded,
   const heldFocus = retired && !region.hidden && Boolean(focused && region.contains?.(focused));
   region.dataset.superseded = retired ? "true" : "false";
   region.hidden = retired;
+  // Back on the example: the corrections come back with it, still applied.
+  renderFigureCorrections(doc);
   if (heldFocus) {
     const fallback = (focusFallbackId ? byId(doc, focusFallbackId) : null)
       ?? doc.querySelector?.("main");
