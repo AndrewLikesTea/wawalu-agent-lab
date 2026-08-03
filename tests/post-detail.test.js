@@ -11,7 +11,9 @@ installDocument();
 const {
   DEFAULT_POST_RETURN,
   POST_LOADING_LINE,
+  POST_STATES,
   findPostById,
+  resolvePostState,
   postDetailTitle,
   postImageAlt,
   postPageHeading,
@@ -70,9 +72,9 @@ test("the post reads in one order: who, when, the image, then its caption", () =
   renderPostDetail(container, post);
   const article = first(container, "detail-post");
 
-  // The poster's name is the page's h1, written into the hero above this panel
-  // (src/post-page.js), so the article opens with the timestamp. What must hold
-  // here is the rest of the sequence, and that the caption belongs to the image.
+  // The poster's name heads the page as its h1 (src/post-page.js writes it into
+  // the hero above this panel) and opens the article as a link to that person's
+  // People view — the page's one forward step out of a shared link.
   assert.equal(postPageHeading(post), "Post by Mina Okafor");
 
   const time = tags(article, "TIME")[0];
@@ -80,7 +82,7 @@ test("the post reads in one order: who, when, the image, then its caption", () =
   assert.equal(time.dateTime, "2026-07-14T09:00:00.000Z", "and a machine-readable datetime");
 
   const sequence = article.children.map((child) => child.tagName);
-  assert.deepEqual(sequence.slice(0, 2), ["TIME", "FIGURE"], "the timestamp precedes the image");
+  assert.deepEqual(sequence.slice(0, 3), ["P", "TIME", "FIGURE"], "the byline, then the timestamp, then the image");
 
   const figure = tags(article, "FIGURE")[0];
   assert.deepEqual(
@@ -90,9 +92,14 @@ test("the post reads in one order: who, when, the image, then its caption", () =
   );
   assert.ok(tags(figure, "IMG").length === 1, "the image sits inside the figure");
 
-  // The author is named once, by the page heading. A second link to the same
-  // profile would sit between the exit and the image in the tab order.
-  assert.equal(byClass(article, "post-author").length, 0);
+  // The byline is the name itself, linked — never "profile" or "view profile",
+  // which would leave a screen reader's link list unable to say whose.
+  const byline = first(article, "detail-byline");
+  assert.equal(article.children[0], byline, "the byline opens the article");
+  const link = first(byline, "detail-author-link");
+  assert.equal(link.tagName, "A");
+  assert.equal(link.textContent, "Mina Okafor");
+  assert.equal(link.href, "/profile.html?author=Mina%20Okafor");
 });
 
 /* --------------------- the image's accessible name ------------------------ */
@@ -206,9 +213,9 @@ test("a dead image keeps its description rather than dropping it", () => {
 test("a missing post is named in plain language, with no id or code echoed back", () => {
   const missing = createElement("div");
   renderPostDetail(missing, null, { id: "p-gone", author: "Mina" });
-  assert.equal(first(missing, "detail-state-label").textContent, "Unavailable");
-  assert.equal(first(missing, "empty-title").textContent, "Post unavailable");
-  assert.match(missing.textContent, /This post is unavailable or no longer exists\./);
+  assert.equal(first(missing, "detail-state-label").textContent, "Not found");
+  assert.equal(first(missing, "empty-title").textContent, "Post not found");
+  assert.match(missing.textContent, /This post was not found\./);
   assert.match(missing.textContent, /Social is a shared demo feed, not a signed-in account\./);
   assert.equal(missing.firstChild.getAttribute("role"), "status");
   assert.ok(ids(missing).includes(missing.firstChild.getAttribute("aria-labelledby")));
@@ -223,9 +230,10 @@ test("a failed load says what happened once, offers a retry, and leaks no error 
   const failed = createElement("div");
   let retried = 0;
   renderPostDetail(failed, null, { state: "error", id: "p-gone", author: "Mina", onRetry: () => { retried += 1; } });
-  assert.equal(first(failed, "detail-state-label").textContent, "Unavailable");
-  assert.equal(first(failed, "empty-title").textContent, "Post unavailable");
-  assert.match(failed.textContent, /This post is unavailable right now\./);
+  assert.equal(first(failed, "detail-state-label").textContent, "Unreachable");
+  assert.equal(first(failed, "empty-title").textContent, "Post could not be loaded");
+  // It names the thing that broke, not a verdict about the post.
+  assert.match(failed.textContent, /The Social feed could not be reached/);
   assert.match(failed.textContent, /Social is a shared demo feed, not a signed-in account\./);
   assert.equal(failed.firstChild.getAttribute("role"), "alert");
   assert.doesNotMatch(failed.textContent, /p-gone|\b[45]\d\d\b|Error:|fetch|TypeError/);
@@ -297,9 +305,13 @@ test("the permalink heading matches the phrase in the document title", () => {
 
 test("the document title names the post, the feed, and the product", () => {
   assert.equal(postDetailTitle(post), "Post by Mina Okafor · Social · Shiplog");
-  // Every unresolved requested post is unavailable in both the tab and panel.
-  assert.equal(postDetailTitle(null), "Post unavailable · Shiplog");
-  assert.equal(postDetailTitle(null, "error"), "Post unavailable · Shiplog");
+  // The tab distinguishes the two unresolved answers the panel distinguishes,
+  // so a strip of shared links does not read as one undifferentiated failure.
+  assert.equal(postDetailTitle(null), "Post not found · Shiplog");
+  assert.equal(postDetailTitle(null, "not-found"), "Post not found · Shiplog");
+  assert.equal(postDetailTitle(null, "error"), "Post could not be loaded · Shiplog");
+  // A state name never overrides a post that actually loaded.
+  assert.equal(postDetailTitle(post, "error"), "Post by Mina Okafor · Social · Shiplog");
 });
 
 test("the post page's exit sits after the site frame, and names where it goes", async () => {
@@ -426,13 +438,16 @@ test("the standing sentence outlives every state the panel renders", () => {
 // fetched, parsed and run. The region used to ship empty, so the first thing a
 // visitor saw was a heading, a sentence, and a hole. The wait now ships with
 // the page, in the words the script would have written anyway.
-test("the shipped markup opens in the initial state, saying so in words", async () => {
+test("the shipped markup opens in the loading state, saying so in words", async () => {
   const html = await postPageHtml();
   const region = html.match(/<div id="post-detail"[\s\S]*?<\/div>/)[0];
 
-  assert.match(region, /data-post-state="initial"/, "the region names the state it opens in");
+  assert.match(region, /data-post-state="loading"/, "the region names the state it opens in");
   assert.match(region, /aria-busy="true"/, "and reports that it is still working");
-  assert.equal((region.match(/class="detail-loading"/g) ?? []).length, 1, "one wait line, not a stack");
+  assert.equal((region.match(/class="detail-loading /g) ?? []).length, 1, "one wait line, not a stack");
+  // The shipped wait is a state panel like the three the script can draw, so a
+  // count of panels is one before any script has run, not zero.
+  assert.equal((region.match(/data-post-state-panel="loading"/g) ?? []).length, 1);
   assert.ok(region.includes(`>${POST_LOADING_LINE}</span>`), "the shipped line is the rendered line");
   assert.match(region, /role="status"/, "so assistive tech announces it without stealing focus");
   assert.match(region, /class="detail-loading-dot" aria-hidden="true"/, "the spinner is decoration");
@@ -445,32 +460,61 @@ test("the shipped markup opens in the initial state, saying so in words", async 
   // And it carries nothing to tab to, so the standing exit stays the first stop
   // a keyboard reader reaches after the site frame.
   assert.doesNotMatch(region, /<a |<button|tabindex/);
-  // Nothing about the unavailable states ships in the markup: they are what the
+  // Nothing about the resolved states ships in the markup: they are what the
   // script writes *instead of* this, never alongside it.
-  assert.doesNotMatch(region, /Post unavailable|Choose a post|Return to the Social feed/);
+  assert.doesNotMatch(region, /Post not found|Post could not be loaded|Choose a post|Return to the Social feed/);
 });
 
 // One value, not two toggled nodes. Two nodes is how a wait survives underneath
 // an unavailable-post panel; a single attribute cannot hold both states.
+// The lookup says what it did; the post decides the rest. There is no way to
+// ask for "error" and be handed a post, or to claim a load with nothing loaded.
+test("four states, and the post itself resolves which of them a render is", () => {
+  assert.deepEqual(POST_STATES, ["loading", "loaded", "not-found", "error"]);
+
+  assert.equal(resolvePostState(null, "loading"), "loading");
+  assert.equal(resolvePostState(post, "loading"), "loading", "a post in hand does not end a wait early");
+  assert.equal(resolvePostState(post, "ready"), "loaded");
+  assert.equal(resolvePostState(post, "error"), "loaded", "a post that arrived is not a failure");
+  // A lookup that finished empty-handed is not-found; only one that could not
+  // finish is error. That is the whole difference between the two panels.
+  assert.equal(resolvePostState(null, "ready"), "not-found");
+  assert.equal(resolvePostState(null, "not-found"), "not-found");
+  assert.equal(resolvePostState(null, "error"), "error");
+  assert.equal(resolvePostState(null), "not-found", "the default is a lookup that finished");
+
+  for (const state of POST_STATES) {
+    assert.ok(POST_STATES.includes(resolvePostState(state === "loaded" ? post : null, state)));
+  }
+});
+
 test("the post region holds exactly one state, and names it on one attribute", () => {
   const expected = {
-    loading: "initial",
-    loaded: "resolved",
-    missing: "unavailable",
-    error: "unavailable",
-    "id-less": "unavailable",
+    loading: "loading",
+    loaded: "loaded",
+    missing: "not-found",
+    error: "error",
+    // Not a fifth state: no id asked for is a post that cannot be found, worded
+    // for the one case where the reader never named one.
+    "id-less": "not-found",
   };
 
   for (const [name, value, options] of PANEL_STATES) {
     const container = createElement("div");
     // Start from what src/post.html ships, so each render has to move the state
-    // off "initial" rather than inherit it.
-    container.setAttribute("data-post-state", "initial");
+    // off "loading" rather than inherit it.
+    container.setAttribute("data-post-state", "loading");
     container.append(createElement("p"));
 
     renderPostDetail(container, value, options);
 
     assert.equal(container.dataset.postState, expected[name], `the ${name} state is named on the region`);
+    // One panel in the DOM, and it is the active one. Counted rather than
+    // asserted absent: an inactive state must have no node at all, not a node
+    // pushed off screen, because a hidden heading is still a heading.
+    const panels = byClass(container, "detail-state-panel");
+    assert.equal(panels.length, 1, `the ${name} state renders ${panels.length} panels, not one`);
+    assert.equal(panels[0].getAttribute("data-post-state-panel"), expected[name]);
     const waiting = byClass(container, "detail-loading").length;
     const explained = byClass(container, "detail-state-message").length;
     const shown = byClass(container, "detail-post").length;
@@ -533,7 +577,7 @@ test("loading and unavailable states say what happened in words", () => {
     first(missing, "empty-title").textContent,
     first(failed, "empty-title").textContent,
   ];
-  assert.deepEqual(titles, ["Loading this post…", "Post unavailable", "Post unavailable"]);
+  assert.deepEqual(titles, ["Loading this post…", "Post not found", "Post could not be loaded"]);
 
   // The difference has to survive with colour, icons and badges removed, so it
   // is asserted on the words themselves — no class name is read here.
@@ -541,8 +585,8 @@ test("loading and unavailable states say what happened in words", () => {
   const missingWords = words(missing);
   const failedWords = words(failed);
   const only = (a, b) => [...a].filter((word) => !b.has(word));
-  assert.ok(only(missingWords, failedWords).includes("exists"), "the missing state may say the post no longer exists");
-  assert.ok(only(failedWords, missingWords).includes("now"), "the failed state must describe temporary unavailability");
+  assert.ok(only(missingWords, failedWords).includes("removed"), "the missing state may say the post was removed");
+  assert.ok(only(failedWords, missingWords).includes("reached"), "the failed state must name the feed it could not reach");
 
   // Neither state makes the temporary failure sound like confirmed deletion.
   assert.doesNotMatch(missing.textContent, /couldn’t|failed|try again/i);
@@ -557,8 +601,8 @@ test("each state's chip carries a word, and a wash that only agrees with it", as
   };
 
   const chips = [
-    ["not-found", chipOf(null, { state: "ready", id: "p-gone" }), "missing", "Unavailable"],
-    ["error", chipOf(null, { state: "error", id: "p-gone" }), "error", "Unavailable"],
+    ["not-found", chipOf(null, { state: "ready", id: "p-gone" }), "missing", "Not found"],
+    ["error", chipOf(null, { state: "error", id: "p-gone" }), "error", "Unreachable"],
     ["id-less", chipOf(null, { state: "ready", id: "" }), "neutral", "Post status"],
   ];
 
@@ -568,7 +612,9 @@ test("each state's chip carries a word, and a wash that only agrees with it", as
     assert.equal(chip.textContent, text, `the ${name} chip must name its state in words`);
     assert.ok(chip.classes.includes(`detail-state-chip-${tone}`), `the ${name} chip carries its tone class`);
   }
-  assert.equal(new Set(chips.map(([, chip]) => chip.textContent)).size, 2);
+  // Three chips, three words: a post that is gone and a feed that could not be
+  // reached are different answers and must not share a label.
+  assert.equal(new Set(chips.map(([, chip]) => chip.textContent)).size, 3);
 
   // A resolved lookup is a dynamic signal, so every one of these is a filled
   // wash. The outline chip is this site's mark for a standing classification,

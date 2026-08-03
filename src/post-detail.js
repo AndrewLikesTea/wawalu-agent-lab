@@ -5,9 +5,16 @@
 // core (resolution) plus a rendering layer, and the same rule about text —
 // textContent only, never an HTML string.
 //
-// Four states: loading, found, no requested post, and a lookup failure. Both
-// unresolved requested-post states use the same plain "unavailable" language;
-// the failed lookup also offers a retry without claiming the post was deleted.
+// Four states, and exactly four: loading, loaded, not-found, error. They are
+// mutually exclusive by construction rather than by CSS — renderPostDetail()
+// empties the region and fills it with one branch, so an inactive state has no
+// node in the document at all. Hiding one instead would leave its heading in
+// the heading count and reachable by a screen reader, which is the bug this
+// shape exists to make impossible.
+//
+// not-found and error are different answers and say different things: the feed
+// answered and had no such post, versus the feed could not be reached. Only the
+// second offers a retry, because only the second can come out differently.
 
 // Relative, not root-absolute: this module is imported by `node --test` as well
 // as by the browser, and only a relative specifier resolves in both.
@@ -69,8 +76,13 @@ function formatDateTime(iso) {
 // filled washes rather than outlines — the outline is this site's mark for a
 // standing classification (see the note above .sample-badge in evolution.css).
 // The word in the chip is the signal; the wash only agrees with it.
+//
+// `empty` is not a fifth state. It is the not-found state's wording for the one
+// case where no id was asked for at all, and it renders under the same
+// data-post-state-panel="not-found" as any other post that could not be found.
 const POST_STATE_COPY = {
   empty: {
+    state: "not-found",
     className: "detail-state-not-found",
     tone: "neutral",
     label: "Post status",
@@ -78,28 +90,34 @@ const POST_STATE_COPY = {
     description: "No post was specified. Open one from Social.",
   },
   "not-found": {
+    state: "not-found",
     className: "detail-state-not-found",
     tone: "missing",
-    label: "Unavailable",
-    title: "Post unavailable",
-    description: "This post is unavailable or no longer exists. Social is a shared demo feed, not a signed-in account.",
+    label: "Not found",
+    title: "Post not found",
+    description: "This post was not found. It may have been removed, or the link may point at a post that never existed. Social is a shared demo feed, not a signed-in account.",
   },
+  // The error state names the thing that broke — the feed — rather than
+  // describing the post as "unavailable", which reads as a verdict about the
+  // post and tells a reader nothing about whether waiting would help.
   error: {
+    state: "error",
     className: "empty-state-error detail-state-unavailable",
     tone: "error",
-    label: "Unavailable",
-    title: "Post unavailable",
-    description: "This post is unavailable right now. Social is a shared demo feed, not a signed-in account.",
+    label: "Unreachable",
+    title: "Post could not be loaded",
+    description: "The Social feed could not be reached, so this post could not be loaded. Social is a shared demo feed, not a signed-in account.",
   },
 };
 
-function labelledState(state, actions = []) {
-  const copy = POST_STATE_COPY[state] ?? POST_STATE_COPY.error;
-  const node = el("div", `empty-state detail-state-message ${copy.className}`);
+function labelledState(key, actions = []) {
+  const copy = POST_STATE_COPY[key] ?? POST_STATE_COPY.error;
+  const node = el("div", `empty-state detail-state-panel detail-state-message ${copy.className}`);
   const heading = el("h2", "empty-title", copy.title);
-  heading.id = `post-state-${state}-title`;
-  node.setAttribute("role", state === "error" ? "alert" : "status");
+  heading.id = `post-state-${key}-title`;
+  node.setAttribute("role", copy.state === "error" ? "alert" : "status");
   node.setAttribute("aria-labelledby", heading.id);
+  node.setAttribute("data-post-state-panel", copy.state);
   node.append(
     el("p", `detail-state-label detail-state-chip detail-state-chip-${copy.tone}`, copy.label),
     heading,
@@ -185,6 +203,10 @@ function renderMissing(container, id) {
   container.append(labelledState(id ? "not-found" : "empty", [id ? feedAction() : null]));
 }
 
+// The retry is a real <button>, so it is in the natural tab order and picks up
+// the site's own `button:focus-visible` ring with no extra rule. It is appended
+// after the heading and the sentence that explain it — source order, not just
+// visual order — so a screen reader reaches the explanation before the action.
 function renderFailed(container, onRetry) {
   const retry = el("button", "empty-action detail-retry", "Retry");
   retry.type = "button";
@@ -211,52 +233,78 @@ export const POST_LOADING_LINE = "Loading this post…";
 // something is coming, here, and it is this post. The dot is decorative and
 // stops moving under prefers-reduced-motion; the sentence carries the state.
 function renderLoading(container) {
-  const status = el("p", "detail-loading");
+  const status = el("p", "detail-loading detail-state-panel");
   status.setAttribute("role", "status");
+  status.setAttribute("data-post-state-panel", "loading");
   const dot = el("span", "detail-loading-dot");
   dot.setAttribute("aria-hidden", "true");
   status.append(dot, el("span", "detail-loading-text", POST_LOADING_LINE));
   container.append(status);
 }
 
-// What the region is showing, in one word, on one attribute. The page has
-// exactly three things it can be doing — waiting for the post, showing it, or
-// explaining that it cannot — and they are mutually exclusive by construction:
-// replaceChildren() empties the region first, one branch below fills it, and
-// this stamp records which. src/post.html ships the region already marked
-// "initial", so the shipped markup and the first render agree.
-//
-// It is not decoration for a test. Two independently toggled nodes is how a
-// loading line survives underneath an unavailable-post panel; a single value
-// cannot hold both.
-const POST_REGION_STATE = { loading: "initial", ready: "unavailable", error: "unavailable" };
+// The four states, named once, in the order a load moves through them. Every
+// other spelling of "what is this page showing" — the region's data-post-state,
+// each panel's data-post-state-panel, the tab title — is derived from this list.
+export const POST_STATES = ["loading", "loaded", "not-found", "error"];
+
+// Which of the four a render is. Callers say what the *lookup* did — it is
+// running, it finished, it threw — and the post itself decides the rest, so
+// there is no way to ask for "error" and get a post, or to claim "loaded" with
+// nothing to load. A fetch that came back empty-handed is not-found; only a
+// fetch that could not complete is error. `ready` is the older spelling of "the
+// lookup finished" and still resolves the same way.
+export function resolvePostState(post, state = "ready") {
+  if (state === "loading") return "loading";
+  if (post) return "loaded";
+  return state === "error" ? "error" : "not-found";
+}
 
 export function renderPostDetail(container, post, options = {}) {
-  const { state = "ready", id = "", returnHref = DEFAULT_POST_RETURN.href } = options;
+  const { state: requested = "ready", id = "", returnHref = DEFAULT_POST_RETURN.href } = options;
+  // One state, chosen before anything is drawn. replaceChildren() empties the
+  // region and exactly one branch below fills it, so the states cannot stack:
+  // an inactive state is absent from the document rather than hidden, which is
+  // what keeps its heading out of the page's heading count and out of reach of
+  // a screen reader. src/post.html ships the region already marked "loading",
+  // so the shipped markup and the first render agree.
+  const state = resolvePostState(post, requested);
   container.replaceChildren();
   container.setAttribute("aria-busy", state === "loading" ? "true" : "false");
-  container.dataset.postState = post ? "resolved" : POST_REGION_STATE[state] ?? "unavailable";
+  container.dataset.postState = state;
 
-  if (!post) {
+  if (state !== "loaded") {
     if (state === "loading") renderLoading(container);
     else if (state === "error") renderFailed(container, options.onRetry);
     else renderMissing(container, id, returnHref);
     return;
   }
 
-  const article = el("article", "detail-post");
+  const article = el("article", "detail-post detail-state-panel");
+  article.setAttribute("data-post-state-panel", "loaded");
   // Focusable only on purpose, never by tabbing: post-page.js sends focus here
   // after a retry succeeds, so the reader lands on what they asked for instead
   // of at the top of the document. -1 keeps it out of the tab sequence, which
   // stays: back link, post content, then retry when there is one.
   article.setAttribute("tabindex", "-1");
 
-  // Reading order, top to bottom: who posted (the page's h1, written by
-  // post-page.js into the hero above this panel), when, the image, the caption.
-  // The author is not repeated as a link here — the one exit above already
-  // leads to the profile when the reader came from one, and a second link
-  // between the exit and the image would put an unasked-for stop in the way of
-  // a keyboard reader heading for the picture.
+  // Reading order, top to bottom: who posted, when, the image, the caption.
+  //
+  // The name is a link to that person's People view, and its text is the name
+  // itself — not "profile", not "view profile", which would give a screen
+  // reader a link list of identical labels and tell nobody whose profile it is.
+  // It is the page's one forward step: without it a shared link is a dead end
+  // whose only exit is back to the feed. The href is /profile.html?author=…,
+  // the same shape profile-page.js writes into the address bar, rather than a
+  // second URL vocabulary for the same view.
+  const author = String(post.author ?? "").trim();
+  if (author) {
+    const byline = el("p", "detail-byline");
+    const link = el("a", "detail-author-link", author);
+    link.href = profileHref(author);
+    byline.append(link);
+    article.append(byline);
+  }
+
   const time = el("time", "post-date detail-date", formatDateTime(post.createdAt));
   time.dateTime = post.createdAt;
   article.append(time);
@@ -322,9 +370,10 @@ export function postPageHeading(post) {
 // nav names, then the product. src/post.html ships titled "Post · Social ·
 // Shiplog", which is what a reader sees until this runs.
 //
-// The title says what the panel says: any requested post that cannot render is
-// "unavailable," whether the lookup returned nothing or could not complete.
-export function postDetailTitle(post) {
+// The title says what the panel says, including which of the two unresolved
+// answers it is: a tab strip full of shared links should distinguish a post that
+// is gone from one the feed could not be asked for.
+export function postDetailTitle(post, state = "ready") {
   if (post?.author) return recordTitle(`Post by ${post.author}`, { surface: "Social", fallback: "Post" });
-  return pageTitle("Post unavailable");
+  return pageTitle(POST_STATE_COPY[resolvePostState(post, state)]?.title ?? POST_STATE_COPY["not-found"].title);
 }
