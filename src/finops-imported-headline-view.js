@@ -28,6 +28,9 @@
 // rendered label rather than on whether something is visible.
 
 import { importedHeadline } from "./finops-imported-headline.js";
+// The correction clause and its count. The words are the derivation contract's,
+// like the sentence they are appended to; this layer still holds no string.
+import { countReaderCorrections, readerCorrectionClause } from "./finops-export-unit-names.js";
 import { renderProvenance, sourceOfSupported } from "./finops-brief-provenance.js";
 
 const REGION_ID = "finops-imported-headline";
@@ -112,13 +115,18 @@ function paintSlots(doc, slots) {
  * generic sentence, because a generic sentence about provenance is the thing
  * this block exists to replace.
  */
-function paintNaming(doc, naming) {
+function paintNaming(doc, naming, readerLabels) {
   const line = byId(doc, NAMING_ID);
   const contract = byId(doc, NAMING_CONTRACT_ID);
   const available = Boolean(naming?.available && naming.unitCount > 0);
+  // A correction changes what this sentence is claiming, so it is repainted from
+  // the same two values every other surface reads — the derivation result and the
+  // reader's own labels — rather than being told a name changed.
+  const corrected = available ? countReaderCorrections(naming, readerLabels) : 0;
   if (line) {
-    line.textContent = available ? naming.statement : "";
+    line.textContent = available ? `${naming.statement}${readerCorrectionClause(corrected)}` : "";
     line.hidden = !available;
+    line.dataset.corrected = String(corrected);
     line.dataset.derived = available ? String(naming.derivedCount) : "0";
     line.dataset.units = available ? String(naming.unitCount) : "0";
     line.dataset.conflicted = available ? String(naming.conflictedCount) : "0";
@@ -140,16 +148,19 @@ function paintNaming(doc, naming) {
  *   org-unit name map — the reader's own names over the ones derived from their
  *   export — carried through to the contract, which is where the one resolver is
  *   called. `naming` is the derivation result behind the second half of that
- *   map, painted as this block's provenance. This layer still holds no string.
+ *   map, painted as this block's provenance. `readerLabels` is the reader's half
+ *   of that map alone, so the provenance sentence can say how many of the names
+ *   it is describing were corrected. This layer still holds no string.
  * @returns the composed headline, including the unavailable one.
  */
-export function applyImportedHeadline(doc, analysis, { labels = null, naming = null } = {}) {
+export function applyImportedHeadline(doc, analysis,
+  { labels = null, naming = null, readerLabels = null } = {}) {
   const region = byId(doc, REGION_ID);
   const headline = importedHeadline(analysis ?? null, { labels });
   if (!region) return headline;
   const host = byId(doc, SLOTS_ID);
   if (host) host.replaceChildren();
-  paintNaming(doc, headline.available ? naming : null);
+  paintNaming(doc, headline.available ? naming : null, readerLabels);
   if (!headline.available) {
     region.hidden = true;
     region.dataset.state = "unavailable";

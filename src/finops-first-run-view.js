@@ -20,6 +20,10 @@ import { DRILLDOWN_HEADING, DRILLDOWN_QUESTION } from "./finops-imported-departm
 // because that is where the label layer is defined; this view only enforces it
 // on the control so the field cannot accept what the resolver would discard.
 import { MAX_ORG_UNIT_DISPLAY_LABEL } from "./org-unit-display-label.js";
+// The attribution a DERIVED name carries, and the in-place correction on it.
+// Its own module because an editable value has to answer Enter and Escape, and
+// this view answers no key at all — see the header of that file.
+import { correctionMark } from "./finops-unit-correction-view.js";
 // The `.pre-analysis-withheld` idiom is defined once, in the view that owns the
 // answer region above this one, because both regions share the first screen and
 // therefore have to withhold and reveal on the same rule.
@@ -179,6 +183,13 @@ function definition(doc, entry, onLabel) {
     mark.textContent = " · no name in this export";
     term.append(mark);
   }
+  // A unit the export DID name carries where that name came from, and the way to
+  // dispute it, on the line the name is read on. Past the field limit — and in
+  // the print sibling — the row is still attributed, just not editable.
+  if (entry.nameDerived === true) {
+    term.append(correctionMark(doc, entry,
+      onLabel && entry.rank <= ORG_UNIT_LABEL_FIELD_LIMIT ? onLabel : null));
+  }
   if (entry.nameDerived !== undefined && entry.nameDerived !== null) {
     item.dataset.nameDerived = String(entry.nameDerived);
   }
@@ -187,7 +198,12 @@ function definition(doc, entry, onLabel) {
   // Only the live disclosure gets fields. The print sibling is a copy of the
   // same evidence and is `aria-hidden`; putting a second input with the same id
   // in it would give the page duplicate ids and a control on paper.
-  if (onLabel && entry.unitId && entry.rank <= ORG_UNIT_LABEL_FIELD_LIMIT) {
+  //
+  // A row whose name was derived is corrected on its marker instead — one row,
+  // one way to change what it is called, rather than a field and a button that
+  // write the same state from two places.
+  if (onLabel && entry.unitId && entry.nameDerived !== true
+    && entry.rank <= ORG_UNIT_LABEL_FIELD_LIMIT) {
     detail.append(labelField(doc, entry, onLabel));
   }
   return item;
@@ -493,6 +509,11 @@ function applyOwnDataDrilldown(doc, region, drilldown, onLabel) {
     // would show a saved name they never saved — and clearing it would then
     // look like it had deleted the export's own label.
     label: entry.readerNamed ? entry.name : "",
+    // Which of the two names is on screen, and the derived one underneath it.
+    // Both travel: a corrected row has to say it was corrected, and has to be
+    // able to hand back the export's own value exactly.
+    readerNamed: entry.readerNamed,
+    derivedName: entry.derivedName,
     // Whether the export itself could name this unit. `false` earns the marker
     // beside the identifier; `null` is a row that is not an org unit at all.
     nameDerived: entry.nameDerived,

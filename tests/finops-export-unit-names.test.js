@@ -25,11 +25,18 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { parseHtml, textOf } from "./support/browser.js";
+import { parseHtml, pressEnter, pressKey, tabSequence, textOf } from "./support/browser.js";
 import { readDelimitedText } from "../src/delimited-text.js";
 import { detectShape, normalizeHeader } from "../src/finops-tabular-import.js";
 import { orgUnitPseudonym } from "../src/unit-pseudonym.js";
-import { orgUnitDisplayName } from "../src/org-unit-display-label.js";
+import {
+  NO_ORG_UNIT_LABELS, orgUnitDisplayName, withOrgUnitDisplayLabel,
+} from "../src/org-unit-display-label.js";
+import { buildFirstRunResult, FIRST_RUN_IDS } from "../src/finops-first-run.js";
+import { applyFirstRunResult, applyFirstRunSupersession } from "../src/finops-first-run-view.js";
+import {
+  UNIT_CORRECTION, orgUnitCorrectionFieldId, orgUnitCorrectionId,
+} from "../src/finops-unit-correction-view.js";
 import {
   LABEL_DERIVATION_CONTRACT_VERSION, LABEL_DERIVATION_PRECEDENCE, LABEL_SOURCE_FIELDS,
   MAX_DERIVED_UNIT_NAME, NO_DERIVED_UNIT_NAMES, deriveOrgUnitNames, mergeOrgUnitNamings,
@@ -410,4 +417,166 @@ test("one drop names the units on the headline, with no second reader action", a
   } finally {
     page.restore();
   }
+});
+
+// --- 6. correcting one derived name, where it is read (#1026) ---------------
+//
+// A derived name is a claim this page made about the reader's own organization,
+// so the reader can dispute it on the line the claim is on. What is pinned here
+// is that ONE state object drives every surface: a correction committed on the
+// marker has to move the headline sentence, the ranked row, and the naming
+// provenance together, and the revert has to put all three back.
+//
+// Assertions are on counts, attributes, text and the tab sequence — never on
+// visibility or on node identity, per the harness's own limits above.
+
+/**
+ * The page's own wiring, in miniature: one reader-label map in page state, and
+ * every surface repainted from the SAME envelope and the SAME derivation. It is
+ * what evolution-page.js does in `relabelOrgUnit`.
+ */
+function correctableRegion(csv, ranked) {
+  const document = parseHtml(html);
+  const naming = deriveOrgUnitNames(readExport(csv));
+  const analysis = analysisFor(naming, ranked);
+  applyFirstRunResult(document, buildFirstRunResult());
+  let readerLabels = NO_ORG_UNIT_LABELS;
+  const paint = () => {
+    const labels = { ...naming.names, ...readerLabels };
+    applyImportedHeadline(document, analysis, { labels, readerLabels, naming });
+    applyFirstRunSupersession(document, true, {
+      ownData: importedDepartmentDrilldown(analysis, { labels, readerLabels, naming }),
+      onOrgUnitLabel: (unitId, label) => {
+        readerLabels = withOrgUnitDisplayLabel(readerLabels, unitId, label);
+        paint();
+      },
+    });
+  };
+  paint();
+  const text = (id) => textOf(document.getElementById(id));
+  return {
+    document,
+    labels: () => readerLabels,
+    headline: () => text(FIRST_RUN_IDS.answer),
+    rows: () => text(FIRST_RUN_IDS.methodList),
+    naming: () => document.getElementById("finops-imported-headline-naming"),
+    live: () => text(FIRST_RUN_IDS.live),
+    marks: (attribution) => document.getElementById(FIRST_RUN_IDS.methodList)
+      .querySelectorAll(`.org-unit-correction[data-attribution="${attribution}"]`),
+  };
+}
+
+const TWO_NAMED_UNITS = [["cc-4471", 200, 50], ["cc-9902", 45, 10]];
+
+/** Open the rank-1 correction field from the keyboard and type over its value. */
+function correct(page, value) {
+  const { document } = page;
+  document.getElementById(orgUnitCorrectionId(1)).focus();
+  pressEnter(document);
+  const field = document.getElementById(orgUnitCorrectionFieldId(1));
+  assert.equal(document.activeElement?.getAttribute("id"), orgUnitCorrectionFieldId(1),
+    "opening the correction moves focus into the field");
+  field.value = value;
+  return field;
+}
+
+test("a correction on the marker moves the headline, the row, and the naming sentence", () => {
+  const page = correctableRegion(BILLING_WITH_TAGS, TWO_NAMED_UNITS);
+  const { document } = page;
+  // Before: the name came from the export, and the marker says exactly that.
+  assert.equal(page.marks("derived").length, 2, "both derived units are attributed as inferred");
+  assert.match(page.rows(), new RegExp(UNIT_CORRECTION.inferred));
+  const field = correct(page, "Platform (EMEA)");
+  assert.equal(field.value, "Platform (EMEA)");
+  assert.equal(field.getAttribute("maxlength"), "60", "the field refuses what the resolver would discard");
+  pressEnter(document);
+
+  assert.equal(page.labels()[orgUnitPseudonym("cc-4471")], "Platform (EMEA)",
+    "the correction is written into the one label map the page renders from");
+  assert.match(page.headline(), /^Platform \(EMEA\) is driving it: /,
+    "the headline sentence re-renders from that map");
+  assert.match(page.rows(), /1\. Platform \(EMEA\)/, "and so does the ranked row");
+  assert.match(page.rows(), /2\. Customer Support/, "one unit was corrected, not two");
+  assert.match(textOf(page.naming()), /1 unit name was corrected by you/,
+    "the naming provenance sentence says how much of it is no longer the export's");
+  assert.equal(page.naming().dataset.corrected, "1");
+  assert.equal(page.naming().dataset.derived, "2", "the derivation itself is untouched");
+  assert.match(textOf(document.getElementById("finops-imported-headline-slots")), /Platform \(EMEA\)/,
+    "the imported headline names the unit the reader corrected it to");
+  // Attributed as the reader's, not silently fixed, and announced politely.
+  assert.equal(page.marks("reader").length, 1);
+  assert.equal(page.marks("derived").length, 1);
+  assert.match(page.rows(), new RegExp(UNIT_CORRECTION.corrected));
+  assert.match(page.live(), /^Corrected\. This unit now reads Platform \(EMEA\)/);
+  assert.equal(document.activeElement?.getAttribute("id"), orgUnitCorrectionId(1),
+    "the reader is put back on the button they opened");
+});
+
+test("one action reverts the correction, and the derived name and its marker come back", () => {
+  const page = correctableRegion(BILLING_WITH_TAGS, TWO_NAMED_UNITS);
+  const { document } = page;
+  correct(page, "Platform (EMEA)");
+  pressEnter(document);
+  const reverts = document.getElementById(FIRST_RUN_IDS.methodList)
+    .querySelectorAll(".org-unit-correction-revert");
+  assert.equal(reverts.length, 1, "one revert, on the row that was corrected, and no confirm step");
+  assert.match(textOf(reverts[0]), /to Platform Engineering$/,
+    "the control says which value it goes back to");
+  reverts[0].click();
+
+  assert.equal(Object.keys(page.labels()).length, 0, "the reader's label is gone, not blanked");
+  assert.match(page.headline(), /^Platform Engineering is driving it: /,
+    "the derived value comes back exactly");
+  assert.match(page.rows(), /1\. Platform Engineering/);
+  assert.equal(page.marks("reader").length, 0, "and so does the inferred attribution");
+  assert.equal(page.marks("derived").length, 2);
+  assert.equal(page.naming().dataset.corrected, "0");
+  assert.doesNotMatch(textOf(page.naming()), /corrected by you/);
+  assert.match(page.live(), /^Reverted\. This unit reads the name derived from your export, Platform Engineering/);
+  assert.equal(document.getElementById(FIRST_RUN_IDS.methodList)
+    .querySelectorAll(".org-unit-correction-revert").length, 0,
+    "with nothing corrected there is nothing to revert");
+});
+
+test("Escape discards the correction and leaves the state untouched", () => {
+  const page = correctableRegion(BILLING_WITH_TAGS, TWO_NAMED_UNITS);
+  const { document } = page;
+  correct(page, "Typed and abandoned");
+  pressKey(document, "Escape");
+
+  assert.equal(Object.keys(page.labels()).length, 0, "nothing was committed");
+  assert.match(page.rows(), /1\. Platform Engineering/);
+  assert.doesNotMatch(page.rows(), /Typed and abandoned/);
+  assert.equal(page.live(), "", "a cancelled edit announces nothing");
+  assert.equal(document.activeElement?.getAttribute("id"), orgUnitCorrectionId(1),
+    "focus returns to the marker's button on cancel too");
+  assert.equal(document.querySelectorAll(".org-unit-correction-input").length, 0,
+    "the field is gone");
+  // The affordance still works afterwards, and it is keyboard-reachable: the
+  // harness reads through a closed disclosure, so the tab sequence is the
+  // evidence that a keyboard reader can get to it at all.
+  assert.equal(tabSequence(document).map((node) => node.getAttribute("id") ?? "")
+    .includes(orgUnitCorrectionId(1)), true);
+  correct(page, "Platform (EMEA)");
+  pressEnter(document);
+  assert.equal(page.labels()[orgUnitPseudonym("cc-4471")], "Platform (EMEA)", "Enter commits");
+});
+
+test("a correction that looks like markup is rendered as text and creates no element", () => {
+  const page = correctableRegion(BILLING_WITH_TAGS, TWO_NAMED_UNITS);
+  const { document } = page;
+  const images = document.querySelectorAll("img").length;
+  const elements = document.querySelectorAll("span").length;
+  correct(page, "<img src=x onerror=alert(1)>");
+  pressEnter(document);
+
+  assert.match(page.headline(), /^<img src=x onerror=alert\(1\)> is driving it: /,
+    "the headline prints the reader's value literally");
+  assert.match(page.rows(), /1\. <img src=x onerror=alert\(1\)>/);
+  assert.match(page.live(), /<img src=x onerror=alert\(1\)>/);
+  assert.equal(document.querySelectorAll("img").length, images,
+    "no element was created from the value — it is text in every one of those places");
+  assert.equal(document.querySelectorAll("[onerror]").length, 0);
+  assert.equal(document.querySelectorAll("span").length, elements,
+    "and the marker rebuilt the same nodes it had, not markup parsed out of a string");
 });

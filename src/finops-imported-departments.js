@@ -112,6 +112,10 @@ function departmentGroups(analysis, labels, readerLabels, naming) {
       // to read, and "this export could not name it" is a claim only a
       // derivation that actually looked is entitled to make.
       nameDerived: naming?.available ? Boolean(naming.names?.[entry?.id]) : null,
+      // The name the EXPORT produced, carried beside the one that is rendering.
+      // A reader who corrects a derived name is offered it back verbatim, so the
+      // revert is the original value rather than a re-derivation of it.
+      derivedName: naming?.available ? (naming.names?.[entry?.id] ?? null) : null,
       nameConflicted: Boolean(naming?.byUnit?.[entry?.id]?.conflicted),
       recoverableUsd: money(entry.recoverableUsd) ?? 0,
       spendUsd: money(entry.spendUsd) ?? 0,
@@ -135,6 +139,7 @@ function monthGroups(analysis) {
       // un-nameable: it carries no derivation state at all.
       readerNamed: false,
       nameDerived: null,
+      derivedName: null,
       nameConflicted: false,
       recoverableUsd: money(entry.recoverableUsd) ?? 0,
       spendUsd: money(entry.spendUsd) ?? 0,
@@ -158,6 +163,7 @@ function row(group, index, total, currency) {
     // nobody has got round to naming.
     readerNamed: group.readerNamed ?? false,
     nameDerived: group.nameDerived ?? null,
+    derivedName: group.derivedName ?? null,
     nameConflicted: group.nameConflicted ?? false,
     recoverableUsd: group.recoverableUsd,
     spendUsd: group.spendUsd,

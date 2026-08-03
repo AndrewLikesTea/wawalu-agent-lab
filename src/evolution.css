@@ -3703,4 +3703,8 @@ section[data-workspace-current="true"] { box-shadow:-6px 0 0 0 var(--import-wash
 .first-run-unit-label-name { font-size:.78rem; color:var(--muted); }
 .first-run-unit-label-input { flex:1 1 12rem; min-width:0; padding:.3rem .45rem; font:inherit; font-size:.85rem; }
 .first-run-unit-label-help { flex-basis:100%; font-size:.72rem; color:var(--muted); }
-.first-run-unit-label-input:focus-visible,.first-run-unit-label-save:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.first-run-unit-label-input:focus-visible,.first-run-unit-label-save:focus-visible,.org-unit-correction :focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+/* "inferred" and "corrected by reader" are different claims: the WORD is the
+   channel and the weight only reinforces it. */
+.org-unit-correction { display:inline-flex; flex-wrap:wrap; align-items:baseline; gap:.3rem; color:var(--muted); }
+.org-unit-correction[data-attribution="reader"] { color:var(--ink); font-weight:600; }

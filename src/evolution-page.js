@@ -1412,7 +1412,12 @@ function mountLocalFinopsImport() {
     orgUnitLabels = withOrgUnitDisplayLabel(orgUnitLabels, unitId, label);
     noteContextEdit();
     if (result && !exampleActive) {
-      applyImportedHeadline(document, result, { labels: namedOrgUnitLabels(), naming: importedUnitNaming() });
+      // `readerLabels` as well as the merged map: the naming provenance sentence
+      // states how many of the names it describes the reader corrected, and it
+      // reads that off the reader's own half rather than being told.
+      applyImportedHeadline(document, result, {
+        labels: namedOrgUnitLabels(), readerLabels: orgUnitLabels, naming: importedUnitNaming(),
+      });
     }
     // The drill-down and, through it, the guided result's driver sentence. One
     // call, so the three surfaces cannot end up naming the unit three ways.
@@ -1733,8 +1738,10 @@ function mountLocalFinopsImport() {
     // for why the export could not supply it. The bundled example is not an
     // import and does not get one — it already has its own complete headline,
     // which this call leaves untouched.
-    applyImportedHeadline(document, example ? null : next,
-      { labels: namedOrgUnitLabels(), naming: example ? null : importedUnitNaming() });
+    applyImportedHeadline(document, example ? null : next, {
+      labels: namedOrgUnitLabels(), readerLabels: orgUnitLabels,
+      naming: example ? null : importedUnitNaming(),
+    });
     // Every month inside that same file, summed per calendar month and merged
     // with what this browser had already retained, so a year-long export reads
     // as a series with named movement instead of one period and no change. The

@@ -263,6 +263,36 @@ function composeStatement(units) {
       : "");
 }
 
+/**
+ * How many of the names on screen the reader corrected, out of the ones this
+ * derivation produced.
+ *
+ * A reader label on a unit this export could not name is not a correction — it
+ * is a name for something that had none — so only units that carry a derived
+ * name are counted. The two maps are read, never mutated: the derived name
+ * stays on the naming result, which is what makes a revert exact.
+ */
+export function countReaderCorrections(naming, readerLabels) {
+  const names = naming?.names ?? {};
+  if (!readerLabels || typeof readerLabels !== "object") return 0;
+  return Object.keys(names).filter((unitId) => cleanName(readerLabels[unitId]) !== "").length;
+}
+
+/**
+ * The clause the provenance sentence grows when a reader has corrected a name.
+ *
+ * It is appended to that sentence rather than written beside it: "where these
+ * names came from" is ONE answer, and a reader who has corrected two of them has
+ * changed it. The corrected VALUES are deliberately not in here — they are on
+ * the rows, where the reader typed them, and repeating them in a provenance
+ * sentence is a fourth place for the same string to drift.
+ */
+export function readerCorrectionClause(count) {
+  if (!Number.isInteger(count) || count <= 0) return "";
+  return ` ${plural(count, "unit name")} ${count === 1 ? "was" : "were"} corrected by you; `
+    + "yours is what renders, and the derived name is kept so it can be restored.";
+}
+
 function compose(units) {
   const names = {};
   const byUnit = {};
