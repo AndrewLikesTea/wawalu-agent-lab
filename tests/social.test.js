@@ -11,6 +11,8 @@ import {
   normalizeSocialApiPosts,
   normalizeImage,
   columnCount,
+  feedSummarySentence,
+  AUTHOR_TERM,
   MAX_POST_LENGTH,
   MAX_AUTHOR_LENGTH,
   MAX_IMAGE_ALT_LENGTH,
@@ -346,9 +348,21 @@ test("the feed toolbar names what each control filters, in the site's own terms"
   assert.match(markup, /<option value="all">Everyone<\/option>/);
   assert.match(markup, /class="eyebrow">Post order: newest first</,
     "the feed's order is a named fact, not a bare value floating above the heading");
-  assert.match(markup, /<label for="post-time-filter">Show posts<\/label>/);
+  // "Show posts" named no field — it read as the button beside it rather than
+  // as the label above a menu. The label is the fact the menu narrows on.
+  assert.match(markup, /<label for="post-time-filter">Time posted<\/label>/,
+    "the time menu is labelled by what it filters on");
+  assert.doesNotMatch(markup.replace(/<!--[\s\S]*?-->/g, ""), /Show posts/,
+    "the label that read like a button survives somewhere on the page");
   assert.match(markup, /<option value="hour">From the past hour<\/option>/,
     "each option states what it includes, so the closed menu is already readable");
+  // One word for the person who wrote a post, in all three places a reader
+  // meets the concept: the filter's label, the note under Clear filters, and
+  // the summary sentence (asserted on a booted page below).
+  assert.match(markup, /id="post-filter-clear-hint">Clear filters shows every post again, from any time and every display name\.</,
+    "Clear filters says what it restores, in the two menus' own terms");
+  assert.match(markup, /id="post-filter-clear"[^>]*aria-describedby="post-filter-clear-hint"/,
+    "the note is the button's description, not a paragraph that happens to sit near it");
 
   // Only the Agent observatory destination may still carry the word.
   const beyondNav = markup.replace(/Agent observatory/g, "").replace(/href="\/agents\.html"/g, "");
@@ -362,6 +376,113 @@ test("the feed toolbar names what each control filters, in the site's own terms"
   assert.equal(textOf(options[0]), "Everyone");
   assert.equal(options[0].getAttribute("value"), "all", "the filter's values are untouched by the relabelling");
   assert.equal(options.filter((option) => /agent/i.test(textOf(option))).length, 0);
+
+  // Both menus, and only these two, carry a visible label tied to their own
+  // control — so neither reads as the button they sit beside.
+  const labels = page.document.querySelector(".social-toolbar").querySelectorAll("label");
+  assert.deepEqual(labels.map((label) => textOf(label)), ["Display name", "Time posted"]);
+  assert.deepEqual(labels.map((label) => label.getAttribute("for")), ["post-name-filter", "post-time-filter"]);
+});
+
+// "Author" would be a second word for something this site already names: the
+// composer's field hint, People's picker, and this filter all say "display
+// name". The summary sentence and the Clear filters note say it too, so the
+// three places a reader meets the concept agree word for word.
+test("feedSummarySentence composes only the filters that are set, with correct plurals", () => {
+  assert.equal(AUTHOR_TERM, "display name");
+
+  assert.equal(feedSummarySentence({ shown: 12 }), "Showing all 12 posts, newest first.");
+  assert.equal(feedSummarySentence({ shown: 1 }), "Showing 1 post, newest first.");
+  // An unfiltered feed with nothing in it is the never-posted state, which the
+  // empty panel already says more usefully than a sentence counting to zero.
+  assert.equal(feedSummarySentence({ shown: 0 }), "");
+
+  assert.equal(feedSummarySentence({ shown: 3, range: "from the past 24 hours", author: "Ari" }),
+    "Showing 3 posts from the past 24 hours under the display name Ari.");
+  assert.equal(feedSummarySentence({ shown: 1, range: "from the past hour" }),
+    "Showing 1 post from the past hour.");
+  assert.equal(feedSummarySentence({ shown: 2, author: "Mina" }),
+    "Showing 2 posts under the display name Mina.");
+
+  assert.equal(feedSummarySentence({ shown: 0, range: "from the past hour", author: "Ari" }),
+    "No posts from the past hour under the display name Ari. Clear filters to see all posts.");
+  assert.equal(feedSummarySentence({ shown: 0, author: "Ari" }),
+    "No posts under the display name Ari. Clear filters to see all posts.");
+});
+
+// The sentence directly above the cards answers "what am I looking at" without
+// a tour. Its count comes from the same array the cards are rendered from, so
+// the two cannot disagree; this test pins that by counting both.
+test("the summary sentence stays true as the filters change", async (t) => {
+  const page = await loadPage(new URL("../src/social.html", import.meta.url), {});
+  t.after(() => page.restore());
+
+  const minutesAgo = (n) => new Date(Date.now() - n * 60 * 1000).toISOString();
+  const posts = [
+    { id: "ari-recent", author: "Ari", body: "just shipped", createdAt: minutesAgo(5) },
+    { id: "ari-older", author: "Ari", body: "earlier today", createdAt: minutesAgo(60 * 5) },
+    { id: "mina-older", author: "Mina", body: "last week", createdAt: minutesAgo(60 * 24 * 3) },
+  ];
+  mountSocialFeed(page.document, { posts, state: "ready" });
+
+  const summary = page.document.querySelector("#feed-summary");
+  const nameFilter = page.document.querySelector("#post-name-filter");
+  const timeFilter = page.document.querySelector("#post-time-filter");
+  const shown = () => page.document.querySelectorAll(".post-card").length;
+  // The harness's select accepts any value; a real one refuses an unlisted
+  // option, so every value driven here is checked against what is rendered.
+  const choose = (control, value) => {
+    const offered = control.options.map((option) => option.getAttribute("value"));
+    assert.ok(offered.includes(value), `${value} must be offered; the menu holds ${offered.join(", ")}`);
+    control.value = value;
+    control.dispatchEvent({ type: "change", bubbles: true });
+  };
+
+  assert.equal(textOf(summary), "Showing all 3 posts, newest first.");
+  assert.equal(summary.hasAttribute("hidden"), false);
+  assert.equal(shown(), 3);
+
+  choose(nameFilter, "Ari");
+  assert.equal(textOf(summary), "Showing 2 posts under the display name Ari.");
+  assert.equal(shown(), 2, "the stated count is the number of cards rendered");
+
+  choose(timeFilter, "hour");
+  assert.equal(textOf(summary), "Showing 1 post from the past hour under the display name Ari.");
+  assert.equal(shown(), 1);
+
+  choose(nameFilter, "all");
+  assert.equal(textOf(summary), "Showing 1 post from the past hour.",
+    "an unset filter contributes no clause");
+
+  choose(nameFilter, "Mina");
+  assert.equal(shown(), 0);
+  assert.equal(textOf(summary),
+    "No posts from the past hour under the display name Mina. Clear filters to see all posts.");
+  // Distinct from the never-posted empty state, which this change leaves alone.
+  assert.doesNotMatch(textOf(summary), /No posts on Social yet/);
+
+  page.document.querySelector("#post-filter-clear").click();
+  assert.equal(textOf(summary), "Showing all 3 posts, newest first.");
+  assert.equal(shown(), 3);
+});
+
+test("the summary makes no claim about the feed before a fetch has answered", async (t) => {
+  const page = await loadPage(new URL("../src/social.html", import.meta.url), {});
+  t.after(() => page.restore());
+  const summary = page.document.querySelector("#feed-summary");
+  const feed = mountSocialFeed(page.document, { posts: [], state: "loading" });
+
+  assert.equal(summary.hasAttribute("hidden"), true, "an open fetch is not a count of zero");
+  assert.equal(textOf(summary), "");
+
+  feed.setState("error");
+  assert.equal(summary.hasAttribute("hidden"), true, "a failed fetch is not a count of zero");
+
+  // An answered but genuinely empty feed is the never-posted state; the empty
+  // panel says it, and the sentence stays out of its way.
+  feed.seed([]);
+  assert.equal(summary.hasAttribute("hidden"), true);
+  assert.match(textOf(page.document.querySelector(".empty-state")), /No posts on Social yet\./);
 });
 
 // The shipped markup only pins the count a visitor sees before the feed mounts.

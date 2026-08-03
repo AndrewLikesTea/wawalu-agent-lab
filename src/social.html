@@ -197,7 +197,14 @@
               </select>
             </div>
             <div class="filter">
-              <label for="post-time-filter">Show posts</label>
+              <!-- "Show posts" named no field: it read as the button next to it
+                   rather than as the label above a menu, and a reader scanning
+                   the row learned nothing about what the menu narrows. The label
+                   is the fact the menu filters on — when a post was posted —
+                   and it is a label for the control, exactly like the display
+                   name filter beside it, so clicking it moves focus to the menu
+                   and a screen reader reads the pair. -->
+              <label for="post-time-filter">Time posted</label>
               <select id="post-time-filter">
                 <option value="all">From any time</option>
                 <option value="hour">From the past hour</option>
@@ -205,7 +212,12 @@
                 <option value="week">From the past 7 days</option>
               </select>
             </div>
-            <button class="clear-filters social-clear" id="post-filter-clear" type="button">Clear filters</button>
+            <button class="clear-filters social-clear" id="post-filter-clear" type="button" aria-describedby="post-filter-clear-hint">Clear filters</button>
+            <!-- What the button restores, in the same two terms the two menus
+                 use: "any time" is the time menu's own first option, and
+                 "display name" is the term the composer, People, and the filter
+                 beside it all use for the name a post is published under. -->
+            <p class="hint filter-note" id="post-filter-clear-hint">Clear filters shows every post again, from any time and every display name.</p>
           </div>
           <div class="feed-connection" aria-live="polite">
             <span class="live-dot" aria-hidden="true"></span>
@@ -213,6 +225,18 @@
           </div>
           <p class="hint feed-hint">Use ← and → to move between posts, ↑ and ↓ to move a row, Home and End to jump.</p>
           <p class="visually-hidden" id="feed-announcer" aria-live="polite" aria-atomic="true"></p>
+          <!-- One sentence for "what am I looking at": how many posts are below
+               this line, and which filters produced them. social.js writes it
+               from the same array it renders the cards from, so the number here
+               is the number of cards, in every state including none.
+               Ships empty and hidden because a count is a claim the page cannot
+               make until a fetch has come back — the same rule the count beside
+               the heading follows.
+               Deliberately not a live region: the count beside the heading is
+               already announced on every filter change, and a second polite
+               region would read the same news twice. Nothing folds this away
+               either; a reader who needs it needs it before the cards. -->
+          <p class="feed-summary" id="feed-summary" hidden></p>
           <div id="post-feed"></div>
         </div>
       </section>
