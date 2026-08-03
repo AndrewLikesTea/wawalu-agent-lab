@@ -169,9 +169,21 @@ test("turning retention on writes derived values and none of the export's own co
     assert.equal(typeof payload.confidence, "string");
 
     // The exact key set, so a field added upstream cannot ride in unnoticed.
+    // `attribution` is the one deliberate widening (#997): the suppression the
+    // live import applied, and the file presence it was decided against, kept
+    // with the figures so a restore cannot state a figure the page withheld.
     assert.deepEqual(Object.keys(payload).sort(), [
-      "capturedAt", "confidence", "departments", "provider", "rankedAction", "totals", "version",
+      "attribution", "capturedAt", "confidence", "departments", "provider",
+      "rankedAction", "totals", "version",
     ]);
+    // Three derived booleans and nothing else — not a copy of the decision's
+    // inputs, and no room for a file name or a share to arrive in this slot.
+    assert.deepEqual(Object.keys(payload.attribution).sort(),
+      ["conversationExport", "spendExport", "withheld"]);
+    for (const key of ["conversationExport", "spendExport", "withheld"]) {
+      assert.equal(typeof payload.attribution[key], "boolean",
+        `attribution.${key} must be a derived boolean, not a value read from the export`);
+    }
     assert.deepEqual(Object.keys(payload.departments[0]).sort(), [
       "id", "name", "previousSpendUsd", "recoverableUsd", "spendUsd",
     ]);

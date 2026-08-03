@@ -422,6 +422,9 @@ import {
 import {
   TRANSCRIPT_INTAKE_COPY, readConversationTranscript,
 } from "/conversation-transcript-import.js";
+import {
+  renderImportSlots, renderLiteracyInputNeed, LITERACY_PENDING_MARK,
+} from "/finops-import-slots.js";
 // One imported-analysis state, and the four linked disclosures composed from
 // it: the leading finding, the benchmark card, the recommendation evidence, and
 // the quantified-impact figure with the action it sizes. Four call sites reading
@@ -857,6 +860,11 @@ function mountLocalFinopsImport() {
   // one a restored payload stands for. Held here and nowhere else, so there is
   // exactly one thing the retention control can ever capture.
   let retentionAnalysis = null;
+  // The suppression decision the last render made, and the file presence it was
+  // made against. Held beside the analysis rather than recomputed at capture
+  // time: the retention payload has to carry the decision this page actually
+  // reached, not a second reading of the same ratio that could disagree with it.
+  let retainedAttribution = { withheld: false, sources: { spend: true, conversation: false } };
   // A briefing reopened from a file. Same lifetime as everything else in this
   // closure: this tab, and no longer. Nothing about it is written to storage,
   // the URL, or the network.
@@ -1721,6 +1729,16 @@ function mountLocalFinopsImport() {
     // rather than re-derived by it: a figure this page withheld must not
     // reappear in the briefing built from the same analysis.
     const attributionWithheld = attribution?.confidence === CONFIDENCE.SUPPRESSED;
+    // Held for the retention capture, which must keep the decision rather than
+    // make one of its own. Recorded on both paths so a capture can never carry
+    // a stale verdict from the import before this one.
+    retainedAttribution = {
+      withheld: attributionWithheld,
+      sources: {
+        spend: example ? true : loaded.providers.length > 0 || imports.length > 0,
+        conversation: example ? false : archives.length > 0,
+      },
+    };
     // What this evidence supports, given what is missing from it. Painted here
     // and not earlier because the policy's last input is the attributed share
     // decided three lines up: the panel must ask for attribution against the
@@ -2125,6 +2143,10 @@ function mountLocalFinopsImport() {
     clearPartialEvidence(document);
     renderOwnDataEvidencePreflight(document, assessOwnDataEvidence(BUNDLED_OWN_DATA_EVIDENCE));
     repaintBundledAnalysis();
+    // The two slots hand their states back with the files they were about, and
+    // the literacy card's missing-input sentence goes with them: the letter the
+    // repaint above just put back is the example's own and needs no excuse.
+    syncImportSlots();
     // The bundled seed answers for the panels again, so they are re-decided from
     // it rather than restored by a flag. A visitor who imports nothing and a
     // visitor who imported and cleared see the same page because they are
@@ -2690,8 +2712,44 @@ function mountLocalFinopsImport() {
     paintCoachingDecision(lastCoachingInput.literacy, lastCoachingInput);
   }
 
+  /**
+   * The two-file import, said once (#997).
+   *
+   * One presence, two surfaces: the named slots beside the picker, and the
+   * literacy card's reason for having no letter. Both are painted from the
+   * selection this tab is actually holding — a provider export in `loaded`, a
+   * conversation export in `archives` — so the sentence on the card and the
+   * state on the slot cannot disagree about the same file.
+   *
+   * Deliberately silent. Nothing here announces: the import's own announcement
+   * goes through the one region this page speaks from, and the slot states are
+   * status text a reader reads where they already are.
+   */
+  const syncImportSlots = () => {
+    const presence = {
+      spend: loaded.providers.length > 0 || imports.length > 0,
+      conversation: archives.length > 0,
+    };
+    renderImportSlots(document, presence);
+    // The sentence is only ever about the reader's OWN import. With no spend
+    // export in hand the letter on the card is the bundled example company's,
+    // scored from the example corpus, and there is no file of theirs missing —
+    // `null` says exactly that and clears the sentence.
+    const need = renderLiteracyInputNeed(document, presence.spend ? presence : null);
+    // A withheld grade shows a pending mark rather than the authored dash: a
+    // dash beside a sentence about a missing file reads as a grade that failed
+    // to compute, which is a different and worse claim. The bundled repaint on
+    // clear puts the example's own letter back over this.
+    if (need.withheld && presence.spend) setText("score-grade", LITERACY_PENDING_MARK);
+    return presence;
+  };
+
   const finishSelection = (total) => {
     rebuildLoaded();
+    // Before either branch: what is in hand decides both the slot states and
+    // whether the literacy card may show a letter at all, and that is true of
+    // an eligible selection and an ineligible one alike.
+    syncImportSlots();
     // Before either branch below, because it holds in both: a gradeable query
     // sample grades the drill-down whether or not a billing export came with it.
     // An invoice with no supported query source leaves it exactly as it was.
@@ -3097,6 +3155,12 @@ function mountLocalFinopsImport() {
     analysis,
     provider: detectedProviderFor(),
     capturedAt: new Date().toISOString(),
+    // The suppression this page applied to THIS analysis, and the file presence
+    // it was decided against, kept with the figures rather than beside them
+    // (#997). A capture written without them restores as a briefing that states
+    // the figure the import refused to state.
+    attributionWithheld: retainedAttribution.withheld,
+    sources: retainedAttribution.sources,
   });
 
   /**

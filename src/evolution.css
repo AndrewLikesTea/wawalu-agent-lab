@@ -3516,6 +3516,22 @@ section[data-workspace-current="true"] { box-shadow:-6px 0 0 0 var(--import-wash
 .import-drop-title { margin:0; font-size:15px; font-weight:700; }
 .import-drop-mark { margin-right:6px; }
 .import-drop-instruction { margin:0; max-width:70ch; color:var(--ink-muted); font-size:13px; }
+/* #997: the two declared files as one path. The present/missing state is in the
+   state word and in aria-disabled; the rule below is a fourth channel on top of
+   those, never the only one, so greyscale and a failed stylesheet both keep it.
+   The list wraps to one column under 640px with the rest of the panel. */
+.import-slots-title { margin:4px 0 0; font-size:13px; font-weight:700; }
+.import-slots { display:grid; gap:8px; margin:0; padding:0; list-style:none; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); }
+.import-slot { border:1px solid var(--import-line,#b9bdb4); border-left-width:4px; border-radius:8px; padding:8px 10px; background:#fff; }
+.import-slot[data-state="present"] { border-left-color:var(--ink,#1d2016); background:var(--import-wash,#eef3ee); }
+.import-slot[data-state="missing"] { border-left-style:dashed; }
+.import-slot-label { margin:0; font-size:13px; font-weight:700; }
+.import-slot-state { font-weight:650; }
+.import-slot[data-state="missing"] .import-slot-state { font-style:italic; }
+.import-slot-unlocks { margin:4px 0 0; max-width:60ch; color:var(--ink-muted); font-size:12px; }
+/* The literacy card's reason for having no letter. Same weight as the score
+   line it stands in for, so it is not read as a footnote to a grade. */
+.score-input-need { margin:8px 0 0; max-width:60ch; font-size:13px; font-weight:600; }
 .import-drop-state:empty { display:none; }
 .import-drop-state { margin:0; font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; }
 /* #960: the site focus token on the ZONE, not only the control in it — 6.7:1 on
