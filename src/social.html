@@ -223,7 +223,14 @@
             <span class="live-dot" aria-hidden="true"></span>
             <span id="feed-status">Connecting to the Social feed…</span>
           </div>
-          <p class="hint feed-hint">Use ← and → to move between posts, ↑ and ↓ to move a row, Home and End to jump.</p>
+          <!-- Every key here is one the feed's keydown handler actually binds
+               (NAV_KEYS in social.js): ←/→ step one card, ↑/↓ step one grid
+               row, Home/End go to the ends. Enter is deliberately absent —
+               nothing on a card is a link, so there is no detail view to open,
+               and the last clause says so rather than leaving a reader
+               hunting for one. Verbs match the Releases hint: arrows "move",
+               Home and End "jump". -->
+          <p class="hint feed-hint">Use ← and → to move between posts, ↑ and ↓ to move to the post above or below, and Home and End to jump to the first and last post; each card holds the whole post, so there is nothing to open.</p>
           <p class="visually-hidden" id="feed-announcer" aria-live="polite" aria-atomic="true"></p>
           <!-- One sentence for "what am I looking at": how many posts are below
                this line, and which filters produced them. social.js writes it
