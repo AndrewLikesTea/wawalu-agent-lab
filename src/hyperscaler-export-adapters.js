@@ -549,3 +549,128 @@ export function adaptParsedExport(parsed, { providerId = null } = {}) {
 export const ADAPTED_PROVIDER_IDS = Object.freeze(BROWSER_COMPAT_MANIFEST.contracts
   .map((entry) => entry.providerId)
   .filter((id) => id in PROVIDER_BY_CONTRACT));
+
+// ---------------------------------------------------------------- preflight
+//
+// CHECK ONLY. `preflight` answers "would this export analyze?" and does nothing
+// else: it runs the SAME `recognizeExport` pass `adaptParsedExport` runs — there
+// is still exactly one recognition code path — counts rows and periods, reads
+// the matched contract's required columns, and returns a verdict. It builds no
+// document, touches no storage, and reads no module-level state, so calling it
+// is not a smaller import: it is not an import at all.
+//
+// It introduces NO scoring. Confidence, bands and outcomes stay where they are.
+
+/**
+ * Why the check answered as it did. The three refusals are the adapter's own
+ * codes rather than a second vocabulary, so a caller that already branches on
+ * `HYPERSCALER_CODES` branches on these without a translation table.
+ */
+export const PREFLIGHT_REASONS = Object.freeze({
+  READY: "ready",
+  UNRECOGNIZED_PROVIDER: HYPERSCALER_CODES.WRONG_PROVIDER,
+  MISSING_REQUIRED_COLUMN: HYPERSCALER_CODES.UNMODELED_VARIANT,
+  EMPTY_EXPORT: HYPERSCALER_CODES.EMPTY,
+});
+
+/**
+ * Which missing column the one instruction names when several are missing.
+ *
+ * The money column outranks everything: an export with no amount answers no
+ * FinOps question at all, while an export with no scope column answers a
+ * narrower one. The rest follow how much of the analysis each removes.
+ */
+export const PREFLIGHT_COLUMN_PRIORITY = Object.freeze([
+  FIELD_ROLES.COST, FIELD_ROLES.UNITS, FIELD_ROLES.TIMESTAMP,
+  FIELD_ROLES.MODEL, FIELD_ROLES.CURRENCY, FIELD_ROLES.SCOPE,
+]);
+
+const SUPPORTED_CONSOLES = ADAPTED_PROVIDER_IDS
+  .map((id) => contractById(id).displayName).join(", ");
+
+/**
+ * One export with no usage rows in it, whichever way it got there: a file with
+ * no bytes has no columns to be unrecognized about, and a file with the right
+ * columns and no rows has nothing to add up. Both need the same thing done.
+ */
+const EMPTY_ACTION = "Re-pull the export over a billing period that has usage in it: this file "
+  + "carries no usage rows to check.";
+
+const UNRECOGNIZED_ACTION = "Re-pull a usage export from one of the consoles this build adapts — "
+  + `${SUPPORTED_CONSOLES} — as none of their signature columns are in this file.`;
+
+/** The highest-priority missing required column, by role then contract order. */
+function firstMissingColumn(contract, missing) {
+  for (const role of PREFLIGHT_COLUMN_PRIORITY) {
+    const field = contract.requiredFields.find(
+      (entry) => entry.role === role && missing.includes(entry.path));
+    if (field) return field.path;
+  }
+  return missing[0] ?? null;
+}
+
+/**
+ * ONE instruction, never a list and never a paragraph. Highest priority first:
+ * an unrecognized provider, then the missing required column, then an export
+ * with no rows, then the ready case.
+ */
+function preflightAction(reason, { contract, missing }) {
+  if (reason === PREFLIGHT_REASONS.UNRECOGNIZED_PROVIDER) return UNRECOGNIZED_ACTION;
+  if (reason === PREFLIGHT_REASONS.MISSING_REQUIRED_COLUMN) {
+    return `Re-pull the ${contract.displayName} export with the `
+      + `${firstMissingColumn(contract, missing)} column included, then check it again.`;
+  }
+  if (reason === PREFLIGHT_REASONS.EMPTY_EXPORT) return EMPTY_ACTION;
+  return `Nothing to fix. Import this ${contract.displayName} export to run the analysis.`;
+}
+
+/**
+ * Check one already-parsed export without importing it.
+ *
+ * @param parsed `{ ok, format, fieldNames, records }` — the same shape
+ *   `adaptParsedExport` takes and `parseExportText` produces. Never a File,
+ *   never text this function has to parse itself.
+ * @returns a FRESH frozen verdict every call — `{ provider, displayName,
+ *   rowCount, periodCount, missingColumns, reason, nextAction }`. `provider` is
+ *   null when no published contract claims the file. Nothing is shared between
+ *   two calls and nothing in it is computed lazily.
+ */
+export function preflight(parsed) {
+  const recognition = recognizeExport(parsed);
+  const contract = recognition.providerId ? contractById(recognition.providerId) : null;
+  const fieldNames = Array.isArray(parsed?.fieldNames) ? parsed.fieldNames.map(String) : [];
+  const names = new Set(fieldNames);
+  const records = Array.isArray(parsed?.records) ? parsed.records : [];
+  const missing = contract
+    ? contract.requiredFields.map((field) => field.path).filter((path) => !names.has(path))
+    : [];
+
+  // The periods the analysis would fold these rows into: the distinct calendar
+  // days the file itself states, counted through the same reader the projection
+  // uses. A row whose date cell is unreadable is in no period and is not one.
+  const datePath = contract ? byRole(contract, FIELD_ROLES.TIMESTAMP)?.path ?? null : null;
+  const periods = new Set();
+  if (datePath) {
+    for (const row of records) {
+      const day = isoDay(row?.[datePath]);
+      if (day) periods.add(day);
+    }
+  }
+
+  const reason = !contract
+    ? (records.length === 0 && fieldNames.length === 0
+      ? PREFLIGHT_REASONS.EMPTY_EXPORT : PREFLIGHT_REASONS.UNRECOGNIZED_PROVIDER)
+    : missing.length ? PREFLIGHT_REASONS.MISSING_REQUIRED_COLUMN
+      : records.length === 0 ? PREFLIGHT_REASONS.EMPTY_EXPORT
+        : PREFLIGHT_REASONS.READY;
+
+  return Object.freeze({
+    provider: recognition.providerId,
+    displayName: contract?.displayName ?? null,
+    rowCount: records.length,
+    periodCount: periods.size,
+    missingColumns: Object.freeze(missing),
+    reason,
+    nextAction: preflightAction(reason, { contract, missing }),
+  });
+}
