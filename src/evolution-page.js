@@ -173,8 +173,20 @@ import { renderOperatingCycle } from "/monthly-finops-review-view.js";
 // answer to it. The contract is pure and clock-free; the clock is injected at
 // the call sites below, which is what makes the same records give one answer.
 import { selectNextStep } from "/finops-next-step.js";
-import { SAMPLE_LABEL, chooseJourneyState } from "/finops-next-step-source.js";
+import { JOURNEY_SOURCE, SAMPLE_LABEL, chooseJourneyState } from "/finops-next-step-source.js";
 import { renderNextStep } from "/finops-next-step-view.js";
+// …and, when this browser holds nothing of its own, the same question answered
+// from the WORKED EXAMPLE the rest of this screen already reports (#1020). One
+// derived record, read by the circulation decision block above and by both
+// evidence layers, so the page cannot state two different first actions. The
+// dataset is a static import rather than the fetch below, because both evidence
+// layers paint in the first synchronous pass: a step that arrives with the
+// fixture is a step a reader has already met a dead end instead of.
+import BUNDLED_EXAMPLE_DATASET from "/evolution-demo-data.json" with { type: "json" };
+import {
+  NEXT_STEP_DATA_STATE, bundledFirstAction, nextStepDataState, withDerivedFirstAction,
+} from "/finops-bundled-next-step.js";
+import { renderBundledNextStep } from "/finops-bundled-next-step-view.js";
 // Whether the letter may be shown at all is decided before it is drawn: the
 // score card is a roll-up of only the departments the rubric actually scored.
 import { CLAMPED_REASON, gradeEligibility } from "/grade-eligibility.js";
@@ -4297,10 +4309,39 @@ async function renderEvaluationDemo() {
  * a pure function of its two arguments, and keeping the clock at the call site
  * is what lets a test pin every state to a day.
  */
+/**
+ * The bundled example's first action, derived once per page load.
+ *
+ * Memoized because three surfaces read it on every panel sync and the rule is a
+ * pure function of a static dataset: deriving it again cannot produce a
+ * different answer, only a slower one.
+ */
+let bundledExampleCache;
+function bundledExampleStep() {
+  if (bundledExampleCache === undefined) {
+    bundledExampleCache = bundledFirstAction(BUNDLED_EXAMPLE_DATASET);
+  }
+  return bundledExampleCache;
+}
+
 function paintNextStep() {
-  const chosen = chooseJourneyState({
-    retainedAction: readMonthlyAction(browserFinopsWorkspaceStorage()).record,
-  });
+  const retainedAction = readMonthlyAction(browserFinopsWorkspaceStorage()).record;
+  const restored = restoreJourneySnapshot(browserFinopsWorkspaceStorage());
+  // The branch is a NAMED state, not truthiness on an array that can be present
+  // and empty: "nothing imported" and "imported, and nothing readable in it"
+  // produce different sentences and must not collapse into a silent fallback.
+  const dataState = nextStepDataState({ retainedAction, restored });
+  const example = bundledExampleStep();
+  const region = document.getElementById("finops-next-step");
+  if (region) region.dataset.stepSource = dataState;
+  if (dataState === NEXT_STEP_DATA_STATE.bundledExample && example) {
+    const bundled = renderBundledNextStep(document, example, {
+      sample: SAMPLE_LABEL[JOURNEY_SOURCE.example],
+    });
+    paintConsolidatedJourney();
+    return bundled;
+  }
+  const chosen = chooseJourneyState({ retainedAction });
   const painted = renderNextStep(document, selectNextStep(chosen.journeyState, new Date()), {
     sample: SAMPLE_LABEL[chosen.source],
   });
@@ -4323,10 +4364,18 @@ function paintNextStep() {
  * journey still reads this browser's own records.
  */
 function paintConsolidatedJourney() {
+  const restored = restoreJourneySnapshot(browserFinopsWorkspaceStorage());
+  const retainedAction = readMonthlyAction(browserFinopsWorkspaceStorage()).record;
+  const dataState = nextStepDataState({ retainedAction, restored });
+  const region = document.getElementById("finops-journey");
+  if (region) region.dataset.stepSource = dataState;
   return renderConsolidatedJourney(document, consolidateJourney({
-    restored: restoreJourneySnapshot(browserFinopsWorkspaceStorage()),
+    restored,
     now: new Date(),
     surface: "briefing",
+    // Only in the bundled state, and never as a fallback for an import that
+    // produced nothing readable: an empty import stays empty and says so.
+    example: dataState === NEXT_STEP_DATA_STATE.bundledExample ? bundledExampleStep() : null,
   }));
 }
 
@@ -4605,7 +4654,10 @@ async function init() {
     const departments = Array.isArray(data.departments) ? data.departments : [];
     const totals = summarize(departments);
     bundledSeed = data;
-    renderBriefingReadiness(document, assessBriefingReadiness(data.briefingReadiness));
+    // The first action this block states is the DERIVED one, so the circulation
+    // decision and the two evidence layers below cannot name different steps
+    // (#1020). A dataset this rule cannot rank leaves the record untouched.
+    renderBriefingReadiness(document, assessBriefingReadiness(withDerivedFirstAction(data)));
     try {
       renderExecutiveBriefingProjection(document,
         projectExecutiveBriefing(data.briefingReadiness));

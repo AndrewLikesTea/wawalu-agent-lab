@@ -260,7 +260,11 @@ export function renderConsolidatedJourney(doc, journey) {
   body.append(decision);
 
   // 3 — and, only where it is the answer, the checkpoint that will judge it.
-  if (journey.phase === JOURNEY_PHASE.verificationReady) {
+  // The bundled-example phase joins it for the reason the question exists: a
+  // step with no stated way to tell whether it worked is half an answer, and
+  // the example schedules its own checkpoint (#1020).
+  if (journey.phase === JOURNEY_PHASE.verificationReady
+    || journey.phase === JOURNEY_PHASE.bundledExample) {
     body.append(checkpointBlock(doc, journey));
   }
 

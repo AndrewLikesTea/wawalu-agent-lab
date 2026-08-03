@@ -44,6 +44,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
 import { assessBriefingReadiness } from "../src/briefing-readiness.js";
+import { withDerivedFirstAction } from "../src/finops-bundled-next-step.js";
 import { renderBriefingReadiness } from "../src/briefing-readiness-view.js";
 import { projectExecutiveBriefing } from "../src/executive-briefing-projection.js";
 import {
@@ -129,7 +130,11 @@ export function firstScreenEdits(bundled) {
   const answer = FINOPS_ANSWER_SUMMARY;
   const headline = buildStandHeadline();
   const readiness = recordingRoot();
-  renderBriefingReadiness(readiness, assessBriefingReadiness(bundled?.briefingReadiness ?? null));
+  // The circulation block's first action is derived from the dataset by the same
+  // function the page and both evidence layers read (#1020), so the served
+  // document and the paint cannot state two different first actions.
+  renderBriefingReadiness(readiness,
+    assessBriefingReadiness(withDerivedFirstAction(bundled) ?? bundled?.briefingReadiness ?? null));
   const projection = recordingRoot();
   renderExecutiveBriefingProjection(projection,
     projectExecutiveBriefing(bundled?.briefingReadiness ?? null));
