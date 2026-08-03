@@ -409,6 +409,12 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .proof-relationship,.site-guide { display:grid; gap:12px; padding:18px 0; border-block:1px solid #dedcd5; }
 .proof-relationship h2,.site-guide h2 { margin:0; font-size:18px; }
 .proof-relationship p,.site-guide p { margin:0; }
+/* The destination groups: a real heading above each list, one step down from
+   the section's own. This section is a plain source-order stack — no order,
+   no float, no absolute position — so the tools group reads first on screen
+   exactly as it does in the markup. */
+.site-guide h3 { margin:0; font-size:14px; }
+.site-guide ul + h3 { margin-top:6px; }
 .proof-relationship ul,.site-guide ul { display:grid; gap:9px; margin:0; padding:0; list-style:none; }
 .proof-relationship li,.site-guide li { display:flex; align-items:center; flex-wrap:wrap; gap:10px; }
 .proof-relationship a,.site-guide a { color:#1f5fa8; font-weight:700; }
