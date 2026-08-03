@@ -103,6 +103,33 @@ test("the home page offers the coach twice: in the destination list and as a thi
   // with keeps its own primary call to action.
   assert.ok(html.indexOf('class="site-guide"') < html.indexOf('class="coach-entry"'));
 
+  // The companion path names where it goes. A label that reads "Read your whole
+  // history instead" names a gesture and no destination; the site calls that
+  // page Personal AI history everywhere else, so the link does too.
+  const companion = entry.querySelector(".coach-entry-companion");
+  const companionLink = companion.querySelector('a[href="/personal-history.html"]');
+  assert.ok(companionLink, "the companion path must link to the personal history page");
+  assert.equal(textOf(companionLink), "Open Personal AI history");
+
+  // Said once. The paragraph above already states what this section costs, so
+  // the companion block spends its sentences on what the reader gets instead.
+  assert.doesNotMatch(
+    textOf(companion),
+    /nothing is uploaded|no upload|no sign-in|no storage/i,
+    "the companion block restates the privacy promise made directly above it",
+  );
+  assert.match(textOf(companion), /in this browser tab/, "the companion must say where it reads the export");
+  assert.match(textOf(companion), /the one habit worth changing first/);
+
+  // Entities belong in the markup and never in the words a visitor reads: a
+  // literal "&mdash;" on the page is a rendering defect, not punctuation. The
+  // build copies this page byte for byte, so the source text is the shipped text.
+  assert.doesNotMatch(
+    parseHtml(html).body.textContent,
+    /&[a-zA-Z#][a-zA-Z0-9]*;/,
+    "the home page paints an unrendered HTML entity",
+  );
+
   // Reachable from the keyboard, and it opens the route it names.
   const document2 = parseHtml(html);
   const target = document2.querySelector(".coach-entry").querySelector('a[href="/coach.html"]');
