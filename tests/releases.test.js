@@ -272,9 +272,12 @@ test("releases page is wired and linked from the decisions page", async () => {
   assert.match(page, /id="release-search"/);
   assert.match(page, /id="release-status"/);
   assert.match(page, /id="release-list" aria-live="polite" aria-busy="true"/);
-  assert.match(page, /id="release-count" aria-live="polite">Loading releases…<\/span>/);
-  assert.doesNotMatch(page, /id="release-count"[^>]*>0 releases<\/span>[\s\S]*?<h3>Loading releases<\/h3>/);
-  assert.match(page, /<h3>Loading releases<\/h3>/);
+  // One loading message on the page: the list states the wait, and the count
+  // ships empty rather than repeating it or claiming a number it cannot know.
+  assert.match(page, /id="release-count" aria-live="polite"><\/span>/);
+  assert.doesNotMatch(page, /id="release-count"[^>]*>0 releases<\/span>[\s\S]*?<h3>Loading releases…<\/h3>/);
+  assert.match(page, /<h3>Loading releases…<\/h3>/);
+  assert.equal(page.match(/Loading releases/g).length, 1, "the wait is stated once");
   assert.match(page, /src="\/releases-page\.js"/);
   // No innerHTML anywhere in the interactive layers (no user-generated HTML).
   const component = await read("src/releases.js");

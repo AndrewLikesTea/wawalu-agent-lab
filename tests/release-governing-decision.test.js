@@ -5,8 +5,8 @@
 // decision filter's query-string round trip — is asserted directly. The
 // rendered release view is checked through the element stub. The parts a
 // keyboard user feels are driven through the shipped markup: choosing the
-// governing decision in the recorder, narrowing the shipping history to one
-// decision with the arrow keys, and reopening that narrowed history from a URL.
+// governing decision in the recorder, narrowing the releases to one decision
+// with the arrow keys, and reopening that narrowed view from a URL.
 //
 // Determinism: no network, no timers, no sleeps. Every test seeds its own
 // fixtures; nothing depends on the shipped example records.
