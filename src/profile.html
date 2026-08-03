@@ -40,21 +40,52 @@
              open it; Social carries the mirror sentence. -->
         <h1 id="page-title">People</h1>
         <p class="profile-lede">People shows the image posts published under one display name, newest first; select a post to read it in full. Open Social when you want the whole feed, including posts with no image.</p>
+
+        <!-- The picker comes before the answer, in the markup and not merely in
+             the layout: it is the first tab stop in the main content, and a
+             reader who arrives from Social's "Open People" pointer sees whose
+             posts they are about to read, and who else has any, before they read
+             a name, a count, or a grid. It used to sit below all of them, so the
+             page's first sentence was a verdict about a name nobody had chosen.
+             Each option carries that name's image-post count as text, so the
+             menu answers "who has pictures" without trial and error. -->
+        <div class="profile-toolbar">
+          <div class="filter">
+            <label for="profile-author">Show posts by display name</label>
+            <select id="profile-author" aria-describedby="profile-author-hint"></select>
+          </div>
+          <!-- The label says what choosing an entry does, in Social's own
+               words — its feed labels a filter "Show posts" — and it names
+               the thing being chosen with the word the rest of the site uses
+               for it. "Show posts by" alone said what the control did and
+               left the menu's contents unnamed, so the page's description
+               called them one thing and the composer called them another.
+               Before that this block was headed "Profile" and explained
+               itself in a circle — "a profile is a display name" — which
+               named a surface this site does not have. The “Guest” default
+               belongs to the composer, where a name is typed, so it is not
+               repeated here. -->
+          <p class="hint profile-toolbar-hint" id="profile-author-hint">
+            The display name is the name shown on each post. Pick one to see only the image posts published under it.
+          </p>
+        </div>
+
         <!-- The avatar is decorative: the name beside it is the first line of
              the identity block, so nothing here is announced twice. -->
         <div class="profile-identity">
           <span class="profile-avatar" id="profile-avatar" aria-hidden="true">AR</span>
           <div class="profile-identity-text">
-            <!-- "Ari" is the pre-hydration render of the first display name in
-                 the seed feed. The picker replaces it once a reader chooses. -->
+            <!-- "Ari" is the pre-hydration render of the display name the seed
+                 feed lands on. The picker replaces it once a reader chooses. -->
             <p class="profile-summary" id="profile-name">Ari</p>
-            <!-- These defaults are the pre-hydration render of the empty state.
-                 They must stay word-for-word with emptySummaryText() and the
-                 image-post count label in src/profile.js; a test pins it. The
-                 name is "Ari" for the same reason the line above is: it is the
-                 first display name in the seed feed, and profile.js rebuilds
-                 this sentence from whichever name is selected. -->
-            <p class="profile-summary" id="profile-summary">Ari hasn’t posted an image yet.</p>
+            <!-- The pre-hydration line of a page that has not counted anything
+                 yet. It must stay word-for-word with loadingSummaryText() in
+                 src/profile.js; a test pins it. It used to ship the empty state
+                 — "Ari hasn't posted an image yet" — which was false for the
+                 seeded feed and was the first thing a visitor read. Once the
+                 module runs, this line is the page's only statement of the
+                 image-post count, empty case included. -->
+            <p class="profile-summary" id="profile-summary">Counting Ari’s image posts…</p>
           </div>
         </div>
         <!-- People is a filtered view of Social, and the nav says so by nesting
@@ -82,12 +113,16 @@
 
       <section class="workspace profile-workspace" aria-labelledby="grid-title">
         <div class="list-panel">
+          <!-- No count chip beside this heading. The identity line above states
+               the image-post count once, in a sentence that also covers the
+               empty case; a bare "0 image posts" here repeated it in a second
+               voice and left a reader unable to tell an empty name from a
+               feature that had failed to load. -->
           <div class="section-heading list-heading">
             <div>
               <p class="eyebrow">Newest first</p>
               <h2 id="grid-title">Image posts</h2>
             </div>
-            <span class="count" id="profile-count">0 image posts</span>
           </div>
           <!-- People is where a visitor browses images, so the route into the
                editor stays beside them. The sentence names both steps in the
@@ -107,27 +142,6 @@
           <p class="feed-create hint">
             Want a picture of your own here? Create or export the image in <a class="text-link paint-link" id="profile-paint-route" href="/paint/?from=profile">Paint</a>, then publish it on Social under a display name.
           </p>
-
-          <div class="profile-toolbar">
-            <div class="filter">
-              <label for="profile-author">Show posts by display name</label>
-              <select id="profile-author" aria-describedby="profile-author-hint"></select>
-            </div>
-            <!-- The label says what choosing an entry does, in Social's own
-                 words — its feed labels a filter "Show posts" — and it names
-                 the thing being chosen with the word the rest of the site uses
-                 for it. "Show posts by" alone said what the control did and
-                 left the menu's contents unnamed, so the page's description
-                 called them one thing and the composer called them another.
-                 Before that this block was headed "Profile" and explained
-                 itself in a circle — "a profile is a display name" — which
-                 named a surface this site does not have. The “Guest” default
-                 belongs to the composer, where a name is typed, so it is not
-                 repeated here. -->
-            <p class="hint profile-toolbar-hint" id="profile-author-hint">
-              The display name is the name shown on each post. Pick one to see only the image posts published under it.
-            </p>
-          </div>
 
           <div class="feed-connection" aria-live="polite">
             <span class="live-dot" aria-hidden="true"></span>

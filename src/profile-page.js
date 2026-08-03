@@ -8,12 +8,15 @@
 // customer or production data is read here.
 
 import {
+  defaultProfileAuthor,
+  hasExplicitAuthor,
   mergePostsById,
   mountProfile,
   normalizeProfileApiPosts,
   normalizeSeedPosts,
   profileHref,
   resolveProfileAuthor,
+  selectProfilePosts,
   distinctAuthors,
 } from "/profile.js";
 import { readStoredAuthor, rememberAuthor } from "/social-identity.js";
@@ -48,10 +51,16 @@ async function init() {
 
   const seeds = await fetchSeedPosts();
   const param = new URLSearchParams(window.location.search).get("author");
+  const stored = readStoredAuthor(globalThis.localStorage);
+  // A shared link or a remembered name is a choice and wins outright, empty
+  // profile included. Only a visitor who chose nothing gets the landing default,
+  // and only that visitor's selection may still move when the live feed lands.
+  let chosen = hasExplicitAuthor({ param, stored });
   let author = resolveProfileAuthor({
     param,
-    stored: readStoredAuthor(globalThis.localStorage),
+    stored,
     authors: distinctAuthors(seeds),
+    preferred: defaultProfileAuthor(seeds),
   });
 
   // Mounted before the first fetch resolves so the first paint is a reserved
@@ -66,6 +75,7 @@ async function init() {
     onRetry: () => refresh(),
     onAuthorChange(next) {
       author = next;
+      chosen = true;
       rememberAuthor(globalThis.localStorage, next);
       updateTitle(next);
       // replaceState, not pushState: switching profiles is a filter, not a
@@ -86,6 +96,18 @@ async function init() {
       // Live posts shadow same-id seeds; the seed stays visible underneath so an
       // empty database does not read as an empty profile.
       profile.seed(mergePostsById(live, seeds));
+      // The landing name was decided from the seed alone, before the feed had
+      // answered. If the merged feed holds images and the name it picked does
+      // not, land on one that does — once, only for a visitor who chose nothing,
+      // and without writing the URL or storage, because nobody chose this.
+      if (!chosen) {
+        chosen = true;
+        const landing = defaultProfileAuthor(profile.getPosts());
+        if (landing && selectProfilePosts(profile.getPosts(), profile.getAuthor()).length === 0) {
+          author = landing;
+          profile.setAuthor(landing);
+        }
+      }
       profile.setStatus(`Live · updated ${new Intl.DateTimeFormat(undefined, { timeStyle: "short" }).format(new Date())}`);
     } catch {
       profile.setStatus(connected ? "Live updates paused · retrying" : "Demo posts · live service unavailable");

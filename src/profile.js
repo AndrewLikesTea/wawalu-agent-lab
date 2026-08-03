@@ -103,15 +103,30 @@ export function mergePostsById(...lists) {
 
 // Whose profile this is. An explicit ?author= wins so a profile is linkable and
 // shareable; otherwise it falls back to the name this browser posts under, and
-// finally to the same default byline the compose form uses.
-export function resolveProfileAuthor({ param, stored, authors = [] } = {}) {
+// finally to the landing name this feed suggests (defaultProfileAuthor below).
+// `authors` is the last resort, for a feed that holds posts but no images.
+export function resolveProfileAuthor({ param, stored, authors = [], preferred = null } = {}) {
   const requested = String(param ?? "").trim();
   if (requested && requested.length <= MAX_AUTHOR_LENGTH) return requested;
   const remembered = String(stored ?? "").trim();
   if (remembered && remembered.length <= MAX_AUTHOR_LENGTH) return remembered;
-  // With no hint at all, an author who actually has posts beats an empty
-  // profile for the default name.
+  // With no hint at all, a name that actually has image posts beats an empty
+  // grid: this page is a wall of images, and landing on a blank one leaves a
+  // first-time visitor unable to tell an empty feature from a wrong name.
+  const landing = String(preferred ?? "").trim();
+  if (landing) return landing;
   return authors[0] ?? DEFAULT_AUTHOR;
+}
+
+// Did anything actually ask for a name, or is this a first-time landing? The
+// resolver above and the page wiring both need the answer — the wiring only
+// re-picks a default for a visitor who never chose — and deriving it twice from
+// the same two inputs is how the two would drift apart.
+export function hasExplicitAuthor({ param, stored } = {}) {
+  return [param, stored].some((value) => {
+    const name = String(value ?? "").trim();
+    return Boolean(name) && name.length <= MAX_AUTHOR_LENGTH;
+  });
 }
 
 export function sortNewestFirst(posts) {
@@ -145,6 +160,34 @@ export function profileSummary(posts, author) {
 export function distinctAuthors(posts) {
   return [...new Set((posts ?? []).filter(Boolean).map((post) => post.author))]
     .sort((a, b) => a.localeCompare(b));
+}
+
+// How many image posts each display name has, in the picker's own order. Two
+// things read it — the option labels and the landing default — and they must
+// agree, so both count with the same rule the grid renders by.
+export function imagePostCounts(posts) {
+  return distinctAuthors(posts).map((name) => ({ name, images: selectProfilePosts(posts, name).length }));
+}
+
+// The name a visitor lands on when nothing else says whose posts to show. It is
+// the name with the most image posts, ties broken by distinctAuthors order —
+// deterministic, so the same feed always opens on the same view — and null when
+// no display name has an image at all, which is the one case where the empty
+// state is the honest answer rather than a wrong name.
+export function defaultProfileAuthor(posts) {
+  let best = null;
+  for (const entry of imagePostCounts(posts)) {
+    if (entry.images > 0 && (!best || entry.images > best.images)) best = entry;
+  }
+  return best?.name ?? null;
+}
+
+// What one entry in the picker reads. The count is part of the option's text —
+// its accessible name is its text — so the menu says which names have something
+// to show before a reader has to try them one by one. Same count phrasing and
+// the same separator the rest of this page uses.
+export function authorOptionLabel(name, images) {
+  return `${name} · ${countLabel(images, "image post")}`;
 }
 
 // The caption a tile shows. An image post may carry a dedicated caption; a post
@@ -239,9 +282,26 @@ export function emptySummaryText(author) {
   return `${name} hasn’t posted an image yet.`;
 }
 
-// The profile description under the name. An author with posts but no images
-// reads "0 image posts · 3 posts in total", so the counts carry the "you posted,
-// just without pictures" case that the empty state used to spell out in prose.
+// What the identity line says before the module has counted anything. The page
+// ships this line as static markup, so it is what a visitor reads for the frame
+// before hydration — and it used to ship "Ari hasn't posted an image yet", a
+// sentence that was false for the seeded feed and was the first thing a reader
+// following Social's "Open People" pointer saw. A page that has not counted yet
+// says so; it does not guess a count.
+export function loadingSummaryText(author) {
+  const name = String(author ?? "").trim() || DEFAULT_AUTHOR;
+  return `Counting ${name}’s image posts…`;
+}
+
+// The profile description under the name, and the one place on the page that
+// states the image-post count. The results panel used to repeat it in a chip
+// beside its heading, so an empty name printed "hasn't posted an image yet" and
+// "0 image posts" on the same render, in two voices, one of them a bare number
+// a first-time visitor could not tell from a broken feature.
+//
+// An author with posts but no images reads "0 image posts · 3 posts in total",
+// so the counts carry the "you posted, just without pictures" case that the
+// empty state used to spell out in prose.
 export function profileSummaryText(summary, author) {
   if (summary.total === 0) return emptySummaryText(author);
   const parts = [countLabel(summary.withImages, "image post"), `${countLabel(summary.total, "post")} in total`];
@@ -413,8 +473,9 @@ export function renderProfileGrid(container, posts, options = {}) {
   container.append(list);
 }
 
-// The identity block above the grid: avatar, name, and the counts that explain
-// what the grid is showing.
+// The identity block between the picker and the grid: avatar, name, and the
+// counts that explain what the grid is showing. It is the page's only statement
+// of the image-post count, empty case included.
 export function renderProfileHeader(elements, author, summary) {
   if (elements.avatar) {
     elements.avatar.textContent = authorInitials(author);
@@ -442,7 +503,6 @@ export function mountProfile(root, options = {}) {
     status: root.querySelector("#profile-status"),
     announcer: root.querySelector("#profile-announcer"),
     picker: root.querySelector("#profile-author"),
-    count: root.querySelector("#profile-count"),
     // The always-visible routes into Paint: the hero's primary call to action
     // and the invitation above the grid. Both are real anchors in the markup and
     // stay ones whether or not this runs; all that is added here is the display
@@ -468,9 +528,6 @@ export function mountProfile(root, options = {}) {
       onRetry: options.onRetry,
       author,
     });
-    // A count, always — this sits beside the "Image posts" heading, and putting
-    // the empty-state sentence here is what made the page say it twice.
-    if (elements.count) elements.count.textContent = countLabel(mine.length, "image post");
     if (elements.announcer && state === "ready") {
       elements.announcer.textContent = profileAnnouncement(author, mine.length);
     }
@@ -479,11 +536,13 @@ export function mountProfile(root, options = {}) {
 
   const renderPicker = () => {
     if (!elements.picker) return;
-    const authors = distinctAuthors(posts);
+    const counts = imagePostCounts(posts);
     // The current author stays selectable even with nothing in the feed yet, so
-    // the control never silently drops the profile you are looking at.
-    const names = authors.includes(author) ? authors : [author, ...authors];
-    elements.picker.replaceChildren(...names.map((name) => new Option(name, name)));
+    // the control never silently drops the profile you are looking at. A name
+    // with no image posts stays in the menu too — its count is what tells the
+    // reader it is empty, which is the whole reason the counts are here.
+    const entries = counts.some((entry) => entry.name === author) ? counts : [{ name: author, images: 0 }, ...counts];
+    elements.picker.replaceChildren(...entries.map((entry) => new Option(authorOptionLabel(entry.name, entry.images), entry.name)));
     elements.picker.value = author;
   };
 
