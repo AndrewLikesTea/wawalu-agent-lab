@@ -47,6 +47,27 @@
  * with the idle sentence, because `.import-reason:empty` is `display:none` and a
  * region that is display:none until the moment it has something to say is a
  * region no assistive technology was watching.
+ *
+ * ONE ANSWERABLE QUESTION, ONE ANSWER, ONE NEXT STEP (#1066)
+ * ---------------------------------------------------------
+ * Three things are the loudest in this zone and they read in this order: the
+ * QUESTION (a real one, with a real answer — it used to be the section label
+ * "Check an export before you commit to the analysis", which asks nothing), the
+ * VERDICT, and exactly ONE action. Everything else — the column breakdown here,
+ * the five console errands below — is subordinate by position and by type role,
+ * never by being folded out of sight.
+ *
+ * NEVER COLOUR ALONE. Every state carries a glyph AND a word AND a sentence
+ * before the band tint is reached: ○ not checked, ◔ checking, ✓ yes, ✗ no,
+ * ! could not run. The glyph is aria-hidden and the sentence is the accessible
+ * text, so nothing is said twice; and the zone's own accessible name is the
+ * question plus the current verdict, so the state is in words to anything
+ * reading the container rather than the line inside it.
+ *
+ * A CHECK THAT COULD NOT RUN IS NOT A REFUSAL. A file this browser could not
+ * read, and a check whose modules did not load, are `blocked` — their own state,
+ * their own neutral band, no verdict on the file. Telling a reader their export
+ * is bad because a fetch failed is the one wrong answer this zone can give.
  */
 
 /** Every id this module owns. Nothing outside it writes to these nodes. */
@@ -78,25 +99,50 @@ export const providerGuidanceHref = (provider) =>
   `#${provider ? `${PROVIDER_GUIDANCE_ID}-${provider}` : PROVIDER_GUIDANCE_ID}`;
 
 export const EXPORT_CHECK_COPY = Object.freeze({
-  title: "Check an export before you commit to the analysis",
+  title: "Will this export analyze here?",
   instruction: "Drop one export here, or browse for it below. It is read in this tab, checked "
     + "against the same recognition pass the analysis runs, and then it stops. Nothing is "
     + "analyzed, nothing is uploaded, and nothing already on this page is cleared or replaced.",
   label: "Choose one export to check",
-  idle: "No export checked yet. This answers one question: would this file analyze?",
-  reading: "Checking this file in this tab…",
+  idle: "Not checked yet — no export has been read, so nothing is claimed about your file.",
+  reading: "Checking — reading this file in this tab…",
   ready: "Yes — this export will analyze.",
   refused: "No — this export will not analyze as it is.",
-  unreadable: "This file could not be read in this browser, so nothing was checked. Choose it "
-    + "again, or export it again and retry.",
-  unavailable: "This check could not run in this browser. Nothing on this page changed; import "
-    + "the file with the picker below to find out what it does with it.",
+  unreadable: "Could not run — this browser could not read the file, so nothing was checked and "
+    + "nothing is claimed about it. Choose it again, or export it again and retry.",
+  unavailable: "Could not run — the check itself did not load in this browser, so nothing is "
+    + "claimed about your file. Nothing on this page changed; import the file with the picker "
+    + "below to find out what it does with it.",
   continue: "Run the full analysis on this export",
   summary: "What this check read, column by column",
   noColumns: "No column names were read from this file.",
   present: "In this file",
   missing: "Required and missing",
 });
+
+/**
+ * One glyph per state, so the three drawn states differ in shape before they
+ * differ in tint. Every one is aria-hidden: the sentence beside it already says
+ * the same thing in words, and a screen reader that read both would say the
+ * verdict twice.
+ */
+const STATE_MARKS = Object.freeze({
+  idle: "○", reading: "◔", recognized: "✓", refused: "✗", blocked: "!", continued: "✓",
+});
+
+/**
+ * The longest file name this zone will print. A name is the reader's, not ours,
+ * and an export dropped out of a console can carry a hundred characters of
+ * account id and date range. Clamped here rather than in the stylesheet so the
+ * guarantee holds with no CSS at all: the detail line cannot grow past a
+ * sentence, so it can never push the one action out of the zone.
+ */
+const MAX_NAME = 48;
+
+const shortName = (name) => {
+  const text = String(name ?? "").trim();
+  return text.length > MAX_NAME ? `${text.slice(0, MAX_NAME - 1)}…` : text;
+};
 
 // The picker's own accept list, so the check cannot refuse a file the import
 // would have taken (or take one it would not).
@@ -154,8 +200,35 @@ function detailLine(verdict) {
 
 /** Where the refusal's one control sends the reader, named so the link says it. */
 const guidanceDestination = (verdict) => (verdict.provider
-  ? `Open the ${verdict.displayName} export guidance above.`
-  : "Open the export guidance above.");
+  ? `Open the ${verdict.displayName} export guidance below.`
+  : "Open the export guidance below.");
+
+/**
+ * Write one state into the verdict line: glyph, then sentence, then band.
+ *
+ * The glyph node is replaced with the text on every write, so the line can never
+ * hold the previous state's mark beside this state's words. `answer` is also the
+ * zone's second labelling node, so the container's accessible name states the
+ * state in words the moment this returns.
+ */
+function sayVerdict(doc, answer, state, sentence) {
+  const mark = node(doc, "span", "import-drop-mark", STATE_MARKS[state] ?? STATE_MARKS.idle);
+  mark.setAttribute("aria-hidden", "true");
+  answer.dataset.state = state === "recognized" ? "recognized"
+    : state === "refused" ? "unrecognized" : "idle";
+  answer.replaceChildren(mark, doc.createTextNode(` ${sentence}`));
+}
+
+/**
+ * Put the keyboard on the answer the reader just asked for.
+ *
+ * `tabindex="-1"` and not `0`: the verdict is a destination, not a stop every
+ * reader tabs through on every pass. Called only on settled states — moving
+ * focus onto "checking…" would take it away again while the reader reads.
+ */
+function focusVerdict(answer) {
+  if (typeof answer?.focus === "function") answer.focus();
+}
 
 /**
  * One column per row: what the file carries, then what it owes.
@@ -187,7 +260,7 @@ function paintColumns(doc, list, verdict, fieldNames) {
  * @returns true when the verdict is one the reader can continue from, so a
  *          caller can tell the two outcomes apart without re-reading it.
  */
-export function renderExportCheck(doc, verdict, fieldNames = []) {
+export function renderExportCheck(doc, verdict, fieldNames = [], fileName = "") {
   const zone = byId(doc, EXPORT_CHECK_IDS.zone);
   const answer = byId(doc, EXPORT_CHECK_IDS.answer);
   const detail = byId(doc, EXPORT_CHECK_IDS.detail);
@@ -200,12 +273,18 @@ export function renderExportCheck(doc, verdict, fieldNames = []) {
 
   const ready = Boolean(verdict?.provider) && !verdict.namedColumn && verdict.rowCount > 0;
   zone.dataset.check = ready ? "recognized" : "refused";
+  zone.setAttribute("aria-busy", "false");
   // The answer, into a region that was already in the document. The two states
   // borrow the import reason's own bands, so the tint says the same thing the
-  // sentence does and says it fourth.
-  answer.dataset.state = ready ? "recognized" : "unrecognized";
-  answer.textContent = ready ? EXPORT_CHECK_COPY.ready : EXPORT_CHECK_COPY.refused;
-  detail.textContent = detailLine(verdict);
+  // glyph and the sentence do — and says it fourth.
+  sayVerdict(doc, answer, ready ? "recognized" : "refused",
+    ready ? EXPORT_CHECK_COPY.ready : EXPORT_CHECK_COPY.refused);
+  // Which file this verdict is about, then what was read from it. Named first
+  // because a reader checking a second export has two candidates in hand, and
+  // clamped so the longest name a console can produce is still one line of
+  // detail rather than a wall the action sits below.
+  const named = shortName(fileName);
+  detail.textContent = named ? `${named} · ${detailLine(verdict)}` : detailLine(verdict);
   detail.hidden = false;
 
   // Exactly one control. The other is not merely unstyled or disabled — it is
@@ -224,6 +303,7 @@ export function renderExportCheck(doc, verdict, fieldNames = []) {
   // Present from here on, and never opened by this code: a reader who wants the
   // breakdown opens it, and a reader who wanted a yes or a no never meets it.
   disclosure.hidden = false;
+  focusVerdict(answer);
   return ready;
 }
 
@@ -233,12 +313,16 @@ function paintStandby(doc, state, sentence) {
   const answer = byId(doc, EXPORT_CHECK_IDS.answer);
   if (!zone || !answer) return false;
   zone.dataset.check = state;
-  answer.dataset.state = state === "refused" ? "unrecognized" : "idle";
-  answer.textContent = sentence;
+  zone.setAttribute("aria-busy", String(state === "reading"));
+  sayVerdict(doc, answer, state, sentence);
   byId(doc, EXPORT_CHECK_IDS.detail).hidden = true;
   byId(doc, EXPORT_CHECK_IDS.continue).hidden = true;
   byId(doc, EXPORT_CHECK_IDS.guidance).hidden = true;
   byId(doc, EXPORT_CHECK_IDS.disclosure).hidden = true;
+  // Checking keeps the keyboard where the reader left it — focus that lands on
+  // "reading…" is focus taken away again a moment later. A check that could not
+  // run is settled, and a settled state is where focus goes.
+  if (state === "blocked") focusVerdict(answer);
   return true;
 }
 
@@ -256,7 +340,9 @@ async function runCheck(doc, file) {
   try {
     text = await file.text();
   } catch {
-    return paintStandby(doc, "refused", EXPORT_CHECK_COPY.unreadable) && false;
+    // NOT a refusal: the file was never checked, so no verdict on it exists to
+    // report. `blocked` has its own state, its own glyph and the neutral band.
+    return paintStandby(doc, "blocked", EXPORT_CHECK_COPY.unreadable) && false;
   }
   try {
     const [{ preflight }, { parseExportText }] = await Promise.all([
@@ -266,12 +352,12 @@ async function runCheck(doc, file) {
     const parsed = parseExportText(text, file?.name ?? "");
     const verdict = preflight(parsed);
     const ready = renderExportCheck(doc, verdict,
-      Array.isArray(parsed?.fieldNames) ? parsed.fieldNames.map(String) : []);
+      Array.isArray(parsed?.fieldNames) ? parsed.fieldNames.map(String) : [], file?.name ?? "");
     // Held only where there is something to continue into.
     if (ready) checkedFile = file;
     return ready;
   } catch {
-    return paintStandby(doc, "unavailable", EXPORT_CHECK_COPY.unavailable) && false;
+    return paintStandby(doc, "blocked", EXPORT_CHECK_COPY.unavailable) && false;
   }
 }
 
@@ -287,9 +373,17 @@ function buildZone(doc) {
   zone.dataset.check = "idle";
   zone.dataset.dragging = "false";
   zone.setAttribute("role", "group");
-  zone.setAttribute("aria-labelledby", EXPORT_CHECK_IDS.title);
+  // The container's accessible name is the QUESTION plus the CURRENT VERDICT, so
+  // the state is in words to anything reading the group rather than the line
+  // inside it — never a shape or a tint on its own. It updates itself, because
+  // the second node is the live region the verdict is written into.
+  zone.setAttribute("aria-labelledby", `${EXPORT_CHECK_IDS.title} ${EXPORT_CHECK_IDS.answer}`);
+  zone.setAttribute("aria-busy", "false");
 
-  const title = node(doc, "p", "import-drop-title", EXPORT_CHECK_COPY.title);
+  // The leading question, at the type role this zone's title already had and at
+  // the heading level the panel around it already uses. No new size, no new
+  // level — the guidance below it keeps its own smaller role and sits under it.
+  const title = node(doc, "h3", "import-drop-title", EXPORT_CHECK_COPY.title);
   title.id = EXPORT_CHECK_IDS.title;
   const instruction = node(doc, "p", "import-drop-instruction", EXPORT_CHECK_COPY.instruction);
   instruction.id = EXPORT_CHECK_IDS.instruction;
@@ -304,13 +398,19 @@ function buildZone(doc) {
   input.setAttribute("aria-describedby", EXPORT_CHECK_IDS.instruction);
   field.append(label, input);
 
-  // The live region, in the document from mount, with a sentence in it from
-  // mount. Every later announcement is a write into THIS node.
-  const answer = node(doc, "p", "import-reason", EXPORT_CHECK_COPY.idle);
+  // The live region, in the document from mount, with a neutral sentence in it
+  // from mount — it states that nothing has been checked, so first paint is not
+  // an announcement. Every later announcement is a write into THIS node, which
+  // is a SIBLING of the disclosure below and of the drop zone's own controls,
+  // never a child of either.
+  const answer = node(doc, "p", "import-reason");
   answer.id = EXPORT_CHECK_IDS.answer;
-  answer.dataset.state = "idle";
   answer.setAttribute("role", "status");
   answer.setAttribute("aria-live", "polite");
+  // Focusable by script, never by Tab: the check moves the keyboard here when
+  // the answer arrives, and the reader tabs on from it to the one action.
+  answer.setAttribute("tabindex", "-1");
+  sayVerdict(doc, answer, "idle", EXPORT_CHECK_COPY.idle);
 
   const detail = node(doc, "p", "import-drop-instruction");
   detail.id = EXPORT_CHECK_IDS.detail;
@@ -337,14 +437,20 @@ function buildZone(doc) {
 }
 
 /**
- * Mount the check between the provider guidance and the picker that commits.
+ * Mount the check ABOVE the provider guidance and above the picker that commits.
  *
- * Between, and not inside either: the guidance section is held to carrying no
- * disclosure of its own (a card that folds its own errand away is a card a
- * reader cannot read), and the picker is the path this one exists to be an
- * alternative to. It lands directly under the five console errands, which is
- * where a reader holding a file they are unsure about already is — and which is
- * what makes "the guidance above" the truthful wording on the refusal's link.
+ * It used to land between them, under the five console errands. #1066 moves it
+ * up one place, because the question this zone asks is the one the section is
+ * for and the errands are what a reader does about ONE of its answers. Leading
+ * with them puts a five-card list of consoles in front of a reader who is
+ * holding a file and wants a yes or a no.
+ *
+ * The guidance keeps its position under this zone and keeps standing in the
+ * open — it is NOT folded into a disclosure. A collapsed errand is one a reader
+ * cannot see, which is the defect #1062 closed, and the refusal's own link
+ * deep-links into it. Subordinate here is by ORDER and by TYPE ROLE: the
+ * question leads at 15px, the guidance follows at the eyebrow role, and the
+ * refusal's link now truthfully says "below".
  *
  * @param onContinue the page's OWN import handler, called with the one File a
  *        recognized check already read. This module never imports anything
@@ -356,11 +462,9 @@ export function mountExportCheck(doc, { onContinue } = {}) {
   if (!host || byId(doc, EXPORT_CHECK_IDS.zone)) return false;
   checkedFile = null;
   const zone = buildZone(doc);
-  // The picker's own field, used as the placement reference so the zone lands
-  // after the guidance without this file having to walk sibling lists. A page
-  // whose picker moved elsewhere gets the zone appended rather than misplaced.
-  const field = byId(doc, "local-finops-files")?.parentNode;
-  host.insertBefore(zone, field?.parentNode === host ? field : null);
+  // The guidance section itself is the placement reference: the zone goes
+  // directly in front of it, so the question leads and the errands follow.
+  host.insertBefore(zone, guidance);
 
   const input = byId(doc, EXPORT_CHECK_IDS.input);
   const check = (chosen) => {

@@ -177,9 +177,10 @@ test("a recognized check answers the question, names what it read, and stops", a
   checkExport(document, "bedrock-usage.csv", BEDROCK_EXPORT);
   await waitFor(() => checkState(document) === "recognized", "the check to recognize the export");
 
-  assert.equal(textOf(checkSlot(document, "answer")), "Yes — this export will analyze.");
+  assert.equal(textOf(checkSlot(document, "answer")), "✓ Yes — this export will analyze.");
+  // The file this verdict is about, then what was read from it.
   assert.equal(textOf(checkSlot(document, "detail")),
-    "AWS Bedrock · 3 rows · 3 dated periods covered.");
+    "bedrock-usage.csv · AWS Bedrock · 3 rows · 3 dated periods covered.");
   // A check is not a quieter import: no analysis ran, so the result surface is
   // still closed and the picker's own live region never spoke.
   assert.equal(activationState(document), "idle");
@@ -192,7 +193,8 @@ test("a refusal names the missing column and links to that console's guidance en
   checkExport(document, "bedrock-no-currency.csv", BEDROCK_INCOMPLETE);
   await waitFor(() => checkState(document) === "refused", "the check to refuse the export");
 
-  assert.equal(textOf(checkSlot(document, "answer")), "No — this export will not analyze as it is.");
+  assert.equal(textOf(checkSlot(document, "answer")),
+    "✗ No — this export will not analyze as it is.");
   assert.match(textOf(checkSlot(document, "detail")),
     /AWS Bedrock was recognized, but the required column lineItem\/CurrencyCode is not in this file\./);
   // One control, and it carries both halves: the instruction preflight wrote,
@@ -202,7 +204,8 @@ test("a refusal names the missing column and links to that console's guidance en
   assert.equal(checkSlot(document, "continue").hidden, true);
   assert.match(textOf(guidance),
     /Re-pull the AWS Bedrock export with the lineItem\/CurrencyCode column included/);
-  assert.match(textOf(guidance), /Open the AWS Bedrock export guidance above\./);
+  // "below", because #1066 put the check above the guidance it sends them to.
+  assert.match(textOf(guidance), /Open the AWS Bedrock export guidance below\./);
   assert.equal(guidance.href, "#provider-readiness-bedrock");
   // The anchor resolves: the guidance entry it names is on this page, once.
   assert.equal(document.querySelectorAll("#provider-readiness-bedrock").length, 1);
@@ -309,7 +312,7 @@ test("a verdict is one answer, one detail and one action, with the breakdown col
   // And it was already in the document, with a sentence in it, before any file
   // was checked — the same node, never a replacement.
   const fresh = await openFinopsTab();
-  assert.match(textOf(checkSlot(fresh.document, "answer")), /No export checked yet/);
+  assert.match(textOf(checkSlot(fresh.document, "answer")), /Not checked yet/);
   assert.equal(checkSlot(fresh.document, "answer").getAttribute("aria-live"), "polite");
 });
 
@@ -335,6 +338,201 @@ test("the keyboard reaches the check control, its one action, and the breakdown"
   assert.ok(order(checkSlot(document, "guidance")) > control,
     "the refusal's link is reachable by Tab from the control");
   assert.equal(order(checkSlot(document, "continue")), -1);
+});
+
+// --- one answerable question, one answer, one next step (#1066) -------------
+//
+// The three assertions only this file can make are about ORDER, about STATE
+// being in words and shapes rather than in a hue, and about where the region
+// that announces the answer physically sits. Two harness limits shape how they
+// are written: it models no layout, so `textOf` reads straight through a closed
+// disclosure and a placement claim has to be made against the ancestor chain;
+// and it rejects descendant selectors, so every relationship below is walked
+// through `parentNode` and `childElements`.
+
+const zoneOrder = (document, id) =>
+  checkZone(document).childElements.indexOf(document.getElementById(id));
+
+test("the zone leads with a question, then the verdict, then exactly one action", async () => {
+  const { document } = await openFinopsTab();
+  const title = checkSlot(document, "title");
+
+  // A real question with a real answer, not a section label.
+  assert.equal(title.tagName, "H3");
+  assert.match(textOf(title), /^Will this export analyze here\?$/);
+  // The heading level and the type role are ones the panel already carries: the
+  // guidance below is an h3 too, and this class is the zone's own title role.
+  assert.equal(title.className, "import-drop-title");
+
+  checkExport(document, "bedrock-usage.csv", BEDROCK_EXPORT);
+  await waitFor(() => checkState(document) === "recognized", "the check to recognize the export");
+
+  const order = ["title", "instruction", "answer", "detail", "continue", "columns"]
+    .map((slot) => zoneOrder(document, `finops-export-check-${slot}`));
+  assert.deepEqual(order, [...order].sort((a, b) => a - b),
+    "question, then verdict, then the one action, then the breakdown");
+  assert.ok(order.every((index) => index >= 0), "every slot is a direct child of the zone");
+});
+
+test("the provider guidance sits under the question, still open and still linked", async () => {
+  const { document } = await openFinopsTab();
+  const zone = checkZone(document);
+  const guidance = document.getElementById("provider-readiness");
+  const siblings = zone.parentNode.childElements;
+  assert.ok(siblings.indexOf(zone) < siblings.indexOf(guidance),
+    "the answerable question leads; the five console errands follow it");
+
+  // Subordinate by position, NOT by being folded away: a collapsed errand is
+  // one the reader cannot see, and the refusal above deep-links into it.
+  let ancestor = guidance;
+  while (ancestor && ancestor.nodeType === 1) {
+    assert.notEqual(ancestor.tagName, "DETAILS");
+    ancestor = ancestor.parentNode;
+  }
+  assert.equal(guidance.querySelectorAll("details").length, 0);
+});
+
+test("each drawn state is a glyph and a word, and names itself on the container", async () => {
+  const { document } = await openFinopsTab();
+  const answer = () => textOf(checkSlot(document, "answer"));
+  const named = () => checkZone(document).getAttribute("aria-labelledby");
+
+  // The container's accessible name is the question PLUS the current verdict,
+  // so the state is in words to anything reading the group rather than the line.
+  assert.equal(named(), "finops-export-check-title finops-export-check-answer");
+
+  // 1. Not yet checked: a hollow mark and a sentence that says so.
+  assert.equal(checkState(document), "idle");
+  assert.match(answer(), /^○ Not checked yet — /);
+
+  // 2. Recognized: a different mark, and the word "Yes".
+  checkExport(document, "bedrock-usage.csv", BEDROCK_EXPORT);
+  await waitFor(() => checkState(document) === "recognized", "the export to be recognized");
+  assert.match(answer(), /^✓ Yes — /);
+  assert.equal(checkSlot(document, "answer").dataset.state, "recognized");
+
+  // 3. Refused: a third mark, and the word "No".
+  checkExport(document, "bedrock-no-currency.csv", BEDROCK_INCOMPLETE);
+  await waitFor(() => checkState(document) === "refused", "the export to be refused");
+  assert.match(answer(), /^✗ No — /);
+  assert.equal(checkSlot(document, "answer").dataset.state, "unrecognized");
+
+  // The mark is never the accessible carrier — it is hidden from the reader the
+  // sentence is for, so nothing is said twice.
+  const mark = checkSlot(document, "answer").childElements[0];
+  assert.equal(mark.className, "import-drop-mark");
+  assert.equal(mark.getAttribute("aria-hidden"), "true");
+});
+
+test("a check that could not run is not a verdict on the reader's file", async () => {
+  const { document } = await openFinopsTab();
+  // The file itself is fine; reading it in this browser is what failed.
+  const input = document.getElementById("finops-export-check-file");
+  input.files = [{ name: "bedrock-usage.csv", type: "text/csv",
+    text: async () => { throw new Error("read failed"); } }];
+  input.dispatchEvent(new DomEvent("change", { bubbles: true }));
+  await waitFor(() => checkState(document) === "blocked", "the unreadable file to be reported");
+
+  const answer = checkSlot(document, "answer");
+  assert.match(textOf(answer), /^! Could not run — /);
+  assert.match(textOf(answer), /nothing is claimed about it/);
+  // Its own state and its own neutral band: not the refusal's, which would tell
+  // this reader their export is bad when nothing about it was ever read.
+  assert.equal(answer.dataset.state, "idle");
+  assert.notEqual(checkState(document), "refused");
+  // And no next step is offered for a question nobody answered.
+  assert.equal(checkSlot(document, "continue").hidden, true);
+  assert.equal(checkSlot(document, "guidance").hidden, true);
+  assert.equal(checkSlot(document, "columns").hidden, true);
+});
+
+test("the verdict takes focus when it arrives, without becoming a tab stop", async () => {
+  const { document } = await openFinopsTab();
+  const answer = checkSlot(document, "answer");
+  assert.equal(answer.getAttribute("tabindex"), "-1");
+  assert.equal(tabSequence(document).indexOf(answer), -1,
+    "a destination, not a stop every reader tabs through on every pass");
+
+  document.getElementById("finops-export-check-file").focus();
+  checkExport(document, "bedrock-usage.csv", BEDROCK_EXPORT);
+  await waitFor(() => checkState(document) === "recognized", "the check to settle");
+  assert.equal(document.activeElement, answer,
+    "the keyboard lands on the answer the reader just asked for");
+
+  // The refusal is an answer too, and so is a check that could not run.
+  document.getElementById("finops-export-check-file").focus();
+  checkExport(document, "ledger.csv", ledger());
+  await waitFor(() => checkState(document) === "refused", "the refusal to settle");
+  assert.equal(document.activeElement, answer);
+});
+
+test("the live region is a sibling of the disclosure, not a descendant of one", async () => {
+  const { document } = await openFinopsTab();
+  const answer = checkSlot(document, "answer");
+  const disclosure = checkSlot(document, "columns");
+
+  // Placement is the correctness requirement, and this harness models no layout
+  // — it reads through a closed details — so the claim is made on the chain.
+  assert.equal(answer.parentNode, disclosure.parentNode);
+  assert.equal(answer.parentNode, checkZone(document));
+  let ancestor = answer.parentNode;
+  while (ancestor && ancestor.nodeType === 1) {
+    assert.notEqual(ancestor.tagName, "DETAILS");
+    ancestor = ancestor.parentNode;
+  }
+  // Polite, and neutral on first paint, so nothing is announced on load.
+  assert.equal(answer.getAttribute("aria-live"), "polite");
+  assert.match(textOf(answer), /nothing is claimed about your file/);
+  assert.equal(checkZone(document).getAttribute("aria-busy"), "false");
+});
+
+test("an empty file is answered as an empty file, not as an unreadable one", async () => {
+  const { document } = await openFinopsTab();
+  checkExport(document, "empty.csv", "   \n  \n");
+  await waitFor(() => checkState(document) === "refused", "the empty file to be refused");
+  assert.match(textOf(checkSlot(document, "detail")),
+    /^empty\.csv · This file carries no usage rows/);
+  assert.equal(checkSlot(document, "continue").hidden, true);
+  assert.equal(checkSlot(document, "guidance").hidden, false);
+});
+
+test("a very large export is still one answer, one detail and one action", async () => {
+  const { document } = await openFinopsTab();
+  // Generated here rather than committed: 20,000 rows over 40 dated periods.
+  const rows = Array.from({ length: 20000 }, (_, index) =>
+    bedrockRow(`2026-07-${String((index % 28) + 1).padStart(2, "0")}`, "1000", "0.04"));
+  checkExport(document, "bedrock-year.csv", csv(BEDROCK_HEADER, rows));
+  await waitFor(() => checkState(document) === "recognized", "the large export to be recognized");
+
+  assert.equal(textOf(checkSlot(document, "answer")), "✓ Yes — this export will analyze.");
+  assert.equal(textOf(checkSlot(document, "detail")),
+    "bedrock-year.csv · AWS Bedrock · 20000 rows · 28 dated periods covered.");
+  // Still one control, and the breakdown is still one row per column.
+  assert.equal(checkSlot(document, "continue").hidden, false);
+  assert.equal(checkSlot(document, "guidance").hidden, true);
+  assert.equal(document.getElementById("finops-export-check-column-list")
+    .querySelectorAll("li").length, 7);
+});
+
+test("a filename long enough to threaten the layout is clamped, and the action stays", async () => {
+  const { document } = await openFinopsTab();
+  const long = `${"bedrock-cost-and-usage-report-000000000001-".repeat(6)}2026-07.csv`;
+  assert.ok(long.length > 200, "the fixture has to be pathological to prove anything");
+  checkExport(document, long, BEDROCK_EXPORT);
+  await waitFor(() => checkState(document) === "recognized", "the long-named export to be checked");
+
+  const detail = textOf(checkSlot(document, "detail"));
+  // Clamped in code, so the guarantee holds with no stylesheet at all: the name
+  // is one sentence's worth and the rest of the detail is still beside it.
+  assert.ok(detail.startsWith("bedrock-cost-and-usage-report-000000000001-bedr…"),
+    `the printed name must be truncated, got ${detail}`);
+  assert.ok(detail.length < 120, `the detail line must stay one line, got ${detail.length}`);
+  assert.match(detail, /· AWS Bedrock · 3 rows · 3 dated periods covered\.$/);
+  // The hierarchy the long name could have broken is intact: verdict, then the
+  // single action, then the breakdown.
+  assert.equal(checkSlot(document, "continue").hidden, false);
+  assert.ok(zoneOrder(document, "finops-export-check-detail")
+    < zoneOrder(document, "finops-export-check-continue"));
 });
 
 // --- payload placement ------------------------------------------------------
