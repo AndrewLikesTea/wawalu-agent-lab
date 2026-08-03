@@ -48,7 +48,7 @@
 
 import {
   EXAMPLE_ORG_COHORT_PROFILE, EXAMPLE_TASK_LEDGER, exampleCohortPosition,
-  loadExampleDataset, nameExampleDepartments,
+  loadExampleDataset,
 } from "./example-dataset.js";
 import { buildFinopsBriefing, validateBriefing } from "./finops-briefing-contract.js";
 import {
@@ -837,11 +837,13 @@ function emptyResult() {
  */
 export function buildFirstRunResult(load = loadExampleDataset, loadDecision = loadCanonicalDecision) {
   try {
-    // Relabelled once, here, and then used for every block below. The headline
-    // benchmark, the literacy corpus's department column, the peer cohort, and
-    // the internal gap all read this one object, which is what makes the three
-    // blocks of the brief describe one company rather than three.
-    const analysis = nameExampleDepartments(load());
+    // Loaded once, here, and then used for every block below. The unit labels
+    // in it were minted by the translator from the names the fixture declared
+    // with its inputs, so the headline benchmark, the literacy corpus's
+    // department column, the peer cohort and the internal gap all read one
+    // object carrying one set of names — which is what makes the three blocks
+    // of the brief describe one company rather than three.
+    const analysis = load();
     // The established example analysis and the authored fixture are independent
     // local inputs. A broken fixture must not hide a still-valid benchmark and
     // action; it only removes the confidence claim it owns.

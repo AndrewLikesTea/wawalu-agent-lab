@@ -194,6 +194,7 @@ export function exampleBriefingPeriods({
   for (let end = providers.length - wanted + 1; end <= providers.length; end += 1) {
     const analysis = normalizeLocalFinopsHistory({
       providers: providers.slice(0, end), hris: inputs?.hris ?? null,
+      unitNames: inputs?.unitNames ?? null,
     });
     const briefing = buildFinopsBriefing(analysis);
     const closed = windowEnd(analysis?.period);

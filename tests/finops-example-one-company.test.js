@@ -24,8 +24,10 @@ import { loadPage, textOf } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 import {
   EXAMPLE_COHORT_MINIMUM_PEERS, EXAMPLE_COHORT_UNAVAILABLE, EXAMPLE_DEPARTMENT_NAMES,
-  EXAMPLE_DEPARTMENT_NAME_SET, exampleCohortPosition, loadExampleDataset, nameExampleDepartments,
+  EXAMPLE_DEPARTMENT_NAME_SET, exampleCohortPosition, loadExampleDataset,
+  loadExampleDatasetInputs,
 } from "../src/example-dataset.js";
+import { normalizeLocalFinopsHistory } from "../src/local-finops.js";
 import { FIRST_RUN_IDS } from "../src/finops-first-run.js";
 
 const PAGE = new URL("../src/evolution.html", import.meta.url);
@@ -113,8 +115,91 @@ test("all three blocks of the example brief name departments from one dataset", 
   }
 });
 
+// The three places a reader meets the driving department without expanding
+// anything: the answer sentence, the residue sentence under the literacy
+// verdict, and the action that says what to do about it.
+const DRIVER_SENTENCE = /\. ([^.]+) is driving the increase\./;
+const RESIDUE_SENTENCE = /the largest single block of it in ([^.]+)\./;
+const WIDEN_ACTION = /^Widen the scored sample for (.+) — go to /;
+
+test("with no import, no department on the example page is named by its id tail", async () => {
+  const page = await bootedPage();
+  const { document } = page;
+  try {
+    const text = textOf(document.body);
+    // A pseudonymised label — `Department …atlas0`, `Active unit …0001` — is an
+    // identifier tail with an ellipsis in front of it. None may be visible text
+    // anywhere on the page the bundled example composes.
+    assert.equal((text.match(/…[a-z0-9]{4,}/g) ?? []).length, 0,
+      "a department is still labelled by its identifier tail");
+    // The wire identifier survives in exactly one place, and it is not a label:
+    // the reproduction recipe, which names the filter to recompute the figure
+    // from. Pinned as a count so a second, decorative use shows up as a number.
+    // A wire identifier is still visible in exactly one construction, and it is
+    // not a label: the reproduction recipe, whose whole job is to name the
+    // filter a reader recomputes the figure against. Two identifiers per recipe,
+    // so every occurrence on the page is accounted for by a recipe rather than
+    // by a team that lost its name.
+    const wire = (text.match(/psn_[a-z0-9_]+/g) ?? []).length;
+    const recipes = (text.match(/orgUnitId in psn_[a-z0-9_]+, psn_[a-z0-9_]+/g) ?? []).length;
+    assert.ok(recipes >= 1, "the reproduction recipe no longer carries the identifiers it filters on");
+    assert.equal(wire, recipes * 2, "a wire identifier reached the page as a label");
+  } finally {
+    page.restore();
+  }
+});
+
+test("the headline, the residue sentence and the widen action name one same string", async () => {
+  const page = await bootedPage();
+  const { document } = page;
+  try {
+    const text = textOf(document.body);
+    const headline = DRIVER_SENTENCE.exec(textOf(document.getElementById("finops-stand-answer")));
+    const residue = RESIDUE_SENTENCE.exec(text);
+    const widen = WIDEN_ACTION.exec(textOf(document.getElementById("finops-answer-action")).trim());
+    assert.ok(headline, "the headline no longer names a department driving the increase");
+    assert.ok(residue, "the residue sentence no longer names the block it is largest in");
+    assert.ok(widen, "the widen-the-sample action no longer names a department");
+
+    // Character for character, all three, and against the name the dataset
+    // published for that unit rather than against each other alone.
+    assert.equal(headline[1], "Atlas Platform");
+    assert.equal(residue[1], headline[1]);
+    assert.equal(widen[1], headline[1]);
+    assert.equal(headline[1], EXAMPLE_DEPARTMENT_NAMES.psn_example_unit_atlas0);
+    // And the circulation decision acts on that same team, so the brief does not
+    // name one department as the driver and send the reader to another.
+    const pilot = /Pilot lower-cost routing in ([^,]+), the top-spend invented department\./.exec(text);
+    assert.ok(pilot, "the circulation decision no longer states a rank-1 pilot");
+    assert.equal(pilot[1], headline[1],
+      "the prioritised action names a different department from the headline");
+  } finally {
+    page.restore();
+  }
+});
+
+test("every department name the bundled example renders is a readable word", async () => {
+  const page = await bootedPage();
+  const { document } = page;
+  try {
+    const text = textOf(document.body);
+    for (const name of EXAMPLE_DEPARTMENT_NAME_SET) {
+      assert.ok(name.length >= 4, `${name} is too short to be a department name`);
+      assert.equal((name.match(/…|\.\.\./g) ?? []).length, 0, `${name} carries an ellipsis`);
+      assert.doesNotMatch(name, /[0-9a-f]{4,}\b/i, `${name} ends in a hex-looking suffix`);
+    }
+    // The set is the vocabulary; this is the page actually using it. Four of the
+    // five carry spend the brief names, so a rename that reached the table and
+    // not the render path fails here rather than passing on an empty scan.
+    assert.ok(EXAMPLE_DEPARTMENT_NAME_SET.filter((name) => text.includes(name)).length >= 4,
+      "the page renders fewer of this company's names than the brief describes");
+  } finally {
+    page.restore();
+  }
+});
+
 test("the peer cohort is built from the same envelope the headline divides", () => {
-  const analysis = nameExampleDepartments(loadExampleDataset());
+  const analysis = loadExampleDataset();
   const cohort = exampleCohortPosition({ analysis });
 
   assert.equal(cohort.available, true);
@@ -159,18 +244,39 @@ test("a degenerate cohort states what is missing and what would unblock it", () 
   assert.equal(none.reason, EXAMPLE_COHORT_UNAVAILABLE.tooFewPeers.reason);
 });
 
-test("relabelling the example never rewrites the envelope's own identifiers", () => {
-  const raw = loadExampleDataset();
-  const named = nameExampleDepartments(raw);
-  assert.equal(named.rankedDepartments.length, raw.rankedDepartments.length);
-  assert.equal(named.spendUsd, raw.spendUsd, "the figures the headline divides are untouched");
-  assert.equal(named.recoverableUsd, raw.recoverableUsd);
+test("naming the example never rewrites the envelope's own identifiers or figures", () => {
+  const inputs = loadExampleDatasetInputs();
+  const named = loadExampleDataset();
+  // The same inputs with the name table withheld: this is the own-data path,
+  // and it is what a reader's file produces, because a reader's file declares
+  // no names. The two runs must differ in the label and in nothing else.
+  const bare = normalizeLocalFinopsHistory({ ...inputs, unitNames: null });
+
+  assert.equal(named.rankedDepartments.length, bare.rankedDepartments.length);
+  assert.equal(named.spendUsd, bare.spendUsd, "the figures the headline divides are untouched");
+  assert.equal(named.recoverableUsd, bare.recoverableUsd);
   for (const [index, department] of named.rankedDepartments.entries()) {
-    assert.equal(department.id, raw.rankedDepartments[index].id,
-      "the wire identifier is the key and survives the rename");
-    assert.equal(department.spendUsd, raw.rankedDepartments[index].spendUsd);
+    assert.equal(department.id, bare.rankedDepartments[index].id,
+      "the wire identifier is the key and survives the naming");
+    assert.equal(department.spendUsd, bare.rankedDepartments[index].spendUsd);
+    assert.equal(department.name, EXAMPLE_DEPARTMENT_NAMES[department.id]);
+    // And with no declared name the analysis still labels the unit from its own
+    // id tail, exactly as it did before this table was handed to the translator.
+    assert.match(bare.rankedDepartments[index].name, /^Department …[a-z0-9]{6}$/);
   }
-  // A unit this example has no name for keeps whatever the analysis called it.
-  const foreign = nameExampleDepartments({ rankedDepartments: [{ id: "psn_other_0001", name: "Active unit …0001" }] });
-  assert.equal(foreign.rankedDepartments[0].name, "Active unit …0001");
+});
+
+test("a unit the example has no name for keeps the label the analysis minted", () => {
+  const inputs = loadExampleDatasetInputs();
+  // One name declared out of five. The other four are exactly the own-data
+  // case, so a fixture rename cannot leak onto a unit nobody named.
+  const partial = normalizeLocalFinopsHistory({
+    ...inputs,
+    unitNames: { psn_example_unit_atlas0: "Atlas Platform", psn_example_unit_boreal: "   " },
+  });
+  const byId = new Map(partial.rankedDepartments.map((item) => [item.id, item.name]));
+  assert.equal(byId.get("psn_example_unit_atlas0"), "Atlas Platform");
+  // A whitespace-only declaration is an absent one, not a blank team name.
+  assert.equal(byId.get("psn_example_unit_boreal"), "Department …boreal");
+  assert.equal(byId.get("psn_example_unit_cinder"), "Department …cinder");
 });

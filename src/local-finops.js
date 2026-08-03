@@ -341,11 +341,18 @@ const blankGroup = (value) => value === undefined || value === null
  * happens to spell "unattributed" — see the collision note in
  * `attribution-units.js`.
  */
-function unitFor(orgUnitId, departments) {
+function unitFor(orgUnitId, departments, names) {
   if (blankGroup(orgUnitId)) return UNATTRIBUTED_UNIT;
   const id = String(orgUnitId).trim();
-  return attributionUnit(ATTRIBUTION_SOURCES.providerGroup, id,
-    departments.has(id) ? `Department …${id.slice(-6)}` : `Active unit …${id.slice(-6)}`);
+  // A caller may declare what its own units are called. Nothing a reader
+  // imports does — their file carries an identifier and nothing else, so the
+  // tail is still what they see. The bundled example does, because its company
+  // is invented and its teams already have names in this repository; declaring
+  // them HERE, where the label is minted, is what makes one name reach the
+  // headline, the residue sentence, the ranking and the actions alike.
+  const declared = typeof names?.[id] === "string" ? names[id].trim() : "";
+  return attributionUnit(ATTRIBUTION_SOURCES.providerGroup, id, declared
+    || (departments.has(id) ? `Department …${id.slice(-6)}` : `Active unit …${id.slice(-6)}`));
 }
 
 function periodMetadata(provider) {
@@ -433,6 +440,9 @@ function attributionFor({ aggregates, modelUsageRows, ranked, unitFor: unitOf, r
  *   a mapping, spend outside it is quarantined; without one, the provider's own
  *   grouping column is the attribution key and nothing is quarantined for the
  *   lack of a file the reader never had.
+ * @property {object} [unitNames] what the caller calls its own units, keyed on
+ *   the wire id. Absent for a reader's import; supplied by the bundled example.
+ *   It decides the LABEL only — no figure or quarantine rule reads it.
  */
 
 /**
@@ -440,7 +450,7 @@ function attributionFor({ aggregates, modelUsageRows, ranked, unitFor: unitOf, r
  *
  * @param {LocalFinopsInput} input
  */
-export function normalizeLocalFinops({ provider, hris = null }) {
+export function normalizeLocalFinops({ provider, hris = null, unitNames = null }) {
   // The two-file precondition is gone. A provider export alone is a complete
   // run: it carries spend and it carries the grouping value the provider bills
   // by. Only the file that carries the money is required.
@@ -489,7 +499,7 @@ export function normalizeLocalFinops({ provider, hris = null }) {
       quarantinedRecords += 1;
       continue;
     }
-    const unit = unitFor(record.org_unit_id, departments);
+    const unit = unitFor(record.org_unit_id, departments, unitNames);
     const current = grouped.get(unit.key) ?? {
       id: isUnattributed(unit) ? UNATTRIBUTED_KEY : record.org_unit_id,
       unit, spendUsd: 0, records: 0, estimatedCosts: 0, contractRecords: [],
@@ -576,7 +586,7 @@ export function normalizeLocalFinops({ provider, hris = null }) {
     // rejected — and it keeps the reporting it already had on
     // `quality.quarantinedRecords` rather than being laundered into coverage.
     aggregates: aggregates.filter((record) => joins(record.org_unit_id)),
-    modelUsageRows, ranked, unitFor: (id) => unitFor(id, departments), recoverableUsd,
+    modelUsageRows, ranked, unitFor: (id) => unitFor(id, departments, unitNames), recoverableUsd,
   });
   // Prompt-literacy grades for the reader's own departments. The sample arrives
   // already classified — `query-sample.js` discards every excerpt inside the
@@ -744,7 +754,9 @@ function deterministicSourceGroup(entries) {
  * are comparable despite differing day counts; non-monthly periods must be
  * contiguous and equal length. Quarantined inputs never affect totals.
  */
-export function normalizeLocalFinopsHistory({ providers = [], hris = null, deliveries = [] }) {
+export function normalizeLocalFinopsHistory({
+  providers = [], hris = null, deliveries = [], unitNames = null,
+}) {
   const selected = Array.isArray(providers) ? providers : [providers];
   // Same removal as the single-period path: only the file carrying the spend is
   // required, and `hris` is an optional enrichment input on the way through.
@@ -835,7 +847,7 @@ export function normalizeLocalFinopsHistory({ providers = [], hris = null, deliv
     generatedAt: document.snapshot.generated_at,
     completeness: document.snapshot.completeness,
     result: normalizeLocalFinops({
-      provider: { document, modelUsage, querySample, importEvidence }, hris,
+      provider: { document, modelUsage, querySample, importEvidence }, hris, unitNames,
     }),
   }));
   const current = periods.at(-1);

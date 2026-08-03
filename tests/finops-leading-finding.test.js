@@ -189,14 +189,14 @@ test("the example dataset produces one unambiguous finding through the real path
   assert.equal(Math.round(finding.changePercent * 10) / 10, 34);
   assert.equal(finding.metric, "+$39,200 (+34%) versus May 2026");
 
-  assert.equal(finding.driver.name, "Department …atlas0");
+  assert.equal(finding.driver.name, "Atlas Platform");
   assert.equal(finding.driver.deltaUsd, 34_500);
   assert.equal(Math.round(finding.driverContributionPercent * 10) / 10, 88);
-  assert.match(finding.driverSentence, /Department …atlas0 contributed \+\$34,500 /);
+  assert.match(finding.driverSentence, /Atlas Platform contributed \+\$34,500 /);
   assert.match(finding.driverSentence, /88% of it/);
 
   // The prioritized action is the analysis's own, and it names the same driver.
   assert.equal(finding.action.available, true);
-  assert.match(finding.action.text, /Department …atlas0/);
+  assert.match(finding.action.text, /Atlas Platform/);
   assert.equal(finding.action.text, loadExampleDataset().action);
 });

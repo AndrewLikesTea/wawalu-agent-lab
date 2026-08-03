@@ -143,22 +143,20 @@ export const EXAMPLE_TASK_LEDGER = Object.freeze([
 //
 // The bytes above carry opaque `psn_example_unit_*` identifiers, because that is
 // what a real provider export carries and this fixture is not allowed to be
-// easier to read than the thing it stands in for. `local-finops.js` therefore
-// labels each unit `Department …atlas0` from its own id tail, which is correct
-// for an imported file nobody has named — and wrong for the *example*, where the
-// company is invented and its teams already have names in this repository
+// easier to read than the thing it stands in for. Left alone, `local-finops.js`
+// labels each unit `Department …atlas0` from its own id tail, which is right for
+// an imported file nobody has named — and wrong for the *example*, whose company
+// is invented and whose teams already have names in this repository
 // (`contracts/integrations/tabular-dialects/v1/fixtures/generic-hris-roster.csv`
 // staffs Atlas Platform, Boreal Support, and Cinder Research by hand).
 //
-// The result before this table existed was a brief that named the same five
-// teams two ways: a peer-position line reading "Department …atlas0 is a full
-// band behind Department …boreal" beside panels naming human teams. Two naming
-// schemes on one screen read as two datasets stitched together, which is exactly
-// what the example must not look like.
-//
-// So the names are published HERE, beside the units they belong to, and the
-// brief renders them. The identifier stays the key — it is what the provider
-// console and every downstream export still say — and never the visible text.
+// So this table is DECLARED WITH THE INPUTS and handed to the translator, which
+// mints the unit label once, before any sentence is derived from it. That is why
+// the headline, the residue sentence, the ranked list, the recoverable rows and
+// the widen-the-sample action all say the same words: there is one label, minted
+// in one place, and no surface renames anything. The identifier stays the key —
+// it is what the provider console and every export still say — and never the
+// visible text. A reader's own import declares no names and is untouched.
 // ---------------------------------------------------------------------------
 
 /** What the invented company calls each invented unit. Keys are the wire ids. */
@@ -180,30 +178,6 @@ export const EXAMPLE_DEPARTMENT_NAMES = Object.freeze({
  */
 export const EXAMPLE_DEPARTMENT_NAME_SET = Object.freeze(
   Object.values(EXAMPLE_DEPARTMENT_NAMES));
-
-/**
- * The same envelope, with this company's own names on its ranked departments.
- *
- * Applied at the brief's composition layer rather than inside the translator, on
- * purpose: the analysis envelope is what every export, snapshot, and stored
- * period is built from, and renaming units in there would rewrite records that
- * are supposed to say what the file said. What a *reader* is shown is a display
- * decision, and this is the one place the example makes it.
- *
- * Total. A null envelope, a missing ranking, and a unit this table has no name
- * for all come back unchanged rather than blank.
- */
-export function nameExampleDepartments(analysis) {
-  const ranked = analysis?.rankedDepartments;
-  if (!analysis || typeof analysis !== "object" || !Array.isArray(ranked)) return analysis;
-  return Object.freeze({
-    ...analysis,
-    rankedDepartments: Object.freeze(ranked.map((department) => {
-      const name = EXAMPLE_DEPARTMENT_NAMES[department?.id];
-      return name ? Object.freeze({ ...department, name }) : department;
-    })),
-  });
-}
 
 /** How many peers a cohort position needs before it is a position at all. */
 export const EXAMPLE_COHORT_MINIMUM_PEERS = 2;
@@ -262,19 +236,18 @@ function cohortWithheld({ reason, needed }, peers) {
  *
  * The peer entries are not a parallel copy of the roster: they are built from
  * the SAME envelope the headline benchmark divides and the SAME task ledger the
- * org-level position counts, relabelled through `nameExampleDepartments`. So a
- * name in the peer line is by construction a name the headline and the literacy
- * letter are talking about, over the same reporting period.
+ * org-level position counts. So a name in the peer line is by construction a
+ * name the headline and the literacy letter are talking about, over the same
+ * reporting period — it is the same minted label, not a second lookup.
  *
  * The median is derived here and never authored — a hand-written midpoint is a
  * figure that survives the dataset changing under it.
  *
- * @param analysis the example envelope; relabelled here if it was not already.
+ * @param analysis the example envelope, already carrying this company's names.
  * @param tasks the reporting window's task ledger. Defaults to this example's.
  */
 export function exampleCohortPosition({ analysis = null, tasks = EXAMPLE_TASK_LEDGER } = {}) {
-  const named = nameExampleDepartments(analysis);
-  const departments = Array.isArray(named?.rankedDepartments) ? named.rankedDepartments : [];
+  const departments = Array.isArray(analysis?.rankedDepartments) ? analysis.rankedDepartments : [];
   const peers = [];
   for (const department of departments) {
     const successfulTasks = countSuccessfulTasks(
@@ -484,7 +457,9 @@ export function loadExampleDatasetInputs() {
     if (parsed.type === "provider") providers.push(parsed);
     else hris = parsed;
   }
-  return { providers, hris };
+  // `unitNames` rides with the inputs so that every call site that spreads them
+  // into the translator gets this company's vocabulary without knowing it exists.
+  return { providers, hris, unitNames: EXAMPLE_DEPARTMENT_NAMES };
 }
 
 /**

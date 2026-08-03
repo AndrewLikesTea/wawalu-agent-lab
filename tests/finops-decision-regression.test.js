@@ -113,7 +113,7 @@ const EXPECTED_BENCHMARK = Object.freeze({
  */
 const EXPECTED_ACTION = Object.freeze({
   rank: 1,
-  statement: "Pilot lower-cost routing for text-generation in Department …atlas0; "
+  statement: "Pilot lower-cost routing for text-generation in Atlas Platform; "
     + "cap the pilot at 32903.50 USD and verify against a like-for-like period.",
   accountableRole: "Platform Engineering Lead",
 });
@@ -220,7 +220,13 @@ test("regression: exactly one ranked primary action, with its cap and its accoun
   assert.ok(action.basis.includes("Rank 1"), "the action no longer states which rank it is");
   // A role, never a person, and never a real-looking department name.
   assert.doesNotMatch(action.accountableRole, /\b(?:Ms|Mr|Mx|Dr)\.\s/);
-  assert.match(action.statement, /Department …/, "the department label is no longer pseudonymised");
+  // The unit stays pseudonymous on the wire; what the action names is the
+  // invented company's own team name, which is what the brief renders too. An
+  // identifier tail here would put a second name on one team.
+  assert.doesNotMatch(action.statement, /…|psn_/,
+    "the action names an identifier tail rather than the department the brief names");
+  assert.match(action.statement, /in Atlas Platform;/,
+    "the action no longer names the department the headline says is driving the increase");
 });
 
 test("regression: the impact is the labelled estimate, flagged unrealized, over the same window", () => {

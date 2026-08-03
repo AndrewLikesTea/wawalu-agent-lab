@@ -61,8 +61,8 @@ test("the bundled demo path's headline number and next action are unchanged", as
   assert.equal(textOf(document.getElementById("finops-stand-answer")),
     "Illustrative only, from hand-authored synthetic cohort boundaries rather than your own export: "
     + "Your AI spend is in the most expensive quarter of organizations like yours, at $38.63 per "
-    + "successful task for June 2026. $51,254 of that is modelled as recoverable. Department "
-    + "…atlas0 is driving the increase.");
+    + "successful task for June 2026. $51,254 of that is modelled as recoverable. Atlas Platform "
+    + "is driving the increase.");
   assert.equal(textOf(document.getElementById("finops-next-step-action")),
     "Verify “Route short support summaries to the standard model”");
 });

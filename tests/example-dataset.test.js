@@ -92,18 +92,18 @@ test("the example dataset translates to a valid envelope with stable key totals"
   const byName = new Map(envelope.rankedDepartments.map((item) => [item.name, item]));
   assert.equal(byName.size, 5);
   const delta = (name) => byName.get(name).spendUsd - byName.get(name).previousSpendUsd;
-  assert.equal(delta("Department …atlas0"), 34_500);
-  assert.equal(delta("Department …quartz"), 4_000);
-  assert.equal(delta("Department …ember0"), 2_200);
-  assert.equal(delta("Department …boreal"), 0);
-  assert.equal(delta("Department …cinder"), -1_500);
+  assert.equal(delta("Atlas Platform"), 34_500);
+  assert.equal(delta("Quartz Analytics"), 4_000);
+  assert.equal(delta("Ember Studio"), 2_200);
+  assert.equal(delta("Boreal Support"), 0);
+  assert.equal(delta("Cinder Research"), -1_500);
   // No tie at the top, so the leading finding cannot be arbitrary.
   const positive = [...byName.values()]
     .map((item) => item.spendUsd - item.previousSpendUsd)
     .filter((value) => value > 0).sort((left, right) => right - left);
   assert.ok(positive[0] > positive[1] * 2, "the top driver must be unambiguous");
   // The analysis's own top-ranked recommendation names that same driver.
-  assert.equal(envelope.topDepartment.name, "Department …atlas0");
+  assert.equal(envelope.topDepartment.name, "Atlas Platform");
 });
 
 test("an export made from example data carries its provenance into the artifact", () => {
