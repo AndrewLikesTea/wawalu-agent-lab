@@ -1163,6 +1163,19 @@
              is how a grade becomes something to argue with rather than act
              on. -->
         <p class="score-why" id="score-why">Why this letter: no scored sample has been read, so no driver can be named yet.</p>
+        <!-- The reader's own classification of their own departments (#1008),
+             shown only for a billing-only import. Deliberately NOT inside the
+             disclosure below: the letter it decides and the shortfall sentence
+             beside it are the card's instruction, and a real browser hides a
+             collapsed details element from the reader even where a test harness
+             still reads its text. Ships EMPTY: every label, option, assumption
+             and figure is painted by src/reader-classified-grade.js from
+             src/department-workload-categories.json, so no rubric wording and
+             no reader's department name is in these bytes. -->
+        <div class="score-classify" id="score-classify" hidden>
+          <p class="score-classify-title" id="score-classify-title"></p>
+          <ul class="score-classify-list" id="score-classify-list" aria-labelledby="score-classify-title"></ul>
+        </div>
         <p class="score-action" id="score-action" data-available="false">Action not available yet</p>
         <!-- The per-department detail, behind a native disclosure so it is
              keyboard- and screen-reader-operable with no key handler of ours.

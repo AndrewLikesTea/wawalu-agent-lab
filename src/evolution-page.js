@@ -181,6 +181,14 @@ import { CLAMPED_REASON, gradeEligibility } from "/grade-eligibility.js";
 // behind them — in one published order, painted the same way from every state
 // this page can be in (#998).
 import { applyLiteracyCard, literacyCardModel } from "/finops-literacy-card.js";
+// A billing-only import earns its own letter (#1008): the reader classifies
+// their own top departments against the published rubric, on the page, and the
+// letter is computed from their answers. Client-side and session-only — nothing
+// classified here is stored, transmitted, or put in front of a judge.
+import {
+  applyReaderClassification, applyReaderClassifiedLetter,
+  clearReaderClassification, readerClassifiedGrade,
+} from "/reader-classified-grade.js";
 // The drill-down's fallback answer to "so what do I do". A fixture that carries
 // no reviewed intervention used to leave the whole action surface saying
 // "Result unavailable"; the scorer fills the same twelve fields by rule instead,
@@ -2038,6 +2046,11 @@ function mountLocalFinopsImport() {
     paintSpendPerDelivery(null);
     closeMappingReview(document);
     if (remap) remap.hidden = true;
+    // The reader's classifications go with the file they were about. A category
+    // outliving its export would attribute a person's reading of one company's
+    // departments to whatever lands next.
+    readerWorkloadChoices.clear();
+    clearReaderClassification(document);
     result = null;
     // The corrections go with the file they were corrections about. A label
     // outliving its corpus would attach a human's judgement to a row that is no
@@ -2745,6 +2758,59 @@ function mountLocalFinopsImport() {
    * goes through the one region this page speaks from, and the slot states are
    * status text a reader reads where they already are.
    */
+  /**
+   * The reader's own classifications, held for this tab and nowhere else.
+   *
+   * A Map in a closure: no storage, no capture payload, no query string. A
+   * department name and a rubric category id are the reader's private reading of
+   * their own file, and the moment either survived a reload it would be a
+   * retained fact about a company nobody asked to retain. Cleared with the rest
+   * of the import in `reset`.
+   */
+  const readerWorkloadChoices = new Map();
+
+  /**
+   * The classifiable groups from the reader's own envelope: the same ranked
+   * departments the drill-down publishes, as name and spend. Nothing else is
+   * carried across, so no figure this control paints can come from anywhere but
+   * the import the reader is looking at.
+   */
+  const readerClassifiableDepartments = () => (result?.rankedDepartments ?? [])
+    .map((entry) => ({ name: String(entry?.name ?? "").trim(), spendUsd: entry?.spendUsd }))
+    .filter((entry) => entry.name);
+
+  /**
+   * Compose and paint the classification control and the letter it earns.
+   *
+   * Called on every change, and it recomputes from the choices Map rather than
+   * mutating a held model, so the letter on the card is always the letter the
+   * current answers produce.
+   */
+  const paintReaderClassification = () => {
+    const model = readerClassifiedGrade({
+      departments: readerClassifiableDepartments(), choices: readerWorkloadChoices,
+    });
+    applyReaderClassification(document, model, {
+      onChange: (name, categoryId) => {
+        // Already validated against the fixture by the painter; an empty id is
+        // the reader taking a category back off, not a rejected one.
+        if (categoryId) readerWorkloadChoices.set(name, categoryId);
+        else readerWorkloadChoices.delete(name);
+        paintReaderClassification();
+      },
+    });
+    // The four slots first, then the letter over them: confidence and the band
+    // come from the same tier this model was decided under, and the letter, the
+    // coverage split and the shortfall sentence are this model's own.
+    applyLiteracyCard(document, literacyCardModel({
+      tier: model.tier,
+      band: model.showGrade ? band(model.score) : "review",
+      coverage: model.coveredShare,
+      rule: model.rule,
+    }));
+    return applyReaderClassifiedLetter(document, model);
+  };
+
   const syncImportSlots = () => {
     const presence = {
       spend: loaded.providers.length > 0 || imports.length > 0,
@@ -2761,6 +2827,17 @@ function mountLocalFinopsImport() {
     // to compute, which is a different and worse claim. The bundled repaint on
     // clear puts the example's own letter back over this.
     if (need.withheld && presence.spend) setText("score-grade", LITERACY_PENDING_MARK);
+    // A billing-only import is the one state this control belongs in: spend in
+    // hand, NO scored sample of any kind — neither a conversation export nor a
+    // query sample — and an analysis carrying the reader's own groups. Every
+    // other state hides it rather than offering a reader the chance to classify
+    // departments over a letter a judge already scored.
+    if (need.withheld && presence.spend && samples.length === 0
+      && readerClassifiableDepartments().length > 0) {
+      paintReaderClassification();
+    } else {
+      clearReaderClassification(document);
+    }
     return presence;
   };
 
@@ -2837,6 +2914,10 @@ function mountLocalFinopsImport() {
       // counting different releases.
       deliveries: portfolioDeliveries(),
     }));
+    // Again, and after the analysis rather than before it: the pass above ran
+    // while `result` was still the previous import's, so on a first import the
+    // classification control had no departments of the reader's own to list.
+    syncImportSlots();
   };
 
   /**
