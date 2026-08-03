@@ -54,7 +54,7 @@ import { validateCohortAttribution } from "./cohort-attribution.js";
 // It owns the coverage bar, the four states, and the sentence for each; nothing
 // about gradability is decided here.
 import { gradeExport } from "./export-gradability.js";
-import { STAND_LABEL, periodLabel } from "./finops-screen-contract.js";
+import { STAND_LABEL, periodLabel, scoredCoverage } from "./finops-screen-contract.js";
 import {
   COST_BAND, COST_BAND_DIRECTION, COST_METRIC, COST_POSITION_WITHHELD, PEER_COST_COHORTS,
   PEER_COST_PROVENANCE, PEER_COST_SNAPSHOT_ID, PEER_RANK_LABEL, displayCostPerSuccessfulTask,
@@ -457,8 +457,21 @@ function positionSlot(position, period) {
   });
 }
 
-/** The recoverable figure, beside the position rather than in a card of its own. */
-function recoverableSlot(analysis) {
+/**
+ * The recoverable figure, beside the position rather than in a card of its own.
+ *
+ * THE QUALIFIER IS NOT AUTHORED HERE. A reader met this figure a few inches
+ * above the trust panel's "the rubric scored none of this spend" and read the
+ * two as flatly contradictory — a modelled recoverable ceiling over spend the
+ * rubric stands behind none of. Both are true, and on the bundled example
+ * neither panel said so. `scoredCoverage()` in finops-screen-contract.js
+ * composes that sentence from the same `gradeExport()` verdict the panel's
+ * coverage line comes from, so the qualifier here cannot drift from the
+ * coverage it qualifies. It is in `basis` — the same block element as the
+ * figure, no disclosure over it — because a reconciliation a reader has to
+ * unfold is one they will conclude was hidden.
+ */
+function recoverableSlot(analysis, gradability) {
   const amount = usd(analysis?.recoverableUsd);
   const analyzed = usd(analysis?.spendUsd);
   const share = recoverableShare(analysis?.recoverableUsd, analysis?.spendUsd);
@@ -470,12 +483,13 @@ function recoverableSlot(analysis) {
       basis: "This analysis published no spend total to divide, so no recoverable share is claimed.",
     });
   }
+  const scored = scoredCoverage(gradability?.coveredUsd, gradability?.totalUsd);
   return Object.freeze({
     available: true,
     label: "Recoverable spend",
     value: `${amount} · ${Math.round(share * 100)}% of analyzed spend`,
     basis: `${amount} of ${analyzed} analyzed. A modelled ceiling on what re-routing this work `
-      + "could save — not money already saved.",
+      + `could save — not money already saved. ${scored.qualifier}`,
   });
 }
 
@@ -1051,7 +1065,7 @@ export function composeStandHeadline({
   // whether the figures below may be quoted at all, so it is resolved first and
   // read by the view rather than re-derived per slot.
   const gradability = gradeExport({ analysis, source });
-  const recoverable = recoverableSlot(analysis);
+  const recoverable = recoverableSlot(analysis, gradability);
   const team = teamSlot(finding);
   const action = actionSlot(destinations);
   const period = periodLabel(analysis);

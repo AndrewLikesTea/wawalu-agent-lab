@@ -94,6 +94,55 @@ test("the complete headline renders on first load with no import and no stored s
   assert.equal(byId(document, STAND_IDS.withheld).hidden, true);
 });
 
+/**
+ * Every ancestor of `node` that a reader would have to open, or that is off the
+ * screen, named by tag or attribute.
+ *
+ * Walked with `parentNode` rather than asked for with a selector: this harness
+ * refuses descendant selectors, and it models no layout, so "the reader can see
+ * this sentence" cannot be a text-presence assertion — `textOf` reads straight
+ * through a shut `details`. What can be checked is the structure that decides
+ * it, which is what this returns.
+ */
+function foldsOver(node) {
+  const folds = [];
+  for (let at = node?.parentNode; at; at = at.parentNode) {
+    const tag = String(at.tagName ?? "").toLowerCase();
+    if (tag === "details") folds.push(`${tag}#${at.id || "(no id)"}`);
+    else if (at.hidden === true) folds.push(`hidden ${tag}#${at.id || "(no id)"}`);
+  }
+  return folds;
+}
+
+test("the recoverable figure states the rubric scored none of it, beside the figure", async () => {
+  const { document } = await openWithClearedStorage();
+  const value = byId(document, STAND_IDS.recoverableValue);
+  const basis = byId(document, STAND_IDS.recoverableBasis);
+  const amount = shownText(document, STAND_IDS.recoverableValue).match(/\$[\d,]+/)?.[0];
+  assert.ok(amount, "the headline states a recoverable amount to qualify");
+
+  // The contradiction a reader met: this figure a few inches above a trust
+  // panel reporting that the rubric scored $0 of the same spend. Both halves
+  // are now in one sentence, in the node that carries the figure.
+  const text = shownText(document, STAND_IDS.recoverableBasis);
+  assert.equal(text.includes(amount), true,
+    "the qualifier does not sit with the figure it qualifies");
+  assert.match(text, /rubric has scored none of the \$[\d,]+ in scope/);
+  assert.match(text, /no letter grade stands behind this figure/);
+  // …over the same total the trust panel's coverage line reports, so the two
+  // panels cannot state the rubric's reach differently.
+  const inScope = shownText(document, ANSWER_BLOCK_IDS.confidence).match(/\$[\d,]+/g)?.[1];
+  assert.ok(inScope, "the trust panel states the spend the rubric scored against");
+  assert.equal(text.includes(`none of the ${inScope} in scope`), true,
+    "the qualifier names a total the coverage line does not");
+
+  // Not one fold away, and not off the screen. A reconciliation a reader has to
+  // open is one they will conclude was hidden from them.
+  assert.deepEqual(foldsOver(basis), []);
+  assert.equal(basis.parentNode === value.parentNode, true,
+    "the qualifier left the block element the figure is in");
+});
+
 test("the headline is the highest-ranked heading in its region, and it is first on the view", () => {
   const document = parseHtml(html);
   const region = byId(document, STAND_IDS.region);
