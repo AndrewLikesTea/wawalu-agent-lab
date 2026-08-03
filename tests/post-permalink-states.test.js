@@ -304,6 +304,66 @@ test("a post with no image renders no image element and no empty frame to hold o
   }
 });
 
+/* ------------------------- the page's own chrome -------------------------- */
+
+// What a cold visitor needs is not in the post. It is the frame around it: where
+// this page sits, where to go next, and that none of it is real. A shared link
+// can resolve to a post or to nothing at all, and the frame has to read the same
+// either way — so this is asserted in the missing state as well as the loaded
+// one, not just in the state that happens to work.
+const CHROME_LINKS = [
+  "Open Social to read the whole feed",
+  "Open People to see this display name's other image posts",
+];
+// Word for word the last sentence of Social's own intro, because a visitor who
+// lands here may never open /social.html.
+const DEMO_SENTENCE = "Posts are shared across browsers and use no customer or production data.";
+
+test("the routes out and the demo sentence read the same whether the post arrives or not", async () => {
+  const cases = [
+    ["loaded", "?id=p-image", seedOnly([IMAGE_POST])],
+    ["not-found", "?id=p-never-existed", seedOnly([IMAGE_POST])],
+    ["error", "?id=p-image", () => { throw new TypeError("Failed to fetch"); }],
+  ];
+  for (const [state, search, answer] of cases) {
+    const page = await openPostPage(search, answer);
+    try {
+      const main = page.document.querySelector("#main-content");
+
+      // Both links, both labels, in this order. Counted and read, never checked
+      // for absence against null.
+      assert.deepEqual(page.document.querySelectorAll(".detail-back").map(textOf), CHROME_LINKS,
+        `the ${state} state changed the page's routes out`);
+
+      // Neither says "Back", and neither carries a return glyph: nobody arriving
+      // on a pasted link has a step to undo.
+      for (const label of CHROME_LINKS) assert.doesNotMatch(label, /←|Back/);
+
+      assert.equal(textOf(main).includes(DEMO_SENTENCE), true,
+        `the ${state} state lost the sentence saying the feed is a demo`);
+
+      // And none of it lives in the region the fetch replaces — which is the
+      // whole reason it survives. renderPostDetail() empties #post-detail on
+      // every render, so anything inside it is gone the moment a state changes.
+      assert.equal(page.panel.querySelectorAll(".detail-back").length, 0,
+        `the ${state} state's routes out must sit in the page frame, not the panel`);
+      assert.equal(textOf(page.panel).includes(DEMO_SENTENCE), false,
+        `the ${state} state must not repeat the demo sentence inside the panel`);
+    } finally {
+      page.restore();
+    }
+  }
+
+  // The frame paints before any script runs, so the words above are read from
+  // the shipped markup too, not only from a page that has finished loading.
+  const html = await readFile(new URL("../src/post.html", import.meta.url), "utf8");
+  for (const label of CHROME_LINKS) assert.ok(html.includes(`>${label}</a>`), `${label} must ship in the markup`);
+  assert.ok(html.includes(`<p>${DEMO_SENTENCE}</p>`), "the demo sentence must ship in the markup");
+  // The eyebrow ends on the marker the feed pages end on, so a permalink is
+  // stamped as a demo the same way /social.html and /profile.html are.
+  assert.match(html, /<p class="eyebrow">Social · post · demo<\/p>/);
+});
+
 /* --------------------------- one state at a time -------------------------- */
 
 test("every state the page can reach puts exactly one of the four on screen", async () => {
