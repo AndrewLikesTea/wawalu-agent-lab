@@ -1,4 +1,4 @@
-// Filtering the shipping history by the status of the decisions a release
+// Filtering the releases by the status of the decisions a release
 // carried (issue #584).
 //
 // Two layers, matching how src/releases.js is split. The pure core — the filter
@@ -332,9 +332,11 @@ test("the list state before the page boots is a loading state", async (t) => {
   const loading = page.document.querySelector(".list-state-loading");
   assert.ok(loading, "the shipped markup carries a loading state");
   assert.equal(loading.getAttribute("role"), "status");
+  assert.equal(textOf(loading.querySelector("h3")), "Loading releases…");
   // The count is the other half of the same answer: while the list says it is
-  // loading, the count may not say how many releases there are.
-  assert.equal(countText(page), "Loading releases…");
+  // loading, the count may not say how many releases there are — and it does
+  // not restate the wait the list already states.
+  assert.equal(countText(page), "");
   assert.equal(page.document.querySelectorAll(".list-state-empty").length, 0, "no empty-state guidance shares the page with loading copy");
 
   initReleasesPage(page.document, page.storage, { seed: NO_SEED });

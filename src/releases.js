@@ -39,7 +39,7 @@ export const RELEASE_DECISION_STATUSES = DECISION_STATUSES;
 // URL, and the counts key off it.
 export const MISSING_DECISION_FILTER = "missing";
 
-// The linked-decision filter for the shipping history. Filtering by decision
+// The linked-decision filter for the release log. Filtering by decision
 // status asks "which releases carried at least one decision in this state",
 // which is a different question from the release-status control ("which
 // releases are planned/completed/cancelled"). They stay separate controls.
@@ -231,7 +231,7 @@ export function normalizeReleaseFilters(filters = {}) {
 }
 
 // ---------------------------------------------------------------------------
-// Narrowing the shipping history to one decision: "which releases carried the
+// Narrowing the releases to one decision: "which releases carried the
 // decision I am looking at". Unlike the status filter, the vocabulary is the
 // visitor's own log, so the value cannot be validated here — the page checks it
 // against the decisions it holds before applying it, the same way the decision
@@ -827,7 +827,11 @@ export function renderReleaseListState(container, state, options = {}) {
   panel.setAttribute("role", state === "error" ? "alert" : "status");
   const noun = options.singular ? "release" : "releases";
   const copy = {
-    loading: [`Loading ${noun}`, `Finding ${options.singular ? "the latest release" : "your shipping history"}…`],
+    // One line, not two: a wait is stated once. The wording matches the loading
+    // state shipped in src/releases.html character for character, so the markup
+    // a visitor reads before this script runs and the markup it draws after are
+    // the same sentence.
+    loading: [`Loading ${noun}…`],
     error: [`${options.singular ? "Release" : "Releases"} could not be loaded`, "Try reloading this page. Your saved records have not been changed."],
     // Two empty states, kept distinct on purpose: "nothing recorded yet" is a
     // first-run state whose one next step is recording a release, while "no
@@ -837,7 +841,9 @@ export function renderReleaseListState(container, state, options = {}) {
       : ["No releases have been recorded yet", "Link at least one decision, then record a release."],
   }[state];
   panel.append(el("h3", undefined, copy[0]));
-  panel.append(el("p", undefined, copy[1]));
+  // A state with nothing to add beyond its heading says only that; an empty
+  // paragraph would take a line and be read out as one.
+  if (copy[1]) panel.append(el("p", undefined, copy[1]));
   // The next step is offered only where one exists to take. The homepage sample
   // panel renders this same state without controls to reset or a form to fill,
   // so it opts out rather than showing an action that would go nowhere.
