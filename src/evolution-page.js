@@ -19,6 +19,10 @@ import {
 import {
   OWN_DATA_VIEW_STATE, renderOwnDataEvidencePreflight, renderOwnDataEvidenceState,
 } from "/own-data-evidence-preflight-view.js";
+import {
+  SLOT_INPUT_STATE, assessOwnDataCompleteness, bindOwnDataCompleteness,
+  renderCompletenessScorers, renderOwnDataCompleteness,
+} from "/own-data-completeness.js";
 import { assessBriefingReadiness } from "/briefing-readiness.js";
 import { renderBriefingReadiness } from "/briefing-readiness-view.js";
 import { projectExecutiveBriefing } from "/executive-briefing-projection.js";
@@ -2487,6 +2491,9 @@ function mountLocalFinopsImport() {
     }
     declaredCohortFacts = outcome.facts;
     syncCohortPosition(cohortAnalysis);
+    // A slot the reader just filled from a control on this page has to be a
+    // slot the count above it has already stopped asking for.
+    syncImportSlots();
     announce("ready", "Ranked position recomputed from the import already open.",
       outcome.message);
     return outcome;
@@ -2797,6 +2804,10 @@ function mountLocalFinopsImport() {
         if (categoryId) readerWorkloadChoices.set(name, categoryId);
         else readerWorkloadChoices.delete(name);
         paintReaderClassification();
+        // The count above stops asking for a classification the reader has just
+        // made. Deliberately not the whole slot sync: that would repaint this
+        // control under the picker the reader is still standing on.
+        paintOwnDataCompleteness();
       },
     });
     // The four slots first, then the letter over them: confidence and the band
@@ -2838,7 +2849,45 @@ function mountLocalFinopsImport() {
     } else {
       clearReaderClassification(document);
     }
+    paintOwnDataCompleteness();
     return presence;
+  };
+
+  /**
+   * The one completeness finding on the own-data path (#1009).
+   *
+   * This is where the slot states are DECIDED, and each rule is stated once so
+   * two engineers reading it compute the same numerator. "Filled" means the
+   * scorer that reads the input would not report it as missing or unrecognized;
+   * "unrecognized" is kept apart from "absent" because the reader's fix differs.
+   * The denominator is the slot list's own length and is not computed here.
+   */
+  const paintOwnDataCompleteness = () => {
+    const { filled, absent, unrecognized } = SLOT_INPUT_STATE;
+    const providers = loaded.providers.length;
+    const departments = readerClassifiableDepartments();
+    const classified = departments.filter((entry) => readerWorkloadChoices.has(entry.name)).length;
+    renderOwnDataCompleteness(document, assessOwnDataCompleteness({
+      // A file was read but no importer claimed it as a provider period export:
+      // present and unusable, which is a different sentence from "no file yet".
+      "spend-export": providers > 0 ? filled : (imports.length > 0 ? unrecognized : absent),
+      // Either the export's own grouping column or an org mapping beside it puts
+      // department names on the money; a read export carrying neither is a
+      // grouping this workspace could not recognize.
+      "department-mapping": hasGroupingColumn() || loaded.hris ? filled
+        : (providers > 0 ? unrecognized : absent),
+      // A scored sample attributes the letter on its own. Without one, the
+      // reader's classification does it, and a partly classified list is
+      // unrecognized spend rather than absent input.
+      "department-classification": (samples.length > 0 || archives.length > 0
+        || (departments.length > 0 && classified === departments.length)) ? filled
+        : (classified > 0 ? unrecognized : absent),
+      "conversation-export": archives.length > 0 ? filled : absent,
+      "cohort-facts": declaredCohortFacts ? filled : absent,
+      // Two or more provider period exports in hand. Stated as a count of files
+      // rather than of months so the rule has one reading.
+      "comparison-period": providers > 1 ? filled : absent,
+    }));
   };
 
   const finishSelection = (total) => {
@@ -4502,5 +4551,14 @@ async function init() {
 // Painted before init() so the evidence gate is answered on first paint rather
 // than after the bundled analysis loads. It reads only the bundled package.
 renderOwnDataEvidencePreflight(document, assessOwnDataEvidence(BUNDLED_OWN_DATA_EVIDENCE));
+
+// The consolidated completeness finding, on first paint and with no import in
+// hand: every slot is absent, so the block says so and points at the one control
+// that starts the path. The scorer index is painted once — it is a map of the
+// page, not a reading of anyone's file — and one delegated listener makes every
+// link in the block land focus on the control it names.
+renderCompletenessScorers(document);
+renderOwnDataCompleteness(document, assessOwnDataCompleteness({}));
+bindOwnDataCompleteness(document);
 
 init();

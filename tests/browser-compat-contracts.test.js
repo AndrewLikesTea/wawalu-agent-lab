@@ -382,7 +382,10 @@ test("running the check on a bundled example paints a distinguishable verdict", 
 
 test("the verdict region is a live region and is never inside the disclosure", async () => {
   const page = await readFile(new URL("../src/evolution.html", import.meta.url), "utf8");
-  const section = page.slice(page.indexOf('id="browser-compat"'), page.indexOf('id="intake-confidence"'));
+  // Bounded by the section that follows this one. It used to be the intake
+  // confidence region; that moved inside the consolidated completeness block
+  // above (#1009) and now precedes this one.
+  const section = page.slice(page.indexOf('id="browser-compat"'), page.indexOf('id="provider-native-import"'));
   const verdictAt = section.indexOf('id="browser-compat-verdict"');
   const disclosureEnd = section.indexOf("</details>", section.indexOf('id="browser-compat-disclosure"'));
   assert.ok(verdictAt > disclosureEnd,

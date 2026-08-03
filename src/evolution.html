@@ -1325,9 +1325,38 @@
             <button id="return-to-bundled-example" type="button" hidden>Return to bundled example</button>
           </div>
         </div>
+        <!-- The own-data path's ONE question about incompleteness (#1009). It
+             used to ask six, each with its own heading and its own meter at the
+             same volume, so a reader could not tell which gap stopped them
+             sending the brief. Nothing was deleted: every scorer below still
+             computes and still renders its own detail, provenance and
+             confidence, and the six are indexed inside the disclosure element
+             here. Ships EMPTY of figures — the two integers, the gap wording,
+             the one action and its target are all painted by
+             src/own-data-completeness.js, so no count and no reader's data is in
+             these bytes. NOT a live region: this page announces through one
+             region plus the import control's reason line. The two scorer
+             regions folded in below keep their own live regions OUTSIDE any
+             collapsed disclosure, because a status inside a closed disclosure
+             element is not announced in a real browser. -->
+        <section class="own-data-completeness" id="own-data-completeness" data-state="incomplete" data-filled="0" data-total="0" aria-labelledby="own-data-completeness-question">
+          <p class="eyebrow">Completeness · one finding, every check behind it</p>
+          <h3 id="own-data-completeness-question">What still needs to happen before this brief is CFO-ready?</h3>
+          <p class="own-data-completeness-metric"><strong><span id="own-data-completeness-filled">0</span> of <span id="own-data-completeness-total">0</span></strong> required inputs are filled and recognized.</p>
+          <div class="own-data-completeness-bar" aria-hidden="true"><span id="own-data-completeness-meter" data-share="0"></span></div>
+          <p class="own-data-completeness-lead" id="own-data-completeness-lead">Completeness is measured once an export has been read in this tab.</p>
+          <p class="own-data-completeness-action" id="own-data-completeness-action" data-state="incomplete"><strong>Do this next</strong> <a id="own-data-completeness-action-link" href="#local-finops-files" data-control="local-finops-files">Choose a provider export</a></p>
+          <details class="own-data-completeness-detail" id="own-data-completeness-gaps-detail">
+            <summary>Everything this count is missing</summary>
+            <ul class="own-data-completeness-gaps" id="own-data-completeness-gaps" aria-label="Inputs still missing, in priority order"></ul>
+          </details>
+          <details class="own-data-completeness-detail" id="own-data-completeness-scorers">
+            <summary>Every check behind this number</summary>
+            <ol class="own-data-completeness-scorer-list" id="own-data-completeness-scorer-list" aria-label="Checks behind this finding, in the order to open them"></ol>
+          </details>
         <section class="own-data-preflight" id="own-data-evidence-preflight" data-outcome="loading" aria-labelledby="own-data-preflight-question" aria-describedby="own-data-preflight-status" aria-busy="true">
           <p class="eyebrow">Evidence preflight · bundled local example</p>
-          <h3 id="own-data-preflight-question">Can this export support a trustworthy department-spend decision?</h3>
+          <h4 id="own-data-preflight-question">Can this export support a trustworthy department-spend decision?</h4>
           <p class="own-data-preflight-status" id="own-data-preflight-status"><span class="status-shape" aria-hidden="true">○</span> Not yet classified · No evidence has been validated. Processing stays local to this tab; no file is uploaded or retained.</p>
           <p class="own-data-preflight-finding" id="own-data-preflight-finding"><strong class="own-data-preflight-verdict">Checking evidence</strong><span>Results will appear after local validation.</span></p>
           <dl class="own-data-preflight-measures">
@@ -1349,6 +1378,26 @@
               </div>
             </div>
           </details>
+        </section>
+        <!-- Export recognition and confidence (#928). The chooser is filled and
+             the score is painted by src/export-recognition-view.js from
+             src/export-recognition-fixtures.js and src/export-recognition.js:
+             no provider, no signal, no weight and NO NUMBER is in this markup,
+             so a reader with JavaScript off sees the question and not a figure
+             they could act on. The result region is a live region and sits
+             outside every disclosure on this page on purpose — a status folded
+             inside a collapsed details element is not announced in a real
+             browser however readable a test harness finds it. -->
+        <section class="export-recognition" id="export-recognition" aria-labelledby="export-recognition-title">
+          <p class="eyebrow">Recognition score · reproducible, local, browser only</p>
+          <h4 id="export-recognition-title">How confident is this workspace that it recognized the export?</h4>
+          <p>Every bundled example below is a labelled fixture with one expected score. Choosing one recomputes that score in this tab from the published provider contracts: the same example always produces the same number, and every point of the number is listed under it.</p>
+          <p class="export-recognition-field"><label for="export-recognition-example">Bundled labelled example</label><select id="export-recognition-example"></select></p>
+          <div class="export-recognition-result" id="export-recognition-result" role="status" aria-live="polite" data-state="pending" data-band="none">
+            <p class="export-recognition-band">The recognition score for the selected bundled example appears here when this client-side demo starts.</p>
+          </div>
+        </section>
+        <section class="intake-confidence" id="intake-confidence" data-status="pending" hidden></section>
         </section>
         <div class="privacy-boundary" role="note" aria-label="Local processing privacy boundary">
           <strong>Your files do not leave this tab.</strong>
@@ -1390,24 +1439,6 @@
             <p class="browser-compat-verdict-line">No export has been checked yet. Choose a bundled example or one of your own export files, then run the check.</p>
           </div>
         </section>
-        <!-- Export recognition and confidence (#928). The chooser is filled and
-             the score is painted by src/export-recognition-view.js from
-             src/export-recognition-fixtures.js and src/export-recognition.js:
-             no provider, no signal, no weight and NO NUMBER is in this markup,
-             so a reader with JavaScript off sees the question and not a figure
-             they could act on. The result region is a live region and sits
-             outside every disclosure on this page on purpose — a status folded
-             inside a collapsed details element is not announced in a real
-             browser however readable a test harness finds it. -->
-        <section class="export-recognition" id="export-recognition" aria-labelledby="export-recognition-title">
-          <p class="eyebrow">Recognition score · reproducible, local, browser only</p>
-          <h3 id="export-recognition-title">How confident is this workspace that it recognized the export?</h3>
-          <p>Every bundled example below is a labelled fixture with one expected score. Choosing one recomputes that score in this tab from the published provider contracts: the same example always produces the same number, and every point of the number is listed under it.</p>
-          <p class="export-recognition-field"><label for="export-recognition-example">Bundled labelled example</label><select id="export-recognition-example"></select></p>
-          <div class="export-recognition-result" id="export-recognition-result" role="status" aria-live="polite" data-state="pending" data-band="none">
-            <p class="export-recognition-band">The recognition score for the selected bundled example appears here when this client-side demo starts.</p>
-          </div>
-        </section>
         <!-- Provider-native local export intake (#930). The provider chooser is
              the one above, shared rather than duplicated. Everything a reader
              acts on here is decided by src/provider-native-import.js and painted
@@ -1442,7 +1473,6 @@
             <div id="provider-native-evidence-body"><p class="provider-native-evidence-lead">The rate table and the recognition evidence appear here once an export has been read.</p></div>
           </details>
         </section>
-        <section class="intake-confidence" id="intake-confidence" data-status="pending" hidden></section>
         <!-- The forwardable form of the note above (#745). Checked, not
              asserted: tests/finops-import-egress.test.js enforces "never
              transmitted", the /evolution.html rule in src/_headers the policy.
