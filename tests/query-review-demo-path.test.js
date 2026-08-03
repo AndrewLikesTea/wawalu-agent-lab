@@ -61,11 +61,13 @@ test("the bundled demo path's headline number and next action are unchanged", as
   assert.equal(textOf(document.getElementById("finops-stand-answer")),
     "Illustrative only, from hand-authored synthetic cohort boundaries rather than your own export: "
     + "Your AI spend is in the most expensive quarter of organizations like yours, at $38.63 per "
-    + "successful task for June 2026. $51,254 of that is modelled as recoverable. Department "
-    + "…atlas0 is driving the increase.");
+    + "successful task for June 2026. $51,254 of that is modelled as recoverable. Atlas "
+    + "Platform is driving the increase.");
   // #1020: the bundled state's step is now derived from the bundled dataset the
   // figures above come from, rather than from an unrelated invented journey
   // fixture, so it names a department that appears in the analyzed spend.
+  // #1017: and it names it with the SAME words the headline above does — the
+  // driving department and the first intervention priority are one team.
   assert.equal(textOf(document.getElementById("finops-next-step-action")),
-    "Enable automated down-routing for short, low-context prompts in Backend Platform");
+    "Enable automated down-routing for short, low-context prompts in Atlas Platform");
 });

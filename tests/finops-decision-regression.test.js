@@ -113,7 +113,10 @@ const EXPECTED_BENCHMARK = Object.freeze({
  */
 const EXPECTED_ACTION = Object.freeze({
   rank: 1,
-  statement: "Pilot lower-cost routing for text-generation in Department …atlas0; "
+  // #1017: the department is named, not elided. `Department …atlas0` was a
+  // pseudonym tail a reader could not say out loud, on a company this repository
+  // invented and already had a roster for.
+  statement: "Pilot lower-cost routing for text-generation in Atlas Platform; "
     + "cap the pilot at 32903.50 USD and verify against a like-for-like period.",
   accountableRole: "Platform Engineering Lead",
 });
@@ -220,7 +223,16 @@ test("regression: exactly one ranked primary action, with its cap and its accoun
   assert.ok(action.basis.includes("Rank 1"), "the action no longer states which rank it is");
   // A role, never a person, and never a real-looking department name.
   assert.doesNotMatch(action.accountableRole, /\b(?:Ms|Mr|Mx|Dr)\.\s/);
-  assert.match(action.statement, /Department …/, "the department label is no longer pseudonymised");
+  // #1017 inverted this deliberately. The old assertion demanded an ELIDED tail
+  // (`Department …atlas0`) in the published action, which is right for a file a
+  // reader imported and wrong for the bundled example: this company is invented,
+  // its roster is in example-dataset.js, and a director cannot say a pseudonym
+  // tail out loud. What still has to hold is that no identifier leaks — the
+  // statement names a team, never a wire id and never an elided tail.
+  assert.doesNotMatch(action.statement, /…|psn_/,
+    "the published action names a unit by identifier rather than by name");
+  assert.match(action.statement, /\bAtlas Platform\b/,
+    "the published action no longer names the example's own driving department");
 });
 
 test("regression: the impact is the labelled estimate, flagged unrealized, over the same window", () => {

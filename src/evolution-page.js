@@ -441,7 +441,7 @@ import {
   FINOPS_IMPORT_STATUS, finopsProvenanceModel, promptImportFacts,
 } from "/finops-provenance-model.js";
 import { applyFinopsProvenance, clearFinopsProvenance } from "/finops-provenance-view.js";
-import { loadExampleDatasetInputs } from "/example-dataset.js";
+import { loadExampleDatasetInputs, nameExampleDepartments } from "/example-dataset.js";
 import { EXAMPLE_QUERY_SAMPLE_FILE, exampleQuerySampleText } from "/query-sample-example.js";
 import {
   CONVERSATION_EXAMPLE_FILES, conversationExampleText,
@@ -3531,7 +3531,13 @@ function mountLocalFinopsImport() {
     clearIntakeConfidence(document);
     try {
       const inputs = loadExampleDatasetInputs();
-      renderResult(normalizeLocalFinopsHistory(inputs), { example: true, inputs });
+      // Relabelled through the example's own roster, exactly as loadExampleDataset()
+      // does for the rest of the page (#1017): this is the same invented company,
+      // so it must not be the one surface that calls its teams …atlas0. A name the
+      // reader typed still wins — orgUnitDisplayName reads the label map first and
+      // this only changes the pseudonym it falls back to.
+      renderResult(nameExampleDepartments(normalizeLocalFinopsHistory(inputs)),
+        { example: true, inputs });
       // The example is a history of monthly exports and the finding describes
       // one export, so it describes the latest — the period the panel names.
       const latest = inputs.providers.at(-1);

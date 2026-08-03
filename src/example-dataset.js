@@ -182,7 +182,38 @@ export const EXAMPLE_DEPARTMENT_NAME_SET = Object.freeze(
   Object.values(EXAMPLE_DEPARTMENT_NAMES));
 
 /**
- * The same envelope, with this company's own names on its ranked departments.
+ * The pseudonym tail each name belongs to.
+ *
+ * `local-finops.js` publishes a unit's label as `Department …${id.slice(-6)}`,
+ * so the tail is a function of the wire id and nothing else — this is still
+ * keyed on identity, reached through the one string the translator derives from
+ * that identity. A tail is six characters; a shorter `…0001` from some other
+ * dataset cannot collide with one.
+ */
+const EXAMPLE_UNIT_TAIL_NAMES = Object.freeze(Object.fromEntries(
+  Object.entries(EXAMPLE_DEPARTMENT_NAMES).map(([id, name]) => [id.slice(-6), name])));
+
+/** The three shapes the translator prints an elided unit in, and only those. */
+const ELIDED_UNIT = /(?:Department|Active unit|unit) …([a-z0-9]{6})/g;
+
+/** One published sentence or label, in this company's vocabulary. */
+function speak(text) {
+  return text.replace(ELIDED_UNIT, (whole, tail) => EXAMPLE_UNIT_TAIL_NAMES[tail] ?? whole);
+}
+
+/** The same value with every string in it spoken. Frozen on the way out. */
+function spoken(value) {
+  if (typeof value === "string") return speak(value);
+  if (Array.isArray(value)) return Object.freeze(value.map(spoken));
+  if (value && typeof value === "object" && Object.getPrototypeOf(value) === Object.prototype) {
+    return Object.freeze(Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [key, spoken(item)])));
+  }
+  return value;
+}
+
+/**
+ * The same envelope, with this company's own names on it.
  *
  * Applied at the brief's composition layer rather than inside the translator, on
  * purpose: the analysis envelope is what every export, snapshot, and stored
@@ -190,15 +221,28 @@ export const EXAMPLE_DEPARTMENT_NAME_SET = Object.freeze(
  * are supposed to say what the file said. What a *reader* is shown is a display
  * decision, and this is the one place the example makes it.
  *
+ * WHY IT IS A PASS OVER THE WHOLE ENVELOPE AND NOT A FIELD LIST (#1017). The
+ * ranked departments were the only thing this renamed, and the elided label is
+ * in thirty-six places: `topDepartment`, each unit's `unit.label`, the
+ * down-routing candidates' `unitLabel`, the literacy roster, the widen-the-sample
+ * next action, and `action` — the derived sentence the canonical decision record
+ * is built from, which is how "Department …atlas0" reached the circulation
+ * block. A field list is a list the next field is missing from, so the rule is
+ * stated once and applied everywhere instead: any string the analysis published
+ * that names a unit by its elided tail names it by the company's word for it.
+ * Identifiers carry no ellipsis and are untouched, so every export, digest and
+ * stored period still says exactly what the file said.
+ *
  * Total. A null envelope, a missing ranking, and a unit this table has no name
  * for all come back unchanged rather than blank.
  */
 export function nameExampleDepartments(analysis) {
   const ranked = analysis?.rankedDepartments;
   if (!analysis || typeof analysis !== "object" || !Array.isArray(ranked)) return analysis;
+  const said = spoken(analysis);
   return Object.freeze({
-    ...analysis,
-    rankedDepartments: Object.freeze(ranked.map((department) => {
+    ...said,
+    rankedDepartments: Object.freeze(said.rankedDepartments.map((department) => {
       const name = EXAMPLE_DEPARTMENT_NAMES[department?.id];
       return name ? Object.freeze({ ...department, name }) : department;
     })),
@@ -488,9 +532,20 @@ export function loadExampleDatasetInputs() {
 }
 
 /**
- * Translate the fixture and analyze it. Same two calls, in the same order, that
- * a selected set of files walks through in evolution-page.js.
+ * Translate the fixture, analyze it, and put this company's own names on it.
+ *
+ * The same two calls, in the same order, a selected set of files walks through
+ * in evolution-page.js — and then the one display decision above, applied HERE
+ * rather than at each composer (#1017). Four surfaces read this function: the
+ * stand headline, the first-screen answer block, the evidence briefing and the
+ * department drill-down. Three of them did not relabel, so the page said
+ * "Department …atlas0 is driving the increase" beside panels naming Atlas
+ * Platform. A rename every caller has to remember is a rename the next caller
+ * forgets; this is the choke point, so there is nowhere left to forget it.
+ *
+ * Identifiers are untouched, so every export and stored period still says
+ * exactly what the file said.
  */
 export function loadExampleDataset() {
-  return normalizeLocalFinopsHistory(loadExampleDatasetInputs());
+  return nameExampleDepartments(normalizeLocalFinopsHistory(loadExampleDatasetInputs()));
 }
