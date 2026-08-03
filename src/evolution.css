@@ -3629,6 +3629,11 @@ section[data-workspace-current="true"] { box-shadow:-6px 0 0 0 var(--import-wash
    zone is a single column at every width; nothing in it needs a second one. */
 .import-drop { display:grid; gap:8px; margin:0 0 14px; border:2px dashed var(--import-line,#b9bdb4); border-radius:10px; padding:14px; background:#fff; }
 .import-drop[data-dragging="true"] { border-style:solid; border-width:3px; background:var(--import-wash,#eef3ee); }
+/* #1064: the check zone is the side path off the picker it sits beside, and has
+   to read as one. A solid tinted edge against the picker's dashed white — never
+   the only carrier, since its own title says what it is and its verdict says it
+   commits to nothing. */
+.import-drop[data-check] { margin:4px 0 0; border-style:solid; border-color:var(--import-ink,#1d2016); background:var(--import-wash,#eef3ee); }
 .import-drop-title { margin:0; font-size:15px; font-weight:700; }
 .import-drop-mark { margin-right:6px; }
 .import-drop-instruction { margin:0; max-width:70ch; color:var(--ink-muted); font-size:13px; }

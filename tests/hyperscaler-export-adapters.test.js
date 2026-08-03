@@ -595,6 +595,17 @@ test("an export with no amount column is told which column to re-pull it with", 
   assert.equal(verdict.reason, PREFLIGHT_REASONS.MISSING_REQUIRED_COLUMN);
   assert.equal(verdict.nextAction,
     "Re-pull the Google Vertex AI export with the cost column included, then check it again.");
+  // The instruction's own column, published beside it (#1064): a surface that
+  // names the missing column in its own words must name the SAME one, and
+  // ranking the missing columns a second time is how two surfaces name two.
+  assert.equal(verdict.namedColumn, "cost");
+  assert.ok(verdict.nextAction.includes(verdict.namedColumn));
+});
+
+test("only a missing-column verdict names a column", () => {
+  assert.equal(check(vertex(VERTEX_ROWS), "vertex-usage.jsonl").namedColumn, null);
+  assert.equal(check("posting_date,amount\n2026-07-20,1.00\n", "ledger.csv").namedColumn, null);
+  assert.equal(check("   \n\n", "usage.csv").namedColumn, null);
 });
 
 test("an unrecognized file is told which consoles this build reads", () => {
