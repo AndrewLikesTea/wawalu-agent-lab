@@ -425,6 +425,25 @@ function exportId(seed) {
  */
 export const DELIMITED_SOURCE_INSTANCE_ID = "psn_delimited_import_v1_0001";
 
+// --- display labels --------------------------------------------------------
+//
+// The pseudonym above is the identity; the layer that decides what a READER
+// sees over it lives in org-unit-display-label.js and is re-exported here,
+// because "what is this unit called" is a question about the identity this
+// module mints, and a caller should find it beside the thing it names.
+//
+// It is a separate file for one reason: this module and local-finops.js
+// already import each other, and a composer reaching into that cycle from
+// outside evaluates it in the wrong order. The label layer imports nothing, so
+// nobody can pull the cycle in behind it.
+//
+// Nothing in that layer is persisted, uploaded, or exported. The labels are
+// page state, passed down as an argument, and they die with the tab.
+export {
+  MAX_ORG_UNIT_DISPLAY_LABEL, NO_ORG_UNIT_LABELS,
+  hasOrgUnitDisplayLabel, orgUnitDisplayName, withOrgUnitDisplayLabel,
+} from "./org-unit-display-label.js";
+
 // --- row classification ----------------------------------------------------
 
 // Compiled from the package contract's `provider_patterns`, in declared order,

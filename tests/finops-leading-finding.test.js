@@ -53,9 +53,11 @@ test("the reporting period is the newest month and the change is against the one
   assert.equal(finding.changeUsd, 50);
   assert.equal(finding.changePercent, 25);
   assert.equal(finding.question, "Why did spend rise in June 2026?");
-  // Two-decimal USD and the panel's existing one-decimal percent, which drops a
-  // trailing zero rather than inventing precision the analysis did not claim.
-  assert.equal(finding.metric, "+50.00 USD (+25%) versus May 2026");
+  // Rendered currency through the repo's own `formatSignedUsd`, and the panel's
+  // existing one-decimal percent, which drops a trailing zero rather than
+  // inventing precision the analysis did not claim. The MODEL is unchanged —
+  // `changeUsd` above is still the full-precision number.
+  assert.equal(finding.metric, "+$50 (+25%) versus May 2026");
 });
 
 test("a zero prior period yields an amount and no percentage at all", () => {
@@ -65,7 +67,7 @@ test("a zero prior period yields an amount and no percentage at all", () => {
   }));
   assert.equal(finding.changeUsd, 900);
   assert.equal(finding.changePercent, null, "a percentage of nothing does not exist");
-  assert.match(finding.metric, /\+900\.00 USD/);
+  assert.match(finding.metric, /\+\$900/);
   // No divide-by-zero artefact reaches the reader in any form.
   for (const text of [finding.metric, finding.driverSentence, finding.question])
     assert.doesNotMatch(text, /NaN|Infinity|∞/);
@@ -185,12 +187,12 @@ test("the example dataset produces one unambiguous finding through the real path
   assert.equal(finding.priorTotalSpendUsd, 115_300);
   assert.equal(finding.changeUsd, 39_200);
   assert.equal(Math.round(finding.changePercent * 10) / 10, 34);
-  assert.equal(finding.metric, "+39200.00 USD (+34%) versus May 2026");
+  assert.equal(finding.metric, "+$39,200 (+34%) versus May 2026");
 
   assert.equal(finding.driver.name, "Department …atlas0");
   assert.equal(finding.driver.deltaUsd, 34_500);
   assert.equal(Math.round(finding.driverContributionPercent * 10) / 10, 88);
-  assert.match(finding.driverSentence, /Department …atlas0 contributed \+34500\.00 USD/);
+  assert.match(finding.driverSentence, /Department …atlas0 contributed \+\$34,500 /);
   assert.match(finding.driverSentence, /88% of it/);
 
   // The prioritized action is the analysis's own, and it names the same driver.

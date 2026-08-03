@@ -16,6 +16,10 @@ import { FIRST_RUN_ACTIONS, FIRST_RUN_IDS } from "./finops-first-run.js";
 import { EXAMPLE_BRIEFING_CTA, EXAMPLE_BRIEFING_HREF } from "./finops-example-briefing.js";
 import { DISCLOSURE_SPEC, disclosureStateLabel } from "./finops-decision-interaction.js";
 import { DRILLDOWN_HEADING, DRILLDOWN_QUESTION } from "./finops-imported-departments.js";
+// The ceiling on a reader-supplied name. It is the import module's constant
+// because that is where the label layer is defined; this view only enforces it
+// on the control so the field cannot accept what the resolver would discard.
+import { MAX_ORG_UNIT_DISPLAY_LABEL } from "./org-unit-display-label.js";
 // The `.pre-analysis-withheld` idiom is defined once, in the view that owns the
 // answer region above this one, because both regions share the first screen and
 // therefore have to withhold and reveal on the same rule.
@@ -80,14 +84,98 @@ function paintBand(doc, bandId, slot) {
   return chip;
 }
 
+/**
+ * How many of the ranked rows offer a name field.
+ *
+ * Five, because that is the span a lead actually recognizes and renames; past
+ * it the disclosure becomes a data-entry form rather than an answer. A row
+ * without a field is unchanged — it still reads under its pseudonym.
+ */
+export const ORG_UNIT_LABEL_FIELD_LIMIT = 5;
+
+/** The field ids, deterministic so a repaint restores focus to the same one. */
+export const orgUnitLabelFieldId = (rank) => `finops-unit-label-${rank}`;
+
+/**
+ * The inline "call this unit something I recognize" field for one ranked row.
+ *
+ * IT IS BUILT HERE AND NOT AUTHORED IN evolution.html ON PURPOSE. The fields
+ * sit inside a disclosure that already ships closed, so they are not first-
+ * screen answer content; shipping five of them as static markup would spend the
+ * document's initial-payload budget on a control nobody has opened yet. The
+ * disclosure itself is already interactive, so building its contents in script
+ * is the same enhancement the ranked rows beside them already are.
+ *
+ * OPERATION IS THE REPO'S EXISTING RENAME IDIOM: a real field with a real
+ * `label for`, and an explicit Save beside it. Enter commits from inside the
+ * field. Nothing commits on blur, so tabbing THROUGH the disclosure never
+ * repaints under a keyboard reader's focus ring.
+ *
+ * NOTHING TYPED HERE LEAVES THE PAGE. The value goes to `onLabel`, which is
+ * page state and nothing else — no request, no storage, no export field.
+ */
+function labelField(doc, entry, onLabel) {
+  const box = doc.createElement("p");
+  box.className = "first-run-unit-label";
+  const id = orgUnitLabelFieldId(entry.rank);
+  const name = doc.createElement("label");
+  name.className = "first-run-unit-label-name";
+  name.setAttribute("for", id);
+  // The accessible name says which unit, because five fields called "Name" are
+  // five fields a screen-reader user cannot tell apart. The pseudonym is the
+  // one string that identifies the unit no matter what it has been renamed to.
+  name.textContent = `Your name for ${entry.pseudonym}`;
+  const input = doc.createElement("input");
+  input.id = id;
+  input.className = "first-run-unit-label-input";
+  input.setAttribute("type", "text");
+  input.setAttribute("maxlength", String(MAX_ORG_UNIT_DISPLAY_LABEL));
+  input.dataset.unitId = entry.unitId;
+  input.value = entry.label ?? "";
+  input.placeholder = entry.pseudonym;
+  const save = doc.createElement("button");
+  save.className = "first-run-unit-label-save";
+  save.setAttribute("type", "button");
+  // The unit is in the VISIBLE text, never in an attribute a reader cannot see,
+  // so the name a speech-control user says is the name they can read and five
+  // Save buttons are five distinguishable ones. It is the rule this whole view
+  // is already held to, and tests/finops-decision-interaction.js pins it.
+  save.textContent = `Save ${entry.pseudonym}`;
+  const help = doc.createElement("span");
+  help.className = "first-run-unit-label-help";
+  help.textContent = `Stays on this page. Clear it to go back to ${entry.pseudonym}.`;
+
+  const commit = () => {
+    // The field the reader is standing in, remembered across the repaint the
+    // commit triggers. Losing the ring here would send them back to the top of
+    // the document for the price of naming one team.
+    const region = byId(doc, FIRST_RUN_IDS.region);
+    if (region) region.dataset.focusTarget = id;
+    onLabel(entry.unitId, input.value);
+  };
+  // `click`, and nothing else. This view intercepts no key at all — the native
+  // button already answers Enter and Space, and a handler here would be the
+  // second thing in this file deciding what a key means, which is exactly what
+  // tests/finops-decision-interaction.js forbids of the disclosure around it.
+  save.addEventListener("click", commit);
+  box.append(name, input, save, help);
+  return box;
+}
+
 /** One `<dt>`/`<dd>` pair, built rather than assigned. */
-function definition(doc, entry) {
+function definition(doc, entry, onLabel) {
   const item = doc.createElement("div");
   const term = doc.createElement("dt");
   term.textContent = entry.term;
   const detail = doc.createElement("dd");
   detail.textContent = entry.detail;
   item.append(term, detail);
+  // Only the live disclosure gets fields. The print sibling is a copy of the
+  // same evidence and is `aria-hidden`; putting a second input with the same id
+  // in it would give the page duplicate ids and a control on paper.
+  if (onLabel && entry.unitId && entry.rank <= ORG_UNIT_LABEL_FIELD_LIMIT) {
+    detail.append(labelField(doc, entry, onLabel));
+  }
   return item;
 }
 
@@ -102,10 +190,10 @@ function definition(doc, entry) {
  * can suppress a block that is not inside a `details` at all. It is
  * `aria-hidden`; the disclosure is the copy the accessibility tree reads.
  */
-function paintEvidence(doc, entries, heading) {
+function paintEvidence(doc, entries, heading, onLabel = null) {
   setText(doc, FIRST_RUN_IDS.methodTitle, heading);
   const method = byId(doc, FIRST_RUN_IDS.methodList);
-  if (method) method.replaceChildren(...entries.map((entry) => definition(doc, entry)));
+  if (method) method.replaceChildren(...entries.map((entry) => definition(doc, entry, onLabel)));
   const print = byId(doc, FIRST_RUN_IDS.methodPrint);
   if (print) {
     const list = doc.createElement("dl");
@@ -355,7 +443,7 @@ function evidenceEntries(doc) {
  * example already uses, which is a native `details` and therefore keyboard
  * reachable and operable in this state exactly as it is in the other one.
  */
-function applyOwnDataDrilldown(doc, region, drilldown) {
+function applyOwnDataDrilldown(doc, region, drilldown, onLabel) {
   if (!EXAMPLE_COPY.has(doc)) {
     EXAMPLE_COPY.set(doc, {
       text: RESTORED_IDS.map((id) => [id, byId(doc, id)?.textContent ?? ""]),
@@ -379,8 +467,26 @@ function applyOwnDataDrilldown(doc, region, drilldown) {
     available: drilldown.available, value: drilldown.headline, detail: drilldown.detail,
   });
   paintEvidence(doc, drilldown.rows.map((entry) => ({
-    term: entry.term, detail: entry.detail,
-  })), DRILLDOWN_HEADING);
+    term: entry.term,
+    detail: entry.detail,
+    // The identity, not the rank, is what a name is bound to — `rank` only
+    // decides which rows are offered a field and which id that field gets.
+    unitId: entry.unitId,
+    pseudonym: entry.pseudonym,
+    rank: entry.rank,
+    // The field shows the name that is actually rendering. This view never
+    // reads the label map — it reads what the resolver decided, which is the
+    // only version of "what is this unit called" the page is allowed to have.
+    label: entry.name === entry.pseudonym ? "" : entry.name,
+  })), DRILLDOWN_HEADING, onLabel);
+  // Put the reader back in the field they committed from. The repaint that
+  // followed the commit replaced the node they were standing on, and the ids
+  // are deterministic precisely so this can find its way back.
+  const focusId = region.dataset.focusTarget;
+  if (focusId) {
+    delete region.dataset.focusTarget;
+    byId(doc, focusId)?.focus?.({ preventScroll: true });
+  }
   return region;
 }
 
@@ -417,13 +523,13 @@ function restoreExampleCopy(doc) {
  * summary. Without it, nothing about the retirement changes.
  */
 export function applyFirstRunSupersession(doc, superseded,
-  { focusFallbackId = null, ownData = null } = {}) {
+  { focusFallbackId = null, ownData = null, onOrgUnitLabel = null } = {}) {
   const region = byId(doc, FIRST_RUN_IDS.region);
   if (!region) return null;
   const retired = Boolean(superseded);
   if (retired && ownData) {
     region.hidden = false;
-    return applyOwnDataDrilldown(doc, region, ownData);
+    return applyOwnDataDrilldown(doc, region, ownData, onOrgUnitLabel);
   }
   restoreExampleCopy(doc);
   delete region.dataset.source;
