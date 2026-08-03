@@ -895,9 +895,113 @@ export function applyBriefingState(doc, state, message = BRIEFING_STATE_MESSAGE[
 
 const RESTORED_SLOTS = Object.freeze([
   "restored-briefing-captured", "restored-briefing-dataset", "restored-briefing-question",
-  "restored-briefing-metric", "restored-briefing-coverage", "restored-briefing-arithmetic",
-  "restored-briefing-action", "restored-briefing-delta",
+  "restored-briefing-metric", "restored-briefing-coverage", "restored-briefing-derived",
+  "restored-briefing-arithmetic", "restored-briefing-action", "restored-briefing-delta",
+  "restored-briefing-naming", "restored-briefing-naming-contract", "restored-briefing-naming-note",
 ]);
+
+/**
+ * One line per unit whose name has a history: derived from a column, corrected
+ * by a reader, or both.
+ *
+ * A CORRECTION IS NEVER FLATTENED INTO A NAME. The line says what the export was
+ * read as, then what the reader changed it to, because a brief that showed only
+ * the corrected name would present a typed word as though the file had supplied
+ * it — which is exactly the distinction the grade beside it is drawn on.
+ *
+ * Units the export could not name and the reader did not correct are not listed:
+ * they render under the identifier the analysis published, and the naming
+ * statement above already counts them.
+ */
+export function restoredNamingLines(naming) {
+  const lines = [];
+  for (const unit of naming?.units ?? []) {
+    const derivedFrom = unit.sourceColumn
+      ? `derived from this export's “${unit.sourceColumn}” column`
+      : "derived from this export";
+    const disagreed = unit.conflicted ? " Rows disagreed; the value on the most rows won." : "";
+    if (unit.correction && unit.correction.replacedDerivedName) {
+      lines.push({
+        provenance: "corrected",
+        text: `${unit.unitId}: “${unit.correction.replacedDerivedName}”, ${derivedFrom}, `
+          + `then corrected by a reader to “${unit.correction.name}”.${disagreed}`,
+        unit,
+      });
+    } else if (unit.correction) {
+      lines.push({
+        provenance: "reader_named",
+        text: `${unit.unitId}: named “${unit.correction.name}” by a reader. `
+          + "This export carried no name for it.",
+        unit,
+      });
+    } else if (unit.derivedName) {
+      lines.push({
+        provenance: "derived",
+        text: `${unit.unitId}: “${unit.derivedName}”, ${derivedFrom}.${disagreed}`,
+        unit,
+      });
+    } else if (unit.withheld) {
+      lines.push({
+        provenance: "withheld",
+        text: `${unit.unitId}: this export named the unit, but the name was not written to the `
+          + "briefing file, so the unit keeps its identifier here.",
+        unit,
+      });
+    }
+  }
+  return lines;
+}
+
+/**
+ * Paint the naming block of a reopened brief: the derivation statement, the
+ * contract it was made under, one line per named unit, and — for a file written
+ * before any of that was recorded — the plain note that says so.
+ */
+function paintRestoredNaming(doc, naming) {
+  const write = (id, text) => {
+    const node = byId(doc, id);
+    if (node) node.textContent = text;
+  };
+  const show = (id, visible) => {
+    const node = byId(doc, id);
+    if (node) node.hidden = !visible;
+  };
+  const available = Boolean(naming?.available);
+  const statement = byId(doc, "restored-briefing-naming");
+  if (statement) {
+    statement.textContent = available ? naming.statement : "";
+    statement.hidden = !(available && naming.statement);
+    statement.dataset.units = String(naming?.unitCount ?? 0);
+    statement.dataset.derived = String(naming?.derivedCount ?? 0);
+    statement.dataset.corrected = String(naming?.correctedCount ?? 0);
+    statement.dataset.conflicted = String(naming?.conflictedCount ?? 0);
+    statement.dataset.contractVersion = available && naming.contractVersion !== null
+      ? String(naming.contractVersion) : "";
+  }
+  write("restored-briefing-naming-contract", available ? naming.precedenceStatement : "");
+  show("restored-briefing-naming-contract", Boolean(available && naming.precedenceStatement));
+  // The lacking-provenance note. Visible text in the brief, never a console
+  // line: the reader holding the file is the one who has to know.
+  write("restored-briefing-naming-note", naming?.note ?? "");
+  show("restored-briefing-naming-note", Boolean(naming?.note));
+  const list = byId(doc, "restored-briefing-names");
+  if (!list) return;
+  const lines = restoredNamingLines(naming);
+  list.replaceChildren(...lines.map((line) => {
+    const item = doc.createElement("li");
+    item.className = "restored-briefing-name";
+    // Every value out of the file arrives as text. The attributes carry the
+    // classification, never the words, so nothing here can reach the document
+    // as markup or as a URL.
+    item.textContent = line.text;
+    item.dataset.unitId = line.unit.unitId;
+    item.dataset.provenance = line.provenance;
+    item.dataset.sourceField = line.unit.sourceField ?? "";
+    return item;
+  }));
+  list.hidden = lines.length === 0;
+  list.dataset.count = String(lines.length);
+}
 
 /**
  * Paint — or clear — the restored briefing.
@@ -930,6 +1034,9 @@ export function applyRestoredBriefing(doc, model) {
     }
     renderBriefingDerivation(doc, "restored-briefing-derivation", null);
     show("restored-briefing-derivation-detail", false);
+    // The naming goes with the file it came from. A closed brief that left its
+    // unit names on screen would name today's units off yesterday's export.
+    paintRestoredNaming(doc, null);
     return null;
   }
 
@@ -951,6 +1058,11 @@ export function applyRestoredBriefing(doc, model) {
   show("restored-briefing-metric", true);
   write("restored-briefing-coverage", lines.coverage);
   show("restored-briefing-coverage", true);
+  // The same derived-versus-supplied sentence the live brief prints beside its
+  // grade, composed from the reopened brief's own provenance. Without it a
+  // reopened brief would show a capped grade and no reason for the cap.
+  write("restored-briefing-derived", lines.provenance_mix);
+  show("restored-briefing-derived", true);
   write("restored-briefing-arithmetic", lines.arithmetic ?? "");
   show("restored-briefing-arithmetic", Boolean(lines.arithmetic));
   write("restored-briefing-action", lines.action);
@@ -970,6 +1082,10 @@ export function applyRestoredBriefing(doc, model) {
   // so what a reader checks is what the reader was shown.
   renderBriefingDerivation(doc, "restored-briefing-derivation", saved.derivation ?? null);
   show("restored-briefing-derivation-detail", Boolean(saved.derivation));
+  // What the units are called, where each name came from, and what the reader
+  // corrected — or the plain note that this file predates all three.
+  paintRestoredNaming(doc, saved.unitNaming ?? null);
+  section.dataset.exportSchemaVersion = String(saved.exportSchemaVersion ?? 0);
   return model;
 }
 

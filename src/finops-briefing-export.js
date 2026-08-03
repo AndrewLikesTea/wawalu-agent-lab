@@ -68,7 +68,37 @@ import { AGGREGATION, figureProvenance } from "./finops-figure-provenance.js";
  * — `figures`, `scenario`, and the shape of the `results` projection. Bump it
  * when one of those changes meaning, and leave `CONTRACT_VERSION` to Noor.
  */
-export const BRIEFING_FILE_VERSION = "finops-briefing-file/1.0.0";
+export const BRIEFING_FILE_VERSION = "finops-briefing-file/1.1.0";
+
+/**
+ * THE ONE FIELD A READER IS BRANCHED ON.
+ *
+ * `briefingFileVersion` above is prose for a human reading the file; this is an
+ * integer a reader compares. `finops-briefing-restore.js` selects its branch on
+ * this and on nothing else — never on whether `unitNaming` happens to be
+ * present, because "the key is missing" and "the key is missing because that
+ * build did not write it" are the same observation and only one of them is a
+ * fact about the file's schema.
+ *
+ * 0 IS A REAL VERSION, not an error: every briefing written before this field
+ * existed is version 0, and the reader is required to open one.
+ */
+export const BRIEFING_EXPORT_SCHEMA_VERSION = 1;
+export const LEGACY_EXPORT_SCHEMA_VERSION = 0;
+
+/**
+ * The ceiling a derived or reader-typed unit name is written under.
+ *
+ * The same 60 `finops-export-unit-names.js` derives under and
+ * `org-unit-display-label.js` renders under, restated here rather than imported
+ * so that writing a file pulls in no part of the derivation graph. A name longer
+ * than this is not truncated — truncating a team name invents a different team —
+ * it is dropped, and the unit is written as carrying no name.
+ */
+export const MAX_EXPORTED_UNIT_NAME = 60;
+
+/** No more units than a reader ever names by hand, so the file stays bounded. */
+export const MAX_EXPORTED_UNITS = 200;
 
 export const BRIEFING_FILE_NAME = Object.freeze({
   user: "local-finops-briefing.json",
@@ -248,6 +278,142 @@ function projectResults(result, departments) {
     schemaVersion: result?.schemaVersion ?? null,
     spendUsd: finite(result?.spendUsd, 0),
     topDepartment: departments.length ? departments[0] : null,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Derived unit names, their provenance, and the corrections a reader made.
+// ---------------------------------------------------------------------------
+//
+// WHY THIS IS IN THE FILE AT ALL. Until now a briefing file carried the figures
+// and left the words behind: reopen one and every unit came back as
+// `Department …atlas0`, because the readable name was derived from a column in a
+// CSV the file does not contain. A brief that cannot say what its own units are
+// called is not self-sufficient, and a reader who corrected one of those names
+// lost the correction and the fact that there had been something to correct.
+//
+// WHAT CHANGED ABOUT WHERE NAMES GO — STATED, BECAUSE IT IS A REVERSAL.
+// `finops-export-unit-names.js` and `org-unit-display-label.js` both say a name
+// is never put in an export. That was a rule about EGRESS: no request, no URL,
+// no digest, no third party, and none of that changes here. This block is
+// written into the file the reader themselves clicked download on, in their own
+// browser, out of labels their own file already carried — the same act as saving
+// the CSV. Nothing on this path opens a connection.
+//
+// WHAT IS NOT WRITTEN. A name longer than the display ceiling, a name carrying
+// something the briefing contract forbids anywhere in a payload (an address, a
+// token, an address-shaped project label), or a column header of the same. Those
+// units are written with `withheld: true` and no name, so the file states that
+// it declined rather than looking as though the export had no name for the unit.
+// The alternative — refusing to write the whole briefing over one odd project
+// label — would cost a finance lead their brief for a cell they did not choose.
+
+/** A string this file may carry, or "" — never a truncation of one. */
+function safeText(value, maxLength) {
+  const trimmed = typeof value === "string" ? value.trim() : "";
+  if (!trimmed || trimmed.length > Math.min(maxLength, MAX_STRING_LENGTH)) return "";
+  // A control character in a billing cell is a broken export, not a team name.
+  if (/[\u0000-\u001f\u007f]/.test(trimmed)) return "";
+  if (FORBIDDEN_VALUE_PATTERNS.some(({ pattern }) => pattern.test(trimmed))) return "";
+  return trimmed;
+}
+
+/** The empty naming block. A file always carries one, so a reader never guesses. */
+export const NO_EXPORTED_UNIT_NAMING = Object.freeze({
+  available: false,
+  contractVersion: null,
+  conflictedCount: 0,
+  correctedCount: 0,
+  derivedCount: 0,
+  precedenceStatement: "",
+  statement: "",
+  unitCount: 0,
+  units: Object.freeze([]),
+  withheldCount: 0,
+});
+
+/**
+ * One unit's name, where the name came from, and what the reader did about it.
+ *
+ * A correction is recorded as a correction — the derived name it replaced stays
+ * beside it — so a reopened brief can say "derived from the project column, then
+ * corrected by a reader" instead of collapsing to a name with no history, which
+ * is the one shape that would let a typed name pass for something the export
+ * supplied.
+ */
+function projectNamedUnit(unit, correction) {
+  const derivedName = unit.derived ? safeText(unit.name, MAX_EXPORTED_UNIT_NAME) : "";
+  const column = safeText(unit.sourceColumn, MAX_EXPORTED_UNIT_NAME);
+  return {
+    conflicted: Boolean(unit.conflicted),
+    correction: correction
+      ? { name: correction, replacedDerivedName: derivedName || null }
+      : null,
+    derived: Boolean(unit.derived),
+    derivedName: derivedName || null,
+    sourceColumn: column || null,
+    sourceField: safeText(unit.sourceField, MAX_EXPORTED_UNIT_NAME) || null,
+    sourceFieldLabel: safeText(unit.sourceFieldLabel, MAX_EXPORTED_UNIT_NAME) || null,
+    unitId: unit.unitId,
+    // True when this file declined to carry a name the page had. Distinct from
+    // `derived: false`, which is the export never having named the unit at all.
+    withheld: Boolean(unit.derived) && !derivedName,
+  };
+}
+
+/**
+ * The naming block, from the in-memory shapes the rendered brief already reads.
+ *
+ * @param naming a `deriveOrgUnitNames`/`mergeOrgUnitNamings` result, or null.
+ * @param readerLabels the page's `{ [unitId]: label }` map of reader-typed names.
+ *
+ * A unit the reader named that the derivation never saw is carried too, as
+ * `derived: false` with a correction on it: dropping it would lose a name the
+ * reader typed, which is the thing this block exists to bring back.
+ */
+export function projectUnitNaming(naming, readerLabels) {
+  const units = Array.isArray(naming?.units) ? naming.units : [];
+  const labels = readerLabels && typeof readerLabels === "object" && !Array.isArray(readerLabels)
+    ? readerLabels : {};
+  const corrected = new Map();
+  for (const [unitId, label] of Object.entries(labels)) {
+    const id = safeText(unitId, 128);
+    const name = safeText(label, MAX_EXPORTED_UNIT_NAME);
+    if (id && name) corrected.set(id, name);
+  }
+
+  const projected = [];
+  const seen = new Set();
+  for (const unit of units) {
+    const id = safeText(unit?.unitId, 128);
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    projected.push(projectNamedUnit({ ...unit, unitId: id }, corrected.get(id) ?? null));
+  }
+  for (const [id, name] of corrected) {
+    if (seen.has(id)) continue;
+    seen.add(id);
+    projected.push(projectNamedUnit({ unitId: id, derived: false }, name));
+  }
+  if (projected.length === 0) return NO_EXPORTED_UNIT_NAMING;
+
+  // Sorted by identity, so two files built from the same analysis are the same
+  // bytes whatever order the imports finished in.
+  projected.sort((left, right) => left.unitId.localeCompare(right.unitId));
+  const kept = projected.slice(0, MAX_EXPORTED_UNITS);
+  return {
+    available: true,
+    // The derivation's own version, carried rather than restated: a file written
+    // under contract 1 says 1 even when this build has moved on.
+    contractVersion: Number.isInteger(naming?.contractVersion) ? naming.contractVersion : null,
+    conflictedCount: kept.filter((unit) => unit.conflicted).length,
+    correctedCount: kept.filter((unit) => unit.correction).length,
+    derivedCount: kept.filter((unit) => unit.derivedName).length,
+    precedenceStatement: safeText(naming?.precedenceStatement, MAX_STRING_LENGTH),
+    statement: safeText(naming?.statement, MAX_STRING_LENGTH),
+    unitCount: kept.length,
+    units: kept,
+    withheldCount: kept.filter((unit) => unit.withheld).length,
   };
 }
 
@@ -477,11 +643,19 @@ export function validateBriefingPayload(payload) {
  * @param options.attributionWithheld passed through to the contract, which
  *   honours the page's decision to suppress the money figure rather than
  *   re-deriving it.
+ * @param options.unitNaming the naming the page is rendering — a
+ *   `deriveOrgUnitNames`/`mergeOrgUnitNamings` result — or null when the units
+ *   were never named from a dropped export. Serialized as it stands rather than
+ *   re-derived: this module has no rows to derive from and must not appear to.
+ * @param options.readerLabels the page's `{ [unitId]: label }` map of names the
+ *   reader typed over the derived ones.
  * @throws {BriefingContentError} when the payload would carry forbidden content.
  *   Refusing to write beats writing a leak, and a silent redaction would leave a
  *   file that looks whole.
  */
-export function buildBriefing(analysis, { dataset, exportedAt, attributionWithheld = false } = {}) {
+export function buildBriefing(analysis, {
+  dataset, exportedAt, attributionWithheld = false, unitNaming = null, readerLabels = null,
+} = {}) {
   const result = analysis && typeof analysis === "object" ? analysis : null;
   const briefing = buildFinopsBriefing(result, { attributionWithheld });
   const departments = projectDepartments(result);
@@ -497,6 +671,11 @@ export function buildBriefing(analysis, { dataset, exportedAt, attributionWithhe
     briefingFileVersion: BRIEFING_FILE_VERSION,
     dataset: dataset === "example" ? "example" : "user",
     ...(dataset === "example" ? { datasetNotice: EXAMPLE_DATASET_NOTICE } : {}),
+    // The integer a reader branches on. Written unconditionally, including for a
+    // briefing whose naming block turns out empty: "this file was written by a
+    // build that records name provenance" is a fact about the schema, and a
+    // reader that had to infer it from an empty block would infer it wrongly.
+    exportSchemaVersion: BRIEFING_EXPORT_SCHEMA_VERSION,
     ...(typeof exportedAt === "string" && exportedAt ? { exportedAt } : {}),
     // Each figure with its operands, its completeness marker, and — keyed under
     // the figure it explains rather than in a list a reader would have to
@@ -548,6 +727,19 @@ export function buildBriefing(analysis, { dataset, exportedAt, attributionWithhe
     // commitment rather than rebuilding it — which is what makes it portable.
     savingsCommitment: deriveBriefingCommitment(result, { dataset, attributionWithheld }),
     scenario: scenarioBlock(),
+    // What this analysis's units are called, where each name was inferred from,
+    // and which of them a reader corrected. Beside `results` rather than inside
+    // it for the reason the commitment is: the projection is of the analysis
+    // envelope, and a derived name is not in that envelope — it comes off the
+    // dropped file's own label columns, which the envelope never carried.
+    //
+    // The derived-input confidence is deliberately NOT copied here. It already
+    // travels twice: as `briefing.coverage.provenance` — the contract's own
+    // object, with the counts, the score, the floor and the ceiling the
+    // confidence sentence is composed from — and implicitly in `results`, which
+    // carries every field that classification is made against, so a reader that
+    // rebuilds the briefing gets the same grade rather than a stored one.
+    unitNaming: projectUnitNaming(unitNaming, readerLabels),
   };
 
   const content = scanBriefingPayload(payload);

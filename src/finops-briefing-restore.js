@@ -36,11 +36,17 @@
 // that layer's braces.
 
 import {
-  BRIEFING_CONFIDENCE, CONTRACT_VERSION, buildFinopsBriefing, validateBriefing,
+  BRIEFING_CONFIDENCE, CONTRACT_VERSION, MAX_STRING_LENGTH, buildFinopsBriefing, validateBriefing,
 } from "./finops-briefing-contract.js";
 import { DOWN_ROUTING_RULE_VERSION } from "./down-routing-candidates.js";
 import { briefingDerivation } from "./finops-briefing-derivation.js";
 import { readSavedCommitment } from "./finops-briefing-commitment.js";
+// The writer's own schema version and ceilings. Read from there rather than
+// restated here, so the branch below cannot drift away from the branch a file
+// was written under.
+import {
+  BRIEFING_EXPORT_SCHEMA_VERSION, MAX_EXPORTED_UNITS, MAX_EXPORTED_UNIT_NAME,
+} from "./finops-briefing-export.js";
 
 /**
  * Ceilings, checked before the file is parsed. A briefing is aggregates: a few
@@ -223,6 +229,148 @@ export function savedRubricVersion(results) {
   return null;
 }
 
+// ---------------------------------------------------------------------------
+// Unit names, their provenance, and the reader's corrections — by schema version.
+// ---------------------------------------------------------------------------
+//
+// THE BRANCH IS ON THE VERSION AND ONLY ON THE VERSION. A file written before
+// #1027 has no `exportSchemaVersion`, and `savedExportSchemaVersion` reads that
+// absence as 0 — a real version, not a fault. Version 0 takes the legacy branch,
+// which reopens a complete brief and says out loud that the file carries no name
+// provenance. Nothing here decides anything from whether `unitNaming` is present:
+// a version-1 file whose analysis simply had no derived names is a different
+// thing from a version-0 file, and only the version can tell them apart.
+//
+// A VERSION THIS BUILD DOES NOT KNOW takes the legacy branch too. A briefing
+// written by a later build is still a briefing — every key this reader validates
+// is in it — so it opens, and it opens with the same plain note rather than with
+// a naming block read under rules this build is guessing at.
+
+/**
+ * The sentence a brief carrying no readable name provenance wears.
+ *
+ * Painted into the restored region, not logged: a reader comparing a reopened
+ * brief against the one they exported has to be able to see why the unit names
+ * lost their working, and a console warning is invisible to the person holding
+ * the file.
+ */
+export const NAMING_PROVENANCE_ABSENT_NOTE =
+  "This briefing was written before this page recorded where unit names come from, so it carries no "
+  + "name provenance: no derived unit names, no column any name was read out of, and no record of a "
+  + "correction a reader made. Every figure above is complete; only the naming is missing. "
+  + "Export the analysis again from this build to get one that carries it.";
+
+/** No naming to show, with the reason stated. Every restore carries one of these. */
+export const NO_RESTORED_UNIT_NAMING = Object.freeze({
+  available: false,
+  contractVersion: null,
+  conflictedCount: 0,
+  correctedCount: 0,
+  derivedCount: 0,
+  note: NAMING_PROVENANCE_ABSENT_NOTE,
+  precedenceStatement: "",
+  provenanceAvailable: false,
+  statement: "",
+  unitCount: 0,
+  units: Object.freeze([]),
+});
+
+/** A string from a file, or "". Length-capped and refused if it holds a control. */
+function readText(value, maxLength) {
+  const trimmed = typeof value === "string" ? value.trim() : "";
+  if (!trimmed || trimmed.length > maxLength) return "";
+  for (const character of trimmed) {
+    const code = character.codePointAt(0);
+    if (code < 0x20 || code === 0x7f) return "";
+  }
+  return trimmed;
+}
+
+/**
+ * The schema version a file was written under. Absent, malformed, or negative
+ * all read as 0 — the legacy branch — because none of them is a version this
+ * build wrote, and guessing upward is how a reader mis-reads a shape.
+ */
+export function savedExportSchemaVersion(raw) {
+  const version = raw?.exportSchemaVersion;
+  return Number.isInteger(version) && version > 0 ? version : 0;
+}
+
+/**
+ * The naming block a version-1 file carries, sanitized field by field.
+ *
+ * Untrusted input, so nothing is spread: every field is named, type-checked and
+ * length-capped here, and a unit whose identity does not read as an identity is
+ * dropped rather than repaired. A correction keeps the derived name it replaced,
+ * which is what lets the surface say "derived, then corrected by a reader"
+ * instead of showing a typed name as though the export had supplied it.
+ */
+export function readUnitNaming(raw) {
+  if (savedExportSchemaVersion(raw) !== BRIEFING_EXPORT_SCHEMA_VERSION) {
+    return NO_RESTORED_UNIT_NAMING;
+  }
+  const block = raw?.unitNaming;
+  const entries = isPlainObject(block) && Array.isArray(block.units) ? block.units : [];
+  const units = [];
+  const seen = new Set();
+  for (const entry of entries.slice(0, MAX_EXPORTED_UNITS)) {
+    if (!isPlainObject(entry)) continue;
+    const unitId = readText(entry.unitId, 128);
+    if (!unitId || seen.has(unitId)) continue;
+    seen.add(unitId);
+    const derivedName = readText(entry.derivedName, MAX_EXPORTED_UNIT_NAME);
+    const correctionName = isPlainObject(entry.correction)
+      ? readText(entry.correction.name, MAX_EXPORTED_UNIT_NAME) : "";
+    units.push(Object.freeze({
+      conflicted: entry.conflicted === true,
+      correction: correctionName
+        ? Object.freeze({
+          name: correctionName,
+          replacedDerivedName:
+            readText(entry.correction.replacedDerivedName, MAX_EXPORTED_UNIT_NAME) || null,
+        })
+        : null,
+      derived: entry.derived === true,
+      derivedName: derivedName || null,
+      sourceColumn: readText(entry.sourceColumn, MAX_EXPORTED_UNIT_NAME) || null,
+      sourceField: readText(entry.sourceField, MAX_EXPORTED_UNIT_NAME) || null,
+      sourceFieldLabel: readText(entry.sourceFieldLabel, MAX_EXPORTED_UNIT_NAME) || null,
+      unitId,
+      withheld: entry.withheld === true,
+    }));
+  }
+  // Provenance is available because the FILE says version 1, not because it
+  // turned out to hold units: an analysis whose units were never named from a
+  // dropped export writes an empty block, and that is a complete answer.
+  return Object.freeze({
+    available: units.length > 0,
+    contractVersion: Number.isInteger(block?.contractVersion) ? block.contractVersion : null,
+    conflictedCount: units.filter((unit) => unit.conflicted).length,
+    correctedCount: units.filter((unit) => unit.correction).length,
+    derivedCount: units.filter((unit) => unit.derivedName).length,
+    note: null,
+    precedenceStatement: readText(block?.precedenceStatement, MAX_STRING_LENGTH),
+    provenanceAvailable: true,
+    statement: readText(block?.statement, MAX_STRING_LENGTH),
+    unitCount: units.length,
+    units: Object.freeze(units),
+  });
+}
+
+/**
+ * The names a restored brief renders with: the reader's correction where there
+ * is one, the derived name otherwise. Same precedence the live page applies —
+ * reader-typed, then derived, then the pseudonym the analysis already published.
+ */
+export function restoredUnitLabels(naming) {
+  const labels = {};
+  for (const unit of naming?.units ?? []) {
+    const name = unit.correction?.name ?? unit.derivedName;
+    if (name) labels[unit.unitId] = name;
+  }
+  return Object.freeze(labels);
+}
+
 /**
  * Read a saved briefing file.
  *
@@ -286,6 +434,7 @@ export function parseSavedBriefing(text, { byteSize = null } = {}) {
   }
   if (!validateBriefing(briefing).valid) return rejected("briefing_not_valid");
 
+  const naming = readUnitNaming(raw);
   return Object.freeze({
     ok: true,
     code: null,
@@ -297,6 +446,13 @@ export function parseSavedBriefing(text, { byteSize = null } = {}) {
       // is precision nobody reads.
       savedOn: new Date(savedAt).toISOString().slice(0, 10),
       dataset: raw.dataset,
+      // The schema the FILE was written under, and the naming that schema does
+      // or does not carry. Version 0 — a briefing written before #1027 — reaches
+      // here with a complete brief and a naming block that states its own
+      // absence, never with a throw and never with a blank region.
+      exportSchemaVersion: savedExportSchemaVersion(raw),
+      unitNaming: naming,
+      unitLabels: restoredUnitLabels(naming),
       analysisSchemaVersion: results.schemaVersion,
       period,
       spendUsd: spend.value,

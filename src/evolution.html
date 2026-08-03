@@ -2397,6 +2397,27 @@
           <p class="restored-briefing-question" id="restored-briefing-question"></p>
           <p class="restored-briefing-metric" id="restored-briefing-metric"></p>
           <p class="restored-briefing-coverage" id="restored-briefing-coverage"></p>
+          <!-- How much of the reopened brief was derived rather than supplied,
+               in the same sentence the live brief prints beside its own grade.
+               It sits in the open, not behind a disclosure: a grade held down by
+               the input mix whose reason is folded away is a number with no
+               explanation on screen. -->
+          <p class="local-lead-derived" id="restored-briefing-derived" hidden></p>
+          <!-- WHAT THE UNITS IN THIS FILE ARE CALLED, and how each name got
+               there. The statement and the precedence line are the naming
+               contract's own words, carried in the file rather than recomposed
+               here, so a brief reopened on a build with a different contract
+               still states the contract it was written under. The list carries
+               one item per unit whose name has a history, and a correction is
+               always shown as a correction of a derived name.
+
+               The note below it is the one a briefing written before any of this
+               was recorded wears: plain text in the brief, never a console line
+               and never a silent fallback. -->
+          <p class="stand-imported-naming" id="restored-briefing-naming" data-units="0" data-derived="0" data-corrected="0" data-conflicted="0" hidden></p>
+          <ul class="restored-briefing-names" id="restored-briefing-names" data-count="0" hidden></ul>
+          <p class="stand-imported-naming-contract" id="restored-briefing-naming-contract" hidden></p>
+          <p class="restored-briefing-naming-note" id="restored-briefing-naming-note" hidden></p>
           <p class="restored-briefing-arithmetic" id="restored-briefing-arithmetic" hidden></p>
           <p class="restored-briefing-action" id="restored-briefing-action"></p>
           <!-- Shown only when there is a current analysis to compare against,

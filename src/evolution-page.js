@@ -3708,6 +3708,16 @@ function mountLocalFinopsImport() {
     const file = briefingFile(result, {
       dataset: exampleActive ? "example" : "user",
       exportedAt: new Date().toISOString(),
+      // The names this page is showing and how they got there (#1027), so the
+      // file reopens as the brief the reader exported rather than as one whose
+      // units went back to their identifiers. Both are the page's own in-memory
+      // shapes, passed as they stand; nothing is re-derived at export time.
+      //
+      // The example dataset names its units off a bundled roster, not off a
+      // derivation from a dropped file, so it carries no naming — writing one
+      // would claim a provenance the example does not have.
+      unitNaming: exampleActive ? null : importedUnitNaming(),
+      readerLabels: exampleActive ? null : orgUnitLabels,
     });
     downloadLocalExport(file.text, file.mediaType, file.fileName);
   });
