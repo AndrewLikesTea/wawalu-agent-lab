@@ -1542,6 +1542,22 @@
 .figure-source-detail dd { margin:2px 0 0; color:var(--ink-muted); font-size:12.5px; line-height:1.55; overflow-wrap:anywhere; }
 /* The legend, and it is what makes an unmarked figure a claim rather than a gap. */
 .figure-source-legend { margin:0; max-width:70ch; color:var(--ink-muted); font-size:12.5px; line-height:1.55; overflow-wrap:anywhere; }
+/* CORRECTING A DERIVED VALUE (#1026). No new hue, silhouette or type step: the
+   chip beside every value is the .brief-provenance the markers above already
+   ship, and the cells only need room to hold a value, its chip and its controls
+   without the three running together. The table scrolls rather than squeezing on
+   a narrow viewport, because a correction control clipped off the right edge is
+   a control a phone reader does not have. */
+.figure-corrections { margin:14px 0 0; max-width:70ch; }
+.figure-corrections-headline, .figure-corrections-confidence { margin:6px 0 0; font-size:12.5px; line-height:1.55; overflow-wrap:anywhere; }
+.figure-corrections-confidence { color:var(--ink-muted); }
+.figure-corrections-table { width:100%; margin:8px 0 0; border-collapse:collapse; font-size:12.5px; display:block; overflow-x:auto; }
+.figure-corrections-caption { caption-side:top; text-align:left; margin:0 0 6px; color:var(--ink-muted); font-size:12px; line-height:1.5; }
+.figure-corrections-table th, .figure-corrections-table td { text-align:left; vertical-align:top; padding:6px 10px 6px 0; border-bottom:1px solid var(--rule, rgba(0,0,0,0.12)); font-weight:400; }
+.figure-corrections-value { display:block; overflow-wrap:anywhere; }
+.figure-corrections-cell .brief-provenance { margin-top:4px; }
+.figure-corrections-control { margin:4px 6px 0 0; }
+.figure-corrections-input { width:100%; max-width:34ch; }
 /* THE BAND CHIP. Four channels, and the tint is the last of them: the glyph
    differs per state, the word names the band, the figure below repeats it, and
    only then does the fill say it again. Take the colour away — greyscale print,
