@@ -353,13 +353,15 @@ test("the three provider pickers this replaced are gone from the document", asyn
       assert.equal(document.querySelectorAll(`#${id}`).length, 0,
         `${id} is still a second way to import the same export`);
     }
-    // One file control for a provider export, and one for the saved briefing —
-    // which says what it reopens rather than reading as a rival importer.
+    // One file control that IMPORTS a provider export. The other two are not
+    // rival importers and say so in their own labels: one reopens a briefing,
+    // and one (#1064) checks a file and stops without importing anything.
     const fileInputs = document.querySelectorAll("input")
       .filter((node) => node.getAttribute("type") === "file");
     assert.deepEqual(fileInputs.map((node) => node.getAttribute("id")).sort(),
-      ["local-finops-files", "reopen-briefing-file"]);
-    const label = document.querySelectorAll("label")
-      .find((node) => node.getAttribute("for") === "reopen-briefing-file");
-    assert.match(textOf(label), /Reopen a saved briefing/);
+      ["finops-export-check-file", "local-finops-files", "reopen-briefing-file"]);
+    const labelFor = (id) => document.querySelectorAll("label")
+      .find((node) => node.getAttribute("for") === id);
+    assert.match(textOf(labelFor("reopen-briefing-file")), /Reopen a saved briefing/);
+    assert.match(textOf(labelFor("finops-export-check-file")), /Choose one export to check/);
 });
