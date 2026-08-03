@@ -3636,7 +3636,7 @@ section[data-workspace-current="true"] { box-shadow:-6px 0 0 0 var(--import-wash
 .import-drop[data-check] { margin:4px 0 0; border-style:solid; border-color:var(--import-ink,#1d2016); background:var(--import-wash,#eef3ee); }
 .import-drop-title { margin:0; font-size:15px; font-weight:700; }
 .import-drop-mark { margin-right:6px; }
-.import-drop-instruction { margin:0; max-width:70ch; color:var(--ink-muted); font-size:13px; }
+.import-drop-instruction { margin:0; max-width:70ch; color:var(--ink-muted); font-size:13px; overflow-wrap:anywhere; }
 /* #997: the two declared files as one path. The present/missing state is in the
    state word and in aria-disabled; the rule below is a fourth channel on top of
    those, never the only one, so greyscale and a failed stylesheet both keep it.
@@ -3657,9 +3657,14 @@ section[data-workspace-current="true"] { box-shadow:-6px 0 0 0 var(--import-wash
    are .import-slots' above, so the two rows in this zone read as one family
    rather than as a section bolted into it. Required and optional columns are
    separated by their labels FIRST; the solid and dashed chip edges are a second
-   channel on top of the words, never the only one. */
+   channel on top of the words, never the only one.
+   #1066 demotes this section rather than folding it: it now follows the check
+   zone whose leading question is 15px, and its own title drops to the eyebrow
+   role the scale already carries for section labels — mono, 11px, uppercase,
+   #65717d at 4.99:1 on this white. No new size and no new level: the heading is
+   still an h3, still open, still deep-linkable from the refusal above it. */
 .provider-readiness { display:grid; gap:8px; margin:4px 0 0; }
-.provider-readiness-title { margin:0; font-size:13px; font-weight:700; }
+.provider-readiness-title { margin:0; color:#65717d; font:700 11px/1.4 ui-monospace,monospace; letter-spacing:.11em; text-transform:uppercase; }
 .provider-readiness-lead { margin:0; max-width:70ch; color:var(--ink-muted); font-size:12px; line-height:1.5; }
 .provider-readiness-list { display:grid; gap:8px; margin:0; padding:0; list-style:none; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); }
 .provider-readiness-item { display:grid; gap:5px; align-content:start; border:1px solid var(--import-line,#b9bdb4); border-radius:8px; padding:8px 10px; background:#fff; }
@@ -3682,6 +3687,13 @@ section[data-workspace-current="true"] { box-shadow:-6px 0 0 0 var(--import-wash
    the idle white, 6.0:1 on the dragging wash — and the edge goes solid, so focus
    is a shape change too. */
 .import-drop:has(input:focus-visible) { border-style:solid; border-color:var(--focus-ring); outline:3px solid var(--focus-ring); outline-offset:3px; }
+/* #1066: the verdict is where the check sends the keyboard, so the ring has to
+   be visible on the verdict itself and not only on the controls around it. Plain
+   :focus and not :focus-visible — this focus is moved by script, and a browser
+   that decides the last input was a pointer would otherwise draw nothing at the
+   one moment the reader needs to be told where they now are. Same token, same
+   3px, as the zone rule above it. */
+.import-reason[tabindex]:focus { outline:3px solid var(--focus-ring); outline-offset:3px; }
 .import-reason:empty { display:none; }
 .import-reason { margin:0; max-width:70ch; border-left:5px solid #d5d8d2; padding:8px 10px; font-size:13px; overflow-wrap:anywhere; }
 .import-reason-text { margin-left:6px; }
