@@ -1016,6 +1016,16 @@ test("a spend export on its own names the file the literacy grade is waiting on"
     assert.equal(byId(document, "score-card").dataset.inputState, "needs-conversation");
     assert.notEqual(textOf(byId(document, "score-grade")), "–",
       "a grade waiting on a file must not be shown as a bare dash");
+
+    // …and it offers the second path to the same letter (#1008): the reader
+    // classifies their own top departments against the published rubric, here,
+    // client-side. The control is on the card rather than behind a disclosure,
+    // and it lists the departments of the file that was just imported.
+    const classify = byId(document, "score-classify");
+    assert.equal(classify.hidden, false, "a billing-only import must offer classification");
+    assert.ok(byId(document, "score-classify-list").querySelectorAll("li").length > 0,
+      "the control listed no department of the reader's own");
+    assert.match(textOf(byId(document, "score-classify-title")), /published rubric/);
   } finally {
     page.restore();
   }

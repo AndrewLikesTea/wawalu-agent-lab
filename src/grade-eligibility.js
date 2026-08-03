@@ -119,24 +119,50 @@ function tierFor(ratio) {
  * list. `ratio` is null exactly when there is no baseline to divide by; the
  * caller never has to distinguish that from a measured zero.
  *
- * @returns {{ratio: number|null, clamped: boolean, coveredUsd: number, totalUsd: number}}
+ * TWO SOURCES OF COVERAGE, NEVER COLLAPSED (#1008). `coveredUsd` is spend the
+ * scoring rubric consumed upstream. `readerClassifiedUsd` is spend a reader
+ * classified themselves against the published rubric, on the page, because a
+ * billing-only import carries no scored query sample at all. They are added to
+ * make one threshold decision and are returned apart from each other, because a
+ * leader is entitled to know which half of their coverage came from a judge and
+ * which half came from a colleague's dropdown. No caller may print the sum
+ * without printing the split beside it.
+ *
+ * @returns {{ratio, clamped, coveredUsd, totalUsd, importedUsd, readerClassifiedUsd,
+ *   importedShare, readerClassifiedShare, coveredShare}}
  */
-export function sampledSpendCoverage({ coveredUsd, totalUsd } = {}) {
+export function sampledSpendCoverage({ coveredUsd, totalUsd, readerClassifiedUsd = 0 } = {}) {
   const total = Number(totalUsd);
   const covered = Number(coveredUsd);
+  const reader = Number(readerClassifiedUsd);
   // Missing, non-finite, zero, and negative totals are one case: there is no
   // denominator. Dividing would produce Infinity, NaN, or a negative ratio, and
   // every one of those would be printed as if it were measured.
   if (!Number.isFinite(total) || total <= 0) {
-    return Object.freeze({ ratio: null, clamped: false, coveredUsd: 0, totalUsd: 0 });
+    return Object.freeze({
+      ratio: null, clamped: false, coveredUsd: 0, totalUsd: 0,
+      importedUsd: 0, readerClassifiedUsd: 0,
+      importedShare: null, readerClassifiedShare: null, coveredShare: null,
+    });
   }
-  const safeCovered = Number.isFinite(covered) && covered > 0 ? covered : 0;
+  const safeImported = Number.isFinite(covered) && covered > 0 ? covered : 0;
+  const safeReader = Number.isFinite(reader) && reader > 0 ? reader : 0;
+  const safeCovered = safeImported + safeReader;
   const clamped = safeCovered > total;
+  // Under a clamp the sum is pinned to 1 and each part keeps its own measured
+  // share. The parts then no longer sum to the whole, which is exactly the
+  // inconsistency `CLAMPED_REASON` exists to report rather than to smooth over.
+  const ratio = clamped ? 1 : safeCovered / total;
   return Object.freeze({
-    ratio: clamped ? 1 : safeCovered / total,
+    ratio,
     clamped,
     coveredUsd: safeCovered,
     totalUsd: total,
+    importedUsd: safeImported,
+    readerClassifiedUsd: safeReader,
+    importedShare: Math.min(1, safeImported / total),
+    readerClassifiedShare: Math.min(1, safeReader / total),
+    coveredShare: ratio,
   });
 }
 
@@ -197,7 +223,14 @@ export function gradeEligibilityFromCoverage(coverage, { groups = [] } = {}) {
     showGrade: tier.showGrade,
     provisional: tier.state === "provisional",
     coverage: coverage.ratio,
+    // The same figure as `coverage`, plus the two halves it was made of. Kept
+    // as three fields rather than one so a surface can say "X% imported and
+    // rubric-scored + Y% you classified" without re-deriving either part.
+    coveredShare: coverage.coveredShare ?? coverage.ratio,
+    importedShare: coverage.importedShare ?? coverage.ratio,
+    readerClassifiedShare: coverage.readerClassifiedShare ?? (coverage.ratio === null ? null : 0),
     coveredUsd: coverage.coveredUsd,
+    readerClassifiedUsd: coverage.readerClassifiedUsd ?? 0,
     totalUsd: coverage.totalUsd,
     reason: coverage.clamped ? CLAMPED_REASON : tier.reason,
     tierReason: tier.reason,
@@ -217,19 +250,36 @@ function groupKey(department) {
 
 /**
  * @param {Array} departments the analysed set, exactly as `summarize` takes it.
+ * @param {object} [options]
+ * @param {string[]} [options.readerClassifiedNames] department names a reader
+ *   classified against the published rubric on the page. They count toward the
+ *   coverage threshold — a department a person put in a rubric category is a
+ *   department the rubric has an opinion about — and they are excluded from the
+ *   uncovered ranking, because naming a department the reader has already dealt
+ *   with as the next thing to widen is an instruction they have followed.
+ *   Matching is on the trimmed grouping name, the same key the ranking uses.
  * @returns the eligibility verdict: one tier, one coverage ratio, one action.
  */
-export function gradeEligibility(departments = []) {
+export function gradeEligibility(departments = [], { readerClassifiedNames = [] } = {}) {
   const list = Array.isArray(departments) ? departments : [];
+  const claimed = new Set((Array.isArray(readerClassifiedNames) ? readerClassifiedNames : [])
+    .map((name) => String(name ?? "").trim()).filter(Boolean));
   const covered = [];
   const uncovered = [];
+  const readerClassified = [];
   for (const department of list) {
-    (departmentPerformance(department).available ? covered : uncovered).push(department);
+    if (departmentPerformance(department).available) covered.push(department);
+    // Rubric-scored wins over reader-classified for the same department: a
+    // judge's verdict is not overwritten by a dropdown, and counting one
+    // department in both halves would print a coverage split that oversums.
+    else if (claimed.has(groupKey(department) ?? "")) readerClassified.push(department);
+    else uncovered.push(department);
   }
   // Both sides go through the same accessor, so "covered" and "total" are the
   // same field measured the same way and the ratio cannot exceed 1 here.
   const coverage = sampledSpendCoverage({
     coveredUsd: summarize(covered).spendUsd,
+    readerClassifiedUsd: summarize(readerClassified).spendUsd,
     totalUsd: summarize(list).spendUsd,
   });
 
