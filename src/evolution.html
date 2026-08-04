@@ -2139,6 +2139,8 @@
                  answer block rather than replacing it, so the shape of the
                  surface never changes between "waiting" and "answered". -->
             <p class="local-lead-status" id="local-lead-status" role="status" hidden></p>
+            <!-- Periods on file, above the answer (#1089). -->
+            <p class="local-lead-basis" id="local-lead-series" role="status" hidden></p>
             <!-- THE ANSWER BLOCK. The figure, the confidence grade, and the
                  coverage the grade was computed from are one container and one
                  accessible group — not three siblings that happen to sit near
@@ -2241,7 +2243,7 @@
               <p class="local-lead-retention-control"><label for="local-lead-retention-toggle"><input type="checkbox" id="local-lead-retention-toggle" aria-describedby="local-lead-retention-detail"> <span id="local-lead-retention-label">Keep this briefing in this browser, on this device</span></label></p>
               <p class="local-lead-retention-detail" id="local-lead-retention-detail">Derived values only. Nothing is kept until you turn this on.</p>
               <p class="local-lead-retention-status" id="local-lead-retention-status"></p>
-              <button class="local-lead-retention-forget" id="local-lead-retention-forget" type="button" hidden>Forget this briefing</button>
+              <button class="local-lead-retention-forget" id="local-lead-retention-forget" type="button" hidden>Forget every period kept here</button>
             </div>
           </article>
           <!-- Per-model overspend, model-overspend-finding/1.0.0. Authored empty:
