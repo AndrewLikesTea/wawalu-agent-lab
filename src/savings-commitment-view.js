@@ -35,6 +35,76 @@ const DESIGNATION_LABELS = Object.freeze({
   imported: "Your imported analysis",
 });
 
+/* ---------------------- what kind of figure this is ------------------------ */
+
+/**
+ * REALIZED, MODELLED, AND COMMITTED ARE NEVER TOLD APART BY COLOUR (#1093).
+ *
+ * Three states, and every money or movement figure on this surface carries
+ * exactly one of them as a WORD beside the value:
+ *
+ *   realized   measured from months this browser actually kept
+ *   modelled   projected by an analysis; nothing has been measured against it
+ *   committed  the figure this commitment promised
+ *
+ * The word is the signal. A reader with a colour vision deficiency, a
+ * monochrome print, and a screen reader all get the same distinction, because
+ * there is nothing else to get: the tint and the outline only repeat what the
+ * text already says. This is the one confusion on this page that cannot be
+ * recovered from — a modelled ceiling read as money that was saved is a figure
+ * a director repeats to somebody else.
+ *
+ * Composed with the Claude Design foundations card, "Chip inventory — five
+ * look-alikes, three jobs": *outline = static classification, filled wash =
+ * dynamic signal*. What kind of figure this is is a static classification, so
+ * these are outline chips in the lowercase-mono status voice the type scale
+ * reserves for metadata; the verdict grade below is a live state, so it keeps
+ * the filled silhouette. The same card's warning about repeated chips reading
+ * as buttons is why they are muted rather than accented: they repeat on every
+ * figure by design.
+ *
+ * Counts, ids and instants are not figures in this sense and carry no chip: a
+ * record count cannot be mistaken for a saving.
+ */
+export const FIGURE_BASIS = Object.freeze({
+  realized: "realized", modelled: "modelled", committed: "committed",
+});
+
+/**
+ * The grade badge's own qualifier: the rank, in words, and the two kinds of
+ * figure the grade was reached from.
+ *
+ * RANK IS READABLE FROM THE LABEL ALONE. "Met" above "Missed" is an ordering a
+ * reader has to already know; "grade 1 of 3" is one they can read. The fourth
+ * outcome is not a worse grade than the third — it is the absence of one — so
+ * it says "not graded" rather than taking a rank, and it is qualified
+ * `committed`, because a committed figure with nothing measured against it is
+ * the only figure that outcome has.
+ */
+export const VERDICT_BASIS = Object.freeze({
+  met: Object.freeze({ basis: FIGURE_BASIS.realized, words: "grade 1 of 3 · realized against committed" }),
+  partially_met: Object.freeze({ basis: FIGURE_BASIS.realized, words: "grade 2 of 3 · realized against committed" }),
+  missed: Object.freeze({ basis: FIGURE_BASIS.realized, words: "grade 3 of 3 · realized against committed" }),
+  not_enough_evidence: Object.freeze({
+    basis: FIGURE_BASIS.committed, words: "not graded · committed figure only, nothing realized",
+  }),
+});
+
+/**
+ * Which of the three each provenance figure is. Keyed by the scorer's own field
+ * names so a figure renamed there fails loudly here rather than losing its
+ * qualifier quietly: an unmapped name falls back to `modelled`, which is the
+ * only one of the three that claims nothing was measured.
+ */
+const PROVENANCE_BASIS = Object.freeze({
+  committedSavingMinor: FIGURE_BASIS.committed,
+  committedPeriodSpendMinor: FIGURE_BASIS.realized,
+  followUpPeriodSpendMinor: FIGURE_BASIS.realized,
+  realizedSavingMinor: FIGURE_BASIS.realized,
+  deltaMinor: FIGURE_BASIS.realized,
+  relativeDeltaPercent: FIGURE_BASIS.realized,
+});
+
 /** The one control this page offers, named once so page and test agree. */
 export const RECORD_BUTTON_ID = "commit-record-submit";
 export const RECORD_OWNER_ID = "commit-record-owner";
@@ -62,9 +132,45 @@ function link(href, text, className) {
   return node;
 }
 
-function fact(list, label, value, detail) {
+/**
+ * The qualifier itself: informational text, never a control.
+ *
+ * A span with no tabindex, no role and no href, so it is readable and is not a
+ * tab stop — a badge nobody can interact with must not be one more thing a
+ * keyboard reader has to step past to reach the one control on this page.
+ */
+function basisChip(basis, words) {
+  const chip = el("span", "commit-figure-basis", words ?? basis);
+  chip.dataset.basis = basis;
+  return chip;
+}
+
+/**
+ * A value, then the word saying what kind of figure it is.
+ *
+ * Two inline spans rather than a row: the chip follows the value in the text
+ * flow, so at 200% zoom or on a narrow viewport it wraps UNDER the value
+ * instead of being truncated or overlapping it. Nothing here is a fixed-width
+ * column, and the space between them is a real character rather than a margin,
+ * so the pair reads as "$1,100.00 realized" wherever text is read rather than
+ * painted.
+ */
+function figureWithBasis(node, value, basis, words) {
+  node.append(el("span", "commit-figure-value", `${value} `), basisChip(basis, words));
+  return node;
+}
+
+/** A word or two of connecting prose between two figures. */
+const figureNote = (text) => el("span", "commit-figure-note", text);
+
+function fact(list, label, value, detail, basis = null, note = null) {
   const item = el("div", "commit-fact");
-  item.append(el("dt", undefined, label), el("dd", undefined, value));
+  const line = el("dd");
+  if (basis) {
+    figureWithBasis(line, value, basis);
+    if (note) line.append(figureNote(note));
+  } else line.textContent = value;
+  item.append(el("dt", undefined, label), line);
   if (detail) item.append(el("dd", "commit-fact-detail", detail));
   list.append(item);
   return item;
@@ -126,8 +232,10 @@ function renderBenchmark(commitment) {
   section.setAttribute("aria-labelledby", "commit-benchmark-title");
   const title = el("h3", undefined, "Projected monthly savings");
   title.id = "commit-benchmark-title";
-  const figure = el("p", "commit-benchmark-figure",
-    `${USD.format(commitment.projectedMonthlySavings.amountUsd)} a month`);
+  // The one figure this page leads with is a projection, and it says so beside
+  // itself rather than four lines below in the basis sentence.
+  const figure = figureWithBasis(el("p", "commit-benchmark-figure"),
+    `${USD.format(commitment.projectedMonthlySavings.amountUsd)} a month`, FIGURE_BASIS.modelled);
   section.append(title, figure, el("p", "commit-benchmark-basis",
     `Against a ${USD.format(commitment.baseline.monthlyCostUsd)} `
     + `${commitment.baseline.period} baseline for the same workload, at `
@@ -214,18 +322,21 @@ function renderBasis(preview) {
 
   const body = el("div", "commit-basis-body");
   const metrics = el("dl", "commit-metrics");
+  // Two of these four were measured and two were projected, and the reader
+  // checking the headline against the working is exactly the reader who must
+  // not have to infer which is which from the row label.
   fact(metrics, "Projected monthly savings",
     USD.format(commitment.projectedMonthlySavings.amountUsd),
-    commitment.projectedMonthlySavings.formula);
+    commitment.projectedMonthlySavings.formula, FIGURE_BASIS.modelled);
   fact(metrics, `Baseline monthly cost (${commitment.baseline.period})`,
     USD.format(commitment.baseline.monthlyCostUsd),
-    `Imported analysis figure for ${commitment.baseline.workloadId}`);
+    `Imported analysis figure for ${commitment.baseline.workloadId}`, FIGURE_BASIS.realized);
   fact(metrics, "Projected monthly cost",
     USD.format(commitment.projected.monthlyCostUsd),
-    "Same workload and month as the baseline");
+    "Same workload and month as the baseline", FIGURE_BASIS.modelled);
   fact(metrics, "Confidence",
     `${commitment.confidence.percent}% · ${commitment.confidence.band}`,
-    commitment.confidence.basis);
+    commitment.confidence.basis, FIGURE_BASIS.modelled);
 
   body.append(metrics, el("p", "commit-basis-note",
     `${preview.consideredCount} candidate(s) considered · ${preview.eligibleCount} eligible · `
@@ -299,18 +410,38 @@ const GRADE_LABELS = Object.freeze({
 const figureValue = (figure) => (figure.unit === "percent"
   ? `${figure.value}%` : USD.format(figure.value / 100));
 
-/** The headline figures, or the sentence that says why there are none. */
+/**
+ * The headline figures, or the sentence that says why there are none.
+ *
+ * Every value is a span with its own qualifier beside it, rather than one
+ * sentence in which the words "realized" and "committed" happen to appear: the
+ * qualifier travels with the number, so a reader skimming the two amounts —
+ * which is how this line is actually read — cannot pick up one and leave the
+ * other behind.
+ */
 function verdictFigureLine(verdict) {
+  const line = el("p", "commit-benchmark-figure");
   if (verdict.grade === "not_enough_evidence") {
-    return verdict.committedSavingUsd === null
-      ? "No figure: this commitment could not be read, so nothing was scored against it."
-      : `No figure yet: ${USD.format(verdict.committedSavingUsd)} a month was committed, and `
-        + "nothing has been measured against it.";
+    if (verdict.committedSavingUsd === null) {
+      line.textContent =
+        "No figure: this commitment could not be read, so nothing was scored against it.";
+      return line;
+    }
+    line.append(figureNote("No figure yet: "));
+    figureWithBasis(line, `${USD.format(verdict.committedSavingUsd)} a month`,
+      FIGURE_BASIS.committed);
+    line.append(figureNote(" · nothing has been measured against it, so there is no realized "
+      + "figure to set beside it."));
+    return line;
   }
   const sign = verdict.relativeDeltaPercent > 0 ? "+" : "";
-  return `${USD.format(verdict.realizedSavingUsd)} realized against `
-    + `${USD.format(verdict.committedSavingUsd)} committed · `
-    + `${sign}${verdict.relativeDeltaPercent}% against the commitment`;
+  figureWithBasis(line, USD.format(verdict.realizedSavingUsd), FIGURE_BASIS.realized);
+  line.append(figureNote(" against "));
+  figureWithBasis(line, USD.format(verdict.committedSavingUsd), FIGURE_BASIS.committed);
+  line.append(figureNote(" · "));
+  figureWithBasis(line, `${sign}${verdict.relativeDeltaPercent}%`, FIGURE_BASIS.realized);
+  line.append(figureNote(" against the commitment"));
+  return line;
 }
 
 /**
@@ -336,11 +467,15 @@ export function renderCommitmentVerdict(verdict) {
 
   const title = el("h3", undefined, "Your stored commitment, scored");
   title.id = "commit-verdict-title";
-  const chip = el("p", "commit-kicker", GRADE_LABELS[verdict.grade] ?? "Ungraded");
+  // The badge carries the grade, its rank, and the kinds of figure behind it,
+  // all three in text. The wash repeats the grade; it never carries it alone.
+  const chip = el("p", "commit-kicker");
   chip.dataset.grade = verdict.grade;
+  const qualifier = VERDICT_BASIS[verdict.grade];
+  chip.append(el("span", "commit-grade", `${GRADE_LABELS[verdict.grade] ?? "Ungraded"} `));
+  if (qualifier) chip.append(basisChip(qualifier.basis, qualifier.words));
 
-  section.append(title, chip,
-    el("p", "commit-benchmark-figure", verdictFigureLine(verdict)),
+  section.append(title, chip, verdictFigureLine(verdict),
     el("p", "commit-answer", verdict.explanation));
   if (verdict.gradeRule) {
     section.append(el("p", "commit-benchmark-basis",
@@ -369,11 +504,15 @@ function renderVerdictProvenance(verdict) {
     `Committed under scope ${provenance.scope.commitment ?? "unstated"}, series read under scope `
     + `${provenance.scope.series ?? "unstated"} — `
     + `${provenance.scope.matched ? "the same books" : "not the same books"}`);
+  // One row per figure, each qualified the same way the headline above it is:
+  // supplied-versus-derived says where a figure came from, realized-versus-
+  // committed says what it claims, and a reader disputing the grade needs both.
   for (const figure of provenance.figures) {
-    fact(list, figure.name, `${figureValue(figure)} · ${figure.origin}`,
+    fact(list, figure.name, figureValue(figure),
       figure.origin === "supplied"
         ? `Supplied by the import: ${figure.source}`
-        : `Derived here from ${figure.derivedFrom.join(" and ")} — ${figure.rule}`);
+        : `Derived here from ${figure.derivedFrom.join(" and ")} — ${figure.rule}`,
+      PROVENANCE_BASIS[figure.name] ?? FIGURE_BASIS.modelled, ` · ${figure.origin}`);
   }
   if (provenance.missing.length) {
     fact(list, "Evidence missing", provenance.missing.join(", "));
