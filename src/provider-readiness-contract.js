@@ -45,6 +45,24 @@ export const STATIC_DEMO_DISCLOSURE = "This is a static demo. No credential is "
   + "anywhere: every sample below is generated in this tab, and an export you "
   + "choose is read in this tab and never leaves it.";
 
+/**
+ * The boundary, said once, in the one place both affordances can read it (#1067).
+ *
+ * STATIC_DEMO_DISCLOSURE above is about the SAMPLES: nothing is connected and
+ * every download is generated here. This is about the reader's OWN file, and it
+ * is a different promise — it covers the check and the full analysis together,
+ * and it names retention, which a "nothing is uploaded" sentence does not.
+ *
+ * It lives here rather than in the surface that renders it so the page cannot
+ * word the promise differently from the module that makes it, and so a test can
+ * hold the rendered text and this constant to the same string. Kept to one
+ * sentence: it is always visible, never folded, and a paragraph in that position
+ * is a paragraph a reader skips.
+ */
+export const LOCAL_PROCESSING_STATEMENT = "The check and the analysis both run in "
+  + "this browser: no network request is made, no credential is asked for, and the "
+  + "file you drop is not retained.";
+
 // The order columns are stated in — for a reader, for the CSV header, and for
 // the JSON keys. Role order first because it is the order a person reads a
 // billing row in; a signature column that carries no billing role (an account
