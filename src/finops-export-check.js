@@ -85,6 +85,8 @@ export const EXPORT_CHECK_IDS = Object.freeze({
   guidance: "finops-export-check-guidance",
   disclosure: "finops-export-check-columns",
   columns: "finops-export-check-column-list",
+  figuresLede: "finops-export-check-figures-lede",
+  figures: "finops-export-check-figure-list",
 });
 
 /** The guidance block this check sends a refused reader back into (#1062). */
@@ -117,11 +119,28 @@ export const EXPORT_CHECK_COPY = Object.freeze({
     + "claimed about your file. Nothing on this page changed; import the file with the picker "
     + "below to find out what it does with it.",
   continue: "Run the full analysis on this export",
-  summary: "What this check read, column by column",
+  summary: "What this check read, and which figures it earns",
   noColumns: "No column names were read from this file.",
   present: "In this file",
   missing: "Required and missing",
+  earnable: "Earnable",
+  withheld: "Withheld",
+  figuresLede: "Which figures this export earns, before any analysis runs:",
+  noFigures: "No figure preview was produced for this file.",
 });
+
+/**
+ * The lede above the figure list: the one input worth fixing first, and how
+ * many withheld figures it is blocking. The count is the preview's own
+ * `unblocks` — a count of the lines below it, which a reader can check by
+ * counting them — and it is not a score, a grade or a confidence value.
+ */
+const figuresLede = (preview) => {
+  const first = preview?.missingInputs?.[0];
+  if (!first) return `${EXPORT_CHECK_COPY.figuresLede} every figure below is earnable.`;
+  return `${EXPORT_CHECK_COPY.figuresLede} add ${first.label} first — it is what `
+    + `${first.unblocks} of the withheld figures below are waiting on.`;
+};
 
 /**
  * One glyph per state, so the three drawn states differ in shape before they
@@ -258,12 +277,46 @@ function paintColumns(doc, list, verdict, fieldNames) {
 }
 
 /**
+ * Which figure families this export earns, and what the withheld ones want.
+ *
+ * INSIDE THE SAME DISCLOSURE AS THE COLUMNS, deliberately. The verdict above is
+ * one answer, one detail and one action, and that contract does not bend for a
+ * second list however useful it is: a reader who wanted a yes or a no is not
+ * handed an inventory. So this is additional content BEHIND the existing
+ * breakdown, not a second detail line, a second action, or a second disclosure
+ * beside it.
+ *
+ * It reuses the column list's own present/missing vocabulary and classes — the
+ * stylesheet has no headroom for a rule of its own, and a second visual language
+ * for the same two states would be one to keep in step for no gain.
+ */
+function paintFigures(doc, lede, figureList, preview) {
+  const families = Array.isArray(preview?.families) ? preview.families : [];
+  lede.textContent = families.length ? figuresLede(preview) : EXPORT_CHECK_COPY.noFigures;
+  const row = (family) => {
+    const item = node(doc, "li", "import-slot");
+    item.dataset.state = family.earnable ? "present" : "missing";
+    const label = node(doc, "p", "import-slot-label", `${family.label} · `);
+    label.append(node(doc, "span", "import-slot-state", family.earnable
+      ? EXPORT_CHECK_COPY.earnable
+      : `${EXPORT_CHECK_COPY.withheld} — needs ${family.missingInputLabel}`));
+    item.append(label);
+    return item;
+  };
+  figureList.replaceChildren(...families.map(row));
+}
+
+/**
  * Paint one preflight verdict into the check zone, and nothing else anywhere.
  *
+ * @param preview the capability preview for this verdict (#1065), or null when
+ *   the module that computes it did not load. Null paints an empty figure list
+ *   and says so; it never guesses a family's state, because a promised figure
+ *   the analysis then withholds is the one wrong answer this preview can give.
  * @returns true when the verdict is one the reader can continue from, so a
  *          caller can tell the two outcomes apart without re-reading it.
  */
-export function renderExportCheck(doc, verdict, fieldNames = [], fileName = "") {
+export function renderExportCheck(doc, verdict, fieldNames = [], fileName = "", preview = null) {
   const zone = byId(doc, EXPORT_CHECK_IDS.zone);
   const answer = byId(doc, EXPORT_CHECK_IDS.answer);
   const detail = byId(doc, EXPORT_CHECK_IDS.detail);
@@ -271,8 +324,10 @@ export function renderExportCheck(doc, verdict, fieldNames = [], fileName = "") 
   const guidance = byId(doc, EXPORT_CHECK_IDS.guidance);
   const disclosure = byId(doc, EXPORT_CHECK_IDS.disclosure);
   const columns = byId(doc, EXPORT_CHECK_IDS.columns);
+  const figuresLedeNode = byId(doc, EXPORT_CHECK_IDS.figuresLede);
+  const figures = byId(doc, EXPORT_CHECK_IDS.figures);
   if (!zone || !answer || !detail || !continueAction || !guidance || !disclosure) return false;
-  if (!columns) return false;
+  if (!columns || !figuresLedeNode || !figures) return false;
 
   const ready = Boolean(verdict?.provider) && !verdict.namedColumn && verdict.rowCount > 0;
   zone.dataset.check = ready ? "recognized" : "refused";
@@ -303,6 +358,7 @@ export function renderExportCheck(doc, verdict, fieldNames = [], fileName = "") 
     guidance.textContent = `${verdict.nextAction} ${guidanceDestination(verdict)}`;
   }
   paintColumns(doc, columns, verdict, fieldNames);
+  paintFigures(doc, figuresLedeNode, figures, preview);
   // Present from here on, and never opened by this code: a reader who wants the
   // breakdown opens it, and a reader who wanted a yes or a no never meets it.
   disclosure.hidden = false;
@@ -348,14 +404,19 @@ async function runCheck(doc, file) {
     return paintStandby(doc, "blocked", EXPORT_CHECK_COPY.unreadable) && false;
   }
   try {
-    const [{ preflight }, { parseExportText }] = await Promise.all([
+    // The preview rides the same dynamic import as the adapters, for the same
+    // reason: it reaches the brief's scoring module, and this zone mounts at
+    // boot inside a measured first-screen payload.
+    const [{ preflight }, { parseExportText }, { capabilityPreview }] = await Promise.all([
       import("./hyperscaler-export-adapters.js"),
       import("./browser-compat-eligibility.js"),
+      import("./finops-capability-preview.js"),
     ]);
     const parsed = parseExportText(text, file?.name ?? "");
     const verdict = preflight(parsed);
     const ready = renderExportCheck(doc, verdict,
-      Array.isArray(parsed?.fieldNames) ? parsed.fieldNames.map(String) : [], file?.name ?? "");
+      Array.isArray(parsed?.fieldNames) ? parsed.fieldNames.map(String) : [], file?.name ?? "",
+      capabilityPreview(verdict));
     // Held only where there is something to continue into.
     if (ready) checkedFile = file;
     return ready;
@@ -442,7 +503,16 @@ function buildZone(doc) {
   disclosure.hidden = true;
   const columns = node(doc, "ul", "import-slots");
   columns.id = EXPORT_CHECK_IDS.columns;
-  disclosure.append(node(doc, "summary", null, EXPORT_CHECK_COPY.summary), columns);
+  // The figure preview (#1065) is the SECOND thing behind this one disclosure,
+  // never a second disclosure and never a second detail line beside the verdict.
+  // Both nodes are in the document from mount, like everything else in this
+  // zone, so a paint writes text into them rather than creating them.
+  const figuresLedeNode = node(doc, "p", "import-drop-instruction");
+  figuresLedeNode.id = EXPORT_CHECK_IDS.figuresLede;
+  const figures = node(doc, "ul", "import-slots");
+  figures.id = EXPORT_CHECK_IDS.figures;
+  disclosure.append(node(doc, "summary", null, EXPORT_CHECK_COPY.summary), columns,
+    figuresLedeNode, figures);
 
   zone.append(title, instruction, boundary, field, answer, detail, continueAction, guidance,
     disclosure);

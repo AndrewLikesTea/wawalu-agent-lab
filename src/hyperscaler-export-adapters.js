@@ -675,6 +675,17 @@ export function preflight(parsed) {
     displayName: contract?.displayName ?? null,
     rowCount: records.length,
     periodCount: periods.size,
+    // The period KEYS behind that count, sorted, so a caller can ask a question
+    // the count cannot answer. `periodCount` counts dated days; whether the file
+    // holds two comparable CALENDAR MONTHS is a different question, and the one
+    // the capability preview (#1065) puts to `periodMovement`. Publishing the
+    // keys keeps that answer in the module that owns it instead of re-deriving a
+    // month rule from a day count here.
+    periods: Object.freeze([...periods].sort()),
+    // The column names the file itself carries, beside the ones it owes. The
+    // preview asks which of them carry unit or tag labels, a question the
+    // missing list cannot answer: a column present is not a column missing.
+    fieldNames: Object.freeze([...fieldNames]),
     missingColumns: Object.freeze(missing),
     namedColumn: reason === PREFLIGHT_REASONS.MISSING_REQUIRED_COLUMN
       ? firstMissingColumn(contract, missing) : null,
