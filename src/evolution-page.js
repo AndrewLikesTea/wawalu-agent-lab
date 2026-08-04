@@ -135,6 +135,12 @@ import {
   bindBriefingRetention, clearBriefingRetention, renderBriefingRetention,
 } from "/finops-briefing-retention-view.js";
 import { briefingFromRetained } from "/finops-briefing-retention.js";
+// …and the keyed series beside it (#1089): one entry per period plus provider
+// scope, so a second import lands as a second month instead of overwriting the
+// first. Reads are total and the migration off the single key runs on load.
+import {
+  briefingSeriesSummary, forgetBriefingSeries, readBriefingSeries, recordBriefingSeriesEntry,
+} from "/finops-briefing-series.js";
 // One entry point for a selected file: `.json` keeps the reviewed JSON path
 // untouched, `.csv`/`.tsv`/`.txt` route through the delimited normalizer. Both
 // return the same parsed v1 envelope, so nothing below this line changes.
@@ -3527,18 +3533,44 @@ function mountLocalFinopsImport() {
    * A refused write leaves the box unchecked and says why, because the state the
    * control shows is read back from the store rather than assumed from the click.
    */
+  /**
+   * How many periods this browser is holding, above the answer (#1089).
+   *
+   * A visible line in the region rather than a disclosure or an attribute: a
+   * reader deciding whether a movement figure has any history behind it needs
+   * the count and the span on screen. Nothing on file renders nothing at all,
+   * because an empty count line reads as a figure that failed.
+   */
+  const paintBriefingSeries = (series) => {
+    const node = document.getElementById("local-lead-series");
+    if (!node) return;
+    const { label } = briefingSeriesSummary(series);
+    node.textContent = label;
+    node.hidden = !label;
+  };
+
+  /** The series after a capture the store accepted, or the one already on file. */
+  const recordSeries = (written) => paintBriefingSeries(written?.retained
+    ? recordBriefingSeriesEntry(retentionStore(), written.payload)
+    : readBriefingSeries(retentionStore()));
+
   const setRetention = (on) => {
     if (!on) {
       renderBriefingRetention(document, forgetRetainedBriefing(retentionStore()));
+      // Turning the control off is the same erase the forget control performs:
+      // the consent that wrote every period is the one being withdrawn.
+      paintBriefingSeries(forgetBriefingSeries(retentionStore()));
       return;
     }
-    renderBriefingRetention(document,
-      writeRetainedBriefing(retentionStore(), captureNow(retentionAnalysis)));
+    const written = writeRetainedBriefing(retentionStore(), captureNow(retentionAnalysis));
+    renderBriefingRetention(document, written);
+    recordSeries(written);
   };
 
-  /** One action: the key goes, and the page is back on its sample state. */
+  /** One action: every kept period goes, and the page is back on its sample state. */
   const forgetRetention = () => {
-    forgetRetainedBriefing(retentionStore());
+    forgetBriefingSeries(retentionStore());
+    paintBriefingSeries([]);
     reset();
   };
 
@@ -3546,14 +3578,16 @@ function mountLocalFinopsImport() {
     retentionAnalysis = analysis;
     const held = readRetainedBriefing(retentionStore());
     // Already opted in: the consent was to keep the briefing this page produces,
-    // so the new one replaces it. Leaving the superseded capture would restore an
-    // answer the reader has already moved past.
+    // so the new one replaces the capture for ITS period. A different month is a
+    // new entry beside the ones already kept rather than a replacement of them.
     if (held.state === RETENTION_STATE.retained) {
-      renderBriefingRetention(document,
-        writeRetainedBriefing(retentionStore(), captureNow(analysis)));
+      const written = writeRetainedBriefing(retentionStore(), captureNow(analysis));
+      renderBriefingRetention(document, written);
+      recordSeries(written);
       return;
     }
     renderBriefingRetention(document, held);
+    paintBriefingSeries(readBriefingSeries(retentionStore()));
   };
 
   /**
@@ -3650,6 +3684,10 @@ function mountLocalFinopsImport() {
 
   bindBriefingRetention(document, { onRetain: setRetention, onForget: forgetRetention });
   restoreRetainedBriefing();
+  // After the restore, not inside it: this one call is where a single kept
+  // briefing is migrated into the series (#1089) and where an existing series is
+  // read, so every load branch above ends with the same count above the answer.
+  paintBriefingSeries(readBriefingSeries(retentionStore()));
   // Back into the step from a rendered result, with the file already in hand and
   // the reader's own choices intact — no second trip through the file picker.
   remap?.addEventListener("click", () => {

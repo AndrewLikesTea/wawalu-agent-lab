@@ -80,11 +80,14 @@ export const RETENTION_COPY = Object.freeze({
     + "capture — plus the names, department categories and cohort facts you supplied here "
     + "yourself, with the time you last edited them. No file contents, no individual usage rows, "
     + "and no file names are written. Nothing is kept until you turn this on.",
-  forget: "Forget this briefing",
+  // Forget clears the WHOLE period series (#1089), not the newest month, so the
+  // control says so: a reader who kept April, May and June is deleting three.
+  forget: "Forget every period kept here",
   [RETENTION_STATE.off]:
     "Nothing is kept in this browser. Turning this on writes the derived values named above.",
   [RETENTION_STATE.retained]:
-    "This briefing is kept in this browser. Turning this off erases it.",
+    "This briefing is kept in this browser, alongside every other period kept here. "
+    + "Turning this off erases all of them.",
   [RETENTION_STATE.unavailable]:
     "Keeping a briefing is unavailable in this browser, so nothing was kept and nothing can be. "
     + "The briefing on screen is unaffected and lasts until this tab is closed.",
@@ -94,7 +97,7 @@ export const RETENTION_COPY = Object.freeze({
   [RETENTION_STATE.writeRefused]:
     "This browser had no room to keep the briefing, so nothing was kept. The briefing on screen "
     + "is unaffected.",
-  forgotten: "The kept briefing was erased from this browser.",
+  forgotten: "Every period kept here was erased from this browser.",
 });
 
 const number = (value) => (Number.isFinite(Number(value)) ? Number(value) : null);
