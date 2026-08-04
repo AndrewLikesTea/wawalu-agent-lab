@@ -630,6 +630,59 @@ test("artifact verification refuses to ship the FinOps front door without its de
   );
 });
 
+// The two ways a provider sample can stop being real (#1067). Neither can happen
+// by editing the contract's DATA — the sample and the column list are derived from
+// one detection entry — so both are broken here the only way they could break in
+// life: by editing the serializer that turns that entry into a file. The patched
+// module is a staged copy in a temp directory; src/ is never touched.
+async function patchReadinessSerializer(directory, from, to) {
+  const path = resolve(directory, "provider-readiness-contract.js");
+  const source = await readFile(path, "utf8");
+  assert.ok(source.includes(from), `the readiness serializer no longer contains: ${from}`);
+  await writeFile(path, source.replace(from, to));
+  await createManifest(directory);
+}
+
+test("artifact verification rejects a provider advertised with no downloadable sample", async (t) => {
+  const directory = await mkdtemp(resolve(tmpdir(), "shiplog-provider-sample-missing-test-"));
+  t.after(async () => (await import("node:fs/promises")).rm(directory, { recursive: true, force: true }));
+  await copyDeployableArtifact(directory);
+
+  // One provider's download becomes an empty file. The card still names it, still
+  // lists its columns, and still offers the button — which is the whole point:
+  // only the artifact check can tell that the button now hands over nothing.
+  await patchReadinessSerializer(directory,
+    'if (!entry) return "";',
+    'if (!entry || entry.id === "openai") return "";');
+
+  await assert.rejects(
+    verifyArtifact(directory),
+    /provider sample: openai is advertised in the readiness contract but produces no downloadable sample artifact \(wawalu-sample-openai\.csv\)/,
+  );
+});
+
+test("artifact verification rejects a sample whose columns drifted from the contract", async (t) => {
+  const directory = await mkdtemp(resolve(tmpdir(), "shiplog-provider-sample-columns-test-"));
+  t.after(async () => (await import("node:fs/promises")).rm(directory, { recursive: true, force: true }));
+  await copyDeployableArtifact(directory);
+
+  // Rename the last column of every CSV header, and nothing else: same column
+  // count, same row, a file that still parses. A string compare against a
+  // remembered header would catch this too — and would also fire on a reordering
+  // that changes nothing. This fires because the PARSED set disagrees.
+  await patchReadinessSerializer(directory,
+    "const header = entry.requiredColumns.map(csvField).join(\",\");",
+    "const header = entry.requiredColumns.map((column, index) => csvField("
+      + "index === entry.requiredColumns.length - 1 ? `${column}-renamed` : column)).join(\",\");");
+
+  // Bedrock is the first CSV provider in contract order, so it is the one the
+  // build names — with both halves of the disagreement in the message.
+  await assert.rejects(
+    verifyArtifact(directory),
+    /provider sample: the bedrock sample \(wawalu-sample-bedrock\.csv\) disagrees with its columns in the readiness contract\. Required and missing: lineItem\/UsageAccountId\. Present and undeclared: lineItem\/UsageAccountId-renamed\./,
+  );
+});
+
 test("artifact verification rejects AI FinOps first-paint and runtime copy drift", async (t) => {
   const directory = await mkdtemp(resolve(tmpdir(), "shiplog-finops-copy-artifact-test-"));
   t.after(async () => (await import("node:fs/promises")).rm(directory, { recursive: true, force: true }));

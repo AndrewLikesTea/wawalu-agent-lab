@@ -681,6 +681,58 @@ export async function verifyArtifact(root) {
     }
   }
 
+  // The five provider samples, proved against the files Pages will serve (#1067).
+  //
+  // The readiness contract ADVERTISES a downloadable sample per provider and a
+  // required-column list per provider. Both are derived from one detection entry,
+  // which is exactly why a drift would be silent: nothing on the page compares the
+  // bytes a reader receives with the columns the card promised them, so a sample
+  // that stopped carrying a required column would still download, still look like
+  // an export, and be refused by the importer the reader was told to trust it in.
+  //
+  // Filesystem and parse only — no network, no browser, no environment variable.
+  // Every failure names the provider and the column, because a red build whose
+  // message is "the samples are wrong" costs whoever reads it the whole diff.
+  const readinessUrl = pathToFileURL(resolve(root, "provider-readiness-contract.js"));
+  readinessUrl.searchParams.set("sha256",
+    actual.find(({ path }) => path === "provider-readiness-contract.js")?.sha256 ?? "");
+  const { PROVIDER_READINESS, serializeProviderSample } = await import(readinessUrl.href);
+  // The artifact's OWN recognition parser, not a header split written here: a
+  // check that parses the sample differently from the code that reads a reader's
+  // real export proves nothing about the reader's export.
+  const { parseExportText } = await import(
+    pathToFileURL(resolve(root, "browser-compat-eligibility.js")).href
+  );
+  if (!PROVIDER_READINESS.length) {
+    throw new Error("provider sample: the readiness contract advertises no provider at all");
+  }
+  for (const provider of PROVIDER_READINESS) {
+    const sample = serializeProviderSample(provider);
+    if (!String(sample ?? "").trim()) {
+      throw new Error(`provider sample: ${provider.id} is advertised in the readiness contract `
+        + `but produces no downloadable sample artifact (${provider.sampleFilename})`);
+    }
+    const parsed = parseExportText(sample, provider.sampleFilename);
+    if (!parsed.ok) {
+      throw new Error(`provider sample: the ${provider.id} sample (${provider.sampleFilename}) `
+        + `does not parse as ${provider.sampleFormat}: ${parsed.problem ?? "unreadable"}`);
+    }
+    // PARSED columns against the contract's own lists. A string compare of the
+    // header line would fail on quoting and pass on a reordering, and neither is
+    // what a reader's importer sees. A column the contract publishes as optional
+    // is allowed to be in the file; anything else is a column nothing declared.
+    const columns = parsed.fieldNames.map(String);
+    const declared = [...provider.requiredColumns, ...provider.optionalColumns];
+    const missing = provider.requiredColumns.filter((column) => !columns.includes(column));
+    const extra = columns.filter((column) => !declared.includes(column));
+    if (missing.length || extra.length) {
+      throw new Error(`provider sample: the ${provider.id} sample (${provider.sampleFilename}) `
+        + "disagrees with its columns in the readiness contract."
+        + (missing.length ? ` Required and missing: ${missing.join(", ")}.` : "")
+        + (extra.length ? ` Present and undeclared: ${extra.join(", ")}.` : ""));
+    }
+  }
+
   const headers = await readFile(resolve(root, "_headers"), "utf8");
   if (!headers.includes("default-src 'none'") || !headers.includes("Permissions-Policy: camera=(), geolocation=(), microphone=()")) {
     throw new Error("least-privilege security headers are missing");

@@ -70,11 +70,14 @@
  * is bad because a fetch failed is the one wrong answer this zone can give.
  */
 
+import { LOCAL_PROCESSING_STATEMENT } from "./provider-readiness-contract.js";
+
 /** Every id this module owns. Nothing outside it writes to these nodes. */
 export const EXPORT_CHECK_IDS = Object.freeze({
   zone: "finops-export-check",
   title: "finops-export-check-title",
   instruction: "finops-export-check-instruction",
+  boundary: "finops-export-check-boundary",
   input: "finops-export-check-file",
   answer: "finops-export-check-answer",
   detail: "finops-export-check-detail",
@@ -388,6 +391,15 @@ function buildZone(doc) {
   const instruction = node(doc, "p", "import-drop-instruction", EXPORT_CHECK_COPY.instruction);
   instruction.id = EXPORT_CHECK_IDS.instruction;
 
+  // The boundary (#1067), in the reading flow and never behind anything: not a
+  // summary, not a tooltip, not a disclosure. It carries the contract module's
+  // own sentence rather than a second wording of it, and it reuses the
+  // instruction's class — no new rule, because styles.css has no headroom to pay
+  // for one. It is a sibling of the answer region rather than a child, so it is
+  // never rewritten by a verdict and never announced as news.
+  const boundary = node(doc, "p", "import-drop-instruction", LOCAL_PROCESSING_STATEMENT);
+  boundary.id = EXPORT_CHECK_IDS.boundary;
+
   const field = node(doc, "div", "local-import-field");
   const label = node(doc, "label", null, EXPORT_CHECK_COPY.label);
   label.setAttribute("for", EXPORT_CHECK_IDS.input);
@@ -432,7 +444,8 @@ function buildZone(doc) {
   columns.id = EXPORT_CHECK_IDS.columns;
   disclosure.append(node(doc, "summary", null, EXPORT_CHECK_COPY.summary), columns);
 
-  zone.append(title, instruction, field, answer, detail, continueAction, guidance, disclosure);
+  zone.append(title, instruction, boundary, field, answer, detail, continueAction, guidance,
+    disclosure);
   return zone;
 }
 
