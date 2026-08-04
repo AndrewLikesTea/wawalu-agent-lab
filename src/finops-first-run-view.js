@@ -30,7 +30,17 @@ import { revealWithheld } from "./finops-stand-view.js";
 // what proves the authored copy and the module's copy are the same sentences.
 import {
   applyExampleFigureSources, bindExampleFigureSources, EXAMPLE_ONLY_SOURCE_IDS,
+  FIGURE_SOURCE_DISCLOSURE,
 } from "./finops-example-figure-sources.js";
+// The estimated position, from facts a leader already knows rather than from a
+// file. It is the one figure in this region that is neither read nor derived,
+// so it renders below the derived slots, at detail weight, behind its own
+// dashed marker — subordinate to every measured figure above it by position,
+// by type step, and by the words on its chip.
+import {
+  ESTIMATE_MARKER, estimateDetail, estimateFromDeclaredFacts, estimateHeadline,
+} from "./finops-declared-fact-estimate.js";
+import { EXAMPLE_DECLARED_FACTS } from "./finops-declared-fact-fixtures.js";
 
 const byId = (doc, id) => (doc?.getElementById ? doc.getElementById(id) : null);
 
@@ -274,12 +284,133 @@ export function bindFirstRunDisclosure(doc) {
   // native disclosure, so this only mirrors `open` onto the state the
   // stylesheet and assistive technology read. No key is intercepted.
   bindExampleFigureSources(doc);
+  bindDeclaredFactEstimate(doc);
   const details = byId(doc, FIRST_RUN_IDS.method);
   if (!details) return null;
   const count = () => byId(doc, FIRST_RUN_IDS.methodList)?.querySelectorAll?.("dt")?.length ?? null;
   details.addEventListener("toggle", () => paintDisclosureState(doc, count()));
   paintDisclosureState(doc, count());
   return details;
+}
+
+/** The ids the estimate spine owns. Nothing else writes them. */
+export const ESTIMATE_IDS = Object.freeze({
+  block: "finops-first-run-estimate",
+  heading: "finops-first-run-estimate-heading",
+  value: "finops-first-run-estimate-value",
+  detail: "finops-first-run-estimate-detail",
+  source: "finops-first-run-estimate-source",
+  summary: "finops-first-run-estimate-source-summary",
+  marker: "finops-first-run-estimate-marker",
+  sourceDetail: "finops-first-run-estimate-source-detail",
+});
+
+/** The heading, authored here and in evolution.html, so a drift is visible. */
+export const ESTIMATE_HEADING = "Estimated position from declared facts";
+
+/**
+ * Paint the estimated position for the declared facts on hand.
+ *
+ * WHAT GOES INSIDE THE DISCLOSURE AND WHAT DOES NOT. The figure, the quartile
+ * word, the tier, and the sentence saying what the figure is not are all
+ * OUTSIDE the details element, where a reader meets them without opening
+ * anything. Inside it is the working — the inputs, the cohort basis, and the
+ * arithmetic — which is explanatory content a reader goes looking for. Nothing
+ * announced, nothing live, and no state a reader has to open a disclosure to
+ * learn.
+ *
+ * The declared facts are the bundled example's, so this renders on first load
+ * with no file imported. `estimateFromDeclaredFacts` returns plain text and
+ * numbers only — no declared string survives it — and every node below is built
+ * with createElement and written through textContent.
+ *
+ * @returns the estimate it painted, so a caller can assert on it.
+ */
+export function applyDeclaredFactEstimate(doc, facts = EXAMPLE_DECLARED_FACTS) {
+  const block = byId(doc, ESTIMATE_IDS.block);
+  if (!block) return null;
+  const estimate = estimateFromDeclaredFacts(facts);
+  block.dataset.provenance = estimate.provenance;
+  block.dataset.tier = estimate.confidence.tier;
+  setText(doc, ESTIMATE_IDS.heading, ESTIMATE_HEADING);
+  const headline = estimateHeadline(estimate);
+  const value = setText(doc, ESTIMATE_IDS.value, headline);
+  if (value) value.dataset.available = estimate.costPerSuccessfulTask.available ? "true" : "false";
+  setText(doc, ESTIMATE_IDS.detail, estimateDetail(estimate));
+
+  const host = byId(doc, ESTIMATE_IDS.source);
+  if (!host) return estimate;
+  host.dataset.source = ESTIMATE_MARKER.provenance;
+  host.dataset.disclosure = host.open ? "expanded" : "collapsed";
+  const summary = doc.createElement("summary");
+  summary.className = "figure-source-summary";
+  summary.id = ESTIMATE_IDS.summary;
+  summary.setAttribute("aria-expanded", host.open ? "true" : "false");
+  summary.setAttribute("aria-controls", ESTIMATE_IDS.sourceDetail);
+  const chip = doc.createElement("span");
+  chip.className = "brief-provenance";
+  chip.id = ESTIMATE_IDS.marker;
+  chip.dataset.provenance = ESTIMATE_MARKER.provenance;
+  chip.dataset.silhouette = ESTIMATE_MARKER.silhouette;
+  chip.dataset.tone = ESTIMATE_MARKER.tone;
+  // The marker is spoken with the figure it qualifies, not three stops away.
+  const scope = doc.createElement("span");
+  scope.className = "visually-hidden";
+  scope.textContent = `${ESTIMATE_HEADING}, ${headline}: `;
+  const label = doc.createElement("span");
+  label.className = "brief-provenance-label";
+  label.textContent = ESTIMATE_MARKER.label;
+  chip.replaceChildren(scope, label);
+  const state = doc.createElement("span");
+  state.className = "figure-source-state";
+  state.dataset.disclosure = host.open ? "expanded" : "collapsed";
+  const shape = doc.createElement("span");
+  shape.className = "figure-source-shape";
+  shape.setAttribute("aria-hidden", "true");
+  shape.textContent = FIGURE_SOURCE_DISCLOSURE.shape;
+  state.replaceChildren(shape, doc.createTextNode(
+    ` ${host.open ? FIGURE_SOURCE_DISCLOSURE.expanded : FIGURE_SOURCE_DISCLOSURE.collapsed}`));
+  summary.replaceChildren(chip, state);
+
+  const list = doc.createElement("dl");
+  list.className = "figure-source-detail";
+  list.id = ESTIMATE_IDS.sourceDetail;
+  for (const line of estimate.workings) {
+    const row = doc.createElement("div");
+    const term = doc.createElement("dt");
+    term.textContent = line.term;
+    const detail = doc.createElement("dd");
+    detail.textContent = line.detail;
+    row.replaceChildren(term, detail);
+    list.append(row);
+  }
+  host.replaceChildren(summary, list);
+  return estimate;
+}
+
+/**
+ * Mirror the estimate disclosure's own `open` onto the state channels.
+ *
+ * Same rule as the figure-source markers beside it: the native summary is the
+ * control, nothing here intercepts a key, and this only reflects what the
+ * browser already did.
+ */
+export function bindDeclaredFactEstimate(doc) {
+  const host = byId(doc, ESTIMATE_IDS.source);
+  if (!host) return null;
+  host.addEventListener("toggle", () => {
+    const open = Boolean(host.open);
+    host.dataset.disclosure = open ? "expanded" : "collapsed";
+    const summary = byId(doc, ESTIMATE_IDS.summary);
+    summary?.setAttribute("aria-expanded", open ? "true" : "false");
+    const state = summary?.lastElementChild;
+    if (!state) return;
+    state.dataset.disclosure = open ? "expanded" : "collapsed";
+    const shape = state.firstElementChild;
+    const word = open ? FIGURE_SOURCE_DISCLOSURE.expanded : FIGURE_SOURCE_DISCLOSURE.collapsed;
+    if (shape) state.replaceChildren(shape, doc.createTextNode(` ${word}`));
+  });
+  return host;
 }
 
 /**
@@ -394,6 +525,11 @@ export function applyFirstRunResult(doc, result, { announce = false } = {}) {
       ? `${result.sample.badge}. ${position}${result.answer?.value ?? result.benchmark.value}. ${result.action?.value ?? ""}`
       : `${result.sample.badge}. ${position}${result.reason ?? ""}`;
   }
+
+  // The estimated position, repainted from the same module the markup was
+  // authored from. It does not read `result`: it is composed from declared
+  // facts, which is exactly what makes it available before a file is.
+  applyDeclaredFactEstimate(doc);
 
   // Put the reader back where they were standing. `preventScroll`, because a
   // repaint they did not ask for should not also move the page under them.

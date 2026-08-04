@@ -959,6 +959,43 @@
             </dl>
           </details>
         </div>
+        <!-- THE ESTIMATED POSITION, FROM FACTS A LEADER ALREADY KNOWS (#1102).
+             Every figure above is read from the example's files or derived from
+             them. This one is neither: it is modelled from declared facts — a
+             monthly bill, a headcount, a provider mix, a size band, an industry
+             — by src/finops-declared-fact-estimate.js, which can emit exactly
+             one provenance value and it is "estimated".
+
+             SUBORDINATE ON THREE CHANNELS, none of them colour. It is LAST in
+             the region, after every measured figure; its value is drawn at
+             `.first-run-detail` weight rather than the `.first-run-value` step
+             the derived figures own; and its marker is the dashed silhouette
+             with the words "Estimated, not measured" on it. A reader who reads
+             only the chips still cannot mistake this line for a measurement.
+
+             The working — inputs, cohort basis, arithmetic — is inside the
+             details element, because it is explanatory content a reader goes
+             looking for. The figure, the quartile, the tier, and the sentence
+             saying what it is not are all outside it, where they are met
+             without opening anything. Authored with the module's own figures so
+             the estimate stands on a page whose script never ran; the view
+             repaints it, which is what proves the two copies agree. -->
+        <div class="first-run-confidence" id="finops-first-run-estimate" data-provenance="estimated" data-tier="modelled">
+          <h3 class="first-run-slot-label" id="finops-first-run-estimate-heading">Estimated position from declared facts</h3>
+          <p class="first-run-detail" id="finops-first-run-estimate-value" data-available="true">Estimated · $39.81 per successful task · Bottom quartile</p>
+          <p class="first-run-detail" id="finops-first-run-estimate-detail">Modelled recoverable range $20,772–$49,854 a month against Enterprise · 2,000+ employees · Software-as-a-service (most expensive quarter of the cohort). Modelled · every declared fact used as given. Estimated from declared facts and published assumptions — not measured from your usage, not verified against an invoice, and not a realized saving.</p>
+          <details class="figure-source" id="finops-first-run-estimate-source" data-source="estimated" data-disclosure="collapsed">
+            <summary class="figure-source-summary" id="finops-first-run-estimate-source-summary" aria-expanded="false" aria-controls="finops-first-run-estimate-source-detail"><span class="brief-provenance" id="finops-first-run-estimate-marker" data-provenance="estimated" data-silhouette="dashed" data-tone="warn"><span class="visually-hidden">Estimated position from declared facts, Estimated · $39.81 per successful task · Bottom quartile: </span><span class="brief-provenance-label">Estimated, not measured</span></span><span class="figure-source-state" data-disclosure="collapsed"><span class="figure-source-shape" aria-hidden="true">▸</span> Show working</span></summary>
+            <dl class="figure-source-detail" id="finops-first-run-estimate-source-detail">
+              <div><dt>Inputs used</dt><dd>$154,500 declared monthly AI spend · 100 declared engineers · provider mix frontier 45% · standard 40% · economy 15% · cohort Enterprise · 2,000+ employees · Software-as-a-service.</dd></div>
+              <div><dt>Tasks attempted</dt><dd>100 engineers at 49 attempted tasks each per month = 4,900 attempted tasks.</dd></div>
+              <div><dt>Tasks that succeed</dt><dd>The declared mix weights the published tier success rates (frontier 86%, standard 78%, economy 62%) to 79.2%. 4,900 attempted at 79.2% = 3,881 successful tasks, rounded once to whole tasks.</dd></div>
+              <div><dt>Cost per successful task</dt><dd>$154,500 ÷ 3,881 successful tasks = $39.81.</dd></div>
+              <div><dt>Cohort basis</dt><dd>Published cohort cost-enterprise-saas (Enterprise · 2,000+ employees · Software-as-a-service), snapshot 2026-06-30: p25 $18.40, p75 $31.50. Lower cost per successful task is better.</dd></div>
+              <div><dt>Recoverable range</dt><dd>Headroom to the cohort's cheap boundary is $154,500 less the $18.40 p25 rate over 3,881 successful tasks = $83,090. At 25%–60% of that headroom: $20,772–$49,854 a month, modelled.</dd></div>
+            </dl>
+          </details>
+        </div>
         <!-- Provenance directly off the headline, one keystroke away and never
              a footnote: the inputs, the path the figures took, the arithmetic
              behind them, the coverage they were graded on, and what they cannot

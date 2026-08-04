@@ -308,6 +308,11 @@ export const FOCUS_SPEC = Object.freeze({
     "finops-first-run-literacy-source-summary",
     "finops-first-run-role-source-summary",
     "finops-first-run-confidence-source-summary",
+    // The estimated position's working (#1102). It is reached after every
+    // measured figure and its marker, in the DOM order it is read in, because
+    // an estimate is the last thing in this region for the same reason it is
+    // drawn at detail weight: nothing modelled precedes something measured.
+    "finops-first-run-estimate-source-summary",
     "finops-first-run-method-summary",
     "finops-first-run-demo",
     "finops-first-run-import",
