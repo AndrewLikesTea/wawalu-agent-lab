@@ -213,7 +213,7 @@ test("available detail renders labelled text, empty alternatives, and linked-rel
   assert.equal(links[1].href, "/release.html?id=release%201");
 });
 
-test("available detail omits the linked-release section when no release is associated", () => {
+test("available detail names the release relationship and its next action when nothing is linked", () => {
   const container = createElement("div");
   renderDecisionDetail(container, {
     id: "decision-2",
@@ -225,8 +225,9 @@ test("available detail omits the linked-release section when no release is assoc
     createdAt: "2026-07-01T00:00:00.000Z",
   });
 
-  assert.equal(byClass(container, "proof-relationship").length, 0);
-  assert.doesNotMatch(container.textContent, /Linked releases|No releases link/);
+  assert.equal(byClass(container, "proof-relationship").length, 1);
+  assert.match(container.textContent, /No release carries this decision yet/);
+  assert.equal(first(container, "empty-action").textContent, "Record the release that ships this decision");
 });
 
 test("detail page uses semantic landmarks and safe DOM rendering", async () => {
