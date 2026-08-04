@@ -41,6 +41,22 @@ import { LOCAL_KINDS, reconcileRecords } from "./local-finops.js";
 /** Bump when a key, a sum rule, or a movement field changes meaning. */
 export const PERIOD_SERIES_VERSION = "finops-imported-period-series/1.0.0";
 
+/**
+ * How many distinct billing months a period-over-period figure needs.
+ *
+ * Two, and it is not a threshold anybody tuned: a movement IS a comparison of
+ * one month against the one before it, so a series of one has nothing to
+ * subtract. It is named and exported because two surfaces enforce it — this
+ * module withholds the figure, and a pre-analysis preview reports that it will
+ * be withheld — and a second `>= 2` written out on the preview side is exactly
+ * how the two come to disagree about the same export.
+ */
+export const MOVEMENT_MINIMUM_PERIODS = 2;
+
+/** The predicate itself, so both callers ask the same question. */
+export const comparablePeriodCount = (count) =>
+  Number(count) >= MOVEMENT_MINIMUM_PERIODS;
+
 /** The three directions. "flat" is a finding, not a missing one. */
 export const MOVEMENT_DIRECTION = Object.freeze({
   increase: "increase", decrease: "decrease", flat: "flat",
@@ -196,7 +212,7 @@ export function periodMovement(series) {
   const entries = periodSeriesFromTotals(series);
   if (entries.length === 0) return movement({});
   const latest = entries.at(-1);
-  if (entries.length === 1) {
+  if (!comparablePeriodCount(entries.length)) {
     return movement({
       periodCount: 1,
       onlyPeriod: latest.period,

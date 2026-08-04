@@ -187,6 +187,33 @@ test("a recognized check answers the question, names what it read, and stops", a
   assert.equal(document.getElementById("finops-import-reason").dataset.state, "idle");
 });
 
+test("the check says which figures the brief will earn, with the counts in the summary", async () => {
+  const { document } = await openFinopsTab();
+  checkExport(document, "bedrock-usage.csv", BEDROCK_EXPORT);
+  await waitFor(() => checkState(document) === "recognized", "the check to recognize the export");
+
+  // The counts are on the summary itself. A real browser does not read a
+  // collapsed disclosure out however readable this harness finds it, so a
+  // collapsed panel still has to say how many figures this export earns.
+  const summary = document.getElementById("finops-export-check-capability-summary");
+  assert.equal(textOf(summary), "What this export earns on the brief — 6 earnable, 1 withheld");
+  // Collapsed on arrival, in the idiom of the column breakdown beside it.
+  assert.equal(summary.parentNode.hasAttribute("open"), false);
+  assert.equal(summary.parentNode.hidden, false);
+
+  const rows = [...document.getElementById("finops-export-check-capability-list")
+    .querySelectorAll("li")];
+  assert.equal(rows.length, 7);
+  assert.equal(rows.filter((row) => row.dataset.state === "missing").length, 1);
+  // Three dated days inside one month are one billing month, so the movement is
+  // the one figure this export cannot earn — and it says what would unlock it.
+  const withheld = rows.find((row) => row.dataset.state === "missing");
+  assert.match(textOf(withheld), /Period-over-period movement/);
+  assert.match(textOf(withheld), /Withheld — needs a second billing period/);
+  // Nothing was analyzed to say any of that.
+  assert.equal(document.getElementById("local-results").hidden, true);
+});
+
 test("a refusal names the missing column and links to that console's guidance entry", async () => {
   const { document } = await openFinopsTab();
   checkExport(document, "bedrock-no-currency.csv", BEDROCK_INCOMPLETE);
@@ -295,7 +322,9 @@ test("a verdict is one answer, one detail and one action, with the breakdown col
   const disclosure = checkSlot(document, "columns");
   assert.equal(disclosure.hasAttribute("open"), false);
   assert.equal(disclosure.hidden, false);
-  assert.equal(checkZone(document).querySelectorAll("details").length, 1);
+  // Two disclosures and no third: the column breakdown, and the figure preview
+  // #1065 added beside it. Both ship collapsed, and neither holds a control.
+  assert.equal(checkZone(document).querySelectorAll("details").length, 2);
   assert.equal(document.getElementById("finops-export-check-column-list")
     .querySelectorAll("li").length, 7);
 

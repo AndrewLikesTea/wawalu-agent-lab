@@ -61,6 +61,9 @@ export const EXPORT_CHECK_IDS = Object.freeze({
   guidance: "finops-export-check-guidance",
   disclosure: "finops-export-check-columns",
   columns: "finops-export-check-column-list",
+  capability: "finops-export-check-capability",
+  capabilitySummary: "finops-export-check-capability-summary",
+  capabilityList: "finops-export-check-capability-list",
 });
 
 /** The guidance block this check sends a refused reader back into (#1062). */
@@ -96,7 +99,21 @@ export const EXPORT_CHECK_COPY = Object.freeze({
   noColumns: "No column names were read from this file.",
   present: "In this file",
   missing: "Required and missing",
+  earnable: "This export earns it",
+  withheldPrefix: "Withheld — needs ",
 });
+
+/**
+ * The counts, in the summary itself.
+ *
+ * A collapsed disclosure is not read out in a real browser however readable the
+ * test harness finds it, so the news — how many of the brief's figures this file
+ * earns and how many it does not — is carried by the line that is always
+ * visible. What is behind the fold is which ones, and what each is waiting on.
+ */
+export const capabilitySummary = (counts) =>
+  `What this export earns on the brief — ${counts.earnable} earnable, `
+  + `${counts.withheld} withheld`;
 
 // The picker's own accept list, so the check cannot refuse a file the import
 // would have taken (or take one it would not).
@@ -182,12 +199,54 @@ function paintColumns(doc, list, verdict, fieldNames) {
 }
 
 /**
+ * Which figures of the brief this export earns, and what each withheld one owes.
+ *
+ * The same present/missing vocabulary and the same list treatment as the column
+ * breakdown above it, because it is the same kind of statement about the same
+ * file. A withheld row names ONE input — the one the preview ranked — so the
+ * row is an errand rather than a list of everything the family could want.
+ */
+function paintCapability(doc, preview) {
+  const disclosure = byId(doc, EXPORT_CHECK_IDS.capability);
+  const list = byId(doc, EXPORT_CHECK_IDS.capabilityList);
+  const summary = byId(doc, EXPORT_CHECK_IDS.capabilitySummary);
+  if (!disclosure || !list || !summary) return;
+  const rows = [...(preview ?? [])];
+  disclosure.hidden = rows.length === 0;
+  if (rows.length === 0) return;
+  // A record with no missing input is an earnable one. That is the record's own
+  // field rather than a copy of the preview's state words here: this file names
+  // no state vocabulary it does not own, on the same grounds it compares no
+  // reason code — see the note on `detailLine`.
+  const earns = (entry) => !entry.missingInput;
+  summary.textContent = capabilitySummary({
+    earnable: rows.filter(earns).length,
+    withheld: rows.filter((entry) => !earns(entry)).length,
+  });
+  list.replaceChildren(...rows.map((entry) => {
+    const earnable = earns(entry);
+    const item = node(doc, "li", "import-slot");
+    item.dataset.state = earnable ? "present" : "missing";
+    const label = node(doc, "p", "import-slot-label", `${entry.label} · `);
+    label.append(node(doc, "span", "import-slot-state", earnable
+      ? EXPORT_CHECK_COPY.earnable
+      : `${EXPORT_CHECK_COPY.withheldPrefix}${entry.missingInput}`));
+    item.append(label);
+    return item;
+  }));
+}
+
+/**
  * Paint one preflight verdict into the check zone, and nothing else anywhere.
  *
+ * @param preview the capability preview for THIS verdict (#1065), or null. It is
+ *   passed in rather than derived here for the reason the verdict is: this file
+ *   loads the adapters on demand, and a module-level import of the preview would
+ *   put them back in the page's initial payload.
  * @returns true when the verdict is one the reader can continue from, so a
  *          caller can tell the two outcomes apart without re-reading it.
  */
-export function renderExportCheck(doc, verdict, fieldNames = []) {
+export function renderExportCheck(doc, verdict, fieldNames = [], preview = null) {
   const zone = byId(doc, EXPORT_CHECK_IDS.zone);
   const answer = byId(doc, EXPORT_CHECK_IDS.answer);
   const detail = byId(doc, EXPORT_CHECK_IDS.detail);
@@ -221,6 +280,7 @@ export function renderExportCheck(doc, verdict, fieldNames = []) {
     guidance.textContent = `${verdict.nextAction} ${guidanceDestination(verdict)}`;
   }
   paintColumns(doc, columns, verdict, fieldNames);
+  paintCapability(doc, preview);
   // Present from here on, and never opened by this code: a reader who wants the
   // breakdown opens it, and a reader who wanted a yes or a no never meets it.
   disclosure.hidden = false;
@@ -239,6 +299,7 @@ function paintStandby(doc, state, sentence) {
   byId(doc, EXPORT_CHECK_IDS.continue).hidden = true;
   byId(doc, EXPORT_CHECK_IDS.guidance).hidden = true;
   byId(doc, EXPORT_CHECK_IDS.disclosure).hidden = true;
+  byId(doc, EXPORT_CHECK_IDS.capability).hidden = true;
   return true;
 }
 
@@ -259,14 +320,19 @@ async function runCheck(doc, file) {
     return paintStandby(doc, "refused", EXPORT_CHECK_COPY.unreadable) && false;
   }
   try {
-    const [{ preflight }, { parseExportText }] = await Promise.all([
+    const [{ preflight }, { parseExportText }, { previewEarnableFigures }] = await Promise.all([
       import("./hyperscaler-export-adapters.js"),
       import("./browser-compat-eligibility.js"),
+      // Loaded here for the reason the adapters are: the preview reads the
+      // brief's own family list, so a static import would pull that graph into
+      // the page's measured initial payload for a panel nobody has used yet.
+      import("./finops-export-capability.js"),
     ]);
     const parsed = parseExportText(text, file?.name ?? "");
     const verdict = preflight(parsed);
     const ready = renderExportCheck(doc, verdict,
-      Array.isArray(parsed?.fieldNames) ? parsed.fieldNames.map(String) : []);
+      Array.isArray(parsed?.fieldNames) ? parsed.fieldNames.map(String) : [],
+      previewEarnableFigures(verdict));
     // Held only where there is something to continue into.
     if (ready) checkedFile = file;
     return ready;
@@ -332,7 +398,21 @@ function buildZone(doc) {
   columns.id = EXPORT_CHECK_IDS.columns;
   disclosure.append(node(doc, "summary", null, EXPORT_CHECK_COPY.summary), columns);
 
-  zone.append(title, instruction, field, answer, detail, continueAction, guidance, disclosure);
+  // The second disclosure, in the idiom of the first and shipping collapsed for
+  // the same reason: a reader who wanted a yes or a no is not handed a figure
+  // inventory first. Its summary is written with the counts on every paint, so
+  // the fold hides which figures rather than how many.
+  const capability = node(doc, "details", "export-package-help");
+  capability.id = EXPORT_CHECK_IDS.capability;
+  capability.hidden = true;
+  const capabilitySummaryNode = node(doc, "summary");
+  capabilitySummaryNode.id = EXPORT_CHECK_IDS.capabilitySummary;
+  const capabilityList = node(doc, "ul", "import-slots");
+  capabilityList.id = EXPORT_CHECK_IDS.capabilityList;
+  capability.append(capabilitySummaryNode, capabilityList);
+
+  zone.append(title, instruction, field, answer, detail, continueAction, guidance,
+    disclosure, capability);
   return zone;
 }
 

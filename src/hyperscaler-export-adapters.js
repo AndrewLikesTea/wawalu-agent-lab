@@ -44,6 +44,10 @@ import {
   BROWSER_COMPAT_MANIFEST, FIELD_ROLES, UNSUPPORTED_CODES, contractById,
 } from "./browser-compat-contracts.js";
 import { parseExportText } from "./browser-compat-eligibility.js";
+// The billing-month key the movement figure is computed on. Imported so the
+// month a preflight verdict counts and the month a brief compares are the same
+// month; a `slice(0, 7)` here would be a second spelling of one rule.
+import { canonicalPeriod } from "./finops-imported-period-series.js";
 import {
   RECOGNITION_BANDS, RECOGNITION_OUTCOMES, recognizeExport,
 } from "./export-recognition.js";
@@ -196,6 +200,22 @@ function categoryFromModel(model) {
 
 const byRole = (contract, role) =>
   contract.requiredFields.find((field) => field.role === role) ?? null;
+
+/**
+ * The required column paths a contract declares and this file does not carry.
+ *
+ * ONE rule with two callers, named here rather than written out twice:
+ * `adaptParsedExport` withholds the whole projection on it, and `preflight`
+ * reports it without importing anything. A second copy of the expression is how
+ * a check comes to pass a file the import then refuses.
+ *
+ * @param fieldNames a Set of the column names read from the file.
+ */
+export function missingRequiredColumns(contract, fieldNames) {
+  return contract.requiredFields
+    .map((field) => field.path)
+    .filter((path) => !fieldNames.has(path));
+}
 
 /**
  * The six required paths, plus the meter path, read off the contract by role.
@@ -450,9 +470,7 @@ export function adaptParsedExport(parsed, { providerId = null } = {}) {
 
   const fieldNames = new Set(parsed?.fieldNames ?? []);
   const rows = Array.isArray(parsed?.records) ? parsed.records : [];
-  const missingFields = contract.requiredFields
-    .map((field) => field.path)
-    .filter((path) => !fieldNames.has(path));
+  const missingFields = missingRequiredColumns(contract, fieldNames);
 
   // The confidence gate is Theo's, applied rather than reimplemented: only an
   // export the recognition pass calls RECOGNIZED and lands in the accepted band
@@ -599,14 +617,20 @@ const EMPTY_ACTION = "Re-pull the export over a billing period that has usage in
 const UNRECOGNIZED_ACTION = "Re-pull a usage export from one of the consoles this build adapts — "
   + `${SUPPORTED_CONSOLES} — as none of their signature columns are in this file.`;
 
-/** The highest-priority missing required column, by role then contract order. */
-function firstMissingColumn(contract, missing) {
+/**
+ * The highest-priority missing required field, by role then contract order.
+ *
+ * The FIELD rather than its path, because the one instruction names the column
+ * and a preview names what the column is for, and ranking the missing columns a
+ * second time to recover the role is how two surfaces come to name two columns.
+ */
+function firstMissingField(contract, missing) {
   for (const role of PREFLIGHT_COLUMN_PRIORITY) {
     const field = contract.requiredFields.find(
       (entry) => entry.role === role && missing.includes(entry.path));
-    if (field) return field.path;
+    if (field) return field;
   }
-  return missing[0] ?? null;
+  return contract.requiredFields.find((entry) => entry.path === missing[0]) ?? null;
 }
 
 /**
@@ -618,7 +642,7 @@ function preflightAction(reason, { contract, missing }) {
   if (reason === PREFLIGHT_REASONS.UNRECOGNIZED_PROVIDER) return UNRECOGNIZED_ACTION;
   if (reason === PREFLIGHT_REASONS.MISSING_REQUIRED_COLUMN) {
     return `Re-pull the ${contract.displayName} export with the `
-      + `${firstMissingColumn(contract, missing)} column included, then check it again.`;
+      + `${firstMissingField(contract, missing)?.path} column included, then check it again.`;
   }
   if (reason === PREFLIGHT_REASONS.EMPTY_EXPORT) return EMPTY_ACTION;
   return `Nothing to fix. Import this ${contract.displayName} export to run the analysis.`;
@@ -647,19 +671,25 @@ export function preflight(parsed) {
   const fieldNames = Array.isArray(parsed?.fieldNames) ? parsed.fieldNames.map(String) : [];
   const names = new Set(fieldNames);
   const records = Array.isArray(parsed?.records) ? parsed.records : [];
-  const missing = contract
-    ? contract.requiredFields.map((field) => field.path).filter((path) => !names.has(path))
-    : [];
+  const missing = contract ? missingRequiredColumns(contract, names) : [];
 
   // The periods the analysis would fold these rows into: the distinct calendar
   // days the file itself states, counted through the same reader the projection
   // uses. A row whose date cell is unreadable is in no period and is not one.
   const datePath = contract ? byRole(contract, FIELD_ROLES.TIMESTAMP)?.path ?? null : null;
   const periods = new Set();
+  // The same days folded onto the key the movement compares on. Distinct DAYS
+  // and distinct BILLING MONTHS are different counts, and a caller asking
+  // whether a period-over-period figure is earnable needs the second one:
+  // thirty dated rows inside one month are one month, not thirty periods. The
+  // key is `canonicalPeriod`'s, imported rather than re-derived here.
+  const months = new Set();
   if (datePath) {
     for (const row of records) {
       const day = isoDay(row?.[datePath]);
       if (day) periods.add(day);
+      const month = canonicalPeriod(day);
+      if (month) months.add(month);
     }
   }
 
@@ -670,14 +700,29 @@ export function preflight(parsed) {
       : records.length === 0 ? PREFLIGHT_REASONS.EMPTY_EXPORT
         : PREFLIGHT_REASONS.READY;
 
+  const namedColumn = reason === PREFLIGHT_REASONS.MISSING_REQUIRED_COLUMN
+    ? firstMissingField(contract, missing) : null;
+
   return Object.freeze({
     provider: recognition.providerId,
     displayName: contract?.displayName ?? null,
     rowCount: records.length,
     periodCount: periods.size,
+    monthCount: months.size,
     missingColumns: Object.freeze(missing),
-    namedColumn: reason === PREFLIGHT_REASONS.MISSING_REQUIRED_COLUMN
-      ? firstMissingColumn(contract, missing) : null,
+    // The same absence stated by ROLE as well as by path, because a surface
+    // naming a missing input in plain language needs to know what the column is
+    // FOR — "a department or unit label column" — and a path is one contract's
+    // spelling of that. Derived from the contract's own declarations, so no
+    // second table maps a path back to a meaning.
+    missingRoles: Object.freeze(contract
+      ? contract.requiredFields
+        .filter((field) => missing.includes(field.path)).map((field) => field.role)
+      : []),
+    namedColumn: namedColumn?.path ?? null,
+    // What that one column is FOR, so a surface can name it in a reader's words
+    // without mapping the path back through a table of its own.
+    namedColumnRole: namedColumn?.role ?? null,
     reason,
     nextAction: preflightAction(reason, { contract, missing }),
   });
