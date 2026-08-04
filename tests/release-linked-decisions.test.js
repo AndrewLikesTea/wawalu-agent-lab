@@ -19,6 +19,7 @@ import {
   decisionOwner,
   releaseDecisionFollowUp,
   releaseDecisionReadinessText,
+  releaseLinkPhrase,
   renderReleaseDetail,
   renderReleaseDetailError,
   resolveReleaseDetail,
@@ -48,6 +49,10 @@ const RELEASES = [
   { id: "r-settled", version: "v1.7.0", owner: "Ari", status: "completed", createdAt: "2026-03-20T00:00:00.000Z", decisionIds: ["d-queue"] },
   { id: "r-bare", version: "v1.6.0", owner: "Ari", status: "completed", createdAt: "2026-02-20T00:00:00.000Z", decisionIds: [] },
 ];
+
+// The renderer's own date format, computed rather than spelled out, so the
+// assertion holds in whatever timezone the suite runs in.
+const mediumDate = (iso) => new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(new Date(iso));
 
 const followUpFor = (id) => releaseDecisionFollowUp(resolveReleaseDetail(RELEASES, DECISIONS, id));
 
@@ -200,7 +205,32 @@ test("the evidence list carries every linked decision and marks the one being ch
   assert.equal(flags.length, 1);
   assert.equal(flags[0].textContent, "Next follow-up");
   assert.equal(flags[0].parent.href, "/decision.html?id=d-flags");
-  assert.match(first(container, "detail-decisions-caption").textContent, /Every decision linked to this release/);
+  // The caption opens with the same phrase the decision detail puts on this
+  // release, and the release's date, so the relationship reads identically from
+  // either end without opening the other record.
+  assert.match(
+    first(container, "detail-decisions-caption").textContent,
+    new RegExp(`^Shipped in this release · ${mediumDate("2026-06-01T00:00:00.000Z")}\\. Every decision below, in the order it was linked\\.`),
+  );
+  assert.equal(releaseLinkPhrase("completed"), "Shipped in this release");
+});
+
+test("a release that has not shipped says the decisions are referenced, not shipped", () => {
+  // Same wording on both sides of the link: a planned or cancelled release only
+  // names its decisions, and both detail views say so in the same words.
+  assert.equal(releaseLinkPhrase("planned"), "Referenced by this release, not shipped");
+  assert.equal(releaseLinkPhrase("cancelled"), "Referenced by this release, not shipped");
+  // An unreadable status falls back to the release vocabulary's default, so the
+  // phrase can never render as "undefined".
+  assert.equal(releaseLinkPhrase("shipped-ish"), "Shipped in this release");
+
+  const planned = { id: "r-plan", version: "v3.0.0", owner: "Ari", status: "planned", createdAt: "2026-07-04T00:00:00.000Z", decisionIds: ["d-queue"] };
+  const container = createElement("div");
+  renderReleaseDetail(container, resolveReleaseDetail([planned], DECISIONS, "r-plan"));
+  assert.match(
+    first(container, "detail-decisions-caption").textContent,
+    new RegExp(`^Referenced by this release, not shipped · ${mediumDate("2026-07-04T00:00:00.000Z")}\\.`),
+  );
 });
 
 test("a dangling reference is marked in place and keeps its position in the log", () => {

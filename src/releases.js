@@ -176,6 +176,12 @@ export function releaseStatus(release) {
   return RELEASE_STATUSES.includes(release?.status) ? release.status : "completed";
 }
 
+// What the decision-release link means, in the one phrase both detail views
+// use: a completed release shipped what it carried, others only name it.
+export const releaseLinkPhrase = (status) => releaseStatus({ status }) === "completed"
+  ? "Shipped in this release"
+  : "Referenced by this release, not shipped";
+
 export function releaseTitle(release) {
   return typeof release?.title === "string" && release.title.trim() !== ""
     ? release.title
@@ -1176,12 +1182,12 @@ function renderDetailDecisions(resolved, followUp = null) {
   }
 
   // The list is the evidence behind the callout above: everything this release
-  // carried, not just the one decision being chased. Saying so is what keeps
-  // the prioritised follow-up from reading like the whole picture.
+  // carried, not just the one being chased. It opens with the phrase and date
+  // the decision detail shows, so the link reads the same from either end.
   section.append(el(
     "p",
     "detail-decisions-caption",
-    "Every decision linked to this release, in the order it was linked. Open one to read the record behind it.",
+    `${releaseLinkPhrase(resolved.status)} · ${formatDate(resolved.createdAt)}. Every decision below, in the order it was linked. Open one to read the record behind it.`,
   ));
 
   const list = el("ol", "detail-decision-list");

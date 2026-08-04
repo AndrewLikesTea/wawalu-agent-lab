@@ -21,6 +21,7 @@ import {
   summarizeLinkedReleases,
 } from "../src/decision-detail.js";
 import { loadDecisionDetail } from "../src/decision-page.js";
+import { releaseLinkPhrase } from "../src/releases.js";
 
 const longDate = (iso) => new Intl.DateTimeFormat(undefined, { dateStyle: "long" }).format(new Date(iso));
 
@@ -89,13 +90,13 @@ test("the summary states the count and where the newest release stands", () => {
   const summary = summarizeLinkedReleases(normalizeLinkedReleases(linked));
   assert.equal(summary.count, 3);
   assert.equal(summary.newest.version, "v1.4.0");
-  assert.equal(summary.text, `3 linked releases. Newest: v1.4.0 — planned on ${longDate("2026-07-01T16:00:00.000Z")}.`);
+  assert.equal(summary.text, `3 releases carry this decision. Newest: v1.4.0 — planned on ${longDate("2026-07-01T16:00:00.000Z")}.`);
 
   const single = summarizeLinkedReleases(normalizeLinkedReleases([release({})]));
-  assert.match(single.text, /^1 linked release\. /);
+  assert.match(single.text, /^1 release carries this decision\. /);
 
   const undated = summarizeLinkedReleases(normalizeLinkedReleases([release({ createdAt: "" })]));
-  assert.equal(undated.text, "1 linked release. Newest: v1.3.0 — completed (date not recorded).");
+  assert.equal(undated.text, "1 release carries this decision. Newest: v1.3.0 — completed (date not recorded).");
 
   assert.deepEqual(summarizeLinkedReleases([]), { count: 0, newest: null, text: "" });
   assert.deepEqual(summarizeLinkedReleases(), { count: 0, newest: null, text: "" });
@@ -121,12 +122,39 @@ test("the summary and list render only when releases are linked", () => {
     const section = renderLinkedReleases(nothing);
     assert.equal(byClass(section, "linked-release-summary").length, 0, "no summary without a linked release");
     assert.equal(byClass(section, "linked-release-list").length, 0, "no list without a linked release");
-    assert.equal(tags(section, "A").length, 0);
-    // The standalone renderer has a useful explicit empty state. The decision
-    // view itself omits this relationship when there is no association.
-    assert.equal(tags(section, "H2")[0].textContent, "Linked releases");
-    assert.match(section.textContent, /No releases link to this decision yet/);
+    // The empty state is not blank space and not a bare zero: it names the
+    // relationship in the heading, says the answer in a sentence, and offers
+    // the one move that changes it — recording the release.
+    assert.equal(tags(section, "H2")[0].textContent, "Releases that carry this decision");
+    assert.match(section.textContent, /No release carries this decision yet, so nothing here says when it shipped\./);
+    const action = first(section, "empty-action");
+    assert.equal(action.textContent, "Record the release that ships this decision");
+    assert.equal(action.href, "/releases.html#release-form");
+    assert.equal(tags(section, "A").length, 1, "the next action is the only link in the empty state");
   }
+});
+
+test("each row says whether the decision shipped in that release or is only referenced by it", () => {
+  const section = renderLinkedReleases(linked);
+  const rows = byClass(section, "linked-release");
+  assert.deepEqual(
+    rows.map((row) => first(row, "linked-release-relationship").textContent),
+    [
+      // v1.4.0 is planned and v1.2.0 cancelled: neither shipped anything.
+      "Referenced by this release, not shipped",
+      "Shipped in this release",
+      "Referenced by this release, not shipped",
+    ],
+  );
+  // The same phrase the release detail puts on the other side of the link.
+  assert.equal(first(rows[1], "linked-release-relationship").textContent, releaseLinkPhrase("completed"));
+  assert.equal(first(rows[0], "linked-release-relationship").textContent, releaseLinkPhrase("planned"));
+  // Relationship, status and date are one described sentence, separated by real
+  // characters so a screen reader does not run them together.
+  assert.match(
+    first(rows[1], "linked-release-meta").textContent,
+    new RegExp(`Shipped in this release\\s+·\\s+completed\\s+·\\s+${longDate("2026-05-25T16:00:00.000Z")}`),
+  );
 });
 
 test("every release is one native link to the existing release detail route", () => {
@@ -154,7 +182,7 @@ test("status and date are described to the link rather than folded into its name
   const section = renderLinkedReleases(linked);
   const list = first(section, "linked-release-list");
   assert.equal(list.tagName, "UL");
-  assert.equal(list.getAttribute("aria-label"), "Linked releases, newest first");
+  assert.equal(list.getAttribute("aria-label"), "Releases that carry this decision, newest first");
   assert.equal(section.getAttribute("aria-labelledby"), "linked-releases-title");
   assert.equal(tags(section, "H2")[0].id, "linked-releases-title");
 
@@ -222,17 +250,20 @@ test("the decision detail view keeps the section between the record header and i
   assert.ok(section.classes.includes("proof-relationship"), "keeps the shared relationship styling hook");
   const sections = tags(container, "SECTION").map((node) => node.classes[0]);
   assert.ok(sections.indexOf("proof-relationship") < sections.indexOf("decision-context"));
-  assert.match(container.textContent, /3 linked releases\. Newest: v1\.4\.0 — planned/);
+  assert.match(container.textContent, /3 releases carry this decision\. Newest: v1\.4\.0 — planned/);
   // The return link stays the first thing in the container on every path.
   assert.equal(tags(container, "A")[0].textContent, "← Back to Decisions");
   assert.equal(tags(container, "A")[1].href, "/release.html?id=r-1-4-0");
 });
 
-test("the decision detail omits the linked-release section when no association exists", () => {
+test("the decision detail states the relationship even when no release carries the decision", () => {
   const container = createElement("div");
   renderDecisionDetail(container, decision, { linkedReleases: [] });
-  assert.equal(byClass(container, "linked-releases").length, 0);
-  assert.doesNotMatch(container.textContent, /Linked releases|No releases link/);
+  assert.equal(byClass(container, "linked-releases").length, 1);
+  assert.match(container.textContent, /Releases that carry this decision/);
+  assert.match(container.textContent, /No release carries this decision yet/);
+  // Back link first, the next action second: no release row exists to link to.
+  assert.deepEqual(tags(container, "A").map((link) => link.href), ["/", "/releases.html#release-form"]);
 });
 
 test("the page layer associates releases by decision id and the view orders them", () => {
