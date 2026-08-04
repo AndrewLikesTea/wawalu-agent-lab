@@ -42,6 +42,27 @@
           <p id="finops-intro">Import a provider export and this page names how much of your AI spend is recoverable, what to do first, and how far to trust the number.</p>
           <p class="finops-provenance" id="finops-provenance">Bundled synthetic example</p>
         </div>
+        <!-- THE TRACK RECORD (#1091), above the snapshot below it. A returning
+             reader opens this page on the question they left with — did what we
+             committed to work — and it was answered nowhere above the fold.
+             Four things and no more: the figure, the verdict, one line of
+             context, one action. Painted by finops-track-record.js from the
+             kept period series (#1089) and the scoring module (#1090); nothing
+             is scored or parsed here, and no figure is authored, so the state
+             before the script runs says what it is rather than showing a zero.
+             The per-period working sits in a collapsed disclosure the view
+             appends; the figure, the badge and the action stay outside it, so a
+             reader is told the grade without opening anything. -->
+        <section class="hero-track-record" id="finops-track-record" data-state="pending" aria-labelledby="finops-track-record-question">
+          <h2 class="track-record-question" id="finops-track-record-question">Did what we committed to work?</h2>
+          <!-- The authored line is the state a first visit is actually in — no
+               period kept — and not a status about a read that is under way.
+               This region sits in the hero's explanation zone, where nothing may
+               narrate a load or say what has not happened; see
+               tests/finops-first-screen-copy.js. The view replaces it the
+               moment there is a record to report. -->
+          <p class="local-lead-basis" id="finops-track-record-context">No track record on file: this browser is keeping no period. Importing one provider export keeps the month it covers and starts the record.</p>
+        </section>
       </section>
 
       <!-- THE WORKSPACE FRAME. This region, the brief under it, the load status,
