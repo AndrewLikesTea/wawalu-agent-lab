@@ -110,8 +110,14 @@ import { briefingFile, buildBriefing } from "/finops-briefing-export.js";
 // both have been composed. This page does not know the storage shape or consent
 // rules; the adapter owns projection, refusal, and the write/no-write decision.
 import {
-  browserFinopsWorkspaceStorage, readRetainedPeriodInputs, retainDerivedPeriod,
+  browserFinopsWorkspaceStorage, readRetainedCommitments, readRetainedPeriodInputs,
+  retainDerivedPeriod,
 } from "/finops-workspace.js";
+// The track-record header above the answer region (#1091). It scores nothing
+// itself: it reads the kept series (#1089) and the verdict module (#1090) and
+// decides which of the five states this browser is in, and which single action
+// follows.
+import { renderTrackRecord, trackRecordModel } from "/finops-track-record.js";
 // The read half of the same opt-in store. A visitor who granted retention and
 // comes back later gets their last derived period, the movement between the
 // retained months, and the commitments approved against them without opening a
@@ -3620,8 +3626,29 @@ function mountLocalFinopsImport() {
     input.value = "";
   };
 
+  /**
+   * "Did what we committed to work?", at the top of the page (#1091).
+   *
+   * The same series the count line below is painted from, plus the newest
+   * commitment this browser kept. A store that refuses the read leaves the
+   * commitment null, which is the uncommitted state and a header that says so —
+   * never a thrown error into the load path.
+   */
+  const paintTrackRecord = (series) => {
+    let commitment = null;
+    try {
+      commitment = readRetainedCommitments(retentionStore()).at(-1) ?? null;
+    } catch {
+      commitment = null;
+    }
+    renderTrackRecord(document, trackRecordModel({ series, commitment }));
+  };
+
   const paintBriefingSeries = (series) => {
     paintedSeries = Array.isArray(series) ? series : [];
+    // Painted from the one place the series changes, so the header above the
+    // fold and the count line beside the answer can never disagree.
+    paintTrackRecord(paintedSeries);
     paintPortability(paintedSeries);
     const node = document.getElementById("local-lead-series");
     if (!node) return;
