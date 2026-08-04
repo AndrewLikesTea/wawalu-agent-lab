@@ -1163,10 +1163,18 @@ function renderDetailGoverning(association) {
   return section;
 }
 
+// The same relationship the decision detail names from its own side, worded
+// from this one: a decision shipped in this release. Both headings are built
+// from the one association Shiplog stores (a release names the decisions it
+// carried), so neither side can claim a link the records cannot support.
+export const DETAIL_DECISIONS_TITLE = "Decisions shipped in this release";
+export const DETAIL_DECISIONS_CAPTION =
+  "Every decision shipped in this release, in the order it was linked. Open one to read the record behind it.";
+
 function renderDetailDecisions(resolved, followUp = null) {
   const section = el("section", "detail-decisions");
   section.setAttribute("aria-labelledby", "detail-decisions-title");
-  section.append(el("h2", "detail-decisions-heading", "Decisions in this release"));
+  section.append(el("h2", "detail-decisions-heading", DETAIL_DECISIONS_TITLE));
   section.querySelector(".detail-decisions-heading").id = "detail-decisions-title";
   section.append(el("p", "detail-summary", statusSummaryText(resolved)));
 
@@ -1178,11 +1186,7 @@ function renderDetailDecisions(resolved, followUp = null) {
   // The list is the evidence behind the callout above: everything this release
   // carried, not just the one decision being chased. Saying so is what keeps
   // the prioritised follow-up from reading like the whole picture.
-  section.append(el(
-    "p",
-    "detail-decisions-caption",
-    "Every decision linked to this release, in the order it was linked. Open one to read the record behind it.",
-  ));
+  section.append(el("p", "detail-decisions-caption", DETAIL_DECISIONS_CAPTION));
 
   const list = el("ol", "detail-decision-list");
   // Keep the release author's association order, including dangling records.

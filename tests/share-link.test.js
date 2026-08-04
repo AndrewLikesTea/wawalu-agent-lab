@@ -56,12 +56,12 @@ test("public proof pages expose required content, relationships, and announced c
     read("decision-page.js"),
     read("release-page.js"),
   ]);
-  assert.match(decision, /Linked releases/);
+  assert.match(decision, /Releases that shipped this decision/);
   assert.match(decision, /\["Status", statusWord/);
   assert.match(decision, /\["Owner", decision\.owner/);
   assert.match(release, /renderMetaRow\("Status"/);
   assert.match(release, /renderMetaRow\("Owner"/);
-  assert.match(release, /Decisions in this release/);
+  assert.match(release, /Decisions shipped in this release/);
   assert.match(share, /Link copied to clipboard\./);
   assert.match(share, /role", "status"/);
   assert.match(share, /Could not copy the link/);

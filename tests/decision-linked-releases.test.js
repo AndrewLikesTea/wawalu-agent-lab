@@ -14,12 +14,15 @@ import { byClass, createElement, first, installDocument, tags } from "./support/
 installDocument();
 
 import {
+  LINKED_RELEASES_EMPTY,
+  LINKED_RELEASES_TITLE,
   MAX_LINKED_RELEASES,
   normalizeLinkedReleases,
   renderDecisionDetail,
   renderLinkedReleases,
   summarizeLinkedReleases,
 } from "../src/decision-detail.js";
+import { SHIPPED_IN_LABEL } from "../src/shipped-releases.js";
 import { loadDecisionDetail } from "../src/decision-page.js";
 
 const longDate = (iso) => new Intl.DateTimeFormat(undefined, { dateStyle: "long" }).format(new Date(iso));
@@ -122,11 +125,39 @@ test("the summary and list render only when releases are linked", () => {
     assert.equal(byClass(section, "linked-release-summary").length, 0, "no summary without a linked release");
     assert.equal(byClass(section, "linked-release-list").length, 0, "no list without a linked release");
     assert.equal(tags(section, "A").length, 0);
-    // The standalone renderer has a useful explicit empty state. The decision
-    // view itself omits this relationship when there is no association.
-    assert.equal(tags(section, "H2")[0].textContent, "Linked releases");
-    assert.match(section.textContent, /No releases link to this decision yet/);
+    // The heading names the relationship, and the absence is one sentence that
+    // names the next action rather than a blank slot or a bare zero.
+    assert.equal(tags(section, "H2")[0].textContent, "Releases that shipped this decision");
+    assert.equal(tags(section, "H2")[0].textContent, LINKED_RELEASES_TITLE);
+    assert.equal(
+      first(section, "detail-muted").textContent,
+      "No releases link to this decision yet — link one when you record a release.",
+    );
+    assert.equal(first(section, "detail-muted").textContent, LINKED_RELEASES_EMPTY);
   }
+});
+
+test("every row says which relationship it is, with the release date beside it", () => {
+  const section = renderLinkedReleases(linked);
+  const rows = byClass(section, "linked-release");
+  assert.equal(rows.length, 3);
+  for (const row of rows) {
+    const meta = first(row, "linked-release-meta");
+    // "Shipped in" is the only relationship the stored association can state,
+    // and it is the same wording the history row uses.
+    assert.equal(first(meta, "owner-label").textContent, "Shipped in");
+    assert.equal(first(meta, "owner-label").textContent, SHIPPED_IN_LABEL);
+    assert.match(meta.textContent, /^Shipped in/);
+    // Never the relationship the payload cannot distinguish.
+    assert.doesNotMatch(meta.textContent, /Referenced by/);
+  }
+  // The relationship and the date are in the one row, so a reader never has to
+  // pair them up across lines.
+  assert.match(first(rows[0], "linked-release-meta").textContent, /Shipped in/);
+  assert.match(
+    first(rows[0], "linked-release-meta").textContent,
+    new RegExp(longDate("2026-07-01T16:00:00.000Z").replace(/[.*+?^${}()|[\]\\]/g, "\\$&")),
+  );
 });
 
 test("every release is one native link to the existing release detail route", () => {
@@ -154,7 +185,7 @@ test("status and date are described to the link rather than folded into its name
   const section = renderLinkedReleases(linked);
   const list = first(section, "linked-release-list");
   assert.equal(list.tagName, "UL");
-  assert.equal(list.getAttribute("aria-label"), "Linked releases, newest first");
+  assert.equal(list.getAttribute("aria-label"), "Releases that shipped this decision, newest first");
   assert.equal(section.getAttribute("aria-labelledby"), "linked-releases-title");
   assert.equal(tags(section, "H2")[0].id, "linked-releases-title");
 
@@ -228,11 +259,14 @@ test("the decision detail view keeps the section between the record header and i
   assert.equal(tags(container, "A")[1].href, "/release.html?id=r-1-4-0");
 });
 
-test("the decision detail omits the linked-release section when no association exists", () => {
+test("the decision detail states the absence, and the next action, when nothing is linked", () => {
   const container = createElement("div");
   renderDecisionDetail(container, decision, { linkedReleases: [] });
-  assert.equal(byClass(container, "linked-releases").length, 0);
-  assert.doesNotMatch(container.textContent, /Linked releases|No releases link/);
+  assert.equal(byClass(container, "linked-releases").length, 1);
+  assert.match(container.textContent, /Releases that shipped this decision/);
+  assert.match(container.textContent, /No releases link to this decision yet — link one when you record a release\./);
+  // Nothing to open, and no new tab stop for a reader to land on.
+  assert.equal(byClass(container, "linked-release-link").length, 0);
 });
 
 test("the page layer associates releases by decision id and the view orders them", () => {

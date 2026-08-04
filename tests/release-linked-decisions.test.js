@@ -200,7 +200,10 @@ test("the evidence list carries every linked decision and marks the one being ch
   assert.equal(flags.length, 1);
   assert.equal(flags[0].textContent, "Next follow-up");
   assert.equal(flags[0].parent.href, "/decision.html?id=d-flags");
-  assert.match(first(container, "detail-decisions-caption").textContent, /Every decision linked to this release/);
+  assert.match(first(container, "detail-decisions-caption").textContent, /Every decision shipped in this release/);
+  // The same relationship the decision detail names from its side, worded from
+  // this one, so a reader meets one relationship and not two.
+  assert.equal(first(container, "detail-decisions-heading").textContent, "Decisions shipped in this release");
 });
 
 test("a dangling reference is marked in place and keeps its position in the log", () => {

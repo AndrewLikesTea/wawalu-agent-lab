@@ -343,6 +343,13 @@ test("a release manager records a decision, ships it, and reaches it again from 
   assert.equal(linked.length, 1, "the release's own page does not list the decision it carried");
   assert.equal(textOf(linked[0].querySelector(".detail-decision-title")), DECISION.title);
   assert.match(textOf(detail.document.querySelector(".detail-summary")), /1 decision · 1 accepted/);
+  // The relationship is named in words on this side of the link, on the built
+  // page rather than only in the renderer's unit test.
+  assert.equal(
+    textOf(detail.document.querySelector(".detail-decisions-heading")),
+    "Decisions shipped in this release",
+    "the release page does not name the relationship it lists",
+  );
   tabTo(detail, ".detail-decision", "the linked decision on the release detail page");
   pressEnter(detail.document);
   assert.deepEqual(
@@ -362,6 +369,18 @@ test("a release manager records a decision, ships it, and reaches it again from 
   const back = decisionDetail.document.querySelector(".linked-release-link");
   assert.ok(back, "the decision does not name the release that shipped it");
   assert.match(textOf(back), new RegExp(RELEASE.version.replace(".", "\\.")), "the linked release is not named by version");
+  // And the same relationship, worded from this side: the section says what the
+  // list is, and the row says which relationship it is, beside the date.
+  assert.match(
+    textOf(decisionDetail.document.querySelector(".linked-releases")),
+    /Releases that shipped this decision/,
+    "the decision page does not name the relationship it lists",
+  );
+  assert.match(
+    textOf(decisionDetail.document.querySelector(".linked-release-meta")),
+    /Shipped in/,
+    "the linked-release row does not say which relationship it is",
+  );
   tabTo(decisionDetail, ".linked-release-link", "the linked release on the decision page");
   pressEnter(decisionDetail.document);
   assert.deepEqual(

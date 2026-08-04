@@ -11,7 +11,7 @@ import { indexSupersessions } from "./supersede.js";
 // inline. They are still part of this module's interface: the detail page, and
 // the tests that pin it, have always read them from here.
 export { MAX_LINKED_RELEASES, normalizeLinkedReleases } from "./shipped-releases.js";
-import { normalizeLinkedReleases, text } from "./shipped-releases.js";
+import { SHIPPED_IN_LABEL, normalizeLinkedReleases, text } from "./shipped-releases.js";
 
 export const MAX_COMPARISON_SELECTION = 2;
 
@@ -362,9 +362,14 @@ export function summarizeLinkedReleases(entries = []) {
 const LINKED_RELEASE_UNDATED = "Date not recorded";
 
 // Native anchors, one per release: keyboard reachability is the browser's job
-// here, not a tabindex the view has to keep correct. Status and date sit outside
-// the link so the accessible name stays the release itself, and are joined back
-// to it with aria-describedby so a screen reader still hears them on focus.
+// here, not a tabindex the view has to keep correct. The relationship, status
+// and date sit outside the link so the accessible name stays the release
+// itself, and are joined back to it with aria-describedby so a screen reader
+// still hears them on focus.
+//
+// The row names the relationship in words rather than leaving a reader to infer
+// it from the section it is in: this release shipped the decision. It is the
+// same wording, and the same shared constant, the history row already uses.
 function renderLinkedRelease(entry, index) {
   const item = el("li", `linked-release${index === 0 ? " linked-release-newest" : ""}`);
   const link = el("a", "linked-release-link");
@@ -376,6 +381,9 @@ function renderLinkedRelease(entry, index) {
   if (entry.title) link.append(document.createTextNode(" · "), el("span", "linked-release-title", entry.title));
   const meta = el("p", "linked-release-meta");
   meta.id = `linked-release-meta-${index + 1}`;
+  // Reuses the micro-label rule the history row's own "Shipped in" already
+  // uses, so naming the relationship here costs no new stylesheet rule.
+  meta.append(el("span", "owner-label", SHIPPED_IN_LABEL));
   meta.append(el("span", `badge badge-release-${entry.status}`, entry.status));
   if (entry.dated) {
     const time = el("time", "linked-release-date", longDate(entry.createdAt));
@@ -389,18 +397,26 @@ function renderLinkedRelease(entry, index) {
   return item;
 }
 
+// The heading names the relationship, not just the two record types either side
+// of it: a reader knows what the list is about without opening a row.
+export const LINKED_RELEASES_TITLE = "Releases that shipped this decision";
+
+// The absence, with the one thing to do about it. A decision that has not
+// shipped is a real answer and gets a sentence, not a blank slot; the next step
+// is naming it on a release, which happens at the moment a release is recorded.
+export const LINKED_RELEASES_EMPTY =
+  "No releases link to this decision yet — link one when you record a release.";
+
 export function renderLinkedReleases(releases) {
   const section = el("section", "proof-relationship linked-releases");
   section.setAttribute("aria-labelledby", "linked-releases-title");
-  const heading = el("h2", undefined, "Linked releases");
+  const heading = el("h2", undefined, LINKED_RELEASES_TITLE);
   heading.id = "linked-releases-title";
   section.append(heading);
 
   const entries = normalizeLinkedReleases(releases);
-  // The absence is stated rather than hidden: a decision with nothing shipped
-  // yet is a real answer, and silence reads as a page that failed to load.
   if (!entries.length) {
-    section.append(el("p", "detail-muted", "No releases link to this decision yet."));
+    section.append(el("p", "detail-muted", LINKED_RELEASES_EMPTY));
     return section;
   }
 
@@ -409,7 +425,7 @@ export function renderLinkedReleases(releases) {
   section.append(summary);
   const list = el("ul", "linked-release-list");
   // The order is meaningful, so it is stated, not left to be inferred visually.
-  list.setAttribute("aria-label", "Linked releases, newest first");
+  list.setAttribute("aria-label", `${LINKED_RELEASES_TITLE}, newest first`);
   entries.forEach((entry, index) => list.append(renderLinkedRelease(entry, index)));
   section.append(list);
   return section;
@@ -460,9 +476,10 @@ export function renderDecisionDetail(container, decision, options = {}) {
   if (successor) view.append(renderSupersededBanner(successor));
   if (predecessor) view.append(renderReplacesDisclosure(predecessor));
 
-  if (normalizeLinkedReleases(options.linkedReleases).length) {
-    view.append(renderLinkedReleases(options.linkedReleases));
-  }
+  // Always rendered, including with nothing linked. "This decision has not
+  // shipped" is an answer a reader came for, and an omitted section is
+  // indistinguishable from a section that failed to load.
+  view.append(renderLinkedReleases(options.linkedReleases));
   const context = el("section", "decision-context"); context.setAttribute("aria-labelledby", "context-title");
   context.append(el("h2", undefined, "Context and rationale"), el("p", undefined, decision.context)); context.firstChild.id = "context-title"; view.append(context);
   const alternativesSection = el("section", "decision-alternatives"); alternativesSection.setAttribute("aria-labelledby", "alternatives-title");

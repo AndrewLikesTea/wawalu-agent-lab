@@ -17,6 +17,17 @@ import { releaseDetailHref, releaseStatus, releaseTitle } from "./releases.js";
 // the recorder can name any number of releases; a row is still a row.
 export const MAX_LINKED_RELEASES = 100;
 
+// One name for this relationship, wherever it is put into words: the history
+// row's label, the rows of the decision detail's release section, and the
+// release detail's heading. Held here so the three cannot drift into three
+// different words for the same association.
+//
+// Shiplog stores exactly one kind of link — a release names the decisions it
+// carried — so this is the only relationship the records can state. A weaker
+// one, where a release merely mentions a decision it did not deliver, is not
+// representable today, and no view may word a link as if it were.
+export const SHIPPED_IN_LABEL = "Shipped in";
+
 export const text = (value, fallback = "") => typeof value === "string" && value.trim() ? value.trim() : fallback;
 
 // Stored data can be edited outside the recorder. Keep route identifiers free of

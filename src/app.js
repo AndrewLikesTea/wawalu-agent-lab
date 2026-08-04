@@ -49,7 +49,7 @@ import {
   resolveRelease,
   statusSummaryText,
 } from "./releases.js";
-import { shippedState } from "./shipped-releases.js";
+import { SHIPPED_IN_LABEL, shippedState } from "./shipped-releases.js";
 
 export const STORAGE_KEY = "shiplog.decisions.v1";
 // Every value a stored or imported record may carry. The words a visitor reads
@@ -215,7 +215,9 @@ export { RECORD_TYPES };
 // happened is that the evidence went missing, so the two never share wording.
 export const RELATIONSHIP_COPY = {
   decision: {
-    label: "Shipped in",
+    // The one shared wording for this relationship: the decision detail's rows
+    // name it with the same constant, so the row and the record agree.
+    label: SHIPPED_IN_LABEL,
     empty: "Not yet shipped",
     unresolved: "Shipped releases could not be read",
   },
