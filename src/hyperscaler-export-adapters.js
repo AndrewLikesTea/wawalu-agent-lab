@@ -47,6 +47,10 @@ import { parseExportText } from "./browser-compat-eligibility.js";
 import {
   RECOGNITION_BANDS, RECOGNITION_OUTCOMES, recognizeExport,
 } from "./export-recognition.js";
+// The canonical month key, imported rather than restated: the verdict's month
+// count must bucket exactly the way the period series buckets, or a check would
+// promise a movement the series then declines to compute.
+import { canonicalPeriod } from "./finops-imported-period-series.js";
 import { LOCAL_KINDS, parseLocalFinopsFile } from "./local-finops.js";
 import {
   ABSENT, PROVIDER_USAGE_SCHEMA_VERSION, usageDetail,
@@ -656,10 +660,18 @@ export function preflight(parsed) {
   // uses. A row whose date cell is unreadable is in no period and is not one.
   const datePath = contract ? byRole(contract, FIELD_ROLES.TIMESTAMP)?.path ?? null : null;
   const periods = new Set();
+  // The BILLING MONTHS those days fall in, counted in the same pass. A day count
+  // and a month count are different answers to "how much of a range is this?" —
+  // twenty daily rows are twenty days and one month — and the movement figure is
+  // withheld or earned on the MONTH count (#1065). The key is
+  // `canonicalPeriod`'s, so this counts the same buckets the series does.
+  const months = new Set();
   if (datePath) {
     for (const row of records) {
       const day = isoDay(row?.[datePath]);
       if (day) periods.add(day);
+      const month = canonicalPeriod(day);
+      if (month) months.add(month);
     }
   }
 
@@ -675,6 +687,11 @@ export function preflight(parsed) {
     displayName: contract?.displayName ?? null,
     rowCount: records.length,
     periodCount: periods.size,
+    monthCount: months.size,
+    // The header the reader's own units are keyed on, so a caller can ask which
+    // OTHER columns in this file could name them. Named rather than re-derived:
+    // a second lookup of the scope role is a second answer waiting to happen.
+    scopeColumn: contract ? byRole(contract, FIELD_ROLES.SCOPE)?.path ?? null : null,
     missingColumns: Object.freeze(missing),
     namedColumn: reason === PREFLIGHT_REASONS.MISSING_REQUIRED_COLUMN
       ? firstMissingColumn(contract, missing) : null,

@@ -199,6 +199,26 @@ function labelColumns(columns, unitColumn) {
 }
 
 /**
+ * WHICH COLUMNS IN THIS HEADER COULD NAME A UNIT, in precedence order (#1065).
+ *
+ * The same `labelColumns` above, flattened to the column names it matched, so a
+ * surface that has only the HEADER of an export — the preflight check, which
+ * reads no cells and imports nothing — can answer "would this file name my
+ * departments?" through this module's rule rather than a second copy of it.
+ *
+ * It reads no cell and derives no name: an empty result means no recognized
+ * name column is present, which is why the derivation would fall back to the
+ * pseudonym. A non-empty result means the INPUT is there; whether any cell in
+ * it carries a usable value is `deriveOrgUnitNames`' answer and not this one's.
+ */
+export function labelSourceColumns(columns, unitColumn = null) {
+  const header = Array.isArray(columns) ? columns.map(text) : [];
+  if (header.length === 0) return Object.freeze([]);
+  return Object.freeze(labelColumns(header, text(unitColumn).trim())
+    .flatMap((group) => group.columns.map((column) => column.name)));
+}
+
+/**
  * The one unit's name, or null. Rule 3's resolution, in one place: fields in
  * precedence order, and inside the winning field the value on the most rows,
  * ties to first appearance in file order.

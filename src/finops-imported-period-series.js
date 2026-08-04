@@ -41,6 +41,24 @@ import { LOCAL_KINDS, reconcileRecords } from "./local-finops.js";
 /** Bump when a key, a sum rule, or a movement field changes meaning. */
 export const PERIOD_SERIES_VERSION = "finops-imported-period-series/1.0.0";
 
+/**
+ * How many distinct calendar months a movement figure needs. Two, because a
+ * movement is a comparison and one month has nothing to be compared against.
+ */
+export const MIN_MOVEMENT_PERIODS = 2;
+
+/**
+ * THE MOVEMENT RULE, in one place (#1065).
+ *
+ * `periodMovement` below applies it to the series it just built, and
+ * `finops-figure-capability.js` applies it to the month count a preflight
+ * verdict already carries, so the panel that says "movement is withheld" before
+ * an import and the figure that is withheld after it cannot disagree. Copying
+ * `>= 2` into the preview is exactly how the two would come to differ.
+ */
+export const hasMovementPeriods = (periodCount) =>
+  Number(periodCount) >= MIN_MOVEMENT_PERIODS;
+
 /** The three directions. "flat" is a finding, not a missing one. */
 export const MOVEMENT_DIRECTION = Object.freeze({
   increase: "increase", decrease: "decrease", flat: "flat",
@@ -196,7 +214,7 @@ export function periodMovement(series) {
   const entries = periodSeriesFromTotals(series);
   if (entries.length === 0) return movement({});
   const latest = entries.at(-1);
-  if (entries.length === 1) {
+  if (!hasMovementPeriods(entries.length)) {
     return movement({
       periodCount: 1,
       onlyPeriod: latest.period,
