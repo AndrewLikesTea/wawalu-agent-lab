@@ -132,7 +132,8 @@ import {
   writeRetainedBriefing,
 } from "/finops-briefing-retention.js";
 import {
-  bindBriefingRetention, clearBriefingRetention, renderBriefingRetention,
+  bindBriefingPortability, bindBriefingRetention, clearBriefingRetention,
+  renderBriefingPortability, renderBriefingRetention,
 } from "/finops-briefing-retention-view.js";
 import { briefingFromRetained } from "/finops-briefing-retention.js";
 // …and the keyed series beside it (#1089): one entry per period plus provider
@@ -140,6 +141,13 @@ import { briefingFromRetained } from "/finops-briefing-retention.js";
 // first. Reads are total and the migration off the single key runs on load.
 import {
   briefingSeriesSummary, forgetBriefingSeries, readBriefingSeries, recordBriefingSeriesEntry,
+} from "/finops-briefing-series.js";
+// The portable half of the same store (#1092): one self-describing file out,
+// one validated file back in. Every shape decision and every refusal sentence
+// lives in the store; this page owns only the object URL and the file read.
+import {
+  SERIES_FILE_COPY, SERIES_FILE_MAX_BYTES, SERIES_FILE_NAME, briefingSeriesFileText,
+  briefingSeriesUnreadable, importBriefingSeries,
 } from "/finops-briefing-series.js";
 // One entry point for a selected file: `.json` keeps the reviewed JSON path
 // untouched, `.csv`/`.tsv`/`.txt` route through the delimited normalizer. Both
@@ -3541,7 +3549,80 @@ function mountLocalFinopsImport() {
    * the count and the span on screen. Nothing on file renders nothing at all,
    * because an empty count line reads as a figure that failed.
    */
+  // -------------------------------------------------------------------------
+  // CARRYING THE TRACK RECORD OUT OF THIS BROWSER AND BACK IN (#1092)
+  // -------------------------------------------------------------------------
+  //
+  // The store owns the file shape, the ceiling, every refusal sentence and the
+  // single write. This page owns two things only: the object URL a download
+  // needs, and reading the text off the file the reader chose. Nothing here
+  // parses, merges or decides — a refusal is a sentence handed back.
+
+  /** The series last painted, so a refusal can repaint it without a storage read. */
+  let paintedSeries = [];
+
+  /**
+   * The count on file, and the outcome of the last action beside it.
+   *
+   * An empty count with an unreadable record behind it is not "nothing kept":
+   * it is periods a reader put here and cannot see, so that case says so and
+   * names the two ways out — import a file, or forget what is here.
+   */
+  const paintPortability = (series, message = null) => {
+    const { label } = briefingSeriesSummary(series);
+    const corrupt = !label && briefingSeriesUnreadable(retentionStore());
+    renderBriefingPortability(document, {
+      count: label,
+      message: message ?? (corrupt ? SERIES_FILE_COPY.unreadable : ""),
+    });
+  };
+
+  /** Serialize what is on file, hand it over as a file, and revoke the URL. */
+  const exportTrackRecord = () => {
+    const series = readBriefingSeries(retentionStore());
+    const { count } = briefingSeriesSummary(series);
+    if (count === 0) {
+      // An empty file is worse than a refusal: it imports cleanly and teaches a
+      // reader their record was carried when nothing was.
+      paintPortability(series, SERIES_FILE_COPY.nothingToExport);
+      return;
+    }
+    downloadLocalExport(briefingSeriesFileText(series), "application/json", SERIES_FILE_NAME);
+    paintPortability(series, SERIES_FILE_COPY.exported(count));
+  };
+
+  /**
+   * A chosen file, validated whole and committed once — or refused, with the
+   * count on screen left exactly as it was because storage was never touched.
+   */
+  const importTrackRecord = async (input) => {
+    const file = input?.files?.[0] ?? null;
+    if (!file) return;
+    const declared = Number.isFinite(Number(file.size)) ? Number(file.size) : null;
+    // The ceiling is checked against the chooser's own byte count FIRST, so an
+    // oversized file is refused rather than read into this tab to be measured.
+    if (declared !== null && declared > SERIES_FILE_MAX_BYTES) {
+      paintPortability(paintedSeries, SERIES_FILE_COPY.oversized(declared));
+      return;
+    }
+    let text = null;
+    try {
+      text = await file.text();
+    } catch {
+      paintPortability(paintedSeries, SERIES_FILE_COPY.fileUnreadable);
+      return;
+    }
+    const outcome = importBriefingSeries(retentionStore(), text, declared);
+    if (outcome.series) paintBriefingSeries(outcome.series);
+    paintPortability(outcome.series ?? paintedSeries, outcome.message);
+    // So that choosing the same file again is a second change event rather than
+    // silence, which reads as a control that stopped working.
+    input.value = "";
+  };
+
   const paintBriefingSeries = (series) => {
+    paintedSeries = Array.isArray(series) ? series : [];
+    paintPortability(paintedSeries);
     const node = document.getElementById("local-lead-series");
     if (!node) return;
     const { label } = briefingSeriesSummary(series);
@@ -3683,6 +3764,8 @@ function mountLocalFinopsImport() {
   };
 
   bindBriefingRetention(document, { onRetain: setRetention, onForget: forgetRetention });
+  bindBriefingPortability(document,
+    { onExport: exportTrackRecord, onImport: importTrackRecord });
   restoreRetainedBriefing();
   // After the restore, not inside it: this one call is where a single kept
   // briefing is migrated into the series (#1089) and where an existing series is
