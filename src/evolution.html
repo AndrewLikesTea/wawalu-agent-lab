@@ -42,6 +42,38 @@
           <p id="finops-intro">Import a provider export and this page names how much of your AI spend is recoverable, what to do first, and how far to trust the number.</p>
           <p class="finops-provenance" id="finops-provenance">Bundled synthetic example</p>
         </div>
+        <!-- THE TRACK RECORD (#1091), above the answer region below it. A
+             returning reader opens this page on the question they left with —
+             did what we committed to work — and it was answered nowhere above
+             the fold. Four things and no more: the figure, the verdict, one
+             line of context, one action. Painted by finops-track-record.js from
+             the kept period series (#1089) and the scoring module (#1090).
+
+             WHAT SHIPS AUTHORED IS THE FIRST-VISIT STATE, NOT A PLACEHOLDER. A
+             browser keeping nothing has no track record, and that is what this
+             markup says. No figure, no badge and no period row is authored, so
+             nothing here can read as a measurement before anything has been
+             measured; the view replaces the whole region the moment there is a
+             record to report. This region sits in the hero's explanation zone,
+             where no line may narrate a load or say what has not happened — see
+             tests/finops-first-screen-copy.js.
+
+             AND NO CONTROL OF ITS OWN, IN THIS STATE ONLY. The next action for
+             a browser keeping nothing is the import choice the first screen
+             already ships as its primary control, so this state names it in the
+             sentence rather than duplicating it: two copies of one action
+             compete at the same weight and push the real one further down the
+             tab order. Every other state does render its single action, because
+             by then this header owns the page's most prioritized next step.
+
+             The per-period working is appended by the view as a collapsed
+             details element. The figure, the badge and the action stay outside
+             it: folded into a shut disclosure, a grade is a grade nobody is
+             told. -->
+        <section class="hero-track-record" id="finops-track-record" data-state="no-track-record" aria-labelledby="finops-track-record-question">
+          <h2 class="track-record-question" id="finops-track-record-question">Did what we committed to work?</h2>
+          <p class="local-lead-basis" id="finops-track-record-context">No track record on file: this browser is keeping no period. Importing one provider export keeps the month it covers and starts the record.</p>
+        </section>
       </section>
 
       <!-- THE WORKSPACE FRAME. This region, the brief under it, the load status,
