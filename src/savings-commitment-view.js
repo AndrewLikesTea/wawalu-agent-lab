@@ -283,6 +283,107 @@ function renderBoundaries() {
   return note;
 }
 
+/* ------------------------------- the verdict ------------------------------- */
+
+/** Where the scored commitment is painted, named once so page and test agree. */
+export const VERDICT_REGION_ID = "commit-verdict";
+
+/** The grade in a reader's words. `not_enough_evidence` is one of the four. */
+const GRADE_LABELS = Object.freeze({
+  met: "Met",
+  partially_met: "Partially met",
+  missed: "Missed",
+  not_enough_evidence: "Not enough evidence",
+});
+
+const figureValue = (figure) => (figure.unit === "percent"
+  ? `${figure.value}%` : USD.format(figure.value / 100));
+
+/** The headline figures, or the sentence that says why there are none. */
+function verdictFigureLine(verdict) {
+  if (verdict.grade === "not_enough_evidence") {
+    return verdict.committedSavingUsd === null
+      ? "No figure: this commitment could not be read, so nothing was scored against it."
+      : `No figure yet: ${USD.format(verdict.committedSavingUsd)} a month was committed, and `
+        + "nothing has been measured against it.";
+  }
+  const sign = verdict.relativeDeltaPercent > 0 ? "+" : "";
+  return `${USD.format(verdict.realizedSavingUsd)} realized against `
+    + `${USD.format(verdict.committedSavingUsd)} committed · `
+    + `${sign}${verdict.relativeDeltaPercent}% against the commitment`;
+}
+
+/**
+ * The verdict for a stored commitment: the grade, the two figures, and the
+ * sentence behind them.
+ *
+ * The grade, the figures and the explanation are painted OUTSIDE any disclosure,
+ * because the region they land in is the live one and a grade folded into a
+ * collapsed details element is a grade nobody is told about. The working — which
+ * two periods, which commitment, which figure was supplied and which was derived
+ * — is the disclosure below it, on the same pattern as the commitment card's own
+ * provenance.
+ *
+ * Every string here comes from imported data or a stored record and is inserted
+ * as text, never as markup.
+ *
+ * @param verdict a `committed-saving-verdict/1.0.0` payload.
+ */
+export function renderCommitmentVerdict(verdict) {
+  const section = el("section", "commit-benchmark");
+  section.setAttribute("aria-labelledby", "commit-verdict-title");
+  section.dataset.grade = verdict.grade;
+
+  const title = el("h3", undefined, "Your stored commitment, scored");
+  title.id = "commit-verdict-title";
+  const chip = el("p", "commit-kicker", GRADE_LABELS[verdict.grade] ?? "Ungraded");
+  chip.dataset.grade = verdict.grade;
+
+  section.append(title, chip,
+    el("p", "commit-benchmark-figure", verdictFigureLine(verdict)),
+    el("p", "commit-answer", verdict.explanation));
+  if (verdict.gradeRule) {
+    section.append(el("p", "commit-benchmark-basis",
+      `${verdict.gradeRule} ${verdict.gradeAssumption}`));
+  }
+  section.append(renderVerdictProvenance(verdict));
+  return section;
+}
+
+/** What was compared, what it was compared for, and where each figure came from. */
+function renderVerdictProvenance(verdict) {
+  const { provenance } = verdict;
+  const details = el("details", "commit-provenance");
+  details.append(el("summary", undefined,
+    "Inspect the periods compared, the commitment scored, and every figure"));
+
+  const body = el("div", "commit-provenance-body");
+  const list = el("dl", "commit-context");
+  fact(list, "Periods compared",
+    `${provenance.comparedPeriods.committedFrom ?? "not found in this series"} → `
+    + `${provenance.comparedPeriods.followUp ?? "not found in this series"}`,
+    `Expected follow-up ${provenance.comparedPeriods.expectedFollowUp ?? "unknown"} · this series `
+    + `holds ${provenance.periodCount} month(s)`
+    + `${provenance.periodCount ? `: ${provenance.seriesPeriods.join(", ")}` : ""}`);
+  fact(list, "Commitment scored", provenance.commitmentId ?? "not readable",
+    `Committed under scope ${provenance.scope.commitment ?? "unstated"}, series read under scope `
+    + `${provenance.scope.series ?? "unstated"} — `
+    + `${provenance.scope.matched ? "the same books" : "not the same books"}`);
+  for (const figure of provenance.figures) {
+    fact(list, figure.name, `${figureValue(figure)} · ${figure.origin}`,
+      figure.origin === "supplied"
+        ? `Supplied by the import: ${figure.source}`
+        : `Derived here from ${figure.derivedFrom.join(" and ")} — ${figure.rule}`);
+  }
+  if (provenance.missing.length) {
+    fact(list, "Evidence missing", provenance.missing.join(", "));
+  }
+
+  body.append(list, el("p", "commit-schema", verdict.schemaVersion));
+  details.append(body);
+  return details;
+}
+
 /* ------------------------------ after recording ---------------------------- */
 
 /**

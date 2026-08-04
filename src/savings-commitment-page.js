@@ -22,11 +22,17 @@ import {
 // granted consent the adapter writes nothing and reads back nothing; the
 // decision log above is unaffected either way.
 import {
-  browserFinopsWorkspaceStorage, readRetainedCommitments, retainApprovedCommitment,
+  browserFinopsWorkspaceStorage, readRetainedCommitments, readRetainedPeriodInputs,
+  retainApprovedCommitment,
 } from "/finops-workspace.js";
+// Theo's scoring layer. Pure: the page hands it the months this browser kept and
+// the commitment it kept beside them, and it decides the grade.
+import { scoreCommittedSaving, verdictScope } from "/committed-saving-verdict.js";
 import {
   RECORD_BUTTON_ID,
   RECORD_OWNER_ID,
+  VERDICT_REGION_ID,
+  renderCommitmentVerdict,
   renderHandoffRejections,
   renderRecordConfirmation,
   renderRecordError,
@@ -124,6 +130,63 @@ function paintRetained() {
   return retained;
 }
 
+/**
+ * Score the commitment this browser kept against the months it kept beside it.
+ *
+ * Both halves come from the opt-in workspace and nothing else: no file is
+ * reopened, no request is made, and without retention there is nothing to score
+ * and the region says so. The follow-up period offered to the scorer is the
+ * EARLIEST retained month after the committed one — the month this browser
+ * actually has next — rather than the month the commitment would like to be
+ * judged on. That is what lets the scorer say "that is not the month after"
+ * instead of quietly grading the wrong pair.
+ */
+function paintVerdict(retained) {
+  const region = document.getElementById(VERDICT_REGION_ID);
+  if (!region) return null;
+  const commitment = retained.at(-1) ?? null;
+  let periods = [];
+  try {
+    periods = readRetainedPeriodInputs(browserFinopsWorkspaceStorage()).periods;
+  } catch {
+    periods = [];
+  }
+  if (!commitment) {
+    region.replaceChildren(el("p", "No commitment is stored in this browser yet, so there is "
+      + "nothing to score. Record one below, then come back after importing the following month."));
+    region.setAttribute("aria-busy", "false");
+    return null;
+  }
+  const series = periods.map((entry) => ({
+    period: entry.period, total: (Number(entry.analyzedSpendMinor) || 0) / 100,
+  }));
+  // One dataset is a scope; several at once is not, and a commitment scored
+  // across two sets of books is exactly what the scorer abstains on. An EMPTY
+  // store has no books to disagree with, so it is given the commitment's own
+  // scope: the honest reason there is that no month was kept, not that the
+  // months that were kept are somebody else's.
+  const datasets = [...new Set(periods.map((entry) => entry.dataset))];
+  const committedFrom = String(commitment.claim?.period ?? "");
+  const verdict = scoreCommittedSaving({
+    series,
+    commitment,
+    seriesScope: datasets.length === 1
+      ? datasets[0] : (datasets.length === 0 ? verdictScope(commitment.periodId) : "mixed"),
+    followUpPeriod: series.map((entry) => entry.period)
+      .filter((period) => period > committedFrom).sort()[0] ?? null,
+  });
+  region.replaceChildren(renderCommitmentVerdict(verdict));
+  region.setAttribute("aria-busy", "false");
+  return verdict;
+}
+
+/** One paragraph, painted as text. The page has no other markup path. */
+function el(tag, text) {
+  const node = document.createElement(tag);
+  node.textContent = text;
+  return node;
+}
+
 function record() {
   const outcome = root.querySelector("#commit-record-outcome");
   const owner = root.querySelector(`#${RECORD_OWNER_ID}`);
@@ -137,7 +200,8 @@ function record() {
       approvedAt,
     });
     retainApproval(result.decision, result.decision?.createdAt ?? approvedAt);
-    paintRetained();
+    // A commitment recorded just now is the one scored from here on.
+    paintVerdict(paintRetained());
     outcome.replaceChildren(renderRecordConfirmation(result));
     root.querySelector(`#${RECORD_BUTTON_ID}`)?.setAttribute("disabled", "disabled");
     say(result.created
@@ -198,5 +262,5 @@ try {
   });
   say("The bundled example analysis could not be read. Open an exported briefing to continue.");
 }
-paintRetained();
+paintVerdict(paintRetained());
 renderCurrent();

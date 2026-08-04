@@ -52,6 +52,17 @@
         <div id="commit-notices"></div>
       </section>
 
+      <section class="commit-handoff" aria-labelledby="commit-verdict-heading">
+        <h2 id="commit-verdict-heading">Did last month&rsquo;s commitment happen?</h2>
+        <!-- The verdict for a commitment this browser already kept, scored
+             against the months it kept beside it. It is announced here rather
+             than folded into a disclosure: a grade nobody is told about is the
+             same as no grade. The working sits in a details element below it. -->
+        <div id="commit-verdict" aria-live="polite" aria-busy="true">
+          <p>Scoring the commitment this browser kept against the months kept beside it&hellip;</p>
+        </div>
+      </section>
+
       <div id="savings-commitment" aria-live="polite" aria-busy="true">
         <section class="commit-state" role="status">
           <h2>Reading the imported analysis</h2>
