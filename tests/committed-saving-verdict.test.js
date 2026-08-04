@@ -17,6 +17,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 
 import { loadPage, textOf } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
@@ -404,7 +405,7 @@ test("the page grades the stored commitment against the months it kept", async (
   const text = textOf(region);
   assert.match(text, /Met/);
   assert.match(text, /\$1,100\.00 realized against \$1,000\.00 committed/);
-  assert.match(text, /\+10% against the commitment/);
+  assert.match(text, /\+10% realized against the commitment/);
   assert.match(text, /2026-06/);
   assert.match(text, /2026-07/);
   // The grade is announced: the live region is the container, and the grade is
@@ -441,9 +442,13 @@ test("the page renders not-enough-evidence as an outcome with its reason", async
   const text = textOf(region);
   assert.match(text, /Not enough evidence/);
   assert.match(text, /period_gap_not_one_step/);
-  assert.match(text, /\$1,000\.00 a month was committed/);
+  assert.match(text, /\$1,000\.00 a month committed/);
   assert.doesNotMatch(text, /\$0\.00 realized/);
   assert.equal(region.querySelectorAll(".commit-kicker")[0].dataset.grade, "not_enough_evidence");
+  // It takes no rank, because it is the absence of a grade rather than a worse
+  // one, and the only figure it has is the committed one.
+  assert.match(textOf(region.querySelector(".commit-kicker")),
+    /^Not enough evidence not graded · committed figure only, nothing realized$/);
 });
 
 test("a browser holding no retained months scores nothing, and says which is missing", async (t) => {
@@ -455,4 +460,138 @@ test("a browser holding no retained months scores nothing, and says which is mis
   // An empty store has no books to disagree with, so it is not reported as a
   // scope mismatch on top of the months it does not have.
   assert.doesNotMatch(text, /scope_mismatch/);
+});
+
+/* --------------- realized, modelled and committed, told apart -------------- */
+//
+// The one confusion this surface cannot recover from: a modelled ceiling read
+// as money that was saved, or a committed promise read as a measurement. The
+// distinction is carried in a WORD beside every figure, so it survives a
+// monochrome print, a colour vision deficiency, and a screen reader alike.
+// These tests assert the word, never the tint.
+
+const GRADED = [
+  retainedPeriod("2026-06", COMMITTED_MONTH_MINOR),
+  retainedPeriod("2026-07", COMMITTED_MONTH_MINOR - 110_000),
+];
+
+/** Every basis chip under a node, as `[data-basis, its text]` pairs. */
+const chips = (node) => node.querySelectorAll(".commit-figure-basis")
+  .map((chip) => [chip.dataset.basis, textOf(chip)]);
+
+test("every figure on the page names which of the three kinds of figure it is", async (t) => {
+  const { document, region } = await openPage(t, GRADED);
+  await waitFor(() => document.querySelectorAll(".commit-benchmark-figure").length === 2,
+    "the commitment card and the scored verdict");
+
+  // 1. The header summary figure — a projection, said in a word rather than
+  //    inferred from the basis sentence four lines below it. It follows the
+  //    verdict in the DOM, which is the reading order the page paints.
+  const headline = document.querySelectorAll(".commit-benchmark-figure");
+  assert.match(textOf(headline[1]), /^\$31,300\.00 a month modelled$/);
+
+  // 2. The verdict's own figures — one qualifier per value, not one sentence
+  //    in which the two words happen to appear.
+  assert.deepEqual(chips(headline[0]), [
+    ["realized", "realized"], ["committed", "committed"], ["realized", "realized"],
+  ]);
+
+  // 3. The badge, and the rows behind it. Nothing is left unqualified: every
+  //    money and movement figure the page paints carries exactly one of three.
+  for (const [basis, words] of chips(document.body)) {
+    assert.ok(["realized", "modelled", "committed"].includes(basis), `unknown basis ${basis}`);
+    // The qualifier is in the accessible text, not only in a class or an
+    // attribute — a class name is read by nobody.
+    assert.ok(words.includes(basis), `"${words}" does not say ${basis} in its own text`);
+  }
+  // The supporting rows are qualified too: the two supplied month totals and the
+  // derived movement are measurements, the commitment's own figure is not.
+  const provenance = chips(region.querySelector("details")).map(([basis]) => basis);
+  assert.deepEqual(provenance,
+    ["committed", "realized", "realized", "realized", "realized", "realized"]);
+});
+
+test("the qualifiers are readable, not tabbable, and wrap rather than truncate", async (t) => {
+  const { document } = await openPage(t, GRADED);
+  for (const chip of document.querySelectorAll(".commit-figure-basis")) {
+    // Informational: a badge nobody can operate must not be one more stop
+    // between a keyboard reader and the one control on this page.
+    assert.equal(chip.tagName, "SPAN");
+    assert.equal(chip.getAttribute("tabindex"), null);
+    assert.equal(chip.getAttribute("role"), null);
+    // …and not hidden from the assistive tree either: readable, not decorative.
+    assert.equal(chip.getAttribute("aria-hidden"), null);
+    assert.ok(textOf(chip).length > 0);
+  }
+  const css = await readFile(new URL("../src/savings-commitment.css", import.meta.url), "utf8");
+  const rule = /\n\.commit-figure-basis \{([^}]*)\}/.exec(css)[1];
+  // Inline, so it wraps under its value at 200% zoom; no fixed column, no
+  // truncation, and no rule that would keep it on the value's line.
+  assert.match(rule, /display:inline-block/);
+  assert.doesNotMatch(rule, /white-space:nowrap|position:absolute|text-overflow|width:/);
+  assert.match(/\.commit-kicker\[data-grade\] \{([^}]*)\}/.exec(css)[1], /flex-wrap:wrap/);
+});
+
+test("the four grades read in rank order, at AA contrast, without colour", async (t) => {
+  // Rank is in the label: "Met" over "Missed" is an order a reader must already
+  // know, "grade 1 of 3" is one they can read. The fourth outcome takes no rank
+  // because it is the absence of a grade, not a worse one.
+  const { region } = await openPage(t, GRADED);
+  assert.match(textOf(region.querySelector(".commit-kicker")),
+    /^Met grade 1 of 3 · realized against committed$/);
+
+  // Each grade's text against the background it is actually painted on. The
+  // ratios are computed from the stylesheet's own values rather than trusted.
+  const css = await readFile(new URL("../src/savings-commitment.css", import.meta.url), "utf8");
+  const paint = (grade) => {
+    const rule = new RegExp(`\\.commit-kicker\\[data-grade="${grade}"\\] \\{([^}]*)\\}`).exec(css)[1];
+    const value = (name) => /var\(--commit-mint\)|#[0-9a-f]{6}/
+      .exec(new RegExp(`${name}:([^;]+);`).exec(rule)[1])[0].replace("var(--commit-mint)", "#dff4ee");
+    return { ink: value("color"), background: value("background") };
+  };
+  const relative = (hex) => [1, 3, 5].map((at) => parseInt(hex.slice(at, at + 2), 16) / 255)
+    .map((channel) => (channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4))
+    .reduce((total, channel, index) => total + [0.2126, 0.7152, 0.0722][index] * channel, 0);
+  const ratio = (a, b) => (Math.max(relative(a), relative(b)) + 0.05)
+    / (Math.min(relative(a), relative(b)) + 0.05);
+
+  for (const grade of ["met", "partially_met", "missed", "not_enough_evidence"]) {
+    const { ink, background } = paint(grade);
+    assert.ok(ratio(ink, background) >= 4.5,
+      `${grade} paints ${ink} on ${background}: ${ratio(ink, background).toFixed(2)}:1`);
+  }
+  // An absent grade is not a failure and is not a warning: it is neutral ink on
+  // the neutral surface, and it shares no value with the missed badge.
+  const neutral = paint("not_enough_evidence");
+  assert.deepEqual(neutral, { ink: "#4d4d47", background: "#f7f6f2" });
+  const missed = paint("missed");
+  assert.notEqual(neutral.ink, missed.ink);
+  assert.notEqual(neutral.background, missed.background);
+});
+
+test("the verdict is announced once, by one live region outside every disclosure", async (t) => {
+  const { document, region } = await openPage(t, GRADED);
+  assert.equal(region.getAttribute("aria-live"), "polite");
+  // (a) One region, not two. Nothing inside it announces on its own, so a
+  //     repainted grade is spoken once rather than once per nested region.
+  assert.equal(region.querySelectorAll("[aria-live]").length, 0);
+  assert.equal(region.querySelectorAll("[role]").length, 0);
+  // (b) And no ancestor is a collapsed disclosure. The harness reads text
+  //     through a shut details element, so this is asserted structurally: a
+  //     live region a real browser hides from the accessibility tree announces
+  //     nothing, and the test would never notice.
+  let node = region.parentNode;
+  let regions = 0;
+  while (node && typeof node.getAttribute === "function") {
+    assert.notEqual(node.tagName, "DETAILS", "the announcement must not sit inside a disclosure");
+    assert.equal(node.getAttribute("hidden"), null);
+    if (node.getAttribute("aria-live") !== null) regions += 1;
+    node = node.parentNode;
+  }
+  assert.equal(regions, 0, "a second live region above the verdict would announce it twice");
+  // The heading before it, and the working after it, keep the reading order:
+  // the grade is read before the disclosure that explains it.
+  const order = document.querySelectorAll(".commit-benchmark");
+  assert.equal(order.length, 2);
+  assert.equal(textOf(order[0].querySelector("h3")), "Your stored commitment, scored");
 });

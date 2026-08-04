@@ -25,7 +25,26 @@
 .commit-rationale { max-width:66ch; margin:0; color:#4d4d47; line-height:1.55; }
 .commit-answer { max-width:64ch; margin:14px 0 0; color:#4d4d47; font-size:16px; line-height:1.55; }
 .commit-origin { font-weight:600; }
+/* Realized, modelled and committed (#1093). Outline chip in the lowercase-mono
+   status voice — a static classification, per the Claude Design chip rule — and
+   muted, because it repeats on every figure and must not read as a button. It
+   is inline, so it wraps under its value at 200% zoom instead of clipping. */
+.commit-figure-basis { display:inline-block; padding:1px 7px; border:1px solid #9fb3ad; border-radius:5px; color:#3f544f; font:650 10px/1.6 ui-monospace,monospace; letter-spacing:.03em; text-transform:none; vertical-align:middle; }
+.commit-figure-note { font-size:14px; font-weight:500; }
 .commit-benchmark { padding:26px 36px; background:var(--commit-mint); border-top:1px solid var(--commit-line); }
+/* The scored verdict sits on the neutral surface so the graded badge, not the
+   panel, carries the wash. Each pair below is text against its own painted
+   background at WCAG AA: met 6.17:1, partially met 6.34:1, missed 8.93:1, and
+   not-enough-evidence 7.87:1 on the neutral token — muted, never the failure
+   colour and never styled as a warning, because an absent grade is not a bad
+   one. Rank is in the badge text; these washes only repeat it. */
+.commit-benchmark[data-grade] { background:#fbfaf6; }
+.commit-kicker[data-grade] { display:inline-flex; flex-wrap:wrap; gap:2px 8px; align-items:center; margin:10px 0 0; padding:6px 13px; border-radius:99px; font-size:12px; letter-spacing:.04em; text-transform:none; }
+.commit-kicker .commit-figure-basis { border-color:currentColor; color:inherit; }
+.commit-kicker[data-grade="met"] { background:var(--commit-mint); color:#22634f; }
+.commit-kicker[data-grade="partially_met"] { background:#fff7e8; color:#765616; }
+.commit-kicker[data-grade="missed"] { background:#fdf1ef; color:#7c241d; }
+.commit-kicker[data-grade="not_enough_evidence"] { background:#f7f6f2; color:#4d4d47; }
 .commit-benchmark h3 { margin:0; color:#22634f; font:750 10px/1.4 ui-monospace,monospace; letter-spacing:.07em; text-transform:uppercase; }
 .commit-benchmark-figure { margin:8px 0 6px; color:var(--commit-ink); font-size:clamp(30px,5vw,52px); font-weight:800; letter-spacing:-.04em; }
 .commit-benchmark-basis { max-width:62ch; margin:0; color:#3f544f; font-size:14px; line-height:1.55; }

@@ -338,7 +338,10 @@ test("exactly one prioritized action is offered, and it states its own boundary"
   // The benchmark is above the action, and the action above the working.
   const order = tags(view, "SECTION").map((node) => node.className);
   assert.ok(order.indexOf("commit-benchmark") < order.indexOf("commit-record"));
-  assert.match(byClass(view, "commit-benchmark-figure")[0].textContent, /^\$31,300\.00 a month$/);
+  // The headline figure names what kind of figure it is, in a word beside the
+  // value: it is a projection, and this page never lets one read as money saved.
+  assert.match(byClass(view, "commit-benchmark-figure")[0].textContent,
+    /^\$31,300\.00 a month\s+modelled$/);
 });
 
 test("an analysis with nothing to commit to renders a sentence, not an empty panel", () => {
