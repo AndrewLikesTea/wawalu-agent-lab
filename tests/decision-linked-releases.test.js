@@ -264,12 +264,21 @@ test("the page layer associates releases by decision id and the view orders them
 
 test("the section stays readable at a narrow width and routes through the shared href builder", async () => {
   const read = (path) => readFile(new URL(`../src/${path}`, import.meta.url), "utf8");
-  const [component, css] = await Promise.all([read("decision-detail.js"), read("styles.css")]);
-  // The route lives in one place (releases.js), so the decision view cannot
-  // drift from wherever the release detail page moves to.
-  assert.match(component, /releaseDetailHref/);
-  assert.doesNotMatch(component, /release\.html\?id=/);
-  assert.doesNotMatch(component, /innerHTML/);
+  // Two files now: the association rules moved to shipped-releases.js when the
+  // history rows began answering "what shipped this" inline, and the guard
+  // follows the code rather than staying pointed at the file it used to be in.
+  const [component, shipped, css] = await Promise.all([
+    read("decision-detail.js"),
+    read("shipped-releases.js"),
+    read("styles.css"),
+  ]);
+  // The route lives in one place (releases.js), so neither view can drift from
+  // wherever the release detail page moves to.
+  assert.match(shipped, /releaseDetailHref/);
+  for (const source of [component, shipped]) {
+    assert.doesNotMatch(source, /release\.html\?id=/);
+    assert.doesNotMatch(source, /innerHTML/);
+  }
   assert.match(css, /\.linked-release-list \{[^}]*grid/);
   assert.match(css, /\.linked-release-meta \{[^}]*flex-wrap:wrap/);
   // The one narrow-width breakpoint the decision detail page already uses: the

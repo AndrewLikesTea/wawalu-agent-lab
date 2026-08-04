@@ -5,21 +5,17 @@ import { createShareControl } from "./share-link.js";
 import { canonicalDecisionStatus } from "./decision-status.js";
 import { EXAMPLE_LABEL } from "./seed-records.js";
 import { indexSupersessions } from "./supersede.js";
-import { releaseDetailHref, releaseStatus, releaseTitle } from "./releases.js";
+
+// The rules for which releases shipped a decision moved to
+// ./shipped-releases.js when the history rows began answering the same question
+// inline. They are still part of this module's interface: the detail page, and
+// the tests that pin it, have always read them from here.
+export { MAX_LINKED_RELEASES, normalizeLinkedReleases } from "./shipped-releases.js";
+import { normalizeLinkedReleases, text } from "./shipped-releases.js";
 
 export const MAX_COMPARISON_SELECTION = 2;
-export const MAX_LINKED_RELEASES = 100;
 
-const text = (value, fallback = "") => typeof value === "string" && value.trim() ? value.trim() : fallback;
 const list = (value) => Array.isArray(value) ? value.filter((item) => typeof item === "string" && item.trim()).map((item) => item.trim()) : [];
-// Stored data can be edited outside the recorder. Keep route identifiers free
-// of invisible controls and bound the copy this view will put into the DOM.
-const UNSAFE_IDENTIFIER_CHARACTERS = /[\u0000-\u001f\u007f\u202a-\u202e\u2066-\u2069]/u;
-const UNSAFE_DISPLAY_CHARACTERS = /[\u0000-\u001f\u007f\u202a-\u202e\u2066-\u2069]/gu;
-const boundedText = (value, max) => {
-  const normalized = text(value).replace(UNSAFE_DISPLAY_CHARACTERS, "");
-  return normalized.length <= max ? normalized : normalized.slice(0, max);
-};
 
 export function normalizeAlternatives(decision) {
   if (Array.isArray(decision?.alternatives)) {
@@ -347,50 +343,10 @@ export function renderReplacesDisclosure(predecessor) {
 // The shape lives above the DOM the same way the comparison state does, so the
 // ordering rule and the summary sentence are verifiable without a browser. The
 // releases arrive already associated (decision-page.js matches decisionIds);
-// this layer only decides what is renderable, in what order, and what the
-// section says about it.
+// what is renderable and in what order is ./shipped-releases.js, shared with the
+// history row that answers the same question inline. This layer only decides
+// what the section says about it.
 // ---------------------------------------------------------------------------
-
-// A release is renderable when it can be named and routed to: an id for the
-// existing release detail route, and a version to name the link by. Everything
-// else has a stated fallback so one malformed record never empties the section.
-// A missing or unparseable date is kept and said out loud rather than dropped —
-// the association is still true, only its position in time is unknown.
-function normalizeLinkedRelease(release) {
-  const id = text(release?.id);
-  const version = boundedText(release?.version, 40);
-  if (!id || id.length > 200 || UNSAFE_IDENTIFIER_CHARACTERS.test(id) || !version) return null;
-  const createdAt = text(release?.createdAt);
-  const dated = Boolean(createdAt) && !Number.isNaN(Date.parse(createdAt));
-  const title = boundedText(releaseTitle(release), 120);
-  return {
-    id,
-    version,
-    // releaseTitle falls back to the version, which the link already shows.
-    title: title === version ? "" : title,
-    status: releaseStatus(release),
-    createdAt: dated ? createdAt : "",
-    dated,
-    timestamp: dated ? Date.parse(createdAt) : 0,
-    href: releaseDetailHref(id),
-  };
-}
-
-// Newest first, undated last, one entry per release. A release that names this
-// decision twice is one association, not two — the same rule the history rows
-// follow.
-export function normalizeLinkedReleases(releases) {
-  const seen = new Set();
-  const entries = [];
-  for (const release of Array.isArray(releases) ? releases : []) {
-    const entry = normalizeLinkedRelease(release);
-    if (!entry || seen.has(entry.id)) continue;
-    seen.add(entry.id);
-    entries.push(entry);
-    if (entries.length === MAX_LINKED_RELEASES) break;
-  }
-  return entries.sort((a, b) => Number(a.dated !== true) - Number(b.dated !== true) || b.timestamp - a.timestamp);
-}
 
 // One sentence a reader can take in without walking the list: how much shipped,
 // and where the most recent of it stands. Takes normalized entries so the

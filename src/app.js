@@ -49,6 +49,7 @@ import {
   resolveRelease,
   statusSummaryText,
 } from "./releases.js";
+import { shippedState } from "./shipped-releases.js";
 
 export const STORAGE_KEY = "shiplog.decisions.v1";
 // Every value a stored or imported record may carry. The words a visitor reads
@@ -206,8 +207,18 @@ export { RECORD_TYPES };
 // A release with no associations has `empty: null`: its card already says "No
 // linked decisions", so a second line saying the same thing is noise. A
 // decision's row has nothing else to say it, so it gets the note.
+//
+// `unresolved` is a different sentence on purpose, and only a decision has one.
+// "Not yet shipped" is a fact about the work; a release record that names this
+// decision and cannot be read is a fact about the log. Reading the second as the
+// first would tell someone their decision never shipped when what actually
+// happened is that the evidence went missing, so the two never share wording.
 export const RELATIONSHIP_COPY = {
-  decision: { label: "Shipped in", empty: "Not linked to a release yet." },
+  decision: {
+    label: "Shipped in",
+    empty: "Not yet shipped",
+    unresolved: "Shipped releases could not be read",
+  },
   release: { label: "Decisions in this release", empty: null },
 };
 
@@ -245,29 +256,38 @@ export function toHistoryRecords(decisions = [], releases = [], options = {}) {
   const exampleIds = options.exampleIds instanceof Set ? options.exampleIds : new Set(options.exampleIds ?? []);
   const { supersededBy } = indexSupersessions(decisions);
   return [
-    ...decisions.map((decision) => ({
-      type: "decision",
-      id: decision.id,
-      example: exampleIds.has(decision.id),
-      title: decision.title,
-      owner: decision.owner,
-      createdAt: decision.createdAt,
-      // The word the row shows and the filter compares against, which is the
-      // stored value except for the legacy "approved" (read as "accepted").
-      status: canonicalDecisionStatus(decision.status),
-      superseded: supersededBy.has(decision.id),
-      searchable: [decision.title, decision.context, decision.alternatives],
-      // The releases that carried it, in composition order, as the same link
-      // shape a release uses for its decisions.
-      links: (releasesByDecision.get(decision.id) ?? []).map((release) => ({
-        type: "release",
-        id: release.id,
-        label: release.version,
-        href: releaseDetailHref(release.id),
-        missing: false,
-      })),
-      decision,
-    })),
+    ...decisions.map((decision) => {
+      // What shipped this decision, read off the releases that name it. The
+      // shared rule (shipped-releases.js) decides which of them can be named and
+      // routed to, so a row and the decision detail page never disagree about
+      // the same records, and the three states — shipped, not yet, unreadable —
+      // are settled here rather than inferred from a length in the renderer.
+      const shipped = shippedState(releasesByDecision.get(decision.id) ?? []);
+      return {
+        type: "decision",
+        id: decision.id,
+        example: exampleIds.has(decision.id),
+        title: decision.title,
+        owner: decision.owner,
+        createdAt: decision.createdAt,
+        // The word the row shows and the filter compares against, which is the
+        // stored value except for the legacy "approved" (read as "accepted").
+        status: canonicalDecisionStatus(decision.status),
+        superseded: supersededBy.has(decision.id),
+        searchable: [decision.title, decision.context, decision.alternatives],
+        // The releases that carried it, in composition order, as the same link
+        // shape a release uses for its decisions.
+        links: shipped.entries.map((entry) => ({
+          type: "release",
+          id: entry.id,
+          label: entry.version,
+          href: entry.href,
+          missing: false,
+        })),
+        shipped,
+        decision,
+      };
+    }),
     ...releases.map((release) => {
       const resolved = resolveRelease(release, byId);
       return {
@@ -553,7 +573,11 @@ function appendExampleBadge(meta, example) {
   return appendTextElement(meta, "span", "badge badge-example", EXAMPLE_LABEL);
 }
 
-// The decision–release relationship, rendered once per row for both kinds.
+// The decisions a release carried, rendered on the release row. The other
+// direction — the releases that shipped a decision — is appendShippedIn below,
+// which has a summary line and a disclosure this flat list does not need: a
+// release names a handful of decisions and all of them matter equally, while a
+// decision's releases have a newest one that answers the question on its own.
 //
 // It sits *outside* the card's own link on purpose. An anchor cannot nest, so
 // putting a counterpart link inside the card would either be invalid markup or
@@ -593,6 +617,135 @@ function appendRelationships(article, record, visibleKeys) {
     }
     relationship.append(anchor);
   }
+  article.append(relationship);
+  return relationship;
+}
+
+const mediumDate = (value) => new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(new Date(value));
+const SHIPPED_UNDATED = "date not recorded";
+const SHIPPED_NONE = { state: "none", entries: [], newest: null, others: 0 };
+
+// One release inside the disclosure: version, status, and date, all inside the
+// anchor that opens it. Keeping the three in the link is what makes the whole
+// row one Tab stop whose accessible name is "v1.4.0 planned 1 May 2026" — the
+// answer read out in one go — instead of a bare version with the facts stranded
+// beside it. Every string arrives through textContent, so a version recorded as
+// `<img src=x onerror=alert(1)>` is 28 visible characters and no element.
+function shippedReleaseLink(entry, visibleKeys) {
+  const item = document.createElement("li");
+  const anchor = document.createElement("a");
+  anchor.className = "record-link";
+  anchor.href = entry.href;
+  appendTextElement(anchor, "span", "record-link-label", entry.version);
+  // Real separator characters, not the flex gap between the spans: an accessible
+  // name is computed from text, and spacing is not text — without these the link
+  // is announced as "v1.4.0plannedMay 1, 2026".
+  anchor.append(document.createTextNode(" "));
+  appendTextElement(anchor, "span", `badge badge-release-${entry.status}`, entry.status);
+  anchor.append(document.createTextNode(" "));
+  if (entry.dated) {
+    const time = appendTextElement(anchor, "time", "linked-release-date", mediumDate(entry.createdAt));
+    time.dateTime = entry.createdAt;
+  } else {
+    appendTextElement(anchor, "span", "linked-release-date", SHIPPED_UNDATED);
+  }
+  if (visibleKeys && !visibleKeys.has(`release:${entry.id}`)) {
+    anchor.classList.add("record-link-hidden");
+    appendTextElement(anchor, "span", "record-link-note", HIDDEN_LINK_NOTE);
+  }
+  item.append(anchor);
+  return item;
+}
+
+// Which releases shipped a decision, answered on the row itself.
+//
+// A decision can be carried by several releases, and a flat row of every version
+// says nothing about which one actually put the decision in front of users. So
+// the line that is always on screen answers that — the most recent release by
+// date, its date, and how many others there are — and the full list, each
+// release with its status and date, is one keypress underneath it.
+//
+// That line IS the disclosure's summary element rather than a paragraph above
+// one. A reader gets a single sentence and a single control instead of a summary
+// they read and a separate "show more" they then have to find; and because a
+// summary element is always rendered, nothing that has to be read on arrival is
+// ever inside the collapsed part. The disclosure is native, matching the one the
+// decision detail page uses for a superseded predecessor: Enter, Space, and the
+// natural tab order are the browser's, not a tabindex this view has to keep
+// correct, and aria-expanded is kept in step with the open state on toggle.
+//
+// It needs no rule of its own. The wrapper is the `.record-links` row release
+// rows already use, and the disclosure is its only child there, so it lays out
+// against the width the row already had.
+//
+// Nothing in here is a live region, and nothing is stated by colour alone: the
+// summary names the version in words, and both "Not yet shipped" and the
+// unreadable-records line are sentences rather than a styled absence.
+function appendShippedIn(article, record, visibleKeys) {
+  const copy = RELATIONSHIP_COPY.decision;
+  const shipped = record.shipped ?? SHIPPED_NONE;
+  // A div, not a paragraph: a disclosure is flow content and a `p` may not
+  // contain it. The class, and so the layout, is the one release rows use.
+  const relationship = document.createElement("div");
+  relationship.className = "record-links";
+
+  if (shipped.state !== "shipped") {
+    // The state stands alone here — prefixing "Shipped in" to "Not yet shipped"
+    // reads as a contradiction, and neither sentence needs the label to be
+    // understood. There is nothing to disclose, so there is no disclosure.
+    appendTextElement(
+      relationship,
+      "span",
+      "record-link-empty",
+      shipped.state === "unresolved" ? copy.unresolved : copy.empty,
+    );
+    article.append(relationship);
+    return relationship;
+  }
+
+  const { newest, others, entries } = shipped;
+  const disclosure = document.createElement("details");
+  disclosure.className = "shipped-releases";
+  const summary = document.createElement("summary");
+  summary.className = "supersede-disclosure-summary shipped-summary";
+  summary.setAttribute("aria-expanded", "false");
+  appendTextElement(summary, "span", "owner-label", copy.label);
+  summary.append(document.createTextNode(" "));
+  appendTextElement(summary, "span", "shipped-latest-version", newest.version);
+  summary.append(document.createTextNode(" · "));
+  if (newest.dated) {
+    const time = appendTextElement(summary, "time", "shipped-latest-date", mediumDate(newest.createdAt));
+    time.dateTime = newest.createdAt;
+  } else {
+    appendTextElement(summary, "span", "shipped-latest-date", SHIPPED_UNDATED);
+  }
+  // Exactly one release gets no fragment at all rather than "+0 more".
+  if (others > 0) {
+    summary.append(document.createTextNode(" · "));
+    appendTextElement(summary, "span", "shipped-more", `+${others} more`);
+  }
+  // A filter that removed the release this line names has to say so on the line
+  // itself: the same note is on the link inside, and collapsed content is not
+  // read out.
+  if (visibleKeys && !visibleKeys.has(`release:${newest.id}`)) {
+    summary.append(document.createTextNode(" "));
+    appendTextElement(summary, "span", "record-link-note", HIDDEN_LINK_NOTE);
+  }
+  // `open` is read off the attribute as well as the property so the state is the
+  // one in the markup, whichever way it was flipped.
+  disclosure.addEventListener("toggle", () => {
+    summary.setAttribute("aria-expanded", String(disclosure.open === true || disclosure.getAttribute("open") !== null));
+  });
+
+  const list = document.createElement("ul");
+  list.className = "linked-release-list";
+  // Composition order — the order this row's links have always been in — stated
+  // rather than left to be inferred from the versions.
+  list.setAttribute("aria-label", "Releases that shipped this decision, in the order they were recorded");
+  for (const entry of entries) list.append(shippedReleaseLink(entry, visibleKeys));
+  disclosure.append(summary, list);
+  relationship.append(disclosure);
+
   article.append(relationship);
   return relationship;
 }
@@ -644,7 +797,7 @@ function renderDecisionRow(record, index, visibleKeys) {
   appendTextElement(summary, "span", "decision-action", "View decision details");
   detailLink.append(summary);
   article.append(detailLink);
-  appendRelationships(article, record, visibleKeys);
+  appendShippedIn(article, record, visibleKeys);
   item.append(article);
   return item;
 }
