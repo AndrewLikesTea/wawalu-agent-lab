@@ -1,0 +1,133 @@
+{
+  "_readme": [
+    "The history this browser holds for tests/history-count-export-agreement.test.js.",
+    "Static data, hand-counted. Nothing here is generated, and nothing here is derived",
+    "at test time from the code under test: the expected numbers below were counted by",
+    "reading these two arrays, so a test failure names the number that changed rather",
+    "than restating whatever the page happened to compute.",
+    "",
+    "Six decisions and three releases, nine records in total. Owners are Ari (2),",
+    "Priya (2), Jules (2) among the decisions and Ari, Priya, Jules one each among the",
+    "releases. Every decision carries a status word the filter offers, and no record",
+    "is stored under the retired word 'approved' - the legacy mapping has its own",
+    "suite (tests/browsed-history-export-parity.test.js) and is not what these tests",
+    "are counting.",
+    "",
+    "count-d-cache is the record the field-completeness test reads: it shows context,",
+    "alternatives, owner, status, and two associated releases on one row.",
+    "",
+    "Ids are prefixed 'count-' so they cannot collide with another suite's storage",
+    "during a parallel npm test."
+  ],
+  "decisions": [
+    {
+      "id": "count-d-cache",
+      "title": "Cache the read path",
+      "context": "Read latency spikes under load; add a short-TTL cache in front of the hot query.",
+      "alternatives": "Query tuning alone, which we had already tried twice.",
+      "owner": "Ari",
+      "status": "accepted",
+      "createdAt": "2026-03-01T09:00:00.000Z"
+    },
+    {
+      "id": "count-d-flags",
+      "title": "Introduce feature flags",
+      "context": "Decouple deploy from release so a bad rollout is a toggle, not a revert.",
+      "alternatives": "Long-lived release branches.",
+      "owner": "Priya",
+      "status": "pending",
+      "createdAt": "2026-03-02T09:00:00.000Z"
+    },
+    {
+      "id": "count-d-queue",
+      "title": "Adopt a durable job queue",
+      "context": "Background work was lost on deploys; move to an at-least-once queue.",
+      "alternatives": "Database polling and in-process retries.",
+      "owner": "Ari",
+      "status": "proposed",
+      "createdAt": "2026-03-03T09:00:00.000Z"
+    },
+    {
+      "id": "count-d-retention",
+      "title": "Shorten log retention",
+      "context": "Log storage cost grew faster than traffic.",
+      "alternatives": "Sampling at write time.",
+      "owner": "Jules",
+      "status": "accepted",
+      "createdAt": "2026-03-04T09:00:00.000Z"
+    },
+    {
+      "id": "count-d-scheduler",
+      "title": "Move the scheduler off cron",
+      "context": "Cron drift made the nightly report land at an unpredictable hour.",
+      "alternatives": "Keep cron and widen the report's window.",
+      "owner": "Jules",
+      "status": "accepted",
+      "createdAt": "2026-04-10T09:00:00.000Z"
+    },
+    {
+      "id": "count-d-tracing",
+      "title": "Trace the checkout path",
+      "context": "Nobody could say which hop spent the budget on a slow checkout.",
+      "alternatives": "More log lines at the edges.",
+      "owner": "Priya",
+      "status": "proposed",
+      "createdAt": "2026-04-11T09:00:00.000Z"
+    }
+  ],
+  "releases": [
+    {
+      "id": "count-r-1-4-0",
+      "version": "v1.4.0",
+      "title": "Read path latency",
+      "description": "The read cache shipped.",
+      "owner": "Ari",
+      "status": "completed",
+      "createdAt": "2026-03-05T09:00:00.000Z",
+      "decisionIds": ["count-d-cache"]
+    },
+    {
+      "id": "count-r-1-5-0",
+      "version": "v1.5.0",
+      "title": "Cache invalidation and flags",
+      "description": "Cache invalidation plus the first flagged rollout.",
+      "owner": "Priya",
+      "status": "planned",
+      "createdAt": "2026-04-12T09:00:00.000Z",
+      "decisionIds": ["count-d-flags", "count-d-cache"]
+    },
+    {
+      "id": "count-r-1-6-0",
+      "version": "v1.6.0",
+      "title": "Dependency bumps",
+      "description": "Routine dependency maintenance.",
+      "owner": "Jules",
+      "status": "completed",
+      "createdAt": "2026-05-01T09:00:00.000Z",
+      "decisionIds": []
+    }
+  ],
+  "expected": {
+    "total": 9,
+    "statusAccepted": 3,
+    "ownerPriya": 3,
+    "recordedInMarch": 5,
+    "ownerJules": 3,
+    "ownerJulesStatusPending": 0,
+    "cacheReleaseIds": ["count-r-1-4-0", "count-r-1-5-0"]
+  },
+  "_expectedWorkings": [
+    "total: 6 decisions + 3 releases = 9.",
+    "statusAccepted: count-d-cache, count-d-retention, count-d-scheduler = 3. A status",
+    "  narrows the view to decisions, so no release is in it.",
+    "ownerPriya: count-d-flags, count-d-tracing, count-r-1-5-0 = 3. The owner filter",
+    "  reaches releases as well as decisions.",
+    "recordedInMarch: the window 2026-03-01 to 2026-03-31 holds count-d-cache,",
+    "  count-d-flags, count-d-queue, count-d-retention and count-r-1-4-0 = 5. The two",
+    "  April decisions, the April release and the May release fall outside it.",
+    "ownerJules: count-d-retention, count-d-scheduler, count-r-1-6-0 = 3.",
+    "ownerJulesStatusPending: 0. Both of Jules's decisions are accepted, so this",
+    "  combination legitimately matches nothing.",
+    "cacheReleaseIds: the two releases that name count-d-cache, oldest first."
+  ]
+}
