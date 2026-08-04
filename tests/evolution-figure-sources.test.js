@@ -253,10 +253,15 @@ test("the module repaints the authored markers into the same words, still shut",
       assert.ok(spoken.includes(entry.qualifies) && spoken.includes(entry.value));
       assert.ok(textOf(document.getElementById(`${entry.host}-detail`)).includes(entry.origin));
     }
-    // Repainting twice leaves one marker, not two.
-    applyExampleFigureSources(document);
+    // Repainting twice leaves one marker, not two. Counted before and after
+    // rather than against the table's own length: the region also carries the
+    // estimated-position marker from #1102, which is not one of these figures
+    // and is painted by its own module.
     const region = document.getElementById("finops-first-run");
-    assert.equal(withClass(region, "figure-source-summary").length, EXAMPLE_FIGURE_SOURCES.length);
+    const before = withClass(region, "figure-source-summary").length;
+    assert.ok(before >= EXAMPLE_FIGURE_SOURCES.length);
+    applyExampleFigureSources(document);
+    assert.equal(withClass(region, "figure-source-summary").length, before);
   } finally {
     page.restore();
   }
