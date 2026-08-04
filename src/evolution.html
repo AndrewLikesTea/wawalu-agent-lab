@@ -1782,6 +1782,28 @@
           <button id="remap-local-import" type="button" hidden>Change column mapping</button>
           <button id="clear-local-analysis" type="button" hidden>Return to the Bundled synthetic example</button>
         </div>
+        <!-- CARRYING THE TRACK RECORD BETWEEN BROWSERS (#1092). Export writes
+             the kept period series to a file; import reads one back and merges
+             it, month by month, into whatever is already here.
+
+             BELOW THE PICKER AND OUTSIDE IT: not one of the import controls,
+             because the first decision on this page stays one export or the
+             example, and not inside the retention block either — that block
+             lives in the finding article and appears only once an analysis of
+             the reader's own is on screen, and an import control a reader
+             cannot reach on a fresh browser cannot carry a record onto a new
+             machine. Never behind a disclosure: the locality sentence and the
+             count are what a reader must be able to read without opening
+             anything. Painted from finops-briefing-series.js by
+             finops-briefing-retention-view.js. -->
+        <div class="local-lead-retention" id="local-lead-portability" aria-labelledby="local-lead-portability-title">
+          <p class="eyebrow" id="local-lead-portability-title">Your track record</p>
+          <p class="local-lead-retention-detail" id="local-lead-portability-locality">The whole record lives in this browser, on this device, and nothing about it is uploaded. Exporting writes a file this tab builds; importing reads a file you choose, in this tab. Neither one sends anything anywhere.</p>
+          <p class="local-lead-retention-status" id="local-lead-portability-count" role="status">No period is kept in this browser yet.</p>
+          <p class="local-lead-retention-control"><button class="field-recovery-action" id="local-lead-portability-export" type="button" aria-describedby="local-lead-portability-locality">Export track record</button></p>
+          <p class="local-lead-retention-control"><label for="local-lead-portability-import">Import a track record file — periods only, not a provider export</label> <input id="local-lead-portability-import" type="file" accept=".json,application/json" aria-describedby="local-lead-portability-locality"></p>
+          <p class="local-lead-retention-status" id="local-lead-portability-status" role="status"></p>
+        </div>
         <ul class="mapping-requirements" id="mapping-requirements" aria-label="Required inputs and what is still unresolved"></ul>
 
         <!-- WHAT THE EVIDENCE YOU ACTUALLY HAVE SUPPORTS, and why this region

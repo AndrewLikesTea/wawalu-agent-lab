@@ -15,6 +15,7 @@ import {
   BRIEFING_RETENTION_KEY, RETENTION_COPY, RETENTION_STATE, capturedAtLabel,
   suppliedContextLabel,
 } from "./finops-briefing-retention.js";
+import { SERIES_FILE_COPY } from "./finops-briefing-series.js";
 
 export const RETENTION_IDS = Object.freeze({
   block: "local-lead-retention",
@@ -132,6 +133,55 @@ export function bindBriefingRetention(doc, { onRetain, onForget } = {}) {
   toggle.addEventListener("change", () => onRetain(Boolean(toggle.checked)));
   if (forget && typeof onForget === "function") {
     forget.addEventListener("click", () => onForget());
+  }
+  return true;
+}
+
+// ---------------------------------------------------------------------------
+// CARRYING THE TRACK RECORD (#1092)
+// ---------------------------------------------------------------------------
+//
+// The same shape as the block above — nothing built, nothing unmounted, every
+// sentence authored elsewhere — for the export and import pair beside it. The
+// count and the status are two lines rather than one because "what is on file"
+// survives a refusal that "what just happened" does not.
+
+export const PORTABILITY_IDS = Object.freeze({
+  block: "local-lead-portability",
+  export: "local-lead-portability-export",
+  import: "local-lead-portability-import",
+  count: "local-lead-portability-count",
+  status: "local-lead-portability-status",
+});
+
+/**
+ * Paint the count on file and the outcome of the last action.
+ *
+ * Neither line is ever hidden: a live region a page folds away announces
+ * nothing, and an empty count reads as a figure that failed, so the store's own
+ * "nothing kept yet" sentence stands in its place.
+ */
+export function renderBriefingPortability(doc, { count = "", message = "" } = {}) {
+  const block = byId(doc, PORTABILITY_IDS.block);
+  if (!block) return false;
+  const countLine = byId(doc, PORTABILITY_IDS.count);
+  if (countLine) countLine.textContent = count || SERIES_FILE_COPY.nothingOnFile;
+  const status = byId(doc, PORTABILITY_IDS.status);
+  if (status) status.textContent = message ?? "";
+  return true;
+}
+
+/**
+ * Bind the two controls, once. This layer never reads a file and never writes:
+ * the caller owns storage, exactly as it does for the toggle above.
+ */
+export function bindBriefingPortability(doc, { onExport, onImport } = {}) {
+  const exportControl = byId(doc, PORTABILITY_IDS.export);
+  const importControl = byId(doc, PORTABILITY_IDS.import);
+  if (!exportControl || !importControl) return false;
+  if (typeof onExport === "function") exportControl.addEventListener("click", () => onExport());
+  if (typeof onImport === "function") {
+    importControl.addEventListener("change", () => onImport(importControl));
   }
   return true;
 }

@@ -114,15 +114,28 @@ const seriesRecord = (value) => Boolean(value) && typeof value === "object"
   && !Array.isArray(value) && value.version === BRIEFING_SERIES_VERSION
   && Array.isArray(value.entries);
 
-function persist(storage, entries) {
+/**
+ * The ONE write. Every path that persists a series goes through here, so there
+ * is exactly one `setItem` in this module and one place a refusal is detected.
+ *
+ * @returns true when the browser accepted the write, false when it refused —
+ *   a full quota, a blocked accessor, or no storage at all.
+ */
+function writeSeries(storage, entries) {
   try {
     storage?.setItem(BRIEFING_SERIES_KEY,
       JSON.stringify({ version: BRIEFING_SERIES_VERSION, entries }));
+    return true;
   } catch {
     // A full or blocked browser keeps the series it can hold in memory for this
     // render and says nothing: the briefing on screen is unaffected, and the
     // retention control beside it already carries the refusal sentence.
+    return false;
   }
+}
+
+function persist(storage, entries) {
+  writeSeries(storage, entries);
   return entries;
 }
 
@@ -219,4 +232,197 @@ export function briefingSeriesSummary(series) {
     label: count === 0 ? ""
       : `${count} period${count === 1 ? "" : "s"} on file · ${span}`,
   });
+}
+
+// ---------------------------------------------------------------------------
+// CARRYING THE SERIES OUT OF THIS BROWSER AND BACK IN (#1092)
+// ---------------------------------------------------------------------------
+//
+// The series above lives in one browser on one device, which is the point of it
+// and the reason a reader who changes laptop loses a year of periods. The pair
+// below is the way out and back: one self-describing file, shaped here rather
+// than in the page, so a page script never learns a field name.
+//
+// INPUTS ONLY. The file carries the same seven fields an entry holds. The count,
+// the span, the ordering and every movement figure are recomputed on the far
+// side, so a hand-edited "count" in a file is not a value this build can show.
+//
+// VALIDATE WHOLE, THEN COMMIT ONCE. `importBriefingSeries` reaches storage only
+// after the file is parsed, versioned, shape-checked row by row and merged in
+// memory. A rejected file performs no read and no write at all, and a browser
+// that refuses the single write says so rather than leaving half a series.
+
+/** Bumped when a field below changes meaning. A newer file is refused, not read. */
+export const SERIES_FILE_SCHEMA_VERSION = 1;
+
+/**
+ * The ceiling on a chosen file, in bytes: 256 KiB.
+ *
+ * A track record is seven small fields per period; 256 KiB is thousands of
+ * months. The number is here to bound the parse, not to serve a real record.
+ */
+export const SERIES_FILE_MAX_BYTES = 262144;
+
+/** A stable, descriptive name, so a reader's downloads folder stays legible. */
+export const SERIES_FILE_NAME = "shiplog-finops-track-record.json";
+
+const periods = (count) => `${count} period${count === 1 ? "" : "s"}`;
+
+/**
+ * Every sentence the portable path says, authored once, each naming its own
+ * reason. "Invalid file" tells a reader nothing they can act on.
+ */
+export const SERIES_FILE_COPY = Object.freeze({
+  nothingOnFile: "No period is kept in this browser yet.",
+  nothingToExport:
+    "There is no track record in this browser to export yet, so no file was written. "
+    + "Import a period, or keep one from an analysis of your own first.",
+  exported: (count) => `Exported ${periods(count)} to ${SERIES_FILE_NAME}. `
+    + "The file was written by this tab and went nowhere else.",
+  oversized: (bytes) => `That file is ${bytes} bytes. This page reads a track record file of at `
+    + `most ${SERIES_FILE_MAX_BYTES} bytes, so it was not read and nothing here changed.`,
+  unparseable: "That file is not valid JSON, so nothing in it could be read. "
+    + "Nothing in this browser changed.",
+  fileUnreadable: "That file could not be read by this browser, so nothing was imported and "
+    + "nothing in this browser changed.",
+  notARecord: "That file holds a value rather than a track record object, "
+    + "so nothing was read and nothing in this browser changed.",
+  noSchemaVersion: "That file does not say which track record format it is written in, so it "
+    + "cannot be read safely. Nothing in this browser changed.",
+  unknownSchema: (version) => `That file says it is track record format ${version}. This page `
+    + `reads format ${SERIES_FILE_SCHEMA_VERSION}, so nothing in this browser changed.`,
+  newerSchema: (version) => `That file was written by a newer version of this page (track record `
+    + `format ${version}, and this one reads ${SERIES_FILE_SCHEMA_VERSION}). Nothing in this `
+    + "browser changed.",
+  noPeriods: "That file has no list of periods in it, so there was nothing to import. "
+    + "Nothing in this browser changed.",
+  malformedPeriod: (position) => `Period ${position} in that file is missing its month, its `
+    + "capture time or its spend figure, so the whole file was refused. "
+    + "Nothing in this browser changed.",
+  writeRefused: "This browser had no room to keep the imported periods, so nothing was written "
+    + "and the periods already here are untouched.",
+  imported: (added, total) => `Imported ${periods(added)}. This browser now holds `
+    + `${periods(total)}.`,
+  unreadable: "A track record kept in this browser could not be read, so none of it is shown. "
+    + "Import a file you exported earlier, or use the forget control to clear what is here.",
+});
+
+/** UTF-8 length, because a byte ceiling counted in UTF-16 units is not a ceiling. */
+const byteLengthOf = (value) => (typeof TextEncoder === "function"
+  ? new TextEncoder().encode(value).length : value.length);
+
+/**
+ * THE FILE SHAPE. Field by field, no spread and no iteration over an unknown
+ * object — the same rule the entry writer above holds, for the same reason.
+ */
+export function serializeBriefingSeries(series) {
+  return {
+    schemaVersion: SERIES_FILE_SCHEMA_VERSION,
+    periods: (Array.isArray(series) ? series : []).filter(Boolean).map((entry) => ({
+      period: entry.period,
+      scope: entry.scope,
+      providerName: entry.providerName,
+      capturedAt: entry.capturedAt,
+      spendUsd: entry.spendUsd,
+      recoverableUsd: entry.recoverableUsd,
+      confidence: entry.confidence,
+    })),
+  };
+}
+
+/** The file text a reader downloads: the shape above, and nothing beside it. */
+export const briefingSeriesFileText = (series) =>
+  `${JSON.stringify(serializeBriefingSeries(series), null, 2)}\n`;
+
+const refused = (message) => Object.freeze({ ok: false, entries: null, message });
+
+/**
+ * Parse and validate a chosen file. PURE: no storage, no DOM, no clock.
+ *
+ * @param text the file's text.
+ * @param fileBytes the chooser's own byte count when it has one, so an oversized
+ *   file is refused on its declared size rather than after being read.
+ * @returns `{ ok, entries, message }` — entries in read shape when ok, and a
+ *   sentence naming the actual reason when not.
+ */
+export function parseBriefingSeriesFile(text, fileBytes = null) {
+  const source = typeof text === "string" ? text : "";
+  const bytes = Number.isFinite(fileBytes) ? Number(fileBytes) : byteLengthOf(source);
+  if (bytes > SERIES_FILE_MAX_BYTES) return refused(SERIES_FILE_COPY.oversized(bytes));
+  let file;
+  try {
+    file = JSON.parse(source);
+  } catch {
+    return refused(SERIES_FILE_COPY.unparseable);
+  }
+  if (!file || typeof file !== "object" || Array.isArray(file)) {
+    return refused(SERIES_FILE_COPY.notARecord);
+  }
+  const version = file.schemaVersion;
+  if (!Number.isInteger(version)) return refused(SERIES_FILE_COPY.noSchemaVersion);
+  if (version > SERIES_FILE_SCHEMA_VERSION) return refused(SERIES_FILE_COPY.newerSchema(version));
+  if (version !== SERIES_FILE_SCHEMA_VERSION) {
+    return refused(SERIES_FILE_COPY.unknownSchema(version));
+  }
+  if (!Array.isArray(file.periods)) return refused(SERIES_FILE_COPY.noPeriods);
+  const entries = [];
+  for (const [index, record] of file.periods.entries()) {
+    const entry = entryOf(record);
+    // One malformed row refuses the WHOLE file. A partial import would leave a
+    // reader holding a series they cannot tell is incomplete.
+    if (!entry) return refused(SERIES_FILE_COPY.malformedPeriod(index + 1));
+    entries.push(entry);
+  }
+  return Object.freeze({ ok: true, entries: chronological(entries), message: null });
+}
+
+/**
+ * Merge a file into this browser's series, in ONE write.
+ *
+ * MERGE, NOT REPLACE, and keyed exactly as `recordBriefingSeriesEntry` keys:
+ * period plus provider scope. A file's April lands beside a June already here,
+ * and a file's June REPLACES a June already here — the same rule #1089 and
+ * #1095 settled for a second import, because a file is a second import.
+ *
+ * @returns `{ ok, series, message }`. On refusal `series` is null and storage
+ *   was never touched; the caller repaints nothing and says the message.
+ */
+export function importBriefingSeries(storage, text, fileBytes = null) {
+  const file = parseBriefingSeriesFile(text, fileBytes);
+  if (!file.ok) return Object.freeze({ ok: false, series: null, message: file.message });
+  const held = readBriefingSeries(storage);
+  const incoming = new Set(file.entries.map((entry) => `${entry.period} ${entry.scope}`));
+  const kept = held.filter((entry) => !incoming.has(`${entry.period} ${entry.scope}`));
+  const merged = chronological([...kept, ...file.entries]);
+  if (!writeSeries(storage, merged)) {
+    return Object.freeze({ ok: false, series: held, message: SERIES_FILE_COPY.writeRefused });
+  }
+  return Object.freeze({
+    ok: true,
+    series: merged,
+    message: SERIES_FILE_COPY.imported(file.entries.length,
+      briefingSeriesSummary(merged).count),
+  });
+}
+
+/**
+ * Is this browser holding a series record this build cannot read?
+ *
+ * `readBriefingSeries` answers a corrupt record with an empty series, which is
+ * the right thing to RENDER and the wrong thing to say nothing about: a reader
+ * whose periods vanished needs to know they were there. Read-only.
+ */
+export function briefingSeriesUnreadable(storage) {
+  let raw = null;
+  try {
+    raw = storage?.getItem(BRIEFING_SERIES_KEY) ?? null;
+  } catch {
+    return false;
+  }
+  if (raw === null) return false;
+  try {
+    return !seriesRecord(JSON.parse(raw));
+  } catch {
+    return true;
+  }
 }
