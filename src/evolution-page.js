@@ -76,6 +76,12 @@ import {
 import {
   IMPORT_RECIPES, IMPORT_RECIPES_LEAD, SUPPLIES_MARKER,
 } from "/import-recipes.js";
+// The blank template and the worked sample per pinned adapter (#1167), with the
+// total the sample is documented to import as. Files and figure are composed
+// there; this page paints slots and hands the bytes to the download wrapper.
+import {
+  HEADLINE_FIGURE_KEY, IMPORT_TEMPLATES_LEAD, TEMPLATE_KINDS, templateForAdapter,
+} from "/import-templates.js";
 import { bindProviderImport, initProviderImport } from "/provider-native-import-view.js";
 import { FIXTURE_REFERENCE_DATE } from "/browser-compat-fixtures.js";
 import { scoreIntakeConfidence } from "/intake-confidence.js";
@@ -998,11 +1004,19 @@ function mountProviderReadiness() {
  * answers, and whether that file supplies spend only. Behind the disclosure:
  * the row unit and the column list, which answer a failed import rather than
  * the errand a lead is deciding on. Every string here is a slot.
+ *
+ * Each pinned adapter also carries its two files (#1167): a blank template and
+ * a worked sample, generated in this tab from the same contract columns the row
+ * quotes, beside the total that sample is documented to import as. Both stay in
+ * the open with the figure — a lead checking their file shape has not opened
+ * anything yet — and neither is fetched: `import-templates.js` composes the
+ * bytes and the download wrapper below hands them straight back.
  */
 function mountImportRecipes() {
   const list = document.getElementById("import-recipes-list");
   if (!list) return;
   setText("import-recipes-lead", IMPORT_RECIPES_LEAD);
+  setText("import-templates-lead", IMPORT_TEMPLATES_LEAD);
   const keyed = (className, key, value) => {
     const line = element("p", className);
     line.append(element("span", "provider-readiness-key", key), document.createTextNode(value));
@@ -1030,8 +1044,31 @@ function mountImportRecipes() {
       keyed("import-slot-unlocks", "Answers", recipe.question),
       keyed("import-slot-unlocks", "Pull this one report", recipe.report),
       detail);
+    const template = templateForAdapter(recipe.adapter);
+    if (template) {
+      item.append(keyed("import-slot-unlocks", HEADLINE_FIGURE_KEY, template.headlineFigure),
+        ...TEMPLATE_KINDS.map((kind) => {
+          const button = element("button", "provider-readiness-download", kind.text);
+          button.setAttribute("type", "button");
+          button.dataset.template = template.adapter;
+          button.dataset.templateKind = kind.id;
+          // The row's own heading is two paragraphs up; a control read on its
+          // own has to name the provider it downloads for.
+          button.setAttribute("aria-label", `${kind.text} for ${template.label}`);
+          return button;
+        }));
+    }
     return item;
   }));
+  // One delegated handler for every row, and no file is composed until a reader
+  // asks for one.
+  list.addEventListener("click", (event) => {
+    const button = event.target?.closest?.(".provider-readiness-download");
+    const template = templateForAdapter(button?.dataset.template);
+    const kind = TEMPLATE_KINDS.find((entry) => entry.id === button?.dataset.templateKind);
+    if (!template || !kind) return;
+    downloadLocalExport(template[kind.textKey], template.mediaType, template[kind.fileKey]);
+  });
 }
 
 function mountLocalFinopsImport() {
