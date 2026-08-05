@@ -4,27 +4,32 @@
 // decidable list.
 //
 // IT DECIDES NOTHING NEW. Every dollar here is a figure `down-routing-candidates.js`
-// already published on the analysis envelope. No estimation, no extrapolation,
-// no per-request projection, no new threshold. The only arithmetic performed is
-// the one the reader is entitled to redo: the sum of the rows it renders.
+// already published on the analysis envelope. No estimation, no extrapolation, no
+// new threshold. The only arithmetic performed is the one the reader is entitled
+// to redo: the sum of the rows it renders.
 //
-// TWO SOURCES, ONE PRECEDENCE. The rule publishes candidates in two forms:
+// TWO SOURCES, ONE PRECEDENCE. `analysis.modelRouting.ranked[].candidates` is one
+// rule per model, earned only when the import carried model identity, and it wins
+// when it exists because naming the model is a sharper instruction. Otherwise
+// `analysis.rankedDepartments[].downRouting` gives one rule per org unit from
+// that unit's own observed blended price — what the bundled example earns, its
+// export being JSON with no model field. No model name is ever fabricated.
 //
-//   per-model  `analysis.modelRouting.ranked[].candidates` — one rule per model,
-//              earned only when the import carried model identity (the delimited
-//              import path declares `model`; the v1 JSON contract has no model
-//              field at all).
-//   per-unit   `analysis.rankedDepartments[].downRouting` — one rule per org
-//              unit, from its own observed blended price per token. This is what
-//              the bundled synthetic example earns, its export being JSON.
+// No filter, no sort control, no chart, no projection past the analysed period.
 //
-// Per-model wins when it exists: naming the model is a sharper instruction.
-// Neither form is invented for the other — an export with no model identity is
-// told to move a department's premium-tier traffic, which is what its own rule
-// decided, and no model name is fabricated for it.
+// LIFECYCLE. A ranked column of dollar figures cannot tell a reader which of them
+// are still ideas, so every rule carries exactly one of three states — none of
+// them invented here either:
 //
-// No filter, no sort control, no chart, no projection past the analysed period:
-// each would add surface without answering the question in the heading.
+//   proposed  a modelled ceiling and nothing else. THE DEFAULT, and what every
+//             rule on the bundled example is.
+//   shipped   a commitment retained in this browser names this rule's org unit.
+//   scored    that unit ALSO publishes a measured period-over-period change on
+//             this envelope, so the move has an observed outcome rather than a
+//             model. The score is that change, truncated, and nothing else.
+//
+// A proposal therefore never carries a measured-looking number, which is the
+// confusion the three states exist to remove.
 
 import { classifyModelTier } from "./down-routing-candidates.js";
 
@@ -46,6 +51,16 @@ export const MODELLED_BASIS_TAG = "Modelled potential, not realized savings";
 /** The `data-basis` value the briefing already stamps on a modelled figure. */
 export const MODELLED_BASIS = "modelled_potential";
 
+/** Where one rule stands. Exactly one of these, always, on every rule. */
+export const RULE_LIFECYCLE = Object.freeze({
+  PROPOSED: "proposed", SHIPPED: "shipped", SCORED: "scored",
+});
+
+/** What the section as a whole is doing, for the one status line it publishes. */
+export const ROUTING_SLATE_STATES = Object.freeze({
+  READY: "ready", LOADING: "loading", UNAVAILABLE: "unavailable", ERROR: "error",
+});
+
 /**
  * The tie-break, in the one clause the surface prints. Rank must not depend on
  * the order rows arrived in, so the comparator below is total: after the
@@ -55,13 +70,25 @@ export const ROUTING_SLATE_TIE_BREAK =
   "Ranked by expected monthly return, highest first; equal returns break on source name, "
   + "then target tier, then org unit, each ascending in raw character order.";
 
-/** Why the slate is empty, in the words a reader can act on. */
+/** Why the slate is empty, or unreadable, in the words a reader can act on. */
 export const ROUTING_SLATE_REASONS = Object.freeze({
   no_analysis: "No analysis has been read yet, so there is no routing change to rank.",
   no_candidates: "The down-routing rule raised no candidate on these rows: nothing here is "
     + "priced above the premium-tier floor with a positive delta, so there is no routing "
     + "change to ship.",
+  unreadable: "This analysis could not be read as a routing policy — the candidate lists on "
+    + "it are not the shape the down-routing rule publishes, so no rule on it can be ranked. "
+    + "Read the export again, or start from the bundled example.",
 });
+
+/** Said once, where the reader looks for the next move and there is not one. */
+export const ROUTING_SLATE_NOTHING_LEFT =
+  "Nothing is left to raise: every ranked rule below is already shipped or scored.";
+
+/** The sentence a shipped rule owes a reader who expected a score and found none. */
+export const NO_SCORE_YET =
+  "This org unit has published no measured change since the commitment, so the move has "
+  + "no score yet.";
 
 /**
  * Ascending order on the raw string, comparing character by character. The ids
@@ -82,6 +109,10 @@ function rawAscending(left, right) {
  * `(source, targetTier, unit)` is unique in both source forms — one candidate
  * per model per unit, one candidate per unit — so no pair of rules reaches the
  * end of this function equal and the sort cannot depend on input order.
+ *
+ * Lifecycle is deliberately NOT in it. Rank is what a move is worth; shipping
+ * one does not make the next one worth more, and a list that reshuffles when a
+ * reader commits to something is a list they cannot learn.
  */
 function byRank(left, right) {
   return right.expectedMonthlyUsd - left.expectedMonthlyUsd
@@ -167,6 +198,59 @@ function unitRules(analysis) {
 }
 
 /**
+ * The measured change for one org unit, or no score and the reason there is
+ * none. `spendChangeUsd` is the envelope's own period-over-period figure and
+ * `trendAvailable` is the envelope's own verdict on whether that figure exists.
+ * Neither is recomputed here, and a unit that publishes no usable trend yields
+ * NO SCORE rather than a zero — a zero would read as "the move changed nothing",
+ * which is a measurement nobody made.
+ */
+function observedChange(analysis, unit) {
+  const department = (analysis?.rankedDepartments ?? [])
+    .find((entry) => entry?.name === unit);
+  if (!department?.trendAvailable) {
+    return { value: null, reason: department?.trendReason || NO_SCORE_YET };
+  }
+  // `Number(null)` is 0, so an absent figure is refused before it is coerced. A
+  // unit that claims a trend and then publishes no figure contradicts itself,
+  // and gets the plain sentence rather than a reason written for a different case.
+  const raw = department.spendChangeUsd;
+  const change = raw == null ? NaN : Number(raw);
+  return Number.isFinite(change)
+    ? { value: Math.trunc(change), reason: "" }
+    : { value: null, reason: NO_SCORE_YET };
+}
+
+/**
+ * One rule, with the state it is in. A commitment names an org unit; a rule that
+ * unit did not raise is untouched by it, which is why the match is on `unit` and
+ * not on the rule's source.
+ */
+function withLifecycle(rule, analysis, commitment) {
+  const committed = Boolean(commitment?.department) && commitment.department === rule.unit;
+  if (!committed) {
+    return { ...rule, lifecycle: RULE_LIFECYCLE.PROPOSED, observedChangeUsd: null, lifecycleReason: "" };
+  }
+  const observed = observedChange(analysis, rule.unit);
+  return observed.value === null
+    ? { ...rule, lifecycle: RULE_LIFECYCLE.SHIPPED, observedChangeUsd: null, lifecycleReason: observed.reason }
+    : { ...rule, lifecycle: RULE_LIFECYCLE.SCORED, observedChangeUsd: observed.value, lifecycleReason: "" };
+}
+
+/**
+ * An envelope the page cannot read AT ALL — wrong shape, not merely empty. It is
+ * a different sentence from "nothing qualified" because the reader does a
+ * different thing about it: one is an answer, the other is a broken input.
+ */
+function unreadable(analysis) {
+  if (typeof analysis !== "object") return true;
+  const departments = analysis.rankedDepartments;
+  const ranked = analysis.modelRouting?.ranked;
+  return (departments != null && !Array.isArray(departments))
+    || (ranked != null && !Array.isArray(ranked));
+}
+
+/**
  * The action to take, phrased as the move rather than as the metric. A reader
  * who has already read the figure above it needs the instruction, not the figure
  * a second time.
@@ -183,22 +267,32 @@ function nextActionFor(rule) {
  * Build the slate from an analysis envelope.
  *
  * @param {object|null} analysis A `local-finops` envelope, or null before one exists.
+ * @param {{commitment?: object|null}} [options] The action this browser retained,
+ *   if any. Absent — the ordinary case, and the whole of the bundled example —
+ *   every rule is a proposal.
  * @returns a frozen slate: the ranked rules, the headline total, and one action.
  */
-export function routingSlate(analysis = null) {
-  const empty = (reason) => Object.freeze({
+export function routingSlate(analysis = null, { commitment = null } = {}) {
+  const empty = (reason, state) => Object.freeze({
     version: ROUTING_SLATE_VERSION,
     available: false,
+    state,
     reason,
     basis: null,
     period: analysis?.period ?? null,
     source: null,
     rules: Object.freeze([]),
+    counts: Object.freeze({ proposed: 0, shipped: 0, scored: 0 }),
+    lead: null,
     totalExpectedMonthlyUsd: 0,
     nextAction: null,
+    nextActionRank: null,
     tieBreak: ROUTING_SLATE_TIE_BREAK,
   });
-  if (!analysis) return empty(ROUTING_SLATE_REASONS.no_analysis);
+  if (!analysis) return empty(ROUTING_SLATE_REASONS.no_analysis, ROUTING_SLATE_STATES.UNAVAILABLE);
+  if (unreadable(analysis)) {
+    return empty(ROUTING_SLATE_REASONS.unreadable, ROUTING_SLATE_STATES.ERROR);
+  }
 
   const fromModels = modelRules(analysis);
   const source = fromModels.length ? "per-model" : "per-unit";
@@ -208,21 +302,35 @@ export function routingSlate(analysis = null) {
   const rules = (fromModels.length ? fromModels : unitRules(analysis))
     .filter((rule) => rule.expectedMonthlyUsd > 0 && rule.targetTier)
     .sort(byRank)
-    .map((rule, index) => Object.freeze({ ...rule, rank: index + 1 }));
-  if (!rules.length) return empty(ROUTING_SLATE_REASONS.no_candidates);
+    .map((rule, index) => Object.freeze({
+      ...withLifecycle(rule, analysis, commitment), rank: index + 1,
+    }));
+  if (!rules.length) {
+    return empty(ROUTING_SLATE_REASONS.no_candidates, ROUTING_SLATE_STATES.UNAVAILABLE);
+  }
+
+  // The next move is the best rule STILL PROPOSED. Telling a reader to ship what
+  // they already shipped is the one instruction this surface must never print.
+  const next = rules.find((rule) => rule.lifecycle === RULE_LIFECYCLE.PROPOSED) ?? null;
+  const counts = { proposed: 0, shipped: 0, scored: 0 };
+  for (const rule of rules) counts[rule.lifecycle] += 1;
 
   return Object.freeze({
     version: ROUTING_SLATE_VERSION,
     available: true,
+    state: ROUTING_SLATE_STATES.READY,
     reason: null,
     basis: MODELLED_BASIS_TAG,
     period: analysis.period ?? null,
     source,
     rules: Object.freeze(rules),
+    counts: Object.freeze(counts),
+    lead: rules[0],
     // The headline is the arithmetic sum of the rows above, and nothing else. A
     // reader adding the rendered column reaches this number exactly.
     totalExpectedMonthlyUsd: rules.reduce((sum, rule) => sum + rule.expectedMonthlyUsd, 0),
-    nextAction: nextActionFor(rules[0]),
+    nextAction: nextActionFor(next),
+    nextActionRank: next?.rank ?? null,
     tieBreak: ROUTING_SLATE_TIE_BREAK,
   });
 }

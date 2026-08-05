@@ -1960,7 +1960,7 @@ section[data-workspace-current="true"] { box-shadow:-6px 0 0 0 var(--import-wash
 .trend-flat { color:var(--ink-muted); }
 .table-empty { padding:48px 12px; color:var(--ink-muted); text-align:center; }
 
-.action-list { display:grid; gap:14px; margin:0; padding:0; list-style:none; }
+.action-list { display:grid; gap:14px; margin:0; padding:0; list-style:none; overflow-wrap:anywhere; }
 .action-card { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:10px 24px; align-items:start; padding:20px; border:1px solid #d9d7d0; border-radius:13px; background:#fff; }
 .action-copy { display:grid; gap:7px; min-width:0; }
 .action-team { color:var(--ink-muted); font:700 10px/1.4 ui-monospace,monospace; letter-spacing:.08em; text-transform:uppercase; }

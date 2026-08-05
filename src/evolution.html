@@ -2970,15 +2970,17 @@
       </section>
 
       <!-- The ranked routing changes behind that decision. Authored empty and
-           painted by routing-slate-view.js from the candidates the down-routing
-           rule already published on the analysis: question, one total, one
-           action, then one disclosure per rule. Every per-rule figure is the
-           rule's own recoverable dollars, truncated to whole dollars, and the
-           total is the sum of the rows rendered — a reader adding the column
-           reaches the headline. It adds no filter, sort control or chart. -->
+           painted by routing-slate-view.js: rank 1, one action, then one
+           disclosure per rule. Every per-rule figure is the rule's own
+           recoverable dollars truncated to whole dollars, and the total is the
+           sum of the rows rendered. The status line below is authored HERE, as a
+           sibling of the painted body and outside every disclosure, because a
+           closed disclosure element is hidden from the accessibility tree in a
+           real browser and a status announcement inside one is dropped. -->
       <section class="finops-panel" id="routing-slate" data-state="unavailable" data-rule-count="0" data-workspace-region="act-and-verify" role="region" aria-labelledby="routing-slate-title">
         <p class="eyebrow">Routing slate</p>
         <h2 class="answer-question" id="routing-slate-title">Which model routing changes should we ship this month?</h2>
+        <p class="answer-figure-basis" id="routing-slate-status" role="status" data-state="unavailable">No analysis has been read yet, so there is no routing change to rank.</p>
         <div id="routing-slate-body"></div>
       </section>
 
