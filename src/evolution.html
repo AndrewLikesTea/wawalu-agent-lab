@@ -361,9 +361,11 @@
              answering, then this block. Nothing with a figure in it comes
              sooner.
 
-             FOUR ELEMENTS AND NOTHING ELSE: the question, one figure with its
-             unit, direction and as-of basis, one confidence sentence, one
-             action. The figure is one paragraph holding those four slots in
+             FOUR ANSWERING ELEMENTS AND NOTHING ELSE: the question, one figure
+             with its unit, direction and as-of basis, one confidence sentence,
+             one action. The scope sentence below publishes no figure and no
+             second action, so the block still answers once.
+             The figure is one paragraph holding those four slots in
              the order they are spoken, so the plain document reading IS the
              announcement — no ARIA on it, because a paragraph is one of the
              roles ARIA prohibits naming on and an aria-labelledby pointing at
@@ -381,6 +383,14 @@
         <div class="answer-block" id="finops-answer" data-decision-summary-region="authored" data-state="pending" data-available="false" role="region" aria-labelledby="finops-answer-question">
           <h3 class="answer-question" id="finops-answer-question">Is our AI spend classification trustworthy enough to act on?</h3>
           <p class="answer-figure" id="finops-answer-figure"><span class="answer-figure-label" id="finops-answer-label">Spend we can stand behind</span><strong class="answer-figure-value" id="finops-answer-value">Results will appear here</strong><span class="answer-figure-direction" id="finops-answer-direction">Results will appear when preparation is complete</span><span class="answer-figure-basis" id="finops-answer-basis">as of the Bundled synthetic example</span></p>
+          <!-- WHAT THIS VERDICT IS ABOUT, beside it. This block and the
+               circulation panel below answer two different questions and can
+               honestly disagree; unlabelled, the pair reads as one page
+               contradicting itself. One authored sentence each, in flow and
+               never behind a disclosure. Above the confidence sentence because
+               it says what the figure is a figure OF, and so the reproduction
+               line painted after that sentence still qualifies it alone. -->
+          <p class="answer-confidence" id="finops-answer-scope">This verdict covers the share of spend in scope the rubric scored — a separate question from whether this analysis is ready to circulate.</p>
           <p class="answer-confidence" id="finops-answer-confidence">Nothing has been read yet, so there is no coverage, grade, or residue to report.</p>
           <a class="answer-action" id="finops-answer-action" href="#local-import">Analyze a provider export — go to the import panel</a>
         </div>
@@ -395,6 +405,9 @@
           <p class="eyebrow">Circulation decision · bundled analysis only</p>
           <h3 id="briefing-readiness-question">Is this bundled analysis ready to circulate?</h3>
           <strong class="briefing-readiness-verdict" id="briefing-readiness-verdict">Checking required evidence…</strong>
+          <!-- The other half of the pair described above the answer block: what
+               this verdict is about, and what it is not. In flow, unpainted. -->
+          <p>This verdict covers the finding, comparison, and first action below — not how much spend the rubric has scored.</p>
           <ol class="briefing-readiness-sequence">
             <li><span>Finding</span><p id="briefing-readiness-finding">Headline finding not checked.</p></li>
             <li><span>Comparison</span><p id="briefing-readiness-benchmark">Benchmark not checked.</p></li>

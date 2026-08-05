@@ -85,18 +85,31 @@ test("the authored markup says what the contract says, before any script runs", 
 });
 
 // ---------------------------------------------------------------------------
-// 2. Four elements, in order, and nothing else.
+// 2. Four answering elements plus one scope sentence, in order, and nothing else.
 // ---------------------------------------------------------------------------
 
 test("the answer block holds one question heading, one figure, one confidence sentence, and one action", () => {
   const document = parseHtml(html);
   const block = byId(document, ANSWER_BLOCK_IDS.block);
   const children = [...block.children].filter((node) => node.nodeType === 1);
-  assert.equal(children.length, 4, "the answer block must contain exactly four elements");
+  // The four answering parts, plus the scope sentence (#1113) that says which
+  // question this verdict answers and which one it does not. The list is still
+  // exact and still named: what this assertion exists to stop is a SECOND
+  // answer — another figure, another action — and a sentence that publishes
+  // neither is not one. An unnamed fifth child still fails here.
+  assert.equal(children.length, 5, "the answer block must contain exactly these five elements");
   assert.deepEqual(children.map((node) => node.id), [
     ANSWER_BLOCK_IDS.question, ANSWER_BLOCK_IDS.figure,
-    ANSWER_BLOCK_IDS.confidence, ANSWER_BLOCK_IDS.action,
+    "finops-answer-scope", ANSWER_BLOCK_IDS.confidence, ANSWER_BLOCK_IDS.action,
   ]);
+  // The scope sentence is readable with no interaction: plain flow, not a
+  // disclosure, and it names both questions without printing a figure.
+  const scope = byId(document, "finops-answer-scope");
+  assert.equal(scope.tagName.toLowerCase(), "p");
+  assert.equal(scope.hasAttribute("hidden"), false);
+  assert.match(textOf(scope), /the rubric scored/);
+  assert.match(textOf(scope), /ready to circulate/);
+  assert.ok(!/\d/.test(textOf(scope)), "the scope sentence states no figure");
 
   // The question is a real heading, in a valid order under the region's own h2.
   assert.equal(children[0].tagName.toLowerCase(), "h3");
@@ -121,10 +134,10 @@ test("the answer block holds one question heading, one figure, one confidence se
     "the recoverable figure leads and the classification verdict follows it");
 
   // The action is a real link with a real href, operable before any script.
-  assert.equal(children[3].tagName.toLowerCase(), "a");
-  assert.ok(children[3].getAttribute("href"),
+  assert.equal(children[4].tagName.toLowerCase(), "a");
+  assert.ok(children[4].getAttribute("href"),
     "the next action must be a real link, not a scripted control");
-  assert.ok(textOf(children[3]).trim().length > 0,
+  assert.ok(textOf(children[4]).trim().length > 0,
     "the next action's accessible name is its own visible text, and it must say what it does");
 
   // No figure ships in the authored bytes: the value slot is a state, not a number.

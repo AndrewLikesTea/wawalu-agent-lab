@@ -254,8 +254,12 @@ test("the answer block on /evolution.html renders the line through its own entry
   // Immediately after the confidence sentence it qualifies, and before the one
   // action it bounds: a qualifier read after the step is a footnote.
   const order = () => [...block.children].map((child) => child.id).filter(Boolean);
-  assert.deepEqual(order().slice(0, 5), ["finops-answer-question", "finops-answer-figure",
-    "finops-answer-confidence", ANSWER_REPRODUCTION_ID, "finops-answer-action"],
+  // #finops-answer-scope is the authored sentence naming which question this
+  // verdict answers (#1113). It sits above the confidence sentence, so the
+  // confidence sentence and the line qualifying it are still adjacent.
+  assert.deepEqual(order().slice(0, 6), ["finops-answer-question", "finops-answer-figure",
+    "finops-answer-scope", "finops-answer-confidence", ANSWER_REPRODUCTION_ID,
+    "finops-answer-action"],
     "the reproduction line is not between the confidence sentence and the action");
   // Painted twice is still one line: the block repaints on every import.
   applyAnswerBlock(document);
