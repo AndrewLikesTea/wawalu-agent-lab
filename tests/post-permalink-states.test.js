@@ -465,7 +465,7 @@ const EXITS_BY_STATE = {
 };
 // Word for word the last sentence of Social's own intro, because a visitor who
 // lands here may never open /social.html.
-const DEMO_SENTENCE = "Posts are shared across browsers and use no customer or production data.";
+const DEMO_SENTENCE = "Posts use no customer or production data.";
 
 test("the words of a route out never change, and the demo sentence survives every state", async () => {
   const cases = [
@@ -511,6 +511,39 @@ test("the words of a route out never change, and the demo sentence survives ever
   // The eyebrow ends on the marker the feed pages end on, so a permalink is
   // stamped as a demo the same way /social.html and /profile.html are.
   assert.match(html, /<p class="eyebrow">Social · post · demo<\/p>/);
+});
+
+// Who reads a published post, and whether it can be taken back. The answer is
+// the same on every surface that asks a visitor to publish or shows them what
+// publishing produced, so it is one string in three places — Social's intro,
+// Social's composer, and this page's hero — and drift between them is a
+// difference a reader would read as a difference in the rules.
+const CONSEQUENCE = "Anyone who visits Shiplog can read your post, its image, and the display name you publish it with. You cannot delete it afterwards, so post nothing you would not put on a public page.";
+const consequencesIn = (html) => [...html.matchAll(/<p class="[^"]*publish-consequence[^"]*"[^>]*>([^<]*)<\/p>/g)].map((match) => match[1]);
+
+test("the publication consequence is one sentence pair, word for word, on Social and on a permalink", async () => {
+  const social = await readFile(new URL("../src/social.html", import.meta.url), "utf8");
+  const post = await readFile(new URL("../src/post.html", import.meta.url), "utf8");
+
+  // Two on Social — the intro and the composer — and one here. Counted, so a
+  // fourth copy or a lost one is a failure rather than a silent pass.
+  assert.deepEqual(consequencesIn(social), [CONSEQUENCE, CONSEQUENCE],
+    "Social must carry the consequence in its intro and beside Publish post");
+  assert.deepEqual(consequencesIn(post), [CONSEQUENCE],
+    "the permalink hero must carry the same consequence");
+
+  // In the composer it stands ahead of the control it is about, and the button
+  // names it, so it is read on focus rather than only seen.
+  assert.ok(social.indexOf('id="post-consequence"') < social.indexOf('id="post-submit"'),
+    "the consequence must precede the Publish post button");
+  assert.match(social, /id="post-submit"[^>]*aria-describedby="post-consequence social-notice"/);
+
+  // The line this replaced described storage, not audience. Neither page may
+  // say it again.
+  for (const [name, page] of [["social.html", social], ["post.html", post]]) {
+    assert.equal(page.includes("shared across browsers"), false,
+      `${name} must say who can read a post, not where the bytes live`);
+  }
 });
 
 /* --------------------------- one state at a time -------------------------- */
