@@ -95,7 +95,9 @@ test("the description requirement is stated only once there is an image to descr
 
   assert.equal(marker.hidden, true, "no image, nothing to require");
   assert.equal(input.getAttribute("aria-required"), "false");
-  assert.equal(textOf(marker), "(required)");
+  // The marker names the condition, so it agrees with the "Image (optional)"
+  // legend above it instead of contradicting it.
+  assert.equal(textOf(marker), "(required with an image)");
   // The same element, class, and placement the Name and Image labels use for
   // their "(optional)" markers — one treatment answers both questions.
   assert.equal(marker.tagName, "SPAN");
@@ -190,6 +192,24 @@ test("a described image publishes, and the refusal state does not survive the fi
   assert.equal(harness.document.querySelector(`#${IMAGE_DESCRIPTION_ERROR_ID}`).hidden, true);
 });
 
+// The other half of what the label now says out loud. The refusal above is the
+// "with an image" clause; this is the "required" clause having a limit — a post
+// with no image publishes with the description field empty, through the same
+// submit the refusal goes through.
+test("a caption-only post publishes with an empty description", async (t) => {
+  const harness = await composer(t, { attached: false });
+  harness.fill({ body: "No picture, just words.", author: "Mina", description: "" });
+
+  publish(harness.document);
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.equal(harness.published.length, 1, "a post with nothing to describe was refused anyway");
+  assert.equal(harness.published[0].image, undefined, "no image rode along with the caption");
+  const input = harness.document.querySelector("#post-image-alt");
+  assert.equal(input.getAttribute("aria-invalid"), null, "an empty description was marked invalid with no image");
+  assert.equal(harness.document.querySelector(`#${IMAGE_DESCRIPTION_ERROR_ID}`).hidden, true);
+});
+
 test("the description counter is the caption's counter, pointed at this field's budget", async (t) => {
   const harness = await composer(t);
   const counter = harness.document.querySelector("#post-image-alt-counter");
@@ -225,12 +245,12 @@ test("imageDescriptionProblem requires a description only of an image post", () 
 test("the shipped composer markup carries the marker, the error slot, and the counter", async () => {
   const html = await import("node:fs/promises")
     .then(({ readFile }) => readFile(new URL("../src/social.html", import.meta.url), "utf8"));
-  // Stated in the page as served: the field lives inside the panel that only
-  // opens with an image attached, and with one attached the description is
-  // genuinely required, so the served label answers "must I fill this in?"
-  // rather than leaving it to be inferred. social.js still owns the live
-  // marker and takes it away with the image.
-  assert.match(html, /<span class="label-optional label-required" id="post-image-alt-required">\(required\)<\/span>/);
+  // Stated in the page as served, with its condition: the description is
+  // required only of a post that carries an image, which is the rule
+  // imageDescriptionProblem enforces and the opposite of what a flat
+  // "(required)" claims under an "Image (optional)" legend. social.js still
+  // owns the live marker and takes it away with the image.
+  assert.match(html, /<span class="label-optional label-required" id="post-image-alt-required">\(required with an image\)<\/span>/);
   assert.match(html, /id="post-image-alt"[^>]*maxlength="200"/);
   assert.match(html, /aria-describedby="post-image-alt-hint post-image-alt-counter-label post-image-alt-counter"/);
   assert.match(html, /<p class="field-error compose-error" id="post-image-alt-error" hidden><\/p>/);
