@@ -1825,6 +1825,21 @@
                 <p class="import-slot-unlocks" id="finops-import-slot-conversation-unlocks"></p>
               </li>
             </ul>
+            <!-- #1166: which one report to pull per pinned adapter, and which
+                 half of the answer that file can supply on its own. Slots only:
+                 every provider name, report, row unit and column is read from
+                 the intake contract and the query-source registry by
+                 import-recipes.js and painted through evolution-page.js.
+                 The lead sentence and the per-row supplies marker stay in the
+                 open — a lead has to see that a spend export finishes only half
+                 the figure BEFORE they open a console — and only the row unit
+                 and the column list sit behind a details element, which a
+                 reader who has already chosen their file never needs. -->
+            <section class="provider-readiness" id="import-recipes" aria-labelledby="import-recipes-title">
+              <h3 class="provider-readiness-title" id="import-recipes-title">Which file to pull, and which half it answers</h3>
+              <p class="provider-readiness-lead" id="import-recipes-lead"></p>
+              <ul class="import-slots" id="import-recipes-list" aria-labelledby="import-recipes-title"></ul>
+            </section>
             <p class="import-drop-state" id="finops-import-drop-state" aria-hidden="true"></p>
             <!-- #1062: the five exports this page reads, above the picker that
                  asks for one, in the open — never folded, since a reader who
