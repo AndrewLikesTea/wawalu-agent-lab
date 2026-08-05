@@ -14,6 +14,7 @@ import {
   SEED_RELEASES,
 } from "../src/seed-records.js";
 import { SITE_NAV } from "../src/site-nav.js";
+import { buildStandHeadline } from "../src/finops-stand.js";
 import { parseHtml, pressEnter, pressTab, textOf } from "./support/browser.js";
 
 async function copyDeployableArtifact(directory) {
@@ -117,7 +118,9 @@ test("the hero names the product before any surface, and keeps the log as a name
   // worked decision contains, and what it costs to read.
   assert.match(hero, /A worked decision is already computed on the AI FinOps page/);
   assert.match(hero, /no export of yours, no sign-in, and no account/);
-  assert.match(hero, /bundled synthetic data/);
+  // One name per concept: the marker AI FinOps publishes the example under.
+  assert.match(hero, /bundled synthetic example/);
+  assert.match(hero, /invented data for an invented company/);
   assert.match(hero, /Your files do not leave this tab\./);
   assert.doesNotMatch(html, /cost analyzer|spend tool/i);
   assert.ok(
@@ -198,12 +201,38 @@ test("the log entry's proof point ties a recorded decision to the release that s
   assert.match(proof, /invented records demonstrate Shiplog/);
   assert.match(proof, /not customer or internal operational data/);
 
-  // No money authored into the hero, still. Every figure on this page is
-  // rebuilt by a contract into the summary below, under the qualifier that
-  // contract carries; a dollar amount typed into the markup above it would be
-  // a claim with no arithmetic and no caveat behind it.
-  assert.doesNotMatch(hero, /\$\d/);
+  // Money is authored into the hero now, and only on these terms. The hero may
+  // state the bundled example's headline result so a first-screen visitor
+  // leaves with a number they can repeat — but a dollar amount typed into this
+  // markup is still a claim, so the guard moved rather than lifted. Every
+  // figure the hero states must be one AI FinOps publishes, the synthetic
+  // disclosure must read in the same paragraph as the figure, and the words
+  // this site never uses about a modelled ceiling stay barred.
+  const proofPoint = hero.slice(
+    hero.indexOf('<p class="hero-proof-point">'),
+    hero.indexOf("</p>", hero.indexOf('<p class="hero-proof-point">')),
+  );
+  for (const figure of hero.match(/\$[\d,]+|\d+% of analyzed AI spend/g) ?? []) {
+    assert.ok(proofPoint.includes(figure),
+      `the hero states ${figure} outside the paragraph that discloses the example`);
+    assert.ok(finops.includes(figure), `the hero states ${figure}, which AI FinOps does not publish`);
+  }
+  assert.match(proofPoint, /33% of analyzed AI spend is recoverable/,
+    "the first screen must state the result, not the categories of an answer");
+  assert.match(proofPoint, /bundled synthetic example/,
+    "a money figure in the hero must carry its disclosure in the same paragraph");
   assert.doesNotMatch(hero, /realized savings|saved \$|per month/i);
+
+  // The department is composed rather than authored on AI FinOps, so it is
+  // pinned against the composer that paints it there instead of against that
+  // page's markup. A rename in the example data fails the build here.
+  const headline = buildStandHeadline();
+  assert.ok(hero.includes(`${headline.team.name} is driving the increase`),
+    "the hero must name the department AI FinOps names as driving the increase");
+  for (const figure of ["$51,254", "$154,500"]) {
+    assert.ok(headline.recoverable.basis.includes(figure),
+      `the hero repeats ${figure}, which the composed headline no longer states`);
+  }
   for (const figure of ["$7,430", "$5,200 / month", "High · 760-query scored sample"]) {
     assert.ok(finops.includes(figure), `AI FinOps must still publish ${figure}`);
   }
