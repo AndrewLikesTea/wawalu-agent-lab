@@ -785,7 +785,12 @@ test("every routing-policy disclosure is keyboard-operable and reports its own s
   const { document, slate } = await paintRouting(loadExampleDataset());
   const summaries = document.querySelectorAll("summary")
     .filter((node) => node.closest("#routing-slate"));
-  assert.equal(summaries.length, slate.rules.length, "one disclosure per rule, rank 1 included");
+  // One per rule, rank 1 included, plus the one that works the whole policy
+  // through onto a gateway shape. Every one of them is driven below: a
+  // disclosure that opens without saying so is the defect this test exists for,
+  // and the preview is no more exempt from it than a rule is.
+  assert.equal(summaries.length, slate.rules.length + 1,
+    "one disclosure per rule, rank 1 included, plus the gateway-shape preview");
 
   const sequence = tabSequence(document);
   for (const summary of summaries) {
