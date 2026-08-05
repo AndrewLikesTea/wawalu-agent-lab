@@ -326,8 +326,13 @@ test("an empty profile separates viewing Social from creating and publishing an 
   // order all name the same link. An outlined secondary arriving first would put
   // the emphasis and the sequence in disagreement.
   const action = actions[0];
+  // The site's one name for the act, plus the disclosure every route into Paint
+  // carries: the editor opens in a new tab, so the label says so.
   assert.equal(action.textContent, "Create an image in Paint");
+  assert.equal(first(action, "new-tab-note").textContent, ` ${PROFILE_EMPTY_COPY.newTabNote}`);
   assert.equal(action.href, "/paint/?from=profile&author=Mina");
+  assert.equal(action.target, "_blank");
+  assert.equal(action.rel, "noopener");
   assert.equal(action.tagName, "A", "the primary action is keyboard reachable without scripted key handling");
   assert.match(action.href, /^\/paint\//, "first-time visitors get a visible route into creation");
   assert.ok(!action.className.includes("empty-action-secondary"), "the primary action is styled as the secondary one");

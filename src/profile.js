@@ -257,6 +257,11 @@ export const PROFILE_EMPTY_COPY = {
   guidance: "Images made in Paint and published on Social appear here.",
   actionLabel: "Create an image in Paint",
   postActionLabel: "See every post on Social",
+  // Paint opens in a new tab from every route on this site, so the control that
+  // takes it says so in the same five words the two authored links use. It is
+  // part of the label rather than a title attribute: an accessible name that
+  // stops at "Create an image in Paint" has not disclosed anything.
+  newTabNote: "(opens in a new tab)",
 };
 
 // The identity line under the heading when the selected name has nothing to
@@ -423,6 +428,9 @@ function renderEmpty(container, author) {
   empty.append(el("p", "empty-title", PROFILE_EMPTY_COPY.guidance));
   const link = el("a", "empty-action", PROFILE_EMPTY_COPY.actionLabel);
   link.href = profilePaintHref(author);
+  link.target = "_blank";
+  link.rel = "noopener";
+  link.append(el("span", "new-tab-note", ` ${PROFILE_EMPTY_COPY.newTabNote}`));
   const postLink = el("a", "empty-action empty-action-secondary",
     PROFILE_EMPTY_COPY.postActionLabel);
   postLink.href = "/social.html";

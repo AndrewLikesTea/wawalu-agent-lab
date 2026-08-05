@@ -670,7 +670,7 @@ test("the post count never claims zero posts before the feed has any answer", as
   assert.equal(textOf(count), "0 posts", "an answered fetch with nothing in it is a real zero");
   const empty = page.document.querySelector(".empty-state");
   assert.match(textOf(empty), /No posts on Social yet\./);
-  assert.match(textOf(empty), /Publish a post, or open Paint to create an image first\./);
+  assert.match(textOf(empty), /Publish a post, or create an image in Paint first\./);
   assert.doesNotMatch(textOf(empty), /Loading|Connecting/);
 });
 

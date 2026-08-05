@@ -4,8 +4,10 @@
 // arriving at the Social composer. This covers the outbound one, which had no
 // signposting at all: a visitor scrolling the Social feed or the People grid had
 // only a nav item reading "Paint", which names a destination without saying what
-// it is for, and the composer's own "Create in Paint" button sat several screens
-// above them.
+// it is for, and the composer's own image button sat several screens above them.
+//
+// One action, one name: every route into Paint from either page is labelled
+// "Create an image in Paint", opens a new tab, and says so in its own text.
 //
 // What is pinned is what a keyboard user actually gets: a real anchor, in
 // document order, inside the panel where the browsing happens, carrying a text
@@ -56,8 +58,9 @@ const composerPaintLink = () => documents.Social.querySelector(".media-source-ac
  * would make "how many times does Social offer Paint" a question about the
  * frame rather than about the page.
  */
-const socialEntryPoints = () => paintLinks(documents.Social)
+const entryPointsOn = (name) => paintLinks(documents[name])
   .filter((anchor) => !anchor.parentNode?.classList?.contains("site-nav") && !anchor.closest("#site-footer"));
+const socialEntryPoints = () => entryPointsOn("Social");
 
 for (const [name, document] of Object.entries(NEARBY_INVITATION)) {
   test(`${name} offers a labelled way to create an image, beside the images it shows`, () => {
@@ -85,6 +88,17 @@ for (const [name, document] of Object.entries(NEARBY_INVITATION)) {
       `${name}'s helper stops at the editor and never says the image has to be published`);
     assert.ok(sentence.indexOf("Paint") < sentence.indexOf("Social"),
       `${name}'s helper names the two steps out of order`);
+
+    // The composer's own sequence, in the composer's words: make the image,
+    // return to this tab, publish it. The middle step is the one a reader who
+    // has just been sent to another tab actually needs, and People used to skip
+    // it — the same round trip told two different ways on two pages.
+    assert.match(sentence, /return to this tab/,
+      `${name}'s helper never says to come back from the tab it opens`);
+    assert.ok(sentence.indexOf("Paint") < sentence.indexOf("return to this tab"),
+      `${name}'s helper asks the reader to return before it sends them anywhere`);
+    assert.ok(sentence.indexOf("return to this tab") < sentence.indexOf("Social"),
+      `${name}'s helper publishes before it comes back`);
   });
 
   test(`${name} keeps the Paint route in the keyboard sequence, before the browsing panel`, () => {
@@ -175,10 +189,12 @@ test("both of People's routes into Paint follow the profile actually being read"
   }
 });
 
-test("the composer's own Paint control is unchanged and still labelled in words", () => {
+test("the composer's own Paint control carries the same label as every other route", () => {
   const composer = composerPaintLink();
   assert.equal(composer.href, PAINT_PATH);
-  assert.match(textOf(composer), /^Create in Paint/);
+  // It used to read "Create in Paint" — the same act under a second name, two
+  // screens from the hero that named it first.
+  assert.match(textOf(composer), /^Create an image in Paint/);
 });
 
 /* ------------------- one feature, offered exactly twice ------------------- */
@@ -199,9 +215,10 @@ test("Social offers Paint exactly twice: the standing invitation and the in-flow
   assert.equal(entryPoints[0].id, "social-paint-cta", "the standing invitation is not the first offer");
   assert.equal(entryPoints[1], composerPaintLink(), "the composer's control is not the second offer");
 
-  // One feature, two placements: both labels are "Create … in Paint", so the
-  // two read as one thing offered where a reader is, not as two features.
-  for (const link of entryPoints) assert.match(textOf(link), /^Create (an image )?in Paint/);
+  // One feature, two placements, one name: both labels open with the same four
+  // words, so the two read as one thing offered where a reader is, not as two
+  // features.
+  for (const link of entryPoints) assert.match(textOf(link), /^Create an image in Paint/);
 
   // The removed third invitation named the destination alone. Nothing outside
   // the site nav may go back to naming it that way.
@@ -209,22 +226,43 @@ test("Social offers Paint exactly twice: the standing invitation and the in-flow
   assert.equal(feedInvitations, 0, "Social grew a third Paint invitation beside its feed again");
 });
 
-test("every Social route into Paint says in words that it opens a new tab", () => {
-  for (const link of socialEntryPoints()) {
-    // The behaviour first: the tab really does change, so the disclosure is a
-    // fact rather than decoration, and `noopener` comes with it.
-    assert.equal(link.getAttribute("target"), "_blank", `${textOf(link)} does not open a new tab`);
-    assert.match(link.getAttribute("rel") ?? "", /noopener/);
+// People used to make the same offer with no disclosure at all — "Create an
+// image in Paint →", which promised a same-tab move the site does not make — and
+// its helper sentence named the tool without saying the tab would change. Both
+// pages hand off to Paint the same way, so both say the same thing about it.
+test("every route into Paint on Social and People says in words that it opens a new tab", () => {
+  // Counted first, so a filter that stops matching a page's links fails here
+  // rather than passing an empty loop: two offers on Social, two on People.
+  for (const [name, count] of [["Social", 2], ["People", 2]]) {
+    assert.equal(entryPointsOn(name).length, count, `${name} offers Paint a different number of times`);
+    for (const link of entryPointsOn(name)) {
+      // The behaviour first: the tab really does change, so the disclosure is a
+      // fact rather than decoration, and `noopener` comes with it.
+      assert.equal(link.getAttribute("target"), "_blank", `${name}: ${textOf(link)} does not open a new tab`);
+      assert.match(link.getAttribute("rel") ?? "", /noopener/);
 
-    // Then the disclosure, in the accessible name — real text, not a title
-    // attribute and not the glyph.
-    assert.match(textOf(link), /\(opens in a new tab\)/, `${textOf(link)} hides the new tab from its name`);
-    assert.match(sources.Social, /<span class="new-tab-note">\(opens in a new tab\)<\/span>/);
+      // Then the disclosure, in the accessible name — real text, not a title
+      // attribute and not the glyph. Same five words on both pages.
+      assert.match(textOf(link), /\(opens in a new tab\)/, `${name}: ${textOf(link)} hides the new tab from its name`);
+    }
+    assert.match(sources[name], /<span class="new-tab-note">\(opens in a new tab\)<\/span>/);
+  }
+});
 
-    // The arrow is decoration on top of that sentence: hidden from assistive
+// ↗ means "this leaves the tab you are in"; → means "this moves you inside it".
+// The site's every other arrow is a → on a same-tab route, and People's Paint
+// button used to carry one while Social's carried ↗ for the identical action.
+test("the button-shaped routes into Paint carry one arrow, and it is the leaves-this-tab one", () => {
+  const buttons = ["Social", "People"].flatMap((name) => entryPointsOn(name))
+    .filter((link) => /button-link|secondary-button/.test(link.className ?? ""));
+  assert.equal(buttons.length, 3, "the number of button-shaped routes into Paint changed");
+
+  for (const link of buttons) {
+    // The arrow is decoration on top of the disclosure: hidden from assistive
     // technology so it is not read as punctuation, and never the only signal.
     const glyphs = link.querySelectorAll("span").filter((span) => /[↗→]/.test(textOf(span)));
     assert.equal(glyphs.length, 1, `${textOf(link)} does not carry exactly one glyph`);
+    assert.equal(textOf(glyphs[0]), "↗", `${textOf(link)} points → at a route that leaves this tab`);
     assert.equal(glyphs[0].getAttribute("aria-hidden"), "true", "the glyph is read as punctuation");
   }
 });

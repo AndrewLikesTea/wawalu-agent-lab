@@ -175,10 +175,16 @@ test("empty, loading, and error states are three distinct renders", () => {
   renderPosts(noPosts, []);
   const noPostsPanel = first(noPosts, "empty-state");
   assert.match(noPostsPanel.textContent, /No posts on Social yet\./);
-  assert.match(noPostsPanel.textContent, /Publish a post, or open Paint to create an image first\./);
+  assert.match(noPostsPanel.textContent, /Publish a post, or create an image in Paint first\./);
   const paintAction = first(noPostsPanel, "state-action");
+  // The page's one name for the act, and the same new-tab disclosure the hero
+  // and the composer carry: this is a third placement of one action, not a
+  // third action.
   assert.equal(paintAction.textContent, "Create an image in Paint");
+  assert.equal(first(paintAction, "new-tab-note").textContent, " (opens in a new tab)");
   assert.equal(paintAction.href, "/paint/");
+  assert.equal(paintAction.target, "_blank");
+  assert.equal(paintAction.rel, "noopener");
 
   const empty = createElement("div");
   renderPosts(empty, [], { emptyMessage: "No Social posts match these filters." });

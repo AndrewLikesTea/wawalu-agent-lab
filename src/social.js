@@ -497,7 +497,11 @@ function renderSkeleton(container, count = 3) {
 // different actions: nothing published yet points at Paint, because an image is
 // the part of a post a reader has nowhere else to get; a filtered-out feed is
 // already full and only needs the filters or the composer.
-const NO_POSTS_GUIDANCE = "Publish a post, or open Paint to create an image first.";
+//
+// "create an image in Paint" is the site's one name for that act — the hero, the
+// composer, and both of People's invitations all use it — so this sentence uses
+// it too rather than the "open Paint" it used to say.
+const NO_POSTS_GUIDANCE = "Publish a post, or create an image in Paint first.";
 
 // `state` separates "we have nothing yet because we are still fetching" from
 // "we have nothing because there is nothing" and from "we have nothing because
@@ -534,7 +538,10 @@ export function renderPosts(container, posts, options = {}) {
         description: emptyMessage ?? NO_POSTS_GUIDANCE,
         action: emptyMessage
           ? { label: "Write a post", href: "#post-body" }
-          : { label: "Create an image in Paint", href: "/paint/" },
+          // Same label, same tab behaviour, same disclosure as the hero and the
+          // composer above it: one action offered in a third place, not a third
+          // action.
+          : { label: "Create an image in Paint", href: "/paint/", newTab: true },
       });
       panel.classList.add("empty-state");
     }
