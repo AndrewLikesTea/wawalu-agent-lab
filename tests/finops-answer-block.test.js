@@ -383,6 +383,8 @@ test("every top-level section that existed before the answer block is still on t
     "finops-contact", "finops-proof-point", "finops-headline", "classifier-agreement",
     "disclosure-grade-comparisons", "graded-sample", "org-coaching", "spend-per-delivery",
     "department-evidence", "department-fix-pack", "monthly-department-decision",
+    // #1137: the ranked routing changes behind the monthly decision above it.
+    "routing-slate",
     "disclosure-spend-and-recovery", "disclosure-department-priority", "disclosure-spend-mix",
     "disclosure-savings-portfolio", "disclosure-recommendation-evidence", "finops-privacy",
   ];
