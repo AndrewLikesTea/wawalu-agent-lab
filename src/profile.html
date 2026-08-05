@@ -102,12 +102,19 @@
              returns to every post on Social, and this route opens Paint. The
              label names the act and the tool, because "Paint" alone is what the
              nav already says; where the image goes afterwards is the empty
-             state's sentence to say, not a second telling here. `from=profile`
-             is provenance, not state — it is what lets Paint's one back link say
-             "Back to People"; profile.js adds the selected display name so the
-             return lands on the profile that was being read. -->
+             state's sentence to say, not a second telling here. It is the same
+             label Social's hero and composer use, word for word, so one action
+             has one name on both surfaces. `from=profile` is provenance, not
+             state — it is what lets Paint's one back link say "Back to People";
+             profile.js adds the selected display name so the return lands on the
+             profile that was being read.
+             Paint opens in a new tab here for the reason it does on Social — the
+             hand-off is a round trip, and the profile being read survives it —
+             so the label says so in words and the glyph is ↗, which is what this
+             site's links use when they leave the current tab. → is for the ones
+             that stay in it. -->
         <div class="hero-actions">
-          <a class="button-link" id="profile-paint-cta" href="/paint/?from=profile">Create an image in Paint <span aria-hidden="true">→</span></a>
+          <a class="button-link" id="profile-paint-cta" href="/paint/?from=profile" target="_blank" rel="noopener"><span>Create an image in Paint <span class="new-tab-note">(opens in a new tab)</span></span> <span aria-hidden="true">↗</span></a>
         </div>
       </section>
 
@@ -125,12 +132,19 @@
             </div>
           </div>
           <!-- People is where a visitor browses images, so the route into the
-               editor stays beside them. The sentence names both steps in the
+               editor stays beside them. The sentence names every step in the
                order they happen, because Paint publishes nothing: it used to
                read "Want a picture of your own here? Open Paint", which made
                opening the editor sound like the whole path and left the
                publishing step to an empty state a reader with posts on screen
-               never sees.
+               never sees. The steps are the composer's own three, in the
+               composer's order and words — create the image, return to this tab,
+               publish it — said once and short, because People is not the place
+               to repeat the composer's numbered procedure.
+               The link opens Paint in a new tab, the way every route into Paint
+               on this site does, and its own text says so: a disclosure that
+               sits outside the link is a disclosure the accessible name does not
+               carry.
                `from=profile` is provenance, not state: it is what lets Paint's
                one back link say "Back to People" and mean it. profile.js adds
                the selected display name to it so the return lands on the exact
@@ -140,7 +154,7 @@
                feed is already a link in the hero, and this paragraph holds one
                route only. -->
           <p class="feed-create hint">
-            Want a picture of your own here? Create or export the image in <a class="text-link paint-link" id="profile-paint-route" href="/paint/?from=profile">Paint</a>, then publish it on Social under a display name.
+            Want a picture of your own here? <a class="text-link paint-link" id="profile-paint-route" href="/paint/?from=profile" target="_blank" rel="noopener">Create an image in Paint <span class="new-tab-note">(opens in a new tab)</span></a>, return to this tab, then publish it on Social under a display name.
           </p>
 
           <div class="feed-connection" aria-live="polite">

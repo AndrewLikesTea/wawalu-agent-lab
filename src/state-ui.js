@@ -37,8 +37,17 @@ export function renderState(container, options) {
     if (description) panel.append(element("p", "state-guidance", description));
     if (action) {
       const control = element(action.href ? "a" : "button", "state-action", action.label);
-      if (action.href) control.href = action.href;
-      else {
+      if (action.href) {
+        control.href = action.href;
+        // A state action that leaves the tab discloses it in its own text, the
+        // way the authored links on Social and People do. Opt-in: same-tab is
+        // still the default for every caller that says nothing.
+        if (action.newTab) {
+          control.target = "_blank";
+          control.rel = "noopener";
+          control.append(element("span", "new-tab-note", " (opens in a new tab)"));
+        }
+      } else {
         control.type = "button";
         control.addEventListener("click", action.onClick);
       }
