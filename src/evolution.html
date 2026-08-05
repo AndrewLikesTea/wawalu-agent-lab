@@ -2984,6 +2984,22 @@
         <div id="routing-slate-body"></div>
       </section>
 
+      <!-- What last period's slate was worth, measured. Authored empty and
+           painted by routing-rule-score-view.js: the aggregate verdict and the
+           rule that produced it first, then one disclosure per rule carrying its
+           verdict, the dollar threshold that produced it, and expected against
+           observed. A rule the follow-up import cannot cover gets the sentence
+           naming what was absent and no figure at all — never a zero. The status
+           line is authored HERE, as a sibling of the painted body and outside
+           every disclosure, because a closed disclosure element is hidden from
+           the accessibility tree in a real browser. -->
+      <section class="finops-panel" id="routing-rule-score" data-state="unavailable" data-scored-count="0" data-workspace-region="act-and-verify" role="region" aria-labelledby="routing-rule-score-title">
+        <p class="eyebrow">Routing score</p>
+        <h2 class="answer-question" id="routing-rule-score-title">Did last period's routing rules return what they said they would?</h2>
+        <p class="answer-figure-basis" id="routing-rule-score-status" role="status" data-state="unavailable">Nothing has been committed in this browser, so there is no prior period to score a routing policy from and no follow-up period it is answerable for.</p>
+        <div id="routing-rule-score-body"></div>
+      </section>
+
       <details class="support-disclosure" id="disclosure-spend-and-recovery" data-panel-id="spend-and-recovery" data-workspace-region="evidence">
         <summary class="support-disclosure-summary"><span class="support-disclosure-step" data-role="step">Supporting panel</span> <span class="support-disclosure-question" data-role="question">What did we spend this period, and how much of it is recoverable?</span></summary>
       <section class="kpi-row" id="kpi-row" data-source="sample" aria-label="Headline metrics" aria-describedby="headline-basis">

@@ -385,6 +385,8 @@ test("every top-level section that existed before the answer block is still on t
     "department-evidence", "department-fix-pack", "monthly-department-decision",
     // #1137: the ranked routing changes behind the monthly decision above it.
     "routing-slate",
+    // #1139: what last period's rules were worth once the next period landed.
+    "routing-rule-score",
     "disclosure-spend-and-recovery", "disclosure-department-priority", "disclosure-spend-mix",
     "disclosure-savings-portfolio", "disclosure-recommendation-evidence", "finops-privacy",
   ];

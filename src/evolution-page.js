@@ -88,6 +88,7 @@ import { localFinopsMeetingSummary, normalizeLocalFinopsHistory } from "/local-f
 // portfolio exists.
 import { applyPortfolioBrief, clearPortfolioBrief } from "/finops-portfolio-brief-view.js";
 import { applyRoutingSlate, markRoutingSlateLoading } from "/routing-slate-view.js";
+import { applyRoutingRuleScore } from "/routing-rule-score-view.js";
 // The five-slot headline an imported export earns, painted from the checked-in
 // contract in finops-imported-headline-fixture.json. Imported state only.
 import {
@@ -1855,8 +1856,14 @@ function mountLocalFinopsImport() {
     // the commitment this browser retained is what separates the first from the
     // other two. No commitment (every first visit, and the whole of the bundled
     // example) means every rule is a proposal, which is the honest default.
-    applyRoutingSlate(document, next,
-      { commitment: readMonthlyAction(browserFinopsWorkspaceStorage()).record });
+    const retainedAction = readMonthlyAction(browserFinopsWorkspaceStorage()).record;
+    applyRoutingSlate(document, next, { commitment: retainedAction });
+    // And what those rules were worth once the next period landed. The commitment
+    // supplies both periods, so the score is taken over the window the reader
+    // committed to; the observed side is this envelope's own per-unit trend. A
+    // unit the import could not cover is named, never zeroed.
+    applyRoutingRuleScore(document, next,
+      { commitment: retainedAction, followUpAnalysis: next });
     // And the headline the reader's own export earns: five slots, always five,
     // each one either a figure from this envelope or the contract's own sentence
     // for why the export could not supply it. The bundled example is not an
