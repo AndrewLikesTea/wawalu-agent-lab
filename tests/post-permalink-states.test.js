@@ -18,7 +18,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { loadPage, tabSequence, textOf } from "./support/browser.js";
+import { loadPage, pressEnter, pressTab, tabSequence, textOf } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 
 const SEED_URL = "/social-demo-data.json";
@@ -152,6 +152,104 @@ test("an answered feed with no matching id is not-found, not an error", async ()
   }
 });
 
+// A link can fail to name a post in more ways than one: it can carry an id
+// nobody posted under, it can carry an id a chat client truncated, or it can
+// carry none at all. To the reader those are one answer — this link did not
+// reach a post — so they are one state, headed by one set of words. Only the
+// sentence under the heading differs, and only where it can say something true
+// about how this particular link failed.
+const NOT_FOUND_ROUTES = [
+  ["no id at all", "", () => { throw new Error("a link with no id must not ask the network"); },
+    /This link did not name a post to open/],
+  ["a truncated id", "?id=8f14e45f-ceea-467a", seedOnly([IMAGE_POST, TEXT_POST]), /This post was not found\./],
+  ["an id that is only spaces", "?id=%20%20", seedOnly([IMAGE_POST]), /This post was not found\./],
+];
+
+test("a link with no id, or a truncated one, lands in the same not-found state as a stale id", async () => {
+  for (const [route, search, answer, sentence] of NOT_FOUND_ROUTES) {
+    const page = await openPostPage(search, answer);
+    try {
+      // The same named state, the same heading, the same chip word.
+      assertOneState(page, "not-found", route);
+      assert.equal(textOf(page.panel.querySelector(".empty-title")), "Post not found", `${route}: the heading names what happened`);
+      assert.equal(textOf(page.panel.querySelector(".detail-state-chip")), "Not found", `${route}: the chip carries its own word`);
+      assert.match(textOf(page.panel), sentence, `${route}: the sentence says how this link failed`);
+
+      // The wait is gone from the document, not pushed below the answer.
+      assert.equal(textOf(page.document.querySelector("main")).includes("Loading this post…"), false, `${route}: the wait is still on the page`);
+      assert.equal(page.panel.querySelectorAll(".detail-loading").length, 0, `${route}: a loading node survived`);
+
+      // One next step: the feed. Counted, because the assertion is about how
+      // many routes forward this state offers, not which node is where.
+      assert.equal(page.panel.querySelectorAll(".empty-action").length, 1, `${route}: one next step, not a stack`);
+      assert.equal(textOf(page.panel.querySelector(".detail-state-feed")), "Return to the Social feed");
+      assert.equal(page.panel.querySelectorAll("button").length, 0, `${route}: nothing here can be retried`);
+    } finally {
+      page.restore();
+    }
+  }
+});
+
+// The People link's words are about one display name's other posts. On a state
+// with no post there is no such name — not even when the arriving URL claimed
+// one, because a claim is not a name this page resolved — so the link is gone
+// from the document rather than left pointing at People-in-general under words
+// that promise a person. Social stays: the feed is true either way.
+test("the states with no post withdraw the People link and keep the one to Social", async () => {
+  const cases = [
+    ["not-found", "?id=p-never-existed", seedOnly([IMAGE_POST])],
+    ["not-found, with an author in the URL", "?id=p-gone&author=Mina%20Okafor", seedOnly([IMAGE_POST])],
+    ["no id", "", () => { throw new Error("a link with no id must not ask the network"); }],
+    ["error", "?id=p-image", () => { throw new TypeError("Failed to fetch"); }],
+  ];
+  for (const [where, search, answer] of cases) {
+    const page = await openPostPage(search, answer);
+    try {
+      const exits = page.document.querySelectorAll(".detail-back");
+      assert.deepEqual(exits.map(textOf), [SOCIAL_LINK], `${where}: the routes out`);
+      assert.equal(exits[0].getAttribute("href"), "/social.html");
+      // Withdrawn from the document, not hidden: a hidden link still reads to a
+      // screen reader in this harness, which models no layout at all.
+      assert.equal(page.document.querySelectorAll("#post-people").length, 0, `${where}: the People link is still in the document`);
+      assert.equal(textOf(page.document.querySelector("main")).includes(PEOPLE_LINK), false, `${where}: its words are still on the page`);
+      // And it is not merely out of the tab order while still being read.
+      assert.equal(tabSequence(page.document).filter((stop) => textOf(stop) === PEOPLE_LINK).length, 0);
+    } finally {
+      page.restore();
+    }
+  }
+});
+
+// Withdrawing a link is fine. Withdrawing the link a reader is standing on,
+// and saying nothing about where they now are, is not: focus would fall to the
+// document and a keyboard reader would restart from the top of the page.
+test("a reader standing on the People link keeps their place when it is withdrawn", async () => {
+  const page = await loadPage(new URL("../src/post.html", import.meta.url), { location: { search: "?id=p-gone" } });
+  try {
+    let release;
+    globalThis.fetch = () => new Promise((resolve) => { release = () => resolve(seedResponse([IMAGE_POST])); });
+    await importPageModule("/post-page.js");
+    const panel = page.document.querySelector("#post-detail");
+    await waitFor(() => panel.querySelectorAll(".detail-loading").length === 1, "the loading state rendered");
+
+    // Standing on it while the lookup is still open, which is when it is still
+    // offered — a post may yet arrive.
+    const people = page.document.querySelector("#post-people");
+    people.focus();
+    assert.equal(page.document.activeElement, people);
+
+    release();
+    await waitFor(() => page.document.documentElement.dataset.shiplogPostDetail === "ready", "the lookup settled");
+
+    // The post was not there, so the link is gone — and focus is on the exit
+    // beside it rather than nowhere.
+    assert.equal(page.document.querySelectorAll("#post-people").length, 0);
+    assert.equal(page.document.activeElement, page.document.querySelector("#post-back"));
+  } finally {
+    page.restore();
+  }
+});
+
 /* --------------------------------- error ---------------------------------- */
 
 test("an unreachable feed is named as such, with a keyboard-reachable retry after the heading", async () => {
@@ -234,6 +332,47 @@ test("retry re-attempts the fetch and can take the page from error to loaded", a
   }
 });
 
+// The same recovery, driven from the keyboard alone: tab to the control and
+// press Enter. Nothing here calls click() — the point is that a reader who
+// never touches a pointer can get out of the error state, and that the page
+// re-attempts the load in place rather than reloading itself.
+test("the retry is reached by Tab and fired by Enter, and the People link returns with the post", async () => {
+  let failing = true;
+  const page = await openPostPage("?id=p-image", (url) => {
+    if (failing) throw new TypeError("Failed to fetch");
+    return seedOnly([IMAGE_POST])(url);
+  });
+  try {
+    assertOneState(page, "error", "the first attempt failed");
+    const attempts = page.requests.length;
+
+    // Tabbed to, not focused by hand: the control has to be in the sequence a
+    // keyboard reader actually walks.
+    const retry = page.panel.querySelector(".detail-retry");
+    let presses = tabSequence(page.document).length;
+    while (page.document.activeElement !== retry && presses > 0) {
+      pressTab(page.document);
+      presses -= 1;
+    }
+    assert.equal(page.document.activeElement, retry, "Tab must reach the retry");
+
+    failing = false;
+    pressEnter(page.document);
+    await waitFor(page.settled, "the retry finished");
+
+    assert.ok(page.requests.length > attempts, "Enter must re-run the load, not redraw the last answer");
+    assertOneState(page, "loaded", "after an Enter-driven retry");
+    // No reload: the same document is still standing, which is the only reason
+    // the assertions above can see the page at all.
+    assert.equal(page.document.querySelectorAll("h1").length, 1);
+    // A post again, so the link whose words are about its author comes back.
+    assert.deepEqual(page.document.querySelectorAll(".detail-back").map(textOf), CHROME_LINKS);
+    assert.equal(page.document.querySelector("#post-people").getAttribute("href"), "/profile.html?author=Mina%20Okafor");
+  } finally {
+    page.restore();
+  }
+});
+
 /* -------------------------------- loaded ---------------------------------- */
 
 test("a loaded post links its display name to that name's People view", async () => {
@@ -311,15 +450,24 @@ test("a post with no image renders no image element and no empty frame to hold o
 // can resolve to a post or to nothing at all, and the frame has to read the same
 // either way — so this is asserted in the missing state as well as the loaded
 // one, not just in the state that happens to work.
-const CHROME_LINKS = [
-  "Open Social to read the whole feed",
-  "Open People to see this display name's other image posts",
-];
+const SOCIAL_LINK = "Open Social to read the whole feed";
+const PEOPLE_LINK = "Open People to see this display name's other image posts";
+const CHROME_LINKS = [SOCIAL_LINK, PEOPLE_LINK];
+// What each state offers. Social is true whatever the lookup did — the feed
+// exists either way — so it stands in all four. People is offered only where
+// there is a post, because its words are about that post's display name and a
+// state with no post has no name to put behind them.
+const EXITS_BY_STATE = {
+  loading: CHROME_LINKS,
+  loaded: CHROME_LINKS,
+  "not-found": [SOCIAL_LINK],
+  error: [SOCIAL_LINK],
+};
 // Word for word the last sentence of Social's own intro, because a visitor who
 // lands here may never open /social.html.
 const DEMO_SENTENCE = "Posts are shared across browsers and use no customer or production data.";
 
-test("the routes out and the demo sentence read the same whether the post arrives or not", async () => {
+test("the words of a route out never change, and the demo sentence survives every state", async () => {
   const cases = [
     ["loaded", "?id=p-image", seedOnly([IMAGE_POST])],
     ["not-found", "?id=p-never-existed", seedOnly([IMAGE_POST])],
@@ -330,9 +478,10 @@ test("the routes out and the demo sentence read the same whether the post arrive
     try {
       const main = page.document.querySelector("#main-content");
 
-      // Both links, both labels, in this order. Counted and read, never checked
-      // for absence against null.
-      assert.deepEqual(page.document.querySelectorAll(".detail-back").map(textOf), CHROME_LINKS,
+      // The labels this state offers, in this order. Counted and read, never
+      // checked for absence against null. No state rewrites a label — a state
+      // with nothing to say behind one withdraws the whole link instead.
+      assert.deepEqual(page.document.querySelectorAll(".detail-back").map(textOf), EXITS_BY_STATE[state],
         `the ${state} state changed the page's routes out`);
 
       // Neither says "Back", and neither carries a return glyph: nobody arriving

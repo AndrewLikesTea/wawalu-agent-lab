@@ -244,14 +244,27 @@ test("a failed load says what happened once, offers a retry, and leaks no error 
   assert.equal(retried, 1, "a failed load offers a retry");
 });
 
-test("an id-less visit is told what the page needs, and the standing exits carry the feed", () => {
+test("an id-less visit is headed by the same not-found words, and offers the feed", () => {
   const container = createElement("div");
   renderPostDetail(container, null, { id: "" });
-  assert.equal(first(container, "empty-title").textContent, "Choose a post");
-  assert.match(container.textContent, /No post was specified\. Open one from Social\./);
-  // The page's standing exits already name Social, so the panel does not add a
-  // second, differently-worded link to the same place.
-  assert.equal(byClass(container, "empty-action-secondary").length, 0);
+  // One state, one heading, one chip word. A link with no id, a truncated id
+  // and an id nobody posted under are one answer to a reader — the link did not
+  // reach a post — so they are not headed three different ways.
+  assert.equal(first(container, "empty-title").textContent, "Post not found");
+  assert.equal(first(container, "detail-state-label").textContent, "Not found");
+  assert.equal(first(container, "detail-state-panel").getAttribute("data-post-state-panel"), "not-found");
+  // Only the sentence differs, because only it can say what is true of *this*
+  // link: nothing was asked for, as against something that was not there.
+  assert.match(container.textContent, /This link did not name a post to open/);
+  assert.doesNotMatch(container.textContent, /This post was not found\./);
+  // And one next step, named where the problem is explained. This state used to
+  // offer none at all, leaving a dead end with nothing pointing out of it.
+  const feed = first(container, "detail-state-feed");
+  assert.equal(feed.textContent, "Return to the Social feed");
+  assert.equal(feed.href, "/social.html");
+  assert.equal(byClass(container, "empty-action").length, 1, "one action, not a stack");
+  // Nothing to retry: no id was asked for, so a second attempt asks nothing.
+  assert.equal(tags(container, "BUTTON").length, 0);
 });
 
 test("the loading state is one labelled line in the post's region, not a banner", () => {
@@ -549,7 +562,9 @@ test("the standing exits remain while unavailable states add a clear feed action
     const container = createElement("div");
     renderPostDetail(container, value, options);
     const backish = tags(container, "A").filter((link) => /Back to|Return to/.test(link.textContent));
-    assert.equal(backish.length, ["missing", "error"].includes(name) ? 1 : 0);
+    // Every state that resolved without a post carries the feed action, the
+    // id-less one included: it is as much a dead end as a stale id is.
+    assert.equal(backish.length, ["missing", "error", "id-less"].includes(name) ? 1 : 0);
   }
 });
 
@@ -559,7 +574,7 @@ test("only unavailable requested-post states render a feed action", () => {
     renderPostDetail(container, value, options);
     assert.equal(
       byClass(container, "empty-action-secondary").length,
-      ["missing", "error"].includes(name) ? 1 : 0,
+      ["missing", "error", "id-less"].includes(name) ? 1 : 0,
       `the ${name} state has the expected feed action`,
     );
     // Retry is the one action a state still owns, because no standing link can
@@ -614,7 +629,12 @@ test("each state's chip carries a word, and a wash that only agrees with it", as
   const chips = [
     ["not-found", chipOf(null, { state: "ready", id: "p-gone" }), "missing", "Not found"],
     ["error", chipOf(null, { state: "error", id: "p-gone" }), "error", "Unreachable"],
-    ["id-less", chipOf(null, { state: "ready", id: "" }), "neutral", "Post status"],
+    // A link that named no post is not a third answer. It used to be chipped
+    // "Post status" in a neutral wash — a label naming the field rather than
+    // the state, on the one page where a reader most needs to be told what
+    // happened. It carries the not-found word now, like every other link that
+    // did not reach a post.
+    ["id-less", chipOf(null, { state: "ready", id: "" }), "missing", "Not found"],
   ];
 
   for (const [name, chip, tone, text] of chips) {
@@ -623,15 +643,16 @@ test("each state's chip carries a word, and a wash that only agrees with it", as
     assert.equal(chip.textContent, text, `the ${name} chip must name its state in words`);
     assert.ok(chip.classes.includes(`detail-state-chip-${tone}`), `the ${name} chip carries its tone class`);
   }
-  // Three chips, three words: a post that is gone and a feed that could not be
-  // reached are different answers and must not share a label.
-  assert.equal(new Set(chips.map(([, chip]) => chip.textContent)).size, 3);
+  // Two answers, two words: a post that is gone and a feed that could not be
+  // reached are different facts and must not share a label. A link that named
+  // no post at all is the first of those two, not a third.
+  assert.equal(new Set(chips.map(([, chip]) => chip.textContent)).size, 2);
 
   // A resolved lookup is a dynamic signal, so every one of these is a filled
   // wash. The outline chip is this site's mark for a standing classification,
   // and nothing on this page is one.
   const css = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
-  for (const tone of ["missing", "error", "neutral"]) {
+  for (const tone of ["missing", "error"]) {
     const rule = css.match(new RegExp(`^\\.detail-state-chip-${tone} \\{([^}]*)\\}`, "m"))?.[1] ?? "";
     assert.match(rule, /background:#/, `the ${tone} chip needs a filled wash, not a bare outline`);
     assert.match(rule, /color:#/, `the ${tone} chip needs its own ink`);

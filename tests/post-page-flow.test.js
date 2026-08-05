@@ -54,14 +54,19 @@ function exits(document) {
   return document.querySelectorAll("a").filter((link) => /^Open (Social|People) to |←|Back to/.test(link.textContent));
 }
 
-// Same two links, same two labels, in every state. Only the People link's
-// destination may differ, and only by narrowing to a display name the page can
-// actually name — which is what the label already promises.
+// Social in every state, People wherever there is a post to belong to one.
+// Nothing rewrites either label; the People link's destination may narrow to a
+// display name the page can actually name, which is what the label promises,
+// and a state with no post withdraws the link rather than softening its words.
+// `peopleHref` of null asserts that withdrawal — counted through the list, so
+// no node is ever compared against null.
 function assertExits(page, peopleHref, where) {
   const links = exits(page.document);
+  const expected = [[SOCIAL.label, SOCIAL.href]];
+  if (peopleHref) expected.push([PEOPLE.label, peopleHref]);
   assert.deepEqual(
     links.map((link) => [textOf(link), link.href]),
-    [[SOCIAL.label, SOCIAL.href], [PEOPLE.label, peopleHref]],
+    expected,
     `${where}: the page's routes out`,
   );
 }
@@ -118,7 +123,9 @@ test("an unknown id is named as a missing post, with the feed still the way out"
     assert.doesNotMatch(textOf(page.panel), /Try again/);
     assert.equal(page.panel.querySelector(".detail-state-message").getAttribute("role"), "status");
     assert.equal(page.document.title, "Post not found · Shiplog");
-    assertExits(page, PEOPLE.href, "not found");
+    // No post, so no display name the People link's words could be about: the
+    // feed is the one route this state offers.
+    assertExits(page, null, "not found");
     const feed = page.panel.querySelector(".detail-state-feed");
     assert.equal(textOf(feed), "Return to the Social feed");
     assert.equal(feed.getAttribute("href"), "/social.html");
@@ -131,7 +138,10 @@ test("an unknown id is named as a missing post, with the feed still the way out"
 test("a missing post reached from a profile still offers the feed it belonged to", async () => {
   const page = await openPostPage("?id=p-gone&from=profile&author=Mina%20Okafor", seedOnly([SEED_POST]));
   try {
-    assertExits(page, MINA, "missing, from a profile");
+    // The arriving link claimed a display name, but the page never resolved a
+    // post under it, so it is not a name this page can say "this" about. The
+    // People link stays withdrawn here too rather than trusting the URL.
+    assertExits(page, null, "missing, from a profile");
     // The panel names the next step where it explains the problem, so a reader
     // who has just been told the post is gone does not have to look back up the
     // page for what to do about it.
@@ -166,7 +176,7 @@ test("a failed lookup names the feed it could not reach, and retry can recover",
     assert.match(textOf(page.panel), /Post could not be loaded/);
     assert.match(textOf(page.panel), /The Social feed could not be reached/);
     assert.match(textOf(page.panel), /Social is a shared demo feed, not a signed-in account\./);
-    assertExits(page, PEOPLE.href, "failed");
+    assertExits(page, null, "failed");
 
     const retry = page.panel.querySelector("button");
     assert.equal(textOf(retry), "Retry");
@@ -194,9 +204,15 @@ test("a failed lookup names the feed it could not reach, and retry can recover",
 test("a visit with no id is told what the page needs, and still has one way out", async () => {
   const page = await openPostPage("", () => { throw new Error("a page with no id must not ask the network"); });
   try {
-    assert.match(textOf(page.panel), /Choose a post/);
+    // The same words as any other link that failed to reach a post: a reader
+    // who was handed a truncated URL is not in a different situation from one
+    // handed a stale id, and should not have to work out that they are.
+    assert.match(textOf(page.panel), /Post not found/);
+    assert.match(textOf(page.panel), /This link did not name a post to open/);
     assert.equal(page.requests.length, 0);
-    assertExits(page, PEOPLE.href, "no id");
+    assertExits(page, null, "no id");
+    // The one next step, in the panel that explains why it is needed.
+    assert.equal(textOf(page.panel.querySelector(".detail-state-feed")), "Return to the Social feed");
   } finally {
     page.restore();
   }

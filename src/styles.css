@@ -774,7 +774,6 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
    wash behind it because each one reports a live lookup, not a standing
    classification. Every pairing is an existing site palette at AA contrast. */
 .detail-state-chip { display:inline-flex; align-items:center; margin:0 0 11px; border:1px solid transparent; border-radius:5px; padding:2px 9px; font:750 10px/1.6 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; }
-.detail-state-chip-neutral { border-color:#cfccc3; background:#eeece5; color:#4a4a44; }
 .detail-state-chip-missing { border-color:#d9c69a; background:#fdf7e8; color:#5b4a20; }
 .detail-state-chip-error { border-color:#d5aaa6; background:#fbf1f1; color:#713b37; }
 /* The retry's landing place after a successful retry (post-page.js). It is
