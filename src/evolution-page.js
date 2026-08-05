@@ -72,6 +72,10 @@ import { initExportRecognition } from "/export-recognition-view.js";
 import {
   PROVIDER_READINESS, STATIC_DEMO_DISCLOSURE, serializeProviderSample,
 } from "/provider-readiness-contract.js";
+// Which report to pull per pinned adapter, and which half it supplies (#1166).
+import {
+  IMPORT_RECIPES, IMPORT_RECIPES_LEAD, SUPPLIES_MARKER,
+} from "/import-recipes.js";
 import { bindProviderImport, initProviderImport } from "/provider-native-import-view.js";
 import { FIXTURE_REFERENCE_DATE } from "/browser-compat-fixtures.js";
 import { scoreIntakeConfidence } from "/intake-confidence.js";
@@ -987,8 +991,52 @@ function mountProviderReadiness() {
   });
 }
 
+/**
+ * The recipe per pinned adapter (#1166), painted from the contract-derived list.
+ *
+ * In the open: the provider, the one report to ask for, the question it
+ * answers, and whether that file supplies spend only. Behind the disclosure:
+ * the row unit and the column list, which answer a failed import rather than
+ * the errand a lead is deciding on. Every string here is a slot.
+ */
+function mountImportRecipes() {
+  const list = document.getElementById("import-recipes-list");
+  if (!list) return;
+  setText("import-recipes-lead", IMPORT_RECIPES_LEAD);
+  const keyed = (className, key, value) => {
+    const line = element("p", className);
+    line.append(element("span", "provider-readiness-key", key), document.createTextNode(value));
+    return line;
+  };
+  list.replaceChildren(...IMPORT_RECIPES.map((recipe) => {
+    const item = element("li", "import-slot");
+    item.id = `import-recipe-${recipe.adapter}`;
+    item.dataset.adapter = recipe.adapter;
+    // The supplies marker is a word in the row's own text as well as a data
+    // attribute, so it survives greyscale and a stylesheet that failed to load.
+    item.dataset.supplies = recipe.supplies;
+    const name = element("p", "import-slot-label", `${recipe.label} · `);
+    name.append(element("span", "import-slot-state", SUPPLIES_MARKER[recipe.supplies]));
+    const detail = element("details");
+    detail.id = `${item.id}-detail`;
+    detail.append(element("summary", null, `Row unit and columns · ${recipe.label}`),
+      keyed("import-slot-unlocks", "Unit each row counts toward", recipe.grouping));
+    const columns = element("p", "provider-readiness-columns");
+    columns.dataset.kind = "required";
+    columns.append(element("span", "provider-readiness-key", "Columns read"));
+    for (const column of recipe.columns) columns.append(element("code", null, column));
+    detail.append(columns);
+    item.append(name,
+      keyed("import-slot-unlocks", "Answers", recipe.question),
+      keyed("import-slot-unlocks", "Pull this one report", recipe.report),
+      detail);
+    return item;
+  }));
+}
+
 function mountLocalFinopsImport() {
   mountProviderReadiness();
+  mountImportRecipes();
   const input = document.getElementById("local-finops-files");
   if (!input) return;
   // Provider projection code is needed only after a visitor selects a provider
