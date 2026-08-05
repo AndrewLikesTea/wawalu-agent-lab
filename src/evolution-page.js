@@ -87,7 +87,7 @@ import { localFinopsMeetingSummary, normalizeLocalFinopsHistory } from "/local-f
 // object, and it hands the page back to the single-provider brief when no
 // portfolio exists.
 import { applyPortfolioBrief, clearPortfolioBrief } from "/finops-portfolio-brief-view.js";
-import { applyRoutingSlate } from "/routing-slate-view.js";
+import { applyRoutingSlate, markRoutingSlateLoading } from "/routing-slate-view.js";
 // The five-slot headline an imported export earns, painted from the checked-in
 // contract in finops-imported-headline-fixture.json. Imported state only.
 import {
@@ -1851,7 +1851,12 @@ function mountLocalFinopsImport() {
     // this same envelope already carries. Both sides get it: the bundled example
     // earns rules from its per-unit candidates and a reader's own import earns
     // per-model rules when their export named the models.
-    applyRoutingSlate(document, next);
+    // Each rule also states where it stands — proposed, shipped, or scored — and
+    // the commitment this browser retained is what separates the first from the
+    // other two. No commitment (every first visit, and the whole of the bundled
+    // example) means every rule is a proposal, which is the honest default.
+    applyRoutingSlate(document, next,
+      { commitment: readMonthlyAction(browserFinopsWorkspaceStorage()).record });
     // And the headline the reader's own export earns: five slots, always five,
     // each one either a figure from this envelope or the contract's own sentence
     // for why the export could not supply it. The bundled example is not an
@@ -3392,6 +3397,7 @@ function mountLocalFinopsImport() {
     stateNode.setAttribute("aria-busy", "true");
     renderLocalExportActivation(document, LOCAL_EXPORT_ACTIVATION_STATE.READING);
     resultsNode.setAttribute("aria-busy", "true");
+    markRoutingSlateLoading(document);
     applyFieldDiagnostic(document, null);
     announce("loading", "Reading files in this tab…",
       "Parsing and validation are running locally; no file contents are being transferred.");
