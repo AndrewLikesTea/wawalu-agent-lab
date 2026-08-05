@@ -60,11 +60,20 @@
         </div>
       </section>
 
-      <section class="workspace" aria-label="Social">
-        <div class="form-panel">
+      <!-- The region held the page's own name, so a reader arriving here heard
+           "Social" from the nav item, "Social" from the h1, and "Social" again
+           from the region — the same word three times before a single post. It
+           is named after what it holds now, the way Decisions names its region
+           "Decision log" and Releases names its own "Release log".
+           The composer panel is named by its heading, the same wiring both of
+           those forms use: one badge, one heading, and the heading carries the
+           id the panel points at, so the form is announced once and by the
+           words a reader can see. -->
+      <section class="workspace" aria-label="Post log">
+        <div class="form-panel" aria-labelledby="post-form-title">
           <div class="section-heading">
             <p class="eyebrow">New post</p>
-            <h2>Write a post</h2>
+            <h2 id="post-form-title">Write a post</h2>
           </div>
 
           <!-- Filled by src/paint-handoff.js when the visitor arrives from the
