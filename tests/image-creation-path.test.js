@@ -294,12 +294,14 @@ test("the composer's Paint link sits between Upload image and Image description"
 test("Image description states its status in the label, like Name and Image do", () => {
   const marker = documents.Social.getElementById("post-image-alt-required");
   assert.ok(marker, "Image description carries no status marker");
-  assert.equal(textOf(marker), "(required)");
+  assert.equal(textOf(marker), "(required with an image)");
   // Stated in the page as served, in the label itself: the status is read, not
-  // inferred from the absence of an "(optional)" the other two fields carry.
+  // inferred from the absence of an "(optional)" the other two fields carry —
+  // and it names the condition, so it does not contradict the "Image
+  // (optional)" legend an inch above it.
   assert.match(
     sources.Social,
-    /<label for="post-image-alt">Image description <span class="label-optional label-required" id="post-image-alt-required">\(required\)<\/span><\/label>/,
+    /<label for="post-image-alt">Image description <span class="label-optional label-required" id="post-image-alt-required">\(required with an image\)<\/span><\/label>/,
   );
 });
 

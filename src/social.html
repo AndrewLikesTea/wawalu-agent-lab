@@ -124,16 +124,19 @@
                 <!-- The requirement marker is the same span, in the same place,
                      with the same class as the "(optional)" markers on Display
                      name and Image, so the two answers to "must I fill this in?" are told
-                     the same way. It ships stated rather than blank: this field
-                     is inside the panel that only opens once an image is
-                     attached, and at that point social.js refuses a blank
-                     description, so "required" is the true answer in every state
-                     the field is visible in. social.js still owns the live
-                     marker, and hides it if the image is removed.
+                     the same way. It names its condition rather than saying
+                     "(required)" flat, because the fieldset legend an inch above
+                     it says "Image (optional)" and the two together read as a
+                     contradiction. The condition is the rule social.js actually
+                     enforces: imageDescriptionProblem refuses a blank
+                     description only when an image is attached, so a
+                     caption-only post publishes with this field empty.
+                     social.js still owns the live marker, and hides it if the
+                     image is removed.
                      The counter is the caption's counter pointed at this field's
                      budget: same wording, same live region, same math. -->
                 <div class="field field-wide">
-                  <label for="post-image-alt">Image description <span class="label-optional label-required" id="post-image-alt-required">(required)</span></label>
+                  <label for="post-image-alt">Image description <span class="label-optional label-required" id="post-image-alt-required">(required with an image)</span></label>
                   <textarea id="post-image-alt" name="image-alt" rows="2" maxlength="200"
                     aria-describedby="post-image-alt-hint post-image-alt-counter-label post-image-alt-counter"></textarea>
                   <p class="field-error compose-error" id="post-image-alt-error" hidden></p>
