@@ -37,6 +37,21 @@ import {
 export const ROUTING_SLATE_SECTION_ID = "routing-slate";
 export const ROUTING_SLATE_BODY_ID = "routing-slate-body";
 export const ROUTING_SLATE_STATUS_ID = "routing-slate-status";
+export const ROUTING_POLICY_BUTTON_ID = "download-routing-policy";
+
+/**
+ * The download control follows the slate. A record that ranked nothing has no
+ * policy to propose, so the control is disabled rather than left live over an
+ * empty file; the status line already prints why in the words the reader can act
+ * on, and the button points at it so a screen reader gets the reason too.
+ */
+function paintPolicyControl(doc, slate) {
+  const button = doc.getElementById?.(ROUTING_POLICY_BUTTON_ID);
+  if (!button) return;
+  button.disabled = !slate.available;
+  button.setAttribute("aria-describedby",
+    slate.available ? "routing-policy-notice" : ROUTING_SLATE_STATUS_ID);
+}
 
 /**
  * One chip per lifecycle state. Four carriers, and colour is the last of them:
@@ -203,6 +218,7 @@ export function applyRoutingSlate(doc, analysis, { commitment = null } = {}) {
   section.dataset.ruleCount = String(slate.rules.length);
   section.hidden = false;
   paintStatus(doc, section, slate);
+  paintPolicyControl(doc, slate);
 
   if (!slate.available) {
     body.replaceChildren(element(doc, "p", "answer-figure-direction", slate.reason));

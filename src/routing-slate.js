@@ -334,3 +334,119 @@ export function routingSlate(analysis = null, { commitment = null } = {}) {
     tieBreak: ROUTING_SLATE_TIE_BREAK,
   });
 }
+
+/* ------------------------- the downloadable policy ------------------------ */
+//
+// The same ranked rules, as a file a gateway owner can take into a change
+// review. It ADDS NOTHING: every field below is read off the slate above, which
+// in turn reads off the envelope. No network call, no clock read, no credential,
+// and no prompt or customer text — the only strings that reach the file are the
+// derived labels and worked-example lines the page already renders on screen.
+//
+// KEY ORDER IS PART OF THE CONTRACT. Every object here is an ordered literal and
+// nothing iterates an unordered map, so two runs on the same record and the same
+// timestamp serialize byte-identically. Rounding happens in ONE place —
+// `expectedMonthly` above, truncating toward zero — and this file re-rounds
+// nothing, so the file and the column on screen carry the same integers.
+
+/** What this file is, for a reader who found it without the page. */
+export const ROUTING_POLICY_SCHEMA = "wawalu.routing-policy";
+
+/** Bumped when a field is added, removed, or changes meaning. */
+export const ROUTING_POLICY_SCHEMA_VERSION = 1;
+
+/**
+ * The sentence the file leads with, and the same sentence the page prints beside
+ * the control. It is one statement in two places on purpose: a reader who
+ * downloads this and mails it on must carry the caveat with the file.
+ */
+export const ROUTING_POLICY_NOTICE =
+  "PROPOSAL, NOT A CONFIGURATION. Every rule in this policy is derived from the export you read "
+  + "on this page and is a modelled ceiling, not a measured saving. Review each rule against your "
+  + "own gateway before applying any of it to a live routing configuration.";
+
+/** The same statement for a record that earned no rule, so the file cannot read as "no work to do". */
+export const ROUTING_POLICY_EMPTY_NOTICE =
+  "NO RULES. This record produced no ranked routing change, so this file proposes nothing. "
+  + "It is not a statement that your routing is optimal — read the page for why the list is empty.";
+
+export const ROUTING_POLICY_FILE_NAME = "routing-policy-proposal.json";
+export const ROUTING_POLICY_MEDIA_TYPE = "application/json";
+
+/**
+ * One rule, in the shape a change review reads it in. The five fields the
+ * document promises are `sourceModel`, `targetTier`, `expectedMonthlyUsd`,
+ * `guardrails`, and `evidence`; rank and source tier ride along because a rule
+ * that does not say what it is moving FROM is not applicable.
+ *
+ * `guardrails` are the conditions under which applying this rule is defensible,
+ * each one a figure the envelope already published: the modelled/realized basis,
+ * the envelope's own confidence level, the org unit and source tier the rule is
+ * scoped to, where the rule stands, and the measured change if there is one.
+ */
+function policyRule(rule) {
+  return {
+    rank: rule.rank,
+    sourceModel: rule.source,
+    sourceTier: rule.sourceTier,
+    targetTier: rule.targetTier,
+    expectedMonthlyUsd: rule.expectedMonthlyUsd,
+    guardrails: {
+      basis: rule.basis,
+      confidence: rule.confidence,
+      appliesToOrgUnit: rule.unit,
+      appliesToSourceTier: rule.sourceTier,
+      lifecycle: rule.lifecycle,
+      observedChangeUsd: rule.observedChangeUsd,
+    },
+    evidence: rule.evidence,
+  };
+}
+
+/**
+ * The policy document for one record.
+ *
+ * @param {object|null} analysis The `local-finops` envelope the page is showing.
+ * @param {{generatedAt: string, commitment?: object|null}} options
+ *   `generatedAt` is passed IN, never read from a clock here: a generator that
+ *   reads the time cannot be asserted byte-identical, and this one is.
+ * @returns {object} a frozen document. Its rule list is empty — and its notice
+ *   says so — when the record earned no ranked rule, so the file never reads as
+ *   an approved empty policy.
+ */
+export function routingPolicyDocument(analysis, { generatedAt, commitment = null } = {}) {
+  const slate = routingSlate(analysis, { commitment });
+  const rules = slate.rules.map(policyRule);
+  return Object.freeze({
+    schema: ROUTING_POLICY_SCHEMA,
+    schemaVersion: ROUTING_POLICY_SCHEMA_VERSION,
+    generator: ROUTING_SLATE_VERSION,
+    generatedAt: String(generatedAt ?? ""),
+    period: slate.period ?? null,
+    basis: slate.basis,
+    notice: rules.length ? ROUTING_POLICY_NOTICE : ROUTING_POLICY_EMPTY_NOTICE,
+    reason: slate.reason,
+    tieBreak: slate.tieBreak,
+    ruleCount: rules.length,
+    totalExpectedMonthlyUsd: slate.totalExpectedMonthlyUsd,
+    rules,
+  });
+}
+
+/** The document as the exact bytes downloaded. Trailing newline, as every other file here. */
+export function serializeRoutingPolicy(policy) {
+  return `${JSON.stringify(policy, null, 2)}\n`;
+}
+
+/**
+ * The one call the download control makes: record in, `{ fileName, mediaType,
+ * text }` out. The page owns the clock and the blob; every figure decision is
+ * above this line.
+ */
+export function routingPolicyFile(analysis, options = {}) {
+  return Object.freeze({
+    fileName: ROUTING_POLICY_FILE_NAME,
+    mediaType: ROUTING_POLICY_MEDIA_TYPE,
+    text: serializeRoutingPolicy(routingPolicyDocument(analysis, options)),
+  });
+}

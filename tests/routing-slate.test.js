@@ -17,7 +17,10 @@ import { readFile } from "node:fs/promises";
 
 import { loadExampleDataset } from "../src/example-dataset.js";
 import {
-  MODELLED_BASIS_TAG, ROUTING_SLATE_QUESTION, ROUTING_SLATE_REASONS, routingSlate,
+  MODELLED_BASIS_TAG, ROUTING_POLICY_EMPTY_NOTICE, ROUTING_POLICY_NOTICE,
+  ROUTING_POLICY_SCHEMA, ROUTING_POLICY_SCHEMA_VERSION, ROUTING_SLATE_QUESTION,
+  ROUTING_SLATE_REASONS, routingPolicyDocument, routingPolicyFile, routingSlate,
+  serializeRoutingPolicy,
 } from "../src/routing-slate.js";
 import { applyRoutingSlate } from "../src/routing-slate-view.js";
 import { loadPage, textOf } from "./support/browser.js";
@@ -201,4 +204,123 @@ test("every rule's summary names source, target tier and dollars outside its dis
     assert.ok(line.includes(`${rule.targetTier} tier`), `${line} must name the target tier`);
     assert.ok(line.includes("a month"), `${line} must carry the expected monthly return`);
   }
+});
+
+// ---------------------------------------------------------------------------
+// The downloadable policy. Four properties, and each one is a way the file
+// could mislead the change review that reads it:
+//
+//   determinism  two downloads of one record are the same bytes, so a diff
+//                between two files is a change in the analysis and nothing else.
+//   purity       generating a file does not alter the record the page is showing.
+//   completeness every rule states what it moves, what that is worth, and what
+//                must hold before it is applied.
+//   redaction    the file carries derived figures only. No prompt, no customer
+//                text, from any depth of the record.
+// ---------------------------------------------------------------------------
+
+const STAMP = "2026-08-01T00:00:00.000Z";
+
+test("the same record and the same stamp serialize to the same bytes", () => {
+  const analysis = loadExampleDataset();
+  const first = serializeRoutingPolicy(routingPolicyDocument(analysis, { generatedAt: STAMP }));
+  const second = serializeRoutingPolicy(routingPolicyDocument(analysis, { generatedAt: STAMP }));
+  assert.equal(first, second, "a re-download must diff clean against the first one");
+  assert.equal(first, routingPolicyFile(analysis, { generatedAt: STAMP }).text);
+});
+
+test("a different stamp changes the stamp and nothing else", () => {
+  const analysis = loadExampleDataset();
+  const later = "2026-09-02T11:30:00.000Z";
+  const before = routingPolicyDocument(analysis, { generatedAt: STAMP });
+  const after = routingPolicyDocument(analysis, { generatedAt: later });
+  assert.equal(before.generatedAt, STAMP);
+  assert.equal(after.generatedAt, later);
+  assert.deepEqual({ ...after, generatedAt: STAMP }, { ...before },
+    "the stamp is the only field a clock is allowed to move");
+  assert.equal(
+    serializeRoutingPolicy(after).replace(later, STAMP),
+    serializeRoutingPolicy(before),
+    "the stamp appears exactly once, so replacing it recovers the earlier bytes",
+  );
+});
+
+test("generating a policy does not mutate the record it was derived from", () => {
+  const analysis = loadExampleDataset();
+  const before = JSON.stringify(analysis);
+  routingPolicyFile(analysis, { generatedAt: STAMP });
+  assert.equal(JSON.stringify(analysis), before, "the generator is side-effect free");
+});
+
+test("the document is schema-stamped and every rule carries its five fields", () => {
+  const analysis = loadExampleDataset();
+  const slate = routingSlate(analysis);
+  const policy = routingPolicyDocument(analysis, { generatedAt: STAMP });
+  assert.equal(policy.schema, ROUTING_POLICY_SCHEMA);
+  assert.equal(policy.schemaVersion, ROUTING_POLICY_SCHEMA_VERSION);
+  assert.equal(policy.period, slate.period, "the file names the period it was derived from");
+  assert.ok(policy.period, "the bundled example publishes a period");
+  assert.equal(policy.notice, ROUTING_POLICY_NOTICE);
+  assert.equal(policy.ruleCount, slate.rules.length);
+  assert.equal(policy.totalExpectedMonthlyUsd, slate.totalExpectedMonthlyUsd);
+  for (const entry of policy.rules) {
+    assert.ok(entry.sourceModel, "a rule that does not name its source is not applicable");
+    assert.ok(entry.targetTier, "a rule that does not name a target tier moves nothing");
+    assert.equal(Number.isInteger(entry.expectedMonthlyUsd), true,
+      "figures are rounded in one place, and it is not this one");
+    assert.equal(entry.guardrails.basis, MODELLED_BASIS_TAG);
+    assert.ok(entry.guardrails.appliesToOrgUnit, "a rule is scoped to the unit that earned it");
+    assert.ok(entry.guardrails.lifecycle, "a reviewer must be told whether this shipped");
+    assert.ok(entry.evidence.length > 0, "each rule carries the line its figure came from");
+  }
+});
+
+test("a record that ranked nothing yields an empty rule list that says so", () => {
+  const policy = routingPolicyDocument(null, { generatedAt: STAMP });
+  assert.deepEqual(policy.rules, []);
+  assert.equal(policy.ruleCount, 0);
+  assert.equal(policy.totalExpectedMonthlyUsd, 0);
+  assert.equal(policy.notice, ROUTING_POLICY_EMPTY_NOTICE,
+    "an empty file must not read as an approved policy");
+  assert.equal(policy.reason, ROUTING_SLATE_REASONS.no_analysis);
+});
+
+test("no prompt or customer text from the record reaches the file", () => {
+  const secret = "ZZ-CONFIDENTIAL-PROMPT-TEXT";
+  // The bundled envelope is frozen, so poison a structural copy of it.
+  const analysis = structuredClone(loadExampleDataset());
+  // Poisoned at every depth the generator walks: the envelope, an org unit, the
+  // unit's own routing candidate, and one of its worked-example lines.
+  analysis.promptExcerpt = secret;
+  analysis.customerName = secret;
+  const flagged = analysis.rankedDepartments.find((entry) => entry.downRouting?.flagged);
+  flagged.promptExcerpt = secret;
+  flagged.downRouting.promptExcerpt = secret;
+  for (const line of flagged.downRouting.workedExample ?? []) line.promptExcerpt = secret;
+
+  const text = routingPolicyFile(analysis, { generatedAt: STAMP }).text;
+  assert.equal(text.includes(secret), false, "a prompt excerpt must never leave this page");
+  assert.equal(text.includes("promptExcerpt"), false, "not even the key name is copied through");
+  assert.equal(text.includes("customerName"), false);
+});
+
+test("the shipped control is authored below the slate and carries the file's own notice", async () => {
+  const { document } = await loadPage(PAGE, { scripts: false });
+  const button = document.getElementById("download-routing-policy");
+  assert.ok(button, "the control must be authored in evolution.html");
+  assert.equal(textOf(button), "Download routing policy");
+  assert.equal(textOf(document.getElementById("routing-policy-notice")), ROUTING_POLICY_NOTICE,
+    "the page must state the caveat the downloaded file states, in the same words");
+
+  applyRoutingSlate(document, loadExampleDataset());
+  assert.equal(button.disabled, false, "a record with ranked rules has a policy to propose");
+  assert.equal(button.getAttribute("aria-describedby"), "routing-policy-notice");
+
+  // Nothing ranked: the control is refused rather than left live over an empty
+  // file, and it points at the status line that says why.
+  applyRoutingSlate(document, null);
+  assert.equal(button.disabled, true);
+  assert.equal(button.getAttribute("aria-describedby"), "routing-slate-status");
+  assert.equal(textOf(document.getElementById("routing-slate-status")),
+    ROUTING_SLATE_REASONS.no_analysis);
 });

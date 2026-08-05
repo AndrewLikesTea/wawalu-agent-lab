@@ -87,7 +87,12 @@ import { localFinopsMeetingSummary, normalizeLocalFinopsHistory } from "/local-f
 // object, and it hands the page back to the single-provider brief when no
 // portfolio exists.
 import { applyPortfolioBrief, clearPortfolioBrief } from "/finops-portfolio-brief-view.js";
-import { applyRoutingSlate, markRoutingSlateLoading } from "/routing-slate-view.js";
+import {
+  applyRoutingSlate, markRoutingSlateLoading, ROUTING_POLICY_BUTTON_ID,
+} from "/routing-slate-view.js";
+// The same ranked rules as a downloadable, versioned proposal. Pure: envelope and
+// an explicitly passed stamp in, file text out.
+import { routingPolicyFile } from "/routing-slate.js";
 // The five-slot headline an imported export earns, painted from the checked-in
 // contract in finops-imported-headline-fixture.json. Imported state only.
 import {
@@ -797,6 +802,10 @@ let syncExecutivePanels = () => {};
 // unit or about synthetic data, so it is a single flag rather than an inference
 // from counting files, and the two provenance labels follow it.
 let importedLiteracyRows = null;
+// The envelope the routing slate was last painted from, so the policy download
+// writes the rules on screen rather than re-deriving them from a second read.
+// Null until the first paint, which is the state the disabled control matches.
+let paintedRoutingAnalysis = null;
 
 /**
  * Repaint every declared panel from one fact record.
@@ -1857,6 +1866,7 @@ function mountLocalFinopsImport() {
     // example) means every rule is a proposal, which is the honest default.
     applyRoutingSlate(document, next,
       { commitment: readMonthlyAction(browserFinopsWorkspaceStorage()).record });
+    paintedRoutingAnalysis = next;
     // And the headline the reader's own export earns: five slots, always five,
     // each one either a figure from this envelope or the contract's own sentence
     // for why the export could not supply it. The bundled example is not an
@@ -3930,6 +3940,18 @@ function mountLocalFinopsImport() {
     input.focus?.();
   });
   document.getElementById("local-file-discard")?.addEventListener("click", reset);
+  // The ranked routing rules, as a versioned JSON proposal a change review can
+  // read. The clock lives HERE and is passed in, because the generator is a pure
+  // function of the envelope plus that stamp — that is what makes two downloads
+  // of one record byte-identical. Same local blob every other artifact uses:
+  // nothing is uploaded and no credential is read.
+  document.getElementById(ROUTING_POLICY_BUTTON_ID)?.addEventListener("click", () => {
+    const file = routingPolicyFile(paintedRoutingAnalysis, {
+      generatedAt: new Date().toISOString(),
+      commitment: readMonthlyAction(browserFinopsWorkspaceStorage()).record,
+    });
+    downloadLocalExport(file.text, file.mediaType, file.fileName);
+  });
   // The query-sample template, generated from the same module the contract's
   // tests validate and handed to the same local blob download every other
   // artifact on this page uses. Nothing is uploaded, and nothing is imported:
