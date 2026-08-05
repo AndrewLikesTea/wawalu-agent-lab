@@ -84,7 +84,21 @@ export const DEMOS = Object.freeze([
     // The only row that says where to start: a list with no order is no list.
     note: "start here:",
   }),
-  Object.freeze({ label: "Prompt coach", href: "/coach.html", purpose: "grade a prompt, then revise and grade again" }),
+  Object.freeze({
+    label: "Prompt coach",
+    href: "/coach.html",
+    purpose: "grade a prompt, then revise and grade again",
+    // `also` is a page named beneath this destination rather than beside it:
+    // src/site-nav.js files /personal-history.html under Prompt coach's section
+    // instead of giving it a door. It is named here because a reader who left
+    // the home page had nowhere else to find it, and it says where the export is
+    // read for the reason the AI FinOps row does — that clause is a promise.
+    also: Object.freeze({
+      label: "Personal AI history",
+      href: "/personal-history.html",
+      purpose: "reads your export in this browser tab",
+    }),
+  }),
   Object.freeze({ label: "Decisions", href: "/", purpose: "log a decision, then search the history" }),
   Object.freeze({ label: "Releases", href: "/releases.html", purpose: "each release and the decisions behind it" }),
   Object.freeze({ label: "Social", href: "/social.html", purpose: "read short demo posts, images optional" }),
@@ -188,8 +202,9 @@ export function siteFooterMarkup(indent = "    ", { redirect = null } = {}) {
 function demoListLines() {
   return [
     '    <ul class="site-footer-demos">',
-    ...DEMOS.map(({ label, href, purpose, note }) =>
-      `      <li><a href="${href}">${label}</a> — ${note ? `${note} ` : ""}${purpose}</li>`),
+    ...DEMOS.map(({ label, href, purpose, note, also }) =>
+      `      <li><a href="${href}">${label}</a> — ${note ? `${note} ` : ""}${purpose}`
+      + `${also ? `; <a href="${also.href}">${also.label}</a> ${also.purpose}` : ""}</li>`),
     "    </ul>",
   ];
 }

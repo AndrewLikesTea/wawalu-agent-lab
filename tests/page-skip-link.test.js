@@ -363,10 +363,13 @@ test("the post page's tab order is skip link, then the nav, then its two routes 
   // (a caption is text, never markup — PRODUCT.md), so the order the review
   // asked for — exit, image link, caption links, footer — holds with its middle
   // two steps empty.
+  // A row that names a page beneath its destination contributes a second stop,
+  // after the destination's own link — see `also` in src/site-footer.js.
+  const bandStops = DEMOS.flatMap((demo) => (demo.also ? [demo.label, demo.also.label] : [demo.label]));
   const afterExit = sequence.slice(FRAME_STOPS).map((stop) => textOf(stop));
   assert.deepEqual(
-    afterExit.slice(0, DEMOS.length + 1),
-    [...DEMOS.map((demo) => demo.label), "Request a follow-up"],
+    afterExit.slice(0, bandStops.length + 1),
+    [...bandStops, "Request a follow-up"],
   );
   assert.ok(
     sequence.slice(FRAME_STOPS).every((stop) => stop.closest("#site-footer")),
