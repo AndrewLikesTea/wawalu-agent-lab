@@ -884,7 +884,9 @@
 .local-cohort-declare-lead { margin:0; font-size:14px; line-height:1.55; }
 .local-cohort-declare-field { display:flex; flex-wrap:wrap; gap:6px 12px; align-items:baseline; margin:10px 0 0; font-size:14px; }
 .local-cohort-declare-field label { font-weight:700; }
-.local-cohort-declare-field select { min-width:min(100%,320px); padding:6px 8px; font:inherit; }
+.local-cohort-declare-field :is(select,input) { min-width:min(100%,320px); padding:6px 8px; font:inherit; }
+.intake-facts { margin:0; padding:0; border:0; }
+.intake-facts legend { padding:0; font-size:14px; font-weight:700; }
 .local-cohort-declare-message { margin:10px 0 0; padding-left:10px; border-left:3px solid #b9b2a4; font-size:13px; line-height:1.55; }
 .local-cohort-declare-message[data-state="refused"] { border-left-color:var(--state-warn-ink,#8a6d2b); }
 /* The landing surface: the question first, then the one number that answers it. */

@@ -1074,6 +1074,52 @@
           <a class="first-run-handoff-action" id="finops-first-run-briefing" href="/executive-briefing.html?example=ai-finops-bundled" aria-describedby="finops-first-run-briefing-note">Open the Executive FinOps briefing for this example</a>
           <p class="first-run-handoff-note" id="finops-first-run-briefing-note">Opens the printable one-page sheet on this same Bundled synthetic example, with the same recoverable share and scenario. Invented figures, not your spend; nothing of yours is read, uploaded, or stored.</p>
         </div>
+        <!-- FIVE FACTS A LEADER ALREADY KNOWS (#1103), answered here.
+             Everything above is the bundled example. This group replaces the
+             five declared facts behind the estimated position with the reader's
+             own — a monthly bill, a provider mix, a headcount, a size, an
+             industry — and answers with the same three sentences about their
+             organization. No file, no upload, no account, no wait.
+
+             THE CONTROLS SHIP FILLED with the example's own declared facts, so
+             the region a first-time visitor meets is the one it always was, the
+             clear control has a defined state to return to, and nothing here
+             looks broken before it is touched. Each field carries a visible
+             label; the group is a fieldset with a legend, so the whole intake
+             is announced as one thing and is completable with Tab, the arrow
+             keys, and Enter alone.
+
+             NOTHING LEAVES THE BROWSER. The form declares no action and no
+             method, its submit is prevented, and the five answers are written
+             to no request, no storage, and no cookie. There is no free text
+             field: every value is a number in a bounded range or a member of a
+             published list, and the page renders values through textContent
+             only.
+
+             THE ANSWER IS THREE SENTENCES: the figure with its quartile, the
+             modelled recoverable amount, and one next action. The echoed
+             inputs, the cohort basis, and the arithmetic stay behind the
+             estimate's own working disclosure above, repainted from these same
+             five answers, so this adds no second way to open a detail. It sits
+             after both next actions because it is another way to go on, not a
+             gate in front of the example. -->
+        <form class="local-cohort-declare" id="finops-intake">
+          <fieldset class="intake-facts">
+            <legend id="finops-intake-legend">Estimate from five facts you already know</legend>
+            <p class="local-cohort-declare-field"><label for="finops-intake-spend">Monthly AI spend, US dollars</label><input id="finops-intake-spend" type="number" min="100" max="5000000" step="100" value="154500"></p>
+            <p class="local-cohort-declare-field"><label for="finops-intake-mix">Provider mix</label><select id="finops-intake-mix"><option value="frontier_led" selected>Mostly frontier models · frontier 45% · standard 40% · economy 15%</option><option value="balanced">Balanced across tiers · frontier 34% · standard 50% · economy 16%</option><option value="economy_led">Mostly economy models · frontier 10% · standard 35% · economy 55%</option></select></p>
+            <p class="local-cohort-declare-field"><label for="finops-intake-engineers">Engineers using AI tools</label><input id="finops-intake-engineers" type="number" min="1" max="50000" step="1" value="100"></p>
+            <p class="local-cohort-declare-field"><label for="finops-intake-size">Company size</label><select id="finops-intake-size"><option value="small">Small · under 200 employees</option><option value="mid">Mid-market · 200–1,999 employees</option><option value="enterprise" selected>Enterprise · 2,000+ employees</option></select></p>
+            <p class="local-cohort-declare-field"><label for="finops-intake-industry">Industry</label><select id="finops-intake-industry"><option value="saas" selected>Software-as-a-service</option><option value="financial_services">Financial services</option></select></p>
+          </fieldset>
+          <p class="local-cohort-declare-field"><button class="secondary-button" id="finops-intake-submit" type="submit">Estimate from these five facts</button><button class="secondary-button" id="finops-intake-clear" type="button">Clear and return to the bundled example</button></p>
+        </form>
+        <div class="first-run-confidence" id="finops-intake-answer" data-provenance="estimated" data-tier="modelled">
+          <p class="first-run-detail" id="finops-intake-headline">Estimated: we spend $39.81 per successful AI task — Bottom quartile, the most expensive quarter of the cohort. Lower cost per successful task is better.</p>
+          <p class="first-run-detail" id="finops-intake-recoverable">Estimated recoverable: $20,772 to $49,854 a month, modelled from these five declared facts — not a measured, invoiced, or realized saving.</p>
+          <p class="first-run-detail" id="finops-intake-action">Next: move one month of standard-tier traffic that does not need the tier to a cheaper one, then check the invoice against this estimate before booking anything.</p>
+        </div>
+        <p class="visually-hidden" id="finops-intake-live" role="status" aria-live="polite" aria-atomic="true"></p>
         <p class="visually-hidden" id="finops-first-run-live" role="status" aria-live="polite" aria-atomic="true"></p>
       </section>
 
