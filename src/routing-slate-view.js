@@ -30,6 +30,9 @@
 import { formatUsd } from "./evolution.js";
 import { CHIP_KINDS, renderChip } from "./import-status-chip.js";
 import {
+  ROUTING_POLICY_CONTROL_LABEL, routingPolicyAvailability, routingPolicyDownloadedMessage,
+} from "./routing-policy-document.js";
+import {
   MODELLED_BASIS, NO_SCORE_YET, ROUTING_SLATE_NOTHING_LEFT, ROUTING_SLATE_QUESTION,
   ROUTING_SLATE_REASONS, ROUTING_SLATE_STATES, RULE_LIFECYCLE, routingSlate,
 } from "./routing-slate.js";
@@ -37,6 +40,7 @@ import {
 export const ROUTING_SLATE_SECTION_ID = "routing-slate";
 export const ROUTING_SLATE_BODY_ID = "routing-slate-body";
 export const ROUTING_SLATE_STATUS_ID = "routing-slate-status";
+export const ROUTING_POLICY_DOWNLOAD_ID = "routing-policy-download";
 
 /**
  * One chip per lifecycle state. Four carriers, and colour is the last of them:
@@ -177,6 +181,48 @@ function paintStatus(doc, section, slate) {
 }
 
 /**
+ * The download control's state, repainted on every paint of the section.
+ *
+ * WHEN THERE IS NOTHING TO EXPORT IT IS DISABLED, not hidden and not silently
+ * inert: a control that vanishes tells a reader nothing, and one that downloads
+ * a policy with no rules in it teaches them their gateway has nothing to fix.
+ * The reason is the slate's own — the same sentence the status line above is
+ * already showing — and it rides in the control's ACCESSIBLE NAME, appended
+ * visually hidden, because a disabled control cannot be focused and a reason
+ * parked in a `title` is a reason most readers never receive.
+ *
+ * The `disabled` attribute rather than the property, so the state a test reads
+ * off the markup is the state the browser enforces.
+ */
+function paintDownloadControl(doc, slate) {
+  const button = doc.getElementById?.(ROUTING_POLICY_DOWNLOAD_ID);
+  if (!button) return;
+  const { available, reason } = routingPolicyAvailability(slate);
+  button.dataset.state = available ? "ready" : "unavailable";
+  if (available) button.removeAttribute("disabled");
+  else button.setAttribute("disabled", "");
+  button.replaceChildren(doc.createTextNode(ROUTING_POLICY_CONTROL_LABEL));
+  if (!available) {
+    button.append(element(doc, "span", "visually-hidden", ` — unavailable. ${reason}`));
+  }
+}
+
+/**
+ * Say that the file went, in the region this section already announces through.
+ * A second live region here would make every repaint of the slate speak twice,
+ * which is the defect the authored status line exists to avoid.
+ *
+ * `data-state` is deliberately NOT touched: it describes the slate, and the
+ * slate did not change because a reader downloaded it.
+ */
+export function announceRoutingPolicyDownload(doc, slate) {
+  const status = doc?.getElementById?.(ROUTING_SLATE_STATUS_ID);
+  const message = routingPolicyDownloadedMessage(slate);
+  if (status) status.textContent = message;
+  return message;
+}
+
+/**
  * The section, while a file is being read. The rules on screen are the ones the
  * previous envelope earned and they are left exactly as they were — relabelling
  * them now would caption figures that have not changed. Only the status line
@@ -203,6 +249,7 @@ export function applyRoutingSlate(doc, analysis, { commitment = null } = {}) {
   section.dataset.ruleCount = String(slate.rules.length);
   section.hidden = false;
   paintStatus(doc, section, slate);
+  paintDownloadControl(doc, slate);
 
   if (!slate.available) {
     body.replaceChildren(element(doc, "p", "answer-figure-direction", slate.reason));
