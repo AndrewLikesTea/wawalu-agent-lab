@@ -87,7 +87,13 @@ import { localFinopsMeetingSummary, normalizeLocalFinopsHistory } from "/local-f
 // object, and it hands the page back to the single-provider brief when no
 // portfolio exists.
 import { applyPortfolioBrief, clearPortfolioBrief } from "/finops-portfolio-brief-view.js";
-import { applyRoutingSlate, markRoutingSlateLoading } from "/routing-slate-view.js";
+import {
+  ROUTING_POLICY_DOWNLOAD_ID, announceRoutingPolicyDownload, applyRoutingSlate,
+  markRoutingSlateLoading,
+} from "/routing-slate-view.js";
+import {
+  ROUTING_POLICY_FILE_NAME, ROUTING_POLICY_MEDIA_TYPE, routingPolicyText,
+} from "/routing-policy-document.js";
 import { applyRoutingRuleScore } from "/routing-rule-score-view.js";
 // The five-slot headline an imported export earns, painted from the checked-in
 // contract in finops-imported-headline-fixture.json. Imported state only.
@@ -679,6 +685,12 @@ let importedDeliveryHistory = null;
  * treating an unchecked history as compatible.
  */
 let selectedDeliveryHistoryText = null;
+/**
+ * The routing slate currently on screen, kept so the download control exports
+ * exactly what the reader is looking at. It is null until the first paint, and
+ * the control is authored disabled for precisely that window.
+ */
+let paintedRoutingSlate = null;
 
 function spendWindowFromPeriod(period) {
   const match = /^(\d{4}-\d{2}-\d{2}) to (\d{4}-\d{2}-\d{2})$/.exec(String(period ?? ""));
@@ -854,6 +866,31 @@ function bundledBenchmarkGrade(seed) {
     records: { source: scored, scored, unclassified: 0 },
     eligibility: { minScoredRecords: MIN_SCORED_PROMPTS, observed: scored, met: gradeable },
   };
+}
+
+/**
+ * Bind the routing-policy download.
+ *
+ * The clock is read HERE and passed in, because the generator takes a timestamp
+ * rather than reading one: two exports of the same slate then differ in that one
+ * field and nowhere else, which is what makes the file diffable.
+ *
+ * The guard is not a duplicate of the disabled attribute — it is what makes the
+ * refusal true rather than merely painted. A programmatic click on a control the
+ * view has disabled still lands here, and it must not write a policy with no
+ * rules in it.
+ */
+function bindRoutingPolicyDownload() {
+  const button = document.getElementById(ROUTING_POLICY_DOWNLOAD_ID);
+  if (!button) return;
+  button.addEventListener("click", () => {
+    if (button.hasAttribute("disabled")) return;
+    downloadLocalExport(
+      routingPolicyText(paintedRoutingSlate, new Date().toISOString()),
+      ROUTING_POLICY_MEDIA_TYPE, ROUTING_POLICY_FILE_NAME,
+    );
+    announceRoutingPolicyDownload(document, paintedRoutingSlate);
+  });
 }
 
 function downloadLocalExport(content, type, fileName) {
@@ -1857,7 +1894,11 @@ function mountLocalFinopsImport() {
     // other two. No commitment (every first visit, and the whole of the bundled
     // example) means every rule is a proposal, which is the honest default.
     const retainedAction = readMonthlyAction(browserFinopsWorkspaceStorage()).record;
-    applyRoutingSlate(document, next, { commitment: retainedAction });
+    // Held, not re-derived: the download control hands over the slate that is on
+    // screen. Composing a second one at click time would be a second opinion
+    // about the same rules, and the file a reader diffs has to be the list they
+    // were looking at when they pressed the control.
+    paintedRoutingSlate = applyRoutingSlate(document, next, { commitment: retainedAction });
     // And what those rules were worth once the next period landed. The commitment
     // supplies both periods, so the score is taken over the window the reader
     // committed to; the observed side is this envelope's own per-unit trend. A
@@ -4790,6 +4831,9 @@ async function init() {
   // handle, not a gate on the boot.
   installDeferredDetails(document);
   mountLocalFinopsImport();
+  // Bound before any envelope is read, like every other control on this page, so
+  // the disabled state is a bound control that refuses rather than an inert one.
+  bindRoutingPolicyDownload();
   // The page's one next action, operable before any fixture resolves: it stands
   // the reader on the file input and opens the picker. Bound here rather than
   // inside the import closure so it exists even if that closure never mounts.
