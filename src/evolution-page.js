@@ -147,6 +147,7 @@ import { briefingFromRetained } from "/finops-briefing-retention.js";
 // first. Reads are total and the migration off the single key runs on load.
 import {
   briefingSeriesSummary, forgetBriefingSeries, readBriefingSeries, recordBriefingSeriesEntry,
+  recordEstimatedPeriod,
 } from "/finops-briefing-series.js";
 // The portable half of the same store (#1092): one self-describing file out,
 // one validated file back in. Every shape decision and every refusal sentence
@@ -355,6 +356,9 @@ import {
   applyFirstRunResult, applyFirstRunSupersession, bindFirstRunActions, bindFirstRunDisclosure,
 } from "/finops-first-run-view.js";
 import { bindDeclaredFactIntake } from "/finops-declared-fact-intake-view.js";
+// The estimate that intake produces, in the period series' own shape (#1106),
+// so a later real import for the same month can be scored against it.
+import { estimatedPeriodFacts } from "/finops-declared-fact-intake.js";
 // The other half of those markers: a reader who spots a wrong derived name or
 // figure corrects it on the line they read it, and the block's headline, table
 // and confidence sentence are repainted from the one state the correction landed
@@ -577,6 +581,12 @@ let repaintBundledAnalysis = () => {};
 // two closures that must agree on what is currently on screen; nothing is
 // composed until something reads it, and nothing here touches storage.
 const answerState = createAnswerState();
+/**
+ * Set by `mountLocalFinopsImport` once the retention store is wired: it takes a
+ * declared-fact estimate, files it as an estimated period, and repaints (#1106).
+ * Null until then, so a submit before the mount is a no-op rather than a throw.
+ */
+let recordDeclaredEstimate = null;
 const CATEGORY_VARS = {
   highValue: "--cat-high-value",
   overProvisioned: "--cat-over-provisioned",
@@ -3663,6 +3673,19 @@ function mountLocalFinopsImport() {
     ? recordBriefingSeriesEntry(retentionStore(), written.payload)
     : readBriefingSeries(retentionStore()));
 
+  // The five-fact intake is bound far from here, and this is the only function
+  // that can put a period on the record and repaint the header from it in one
+  // pass. Publishing it through one module-scoped slot is cheaper than
+  // threading the whole retention closure to the boot sequence, and it keeps
+  // the write on the SAME path every other period write takes: one store, one
+  // paint, no second opinion about what is on file. The clock is read here and
+  // nowhere below — the store and the mapper are both pure.
+  recordDeclaredEstimate = (estimate) => {
+    const facts = estimatedPeriodFacts(estimate, new Date().toISOString());
+    if (!facts) return;
+    paintBriefingSeries(recordEstimatedPeriod(retentionStore(), facts));
+  };
+
   const setRetention = (on) => {
     if (!on) {
       renderBriefingRetention(document, forgetRetainedBriefing(retentionStore()));
@@ -4783,7 +4806,11 @@ async function init() {
   // already open. The controls ship filled with the bundled example's own
   // facts, so nothing here changes what a first-time visitor meets until they
   // change one of the five. Prevented submit, no request, nothing stored.
-  bindDeclaredFactIntake(document);
+  // A submit also puts the estimate on the period record, so the month it
+  // covers has a stated position for a later real import to be scored against.
+  bindDeclaredFactIntake(document, {
+    onEstimate: (estimate) => recordDeclaredEstimate?.(estimate),
+  });
   // Then the returning lead's question, in the same synchronous pass and for
   // the same reason: a leader who opens this page once a month is not asking
   // what the example would tell them, they are asking which single thing to do

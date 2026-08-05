@@ -26,7 +26,7 @@
  */
 
 import { BRIEFING_RETENTION_KEY } from "./finops-briefing-retention.js";
-import { canonicalPeriod, monthLabel } from "./finops-imported-period-series.js";
+import { canonicalPeriod, formatUsd, monthLabel } from "./finops-imported-period-series.js";
 
 /** One literal, shared by the page, the migration and the tests. */
 export const BRIEFING_SERIES_KEY = "shiplog.finops.briefing.series.v1";
@@ -34,10 +34,49 @@ export const BRIEFING_SERIES_KEY = "shiplog.finops.briefing.series.v1";
 /** Top-level on the record, beside `entries` — never inside an entry. */
 export const BRIEFING_SERIES_VERSION = 1;
 
+// ---------------------------------------------------------------------------
+// WHAT A PERIOD FIGURE IS: A DECLARATION, OR A BILL (#1106)
+// ---------------------------------------------------------------------------
+//
+// A reader who has imported nothing can still say what they spend, and #1103
+// turns those declared facts into a position. That position is worth keeping —
+// it is what a later real import gets SCORED AGAINST — and it is not a
+// measurement. So every entry carries an explicit `basis` rather than an
+// implicit flag or an inferred-from-missing-field convention: an entry says
+// which of the two it is, in a field, and an entry that says nothing is
+// `imported`, because every entry written before this change was.
+//
+// AN ESTIMATE IS NEVER DELETED BY THE IMPORT THAT PROVES IT WRONG. When a
+// provider's own figure lands on a period an estimate already covers, the
+// estimate is RETAINED and marked superseded — `supersededBy` naming the entry
+// that took over — so the miss can be stated. Overwriting it would erase the
+// only record of what was predicted.
+//
+// ONE SELECTION RULE, NAMED ONCE: `realizedSeriesEntries`. Everything presented
+// as realized — aggregates, movement, the commitment verdict — filters through
+// it at its boundary, so a `basis` check is never scattered across call sites
+// and a new consumer cannot forget one.
+
+/** The two bases. Exhaustive: an entry is one or the other, never neither. */
+export const ENTRY_BASIS = Object.freeze({
+  estimated: "estimated",
+  imported: "imported",
+});
+
+/** The scope an estimated entry is filed under. No provider billed it. */
+export const ESTIMATED_SCOPE = "estimated";
+
+/** What an estimated entry names as its source, where a provider name would be. */
+export const ESTIMATED_PROVIDER_NAME = "Your declared facts";
+
 const EMPTY = Object.freeze([]);
 
 const number = (value) => (Number.isFinite(Number(value)) ? Number(value) : null);
 const text = (value) => (typeof value === "string" && value.trim() ? value : null);
+const round = (value) => Math.round(value * 100) / 100;
+
+/** Period plus provider scope: the key #1089 settled on, written down once. */
+export const seriesEntryKey = (entry) => `${entry.period} ${entry.scope}`;
 
 /**
  * ONE ENTRY, the shape every caller reads and the shape that is persisted.
@@ -49,9 +88,15 @@ const text = (value) => (typeof value === "string" && value.trim() ? value : nul
  *   spendUsd        analyzed spend for the period
  *   recoverableUsd  recoverable spend for the period
  *   confidence      the analysis's own confidence word
+ *   basis           `imported` or `estimated` — see the block above
+ *   supersededBy    the key of the entry that took over, or null
  *
  * Null when the entry has no period, no capture instant or no spend figure: a
  * row that cannot say which month it is or what it cost is not a partial row.
+ *
+ * `basis` DEFAULTS TO `imported` for any value that is not exactly `estimated`,
+ * which is what lets a file written before #1106 — and a record already in a
+ * reader's browser — load unchanged and mean what it always meant.
  */
 function entryOf(fields) {
   const period = canonicalPeriod(fields?.period);
@@ -66,7 +111,60 @@ function entryOf(fields) {
     spendUsd,
     recoverableUsd: number(fields?.recoverableUsd) ?? 0,
     confidence: text(fields?.confidence) ?? "Low",
+    basis: fields?.basis === ENTRY_BASIS.estimated
+      ? ENTRY_BASIS.estimated : ENTRY_BASIS.imported,
+    supersededBy: text(fields?.supersededBy),
   });
+}
+
+/**
+ * SUPERSESSION, RECOMPUTED ON EVERY PASS rather than trusted from what was read.
+ *
+ * A stored or imported `supersededBy` is a claim about a relationship BETWEEN
+ * two entries, and the other half of it can be deleted, replaced or arrive
+ * later. Deriving it here from the series as it now stands means the link is
+ * true of the series a reader is actually holding: an estimate whose import was
+ * forgotten goes back to live, and an estimate that meets an import for its
+ * month is marked without anybody having to remember to mark it.
+ *
+ * Only an ESTIMATE is ever superseded. An imported figure is not overridden by
+ * anything this page holds.
+ */
+function resolved(entries) {
+  const importedFor = new Map();
+  for (const entry of entries) {
+    if (entry.basis === ENTRY_BASIS.imported && !importedFor.has(entry.period)) {
+      importedFor.set(entry.period, seriesEntryKey(entry));
+    }
+  }
+  return entries.map((entry) => {
+    const supersededBy = entry.basis === ENTRY_BASIS.estimated
+      ? importedFor.get(entry.period) ?? null
+      : null;
+    return supersededBy === entry.supersededBy
+      ? entry : Object.freeze({ ...entry, supersededBy });
+  });
+}
+
+/**
+ * THE ONE SELECTION RULE. Every figure this product presents as REALIZED is
+ * computed from what this returns and from nothing else.
+ *
+ * A verified figure takes precedence by construction: an estimate is dropped
+ * here whether or not an import superseded it, so no consumer ever has to
+ * decide between the two and no consumer can decide differently from another.
+ *
+ * IT DROPS `estimated` RATHER THAN KEEPING `imported`, which is the same
+ * absent-means-imported default `entryOf` holds: a caller handing over an entry
+ * shape from before #1106 gets it back, and only a thing that SAYS it is a
+ * declaration is withheld. A typo in the discriminator therefore fails towards
+ * counting a real figure rather than silently emptying a reader's record.
+ *
+ * @returns a frozen array in the same order, holding no estimated entry.
+ */
+export function realizedSeriesEntries(series) {
+  return Object.freeze((Array.isArray(series) ? series : [])
+    .filter((entry) => entry && entry.basis !== ENTRY_BASIS.estimated));
 }
 
 /**
@@ -90,9 +188,9 @@ export function briefingSeriesEntry(payload) {
 }
 
 /** Chronological, computed here so stored insertion order can never matter. */
-const chronological = (entries) => Object.freeze([...entries]
+const chronological = (entries) => Object.freeze(resolved([...entries]
   .sort((left, right) => left.period.localeCompare(right.period)
-    || left.scope.localeCompare(right.scope)));
+    || left.scope.localeCompare(right.scope))));
 
 const parsed = (storage, key) => {
   let raw;
@@ -183,6 +281,94 @@ export function recordBriefingSeriesEntry(storage, payload) {
   const kept = held.filter((other) =>
     other.period !== entry.period || other.scope !== entry.scope);
   return persist(storage, chronological([...kept, entry]));
+}
+
+/**
+ * Put an ESTIMATED period on the record, from facts the reader declared (#1106).
+ *
+ * It lands beside whatever is already on file rather than instead of it: the
+ * estimate is filed under its own scope, so an imported figure for the same
+ * month is a second entry and not a replacement, and `resolved` above marks
+ * this one superseded the moment that import arrives. Re-declaring the same
+ * month replaces the earlier estimate, which is the same rule a re-import
+ * follows for an imported month.
+ *
+ * NO CLOCK IS READ HERE. The caller supplies `capturedAt`, and the period is
+ * parsed off whatever period-shaped string it hands over — an ISO instant
+ * included — so this module stays a pure function of its arguments.
+ *
+ * @returns the persisted series, in read shape.
+ */
+export function recordEstimatedPeriod(storage, facts = {}) {
+  const entry = entryOf({
+    period: facts?.period,
+    capturedAt: facts?.capturedAt,
+    spendUsd: facts?.spendUsd,
+    recoverableUsd: facts?.recoverableUsd,
+    confidence: facts?.confidence,
+    scope: ESTIMATED_SCOPE,
+    providerName: ESTIMATED_PROVIDER_NAME,
+    basis: ENTRY_BASIS.estimated,
+  });
+  const held = readBriefingSeries(storage);
+  if (!entry) return held;
+  const kept = held.filter((other) => seriesEntryKey(other) !== seriesEntryKey(entry));
+  return persist(storage, chronological([...kept, entry]));
+}
+
+/**
+ * WHERE THE ESTIMATE LANDED, once the provider's own figure arrived (#1106).
+ *
+ * Scored only for a period holding BOTH: an estimate with no import is a
+ * prediction nobody has checked, and an import with no estimate was never
+ * predicted. The imported side is SUMMED across providers, because two
+ * providers billing one month are that month's spend — the same rule
+ * `mergePeriodSeries` states — and the estimate was a claim about the month.
+ *
+ * The sentence is prepared here, in the model, so the surface renders a string
+ * and decides nothing about direction, rounding or wording.
+ *
+ * @returns a frozen array, oldest period first, of
+ *   `{ period, periodLabel, estimatedUsd, importedUsd, deltaUsd, percent,
+ *      direction, sentence }`. `percent` is null when the imported figure is
+ *   zero — a share of nothing is not a number this page prints.
+ */
+export function estimateAccuracy(series) {
+  const entries = (Array.isArray(series) ? series : []).filter(Boolean);
+  const estimated = new Map();
+  const imported = new Map();
+  for (const entry of entries) {
+    if (entry.basis === ENTRY_BASIS.estimated) estimated.set(entry.period, entry.spendUsd);
+    else imported.set(entry.period, (imported.get(entry.period) ?? 0) + entry.spendUsd);
+  }
+  const scored = [];
+  for (const period of [...estimated.keys()].sort()) {
+    if (!imported.has(period)) continue;
+    const estimatedUsd = round(estimated.get(period));
+    const importedUsd = round(imported.get(period));
+    const deltaUsd = round(estimatedUsd - importedUsd);
+    const percent = importedUsd === 0
+      ? null : Math.round((Math.abs(deltaUsd) / importedUsd) * 100);
+    const periodLabel = monthLabel(period) ?? period;
+    const direction = deltaUsd === 0 ? "matched" : deltaUsd < 0 ? "below" : "above";
+    const share = percent === null ? "" : ` (${percent}%)`;
+    scored.push(Object.freeze({
+      period,
+      periodLabel,
+      estimatedUsd,
+      importedUsd,
+      deltaUsd,
+      percent,
+      direction,
+      sentence: direction === "matched"
+        ? `Your estimate matched the imported figure for ${periodLabel}, at `
+          + `${formatUsd(importedUsd)}.`
+        : `Your estimate was ${formatUsd(Math.abs(deltaUsd))}${share} ${direction} the imported `
+          + `figure for ${periodLabel} — ${formatUsd(estimatedUsd)} against `
+          + `${formatUsd(importedUsd)}.`,
+    }));
+  }
+  return Object.freeze(scored);
 }
 
 /**
@@ -314,19 +500,31 @@ const byteLengthOf = (value) => (typeof TextEncoder === "function"
 /**
  * THE FILE SHAPE. Field by field, no spread and no iteration over an unknown
  * object — the same rule the entry writer above holds, for the same reason.
+ *
+ * THE SCHEMA VERSION DID NOT MOVE FOR #1106, and the two fields it added are
+ * written ONLY WHEN THEY CARRY INFORMATION: `basis` when the entry is an
+ * estimate, `supersededBy` when a link exists. A reader who has only ever had
+ * imported periods therefore exports the same seven fields per period they
+ * always did, byte for byte, and format 1 still means what it meant. The
+ * absent-means-imported default on the way back in is what closes the loop.
  */
 export function serializeBriefingSeries(series) {
   return {
     schemaVersion: SERIES_FILE_SCHEMA_VERSION,
-    periods: (Array.isArray(series) ? series : []).filter(Boolean).map((entry) => ({
-      period: entry.period,
-      scope: entry.scope,
-      providerName: entry.providerName,
-      capturedAt: entry.capturedAt,
-      spendUsd: entry.spendUsd,
-      recoverableUsd: entry.recoverableUsd,
-      confidence: entry.confidence,
-    })),
+    periods: (Array.isArray(series) ? series : []).filter(Boolean).map((entry) => {
+      const record = {
+        period: entry.period,
+        scope: entry.scope,
+        providerName: entry.providerName,
+        capturedAt: entry.capturedAt,
+        spendUsd: entry.spendUsd,
+        recoverableUsd: entry.recoverableUsd,
+        confidence: entry.confidence,
+      };
+      if (entry.basis === ENTRY_BASIS.estimated) record.basis = ENTRY_BASIS.estimated;
+      if (entry.supersededBy) record.supersededBy = entry.supersededBy;
+      return record;
+    }),
   };
 }
 
