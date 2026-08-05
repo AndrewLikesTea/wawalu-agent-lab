@@ -33,8 +33,10 @@ import { normalizeImage } from "./social.js";
 // People page and no page called Profile.
 //
 // The labels are constants because nothing may rewrite them mid-visit. They are
-// pinned against src/post.html, which ships both links so that they stand in the
-// loading, loaded, not-found and error states alike.
+// pinned against src/post.html, which ships both links. Social stands in all
+// four states; People is offered only while a name is still possible (loading)
+// or on screen (loaded), and post-page.js takes it out of the page on not-found
+// and error, where the label would promise a display name the reader never saw.
 export const POST_EXITS = {
   social: { href: "/social.html", label: "Open Social to read the whole feed" },
   people: { href: "/profile.html", label: "Open People to see this display name's other image posts" },

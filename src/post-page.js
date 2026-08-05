@@ -31,17 +31,40 @@ async function init() {
   const id = params.get("id") ?? "";
   const requestedAuthor = (params.get("author") ?? "").trim();
   // Both routes out ship as words in src/post.html and nothing here rewrites
-  // them, so they read the same in the loading, loaded, missing and failed
-  // states and never change under a reader mid-visit. The Social link is
-  // complete as shipped. Only the People link's destination is refined, and
-  // only ever narrowed to the display name the words already promise — first
-  // from the ?author= the arriving link carried, then from the post itself once
-  // one loads. A name that never resolves leaves it on People plainly.
+  // them, so their labels never change under a reader mid-visit. The Social link
+  // is complete as shipped and stands in every state. Only the People link's
+  // destination is refined, and only ever narrowed to the display name the words
+  // already promise — first from the ?author= the arriving link carried, then
+  // from the post itself once one loads. A name that never resolves leaves it on
+  // People plainly.
   const people = document.querySelector("#post-people");
+  const peopleSlot = people?.parentNode ?? null;
   const aimPeople = (author) => {
     if (people) people.href = postPeopleHref(window.location.search, author);
   };
   aimPeople("");
+
+  // …and on the two states that end without a post, the People link is not
+  // offered at all. Its words promise "this display name's other image posts",
+  // and a reader looking at "Post not found" or "Post could not be loaded" has
+  // never been shown a display name: the lookup either answered with nothing or
+  // never completed. The ?author= an arriving link happened to carry is not a
+  // name that reader saw, so following the link would land them in one person's
+  // posts with no idea whose. Loading and loaded keep it — one is on its way to
+  // a name, the other has one on screen above the link.
+  //
+  // Removed rather than hidden, for the same reason renderPostDetail() replaces
+  // the region instead of toggling CSS on four stacked states: absence is the
+  // only version of "not offered" that a screen reader and the tab order agree
+  // with. (`hidden` would also need a stylesheet rule here, because
+  // `.detail-back` sets `display:inline-flex` and would win against the UA's
+  // `[hidden]` rule.) It goes back in its own slot, after the Social link, when
+  // a retry puts the page back into loading.
+  const offerPeople = (state) => {
+    if (!people || !peopleSlot) return;
+    if (state === "not-found" || state === "error") people.remove();
+    else if (!people.parentNode) peopleSlot.append(people);
+  };
 
   const heading = document.querySelector("#page-title");
   const nameHeading = (post) => {
@@ -55,6 +78,7 @@ async function init() {
     // page (a test, a smoke check) sees the second fetch as its own load.
     document.documentElement.dataset.shiplogPostDetail = "loading";
     nameHeading(null);
+    offerPeople("loading");
     renderPostDetail(container, null, { state: "loading", id, author: requestedAuthor, returnHref: POST_EXITS.social.href });
     let post = null;
     let failed = false;
@@ -91,6 +115,7 @@ async function init() {
     });
     nameHeading(post);
     aimPeople(post?.author ?? "");
+    offerPeople(state);
     document.title = postDetailTitle(post, state);
     document.documentElement.dataset.shiplogPostDetail = "ready";
 

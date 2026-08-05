@@ -51,9 +51,15 @@
            the destination narrows — the words never change under a reader.
 
            Both links ship in the markup and no script rewrites their text, so
-           they read the same while the post is loading, when it loaded, and
-           when there is no such post. Their visible text carries the
-           destination — no aria-label holding a word the eye cannot read. -->
+           their words read the same while the post is loading and once it
+           loaded. Their visible text carries the destination — no aria-label
+           holding a word the eye cannot read.
+
+           What does change is whether the People link is offered. On the two
+           states that end without a post — not found, and the feed could not be
+           reached — post-page.js takes it out of the page, because its words
+           promise one display name's posts and no display name was ever shown
+           to that reader. The Social link stands in every state. -->
       <p class="detail-page-exits">
         <a class="detail-back detail-page-back" id="post-back" href="/social.html">Open Social to read the whole feed</a>
         <a class="detail-back detail-page-back" id="post-people" href="/profile.html">Open People to see this display name's other image posts</a>

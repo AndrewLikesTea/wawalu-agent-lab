@@ -308,18 +308,25 @@ test("a post with no image renders no image element and no empty frame to hold o
 
 // What a cold visitor needs is not in the post. It is the frame around it: where
 // this page sits, where to go next, and that none of it is real. A shared link
-// can resolve to a post or to nothing at all, and the frame has to read the same
-// either way — so this is asserted in the missing state as well as the loaded
-// one, not just in the state that happens to work.
-const CHROME_LINKS = [
-  "Open Social to read the whole feed",
-  "Open People to see this display name's other image posts",
-];
+// can resolve to a post or to nothing at all, and that frame has to hold in
+// every case — so this is asserted in the two unresolved states as well as the
+// loaded one, not just in the state that happens to work.
+const SOCIAL_LINK = "Open Social to read the whole feed";
+const PEOPLE_LINK = "Open People to see this display name's other image posts";
+// Which routes out each state offers. Social is in all of them and its words
+// never change. People is offered only where a display name exists or is still
+// coming: on not-found and on error the page has no name to send anyone to, and
+// the ?author= an arriving link carried is not a name that reader was shown.
+const STATE_EXITS = {
+  loaded: [SOCIAL_LINK, PEOPLE_LINK],
+  "not-found": [SOCIAL_LINK],
+  error: [SOCIAL_LINK],
+};
 // Word for word the last sentence of Social's own intro, because a visitor who
 // lands here may never open /social.html.
 const DEMO_SENTENCE = "Posts are shared across browsers and use no customer or production data.";
 
-test("the routes out and the demo sentence read the same whether the post arrives or not", async () => {
+test("the way out to Social and the demo sentence read the same whether the post arrives or not", async () => {
   const cases = [
     ["loaded", "?id=p-image", seedOnly([IMAGE_POST])],
     ["not-found", "?id=p-never-existed", seedOnly([IMAGE_POST])],
@@ -330,14 +337,14 @@ test("the routes out and the demo sentence read the same whether the post arrive
     try {
       const main = page.document.querySelector("#main-content");
 
-      // Both links, both labels, in this order. Counted and read, never checked
-      // for absence against null.
-      assert.deepEqual(page.document.querySelectorAll(".detail-back").map(textOf), CHROME_LINKS,
+      // The routes out this state offers, in document order. Counted and read,
+      // never checked for absence against null.
+      assert.deepEqual(page.document.querySelectorAll(".detail-back").map(textOf), STATE_EXITS[state],
         `the ${state} state changed the page's routes out`);
 
-      // Neither says "Back", and neither carries a return glyph: nobody arriving
-      // on a pasted link has a step to undo.
-      for (const label of CHROME_LINKS) assert.doesNotMatch(label, /←|Back/);
+      // None says "Back", and none carries a return glyph: nobody arriving on a
+      // pasted link has a step to undo.
+      for (const label of STATE_EXITS[state]) assert.doesNotMatch(label, /←|Back/);
 
       assert.equal(textOf(main).includes(DEMO_SENTENCE), true,
         `the ${state} state lost the sentence saying the feed is a demo`);
@@ -356,12 +363,88 @@ test("the routes out and the demo sentence read the same whether the post arrive
 
   // The frame paints before any script runs, so the words above are read from
   // the shipped markup too, not only from a page that has finished loading.
+  // Both links ship: the markup is the state a visitor meets first, which is the
+  // wait, and the wait may still resolve to a named post.
   const html = await readFile(new URL("../src/post.html", import.meta.url), "utf8");
-  for (const label of CHROME_LINKS) assert.ok(html.includes(`>${label}</a>`), `${label} must ship in the markup`);
+  for (const label of [SOCIAL_LINK, PEOPLE_LINK]) assert.ok(html.includes(`>${label}</a>`), `${label} must ship in the markup`);
   assert.ok(html.includes(`<p>${DEMO_SENTENCE}</p>`), "the demo sentence must ship in the markup");
   // The eyebrow ends on the marker the feed pages end on, so a permalink is
   // stamped as a demo the same way /social.html and /profile.html are.
   assert.match(html, /<p class="eyebrow">Social · post · demo<\/p>/);
+});
+
+// The one route out that does not stand in every state. Its words are a promise
+// — "this display name's other image posts" — and the two states that end
+// without a post cannot keep it: no name was ever on screen for the reader to
+// read that phrase against. The ?author= a link happened to carry is the sharp
+// case, because the page *can* build a destination from it and must not: it
+// would take a reader who was just told the post is missing into one stranger's
+// posts, under a label that says "this display name" and points at nobody they
+// saw.
+test("the People route out is dropped on the states that never name a display name", async () => {
+  const withAuthor = "&author=Mina%20Okafor";
+  const gone = [
+    ["not-found", `?id=p-gone${withAuthor}`, seedOnly([IMAGE_POST])],
+    ["error", `?id=p-image${withAuthor}`, () => { throw new TypeError("Failed to fetch"); }],
+    // No id at all is the same answer — a post that cannot be found — so it
+    // loses the link for the same reason.
+    ["not-found (no id)", "", () => { throw new Error("a page with no id must not ask the network"); }],
+  ];
+  for (const [state, search, answer] of gone) {
+    const page = await openPostPage(search, answer);
+    try {
+      // Counted, not compared to null. Absent from the document, so it is absent
+      // from the tab order and from a screen reader's list of links as well —
+      // dimming it or folding it away would leave both of those intact.
+      assert.equal(page.document.querySelectorAll("#post-people").length, 0,
+        `the ${state} state still offers a link to a display name it cannot name`);
+      assert.equal(tabSequence(page.document).filter((stop) => stop.id === "post-people").length, 0,
+        `the ${state} state leaves the People exit in the tab order`);
+      assert.equal(textOf(page.document.querySelector("#main-content")).includes(PEOPLE_LINK), false,
+        `the ${state} state still reads the People label`);
+
+      // And the way out that remains is the one whose words are still true.
+      assert.deepEqual(page.document.querySelectorAll(".detail-back").map(textOf), [SOCIAL_LINK]);
+    } finally {
+      page.restore();
+    }
+  }
+
+  // A loaded post names someone, so the link is offered and narrowed to them.
+  const loaded = await openPostPage(`?id=p-image${withAuthor}`, seedOnly([IMAGE_POST]));
+  try {
+    assert.equal(loaded.document.querySelector("#post-people").getAttribute("href"), "/profile.html?author=Mina%20Okafor");
+    assert.equal(tabSequence(loaded.document).filter((stop) => stop.id === "post-people").length, 1);
+  } finally {
+    loaded.restore();
+  }
+});
+
+// Dropping the link is not one-way: a retry that recovers puts the page back
+// into a state that can name someone, and the exit comes back with it — in its
+// own slot, after Social, not appended wherever the script last touched.
+test("a retry that recovers restores the People route out in its own place", async () => {
+  let failing = true;
+  const page = await openPostPage("?id=p-image", (url) => {
+    if (failing) throw new TypeError("Failed to fetch");
+    return seedOnly([IMAGE_POST])(url);
+  });
+  try {
+    assert.equal(page.document.querySelectorAll("#post-people").length, 0, "the failed state drops it");
+
+    failing = false;
+    page.panel.querySelector(".detail-retry").click();
+    await waitFor(page.settled, "the retry finished");
+
+    assert.deepEqual(page.document.querySelectorAll(".detail-back").map((link) => link.id), ["post-back", "post-people"],
+      "the restored exit reads after Social, the order the site nav names them in");
+    assert.equal(textOf(page.document.querySelector("#post-people")), PEOPLE_LINK, "and with the words it shipped with");
+    assert.equal(page.document.querySelector("#post-people").getAttribute("href"), "/profile.html?author=Mina%20Okafor");
+    // One link, not the shipped one plus a second copy re-inserted beside it.
+    assert.equal(page.document.querySelectorAll("#post-people").length, 1);
+  } finally {
+    page.restore();
+  }
 });
 
 /* --------------------------- one state at a time -------------------------- */
