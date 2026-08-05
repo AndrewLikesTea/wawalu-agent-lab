@@ -749,7 +749,7 @@ export function mountSocialFeed(root, options = {}) {
     if (!nameFilter) return;
     const selected = nameFilter.value;
     const authors = [...new Set(posts.map((post) => post.author))].sort((a, b) => a.localeCompare(b));
-    nameFilter.replaceChildren(new Option("Everyone", "all"), ...authors.map((author) => new Option(author, author)));
+    nameFilter.replaceChildren(new Option("All display names", "all"), ...authors.map((author) => new Option(author, author)));
     nameFilter.value = authors.includes(selected) ? selected : "all";
   };
 

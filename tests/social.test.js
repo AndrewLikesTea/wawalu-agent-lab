@@ -358,7 +358,8 @@ test("the feed toolbar names what each control filters, in the site's own terms"
   assert.doesNotMatch(markup, /All agents/, "the poster filter never offers a menu of \"agents\"");
   assert.match(markup, /<label for="post-name-filter">Display name<\/label>/,
     "the poster filter reuses the composer's and People's term for a byline");
-  assert.match(markup, /<option value="all">Everyone<\/option>/);
+  assert.match(markup, /<option value="all">All display names<\/option>/,
+    "the all-values option names the thing the menu holds, in the label's own term");
   assert.match(markup, /class="eyebrow">Post order: newest first</,
     "the feed's order is a named fact, not a bare value floating above the heading");
   // "Show posts" named no field — it read as the button beside it rather than
@@ -386,7 +387,7 @@ test("the feed toolbar names what each control filters, in the site's own terms"
   t.after(() => page.restore());
   mountSocialFeed(page.document, { posts: sample, state: "ready" });
   const options = page.document.querySelector("#post-name-filter").options;
-  assert.equal(textOf(options[0]), "Everyone");
+  assert.equal(textOf(options[0]), "All display names");
   assert.equal(options[0].getAttribute("value"), "all", "the filter's values are untouched by the relabelling");
   assert.equal(options.filter((option) => /agent/i.test(textOf(option))).length, 0);
 
