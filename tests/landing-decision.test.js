@@ -100,7 +100,7 @@ test("the front door renders exactly one decision summary, and it carries all si
   assert.match(textOf(brief.querySelector(".brief-provenance-summary")), /synthetic|sample|periods/i);
 });
 
-test("no figure on the front door is authored in its markup", async () => {
+test("no summary figure on the front door is authored in its markup", async () => {
   const html = await readFile(PAGE, "utf8");
 
   // Every number in the summary is rebuilt by the shipped contract from the
@@ -109,8 +109,20 @@ test("no figure on the front door is authored in its markup", async () => {
   // when the contract does.
   const composed = composeLandingDecision();
   assert.ok(!html.includes(String(composed.briefing.recoverable.valueMinor / 100)));
-  assert.doesNotMatch(html.slice(0, html.indexOf("record-history")), /\$\d/);
   assert.ok(!html.includes(composed.briefing.nextAction.statement));
+
+  // One authored pair is the deliberate exception: the hero states the AI
+  // FinOps example's headline result, so a first-screen visitor leaves with a
+  // number they can repeat rather than four categories of answer. It is that
+  // example's pair and no other figure, it reads in the paragraph that
+  // discloses the example, and build.test.js pins both against the composer
+  // that paints them on AI FinOps.
+  const beforeLog = html.slice(0, html.indexOf("record-history"));
+  assert.deepEqual(beforeLog.match(/\$[\d,]+/g), ["$51,254", "$154,500"]);
+  const start = beforeLog.indexOf('<p class="hero-proof-point">');
+  const proofPoint = beforeLog.slice(start, beforeLog.indexOf("</p>", start));
+  assert.match(proofPoint, /\$51,254 of \$154,500/);
+  assert.match(proofPoint, /bundled synthetic example/);
 });
 
 test("the front-door answer reproduces Noor's labelled canonical fixture exactly", async () => {
