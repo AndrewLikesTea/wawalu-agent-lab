@@ -19,6 +19,7 @@
 // Relative, not root-absolute: this module is imported by `node --test` as well
 // as by the browser, and only a relative specifier resolves in both.
 import { captionFor, countLabel, profileHref } from "./profile.js";
+import { renderImageUnavailable } from "./image-description.js";
 import { pageTitle, recordTitle } from "./page-title.js";
 import { normalizeImage } from "./social.js";
 
@@ -191,17 +192,18 @@ function renderMedia(image, caption) {
   // On the detail view the image is the point, so its failure note keeps the
   // description rather than discarding it with the element. It offers no way
   // out: the post itself still reads, and the standing back link is above it.
-  const fallback = el("div", "detail-media-fallback");
-  const fallbackTitle = el("h2", "detail-media-fallback-title", "Image unavailable");
-  fallbackTitle.id = "post-image-unavailable-title";
+  //
+  // The label used to be an <h2>, which put "Image unavailable" into this page's
+  // heading outline as a peer of the post itself. It is the same marker the feed
+  // and a People tile now draw (src/image-description.js), so it is the same
+  // outline chip here — one shape for one fact, and one fewer heading claiming
+  // to be a section of a page that has exactly one.
+  const chipId = "post-image-unavailable-title";
+  const fallback = renderImageUnavailable("detail-media-fallback", img.alt
+    ? `Description: ${img.alt}`
+    : "The post image could not be displayed, and the post carries no description of it.", { chipId });
   fallback.setAttribute("role", "status");
-  fallback.setAttribute("aria-labelledby", fallbackTitle.id);
-  fallback.append(
-    fallbackTitle,
-    el("p", undefined, img.alt
-      ? `The post image could not be displayed. Description: ${img.alt}`
-      : "The post image could not be displayed, and the post carries no description of it."),
-  );
+  fallback.setAttribute("aria-labelledby", chipId);
   fallback.hidden = true;
 
   const settle = (state) => {
