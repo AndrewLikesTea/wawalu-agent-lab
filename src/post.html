@@ -47,13 +47,20 @@
         <p>Social is a shared demo feed of short posts about the work the team ships, each with an optional image.</p>
         <!-- Word for word the last sentence of Social's own intro. A visitor who
              arrives here from a shared link may never open /social.html, so the
-             two facts that sentence carries — the feed is shared across
-             browsers, and nothing in it is real — have to be on this page too,
-             in the same words. Copied, not paraphrased: a second wording for one
+             fact that nothing in the feed is real has to be on this page too, in
+             the same words. Copied, not paraphrased: a second wording for one
              fact is a second fact as far as a reader can tell. It stands in the
              hero, outside the post's own region, so it survives every state the
              lookup can land in. -->
-        <p>Posts are shared across browsers and use no customer or production data.</p>
+        <p>Posts use no customer or production data.</p>
+        <!-- Also word for word: Social's intro and Social's composer both carry
+             this sentence, and a permalink is the surface a visitor is likeliest
+             to meet cold — the one page that can turn a reader into a publisher
+             without their ever passing the feed. So it says here, too, who reads
+             a published post and that no one can take it back. It sits in the
+             hero rather than in #post-detail, so it survives a lookup that finds
+             nothing. -->
+        <p class="publish-consequence">Anyone who visits Shiplog can read your post, its image, and the display name you publish it with. You cannot delete it afterwards, so post nothing you would not put on a public page.</p>
         <!-- The routes out close the hero, the way /social.html closes its own
              hero with .hero-actions: eyebrow, heading, intro, then the links.
              They used to open the content region instead, so the one page a
