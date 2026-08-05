@@ -87,6 +87,7 @@ import { localFinopsMeetingSummary, normalizeLocalFinopsHistory } from "/local-f
 // object, and it hands the page back to the single-provider brief when no
 // portfolio exists.
 import { applyPortfolioBrief, clearPortfolioBrief } from "/finops-portfolio-brief-view.js";
+import { applyRoutingSlate } from "/routing-slate-view.js";
 // The five-slot headline an imported export earns, painted from the checked-in
 // contract in finops-imported-headline-fixture.json. Imported state only.
 import {
@@ -1846,6 +1847,11 @@ function mountLocalFinopsImport() {
     // intake contract actually combined two or more providers; a single-provider
     // import returns `available: false` and the page renders exactly as before.
     applyPortfolioBrief(document, next);
+    // Which routing changes to ship, ranked, from the down-routing candidates
+    // this same envelope already carries. Both sides get it: the bundled example
+    // earns rules from its per-unit candidates and a reader's own import earns
+    // per-model rules when their export named the models.
+    applyRoutingSlate(document, next);
     // And the headline the reader's own export earns: five slots, always five,
     // each one either a figure from this envelope or the contract's own sentence
     // for why the export could not supply it. The bundled example is not an
