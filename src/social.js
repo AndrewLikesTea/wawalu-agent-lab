@@ -23,6 +23,7 @@
 // profile remembers cannot drift apart.
 import { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH, readStoredAuthor, rememberAuthor } from "./social-identity.js";
 import { imageDescription, renderDescriptionNote } from "./image-description.js";
+import { postDetailHref, profileHref } from "./social-links.js";
 import { renderState } from "./state-ui.js";
 
 export { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH };
@@ -88,12 +89,20 @@ export function sortPostsNewestFirst(posts) {
 
 export const TIME_RANGES = Object.freeze({ hour: 60 * 60 * 1000, day: 24 * 60 * 60 * 1000, week: 7 * 24 * 60 * 60 * 1000 });
 
-export function filterPosts(posts, { author = "all", range = "all", now = Date.now() } = {}) {
+// Whether one post survives the two feed filters. Factored out of filterPosts
+// because the composer's publish confirmation has to answer "is the post I just
+// published on screen?" and there must be exactly one answer to that: the feed
+// renders from this predicate and the confirmation asks this predicate. A second
+// copy of the rule would drift, and the drift would show as a confirmation
+// promising a card that is not there.
+export function postMatchesFilters(post, { author = "all", range = "all", now = Date.now() } = {}) {
+  if (author && author !== "all" && post?.author !== author) return false;
   const cutoff = TIME_RANGES[range] ? now - TIME_RANGES[range] : null;
-  return sortPostsNewestFirst(posts).filter((post) => {
-    if (author !== "all" && post.author !== author) return false;
-    return cutoff === null || Date.parse(post.createdAt) >= cutoff;
-  });
+  return cutoff === null || Date.parse(post?.createdAt) >= cutoff;
+}
+
+export function filterPosts(posts, { author = "all", range = "all", now = Date.now() } = {}) {
+  return sortPostsNewestFirst(posts).filter((post) => postMatchesFilters(post, { author, range, now }));
 }
 
 // The one term this site uses for the name a post is published under. The
@@ -125,6 +134,37 @@ export function feedSummarySentence({ shown = 0, range = "", author = "" } = {})
   if (shown === 0) return `No posts ${clauses}. Clear filters to see all posts.`;
   return `Showing ${posts} ${clauses}.`;
 }
+
+// ---------------------------------------------------------------------------
+// The publish confirmation's words. Pure, so the sentence a reader hears after
+// publishing is tested without a browser.
+//
+// The confirmation names the post rather than saying "post published": a reader
+// who publishes twice in a row, or who publishes while a filter is on, needs to
+// know WHICH post landed. The caption is the only name a post has, so it is the
+// name, quoted and shortened to a scannable opening rather than repeated whole.
+// ---------------------------------------------------------------------------
+const MAX_CONFIRMED_CAPTION = 60;
+
+export function publishedPostLabel({ body = "", author = "" } = {}) {
+  const caption = String(body ?? "").trim().replace(/\s+/g, " ");
+  const short = caption.length > MAX_CONFIRMED_CAPTION
+    ? `${caption.slice(0, MAX_CONFIRMED_CAPTION - 1).trimEnd()}…`
+    : caption;
+  return `Published “${short}” as ${author}.`;
+}
+
+// Two live states, two words, both carried by the label rather than by the wash
+// behind it: blue on this site is already both a series hue and the selection
+// accent, so a state told in colour alone is told in a colour that means three
+// other things. The chips are the shipped detail-state chips — a filled wash, as
+// the design system requires of a state that is happening now, and no new custom
+// property or palette entry.
+export const PUBLISH_STATE_WORDS = Object.freeze({ filtered: "Hidden by filters", failed: "Not published" });
+export const FILTERED_OUT_NOTE = "Your current filters hide this post from the feed below.";
+export const REVEAL_CONTROL_LABEL = "Clear filters and show this post";
+export const NO_IMAGE_NOTE = "This post carries no image, so it appears on Social only.";
+export const PUBLISH_FAILED_NOTE = "Your caption, image, and image description are still in the composer, exactly as you left them.";
 
 export function normalizeApiPosts(payload) {
   if (!Array.isArray(payload?.posts)) return [];
@@ -682,6 +722,89 @@ export function mountSocialFeed(root, options = {}) {
     counter.classList.toggle("near", state.near);
   };
 
+  const clearBothFilters = () => {
+    if (nameFilter) nameFilter.value = "all";
+    if (timeFilter) timeFilter.value = "all";
+    render();
+  };
+
+  const focusPostCard = (id) => {
+    const card = [...feed.querySelectorAll(".post-card")].find((item) => item.dataset.postId === id);
+    card?.focus();
+    card?.scrollIntoView?.({ block: "center", behavior: "smooth" });
+    return Boolean(card);
+  };
+
+  // A live state, drawn the way the design system draws live states: a filled
+  // wash whose label carries the word, never a wash on its own.
+  const stateChip = (word, variant) => el("span", `detail-state-chip ${variant}`, word);
+
+  // What a reader gets back for pressing Publish. Everything in it is derived
+  // from the post the API actually returned — the permalink is built from that
+  // row's id, never reconstructed from the caption or the clock — and whether
+  // the post is on screen is decided by the same predicate the feed just
+  // rendered from, so the confirmation cannot promise a card that is not there.
+  //
+  // Deliberately not folded into a <details>: this is the announcement, and a
+  // live region behind a closed disclosure is silent.
+  const showConfirmation = (saved, { hasImage, focus = true }) => {
+    if (!notice) return;
+    const hiddenByFilters = !postMatchesFilters(saved, { author: nameFilter?.value, range: timeFilter?.value });
+
+    notice.replaceChildren(document.createTextNode(`${publishedPostLabel(saved)} `));
+    const permalink = document.createElement("a");
+    permalink.href = postDetailHref(saved.id, saved.author);
+    permalink.textContent = "Open the post’s permalink";
+    notice.append(permalink, document.createTextNode(". "));
+
+    if (hasImage) {
+      // An image post is the only kind People shows, so that link is offered
+      // exactly when there is something at the other end of it.
+      const people = document.createElement("a");
+      people.href = profileHref(saved.author);
+      people.textContent = `See ${saved.author}’s image posts on People`;
+      notice.append(people, document.createTextNode("."));
+    } else {
+      notice.append(document.createTextNode(NO_IMAGE_NOTE));
+    }
+
+    if (hiddenByFilters) {
+      notice.append(
+        document.createTextNode(" "),
+        stateChip(PUBLISH_STATE_WORDS.filtered, "detail-state-chip-missing"),
+        document.createTextNode(` ${FILTERED_OUT_NOTE} `),
+      );
+      const reveal = el("button", "text-button", REVEAL_CONTROL_LABEL);
+      reveal.type = "button";
+      reveal.addEventListener("click", () => {
+        clearBothFilters();
+        // Re-stated without the notice that is no longer true, then focus goes
+        // to the card the reader asked to see — not back to this control, which
+        // this render is about to remove.
+        showConfirmation(saved, { hasImage, focus: false });
+        focusPostCard(saved.id);
+      });
+      notice.append(reveal);
+    }
+
+    notice.classList.add("is-success");
+    notice.hidden = false;
+    // Focusable only by script: the announcement is where a screen-reader user
+    // is put when it arrives, and it must not become a tab stop afterwards.
+    notice.setAttribute("tabindex", "-1");
+    if (focus) notice.focus();
+  };
+
+  const showFailure = (message) => {
+    if (!notice) return;
+    notice.classList.remove("is-success");
+    notice.replaceChildren(
+      stateChip(PUBLISH_STATE_WORDS.failed, "detail-state-chip-error"),
+      document.createTextNode(` ${message} ${PUBLISH_FAILED_NOTE}`),
+    );
+    notice.hidden = false;
+  };
+
   const setSubmitting = (submitting) => {
     if (!submit) return;
     submit.disabled = submitting;
@@ -729,11 +852,7 @@ export function mountSocialFeed(root, options = {}) {
       } catch (error) {
         // Should be unreachable behind reportValidity()/maxlength, but keeps the
         // submit flow resilient rather than throwing into the console.
-        if (notice) {
-          notice.textContent = error?.message || "That post could not be created. Add a caption within the limit.";
-          notice.hidden = false;
-          notice.classList.remove("is-success");
-        }
+        showFailure(error?.message || "That post could not be created. Add a caption within the limit.");
         return;
       }
 
@@ -752,39 +871,26 @@ export function mountSocialFeed(root, options = {}) {
         rememberAuthor(options.storage ?? globalThis.localStorage, saved.author);
         posts = [saved, ...posts.filter((item) => item.id !== saved.id)];
         renderNames();
-        if (notice) {
-          notice.replaceChildren(
-            document.createTextNode(media ? "Image posted successfully. " : "Post published successfully. "),
-          );
-          const successLink = document.createElement("a");
-          successLink.href = `#post-${saved.id}`;
-          successLink.textContent = "View in feed";
-          successLink.addEventListener("click", (event) => {
-            event.preventDefault();
-            const card = [...feed.querySelectorAll(".post-card")].find((item) => item.dataset.postId === saved.id);
-            card?.focus();
-            card?.scrollIntoView?.({ block: "center", behavior: "smooth" });
-          });
-          notice.append(successLink);
-          notice.classList.add("is-success");
-          notice.hidden = false;
-        }
+        // The feed is redrawn before the confirmation is written, so the
+        // "is it visible?" question is asked of the feed that now exists.
+        render();
+        showConfirmation(saved, { hasImage: Boolean(media) });
       } catch (error) {
-        if (notice) {
-          notice.textContent = error?.message || "This post could not be saved. Check the live connection and try again.";
-          notice.classList.remove("is-success");
-          notice.hidden = false;
-        }
+        showFailure(error?.message || "This post could not be saved. Check the live connection and try again.");
         return;
       } finally {
         setSubmitting(false);
       }
-      render();
-      form.reset();
+      // Only now, and only here: everything below runs on the confirmed-success
+      // path, so a failed publish never costs a reader the post they wrote.
+      // The three fields the post consumed are emptied; the display name is not
+      // one of them — it is who this browser is, and it was just remembered.
+      if (bodyInput) bodyInput.value = "";
       options.clearMedia?.();
       description.clear();
       updateCounter();
-      bodyInput?.focus();
+      // Focus is already on the confirmation (showConfirmation put it there);
+      // clearing the fields above must not pull it back to the composer.
     });
   }
 
@@ -792,9 +898,7 @@ export function mountSocialFeed(root, options = {}) {
   nameFilter?.addEventListener("change", render);
   timeFilter?.addEventListener("change", render);
   clearFilters?.addEventListener("click", () => {
-    nameFilter.value = "all";
-    timeFilter.value = "all";
-    render();
+    clearBothFilters();
     nameFilter.focus();
   });
 
