@@ -33,8 +33,10 @@ import { normalizeImage } from "./social.js";
 // People page and no page called Profile.
 //
 // The labels are constants because nothing may rewrite them mid-visit. They are
-// pinned against src/post.html, which ships both links so that they stand in the
-// loading, loaded, not-found and error states alike.
+// pinned against src/post.html, which ships both links. Social stands in all
+// four states. People is withdrawn by post-page.js in not-found and error,
+// where there is no post and so no display name its words can be about — the
+// label is never softened to fit a state, it is simply not offered in one.
 export const POST_EXITS = {
   social: { href: "/social.html", label: "Open Social to read the whole feed" },
   people: { href: "/profile.html", label: "Open People to see this display name's other image posts" },
@@ -88,14 +90,22 @@ function formatDateTime(iso) {
 // `empty` is not a fifth state. It is the not-found state's wording for the one
 // case where no id was asked for at all, and it renders under the same
 // data-post-state-panel="not-found" as any other post that could not be found.
+//
+// It is headed by that state's words too. It used to read "Post status" /
+// "Choose a post": a neutral chip and an instruction, which named neither what
+// happened nor what this page is. A link arriving with no id, a truncated id,
+// or an id nobody ever posted under are one answer as far as a reader is
+// concerned — the link did not reach a post — so all three are headed "Post
+// not found" and chipped with the same live word. Only the sentence underneath
+// differs, because only it can say the true thing about *this* link.
 const POST_STATE_COPY = {
   empty: {
     state: "not-found",
     className: "detail-state-not-found",
-    tone: "neutral",
-    label: "Post status",
-    title: "Choose a post",
-    description: "No post was specified. Open one from Social.",
+    tone: "missing",
+    label: "Not found",
+    title: "Post not found",
+    description: "This link did not name a post to open, so there is nothing to show. Social is a shared demo feed, not a signed-in account.",
   },
   "not-found": {
     state: "not-found",
@@ -207,8 +217,14 @@ function renderMedia(image, caption) {
   return frame;
 }
 
+// One next step, and exactly one: the feed. Whichever way a link failed to
+// reach a post — no id, a truncated id, an id nobody posted under — the only
+// thing this page can honestly offer is the feed the post would have been in.
+// The id-less case used to offer nothing at all, on the grounds that the
+// standing exit above already names Social; that left the state explaining a
+// dead end without pointing anywhere out of it.
 function renderMissing(container, id) {
-  container.append(labelledState(id ? "not-found" : "empty", [id ? feedAction() : null]));
+  container.append(labelledState(id ? "not-found" : "empty", [feedAction()]));
 }
 
 // The retry is a real <button>, so it is in the natural tab order and picks up

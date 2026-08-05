@@ -31,15 +31,44 @@ async function init() {
   const id = params.get("id") ?? "";
   const requestedAuthor = (params.get("author") ?? "").trim();
   // Both routes out ship as words in src/post.html and nothing here rewrites
-  // them, so they read the same in the loading, loaded, missing and failed
-  // states and never change under a reader mid-visit. The Social link is
-  // complete as shipped. Only the People link's destination is refined, and
+  // them, so a label never changes under a reader mid-visit: whatever a link
+  // says when it is on the page is what it said a moment ago. The Social link
+  // is complete as shipped. Only the People link's destination is refined, and
   // only ever narrowed to the display name the words already promise — first
   // from the ?author= the arriving link carried, then from the post itself once
   // one loads. A name that never resolves leaves it on People plainly.
   const people = document.querySelector("#post-people");
+  const exits = people?.parentNode ?? null;
   const aimPeople = (author) => {
     if (people) people.href = postPeopleHref(window.location.search, author);
+  };
+  // …and whether it is offered at all. Its words promise "this display name's
+  // other image posts", which only means something while there is a post, or
+  // while one may still arrive. When the lookup settles on not-found or error
+  // there is no post and therefore no display name this page can point at — an
+  // ?author= in the URL is what the arriving link claimed, not a name the page
+  // resolved — so the link is removed from the document rather than left
+  // pointing at People-in-general under words that promise one person. Removed,
+  // not dimmed and not left in place: a link that is on the page is a promise
+  // the page can keep, and this one it cannot.
+  //
+  // It comes back on the next attempt. A retry re-enters the loading state,
+  // where a post may yet arrive, so the link is restored to the exits paragraph
+  // in its shipped position — Social first, People second — before every load.
+  //
+  // A reader can be standing on that link at the moment it goes — they tabbed
+  // to it while the lookup was still running, and the lookup then failed.
+  // Removing the focused element would drop focus to the document and cost them
+  // their place, so focus moves one stop back first, to the exit that is still
+  // there and sits beside it in the same paragraph.
+  const offerPeople = (offered) => {
+    if (!people || !exits) return;
+    if (offered) {
+      if (!people.parentNode) exits.append(people);
+      return;
+    }
+    if (document.activeElement === people) document.querySelector("#post-back")?.focus?.();
+    people.remove();
   };
   aimPeople("");
 
@@ -55,6 +84,7 @@ async function init() {
     // page (a test, a smoke check) sees the second fetch as its own load.
     document.documentElement.dataset.shiplogPostDetail = "loading";
     nameHeading(null);
+    offerPeople(true);
     renderPostDetail(container, null, { state: "loading", id, author: requestedAuthor, returnHref: POST_EXITS.social.href });
     let post = null;
     let failed = false;
@@ -91,6 +121,7 @@ async function init() {
     });
     nameHeading(post);
     aimPeople(post?.author ?? "");
+    offerPeople(Boolean(post));
     document.title = postDetailTitle(post, state);
     document.documentElement.dataset.shiplogPostDetail = "ready";
 
