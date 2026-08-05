@@ -102,6 +102,12 @@ import {
 import {
   applyBriefCompleteness, clearBriefCompleteness,
 } from "/finops-brief-completeness-view.js";
+// Which rung of the trust ladder that brief stands on, and the one step up. The
+// derivation and the paint are the same module because the rung is three strings
+// and a comparison, not a second analysis.
+import {
+  applyTrustLadder, clearTrustLadder, createTrustAnnouncer, trustAssessment,
+} from "/finops-trust-ladder.js";
 // The download itself. Every figure decision is inside `briefingFile`; the only
 // thing this layer contributes is the clock, because the generator is pure and
 // will not read one.
@@ -995,6 +1001,17 @@ function mountLocalFinopsImport() {
   let declaredCohortFacts = null;
   /** The analysis the last position was computed against, for a recompute. */
   let cohortAnalysis = null;
+  /**
+   * The rung this reader was last TOLD they were on (#1104).
+   *
+   * A revision that leaves the brief where it was is not a move, and a polite
+   * region handed the same rung again is a second utterance with no news in it,
+   * queued behind the sentence that answers the question. This closure returns
+   * the empty string in that case, so the answer sentence is composed without a
+   * trust clause rather than with a repeated one. The visible indicator is
+   * repainted either way and stays current.
+   */
+  const announceRung = createTrustAnnouncer();
   // Query samples, kept apart from the provider/HRIS pair above: they answer a
   // different question and are graded by a different module. Same lifetime as
   // everything else here — this closure, and no longer.
@@ -1867,6 +1884,13 @@ function mountLocalFinopsImport() {
     // complete brief and is not scored against itself.
     applyBriefCompleteness(document, example ? null : next,
       { movement: example ? null : movement.movement });
+    // And how far the brief those blocks compose can be leaned on: the rung, its
+    // ordinal, what the rung is and is not good for, and the one step up. The
+    // bundled example stands on no rung and is passed nothing, which takes the
+    // block off screen rather than starting it at rung 1. The VISIBLE block is
+    // repainted on every recompute and is always current; only the ANNOUNCEMENT
+    // below is held back when the rung did not move.
+    applyTrustLadder(document, example ? null : next);
     applyDatasetProvenance(document, example, example ? null : importProvenance());
     // Where this organization ranks, decided from the same selection this
     // result was analyzed from. The bundled example declares no cohort
@@ -2356,6 +2380,12 @@ function mountLocalFinopsImport() {
     // The completeness score goes with the brief it scored. A tier left standing
     // over a cleared import is a verdict about a file nobody has loaded.
     clearBriefCompleteness(document);
+    // The rung goes with the brief it was a statement about. A cleared import
+    // must not leave "Declared — rung 1 of 3" standing over no file at all, and
+    // the announcer goes back to "not on the ladder", so re-importing the same
+    // export afterwards is a move onto it again and is spoken again.
+    clearTrustLadder(document);
+    announceRung(null);
     const trust = document.getElementById("local-trust");
     if (trust) {
       trust.hidden = true;
@@ -2702,7 +2732,15 @@ function mountLocalFinopsImport() {
         announce("error", "This export did not replace the answer on screen.", outcome.message);
       }
     }
-    applyStandHeadline(document, answerState.getHeadline());
+    // The rung rides the answer's own sentence rather than a second live region
+    // (#1104): the reader who just committed an import hears the figure, the
+    // action, and then how far the brief carries, in one utterance — and only
+    // when the rung actually moved. An import the page refused stands on no new
+    // rung and adds nothing, and the boot paint — which passes no trust and does
+    // not announce — is unchanged.
+    applyStandHeadline(document, answerState.getHeadline(), {
+      trust: eligibility ? announceRung(trustAssessment(analysis)) : "",
+    });
     return eligibility;
   };
 

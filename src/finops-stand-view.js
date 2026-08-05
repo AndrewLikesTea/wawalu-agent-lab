@@ -618,7 +618,7 @@ export function bindStandResolution(doc) {
  *
  * @returns the region, so a caller can assert on the state it asked for.
  */
-export function applyStandHeadline(doc, headline, { announce = true } = {}) {
+export function applyStandHeadline(doc, headline, { announce = true, trust = "" } = {}) {
   const region = byId(doc, STAND_IDS.region);
   if (!region || !headline) return null;
 
@@ -762,7 +762,11 @@ export function applyStandHeadline(doc, headline, { announce = true } = {}) {
   // keep listening: the question, the metric with its unit, and the one next
   // action. Every other region that used to echo this change was silenced at
   // boot by `silenceEchoedRegions`.
-  announceAnswer(doc, answerAnnouncement(headline), { announce });
+  // `trust` is the rung the reader's own brief just moved to, handed in by the
+  // caller that just read the file rather than re-derived here, and empty when
+  // the rung did not move. It rides this one sentence; the ladder paints no
+  // announcer of its own.
+  announceAnswer(doc, answerAnnouncement(headline, { trust }), { announce });
 
   // THE SPINE, LAST, so it is what the region ends up carrying. It writes the
   // page's one question into this region's heading, the headline metric's name
