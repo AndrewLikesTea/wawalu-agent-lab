@@ -45,6 +45,10 @@ import {
 // theirs afterwards. Read here so a repaint of this region cannot revert the
 // estimate under an answer spine that is still showing their figures.
 import { currentDeclaredFacts } from "./finops-declared-fact-intake.js";
+// Which rung of the trust ladder the region is on (#1104). The ladder reads the
+// region's own `data-source`, so the two lines below are repaints at the exact
+// moments that flag changes rather than a second opinion about it.
+import { refreshTrustLadder } from "./finops-trust-ladder.js";
 
 const byId = (doc, id) => (doc?.getElementById ? doc.getElementById(id) : null);
 
@@ -665,6 +669,10 @@ function applyOwnDataDrilldown(doc, region, drilldown, onLabel) {
   // Put the reader back in the field they committed from. The repaint that
   // followed the commit replaced the node they were standing on, and the ids
   // are deterministic precisely so this can find its way back.
+  // A file of the reader's has now been read, which is the one thing that earns
+  // the top rung. Repainted here rather than at the import's call site so no
+  // caller can move the region to an import and leave the ladder behind.
+  refreshTrustLadder(doc);
   const focusId = region.dataset.focusTarget;
   if (focusId) {
     delete region.dataset.focusTarget;
@@ -717,6 +725,11 @@ export function applyFirstRunSupersession(doc, superseded,
   restoreExampleCopy(doc);
   delete region.dataset.source;
   delete region.dataset.grouping;
+  // The import is gone, so the top rung goes with it. The ladder falls back to
+  // whichever rung the declaration underneath had already earned rather than to
+  // a fixed one — a reader who imported after declaring their own five facts is
+  // still Estimated, not back at Declared.
+  refreshTrustLadder(doc);
   // Hiding the element a reader is standing on drops focus to `<body>`, which
   // for a keyboard user means the next Tab starts again at the top of the
   // document — they imported a file and lost their place on the page. So when

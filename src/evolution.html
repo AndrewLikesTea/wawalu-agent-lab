@@ -1139,6 +1139,35 @@
           <p class="first-run-detail" id="finops-intake-recoverable">Estimated recoverable: $20,772 to $49,854 a month, modelled from these five declared facts — not a measured, invoiced, or realized saving.</p>
           <p class="first-run-detail" id="finops-intake-action">Next: move one month of standard-tier traffic that does not need the tier to a cheaper one, then check the invoice against this estimate before booking anything.</p>
         </div>
+        <!-- WHICH RUNG OF THE TRUST LADDER THIS BRIEF IS ON (#1104).
+
+             It sits under the answer it qualifies, because that is the sentence
+             a reader is deciding whether to quote. All three rungs are drawn at
+             once and none of them is behind a disclosure: a reader has to be
+             able to see the scale to read their place on it, and a summary
+             element would put a tab stop inside the region whose focus order is
+             enumerated exactly by tests/finops-decision-interaction.test.js.
+             NOTHING IN THIS BLOCK IS FOCUSABLE for that reason, and the one
+             step up is a sentence naming a control that is already on this
+             page rather than a second link to it.
+
+             Authored in the DECLARED state and repainted from
+             src/finops-trust-ladder.js, so a visitor whose script never ran
+             meets a true ladder — the five facts on the page really are the
+             bundled example's until they answer them — and the authored copy
+             and the module's copy are proved to be the same sentences. Colour
+             is the last channel: every chip states its place in words and its
+             name, the current one adds "you are here" and the filled
+             silhouette, and the two rungs this brief is not on keep full
+             outline weight rather than being dimmed. NO MARK IS DRAWN — this
+             page's circles already mean status, and a ladder borrowing them
+             would make one glyph mean two things at chip size. -->
+        <div class="trust-ladder" id="finops-trust-ladder" data-rung="declared" data-ordinal="1">
+          <h3 class="eyebrow" id="finops-trust-ladder-heading">How far this brief has been checked</h3>
+          <p class="trust-ladder-rungs" id="finops-trust-ladder-rungs"><span class="brief-provenance" data-rung="declared" data-current="true" data-silhouette="filled" data-tone="import"><span class="brief-provenance-label">Rung 1 of 3 · Declared · you are here</span></span><span class="brief-provenance" data-rung="estimated" data-current="false" data-silhouette="outline" data-tone="neutral"><span class="brief-provenance-label">Rung 2 of 3 · Estimated</span></span><span class="brief-provenance" data-rung="verified" data-current="false" data-silhouette="outline" data-tone="neutral"><span class="brief-provenance-label">Rung 3 of 3 · Verified</span></span></p>
+          <p class="first-run-detail" id="finops-trust-ladder-support">A declared fact supports a shared starting point — what your org says is true of itself, written down where everyone can see it. It does not support a figure of yours, because nothing on this screen has been modelled from your answers yet: the five facts above are still the bundled example's.</p>
+          <p class="first-run-detail" id="finops-trust-ladder-promotion">One step up: answer the five facts above and press "Estimate from these five facts" to reach Estimated.</p>
+        </div>
         <p class="visually-hidden" id="finops-intake-live" role="status" aria-live="polite" aria-atomic="true"></p>
         <p class="visually-hidden" id="finops-first-run-live" role="status" aria-live="polite" aria-atomic="true"></p>
       </section>

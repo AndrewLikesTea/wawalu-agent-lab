@@ -38,6 +38,7 @@ import {
 } from "../src/finops-declared-fact-estimate.js";
 import { EXAMPLE_DECLARED_FACTS } from "../src/finops-declared-fact-fixtures.js";
 import { ORG_SIZE_BAND, PEER_INDUSTRY } from "../src/peer-cost-cohorts.js";
+import { TRUST_RUNG, rungAnnouncement } from "../src/finops-trust-ladder.js";
 
 const PAGE = new URL("../src/evolution.html", import.meta.url);
 const html = await readFile(PAGE, "utf8");
@@ -205,8 +206,16 @@ test("a visitor completes and submits the intake with the keyboard alone", () =>
   };
   const expected = estimateFromDeclaredFacts(facts);
   assert.equal(headlineOf(document), intakeHeadline(expected));
-  assert.equal(textOf(byId(document, INTAKE_IDS.live)), intakeHeadline(expected),
+  // ONE announcement, in the region's own polite status — and since #1104 the
+  // headline is followed by the trust rung when, and only when, this submit
+  // moved it. Declaring five facts of your own is exactly such a move, so the
+  // deliberate submit above speaks both halves in one utterance rather than
+  // writing a second live region beside this one.
+  const spoken = textOf(byId(document, INTAKE_IDS.live));
+  assert.ok(spoken.startsWith(intakeHeadline(expected)),
     "a deliberate submit is announced once, in the region's own polite status");
+  assert.equal(spoken.slice(intakeHeadline(expected).length).trim(),
+    rungAnnouncement(TRUST_RUNG.estimated));
 });
 
 // --- the answer spine -------------------------------------------------------
