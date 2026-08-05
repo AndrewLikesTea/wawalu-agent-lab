@@ -1341,6 +1341,12 @@
 .brief-provenance[data-silhouette="outline"] { border-color:var(--ink-muted); background:transparent; color:var(--ink-muted); }
 .brief-provenance[data-silhouette="dashed"] { border-style:dashed; border-color:var(--state-warn-line); background:transparent; color:var(--state-warn-ink); }
 .brief-provenance-line { display:grid; justify-items:start; margin:0; max-width:60ch; }
+/* The trust ladder (#1104). Two rules and no new token: the rungs are the chips
+   above, and the current one is told apart by its words and its mark before its
+   fill. Wrapping rather than scrolling, so three chips survive a narrow column
+   without a rung leaving the screen. */
+.trust-ladder { display:grid; gap:6px; max-width:60ch; border-top:1px dashed var(--import-line); padding-top:10px; break-inside:avoid; }
+.trust-ladder-rungs { display:flex; flex-wrap:wrap; gap:6px; margin:0; }
 .stand-imported-movement { margin:0; max-width:60ch; color:var(--ink); font-size:16px; font-weight:700; line-height:1.4; overflow-wrap:anywhere; }
 /* Which months the movement was computed from, directly under the figure. It is
    ordinary text in the reading order, one step down from the sentence above it

@@ -27,6 +27,13 @@ import {
   HEADCOUNT_SOURCE, ROSTER_REFUSAL, parseHeadcountRoster, rosterAcceptedSentence,
   rosterRefusalSentence,
 } from "./hris-headcount-roster.js";
+// Which rung of the trust ladder the answer below is on (#1104). This module
+// only reports what it painted — the ladder decides the rung from the region's
+// own state, so the two cannot disagree about whose facts these are.
+import {
+  currentTrustRung, refreshTrustLadder, rungChangeAnnouncement, seedAnnouncedRung,
+  setDeclaredEstimate,
+} from "./finops-trust-ladder.js";
 
 const byId = (doc, id) => (doc?.getElementById ? doc.getElementById(id) : null);
 
@@ -94,7 +101,28 @@ export function applyDeclaredFactIntake(doc, facts = EXAMPLE_DECLARED_FACTS) {
   setText(doc, INTAKE_IDS.headline, intakeHeadline(estimate));
   setText(doc, INTAKE_IDS.recoverable, intakeRecoverable(estimate));
   setText(doc, INTAKE_IDS.action, intakeNextAction(estimate));
+  // And the rung the three sentences above are on. Painted after them, never
+  // before: a ladder that claims Estimated over a spine still showing the
+  // example's figures is the exact confusion it exists to remove.
+  setDeclaredEstimate(doc, !isExampleFacts(facts));
+  refreshTrustLadder(doc);
   return estimate;
+}
+
+/**
+ * Whether these five facts are still the bundled example's.
+ *
+ * Compared field by field rather than by identity, because the facts painted
+ * here are read back out of five controls and are therefore a fresh object every
+ * time. A reader whose org matches the example on all five reads as the example,
+ * which is the honest answer: nothing they typed distinguishes the two.
+ */
+function isExampleFacts(facts) {
+  return facts?.monthlySpendUsd === EXAMPLE_DECLARED_FACTS.monthlySpendUsd
+    && facts?.engineers === EXAMPLE_DECLARED_FACTS.engineers
+    && facts?.sizeBand === EXAMPLE_DECLARED_FACTS.sizeBand
+    && facts?.industry === EXAMPLE_DECLARED_FACTS.industry
+    && mixChoiceFor(facts?.providerMix) === mixChoiceFor(EXAMPLE_DECLARED_FACTS.providerMix);
 }
 
 /** Repaint from whatever the five controls currently hold. */
@@ -175,9 +203,25 @@ function fillControls(doc, facts) {
   setValue(doc, INTAKE_IDS.industry, facts.industry);
 }
 
-/** Speak the headline once, on a deliberate act. */
+/**
+ * Speak the headline once, on a deliberate act — and the rung only if it moved.
+ *
+ * ONE LIVE REGION, NOT TWO. The rung rides on the announcement the headline is
+ * already making rather than in a second polite region beside it: two regions
+ * written on one submit is a screen reader reading a figure and a ladder over
+ * each other, and this page has already decided it announces through one region
+ * plus the import reason beside it.
+ *
+ * `rungChangeAnnouncement` returns null when the rung has not moved, and null
+ * means NOTHING IS ADDED. A reader who revises their spend by a hundred dollars
+ * is still Estimated; being told so again is noise they cannot skip.
+ */
 function announce(doc, estimate) {
-  if (estimate) setText(doc, INTAKE_IDS.live, intakeHeadline(estimate));
+  if (!estimate) return null;
+  const moved = rungChangeAnnouncement(doc, currentTrustRung(doc));
+  const headline = intakeHeadline(estimate);
+  setText(doc, INTAKE_IDS.live, moved ? `${headline} ${moved}` : headline);
+  return moved;
 }
 
 /**
@@ -232,5 +276,11 @@ export function bindDeclaredFactIntake(doc, { onEstimate = null } = {}) {
   // setting them here means the value this module reads back is the value it
   // wrote, on every engine, instead of whatever a defaulting rule decided.
   fillControls(doc, currentDeclaredFacts());
+  // The rung the reader ARRIVES on, recorded without speaking it. A polite
+  // region written at page load reads the ladder out over whatever they were
+  // already hearing; seeding the comparison here is what makes the first thing
+  // they hear the first thing that actually changed.
+  setDeclaredEstimate(doc, !isExampleFacts(currentDeclaredFacts()));
+  seedAnnouncedRung(doc, refreshTrustLadder(doc));
   return form;
 }
