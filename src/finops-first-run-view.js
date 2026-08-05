@@ -40,7 +40,11 @@ import {
 import {
   ESTIMATE_MARKER, estimateDetail, estimateFromDeclaredFacts, estimateHeadline,
 } from "./finops-declared-fact-estimate.js";
-import { EXAMPLE_DECLARED_FACTS } from "./finops-declared-fact-fixtures.js";
+// Which declared facts the region is estimating from right now: the bundled
+// example's until a visitor answers the five questions in the intake below,
+// theirs afterwards. Read here so a repaint of this region cannot revert the
+// estimate under an answer spine that is still showing their figures.
+import { currentDeclaredFacts } from "./finops-declared-fact-intake.js";
 
 const byId = (doc, id) => (doc?.getElementById ? doc.getElementById(id) : null);
 
@@ -319,14 +323,16 @@ export const ESTIMATE_HEADING = "Estimated position from declared facts";
  * announced, nothing live, and no state a reader has to open a disclosure to
  * learn.
  *
- * The declared facts are the bundled example's, so this renders on first load
- * with no file imported. `estimateFromDeclaredFacts` returns plain text and
+ * The declared facts default to whichever set the region is currently
+ * estimating from — the bundled example's until a visitor answers the five
+ * questions in the intake, theirs after — so this renders on first load with no
+ * file imported and never reverts one of the two under the other. `estimateFromDeclaredFacts` returns plain text and
  * numbers only — no declared string survives it — and every node below is built
  * with createElement and written through textContent.
  *
  * @returns the estimate it painted, so a caller can assert on it.
  */
-export function applyDeclaredFactEstimate(doc, facts = EXAMPLE_DECLARED_FACTS) {
+export function applyDeclaredFactEstimate(doc, facts = currentDeclaredFacts()) {
   const block = byId(doc, ESTIMATE_IDS.block);
   if (!block) return null;
   const estimate = estimateFromDeclaredFacts(facts);

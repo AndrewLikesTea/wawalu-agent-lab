@@ -354,6 +354,7 @@ import {
   applyExampleBriefingCta,
   applyFirstRunResult, applyFirstRunSupersession, bindFirstRunActions, bindFirstRunDisclosure,
 } from "/finops-first-run-view.js";
+import { bindDeclaredFactIntake } from "/finops-declared-fact-intake-view.js";
 // The other half of those markers: a reader who spots a wrong derived name or
 // figure corrects it on the line they read it, and the block's headline, table
 // and confidence sentence are repainted from the one state the correction landed
@@ -4777,6 +4778,12 @@ async function init() {
   // the paint just wrote, and binding it afterwards is what makes the first
   // chip agree with the list under it.
   bindFirstRunDisclosure(document);
+  // And the five declared facts a visitor can answer with no file in hand,
+  // bound after that disclosure so a submit repaints a working a reader can
+  // already open. The controls ship filled with the bundled example's own
+  // facts, so nothing here changes what a first-time visitor meets until they
+  // change one of the five. Prevented submit, no request, nothing stored.
+  bindDeclaredFactIntake(document);
   // Then the returning lead's question, in the same synchronous pass and for
   // the same reason: a leader who opens this page once a month is not asking
   // what the example would tell them, they are asking which single thing to do

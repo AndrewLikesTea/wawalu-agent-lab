@@ -317,6 +317,20 @@ export const FOCUS_SPEC = Object.freeze({
     "finops-first-run-demo",
     "finops-first-run-import",
     "finops-first-run-briefing",
+    // The five declared facts a visitor answers with no file in hand (#1103),
+    // last and deliberately so. They are another way to go on rather than a
+    // gate: a reader who wants the bundled example, their own export, or the
+    // printable sheet reaches all three before being asked a question. Within
+    // the group the order is the reading order — the five facts as they are
+    // read, then the control that answers with them, then the one that gives
+    // the bundled example back.
+    "finops-intake-spend",
+    "finops-intake-mix",
+    "finops-intake-engineers",
+    "finops-intake-size",
+    "finops-intake-industry",
+    "finops-intake-submit",
+    "finops-intake-clear",
   ]),
 });
 

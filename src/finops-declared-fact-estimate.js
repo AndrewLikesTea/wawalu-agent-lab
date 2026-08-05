@@ -438,6 +438,13 @@ export function estimateFromDeclaredFacts(facts = {}) {
 }
 
 const money = (value) => `$${Math.round(value).toLocaleString("en-US")}`;
+
+/**
+ * The workings' own money format, exported so a surface that prints one of the
+ * figures above prints the same dollars this module's sentences do rather than
+ * rounding it a second way.
+ */
+export const estimateMoney = (value) => money(value);
 const share = (value) => `${Math.round(value * 100)}%`;
 // The blended rate is printed to a tenth of a percent, because a reader redoing
 // `attempted × rate` with a whole percent lands on a different task count than
