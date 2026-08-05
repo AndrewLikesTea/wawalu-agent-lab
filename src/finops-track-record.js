@@ -30,7 +30,9 @@ import {
 } from "./finops-imported-period-series.js";
 import { nextCalendarMonth } from "./commitment-verification.js";
 import { scoreCommittedSaving, VERDICT_GRADE } from "./committed-saving-verdict.js";
-import { briefingSeriesSummary } from "./finops-briefing-series.js";
+import {
+  briefingSeriesSummary, estimateAccuracy, realizedSeriesEntries,
+} from "./finops-briefing-series.js";
 
 /** Named once, so the document, the page entry and the tests agree. */
 export const TRACK_RECORD_IDS = Object.freeze({
@@ -41,6 +43,7 @@ export const TRACK_RECORD_IDS = Object.freeze({
   context: "finops-track-record-context",
   action: "finops-track-record-action",
   detail: "finops-track-record-detail",
+  estimate: "finops-track-record-estimate",
 });
 
 /** The heading. Carried here so a surface cannot quietly retitle the question. */
@@ -147,19 +150,35 @@ function figureOf(verdict, committedFrom, followUp) {
 /**
  * The header's whole model, from the series and the stored commitment.
  *
+ * ESTIMATED PERIODS ARE FILTERED OUT AT THIS BOUNDARY and nowhere else (#1106).
+ * `realizedSeriesEntries` is the only thing below that decides it, so the count,
+ * the span, every row, the movement and the commitment verdict are computed from
+ * imported figures alone. A declared estimate is a claim about a month, not a
+ * measurement of it, and a header that graded a commitment against one would be
+ * scoring the reader's own guess. What the estimate does earn is the line the
+ * next paragraph builds: once the real figure for its month lands, the miss is
+ * stated in words.
+ *
  * @param options.series the read shape of `readBriefingSeries`, oldest first.
  * @param options.commitment the newest retained commitment record, or null.
  * @returns a frozen model: `{ state, question, figure, verdict, context,
- *   action, rows, summary }`. `figure` and `verdict` are null in the states
- *   that have no measurement, and the caller renders nothing for them.
+ *   action, rows, summary, estimateDelta }`. `figure` and `verdict` are null in
+ *   the states that have no measurement, and the caller renders nothing for
+ *   them; `estimateDelta` is "" when no period holds both an estimate and an
+ *   import.
  */
 export function trackRecordModel({ series, commitment = null } = {}) {
-  const entries = (Array.isArray(series) ? series : []).filter(Boolean);
+  const held = (Array.isArray(series) ? series : []).filter(Boolean);
+  const entries = realizedSeriesEntries(held);
+  // Prepared here, rendered as-is: one sentence per period that was both
+  // predicted and then billed, in period order.
+  const estimateDelta = estimateAccuracy(held).map((scored) => scored.sentence).join(" ");
+  const built = (fields) => model({ estimateDelta, ...fields });
   const { count, label: span } = briefingSeriesSummary(entries);
   const periods = [...new Set(entries.map((entry) => entry.period))].sort();
 
   if (count === 0) {
-    return model({
+    return built({
       state: TRACK_RECORD_STATE.none,
       context: "No track record on file: this browser is keeping no period. Importing one "
         + "provider export keeps the month it covers and starts the record.",
@@ -180,7 +199,7 @@ export function trackRecordModel({ series, commitment = null } = {}) {
     });
   }
   if (count === 1) {
-    return model({
+    return built({
       state: TRACK_RECORD_STATE.single,
       context: `A track record needs a second period. One month is on file — ${label(periods[0])} `
         + "— so there is no movement to measure.",
@@ -192,7 +211,7 @@ export function trackRecordModel({ series, commitment = null } = {}) {
 
   const committedFrom = canonicalPeriod(commitment?.claim?.period);
   if (committedFrom === null) {
-    return model({
+    return built({
       state: TRACK_RECORD_STATE.uncommitted,
       context: `${span}. No commitment is stored in this browser, so there is nothing to score `
         + "these months against.",
@@ -222,7 +241,7 @@ export function trackRecordModel({ series, commitment = null } = {}) {
     const committed = verdict.committedSavingUsd === null
       ? `A commitment is stored for ${label(committedFrom)}, but its saving figure could not be read`
       : `${formatUsd(verdict.committedSavingUsd)} a month was committed for ${label(committedFrom)}`;
-    return model({
+    return built({
       state: TRACK_RECORD_STATE.awaiting,
       verdict: badgeOf(verdict),
       context: `${committed}. ${label(expected)} is not on file, so nothing has been measured `
@@ -233,7 +252,7 @@ export function trackRecordModel({ series, commitment = null } = {}) {
     });
   }
 
-  return model({
+  return built({
     state: graded ? TRACK_RECORD_STATE.scored : TRACK_RECORD_STATE.awaiting,
     figure: graded ? figureOf(verdict, committedFrom, verdict.provenance.comparedPeriods.followUp)
       : null,
@@ -264,6 +283,7 @@ const model = (fields) => Object.freeze({
   verdict: null,
   rows: [],
   summary: "",
+  estimateDelta: "",
   ...fields,
 });
 
@@ -362,6 +382,18 @@ export function renderTrackRecord(document, model_) {
   const context = el(document, "p", "local-lead-basis", model_.context);
   context.id = TRACK_RECORD_IDS.context;
   nodes.push(context);
+
+  // The estimate against the bill (#1106). TEXT, NOT A CONTROL: the first
+  // screen's tab order is a budget another test holds, and this line is
+  // something to read rather than somewhere to go. It reuses the basis class
+  // above it, so no rule is added to a stylesheet with no room for one, and it
+  // is a sibling of the disclosure rather than inside it — a miss folded into a
+  // collapsed disclosure is a miss nobody is told about.
+  if (model_.estimateDelta) {
+    const estimate = el(document, "p", "local-lead-basis", model_.estimateDelta);
+    estimate.id = TRACK_RECORD_IDS.estimate;
+    nodes.push(estimate);
+  }
 
   // Exactly one control, in the page's own action idiom: a link a keyboard
   // reader reaches in the tab order without opening anything first. An action

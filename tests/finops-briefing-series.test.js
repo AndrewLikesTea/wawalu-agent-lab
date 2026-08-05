@@ -168,6 +168,10 @@ test("a single-period series reads back as one entry with its figures", () => {
     spendUsd: 546.2,
     recoverableUsd: 402.75,
     confidence: "Medium",
+    // #1106: an entry states which of the two things it is, and a briefing
+    // captured from an analysis is an imported one. Nothing supersedes it.
+    basis: "imported",
+    supersededBy: null,
   });
 });
 
@@ -274,7 +278,8 @@ test("nothing prompt-shaped or raw reaches the persisted record", () => {
   }
   // The exact key set of an entry, so a field added upstream cannot ride in.
   assert.deepEqual(Object.keys(JSON.parse(raw).entries[0]).sort(), [
-    "capturedAt", "confidence", "period", "providerName", "recoverableUsd", "scope", "spendUsd",
+    "basis", "capturedAt", "confidence", "period", "providerName", "recoverableUsd",
+    "scope", "spendUsd", "supersededBy",
   ]);
 });
 

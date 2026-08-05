@@ -207,3 +207,31 @@ export function intakeNextAction(estimate) {
   if (!estimate?.quartile?.available) return NEXT_ACTION.noCohort;
   return NEXT_ACTION[estimate.quartile.band] ?? NEXT_ACTION.noCohort;
 }
+
+/**
+ * THIS ESTIMATE AS A PERIOD ENTRY, so a later real import can be scored against
+ * it (#1106).
+ *
+ * The month is the one the reader declared IN — `capturedAt` is a period-shaped
+ * string the caller supplies and the series parses the month off, so no clock is
+ * read on either side of this call. The spend is the reader's own declared
+ * monthly figure as the estimator clamped and accepted it, never the raw control
+ * value, and the recoverable figure is the LOW end of the modelled band: an
+ * entry that is going to be compared against a bill states the conservative end
+ * of a range rather than its best case.
+ *
+ * Null when the estimator withheld a figure. An estimate that could not be made
+ * is not a period, and writing one would put a zero on the record.
+ */
+export function estimatedPeriodFacts(estimate, capturedAt) {
+  const spendUsd = estimate?.inputs?.monthlySpendUsd;
+  if (!estimate?.costPerSuccessfulTask?.available || !Number.isFinite(spendUsd)) return null;
+  const recoverable = estimate?.recoverableMonthlyUsd;
+  return {
+    period: capturedAt,
+    capturedAt,
+    spendUsd,
+    recoverableUsd: recoverable?.available ? recoverable.low : 0,
+    confidence: estimate?.confidence?.label ?? null,
+  };
+}

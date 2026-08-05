@@ -124,12 +124,18 @@ function announce(doc, estimate) {
  * implicit submission, Enter and Space on either button are the button's, and
  * the arrow keys inside a select are the select's.
  */
-export function bindDeclaredFactIntake(doc) {
+export function bindDeclaredFactIntake(doc, { onEstimate = null } = {}) {
   const form = byId(doc, INTAKE_IDS.form);
   if (!form) return null;
   form.addEventListener("submit", (event) => {
     event?.preventDefault?.();
-    announce(doc, applyDeclaredFactIntakeFromControls(doc));
+    const estimate = applyDeclaredFactIntakeFromControls(doc);
+    announce(doc, estimate);
+    // ON SUBMIT ONLY (#1106). The region repaints on every keystroke, and a
+    // record written on every keystroke is a record of typing rather than of a
+    // reader's declared position. Submitting is the moment they stand behind
+    // the five facts, so that is the moment the estimate goes on the record.
+    onEstimate?.(estimate);
   });
   const revise = () => applyDeclaredFactIntakeFromControls(doc);
   form.addEventListener("input", revise);
