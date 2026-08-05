@@ -91,18 +91,27 @@ test("the intake declares five facts, each with a visible label, inside one name
   // Five controls, in reading order, each with a label pointing at it.
   const fields = [INTAKE_IDS.spend, INTAKE_IDS.mix, INTAKE_IDS.engineers, INTAKE_IDS.size,
     INTAKE_IDS.industry];
+  // The roster file control (#1105) is an ALTERNATIVE way to answer the third
+  // fact, not a sixth fact, so it is left out of this list and covered on its
+  // own terms in hris-headcount-roster.test.js. It is asserted to sit directly
+  // after the field it stands in for, which is where it is read.
   const authored = form.querySelectorAll("input,select").map((node) => node.id);
-  assert.deepEqual(authored, fields, "the five controls are not in the intended reading order");
+  assert.equal(authored.indexOf(INTAKE_IDS.roster), authored.indexOf(INTAKE_IDS.engineers) + 1);
+  assert.deepEqual(authored.filter((id) => id !== INTAKE_IDS.roster), fields,
+    "the five controls are not in the intended reading order");
   for (const id of fields) {
     const labels = form.querySelectorAll("label").filter((label) => label.getAttribute("for") === id);
     assert.equal(labels.length, 1, `#${id} has no single visible label bound to it`);
     assert.ok(textOf(labels[0]).length > 0, `#${id}'s label is empty`);
   }
 
-  // No free text anywhere: two bounded numbers and three published lists.
+  // No free text anywhere: two bounded numbers and three published lists. The
+  // roster control is a file picker, which carries no typed text either — what
+  // it accepts is bounded by a published contract instead of by min and max.
   assert.equal(form.querySelectorAll("textarea").length, 0);
   for (const node of form.querySelectorAll("input")) {
-    assert.equal(node.getAttribute("type"), "number", "a free-text field entered the intake");
+    assert.equal(node.getAttribute("type"), node.id === INTAKE_IDS.roster ? "file" : "number",
+      "a free-text field entered the intake");
   }
   assert.equal(byId(document, INTAKE_IDS.spend).getAttribute("min"),
     String(PLAUSIBLE_MONTHLY_SPEND_USD.min));

@@ -353,20 +353,23 @@ test("the three provider pickers this replaced are gone from the document", asyn
       assert.equal(document.querySelectorAll(`#${id}`).length, 0,
         `${id} is still a second way to import the same export`);
     }
-    // One file control that IMPORTS a provider export. The other three are not
+    // One file control that IMPORTS a provider export. The other four are not
     // rival importers and say so in their own labels: one reopens a briefing,
-    // one (#1064) checks a file and stops without importing anything, and one
+    // one (#1064) checks a file and stops without importing anything, one
     // (#1092) reads back a track record this page exported — periods a reader
-    // already analyzed here, never a provider's own file.
+    // already analyzed here, never a provider's own file — and one (#1105)
+    // counts one number, an engineer headcount, out of a two-column HRIS roster
+    // that is refused outright if it carries anything else.
     const fileInputs = document.querySelectorAll("input")
       .filter((node) => node.getAttribute("type") === "file");
     assert.deepEqual(fileInputs.map((node) => node.getAttribute("id")).sort(),
-      ["finops-export-check-file", "local-finops-files", "local-lead-portability-import",
-        "reopen-briefing-file"]);
+      ["finops-export-check-file", "finops-intake-roster", "local-finops-files",
+        "local-lead-portability-import", "reopen-briefing-file"]);
     const labelFor = (id) => document.querySelectorAll("label")
       .find((node) => node.getAttribute("for") === id);
     assert.match(textOf(labelFor("reopen-briefing-file")), /Reopen a saved briefing/);
     assert.match(textOf(labelFor("finops-export-check-file")), /Choose one export to check/);
     assert.match(textOf(labelFor("local-lead-portability-import")),
       /Import a track record file — periods only, not a provider export/);
+    assert.match(textOf(labelFor("finops-intake-roster")), /count that headcount from an HRIS/);
 });

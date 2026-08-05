@@ -1,0 +1,75 @@
+{
+  "contract_version": "hris-headcount-roster/1.0.0",
+  "kind": "wawalu.integration.hris-headcount-roster",
+  "title": "Privacy-preserving HRIS headcount roster",
+  "status": "browser-local-only",
+  "purpose": "Let a reader count the engineers behind a per-engineer figure from an HRIS roster export, without that export carrying who anybody is.",
+  "format": "delimited UTF-8 with a header record, comma or tab separated, RFC4180 quoting. The delimiter is detected from the bytes; the file name and extension are never read.",
+  "record_meaning": "One data row is one person's classification for one period. Headcount is the number of rows whose role column carries the engineering classification, for the selected period.",
+  "required_columns": [
+    {
+      "name": "team_role",
+      "kind": "classification",
+      "meaning": "The role or department bucket this person sat in for the period. Compared against engineering_classification; every other value is a person who is not counted, not an error."
+    },
+    {
+      "name": "period",
+      "kind": "period",
+      "meaning": "The calendar month the row describes, as YYYY-MM."
+    }
+  ],
+  "engineering_classification": "engineering",
+  "classification_matching": "trimmed and case-folded exact match. No prefix, substring, or fuzzy matching: a bucket named 'engineering support' is a different bucket and is not counted.",
+  "period_format": "YYYY-MM, zero padded, months 01-12",
+  "header_matching": "by name, trimmed and case-folded. Column ORDER IS NOT READ, so a reordered export is the same export.",
+  "unlisted_columns": "refused",
+  "unlisted_columns_rationale": "A column this contract does not name is refused on sight, never dropped. Dropping is what turns a roster carrying salaries into a file we quietly accepted. The two named columns are the whole permitted surface, so refusal needs no list of forbidden names to stay ahead of: an export that adds a column tomorrow is refused tomorrow.",
+  "refused_column_examples": [
+    "name",
+    "first_name",
+    "last_name",
+    "email",
+    "employee_id",
+    "salary",
+    "compensation",
+    "manager",
+    "location",
+    "birth_date"
+  ],
+  "refusal_message_rule": "A refusal names the offending header, or the row number and what was wrong with it. It never carries a cell value, and it never blames the reader for what their HRIS exported.",
+  "behavior": {
+    "empty_file": "REFUSED as empty_file. Nothing was read, so nothing is claimed.",
+    "header_only": "REFUSED as no_data_rows. Zero rows is not a headcount of zero; it is an export that did not include anybody.",
+    "wrong_column_count": "REFUSED as malformed_row, naming the 1-based row a spreadsheet would show. One short row refuses the whole file, because a headcount is one number with no error bars and a file three rows short reads exactly like a correct one.",
+    "unparseable_period": "REFUSED as unparseable_period, naming the row.",
+    "blank_role_cell": "REFUSED as blank_role, naming the row.",
+    "duplicate_header": "REFUSED as duplicate_column, naming the header.",
+    "missing_required_column": "REFUSED as missing_required_column, naming the column this contract expected.",
+    "stale_or_mismatched_period": "FILTERED, not refused. Rows whose period is not the selected period are not counted, and the reader is told how many were set aside. The selected period is the one the caller names; when the caller names none, it is the LATEST period in the file, and the accepted message states which period was counted.",
+    "no_row_for_selected_period": "REFUSED as no_rows_for_period. Filtering everything away is a mismatched file, not a headcount of zero.",
+    "no_engineering_row": "REFUSED as no_engineering_rows, restating the classification this contract counts. A roster whose role column uses another vocabulary would otherwise supply a confident zero.",
+    "reordered_columns": "ACCEPTED unchanged. Headers are matched by name.",
+    "duplicate_rows": "COUNTED, never de-duplicated. Two identical rows are two people with the same classification in the same month; this contract carries no identifier that could tell a duplicated person from a second one, so silently collapsing them would invent a headcount lower than the roster states. The accepted result reports how many rows were identical to an earlier row so a reader can check that against their own export."
+  },
+  "trust_outcome": {
+    "on_accept": "supplied",
+    "never": "verified",
+    "rationale": "A roster the reader chose in their own tab moves the per-engineer figures off 'estimated', because the denominator is now a fact they handed us rather than one we modelled. It cannot reach 'verified': nothing here authenticated the export, checked it against the HRIS that produced it, or established that the classification means what the reader thinks it means."
+  },
+  "guarantees": [
+    "no network request during parsing",
+    "no credential of any kind",
+    "no stored file: the text is read through the browser's own local Blob text API and retained nowhere",
+    "no cell value is echoed, rendered, or retained; only counts and the two header names leave the parser",
+    "a refusal leaves the previously declared headcount exactly as it was"
+  ],
+  "fixtures": {
+    "accepted.csv": "two periods, engineering and non-engineering rows, quoted field",
+    "reordered.csv": "the same roster with the two columns swapped; must yield the same headcount",
+    "duplicated.csv": "identical rows, counted",
+    "stale.csv": "rows for an earlier period only, against a later selected period",
+    "header-only.csv": "the header record and nothing else",
+    "malformed.csv": "a short row, an unparseable period, and a blank classification",
+    "../../tabular-dialects/v1/fixtures/generic-hris-roster.csv": "a real-shaped HRIS export carrying full_name, work_email, employee_id, manager and location; refused on the first unlisted header"
+  }
+}
