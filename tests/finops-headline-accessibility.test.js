@@ -22,7 +22,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readFile } from "node:fs/promises";
 
-import { loadPage, parseHtml, pressEnter, pressSpace, textOf } from "./support/browser.js";
+import { loadPage, parseHtml, pressEnter, pressSpace, tabSequence, textOf } from "./support/browser.js";
 import { importPageModule } from "./support/page-module.js";
 import {
   BAND_PRESENTATION, BAND_STATE, buildFirstRunResult, FIRST_RUN_IDS,
@@ -39,6 +39,10 @@ import {
 } from "../src/finops-stand-view.js";
 import { ANSWER_SPINE, ROLE, liveRegionIds } from "../src/finops/answer-spine-view.js";
 import { loadExampleDataset } from "../src/example-dataset.js";
+import { NO_SCORE_YET, ROUTING_SLATE_REASONS, RULE_LIFECYCLE } from "../src/routing-slate.js";
+import {
+  LIFECYCLE_CHIPS, applyRoutingSlate, markRoutingSlateLoading,
+} from "../src/routing-slate-view.js";
 
 const PAGE = new URL("../src/evolution.html", import.meta.url);
 const STYLES = new URL("../src/evolution.css", import.meta.url);
@@ -627,4 +631,308 @@ test("the headline holds at 320px: nothing is truncated, clipped, or ellipsed", 
   // One column below the two-column breakpoint, so a 220px slot minimum never
   // forces a second track into a 320px viewport.
   assert.match(css, /\.first-run-slots,\.first-run-actions,\.first-run-support \{ grid-template-columns:1fr; \}/);
+});
+
+// ---------------------------------------------------------------------------
+// The routing policy section (#1140).
+//
+// A reader has to tell four things apart in one pass and without reading prose:
+// which rules are still PROPOSALS, which are SHIPPED, which are SCORED, and
+// which single one to act on next. Each is a way the section could look right on
+// a designer's screen and be unreadable off it:
+//
+//   1. The lifecycle is a WORD before it is a colour, and the three states stay
+//      separable in greyscale by silhouette and by fill area. Only `scored`
+//      carries a number, because only `scored` measured one.
+//   2. Every disclosure in the section is a real control, keyboard-operable,
+//      reporting the state it is actually in.
+//   3. NOTHING that announces status sits inside a collapsed disclosure. A real
+//      browser hides a closed subtree from the accessibility tree and this
+//      harness reads straight through it, so the check is on the DOM SHAPE, not
+//      on whether the text happens to be findable here.
+//   4. Rank 1 and the one next action precede the rest of the list.
+// ---------------------------------------------------------------------------
+
+/** One flagged org unit, in the shape the down-routing rule publishes it. */
+const routingUnit = (name, recoverableUsd, trend = {}) => ({
+  name,
+  spendUsd: recoverableUsd * 2,
+  trendAvailable: false,
+  trendReason: "Only one period has been read for this org unit.",
+  downRouting: {
+    unitLabel: name,
+    flagged: true,
+    recoverableUsd,
+    observedMinorPerMillionTokens: 2941,
+    decisionReason: `${name} is priced above the premium-tier floor.`,
+    confidence: { level: "Medium", reasons: [] },
+    workedExample: [{
+      step: "recoverable", expression: `${recoverableUsd * 2} − ${recoverableUsd}`,
+      value: recoverableUsd,
+    }],
+  },
+  ...trend,
+});
+
+const routingEnvelope = (units) => ({
+  period: "2026-06-01 to 2026-07-01", modelRouting: null, rankedDepartments: units,
+});
+
+/** The retained commitment that makes a rule "shipped": it names an org unit. */
+const commitmentFor = (department) => ({ department, actionId: "route-short-lookups" });
+
+/**
+ * True when the accessibility tree of a real browser would not reach this node:
+ * some ancestor is a closed disclosure and the node is not in that disclosure's
+ * own summary, which stays rendered.
+ */
+function insideCollapsedDisclosure(node) {
+  let child = node;
+  for (let up = node?.parentNode; up; child = up, up = up.parentNode) {
+    if (up.tagName === "DETAILS" && !up.hasAttribute("open") && child.tagName !== "SUMMARY") {
+      return true;
+    }
+  }
+  return false;
+}
+
+/** Every lifecycle chip painted into the routing-policy section. */
+const routingChips = (document) =>
+  document.querySelectorAll(".import-chip").filter((chip) => chip.closest("#routing-slate"));
+
+async function paintRouting(analysis, options = {}) {
+  const { document } = await loadPage(PAGE, { scripts: false });
+  return { document, slate: applyRoutingSlate(document, analysis, options) };
+}
+
+test("each lifecycle chip states itself in a word, and only a scored rule shows a score", async () => {
+  // One envelope, two states at once: Atlas is committed and its unit publishes
+  // a measured change; nothing was committed for the other two. Rank order is
+  // untouched by any of it.
+  const { document, slate } = await paintRouting(
+    routingEnvelope([
+      routingUnit("Atlas Platform", 9000, { trendAvailable: true, spendChangeUsd: -1204.9 }),
+      routingUnit("Cinder Research", 6000, { trendAvailable: true, spendChangeUsd: null }),
+      routingUnit("Quartz Analytics", 3000),
+    ]),
+    { commitment: commitmentFor("Atlas Platform") },
+  );
+  assert.deepEqual(slate.rules.map((rule) => rule.lifecycle),
+    [RULE_LIFECYCLE.SCORED, RULE_LIFECYCLE.PROPOSED, RULE_LIFECYCLE.PROPOSED],
+    "a commitment names one org unit and moves that unit's rule only");
+
+  const chips = routingChips(document);
+  assert.ok(chips.length >= slate.rules.length,
+    `every rule carries a lifecycle chip; got ${chips.length} for ${slate.rules.length} rules`);
+
+  const seen = new Set();
+  for (const chip of chips) {
+    const state = chip.dataset.status;
+    const expected = LIFECYCLE_CHIPS[state];
+    assert.ok(expected, `${state} is not one of the three lifecycle states`);
+    seen.add(state);
+
+    // The word is the whole meaning: the mark is decoration a screen reader
+    // never hears, and deleting the tint loses nothing.
+    const shape = chip.querySelectorAll(".import-chip-shape");
+    for (const mark of shape) assert.equal(mark.getAttribute("aria-hidden"), "true");
+    assert.ok(textOf(chip).includes(expected.label),
+      `a chip in state ${state} must carry the word "${expected.label}"`);
+
+    // Silhouette and fill area, so the three separate in greyscale at 11px:
+    // outline for the static classification, filled wash for the live signals,
+    // and one step each off the circle ramp.
+    assert.equal(chip.dataset.kind, expected.kind);
+    assert.equal(textOf(shape[0]), expected.shape);
+
+    // Only a scored rule shows a figure, and it says which way it went in words
+    // rather than in a minus sign a reader has to spot.
+    const values = chip.querySelectorAll(".import-chip-value").map(textOf);
+    if (state === RULE_LIFECYCLE.SCORED) {
+      assert.deepEqual(values, ["$1,204 lower"],
+        "a scored rule carries its own measured change as the chip's value");
+    } else {
+      assert.deepEqual(values, [],
+        `a ${state} rule must not show a score-shaped number beside a modelled figure`);
+    }
+  }
+  assert.deepEqual([...seen].sort(), ["proposed", "scored"]);
+
+  // The three chips differ in word, in silhouette and in mark, which is what
+  // makes them separable with no colour at all.
+  const table = Object.values(LIFECYCLE_CHIPS);
+  assert.equal(new Set(table.map((chip) => chip.label)).size, 3);
+  assert.equal(new Set(table.map((chip) => chip.shape)).size, 3);
+  assert.equal(new Set(table.map((chip) => `${chip.kind}/${chip.shape}`)).size, 3);
+});
+
+test("a shipped rule with no measurable outcome says so instead of scoring itself", async () => {
+  const { document, slate } = await paintRouting(
+    routingEnvelope([routingUnit("Cinder Research", 6000, { trendAvailable: true })]),
+    { commitment: commitmentFor("Cinder Research") },
+  );
+  assert.equal(slate.rules[0].lifecycle, RULE_LIFECYCLE.SHIPPED);
+  assert.equal(slate.rules[0].observedChangeUsd, null,
+    "a missing figure is no score, never a zero a reader would read as no change");
+  const chip = routingChips(document)[0];
+  assert.ok(textOf(chip).includes("Shipped"));
+  assert.deepEqual(chip.querySelectorAll(".import-chip-value").map(textOf), []);
+  assert.ok(textOf(byId(document, "routing-slate-body")).includes(NO_SCORE_YET),
+    "the reason there is no score is stated, not left as an absence");
+});
+
+test("every routing-policy disclosure is keyboard-operable and reports its own state", async () => {
+  const { document, slate } = await paintRouting(loadExampleDataset());
+  const summaries = document.querySelectorAll("summary")
+    .filter((node) => node.closest("#routing-slate"));
+  assert.equal(summaries.length, slate.rules.length, "one disclosure per rule, rank 1 included");
+
+  const sequence = tabSequence(document);
+  for (const summary of summaries) {
+    const details = summary.closest("details");
+    assert.ok(sequence.includes(summary), `${textOf(summary)} is not reachable by Tab`);
+    assert.equal(summary.getAttribute("aria-expanded"), "false");
+    assert.equal(details.hasAttribute("open"), false);
+
+    summary.focus();
+    pressEnter(document);
+    assert.equal(details.hasAttribute("open"), true, "Enter expands");
+    assert.equal(summary.getAttribute("aria-expanded"), "true",
+      "the announced state must track the state the element is actually in");
+
+    pressSpace(document);
+    assert.equal(details.hasAttribute("open"), false, "Space collapses");
+    assert.equal(summary.getAttribute("aria-expanded"), "false");
+  }
+
+  // A summary gets no focus ring from the UA once this stylesheet has reset it,
+  // so the control declares its own.
+  const css = await readFile(STYLES, "utf8");
+  assert.match(css,
+    /\.completeness-detail>summary:focus-visible \{[^}]*outline:3px solid var\(--focus-ring\)/);
+});
+
+test("no status text in the routing-policy section sits inside a collapsed disclosure", async () => {
+  const { document } = await paintRouting(loadExampleDataset());
+  const status = byId(document, "routing-slate-status");
+  assert.equal(status.getAttribute("role"), "status");
+  assert.equal(insideCollapsedDisclosure(status), false,
+    "the section's status line is announced, so it may never sit behind a disclosure");
+
+  const announcing = [...document.querySelectorAll("[role]"), ...document.querySelectorAll("[aria-live]")]
+    .filter((node) => node.closest?.("#routing-slate"))
+    .filter((node) => ["status", "alert", "log"].includes(node.getAttribute("role"))
+      || node.hasAttribute("aria-live"));
+  assert.ok(announcing.length > 0, "the section must announce its state somewhere");
+  for (const node of announcing) {
+    assert.equal(insideCollapsedDisclosure(node), false,
+      `a live region nested in a collapsed disclosure is never heard: ${textOf(node).slice(0, 60)}`);
+  }
+
+  // The lifecycle chips are the other thing a reader must never open something
+  // to reach: every one of them is on a line that is rendered while closed.
+  const chips = routingChips(document);
+  assert.deepEqual(chips.filter(insideCollapsedDisclosure).map(textOf), [],
+    "each rule states its lifecycle on the line a reader scans, not inside its evidence");
+});
+
+test("rank 1 and the one next action precede the rest of the routing list", async () => {
+  const { document, slate } = await paintRouting(loadExampleDataset());
+  const body = byId(document, "routing-slate-body");
+  const order = body.childElements.map((node) => node.className);
+  assert.deepEqual(order.slice(0, 4),
+    ["answer-figure", "answer-figure-direction", "completeness-detail", "action-list"],
+    "rank 1 at the numeral role, then the action, then rank 1's evidence, then the list");
+
+  const lead = body.childElements[0];
+  assert.equal(lead.dataset.rank, "1");
+  assert.ok(textOf(lead).includes(slate.lead.source), "rank 1 names its own source");
+  assert.ok(textOf(body.childElements[1]).includes(slate.nextAction),
+    "the prioritized action is the second element, not buried in the list");
+
+  // Ranks 2..n are the list, and rank 1 is not repeated inside it.
+  const ranks = document.querySelectorAll(".completeness-detail")
+    .filter((node) => node.closest(".action-list"))
+    .map((node) => node.dataset.rank);
+  assert.deepEqual(ranks, slate.rules.slice(1).map((rule) => String(rule.rank)));
+  assert.equal(slate.nextActionRank, 1, "with nothing committed the next move is rank 1 itself");
+});
+
+test("the next move is the best rule still proposed, never one already shipped", async () => {
+  const { document, slate } = await paintRouting(
+    routingEnvelope([
+      routingUnit("Atlas Platform", 9000, { trendAvailable: true, spendChangeUsd: -500 }),
+      routingUnit("Cinder Research", 6000),
+    ]),
+    { commitment: commitmentFor("Atlas Platform") },
+  );
+  assert.equal(slate.nextActionRank, 2, "rank 1 is already scored, so it is not the next move");
+  const direction = textOf(byId(document, "routing-slate-body").childElements[1]);
+  assert.ok(direction.startsWith("Do this first:"));
+  assert.ok(direction.includes("Cinder Research"));
+
+  // Rank is still what a move is worth: committing to one does not reshuffle it.
+  assert.deepEqual(slate.rules.map((rule) => rule.rank), [1, 2]);
+  assert.equal(slate.lead.source, "Atlas Platform");
+});
+
+test("the routing policy draws loading, empty, error, and implausible-extreme states alike", async () => {
+  // LOADING — the rules on screen are the previous envelope's and are left
+  // alone; only the status line moves, and it says the ranking is not recomputed.
+  const loading = await paintRouting(loadExampleDataset());
+  const before = byId(loading.document, "routing-slate").dataset.ruleCount;
+  markRoutingSlateLoading(loading.document);
+  assert.equal(byId(loading.document, "routing-slate-status").dataset.state, "loading");
+  assert.match(textOf(byId(loading.document, "routing-slate-status")), /Reading the analysis/);
+  assert.equal(byId(loading.document, "routing-slate").getAttribute("aria-busy"), "true");
+  assert.equal(byId(loading.document, "routing-slate").dataset.ruleCount, before,
+    "a read in progress does not blank the ranking a reader is looking at");
+
+  // EMPTY — real copy naming why, not a blank region.
+  const empty = await paintRouting(routingEnvelope([]));
+  assert.equal(empty.slate.state, "unavailable");
+  assert.equal(byId(empty.document, "routing-slate-status").dataset.state, "unavailable");
+  assert.ok(textOf(byId(empty.document, "routing-slate-body"))
+    .includes(ROUTING_SLATE_REASONS.no_candidates));
+
+  // ERROR — an envelope whose candidate lists are the wrong shape is a broken
+  // input, and gets a different sentence from "nothing qualified".
+  const failed = await paintRouting({ period: "2026-06", rankedDepartments: "not a list" });
+  assert.equal(failed.slate.state, "error");
+  assert.equal(byId(failed.document, "routing-slate").dataset.state, "error");
+  assert.ok(textOf(byId(failed.document, "routing-slate-status"))
+    .includes("could not be read as a routing policy"));
+  assert.ok(textOf(byId(failed.document, "routing-slate-body"))
+    .includes(ROUTING_SLATE_REASONS.unreadable));
+
+  // EXTREMES — a very long name, a very large figure, a negative score, and far
+  // more rules than fit one screen. None of them may collapse the lifecycle
+  // distinction or push rank 1 out of first position.
+  const longName = `Department ${"of Extremely Long Organisational Naming ".repeat(6)}`;
+  const extreme = await paintRouting(routingEnvelope([
+    routingUnit(longName, 9_000_000_000, { trendAvailable: true, spendChangeUsd: -12_345_678.9 }),
+    ...Array.from({ length: 40 }, (unused, index) =>
+      routingUnit(`Unit ${String(index).padStart(2, "0")}`, 40 - index)),
+  ]), { commitment: commitmentFor(longName) });
+
+  assert.equal(extreme.slate.rules.length, 41);
+  assert.equal(extreme.slate.lead.source, longName, "the largest figure is still rank 1");
+  assert.equal(extreme.slate.lead.lifecycle, RULE_LIFECYCLE.SCORED);
+  assert.equal(extreme.slate.nextActionRank, 2, "rank 1 is scored, so rank 2 is the move");
+
+  const body = byId(extreme.document, "routing-slate-body");
+  assert.equal(body.childElements[0].dataset.rank, "1");
+  assert.ok(textOf(body.childElements[0]).includes(longName),
+    "a long name wraps rather than being cut out of the loudest element");
+  assert.deepEqual(body.childElements[0].querySelectorAll(".import-chip-value").map(textOf),
+    ["$12,345,678 lower"]);
+
+  // One chip per rule on its scannable line, plus rank 1's own in the figure,
+  // and every one of them still reachable without opening anything.
+  const chips = routingChips(extreme.document);
+  assert.equal(chips.length, extreme.slate.rules.length + 1);
+  assert.deepEqual(chips.filter(insideCollapsedDisclosure).map(textOf), []);
+
+  // Long strings wrap in the list rather than pushing the panel sideways.
+  assert.match(await readFile(STYLES, "utf8"), /\.action-list \{[^}]*overflow-wrap:anywhere/);
 });
