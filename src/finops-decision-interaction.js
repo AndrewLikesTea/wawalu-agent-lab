@@ -327,6 +327,12 @@ export const FOCUS_SPEC = Object.freeze({
     "finops-intake-spend",
     "finops-intake-mix",
     "finops-intake-engineers",
+    // The roster import (#1105) is reached immediately after the field it is an
+    // alternative to, because that is where it is read: the typed headcount,
+    // then the other way to arrive at the same number. Its expectation, its
+    // refused-column notice and its status are plain paragraphs between here and
+    // the next field, so they are read without a control being operated.
+    "finops-intake-roster",
     "finops-intake-size",
     "finops-intake-industry",
     "finops-intake-submit",

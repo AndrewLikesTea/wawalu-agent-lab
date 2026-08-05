@@ -1109,12 +1109,32 @@
             <p class="local-cohort-declare-field"><label for="finops-intake-spend">Monthly AI spend, US dollars</label><input id="finops-intake-spend" type="number" min="100" max="5000000" step="100" value="154500"></p>
             <p class="local-cohort-declare-field"><label for="finops-intake-mix">Provider mix</label><select id="finops-intake-mix"><option value="frontier_led" selected>Mostly frontier models · frontier 45% · standard 40% · economy 15%</option><option value="balanced">Balanced across tiers · frontier 34% · standard 50% · economy 16%</option><option value="economy_led">Mostly economy models · frontier 10% · standard 35% · economy 55%</option></select></p>
             <p class="local-cohort-declare-field"><label for="finops-intake-engineers">Engineers using AI tools</label><input id="finops-intake-engineers" type="number" min="1" max="50000" step="1" value="100"></p>
+            <!-- AN ALTERNATIVE TO THE FIELD ABOVE, NOT A REPLACEMENT (#1105). The
+                 typed headcount keeps working untouched; a reader who has a roster
+                 export can have the same number counted out of it instead, in this
+                 tab, with no request, no credential and no stored copy.
+
+                 THE TWO EXPECTED COLUMNS AND THE REFUSED ONES ARE AUTHORED HERE and
+                 read before the picker rather than behind a disclosure widget: a
+                 refusal a reader could have avoided by knowing the shape is a
+                 refusal we caused. src/hris-headcount-roster.js publishes the same
+                 two sentences as constants and the test asserts them equal, so the
+                 authored copy and the parser's rules cannot drift.
+
+                 The status paragraph is a live region that starts populated, so a
+                 visitor whose script never ran is told what state this is in. On a
+                 refusal it names the offending column or row and the headcount
+                 above is left exactly as it was. -->
+            <p class="local-cohort-declare-field"><label for="finops-intake-roster">Or count that headcount from an HRIS roster export</label><input id="finops-intake-roster" type="file" accept=".csv,.tsv,text/csv"></p>
+            <p class="first-run-detail" id="finops-intake-roster-expectation">Expected columns, exactly two: team_role (the role or department bucket, counted when it reads "engineering") and period (the month, as YYYY-MM). Column order does not matter.</p>
+            <p class="first-run-detail" id="finops-intake-roster-refused">Refused columns: every other column, including name, first_name, last_name, email, employee_id, salary, compensation, manager, location, birth_date. An unlisted column is refused on sight, never dropped, so re-export with those two columns only. The file is read in this tab — nothing is uploaded, no account is needed, and no copy is kept.</p>
+            <p class="first-run-detail" id="finops-intake-roster-status" role="status" aria-live="polite" data-state="unchosen">No roster chosen. The headcount above is the one you typed.</p>
             <p class="local-cohort-declare-field"><label for="finops-intake-size">Company size</label><select id="finops-intake-size"><option value="small">Small · under 200 employees</option><option value="mid">Mid-market · 200–1,999 employees</option><option value="enterprise" selected>Enterprise · 2,000+ employees</option></select></p>
             <p class="local-cohort-declare-field"><label for="finops-intake-industry">Industry</label><select id="finops-intake-industry"><option value="saas" selected>Software-as-a-service</option><option value="financial_services">Financial services</option></select></p>
           </fieldset>
           <p class="local-cohort-declare-field"><button class="secondary-button" id="finops-intake-submit" type="submit">Estimate from these five facts</button><button class="secondary-button" id="finops-intake-clear" type="button">Clear and return to the bundled example</button></p>
         </form>
-        <div class="first-run-confidence" id="finops-intake-answer" data-provenance="estimated" data-tier="modelled">
+        <div class="first-run-confidence" id="finops-intake-answer" data-provenance="estimated" data-tier="modelled" data-headcount-source="estimated">
           <p class="first-run-detail" id="finops-intake-headline">Estimated: we spend $39.81 per successful AI task — Bottom quartile, the most expensive quarter of the cohort. Lower cost per successful task is better.</p>
           <p class="first-run-detail" id="finops-intake-recoverable">Estimated recoverable: $20,772 to $49,854 a month, modelled from these five declared facts — not a measured, invoiced, or realized saving.</p>
           <p class="first-run-detail" id="finops-intake-action">Next: move one month of standard-tier traffic that does not need the tier to a cheaper one, then check the invoice against this estimate before booking anything.</p>

@@ -27,6 +27,7 @@ import {
   DEFAULT_PROVIDER_MIX, estimateMoney,
 } from "./finops-declared-fact-estimate.js";
 import { EXAMPLE_DECLARED_FACTS } from "./finops-declared-fact-fixtures.js";
+import { HEADCOUNT_SOURCE } from "./hris-headcount-roster.js";
 import {
   ORG_SIZE_BAND, ORG_SIZE_BAND_LABEL, PEER_INDUSTRY, PEER_INDUSTRY_LABEL,
 } from "./peer-cost-cohorts.js";
@@ -41,6 +42,10 @@ export const INTAKE_IDS = Object.freeze({
   engineers: "finops-intake-engineers",
   size: "finops-intake-size",
   industry: "finops-intake-industry",
+  roster: "finops-intake-roster",
+  rosterExpectation: "finops-intake-roster-expectation",
+  rosterRefused: "finops-intake-roster-refused",
+  rosterStatus: "finops-intake-roster-status",
   submit: "finops-intake-submit",
   clear: "finops-intake-clear",
   answer: "finops-intake-answer",
@@ -139,6 +144,30 @@ export function readDeclaredFacts(values = {}) {
 let declared = EXAMPLE_DECLARED_FACTS;
 
 export const currentDeclaredFacts = () => declared;
+
+/**
+ * WHERE THE HEADCOUNT CAME FROM (#1105).
+ *
+ * `estimated` while the headcount is a number somebody typed, `supplied` once it
+ * was counted out of a roster the reader chose in this tab. Never `verified`:
+ * accepting a file is not authenticating one, and the roster contract says so in
+ * the same words. It is a second value beside the facts rather than a field on
+ * them because the estimator's own provenance is its to assign, and the estimate
+ * as a whole is still modelled — only the denominator stopped being a guess.
+ */
+let headcountSource = HEADCOUNT_SOURCE.estimated;
+
+export const currentHeadcountSource = () => headcountSource;
+
+/** Adopt a headcount source. Anything but the two published words is refused. */
+export function setHeadcountSource(source) {
+  headcountSource = source === HEADCOUNT_SOURCE.supplied
+    ? HEADCOUNT_SOURCE.supplied : HEADCOUNT_SOURCE.estimated;
+  return headcountSource;
+}
+
+/** What the status line says before any file has been chosen. */
+export const ROSTER_UNCHOSEN = "No roster chosen. The headcount above is the one you typed.";
 
 /** Adopt a set of declared facts, or fall back to the bundled example's. */
 export function setDeclaredFacts(facts) {

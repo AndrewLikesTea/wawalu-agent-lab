@@ -19,11 +19,28 @@
 import { applyDeclaredFactEstimate } from "./finops-first-run-view.js";
 import { EXAMPLE_DECLARED_FACTS } from "./finops-declared-fact-fixtures.js";
 import {
-  INTAKE_IDS, currentDeclaredFacts, intakeHeadline, intakeNextAction, intakeRecoverable,
-  mixChoiceFor, readDeclaredFacts, setDeclaredFacts,
+  INTAKE_IDS, ROSTER_UNCHOSEN, currentDeclaredFacts, currentHeadcountSource, intakeHeadline,
+  intakeNextAction, intakeRecoverable, mixChoiceFor, readDeclaredFacts, setDeclaredFacts,
+  setHeadcountSource,
 } from "./finops-declared-fact-intake.js";
+import {
+  HEADCOUNT_SOURCE, ROSTER_REFUSAL, parseHeadcountRoster, rosterAcceptedSentence,
+  rosterRefusalSentence,
+} from "./hris-headcount-roster.js";
 
 const byId = (doc, id) => (doc?.getElementById ? doc.getElementById(id) : null);
+
+/**
+ * The roster read this binding last started, so a caller can wait for it.
+ *
+ * A file arrives on a `change` event, and reading it is asynchronous — the
+ * handler cannot return the promise to whoever dispatched the event. Holding the
+ * last one here is what lets a test await the same work a reader waits through,
+ * rather than assert on a repaint that has not happened yet.
+ */
+let rosterImport = null;
+
+export const pendingRosterImport = () => rosterImport;
 
 function setText(doc, id, text) {
   const node = byId(doc, id);
@@ -69,6 +86,10 @@ export function applyDeclaredFactIntake(doc, facts = EXAMPLE_DECLARED_FACTS) {
   if (block) {
     block.dataset.provenance = estimate.provenance;
     block.dataset.tier = estimate.confidence.tier;
+    // The whole estimate stays `estimated` — the spend, the mix and the cohort
+    // are still declared. What a roster can move is the denominator, so the
+    // per-engineer figures carry their own word (#1105).
+    block.dataset.headcountSource = currentHeadcountSource();
   }
   setText(doc, INTAKE_IDS.headline, intakeHeadline(estimate));
   setText(doc, INTAKE_IDS.recoverable, intakeRecoverable(estimate));
@@ -90,7 +111,55 @@ export function applyDeclaredFactIntakeFromControls(doc) {
  * meets, and reading it back out of the controls would make that claim depend on
  * the fill above having been exact.
  */
+/**
+ * A ROSTER INSTEAD OF A TYPED HEADCOUNT (#1105).
+ *
+ * The typed field is untouched by this path until a roster is ACCEPTED, and on a
+ * refusal it is not written at all: the brief a reader already had is left whole
+ * rather than half-updated, and the refusal says so in its own last sentence.
+ *
+ * `file.text()` is the browser's own local Blob text API. There is no request,
+ * no credential, and no copy: the string is handed to a pure parser, the parser
+ * returns counts, and the string goes out of scope with this function.
+ *
+ * @param {*} doc the document.
+ * @param {{text: () => Promise<string>}} file the chosen file.
+ * @param {{period?: string}} [options] the period the brief is estimating, if a
+ *   caller knows it. With none, the roster's own latest month is counted.
+ * @returns the parser's result, so a caller can assert on it.
+ */
+export async function importHeadcountRoster(doc, file, { period = null } = {}) {
+  if (!file) return null;
+  let result;
+  try {
+    result = parseHeadcountRoster(await file.text(), { period });
+  } catch {
+    // A file the browser could not hand us text for is the same outcome as an
+    // unreadable one, and it reaches the reader as a sentence rather than a
+    // silence with a stale headcount above it.
+    result = {
+      ok: false,
+      code: ROSTER_REFUSAL.UNREADABLE,
+      message: "This file could not be read in this browser, so nothing was parsed.",
+    };
+  }
+  if (!result.ok) {
+    setText(doc, INTAKE_IDS.rosterStatus, rosterRefusalSentence(result));
+    byId(doc, INTAKE_IDS.rosterStatus)?.setAttribute("data-state", "refused");
+    return result;
+  }
+  setValue(doc, INTAKE_IDS.engineers, result.headcount);
+  setHeadcountSource(HEADCOUNT_SOURCE.supplied);
+  setText(doc, INTAKE_IDS.rosterStatus, rosterAcceptedSentence(result));
+  byId(doc, INTAKE_IDS.rosterStatus)?.setAttribute("data-state", "accepted");
+  applyDeclaredFactIntakeFromControls(doc);
+  return result;
+}
+
 export function resetDeclaredFactIntake(doc) {
+  setHeadcountSource(HEADCOUNT_SOURCE.estimated);
+  setText(doc, INTAKE_IDS.rosterStatus, ROSTER_UNCHOSEN);
+  byId(doc, INTAKE_IDS.rosterStatus)?.setAttribute("data-state", "unchosen");
   fillControls(doc, EXAMPLE_DECLARED_FACTS);
   const estimate = applyDeclaredFactIntake(doc, EXAMPLE_DECLARED_FACTS);
   announce(doc, estimate);
@@ -137,9 +206,25 @@ export function bindDeclaredFactIntake(doc, { onEstimate = null } = {}) {
     // the five facts, so that is the moment the estimate goes on the record.
     onEstimate?.(estimate);
   });
-  const revise = () => applyDeclaredFactIntakeFromControls(doc);
+  // TYPING WINS BACK. A reader who edits the headcount after an accepted roster
+  // is declaring a number again, so the figure goes back to `estimated` in the
+  // same keystroke. A supplied marker that outlived the file it came from would
+  // be the one claim on this region nobody could check.
+  const revise = (event) => {
+    if (event?.target?.id === INTAKE_IDS.engineers
+      && currentHeadcountSource() === HEADCOUNT_SOURCE.supplied) {
+      setHeadcountSource(HEADCOUNT_SOURCE.estimated);
+      setText(doc, INTAKE_IDS.rosterStatus, ROSTER_UNCHOSEN);
+      byId(doc, INTAKE_IDS.rosterStatus)?.setAttribute("data-state", "unchosen");
+    }
+    return applyDeclaredFactIntakeFromControls(doc);
+  };
   form.addEventListener("input", revise);
   form.addEventListener("change", revise);
+  byId(doc, INTAKE_IDS.roster)?.addEventListener("change", (event) => {
+    const file = event?.target?.files?.[0];
+    if (file) rosterImport = importHeadcountRoster(doc, file);
+  });
   byId(doc, INTAKE_IDS.clear)?.addEventListener("click", () => resetDeclaredFactIntake(doc));
   // The controls are filled from the facts the region is estimating from rather
   // than left to the authored `selected` attributes alone. The authored ones are
