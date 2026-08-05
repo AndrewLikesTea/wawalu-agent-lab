@@ -412,3 +412,67 @@ export function renderTrackRecord(document, model_) {
   region.replaceChildren(...nodes);
   return region;
 }
+
+/* ------------------------- which block is met first ------------------------ */
+
+/** The bundled worked decision this page already ships, and the region with the h1. */
+const WORKED_DECISION_ID = "finops-first-run";
+const HERO_ID = "finops-hero";
+
+/** The authored slot of a block that moves — parent AND position — kept per node. */
+const authoredHome = new WeakMap();
+
+const slotAfter = (node) => {
+  const kin = [...(node.parentNode?.children ?? [])];
+  return kin[kin.indexOf(node) + 1] ?? null;
+};
+
+const rememberHome = (node) => {
+  if (!authoredHome.has(node)) {
+    authoredHome.set(node, { parent: node.parentNode, before: slotAfter(node) });
+  }
+};
+
+/** One of these blocks moves within its own parent, so the position is checked too. */
+const sendHome = (node) => {
+  const home = authoredHome.get(node);
+  if (!home?.parent) return;
+  if (node.parentNode === home.parent && slotAfter(node) === home.before) return;
+  home.parent.insertBefore(node,
+    home.before?.parentNode === home.parent ? home.before : null);
+};
+
+/**
+ * WHAT A FIRST VISIT MEETS FIRST (#1112).
+ *
+ * A reader arriving on the homepage's claim that a worked decision is already
+ * computed here met this header's EMPTIEST state first: an answer about a file
+ * nobody had asked them to bring. So while this browser keeps no period, both
+ * blocks move under the region holding the page's h1 — the worked decision, then
+ * this header directly below it, reading as an invitation under a result rather
+ * than in place of one. Both move back the moment a period is on file.
+ *
+ * THE STATE IS NOT RECOMPUTED HERE: it is the model's own `none`, the predicate
+ * that wrote the sentence in the region. One storage read, no second opinion.
+ *
+ * ONE SET OF NODES, MOVED — not two authored copies toggled by `hidden`, which
+ * would double this page's bytes and read its "bundled synthetic example" label
+ * out twice. A real DOM move keeps screen-reader order and visual order equal,
+ * folds nothing into a disclosure, and needs no rule in a full stylesheet.
+ */
+export function leadWithWorkedDecision(document, model_) {
+  const region = document.getElementById(TRACK_RECORD_IDS.region);
+  const worked = document.getElementById(WORKED_DECISION_ID);
+  const hero = document.getElementById(HERO_ID);
+  if (!region || !worked || !hero?.parentNode) return null;
+  rememberHome(worked);
+  rememberHome(region);
+  if (model_.state !== TRACK_RECORD_STATE.none) {
+    sendHome(worked);
+    sendHome(region);
+    return region;
+  }
+  hero.parentNode.insertBefore(worked, slotAfter(hero));
+  hero.parentNode.insertBefore(region, slotAfter(worked));
+  return worked;
+}
