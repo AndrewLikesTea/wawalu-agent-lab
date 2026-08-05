@@ -221,8 +221,14 @@ test("the profile page identifies the selected name as a demo persona", async ()
   // sentence, which left the page with two words for what the picker selects.
   const rendered = html.replace(/<!--[\s\S]*?-->/g, "");
   assert.equal(rendered.match(/demo persona/gi)?.length, 1, "the page says \"demo persona\" exactly once");
+  assert.equal(rendered.match(/persona/gi)?.length, 1, "the page uses the word \"persona\" nowhere else");
   assert.match(role[1], /not a signed-in user/);
-  assert.match(role[1], /shows that person's image posts only/);
+  // The second sentence names what the picker selects, in the term the intro,
+  // the label, and the hint use. It used to say "that person's image posts",
+  // which gave the page a second word for a display name.
+  assert.match(role[1], /shows this display name's image posts only/);
+  assert.doesNotMatch(rendered, /that person's|their image posts/,
+    "no rendered copy on People calls a display name's posts someone's");
   // Subordinate, not trapped: the way back to the whole feed is right there.
   assert.match(role[1], /href="\/social\.html"/);
 
