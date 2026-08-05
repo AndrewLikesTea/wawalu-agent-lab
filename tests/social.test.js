@@ -21,7 +21,7 @@ import {
   DEFAULT_AUTHOR,
   mountSocialFeed,
 } from "../src/social.js";
-import { loadPage, textOf } from "./support/browser.js";
+import { loadPage, pressKey, textOf } from "./support/browser.js";
 
 const sample = [
   { id: "p-old", author: "Kai",  body: "first",  createdAt: "2026-07-10T00:00:00.000Z" },
@@ -134,6 +134,45 @@ test("columnCount reads the grid width off the laid-out rows", () => {
   assert.equal(columnCount([0, 0]), 2);
   assert.equal(columnCount([]), 0);
   assert.equal(columnCount(null), 0);
+});
+
+// The keyboard hint is a promise about the keys, so it is checked against the
+// keys: every group it names moves focus, each movement is named once, and the
+// two arrow pairs are named for the different distances they actually travel.
+test("the feed's keyboard hint names each bound movement once", async (t) => {
+  const page = await loadPage(new URL("../src/social.html", import.meta.url), {});
+  t.after(() => page.restore());
+
+  const hint = textOf(page.document.querySelector(".feed-hint"));
+  assert.equal(hint, "Use ← and → to move between posts, ↑ and ↓ to move between rows, and Home and End to jump to the first and last post. Each card holds the whole post, so there is nothing to open.");
+  // Releases says "move between releases … Home and End to jump"; Social says
+  // the same thing about posts, so one reader learns one pattern.
+  assert.match(hint, /Use ← and → to move between posts, ↑ and ↓ to [^,]+, and Home and End to jump/);
+  assert.doesNotMatch(hint, /move to the post/, "one verb for moving, not 'move' beside 'move to'");
+  // Nothing on a card is interactive, so the hint must not offer Enter.
+  assert.doesNotMatch(hint, /Enter|Space/);
+
+  const posts = [0, 1, 2, 3, 4].map((i) => ({
+    id: `p${i}`, author: `A${i}`, body: `body ${i}`, createdAt: `2026-07-0${i + 1}T00:00:00.000Z`,
+  }));
+  mountSocialFeed(page.document, { posts, state: "ready" });
+  const cards = page.document.querySelectorAll(".post-card");
+  // The harness lays nothing out, so the grid the hint describes — two columns,
+  // [0 1 / 2 3 / 4] — is supplied as the offsets social.js measures.
+  cards.forEach((card, i) => { card.offsetTop = [0, 0, 320, 320, 640][i]; });
+  const press = (from, key) => {
+    cards[from].focus();
+    pressKey(page.document, key);
+    return cards.indexOf(page.document.activeElement);
+  };
+
+  assert.equal(press(0, "ArrowRight"), 1, "→ steps one post");
+  assert.equal(press(1, "ArrowLeft"), 0, "← steps back one post");
+  assert.equal(press(0, "ArrowDown"), 2, "↓ moves a whole row, which is not what → does");
+  assert.equal(press(3, "ArrowUp"), 1, "↑ moves back a row");
+  assert.equal(press(3, "Home"), 0, "Home jumps to the first post");
+  assert.equal(press(1, "End"), 4, "End jumps to the last post");
+  assert.equal(press(1, "Enter"), 1, "Enter does nothing, so the hint does not name it");
 });
 
 test("normalizeImage accepts same-origin assets and rejects everything else", () => {
