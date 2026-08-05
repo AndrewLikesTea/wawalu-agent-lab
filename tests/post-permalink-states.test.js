@@ -588,3 +588,88 @@ test("all four states carry a visible text label, not colour alone", async () =>
   const html = await readFile(new URL("../src/post.html", import.meta.url), "utf8");
   assert.match(html, labels.loading);
 });
+
+/* --------------------- the page names itself, then leaves ----------------- */
+
+// A permalink is the page most likely to be someone's first contact with this
+// product, because it is the page that gets pasted into a chat window. It used
+// to read out as: skip link, nav, "Open Social…", "Open People…", and only then
+// the eyebrow and "Post from Social" — two ways to leave, offered before the
+// page said what had been arrived at. /social.html names People after its own
+// eyebrow, heading and intro, and /profile.html names Social in the same place;
+// the permalink joins that order rather than keeping one of its own.
+//
+// Read off single combined queries, which come back in document order — the
+// harness rejects descendant selectors like "section #id", and a node compared
+// against null walks the whole parsed page.
+function assertNamesItselfBeforeOfferingAWayOut(document, where) {
+  const main = document.querySelector("#main-content");
+
+  const order = main.querySelectorAll("#page-title,#post-back,#post-people").map((node) => node.id);
+  assert.deepEqual(order, ["page-title", "post-back", "post-people"],
+    `${where}: the permalink offers a way out before it names the post`);
+
+  // The whole hero sequence, in the shape Social uses: eyebrow, heading, intro,
+  // then the links. The intro is the standing demo sentence, which is the last
+  // thing the page says about itself before it points anywhere else.
+  const flow = main.querySelectorAll("h1,p");
+  const eyebrow = flow.findIndex((node) => node.classList.contains("eyebrow"));
+  const heading = flow.findIndex((node) => node.id === "page-title");
+  const intro = flow.findIndex((node) => textOf(node) === DEMO_SENTENCE);
+  const exits = flow.findIndex((node) => node.classList.contains("detail-page-exits"));
+  assert.ok(eyebrow >= 0 && intro >= 0 && exits >= 0, `${where}: the hero lost a part of its sequence`);
+  assert.deepEqual([eyebrow, heading, intro, exits].slice().sort((a, b) => a - b), [eyebrow, heading, intro, exits],
+    `${where}: eyebrow, heading, intro, then the routes out`);
+
+  // They moved into the hero, not merely above the panel: the same standing
+  // block that carries the eyebrow and the heading now carries them.
+  for (const id of ["#post-back", "#post-people"]) {
+    assert.ok(main.querySelector(id).closest(".hero-post"), `${where}: ${id} must sit in the standing hero`);
+  }
+
+  // Both are still offered, still worded as shipped, and still reachable.
+  const sequence = tabSequence(document);
+  assert.deepEqual(main.querySelectorAll(".detail-back").map(textOf), CHROME_LINKS, `${where}: a route out changed`);
+  for (const id of ["#post-back", "#post-people"]) {
+    assert.ok(sequence.includes(main.querySelector(id)), `${where}: ${id} must stay reachable by keyboard`);
+  }
+
+  // Following the skip link lands on the region that holds the heading, and the
+  // first of the two routes out a reader tabs to is Social, never People.
+  const skip = document.querySelector(".skip-link");
+  assert.equal(skip.getAttribute("href"), "#main-content");
+  assert.equal(main.querySelectorAll("#page-title").length, 1, `${where}: the skip target must contain the heading`);
+  const reached = sequence.slice(sequence.indexOf(skip) + 1).filter((stop) => stop.classList.contains("detail-back"));
+  assert.equal(textOf(reached[0]), SOCIAL_LINK, `${where}: the first route out reached after the skip link`);
+}
+
+test("the permalink names the post before it offers a way off it, loading and loaded", async () => {
+  // The loading state is the one a cold visitor meets first, and it is drawn by
+  // its own branch of renderPostDetail(), so it is held open and read on its own
+  // rather than inferred from the state that follows it.
+  const waiting = await loadPage(new URL("../src/post.html", import.meta.url), { location: { search: "?id=p-image" } });
+  try {
+    let release;
+    globalThis.fetch = () => new Promise((resolve) => { release = () => resolve(seedResponse([IMAGE_POST])); });
+    await importPageModule("/post-page.js");
+    const panel = waiting.document.querySelector("#post-detail");
+    await waitFor(() => panel.querySelectorAll(".detail-loading").length === 1, "the loading state rendered");
+    assertNamesItselfBeforeOfferingAWayOut(waiting.document, "while the lookup runs");
+
+    release();
+    await waitFor(() => waiting.document.documentElement.dataset.shiplogPostDetail === "ready", "the post arrived");
+    assertNamesItselfBeforeOfferingAWayOut(waiting.document, "once the post arrived");
+  } finally {
+    waiting.restore();
+  }
+
+  // And in the markup itself, which is the order a reader gets before any
+  // script has run — including a reader whose script never runs at all.
+  const html = await readFile(new URL("../src/post.html", import.meta.url), "utf8");
+  const at = (needle) => html.indexOf(needle);
+  assert.ok(at('<p class="eyebrow">Social · post · demo</p>') < at('<h1 id="page-title">'), "the eyebrow precedes the heading");
+  assert.ok(at('<h1 id="page-title">') < at(`>${SOCIAL_LINK}</a>`), "the heading precedes the Social route out");
+  assert.ok(at(`<p>${DEMO_SENTENCE}</p>`) < at(`>${SOCIAL_LINK}</a>`), "the intro precedes the Social route out");
+  assert.ok(at(`>${SOCIAL_LINK}</a>`) < at(`>${PEOPLE_LINK}</a>`), "Social precedes People, the order the nav names them in");
+  assert.ok(at(`>${PEOPLE_LINK}</a>`) < at('id="post-detail"'), "both routes out precede the state panel");
+});

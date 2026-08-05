@@ -27,46 +27,6 @@
       </header>
 
       <main id="main-content" tabindex="-1">
-      <!-- The routes out sit inside the content region, after the site header
-           and nav. They used to come first in the document, ahead of the
-           wordmark, which put a page-specific control before the site frame on
-           this page and nowhere else — that is the ordering bug this markup
-           fixes.
-
-           Two links, both forward. This page is the one surface a visitor
-           reaches cold, from a link pasted into a chat window: they have no
-           "back" to undo, because they were never on Social or People to begin
-           with. So neither link says "Back", and neither carries an arrow — an
-           arrow reads as a return. Each one names its destination and says what
-           is there, in the verb Social and People already use for each other:
-           those two pages point at one another with "Open Social…" and "Open
-           People…", and this page joins that pattern rather than inventing a
-           third phrasing for the same job.
-
-           The People link says "display name" because that is the term Social's
-           composer, Social's feed filter and the People picker all use for the
-           thing being chosen. It goes to People plainly until the page knows
-           whose post this is; post-page.js narrows the destination to that one
-           display name's view once the URL or the loaded post names them. Only
-           the destination narrows — the words never change under a reader.
-
-           Both links ship in the markup and no script rewrites their text, so
-           the words never change under a reader: they read the same while the
-           post is loading and once it has loaded. Their visible text carries
-           the destination — no aria-label holding a word the eye cannot read.
-
-           What can change is whether the People link is offered. Its words
-           promise one display name's other posts, and a lookup that ends in
-           not-found or error has no post and so no display name to stand
-           behind them; post-page.js removes it from the document in those two
-           states and restores it here, in this position, on the next attempt.
-           The Social link is offered in all four states — the feed is true
-           whether or not this one post is. -->
-      <p class="detail-page-exits">
-        <a class="detail-back detail-page-back" id="post-back" href="/social.html">Open Social to read the whole feed</a>
-        <a class="detail-back detail-page-back" id="post-people" href="/profile.html">Open People to see this display name's other image posts</a>
-      </p>
-
       <section class="hero hero-post" id="top" aria-labelledby="page-title">
         <!-- The feed pages' eyebrow pattern, with this page's record slotted in
              the middle: /social.html reads "Social · demo" and /profile.html
@@ -93,6 +53,47 @@
              hero, outside the post's own region, so it survives every state the
              lookup can land in. -->
         <p>Posts are shared across browsers and use no customer or production data.</p>
+        <!-- The routes out close the hero, the way /social.html closes its own
+             hero with .hero-actions: eyebrow, heading, intro, then the links.
+             They used to open the content region instead, so the one page a
+             visitor is most likely to meet cold offered two ways to leave
+             before it had said what they had arrived at. Social names People
+             after its intro and People names Social after its intro; this page
+             now names both in the same place rather than ahead of its own name.
+
+             Two links, both forward. This page is the one surface a visitor
+             reaches cold, from a link pasted into a chat window: they have no
+             "back" to undo, because they were never on Social or People to begin
+             with. So neither link says "Back", and neither carries an arrow — an
+             arrow reads as a return. Each one names its destination and says what
+             is there, in the verb Social and People already use for each other:
+             those two pages point at one another with "Open Social…" and "Open
+             People…", and this page joins that pattern rather than inventing a
+             third phrasing for the same job.
+
+             The People link says "display name" because that is the term Social's
+             composer, Social's feed filter and the People picker all use for the
+             thing being chosen. It goes to People plainly until the page knows
+             whose post this is; post-page.js narrows the destination to that one
+             display name's view once the URL or the loaded post names them. Only
+             the destination narrows — the words never change under a reader.
+
+             Both links ship in the markup and no script rewrites their text, so
+             the words never change under a reader: they read the same while the
+             post is loading and once it has loaded. Their visible text carries
+             the destination — no aria-label holding a word the eye cannot read.
+
+             What can change is whether the People link is offered. Its words
+             promise one display name's other posts, and a lookup that ends in
+             not-found or error has no post and so no display name to stand
+             behind them; post-page.js removes it from the document in those two
+             states and restores it here, in this position, on the next attempt.
+             The Social link is offered in all four states — the feed is true
+             whether or not this one post is. -->
+        <p class="detail-page-exits">
+          <a class="detail-back detail-page-back" id="post-back" href="/social.html">Open Social to read the whole feed</a>
+          <a class="detail-back detail-page-back" id="post-people" href="/profile.html">Open People to see this display name's other image posts</a>
+        </p>
       </section>
 
       <section class="workspace profile-workspace" aria-label="Post">
