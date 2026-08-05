@@ -23,6 +23,7 @@
 //      on the image inside the link when the tile is read rather than listed.
 
 import { normalizeImage } from "./social.js";
+import { postDetailHref, profileHref } from "./social-links.js";
 import { imageDescription, renderDescriptionNote } from "./image-description.js";
 import { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH } from "./social-identity.js";
 
@@ -198,22 +199,12 @@ export function captionFor(post) {
   return post?.caption?.trim() || post?.body?.trim() || "";
 }
 
-// `from` is provenance, written by the surface that links to the post so the
-// detail page can offer one back link that names where the reader actually came
-// from. Same parameter, same value, same defaulting rule as profilePaintHref
-// below and src/paint/paint.js: only "profile" means anything, and a link that
-// omits it gets the feed's exit.
-export function postDetailHref(id, author = "", from = "") {
-  const params = new URLSearchParams({ id: String(id ?? "") });
-  const name = String(author ?? "").trim();
-  if (name) params.set("author", name);
-  if (from) params.set("from", String(from));
-  return `/post.html?${params}`;
-}
-
-export function profileHref(author) {
-  return `/profile.html?author=${encodeURIComponent(String(author ?? ""))}`;
-}
+// The permalink and People URL shapes moved to src/social-links.js when the
+// composer's publish confirmation started building the same links: profile.js
+// imports social.js, so social.js cannot import profile.js back. Re-exported
+// here unchanged, because this module is where every existing caller asks for
+// them and the shape is the same shape.
+export { postDetailHref, profileHref };
 
 // Paint is a separate, full-screen workspace. Carry the selected display name
 // across that boundary so its back link can return to this exact profile rather
