@@ -21,9 +21,11 @@ import { loadPage, parseHtml, textOf } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 import {
   TRACK_RECORD_IDS, TRACK_RECORD_QUESTION, TRACK_RECORD_STATE,
-  renderTrackRecord, trackRecordModel,
+  leadWithWorkedDecision, renderTrackRecord, trackRecordModel,
 } from "../src/finops-track-record.js";
 import { BRIEFING_SERIES_KEY, recordBriefingSeriesEntry } from "../src/finops-briefing-series.js";
+import { FIRST_RUN_IDS } from "../src/finops-first-run.js";
+import { STAND_IDS } from "../src/finops-stand.js";
 import {
   FINOPS_CONSENT, retainApprovedCommitment, setFinopsConsent,
 } from "../src/finops-workspace.js";
@@ -388,6 +390,167 @@ test("the shipped page opens on the question, with nothing kept", async () => {
     // Above the snapshot analysis, and not inside any disclosure on the way up.
     assert.equal(ancestorTags(document.getElementById(TRACK_RECORD_IDS.region))
       .includes("details"), false);
+  } finally {
+    page.restore();
+  }
+});
+
+/* --------- 7. which of the two blocks a first visit meets first ------------- */
+
+// A visitor arrives from the homepage's claim that a worked decision is already
+// computed here, and the first thing under the page's name was this header's
+// EMPTIEST state: an answer about a file they were never asked to bring. So
+// while this browser is keeping no period, the bundled worked decision leads and
+// this header reads under it. Nothing is duplicated and nothing is hidden — the
+// same nodes move, and they move back the moment a period is on file.
+
+/** Every element under `main`, in reading order. */
+function readingOrder(document) {
+  const out = [];
+  const visit = (node) => {
+    for (const child of node?.children ?? []) {
+      if (child?.nodeType !== 1) continue;
+      out.push(child);
+      visit(child);
+    }
+  };
+  visit(document.getElementById("main-content"));
+  return out;
+}
+
+/** The element children of a node, as ids — the shared-parent instrument. */
+const childIds = (node) =>
+  [...node.children].filter((child) => child.nodeType === 1).map((child) => child.id);
+
+const CONTROLS = ["A", "BUTTON", "INPUT", "SELECT", "TEXTAREA"];
+
+/** The controls a keyboard reader reaches under `main`, in the order they come. */
+const reachable = (order) => order
+  .filter((node) => CONTROLS.includes(node.tagName))
+  .filter((node) => !node.hidden && !node.closest("[hidden]")
+    && node.getAttribute("tabindex") !== "-1");
+
+test("with no period on file, the worked decision leads and the header reads under it", async () => {
+  const page = await openFinopsTab();
+  try {
+    const { document } = page;
+    assert.equal(document.getElementById(TRACK_RECORD_IDS.region).dataset.state,
+      TRACK_RECORD_STATE.none);
+
+    // The page's own name first, then the answer this page promises before any
+    // file is chosen — not the empty state of a record nobody started.
+    const blocks = childIds(document.getElementById("main-content"));
+    assert.equal(blocks[0], "finops-hero", "the page's own name no longer comes first");
+    assert.equal(blocks[1], FIRST_RUN_IDS.region,
+      "the first block under the page's name is not the worked decision");
+
+    // It is the whole worked decision that moved, not a summary of it: the
+    // per-successful-task position and the named first action came with it.
+    assert.match(textOf(document.getElementById(FIRST_RUN_IDS.peerValue)),
+      /per successful task/);
+    assert.match(textOf(document.getElementById(FIRST_RUN_IDS.action)), /\S/,
+      "the worked decision arrived without its named first action");
+    // And so did the label that says whose figures these are. Once, because the
+    // block moved rather than being copied: two labels is two claims to keep
+    // true and one more thing for a screen reader to read out.
+    assert.match(textOf(document.getElementById(FIRST_RUN_IDS.sample)),
+      /Bundled synthetic example/);
+    assert.equal(document.querySelectorAll(`#${FIRST_RUN_IDS.sample}`).length, 1);
+  } finally {
+    page.restore();
+  }
+});
+
+test("with no period on file, the header sits directly below the worked decision", async () => {
+  const page = await openFinopsTab();
+  try {
+    const { document } = page;
+    const region = document.getElementById(TRACK_RECORD_IDS.region);
+    const worked = document.getElementById(FIRST_RUN_IDS.region);
+    // Siblings, so the comparison below is over one list rather than two.
+    assert.equal(region.parentNode === worked.parentNode, true,
+      "the two blocks are no longer in one parent, so neither is 'directly below' the other");
+    const order = childIds(region.parentNode);
+    assert.ok(order.indexOf(TRACK_RECORD_IDS.region) > order.indexOf(FIRST_RUN_IDS.region),
+      `the header did not follow the worked decision: ${order.slice(0, 4).join(", ")}`);
+    assert.equal(order.indexOf(TRACK_RECORD_IDS.region),
+      order.indexOf(FIRST_RUN_IDS.region) + 1, "something was drawn between the two blocks");
+
+    // Still the invitation, still naming the one step that starts a record, and
+    // still visible rather than folded away to make room above it.
+    assert.equal(document.querySelectorAll(`#${TRACK_RECORD_IDS.context}`).length, 1);
+    assert.match(textOf(document.getElementById(TRACK_RECORD_IDS.context)),
+      /^No track record on file.*Importing one provider export/s);
+    assert.equal(region.hidden, false);
+    assert.equal(ancestorTags(region).includes("details"), false);
+  } finally {
+    page.restore();
+  }
+});
+
+test("the first period on file puts both blocks back in the slots the markup gave them", () => {
+  // The move is undone in the same tab it happened in: a reader who imports an
+  // export mid-session must not be left with an invented company's result above
+  // their own record. Held here rather than through a boot, because this is the
+  // transition — none, then a period — and it has to be exact.
+  const document = parseHtml(HTML);
+  const authored = childIds(document.getElementById("main-content"));
+  const heroChildren = childIds(document.getElementById("finops-hero"));
+
+  leadWithWorkedDecision(document, trackRecordModel({ series: [] }));
+  assert.notDeepEqual(childIds(document.getElementById("main-content")), authored,
+    "nothing moved, so there is no restore to test");
+
+  leadWithWorkedDecision(document, trackRecordModel({ series: [entry("2026-06", 1000)] }));
+  assert.deepEqual(childIds(document.getElementById("main-content")), authored);
+  assert.deepEqual(childIds(document.getElementById("finops-hero")), heroChildren);
+});
+
+test("a browser with a period on file is given the header first, exactly as authored", async () => {
+  const page = await openFinopsTab(keptStorage({ months: [["2026-06", 1000]] }));
+  try {
+    const { document } = page;
+    assert.equal(document.getElementById(TRACK_RECORD_IDS.region).dataset.state,
+      TRACK_RECORD_STATE.single);
+    const order = readingOrder(document).map((node) => node.id);
+    assert.ok(order.indexOf(TRACK_RECORD_IDS.region) < order.indexOf(FIRST_RUN_IDS.region),
+      "a browser keeping a period must meet its own record before the bundled example");
+    // Authored parentage, untouched: the header in the hero, the worked decision
+    // back in the slot the markup gave it, below the answer region.
+    assert.equal(document.getElementById(TRACK_RECORD_IDS.region).parentNode.id, "finops-hero");
+    const blocks = childIds(document.getElementById("main-content"));
+    assert.equal(blocks[1], STAND_IDS.region, "the answer region no longer follows the hero");
+  } finally {
+    page.restore();
+  }
+});
+
+test("leading with the worked decision spends no tab stop and reorders no control", async () => {
+  const page = await openFinopsTab();
+  try {
+    const { document } = page;
+    const order = readingOrder(document);
+    const worked = order.findIndex((node) => node.id === FIRST_RUN_IDS.region);
+    const above = reachable(order.slice(0, worked));
+
+    // Read off the page as it stands, not chosen. Everything above the worked
+    // decision is now the hero, and the hero carries no control at all — so the
+    // move spent nothing: the first control a keyboard reader reaches after the
+    // skip link's destination is still the first control of an answer. The count
+    // is EXACT so that a control added up here — where the first screen's tab
+    // budget is already spent — turns this red rather than quietly landing
+    // between that destination and the answer a reader came for.
+    assert.equal(above.length, 0,
+      `${above.map((node) => node.id || node.tagName).join(", ")} sits above the worked decision`);
+
+    // Tab order follows visual order because the block that moved BELOW the
+    // worked decision brought no control with it: this state names its step in
+    // the sentence instead. So nothing reached earlier now reads later.
+    const region = document.getElementById(TRACK_RECORD_IDS.region);
+    assert.equal(region.querySelectorAll("a, button, input, select, textarea").length, 0);
+    // And the worked decision's own controls are still reached, in its own order.
+    const within = reachable(order).filter((node) => node.closest(`#${FIRST_RUN_IDS.region}`));
+    assert.ok(within.length > 0, "the worked decision's controls stopped being reachable");
   } finally {
     page.restore();
   }

@@ -117,7 +117,9 @@ import {
 // itself: it reads the kept series (#1089) and the verdict module (#1090) and
 // decides which of the five states this browser is in, and which single action
 // follows.
-import { renderTrackRecord, trackRecordModel } from "/finops-track-record.js";
+import {
+  leadWithWorkedDecision, renderTrackRecord, trackRecordModel,
+} from "/finops-track-record.js";
 // The read half of the same opt-in store. A visitor who granted retention and
 // comes back later gets their last derived period, the movement between the
 // retained months, and the commitments approved against them without opening a
@@ -3652,7 +3654,12 @@ function mountLocalFinopsImport() {
     } catch {
       commitment = null;
     }
-    renderTrackRecord(document, trackRecordModel({ series, commitment }));
+    const model = trackRecordModel({ series, commitment });
+    renderTrackRecord(document, model);
+    // And which of the two a first visit meets first: with nothing on file the
+    // bundled worked decision leads and this header reads under it. Same model,
+    // same state, one storage read — see `leadWithWorkedDecision`.
+    leadWithWorkedDecision(document, model);
   };
 
   const paintBriefingSeries = (series) => {
