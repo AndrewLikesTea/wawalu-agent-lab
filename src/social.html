@@ -43,9 +43,13 @@
              without an image", which contradicted the form it jumps to: that
              form's own image field is labelled "(optional)", so the composer
              takes a caption with an image or without one and the control that
-             opens it may not promise otherwise. It reads "Write a post" now,
-             word for word the heading it lands on, and claims nothing about
-             images in either direction.
+             opens it may not promise otherwise. It still promises nothing about
+             images in either direction. It no longer repeats the composer's
+             heading word for word either: the same four words were printed
+             twice inside one scroll, once as this link and once as the heading
+             the composer is announced by, so the panel was named before a
+             reader reached it. This link says where it goes, in the words the
+             sentence above already uses for the act.
              The primary names the act and the tool — "Paint" alone is what the
              nav already says, and a control that repeats the nav adds nothing.
              It stops at the act, though: where the image goes afterwards is the
@@ -56,15 +60,21 @@
              glyph is decorative and is hidden from assistive technology. -->
         <div class="hero-actions">
           <a class="button-link" id="social-paint-cta" href="/paint/" target="_blank" rel="noopener"><span>Create an image in Paint <span class="new-tab-note">(opens in a new tab)</span></span> <span aria-hidden="true">↗</span></a>
-          <a class="text-link" href="#post-form">Write a post</a>
+          <a class="text-link" href="#post-form">Or publish your own post below</a>
         </div>
       </section>
 
       <section class="workspace" aria-label="Social">
-        <div class="form-panel">
+        <div class="form-panel" aria-labelledby="post-form-title">
+          <!-- Badge above heading, and the panel named by that heading: the
+               same two elements, in the same order, with the same classes and
+               the same aria wiring the Decisions and Releases record forms use.
+               The badge keeps this page's noun. Social calls the thing a post
+               everywhere else it appears, and "record" is the log's word, not
+               the feed's. -->
           <div class="section-heading">
             <p class="eyebrow">New post</p>
-            <h2>Write a post</h2>
+            <h2 id="post-form-title">Write a post</h2>
           </div>
 
           <!-- Filled by src/paint-handoff.js when the visitor arrives from the

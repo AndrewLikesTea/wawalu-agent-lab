@@ -298,7 +298,9 @@ test("social page is wired, labeled, and linked from the other pages", async () 
 // image" while the form it opens labels its image field "(optional)" — one page
 // telling a reader both that a post cannot carry an image and that it may. The
 // field label is the anchor term and is unchanged; the entry control names the
-// act and stops there. The same pass pins the destination for image posts: this
+// act, in the intro's own words, and stops there. It no longer echoes the
+// composer's heading either — see the naming test below. The same pass pins the
+// destination for image posts: this
 // site has no page called Profile, so "profile" survives on Social only as the
 // People page's URL and the class that styles its nav item, never as a word a
 // reader sees.
@@ -310,7 +312,7 @@ test("the control that opens the composer agrees with the composer about images"
   const entry = page.document.querySelector(".hero-actions").querySelectorAll("a")
     .filter((anchor) => anchor.getAttribute("href") === "#post-form");
   assert.equal(entry.length, 1, "the hero offers exactly one route into the composer");
-  assert.equal(textOf(entry[0]), "Write a post",
+  assert.equal(textOf(entry[0]), "Or publish your own post below",
     "the control that opens the composer makes a claim about images again");
 
   const rendered = textOf(page.document.querySelector("body"));
@@ -345,6 +347,43 @@ test("the control that opens the composer agrees with the composer about images"
   const beyondTheUrl = markup.replace(/class="nav-profile"|href="\/profile\.html"/g, "");
   assert.doesNotMatch(beyondTheUrl.replace(/<!--[\s\S]*?-->/g, ""), /profile/i,
     "the word survives outside the People page's own URL and nav class");
+});
+
+// The composer used to be named three times before its first field: the hero's
+// route into it, the badge, and the heading — "Write a post" printed twice, so a
+// screen reader read the panel's name before the panel and again on arrival.
+// Decisions and Releases each carry one badge and one heading, in that order,
+// and the form panel takes its accessible name from that heading. Social is the
+// same shape now, with this page's noun in the badge.
+test("the composer names itself once, in the shape the other record forms use", async (t) => {
+  const markup = await readFile(new URL("../src/social.html", import.meta.url), "utf8");
+  const page = await loadPage(new URL("../src/social.html", import.meta.url), {});
+  t.after(() => page.restore());
+
+  const rendered = textOf(page.document.querySelector("body"));
+  assert.equal((rendered.match(/Write a post/g) || []).length, 1,
+    "Social prints the composer's name more than once");
+
+  const panel = page.document.querySelector(".form-panel");
+  assert.equal(panel.getAttribute("aria-labelledby"), "post-form-title",
+    "the composer panel is not named by its own heading");
+  assert.equal(textOf(page.document.querySelector("#post-form-title")), "Write a post");
+
+  // Badge above heading, the order both other record forms use.
+  assert.ok(markup.indexOf('<p class="eyebrow">New post</p>')
+    < markup.indexOf('<h2 id="post-form-title">'),
+    "the badge does not sit above the composer heading");
+
+  // Same two elements, same classes, same wiring as the release form.
+  const releases = await readFile(new URL("../src/releases.html", import.meta.url), "utf8");
+  for (const fragment of [
+    '<div class="form-panel" aria-labelledby=',
+    '<div class="section-heading">',
+    '<p class="eyebrow">New',
+  ]) {
+    assert.ok(markup.includes(fragment) && releases.includes(fragment),
+      `the composer no longer matches the release form on: ${fragment}`);
+  }
 });
 
 // Every toolbar control says what it sorts or narrows, in the site's own words:
