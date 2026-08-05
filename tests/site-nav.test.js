@@ -221,7 +221,11 @@ test("the profile page identifies the selected name as a demo persona", async ()
   // sentence, which left the page with two words for what the picker selects.
   const rendered = html.replace(/<!--[\s\S]*?-->/g, "");
   assert.equal(rendered.match(/demo persona/gi)?.length, 1, "the page says \"demo persona\" exactly once");
-  assert.equal(rendered.match(/persona/gi)?.length, 1, "the page uses the word \"persona\" nowhere else");
+  // The WORD, not the letters: the footer's "Personal AI history" row and its
+  // href both contain "persona" as a substring and are not a second name for
+  // what the picker selects. The plural is bounded in too, which the unanchored
+  // pattern would have let through.
+  assert.equal(rendered.match(/\bpersonas?\b/gi)?.length, 1, "the page uses the word \"persona\" nowhere else");
   assert.match(role[1], /not a signed-in user/);
   // The second sentence names what the picker selects, in the term the intro,
   // the label, and the hint use. It used to say "that person's image posts",

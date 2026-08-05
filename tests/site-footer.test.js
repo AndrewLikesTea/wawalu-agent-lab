@@ -218,7 +218,11 @@ test("the footer is a site map: every destination the navigation offers, each on
     // name a reader cannot follow is a name they have to go and find in the
     // header for themselves.
     const stops = tabSequence(document);
-    assert.equal(list.querySelectorAll("a").length, DEMOS.length, "every destination must be followable");
+    // One link per destination, plus one for each page named beneath a
+    // destination rather than beside it — see `also` in src/site-footer.js.
+    const nested = DEMOS.filter((demo) => demo.also);
+    assert.equal(list.querySelectorAll("a").length, DEMOS.length + nested.length,
+      "every destination must be followable");
     for (const [index, demo] of DEMOS.entries()) {
       const link = items[index].querySelector("a");
       assert.equal(textOf(link), demo.label, `${demo.label} must be the linked text, and named first in its row`);
@@ -273,6 +277,57 @@ test("the footer is a site map: every destination the navigation offers, each on
     // the page it points at does the promising.
     assert.match(textOf(guideRow), /where to act first on your AI spend/,
       "the home page's directory must name the action AI FinOps gives a visitor");
+  } finally {
+    page.restore();
+  }
+});
+
+test("a page named beneath a destination is named there, by the name the rest of the site uses", async () => {
+  // Personal AI history has no door of its own: src/site-nav.js files it under
+  // Prompt coach's section. Before this it was named on the home page alone, so
+  // a reader who had left that page could not find it again by name.
+  const page = await loadPage(pageUrl("index.html"));
+  const { document } = page;
+  try {
+    for (const parent of DEMOS.filter((demo) => demo.also)) {
+      const { also } = parent;
+      const row = [...document.querySelector(".site-footer-demos").querySelectorAll("li")]
+        .find((item) => textOf(item).startsWith(parent.label));
+      const link = [...row.querySelectorAll("a")].find((node) => node.getAttribute("href") === also.href);
+      // Boolean, never the node: a failed assert on a parsed element inspects
+      // the whole page and takes the suite with it.
+      assert.ok(Boolean(link), `"${also.label}" must be followable from the ${parent.label} row`);
+      // Character for character the name the home page and the page's own title
+      // use. One name per concept, everywhere.
+      assert.equal(textOf(link), also.label);
+      assert.ok(tabSequence(document).includes(link), `${also.label} must be keyboard reachable`);
+      // Named after the destination it sits beneath, never before it.
+      assert.ok(textOf(row).indexOf(parent.label) < textOf(row).indexOf(also.label),
+        `${also.label} must read as a page beneath ${parent.label}, not ahead of it`);
+
+      // Same rules as a row of its own: a fragment, not a sentence, and no filler.
+      assert.ok(also.purpose.split(/\s+/).length <= 8, `"${also.label}" runs long`);
+      assert.doesNotMatch(also.purpose, /[.!?]$/, `"${also.label}" is written as a sentence`);
+      assert.doesNotMatch(also.purpose, /powerful|seamless|unlock|leverage|central hub/i, `"${also.label}" uses filler`);
+      // And it must not repeat the home page's sentence for that surface.
+      assert.ok(!textOf(row).includes("It runs the same rubric over that export"),
+        `${also.label} repeats the home page's sentence in the footer`);
+    }
+
+    // The name the site uses for it, on the page itself and on the home page.
+    const historyLinks = [...document.querySelectorAll('a[href="/personal-history.html"]')];
+    assert.ok(historyLinks.some((node) => textOf(node).includes("Personal AI history")),
+      "the home page must name the surface the footer names");
+    assert.match(await read("personal-history.html"), /<title>Personal AI history · Shiplog<\/title>/,
+      "the page must carry the name the footer sends a reader to");
+
+    // The reassurance is the AI FinOps row's, one line away: a reader is told
+    // where their export is read before they hand one over.
+    for (const file of PAGES) {
+      assert.ok((await read(file)).includes(
+        '<a href="/personal-history.html">Personal AI history</a> reads your export in this browser tab'),
+      `${file} is missing "Personal AI history"`);
+    }
   } finally {
     page.restore();
   }
