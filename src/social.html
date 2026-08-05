@@ -174,6 +174,13 @@
           <div class="section-heading list-heading">
             <div>
               <p class="eyebrow">Post order: newest first</p>
+              <!-- Rewritten by social.js on every render to name what the
+                   filters are showing and how many posts matched — "All posts"
+                   was fixed, so a feed narrowed to one display name still
+                   claimed to hold every post, and this heading is the whole
+                   panel's accessible name. It ships as the unfiltered wording
+                   because a count is a claim the page cannot make until a fetch
+                   has come back. -->
               <h2 id="feed-title">All posts</h2>
             </div>
             <span class="count" id="post-count" aria-live="polite">Loading posts…</span>
