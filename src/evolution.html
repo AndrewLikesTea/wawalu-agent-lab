@@ -2980,6 +2980,16 @@
         <p class="eyebrow">Routing slate</p>
         <h2 class="answer-question" id="routing-slate-title">Which model routing changes should we ship this month?</h2>
         <div id="routing-slate-body"></div>
+        <!-- The handoff (#1138): the same ranked rules as a versioned JSON file
+             for whoever owns the gateway. Authored DISABLED, because a page
+             whose script never ran has no rules to hand over, and enabled by
+             routing-slate-view.js on the paint that produces some. The notice
+             below is the sentence the file itself carries, authored once in
+             routing-slate.js, and it is what the control is described by. -->
+        <div class="local-export-actions">
+          <button id="download-routing-policy" type="button" disabled>Download routing policy (JSON)</button>
+        </div>
+        <p class="answer-figure-basis" id="routing-policy-note">This routing policy is a proposal derived from your own export. Review every rule before applying it to a live gateway configuration.</p>
       </section>
 
       <details class="support-disclosure" id="disclosure-spend-and-recovery" data-panel-id="spend-and-recovery" data-workspace-region="evidence">

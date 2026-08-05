@@ -21,6 +21,10 @@ import {
 
 export const ROUTING_SLATE_SECTION_ID = "routing-slate";
 export const ROUTING_SLATE_BODY_ID = "routing-slate-body";
+/** The download control and the two things it can be described by. */
+export const ROUTING_POLICY_BUTTON_ID = "download-routing-policy";
+const ROUTING_POLICY_NOTE_ID = "routing-policy-note";
+const ROUTING_SLATE_REASON_ID = "routing-slate-reason";
 
 function element(doc, tag, className, text) {
   const node = doc.createElement(tag);
@@ -62,8 +66,21 @@ export function applyRoutingSlate(doc, analysis) {
   section.dataset.ruleCount = String(slate.rules.length);
   section.hidden = false;
 
+  // The download control offers exactly what is on screen. With no ranked rule
+  // it is disabled and described by the sentence saying why there is none,
+  // rather than handing over an empty policy; with rules it is described by the
+  // review notice the file itself carries.
+  const download = doc.getElementById?.(ROUTING_POLICY_BUTTON_ID);
+  if (download) {
+    download.disabled = !slate.available;
+    download.setAttribute("aria-describedby",
+      slate.available ? ROUTING_POLICY_NOTE_ID : ROUTING_SLATE_REASON_ID);
+  }
+
   if (!slate.available) {
-    body.replaceChildren(element(doc, "p", "answer-figure-direction", slate.reason));
+    const reason = element(doc, "p", "answer-figure-direction", slate.reason);
+    reason.id = ROUTING_SLATE_REASON_ID;
+    body.replaceChildren(reason);
     return slate;
   }
 

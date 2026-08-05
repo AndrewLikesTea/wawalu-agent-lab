@@ -88,6 +88,10 @@ import { localFinopsMeetingSummary, normalizeLocalFinopsHistory } from "/local-f
 // portfolio exists.
 import { applyPortfolioBrief, clearPortfolioBrief } from "/finops-portfolio-brief-view.js";
 import { applyRoutingSlate } from "/routing-slate-view.js";
+// The same ranked rules as a file for whoever owns the gateway. The builder is
+// pure and has no clock, so the one ambient value the artifact records is passed
+// in from here — everything else in it is a function of the slate alone.
+import { routingPolicyFile } from "/routing-slate.js";
 // The five-slot headline an imported export earns, painted from the checked-in
 // contract in finops-imported-headline-fixture.json. Imported state only.
 import {
@@ -1010,6 +1014,9 @@ function mountLocalFinopsImport() {
   let queue = [];
   let review = null;
   let result = null;
+  // The routing slate exactly as last painted, so the policy download and the
+  // ranked list on screen are one record rather than two rankings of one file.
+  let routingSlateRecord = null;
   // The reader's own names for their own org units — "Platform Engineering"
   // over `psn_…atlas0`. Never put in an export and never sent anywhere; it
   // reaches storage only inside the retained record of the import it names, and
@@ -1851,7 +1858,9 @@ function mountLocalFinopsImport() {
     // this same envelope already carries. Both sides get it: the bundled example
     // earns rules from its per-unit candidates and a reader's own import earns
     // per-model rules when their export named the models.
-    applyRoutingSlate(document, next);
+    // Kept as painted so the download hands over exactly the rules on screen,
+    // rather than ranking the envelope a second time at click.
+    routingSlateRecord = applyRoutingSlate(document, next);
     // And the headline the reader's own export earns: five slots, always five,
     // each one either a figure from this envelope or the contract's own sentence
     // for why the export could not supply it. The bundled example is not an
@@ -2355,6 +2364,10 @@ function mountLocalFinopsImport() {
     // clearing the import gives the single-provider answer back rather than
     // leaving a combined total leading the page.
     clearPortfolioBrief(document);
+    // And the routing slate with it. Rules ranked from a file that is no longer
+    // loaded are rules a reader could still have downloaded as a policy, which
+    // is the stalest thing this page could hand a platform team.
+    routingSlateRecord = applyRoutingSlate(document, null);
     // Same rule for the imported headline: it is a statement about a file that
     // is no longer loaded, so it goes with the import rather than lingering
     // above the example's own headline.
@@ -3995,6 +4008,14 @@ function mountLocalFinopsImport() {
       readerLabels: exampleActive ? null : orgUnitLabels,
     });
     downloadLocalExport(file.text, file.mediaType, file.fileName);
+  });
+  // The routing policy, from the slate as painted rather than from a second
+  // ranking of the envelope. `routingPolicyFile` returns null when there is no
+  // ranked rule, so a control reached before any paint hands over nothing at
+  // all; the same state is what disables it.
+  document.getElementById("download-routing-policy")?.addEventListener("click", () => {
+    const file = routingPolicyFile(routingSlateRecord, { generatedAt: new Date().toISOString() });
+    if (file) downloadLocalExport(file.text, file.mediaType, file.fileName);
   });
   document.getElementById("export-local-summary")?.addEventListener("click", () => {
     if (result) downloadLocalExport(

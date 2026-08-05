@@ -226,3 +226,125 @@ export function routingSlate(analysis = null) {
     tieBreak: ROUTING_SLATE_TIE_BREAK,
   });
 }
+
+// ---------------------------------------------------------------------------
+// The policy file (#1138). A lead who has decided from the slate hands the rules
+// to whoever owns the gateway, and that handoff has to be a file rather than a
+// screenshot of a ranked list.
+//
+// IT DERIVES NOTHING. Every field below is read off the slate object above,
+// which is itself read off the analysis. No figure is recomputed here, no clock
+// is read, no request is made and no credential is touched: the one ambient
+// value the artifact records is `generatedAt`, and the caller passes it in. Two
+// calls with the same slate and the same timestamp are byte-identical, which is
+// what makes the file diffable between months.
+// ---------------------------------------------------------------------------
+
+/** The artifact's own contract, stamped on every file so a reader can branch. */
+export const ROUTING_POLICY_SCHEMA = "routing-policy/v1";
+export const ROUTING_POLICY_VERSION = 1;
+export const ROUTING_POLICY_MEDIA_TYPE = "application/json";
+
+/**
+ * What the file is, in the words a reader is owed before anyone applies it.
+ * Authored once and shipped twice — as the artifact's `notice` field and as the
+ * sentence beside the download control in evolution.html — so the page and the
+ * file cannot describe the same artifact differently.
+ */
+export const ROUTING_POLICY_NOTICE =
+  "This routing policy is a proposal derived from your own export. Review every rule "
+  + "before applying it to a live gateway configuration.";
+
+/**
+ * One rule in the file's field names. `guardrails` is the set of conditions the
+ * rule was decided under and therefore the set a platform team must check before
+ * applying it: the tier the traffic is on today, the org unit it was measured
+ * in, how confident that measurement is, and what kind of number the return is.
+ * `evidence` is the slate's own evidence line — the one a reader disputes.
+ */
+function policyRule(rule) {
+  return {
+    rank: rule.rank,
+    sourceModel: rule.source,
+    targetTier: rule.targetTier,
+    expectedMonthlyUsd: rule.expectedMonthlyUsd,
+    guardrails: {
+      currentTier: rule.sourceTier,
+      orgUnit: rule.unit,
+      confidence: rule.confidence,
+      basis: rule.basis,
+    },
+    evidence: rule.evidence,
+  };
+}
+
+/**
+ * Build the policy artifact from a slate.
+ *
+ * @param {object|null} slate The record `routingSlate()` returned, as rendered.
+ * @param {{generatedAt: string}} options The caller's clock read. Required: this
+ *   function has none of its own, and a file stamped with an empty timestamp is
+ *   worse than one that refused to be written.
+ * @returns the policy object, or null when there is no ranked rule to carry —
+ *   an empty policy imports cleanly and teaches a platform team that nothing was
+ *   recommended, which is a different claim from "nothing was analysed".
+ */
+export function buildRoutingPolicy(slate, { generatedAt } = {}) {
+  if (typeof generatedAt !== "string" || !generatedAt) {
+    throw new TypeError("buildRoutingPolicy requires an explicit generatedAt timestamp");
+  }
+  if (!slate?.available || !slate.rules?.length) return null;
+  // Explicitly ordered rather than taken as it arrives: rank is unique on the
+  // slate and is the order the reader decided from, so the file carries that
+  // order whatever any later filter does to the array it was read out of.
+  const rules = [...slate.rules].sort((left, right) => left.rank - right.rank);
+  return {
+    schema: ROUTING_POLICY_SCHEMA,
+    policyVersion: ROUTING_POLICY_VERSION,
+    period: slate.period ?? null,
+    generatedAt,
+    basis: slate.basis,
+    ranking: slate.tieBreak,
+    totalExpectedMonthlyUsd: slate.totalExpectedMonthlyUsd,
+    notice: ROUTING_POLICY_NOTICE,
+    rules: rules.map(policyRule),
+  };
+}
+
+/**
+ * Serialize to bytes that depend only on the policy's values. The replacer
+ * rebuilds every object with its keys in sorted order, so construction order
+ * cannot reach the file; arrays keep the order `buildRoutingPolicy` sorted them
+ * into. Same shape as `serializeBriefing`, deliberately, because the two files
+ * are diffed by the same people.
+ */
+export function serializeRoutingPolicy(policy) {
+  return `${JSON.stringify(policy, (key, value) => {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return value;
+    const sorted = {};
+    for (const name of Object.keys(value).sort()) sorted[name] = value[name];
+    return sorted;
+  }, 2)}\n`;
+}
+
+/** The period, as a file name fragment. No clock: the name is stable all session. */
+function periodSlug(period) {
+  const slug = String(period ?? "").toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  return slug || "period-unstated";
+}
+
+/**
+ * The one call the download control makes: slate in, `{ fileName, mediaType,
+ * text }` out, or null when there is nothing to hand over. The component owns
+ * the clock and the download mechanism; every decision is above this line.
+ */
+export function routingPolicyFile(slate, options = {}) {
+  const policy = buildRoutingPolicy(slate, options);
+  if (!policy) return null;
+  return Object.freeze({
+    fileName: `routing-policy-${periodSlug(policy.period)}.json`,
+    mediaType: ROUTING_POLICY_MEDIA_TYPE,
+    text: serializeRoutingPolicy(policy),
+  });
+}
