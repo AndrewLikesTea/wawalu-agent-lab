@@ -16,9 +16,12 @@ import { DomEvent, loadPage, textOf } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 import { BRIEFING_RETENTION_KEY, RETENTION_COPY } from "../src/finops-briefing-retention.js";
 import {
-  BRIEFING_SERIES_KEY, BRIEFING_SERIES_VERSION, briefingSeriesEntry, briefingSeriesSummary,
-  forgetBriefingSeries, readBriefingSeries, recordBriefingSeriesEntry,
+  BRIEFING_SERIES_KEY, BRIEFING_SERIES_VERSION, ENTRY_BASIS, ESTIMATE_SCOPE, briefingSeriesEntry,
+  briefingSeriesSummary, estimatedSeries, forgetBriefingSeries, readBriefingSeries,
+  realizedSeries, recordBriefingSeriesEntry, recordEstimatedPeriod,
 } from "../src/finops-briefing-series.js";
+import { estimateFromDeclaredFacts } from "../src/finops-declared-fact-estimate.js";
+import { EXAMPLE_DECLARED_FACTS } from "../src/finops-declared-fact-fixtures.js";
 
 const PAGE = new URL("../src/evolution.html", import.meta.url);
 const DEMO_DATA = JSON.parse(await readFile(new URL("../src/evolution-demo-data.json", import.meta.url), "utf8"));
@@ -168,6 +171,11 @@ test("a single-period series reads back as one entry with its figures", () => {
     spendUsd: 546.2,
     recoverableUsd: 402.75,
     confidence: "Medium",
+    // What #1106 added: an explicit basis on the entry, and the verification
+    // state derived from it. An import is `imported` and verified, always.
+    basis: "imported",
+    verified: true,
+    supersededBy: null,
   });
 });
 
@@ -274,7 +282,8 @@ test("nothing prompt-shaped or raw reaches the persisted record", () => {
   }
   // The exact key set of an entry, so a field added upstream cannot ride in.
   assert.deepEqual(Object.keys(JSON.parse(raw).entries[0]).sort(), [
-    "capturedAt", "confidence", "period", "providerName", "recoverableUsd", "scope", "spendUsd",
+    "basis", "capturedAt", "confidence", "period", "providerName", "recoverableUsd", "scope",
+    "spendUsd", "supersededBy", "verified",
   ]);
 });
 
@@ -306,6 +315,145 @@ test("the summary states the count and the span, and says nothing when empty", (
   assert.equal(empty.count, 0);
   assert.equal(empty.firstPeriod, null);
   assert.deepEqual(briefingSeriesSummary(null).label, "");
+});
+
+// ---------------------------------------------------------------------------
+// (e2) An estimated month on the record, and the import that takes it over (#1106).
+//
+// What only this section can catch: that the basis is an explicit field rather
+// than an inference, that a record written before it existed reads as imported,
+// that an import for an estimated month keeps the estimate and marks it instead
+// of overwriting it, and that neither a live nor a superseded estimate reaches
+// a realized figure.
+// ---------------------------------------------------------------------------
+
+/** The estimator's own output for the bundled example's declared facts. */
+const ESTIMATE = estimateFromDeclaredFacts(EXAMPLE_DECLARED_FACTS);
+
+const keepEstimate = (storage, period, estimate = ESTIMATE) =>
+  recordEstimatedPeriod(storage, {
+    estimate, period, capturedAt: `${period}-01T08:00:00.000Z`,
+  });
+
+test("an estimated month is kept with an explicit basis, and says it was never verified", () => {
+  const storage = memoryStorage();
+  const series = keepEstimate(storage, "2026-07");
+
+  assert.equal(series.length, 1);
+  assert.equal(series[0].basis, ENTRY_BASIS.estimated);
+  assert.equal(series[0].verified, false, "an estimate is never verified");
+  assert.equal(series[0].supersededBy, null, "nothing has taken it over yet");
+  // The figures are the estimator's, not re-derived here: the declared bill and
+  // the conservative end of its modelled recoverable band.
+  assert.equal(series[0].spendUsd, EXAMPLE_DECLARED_FACTS.monthlySpendUsd);
+  assert.equal(series[0].recoverableUsd, ESTIMATE.recoverableMonthlyUsd.low);
+  // The discriminator is on the entry. It is NOT inferred from a missing
+  // provider id: this entry has a scope and a provider name like any other.
+  assert.equal(series[0].scope, ESTIMATE_SCOPE);
+  assert.equal(series[0].providerName.length > 0, true);
+});
+
+test("an import for an estimated month supersedes the estimate and never deletes it", () => {
+  const storage = memoryStorage();
+  keepEstimate(storage, "2026-07");
+  const series = recordBriefingSeriesEntry(storage, briefingFor("2026-07", 610));
+
+  assert.equal(series.length, 2, "the estimate stays on the record beside the import");
+  const estimate = series.find((one) => one.basis === ENTRY_BASIS.estimated);
+  const imported = series.find((one) => one.basis === ENTRY_BASIS.imported);
+  assert.equal(estimate.supersededBy, `2026-07 ${imported.scope}`,
+    "the marker names the verified entry that took over");
+  assert.equal(estimate.spendUsd, EXAMPLE_DECLARED_FACTS.monthlySpendUsd,
+    "and the estimate's own figures are untouched by the import");
+  assert.equal(imported.supersededBy, null);
+  assert.equal(imported.verified, true);
+  // The verified entry drives every realized figure, and the estimate — which
+  // is 154,500 USD, orders of magnitude larger — reaches none of them.
+  assert.deepEqual(realizedSeries(series).map((one) => [one.period, one.spendUsd]),
+    [["2026-07", 610]]);
+  assert.equal(briefingSeriesSummary(realizedSeries(series)).label, "1 period on file · Jul 2026");
+});
+
+test("a superseded estimate is excluded from realized figures exactly as a live one is", () => {
+  const storage = memoryStorage();
+  keepEstimate(storage, "2026-06");
+  keepEstimate(storage, "2026-07");
+  const series = recordBriefingSeriesEntry(storage, briefingFor("2026-06", 546.2));
+
+  const [live] = estimatedSeries(series).filter((one) => one.supersededBy === null);
+  assert.equal(live.period, "2026-07", "July's estimate has no import to be taken over by");
+  assert.equal(estimatedSeries(series).length, 2);
+  // Two estimates and one import: the realized side is the import alone, and
+  // its spend is the only spend any aggregate can see.
+  assert.deepEqual(realizedSeries(series).map((one) => one.spendUsd), [546.2]);
+  assert.equal(realizedSeries(series).every((one) => one.verified), true);
+});
+
+test("two estimates for one period replace in place, and one import does not", () => {
+  const storage = memoryStorage();
+  keepEstimate(storage, "2026-07");
+  const series = keepEstimate(storage, "2026-07",
+    estimateFromDeclaredFacts({ ...EXAMPLE_DECLARED_FACTS, monthlySpendUsd: 90_000 }));
+
+  assert.equal(series.length, 1, "a re-estimate is a later reading of the same unmeasured month");
+  assert.equal(series[0].spendUsd, 90_000, "and the newer estimate is the one kept");
+});
+
+test("an entry stored before the basis field existed reads as an imported month", () => {
+  // The exact bytes a browser that opted in before #1106 is holding: seven
+  // fields, no basis anywhere on the entry or the record.
+  const legacy = {
+    period: "2026-06", scope: "openai", providerName: "OpenAI",
+    capturedAt: "2026-06-28T09:00:00.000Z", spendUsd: 546.2, recoverableUsd: 402.75,
+    confidence: "Medium",
+  };
+  const storage = memoryStorage({
+    [BRIEFING_SERIES_KEY]: JSON.stringify({
+      version: BRIEFING_SERIES_VERSION, entries: [legacy],
+    }),
+  });
+  const series = readBriefingSeries(storage);
+
+  assert.equal(series[0].basis, ENTRY_BASIS.imported);
+  assert.equal(series[0].verified, true);
+  assert.equal(realizedSeries(series).length, 1, "it counts as a realized month, as it always did");
+  assert.equal(estimatedSeries(series).length, 0);
+});
+
+test("a hand-edited file cannot promote its own estimate into a verified month", () => {
+  const storage = memoryStorage({
+    [BRIEFING_SERIES_KEY]: JSON.stringify({
+      version: BRIEFING_SERIES_VERSION,
+      entries: [{
+        period: "2026-06", scope: "estimated", providerName: "Estimated",
+        capturedAt: "2026-06-01T08:00:00.000Z", spendUsd: 999_999, recoverableUsd: 0,
+        confidence: "modelled", basis: "estimated", verified: true,
+        supersededBy: "2026-06 openai",
+      }],
+    }),
+  });
+  const [entry] = readBriefingSeries(storage);
+
+  assert.equal(entry.verified, false, "`verified` is derived from the basis, never read");
+  assert.equal(entry.supersededBy, null,
+    "and a supersession no imported entry backs is not a supersession");
+  assert.equal(realizedSeries(readBriefingSeries(storage)).length, 0);
+});
+
+test("an unknown basis is excluded from realized figures rather than counted as one", () => {
+  const storage = memoryStorage({
+    [BRIEFING_SERIES_KEY]: JSON.stringify({
+      version: BRIEFING_SERIES_VERSION,
+      entries: [{
+        period: "2026-06", scope: "somewhere", providerName: "A newer build",
+        capturedAt: "2026-06-28T09:00:00.000Z", spendUsd: 500, recoverableUsd: 0,
+        confidence: "Medium", basis: "projected",
+      }],
+    }),
+  });
+
+  assert.equal(realizedSeries(readBriefingSeries(storage)).length, 0,
+    "a basis this build does not know is not a measured month");
 });
 
 // ---------------------------------------------------------------------------

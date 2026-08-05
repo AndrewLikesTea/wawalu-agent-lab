@@ -273,6 +273,130 @@ test("no state of the header narrates a load or says what has not happened", () 
   }
 });
 
+/* ------------- 4b. estimated months: never realized, always labelled ------- */
+//
+// What only this section can catch: that an estimate on the record — live or
+// superseded — is absent from every FIGURE the header states, asserted on the
+// numbers rather than on the absence of a word; that a month holding both
+// states the miss in one sentence with a direction and a size; and that a month
+// holding one of the two states nothing.
+
+/** An estimated entry in the read shape the store returns. */
+const estimated = (period, spendUsd, supersededBy = null) => ({
+  period,
+  scope: "estimated",
+  providerName: "Estimated from declared facts",
+  capturedAt: `${period}-01T08:00:00.000Z`,
+  spendUsd,
+  recoverableUsd: 0,
+  confidence: "modelled",
+  basis: "estimated",
+  verified: false,
+  supersededBy,
+});
+
+test("aggregates, trends and the verdict read realized months only", () => {
+  // June and July imported at 1,000 and 400 — a realized 600 against a 600
+  // commitment. Beside them: July's estimate, already superseded, and an
+  // August estimate nothing has measured. Both are enormous on purpose.
+  const withEstimates = trackRecordModel({
+    series: [
+      ...TWO_MONTHS,
+      estimated("2026-07", 900_000, "2026-07 openai"),
+      estimated("2026-08", 900_000),
+    ],
+    commitment: commitmentOf(),
+  });
+  const realizedOnly = trackRecordModel({ series: TWO_MONTHS, commitment: commitmentOf() });
+
+  // Every figure is the one the realized months alone produce.
+  assert.equal(withEstimates.state, realizedOnly.state);
+  assert.equal(withEstimates.figure.text, "600 USD realized of 600 USD committed");
+  assert.equal(withEstimates.figure.sentence, realizedOnly.figure.sentence);
+  assert.equal(withEstimates.verdict.text, "Met");
+  // The span and the count: two periods, June to July. August's estimate is not
+  // a month this record has reached.
+  assert.equal(withEstimates.summary, "2 periods on file · Jun–Jul 2026");
+  assert.equal(withEstimates.summary, realizedOnly.summary);
+  // The trend: July fell 600 USD from June, and no row reports a movement
+  // against an estimate.
+  const movements = withEstimates.rows.map((row) => row.movement);
+  assert.deepEqual(movements,
+    ["No earlier month on file", "Fell 600 USD", "Not measured", "Not measured"]);
+});
+
+test("an estimate is labelled as one in every row it appears in", () => {
+  const document = painted(trackRecordModel({
+    series: [...TWO_MONTHS, estimated("2026-08", 900_000)],
+    commitment: commitmentOf(),
+  }));
+  const rows = document.querySelectorAll(".track-record-row");
+  assert.equal(rows.length, 3);
+  assert.deepEqual([...rows].map((row) => row.dataset.basis),
+    ["imported", "imported", "estimated"]);
+  // The word is in the row's own text, not only in a data attribute: a reader
+  // who cannot see a stylesheet still reads what this month is.
+  assert.match(textOf(rows[2].querySelector("th")), /Estimated · not measured$/);
+  assert.equal(textOf(rows[2].querySelectorAll("td")[2]), "Not measured");
+  assert.equal(textOf(rows[2].querySelectorAll("td")[3]), "Estimate · not scored");
+});
+
+test("a month holding both states the miss with its direction and its size", () => {
+  const model = trackRecordModel({
+    // July's estimate said 500 USD; the import came in at 400 USD.
+    series: [...TWO_MONTHS, estimated("2026-07", 500, "2026-07 openai")],
+    commitment: commitmentOf(),
+  });
+  assert.equal(model.estimateDeltas.length, 1);
+  assert.equal(model.estimateDeltas[0],
+    "Jul 2026: the estimate said 500 USD and the imported month came in at 400 USD — the "
+    + "estimate was over by 100 USD.");
+
+  const document = painted(model);
+  assert.equal(countOf(document, "[data-estimate-delta]"), 1);
+  assert.equal(textOf(document.getElementById(TRACK_RECORD_IDS.estimateDelta)),
+    model.estimateDeltas[0]);
+  // Outside the disclosure: the sentence a reader came back for is not folded
+  // into a shut details element.
+  assert.equal(
+    ancestorTags(document.getElementById(TRACK_RECORD_IDS.estimateDelta)).includes("details"),
+    false);
+  // The other direction, in the same sentence shape.
+  assert.equal(trackRecordModel({
+    series: [...TWO_MONTHS, estimated("2026-07", 250, "2026-07 openai")],
+  }).estimateDeltas[0],
+  "Jul 2026: the estimate said 250 USD and the imported month came in at 400 USD — the "
+  + "estimate was under by 150 USD.");
+});
+
+test("a month holding only one of the two states no delta at all", () => {
+  // An estimate for a month nothing has imported.
+  const onlyEstimate = trackRecordModel({
+    series: [...TWO_MONTHS, estimated("2026-09", 500)], commitment: commitmentOf(),
+  });
+  assert.deepEqual(onlyEstimate.estimateDeltas, []);
+  assert.equal(countOf(painted(onlyEstimate), "[data-estimate-delta]"), 0);
+
+  // And imported months with no estimate anywhere near them.
+  const onlyImports = trackRecordModel({ series: TWO_MONTHS, commitment: commitmentOf() });
+  assert.deepEqual(onlyImports.estimateDeltas, []);
+  assert.equal(countOf(painted(onlyImports), "[data-estimate-delta]"), 0);
+});
+
+test("a browser holding estimates and no import has no track record and says so", () => {
+  const model = trackRecordModel({ series: [estimated("2026-08", 900_000)] });
+
+  assert.equal(model.state, TRACK_RECORD_STATE.none);
+  assert.equal(model.figure, null, "an estimate is never a figure this header states");
+  assert.equal(model.summary, "");
+  assert.match(model.context,
+    /1 estimated month is on file, and it counts towards nothing here until the month is imported\.$/);
+  // It is still visible and still labelled — one row, marked as an estimate.
+  const document = painted(model);
+  assert.equal(countOf(document, ".track-record-row"), 1);
+  assert.equal(document.querySelector(".track-record-row").dataset.basis, "estimated");
+});
+
 /* ------------------- 5. the disclosure, and what is outside it -------------- */
 
 test("the per-period detail is collapsed by default and lists every period", () => {

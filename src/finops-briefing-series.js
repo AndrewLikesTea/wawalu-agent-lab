@@ -34,6 +34,66 @@ export const BRIEFING_SERIES_KEY = "shiplog.finops.briefing.series.v1";
 /** Top-level on the record, beside `entries` — never inside an entry. */
 export const BRIEFING_SERIES_VERSION = 1;
 
+// ---------------------------------------------------------------------------
+// WHAT A PERIOD ENTRY IS — MEASURED, OR MODELLED BEFORE ANYTHING WAS MEASURED
+// (#1106)
+// ---------------------------------------------------------------------------
+//
+// A month can be put on this record before there is a file for it: an estimate
+// from declared facts (#1102) covering a month a reader expects to import
+// later. That entry is STRUCTURALLY a different thing from an imported one, so
+// it carries its own discriminator — `basis` — on the entry itself. Nothing is
+// inferred: "no provider id" is not a basis, and an export this page could not
+// recognize is still `imported`, because a file was read.
+//
+// THE FOUR RULES.
+//
+//  1. ABSENT IS `imported`. Every entry written before this field existed, in
+//     storage or in an exported file, came out of a file. It is normalized on
+//     read in `entryOf`, the single door every entry comes through.
+//
+//  2. AN ESTIMATE IS NEVER DELETED BY AN IMPORT. Estimates are filed under
+//     their own scope, so an import for the same month lands BESIDE the
+//     estimate rather than on its key. `marked()` then stamps the estimate with
+//     `supersededBy`, naming the verified entry that took over. The verified
+//     entry drives every downstream figure; the estimate stays on the record as
+//     the thing that can be scored against it.
+//
+//  3. TWO ESTIMATES FOR ONE PERIOD REPLACE IN PLACE, keyed by `period` plus
+//     `ESTIMATE_SCOPE` — the same upsert rule a re-import already follows. A
+//     second estimate is a later reading of the same unmeasured month, and
+//     keeping both would put two rows for one period in front of a reader with
+//     no way to tell which is current.
+//
+//  4. `verified` IS DERIVED FROM `basis`, NEVER READ, so no stored record and
+//     no hand-edited file can promote its own estimate into a measured month.
+
+export const ENTRY_BASIS = Object.freeze({
+  /** Summed out of a provider export this browser read. */
+  imported: "imported",
+  /** Modelled from declared facts. Never verified against a file. */
+  estimated: "estimated",
+});
+
+/** The scope every estimate is filed under — see rule 3 above. */
+export const ESTIMATE_SCOPE = "estimated";
+
+/** Its name in the provider column, so no surface writes its own. */
+export const ESTIMATE_PROVIDER_NAME = "Estimated from declared facts";
+
+/**
+ * The basis of an entry, normalized.
+ *
+ * Absent, null and empty are `imported` (rule 1). Anything present that this
+ * build does not recognize is `estimated`, which is the SAFE direction: an
+ * unknown basis from a newer build or a hand-edited file is excluded from every
+ * realized figure rather than quietly counted as a measured month.
+ */
+const basisOf = (value) => {
+  if (value === undefined || value === null || value === "") return ENTRY_BASIS.imported;
+  return value === ENTRY_BASIS.imported ? ENTRY_BASIS.imported : ENTRY_BASIS.estimated;
+};
+
 const EMPTY = Object.freeze([]);
 
 const number = (value) => (Number.isFinite(Number(value)) ? Number(value) : null);
@@ -49,6 +109,9 @@ const text = (value) => (typeof value === "string" && value.trim() ? value : nul
  *   spendUsd        analyzed spend for the period
  *   recoverableUsd  recoverable spend for the period
  *   confidence      the analysis's own confidence word
+ *   basis           `imported` or `estimated` — see the block above
+ *   verified        derived: true only for an imported entry
+ *   supersededBy    on an estimate an import took over: that entry's key
  *
  * Null when the entry has no period, no capture instant or no spend figure: a
  * row that cannot say which month it is or what it cost is not a partial row.
@@ -58,6 +121,8 @@ function entryOf(fields) {
   const capturedAt = text(fields?.capturedAt);
   const spendUsd = number(fields?.spendUsd);
   if (period === null || !capturedAt || spendUsd === null) return null;
+  const basis = basisOf(fields?.basis);
+  const estimated = basis === ENTRY_BASIS.estimated;
   return Object.freeze({
     period,
     scope: text(fields?.scope) ?? "unknown",
@@ -66,6 +131,84 @@ function entryOf(fields) {
     spendUsd,
     recoverableUsd: number(fields?.recoverableUsd) ?? 0,
     confidence: text(fields?.confidence) ?? "Low",
+    basis,
+    verified: !estimated,
+    // Only an estimate can be superseded, and the marker is recomputed below on
+    // every read — a file cannot arrive claiming a supersession that its own
+    // periods do not contain.
+    supersededBy: estimated ? text(fields?.supersededBy) : null,
+  });
+}
+
+/** One entry's identity: the two halves this series is keyed by. */
+const entryKey = (entry) => `${entry.period} ${entry.scope}`;
+
+/**
+ * Stamp every estimate that a verified entry has taken over.
+ *
+ * Derived on every read rather than stored as a decision, so the marker cannot
+ * outlive the import that caused it: forget the imported month and the estimate
+ * reads live again, which is the truth about the record at that moment. The
+ * naming entry is the FIRST imported entry of that period in sorted order, so
+ * two providers billing one month name one of them deterministically.
+ */
+function marked(entries) {
+  const verifiedBy = new Map();
+  for (const entry of entries) {
+    if (entry.basis === ENTRY_BASIS.imported && !verifiedBy.has(entry.period)) {
+      verifiedBy.set(entry.period, entryKey(entry));
+    }
+  }
+  return entries.map((entry) => {
+    if (entry.basis !== ENTRY_BASIS.estimated) return entry;
+    const by = verifiedBy.get(entry.period) ?? null;
+    return by === entry.supersededBy ? entry : entryOf({ ...entry, supersededBy: by });
+  });
+}
+
+/**
+ * THE CALCULATION BOUNDARY. The realized months, and nothing else (#1106).
+ *
+ * Every aggregate, every trend and every commitment verdict reads the series
+ * through this one function, so a caller cannot accidentally count a modelled
+ * month as a measured one — there is no `basis === "imported"` test anywhere
+ * else in this codebase, on purpose.
+ *
+ * A SUPERSEDED ESTIMATE IS EXCLUDED FOR THE SAME REASON A LIVE ONE IS: it was
+ * never verified. The import that superseded it is in this list in its own
+ * right, and counting both would double the month.
+ */
+export const realizedSeries = (series) => Object.freeze((Array.isArray(series) ? series : [])
+  .filter((entry) => Boolean(entry) && entry.basis !== ENTRY_BASIS.estimated));
+
+/** The other side of the same filter: the modelled months, live or superseded. */
+export const estimatedSeries = (series) => Object.freeze((Array.isArray(series) ? series : [])
+  .filter((entry) => entry?.basis === ENTRY_BASIS.estimated));
+
+/**
+ * The series entry an estimate from declared facts stands for (#1102, #1106).
+ *
+ * The figures are the ones the estimator already published — no arithmetic is
+ * redone here. Spend is the declared monthly bill it estimated from, and the
+ * modelled saving is the LOW end of its recoverable band: an estimate that will
+ * later be scored against an invoice may not flatter itself first.
+ *
+ * @param period the calendar month the estimate covers, supplied by the caller.
+ * @param capturedAt an ISO instant from the caller; no clock is read here.
+ * @returns an entry, or null when the estimator withheld its figure.
+ */
+export function estimatedSeriesEntry({ estimate = null, period = null, capturedAt = null } = {}) {
+  if (!estimate?.costPerSuccessfulTask?.available) return null;
+  const recoverable = estimate.recoverableMonthlyUsd;
+  return entryOf({
+    period,
+    scope: ESTIMATE_SCOPE,
+    providerName: ESTIMATE_PROVIDER_NAME,
+    capturedAt,
+    spendUsd: estimate.inputs?.monthlySpendUsd,
+    recoverableUsd: recoverable?.available ? recoverable.low : 0,
+    confidence: estimate.confidence?.tier,
+    basis: ENTRY_BASIS.estimated,
   });
 }
 
@@ -89,10 +232,15 @@ export function briefingSeriesEntry(payload) {
   });
 }
 
-/** Chronological, computed here so stored insertion order can never matter. */
-const chronological = (entries) => Object.freeze([...entries]
+/**
+ * Chronological, computed here so stored insertion order can never matter, and
+ * superseded ESTIMATES stamped in the same pass — every path that produces a
+ * read shape goes through this function, so there is one place the marker is
+ * applied and none where it can be forgotten.
+ */
+const chronological = (entries) => Object.freeze(marked([...entries]
   .sort((left, right) => left.period.localeCompare(right.period)
-    || left.scope.localeCompare(right.scope)));
+    || left.scope.localeCompare(right.scope))));
 
 const parsed = (storage, key) => {
   let raw;
@@ -177,7 +325,24 @@ export function readBriefingSeries(storage) {
  * @returns the persisted series, in read shape.
  */
 export function recordBriefingSeriesEntry(storage, payload) {
-  const entry = briefingSeriesEntry(payload);
+  return upsert(storage, briefingSeriesEntry(payload));
+}
+
+/**
+ * Upsert one estimate into the series, keyed by period plus `ESTIMATE_SCOPE`.
+ *
+ * A re-estimate of a month REPLACES the estimate on file (rule 3 above). An
+ * import for that month is not touched by this call and never can be: the two
+ * are different keys, and the import keeps its own row.
+ *
+ * @returns the persisted series, in read shape.
+ */
+export function recordEstimatedPeriod(storage, options) {
+  return upsert(storage, estimatedSeriesEntry(options));
+}
+
+/** The one upsert both doors above use: same key, same replace rule, one write. */
+function upsert(storage, entry) {
   const held = readBriefingSeries(storage);
   if (!entry) return held;
   const kept = held.filter((other) =>
@@ -243,7 +408,8 @@ export function briefingSeriesSummary(series) {
 // below is the way out and back: one self-describing file, shaped here rather
 // than in the page, so a page script never learns a field name.
 //
-// INPUTS ONLY. The file carries the same seven fields an entry holds. The count,
+// INPUTS ONLY. The file carries the same seven fields an entry holds, plus the
+// two optional #1106 fields on an estimate (`basis`, `supersededBy`). The count,
 // the span, the ordering and every movement figure are recomputed on the far
 // side, so a hand-edited "count" in a file is not a value this build can show.
 //
@@ -318,15 +484,28 @@ const byteLengthOf = (value) => (typeof TextEncoder === "function"
 export function serializeBriefingSeries(series) {
   return {
     schemaVersion: SERIES_FILE_SCHEMA_VERSION,
-    periods: (Array.isArray(series) ? series : []).filter(Boolean).map((entry) => ({
-      period: entry.period,
-      scope: entry.scope,
-      providerName: entry.providerName,
-      capturedAt: entry.capturedAt,
-      spendUsd: entry.spendUsd,
-      recoverableUsd: entry.recoverableUsd,
-      confidence: entry.confidence,
-    })),
+    periods: (Array.isArray(series) ? series : []).filter(Boolean).map((entry) => {
+      const record = {
+        period: entry.period,
+        scope: entry.scope,
+        providerName: entry.providerName,
+        capturedAt: entry.capturedAt,
+        spendUsd: entry.spendUsd,
+        recoverableUsd: entry.recoverableUsd,
+        confidence: entry.confidence,
+      };
+      // ADDITIVE AND ONLY WHEN IT IS NOT THE DEFAULT (#1106). A record of
+      // imported months alone serializes to the same seven fields it always
+      // did, byte for byte, so format 1 means exactly what it meant to a reader
+      // holding only imported periods — which is why there is no version bump.
+      // A reader on an older build meets these two keys only on an estimate,
+      // ignores them, and reads that month as imported; the basis is the one
+      // thing that path gets wrong, and it is the reason the field is written
+      // at all rather than inferred at either end.
+      if (entry.basis === ENTRY_BASIS.estimated) record.basis = ENTRY_BASIS.estimated;
+      if (entry.supersededBy) record.supersededBy = entry.supersededBy;
+      return record;
+    }),
   };
 }
 

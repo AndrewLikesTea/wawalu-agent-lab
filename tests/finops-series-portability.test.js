@@ -20,8 +20,11 @@ import {
   BRIEFING_SERIES_KEY, SERIES_FILE_COPY, SERIES_FILE_MAX_BYTES, SERIES_FILE_NAME,
   SERIES_FILE_SCHEMA_VERSION, briefingSeriesFileText, briefingSeriesSummary,
   briefingSeriesUnreadable, importBriefingSeries, parseBriefingSeriesFile,
-  readBriefingSeries, recordBriefingSeriesEntry, serializeBriefingSeries,
+  readBriefingSeries, realizedSeries, recordBriefingSeriesEntry, recordEstimatedPeriod,
+  serializeBriefingSeries,
 } from "../src/finops-briefing-series.js";
+import { estimateFromDeclaredFacts } from "../src/finops-declared-fact-estimate.js";
+import { EXAMPLE_DECLARED_FACTS } from "../src/finops-declared-fact-fixtures.js";
 
 const PAGE = new URL("../src/evolution.html", import.meta.url);
 const DEMO_DATA = JSON.parse(await readFile(
@@ -147,6 +150,100 @@ test("an imported month lands beside the months already here, and replaces its o
   assert.deepEqual(readBriefingSeries(here).map((entry) => [entry.period, entry.spendUsd]),
     [["2026-04", 300], ["2026-05", 420], ["2026-06", 546.2], ["2026-07", 610]]);
   assert.notEqual(JSON.stringify(here.jar.get(BRIEFING_SERIES_KEY)), untouched);
+});
+
+// ---------------------------------------------------------------------------
+// (a2) Estimated months in the file (#1106).
+//
+// What only this section can catch: that an estimate and its superseded marker
+// survive the trip whole, that a file of imported periods alone is the same
+// seven fields it has always been — which is why format 1 still means what it
+// meant — and that a file written before the basis field existed still loads
+// with every one of its periods counted as imported.
+// ---------------------------------------------------------------------------
+
+const ESTIMATE = estimateFromDeclaredFacts(EXAMPLE_DECLARED_FACTS);
+
+/** April and June imported, May and June estimated — June holds both. */
+function mixedStore() {
+  const storage = memoryStorage();
+  recordBriefingSeriesEntry(storage, briefingFor("2026-04", 300));
+  recordBriefingSeriesEntry(storage, briefingFor("2026-06", 546.2));
+  for (const month of ["2026-05", "2026-06"]) {
+    recordEstimatedPeriod(storage, {
+      estimate: ESTIMATE, period: month, capturedAt: `${month}-01T08:00:00.000Z`,
+    });
+  }
+  return storage;
+}
+
+/** Basis, superseded state and figures, per entry, in read shape. */
+const basisReading = (storage) => readBriefingSeries(storage).map((entry) =>
+  [entry.period, entry.basis, entry.verified, entry.supersededBy, entry.spendUsd,
+    entry.recoverableUsd]);
+
+test("a mixed file round-trips the basis, the superseded state and the figures", () => {
+  const source = mixedStore();
+  const before = basisReading(source);
+  // The seeded state itself: June's estimate is already superseded by June's
+  // import, and May's is not.
+  assert.deepEqual(before, [
+    ["2026-04", "imported", true, null, 300, 120],
+    ["2026-05", "estimated", false, null, 154_500, ESTIMATE.recoverableMonthlyUsd.low],
+    ["2026-06", "estimated", false, "2026-06 openai", 154_500, ESTIMATE.recoverableMonthlyUsd.low],
+    ["2026-06", "imported", true, null, 546.2, 218.48],
+  ]);
+
+  const fresh = memoryStorage();
+  const outcome = importBriefingSeries(fresh, validFile(source));
+
+  assert.equal(outcome.ok, true, outcome.message);
+  assert.deepEqual(basisReading(fresh), before);
+  // And the realized side of the far store is the two imported months alone —
+  // asserted on the figures, not on the absence of a word.
+  assert.deepEqual(realizedSeries(readBriefingSeries(fresh)).map((one) => one.spendUsd),
+    [300, 546.2]);
+});
+
+test("a file of imported periods alone carries the same fields it always has", () => {
+  const file = JSON.parse(validFile(seededStore()));
+  for (const record of file.periods) {
+    assert.deepEqual(Object.keys(record).sort(), [
+      "capturedAt", "confidence", "period", "providerName", "recoverableUsd", "scope", "spendUsd",
+    ], "no basis key rides along on an imported period, so format 1 still means format 1");
+  }
+  assert.equal(file.schemaVersion, SERIES_FILE_SCHEMA_VERSION);
+  // The two #1106 keys appear on an estimate and nowhere else.
+  const mixed = JSON.parse(validFile(mixedStore()));
+  assert.deepEqual(mixed.periods.filter((one) => one.basis).map((one) => one.period),
+    ["2026-05", "2026-06"]);
+  assert.deepEqual(mixed.periods.filter((one) => one.supersededBy).map((one) => one.period),
+    ["2026-06"]);
+});
+
+test("a file written before the basis field existed loads with every period imported", () => {
+  // Format 1 exactly as this page wrote it before #1106: no basis, no marker.
+  const legacy = JSON.stringify({
+    schemaVersion: SERIES_FILE_SCHEMA_VERSION,
+    periods: [
+      { period: "2026-04", scope: "openai", providerName: "OpenAI",
+        capturedAt: "2026-04-28T09:00:00.000Z", spendUsd: 300, recoverableUsd: 120,
+        confidence: "Medium" },
+      { period: "2026-05", scope: "anthropic", providerName: "Anthropic",
+        capturedAt: "2026-05-28T09:00:00.000Z", spendUsd: 420, recoverableUsd: 168,
+        confidence: "Medium" },
+    ],
+  });
+  const fresh = memoryStorage();
+  const outcome = importBriefingSeries(fresh, legacy);
+
+  assert.equal(outcome.ok, true, outcome.message);
+  const series = readBriefingSeries(fresh);
+  assert.deepEqual(series.map((entry) => entry.basis), ["imported", "imported"]);
+  assert.equal(realizedSeries(series).length, 2);
+  assert.equal(briefingSeriesSummary(realizedSeries(series)).label,
+    "2 periods on file · Apr–May 2026");
+  assert.equal(series.reduce((total, entry) => total + entry.spendUsd, 0), 720);
 });
 
 // ---------------------------------------------------------------------------
