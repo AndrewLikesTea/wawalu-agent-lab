@@ -214,13 +214,15 @@ test("the rendered figure is whatever the composer computed, and it is never aut
   assert.equal(textOf(byId(document, ANSWER_BLOCK_IDS.basis)), expected.basis);
   assert.ok(textOf(byId(document, ANSWER_BLOCK_IDS.basis)).includes("Bundled synthetic example"));
 
-  // The bundled example ships no scored query sample, so its coverage is a
-  // measured zero and the block withholds the percentage rather than printing
-  // one a reader could act on. This is the honest state, and pinning it here is
-  // what stops a later change from filling the slot with an invented figure.
-  assert.equal(expected.available, false);
-  assert.ok(!/%/.test(expected.figure), expected.figure);
-  assert.equal(byId(document, ANSWER_BLOCK_IDS.block).dataset.available, "false");
+  // The bundled example ships a scored query sample over three of its five
+  // invented departments (#1126), so its coverage is measured, lands in the
+  // provisional tier, and the block prints the percentage rather than
+  // withholding it. The figure is still the composer's — the assertions above
+  // compare the DOM against `answerBlock`, so an authored percentage in the
+  // markup fails here whichever tier the example lands in.
+  assert.equal(expected.available, true);
+  assert.match(expected.figure, /%/);
+  assert.equal(byId(document, ANSWER_BLOCK_IDS.block).dataset.available, "true");
 });
 
 test("the confidence sentence names the inputs the figure was computed from", async () => {

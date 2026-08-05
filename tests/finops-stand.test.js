@@ -107,10 +107,12 @@ test("the recoverable figure sits in the headline beside the position, not in a 
 test("the recoverable figure and the trust panel state the rubric's reach from one derivation", () => {
   const headline = buildStandHeadline();
   const { coveredUsd, totalUsd } = headline.gradability;
-  // The bundled example is the case that made this necessary: a modelled
-  // recoverable over spend the rubric scored none of. Zero stays zero.
-  assert.equal(coveredUsd, 0);
+  // The bundled example now carries a scored query sample over three of its
+  // five departments (#1126), so the covered figure is measured rather than
+  // zero — and it is a share, not the whole, because the two unsampled teams
+  // are what the residue line names.
   assert.equal(totalUsd, 154500);
+  assert.ok(coveredUsd > 0 && coveredUsd < totalUsd, `covered ${coveredUsd}`);
 
   // ONE derivation, both surfaces. The figure's qualifier and the panel's
   // coverage line are two renderings of the same call over the same verdict, so
@@ -119,7 +121,11 @@ test("the recoverable figure and the trust panel state the rubric's reach from o
   assert.equal(headline.recoverable.basis.endsWith(scored.qualifier), true);
   assert.equal(answerBlock(headline).confidence.startsWith(scored.coverageLine), true);
   assert.match(scored.qualifier,
-    /^Modelled, not graded: the rubric has scored none of the \$154,500 in scope/);
+    /^Modelled, not graded: the rubric has scored \$[\d,]+ of the \$154,500 in scope/);
+  // The below-threshold wording is not deleted, it is the other branch: a
+  // verdict that scored nothing still says so, character for character.
+  assert.match(scoredCoverage(0, totalUsd).qualifier,
+    /^Modelled, not graded: the rubric has scored none of the \$154,500 in scope, so no letter grade stands behind this figure\.$/);
 
   // And it is a derivation, not a sentence typed beside a number: a verdict
   // that scored half the spend says so on both surfaces.
