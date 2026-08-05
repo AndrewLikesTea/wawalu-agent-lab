@@ -147,6 +147,7 @@ import { briefingFromRetained } from "/finops-briefing-retention.js";
 // first. Reads are total and the migration off the single key runs on load.
 import {
   briefingSeriesSummary, forgetBriefingSeries, readBriefingSeries, recordBriefingSeriesEntry,
+  recordEstimatedPeriod,
 } from "/finops-briefing-series.js";
 // The portable half of the same store (#1092): one self-describing file out,
 // one validated file back in. Every shape decision and every refusal sentence
@@ -934,6 +935,51 @@ function mountProviderReadiness() {
     downloadLocalExport(serializeProviderSample(provider),
       provider.sampleMediaType, provider.sampleFilename);
   });
+}
+
+/**
+ * "Did what we committed to work?", at the top of the page (#1091).
+ *
+ * Module level rather than inside the import mount, because two things repaint
+ * it now: the series changing under an import, and an estimate being kept on
+ * the record (#1106). A store that refuses the read leaves the commitment null,
+ * which is the uncommitted state and a header that says so — never a thrown
+ * error into the load path.
+ */
+function paintTrackRecord(series) {
+  let commitment = null;
+  try {
+    commitment = readRetainedCommitments(browserFinopsWorkspaceStorage()).at(-1) ?? null;
+  } catch {
+    commitment = null;
+  }
+  renderTrackRecord(document, trackRecordModel({ series, commitment }));
+}
+
+/**
+ * KEEP AN ESTIMATE ON THE RECORD, beside the imported months (#1106).
+ *
+ * ONLY WHILE RETENTION IS ON. The series is the thing that consent switched on,
+ * and an estimate is not a reason to start writing to a browser that said no.
+ *
+ * THE CLOCK IS READ HERE, because the store and the estimator are both
+ * clock-free: the month the estimate is FOR is this calendar month, the one the
+ * declared monthly bill describes. The entry is filed under the reserved
+ * estimate scope, so a second submit in the same month replaces it rather than
+ * stacking beside it, and the import that lands on that month supersedes it.
+ */
+function keepEstimateOnRecord(estimate) {
+  const storage = browserFinopsWorkspaceStorage();
+  let held = null;
+  try {
+    held = readRetainedBriefing(storage);
+  } catch {
+    return;
+  }
+  if (held?.state !== RETENTION_STATE.retained) return;
+  const now = new Date().toISOString();
+  paintTrackRecord(recordEstimatedPeriod(storage, estimate,
+    { period: now.slice(0, 7), capturedAt: now }));
 }
 
 function mountLocalFinopsImport() {
@@ -3627,24 +3673,6 @@ function mountLocalFinopsImport() {
     input.value = "";
   };
 
-  /**
-   * "Did what we committed to work?", at the top of the page (#1091).
-   *
-   * The same series the count line below is painted from, plus the newest
-   * commitment this browser kept. A store that refuses the read leaves the
-   * commitment null, which is the uncommitted state and a header that says so —
-   * never a thrown error into the load path.
-   */
-  const paintTrackRecord = (series) => {
-    let commitment = null;
-    try {
-      commitment = readRetainedCommitments(retentionStore()).at(-1) ?? null;
-    } catch {
-      commitment = null;
-    }
-    renderTrackRecord(document, trackRecordModel({ series, commitment }));
-  };
-
   const paintBriefingSeries = (series) => {
     paintedSeries = Array.isArray(series) ? series : [];
     // Painted from the one place the series changes, so the header above the
@@ -4783,7 +4811,10 @@ async function init() {
   // already open. The controls ship filled with the bundled example's own
   // facts, so nothing here changes what a first-time visitor meets until they
   // change one of the five. Prevented submit, no request, nothing stored.
-  bindDeclaredFactIntake(document);
+  // A submit also keeps the estimate on the record, in the same period series
+  // the imported months live in, so the page can state the miss when the real
+  // month arrives (#1106). Nothing is written unless retention is already on.
+  bindDeclaredFactIntake(document, { onEstimate: keepEstimateOnRecord });
   // Then the returning lead's question, in the same synchronous pass and for
   // the same reason: a leader who opens this page once a month is not asking
   // what the example would tell them, they are asking which single thing to do

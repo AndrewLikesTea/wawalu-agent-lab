@@ -30,7 +30,9 @@ import {
 } from "./finops-imported-period-series.js";
 import { nextCalendarMonth } from "./commitment-verification.js";
 import { scoreCommittedSaving, VERDICT_GRADE } from "./committed-saving-verdict.js";
-import { briefingSeriesSummary } from "./finops-briefing-series.js";
+import {
+  ESTIMATE_MISS, briefingSeriesSummary, estimateComparisons, isRealizedEntry, realizedSeries,
+} from "./finops-briefing-series.js";
 
 /** Named once, so the document, the page entry and the tests agree. */
 export const TRACK_RECORD_IDS = Object.freeze({
@@ -39,6 +41,7 @@ export const TRACK_RECORD_IDS = Object.freeze({
   figure: "finops-track-record-figure",
   verdict: "finops-track-record-verdict",
   context: "finops-track-record-context",
+  estimate: "finops-track-record-estimate",
   action: "finops-track-record-action",
   detail: "finops-track-record-detail",
 });
@@ -107,22 +110,50 @@ function rowsOf(series, verdict) {
   const previous = new Map();
   const followUp = verdict?.provenance?.comparedPeriods?.followUp ?? null;
   return series.map((entry) => {
-    const earlier = previous.get(entry.scope) ?? null;
-    previous.set(entry.scope, entry.spendUsd);
+    // AN ESTIMATED ROW IS NEVER A MOVEMENT AND NEVER A VERDICT. It reports what
+    // it is, in both columns, and it does not seed the movement of the row
+    // under it: an estimate a reader made is not a month anything moved from.
+    const estimated = !isRealizedEntry(entry);
+    const earlier = estimated ? null : previous.get(entry.scope) ?? null;
+    if (!estimated) previous.set(entry.scope, entry.spendUsd);
     const moved = earlier === null ? null : earlier - entry.spendUsd;
     return Object.freeze({
       period: entry.period,
       periodLabel: label(entry.period),
       providerName: entry.providerName,
+      estimated,
       spend: formatUsd(entry.spendUsd),
       modelledSaving: formatUsd(entry.recoverableUsd),
-      movement: moved === null ? "No earlier month on file"
-        : moved === 0 ? "Flat"
-          : moved > 0 ? `Fell ${formatUsd(moved)}` : `Rose ${formatUsd(-moved)}`,
-      verdict: entry.period === followUp && verdict
-        ? GRADE_LABEL[verdict.grade] : "Not scored",
+      movement: estimated ? "Estimated, not measured"
+        : moved === null ? "No earlier month on file"
+          : moved === 0 ? "Flat"
+            : moved > 0 ? `Fell ${formatUsd(moved)}` : `Rose ${formatUsd(-moved)}`,
+      verdict: estimated ? (entry.superseded ? "Estimate · superseded by an import"
+        : "Estimate · no import for this month yet")
+        : entry.period === followUp && verdict ? GRADE_LABEL[verdict.grade] : "Not scored",
     });
   });
+}
+
+/**
+ * ESTIMATE AGAINST ACTUAL, for the newest month holding both, in one sentence.
+ *
+ * Direction and size, from the durable entries every time this model is built —
+ * the delta is never kept in the DOM or in the record, so it cannot outlive or
+ * disagree with the two figures it is derived from. Nothing is said at all
+ * until an import for that month has arrived, because until then there is no
+ * miss to state.
+ */
+function estimateSentence(series) {
+  const latest = estimateComparisons(series).at(-1);
+  if (!latest) return null;
+  const against = `${formatUsd(latest.estimatedUsd)} estimated against `
+    + `${formatUsd(latest.verifiedUsd)} imported`;
+  if (latest.direction === ESTIMATE_MISS.exact) {
+    return `Estimate against actual for ${label(latest.period)}: the estimate was exact — ${against}.`;
+  }
+  return `Estimate against actual for ${label(latest.period)}: the estimate was `
+    + `${latest.direction} by ${formatUsd(Math.abs(latest.deltaUsd))} — ${against}.`;
 }
 
 /** The figure, only ever built from a graded verdict. */
@@ -154,15 +185,30 @@ function figureOf(verdict, committedFrom, followUp) {
  *   that have no measurement, and the caller renders nothing for them.
  */
 export function trackRecordModel({ series, commitment = null } = {}) {
-  const entries = (Array.isArray(series) ? series : []).filter(Boolean);
+  const all = (Array.isArray(series) ? series : []).filter(Boolean);
+  // EVERY FIGURE BELOW IS BUILT FROM `entries`, WHICH IS REALIZED ONLY (#1106).
+  // The count, the span, the movement, the scorer's series and the periods the
+  // follow-up logic searches all read it, so an estimate cannot enter a figure
+  // presented as measured. `all` is used for two things and nothing else: the
+  // per-period rows, where an estimate is shown and labelled as one, and the
+  // estimate-against-actual sentence.
+  const entries = realizedSeries(all);
+  const estimate = estimateSentence(all);
   const { count, label: span } = briefingSeriesSummary(entries);
   const periods = [...new Set(entries.map((entry) => entry.period))].sort();
 
   if (count === 0) {
     return model({
       state: TRACK_RECORD_STATE.none,
+      estimate,
+      rows: rowsOf(all, null),
       context: "No track record on file: this browser is keeping no period. Importing one "
-        + "provider export keeps the month it covers and starts the record.",
+        + "provider export keeps the month it covers and starts the record."
+        // An estimate is on the record but it is not a period: it measures
+        // nothing, so it neither starts a track record nor is left unmentioned
+        // while a row for it sits under this line.
+        + (all.length > 0 ? " An estimate from declared facts is kept below, labelled as an "
+          + "estimate; it is not a measurement." : ""),
       // NAMED, NOT DUPLICATED. The next action for a browser keeping nothing is
       // the import choice the first screen already ships as its own primary
       // control. A second copy of it above that control does not give a reader
@@ -182,10 +228,11 @@ export function trackRecordModel({ series, commitment = null } = {}) {
   if (count === 1) {
     return model({
       state: TRACK_RECORD_STATE.single,
+      estimate,
       context: `A track record needs a second period. One month is on file — ${label(periods[0])} `
         + "— so there is no movement to measure.",
       action: { text: "Import a second period", href: IMPORT_ANCHOR },
-      rows: rowsOf(entries, null),
+      rows: rowsOf(all, null),
       summary: span,
     });
   }
@@ -194,10 +241,11 @@ export function trackRecordModel({ series, commitment = null } = {}) {
   if (committedFrom === null) {
     return model({
       state: TRACK_RECORD_STATE.uncommitted,
+      estimate,
       context: `${span}. No commitment is stored in this browser, so there is nothing to score `
         + "these months against.",
       action: { text: "Commit to the next action", href: COMMIT_PAGE },
-      rows: rowsOf(entries, null),
+      rows: rowsOf(all, null),
       summary: span,
     });
   }
@@ -210,7 +258,7 @@ export function trackRecordModel({ series, commitment = null } = {}) {
     followUpPeriod: followUp,
   });
   const expected = nextCalendarMonth(committedFrom);
-  const rows = rowsOf(entries, verdict);
+  const rows = rowsOf(all, verdict);
   const graded = verdict.grade !== VERDICT_GRADE.notEnoughEvidence;
 
   // The commitment is still open: the month that would close it has not been
@@ -224,6 +272,7 @@ export function trackRecordModel({ series, commitment = null } = {}) {
       : `${formatUsd(verdict.committedSavingUsd)} a month was committed for ${label(committedFrom)}`;
     return model({
       state: TRACK_RECORD_STATE.awaiting,
+      estimate,
       verdict: badgeOf(verdict),
       context: `${committed}. ${label(expected)} is not on file, so nothing has been measured `
         + "against it.",
@@ -235,6 +284,7 @@ export function trackRecordModel({ series, commitment = null } = {}) {
 
   return model({
     state: graded ? TRACK_RECORD_STATE.scored : TRACK_RECORD_STATE.awaiting,
+    estimate,
     figure: graded ? figureOf(verdict, committedFrom, verdict.provenance.comparedPeriods.followUp)
       : null,
     verdict: badgeOf(verdict),
@@ -262,6 +312,7 @@ const model = (fields) => Object.freeze({
   question: TRACK_RECORD_QUESTION,
   figure: null,
   verdict: null,
+  estimate: null,
   rows: [],
   summary: "",
   ...fields,
@@ -279,6 +330,9 @@ function el(document, tag, className, text) {
 /** One row of the disclosure's table, as text in five cells. */
 function rowNode(document, row) {
   const tr = el(document, "tr", "track-record-row");
+  // The basis is on the row as data, not as a colour: the label a reader needs
+  // is in the cells themselves, and this is for a test and a stylesheet.
+  tr.dataset.basis = row.estimated ? "estimated" : "verified";
   const head = el(document, "th", undefined, `${row.periodLabel} · ${row.providerName}`);
   head.setAttribute("scope", "row");
   tr.append(head,
@@ -362,6 +416,16 @@ export function renderTrackRecord(document, model_) {
   const context = el(document, "p", "local-lead-basis", model_.context);
   context.id = TRACK_RECORD_IDS.context;
   nodes.push(context);
+
+  // ESTIMATE AGAINST ACTUAL, IN THE OPEN. A sibling of the disclosure in the
+  // page's own basis-line idiom — not a row inside it, and not a class of its
+  // own: a reader who was told a number before the invoice arrived is owed the
+  // size of the miss without opening anything.
+  if (model_.estimate) {
+    const line = el(document, "p", "local-lead-basis", model_.estimate);
+    line.id = TRACK_RECORD_IDS.estimate;
+    nodes.push(line);
+  }
 
   // Exactly one control, in the page's own action idiom: a link a keyboard
   // reader reaches in the tab order without opening anything first. An action

@@ -38,6 +38,91 @@ const EMPTY = Object.freeze([]);
 
 const number = (value) => (Number.isFinite(Number(value)) ? Number(value) : null);
 const text = (value) => (typeof value === "string" && value.trim() ? value : null);
+const round = (value) => Math.round(value * 100) / 100;
+
+// ---------------------------------------------------------------------------
+// WHAT AN ENTRY'S FIGURE STANDS ON (#1106)
+// ---------------------------------------------------------------------------
+//
+// Two bases, and no third. `verified` is a month read out of a provider export
+// this browser imported. `estimated` is a month a reader derived from declared
+// facts before any file arrived — kept here, on the record, so that when the
+// real import for that month lands the page can say how far the estimate was
+// off instead of quietly replacing it.
+//
+// A MISSING BASIS IS VERIFIED, and a verified entry writes no basis field at
+// all. Every entry written before this discriminator existed came out of an
+// import, so the absent field IS the migration: nothing stored is rewritten, a
+// browser holding only imports exports the same bytes it did yesterday, and an
+// older export imports as fully verified because that is what it is. Read the
+// basis through `basisOf` and the realized set through `realizedSeries`.
+
+export const ENTRY_BASIS = Object.freeze({ verified: "verified", estimated: "estimated" });
+
+/**
+ * The reserved scope every estimated entry is filed under.
+ *
+ * The series key is period plus scope, so ONE reserved scope is what makes "at
+ * most one estimate per period" fall out of the keying already in place rather
+ * than out of a second rule beside it. A period may still hold one verified
+ * entry per provider: two providers billing one month were two entries before
+ * #1106 and still are.
+ */
+export const ESTIMATE_SCOPE = "estimate";
+
+/** The provider name an estimate carries, so every row it appears in says so. */
+export const ESTIMATE_PROVIDER_NAME = "Estimated from declared facts";
+
+/** The basis of any entry, including one stored before the field existed. */
+export const basisOf = (entry) =>
+  (entry?.basis === ENTRY_BASIS.estimated ? ENTRY_BASIS.estimated : ENTRY_BASIS.verified);
+
+/** THE ONE TEST for "is this figure a measurement". */
+export const isRealizedEntry = (entry) => basisOf(entry) === ENTRY_BASIS.verified;
+
+/**
+ * ONLY THE REALIZED ENTRIES. Every figure a surface presents as measured — an
+ * aggregate, a movement, a commitment verdict — is computed from this and from
+ * nothing else, so no consumer has to carry its own basis test.
+ */
+export const realizedSeries = (series) =>
+  Object.freeze((Array.isArray(series) ? series : []).filter(isRealizedEntry));
+
+/**
+ * The declared facts an estimate was derived from, allowlisted field by field.
+ *
+ * Kept with the entry rather than referenced by an id: the delta sentence has
+ * to be explainable from the record alone, long after the tab that produced it
+ * closed, and a reference into a store that does not exist is not a linkage.
+ *
+ * FIVE KEYS, AND NOTHING A READER TYPED. The three numbers are read as numbers
+ * and the two cohort attributes only as a bounded enumeration token — lower
+ * case, underscores, 32 characters. The estimator has already matched them
+ * against the published tables; the check here is against a hand-edited FILE,
+ * and it is a shape check rather than a table lookup on purpose, so this store
+ * does not drag the cohort tables into the page's initial payload to validate
+ * two words.
+ */
+const ENUM_TOKEN = /^[a-z][a-z_]{0,31}$/;
+
+function declaredFactsOf(facts) {
+  if (!facts || typeof facts !== "object" || Array.isArray(facts)) return null;
+  const kept = {};
+  for (const key of ["monthlySpendUsd", "engineers"]) {
+    const value = number(facts[key]);
+    if (value !== null) kept[key] = value;
+  }
+  const mix = {};
+  for (const tier of ["frontier", "standard", "economy"]) {
+    const share = number(facts.providerMix?.[tier]);
+    if (share !== null) mix[tier] = share;
+  }
+  if (Object.keys(mix).length === 3) kept.providerMix = Object.freeze(mix);
+  for (const key of ["sizeBand", "industry"]) {
+    if (typeof facts[key] === "string" && ENUM_TOKEN.test(facts[key])) kept[key] = facts[key];
+  }
+  return Object.keys(kept).length > 0 ? Object.freeze(kept) : null;
+}
 
 /**
  * ONE ENTRY, the shape every caller reads and the shape that is persisted.
@@ -58,14 +143,47 @@ function entryOf(fields) {
   const capturedAt = text(fields?.capturedAt);
   const spendUsd = number(fields?.spendUsd);
   if (period === null || !capturedAt || spendUsd === null) return null;
-  return Object.freeze({
+  const estimated = fields?.basis === ENTRY_BASIS.estimated;
+  const entry = {
     period,
-    scope: text(fields?.scope) ?? "unknown",
-    providerName: text(fields?.providerName) ?? "Unnamed provider",
+    scope: estimated ? ESTIMATE_SCOPE : text(fields?.scope) ?? "unknown",
+    providerName: estimated ? ESTIMATE_PROVIDER_NAME
+      : text(fields?.providerName) ?? "Unnamed provider",
     capturedAt,
     spendUsd,
     recoverableUsd: number(fields?.recoverableUsd) ?? 0,
     confidence: text(fields?.confidence) ?? "Low",
+  };
+  // Three more fields, on an estimated entry ONLY. A verified entry keeps the
+  // exact seven-field shape it has always had, which is what lets a browser
+  // holding nothing but imports carry on reading and writing as if #1106 never
+  // landed. See the basis note above.
+  if (!estimated) return Object.freeze(entry);
+  return Object.freeze({
+    ...entry,
+    basis: ENTRY_BASIS.estimated,
+    superseded: fields?.superseded === true,
+    declaredFacts: declaredFactsOf(fields?.declaredFacts),
+  });
+}
+
+/**
+ * THE SUPERSESSION RULE, applied to the whole series at once.
+ *
+ * An estimate for a period that also holds a verified entry is superseded: the
+ * import is the answer for that month now, and the estimate stays on the record
+ * beside it as the thing that was superseded rather than being deleted or
+ * overwritten. Two properties make a repeat import safe — the rule is a
+ * function of the series' own state, so re-running it changes nothing and no
+ * entry is added; and the mark is MONOTONE, so a mark that arrived in an
+ * imported file survives a merge that does not carry its verified counterpart.
+ */
+function withSupersession(entries) {
+  const verified = new Set(entries.filter(isRealizedEntry).map((entry) => entry.period));
+  return entries.map((entry) => {
+    if (isRealizedEntry(entry)) return entry;
+    const superseded = entry.superseded === true || verified.has(entry.period);
+    return superseded === entry.superseded ? entry : entryOf({ ...entry, superseded });
   });
 }
 
@@ -93,6 +211,15 @@ export function briefingSeriesEntry(payload) {
 const chronological = (entries) => Object.freeze([...entries]
   .sort((left, right) => left.period.localeCompare(right.period)
     || left.scope.localeCompare(right.scope)));
+
+/**
+ * THE READ SHAPE OF A WHOLE SERIES: supersession settled, then ordered.
+ *
+ * Every path that produces a series — a load, a capture, a parsed file, a merge
+ * — ends here, so the rule above is applied in exactly one place and no caller
+ * can hold a series it was not applied to.
+ */
+const settled = (entries) => chronological(withSupersession(entries));
 
 const parsed = (storage, key) => {
   let raw;
@@ -160,11 +287,11 @@ function persist(storage, entries) {
 export function readBriefingSeries(storage) {
   const stored = parsed(storage, BRIEFING_SERIES_KEY);
   if (seriesRecord(stored)) {
-    return chronological(stored.entries.map(entryOf).filter(Boolean));
+    return settled(stored.entries.map(entryOf).filter(Boolean));
   }
   const migrated = briefingSeriesEntry(parsed(storage, BRIEFING_RETENTION_KEY));
   if (!migrated) return EMPTY;
-  return persist(storage, chronological([migrated]));
+  return persist(storage, settled([migrated]));
 }
 
 /**
@@ -177,12 +304,100 @@ export function readBriefingSeries(storage) {
  * @returns the persisted series, in read shape.
  */
 export function recordBriefingSeriesEntry(storage, payload) {
-  const entry = briefingSeriesEntry(payload);
+  return upsert(storage, briefingSeriesEntry(payload));
+}
+
+/**
+ * The one upsert. Keyed by period plus scope, settled once, written once.
+ *
+ * A verified entry landing on a period that already holds an estimate marks
+ * that estimate superseded through `settled` rather than through a rule of its
+ * own here — which is why importing the same month twice neither stacks entries
+ * nor double-marks anything.
+ */
+function upsert(storage, entry) {
   const held = readBriefingSeries(storage);
   if (!entry) return held;
   const kept = held.filter((other) =>
     other.period !== entry.period || other.scope !== entry.scope);
-  return persist(storage, chronological([...kept, entry]));
+  return persist(storage, settled([...kept, entry]));
+}
+
+/**
+ * KEEP AN ESTIMATE ON THE RECORD, in the same series as the imported months.
+ *
+ * @param estimate a result from `estimateFromDeclaredFacts`.
+ * @param period the calendar month the estimate is FOR, and `capturedAt` the
+ *   instant it was made — both supplied by the caller, because this module
+ *   reads no clock.
+ * @returns the persisted series, in read shape. An estimate with no figure in
+ *   it writes nothing: a withheld estimate is not a period.
+ */
+export const recordEstimatedPeriod = (storage, estimate, when) =>
+  upsert(storage, estimatedSeriesEntry(estimate, when));
+
+/**
+ * The series entry an estimate stands for.
+ *
+ * The estimator's own `provenance` word and this module's `estimated` basis are
+ * the same string on purpose: an estimate is the only thing that can produce an
+ * estimated entry, and one vocabulary for it means no mapping table can drift.
+ */
+export function estimatedSeriesEntry(estimate, { period, capturedAt } = {}) {
+  if (estimate?.provenance !== ENTRY_BASIS.estimated) return null;
+  if (!estimate?.costPerSuccessfulTask?.available) return null;
+  const recoverable = estimate.recoverableMonthlyUsd;
+  return entryOf({
+    period,
+    capturedAt,
+    basis: ENTRY_BASIS.estimated,
+    spendUsd: estimate.inputs?.monthlySpendUsd,
+    // The conservative end of the modelled range, never its midpoint: this
+    // column is read beside realized savings, and an estimate should not be the
+    // optimistic number in that comparison.
+    recoverableUsd: recoverable?.available ? recoverable.low : 0,
+    confidence: estimate.confidence?.tier,
+    declaredFacts: estimate.inputs,
+  });
+}
+
+/** The three words the delta sentence is built on. */
+export const ESTIMATE_MISS = Object.freeze({
+  under: "under", over: "over", exact: "exact",
+});
+
+/**
+ * WHERE AN ESTIMATE MET ITS IMPORT: one comparison per period holding both.
+ *
+ * Derived on every read from the two durable entries, never stored beside them:
+ * a kept delta is a third number that can disagree with the two it came from.
+ * The verified side is summed across providers, the same rule every other
+ * figure for a period follows.
+ *
+ * @returns frozen `[{ period, estimatedUsd, verifiedUsd, deltaUsd, direction }]`
+ *   oldest first, where `direction` is `under` when the estimate was below what
+ *   the import turned out to be.
+ */
+export function estimateComparisons(series) {
+  const entries = (Array.isArray(series) ? series : []).filter(Boolean);
+  const comparisons = [];
+  for (const estimate of entries.filter((entry) => !isRealizedEntry(entry))) {
+    const realized = entries.filter((entry) =>
+      isRealizedEntry(entry) && entry.period === estimate.period);
+    if (realized.length === 0) continue;
+    const verifiedUsd = round(realized.reduce((sum, entry) => sum + entry.spendUsd, 0));
+    const deltaUsd = round(estimate.spendUsd - verifiedUsd);
+    comparisons.push(Object.freeze({
+      period: estimate.period,
+      estimatedUsd: estimate.spendUsd,
+      verifiedUsd,
+      deltaUsd,
+      direction: deltaUsd < 0 ? ESTIMATE_MISS.under
+        : deltaUsd > 0 ? ESTIMATE_MISS.over : ESTIMATE_MISS.exact,
+    }));
+  }
+  return Object.freeze(comparisons
+    .sort((left, right) => left.period.localeCompare(right.period)));
 }
 
 /**
@@ -326,6 +541,15 @@ export function serializeBriefingSeries(series) {
       spendUsd: entry.spendUsd,
       recoverableUsd: entry.recoverableUsd,
       confidence: entry.confidence,
+      // AN ESTIMATED PERIOD CARRIES THREE MORE FIELDS; a verified one carries
+      // none of them. The schema version is unchanged for exactly that reason:
+      // no file that was interpretable stopped being so, and one with no basis
+      // field anywhere is a fully verified series — which is what it always was.
+      ...(isRealizedEntry(entry) ? {} : {
+        basis: ENTRY_BASIS.estimated,
+        superseded: entry.superseded === true,
+        declaredFacts: entry.declaredFacts,
+      }),
     })),
   };
 }
@@ -373,7 +597,7 @@ export function parseBriefingSeriesFile(text, fileBytes = null) {
     if (!entry) return refused(SERIES_FILE_COPY.malformedPeriod(index + 1));
     entries.push(entry);
   }
-  return Object.freeze({ ok: true, entries: chronological(entries), message: null });
+  return Object.freeze({ ok: true, entries: settled(entries), message: null });
 }
 
 /**
@@ -393,7 +617,7 @@ export function importBriefingSeries(storage, text, fileBytes = null) {
   const held = readBriefingSeries(storage);
   const incoming = new Set(file.entries.map((entry) => `${entry.period} ${entry.scope}`));
   const kept = held.filter((entry) => !incoming.has(`${entry.period} ${entry.scope}`));
-  const merged = chronological([...kept, ...file.entries]);
+  const merged = settled([...kept, ...file.entries]);
   if (!writeSeries(storage, merged)) {
     return Object.freeze({ ok: false, series: held, message: SERIES_FILE_COPY.writeRefused });
   }

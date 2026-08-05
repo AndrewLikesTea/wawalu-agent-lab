@@ -124,12 +124,18 @@ function announce(doc, estimate) {
  * implicit submission, Enter and Space on either button are the button's, and
  * the arrow keys inside a select are the select's.
  */
-export function bindDeclaredFactIntake(doc) {
+export function bindDeclaredFactIntake(doc, { onEstimate = null } = {}) {
   const form = byId(doc, INTAKE_IDS.form);
   if (!form) return null;
   form.addEventListener("submit", (event) => {
     event?.preventDefault?.();
-    announce(doc, applyDeclaredFactIntakeFromControls(doc));
+    const estimate = applyDeclaredFactIntakeFromControls(doc);
+    announce(doc, estimate);
+    // ON SUBMIT ONLY (#1106). A keystroke is a visitor mid-thought; a submit is
+    // a deliberate act, and it is the only one the page offers to keep the
+    // estimate on the record beside its imported months. What the caller does
+    // with it is the caller's — this module still writes nothing anywhere.
+    if (estimate) onEstimate?.(estimate);
   });
   const revise = () => applyDeclaredFactIntakeFromControls(doc);
   form.addEventListener("input", revise);
