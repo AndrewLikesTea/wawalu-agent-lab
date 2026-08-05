@@ -95,7 +95,10 @@ test("the description requirement is stated only once there is an image to descr
 
   assert.equal(marker.hidden, true, "no image, nothing to require");
   assert.equal(input.getAttribute("aria-required"), "false");
-  assert.equal(textOf(marker), "(required)");
+  // The marker names the case it is true in. A flat "(required)" under an
+  // "Image (optional)" field tells a caption-only visitor to fill in something
+  // they have nothing to describe.
+  assert.equal(textOf(marker), "(required when you add an image)");
   // The same element, class, and placement the Name and Image labels use for
   // their "(optional)" markers — one treatment answers both questions.
   assert.equal(marker.tagName, "SPAN");
@@ -225,12 +228,12 @@ test("imageDescriptionProblem requires a description only of an image post", () 
 test("the shipped composer markup carries the marker, the error slot, and the counter", async () => {
   const html = await import("node:fs/promises")
     .then(({ readFile }) => readFile(new URL("../src/social.html", import.meta.url), "utf8"));
-  // Stated in the page as served: the field lives inside the panel that only
-  // opens with an image attached, and with one attached the description is
-  // genuinely required, so the served label answers "must I fill this in?"
-  // rather than leaving it to be inferred. social.js still owns the live
-  // marker and takes it away with the image.
-  assert.match(html, /<span class="label-optional label-required" id="post-image-alt-required">\(required\)<\/span>/);
+  // Stated in the page as served, with the condition attached: a description is
+  // refused blank only once there is an image, and the field above this one is
+  // optional, so the served label answers "must I fill this in?" without
+  // contradicting it. social.js still owns the live marker and takes it away
+  // with the image.
+  assert.match(html, /<span class="label-optional label-required" id="post-image-alt-required">\(required when you add an image\)<\/span>/);
   assert.match(html, /id="post-image-alt"[^>]*maxlength="200"/);
   assert.match(html, /aria-describedby="post-image-alt-hint post-image-alt-counter-label post-image-alt-counter"/);
   assert.match(html, /<p class="field-error compose-error" id="post-image-alt-error" hidden><\/p>/);
