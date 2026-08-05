@@ -2874,7 +2874,7 @@ section[data-workspace-current="true"] { box-shadow:-6px 0 0 0 var(--import-wash
 .prompt-coaching-preview-block { display:grid; gap:8px; }
 .prompt-coaching-preview-lead,.prompt-coaching-preview-note { margin:0; max-width:70ch; font-size:13px; line-height:1.6; overflow-wrap:anywhere; }
 .prompt-coaching-preview-note { color:var(--ink-muted); font-size:12px; }
-.prompt-coaching-preview-sample,.prompt-coaching-preview-json {
+.prompt-coaching-preview-sample,.prompt-coaching-preview-json,.gateway-shape-snippet {
   margin:0; border:1px solid var(--import-line); border-radius:9px; padding:10px;
   max-height:280px; overflow:auto; font:400 12px/1.6 ui-monospace,monospace;
   white-space:pre-wrap; overflow-wrap:anywhere;

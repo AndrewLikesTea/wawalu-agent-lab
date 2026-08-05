@@ -28,9 +28,14 @@
 // `createElement` and `textContent` only; no markup string, no innerHTML.
 
 import { formatUsd } from "./evolution.js";
+import {
+  GATEWAY_SHAPES, GATEWAY_SHAPE_LABELS, TRANSLATION_STATES, gatewayShapeSnippet,
+  translateRoutingPolicy, untranslatableSummary,
+} from "./gateway-shape-translation.js";
 import { CHIP_KINDS, renderChip } from "./import-status-chip.js";
 import {
-  ROUTING_POLICY_CONTROL_LABEL, routingPolicyAvailability, routingPolicyDownloadedMessage,
+  ROUTING_POLICY_CONTROL_LABEL, routingPolicyAvailability, routingPolicyDocument,
+  routingPolicyDownloadedMessage,
 } from "./routing-policy-document.js";
 import {
   MODELLED_BASIS, NO_SCORE_YET, ROUTING_SLATE_NOTHING_LEFT, ROUTING_SLATE_QUESTION,
@@ -41,6 +46,24 @@ export const ROUTING_SLATE_SECTION_ID = "routing-slate";
 export const ROUTING_SLATE_BODY_ID = "routing-slate-body";
 export const ROUTING_SLATE_STATUS_ID = "routing-slate-status";
 export const ROUTING_POLICY_DOWNLOAD_ID = "routing-policy-download";
+export const GATEWAY_SHAPE_PREVIEW_ID = "gateway-shape-preview";
+
+/** The one shape the page works through. The mapping knows two; this shows one. */
+export const PREVIEW_SHAPE = GATEWAY_SHAPES.RULE_LIST;
+
+/** The words on the closed disclosure. It promises a worked snippet, not a setup. */
+export const GATEWAY_SHAPE_PREVIEW_SUMMARY = "See how this policy maps onto a gateway";
+
+/**
+ * The preview is NOT a file. It is never downloaded, never diffed and carries no
+ * instant, so it passes this marker where the generator wants the caller's
+ * timestamp. Two consequences, both deliberate: the composed policy is a pure
+ * function of the slate, and the marker is self-describing rather than a
+ * plausible-looking date, so it could not be mistaken for one if it ever leaked.
+ * It cannot leak here — the translation reads `generatedAt` nowhere, and
+ * tests/gateway-shape-translation.test.js holds that.
+ */
+const PREVIEW_INSTANT = "preview-not-a-generated-file";
 
 /**
  * One chip per lifecycle state. Four carriers, and colour is the last of them:
@@ -208,6 +231,56 @@ function paintDownloadControl(doc, slate) {
 }
 
 /**
+ * The worked translation, behind a collapsed disclosure under the download
+ * control. It answers the question the file raises the moment it lands: what
+ * does this turn into on the shape my router is configured in.
+ *
+ * IT IS THE READER'S OWN POLICY, not an example. The document translated here is
+ * composed by the same generator the control above would serialize, from the
+ * same slate, so the snippet and the file cannot disagree.
+ *
+ * ENTIRELY LOCAL AND WITH NOTHING TO FILL IN. No request, no credential field,
+ * no connect affordance: there is no control in this block at all beyond the
+ * disclosure's own summary, so there is nowhere here to paste a secret.
+ *
+ * The snippet is written through `textContent`, so a policy string cannot carry
+ * markup into the page, and the untranslatable count is rendered BESIDE the
+ * snippet rather than inside anything a reader has to open twice.
+ */
+function paintGatewayShapePreview(doc, slate) {
+  const host = doc.getElementById?.(GATEWAY_SHAPE_PREVIEW_ID);
+  if (!host) return null;
+  const { available, reason } = routingPolicyAvailability(slate);
+  const translation = available
+    ? translateRoutingPolicy(routingPolicyDocument(slate, PREVIEW_INSTANT), PREVIEW_SHAPE)
+    : null;
+
+  const detail = element(doc, "details", "completeness-detail");
+  detail.dataset.shape = PREVIEW_SHAPE;
+  detail.dataset.state = translation ? translation.state : "unavailable";
+  const summary = element(doc, "summary");
+  summary.setAttribute("aria-expanded", "false");
+  summary.append(doc.createTextNode(GATEWAY_SHAPE_PREVIEW_SUMMARY));
+  detail.addEventListener("toggle", () => {
+    summary.setAttribute("aria-expanded", String(detail.hasAttribute("open")));
+  });
+
+  const lines = [summary, element(doc, "p", "answer-figure-basis",
+    `${GATEWAY_SHAPE_LABELS[PREVIEW_SHAPE]}. Worked out in this browser from the policy the `
+    + "control above would download. Nothing is sent anywhere.")];
+  if (!translation || translation.state !== TRANSLATION_STATES.TRANSLATED) {
+    lines.push(element(doc, "p", "answer-figure-basis", translation ? translation.reason : reason));
+  } else {
+    lines.push(element(doc, "pre", "gateway-shape-snippet", gatewayShapeSnippet(translation)));
+    const left = untranslatableSummary(translation);
+    if (left) lines.push(element(doc, "p", "answer-figure-basis", left));
+  }
+  detail.append(...lines);
+  host.replaceChildren(detail);
+  return translation;
+}
+
+/**
  * Say that the file went, in the region this section already announces through.
  * A second live region here would make every repaint of the slate speak twice,
  * which is the defect the authored status line exists to avoid.
@@ -250,6 +323,7 @@ export function applyRoutingSlate(doc, analysis, { commitment = null } = {}) {
   section.hidden = false;
   paintStatus(doc, section, slate);
   paintDownloadControl(doc, slate);
+  paintGatewayShapePreview(doc, slate);
 
   if (!slate.available) {
     body.replaceChildren(element(doc, "p", "answer-figure-direction", slate.reason));
