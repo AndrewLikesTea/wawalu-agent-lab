@@ -24,7 +24,7 @@
 
 import { normalizeImage } from "./social.js";
 import { postDetailHref, profileHref } from "./social-links.js";
-import { imageDescription, renderDescriptionNote } from "./image-description.js";
+import { imageDescription, renderDescriptionNote, renderImageUnavailable } from "./image-description.js";
 import { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH } from "./social-identity.js";
 
 export const MAX_CAPTION_LENGTH = 280;
@@ -340,7 +340,11 @@ function renderTileMedia(image, description) {
     img.height = image.height;
   }
 
-  const fallback = el("span", "profile-media-fallback", "Image unavailable");
+  // A dead tile used to say "Image unavailable" and stop there, which told a
+  // reader that something was missing without telling them what. The tile's
+  // caption is the post's words, not the image's; the description is the only
+  // thing that says what the picture was, so the placeholder keeps it.
+  const fallback = renderImageUnavailable("profile-media-fallback", description.alt, { textClassName: "media-fallback-text" });
   fallback.hidden = true;
 
   const settle = (state) => {

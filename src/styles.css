@@ -647,9 +647,10 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
    pushes the caption — or the cards below it — down the page. */
 .post-media[data-state="loading"] { background:linear-gradient(100deg,#eeece5 30%,#f7f6f2 50%,#eeece5 70%) #eeece5; background-size:220% 100%; animation:shiplog-shimmer 1.4s linear infinite; }
 .post-media[data-state="error"] { background:#f8f1ef; box-shadow:inset 0 0 0 1px #dcc2be; }
-/* The fallback carries the image's description, so it is clamped rather than
-   allowed to overflow the tile it replaces. */
-.post-media-fallback { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:5; overflow:hidden; margin:0; padding:0 14px; color:#7c3f3a; font:650 12px/1.5 ui-monospace,monospace; text-align:center; }
+/* The clamp is on the description, not on the placeholder around it: the chip
+   above it must stay a chip. Shared by both tile surfaces (feed and People). */
+.post-media-fallback { margin:0; padding:0 14px; color:#7c3f3a; font:650 12px/1.5 ui-monospace,monospace; text-align:center; }
+.media-fallback-text { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:4; overflow:hidden; margin:0; }
 .post-caption { margin:12px 0 0; color:#42423d; font-size:14px; line-height:1.55; white-space:pre-wrap; overflow-wrap:anywhere; }
 @keyframes shiplog-shimmer { from { background-position:120% 0; } to { background-position:-120% 0; } }
 /* First-load placeholders: same geometry as a real card, so the grid does not
@@ -755,8 +756,7 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .detail-media[data-state="loading"] { background:linear-gradient(100deg,#eeece5 30%,#f7f6f2 50%,#eeece5 70%) #eeece5; background-size:220% 100%; animation:shiplog-shimmer 1.4s linear infinite; }
 .detail-media[data-state="error"] { background:#f8f1ef; box-shadow:inset 0 0 0 1px #dcc2be; }
 .detail-media-fallback { width:100%; margin:0; padding:24px 16px; color:#555550; text-align:center; }
-.detail-media-fallback-title { margin:0; color:#282824; font-size:18px; line-height:1.35; }
-.detail-media-fallback p { margin:7px auto 0; max-width:58ch; font-size:14px; line-height:1.55; overflow-wrap:anywhere; }
+.detail-media-fallback p { margin:0 auto; max-width:58ch; font-size:14px; line-height:1.55; overflow-wrap:anywhere; }
 .detail-caption { margin:16px 0 0; color:#282824; font-size:17px; line-height:1.6; white-space:pre-wrap; overflow-wrap:anywhere; }
 .detail-body { margin:14px 0 0; color:#42423d; font-size:15px; line-height:1.6; white-space:pre-wrap; overflow-wrap:anywhere; }
 .detail-stats { display:flex; gap:18px; margin:20px 0 0; padding-top:16px; border-top:1px solid #dedcd5; color:#62625d; font:650 12px/1.4 ui-monospace,monospace; }
@@ -769,11 +769,12 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
    while it waits, without reserving a shape the post may not have. */
 .detail-loading { display:flex; align-items:center; justify-content:center; gap:10px; min-height:96px; margin:0; padding:20px 0; color:#4a4a44; font:650 14px/1.5 system-ui,sans-serif; }
 .detail-loading-dot { flex:none; width:12px; height:12px; border:2px solid #a8c2da; border-top-color:#155f9e; border-radius:50%; animation:shiplog-spin .8s linear infinite; }
-/* Status chips for the states that resolved. Text first — the word is the
-   signal and survives colour being off, inverted, or unseen — with a filled
-   wash behind it because each one reports a live lookup, not a standing
-   classification. Every pairing is an existing site palette at AA contrast. */
-.detail-state-chip { display:inline-flex; align-items:center; margin:0 0 11px; border:1px solid transparent; border-radius:5px; padding:2px 9px; font:750 10px/1.6 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; }
+/* Status chips. Text first — the word is the signal and survives colour being
+   off, inverted, or unseen. The base is the OUTLINE chip, this site's mark for
+   a standing classification; currentColor keeps the border in contrast with its
+   own text in any rendering. The two variants fill it, because each reports a
+   live lookup. Every pairing is an existing site palette at AA contrast. */
+.detail-state-chip { display:inline-flex; align-items:center; margin:0 0 11px; border:1px solid currentColor; border-radius:5px; padding:2px 9px; font:750 10px/1.6 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; }
 .detail-state-chip-missing { border-color:#d9c69a; background:#fdf7e8; color:#5b4a20; }
 .detail-state-chip-error { border-color:#d5aaa6; background:#fbf1f1; color:#713b37; }
 /* The retry's landing place after a successful retry (post-page.js). It is
