@@ -444,6 +444,12 @@ export const ANSWER_SPINE = Object.freeze([
     headingId: "routing-slate-title",
   },
   {
+    id: "routing-rule-score",
+    role: ROLE.detail,
+    question: "Did last period's routing rules return what they said they would?",
+    headingId: "routing-rule-score-title",
+  },
+  {
     id: "disclosure-spend-and-recovery",
     role: ROLE.detail,
     question: "What did we spend this period, and how much of it is recoverable?",

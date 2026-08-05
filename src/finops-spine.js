@@ -163,6 +163,7 @@ const REGIONS = Object.freeze({
   "department-fix-pack": REGION_CLASS.evidence,
   "monthly-department-decision": REGION_CLASS.evidence,
   "routing-slate": REGION_CLASS.evidence,
+  "routing-rule-score": REGION_CLASS.evidence,
   "disclosure-spend-and-recovery": REGION_CLASS.evidence,
   "disclosure-department-priority": REGION_CLASS.evidence,
   "disclosure-spend-mix": REGION_CLASS.evidence,
@@ -201,7 +202,7 @@ const EVIDENCE_LAYERS = Object.freeze([
     question: "What do I do first, and what will tell me it worked?",
     regionIds: Object.freeze([
       "disclosure-next-step", "disclosure-journey", "finops-destinations",
-      "monthly-department-decision", "routing-slate",
+      "monthly-department-decision", "routing-slate", "routing-rule-score",
     ]),
   }),
   Object.freeze({
