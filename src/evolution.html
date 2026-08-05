@@ -2996,6 +2996,17 @@
              this section rather than in the page's action rail so it adds no tab
              stop above the first-run region. -->
         <p><button class="secondary-button" id="routing-policy-download" type="button" data-state="unavailable" disabled>Download routing policy<span class="visually-hidden"> — unavailable. No analysis has been read yet, so there is no routing change to rank.</span></button></p>
+        <!-- What that file turns into on a generic gateway shape, worked through
+             on the reader's OWN policy rather than an example. Authored EMPTY
+             and painted by routing-slate-view.js into one collapsed disclosure:
+             every word in it, the shape's name and the snippet itself, is
+             translated at runtime by gateway-shape-translation.js from the same
+             document the control above serializes, so no rule, figure or period
+             is in these bytes. It sits below the control because it explains
+             what the file is for, and it holds NO input of any kind — no
+             credential, no endpoint, nothing to connect — because the whole
+             translation happens in this tab. -->
+        <div id="gateway-shape-preview"></div>
       </section>
 
       <!-- What last period's slate was worth, measured. Authored empty and
