@@ -127,14 +127,16 @@ test("the recoverable figure states the rubric scored none of it, beside the fig
   const text = shownText(document, STAND_IDS.recoverableBasis);
   assert.equal(text.includes(amount), true,
     "the qualifier does not sit with the figure it qualifies");
-  assert.match(text, /rubric has scored none of the \$[\d,]+ in scope/);
-  assert.match(text, /no letter grade stands behind this figure/);
-  // …over the same total the trust panel's coverage line reports, so the two
-  // panels cannot state the rubric's reach differently.
-  const inScope = shownText(document, ANSWER_BLOCK_IDS.confidence).match(/\$[\d,]+/g)?.[1];
-  assert.ok(inScope, "the trust panel states the spend the rubric scored against");
-  assert.equal(text.includes(`none of the ${inScope} in scope`), true,
-    "the qualifier names a total the coverage line does not");
+  assert.match(text, /rubric has scored \$[\d,]+ of the \$[\d,]+ in scope/);
+  assert.match(text, /this figure is taken over all of it/);
+  // …over the same two figures the trust panel's coverage line reports, so the
+  // two panels cannot state the rubric's reach differently. Both are read off
+  // the rendered page rather than typed here: the scored share moves when the
+  // bundled sample moves, and this assertion has to move with it.
+  const covered = shownText(document, ANSWER_BLOCK_IDS.confidence).match(/\$[\d,]+/g)?.slice(0, 2);
+  assert.ok(covered?.[1], "the trust panel states the spend the rubric scored against");
+  assert.equal(text.includes(`scored ${covered[0]} of the ${covered[1]} in scope`), true,
+    "the qualifier names a scored share or a total the coverage line does not");
 
   // Not one fold away, and not off the screen. A reconciliation a reader has to
   // open is one they will conclude was hidden from them.
