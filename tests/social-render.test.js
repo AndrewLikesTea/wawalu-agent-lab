@@ -136,8 +136,9 @@ test("a broken image degrades the tile instead of the card", () => {
   assert.equal(tags(media, "IMG").length, 0, "the broken image element is removed");
   const fallback = first(media, "post-media-fallback");
   assert.equal(fallback.hidden, false);
-  // The description outlives the element it described.
-  assert.equal(fallback.textContent, "Image unavailable: A card wrapped in a blue focus ring");
+  // The description outlives the element it described, under a label chip that
+  // says what happened in words.
+  assert.equal(fallback.textContent, "Image unavailable A card wrapped in a blue focus ring");
   // The caption — the actual content — is untouched.
   assert.equal(first(container, "post-caption").textContent, "Focus rings landed everywhere.");
 });

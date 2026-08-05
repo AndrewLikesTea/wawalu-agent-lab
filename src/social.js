@@ -22,7 +22,7 @@
 // single import. One owner, so the byline the feed accepts and the byline the
 // profile remembers cannot drift apart.
 import { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH, readStoredAuthor, rememberAuthor } from "./social-identity.js";
-import { imageDescription, renderDescriptionNote } from "./image-description.js";
+import { imageDescription, renderDescriptionNote, renderImageUnavailable } from "./image-description.js";
 import { postDetailHref, profileHref } from "./social-links.js";
 import { renderState } from "./state-ui.js";
 
@@ -367,8 +367,11 @@ function renderMedia(image, description) {
 
   // When the image dies, its description is the only thing left that says what
   // was there — so the fallback keeps it rather than discarding it with the
-  // element.
-  const fallback = el("p", "post-media-fallback", image.alt ? `Image unavailable: ${image.alt}` : "Image unavailable.");
+  // element. It takes `description.alt`, not the raw `image.alt`: a legacy row
+  // written before descriptions were required used to fall through to a bare
+  // "Image unavailable." with nothing under it, and the shared read-path
+  // fallback has a real sentence for that case.
+  const fallback = renderImageUnavailable("post-media-fallback", description.alt, { textClassName: "media-fallback-text" });
   fallback.hidden = true;
 
   const settle = (state) => {
