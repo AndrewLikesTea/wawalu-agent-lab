@@ -17,6 +17,8 @@
 // contract's pseudonym pattern and their readable tails are made-up words.
 
 import { parseLocalFinopsFile, normalizeLocalFinopsHistory } from "./local-finops.js";
+import { PROVIDER_USAGE_SCHEMA_VERSION, usageDetail } from "./provider-usage-record.js";
+import { classifyQuerySample, parseQuerySample } from "./query-sample-contract.js";
 import {
   COST_METRIC, COST_POSITION_VERSION, costPerSuccessfulTask, countSuccessfulTasks,
   displayCostPerSuccessfulTask, ORG_SIZE_BAND, PEER_COST_SNAPSHOT_ID, PEER_INDUSTRY,
@@ -37,9 +39,17 @@ const COMPANY_UNIT = "psn_example_unit_hqroot";
 // the point of the dataset: Atlas is an unambiguous single driver of the most
 // recent increase, Boreal is flat and Cinder is declining, so the leading
 // finding is a real discrimination rather than the only non-zero row.
+//
+// `model` is the SKU the invented provider names on this unit's token-billed
+// text-generation rows, and it is what the query sample below joins to: the
+// rubric scores a department only where a sampled query and a billed row agree
+// on (department, model). The SKUs are the invented company's own, the same
+// three `example-conversation-corpus.js` writes its prompts against, chosen
+// only so the shipped tier table reads them as premium, standard and economy.
 const DEPARTMENTS = Object.freeze([
   Object.freeze({
     unitId: "psn_example_unit_atlas0",
+    model: "invented-ultra-1",
     monthlyUsd: Object.freeze([40_000, 41_500, 42_000, 43_000, 44_500, 79_000]),
     mix: Object.freeze([
       Object.freeze(["openai", "text-generation", 55]),
@@ -49,6 +59,7 @@ const DEPARTMENTS = Object.freeze([
   }),
   Object.freeze({
     unitId: "psn_example_unit_boreal",
+    model: "invented-pro-1",
     monthlyUsd: Object.freeze([22_000, 22_000, 22_000, 22_000, 22_000, 22_000]),
     mix: Object.freeze([
       Object.freeze(["anthropic", "text-generation", 40]),
@@ -58,6 +69,7 @@ const DEPARTMENTS = Object.freeze([
   }),
   Object.freeze({
     unitId: "psn_example_unit_cinder",
+    model: "invented-pro-1",
     monthlyUsd: Object.freeze([30_000, 29_000, 28_000, 27_000, 26_000, 24_500]),
     mix: Object.freeze([
       Object.freeze(["openai", "text-generation", 60]),
@@ -67,6 +79,7 @@ const DEPARTMENTS = Object.freeze([
   }),
   Object.freeze({
     unitId: "psn_example_unit_quartz",
+    model: "invented-pro-1",
     monthlyUsd: Object.freeze([12_000, 12_500, 13_000, 13_500, 14_000, 18_000]),
     mix: Object.freeze([
       Object.freeze(["google", "text-generation", 50]),
@@ -76,6 +89,7 @@ const DEPARTMENTS = Object.freeze([
   }),
   Object.freeze({
     unitId: "psn_example_unit_ember0",
+    model: "invented-mini-1",
     monthlyUsd: Object.freeze([8_000, 8_200, 8_400, 8_600, 8_800, 11_000]),
     mix: Object.freeze([
       Object.freeze(["anthropic", "text-generation", 45]),
@@ -417,6 +431,13 @@ function providerRecords(monthIndex) {
           quantity: Math.round(amounts[row] * USAGE_PER_MINOR[serviceCategory]),
           unit: USAGE_UNIT[serviceCategory],
         },
+        // The v1.1 detail block, every key present. The SKU is carried only on
+        // the token-billed text-generation rows, because those are the rows this
+        // invented provider names a model on; storage, embedding and image rows
+        // carry it as absent rather than as a guessed default.
+        ...usageDetail({
+          model: serviceCategory === "text-generation" ? department.model : null,
+        }),
         cost: { amount_minor: amounts[row], currency: "USD", status: "final" },
       });
     });
@@ -428,7 +449,7 @@ function providerExport(monthIndex) {
   const yearMonth = MONTHS[monthIndex];
   const periodEnd = `${nextMonth(yearMonth)}-01`;
   return {
-    schema_version: "1.0",
+    schema_version: PROVIDER_USAGE_SCHEMA_VERSION,
     kind: "wawalu.integration.provider-usage-billing",
     export_id: `1e5a0000-0000-4000-8000-${String(monthIndex + 1).padStart(12, "0")}`,
     snapshot: {
@@ -514,11 +535,108 @@ export function exampleDatasetFiles() {
   ];
 }
 
+// ---------------------------------------------------------------------------
+// THE SCORED QUERY SAMPLE — what makes the rubric reach this example at all.
+//
+// Before this, the bundled example was billing and nothing else, so
+// `analyzeQueryLiteracy` had no rows to score, every department came back
+// `no_sampled_queries`, and the trust panel reported that the rubric had scored
+// none of the $154,500 in scope while the panel beside it quoted a modelled
+// recoverable over that same spend. The example could not exercise the one gate
+// it exists to demonstrate.
+//
+// WHICH TEAMS ARE SAMPLED, AND WHY NOT ALL OF THEM. Boreal, Cinder and Quartz
+// route through the invented gateway that emits this sample; Atlas and Ember do
+// not. That is the authored shape of the example and it is load bearing: the
+// department driving the increase is the one with the least evidence under it,
+// so the coverage figure lands between the published tier floors, the letter is
+// shown and marked not actionable alone, and the residue the panel names is a
+// real one a reader can act on. A sample covering every team would put the
+// example in the graded tier, where there is no residue to rank and the worked
+// example teaches nothing about coverage.
+//
+// Every row is invented, carries a pre-assigned rubric category rather than a
+// prompt excerpt — the contract's other accepted shape — and joins a billed
+// (department, model) pair from the records above.
+const SAMPLE_DAYS = Object.freeze(["15", "16", "17", "18", "19", "20"]);
+
+/** Six sampled queries per sampled team, in `SAMPLE_DAYS` order. */
+const SAMPLED_UNITS = Object.freeze([
+  Object.freeze({
+    unitId: "psn_example_unit_boreal",
+    categories: Object.freeze([
+      "highValue", "highValue", "overProvisioned", "highValue", "inefficient", "highValue",
+    ]),
+  }),
+  Object.freeze({
+    unitId: "psn_example_unit_cinder",
+    categories: Object.freeze([
+      "highValue", "inefficient", "overProvisioned", "inefficient", "outOfScope", "highValue",
+    ]),
+  }),
+  Object.freeze({
+    unitId: "psn_example_unit_quartz",
+    categories: Object.freeze([
+      "highValue", "overProvisioned", "highValue", "inefficient", "highValue", "overProvisioned",
+    ]),
+  }),
+]);
+
+const SAMPLE_HEADER = Object.freeze([
+  "org_unit_id", "query_date", "model", "input_tokens", "output_tokens", "prompt_excerpt", "category",
+]);
+
+/** The sample as bytes, in the delimited shape the query-sample contract accepts. */
+export function exampleQuerySampleText() {
+  const modelFor = new Map(DEPARTMENTS.map((department) => [department.unitId, department.model]));
+  const lines = [SAMPLE_HEADER.join(",")];
+  SAMPLE_DAYS.forEach((day, index) => {
+    for (const unit of SAMPLED_UNITS) {
+      lines.push([
+        unit.unitId, `${MONTHS.at(-1)}-${day}`, modelFor.get(unit.unitId),
+        String(900 + index * 40), String(500 + index * 20), "", unit.categories[index],
+      ].join(","));
+    }
+  });
+  return `${lines.join("\n")}\n`;
+}
+
+/**
+ * The sample in the shape `analyzeQueryLiteracy` consumes.
+ *
+ * The bytes go through `parseQuerySample` and `classifyQuerySample` — the real
+ * validator and the real classification pass, no bypass branch — and what comes
+ * back is renamed into the record shape the analyzer reads. A row that carried
+ * no rubric category never reaches it, because `classifyQuerySample` drops it
+ * rather than guessing one.
+ */
+export function loadExampleQuerySample() {
+  const parsed = parseQuerySample(exampleQuerySampleText());
+  const classified = classifyQuerySample(parsed);
+  const records = Object.freeze(classified.records.map((record) => Object.freeze({
+    department: record.orgUnitId, model: record.model, category: record.category, classified: true,
+  })));
+  const total = parsed.records?.length ?? 0;
+  return Object.freeze({
+    records,
+    counts: Object.freeze({
+      total,
+      accepted: records.length,
+      classified: records.length,
+      unclassified: total - records.length,
+      rejected: parsed.skippedRowCount ?? 0,
+    }),
+  });
+}
+
 /**
  * Translate the fixture and hand back the parsed inputs, in exactly the shape
  * the file input accumulates them. The page needs these and not only the
  * analysis: the trust verdict is computed from the parsed rows and the roster,
  * so handing it a bare envelope would force it to re-parse the same bytes.
+ *
+ * The query sample rides on the reporting period's provider entry, which is the
+ * period it sampled and the only one the analysis scores.
  */
 export function loadExampleDatasetInputs() {
   const providers = [];
@@ -528,6 +646,8 @@ export function loadExampleDatasetInputs() {
     if (parsed.type === "provider") providers.push(parsed);
     else hris = parsed;
   }
+  const reporting = providers.length - 1;
+  providers[reporting] = { ...providers[reporting], querySample: loadExampleQuerySample() };
   return { providers, hris };
 }
 

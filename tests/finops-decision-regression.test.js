@@ -611,6 +611,12 @@ const ALLOWED_MODULES = Object.freeze([
   // checks that the letter itself does not move between two runs.
   "conversation-export.js", "conversation-literacy.js", "delimited-text.js",
   "dialect-detection.js", "example-conversation-corpus.js", "finops-first-run-literacy.js",
+  // Reviewed on with #1126, which gave the bundled example a scored query
+  // sample so the rubric reaches it. `query-sample-contract.js` is the same
+  // validator a reader's own sample goes through: a pure function over an
+  // in-memory string that returns records, counts and issue codes. It opens no
+  // request, reads no storage, and reads no clock.
+  "query-sample-contract.js",
 ]);
 
 /**
