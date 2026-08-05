@@ -274,6 +274,20 @@
           <p class="eyebrow">Your export · headline contract</p>
           <p class="stand-imported-question" id="finops-imported-headline-question"></p>
           <dl class="stand-imported-slots" id="finops-imported-headline-slots"></dl>
+          <!-- HOW FAR THIS BRIEF CARRIES, and the one step that moves it up
+               (#1104). It ships EMPTY and HIDDEN and is painted by
+               src/finops-trust-ladder.js: the rung name and its ordinal
+               ("Estimated — rung 2 of 3"), one line on what the rung is and is
+               not good for, and one sentence linking to the evidence preflight
+               already on this page. Absent is a state, not rung 1 — an
+               unimported page and a cleared import both empty this block, so it
+               never states a verdict about a file nobody loaded.
+               NO NEW MARK: the distinction is carried by the word and by the
+               ordinal, which survive grayscale and a mono printer, and the
+               per-figure provenance beside it is the marker the brief already
+               ships. No live region here either; the rung rides the stand
+               region's one announcement. -->
+          <div class="stand-imported-slots" id="finops-trust-ladder" data-rung="none" hidden></div>
           <!-- WHERE THE UNIT NAMES CAME FROM. The sentence above names a team,
                and until #1023 it named it "Department …atlas0" — an identity, not
                a name anybody says out loud. The names are now read from a column
@@ -753,6 +767,14 @@
           </dl>
         </details>
         <p class="figure-source-legend" id="finops-first-run-source-legend">Where each figure came from: unmarked values — the department names, the reporting period, and the record counts — are read straight out of the example's export files. Every marked figure below says whether this page derived it or could not find it, and opens to show the working.</p>
+        <!-- THE TRUST LADDER, EXPLAINED BEFORE ANY BRIEF IS ON IT (#1104). Three
+             rungs, named in words and numbered, so a reader meets the scale
+             before they meet their own position on it. It claims nothing: this
+             screen is the bundled synthetic example, which stands on no rung at
+             all, and the sentence says so rather than implying rung 1. The
+             reader's own rung is painted into the imported brief above, and
+             only once a file has been read. -->
+        <p class="figure-source-legend" id="finops-first-run-trust-ladder">How far a brief carries, on three rungs: <strong>Declared</strong> — rung 1 of 3 — frames the question but sizes nothing, because no complete billing month supported the figures. <strong>Estimated</strong> — rung 2 of 3 — is computed from a complete month in your own export: enough to size a decision and choose where to look first, not enough to settle a billing dispute. <strong>Verified</strong> — rung 3 of 3 — has been reconciled against evidence checked outside this page. The example below is an illustration and stands on no rung; import your own export and this page states which rung your brief earned, and the one step that moves it up.</p>
         <!-- CORRECTING ONE OF THOSE INFERRED VALUES, ON THE LINE IT IS READ (#1026).
              A marker that says "we worked this out" and offers nothing to do
              about a value the reader knows is wrong leaves them holding it. The

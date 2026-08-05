@@ -87,8 +87,17 @@ function sentence(text) {
  *
  * Composed from the same headline record `finops-stand-view.js` paints the
  * visible slots from — never from a second reading of the analysis.
+ *
+ * `trust` is the rung the reader's own brief now stands on (#1104), and it is
+ * carried HERE rather than spoken by a second region: the ladder changes on the
+ * same tick the answer does, and a polite region of its own would queue a second
+ * utterance behind the sentence that answers the question. It sits after the
+ * next action and before the source, so the reading order stays question →
+ * figure → action → how far it carries → whose figures these are. An answer with
+ * no brief on the ladder — the bundled example, a cleared import, the boot paint
+ * — passes nothing and composes exactly the sentence it composed before.
  */
-export function answerAnnouncement(headline) {
+export function answerAnnouncement(headline, { trust = "" } = {}) {
   if (!headline) return "";
   const metric = headline.recoverable;
   const action = headline.action;
@@ -98,6 +107,7 @@ export function answerAnnouncement(headline) {
     sentence(action?.available && action?.label
       ? `Do this next: ${action.label}`
       : `Do this next: ${headline.withheld?.nextStep || action?.label || ""}`),
+    sentence(String(trust ?? "").trim()),
     sentence(headline.label ? `Source: ${headline.label}` : ""),
   ].filter(Boolean).join(" ");
 }

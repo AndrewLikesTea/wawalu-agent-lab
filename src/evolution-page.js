@@ -102,6 +102,12 @@ import {
 import {
   applyBriefCompleteness, clearBriefCompleteness,
 } from "/finops-brief-completeness-view.js";
+// Which rung of the trust ladder that brief stands on, and the one step up. The
+// derivation and the paint are the same module because the rung is three strings
+// and a comparison, not a second analysis.
+import {
+  applyTrustLadder, clearTrustLadder, trustAnnouncement, trustAssessment,
+} from "/finops-trust-ladder.js";
 // The download itself. Every figure decision is inside `briefingFile`; the only
 // thing this layer contributes is the clock, because the generator is pure and
 // will not read one.
@@ -1857,6 +1863,11 @@ function mountLocalFinopsImport() {
     // complete brief and is not scored against itself.
     applyBriefCompleteness(document, example ? null : next,
       { movement: example ? null : movement.movement });
+    // And how far the brief those blocks compose can be leaned on: the rung, its
+    // ordinal, what the rung is and is not good for, and the one step up. The
+    // bundled example stands on no rung and is passed nothing, which takes the
+    // block off screen rather than starting it at rung 1.
+    applyTrustLadder(document, example ? null : next);
     applyDatasetProvenance(document, example, example ? null : importProvenance());
     // Where this organization ranks, decided from the same selection this
     // result was analyzed from. The bundled example declares no cohort
@@ -2346,6 +2357,9 @@ function mountLocalFinopsImport() {
     // The completeness score goes with the brief it scored. A tier left standing
     // over a cleared import is a verdict about a file nobody has loaded.
     clearBriefCompleteness(document);
+    // The rung goes with the brief it was a statement about. A cleared import
+    // must not leave "Declared — rung 1 of 3" standing over no file at all.
+    clearTrustLadder(document);
     const trust = document.getElementById("local-trust");
     if (trust) {
       trust.hidden = true;
@@ -2692,7 +2706,14 @@ function mountLocalFinopsImport() {
         announce("error", "This export did not replace the answer on screen.", outcome.message);
       }
     }
-    applyStandHeadline(document, answerState.getHeadline());
+    // The rung rides the answer's own sentence rather than a second live region
+    // (#1104): the reader who just committed an import hears the figure, the
+    // action, and then how far the brief carries, in one utterance. An import
+    // the page refused stands on no rung and adds nothing, and the boot paint —
+    // which passes no trust and does not announce — is unchanged.
+    applyStandHeadline(document, answerState.getHeadline(), {
+      trust: eligibility ? trustAnnouncement(trustAssessment(analysis)) : "",
+    });
     return eligibility;
   };
 
