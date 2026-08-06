@@ -557,6 +557,16 @@
               <p class="filter-copy-status" id="history-copy-status" role="status" aria-live="polite"></p>
             </div>
           </div>
+          <!-- THE SHAPE OF THE VIEW, ABOVE THE LIST.
+               One bar group per ISO week — Monday 00:00 UTC, the same basis the
+               From/To filters read — drawn by history-trend-view.js as an
+               inline svg element whose coordinates are viewBox units, so it
+               scales with this column instead of with a pixel ratio. app.js
+               draws it from the same filtered set as the list, on the same
+               render, so the sentence above it can never describe a different
+               view. The bars are one composite control: one Tab stop, arrows
+               between weeks, Enter or Space to filter to that week. -->
+          <div id="history-trend"></div>
           <div id="history-release-followup" hidden></div>
           <div id="decision-list" aria-busy="true">
             <div class="list-state list-state-loading" role="status">
