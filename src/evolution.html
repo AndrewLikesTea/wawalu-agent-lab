@@ -1628,6 +1628,37 @@
             <span id="analysis-mode-label">Bundled synthetic example</span>
           </span>
         </div>
+        <!-- THE ONE-QUESTION ON-RAMP (#1169). The section leads with a single
+             choice — which provider do you pay — and answers it in place: the
+             one report to pull, the files that start it, and exactly one next
+             action. Slots only: the options, the report, the console path, the
+             columns and the alternates are painted from src/import-on-ramp.js
+             by src/import-on-ramp-view.js, which joins the recipe list (#1166)
+             and the readiness contract (#1062) rather than restating either.
+             #import-on-ramp-answer is a polite live region and is a DIRECT
+             child of this section: a live region folded inside a collapsed
+             disclosure is not announced in a real browser, whatever a test
+             harness reads through it. Only #import-on-ramp-detail below it
+             holds disclosures — the full column list, the second file the
+             figure needs, and the providers this reader did not choose.
+             Every control here sits below the first-run region, which has no
+             spare tab stops, and every class already ships on this page. -->
+        <section class="provider-readiness" id="import-on-ramp" aria-labelledby="import-on-ramp-title">
+          <p class="eyebrow">Start here · one question</p>
+          <h3 class="provider-readiness-title" id="import-on-ramp-title">Which provider do you pay?</h3>
+          <p class="local-import-field">
+            <label for="import-on-ramp-provider">Provider you pay for AI</label>
+            <!-- Deliberately NOT described by the answer region below: that
+                 region is a live region and already speaks the choice once, and
+                 a description pointing at it would read the whole answer again
+                 every time focus returns to the chooser. -->
+            <select id="import-on-ramp-provider"></select>
+          </p>
+          <div id="import-on-ramp-answer" role="status" aria-live="polite" data-state="empty" data-adapter="none">
+            <p class="import-slot-unlocks">Choose the provider you pay above. This panel then names the one report to pull, hands you a starting file for it, and gives you one next step. Nothing is uploaded either way.</p>
+          </div>
+          <div id="import-on-ramp-detail" hidden></div>
+        </section>
         <div class="local-export-activation" id="local-export-activation" data-state="idle" aria-busy="false">
           <div>
             <p class="eyebrow">Start with one file</p>
