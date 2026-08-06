@@ -9,11 +9,11 @@ import { byClass, createElement, first, ids, installDocument, tags } from "./sup
 installDocument();
 
 const {
-  PROFILE_EMPTY_COPY, authorInitials, authorOptionLabel, captionFor, countLabel, defaultProfileAuthor,
+  PROFILE_EMPTY_COPY, authorChipLabel, authorInitials, captionFor, countLabel, defaultProfileAuthor,
   distinctAuthors, emptySummaryText, hasExplicitAuthor, imagePostCounts, loadingSummaryText,
-  mergePostsById, normalizeProfileApiPosts, normalizeSeedPosts, postDetailHref,
+  mergePostsById, normalizeProfileApiPosts, normalizeSeedPosts, pickerEntries, postDetailHref,
   profileAnnouncement, profileHref, profilePaintHref, profileSummary, profileSummaryText,
-  renderProfileGrid, renderProfileHeader, resolveProfileAuthor, selectProfilePosts,
+  renderAuthorPicker, renderProfileGrid, renderProfileHeader, resolveProfileAuthor, selectProfilePosts,
 } = await import("../src/profile.js");
 
 const apiPost = {
@@ -155,11 +155,66 @@ test("the landing name is the fullest profile, ties broken by the picker's own o
   assert.equal(defaultProfileAuthor([]), null);
 });
 
-test("a picker entry carries its image-post count in the option's own text", () => {
-  assert.equal(authorOptionLabel("Mina", 2), "Mina · 2 image posts");
-  assert.equal(authorOptionLabel("Ari", 1), "Ari · 1 image post");
-  // A name with nothing to show stays in the menu; the count is what says so.
-  assert.equal(authorOptionLabel("Kai", 0), "Kai · 0 image posts");
+test("a picker entry carries its image-post count in the button's own text", () => {
+  assert.equal(authorChipLabel("Mina", 2), "Mina · 2 image posts");
+  assert.equal(authorChipLabel("Ari", 1), "Ari · 1 image post");
+  // A name with nothing to show stays in the picker; the count is what says so.
+  assert.equal(authorChipLabel("Kai", 0), "Kai · 0 image posts");
+  // Three states, not two. A store that has not answered says so; only an
+  // answered store is allowed to say zero.
+  assert.equal(authorChipLabel("Kai", null), "Kai · Counting…");
+  assert.equal(authorChipLabel("Kai", undefined), "Kai · Counting…");
+  // The selected entry carries a word and a glyph, so which one is showing is
+  // not told by colour. The count survives the mark.
+  assert.equal(authorChipLabel("Mina", 2, { selected: true }), "✓ Showing Mina · 2 image posts");
+  assert.equal(authorChipLabel("Kai", null, { selected: true }), "✓ Showing Kai · Counting…");
+});
+
+test("the picker lists every name the posts carry, and the selected one either way", () => {
+  const posts = [imagePost, olderImagePost, otherPost, textPost];
+  assert.deepEqual(pickerEntries(posts, "Mina"), [{ name: "Kai", images: 1 }, { name: "Mina", images: 2 }]);
+  // A name the store does not carry is still selectable — it is what a shared
+  // link or a remembered name may ask for — and it leads, where it was chosen.
+  assert.deepEqual(pickerEntries(posts, "Nova"),
+    [{ name: "Nova", images: 0 }, { name: "Kai", images: 1 }, { name: "Mina", images: 2 }]);
+  // Counting the same way the grid selects: a text-only author is a real name
+  // with a real zero, not a missing one.
+  assert.deepEqual(pickerEntries([textPost], "Mina"), [{ name: "Mina", images: 0 }]);
+});
+
+test("each picker entry is a button that names itself, its count, and its state", () => {
+  const container = createElement("div");
+  const chosen = [];
+  renderAuthorPicker(container, pickerEntries([imagePost, olderImagePost, otherPost], "Mina"), {
+    author: "Mina",
+    onSelect: (name) => chosen.push(name),
+  });
+
+  assert.deepEqual(container.children.map((chip) => chip.tagName), ["BUTTON", "BUTTON"]);
+  // The harness reflects no properties, so `type` is asserted as the property
+  // the render layer set, not as an attribute.
+  assert.deepEqual(container.children.map((chip) => chip.type), ["button", "button"]);
+  assert.deepEqual(container.children.map((chip) => chip.textContent),
+    ["Kai · 1 image post", "✓ Showing Mina · 2 image posts"]);
+  // Present on both, not omitted on the unpressed one: a toggle that only
+  // marks the pressed chip reads as a plain button that happens to be pressed.
+  assert.deepEqual(container.children.map((chip) => chip.getAttribute("aria-pressed")), ["false", "true"]);
+  // The mark is text, so the selected chip is legible with colour off.
+  assert.equal(container.children.filter((chip) => chip.textContent.includes("✓ Showing")).length, 1);
+  // One silhouette for every entry: a display name is a static classification,
+  // so nothing here is signalled by a changed chip treatment.
+  assert.deepEqual(container.children.map((chip) => chip.className), ["filter-chip", "filter-chip"]);
+
+  container.children[0].dispatch("click");
+  assert.deepEqual(chosen, ["Kai"]);
+});
+
+test("an uncounted picker says it is counting rather than claiming a zero", () => {
+  const container = createElement("div");
+  renderAuthorPicker(container, pickerEntries([imagePost, otherPost], "Mina"), { author: "Mina", counted: false });
+  assert.deepEqual(container.children.map((chip) => chip.textContent),
+    ["Kai · Counting…", "✓ Showing Mina · Counting…"]);
+  assert.equal(container.children.filter((chip) => chip.textContent.includes("image post")).length, 0);
 });
 
 test("the grid selects this author's image posts, newest first", () => {
@@ -380,8 +435,15 @@ test("the profile and post pages are wired, labelled, and reachable", async () =
   // the term the composer, the feed filter, and this page's own description all
   // use. "Show posts by" alone left the menu's contents unnamed, so the page
   // described them as one thing and every other surface as another.
-  assert.match(profile, /<label for="profile-author">Show posts by display name<\/label>/);
-  assert.match(profile, /id="profile-author"[^>]*aria-describedby="profile-author-hint"/);
+  assert.match(profile, /<legend id="profile-author-label">Show posts by display name<\/legend>/);
+  // The group is what the hint describes, and the container profile.js fills is
+  // inside it, so the instruction is attached to the controls rather than to one
+  // of them.
+  assert.match(profile, /<fieldset class="filter-group" aria-describedby="profile-author-hint">/);
+  assert.match(profile, /<div class="filter-options" id="profile-author"><\/div>/);
+  // The picker is buttons, not a menu: an option list can hold the count but
+  // cannot hold a pressed state a reader can see.
+  assert.doesNotMatch(profile, /<select/);
   assert.match(profile, /id="profile-announcer"[^>]*aria-live="polite"/);
   assert.match(profile, /src="\/profile-page\.js"/);
   assert.match(profileWiring, /\/api\/social-posts\?limit=100/);
@@ -409,7 +471,7 @@ test("the People picker and the page's own description use one term for what is 
   const between = (pattern) => html.match(pattern)?.[1] ?? "";
   const surfaces = [
     ["page intro", between(/<p class="profile-lede">([\s\S]*?)<\/p>/)],
-    ["picker label", between(/<label for="profile-author">([\s\S]*?)<\/label>/)],
+    ["picker label", between(/<legend id="profile-author-label">([\s\S]*?)<\/legend>/)],
     ["picker hint", between(/<p class="hint profile-toolbar-hint" id="profile-author-hint">([\s\S]*?)<\/p>/)],
   ];
 

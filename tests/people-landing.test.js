@@ -81,6 +81,14 @@ async function people({ search = "", storage = {}, live = { posts: [] } } = {}) 
   };
 }
 
+// The picker's own chips, in the order a reader tabs through them. The harness
+// rejects descendant selectors, so this reads the container's children rather
+// than querying "#profile-author button".
+const chips = (page) => page.picker.children.filter((node) => node.tagName === "BUTTON");
+const chipTexts = (page) => chips(page).map((chip) => textOf(chip));
+const selectedChip = (page) => chips(page).find((chip) => chip.getAttribute("aria-pressed") === "true") ?? null;
+const chipFor = (page, name) => chips(page).find((chip) => chip.dataset.author === name);
+
 // The regions that speak to the reader on the page. The two polite live regions
 // inside the panel are left out on purpose: an announcement has no page around
 // it to borrow context from, so it may restate what the page already shows.
@@ -99,7 +107,7 @@ test("the picker is read and reached before the name, the count, and the results
 
     // Real markup order, not a repositioning: the control that chooses whose
     // posts these are comes before every element that reports the answer.
-    for (const selector of ['label[for="profile-author"]', "#profile-author", "#profile-author-hint"]) {
+    for (const selector of ["#profile-author-label", "#profile-author", "#profile-author-hint"]) {
       assert.ok(at(selector) < at(".profile-identity"), `${selector} still renders after the persona header`);
       assert.ok(at(selector) < at(".list-panel"), `${selector} still renders after the results`);
     }
@@ -107,11 +115,14 @@ test("the picker is read and reached before the name, the count, and the results
     assert.ok(at("#profile-author") < at("#profile-summary"));
     assert.ok(at("#profile-author") < at("#profile-grid"));
 
-    // And the tab sequence agrees, without a tabindex propping it up: the picker
-    // is the first thing a keyboard reaches inside the main content.
+    // And the tab sequence agrees, without a tabindex propping it up: every
+    // display name is its own tab stop, in reading order, and they are the first
+    // things a keyboard reaches inside the main content.
     const inMain = tabSequence(document).filter((element) => element.closest("#main-content"));
-    assert.equal(inMain[0]?.id, "profile-author", "the first tab stop in main is not the picker");
-    assert.equal(page.picker.getAttribute("tabindex"), null, "the order is markup order, not a tabindex trick");
+    assert.deepEqual(inMain.slice(0, 3).map((element) => element.dataset.author), ["Ari", "Bea", "Zed"],
+      "the first tab stops in main are not the display-name buttons in reading order");
+    for (const chip of chips(page))
+      assert.equal(chip.getAttribute("tabindex"), null, "the order is markup order, not a tabindex trick");
   } finally {
     page.restore();
   }
@@ -120,10 +131,10 @@ test("the picker is read and reached before the name, the count, and the results
 test("a first-time visitor lands on a display name that has image posts", async () => {
   const page = await people();
   try {
-    const { document, picker } = page;
+    const { document } = page;
     // Zed has the most image posts; Ari sorts first and has none. Landing on Ari
     // is the reported defect — a verdict about an empty name nobody chose.
-    assert.equal(picker.value, "Zed");
+    assert.equal(selectedChip(page)?.dataset.author, "Zed");
     assert.equal(textOf(document.querySelector("#profile-name")), "Zed",
       "the header names someone other than the picker's own value");
     assert.match(textOf(document.querySelector("#profile-summary")), /^2 image posts/);
@@ -144,8 +155,8 @@ test("an explicit name wins even when it has no image posts", async () => {
   ]) {
     const page = await people(options);
     try {
-      const { document, picker } = page;
-      assert.equal(picker.value, "Ari", `${how} did not survive the landing default`);
+      const { document } = page;
+      assert.equal(selectedChip(page)?.dataset.author, "Ari", `${how} did not survive the landing default`);
       assert.equal(textOf(document.querySelector("#profile-name")), "Ari");
       assert.equal(document.querySelectorAll(".profile-tile").length, 0);
       assert.equal(document.querySelectorAll(".empty-state").length, 1);
@@ -155,23 +166,72 @@ test("an explicit name wins even when it has no image posts", async () => {
   }
 });
 
-test("every option says how many image posts that display name has", async () => {
+test("every entry says how many image posts that display name has, and which one is showing", async () => {
   const page = await people();
   try {
-    const options = page.picker.options;
-    // The count is the option's own text, so it is the accessible name too —
-    // a reader picking by keyboard hears it, and nothing here is decoration.
-    assert.deepEqual(options.map((option) => textOf(option)), [
+    // The count is the button's own text, so it is the accessible name too — a
+    // reader picking by keyboard hears it, and nothing here is decoration.
+    // Singular for exactly one; a bare zero only for a name the feed answered
+    // zero for. Zed is selected, and says so in words rather than in colour.
+    assert.deepEqual(chipTexts(page), [
       "Ari · 0 image posts",
       "Bea · 1 image post",
-      "Zed · 2 image posts",
+      "✓ Showing Zed · 2 image posts",
     ]);
     // The value stays the bare display name: the label is for the reader, the
-    // value is what the page filters and links by.
-    assert.deepEqual(options.map((option) => option.value), ["Ari", "Bea", "Zed"]);
+    // data attribute is what the page filters and links by.
+    assert.deepEqual(chips(page).map((chip) => chip.dataset.author), ["Ari", "Bea", "Zed"]);
+    // Present on every entry, not only the pressed one.
+    assert.deepEqual(chips(page).map((chip) => chip.getAttribute("aria-pressed")), ["false", "false", "true"]);
+    // The mark is a character and a word, so the distinction survives greyscale.
+    assert.equal(chipTexts(page).filter((text) => text.includes("✓ Showing")).length, 1);
     // A name with nothing to show is still selectable — its count is the thing
     // that tells the reader it is empty.
-    assert.equal(options[0].hasAttribute("disabled"), false);
+    assert.equal(chips(page)[0].hasAttribute("disabled"), false);
+  } finally {
+    page.restore();
+  }
+});
+
+test("the counts on the picker are the rows the grid draws, name by name", async () => {
+  // The two halves cannot disagree because they are the same derivation: walk
+  // every entry, select it, and check the grid against the number the chip
+  // claimed before anything was clicked.
+  const page = await people();
+  try {
+    const { document } = page;
+    const claimed = new Map(chipTexts(page).map((text) => {
+      const [, name, count] = text.match(/(?:✓ Showing )?(.+) · (\d+) image posts?$/);
+      return [name, Number(count)];
+    }));
+    assert.deepEqual([...claimed], [["Ari", 0], ["Bea", 1], ["Zed", 2]]);
+
+    for (const [name, count] of claimed) {
+      chipFor(page, name).click();
+      assert.equal(document.querySelectorAll(".profile-tile").length, count,
+        `the picker promised ${count} image posts for ${name} and the grid drew something else`);
+      assert.equal(textOf(document.querySelector("#profile-name")), name);
+    }
+  } finally {
+    page.restore();
+  }
+});
+
+test("a name whose posts are all gone says zero and offers the way to fill it", async () => {
+  // Bea's one image post is removed from the live feed and shadowed out of the
+  // seed by an id-matching text post, so this is a real, answered zero rather
+  // than a name the store has never heard of.
+  const page = await people({
+    live: { posts: [{ id: "p-13", author: "Bea", content: "p-13 from Bea", timestamp: "2026-07-13T09:00:00.000Z" }] },
+  });
+  try {
+    const { document } = page;
+    assert.equal(chipTexts(page).includes("Bea · 0 image posts"), true, chipTexts(page).join(" / "));
+    chipFor(page, "Bea").click();
+    assert.equal(document.querySelectorAll(".profile-tile").length, 0);
+    // The existing invitation, not a new one and not a blank region.
+    assert.equal(document.querySelectorAll(".empty-state").length, 1);
+    assert.match(textOf(document.querySelector(".empty-state")), /Paint/);
   } finally {
     page.restore();
   }
@@ -184,7 +244,7 @@ test("an empty display name is stated once, not once per region", async () => {
   const page = await people({ search: "?author=Nova" });
   try {
     const { document } = page;
-    assert.equal(page.picker.value, "Nova");
+    assert.equal(selectedChip(page)?.dataset.author, "Nova");
     const spoken = spokenRegions(document);
     const statements = spoken.flatMap((text) => text.match(/hasn’t posted an image yet|\d+ image posts?/g) ?? []);
     assert.equal(statements.length, 1, `the page states the count more than once: ${statements.join(" / ")}`);
@@ -202,16 +262,40 @@ test("an empty display name is stated once, not once per region", async () => {
 });
 
 test("choosing another name updates the page in place and keeps the URL and storage in step", async () => {
+  for (const key of [" ", "Enter"]) {
+    const page = await people();
+    try {
+      const { document } = page;
+      // Keyboard alone: no click, no pointer, and no keydown handler of our own
+      // — a real button is what makes Space and Enter both press it.
+      chipFor(page, "Bea").focus();
+      assert.equal(document.activeElement?.dataset.author, "Bea");
+      pressKey(document, key);
+
+      assert.equal(selectedChip(page)?.dataset.author, "Bea", `${key} did not select`);
+      // Focus stays on the display name that was just chosen, even though the
+      // chips were rebuilt around it.
+      assert.equal(document.activeElement?.dataset.author, "Bea");
+      assert.equal(textOf(document.querySelector("#profile-name")), "Bea");
+      assert.match(textOf(document.querySelector("#profile-summary")), /^1 image post /);
+      assert.equal(document.querySelectorAll(".profile-tile").length, 1);
+      assert.equal(page.navigations.length, 0);
+      assert.equal(page.storage.getItem("shiplog.social.author"), "Bea");
+      assert.deepEqual(page.replaced.at(-1)?.[2], "/profile.html?author=Bea");
+      assert.equal(document.querySelector("#profile-paint-cta").href, "/paint/?from=profile&author=Bea");
+    } finally {
+      page.restore();
+    }
+  }
+});
+
+test("selecting with the pointer moves the heading, the list, the URL, and the storage together", async () => {
   const page = await people();
   try {
-    const { document, picker } = page;
-    picker.focus();
-    assert.equal(document.activeElement?.id, "profile-author");
-    // Keyboard alone: no click, no pointer. Zed is last in the menu, so the
-    // previous entry is the one above it.
-    pressKey(document, "ArrowUp");
+    const { document } = page;
+    chipFor(page, "Bea").click();
 
-    assert.equal(picker.value, "Bea");
+    assert.equal(selectedChip(page)?.dataset.author, "Bea");
     assert.equal(textOf(document.querySelector("#profile-name")), "Bea");
     assert.match(textOf(document.querySelector("#profile-summary")), /^1 image post /);
     assert.equal(document.querySelectorAll(".profile-tile").length, 1);
@@ -223,6 +307,36 @@ test("choosing another name updates the page in place and keeps the URL and stor
     // The route into Paint follows the selection, so its back link returns here.
     assert.equal(document.querySelector("#profile-paint-cta").href, "/paint/?from=profile&author=Bea");
   } finally {
+    page.restore();
+  }
+});
+
+test("a picker whose posts have not landed says it is counting, never zero", async () => {
+  // The frame the page really has: the seed has named the display names, the
+  // live feed has not answered, and no count is settled. The old defect this
+  // guards is the honest-looking one — printing "0 image posts" for a name the
+  // store simply has not been asked about yet.
+  const page = await loadPage(PAGE_URL, { routes: { [SEED_ROUTE]: SEED_FEED, [LIVE_ROUTE]: { posts: [] } } });
+  const savedInterval = globalThis.setInterval;
+  globalThis.setInterval = () => 0;
+  globalThis.window.history = { replaceState() {} };
+  const routed = globalThis.fetch;
+  globalThis.fetch = (url, init) => (url === LIVE_ROUTE ? new Promise(() => {}) : routed(url, init));
+  try {
+    const { document } = page;
+    await importPageModule("/profile-page.js");
+    const picker = await waitFor(
+      () => { const node = document.querySelector("#profile-author"); return node.children.length > 0 ? node : null; },
+      "the picker renders its first entries",
+    );
+    const texts = picker.children.map((chip) => textOf(chip));
+    assert.deepEqual(texts, ["Ari · Counting…", "Bea · Counting…", "✓ Showing Zed · Counting…"]);
+    // Not one number anywhere, and above all not a zero.
+    assert.equal(texts.filter((text) => /image posts?/.test(text)).length, 0);
+    // The names and the pressed state are already right — only the counts wait.
+    assert.deepEqual(picker.children.map((chip) => chip.getAttribute("aria-pressed")), ["false", "false", "true"]);
+  } finally {
+    globalThis.setInterval = savedInterval;
     page.restore();
   }
 });
@@ -241,7 +355,9 @@ test("a feed with no image posts at all still lands on the empty state", async (
     const { document } = page;
     await waitFor(() => document.documentElement.dataset.shiplogProfile === "ready", "the first load settles");
     // Nothing to prefer, so the old fallback stands and the page says so once.
-    assert.equal(document.querySelector("#profile-author").value, "Ari");
+    const picker = document.querySelector("#profile-author");
+    const pressed = picker.children.filter((chip) => chip.getAttribute("aria-pressed") === "true");
+    assert.deepEqual(pressed.map((chip) => chip.dataset.author), ["Ari"]);
     assert.equal(document.querySelectorAll(".empty-state").length, 1);
     assert.match(textOf(document.querySelector("#profile-summary")), /^0 image posts · 1 post in total · last posted /);
   } finally {
