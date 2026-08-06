@@ -87,27 +87,27 @@ test("a self reference and a missing target are refused, and never derived", () 
 test("createDecision refuses a self or unknown link and stores an accepted one", () => {
   assert.throws(
     () => createDecision(
-      { title: "New", context: "Why", owner: "Kai", status: "approved", supersedes: "ghost" },
+      { title: "New", context: "Why", alternatives: "Keep the old one.", owner: "Kai", status: "approved", supersedes: "ghost" },
       { id: "new", decisions: CHAIN },
     ),
     new RegExp(SUPERSEDE_ERRORS.unknown.slice(0, 30)),
   );
   assert.throws(
     () => createDecision(
-      { title: "New", context: "Why", owner: "Kai", status: "approved", supersedes: "self" },
+      { title: "New", context: "Why", alternatives: "Keep the old one.", owner: "Kai", status: "approved", supersedes: "self" },
       { id: "self", decisions: [...CHAIN, decision("self")] },
     ),
     /cannot supersede itself/,
   );
 
   const linked = createDecision(
-    { title: "New", context: "Why", owner: "Kai", status: "approved", supersedes: " c " },
+    { title: "New", context: "Why", alternatives: "Keep the old one.", owner: "Kai", status: "approved", supersedes: " c " },
     { id: "d", createdAt: "2026-04-01T00:00:00.000Z", decisions: CHAIN },
   );
   assert.equal(linked.supersedes, "c");
   // A decision without a link carries no empty field.
   const plain = createDecision(
-    { title: "New", context: "Why", owner: "Kai", status: "approved" },
+    { title: "New", context: "Why", alternatives: "Keep the old one.", owner: "Kai", status: "approved" },
     { id: "e", createdAt: "2026-04-01T00:00:00.000Z" },
   );
   assert.equal("supersedes" in plain, false);
@@ -122,7 +122,7 @@ test("setting the link leaves the superseded record byte-identical", () => {
   // Recording the replacement is the only write. The record it replaces is not
   // touched: no status change, no reverse field, no new timestamp.
   const replacement = createDecision(
-    { title: "Replacement", context: "Why", owner: "Mina", status: "approved", supersedes: "a" },
+    { title: "Replacement", context: "Why", alternatives: "Keep the old one.", owner: "Mina", status: "approved", supersedes: "a" },
     { id: "b2", createdAt: "2026-05-01T00:00:00.000Z", decisions: loadDecisions(storage) },
   );
   saveDecisions(storage, [replacement, ...loadDecisions(storage)]);
