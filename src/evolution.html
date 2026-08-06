@@ -110,6 +110,18 @@
              paints from, so the served bytes and the render agree. -->
         <p class="stand-answer" id="finops-recoverable-confidence">A ceiling to verify at list prices, before any committed-use discount.</p>
         <a class="stand-action" id="finops-recoverable-action" href="/savings-action-center.html">Move Atlas Platform's short, low-context requests to the standard model</a>
+        <!-- A SHARED BRIEF THIS BUILD COULD NOT READ (#1208). One sentence, and
+             the normal answer above and below it is untouched: a link cut short
+             by a chat client must not cost a reader the page they opened. It
+             ships EMPTY and HIDDEN and stays that way on every ordinary visit —
+             src/finops-recipient-brief-view.js writes it only when the address
+             carries a briefing fragment the codec refuses, in that codec's own
+             words for that refusal. Not a live region: nothing changed under
+             the reader, and this page allows one voice per change. When the
+             fragment DOES decode, this stays hidden and the region's own slots
+             state the sender's figures instead. No new style rule: the
+             qualifying sentence's class, which the region already ships. -->
+        <p class="stand-answer" id="finops-recoverable-shared-note" hidden></p>
         <!-- HOW WE KNOW THIS — the one disclosure pattern this page reuses
              (#1185). The figure and the move are read first; everything that
              qualifies them is one press away, in three labelled parts and in the
@@ -130,13 +142,19 @@
              announcement node is inside any instance of this pattern: folded
              into a shut disclosure, an announcement is one nobody is told, and
              a test harness that reads through a closed disclosure would not
-             notice. tests/finops-how-we-know.test.js holds the page to it. -->
+             notice. tests/finops-how-we-know.test.js holds the page to it.
+
+             THE THREE PARTS CARRY IDS (#1208) so a brief shared from another
+             lead's browser can state its own provenance, basis and limits in
+             them rather than leaving this example's words under somebody else's
+             money. Nothing else about the pattern changes: same summary, same
+             three parts in the same order, same collapsed start. -->
         <details class="figure-source how-we-know" id="finops-recoverable-how-we-know" data-disclosure="collapsed">
           <summary class="figure-source-summary how-we-know-summary" id="finops-recoverable-how-we-know-summary"><span class="figure-source-state" data-disclosure="collapsed"><span class="figure-source-shape" aria-hidden="true">▸</span> How we know this</span></summary>
           <dl class="figure-source-detail how-we-know-detail">
-            <div><dt>Provenance</dt><dd>The bundled synthetic example: invented usage records for an invented company, shipped with this page. Not your spend, not customer data, and not a realized saving. No file of yours is read, uploaded, or stored to produce it.</dd></div>
-            <div><dt>Basis</dt><dd>Recoverable annual spend sums, over every workload the example models, the difference between what that workload costs today and the cheapest destination this page already models for it, treating a workload as zero where that difference is not positive. One workload qualifies — Atlas Platform's short, low-context requests moved to the standard model — at $5,200 a month; 5,200 x 12 = 62,400, rounded once after the arithmetic.</dd></div>
-            <div><dt>Limits</dt><dd>Priced at published list prices. Committed-use discounts and measured throughput are both left out of the arithmetic, so this is a ceiling to verify against an invoice rather than a saving anyone has banked. It is stated as of the bundled synthetic example and moves the moment a provider export of your own is analyzed. <span id="finops-recoverable-confidence-detail">The confidence grade beside the figure has not been computed for this document.</span></dd></div>
+            <div><dt>Provenance</dt><dd id="finops-recoverable-provenance">The bundled synthetic example: invented usage records for an invented company, shipped with this page. Not your spend, not customer data, and not a realized saving. No file of yours is read, uploaded, or stored to produce it.</dd></div>
+            <div><dt>Basis</dt><dd id="finops-recoverable-basis">Recoverable annual spend sums, over every workload the example models, the difference between what that workload costs today and the cheapest destination this page already models for it, treating a workload as zero where that difference is not positive. One workload qualifies — Atlas Platform's short, low-context requests moved to the standard model — at $5,200 a month; 5,200 x 12 = 62,400, rounded once after the arithmetic.</dd></div>
+            <div><dt>Limits</dt><dd id="finops-recoverable-limits">Priced at published list prices. Committed-use discounts and measured throughput are both left out of the arithmetic, so this is a ceiling to verify against an invoice rather than a saving anyone has banked. It is stated as of the bundled synthetic example and moves the moment a provider export of your own is analyzed. <span id="finops-recoverable-confidence-detail">The confidence grade beside the figure has not been computed for this document.</span></dd></div>
           </dl>
         </details>
       </section>

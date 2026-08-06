@@ -506,6 +506,11 @@ import { bindAnswerCopy } from "/finops-answer-copy.js";
 // (#1206), so a shared URL resolves to the sender's months rather than to the
 // published synthetic sample. Reads storage; writes none of it.
 import { applyShareLink, bindShareLink } from "/finops-share-link-control.js";
+// …and the other end of that link (#1208): when THIS address carries a brief a
+// colleague shared, the answer region states the sender's month rather than the
+// bundled example under the sender's sentence about it. Reads the fragment only;
+// touches no store, on any path, including the refusing ones.
+import { applyRecipientBrief } from "/finops-recipient-brief-view.js";
 // …and the one owner of WHICH source that answer came from. The page used to
 // choose between the bundled example and the reader's import at each call site;
 // it now reads a single held answer, so the headline, the action, the position
@@ -4907,6 +4912,12 @@ async function init() {
   // document with, so this repaints what the document already says rather than
   // changing it — and a document served without the seed still gets the grade.
   applyRecoverableConfidence(document);
+  // …and immediately after it, because it may replace that grade with a
+  // different one: if this address carries a colleague's shared brief, the four
+  // slots above and the region's one disclosure state the sender's month
+  // instead. A fragment carrying no brief repaints nothing at all, which is
+  // every ordinary visit, including the nav's own door into this region.
+  applyRecipientBrief(document, { hash: window.location?.hash ?? "" });
   installDeepLinkDisclosure(document, window);
   // Immediately after it, and for the same reason: a deep link may have already
   // opened a deferred panel, and the read for that panel is taken at install.
