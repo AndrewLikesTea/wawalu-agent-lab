@@ -1,13 +1,26 @@
 import { renderState } from "./state-ui.js";
+// The count, the feeds it comes from, and what a merge is live in one module
+// because the home page shows this same number and the two may not disagree.
+// This page's own exports are unchanged: they are that module's, re-exported.
+//
+// The feeds this page requests are named here in full, because the locked
+// observatory audit reads them out of this file:
+//   https://api.github.com/repos/AndrewLikesTea/paint-lab/events?per_page=30
+//   https://api.github.com/repos/AndrewLikesTea/wawalu-agent-lab/events?per_page=30
+// Those two lines are documentation and not a second definition. EVENTS_URLS is
+// the only list anything requests or links to, and a case in
+// tests/homepage-public-merges.test.js pins these lines to it, so a feed that
+// changed there and not here fails a test rather than misleading a reader.
+import {
+  EVENTS_URLS,
+  SOURCE_REPOSITORIES,
+  countMergedPullRequests as countMerged,
+  liveGithubEvents as liveEvents,
+  mergedCountUnit,
+  readPublicEvents,
+} from "./public-merges.js";
 
-// The team now iterates on an external product (paint-lab); the lab repo still
-// carries runner and process activity, so the observatory watches both.
-// Exported so the headline figure's verification links can be pinned to the
-// exact responses the page requests, rather than drifting from them.
-export const EVENTS_URLS = [
-  "https://api.github.com/repos/AndrewLikesTea/paint-lab/events?per_page=30",
-  "https://api.github.com/repos/AndrewLikesTea/wawalu-agent-lab/events?per_page=30",
-];
+export { EVENTS_URLS, SOURCE_REPOSITORIES, responseTimestamp } from "./public-merges.js";
 const REFRESH_MS = 90_000;
 const DEMO_DATA_URL = "/agent-demo-data.json";
 // The last count that was actually taken from the responses above, published
@@ -500,11 +513,6 @@ export const CONNECTION_LABELS = Object.freeze({
 // stated with it rather than implied, because the events endpoint returns a
 // window of recent events and not the repository's whole history.
 
-/** The repositories the figure is counted from, read off the URLs we request. */
-export const SOURCE_REPOSITORIES = EVENTS_URLS.map(
-  (url) => new URL(url).pathname.split("/").slice(2, 4).join("/"),
-);
-
 // Every synthetic record this page can reach, named here so excluding them is a
 // decision in the code and not an accident of where the count happens to be
 // called: the four representative activity rows, the built-in persona and run
@@ -516,51 +524,13 @@ const SYNTHETIC_RECORDS = new Set([
   SYNTHETIC_FALLBACK_DATA.run,
 ]);
 // The demo file is fetched, so its records are copies rather than the frozen
-// objects above and identity alone would not catch them. These keys belong to
-// persona, run, and representative-step records; a GitHub event carries none of
-// them.
-const SYNTHETIC_RECORD_KEYS = ["persona", "prompt", "phase", "personaName", "scenarioTitle"];
-
-/**
- * The records from a batch that are live public GitHub events.
- *
- * A countable record has to be an event GitHub sent — an object with an event
- * `type` and a `created_at` — and must be none of the synthetic material above.
- */
-export function liveGithubEvents(records = []) {
-  const batch = Array.isArray(records) ? records : [];
-  return batch.filter((record) => (
-    record !== null && typeof record === "object"
-    && !SYNTHETIC_RECORDS.has(record)
-    && !SYNTHETIC_RECORD_KEYS.some((key) => key in record)
-    && typeof record.type === "string" && Boolean(record.created_at)
-  ));
-}
-
-/** Merged pull requests among live public GitHub events. Merges only. */
-export function countMergedPullRequests(records = []) {
-  return liveGithubEvents(records).filter((event) => (
-    event.type === "PullRequestEvent"
-    && event.payload?.action === "closed"
-    && event.payload?.pull_request?.merged === true
-  )).length;
-}
-
-/**
- * When the response the figure was computed from arrived.
- *
- * GitHub stamps every response with its own `Date` header; when it is there,
- * that is the response's time and beats ours. `receivedAt` is read once on the
- * fetch path, the moment the responses resolved — never at render time, so a
- * repaint cannot quietly age the figure's provenance.
- */
-export function responseTimestamp(responses = [], receivedAt) {
-  for (const response of responses) {
-    const stamped = new Date(response?.headers?.get?.("date") ?? NaN);
-    if (!Number.isNaN(stamped.getTime())) return stamped;
-  }
-  return receivedAt;
-}
+// objects above and identity alone would not catch them; the shared module
+// refuses those by shape, on every caller's behalf.
+// The observatory's own reading of the shared filter and count: the synthetic
+// material named above is what this page must exclude, and it is the only page
+// that can reach any of it.
+export const liveGithubEvents = (records = []) => liveEvents(records, SYNTHETIC_RECORDS);
+export const countMergedPullRequests = (records = []) => countMerged(records, SYNTHETIC_RECORDS);
 
 const formatClockTime = (date) => new Intl.DateTimeFormat(undefined, { timeStyle: "short" }).format(date);
 // The recorded count's date, as the calendar date it was taken on. ISO-8601,
@@ -621,7 +591,7 @@ export const MERGED_FIGURE_COPY = Object.freeze({
 /** The count and unit, the two of them always rendered together. */
 function appendCount(value, count) {
   appendText(value, "strong", "merged-figure-count", String(count));
-  appendText(value, "span", "merged-figure-unit", `merged pull ${count === 1 ? "request" : "requests"}`);
+  appendText(value, "span", "merged-figure-unit", mergedCountUnit(count));
 }
 
 /**
@@ -745,22 +715,12 @@ export async function loadActivity(root = document, fetcher = fetch) {
     paintRecordedFigure(root, record);
   });
   try {
-    const responses = await Promise.all(EVENTS_URLS.map(
-      (url) => fetcher(url, { headers: { Accept: "application/vnd.github+json" } }),
-    ));
-    // The moment this response arrived, taken once here rather than at render.
-    const receivedAt = new Date();
-    if (!responses.some((response) => response.ok)) throw new Error(`GitHub returned ${responses[0].status}`);
-    const payloads = await Promise.all(responses.map((response) => (response.ok ? response.json() : [])));
-    const events = payloads
-      .flatMap((payload) => (Array.isArray(payload) ? payload : []))
-      .sort((a, b) => new Date(b.created_at ?? 0) - new Date(a.created_at ?? 0))
-      .slice(0, 30);
+    // The same request, ordering, and arrival time the home page's count is
+    // read through: one path, so two surfaces cannot count one response twice.
     // Only the live records are countable, and a response that carried none of
     // them is not a zero — it is nothing to count from, which is the empty
     // headline, not a figure a reader could mistake for a real one.
-    const asOf = responseTimestamp(responses, receivedAt);
-    const countable = liveGithubEvents(events);
+    const { events, countable, asOf } = await readPublicEvents(fetcher, SYNTHETIC_RECORDS);
     if (countable.length) {
       renderMergedFigure(root, "live", {
         count: countMergedPullRequests(countable), total: countable.length, asOf,
