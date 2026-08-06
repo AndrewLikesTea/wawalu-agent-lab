@@ -1,11 +1,28 @@
 // What the executive briefing is built from, decided before anything is drawn.
 //
-// The briefing surface has exactly two things it may render: **this browser's
-// own retained FinOps periods**, or the **published synthetic sample**. There is
-// no third source, and in particular there is no upload, no fetch of anyone's
-// figures, no credential, and no link that could carry a record — the only
-// inputs this module can reach are the workspace document `finops-workspace.js`
-// already keeps and the fixture the artifact already ships.
+// The briefing surface has exactly three things it may render: **the periods a
+// colleague put in the link this reader opened**, **this browser's own retained
+// FinOps periods**, or the **published synthetic sample**. There is no fourth,
+// and in particular there is no upload, no fetch of anyone's figures, and no
+// credential — the only inputs this module can reach are the fragment on the
+// address bar, the workspace document `finops-workspace.js` already keeps, and
+// the fixture the artifact already ships.
+//
+// THE PRECEDENCE ORDER IS SHARED, THEN WORKSPACE, THEN SAMPLE, and it is not the
+// obvious one, so it is stated here and asserted in
+// `tests/executive-briefing-shared-source.test.js`. A reader who followed a
+// colleague's link asked for that colleague's figures. Briefing them on their
+// own retained months instead would answer a question they did not ask, under a
+// heading that looks identical — the same reasoning the pinned example path
+// already uses. A link that fails to decode does NOT silently become the
+// workspace or the sample either: the fallback still happens, because a reader
+// is owed a readable page, but the named refusal travels with it so the sample
+// can never be mistaken for what the sender sent.
+//
+// READ-ONLY IN THE READER'S DIRECTION. Resolving a shared link touches no store:
+// no write, no upsert, no "last viewed" stamp. The shared branch returns before
+// `readWorkspacePeriods` is called at all, so a reader's own retained records
+// are byte-identical after opening a colleague's link.
 //
 // Deciding it here, away from the DOM, is deliberate. "Is this the reader's own
 // spend, and if not, why not?" is the first question the page has to answer
@@ -19,13 +36,29 @@
 // artifact they would get — but it is labelled as a sample everywhere it can be
 // mistaken for a figure, including on paper.
 
-import { FINOPS_CONSENT, readFinopsDocument } from "/finops-workspace.js";
+// Relative specifiers, like every other module on this site — the root-absolute
+// form is what a page ENTRY writes. Both resolve to the same served path; this
+// one also loads under `node --test` without a page harness.
+import { FINOPS_CONSENT, readFinopsDocument } from "./finops-workspace.js";
+import { SHARE_DECODE_REASON, readSharedBriefingFragment } from "./finops-shared-briefing-link.js";
 
-/** The two things this surface may brief on. There is no third. */
+/** The three things this surface may brief on. There is no fourth. */
 export const BRIEFING_SOURCE = Object.freeze({
+  shared: "shared",
   workspace: "workspace",
   sample: "sample",
 });
+
+/**
+ * The precedence, highest first, as data rather than as the order of a few `if`
+ * statements. A test reads this and the behaviour of `chooseBriefingSource` and
+ * asserts they agree, so the documented order cannot drift from the real one.
+ */
+export const BRIEFING_SOURCE_PRECEDENCE = Object.freeze([
+  BRIEFING_SOURCE.shared,
+  BRIEFING_SOURCE.workspace,
+  BRIEFING_SOURCE.sample,
+]);
 
 /** Why this browser's own periods could not be briefed on. A closed set. */
 export const WORKSPACE_ABSENCE = Object.freeze({
@@ -103,6 +136,22 @@ export const SAMPLE_ORIGIN =
   "Published synthetic sample — no import, no customer data, and not your workspace's figures.";
 
 /**
+ * How the masthead names a briefing that arrived in a link.
+ *
+ * It says three things a reader has to have before they quote the figure: these
+ * are somebody else's months, they came off the address bar rather than out of
+ * this browser, and nothing here vouches for who sent them.
+ */
+export const SHARED_ORIGIN =
+  "Periods carried in the link you opened — the sender's own retained months, not this browser's and "
+  + "not the synthetic sample. Nothing was uploaded and nothing here proves who sent them.";
+
+export const SHARED_PROVENANCE_NOTE =
+  "Rebuilt in this tab from the periods in the address bar's fragment, which is never sent to a "
+  + "server. No clock, no random value, no network request, and no store took part — your own "
+  + "retained figures were not read and were not changed.";
+
+/**
  * What the reader is owed about how the figures on screen were produced.
  * Stated per source, because "rebuilt in this tab" means something different
  * when the periods came out of the reader's own store.
@@ -164,11 +213,47 @@ function frozenRead(code, periods, consentState) {
 /**
  * Choose what the page briefs on.
  *
- * The reader's own workspace wins whenever it holds a period. Otherwise the
- * source is the published sample and the absence travels with it, so the page
- * can say — in the same breath — that these are not your figures and why.
+ * A shared link wins outright: the reader asked for those figures by opening
+ * that address. The reader's own workspace wins next, whenever it holds a
+ * period. Otherwise the source is the published sample and the absence travels
+ * with it, so the page can say — in the same breath — that these are not your
+ * figures and why.
+ *
+ * @param storage this browser's `localStorage`, or a stand-in. NOT read at all
+ *   when the fragment carries a briefing this build can decode.
+ * @param options `{ hash }` — the location fragment, defaulting to none, so a
+ *   caller that does not pass one gets exactly the two-source behaviour this
+ *   function had before shared links existed.
+ * @returns the chosen source, plus `sharedFailure`: null when no link was
+ *   offered or the link decoded, and the named refusal otherwise. A refusal is
+ *   never swallowed — a sample drawn under a reader's belief that it is their
+ *   colleague's spend is the one outcome this precedence exists to prevent.
  */
 export function chooseBriefingSource(storage, options = {}) {
+  const { hash = "" } = options;
+  const shared = readSharedBriefingFragment(hash);
+  if (shared.ok) {
+    return Object.freeze({
+      source: BRIEFING_SOURCE.shared,
+      periods: shared.periods,
+      retainedCount: shared.periods.length,
+      absence: null,
+      sharedFailure: null,
+      origin: SHARED_ORIGIN,
+      provenanceNote: SHARED_PROVENANCE_NOTE,
+    });
+  }
+  // A fragment that carried nothing at all is not a failure to report: every
+  // ordinary anchor link on this site lands here.
+  const sharedFailure = shared.reason === SHARE_DECODE_REASON.absent
+    ? null
+    : Object.freeze({
+      code: shared.reason,
+      summary: shared.summary,
+      statement: shared.statement,
+      remedy: shared.remedy,
+    });
+
   const read = readWorkspacePeriods(storage, options);
   if (read.code === null) {
     return Object.freeze({
@@ -176,6 +261,7 @@ export function chooseBriefingSource(storage, options = {}) {
       periods: read.periods,
       retainedCount: read.retainedCount,
       absence: null,
+      sharedFailure,
       origin: WORKSPACE_ORIGIN,
       provenanceNote: WORKSPACE_PROVENANCE_NOTE,
     });
@@ -185,6 +271,7 @@ export function chooseBriefingSource(storage, options = {}) {
     periods: Object.freeze([]),
     retainedCount: 0,
     absence: Object.freeze({ code: read.code, ...WORKSPACE_ABSENCE_COPY[read.code] }),
+    sharedFailure,
     origin: SAMPLE_ORIGIN,
     provenanceNote: null,
   });
