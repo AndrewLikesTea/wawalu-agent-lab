@@ -42,12 +42,17 @@
 import { COPY_METHOD, copySummaryText } from "./coaching-summary.js";
 import { readWorkspacePeriods } from "./executive-briefing-source.js";
 import { sharedBriefingHref } from "./finops-shared-briefing-link.js";
+// Whether the link about to be copied reproduces this brief on the other side
+// (#1210). Checked at paint, beside the control, because a lead who has already
+// pressed the button has already sent it.
+import { checkSharedBriefingParity } from "./finops-share-parity.js";
 
 /** The ids this control owns. Authored in evolution.html, written only here. */
 export const SHARE_LINK_IDS = Object.freeze({
   block: "finops-share",
   lead: "finops-share-lead",
   button: "finops-share-button",
+  parity: "finops-share-parity",
   status: "finops-share-status",
   fallback: "finops-share-fallback",
   text: "finops-share-text",
@@ -90,6 +95,18 @@ export function shareableBriefingLink(storage, origin) {
 }
 
 /**
+ * The periods the link would carry, read the way the link itself reads them.
+ *
+ * The raw retained list, not the projected subset: the parity check compares
+ * what the sender holds against what a recipient decodes, and handing it the
+ * already-projected records would compare a copy with itself.
+ */
+function sharedPeriods(storage) {
+  const read = readWorkspacePeriods(storage);
+  return read.code === null ? read.periods : [];
+}
+
+/**
  * Paint the control for what this browser currently holds.
  *
  * @returns the link result that was painted; `ok` is false when the block is
@@ -111,6 +128,20 @@ export function applyShareLink(doc, storage, { origin = globalThis.location?.ori
       delete status.dataset.outcome;
     }
     if (box) box.value = link.url;
+  }
+
+  // The parity verdict, painted in the open beside the control rather than
+  // logged: it is the one sentence that says whether the thing this button
+  // copies reproduces the sender's figure, destination and grade. With nothing
+  // to share there is no link to check, so the line is emptied rather than left
+  // claiming a match for a link that no longer exists.
+  const parityNode = byId(doc, SHARE_LINK_IDS.parity);
+  if (parityNode) {
+    const parity = link.ok ? checkSharedBriefingParity(sharedPeriods(storage)) : null;
+    const sentence = parity ? parity.statement : "";
+    if (parityNode.textContent !== sentence) parityNode.textContent = sentence;
+    if (parity) parityNode.dataset.parity = parity.reason;
+    else delete parityNode.dataset.parity;
   }
 
   block.hidden = !link.ok;

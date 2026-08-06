@@ -388,6 +388,22 @@
         <div class="prompt-coaching-copy" id="finops-share" data-reason="no_period_in_token" hidden>
           <h3 class="eyebrow">Send a colleague your own figures</h3>
           <p class="prompt-coaching-copy-lead" id="finops-share-lead">A link to the printable executive briefing with the periods this browser has retained carried in it, so whoever opens it reads your months rather than the bundled synthetic example. The figures ride after the # and are never sent to a server. Aggregates only: the same retained-period fields this browser already keeps, no row and no filename.</p>
+          <!-- DOES THIS LINK REPRODUCE THE BRIEF? (#1210). Painted by
+               src/finops-share-parity.js through the control beside it, which
+               encodes this browser's periods, reads them back through the
+               recipient's own reader path, and compares a named field list —
+               the headline figure, the destination, the confidence grade and
+               the schema version. It ships EMPTY and is written only when there
+               is a link to check, so a first visit meets no claim about a link
+               that does not exist. It is a paragraph in the open and never
+               inside a disclosure element: the test harness reads through a
+               shut one and a real browser does not, so a verdict folded away
+               would pass its test and be silent for the lead it was written
+               for. It reads ABOVE the button on purpose — a lead who has
+               already pressed has already sent. Nothing here is focusable, so
+               the first-screen tab order is unchanged. NO FIGURE and no grade
+               is in these bytes. -->
+          <p class="prompt-coaching-copy-status" id="finops-share-parity" role="status" aria-live="polite" aria-atomic="true"></p>
           <button class="secondary-button" type="button" id="finops-share-button" aria-describedby="finops-share-lead finops-share-status">Copy shareable link to your own figures</button>
           <p class="prompt-coaching-copy-status" id="finops-share-status" role="status" aria-live="polite" aria-atomic="true"></p>
           <div class="prompt-coaching-copy-fallback prompt-coaching-field" id="finops-share-fallback">
