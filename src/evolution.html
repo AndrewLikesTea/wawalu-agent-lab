@@ -366,6 +366,30 @@
             <textarea id="finops-copy-text" rows="7" readonly spellcheck="false"></textarea>
           </div>
         </div>
+        <!-- SEND THIS ANSWER, NOT THE INVENTED COMPANY (#1206). The figures a
+             lead is reading, encoded into the link's FRAGMENT — the one part of
+             a URL a browser never puts on the wire. Opening the link resolves
+             the answer region to the sender's figure, first move and confidence
+             grade, with the marker above saying whose they are. No query
+             parameter, no form, no request: src/finops-share-codec.js is pure
+             and has no path to one. The block ships hidden and is revealed only
+             when the painted answer has a figure to link to, so the control is
+             never offered over nothing. A link that fails to decode paints its
+             named reason into the notice below rather than letting the bundled
+             company stand in silently. Same three clipboard rungs, same idle
+             status line and same readable fallback box as the copy control
+             above; no new style rule. -->
+        <p class="stand-answer" id="finops-share-notice" data-reason="none" hidden></p>
+        <div class="prompt-coaching-copy" id="finops-share" data-reason="no_answer" hidden>
+          <h3 class="eyebrow">Send this answer to someone</h3>
+          <p class="prompt-coaching-copy-lead" id="finops-share-lead">A link that opens this page on the figures above instead of the bundled example. The answer travels inside the link, which browsers do not send to any server; your export, your rows and your file name stay here.</p>
+          <button class="secondary-button" type="button" id="finops-share-button" aria-describedby="finops-share-lead finops-share-status">Copy shareable link to this answer</button>
+          <p class="prompt-coaching-copy-status" id="finops-share-status" role="status" aria-live="polite" aria-atomic="true"></p>
+          <div class="prompt-coaching-copy-fallback prompt-coaching-field" id="finops-share-fallback">
+            <label for="finops-share-text">The exact link this copies</label>
+            <textarea id="finops-share-text" rows="3" readonly spellcheck="false"></textarea>
+          </div>
+        </div>
         <!-- THE IMPORTED HEADLINE, and only the imported one. It ships EMPTY and
              HIDDEN: the question, the five slot labels, every value, every
              fallback sentence and both provenance labels are painted by

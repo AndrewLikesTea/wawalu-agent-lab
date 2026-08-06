@@ -502,6 +502,11 @@ import { applyRecoverableConfidence } from "/finops-recoverable-confidence-view.
 // binding is imported here: the text itself is painted by the headline's own
 // paint, so it can never be as of a different dataset than the region is.
 import { bindAnswerCopy } from "/finops-answer-copy.js";
+// …and the control that hands it to a colleague as a link, plus the notice that
+// says why a link did not open. The link's own text is painted by the headline's
+// paint, for the copy control's reason.
+import { applyShareNotice, bindAnswerShare } from "/finops-answer-share.js";
+import { decodeShareToken, tokenFromFragment } from "/finops-share-codec.js";
 // …and the one owner of WHICH source that answer came from. The page used to
 // choose between the bundled example and the reader's import at each call site;
 // it now reads a single held answer, so the headline, the action, the position
@@ -4933,6 +4938,17 @@ async function init() {
   // Bound before the paint that fills it, so the control is operable on the
   // first summary the region composes rather than on the second.
   bindAnswerCopy(document);
+  bindAnswerShare(document);
+  // A LINK A COLLEAGUE SENT WINS THE FIRST PAINT (#1206). Read before the paint
+  // below, so a reader who followed a shared link never sees the bundled
+  // company appear and then be replaced. The token is read from the FRAGMENT
+  // only — never the query string — decoded with no storage read and no write,
+  // and adopted only when it survives the allowlist. A token that fails leaves
+  // the bundled default exactly where it was and paints its named reason, so
+  // "this link is broken" is never told as "here is an invented company".
+  const sharedLink = decodeShareToken(tokenFromFragment(window.location?.hash ?? ""));
+  if (sharedLink.ok) answerState.setShared(sharedLink.payload);
+  applyShareNotice(document, sharedLink);
   // Nothing has been imported at boot, so the held answer is the bundled
   // synthetic example with its marker intact — composed on this first read.
   // Painted WITHOUT announcing: the build seeds this same answer into the

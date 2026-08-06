@@ -161,6 +161,18 @@ export const STAND_SAMPLE_MARKER = Object.freeze({
       + " selected. Nothing was uploaded, and the bundled synthetic example is no longer what"
       + " this region is reporting.",
   }),
+  // The third source (#1206): figures a colleague computed, carried in the link
+  // that was opened. ◆ and not ◇, on the same rule as an import — these are
+  // somebody's real figures, not the bundled classification. The last clause is
+  // not a hedge to be trimmed: the disclosures under this region still describe
+  // the bundled example, because only the answer travels in a link.
+  shared: Object.freeze({
+    shape: "◆",
+    word: "Shared analysis",
+    detail: "Computed in the sender's browser from their own export and carried in the link you"
+      + " opened — not fetched, not recomputed here, and not this page's bundled example. The"
+      + " supporting disclosures below still describe the bundled example.",
+  }),
 });
 
 /**
@@ -1438,5 +1450,88 @@ export function standHeadlineForImport({ analysis = null, eligibility = null } =
     position: placed,
     available: Boolean(composed.recoverable.available && composed.team.available
       && composed.action.available),
+  });
+}
+
+/**
+ * The third path: an answer that arrived in a shared link (#1206).
+ *
+ * NOTHING IS COMPUTED HERE. Every value is one the sender's browser already
+ * computed and the link carried; this reshapes them into the record the view
+ * paints, so a shared answer and a composed one go through one renderer. There
+ * is no analysis to re-derive from — a link carries the answer, never the rows.
+ *
+ * WHAT IS ABSENT IS ABSENT BY NAME. The graded floor, the reproducibility
+ * record and the disclosures are not in the payload, so they are returned in
+ * their stated-reason form rather than as blanks or zeroes. A reader must never
+ * meet a bare "$0" that is really "not carried".
+ *
+ * @param payload a payload `shareableAnswer` has already validated.
+ */
+export function sharedStandHeadline(payload) {
+  const slot = (name) => payload?.[name] ?? {};
+  const metric = slot("metric");
+  const action = slot("action");
+  const position = slot("position");
+  const team = slot("team");
+  return Object.freeze({
+    version: STAND_VERSION,
+    question: payload.question,
+    source: "shared",
+    label: payload.label,
+    period: null,
+    positioned: Boolean(position.available),
+    available: Boolean(metric.available && action.available && team.available),
+    answer: payload.answer,
+    finding: null,
+    entitlement: null,
+    runnersUp: Object.freeze([]),
+    rejectedSignals: Object.freeze([]),
+    position: Object.freeze({
+      available: Boolean(position.available),
+      label: position.label || PEER_RANK_LABEL,
+      value: position.value,
+      band: null,
+      basis: position.basis,
+    }),
+    recoverable: Object.freeze({
+      available: Boolean(metric.available),
+      label: metric.label,
+      value: metric.value,
+      basis: metric.basis,
+    }),
+    recoverableFloor: Object.freeze({
+      available: false,
+      label: FLOOR_LABEL,
+      value: "Not carried in a shared link",
+      basis: "The graded floor is computed from the sender's export, and an export does not travel "
+        + "in a link. Ask the sender for the briefing file to see it.",
+      floor: null,
+    }),
+    team: Object.freeze({
+      available: Boolean(team.available),
+      label: team.label,
+      name: team.name,
+      detail: team.detail,
+    }),
+    action: Object.freeze({
+      available: Boolean(action.available),
+      label: action.label,
+      // No href travels. A link may not name where a stranger's page navigates.
+      href: null,
+      basis: action.basis,
+    }),
+    withheld: position.available ? null : Object.freeze({
+      reasonCode: "not_shared",
+      missing: "The shared link carries the answer, not the rank behind it.",
+      nextStep: "Analyze your own export to be placed against similar organizations.",
+      actionLabel: STAND_RESOLUTION_ACTION.label,
+    }),
+    gradability: null,
+    /** The SENDER's grade, carried whole. Never re-graded against no export. */
+    grade: payload.grade,
+    figuresSuppressed: false,
+    reproducibility: null,
+    disclosures: Object.freeze([]),
   });
 }

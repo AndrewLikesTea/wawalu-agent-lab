@@ -44,16 +44,36 @@
 //    describe two different computations.
 
 import {
-  STAND_DISCLOSURE, buildStandHeadline, standHeadlineForImport,
+  STAND_DISCLOSURE, buildStandHeadline, sharedStandHeadline, standHeadlineForImport,
 } from "./finops-stand.js";
+import { gradeRecoverableConfidence } from "./finops-recoverable-confidence.js";
 
 /** Bump when a key of the answer object or a rejection message changes meaning. */
-export const ANSWER_STATE_VERSION = "finops-answer-state/1.0.0";
+export const ANSWER_STATE_VERSION = "finops-answer-state/1.1.0";
 
-/** The two sources, in this module's own words. Never the composer's "example"/"import". */
+/**
+ * The three sources, in this module's own words. Never the composer's names.
+ *
+ * PRECEDENCE, DECIDED HERE AND NOWHERE ELSE (#1206):
+ *
+ *   1. `shared` — a fragment-carried analysis wins on load over everything
+ *      below it, because the reader clicked a link to a specific set of
+ *      figures. Opening it on the bundled example would answer a question
+ *      nobody asked.
+ *   2. `imported` — the reader's own export, adopted while the tab is open. It
+ *      outranks a shared link only because adopting one is a later, explicit
+ *      act by the reader at the control that does it.
+ *   3. `synthetic` — the bundled example, which is the default and never a
+ *      silent stand-in: the marker says so in three channels.
+ *
+ * A fragment that fails to decode does NOT reach this module. The page keeps
+ * the default and prints the decode reason, so the bundled company never
+ * stands in for a shared analysis as if nothing had gone wrong.
+ */
 export const ANSWER_SOURCE = Object.freeze({
   synthetic: "synthetic",
   imported: "imported",
+  shared: "shared",
 });
 
 /** How an input failed. `valid` is the only one that commits. */
@@ -210,8 +230,40 @@ const departmentsFrom = (headline) => Object.freeze(
     .find((entry) => entry.id === STAND_DISCLOSURE.departments)?.entries
     ?.map((row) => Object.freeze({ term: text(row.term), detail: text(row.detail) })) ?? []);
 
+/** The named department, as its own slot: a summary states it, a link carries it. */
+const teamFrom = (slot) => Object.freeze({
+  available: Boolean(slot?.available),
+  label: text(slot?.label),
+  name: text(slot?.name),
+  detail: text(slot?.detail),
+});
+
 /**
- * One composed headline, projected onto the bounded answer both sources share.
+ * How far this answer stands behind its own figure, as one graded value.
+ *
+ * The rubric is `finops-recoverable-confidence.js`'s and is consumed whole —
+ * there is no second cut point here. It is on the bounded answer because a
+ * figure that travels without its grade is a figure that gets quoted as if it
+ * were measured.
+ */
+const gradeFrom = (gradability, carried = null) => {
+  // A shared answer carries the grade the SENDER's verdict produced. Re-grading
+  // it here would grade the absence of their export, which is not the same fact.
+  if (isObject(carried) && typeof carried.grade === "string" && carried.grade !== "") {
+    return Object.freeze({
+      available: Boolean(carried.available), grade: carried.grade, label: text(carried.label),
+    });
+  }
+  const verdict = gradeRecoverableConfidence(gradability ?? null);
+  return Object.freeze({
+    available: Boolean(gradability),
+    grade: text(verdict?.grade),
+    label: text(verdict?.label),
+  });
+};
+
+/**
+ * One composed headline, projected onto the bounded answer every source shares.
  */
 export function projectAnswer(headline, source) {
   return Object.freeze({
@@ -227,9 +279,79 @@ export function projectAnswer(headline, source) {
     metric: metricFrom(headline?.recoverable),
     action: actionFrom(headline?.action),
     position: positionFrom(headline?.position),
+    /** The department the finding attributes the increase to. */
+    team: teamFrom(headline?.team),
+    /** …and how far the page stands behind the figure above. */
+    grade: gradeFrom(headline?.gradability, headline?.grade ?? null),
     departments: departmentsFrom(headline),
     withheld: withheldFrom(headline?.withheld),
   });
+}
+
+// ---------------------------------------------------------------------------
+// What may leave this tab in a link.
+// ---------------------------------------------------------------------------
+
+/**
+ * The bounded answer's fields a shared link may carry. THE ONE LIST.
+ *
+ * `finops-share-codec.js` encodes exactly these and validates a decoded
+ * envelope against exactly these, so there is no second field list to keep in
+ * step. Everything the projection above holds that is NOT named here — the
+ * department drill-down, the withheld slot, the source — stays in the tab that
+ * computed it: aggregates a lead means to send, and nothing else.
+ */
+export const SHAREABLE_ANSWER = Object.freeze({
+  strings: Object.freeze(["question", "label", "answer"]),
+  slots: Object.freeze({
+    metric: Object.freeze(["label", "value", "basis"]),
+    action: Object.freeze(["label", "basis"]),
+    position: Object.freeze(["label", "value", "basis"]),
+    team: Object.freeze(["label", "name", "detail"]),
+    grade: Object.freeze(["grade", "label"]),
+  }),
+});
+
+const slotOf = (value, fields) => {
+  if (!isObject(value)) return null;
+  const projected = { available: Boolean(value.available) };
+  for (const field of fields) {
+    if (value[field] !== undefined && typeof value[field] !== "string") return null;
+    projected[field] = text(value[field]);
+  }
+  return Object.freeze(projected);
+};
+
+/**
+ * Project one bounded answer onto what a link may carry — and validate one that
+ * arrived in a link, through the same code.
+ *
+ * One function for both directions on purpose: a payload that came off the wire
+ * is accepted only if it survives the same projection an outgoing one is built
+ * by, so "what this build encodes" and "what this build accepts" cannot drift.
+ *
+ * @returns the frozen payload, or null when the input is not an object, is
+ *   missing a required string, carries a slot of the wrong type, or has no
+ *   figure to show. Null is what both callers read as "there is nothing here".
+ */
+export function shareableAnswer(answer) {
+  if (!isObject(answer)) return null;
+  const payload = {};
+  for (const field of SHAREABLE_ANSWER.strings) {
+    if (answer[field] !== undefined && typeof answer[field] !== "string") return null;
+    payload[field] = text(answer[field]);
+  }
+  // The question is what makes the link readable as an answer to something.
+  if (payload.question === "") return null;
+  for (const [name, fields] of Object.entries(SHAREABLE_ANSWER.slots)) {
+    const slot = slotOf(answer[name], fields);
+    if (slot === null) return null;
+    payload[name] = slot;
+  }
+  // A link to no figure is a link to nothing. The control reads this as its
+  // empty state and offers no link at all.
+  if (!payload.metric.available || payload.metric.value === "") return null;
+  return Object.freeze(payload);
 }
 
 // ---------------------------------------------------------------------------
@@ -245,6 +367,7 @@ export function projectAnswer(headline, source) {
  */
 export function createAnswerState({
   synthetic = buildStandHeadline, imported = standHeadlineForImport,
+  shared = sharedStandHeadline,
 } = {}) {
   // Committed together, always. Two fields rather than one because the view
   // needs the composed record and every other caller needs the bounded answer,
@@ -334,6 +457,29 @@ export function createAnswerState({
       });
     },
 
+    /**
+     * Adopt an analysis that arrived in a shared link (#1206).
+     *
+     * Takes a payload the codec has already decoded and validated — this module
+     * does not read a URL, and nothing here writes to storage, so opening a
+     * stranger's link cannot touch what this browser kept. A payload that does
+     * not survive the allowlist leaves the held answer exactly as it was, on the
+     * same rule `setImport` follows.
+     *
+     * @returns `{ committed, source }`, frozen.
+     */
+    setShared(payload) {
+      held();
+      const carried = shareableAnswer(payload);
+      if (!carried) return Object.freeze({ committed: false, source });
+      try {
+        commit(shared(carried), ANSWER_SOURCE.shared);
+      } catch {
+        return Object.freeze({ committed: false, source });
+      }
+      return Object.freeze({ committed: true, source });
+    },
+
     /** Discard the import and fall back to the bundled synthetic example. */
     clearImport() {
       return toSynthetic();
@@ -344,7 +490,7 @@ export function createAnswerState({
       return held();
     },
 
-    /** `'imported'` or `'synthetic'`. The only observable difference between them. */
+    /** `'synthetic'`, `'imported'` or `'shared'`. The only observable difference. */
     getSource() {
       return source;
     },

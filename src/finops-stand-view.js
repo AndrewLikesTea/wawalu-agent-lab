@@ -37,6 +37,11 @@ import { ANSWER_REPRODUCTION } from "./finops-answer-reproduction.js";
 // headline rather than from the DOM it just wrote, so the copied qualifier and
 // the rendered one are two readings of one object.
 import { applyAnswerCopy } from "./finops-answer-copy.js";
+// …and the same answer as a link somebody else can open (#1206). Projected from
+// THIS paint's headline through the page's own bounded projection, so the link
+// carries the figures on screen and never the ones a previous paint left.
+import { applyAnswerShare } from "./finops-answer-share.js";
+import { projectAnswer } from "./answer-state.js";
 
 /** The state chip, in the same two channels the rest of this page uses. */
 export const STAND_DISCLOSURE_STATE = Object.freeze({
@@ -760,7 +765,7 @@ export function applyStandHeadline(doc, headline, { announce = true } = {}) {
   const marker = byId(doc, STAND_IDS.sample);
   if (marker) {
     const copy = STAND_SAMPLE_MARKER[headline.source] ?? STAND_SAMPLE_MARKER.example;
-    marker.dataset.source = headline.source === "import" ? "import" : "example";
+    marker.dataset.source = STAND_SAMPLE_MARKER[headline.source] ? headline.source : "example";
     const [shape, word] = [marker.children?.[0] ?? null, marker.children?.[1] ?? null];
     if (shape) shape.textContent = copy.shape;
     if (word) word.textContent = copy.word;
@@ -773,6 +778,8 @@ export function applyStandHeadline(doc, headline, { announce = true } = {}) {
   // the marker's own sentence and must be built from the source this paint
   // resolved rather than from the one the last paint left behind.
   applyAnswerCopy(doc, headline);
+  // …and as a link, from the same paint's headline for the same reason.
+  applyAnswerShare(doc, projectAnswer(headline, headline.source));
 
   // Spoken once, from the page's one announcer, and it carries the three things
   // a reader who cannot see this region needs in order to decide whether to
