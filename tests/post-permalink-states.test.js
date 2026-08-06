@@ -18,7 +18,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { loadPage, pressEnter, pressTab, tabSequence, textOf } from "./support/browser.js";
+import { loadPage, parseHtml, pressEnter, pressTab, tabSequence, textOf } from "./support/browser.js";
+import { postDetailHref } from "../src/social-links.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 
 const SEED_URL = "/social-demo-data.json";
@@ -277,10 +278,12 @@ test("an unreachable feed is named as such, with a keyboard-reachable retry afte
     assert.ok(order.indexOf(page.panel.querySelector(".empty-title")) < order.indexOf(retry),
       "the retry must come after the heading in the document, not just below it");
 
-    // In the natural tab order, after the page's standing exit.
+    // In the natural tab order, and ahead of the page's standing exit: the post
+    // slot sits above the routes off the page, so the action that can still
+    // produce the post is reached before the ones that leave without it.
     const sequence = tabSequence(page.document);
     assert.ok(sequence.includes(retry), "the retry is reachable by keyboard");
-    assert.ok(sequence.indexOf(page.document.querySelector("#post-back")) < sequence.indexOf(retry));
+    assert.ok(sequence.indexOf(retry) < sequence.indexOf(page.document.querySelector("#post-back")));
 
     retry.focus();
     assert.equal(page.document.activeElement, retry, "and it can hold focus");
@@ -466,6 +469,10 @@ const EXITS_BY_STATE = {
 // Word for word the last sentence of Social's own intro, because a visitor who
 // lands here may never open /social.html.
 const DEMO_SENTENCE = "Posts use no customer or production data.";
+// What Social is, for a reader who arrived on a pasted link and has never seen
+// the feed. It is context about the surface, not about this post, so it reads
+// after the post rather than in front of it.
+const CONTEXT_SENTENCE = "Social is a shared demo feed of short posts about the work the team ships, each with an optional image.";
 
 test("the words of a route out never change, and the demo sentence survives every state", async () => {
   const cases = [
@@ -513,30 +520,48 @@ test("the words of a route out never change, and the demo sentence survives ever
   assert.match(html, /<p class="eyebrow">Social · post · demo<\/p>/);
 });
 
-// Who reads a published post, and whether it can be taken back. The answer is
-// the same on every surface that asks a visitor to publish or shows them what
-// publishing produced, so it is one string in three places — Social's intro,
-// Social's composer, and this page's hero — and drift between them is a
-// difference a reader would read as a difference in the rules.
+// Who reads a published post, and whether it can be taken back. It used to be
+// said three times — Social's intro, Social's composer, and the permalink's
+// hero — two of them nowhere near a control that can publish anything. A
+// warning repeated on pages where the act is impossible is a warning a reader
+// stops reading, and it was spent before it could cost anything. It is now said
+// exactly once, at the Publish post button, which names it as its own
+// accessible description so it is announced at the moment of the act.
 const CONSEQUENCE = "Anyone who visits Shiplog can read your post, its image, and the display name you publish it with. You cannot delete it afterwards, so post nothing you would not put on a public page.";
 const consequencesIn = (html) => [...html.matchAll(/<p class="[^"]*publish-consequence[^"]*"[^>]*>([^<]*)<\/p>/g)].map((match) => match[1]);
 
-test("the publication consequence is one sentence pair, word for word, on Social and on a permalink", async () => {
+test("the publication consequence is said once, at the button that publishes", async () => {
   const social = await readFile(new URL("../src/social.html", import.meta.url), "utf8");
   const post = await readFile(new URL("../src/post.html", import.meta.url), "utf8");
 
-  // Two on Social — the intro and the composer — and one here. Counted, so a
-  // fourth copy or a lost one is a failure rather than a silent pass.
-  assert.deepEqual(consequencesIn(social), [CONSEQUENCE, CONSEQUENCE],
-    "Social must carry the consequence in its intro and beside Publish post");
-  assert.deepEqual(consequencesIn(post), [CONSEQUENCE],
-    "the permalink hero must carry the same consequence");
+  // One on Social — the composer's, beside Publish post — and none on the
+  // permalink, which has no composer and cannot publish. Counted, so a second
+  // copy or a lost one is a failure rather than a silent pass.
+  assert.deepEqual(consequencesIn(social), [CONSEQUENCE],
+    "Social must carry the consequence exactly once, beside Publish post");
+  assert.deepEqual(consequencesIn(post), [],
+    "the permalink publishes nothing and must not carry the consequence");
+  // Not moved into the page under another class name either: the sentence is
+  // gone from that page's text altogether.
+  assert.equal(post.includes(CONSEQUENCE), false, "the permalink must not repeat the sentence unclassed");
 
-  // In the composer it stands ahead of the control it is about, and the button
-  // names it, so it is read on focus rather than only seen.
+  // It stands ahead of the control it is about, and the button names it, so it
+  // is read on focus rather than only seen.
   assert.ok(social.indexOf('id="post-consequence"') < social.indexOf('id="post-submit"'),
     "the consequence must precede the Publish post button");
   assert.match(social, /id="post-submit"[^>]*aria-describedby="post-consequence social-notice"/);
+
+  // The description resolves: every id the button names is on the page, and the
+  // consequence's id is unique, so the announcement cannot land on the wrong
+  // node or on nothing at all.
+  const document = parseHtml(social);
+  const described = document.querySelector("#post-submit").getAttribute("aria-describedby").split(/\s+/);
+  assert.deepEqual(described, ["post-consequence", "social-notice"]);
+  for (const id of described) {
+    assert.equal(document.querySelectorAll(`#${id}`).length, 1, `aria-describedby names ${id} exactly once on the page`);
+  }
+  assert.equal(textOf(document.querySelector("#post-consequence")), CONSEQUENCE,
+    "the id the button names must hold the consequence itself");
 
   // The line this replaced described storage, not audience. Neither page may
   // say it again.
@@ -625,39 +650,50 @@ test("all four states carry a visible text label, not colour alone", async () =>
 /* --------------------- the page names itself, then leaves ----------------- */
 
 // A permalink is the page most likely to be someone's first contact with this
-// product, because it is the page that gets pasted into a chat window. It used
-// to read out as: skip link, nav, "Open Social…", "Open People…", and only then
-// the eyebrow and "Post from Social" — two ways to leave, offered before the
-// page said what had been arrived at. /social.html names People after its own
-// eyebrow, heading and intro, and /profile.html names Social in the same place;
-// the permalink joins that order rather than keeping one of its own.
+// product, because it is the page that gets pasted into a chat window. What
+// that link promised is one post, so the post is what the page leads with —
+// under the heading that names it, and above everything the page says about the
+// surface it came from. It used to read out as: skip link, nav, the eyebrow and
+// heading, three paragraphs about Social, two links off the page, and only then
+// the post itself. The context and the routes onward are what a reader wants
+// after the post, not in front of it.
 //
 // Read off single combined queries, which come back in document order — the
 // harness rejects descendant selectors like "section #id", and a node compared
 // against null walks the whole parsed page.
-function assertNamesItselfBeforeOfferingAWayOut(document, where) {
+function assertLeadsWithThePost(document, where) {
   const main = document.querySelector("#main-content");
 
-  const order = main.querySelectorAll("#page-title,#post-back,#post-people").map((node) => node.id);
-  assert.deepEqual(order, ["page-title", "post-back", "post-people"],
-    `${where}: the permalink offers a way out before it names the post`);
+  const order = main.querySelectorAll("#page-title,#post-detail,#post-back,#post-people").map((node) => node.id);
+  assert.deepEqual(order, ["page-title", "post-detail", "post-back", "post-people"],
+    `${where}: the permalink must name the post, then show it, then offer a way onward`);
 
-  // The whole hero sequence, in the shape Social uses: eyebrow, heading, intro,
-  // then the links. The intro is the standing demo sentence, which is the last
-  // thing the page says about itself before it points anywhere else.
-  const flow = main.querySelectorAll("h1,p");
+  // The whole page sequence: eyebrow, heading, the post's own region, what
+  // Social is, then the links. The context paragraph is the standing sentence
+  // about the feed; the demo sentence follows it, and neither precedes the post.
+  const flow = main.querySelectorAll("h1,p,div");
   const eyebrow = flow.findIndex((node) => node.classList.contains("eyebrow"));
   const heading = flow.findIndex((node) => node.id === "page-title");
+  const slot = flow.findIndex((node) => node.id === "post-detail");
+  const context = flow.findIndex((node) => textOf(node) === CONTEXT_SENTENCE);
   const intro = flow.findIndex((node) => textOf(node) === DEMO_SENTENCE);
   const exits = flow.findIndex((node) => node.classList.contains("detail-page-exits"));
-  assert.ok(eyebrow >= 0 && intro >= 0 && exits >= 0, `${where}: the hero lost a part of its sequence`);
-  assert.deepEqual([eyebrow, heading, intro, exits].slice().sort((a, b) => a - b), [eyebrow, heading, intro, exits],
-    `${where}: eyebrow, heading, intro, then the routes out`);
+  assert.ok(eyebrow >= 0 && slot >= 0 && context >= 0 && intro >= 0 && exits >= 0,
+    `${where}: the page lost a part of its sequence`);
+  const reading = [eyebrow, heading, slot, context, intro, exits];
+  assert.deepEqual(reading.slice().sort((a, b) => a - b), reading,
+    `${where}: eyebrow, heading, the post, what Social is, then the routes out`);
 
-  // They moved into the hero, not merely above the panel: the same standing
-  // block that carries the eyebrow and the heading now carries them.
+  // They live in the standing block that carries the eyebrow and the heading —
+  // not inside #post-detail, which every render empties. The post's own slot
+  // sits in that same block, above them.
+  for (const id of ["#post-back", "#post-people", "#post-detail"]) {
+    assert.ok(main.querySelector(id).closest(".hero-post"), `${where}: ${id} must sit in the standing block`);
+  }
+  // Asserted as a boolean, never as a node compared against null: a failing
+  // node comparison serialises the whole parsed page and outlives the timeout.
   for (const id of ["#post-back", "#post-people"]) {
-    assert.ok(main.querySelector(id).closest(".hero-post"), `${where}: ${id} must sit in the standing hero`);
+    assert.equal(Boolean(main.querySelector(id).closest("#post-detail")), false, `${where}: ${id} must survive a re-render`);
   }
 
   // Both are still offered, still worded as shipped, and still reachable.
@@ -676,7 +712,7 @@ function assertNamesItselfBeforeOfferingAWayOut(document, where) {
   assert.equal(textOf(reached[0]), SOCIAL_LINK, `${where}: the first route out reached after the skip link`);
 }
 
-test("the permalink names the post before it offers a way off it, loading and loaded", async () => {
+test("the permalink leads with the post and puts the feed context under it, loading and loaded", async () => {
   // The loading state is the one a cold visitor meets first, and it is drawn by
   // its own branch of renderPostDetail(), so it is held open and read on its own
   // rather than inferred from the state that follows it.
@@ -687,11 +723,11 @@ test("the permalink names the post before it offers a way off it, loading and lo
     await importPageModule("/post-page.js");
     const panel = waiting.document.querySelector("#post-detail");
     await waitFor(() => panel.querySelectorAll(".detail-loading").length === 1, "the loading state rendered");
-    assertNamesItselfBeforeOfferingAWayOut(waiting.document, "while the lookup runs");
+    assertLeadsWithThePost(waiting.document, "while the lookup runs");
 
     release();
     await waitFor(() => waiting.document.documentElement.dataset.shiplogPostDetail === "ready", "the post arrived");
-    assertNamesItselfBeforeOfferingAWayOut(waiting.document, "once the post arrived");
+    assertLeadsWithThePost(waiting.document, "once the post arrived");
   } finally {
     waiting.restore();
   }
@@ -701,8 +737,82 @@ test("the permalink names the post before it offers a way off it, loading and lo
   const html = await readFile(new URL("../src/post.html", import.meta.url), "utf8");
   const at = (needle) => html.indexOf(needle);
   assert.ok(at('<p class="eyebrow">Social · post · demo</p>') < at('<h1 id="page-title">'), "the eyebrow precedes the heading");
-  assert.ok(at('<h1 id="page-title">') < at(`>${SOCIAL_LINK}</a>`), "the heading precedes the Social route out");
+  assert.ok(at('<h1 id="page-title">') < at('id="post-detail"'), "the heading precedes the post's own region");
+  assert.ok(at('id="post-detail"') < at(`<p>${CONTEXT_SENTENCE}</p>`), "the post precedes what the page says about Social");
+  assert.ok(at(`<p>${CONTEXT_SENTENCE}</p>`) < at(`<p>${DEMO_SENTENCE}</p>`), "the two standing sentences keep their order");
   assert.ok(at(`<p>${DEMO_SENTENCE}</p>`) < at(`>${SOCIAL_LINK}</a>`), "the intro precedes the Social route out");
   assert.ok(at(`>${SOCIAL_LINK}</a>`) < at(`>${PEOPLE_LINK}</a>`), "Social precedes People, the order the nav names them in");
-  assert.ok(at(`>${PEOPLE_LINK}</a>`) < at('id="post-detail"'), "both routes out precede the state panel");
+  // Moved in the markup, not turned around in CSS: a stylesheet reorder would
+  // leave reading order and tab order in the order this change exists to end.
+  const css = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
+  for (const rule of [".detail-page-exits", ".profile-workspace", ".hero"]) {
+    const declarations = css.match(new RegExp(`^\\${rule} \\{([^}]*)\\}`, "m"))?.[1] ?? "";
+    assert.doesNotMatch(declarations, /order:\s*-?\d|column-reverse|wrap-reverse|position:\s*absolute/,
+      `${rule} must not re-sequence the page visually`);
+  }
+});
+
+// A loaded post is the whole point of the reorder, and it is the state where the
+// post region has content of its own to place: the caption, the display name,
+// the time, and the image described by its alt text. All of it reads before the
+// paragraph about Social and before both cross-links.
+test("a loaded post's caption, name, time and image all read before the feed context", async () => {
+  const page = await openPostPage("?id=p-image", seedOnly([IMAGE_POST]));
+  try {
+    assertLeadsWithThePost(page.document, "a loaded post");
+    assertOneState(page, "loaded", "a loaded post");
+
+    const main = page.document.querySelector("#main-content");
+    // One combined query, which comes back in document order. Everything the
+    // post is made of, then the context sentence, then the two routes out.
+    const flow = main.querySelectorAll(".detail-author-link,.detail-date,.detail-image,figcaption,#post-back,#post-people");
+    const names = flow.map((node) => node.id || node.className);
+    assert.deepEqual(names, ["detail-author-link", "post-date detail-date", "detail-image", "detail-caption", "post-back", "post-people"],
+      "the post's parts must all precede the routes off the page");
+
+    // The image is announced by the description the poster stored, in the post
+    // region rather than beside it.
+    const image = main.querySelector(".detail-image");
+    assert.equal(image.alt, IMAGE_POST.image.alt);
+    assert.ok(image.closest("#post-detail"), "the image belongs to the post's own region");
+
+    // And the context paragraph itself is after the post, not merely below it.
+    const blocks = main.querySelectorAll("#post-detail,p");
+    const slot = blocks.findIndex((node) => node.id === "post-detail");
+    const context = blocks.findIndex((node) => textOf(node) === CONTEXT_SENTENCE);
+    assert.ok(slot >= 0 && context > slot, "the paragraph describing Social must follow the post");
+
+    // Tab order agrees with reading order: the post's own link to its author is
+    // reached before either cross-link.
+    const sequence = tabSequence(page.document);
+    const author = main.querySelector(".detail-author-link");
+    assert.ok(sequence.indexOf(author) < sequence.indexOf(main.querySelector("#post-back")),
+      "a focusable inside the post region must precede the cross-links");
+  } finally {
+    page.restore();
+  }
+});
+
+// The URL shape is the contract with every permalink already pasted into a chat
+// window: `?id=`, built by postDetailHref and read by post-page.js. Reordering
+// the page may not change it, so a link built the way the feed and the People
+// grid build theirs still resolves to the same post — with the optional author
+// and provenance parameters those surfaces add, too.
+test("a permalink built the old way still resolves to the same post", async () => {
+  for (const search of [
+    postDetailHref(IMAGE_POST.id).replace("/post.html", ""),
+    postDetailHref(IMAGE_POST.id, IMAGE_POST.author, "profile").replace("/post.html", ""),
+    "?id=p-image",
+  ]) {
+    assert.match(search, /^\?id=p-image(&|$)/, "the permalink still carries its post id in ?id=");
+    const page = await openPostPage(search, seedOnly([IMAGE_POST, TEXT_POST]));
+    try {
+      assertOneState(page, "loaded", `a permalink at ${search}`);
+      assert.equal(textOf(page.panel.querySelector(".detail-author-link")), IMAGE_POST.author);
+      assert.equal(textOf(page.document.querySelector("#page-title")), `Post by ${IMAGE_POST.author}`);
+      assert.equal(textOf(page.panel.querySelector("figcaption")), IMAGE_POST.caption);
+    } finally {
+      page.restore();
+    }
+  }
 });

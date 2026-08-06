@@ -40,10 +40,56 @@
              page, not the bare word "Post". A loaded post renames it after the
              display name it was published under. -->
         <h1 id="page-title">Post from Social</h1>
+
+        <!-- The post itself, directly under the heading that names it and above
+             everything the page says about the surface it came from.
+             A permalink is opened for one reason: to read the post that was
+             shared. It used to open with the eyebrow, the heading, three
+             paragraphs about Social and two links off the page, and only then
+             the post — so the thing the link promised was the sixth block a
+             reader reached and the seventh a screen reader read. The order is
+             now the promise first: heading, post, then the context and the
+             routes onward for a reader who wants more than this one post.
+
+             Moved in the markup, not turned around with CSS. Reading order and
+             tab order are the point: a stylesheet that reversed the two blocks
+             visually would leave a screen reader and a Tab key walking the old
+             order, which is the order this change exists to end. Nothing in the
+             region below is focusable until post-detail.js renders a state that
+             owns an action, and when it does — the error state's retry, an
+             unresolved state's link to the feed — that control now precedes the
+             two standing routes out, which is the same promise in tab order. -->
+        <section class="workspace profile-workspace" aria-label="Post">
+          <div class="list-panel">
+            <!-- The initial state ships in the markup, the way src/releases.html
+                 ships its "Loading releases" line inside the release list. This
+                 region used to be an empty container: a visitor opening a shared
+                 link read the heading, then nothing at all, until post-page.js
+                 ran and drew the same line from script. The page now says what
+                 it is doing from the first paint — which matters more here than
+                 it did, because this region is the first thing under the
+                 heading rather than the last thing on the page.
+
+                 post-detail.js owns every state after this one. It replaces the
+                 whole region on each render and stamps data-post-state with one
+                 of exactly four values — loading, loaded, not-found, error — so
+                 the wait and a resolved answer can never stand on screen
+                 together. The wording here is the one post-detail.js renders,
+                 character for character; a test pins them to each other. -->
+            <div id="post-detail" data-post-state="loading" aria-busy="true">
+              <p class="detail-loading detail-state-panel" data-post-state-panel="loading" role="status"><span class="detail-loading-dot" aria-hidden="true"></span><span class="detail-loading-text">Loading this post…</span></p>
+            </div>
+          </div>
+        </section>
+
         <!-- Standing copy: it sits in the frame, not in #post-detail, so a
              visitor who arrived from a shared link is told what Social is
-             while the post is still loading — and still if it never arrives.
-             The heading above it is rewritten by JS; this sentence is not. -->
+             whatever the lookup did — while it runs, and still if it never
+             finds a post. It reads after the post rather than before it: a
+             reader who followed a shared link already knows they wanted this
+             post, and what Social is only becomes a question once they have
+             read it. The heading above is rewritten by JS; this sentence is
+             not. -->
         <p>Social is a shared demo feed of short posts about the work the team ships, each with an optional image.</p>
         <!-- Word for word the last sentence of Social's own intro. A visitor who
              arrives here from a shared link may never open /social.html, so the
@@ -53,21 +99,25 @@
              hero, outside the post's own region, so it survives every state the
              lookup can land in. -->
         <p>Posts use no customer or production data.</p>
-        <!-- Also word for word: Social's intro and Social's composer both carry
-             this sentence, and a permalink is the surface a visitor is likeliest
-             to meet cold — the one page that can turn a reader into a publisher
-             without their ever passing the feed. So it says here, too, who reads
-             a published post and that no one can take it back. It sits in the
-             hero rather than in #post-detail, so it survives a lookup that finds
-             nothing. -->
-        <p class="publish-consequence">Anyone who visits Shiplog can read your post, its image, and the display name you publish it with. You cannot delete it afterwards, so post nothing you would not put on a public page.</p>
-        <!-- The routes out close the hero, the way /social.html closes its own
-             hero with .hero-actions: eyebrow, heading, intro, then the links.
-             They used to open the content region instead, so the one page a
-             visitor is most likely to meet cold offered two ways to leave
-             before it had said what they had arrived at. Social names People
-             after its intro and People names Social after its intro; this page
-             now names both in the same place rather than ahead of its own name.
+        <!-- No publication consequence here. It used to stand in this hero, word
+             for word the sentence Social's composer shows beside Publish post,
+             on the reasoning that a permalink is the page a visitor meets cold.
+             But nobody publishes on this page: there is no composer, no caption
+             field and no button, so the sentence warned a reader about an act
+             this surface cannot perform. Said three times across two pages it
+             also read as boilerplate rather than as a consequence, which is the
+             failure mode a warning cannot afford. It survives once, in the one
+             place where it costs something — attached to Social's Publish post
+             button as that button's accessible description, so it is announced
+             at the moment of the act rather than skimmed twice beforehand. -->
+        <!-- The routes out close the page: eyebrow, heading, the post, what
+             Social is, then the links. They are the last thing a reader meets
+             rather than the first, because a way off a page is only useful once
+             the page has given what it promised. They used to sit above the
+             post, which offered two ways to leave before the thing the link was
+             shared for had been read at all. Social names People after its
+             intro and People names Social after its intro; this page names both
+             after its own content, in the same spirit.
 
              Two links, both forward. This page is the one surface a visitor
              reaches cold, from a link pasted into a chat window: they have no
@@ -102,27 +152,6 @@
           <a class="detail-back detail-page-back" id="post-back" href="/social.html">Open Social to read the whole feed</a>
           <a class="detail-back detail-page-back" id="post-people" href="/profile.html">Open People to see this display name's other image posts</a>
         </p>
-      </section>
-
-      <section class="workspace profile-workspace" aria-label="Post">
-        <div class="list-panel">
-          <!-- The initial state ships in the markup, the way src/releases.html
-               ships its "Loading releases" line inside the release list. This
-               region used to be an empty container: a visitor opening a shared
-               link read the heading and the sentence above, then nothing at all
-               until post-page.js ran and drew the same line from script. The
-               page now says what it is doing from the first paint.
-
-               post-detail.js owns every state after this one. It replaces the
-               whole region on each render and stamps data-post-state with one
-               of exactly four values — loading, loaded, not-found, error — so
-               the wait and a resolved answer can never stand on screen
-               together. The wording here is the one post-detail.js renders,
-               character for character; a test pins them to each other. -->
-          <div id="post-detail" data-post-state="loading" aria-busy="true">
-            <p class="detail-loading detail-state-panel" data-post-state-panel="loading" role="status"><span class="detail-loading-dot" aria-hidden="true"></span><span class="detail-loading-text">Loading this post…</span></p>
-          </div>
-        </div>
       </section>
       </main>
     </div>

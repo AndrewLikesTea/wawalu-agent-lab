@@ -156,11 +156,13 @@ test("a missing post reached from a profile still offers the feed it belonged to
     const toFeed = page.document.querySelectorAll("a")
       .filter((link) => link.getAttribute("href") === "/social.html"
         && !link.closest(".site-nav") && !link.closest("#site-footer"));
-    assert.deepEqual(toFeed.map(textOf), ["Open Social to read the whole feed", "Return to the Social feed"]);
+    // The panel's own action reads first, because the panel is where the post
+    // would have been and now stands above the page's standing routes out.
+    assert.deepEqual(toFeed.map(textOf), ["Return to the Social feed", "Open Social to read the whole feed"]);
 
-    // Tab order: the exit first, then the post region's own action.
+    // Tab order agrees: the state's own next step, then the standing exit.
     const sequence = tabSequence(page.document);
-    assert.ok(sequence.indexOf(page.document.querySelector("#post-back")) < sequence.indexOf(feed));
+    assert.ok(sequence.indexOf(feed) < sequence.indexOf(page.document.querySelector("#post-back")));
   } finally {
     page.restore();
   }
@@ -325,18 +327,20 @@ test("a missing post leaves the loading state behind entirely", async () => {
   }
 });
 
-test("the failed state reads back link, then the post's region, then its retry", async () => {
+test("the failed state reads the post's region and its retry, then the back link", async () => {
   const page = await openPostPage("?id=p-image", () => { throw new TypeError("Failed to fetch"); });
   try {
     const { document } = page;
     const back = document.querySelector("#post-back");
     const retry = page.panel.querySelector(".detail-retry");
 
-    // Document order, which is tab order here: the way out, the post's region,
-    // then the one action that region owns.
+    // Document order, which is tab order here: the post's region and the one
+    // action it owns, then the page's standing way out. A reader who failed to
+    // get the post reaches the control that can recover it before the control
+    // that abandons it.
     const sequence = tabSequence(document);
     assert.ok(sequence.includes(back) && sequence.includes(retry), "both controls are reachable by keyboard");
-    assert.ok(sequence.indexOf(back) < sequence.indexOf(retry), "the exit comes before the retry");
+    assert.ok(sequence.indexOf(retry) < sequence.indexOf(back), "the retry comes before the exit");
     assert.ok(retry.closest("#post-detail"), "the retry belongs to the post's region, not the page frame");
     // The panel offers both a return to the feed and a retry.
     assert.equal(page.panel.querySelectorAll("button").length, 1);

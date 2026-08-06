@@ -384,12 +384,13 @@ test("the post page's exit reads after the site header, in the document, not in 
   assert.ok(exit.closest("#main-content"), "the exit must sit inside the content region");
   assert.equal(exit.closest(".site-header"), null, "the exit must not sit in the site header");
 
-  // Document order inside the landmark: the heading first, then the routes out,
-  // then the panel — the page names itself before it offers a way off itself,
-  // which is the order Social and People use for each other's link. Social
-  // comes before People, the order the site nav names them in.
+  // Document order inside the landmark: the heading, then the post itself, then
+  // the routes off the page. A permalink is opened to read one post, so the
+  // post is what follows the heading that names it; the ways onward come after
+  // it rather than in front of it. Social still comes before People, the order
+  // the site nav names them in.
   const order = landmark.querySelectorAll("#post-back,#post-people,#page-title,#post-detail").map((node) => node.id);
-  assert.deepEqual(order, ["page-title", "post-back", "post-people", "post-detail"]);
+  assert.deepEqual(order, ["page-title", "post-detail", "post-back", "post-people"]);
 
   // No CSS trick may stand in for that order — reading order is the point.
   const css = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
