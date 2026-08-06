@@ -49,7 +49,7 @@ const EVALUATION_FIXTURES = JSON.parse(
  */
 const PENDING = Object.freeze([
   "Results will appear here",
-  "Nothing has been read yet, so there is no coverage, grade, or residue to report.",
+  "Nothing has been read yet, so there is no coverage, grade, or unclassified spend to report.",
   "Headline finding not checked.",
   "Benchmark not checked.",
   "Action not checked.",

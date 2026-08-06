@@ -204,9 +204,9 @@ export const FIRST_RUN_NOT_YET = Object.freeze({
  */
 export const SAMPLE_LABEL = Object.freeze({
   badge: "Bundled synthetic example",
-  statement:
-    "Every figure below comes from six months of invented data for an invented company. "
-    + "It is not your spend, customer data, or realized savings. No file is needed.",
+  // A word and a clause (#1185); the paragraph is in the region's disclosure.
+  statement: "Illustrative — invented data for an invented company, not your spend or"
+    + " realized savings. No file is needed.",
 });
 
 /** What a slot says when the analysis produced no value for it. */

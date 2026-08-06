@@ -300,6 +300,7 @@ export const FOCUS_SPEC = Object.freeze({
    * spec exists to refuse.
    */
   order: Object.freeze([
+    "finops-first-run-how-we-know-summary",
     "finops-first-run-answer-source-summary",
     "finops-first-run-benchmark-source-summary",
     "finops-first-run-impact-source-summary",

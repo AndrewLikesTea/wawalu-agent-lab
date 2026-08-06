@@ -143,9 +143,9 @@ export const STAND_SAMPLE_MARKER = Object.freeze({
   example: Object.freeze({
     shape: "◇",
     word: "Bundled synthetic example",
-    detail: "Every figure on this page — here and inside each layer below — was computed from"
-      + " invented data for an invented company. It is not your spend, customer data, or realized"
-      + " savings, and no file is needed to read it.",
+    // A word and a clause (#1185); the paragraph is in the region's disclosure.
+    detail: "Illustrative — invented data for an invented company, not your spend,"
+      + " customer data, or realized savings.",
   }),
   import: Object.freeze({
     // ◆ and not ●: the filled circle is the status ramp's "measured", and a

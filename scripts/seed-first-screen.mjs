@@ -4,7 +4,7 @@
 // THE DEFECT THIS EXISTS TO CLOSE (#944). The AI FinOps page shipped its first
 // screen in a pending state and filled it from JavaScript: the answer block read
 // "Results will appear here", the confidence line read "Nothing has been read
-// yet, so there is no coverage, grade, or residue to report", the circulation
+// yet, so there is no coverage, grade, or unclassified spend to report", the circulation
 // checklist read six "not checked" rows, and the executive briefing payload read
 // "Waiting for compatible bundled analysis" — while two screens further down the
 // same document the "Example result" section stated the whole bundled analysis.
@@ -176,7 +176,7 @@ export function firstScreenEdits(bundled) {
     authoredText("answer basis", "finops-answer-basis",
       "as of the Bundled synthetic example", answer.basis),
     authoredText("answer confidence", "finops-answer-confidence",
-      "Nothing has been read yet, so there is no coverage, grade, or residue to report.",
+      "Nothing has been read yet, so there is no coverage, grade, or unclassified spend to report.",
       answer.confidence),
     edit("answer action",
       '<a class="answer-action" id="finops-answer-action" href="#local-import">'
