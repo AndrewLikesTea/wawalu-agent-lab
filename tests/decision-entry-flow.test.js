@@ -15,6 +15,7 @@ import assert from "node:assert/strict";
 import { STORAGE_KEY, initDecisionLog } from "../src/app.js";
 import { DECISION_ENTRY_ERRORS } from "../src/decision-entry.js";
 import { RELEASE_STORAGE_KEY } from "../src/releases.js";
+import { createShiplogExport } from "../src/shiplog-export.js";
 import {
   DomEvent,
   loadPage,
@@ -137,10 +138,12 @@ test("an empty submit reports every field at once, writes nothing, and focuses t
       "true",
       `the ${field} control is not marked invalid`,
     );
+    // Not announced on its own: one submit says one thing, and that is the
+    // summary below. Each message is read with the control it describes.
     assert.equal(
       fieldError(page, field).getAttribute("role"),
-      "alert",
-      `the ${field} message is not announced`,
+      null,
+      `the ${field} message announces itself as well as the summary`,
     );
     // The message is part of the field's description, so it is read with the
     // control rather than only seen next to it.
@@ -151,10 +154,24 @@ test("an empty submit reports every field at once, writes nothing, and focuses t
     );
   }
 
+  // Exactly one summary line: it names the field that is blocking the save —
+  // the one focus just moved to — and counts what is left behind it.
   const summary = byId(page, "decision-form-error");
-  assert.equal(summary.hidden, false, "the form-level count is not shown");
-  assert.match(textOf(summary), /^4 fields/, "the form-level count is wrong");
-  assert.equal(summary.getAttribute("role"), "alert");
+  assert.equal(summary.hidden, false, "the form-level line is not shown");
+  assert.equal(
+    textOf(summary),
+    "Title is blocking this save. 3 more fields need attention.",
+    "the form-level line does not name the blocking field and the remaining count",
+  );
+  // The live region ships in the markup and is never hidden, so the sentence
+  // arriving inside it is a change a screen reader is present for. It holds
+  // this one line and nothing else.
+  const live = byId(page, "decision-form-live");
+  assert.equal(live.getAttribute("aria-live"), "polite");
+  assert.equal(live.getAttribute("role"), "status");
+  assert.equal(live.hasAttribute("hidden"), false, "the live region is hidden when it has nothing to say");
+  assert.equal(live.childElements.length, 1, "the live region carries more than the one summary line");
+  assert.equal(live.childElements[0].id, "decision-form-error");
 
   assert.equal(page.document.activeElement, byId(page, "title"), "focus did not land on the first failure");
   assert.deepEqual(stored(page), [], "a refused entry reached storage");
@@ -171,15 +188,22 @@ test("a message clears when its own field is answered, and the count follows", a
   assert.equal(fieldError(page, "title").hidden, true, "the message outlived the problem");
   assert.equal(textOf(fieldError(page, "title")), "", "the cleared message is still in the accessible description");
   assert.equal(byId(page, "title").hasAttribute("aria-invalid"), false, "the control is still marked invalid");
+  // The link goes with the message: an empty paragraph is not part of a
+  // control's accessible description.
+  assert.equal(
+    byId(page, "title").getAttribute("aria-describedby"),
+    "title-hint",
+    "the answered control still names its empty error paragraph",
+  );
   assert.deepEqual(
     shownErrors(page).map(({ field }) => field),
     ["context", "alternatives", "owner"],
     "answering one field cleared another field's message",
   );
-  assert.match(
+  assert.equal(
     textOf(byId(page, "decision-form-error")),
-    /^3 fields/,
-    "the form-level count did not follow the field that was answered",
+    "Context is blocking this save. 2 more fields need attention.",
+    "the form-level line did not follow the field that was answered",
   );
 
   // Answering the rest empties the summary rather than leaving a stale count.
@@ -222,8 +246,114 @@ test("an over-long paste is refused inline instead of throwing", async (t) => {
   submitButton(page).click();
 
   assert.deepEqual(shownErrors(page).map(({ field }) => field), ["context"]);
-  assert.equal(textOf(fieldError(page, "context")), DECISION_ENTRY_ERRORS.context.tooLong);
+  assert.equal(
+    textOf(fieldError(page, "context")),
+    "Context must be 1000 characters or fewer; it is currently 1001.",
+    "the message must state the limit and where the entry actually is",
+  );
+  assert.equal(textOf(fieldError(page, "context")), DECISION_ENTRY_ERRORS.context.tooLong(1001));
   assert.deepEqual(stored(page), [], "an over-long entry reached storage");
+});
+
+test("a refused submit keeps the whole draft, and fixing one field records it", async (t) => {
+  const page = await openHistory(t);
+  // Everything answered except the owner. A refusal must cost nothing already
+  // typed: the four surviving answers are what gets saved on the next press.
+  const draft = { ...ENTRY, owner: "" };
+
+  fill(page, draft);
+  submitButton(page).click();
+
+  for (const field of ["title", "context", "alternatives"]) {
+    assert.equal(byId(page, field).value, ENTRY[field], `the ${field} field was cleared by a refused submit`);
+  }
+  assert.equal(byId(page, "owner").value, "", "the owner field grew a value nobody typed");
+  assert.equal(byId(page, "status").value, ENTRY.status, "the status control was reset by a refused submit");
+  assert.deepEqual(stored(page), [], "a refused entry reached storage");
+
+  // Focus is on the one field to fix, so the fix is the next keystroke.
+  assert.equal(page.document.activeElement, byId(page, "owner"), "focus did not land on the failing field");
+  assert.equal(
+    textOf(byId(page, "decision-form-error")),
+    "Owner is blocking this save. No other field needs attention.",
+    "the summary did not name the field that is blocking the save",
+  );
+  // A field that passed carries neither mark nor message link.
+  assert.equal(byId(page, "title").hasAttribute("aria-invalid"), false, "a passing field is marked invalid");
+  assert.equal(byId(page, "title").getAttribute("aria-describedby"), "title-hint");
+  assert.equal(byId(page, "owner").getAttribute("aria-invalid"), "true");
+  assert.equal(byId(page, "owner").getAttribute("aria-describedby"), "owner-hint owner-error");
+  assert.equal(
+    textOf(byId(page, `${byId(page, "owner").getAttribute("aria-describedby").split(" ").pop()}`)),
+    DECISION_ENTRY_ERRORS.owner.missing,
+    "the described id does not resolve to the message carrying the fix",
+  );
+
+  typeText(page.document, ENTRY.owner);
+  submitButton(page).click();
+
+  const [record] = stored(page);
+  assert.equal(record.title, ENTRY.title, "the surviving title is not what was saved");
+  assert.equal(record.context, ENTRY.context);
+  assert.equal(record.alternatives, ENTRY.alternatives);
+  assert.equal(record.owner, ENTRY.owner);
+  assert.equal(record.status, ENTRY.status);
+  assert.equal(byId(page, "decision-form-error").hidden, true, "the blocking line survived the save");
+});
+
+test("no validation message quotes the text that was submitted", async (t) => {
+  const page = await openHistory(t);
+  const hostile = '<script>alert("x")</script> & \'quoted\' <b>';
+
+  // Every field hostile, and the context over its limit so a length message is
+  // produced from a value nobody would want repeated.
+  fill(page, { ...ENTRY, title: hostile, alternatives: hostile, owner: "" });
+  byId(page, "context").value = hostile + "x".repeat(1000);
+  submitButton(page).click();
+
+  for (const field of ["title", "context", "alternatives", "owner", "status", "decision-form"]) {
+    const node = byId(page, `${field}-error`);
+    assert.equal(textOf(node).includes(hostile), false, `the ${field} message quoted the submitted value`);
+    assert.equal(textOf(node).includes("<"), false, `the ${field} message carries the submitted markup`);
+    assert.equal(node.childElements.length, 0, `the ${field} message built elements`);
+  }
+});
+
+test("a hostile entry survives storage and the export as the characters that were typed", async (t) => {
+  const page = await openHistory(t);
+  // Angle brackets, a script tag, an ampersand, both quote characters. The
+  // record is the visitor's text: it is neither escaped into entities nor
+  // stripped on the way in, because the defense is that nothing ever parses it.
+  const hostile = '<script>alert("x")</script> & \'quoted\' <b>';
+
+  fill(page, { ...ENTRY, title: hostile, context: hostile, alternatives: hostile, owner: hostile });
+  submitButton(page).click();
+
+  const [record] = stored(page);
+  assert.equal(record.title, hostile, "the stored title is not byte-identical to what was typed");
+  assert.equal(record.context, hostile);
+  assert.equal(record.alternatives, hostile);
+  assert.equal(record.owner, hostile);
+
+  // The list row shows the characters, and produced no element from them.
+  assert.deepEqual(rowTitles(page), [hostile], "the row is not the typed text");
+  const list = byId(page, "decision-list");
+  assert.equal(list.querySelectorAll("script").length, 0, "a recorded title produced a script element");
+  assert.equal(list.querySelectorAll("b").length, 0, "a recorded title produced an element");
+
+  // The export file carries the same string: JSON-escaped, decoding back to the
+  // characters — not HTML entities, and not a sanitized shortening.
+  const payload = createShiplogExport(page.storage, { generatedAt: "2026-08-06T00:00:00.000Z" });
+  const [exported] = JSON.parse(JSON.stringify(payload)).decisions;
+  assert.equal(exported.title, hostile, "the export did not round-trip the title");
+  assert.equal(exported.context, hostile);
+  assert.equal(exported.alternatives, hostile);
+  assert.equal(exported.owner, hostile);
+  assert.equal(
+    JSON.stringify(payload).includes("&lt;"),
+    false,
+    "the export escaped a stored value as HTML instead of carrying it",
+  );
 });
 
 test("a recorded value is rendered as text everywhere, never as markup", async (t) => {
@@ -261,7 +391,7 @@ test("the whole entry works with the keyboard alone, failures included", async (
   assert.equal(document.activeElement, submitButton(page), "the record button is not reachable by keyboard");
   pressEnter(document);
   assert.equal(document.activeElement, byId(page, "title"), "a keyboard submit left focus on the button");
-  assert.match(textOf(byId(page, "decision-form-error")), /^4 fields/);
+  assert.match(textOf(byId(page, "decision-form-error")), /^Title is blocking this save\./);
 
   // Now answer it from where focus already is, tabbing forward through the form.
   typeText(document, ENTRY.title);

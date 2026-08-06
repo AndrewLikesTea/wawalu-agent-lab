@@ -3,6 +3,7 @@ import {
   DECISION_ENTRY_LIMITS,
   decisionEntrySummary,
   decisionRecordedSummary,
+  validateDecision,
   validateDecisionEntry,
 } from "./decision-entry.js";
 import {
@@ -154,14 +155,18 @@ export function createDecision(values, options = {}) {
   const owner = String(values.owner ?? "").trim();
   const status = String(values.status ?? "");
 
-  if (!title || !context || !owner || !STATUSES.includes(status)) {
-    throw new TypeError("A decision requires a title, context, owner, and valid status.");
-  }
-  if (title.length > MAX_TITLE_LENGTH || context.length > MAX_CONTEXT_LENGTH
-      || alternatives.length > MAX_ALTERNATIVES_LENGTH
-      || owner.length > MAX_OWNER_LENGTH) {
-    throw new TypeError("A decision field exceeds its maximum length.");
-  }
+  // The write path asks the same validator the recorder asks, and refuses on the
+  // same answer. It used to carry its own two sentences — "a decision requires a
+  // title…" and "a field exceeds its maximum length" — which named neither the
+  // field nor the number, and which no visitor was ever shown. Now a caller that
+  // bypasses the form (an importer, a console, a future surface) is refused with
+  // the exact string the form prints beside the offending field, so a record
+  // cannot be persisted in a state the form would have rejected.
+  const { ok, failures } = validateDecision(
+    { title, context, alternatives, owner, status },
+    { statuses: STATUSES },
+  );
+  if (!ok) throw new TypeError(failures[0].message);
 
   const id = options.id ?? globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
   const supersedes = normalizeSupersedes(values.supersedes);
@@ -1244,10 +1249,28 @@ export async function initDecisionLog(root = document, storage = localStorage, o
   // advertising a stale "3 fields" next to two remaining messages.
   const failingFields = new Set();
 
+  // The summary is one line and it is said once per submit. It names the field
+  // that is blocking the save — the one focus just landed on — and counts the
+  // rest; `failingFields` is kept in form order by showEntryErrors, so the first
+  // entry is the first failure a reader would reach.
   const syncEntrySummary = () => {
     if (!formError) return;
-    formError.textContent = decisionEntrySummary(failingFields.size);
+    formError.textContent = decisionEntrySummary([...failingFields]);
     formError.hidden = failingFields.size === 0;
+  };
+
+  // The message paragraph joins and leaves its control's accessible description
+  // with the failure itself. Named up front in the markup it would be a
+  // permanent, usually-empty description; added here it is only ever part of the
+  // description while there is something to describe.
+  const describeField = (control, id, described) => {
+    if (!control || !id) return;
+    const names = (control.getAttribute?.("aria-describedby") ?? "")
+      .split(/\s+/)
+      .filter((name) => name && name !== id);
+    if (described) names.push(id);
+    if (names.length > 0) control.setAttribute?.("aria-describedby", names.join(" "));
+    else control.removeAttribute?.("aria-describedby");
   };
 
   const clearFieldError = (field) => {
@@ -1257,6 +1280,7 @@ export async function initDecisionLog(root = document, storage = localStorage, o
       slot.error.textContent = "";
       slot.error.hidden = true;
     }
+    describeField(slot?.control, slot?.error?.id, false);
     // Removed rather than set to "false": aria-invalid is the state of a control
     // a visitor has actually been told about, and a form nobody has submitted
     // yet should not describe five controls as explicitly valid.
@@ -1274,6 +1298,7 @@ export async function initDecisionLog(root = document, storage = localStorage, o
       slot.error.textContent = message;
       slot.error.hidden = false;
     }
+    describeField(slot?.control, slot?.error?.id, true);
     slot?.control?.setAttribute?.("aria-invalid", "true");
   };
 
