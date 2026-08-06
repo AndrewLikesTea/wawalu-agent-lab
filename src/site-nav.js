@@ -39,6 +39,10 @@ export const SITE_NAV = [
   { href: "/social.html", label: "Social", className: "nav-social", group: "social", section: ["/post.html"] },
   { href: "/profile.html", label: "People", className: "nav-profile", group: "social", subordinate: true },
   { href: "/releases.html", label: "Releases", section: ["/release.html"] },
+  // Next to Releases because it answers a question about them — whether the
+  // build this site is serving is the newest release the log records. It is a
+  // read-only view: it triggers no deploy, no rollback, and no write.
+  { href: "/deploy-status.html", label: "Deploy status" },
   { href: "/paint/", label: "Paint" },
   {
     href: "/evolution.html",

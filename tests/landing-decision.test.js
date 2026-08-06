@@ -23,6 +23,7 @@ import { readFile } from "node:fs/promises";
 
 import { initDecisionLog, STORAGE_KEY } from "../src/app.js";
 import { RELEASE_STORAGE_KEY } from "../src/releases.js";
+import { SITE_NAV } from "../src/site-nav.js";
 import { loadPage, pressEnter, tabSequence, textOf } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 import {
@@ -258,7 +259,9 @@ test("every Shiplog workflow is still on the front door and still works", async 
 
   // Every nav destination is still offered, unchanged.
   const nav = document.querySelector(".site-nav").querySelectorAll("a");
-  assert.equal(nav.length, 8);
+  // Counted from the link set rather than written down: a destination added to
+  // src/site-nav.js has to appear here, and one dropped has to fail here.
+  assert.equal(nav.length, SITE_NAV.length);
   // AI FinOps is one door onto its answer region, not a list of FinOps pages
   // (#1187): same destination, same count, an anchor added.
   assert.ok(nav.some((link) => link.getAttribute("href") === "/evolution.html#finops-recoverable-answer"));

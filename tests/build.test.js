@@ -295,7 +295,8 @@ test("the home page names every nav destination and says what each one does", as
     [...list.querySelectorAll("li")].map((entry) => entry.querySelector("a").getAttribute("href")));
   assert.equal(lists.length, 2, "each group needs its own list");
   assert.deepEqual([...lists[0]].sort(), ["/", "/coach.html", "/evolution.html", "/releases.html"]);
-  assert.deepEqual([...lists[1]].sort(), ["/agents.html", "/paint/", "/profile.html", "/social.html"]);
+  assert.deepEqual([...lists[1]].sort(),
+    ["/agents.html", "/deploy-status.html", "/paint/", "/profile.html", "/social.html"]);
 
   // Reading order, in the source and on the screen: the tools group is first in
   // the markup, and nothing in the stylesheet may move it after the demos.

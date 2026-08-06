@@ -3,8 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="A Shiplog release and the decisions behind it" />
-    <title>Release · Shiplog</title>
+    <meta name="description" content="Whether the build Shiplog is serving is the newest release the log records" />
+    <title>Deploy status · Shiplog</title>
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
@@ -18,8 +18,8 @@
             <a class="nav-social" href="/social.html">Social</a>
             <a class="nav-profile" href="/profile.html">People</a>
           </span>
-          <a aria-current="page" href="/releases.html">Releases</a>
-          <a href="/deploy-status.html">Deploy status</a>
+          <a href="/releases.html">Releases</a>
+          <a aria-current="page" href="/deploy-status.html">Deploy status</a>
           <a href="/paint/">Paint</a>
           <a class="nav-evolution" href="/evolution.html#finops-recoverable-answer">AI FinOps</a>
           <a class="nav-coach" href="/coach.html">Prompt coach</a>
@@ -28,12 +28,23 @@
       </header>
 
       <main id="main-content" tabindex="-1">
-      <section class="list-panel detail-panel" aria-label="Release detail">
-        <div id="release-detail" aria-busy="true">
-          <div class="list-state list-state-loading" role="status">
-            <h1>Loading release</h1>
-            <p>Finding this release…</p>
-          </div>
+      <section class="hero" id="top" aria-labelledby="page-title">
+        <p class="eyebrow">Deploy status</p>
+        <h1 id="page-title">Is what&#39;s deployed<br />the release we think it is?</h1>
+        <p>One comparison, read only: the build identifier this site reports at <a href="/healthz">/healthz</a> against the build identifier on the newest release record. Nothing on this page deploys, rolls back, or writes to the log.</p>
+      </section>
+
+      <section class="list-panel detail-panel" aria-labelledby="deploy-status-title">
+        <div class="section-heading">
+          <p class="eyebrow">Status</p>
+          <h2 id="deploy-status-title">The verdict, and what it rests on</h2>
+        </div>
+        <!-- The verdict, the one metric, and the next action are rendered
+             outside the evidence disclosure on purpose: a reader who never
+             opens the details still has the whole answer. -->
+        <div id="deploy-status" aria-busy="true" aria-live="polite">
+          <p class="filter-summary">Checking what is deployed…</p>
+          <p class="detail-summary">This reads /healthz once and compares what it reports with the newest release record.</p>
         </div>
       </section>
       </main>
@@ -80,7 +91,7 @@
         </div>
       </div>
     </footer>
-    <script type="module" src="/release-page.js"></script>
+    <script type="module" src="/deploy-status-page.js"></script>
     <script type="module" src="/site-footer-page.js"></script>
   </body>
 </html>

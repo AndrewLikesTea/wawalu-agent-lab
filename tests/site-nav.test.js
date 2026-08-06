@@ -24,6 +24,7 @@ const PAGES = [
   { file: "profile.html", current: "/profile.html", title: "People · Shiplog" },
   { file: "releases.html", current: "/releases.html", title: "Releases · Shiplog" },
   { file: "release.html", current: "/releases.html", title: "Release · Shiplog" },
+  { file: "deploy-status.html", current: "/deploy-status.html", title: "Deploy status · Shiplog" },
   { file: "evolution.html", current: "/evolution.html", title: "AI FinOps · Shiplog" },
   { file: "savings-action-center.html", current: "/evolution.html", title: "Monthly Savings Action Center · Shiplog" },
   { file: "savings-commitment.html", current: "/evolution.html", title: "Savings Commitment · Shiplog" },

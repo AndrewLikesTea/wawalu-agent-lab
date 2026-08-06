@@ -31,7 +31,7 @@ import { importPageModule, waitFor } from "./support/page-module.js";
 // the site, and a page of the site carries the footer.
 const PAGES = [
   "index.html", "decision.html", "workspace.html", "social.html", "post.html", "profile.html", "releases.html",
-  "release.html", "evolution.html", "coach.html", "personal-history.html", "savings-action-center.html", "savings-commitment.html",
+  "release.html", "deploy-status.html", "evolution.html", "coach.html", "personal-history.html", "savings-action-center.html", "savings-commitment.html",
   "executive-briefing.html",
   "agents.html", "agent-trace.html",
 ];
