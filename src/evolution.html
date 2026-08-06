@@ -94,9 +94,38 @@
            No figure was invented and no data source was added. -->
       <section class="finops-recoverable-answer" id="finops-recoverable-answer" data-workspace-frame="true" aria-labelledby="finops-recoverable-question">
         <h2 id="finops-recoverable-question">How much of our AI spend can we recover, and where do we start?</h2>
-        <p class="stand-figure" id="finops-recoverable-figure"><span class="stand-figure-label" id="finops-recoverable-label">Recoverable annual AI spend</span> <span class="stand-figure-value" id="finops-recoverable-value">$62,400</span></p>
-        <p class="stand-answer" id="finops-recoverable-confidence">Modelled on the bundled synthetic example's invented data at published list prices, with committed-use discounts and measured throughput both left out of the arithmetic, so it reads as a ceiling to verify rather than an invoiced saving.</p>
+        <p class="stand-figure" id="finops-recoverable-figure"><span class="stand-figure-label" id="finops-recoverable-label">Recoverable annual AI spend</span> <span class="stand-figure-value" id="finops-recoverable-value">$62,400</span> <span class="figure-source-state" id="finops-recoverable-marker">Illustrative</span></p>
+        <p class="stand-answer" id="finops-recoverable-confidence">A ceiling to verify at list prices, before any committed-use discount.</p>
         <a class="stand-action" id="finops-recoverable-action" href="/savings-action-center.html">Move Atlas Platform's short, low-context requests to the standard model</a>
+        <!-- HOW WE KNOW THIS — the one disclosure pattern this page reuses
+             (#1185). The figure and the move are read first; everything that
+             qualifies them is one press away, in three labelled parts and in the
+             same order every time: Provenance (whose numbers these are), Basis
+             (the arithmetic that produced them), Limits (what they do not
+             support). It is a native disclosure element, so the summary is the
+             control, Enter and Space are the browser's, and the expanded state
+             is the `open` attribute rather than a class a script has to keep.
+
+             It carries NO new class with a rule behind it: the silhouette,
+             the focus ring, the hanging rule down the opened working, and the
+             collapsed chip are `.figure-source`, `.figure-source-summary`,
+             `.figure-source-state`, `.figure-source-shape` and
+             `.figure-source-detail`, all of which this page already ships. The
+             `how-we-know` class is a marker for the pattern, styled by nothing.
+
+             NOTHING LIVE GOES IN. No status paragraph, live region or
+             announcement node is inside any instance of this pattern: folded
+             into a shut disclosure, an announcement is one nobody is told, and
+             a test harness that reads through a closed disclosure would not
+             notice. tests/finops-how-we-know.test.js holds the page to it. -->
+        <details class="figure-source how-we-know" id="finops-recoverable-how-we-know" data-disclosure="collapsed">
+          <summary class="figure-source-summary how-we-know-summary" id="finops-recoverable-how-we-know-summary"><span class="figure-source-state" data-disclosure="collapsed"><span class="figure-source-shape" aria-hidden="true">▸</span> How we know this</span></summary>
+          <dl class="figure-source-detail how-we-know-detail">
+            <div><dt>Provenance</dt><dd>The bundled synthetic example: invented usage records for an invented company, shipped with this page. Not your spend, not customer data, and not a realized saving. No file of yours is read, uploaded, or stored to produce it.</dd></div>
+            <div><dt>Basis</dt><dd>Recoverable annual spend sums, over every workload the example models, the difference between what that workload costs today and the cheapest destination this page already models for it, treating a workload as zero where that difference is not positive. One workload qualifies — Atlas Platform's short, low-context requests moved to the standard model — at $5,200 a month; 5,200 x 12 = 62,400, rounded once after the arithmetic.</dd></div>
+            <div><dt>Limits</dt><dd>Priced at published list prices. Committed-use discounts and measured throughput are both left out of the arithmetic, so this is a ceiling to verify against an invoice rather than a saving anyone has banked. It is stated as of the bundled synthetic example and moves the moment a provider export of your own is analyzed.</dd></div>
+          </dl>
+        </details>
       </section>
 
       <!-- THE WORKSPACE FRAME. This region, the brief under it, the load status,
@@ -199,7 +228,7 @@
              The evidence layers keep theirs: a reader who opens one lands
              inside it and must not scroll back to learn whose figures these
              are. -->
-        <p class="sample-marker stand-sample" id="finops-stand-sample"><span class="sample-marker-shape" aria-hidden="true">◇</span><strong>Bundled synthetic example</strong> Every figure on this page — here and inside each layer below — was computed from invented data for an invented company. It is not your spend, customer data, or realized savings, and no file is needed to read it.</p>
+        <p class="sample-marker stand-sample" id="finops-stand-sample"><span class="sample-marker-shape" aria-hidden="true">◇</span><strong>Bundled synthetic example</strong> Illustrative — invented data for an invented company, not your spend, customer data, or realized savings.</p>
         <!-- THE LEAD FINDING (#956). A lead asks one thing here: how much of
              this spend is recoverable, and what do I do first? The first number
              they met was the classification verdict below, which answers a
@@ -252,6 +281,19 @@
             <p class="stand-figure-basis" id="finops-stand-position-basis"></p>
           </div>
         </div>
+        <!-- The same "how we know this" pattern as the answer band above, in the
+             same three parts and under the same summary words, so a reader who
+             opened one already knows what this one holds. Authored prose about
+             where the answer region's figures come from — never a figure, never
+             a status line, so nothing that has to be announced is folded away. -->
+        <details class="figure-source how-we-know" id="finops-stand-how-we-know" data-disclosure="collapsed">
+          <summary class="figure-source-summary how-we-know-summary" id="finops-stand-how-we-know-summary"><span class="figure-source-state" data-disclosure="collapsed"><span class="figure-source-shape" aria-hidden="true">▸</span> How we know this</span></summary>
+          <dl class="figure-source-detail how-we-know-detail">
+            <div><dt>Provenance</dt><dd>Every figure in this answer — here and inside each layer below — was computed from data invented for a company that does not exist. It is not your spend, customer data, or realized savings, and no file is needed to read it. Import a provider export and the same slots are recomputed in this browser tab from your own file, which is never uploaded.</dd></div>
+            <div><dt>Basis</dt><dd>Recoverable spend is scored per department against this page's published recoverability rule and summed; the rank is this organization's cost per successful task placed on the cohort boundaries the comparison ships with. Which scoring rules and which peer data produced each figure is named, with versions, in the disclosures below this one.</dd></div>
+            <div><dt>Limits</dt><dd>The cohort boundaries are hand-authored: they are in no export file, yours or the example's, so the rank is a position on this page's own scale rather than a measurement of a market. Coverage, the prompt grade and the unclassified remainder are reported only once something has been read; until then no figure here claims a position.</dd></div>
+          </dl>
+        </details>
         <!-- One team, named in text. Never a colour, never a bar, never "the top
              row of the table": the name is a string in its own element and the
              evidence for naming it is the sentence beside it. Runners-up are in
@@ -404,7 +446,7 @@
         <div class="answer-block" id="finops-answer" data-decision-summary-region="authored" data-state="pending" data-available="false" role="region" aria-labelledby="finops-answer-question">
           <h3 class="answer-question" id="finops-answer-question">Is our AI spend classification trustworthy enough to act on?</h3>
           <p class="answer-figure" id="finops-answer-figure"><span class="answer-figure-label" id="finops-answer-label">Spend we can stand behind</span><strong class="answer-figure-value" id="finops-answer-value">Results will appear here</strong><span class="answer-figure-direction" id="finops-answer-direction">Results will appear when preparation is complete</span><span class="answer-figure-basis" id="finops-answer-basis">as of the Bundled synthetic example</span></p>
-          <p class="answer-confidence" id="finops-answer-confidence">Nothing has been read yet, so there is no coverage, grade, or residue to report.</p>
+          <p class="answer-confidence" id="finops-answer-confidence">Nothing has been read yet, so there is no coverage, grade, or unclassified spend to report.</p>
           <a class="answer-action" id="finops-answer-action" href="#local-import">Analyze a provider export — go to the import panel</a>
         </div>
         <!-- WHICH QUESTION THIS VERDICT ANSWERS (#1113). This block and the
@@ -744,7 +786,7 @@
                same words `finops-decision-contract.js` publishes. -->
           <h2 id="finops-first-run-title">Are we wasting money?</h2>
         </div>
-        <p class="sample-marker first-run-sample" id="finops-first-run-sample"><span class="sample-marker-shape" aria-hidden="true">◇</span><strong>Bundled synthetic example</strong> Every figure below comes from six months of invented data for an invented company. It is not your spend, customer data, or realized savings. No file is needed.</p>
+        <p class="sample-marker first-run-sample" id="finops-first-run-sample"><span class="sample-marker-shape" aria-hidden="true">◇</span><strong>Bundled synthetic example</strong> Illustrative — invented data for an invented company, not your spend or realized savings. No file is needed.</p>
         <!-- THE ANSWER, and why it is a sentence rather than a grid.
              `src/finops-decision-interaction.js` publishes the reading order
              this block keeps in every medium: answer, then the benchmark that
@@ -754,6 +796,22 @@
              print order; nothing below reorders in CSS. -->
         <p class="first-run-answer" id="finops-first-run-answer" data-available="true">33% of analyzed AI spend is recoverable</p>
         <p class="first-run-answer-detail" id="finops-first-run-answer-detail">Up to $51,254 estimated cost reduction in the month — a synthetic scenario, not realized customer savings.</p>
+        <!-- The brief's own instance of the "how we know this" pattern, third
+             and last on this page, in the same three parts and under the same
+             words. It follows the answer rather than preceding it: what used to
+             stand between a reader and the finding — six sentences about where
+             the invented records come from, which boundaries the quartile is
+             read off, and which rubric version graded the prompts — is in
+             Provenance, Basis and Limits here. The exact identifiers a reader
+             would need to argue with a figure are kept verbatim inside it. -->
+        <details class="figure-source how-we-know" id="finops-first-run-how-we-know" data-disclosure="collapsed">
+          <summary class="figure-source-summary how-we-know-summary" id="finops-first-run-how-we-know-summary"><span class="figure-source-state" data-disclosure="collapsed"><span class="figure-source-shape" aria-hidden="true">▸</span> How we know this</span></summary>
+          <dl class="figure-source-detail how-we-know-detail">
+            <div><dt>Provenance</dt><dd>Every figure below comes from six months of invented records for a company that does not exist, bundled with this page. It is not your spend, customer data, or realized savings. No file is needed. The prompt sample beside it is the same invented company's conversation corpus, read through the same parser a provider export of yours would go through.</dd></div>
+            <div><dt>Basis</dt><dd>Each figure carries its own working on the line it is read: the marker beside it says whether this page derived the value or could not find it in the files, and opens to the arithmetic. Unmarked values — department names, the reporting period, the record counts — are read straight out of the example's export files. The prompt grade is the published rubric <code>literacy-mix/1.0.0</code>, weighted by each department's spend.</dd></div>
+            <div><dt>Limits</dt><dd>Illustrative only. The quartile is read off hand-authored synthetic cohort boundaries: those boundaries are in no export file, not the example's and not yours, so the rank is a position on this page's own scale. The routing figure is a modelled ceiling rather than an invoice line, the accountable role is assigned by rule and named in no column, and 4 of 5 departments carry scored prompts — Ember Studio carries none, so it sits outside both the grade and its coverage figure.</dd></div>
+          </dl>
+        </details>
         <!-- WHERE EACH FIGURE CAME FROM, on the figure itself (#1025).
              Every published figure in this region now declares one of three
              states — read from the example's files, derived here, or absent from

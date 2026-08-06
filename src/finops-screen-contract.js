@@ -180,7 +180,7 @@ export const DECISION_SUMMARY = Object.freeze({
       role: "confidence",
       elementId: "finops-answer-confidence",
       answers: "How much of this number was measured, and what does it not measure?",
-      authored: "Nothing has been read yet, so there is no coverage, grade, or residue to report.",
+      authored: "Nothing has been read yet, so there is no coverage, grade, or unclassified spend to report.",
     }),
     Object.freeze({
       role: "action",
