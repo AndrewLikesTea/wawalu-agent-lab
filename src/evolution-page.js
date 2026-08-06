@@ -76,6 +76,9 @@ import {
 import {
   IMPORT_RECIPES, IMPORT_RECIPES_LEAD, SUPPLIES_MARKER,
 } from "/import-recipes.js";
+// The one question the import section leads with (#1169): which provider do you
+// pay, answered with that adapter's report, its starting files, and one action.
+import { mountImportOnRamp } from "/import-on-ramp-view.js";
 import { bindProviderImport, initProviderImport } from "/provider-native-import-view.js";
 import { FIXTURE_REFERENCE_DATE } from "/browser-compat-fixtures.js";
 import { scoreIntakeConfidence } from "/intake-confidence.js";
@@ -1039,6 +1042,18 @@ function mountLocalFinopsImport() {
   mountImportRecipes();
   const input = document.getElementById("local-finops-files");
   if (!input) return;
+  // The one-question on-ramp (#1169). It writes no file of its own and opens no
+  // dialog of its own: the page's local blob writer and the page's one picker
+  // are handed in, so there is still one download path and one import
+  // affordance no matter which provider a reader chooses.
+  mountImportOnRamp(document, {
+    download: downloadLocalExport,
+    onNextAction: () => {
+      applyFieldDiagnostic(document, null);
+      input.focus?.();
+      input.click?.();
+    },
+  });
   // Provider projection code is needed only after a visitor selects a provider
   // file. Keep it out of the cold-load graph, then run both pure modules from
   // the already-validated in-memory document; this opens no network data path.
