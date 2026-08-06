@@ -1,0 +1,97 @@
+{
+  "confidence": {
+    "level": "moderate",
+    "meaning": "The figure is supported well enough to prioritize investigation, not to commit a budget against."
+  },
+  "destination": {
+    "orgUnitId": "dept-atlas-platform",
+    "statement": "Act first in the named org unit: it carries the reporting period's recoverable-spend scenario."
+  },
+  "figure": {
+    "currency": "USD",
+    "label": "Recoverable AI spend indicated for the reporting period (routing scenario, not a realized saving)",
+    "unit": "usd_minor",
+    "valueMinor": 3141500
+  },
+  "limits": [
+    {
+      "code": "scenario_not_realized_saving",
+      "statement": "The recoverable figure is a routing scenario, not a realized saving. Nothing here has been banked, and no invoice has changed."
+    },
+    {
+      "code": "browser_local_derived_only",
+      "statement": "This briefing was built in your browser from derived workspace records only. No import, prompt, file, or credential was read, and nothing was uploaded."
+    },
+    {
+      "code": "no_shareable_link",
+      "statement": "This briefing cannot produce a shareable link. There is no link form that could carry imported records, and none is offered."
+    },
+    {
+      "code": "usd_only",
+      "statement": "Every figure is USD. No exchange rate is applied, so a workspace holding another currency is not comparable here."
+    },
+    {
+      "code": "no_peer_cohort",
+      "statement": "The benchmark is this workspace's own trailing history. No peer, industry, or market cohort is implied by any figure."
+    }
+  ],
+  "periods": [
+    {
+      "analyzedSpendMinor": 15450000,
+      "attributedSpendMinor": 12000000,
+      "briefingContractVersion": "finops-briefing/1.0.0",
+      "confidence": "moderate",
+      "coverageRatioPpm": 977777,
+      "dataset": "user",
+      "derivedAt": "2026-08-01T00:00:00.000Z",
+      "period": "2026-01",
+      "periodId": "user:2026-01",
+      "recordsAnalyzed": 880,
+      "recordsTotal": 900,
+      "recoverableScenarioMinor": 3141500,
+      "topDepartmentId": "dept-atlas-platform"
+    },
+    {
+      "analyzedSpendMinor": 15460000,
+      "attributedSpendMinor": 12000000,
+      "briefingContractVersion": "finops-briefing/1.0.0",
+      "confidence": "moderate",
+      "coverageRatioPpm": 977777,
+      "dataset": "user",
+      "derivedAt": "2026-08-01T00:00:00.000Z",
+      "period": "2026-02",
+      "periodId": "user:2026-02",
+      "recordsAnalyzed": 880,
+      "recordsTotal": 900,
+      "recoverableScenarioMinor": 3141500,
+      "topDepartmentId": "dept-atlas-platform"
+    },
+    {
+      "analyzedSpendMinor": 15470000,
+      "attributedSpendMinor": 12000000,
+      "briefingContractVersion": "finops-briefing/1.0.0",
+      "confidence": "moderate",
+      "coverageRatioPpm": 977777,
+      "dataset": "user",
+      "derivedAt": "2026-08-01T00:00:00.000Z",
+      "period": "2026-03",
+      "periodId": "user:2026-03",
+      "recordsAnalyzed": 880,
+      "recordsTotal": 900,
+      "recoverableScenarioMinor": 3141500,
+      "topDepartmentId": "dept-atlas-platform"
+    }
+  ],
+  "producedAt": "2026-08-06T09:30:00.000Z",
+  "provenance": {
+    "dataset": "user",
+    "derivedAt": "2026-08-01T00:00:00.000Z",
+    "periodIds": [
+      "user:2026-01",
+      "user:2026-02",
+      "user:2026-03"
+    ],
+    "retainedPeriodCount": 3
+  },
+  "v": 2
+}
